@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - @/hooks/useLivenessState::useLivenessState (POS: 全局 Agent liveness SSOT 五态轮询)
+ * - @/hooks/shell/useLivenessState::useLivenessState (POS: 全局 Agent liveness SSOT 五态轮询)
  *
  * [OUTPUT]
  * - LivenessIndicator: 6px 圆点状态灯，idle 时隐藏，非 idle 时显示颜色 + i18n tooltip。
@@ -14,7 +14,7 @@
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
-import { useLivenessState, type LivenessState } from '@/hooks/useLivenessState';
+import { useLivenessState, type LivenessState } from '@/hooks/shell/useLivenessState';
 
 const DOT_COLOR: Record<LivenessState, string> = {
   idle: 'bg-emerald-500',

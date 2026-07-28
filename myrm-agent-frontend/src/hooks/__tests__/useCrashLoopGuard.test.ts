@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useCrashLoopGuard } from '../useCrashLoopGuard';
+import { useCrashLoopGuard } from '../shell/useCrashLoopGuard';
 
 let mockIsTauri = false;
 let eventHandlers: Record<string, ((event: unknown) => void)[]> = {};

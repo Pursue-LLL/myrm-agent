@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/hooks/useVoiceSession::VoiceSessionState (POS: Full-duplex voice session orchestrator)
+ * - @/hooks/voice/useVoiceSession::VoiceSessionState (POS: Full-duplex voice session orchestrator)
  *
  * [OUTPUT]
  * - VoiceSessionOverlay: Full-screen voice session UI with waveform, state indicator, and barge-in.
@@ -16,7 +16,7 @@ import { memo, useCallback, useEffect, useRef } from 'react';
 import { Cancel01Icon, CallEnd01Icon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
-import type { VoiceSessionState, VoiceSessionMode } from '@/hooks/useVoiceSession';
+import type { VoiceSessionState, VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
 
 interface VoiceSessionOverlayProps {
   isOpen: boolean;

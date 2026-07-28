@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSmoothStream } from '../useSmoothStream';
+import { useSmoothStream } from '../message-input/useSmoothStream';
 
 // Mock requestAnimationFrame
 let rafCallback: FrameRequestCallback | null = null;

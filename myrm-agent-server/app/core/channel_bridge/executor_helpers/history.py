@@ -18,10 +18,25 @@ from datetime import datetime
 from datetime import timezone as tz_module
 from typing import TYPE_CHECKING
 
+from app.channels.types import TopicContext
+
 if TYPE_CHECKING:
+    from app.database.dto import ChatDTO
     from app.services.chat.chat_service import ChannelHistoryEntry
 
 logger = logging.getLogger(__name__)
+
+
+async def _sync_chat_workspace_from_topic(
+    chat: "ChatDTO",
+    topic_context: TopicContext | None,
+) -> "ChatDTO":
+    from app.database.dto import ChatDTO
+    from app.core.channel_bridge.executor_helpers.topic_workspace_sync import (
+        sync_channel_chat_workspace,
+    )
+
+    return await sync_channel_chat_workspace(chat, topic_context)
 
 
 def build_chat_history_with_metadata(
@@ -44,6 +59,7 @@ async def persist_and_load_history(
     sent_at: datetime,
     sent_timezone: str,
     agent_id: str | None = None,
+    topic_context: TopicContext | None = None,
 ) -> tuple[str, list[ChannelHistoryEntry]]:
     """Persist the user message and load chat history in a single DB session."""
     from app.database.connection import get_session
@@ -55,6 +71,7 @@ async def persist_and_load_history(
             source,
             agent_id=agent_id,
         )
+        chat = await _sync_chat_workspace_from_topic(chat, topic_context)
         await ChatService.append_message(chat.id, "user", content, sent_at, sent_timezone)
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
@@ -68,6 +85,7 @@ async def persist_and_load_history(
 
 async def load_history_without_persist(
     channel_session_key: str,
+    topic_context: TopicContext | None = None,
 ) -> tuple[str, list[ChannelHistoryEntry]]:
     """Load chat history without persisting any new message (for resume operations)."""
     from app.database.connection import get_session
@@ -82,6 +100,7 @@ async def load_history_without_persist(
             )
             return "", []
 
+        chat = await _sync_chat_workspace_from_topic(chat, topic_context)
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         logger.warning(
             "Resume: loaded history for chat_id=%s, history_len=%d",

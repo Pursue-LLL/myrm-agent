@@ -13,15 +13,20 @@
 | `ChannelsSection.tsx` | 渠道总览、安装依赖、各 Provider 配置卡片 |
 | `ChannelRoutingSection.tsx` | 渠道路由页壳与布局 |
 | `useChannelRouting.ts` | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only） |
-| `ChannelRoutingTopicRow.tsx` | 单 Topic 绑定行（Agent / 线程共享 / 回复模式） |
+| `ChannelRoutingTopicRow.tsx` | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式）；展示 `{项目名} · {路径}` |
+| `topicWorkspaceLabel.ts` | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径 |
 | `VoiceSection.tsx` | 语音输入输出设置 |
 | `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx` | 连接状态、Ingress 提示与配对管理 |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
-| `@/hooks/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
-| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（全部在本目录） |
+| `@/hooks/billing/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证） |
 | `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
 | `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
+
+## 测试
+
+- `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
 
 ## Reaction 配置链路
 

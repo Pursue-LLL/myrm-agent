@@ -55,6 +55,19 @@ contract:
 
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
 
+## Harness audit contract
+
+The harness runs an automatic Office write-fidelity audit after every successful `bash_code_execute_tool` call.
+
+1. **Include file paths in the bash command text** — e.g. `python edit.py /workspace/report.xlsx`, not only `python edit.py`. Paths mentioned in the command get a pre-execution baseline for formula and formatting checks.
+2. **Read `Office:` warnings in tool output** — they appear after bash stdout when fidelity checks fail:
+   - formula removed or overwritten
+   - DOCX formatting degradation (run-property drop)
+   - Excel `#REF!` / `#NAME?` errors after LibreOffice recalc (when `soffice` is available)
+   - baseline missing when the path was not in the command
+3. **Formula diff vs recalc** — the harness compares formula sets before/after edits, then optionally recalculates workbooks that still contain formulas to catch broken references the diff cannot see.
+4. **Self-correct** — when an `Office:` warning appears, fix the script and re-run; do not tell the user the file is ready.
+
 ## Overview
 
 Business documents must be immediately usable — not "almost done, just needs formatting." This workflow ensures every generated document meets professional standards: correct formulas in Excel, clean layouts in PowerPoint, proper styling in Word.

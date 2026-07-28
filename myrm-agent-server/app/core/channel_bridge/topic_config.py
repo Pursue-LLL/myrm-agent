@@ -47,6 +47,10 @@ _ACTIVE_FLUSH_INTERVAL = 300.0
 SEARCH_AGENT_CHANNEL_BIND_MSG = (
     "Search agents cannot be bound to channels; choose a General agent."
 )
+_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG = (
+    "projectId and authorizedPath are mutually exclusive for topic workspace binding."
+)
+_UNSET: object = object()
 
 
 def is_search_agent_channel_bind_error(exc: BaseException) -> bool:
@@ -62,6 +66,8 @@ class SqlTopicManager:
         "<chat_id>": {
             "<thread_id>": {
                 "agentId": "uuid-of-agent",
+                "projectId": "uuid-of-project",
+                "authorizedPath": "/path/to/vault",
                 "enabled": true,
                 "boundAt": "2026-03-06T12:00:00Z",
                 "lastActiveAt": "2026-03-30T12:00:00Z",
@@ -147,6 +153,10 @@ class SqlTopicManager:
         return TopicContext(
             topic_id=thread_id or chat_id,
             agent_id=str(topic_cfg["agentId"]) if topic_cfg.get("agentId") else None,
+            project_id=str(topic_cfg["projectId"]) if topic_cfg.get("projectId") else None,
+            authorized_path=(
+                str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None
+            ),
             enabled=bool(topic_cfg.get("enabled", True)),
             bound_at=str(topic_cfg["boundAt"]) if topic_cfg.get("boundAt") else None,
             thread_sharing_mode=str(topic_cfg.get("threadSharingMode", "isolated")),
@@ -161,51 +171,142 @@ class SqlTopicManager:
         chat_id: str,
         thread_id: str | None,
         *,
-        agent_id: str | None = None,
+        agent_id: str | None | object = _UNSET,
         display_name: str | None = None,
         avatar_url: str | None = None,
-        thread_sharing_mode: ThreadSharingMode = ThreadSharingMode.ISOLATED,
-        reply_mode: ReplyMode = ReplyMode.AUTO,
-        draft_timeout_minutes: int = 5,
-        draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT,
+        thread_sharing_mode: ThreadSharingMode | object = _UNSET,
+        reply_mode: ReplyMode | object = _UNSET,
+        draft_timeout_minutes: int | object = _UNSET,
+        draft_timeout_action: DraftTimeoutAction | object = _UNSET,
+        project_id: str | None | object = _UNSET,
+        authorized_path: str | None | object = _UNSET,
     ) -> TopicContext:
-        resolved_agent_id = agent_id
-        if agent_id:
-            resolved_agent_id = await self._resolve_agent_id(agent_id)
-            await self._assert_channel_bindable_agent(resolved_agent_id)
+        resolved_agent_id: str | None = None
+        if agent_id is not _UNSET:
+            resolved_agent_id = None if agent_id is None else str(agent_id)
+            if resolved_agent_id:
+                resolved_agent_id = await self._resolve_agent_id(resolved_agent_id)
+                await self._assert_channel_bindable_agent(resolved_agent_id)
+
+        if project_id is not _UNSET and authorized_path is not _UNSET:
+            if project_id and authorized_path:
+                raise ValueError(_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG)
+
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        existing: dict[str, object] = {}
+        if isinstance(group_topics, dict):
+            existing_raw = group_topics.get(storage_key)
+            if isinstance(existing_raw, dict):
+                existing = dict(existing_raw)
 
         now_iso = datetime.now(timezone.utc).isoformat()
-        topic_entry: dict[str, object] = {
-            "enabled": True,
-            "boundAt": now_iso,
-            "lastActiveAt": now_iso,
-            "idleTimeoutH": self._default_idle_timeout_h,
-            "threadSharingMode": thread_sharing_mode,
-            "replyMode": reply_mode.value,
-            "draftTimeoutMinutes": draft_timeout_minutes,
-            "draftTimeoutAction": draft_timeout_action.value,
-        }
+        topic_entry: dict[str, object] = dict(existing)
+        topic_entry["enabled"] = True
+        topic_entry["boundAt"] = existing.get("boundAt") or now_iso
+        topic_entry["lastActiveAt"] = now_iso
+        topic_entry["idleTimeoutH"] = self._default_idle_timeout_h
         if self._default_max_age_h is not None:
             topic_entry["maxAgeH"] = self._default_max_age_h
-        if resolved_agent_id:
+
+        if thread_sharing_mode is not _UNSET:
+            mode_value = (
+                thread_sharing_mode.value
+                if isinstance(thread_sharing_mode, ThreadSharingMode)
+                else str(thread_sharing_mode)
+            )
+            topic_entry["threadSharingMode"] = mode_value
+        if reply_mode is not _UNSET:
+            topic_entry["replyMode"] = reply_mode.value
+        if draft_timeout_minutes is not _UNSET:
+            topic_entry["draftTimeoutMinutes"] = draft_timeout_minutes
+        if draft_timeout_action is not _UNSET:
+            topic_entry["draftTimeoutAction"] = draft_timeout_action.value
+
+        if resolved_agent_id is not None:
             topic_entry["agentId"] = resolved_agent_id
+        elif agent_id is not _UNSET and agent_id is None:
+            topic_entry.pop("agentId", None)
+
         if display_name is not None:
             topic_entry["displayName"] = display_name
         if avatar_url is not None:
             topic_entry["avatarUrl"] = avatar_url
 
-        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        resolved_project_id: str | None = None
+        resolved_authorized_path: str | None = None
+        if project_id is not _UNSET:
+            if project_id:
+                from app.core.channel_bridge.topic_workspace_bind import assert_project_workspace
+
+                await assert_project_workspace(str(project_id))
+                topic_entry["projectId"] = str(project_id)
+                topic_entry.pop("authorizedPath", None)
+                resolved_project_id = str(project_id)
+            else:
+                topic_entry.pop("projectId", None)
+        if authorized_path is not _UNSET:
+            if authorized_path:
+                from app.core.channel_bridge.topic_workspace_bind import validate_authorized_path
+
+                validated_path = validate_authorized_path(str(authorized_path))
+                topic_entry["authorizedPath"] = validated_path
+                topic_entry.pop("projectId", None)
+                resolved_authorized_path = validated_path
+            else:
+                topic_entry.pop("authorizedPath", None)
+
+        if project_id is _UNSET and authorized_path is _UNSET:
+            resolved_project_id = (
+                str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
+            )
+            resolved_authorized_path = (
+                str(topic_entry["authorizedPath"])
+                if topic_entry.get("authorizedPath")
+                else None
+            )
+        elif project_id is _UNSET:
+            resolved_project_id = (
+                str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
+            )
+        elif authorized_path is _UNSET:
+            resolved_authorized_path = (
+                str(topic_entry["authorizedPath"])
+                if topic_entry.get("authorizedPath")
+                else None
+            )
+
         await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
+
+        raw_reply_mode = str(topic_entry.get("replyMode", ReplyMode.AUTO.value))
+        effective_reply_mode = (
+            ReplyMode(raw_reply_mode)
+            if raw_reply_mode in ReplyMode.__members__.values()
+            else ReplyMode.AUTO
+        )
+        raw_timeout_action = str(
+            topic_entry.get("draftTimeoutAction", DraftTimeoutAction.AUTO_REJECT.value)
+        )
+        effective_timeout_action = (
+            DraftTimeoutAction(raw_timeout_action)
+            if raw_timeout_action in DraftTimeoutAction.__members__.values()
+            else DraftTimeoutAction.AUTO_REJECT
+        )
 
         return TopicContext(
             topic_id=thread_id or chat_id,
-            agent_id=resolved_agent_id,
+            agent_id=(
+                str(topic_entry["agentId"]) if topic_entry.get("agentId") else None
+            ),
+            project_id=resolved_project_id,
+            authorized_path=resolved_authorized_path,
             enabled=True,
-            bound_at=now_iso,
-            thread_sharing_mode=thread_sharing_mode,
-            reply_mode=reply_mode,
-            draft_timeout_minutes=draft_timeout_minutes,
-            draft_timeout_action=draft_timeout_action,
+            bound_at=str(topic_entry.get("boundAt", now_iso)),
+            thread_sharing_mode=str(topic_entry.get("threadSharingMode", "isolated")),
+            reply_mode=effective_reply_mode,
+            draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
+            draft_timeout_action=effective_timeout_action,
         )
 
     def _is_expired(self, topic_cfg: dict[str, object]) -> bool:

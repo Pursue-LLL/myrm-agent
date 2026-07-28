@@ -36,8 +36,8 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `llm_utils.py` | ✅ 核心 | LLM 辅助工具（specifier/decomposer 共用） | ✅ |
 | `decomposer.py` | ✅ 核心 | PlatformTaskDecomposer | ✅ |
 | `decompose_orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排；子任务继承父任务 `source_chat_id` | ✅ |
-| `pipeline_spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析 | ✅ |
-| `pipeline_instantiator.py` | ✅ 核心 | Pipeline 模板实例化；依赖父任务时继承 `source_chat_id` | ✅ |
+| `pipeline_spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
+| `pipeline_instantiator.py` | ✅ 核心 | Pipeline 模板实例化；依赖父任务时继承 `source_chat_id`；`repeat_for_item_skills` 按平台注入 `extra_skill_ids` | ✅ |
 | `gc.py` | ✅ 核心 | KanbanGCService 自动垃圾回收 | ✅ |
 
 ## 依赖关系

@@ -48,7 +48,7 @@ vi.mock('../../useChatStore', () => ({
   },
 }));
 
-vi.mock('@/hooks/usePendingApprovalsRecovery', () => ({
+vi.mock('@/hooks/approval/usePendingApprovalsRecovery', () => ({
   recoverPendingApprovals: (...args: unknown[]) => mockRecoverPendingApprovals(...args),
 }));
 

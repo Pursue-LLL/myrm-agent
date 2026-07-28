@@ -12,7 +12,7 @@ import {
   CheckpointInfo,
 } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface CheckpointListProps {
   sessionId?: string;

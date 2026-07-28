@@ -32,7 +32,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import { Card } from '@/components/primitives/card';
 import { Badge } from '@/components/primitives/badge';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 
 interface PermissionUsageEntry {

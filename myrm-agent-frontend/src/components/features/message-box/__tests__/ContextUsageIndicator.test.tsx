@@ -25,7 +25,7 @@ vi.mock('@/services/chat', () => ({
   compactChat: mockCompactChat,
 }));
 
-vi.mock('@/hooks/useMediaQuery', () => ({
+vi.mock('@/hooks/ui/useMediaQuery', () => ({
   useIsMobile: () => false,
 }));
 

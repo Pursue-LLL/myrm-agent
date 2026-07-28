@@ -185,6 +185,8 @@ async def apply_shared_ui_session_contract(
     deadline: float | None = None,
 ) -> dict[str, object]:
     """Run RESET_GLOBALS → BIND_API → BRIDGE_READY → SEARCH_POLICY on an owned page."""
+    from e2e_session_lifecycle import assert_phase_budget
+
     policy = search_policy or current_search_policy()
     if policy is None:
         return {"ok": True, "skipped": True}
@@ -193,6 +195,8 @@ async def apply_shared_ui_session_contract(
         raise _session_error(
             "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
         )
+
+    assert_phase_budget("E2E_SHARED_UI_SESSION_RESET")
 
     # R56: empty policy two-state contract:
     # 1) first pass per nodeid+api does strong clear;
@@ -213,6 +217,7 @@ async def apply_shared_ui_session_contract(
     if not isinstance(reset_raw, dict) or reset_raw.get("ok") is not True:
         raise _session_error("E2E_SHARED_UI_SESSION_RESET", reset_raw)
 
+    assert_phase_budget("E2E_SHARED_UI_SESSION_BIND")
     await chat.ensure_e2e_api_base_binding()
 
     resolved_api = _normalize_api_url(api_url or get_e2e_api_url())
@@ -232,7 +237,18 @@ async def apply_shared_ui_session_contract(
     )
     ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
     if callable(ensure_bridge):
-        await ensure_bridge(timeout_sec=bridge_timeout)
+        assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
+        bridge_wall = bridge_timeout + 5.0
+        try:
+            await asyncio.wait_for(
+                ensure_bridge(timeout_sec=bridge_timeout),
+                timeout=bridge_wall,
+            )
+        except TimeoutError as exc:
+            raise _session_error(
+                "E2E_SHARED_UI_SESSION_BRIDGE",
+                {"err": "bridge-ready-timeout", "timeout_sec": bridge_timeout},
+            ) from exc
 
     if policy == "empty":
         empty_state_key = _empty_policy_state_key(resolved_api)

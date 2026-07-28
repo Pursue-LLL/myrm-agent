@@ -9,7 +9,7 @@ Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, ``convers
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
 Public API: load_source_payload, build_coverage_items, extract_pending_skills.
-Loaders: hermes/claude/codex/chatgpt in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
+Loaders: hermes/claude/codex/chatgpt/gbrain in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from .source_payload_loaders_impl import (
     load_chatgpt,
     load_claude,
     load_codex,
+    load_gbrain,
     load_hermes,
     load_openclaw,
 )
@@ -63,6 +64,7 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
         "codex": load_codex,
         "claude": load_claude,
         "chatgpt": load_chatgpt,
+        "gbrain": load_gbrain,
     }
     loader = loaders.get(competitor)
     if loader is None:

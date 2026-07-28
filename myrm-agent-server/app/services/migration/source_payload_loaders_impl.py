@@ -7,13 +7,15 @@ Path root + file_paths from discovery.
 Adapter-ready dict per competitor (soul_md, memory, skills, env_keys, etc.).
 
 [POS]
-Basic loaders (hermes/codex/claude) live here.
+Basic loaders (hermes/codex/claude/gbrain) live here.
 OpenClaw loader lives in _loaders_openclaw.py and is re-exported from this module.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import yaml
 
 from ._loader_utils import (
     extract_env_key_names,
@@ -152,6 +154,68 @@ def load_chatgpt(root: Path, file_paths: list[str]) -> dict[str, object]:
             result["conversations"] = data
 
     return result
+
+
+def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load gbrain export directory (.md files with YAML frontmatter) into adapter-ready payload.
+
+    gbrain export produces: {slug}.md files with YAML frontmatter (type, title, tags)
+    + compiled_truth body + optional <!-- timeline --> section.
+    """
+
+    pages: list[dict[str, object]] = []
+
+    md_paths: list[Path] = []
+    if file_paths:
+        md_paths = [Path(fp) for fp in file_paths if fp.endswith(".md")]
+    else:
+        for item in root.rglob("*.md"):
+            if item.is_file() and ".raw" not in item.parts:
+                md_paths.append(item)
+
+    for md_path in md_paths:
+        try:
+            content = read_text(md_path)
+        except OSError:
+            continue
+        if not content.startswith("---"):
+            continue
+
+        end_idx = content.find("\n---", 3)
+        if end_idx == -1:
+            continue
+
+        frontmatter_raw = content[3:end_idx].strip()
+        body = content[end_idx + 4:].strip()
+
+        try:
+            frontmatter = yaml.safe_load(frontmatter_raw)
+        except (yaml.YAMLError, ValueError):
+            frontmatter = {}
+
+        if not isinstance(frontmatter, dict) or "type" not in frontmatter:
+            continue
+
+        compiled_truth = body
+        timeline = ""
+        for delimiter in ("<!-- timeline -->", "<!-- timeline-->", "--- timeline ---"):
+            if delimiter in body:
+                parts = body.split(delimiter, 1)
+                compiled_truth = parts[0].strip()
+                timeline = parts[1].strip()
+                break
+
+        pages.append({
+            "slug": str(md_path.relative_to(root)).removesuffix(".md"),
+            "type": str(frontmatter.get("type", "")),
+            "title": str(frontmatter.get("title", "")),
+            "tags": frontmatter.get("tags", []),
+            "compiled_truth": compiled_truth,
+            "timeline": timeline,
+            "frontmatter": frontmatter,
+        })
+
+    return {"gbrain_pages": pages, "_source": "gbrain"}
 
 
 from ._loaders_openclaw import load_openclaw  # noqa: E402, F401

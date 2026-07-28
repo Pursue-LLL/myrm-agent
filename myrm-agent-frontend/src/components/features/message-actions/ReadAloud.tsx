@@ -1,7 +1,7 @@
 'use client';
 
 import { Volume2, Pause, Square, Loader2 } from 'lucide-react';
-import { useTTS, type TTSMode } from '@/hooks/useTTS';
+import { useTTS, type TTSMode } from '@/hooks/voice/useTTS';
 import { useTranslations } from 'next-intl';
 import useConfigStore from '@/store/useConfigStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';

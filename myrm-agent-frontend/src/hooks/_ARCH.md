@@ -2,45 +2,36 @@
 
 ## 架构概述
 
-React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按域单文件或小目录组织；**禁止**桶导出（barrel index），`tasks/index.ts` 为唯一允许的桶入口。
+React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按业务域子目录组织；**禁止**桶导出（barrel index），`tasks/index.ts` 为唯一允许的桶入口。
 
 ## 域划分
 
-| 路径 / 模式 | 职责 |
-|-------------|------|
-| `useDiffParser.ts` | unified diff 解析（共用 cli-visualization / markdown-render-tools） |
-| `useMessageInput.ts` / `useMessageQueue.ts` / `useSmoothStream.ts` | 对话输入、队列、流式渲染 |
-| `useMessageInputWikiEvidenceCore.ts` | Chat 发送侧 Wiki 证据复问口径核心（context 回溯边界 + `turn_distance` 解析；`recordWikiQueryAttempt` / `recordWikiQuerySubmitted` 上报；steer success 挂起确认注册） |
-| `useInputHistory.ts` | 输入历史回溯（ArrowUp 空框触发、per-agent localStorage 隔离、ghost placeholder、弹窗键盘导航） |
-| `useInputFileUpload.ts` | 聊天输入文件上传（粘贴/拖拽所有文件类型、SHA-256 去重；支持 image/video/audio 分级大小校验+能力检测提示） |
-| `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |
-| `usePendingApprovalsRecovery.ts` | 启动/SSE 重连时从 `GET /approvals` 恢复全局 Drawer 队列（不含后台 growth draft，server 已过滤）；同步设置 per-chat `awaiting_approval` sessionStatus 激活侧边栏注意力指示 |
-| `useToolApprovalResolve.ts` / `useVisualApprovalSnapshot.ts` / `useVisualApprovalOsOverlay.ts` | 工具审批与可视化 HITL（OsOverlay 依赖 snapshot screen 元数据） |
-| `useVoiceSession.ts` / `useRealtimeVoice.ts` / `useGeminiLiveVoice.ts` / `useTTS.ts` / `useSpeechInput.ts` | 语音会话（useVoiceSession PTT 屏幕上下文；OpenAI Realtime + Gemini Live）；useTTS / useSpeechInput 在 local STT 不可用（HTTP 503 或 WS error）时 toast，避免与 SpeechInputButton onError 重复 |
-| `useVoicePttListener.ts` | Tauri 全局语音 PTT 快捷键事件桥接（IPC → DOM CustomEvent），含 PTT 屏幕上下文转发 |
-| `useInlineInputListener.ts` | Tauri 全局 Inline Input 事件桥接（`inline-input-activated` → `openInline`），承接桌面快捷键截图输入入口 |
-| `useReferenceMention.ts` | `@` 引用 autocomplete Hook（`@` 触发检测 + debounced suggest API + 键盘导航 + 选择注入；支持 workspace/uploaded/generated/git/url/wiki/agent 引用类型） |
-| `useSlashCommand.ts` | Slash 命令面板 Hook（`/` 触发检测 + 模糊搜索 + 键盘导航 + 命令执行；合并系统行为、用户命令、Agent 绑定技能） |
-| `useGlobalShortcuts.ts` | 全局键盘快捷键（Cmd+N 新建会话、Cmd+B 切换 Browser LiveView 面板、Cmd+1~9 置顶跳转，平台差异化 Shift 适配） |
-| `useTauri*.ts` / `useTray*.ts` / `useAppUpdate.ts` | 桌面端 Tauri 集成 |
-| `useLivenessState.ts` | 全局 Agent liveness SSOT：轮询 `/health/liveness` API 提供 busy/idle/degraded/draining/offline 五态（fetch 失败→offline 区分于 API 返回的 degraded），供 tray、Pet、tab badge、LivenessIndicator 消费 |
-| `useTrayStatus.ts` | Tauri tray icon/tooltip/taskbar 进度条/预算通知：消费 `useLivenessState` 全局五态 + `/background-tasks` running 数驱动图标切换；offline 映射 degraded 图标 + 独立 tooltip；draining 状态显示关闭中提示；`budget_alert` SSE 触发原生 OS 通知；hidden 窗口时 busy→idle 转换触发 `requestUserAttention`（仅 Tauri） |
-| `useTabBadge.ts` | Tab title 状态前缀：消费 `useLivenessState` 在 `document.title` 添加 `[*]`/`[↓]`/`[!]`/`[×]` 前缀（offline 为 `[×]`），与审批闪烁协调让步（全部署模式） |
-| `useWhatsNew.ts` | 版本变更感知：启动时对比 localStorage 已查看版本与当前版本，变更时从 GitHub Release API 拉取 Release Notes |
-| `usePushSubscription.ts` | Web Push VAPID 订阅 SSOT（Settings Personal + System；subscribe/unsubscribe/test；Tauri skip） |
-| `usePWAInstall.ts` | PWA beforeinstallprompt 安装引导（配合 WebPushCard iOS 路径） |
-| `useSubscription.ts` / `useEntitlements.ts` / `useQuotaGuard.ts` | SaaS 配额与 entitlements |
-| `useBillingCatalog.ts` | CP 公开定价 catalog |
-| `useWuBalanceWatcher.ts` | 全局 WU 低余额监听 → 触发 UpgradeNudgeDialog |
-| `useSystemConfig.ts` / `usePersonalSettings.ts` / `useMCPConfig.ts` | 设置与 MCP 配置状态；`useMCPConfig` 负责 `hostSerial`/`keepaliveInterval`（remote transport 下最小 5 秒）校验，并在 `stdio` 场景自动清空 keepalive，且将 `undefined` keepalive 视作“未设置”避免误报；`useSystemConfig` 在 save/reset/saveAndRestart 时同步 `myrm-tauri-system-config` 供 `deploy-mode` 读端口 |
-| `useMcpSecurityGate.ts` | MCP 统一安全门禁（`gateMcpEnable` / `gateMcpConfig` / batch） |
-| `useNavBadges.ts` | NavBar badge 数据（cron failures、approvals、notifications、extension 连接状态）+ SSE 驱动刷新 |
-| `useBrowserTakeoverActions.ts` | 浏览器 HITL Complete/Skip；Done/Skip 经 `resolveBrowserTakeoverMessageId()` 解析 messageId 后 `sendMessage('', msgId, { action })` resume（依赖 `messageRequest` HITL resume 守卫 + SSE handler 已 `setLoading(false)`）；失败回滚时保留 `liveAssistUrl` 快照恢复 | Extension 横幅 + VNC 面板共用 |
-| `__tests__/useBrowserTakeoverActions.test.ts` | takeover 动作 hook 回归（extension 不调 VNC resume；VNC HTTP 失败 rollback；sendMessage 失败 rollback） |
-| `globalEvents/` | 全局事件 toast（记忆操作、locator healed 等） |
-| `tasks/` | 后台任务 WebSocket 订阅 |
-| `__tests__/` | Hook 单元测试 |
-| `useWidgetStorage.ts` | Widget iframe localStorage polyfill 宿主侧桥接（debounce+batch 持久化） |
+| 路径 | 职责 | 文档 |
+|------|------|------|
+| `message-input/` | 聊天输入、队列、流式渲染、@/Slash、输入历史 | [_ARCH.md](message-input/_ARCH.md) |
+| `voice/` | 全双工/PTT 语音（STT/TTS/Realtime/Gemini/Agent bridge） | [_ARCH.md](voice/_ARCH.md) |
+| `tauri/` | 桌面 Tauri：invoke、tray、Inline Input/Appshot、更新、电源锁 | [_ARCH.md](tauri/_ARCH.md) |
+| `approval/` | 工具审批 HITL、visual snapshot、browser takeover | [_ARCH.md](approval/_ARCH.md) |
+| `settings/` | System/Personal/MCP 配置与安全门禁 | [_ARCH.md](settings/_ARCH.md) |
+| `billing/` | 订阅、entitlements、配额、ingress | [_ARCH.md](billing/_ARCH.md) |
+| `agent/` | 智能体编辑/配置面板/预设/gallery（含 `config-panel/` 子模块） | [_ARCH.md](agent/_ARCH.md) |
+| `shell/` | 全局 liveness、tab badge、nav badge、快捷键、crash guard | [_ARCH.md](shell/_ARCH.md) |
+| `globalEvents/` | SSE 全局事件编排 + toast 子模块 | [_ARCH.md](globalEvents/_ARCH.md) |
+| `multimodal/` | 摄像头输入、视觉意图（voice/输入 toolbar 共用） | [_ARCH.md](multimodal/_ARCH.md) |
+| `pwa/` | PWA 安装、Web Push、What's New | [_ARCH.md](pwa/_ARCH.md) |
+| `workspace/` | 工作区流、widget 存储、artifact 版本、batch WS | [_ARCH.md](workspace/_ARCH.md) |
+| `ui/` | 通用 UI 行为（scroll、sidebar、drag-drop、media query） | [_ARCH.md](ui/_ARCH.md) |
+| `shared/` | 跨域小 hook（toast、draft、diff parser、deploy mode） | [_ARCH.md](shared/_ARCH.md) |
+| `tasks/` | 后台任务 WebSocket 订阅 | [_ARCH.md](tasks/_ARCH.md) |
+
+## 测试
+
+| 位置 | 说明 |
+|------|------|
+| `__tests__/` | 25 个 hook 单元测试（中央目录；与域内 `__tests__/` 并存） |
+| `<domain>/__tests__/` | **增量规范**：新 hook 测试写域内（先例：`tasks/`、`globalEvents/`、`agent/config-panel/`） |
+
+政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 
 ## 依赖
 
@@ -51,5 +42,6 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 ## 约束
 
 - Hook 内不写 UI JSX（除 `globalEvents/*.tsx` 等 toast 渲染例外）。
-- 单文件 >400 行应拆分子 hook 或下沉逻辑到 `@/lib`。
+- 单文件 >400 行应拆分子 hook 或下沉逻辑到 `@/lib`；**已在** `scripts/ci/file_line_budget_baseline.txt` **登记者为 CI 存量豁免**（禁止新增超标文件，见 `scripts/check_file_line_budget.py`）。
+- 域外 import：`@/hooks/<domain>/<file>`；域内优先相对 import。
 - 桶导出政策见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」表。

@@ -60,9 +60,17 @@ class TestTokenGeneration:
 
     @pytest.mark.asyncio
     async def test_verify_token_succeeds(self, service: ConnectService):
-        snippet = await service.generate_config("claude_code")
+        snippet = await service.generate_config("claude_code", agent_id="my-agent")
         verified = service.verify_token(snippet.token)
         assert verified == "claude_code"
+
+    @pytest.mark.asyncio
+    async def test_resolve_token_returns_agent_scope(self, service: ConnectService):
+        snippet = await service.generate_config("cursor", agent_id="research-agent")
+        resolved = service.resolve_token(snippet.token)
+        assert resolved is not None
+        assert resolved.profile_id == "cursor"
+        assert resolved.agent_id == "research-agent"
 
     @pytest.mark.asyncio
     async def test_verify_invalid_token_returns_none(self, service: ConnectService):
@@ -101,6 +109,14 @@ class TestConnectorState:
 
     def test_mark_ready_noop_for_unknown(self, service: ConnectService):
         service.mark_ready("unknown_profile")
+
+    @pytest.mark.asyncio
+    async def test_state_persists_agent_id(self, service: ConnectService, tmp_data_dir: Path):
+        await service.generate_config("codex", agent_id="ops-agent")
+
+        service2 = ConnectService(data_dir=tmp_data_dir)
+        state = service2.get_connector_status("codex")
+        assert state.agent_id == "ops-agent"
 
     @pytest.mark.asyncio
     async def test_state_persists_to_disk(self, service: ConnectService, tmp_data_dir: Path):
@@ -219,3 +235,4 @@ class TestCorruptedState:
         service = ConnectService(data_dir=tmp_data_dir)
         state = service.get_connector_status("cursor")
         assert state.status == ConnectorStatus.READY
+        assert state.agent_id == "default"

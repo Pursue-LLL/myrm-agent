@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { listChannelInstances, type ChannelInstance } from '@/services/channels';

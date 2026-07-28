@@ -3,7 +3,7 @@ import {
   buildSettingsSubTabQuery,
   defaultSubTabResolver,
   shouldSyncSettingsSubTabUrl,
-} from '@/hooks/useSettingsSubTabUrl';
+} from '@/hooks/settings/useSettingsSubTabUrl';
 
 describe('useSettingsSubTabUrl helpers', () => {
   it('guards pathname before syncing sub tab URL', () => {

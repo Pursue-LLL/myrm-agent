@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send, Sparkles } from 'lucide-react';
+import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send, Sparkles, ShieldCheck, Trash2 } from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -82,6 +82,7 @@ export default function CronJobCreateDialog({
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
   const [createMode, setCreateMode] = useState<'template' | 'custom'>('template');
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<Array<{ type: string; description: string }>>([]);
 
   useEffect(() => {
     if (open) {
@@ -132,6 +133,7 @@ export default function CronJobCreateDialog({
     setDeliveryTarget('');
     setCreateMode('template');
     setSelectedBlueprint(null);
+    setAcceptanceCriteria([]);
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -223,6 +225,14 @@ export default function CronJobCreateDialog({
         payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
       }
 
+      const validCriteria = acceptanceCriteria.filter((c) => c.description.trim());
+      if (validCriteria.length > 0) {
+        payload.acceptance_criteria = validCriteria.map((c) => ({
+          type: c.type,
+          description: c.description.trim(),
+        }));
+      }
+
       await createJob(payload);
       toast.success(t('createSuccess'));
       reset();
@@ -246,6 +256,7 @@ export default function CronJobCreateDialog({
     effectiveChatId,
     deliveryChannel,
     deliveryTarget,
+    acceptanceCriteria,
     createJob,
     t,
     reset,
@@ -607,6 +618,70 @@ export default function CronJobCreateDialog({
                   model: defaultModel.model,
                 })}
               </p>
+            </div>
+          )}
+
+          {/* Acceptance Criteria */}
+          {uiMode === 'agent' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                {t('acceptanceCriteria')}
+              </Label>
+              {acceptanceCriteria.map((criterion, idx) => (
+                <div key={idx} className="flex items-start gap-1.5">
+                  <Select
+                    value={criterion.type}
+                    onValueChange={(v) => {
+                      const next = [...acceptanceCriteria];
+                      next[idx] = { ...next[idx], type: v };
+                      setAcceptanceCriteria(next);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-24 shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semantic">{t('criterionSemantic')}</SelectItem>
+                      <SelectItem value="shell">{t('criterionShell')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder={
+                      criterion.type === 'shell'
+                        ? t('criterionShellPlaceholder')
+                        : t('criterionSemanticPlaceholder')
+                    }
+                    value={criterion.description}
+                    onChange={(e) => {
+                      const next = [...acceptanceCriteria];
+                      next[idx] = { ...next[idx], description: e.target.value };
+                      setAcceptanceCriteria(next);
+                    }}
+                    className="h-7 text-xs flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== idx))}
+                    className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {acceptanceCriteria.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => setAcceptanceCriteria([...acceptanceCriteria, { type: 'semantic', description: '' }])}
+                  className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  {t('addCriterion')}
+                </button>
+              )}
+              {acceptanceCriteria.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">{t('acceptanceCriteriaHint')}</p>
+              )}
             </div>
           )}
 

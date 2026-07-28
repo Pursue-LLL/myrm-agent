@@ -45,8 +45,8 @@ import {
 import { apiRequest } from '@/lib/api';
 import { cancelBatchTask, type BatchCancelCleanupStrategy } from '@/services/skill-optimization';
 import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
-import { toast } from '@/hooks/useToast';
-import { useBatchWebSocket, BatchProgressUpdate } from '@/hooks/useBatchWebSocket';
+import { toast } from '@/hooks/shared/useToast';
+import { useBatchWebSocket, BatchProgressUpdate } from '@/hooks/workspace/useBatchWebSocket';
 import {
   BatchStatusFilter,
   BatchTaskListItem,

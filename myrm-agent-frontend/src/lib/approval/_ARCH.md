@@ -26,9 +26,9 @@
 ## 依赖
 
 - `@/store/useDesktopInspectorStore`：截图与 ref（含 `screenWidth/screenHeight/dpiScale`）
-- `@/hooks/useToolApprovalResolve`：React hook，编排单条与 bulk 决策
-- `@/hooks/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot`
-- `@/hooks/useVisualApprovalOsOverlay`：Tauri 原生 OS 红框 overlay 生命周期
+- `@/hooks/approval/useToolApprovalResolve`：React hook，编排单条与 bulk 决策
+- `@/hooks/approval/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot`
+- `@/hooks/approval/useVisualApprovalOsOverlay`：Tauri 原生 OS 红框 overlay 生命周期
 
 ## UI 入口
 

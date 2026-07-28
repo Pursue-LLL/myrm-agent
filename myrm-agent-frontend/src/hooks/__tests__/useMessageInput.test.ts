@@ -17,13 +17,13 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/hooks/useQuotaGuard', () => ({
+vi.mock('@/hooks/billing/useQuotaGuard', () => ({
   useQuotaGuard: () => ({
     validateMessageQuota: (...args: unknown[]) => mockValidateMessageQuota(...args),
   }),
 }));
 
-vi.mock('@/hooks/useDraftPersistence', () => ({
+vi.mock('@/hooks/shared/useDraftPersistence', () => ({
   useDraftPersistence: () => ({
     initialDraft: '',
     clearDraft: (...args: unknown[]) => mockClearDraft(...args),
@@ -40,7 +40,7 @@ vi.mock('@/store/useChatStore', () => {
   return { default: useChatStore };
 });
 
-vi.mock('@/hooks/useMessageQueue', () => ({
+vi.mock('@/hooks/message-input/useMessageQueue', () => ({
   useMessageQueue: () => ({
     queue: [],
     enqueue: (...args: unknown[]) => mockEnqueue(...args),
@@ -53,7 +53,7 @@ vi.mock('@/hooks/useMessageQueue', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useInputFileUpload', () => ({
+vi.mock('@/hooks/message-input/useInputFileUpload', () => ({
   useInputFileUpload: () => ({
     isUploadingPaste: false,
     handlePaste: vi.fn(),
@@ -74,11 +74,11 @@ vi.mock('@/store/chat/archiveRestoreActions', () => ({
   resolveArchiveRestoreActionsForMessage: vi.fn(() => undefined),
 }));
 
-vi.mock('@/hooks/useInputHistory', () => ({
+vi.mock('@/hooks/message-input/useInputHistory', () => ({
   addInputHistory: vi.fn(),
 }));
 
-vi.mock('@/hooks/useMessageInputWikiEvidenceCore', () => ({
+vi.mock('@/hooks/message-input/useMessageInputWikiEvidenceCore', () => ({
   recordChatWikiQueryAttempt: (...args: unknown[]) => mockRecordChatWikiQueryAttempt(...args),
   recordChatWikiQuerySubmitted: (...args: unknown[]) => mockRecordChatWikiQuerySubmitted(...args),
   queuePendingChatWikiQuerySuccess: (...args: unknown[]) => mockQueuePendingChatWikiQuerySuccess(...args),
@@ -146,7 +146,7 @@ describe('useMessageInput submit telemetry integration', () => {
   });
 
   it('records query attempt and sends success-marked request on handleSubmit', async () => {
-    const { useMessageInput } = await import('@/hooks/useMessageInput');
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
     const { result } = renderHook(() => useMessageInput());
 
     await act(async () => {
@@ -166,7 +166,7 @@ describe('useMessageInput submit telemetry integration', () => {
   });
 
   it('records query attempt and enqueues message on handleQueueSubmit', async () => {
-    const { useMessageInput } = await import('@/hooks/useMessageInput');
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
     const { result } = renderHook(() => useMessageInput());
 
     await act(async () => {
@@ -179,7 +179,7 @@ describe('useMessageInput submit telemetry integration', () => {
 
   it('records query attempt and falls back to sendMessage when steer fails', async () => {
     mockSteerMessage.mockResolvedValueOnce(false);
-    const { useMessageInput } = await import('@/hooks/useMessageInput');
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
     const { result } = renderHook(() => useMessageInput());
 
     await act(async () => {
@@ -200,7 +200,7 @@ describe('useMessageInput submit telemetry integration', () => {
 
   it('queues pending query success when steer succeeds', async () => {
     mockSteerMessage.mockResolvedValueOnce(true);
-    const { useMessageInput } = await import('@/hooks/useMessageInput');
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
     const { result } = renderHook(() => useMessageInput());
 
     await act(async () => {

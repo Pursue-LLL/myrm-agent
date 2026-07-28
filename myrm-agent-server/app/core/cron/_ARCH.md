@@ -33,6 +33,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ |
 | `adapters/memory_lock.py` | 核心 | ConcurrencyLock 实现：基于 OS 级文件锁的跨进程协作 | ✅ |
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
+| `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
 | `blueprints.py` | 核心 | 自动化蓝图单一数据源：13 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；五语系 title/desc/prompt_template、slots（含 `optional`）、schedule builder、`job_defaults`）。`GET /cron/blueprints` 返回目录；`POST /cron/blueprints/fill` 为 GUI 与 Agent 共用的创建前填充 SSOT。`fill_blueprint()` 校验必填 slot（`optional=True` 允许空 text）、job `name` 取 `title[locale]`，并返回 job_type/session_target/monitor/pre_condition 默认项；`get_blueprints_for_tool_description()` | — |

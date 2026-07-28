@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl';
 import { IconShield } from '@/components/features/icons/PremiumIcons';
 import { Switch } from '@/components/primitives/switch';
 import { getConfigSyncManager, type CaptchaSolverConfigValue } from '@/services/config';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 const DEFAULT_CONFIG: CaptchaSolverConfigValue = {
   enabled: false,

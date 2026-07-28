@@ -26,7 +26,7 @@ import { nightOwl, githubLight } from '@codesandbox/sandpack-themes';
 import { Code } from 'lucide-react';
 import { TAILWIND_CSS, TAILWIND_CONFIG, CN_UTILS_CODE } from './constants/reactPreviewConstants';
 import { SandpackErrorBoundary } from './components/SandpackErrorBoundary';
-import { useReactPreview } from '@/hooks/useReactPreview';
+import { useReactPreview } from '@/hooks/ui/useReactPreview';
 
 interface ReactPreviewProps {
   code: string;

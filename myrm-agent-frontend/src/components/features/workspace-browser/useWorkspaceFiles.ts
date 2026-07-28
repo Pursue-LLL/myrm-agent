@@ -4,7 +4,7 @@
  * [INPUT]
  * - @/services/chat::browseWorkspaceFiles (POS: Workspace browse API)
  * - @/services/chat::registerWorkspaceWatch (POS: Server vault watch registration)
- * - @/hooks/useGlobalEvents (POS: Global SSE; data channel independent of notification toasts)
+ * - @/hooks/globalEvents/useGlobalEvents (POS: Global SSE; data channel independent of notification toasts)
  *
  * [OUTPUT]
  * - useWorkspaceFiles: Hook providing file tree data via HTTP API

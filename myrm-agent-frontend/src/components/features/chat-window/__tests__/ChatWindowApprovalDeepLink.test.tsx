@@ -29,7 +29,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/hooks/usePendingApprovalsRecovery', () => ({
+vi.mock('@/hooks/approval/usePendingApprovalsRecovery', () => ({
   usePendingApprovalsRecovery: () => undefined,
   fetchPendingApprovals: fetchPendingApprovalsMock,
 }));

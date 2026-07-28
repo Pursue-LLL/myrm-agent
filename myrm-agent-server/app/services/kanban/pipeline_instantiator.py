@@ -188,6 +188,7 @@ async def instantiate_pipeline(
                 per_item_answers = {**answers, "_item": item}
                 title = _substitute_template(seed.title_template, per_item_answers)
                 description = _substitute_template(seed.description_template, per_item_answers)
+                per_item_skills = seed.repeat_for_item_skills.get(item, [])
                 task = await svc.add_task(
                     board_id=board_id,
                     title=title,
@@ -195,6 +196,7 @@ async def instantiate_pipeline(
                     priority=TaskPriority.NORMAL,
                     agent_id=agent_id,
                     depends_on=parent_task_ids or None,
+                    extra_skill_ids=per_item_skills or None,
                     metadata_patch=metadata_patch,
                 )
                 created_task_ids.append(task.task_id)

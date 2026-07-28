@@ -2,7 +2,7 @@
 
 import { Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { ChatItem, deleteChat as deleteChatService } from '@/services/chat';
 import { restoreChat } from '@/services/chatTrash';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';

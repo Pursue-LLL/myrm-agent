@@ -15,8 +15,8 @@ import {
   FileChange,
 } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/hooks/useToast';
-import { useAgentNameMap } from '@/hooks/useAgentName';
+import { toast } from '@/hooks/shared/useToast';
+import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 
 interface FileSnapshotListProps {
   workingDir: string;

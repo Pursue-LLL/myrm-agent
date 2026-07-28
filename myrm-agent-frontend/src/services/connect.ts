@@ -22,6 +22,7 @@ export interface ConnectProfile {
 
 export interface GenerateConfigResponse {
   profile_id: string;
+  agent_id: string;
   mcp_url: string;
   token: string;
   config_json: Record<string, unknown>;
@@ -43,6 +44,7 @@ export interface ConnectorStatus {
   profile_id: string;
   label: string;
   status: 'ready' | 'manual_config_required' | 'missing';
+  agent_id: string;
   doctor_ok: boolean;
   connected_at: string | null;
 }
@@ -51,10 +53,13 @@ export async function listConnectProfiles(): Promise<ConnectProfile[]> {
   return apiRequest<ConnectProfile[]>('/connect/profiles');
 }
 
-export async function generateConnectConfig(profileId: string): Promise<GenerateConfigResponse> {
+export async function generateConnectConfig(
+  profileId: string,
+  agentId: string = 'default',
+): Promise<GenerateConfigResponse> {
   return apiRequest<GenerateConfigResponse>('/connect/generate', {
     method: 'POST',
-    body: JSON.stringify({ profile_id: profileId }),
+    body: JSON.stringify({ profile_id: profileId, agent_id: agentId }),
   });
 }
 

@@ -6,7 +6,7 @@ import {
   recordChatWikiQueryAttempt,
   recordChatWikiQuerySubmitted,
   resolveChatWikiEvidenceContext,
-} from '@/hooks/useMessageInputWikiEvidenceCore';
+} from '@/hooks/message-input/useMessageInputWikiEvidenceCore';
 
 const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();

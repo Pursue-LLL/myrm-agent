@@ -13,8 +13,8 @@ const scanRoots = [
   'src/components/features/app-shell',
   'src/components/features/message-input-actions',
   'src/components/layout',
-  'src/hooks/useAgentConfigPanel.ts',
-  'src/hooks/use-agent-config-panel',
+  'src/hooks/agent/useAgentConfigPanel.ts',
+  'src/hooks/agent/config-panel',
 ];
 
 function readShellSettingsSections() {

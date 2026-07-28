@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { MessageSquare, Waypoints, Mic } from 'lucide-react';
-import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
+import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import ChannelsSection from './channels/ChannelsSection';
 import ChannelRoutingSection from './channels/ChannelRoutingSection';
 import VoiceSection from './channels/VoiceSection';

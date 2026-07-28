@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - hooks/usePushSubscription
+ * - hooks/pwa/usePushSubscription
  * - lib/deploy-mode::isTauriRuntime
  *
  * [OUTPUT]
@@ -21,7 +21,7 @@ import { IconBell } from '@/components/features/icons/PremiumIcons';
 import Toggle from '@/components/features/settings/common/Toggle';
 import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import { usePushSubscription, type PushSubscriptionState } from '@/hooks/usePushSubscription';
+import { usePushSubscription, type PushSubscriptionState } from '@/hooks/pwa/usePushSubscription';
 
 function stateLabel(state: PushSubscriptionState, t: (key: string) => string): string {
   switch (state) {

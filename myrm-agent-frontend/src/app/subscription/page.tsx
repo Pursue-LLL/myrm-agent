@@ -18,8 +18,8 @@ import useAuthStore from '@/store/useAuthStore';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { mergeBillingCatalog, type BillingPlanKey } from '@/lib/billing-plans';
-import { useBillingCatalog } from '@/hooks/useBillingCatalog';
-import { type SubscriptionStatus, useSubscription } from '@/hooks/useSubscription';
+import { useBillingCatalog } from '@/hooks/billing/useBillingCatalog';
+import { type SubscriptionStatus, useSubscription } from '@/hooks/billing/useSubscription';
 import { toast } from '@/lib/utils/toast';
 
 interface StatusMeta {

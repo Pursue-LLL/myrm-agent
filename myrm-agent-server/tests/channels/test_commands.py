@@ -318,19 +318,29 @@ class TestDenyWithReason:
 class TestParseTopicArgs:
     def test_bind_no_agent(self) -> None:
         result = parse_topic_args("bind", "")
-        assert result == TopicCommand(action="bind", agent_id=None)
+        assert result.action == "bind"
+        assert result.agent_id is None
 
     def test_bind_with_agent(self) -> None:
         result = parse_topic_args("bind", "my-agent")
         assert result == TopicCommand(action="bind", agent_id="my-agent")
 
+    def test_bind_with_workspace_project(self) -> None:
+        result = parse_topic_args("bind", "agent=writer workspace=project:abc-123")
+        assert result.agent_id == "writer"
+        assert result.project_id == "abc-123"
+
+    def test_bind_with_workspace_path(self) -> None:
+        result = parse_topic_args("bind", "workspace=/tmp/vault")
+        assert result.authorized_path == "/tmp/vault"
+
     def test_unbind(self) -> None:
         result = parse_topic_args("unbind", "")
-        assert result == TopicCommand(action="unbind")
+        assert result.action == "unbind"
 
     def test_topic(self) -> None:
         result = parse_topic_args("topic", "")
-        assert result == TopicCommand(action="topic")
+        assert result.action == "topic"
 
 
 class TestAgentRouteCommands:

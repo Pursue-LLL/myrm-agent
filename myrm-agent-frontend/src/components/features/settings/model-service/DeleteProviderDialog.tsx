@@ -12,7 +12,7 @@ import { Button } from '@/components/primitives/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getProviderUsage, ProviderUsageResponse } from '@/services/provider';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface DeleteProviderDialogProps {
   open: boolean;

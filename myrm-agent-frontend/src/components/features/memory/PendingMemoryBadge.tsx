@@ -4,7 +4,7 @@ import { memo, useEffect, useRef } from 'react';
 import { AlertTriangle, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface PendingMemoryBadgeProps {
   onClick?: () => void;

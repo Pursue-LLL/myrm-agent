@@ -24,7 +24,7 @@ const mockResolveConflict = vi.hoisted(() => vi.fn());
 
 const selectedPendingIds = new Set(['mem-1', 'mem-2']);
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: toastMock,
 }));
 

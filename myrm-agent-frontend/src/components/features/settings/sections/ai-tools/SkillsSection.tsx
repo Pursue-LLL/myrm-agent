@@ -31,7 +31,7 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import useAuthStore from '@/store/useAuthStore';
 import { useSkillStore } from '@/store/skill';
 import { useSkillDraftStore } from '@/store/skill/useSkillDraftStore';

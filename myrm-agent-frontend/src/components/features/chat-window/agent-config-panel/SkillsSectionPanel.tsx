@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Skill } from '@/store/skill/types';
-import { useAgentNameMap } from '@/hooks/useAgentName';
+import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 import { AddMoreButton } from './AgentConfigSelectableCard';
 
 import {

@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { forkConversation } from '@/services/fork-api';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 
 interface ForkDialogProps {

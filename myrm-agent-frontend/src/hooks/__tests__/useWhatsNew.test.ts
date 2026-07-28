@@ -27,7 +27,7 @@ describe('useWhatsNew', () => {
   });
 
   async function loadHook() {
-    const mod = await import('@/hooks/useWhatsNew');
+    const mod = await import('@/hooks/pwa/useWhatsNew');
     return mod.useWhatsNew;
   }
 

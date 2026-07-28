@@ -27,6 +27,7 @@ from app.core.channel_bridge.executor_helpers import (
     load_history_without_persist,
     persist_and_load_history,
 )
+from app.core.channel_bridge.executor_helpers.topic_workspace_sync import ChannelWorkspaceSyncError
 from app.services.agent.profile_resolver import ResolvedAgentProfile
 
 from .execute_preamble_backfill import maybe_backfill_channel_history
@@ -111,19 +112,53 @@ async def resolve_channel_session_context(
         pre_events.append(ProgressUpdate(label=reset_label))
 
     if is_resume:
-        chat_id, history_entries = await load_history_without_persist(
-            channel_session_key=session_key,
-        )
+        try:
+            chat_id, history_entries = await load_history_without_persist(
+                channel_session_key=session_key,
+                topic_context=topic_context,
+            )
+        except ChannelWorkspaceSyncError as exc:
+            pre_events.append(
+                msg.get_or_create_correlation_context().create_reply(
+                    content=get_text(msg, "topic_workspace_unavailable", error=str(exc)),
+                )
+            )
+            return ChannelSessionContext(
+                session_key=session_key,
+                chat_id="",
+                chat_history=[],
+                session_was_auto_reset=session_was_auto_reset,
+                session_policy=session_policy,
+                query=working_query,
+                pre_events=tuple(pre_events),
+            )
     else:
         sent_at_utc = datetime.fromtimestamp(msg.sent_at, tz=timezone.utc)
-        chat_id, history_entries = await persist_and_load_history(
-            channel_session_key=session_key,
-            source=msg.channel,
-            content=msg.content,
-            sent_at=sent_at_utc,
-            sent_timezone=msg.sent_timezone,
-            agent_id=resolved_agent_id,
-        )
+        try:
+            chat_id, history_entries = await persist_and_load_history(
+                channel_session_key=session_key,
+                source=msg.channel,
+                content=msg.content,
+                sent_at=sent_at_utc,
+                sent_timezone=msg.sent_timezone,
+                agent_id=resolved_agent_id,
+                topic_context=topic_context,
+            )
+        except ChannelWorkspaceSyncError as exc:
+            pre_events.append(
+                msg.get_or_create_correlation_context().create_reply(
+                    content=get_text(msg, "topic_workspace_unavailable", error=str(exc)),
+                )
+            )
+            return ChannelSessionContext(
+                session_key=session_key,
+                chat_id="",
+                chat_history=[],
+                session_was_auto_reset=session_was_auto_reset,
+                session_policy=session_policy,
+                query=working_query,
+                pre_events=tuple(pre_events),
+            )
 
     chat_history = build_chat_history_with_metadata(history_entries)
     return ChannelSessionContext(

@@ -57,10 +57,14 @@ pipeline_spec:
         Adapt the {content_type} for {_item}. Match the platform's native
         format (character limits, hashtags, visual layout, etc.) and apply
         a {tone} tone. Preserve the core message while optimizing for
-        engagement on {_item}.
+        engagement on {_item}. For WeChat (微信公众号), produce Markdown plus a
+        styled `.wechat.html` artifact using wechat-article-formatter.
       role: "adapter"
       parents: []
       repeat_for: "platforms"
+      repeat_for_item_skills:
+        "WeChat (微信公众号)":
+          - "wechat-article-formatter"
     - title_template: "Publishing Checklist & Consistency Review"
       description_template: >-
         Review all adapted versions for brand consistency, factual accuracy,
@@ -89,4 +93,5 @@ One-to-many content adaptation: write once, distribute everywhere.
 
 1. **Paste your content** — a blog post, announcement, newsletter, etc.
 2. **Select target platforms** — each platform gets a dedicated adaptation task running in parallel
-3. **Consistency review** — after all adaptations complete, a reviewer ensures brand consistency across all versions
+3. **WeChat-only formatter** — when `WeChat (微信公众号)` is selected, the adapter task receives `wechat-article-formatter` via `repeat_for_item_skills` (other platforms do not load it)
+4. **Consistency review** — after all adaptations complete, a reviewer ensures brand consistency across all versions

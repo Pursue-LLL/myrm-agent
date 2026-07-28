@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import useProviderStore from '@/store/useProviderStore';
 import type { CustomModelInfo, CustomProviderType } from '@/store/config/providerTypes';
 import { getModelsForProvider, mapToCustomModelInfo, type ModelsDevModel } from '@/services/models-dev';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface ModelInfoCardProps {
   providerId: string;

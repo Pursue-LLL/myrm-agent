@@ -17,7 +17,7 @@ import { Button } from '@/components/primitives/button';
 import { useBudgetExceededStore } from '@/store/useBudgetExceededStore';
 import { isSandbox } from '@/lib/deploy-mode';
 import useAuthStore from '@/store/useAuthStore';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscription } from '@/hooks/billing/useSubscription';
 import { toast } from '@/lib/utils/toast';
 
 export default function BudgetExceededDialog() {

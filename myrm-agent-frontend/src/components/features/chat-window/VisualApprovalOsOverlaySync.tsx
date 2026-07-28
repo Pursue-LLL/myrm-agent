@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - @/store/useChatStore, useToolApprovalStore, inspector stores
- * - @/hooks/useVisualApprovalOsOverlay
+ * - @/hooks/approval/useVisualApprovalOsOverlay
  *
  * [OUTPUT]
  * - VisualApprovalOsOverlaySync: mounts Tauri OS overlay sync for active chat
@@ -14,8 +14,8 @@
 
 import { useMemo } from 'react';
 
-import { useVisualApprovalOsOverlay } from '@/hooks/useVisualApprovalOsOverlay';
-import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
+import { useVisualApprovalOsOverlay } from '@/hooks/approval/useVisualApprovalOsOverlay';
+import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';

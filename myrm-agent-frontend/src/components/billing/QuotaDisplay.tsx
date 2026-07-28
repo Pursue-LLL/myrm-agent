@@ -21,7 +21,7 @@ import {
   IconHardDrive,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useQuota, useSubscription } from '@/hooks/useSubscription';
+import { useQuota, useSubscription } from '@/hooks/billing/useSubscription';
 import { isSandbox } from '@/lib/deploy-mode';
 
 /**

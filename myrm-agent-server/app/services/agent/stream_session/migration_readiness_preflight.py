@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from app.platform_utils import get_session_factory
 from app.schemas.memory.archive import MemoryImportReadiness
 from app.services.agent.params.models import MigrationReadinessAnchorRequest
 from app.services.agent.stream_session.entitlement_gap_preflight import (
@@ -124,6 +123,8 @@ async def resolve_and_build_migration_readiness_gap_sse_event(
     import_batch_id = _extract_import_batch_id(migration_readiness_anchor)
     if not import_batch_id:
         return None, None
+
+    from app.platform_utils import get_session_factory
 
     session_factory = get_session_factory()
     async with session_factory() as db:

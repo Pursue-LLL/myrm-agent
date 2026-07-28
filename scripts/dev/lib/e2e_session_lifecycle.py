@@ -9,7 +9,7 @@
 
 [POS]
 Dev Gate layer — unified ADMIT → BOOTSTRAP → BODY → TEARDOWN lifecycle.
-Signoff uses the same four phases; queue/bootstrap never consume BODY 600s budget.
+BODY budget: dev LIVE_AGENT 900s; READ and signoff 600s. Queue/bootstrap never consume BODY budget.
 """
 
 from __future__ import annotations
@@ -63,10 +63,7 @@ class BudgetPolicy:
 
     def outer_kill_sec(self, *, pytest_safe_buffer_sec: int) -> int:
         return (
-            self.admit_sec
-            + self.bootstrap_sec
-            + self.body_sec
-            + pytest_safe_buffer_sec
+            self.admit_sec + self.bootstrap_sec + self.body_sec + pytest_safe_buffer_sec
         )
 
 

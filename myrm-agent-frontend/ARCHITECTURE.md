@@ -9,7 +9,7 @@
 | 路由壳 | `src/app/` | App Router 薄页面 |
 | UI | `src/components/` | `layout/`、`primitives/`、`features/` |
 | 状态 | `src/store/` | Zustand |
-| 副作用 | `src/hooks/` | React hooks |
+| 副作用 | `src/hooks/` | React hooks（按域子目录：`message-input/`、`voice/`、`approval/` 等，见 [hooks/_ARCH.md](src/hooks/_ARCH.md)） |
 | API 客户端 | `src/services/` | REST/SSE 类型化客户端 |
 | 纯逻辑 | `src/lib/` | 无 React 工具与常量 |
 | i18n | `src/i18n/` + 根 `locales/` | next-intl；`locales/*.json` 为 SSOT |

@@ -178,11 +178,13 @@ if is_local_mode():
     from app.api.channels.test_connections import router as channels_test_router
     from app.api.channels.topics import router as channels_topics_router
     from app.api.channels.wechat import router as channels_wechat_router
+    from app.api.channels.wechat_official import router as channels_wechat_official_router
 
     api_router.include_router(channels_login_router, prefix="/channels", tags=["channels"])
     api_router.include_router(channels_manage_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_test_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_wechat_router, prefix="/channels/manage", tags=["channels"])
+    api_router.include_router(channels_wechat_official_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(feishu_register_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_instances_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_topics_router, prefix="/channels/manage", tags=["channels"])

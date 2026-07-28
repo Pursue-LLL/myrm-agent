@@ -9,6 +9,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
+seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
 seed_revert_fixture: 创建 RevertFiles E2E 数据（variant=modify|create|empty|session|large_skip）
 
@@ -58,6 +59,10 @@ _REVERT_FIXTURE_BEFORE = "revert fixture before\n"
 _REVERT_FIXTURE_AFTER = "revert fixture after\n"
 
 _CITATION_COUNT = 10
+_EMBED_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+_EMBED_ASSISTANT_MARKDOWN = (
+    f"Link embed E2E fixture — watch [YouTube video]({_EMBED_YOUTUBE_URL})."
+)
 
 
 def _build_citation_extra_data() -> dict[str, object]:
@@ -131,6 +136,57 @@ async def seed_citation_fixture() -> dict[str, str | int]:
         "citation_count": _CITATION_COUNT,
         "ui_path": f"/{chat_id}",
         "wiki_settings_path": f"/settings/wiki?agentId={agent_id}",
+    }
+
+
+@router.post("/test/seed-embed-fixture", include_in_schema=False)
+async def seed_embed_fixture() -> dict[str, str]:
+    """Local dev/test only: seed assistant markdown with YouTube link for Link Embeds Chrome E2E."""
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    agents, _total = await AgentService.get_agent_list(1, 100)
+    if not agents:
+        raise HTTPException(
+            status_code=500, detail="No agents available for embed E2E seed"
+        )
+
+    agent = agents[0]
+    agent_id = agent.id
+
+    chat_id = f"e2eembed{uuid4().hex[:8]}"
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="Link embed Chrome E2E",
+            agent_id=agent_id,
+            messages=[],
+        ),
+    )
+
+    now = datetime.now(UTC)
+    timezone = "UTC"
+
+    await ChatService.append_message(
+        chat_id,
+        "user",
+        "Link embed E2E fixture question",
+        now,
+        timezone,
+    )
+    await ChatService.append_message(
+        chat_id,
+        "assistant",
+        _EMBED_ASSISTANT_MARKDOWN,
+        now,
+        timezone,
+    )
+
+    return {
+        "chat_id": chat_id,
+        "agent_id": agent_id,
+        "youtube_url": _EMBED_YOUTUBE_URL,
+        "ui_path": f"/{chat_id}",
     }
 
 

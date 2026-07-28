@@ -44,6 +44,28 @@ def _meta_str_list(meta: dict[str, object], key: str) -> list[str]:
     return out
 
 
+def _workspace_label_from_topic_cfg(topic_cfg: dict[str, object]) -> str | None:
+    project_id = topic_cfg.get("projectId")
+    if isinstance(project_id, str) and project_id:
+        return f"project:{project_id}"
+    authorized_path = topic_cfg.get("authorizedPath")
+    if isinstance(authorized_path, str) and authorized_path:
+        return authorized_path
+    return None
+
+
+def _workspace_label_from_context(
+    *,
+    project_id: str | None,
+    authorized_path: str | None,
+) -> str | None:
+    if project_id:
+        return f"project:{project_id}"
+    if authorized_path:
+        return authorized_path
+    return None
+
+
 @router.get("/{channel}/topics", response_model=ChannelTopicsResponse)
 async def list_channel_topics(
     channel: str,
@@ -78,6 +100,9 @@ async def list_channel_topics(
                 TopicBindingResponse(
                     topicId=topic_id,
                     agentId=str(topic_cfg.get("agentId", "")) or None,
+                    projectId=str(topic_cfg.get("projectId", "")) or None,
+                    authorizedPath=str(topic_cfg.get("authorizedPath", "")) or None,
+                    workspaceLabel=_workspace_label_from_topic_cfg(topic_cfg),
                     enabled=bool(topic_cfg.get("enabled", True)),
                     boundAt=str(topic_cfg.get("boundAt", "")) or None,
                     displayName=str(topic_cfg.get("displayName", "")) or None,
@@ -155,24 +180,35 @@ async def bind_channel_topic(
 
     manager = SqlTopicManager()
     try:
-        ctx = await manager.bind_topic(
-            channel=channel,
-            chat_id=chat_id,
-            thread_id=thread_id,
-            agent_id=body.agent_id,
-            display_name=body.display_name,
-            avatar_url=body.avatar_url,
-            thread_sharing_mode=body.thread_sharing_mode or "isolated",
-            reply_mode=reply_mode,
-            draft_timeout_minutes=body.draft_timeout_minutes or 5,
-            draft_timeout_action=draft_timeout_action,
-        )
+        bind_kwargs: dict[str, object] = {
+            "channel": channel,
+            "chat_id": chat_id,
+            "thread_id": thread_id,
+            "agent_id": body.agent_id,
+            "display_name": body.display_name,
+            "avatar_url": body.avatar_url,
+            "thread_sharing_mode": body.thread_sharing_mode or "isolated",
+            "reply_mode": reply_mode,
+            "draft_timeout_minutes": body.draft_timeout_minutes or 5,
+            "draft_timeout_action": draft_timeout_action,
+        }
+        if "project_id" in body.model_fields_set:
+            bind_kwargs["project_id"] = body.project_id
+        if "authorized_path" in body.model_fields_set:
+            bind_kwargs["authorized_path"] = body.authorized_path
+        ctx = await manager.bind_topic(**bind_kwargs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     return TopicBindingResponse(
         topicId=topic_id,
         agentId=ctx.agent_id,
+        projectId=ctx.project_id,
+        authorizedPath=ctx.authorized_path,
+        workspaceLabel=_workspace_label_from_context(
+            project_id=ctx.project_id,
+            authorized_path=ctx.authorized_path,
+        ),
         enabled=ctx.enabled,
         boundAt=ctx.bound_at,
         displayName=body.display_name,

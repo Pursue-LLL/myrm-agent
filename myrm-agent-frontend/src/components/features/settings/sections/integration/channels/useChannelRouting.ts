@@ -14,7 +14,9 @@ import {
   type ThreadSharingMode,
 } from '@/services/channels';
 import { listAgents, type AgentListItem } from '@/services/agent';
+import { getProjects, type Project } from '@/services/projects';
 import { filterChannelBindableAgents } from '@/services/channels/channelAgentBinding';
+import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
 
 interface UseChannelRoutingOptions {
   initialLoadError: string;
@@ -29,6 +31,8 @@ interface UseChannelRoutingOptions {
   draftTimeoutError: string;
   globalAgentSetToast: string;
   globalAgentError: string;
+  workspaceBoundToast: string;
+  workspaceBindError: string;
 }
 
 export function useChannelRouting(messages: UseChannelRoutingOptions) {
@@ -37,6 +41,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   const [topics, setTopics] = useState<TopicBinding[]>([]);
   const [globalAgentId, setGlobalAgentId] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentListItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -46,13 +51,15 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [channelsRes, agentsRes] = await Promise.all([
+        const [channelsRes, agentsRes, projectsRes] = await Promise.all([
           listChannelStatuses(),
           listAgents(1, 100),
+          getProjects(),
         ]);
         const connectedChannels = channelsRes.filter((channel) => channel.connected);
         setChannels(connectedChannels);
         setAgents(agentsRes.items);
+        setProjects(projectsRes.filter((project) => project.workspacePath));
 
         if (connectedChannels.length > 0) {
           setSelectedChannel(connectedChannels[0].name);
@@ -200,12 +207,50 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     }
   };
 
+  const handleBindTopicWorkspace = async (topicId: string, projectId: string | null) => {
+    if (!selectedChannel) return;
+    setSaving(topicId);
+    try {
+      const topic = topics.find((item) => item.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel,
+        topicId,
+        topic?.agentId ?? null,
+        topic?.threadSharingMode,
+        topic?.replyMode,
+        topic?.draftTimeoutMinutes,
+        topic?.draftTimeoutAction,
+        { projectId },
+      );
+      setTopics((prev) => prev.map((item) => (
+        item.topicId === topicId
+          ? {
+              ...item,
+              projectId,
+              authorizedPath: null,
+              workspaceLabel: resolveTopicWorkspaceDisplayLabel(
+                { projectId, authorizedPath: null, workspaceLabel: null },
+                projects,
+              ),
+            }
+          : item
+      )));
+      toast.success(messages.workspaceBoundToast);
+    } catch (error) {
+      console.error('Failed to bind workspace:', error);
+      toast.error(messages.workspaceBindError);
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return {
     agents,
     channelBindableAgents: filterChannelBindableAgents(agents),
     channels,
     globalAgentId,
     handleBindTopic,
+    handleBindTopicWorkspace,
     handleSetDraftTimeout,
     handleSetGlobalAgent,
     handleSetReplyMode,
@@ -217,5 +262,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     selectedChannelStatus,
     setSelectedChannel,
     topics,
+    workspaceProjects: projects,
   };
 }

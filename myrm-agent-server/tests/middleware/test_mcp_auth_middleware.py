@@ -4,7 +4,7 @@ Validates token auth flow: missing header -> 401, invalid token -> 403,
 valid token -> pass-through + mark_ready side-effect.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.applications import Starlette
@@ -52,10 +52,11 @@ class TestMCPTokenAuth:
         response = tc.get("/mcp", headers={"Authorization": "Basic abc123"})
         assert response.status_code == 401
 
+    @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=MagicMock)
     @patch("app.services.connect.get_connect_service")
-    def test_invalid_token_returns_403(self, mock_get_service):
+    def test_invalid_token_returns_403(self, mock_get_service, _mock_manager):
         mock_service = MagicMock()
-        mock_service.verify_token.return_value = None
+        mock_service.resolve_token.return_value = None
         mock_get_service.return_value = mock_service
 
         inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
@@ -65,10 +66,17 @@ class TestMCPTokenAuth:
         assert response.status_code == 403
         assert "Invalid" in response.json()["error"]
 
+    @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock)
     @patch("app.services.connect.get_connect_service")
-    def test_valid_token_passes_through(self, mock_get_service):
+    def test_valid_token_passes_through(self, mock_get_service, mock_manager_for_agent):
+        from app.services.connect.service import VerifiedConnectToken
+
+        mock_manager_for_agent.return_value = MagicMock()
         mock_service = MagicMock()
-        mock_service.verify_token.return_value = "cursor"
+        mock_service.resolve_token.return_value = VerifiedConnectToken(
+            profile_id="cursor",
+            agent_id="default",
+        )
         mock_get_service.return_value = mock_service
 
         inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
@@ -78,10 +86,17 @@ class TestMCPTokenAuth:
         assert response.status_code == 200
         assert response.json()["profile_id"] == "cursor"
 
+    @patch("app.api.mcp.endpoint._memory_manager_for_agent")
     @patch("app.services.connect.get_connect_service")
-    def test_valid_token_calls_mark_ready(self, mock_get_service):
+    def test_valid_token_calls_mark_ready(self, mock_get_service, mock_manager_for_agent):
+        from app.services.connect.service import VerifiedConnectToken
+
+        mock_manager_for_agent.return_value = MagicMock()
         mock_service = MagicMock()
-        mock_service.verify_token.return_value = "cursor"
+        mock_service.resolve_token.return_value = VerifiedConnectToken(
+            profile_id="cursor",
+            agent_id="default",
+        )
         mock_get_service.return_value = mock_service
 
         inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])

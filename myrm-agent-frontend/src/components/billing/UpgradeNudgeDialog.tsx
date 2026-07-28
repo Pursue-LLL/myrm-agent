@@ -13,9 +13,9 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 import { useUpgradeNudgeStore } from '@/store/useUpgradeNudgeStore';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useBillingCatalog } from '@/hooks/useBillingCatalog';
-import { useEntitlements } from '@/hooks/useEntitlements';
+import { useSubscription } from '@/hooks/billing/useSubscription';
+import { useBillingCatalog } from '@/hooks/billing/useBillingCatalog';
+import { useEntitlements } from '@/hooks/billing/useEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { type BillingCatalogPlan, type BillingPlanKey } from '@/lib/cp-billing';
 

@@ -8,7 +8,7 @@ import { useMemoryStore } from '@/store/memory';
 import type { ConflictResolution } from '@/store/memory';
 import MemoryCard from './MemoryCard';
 import ConflictCard from './ConflictCard';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface PendingMemoryListProps {
   className?: string;

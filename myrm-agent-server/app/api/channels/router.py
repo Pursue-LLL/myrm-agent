@@ -59,6 +59,7 @@ _CHANNEL_CONFIG_KEYS: dict[str, str] = {
     "telegram": "telegramCredentials",
     "googlechat": "googlechatCredentials",
     "wechat": "wechatCredentials",
+    "wechat_official": "wechatOfficialCredentials",
     "whatsapp": "whatsappCredentials",
     "voice": "voiceCredentials",
     "signal": "signalCredentials",

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   createVaultCredential,
   deleteCredential,

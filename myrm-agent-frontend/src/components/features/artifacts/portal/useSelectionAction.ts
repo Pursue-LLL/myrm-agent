@@ -14,7 +14,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import useChatStore from '@/store/useChatStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import { useMessageQueue } from '@/hooks/useMessageQueue';
+import { useMessageQueue } from '@/hooks/message-input/useMessageQueue';
 
 interface UseSelectionActionOptions {
   onSent?: () => void;

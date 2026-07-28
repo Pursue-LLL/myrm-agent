@@ -16,7 +16,7 @@
 import { CheckCircle2, Copy, ExternalLink, Globe, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useBrowserTakeoverActions } from '@/hooks/useBrowserTakeoverActions';
+import { useBrowserTakeoverActions } from '@/hooks/approval/useBrowserTakeoverActions';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 
 export default function ExtensionTakeoverBanner() {

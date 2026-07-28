@@ -10,7 +10,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { useWhatsNew } from '@/hooks/useWhatsNew';
+import { useWhatsNew } from '@/hooks/pwa/useWhatsNew';
 import {
   Dialog,
   DialogContent,

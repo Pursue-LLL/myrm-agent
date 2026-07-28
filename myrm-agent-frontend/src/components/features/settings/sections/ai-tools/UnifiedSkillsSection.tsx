@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Clock3, ShieldAlert } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
-import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
+import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import SkillsSection from './SkillsSection';
 import { PendingEvolutionsDashboard } from '@/components/features/skills/PendingEvolutionsDashboard';
 import { EvolutionRejectionDashboard } from '@/components/features/skills/EvolutionRejectionDashboard';

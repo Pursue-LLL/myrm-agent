@@ -1,4 +1,4 @@
-import { gateMcpConfigBatch } from '@/hooks/useMcpSecurityGate';
+import { gateMcpConfigBatch } from '@/hooks/settings/useMcpSecurityGate';
 
 import { ConfigState, SearchServiceConfigItem, MCPServiceConfig } from './types';
 import { ProviderConfig, DefaultModelConfig, CustomModelInfo } from './providerTypes';

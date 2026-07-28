@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
-import { gateMcpConfigBatch, gateMcpEnable, mcpConfigHasSecretRefs } from '@/hooks/useMcpSecurityGate';
+import { gateMcpConfigBatch, gateMcpEnable, mcpConfigHasSecretRefs } from '@/hooks/settings/useMcpSecurityGate';
 import type { MCPServiceConfig } from '@/store/config/types';
 
 vi.mock('@/services/llm-config', () => ({

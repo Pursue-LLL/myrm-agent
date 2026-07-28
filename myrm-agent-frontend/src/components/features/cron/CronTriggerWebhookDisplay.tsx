@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Copy, Eye, EyeOff, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
-import { useIngressUrl } from '@/hooks/useIngressUrl';
+import { useIngressUrl } from '@/hooks/billing/useIngressUrl';
 
 export function isValidCronTriggerRegex(pattern: string): boolean {
   if (!pattern) return true;

@@ -12,7 +12,7 @@ import { type AgentThemeColor } from '@/components/features/message-box/progress
 import { Wand2, Plug, FileText, Wrench, Globe, Search, X } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { Input } from '@/components/primitives/input';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { runCuratorSweep } from '@/services/skill';
 import type { ConfigCardType } from './AgentConfigCards';
 import { ActionSpaceAccuracyRadar } from './ActionSpaceAccuracyRadar';
@@ -21,7 +21,7 @@ import { SkillsSectionPanel } from './SkillsSectionPanel';
 import { BuiltinToolsPanel } from './BuiltinToolsPanel';
 import { SubagentsPanel } from './SubagentsPanel';
 import { InstructionPanel } from './InstructionPanel';
-import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
+import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { stripEntitlementBlockedBuiltinTools } from '@/lib/builtin-tool-entitlements';
 import dynamic from 'next/dynamic';
@@ -287,7 +287,7 @@ const AgentConfigEditDialog = ({
 
   const staleCoreSkills = useMemo(() => {
     return localSkillIds.filter((id) => {
-      const isCore = localSkillConfigs?.[id]?.is_core ?? true;
+      const isCore = localSkillConfigs?.[id]?.is_core ?? false;
       if (!isCore) return false;
       const skill = enabledSkills?.find((s) => s.id === id);
       return skill?.usage_stats?.lifecycle_status === 'stale';

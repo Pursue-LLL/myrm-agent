@@ -14,7 +14,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }));
 
@@ -30,7 +30,7 @@ vi.mock('@/lib/api', () => ({
   apiRequest: (...args: unknown[]) => mockApiRequest(...args),
 }));
 
-vi.mock('@/hooks/useMcpSecurityGate', () => ({
+vi.mock('@/hooks/settings/useMcpSecurityGate', () => ({
   buildLastScanSummary: () => null,
   gateMcpEnable: (...args: unknown[]) => mockGateMcpEnable(...args),
 }));

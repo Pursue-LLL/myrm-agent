@@ -22,7 +22,7 @@ import {
 } from '@/services/skill-growth';
 import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import type { DiffOnMount } from '@monaco-editor/react';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 
 export type SkillGrowthViewMode = 'simple' | 'detailed';
 

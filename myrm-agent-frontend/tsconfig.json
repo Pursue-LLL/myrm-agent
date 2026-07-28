@@ -49,21 +49,7 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-isolated-wfetch-e2e/types/**/*.ts",
-    ".next-isolated-wfetch-e2e/dev/types/**/*.ts",
-    ".next-isolated-chrome-test_file_write_empty_mutation_banner_su-7080c431-45323-52f5214a/types/**/*.ts",
-    ".next-isolated-chrome-test_file_write_empty_mutation_banner_su-7080c431-45323-52f5214a/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-60956-61005-fabde7e8/types/**/*.ts",
-    ".next-isolated-e2e-parent-60956-61005-fabde7e8/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-60956-76557-d69f6e2c/types/**/*.ts",
-    ".next-isolated-e2e-parent-60956-76557-d69f6e2c/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-48344-48361-6edb151c/types/**/*.ts",
-    ".next-isolated-e2e-parent-48344-48361-6edb151c/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-74396-74419-e2a564ff/types/**/*.ts",
-    ".next-isolated-e2e-parent-74396-74419-e2a564ff/dev/types/**/*.ts",
-    ".next-isolated-mig-gap-1785167773/types/**/*.ts",
-    ".next-isolated-mig-gap-1785167773/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

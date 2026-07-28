@@ -2,7 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePWAInstall } from '@/hooks/pwa/usePWAInstall';
 import { Button } from '@/components/primitives/button';
 
 /**

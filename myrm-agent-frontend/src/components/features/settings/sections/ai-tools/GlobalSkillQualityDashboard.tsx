@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Card } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { apiRequest, fetchWithTimeout } from '@/lib/api';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import { QualityDistributionChart } from './QualityDistributionChart';
 import { SkillQualityTrendChart } from './SkillQualityTrendChart';
 

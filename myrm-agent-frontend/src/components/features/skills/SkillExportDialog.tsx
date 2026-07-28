@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/ale
 import { previewSkillPackage, downloadSkill, triggerDownload } from '@/services/skill';
 import type { PackagePreviewResponse } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 import { Checkbox } from '@/components/primitives/checkbox';
 

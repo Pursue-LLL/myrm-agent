@@ -15,7 +15,7 @@ import {
 import { useMemoryStore, type MemoryType } from '@/store/memory';
 import type { CreateMemoryRequest } from '@/services/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface MemoryCreateDialogProps {
   open: boolean;

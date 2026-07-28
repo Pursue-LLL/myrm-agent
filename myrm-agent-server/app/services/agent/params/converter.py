@@ -1053,5 +1053,21 @@ async def convert_to_general_agent_params(
         ),
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
+        force_skill_manage=_is_learn_skill_authoring_query(final_query),
     )
     return params, routing_tier, mention_warnings, archive_restore_results
+
+
+def _is_learn_skill_authoring_query(query: object) -> bool:
+    """Detect /learn channel rewrites that require skill_manage_tool."""
+    from app.core.channel_bridge.learn_handler import is_learn_skill_authoring_prompt
+
+    if isinstance(query, str):
+        return is_learn_skill_authoring_prompt(query)
+    if isinstance(query, list):
+        parts: list[str] = []
+        for block in query:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+        return is_learn_skill_authoring_prompt("\n".join(parts))
+    return False

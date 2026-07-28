@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ConnectWizardDialog.tsx` | 组件 | 外部记忆源 Connect Wizard 对话框 | ✅ |
+| `ConnectWizardDialog.tsx` | 组件 | 外部 AI 工具 Connect Wizard：Myrm Agent Profile 选择器 + 外部工具 profile 选择 → 生成 MCP 配置（token 携带 agent_id 作用域）→ doctor 验证 → revoke 管理 | ✅ |
 | `ConversationRecallPanel.tsx` | 组件 | 历史会话召回搜索与插入面板 | ✅ |
 | `MemoryArchiveRestoreDialog.tsx` | 组件 | 记忆归档批量恢复确认对话框 | ✅ |
 | `MemoryCard.tsx` | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单） | ✅ |

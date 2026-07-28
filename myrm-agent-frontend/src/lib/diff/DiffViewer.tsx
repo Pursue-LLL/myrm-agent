@@ -2,7 +2,7 @@
  * DiffViewer - 统一 Diff 可视化组件
  *
  * [INPUT]
- * - hooks/useDiffParser::useDiffParser (POS: diff 解析 Hook)
+ * - hooks/shared/useDiffParser::useDiffParser (POS: diff 解析 Hook)
  * - lib/diff/parseUnifiedDiff::buildSplitPairs (POS: Split 视图配对算法)
  * - lib/diff/parseUnifiedDiff::inferLanguage (POS: 文件路径语言推断)
  * - prism-react-renderer::Highlight, Prism (POS: 语法高亮引擎与运行时语言校验)
@@ -28,7 +28,7 @@ import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Mi
 import { cn } from '@/lib/utils/classnameUtils';
 import { Highlight, themes, Prism } from 'prism-react-renderer';
 import { useTheme } from 'next-themes';
-import { useDiffParser } from '@/hooks/useDiffParser';
+import { useDiffParser } from '@/hooks/shared/useDiffParser';
 import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
 import { buildSplitPairs, inferLanguage } from '@/lib/diff/parseUnifiedDiff';
 import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';

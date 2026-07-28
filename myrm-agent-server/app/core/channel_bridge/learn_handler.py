@@ -56,6 +56,15 @@ source. NEVER invent flags, paths, or APIs you didn't see.
 action="write_file"), referenced from SKILL.md by relative path — not inlined."""
 
 
+LEARN_PROMPT_PREFIX = "[/learn]"
+
+
+def is_learn_skill_authoring_prompt(content: str) -> bool:
+    """Return True when *content* is a /learn channel rewrite requiring skill_manage_tool."""
+    stripped = content.strip()
+    return stripped.startswith(LEARN_PROMPT_PREFIX) and "skill_manage_tool" in stripped
+
+
 def _detect_input_type(user_args: str) -> _InputType:
     """Detect whether the user input is a URL, file path, or free-text."""
     stripped = user_args.strip()

@@ -28,11 +28,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import useAuthStore from '@/store/useAuthStore';
 import useConfigStore from '@/store/useConfigStore';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscription } from '@/hooks/billing/useSubscription';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { preloadMonacoEditor } from '@/lib/utils/componentPreloader';
-import { useNavBadges } from '@/hooks/useNavBadges';
+import { useNavBadges } from '@/hooks/shell/useNavBadges';
 
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';

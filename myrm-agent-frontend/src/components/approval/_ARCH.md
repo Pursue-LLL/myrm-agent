@@ -15,7 +15,7 @@
 ## 依赖
 
 - `@/lib/approval/*` — 见 [lib/approval/_ARCH.md](../../lib/approval/_ARCH.md)
-- `@/hooks/useToolApprovalResolve.ts` 等
+- `@/hooks/approval/useToolApprovalResolve.ts` 等
 - `@/store` 审批队列
 
 ## 与 lib/approval 边界

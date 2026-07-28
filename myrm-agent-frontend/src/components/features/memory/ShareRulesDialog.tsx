@@ -13,7 +13,7 @@ import {
 } from '@/components/primitives/dialog';
 import { cn } from '@/lib/utils/classnameUtils';
 import { previewRulesSafe, exportRulesSafe, type SafeRulePreviewItem } from '@/services/memory';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface ShareRulesDialogProps {
   open: boolean;

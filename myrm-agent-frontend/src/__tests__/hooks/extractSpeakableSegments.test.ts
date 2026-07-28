@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractSpeakableSegments } from '@/hooks/useVoiceSession';
+import { extractSpeakableSegments } from '@/hooks/voice/useVoiceSession';
 
 describe('extractSpeakableSegments', () => {
   it('returns empty array for empty input', () => {

@@ -82,7 +82,7 @@ vi.mock('@/services/cron', () => ({
   listCronJobs: cronApi.listCronJobs,
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: toastMock,
 }));
 

@@ -120,6 +120,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             monitor_config=_h._monitor_config_from_request(body.monitor_config),
             context_from=tuple(body.context_from) if body.context_from else (),
             pre_condition_script=body.pre_condition_script,
+            acceptance_criteria=tuple(body.acceptance_criteria) if body.acceptance_criteria else (),
         )
     except ValueError as e:
         if isinstance(e.__cause__, EntitlementGuardError):
@@ -196,6 +197,8 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             or (body.context_from is not None and len(body.context_from) == 0),
             pre_condition_script=body.pre_condition_script,
             clear_pre_condition_script=body.pre_condition_script is None and "pre_condition_script" in body.model_fields_set,
+            acceptance_criteria=tuple(body.acceptance_criteria) if body.acceptance_criteria else None,
+            clear_acceptance_criteria=body.acceptance_criteria is None and "acceptance_criteria" in body.model_fields_set,
         )
         job = await mgr.update_job(job_id, USER_ID, patch)
     except ValueError as e:

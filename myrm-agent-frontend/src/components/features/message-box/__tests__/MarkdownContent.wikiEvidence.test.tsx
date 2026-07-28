@@ -10,7 +10,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/hooks/useSmoothStream', () => ({
+vi.mock('@/hooks/message-input/useSmoothStream', () => ({
   useSmoothStream: () => ({
     addChunk: vi.fn(),
     displayedContent: '',

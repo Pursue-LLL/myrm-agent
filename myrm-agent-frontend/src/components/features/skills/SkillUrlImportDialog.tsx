@@ -15,7 +15,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Alert, AlertDescription } from '@/components/primitives/alert';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { analyzeDiscoveryUrl, installDiscoverySkillFromUrl, SkillUrlInfo } from '@/services/skill';
 
 interface SkillUrlImportDialogProps {

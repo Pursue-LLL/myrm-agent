@@ -33,7 +33,7 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Input } from '@/components/primitives/input';
 import useAuthStore from '@/store/useAuthStore';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { AgentListItem, listAgents, deleteAgent, importAgent, AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import SettingsSection from '../SettingsSection';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';

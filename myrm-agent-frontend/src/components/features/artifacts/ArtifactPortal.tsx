@@ -48,8 +48,8 @@ import ElementPickerToolbar from './portal/ElementPickerToolbar';
 import { VersionHistoryBanner } from './portal/VersionHistory';
 import { usePortalGestures } from './portal/usePortalGestures';
 import { usePortalKeyboard } from './portal/usePortalKeyboard';
-import { useScrollLock } from '@/hooks/useScrollLock';
-import { useArtifactVersionsFromHistory } from '@/hooks/useArtifactVersionsFromHistory';
+import { useScrollLock } from '@/hooks/ui/useScrollLock';
+import { useArtifactVersionsFromHistory } from '@/hooks/workspace/useArtifactVersionsFromHistory';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 /** 检测是否为移动端 */

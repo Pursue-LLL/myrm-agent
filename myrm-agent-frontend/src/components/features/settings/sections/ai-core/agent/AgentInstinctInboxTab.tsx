@@ -16,7 +16,7 @@ import {
   rejectSkillDraft,
   type SkillDraft 
 } from '@/services/skill';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface AgentInstinctInboxTabProps {
   agentId: string | null;

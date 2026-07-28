@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/primitives/select';
 import { getConfigSyncManager, type BrowserCloudProviderConfigValue, type BrowserCloudProviderType } from '@/services/config';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 const PROVIDERS: { value: BrowserCloudProviderType; label: string; desc: string }[] = [
   { value: 'browserbase', label: 'Browserbase', desc: 'Managed stealth browsers with residential proxies' },

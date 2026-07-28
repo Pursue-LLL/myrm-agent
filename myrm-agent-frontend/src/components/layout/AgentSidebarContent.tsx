@@ -30,7 +30,7 @@ import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/ag
 import useAgentStore from '@/store/useAgentStore';
 import useAuthStore from '@/store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import {
   DropdownMenu,
   DropdownMenuContent,

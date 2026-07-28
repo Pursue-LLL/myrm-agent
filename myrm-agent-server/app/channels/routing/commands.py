@@ -331,17 +331,52 @@ class TopicCommand:
 
     action: Literal["bind", "unbind", "topic"]
     agent_id: str | None = None
+    project_id: str | None = None
+    authorized_path: str | None = None
+    clear_workspace: bool = False
 
 
 def parse_topic_args(action: str, raw_args: str) -> TopicCommand:
     """Parse topic command arguments from resolved command.
 
-    Args:
-        action: The topic action ("bind", "unbind", "topic").
-        raw_args: Trailing arguments from the resolved command.
+    Supports:
+    - legacy bare agent id/name: ``/bind my-agent``
+    - key/value pairs: ``/bind agent=my-agent workspace=project:uuid``
+    - path workspace: ``/bind workspace=/path/to/vault``
     """
-    agent_id = raw_args.strip() if raw_args.strip() and action == "bind" else None
-    return TopicCommand(action=action, agent_id=agent_id)
+    agent_id: str | None = None
+    project_id: str | None = None
+    authorized_path: str | None = None
+    clear_workspace = False
+    legacy_agent: str | None = None
+
+    if action == "bind" and raw_args.strip():
+        for part in raw_args.strip().split():
+            lowered = part.lower()
+            if lowered.startswith("agent="):
+                value = part.split("=", 1)[1].strip()
+                agent_id = value or None
+            elif lowered.startswith("workspace="):
+                value = part.split("=", 1)[1].strip()
+                if not value or value.lower() in {"none", "clear"}:
+                    clear_workspace = True
+                elif value.lower().startswith("project:"):
+                    project_id = value.split(":", 1)[1].strip() or None
+                else:
+                    authorized_path = value
+            elif "=" not in part and legacy_agent is None:
+                legacy_agent = part
+
+        if agent_id is None and legacy_agent:
+            agent_id = legacy_agent
+
+    return TopicCommand(
+        action=action,
+        agent_id=agent_id,
+        project_id=project_id,
+        authorized_path=authorized_path,
+        clear_workspace=clear_workspace,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -491,9 +526,21 @@ async def handle_topic_command(
 
     try:
         if cmd.action == "bind":
-            ctx = await topic_resolver.bind_topic(
-                msg.channel, chat_id, msg.thread_id, agent_id=cmd.agent_id
-            )
+            bind_kwargs: dict[str, object] = {
+                "channel": msg.channel,
+                "chat_id": chat_id,
+                "thread_id": msg.thread_id,
+            }
+            if cmd.agent_id is not None:
+                bind_kwargs["agent_id"] = cmd.agent_id
+            if cmd.project_id is not None:
+                bind_kwargs["project_id"] = cmd.project_id
+            if cmd.authorized_path is not None:
+                bind_kwargs["authorized_path"] = cmd.authorized_path
+            if cmd.clear_workspace:
+                bind_kwargs["project_id"] = None
+                bind_kwargs["authorized_path"] = None
+            ctx = await topic_resolver.bind_topic(**bind_kwargs)
             if ctx.agent_id and cmd.agent_id and ctx.agent_id != cmd.agent_id:
                 agent_label = get_text(
                     msg,
@@ -505,6 +552,20 @@ async def handle_topic_command(
                 agent_label = get_text(msg, "topic_agent_only", agent_id=ctx.agent_id)
             else:
                 agent_label = ""
+            if ctx.project_id:
+                workspace_label = get_text(
+                    msg,
+                    "topic_workspace_only",
+                    workspace=f"project:{ctx.project_id}",
+                )
+            elif ctx.authorized_path:
+                workspace_label = get_text(
+                    msg,
+                    "topic_workspace_only",
+                    workspace=ctx.authorized_path,
+                )
+            else:
+                workspace_label = ""
             scope_label = (
                 f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}"
                 if msg.thread_id
@@ -515,6 +576,7 @@ async def handle_topic_command(
                 "topic_bound",
                 scope=scope_label,
                 agent_label=agent_label,
+                workspace_label=workspace_label,
             )
 
             channel_obj = bus.get_channel(msg.channel)
@@ -603,6 +665,20 @@ async def handle_topic_command(
                     if topic_ctx.agent_id
                     else get_text(msg, "topic_status_agent_default")
                 )
+                if topic_ctx.project_id:
+                    workspace_label = get_text(
+                        msg,
+                        "topic_status_workspace",
+                        workspace=f"project:{topic_ctx.project_id}",
+                    )
+                elif topic_ctx.authorized_path:
+                    workspace_label = get_text(
+                        msg,
+                        "topic_status_workspace",
+                        workspace=topic_ctx.authorized_path,
+                    )
+                else:
+                    workspace_label = get_text(msg, "topic_status_workspace_default")
                 bound_label = (
                     get_text(msg, "topic_status_bound_at", bound_at=topic_ctx.bound_at)
                     if topic_ctx.bound_at
@@ -621,6 +697,7 @@ async def handle_topic_command(
                     "topic_status",
                     scope=scope_label,
                     agent_label=agent_label,
+                    workspace_label=workspace_label,
                     status=status,
                     bound_label=bound_label,
                 )

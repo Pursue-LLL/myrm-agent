@@ -39,7 +39,7 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "native-json": "ready",
     "myrm-archive": "ready",
     "agentmemory": "ready",
-    "gbrain": "missing",
+    "gbrain": "ready",
     "memweaver": "missing",
     "claude-code": "ready",
     "hermes": "ready",

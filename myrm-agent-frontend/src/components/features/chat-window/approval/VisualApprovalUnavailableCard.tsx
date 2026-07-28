@@ -8,7 +8,7 @@ import { Badge } from '@/components/primitives/badge';
 import type { VisualApprovalUnavailableReason } from '@/lib/approval/visualApprovalRenderState';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import SingleApprovalCard from '../SingleApprovalCard';
-import type { ToolApprovalResolveExtra } from '@/hooks/useToolApprovalResolve';
+import type { ToolApprovalResolveExtra } from '@/hooks/approval/useToolApprovalResolve';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 

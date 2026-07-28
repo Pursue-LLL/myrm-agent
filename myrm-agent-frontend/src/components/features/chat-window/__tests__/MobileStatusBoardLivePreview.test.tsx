@@ -52,7 +52,7 @@ vi.mock('@/lib/approval/visualApprovalSurface', () => ({
   partitionApprovalQueue: () => ({ inlineRequests: [], modalRequests: [] }),
 }));
 
-vi.mock('@/hooks/useToolApprovalResolve', () => ({
+vi.mock('@/hooks/approval/useToolApprovalResolve', () => ({
   useToolApprovalResolve: () => ({
     resolveRequest: vi.fn(),
     approveAll: vi.fn(),
@@ -61,7 +61,7 @@ vi.mock('@/hooks/useToolApprovalResolve', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useVisualApprovalSnapshot', () => ({
+vi.mock('@/hooks/approval/useVisualApprovalSnapshot', () => ({
   useVisualApprovalSnapshot: () => ({
     status: 'idle',
     snapshotFetchFailed: false,

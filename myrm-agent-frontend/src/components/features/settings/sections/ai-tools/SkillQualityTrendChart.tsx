@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import {
   CartesianGrid,
   Legend,

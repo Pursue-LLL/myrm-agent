@@ -61,6 +61,7 @@ class CronJobModel(Base):
     monitor_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     triggers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     pre_condition_script: Mapped[str | None] = mapped_column(Text, nullable=True)
+    acceptance_criteria: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

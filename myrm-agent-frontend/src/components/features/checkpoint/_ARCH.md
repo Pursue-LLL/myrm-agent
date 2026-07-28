@@ -28,5 +28,5 @@
 
 - `@/store/useChatStore`（workspaceDir）
 - `@/services/checkpoint`（API 调用层）
-- `@/hooks/useToast`
+- `@/hooks/shared/useToast`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

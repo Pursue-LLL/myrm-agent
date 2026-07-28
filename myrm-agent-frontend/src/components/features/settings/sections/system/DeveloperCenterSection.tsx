@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Terminal, FlaskConical, BarChart3, PawPrint, Download } from 'lucide-react';
-import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
+import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import DeveloperSection from './DeveloperSection';
 import ExperimentalFeaturesSection from './ExperimentalFeaturesSection';
 import UsageStatisticsSection from './UsageStatisticsSection';

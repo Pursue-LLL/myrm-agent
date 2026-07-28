@@ -102,6 +102,9 @@ class GeneralAgent(ToolSetupMixin):
         enable_planning: bool = False,
         enable_plan_confirm: bool = False,
         enable_external_cli: bool = False,
+        enable_skill_market: bool = False,
+        enable_skill_evolution: bool = False,
+        force_skill_manage: bool = False,
         kanban_tool_mode: str = "orchestrator",
         kanban_default_board_id: str | None = None,
         kanban_current_task_id: str | None = None,
@@ -204,6 +207,9 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_planning = enable_planning
         self.enable_plan_confirm = enable_plan_confirm
         self.enable_external_cli = enable_external_cli
+        self.enable_skill_market = enable_skill_market
+        self.enable_skill_evolution = enable_skill_evolution
+        self.force_skill_manage = force_skill_manage
         self.kanban_tool_mode = kanban_tool_mode
         self.kanban_default_board_id = kanban_default_board_id
         self.kanban_current_task_id = kanban_current_task_id

@@ -223,12 +223,20 @@ export type DraftTimeoutAction = 'auto_send' | 'auto_reject';
 export interface TopicBinding {
   topicId: string;
   agentId: string | null;
+  projectId?: string | null;
+  authorizedPath?: string | null;
+  workspaceLabel?: string | null;
   displayName: string | null;
   avatarUrl: string | null;
   threadSharingMode: ThreadSharingMode;
   replyMode: ReplyMode;
   draftTimeoutMinutes: number;
   draftTimeoutAction: DraftTimeoutAction;
+}
+
+export interface TopicWorkspaceBindOptions {
+  projectId?: string | null;
+  authorizedPath?: string | null;
 }
 
 export interface ChannelTopicsResponse {
@@ -249,10 +257,24 @@ export async function bindTopicAgent(
   replyMode?: ReplyMode,
   draftTimeoutMinutes?: number,
   draftTimeoutAction?: DraftTimeoutAction,
+  workspace?: TopicWorkspaceBindOptions,
 ): Promise<void> {
+  const body: Record<string, unknown> = {
+    agentId,
+    threadSharingMode,
+    replyMode,
+    draftTimeoutMinutes,
+    draftTimeoutAction,
+  };
+  if (workspace && Object.prototype.hasOwnProperty.call(workspace, 'projectId')) {
+    body.projectId = workspace.projectId;
+  }
+  if (workspace && Object.prototype.hasOwnProperty.call(workspace, 'authorizedPath')) {
+    body.authorizedPath = workspace.authorizedPath;
+  }
   return apiRequest(`/channels/manage/${channel}/topics/${encodeURIComponent(topicId)}/bind`, {
     method: 'POST',
-    body: JSON.stringify({ agentId, threadSharingMode, replyMode, draftTimeoutMinutes, draftTimeoutAction }),
+    body: JSON.stringify(body),
   });
 }
 

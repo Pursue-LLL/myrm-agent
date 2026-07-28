@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/primitives/sheet';
 import type { KanbanTask } from '@/services/kanban';
 import { STATUS_DOT } from './kanban-styles';
-import { useAgentName } from '@/hooks/useAgentName';
+import { useAgentName } from '@/hooks/agent/useAgentName';
 import { useKanbanTaskDrawer } from './useKanbanTaskDrawer';
 import { StatusActionsBar } from './KanbanTaskDrawerHeader';
 import { TaskDetailsSection } from './KanbanTaskDrawerDetails';

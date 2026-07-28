@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - @/lib/approval/visualApprovalSurface::partitionApprovalQueue (POS: inline vs modal routing)
- * - @/hooks/useToolApprovalResolve (POS: SSE resume for approve/reject)
+ * - @/hooks/approval/useToolApprovalResolve (POS: SSE resume for approve/reject)
  * - @/store/useToolApprovalStore (POS: pending HITL queue)
  * - @/store/useChatStore (POS: active chat id filter)
  *
@@ -21,7 +21,7 @@ import { AlertTriangle, LocateFixed, MessageSquareX } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { selectEarliestInlineRequest } from '@/lib/approval/resolveDesktopOverlayTarget';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
-import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 import useChatStore from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 

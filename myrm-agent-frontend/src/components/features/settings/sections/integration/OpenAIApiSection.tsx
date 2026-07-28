@@ -6,7 +6,7 @@ import { IconBan, IconCheck, IconCopy, IconKey, IconPlus, IconTrash } from '@/co
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getAgentApiBaseUrl } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
 import {

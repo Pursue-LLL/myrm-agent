@@ -285,9 +285,7 @@ class AgentService:
                 cron_post_run_verify=agent_data.cron_post_run_verify,
             )
 
-        _notify_agent_update(created_profile.id, "created")
-        _invalidate_agent_profile_cache(created_profile.id)
-        _reload_command_bindings()
+        _finalize_profile_mutation(created_profile.id, "created")
 
         logger.info(f"✅ 创建智能体: {created_profile.id} (name={created_profile.display_name})")
         return created_profile

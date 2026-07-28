@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { useState } from 'react';
-import { usePermissionDialog, useCLIAgent } from '@/hooks/useCLIAgent';
+import { usePermissionDialog, useCLIAgent } from '@/hooks/agent/useCLIAgent';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   IconAlertTriangle,

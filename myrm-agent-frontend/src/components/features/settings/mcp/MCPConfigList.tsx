@@ -20,7 +20,7 @@ import {
 } from '@/services/llm-config';
 import { BACKEND_BASE_URL } from '@/lib/api';
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
 
 function severityBadgeClass(severity: string | null | undefined): string {

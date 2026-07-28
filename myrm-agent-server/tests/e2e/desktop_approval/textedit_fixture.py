@@ -312,7 +312,8 @@ def preflight_textedit_foreground(
         return True
     for attempt in range(1, attempts + 1):
         activate_textedit_foreground()
-        time.sleep(0.35)
+        settle_sec = 0.8 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 0.35
+        time.sleep(settle_sec)
         is_frontmost = textedit_is_frontmost()
         if is_frontmost:
             progress(f"textedit foreground preflight ok (attempt {attempt}/{attempts})")

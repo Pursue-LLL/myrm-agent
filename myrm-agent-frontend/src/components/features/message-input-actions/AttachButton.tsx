@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { File as FileType } from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import Tooltip from '@/components/features/settings/Tooltip';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { selectFiles, toStoreFile, getFileService } from '@/services/file-service';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';

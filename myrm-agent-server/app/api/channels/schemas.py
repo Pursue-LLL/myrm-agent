@@ -162,6 +162,14 @@ class WeComTestRequest(BaseModel):
         populate_by_name = True
 
 
+class WeChatOfficialTestRequest(BaseModel):
+    app_id: str = Field(..., alias="appId", min_length=1)
+    app_secret: str = Field(..., alias="appSecret", min_length=1)
+
+    class Config:
+        populate_by_name = True
+
+
 class TeamsTestRequest(BaseModel):
     app_id: str = Field(..., alias="appId", min_length=1)
     app_password: str = Field(..., alias="appPassword", min_length=1)
@@ -307,6 +315,9 @@ class ChannelInstanceResponse(BaseModel):
 class TopicBindingResponse(BaseModel):
     topic_id: str = Field(..., alias="topicId")
     agent_id: str | None = Field(None, alias="agentId")
+    project_id: str | None = Field(None, alias="projectId")
+    authorized_path: str | None = Field(None, alias="authorizedPath")
+    workspace_label: str | None = Field(None, alias="workspaceLabel")
     enabled: bool = True
     bound_at: str | None = Field(None, alias="boundAt")
     display_name: str | None = Field(None, alias="displayName")
@@ -338,6 +349,8 @@ class DisplayNameUpdate(BaseModel):
 
 class BindTopicRequest(BaseModel):
     agent_id: str | None = Field(None, alias="agentId")
+    project_id: str | None = Field(None, alias="projectId")
+    authorized_path: str | None = Field(None, alias="authorizedPath")
     display_name: str | None = Field(None, alias="displayName")
     avatar_url: str | None = Field(None, alias="avatarUrl")
     thread_sharing_mode: str | None = Field(None, alias="threadSharingMode")

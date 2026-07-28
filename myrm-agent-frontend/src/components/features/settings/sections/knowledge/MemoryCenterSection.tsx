@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import dynamic from 'next/dynamic';
 import { Brain, Archive, Database, Cloud, ArrowRightLeft, MessageCircle } from 'lucide-react';
-import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
+import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import { isLocalMode } from '@/lib/deploy-mode';
 import MemorySection from './MemorySection';
 import MemoryBackupSection from './MemoryBackupSection';

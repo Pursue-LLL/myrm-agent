@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Check, Plus, Target, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import { useMilestoneStore } from '@/store/useMilestoneStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Milestone } from '@/services/milestones';

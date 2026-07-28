@@ -96,6 +96,7 @@ export interface CronJob {
   triggers?: TriggerConfig | null;
   context_from: string[];
   pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
   max_retries: number;
   retry_backoff_ms: number;
   timeout_seconds: number;
@@ -266,6 +267,7 @@ export interface CreateCronJobRequest {
   monitor_config?: MonitorConfig;
   context_from?: string[];
   pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
   required_capabilities?: string[];
   tools_allowed?: string[];
 }
@@ -305,6 +307,7 @@ export interface UpdateCronJobRequest {
   monitor_config?: MonitorConfig | null;
   context_from?: string[];
   pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
 }
 
 export interface BlueprintSlotDef {

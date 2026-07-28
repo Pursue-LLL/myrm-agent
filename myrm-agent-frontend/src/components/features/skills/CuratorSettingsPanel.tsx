@@ -9,7 +9,7 @@ import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   getCuratorConfig,
   updateCuratorConfig,

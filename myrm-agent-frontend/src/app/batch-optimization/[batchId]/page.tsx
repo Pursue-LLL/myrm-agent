@@ -14,7 +14,7 @@ import {
   rollbackBatchTask,
   type BatchCancelCleanupStrategy,
 } from '@/services/skill-optimization';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   AlertDialog,
   AlertDialogAction,

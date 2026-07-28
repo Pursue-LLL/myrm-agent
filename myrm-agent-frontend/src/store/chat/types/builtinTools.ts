@@ -28,7 +28,9 @@ export type BuiltinToolId =
   | 'render_ui'
   | 'planning'
   | 'structured_clarify'
-  | 'external_cli';
+  | 'external_cli'
+  | 'skill_market'
+  | 'skill_evolution';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -46,6 +48,8 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'planning',
   'structured_clarify',
   'external_cli',
+  'skill_market',
+  'skill_evolution',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
@@ -77,6 +81,8 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   planning: { en: 'Planning', zh: '任务规划' },
   structured_clarify: { en: 'Structured Clarify', zh: '结构化澄清' },
   external_cli: { en: 'External CLI', zh: '外部 CLI' },
+  skill_market: { en: 'Skill Market', zh: '技能市场' },
+  skill_evolution: { en: 'Skill Evolution', zh: '技能进化' },
 };
 
 export function getBuiltinToolDisplayLabel(

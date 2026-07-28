@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
 import { IconActivity, IconAlertCircle, IconRefresh } from '@/components/features/icons/PremiumIcons';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   applyContextBundleMigration,
   getContextBundleHealth,

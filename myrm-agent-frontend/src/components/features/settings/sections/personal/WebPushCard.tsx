@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Bell, BellOff, BellRing, Smartphone } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { Button } from '@/components/primitives/button';
-import { usePushSubscription, type PushSubscriptionState } from '@/hooks/usePushSubscription';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePushSubscription, type PushSubscriptionState } from '@/hooks/pwa/usePushSubscription';
+import { usePWAInstall } from '@/hooks/pwa/usePWAInstall';
 import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 

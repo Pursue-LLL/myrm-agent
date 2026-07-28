@@ -251,6 +251,47 @@ export async function testWeComAiBotConnection(botId: string, secret: string): P
   return wecomAibotService.test({ botId, secret });
 }
 
+// ==================== WeChat Official Account ====================
+
+export interface WeChatOfficialCredentials {
+  appId: string;
+  appSecret: string;
+  token: string;
+  encodingAesKey: string;
+}
+
+const wechatOfficialService = createChannelCredentialService<WeChatOfficialCredentials>(
+  'wechatOfficialCredentials',
+  '/channels/manage/wechat-official/test',
+);
+export const getWeChatOfficialCredentials = wechatOfficialService.get;
+export const saveWeChatOfficialCredentials = wechatOfficialService.save;
+export async function testWeChatOfficialConnection(appId: string, appSecret: string): Promise<ChannelTestResult> {
+  return wechatOfficialService.test({ appId, appSecret });
+}
+
+export interface WeChatDraftPushRequest {
+  htmlPath: string;
+  title: string;
+  author?: string;
+  digest?: string;
+  coverPath?: string;
+}
+
+export interface WeChatDraftPushResponse {
+  mediaId: string;
+  uploadedImageCount: number;
+  manageUrl: string;
+}
+
+export async function pushWeChatOfficialDraft(body: WeChatDraftPushRequest): Promise<WeChatDraftPushResponse> {
+  return apiRequest('/channels/manage/wechat-official/draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 // ==================== MS Teams ====================
 
 export interface TeamsCredentials {

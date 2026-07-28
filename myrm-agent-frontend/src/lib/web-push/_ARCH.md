@@ -4,7 +4,7 @@
 
 Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (esbuild bundle via `scripts/build-sw-src.mjs`).
 
-HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/usePushSubscription.ts`.
+HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/pwa/usePushSubscription.ts`.
 
 ## 文件清单
 

@@ -44,6 +44,7 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "wecomCredentials",
         "wecomAibotCredentials",
         "wechatCredentials",
+        "wechatOfficialCredentials",
         "teamsCredentials",
         "matrixCredentials",
         "telegramCredentials",

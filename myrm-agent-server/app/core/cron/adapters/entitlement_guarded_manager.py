@@ -86,6 +86,7 @@ class EntitlementGuardedCronManager:
         triggers: TriggerConfig | None = None,
         context_from: tuple[str, ...] = (),
         pre_condition_script: str | None = None,
+        acceptance_criteria: tuple[dict[str, object], ...] = (),
     ) -> CronJob:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
         from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
@@ -129,6 +130,7 @@ class EntitlementGuardedCronManager:
             triggers=triggers,
             context_from=context_from,
             pre_condition_script=pre_condition_script,
+            acceptance_criteria=acceptance_criteria,
         )
 
     async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:

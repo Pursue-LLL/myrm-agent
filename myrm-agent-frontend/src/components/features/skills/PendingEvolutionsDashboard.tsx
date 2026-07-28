@@ -15,7 +15,7 @@ import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
 import SkillGrowthCaseCard, { type SkillGrowthViewMode } from '@/components/features/skills/SkillGrowthCaseCard';
 import SettingsSection from '@/components/features/settings/sections/SettingsSection';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   approveSkillGrowthCase,
   getSkillGrowthSummary,

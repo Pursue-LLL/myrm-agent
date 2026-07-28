@@ -18,4 +18,4 @@ CLI 工作区侧边栏专用 hooks：文件预览状态与文件系统变更监�
 
 ## 约束
 
-- Diff 解析共用 `@/hooks/useDiffParser`，不在此目录重复实现
+- Diff 解析共用 `@/hooks/shared/useDiffParser`，不在此目录重复实现

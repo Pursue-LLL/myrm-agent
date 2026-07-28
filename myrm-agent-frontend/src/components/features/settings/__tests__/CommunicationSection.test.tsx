@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
 }));
 
-vi.mock('@/hooks/useSettingsSubTabUrl', () => ({
+vi.mock('@/hooks/settings/useSettingsSubTabUrl', () => ({
   useSettingsSubTabUrl: () => ({ handleTabChange: vi.fn() }),
   defaultSubTabResolver: () => () => 'channels',
 }));

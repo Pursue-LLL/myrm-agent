@@ -13,7 +13,8 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
-| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染（>1MB 大文件降级为全屏引导）；Globe 发布；publication badges；per-target stale banner |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；HTML 工件 HITL「推送到公众号草稿」（标题 + 封面 workspace 图片 suggest / 手动路径） |
+| `useWechatCoverSuggest.ts` | 辅助 | 公众号草稿封面：`GET /files/suggest` debounce + 图片扩展名过滤 |
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
 | `artifactUtils.ts` | 辅助 | preflight/share API、`isPublicationStale`、`publicationsChanged` |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由；Code/Document/Mermaid 预览 dynamic import |

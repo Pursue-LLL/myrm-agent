@@ -13,5 +13,5 @@
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
-- `@/hooks/useVoiceSession` — 全双工语音会话编排
+- `@/hooks/voice/useVoiceSession` — 全双工语音会话编排
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

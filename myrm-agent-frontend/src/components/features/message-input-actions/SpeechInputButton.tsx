@@ -4,8 +4,8 @@ import { memo, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/hooks/useToast';
-import { useSpeechInput, type SpeechMode } from '@/hooks/useSpeechInput';
+import { toast } from '@/hooks/shared/useToast';
+import { useSpeechInput, type SpeechMode } from '@/hooks/voice/useSpeechInput';
 import Tooltip from '@/components/features/settings/Tooltip';
 
 function formatTime(seconds: number): string {

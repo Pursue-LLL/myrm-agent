@@ -11,8 +11,8 @@ Cloud/SaaS migration bridge — accepts a user-uploaded ZIP of competitor data,
 safely extracts to a temporary directory, runs existing source probes, and
 returns the same DiscoveryResponse used by the local discover endpoint.
 Enables three-deployment parity for the Migration Wizard.
-Also detects ChatGPT export ZIPs (containing conversations.json) and returns
-them as a chatgpt source for the import path.
+Also detects ChatGPT export ZIPs (containing conversations.json) and
+gbrain export ZIPs (directories of .md files with YAML frontmatter containing type:).
 """
 
 from __future__ import annotations
@@ -84,6 +84,54 @@ def _is_chatgpt_conversations_file(path: str) -> bool:
         return False
 
 
+_GBRAIN_FRONTMATTER_PROBE_BYTES = 512
+_GBRAIN_MIN_PAGES_FOR_DETECTION = 3
+
+
+def _detect_gbrain_zip(tmpdir: str) -> tuple[str, int] | None:
+    """Return (root_dir, page_count) if this looks like a gbrain export directory.
+
+    gbrain export produces .md files with YAML frontmatter containing a ``type:`` field.
+    We require at least _GBRAIN_MIN_PAGES_FOR_DETECTION matching files for high confidence.
+    """
+
+    matched = 0
+    root_dir = tmpdir
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if _is_gbrain_page_file(fpath):
+                matched += 1
+                if matched >= _GBRAIN_MIN_PAGES_FOR_DETECTION:
+                    return root_dir, _count_md_files(tmpdir)
+    return None
+
+
+def _is_gbrain_page_file(path: str) -> bool:
+    """Probe an .md file header for gbrain YAML frontmatter with type: field."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_GBRAIN_FRONTMATTER_PROBE_BYTES)
+        if not header.startswith(b"---"):
+            return False
+        return b"\ntype:" in header or b"\ntype :" in header
+    except OSError:
+        return False
+
+
+def _count_md_files(directory: str) -> int:
+    """Count .md files in a directory tree."""
+
+    count = 0
+    for _dirpath, _dirs, files in os.walk(directory):
+        count += sum(1 for f in files if f.endswith(".md"))
+    return count
+
+
 def _resolve_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
     """Resolve authoritative flag with SSOT completeness guard."""
 
@@ -143,6 +191,10 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     if chatgpt_path:
         return _build_chatgpt_discovery(chatgpt_path, manifest, manifest_authoritative)
 
+    gbrain_result = _detect_gbrain_zip(tmpdir)
+    if gbrain_result:
+        return _build_gbrain_discovery(tmpdir, gbrain_result[1], manifest, manifest_authoritative)
+
     result = discover_external_sources(home_dir=tmpdir)
 
     if not result.sources:
@@ -187,6 +239,42 @@ def _build_chatgpt_discovery(
         confidence="high",
         files=[DiscoveredFileResponse(path=conversations_path, kind="conversations_json", size_bytes=size_bytes)],
         memory_count_estimate=count,
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_gbrain_discovery(
+    root_dir: str,
+    page_count: int,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a gbrain export ZIP."""
+
+    md_files: list[DiscoveredFileResponse] = []
+    for dirpath, _dirs, files in os.walk(root_dir):
+        for fname in files:
+            if fname.endswith(".md"):
+                fpath = os.path.join(dirpath, fname)
+                try:
+                    sz = os.path.getsize(fpath)
+                except OSError:
+                    sz = 0
+                if len(md_files) < 20:
+                    md_files.append(DiscoveredFileResponse(path=fpath, kind="gbrain_page", size_bytes=sz))
+
+    source = ExternalSourceResponse(
+        competitor="gbrain",
+        root=root_dir,
+        confidence="high",
+        files=md_files,
+        memory_count_estimate=page_count,
     )
     return DiscoveryResponse(
         sources=[source],

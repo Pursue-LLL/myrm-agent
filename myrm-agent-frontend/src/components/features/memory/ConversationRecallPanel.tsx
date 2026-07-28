@@ -17,7 +17,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArchiveRestore, ExternalLink, Loader2, RefreshCw, SearchX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   listConversationRecallEntries,

@@ -12,7 +12,7 @@ import { Button } from '@/components/primitives/button';
 import { IconGlobe, IconLoader } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getConfigSyncManager, type WebFetchEscalationConfigValue } from '@/services/config';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { apiRequest } from '@/lib/api';
 
 const DEFAULT_CONFIG: WebFetchEscalationConfigValue = {

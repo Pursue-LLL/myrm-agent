@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * hooks/useCameraInput (POS: Camera input manager with frame buffering)
+ * hooks/multimodal/useCameraInput (POS: Camera input manager with frame buffering)
  *
  * [OUTPUT]
  * CameraPreview: Floating preview window showing camera feed above input bar
@@ -13,7 +13,7 @@
 
 import { memo } from 'react';
 import { X } from 'lucide-react';
-import type { CameraState } from '@/hooks/useCameraInput';
+import type { CameraState } from '@/hooks/multimodal/useCameraInput';
 import { useTranslations } from 'next-intl';
 
 interface CameraPreviewProps {

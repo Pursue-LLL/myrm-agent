@@ -31,7 +31,7 @@ vi.mock('@/store/useArtifactPortalStore', () => {
   return { default: store };
 });
 
-vi.mock('@/hooks/useMessageQueue', () => ({
+vi.mock('@/hooks/message-input/useMessageQueue', () => ({
   useMessageQueue: () => ({
     enqueue: mockEnqueue,
     queue: [],

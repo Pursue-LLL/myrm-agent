@@ -36,7 +36,7 @@ async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_
 
     with (
         patch(
-            "app.services.agent.stream_session.migration_readiness_anchor.get_session_factory",
+            "app.platform_utils.get_session_factory",
             return_value=mock_session_factory,
         ),
         patch(
@@ -89,7 +89,7 @@ async def test_record_migration_first_turn_outcome_skips_when_live_resolve_fails
 
     with (
         patch(
-            "app.services.agent.stream_session.migration_readiness_anchor.get_session_factory",
+            "app.platform_utils.get_session_factory",
             return_value=mock_session_factory,
         ),
         patch(

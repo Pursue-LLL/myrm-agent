@@ -489,6 +489,8 @@ def _require_live_e2e_lease(
                     "MYRM_E2E_STREAM_LOCK_HELD", ""
                 ).strip()
                 == "1",
+                api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
+                or os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1",
             )
             if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:
                 assert_chrome_attach_health()

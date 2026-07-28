@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { X, RotateCcw } from 'lucide-react';
 import { FileChange, restoreFileSnapshot } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface FileDiffViewerProps {
   snapshotId: string;

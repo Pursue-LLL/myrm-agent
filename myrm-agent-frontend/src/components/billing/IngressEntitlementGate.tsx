@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
+import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { useUpgradeNudgeStore } from '@/store/useUpgradeNudgeStore';
 import { isSandbox } from '@/lib/deploy-mode';
 

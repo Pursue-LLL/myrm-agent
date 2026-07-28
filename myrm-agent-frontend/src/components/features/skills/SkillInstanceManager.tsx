@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { KeyValueEditor } from '@/components/features/app-shell/key-value-editor';
 import { JsonEditor } from '@/components/features/app-shell/json-editor';
 import { SchemaForm } from '@/components/features/app-shell/schema-form';

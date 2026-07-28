@@ -3,7 +3,7 @@
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import { resolveVisualApprovalRenderState } from '@/lib/approval/visualApprovalRenderState';
 import type { ToolApprovalRequest } from '@/store/chat/types';
-import type { ToolApprovalResolveExtra } from '@/hooks/useToolApprovalResolve';
+import type { ToolApprovalResolveExtra } from '@/hooks/approval/useToolApprovalResolve';
 import VisualApprovalArtifactCard from '../VisualApprovalArtifactCard';
 import VisualApprovalPendingCard from '../VisualApprovalPendingCard';
 import VisualApprovalUnavailableCard from './VisualApprovalUnavailableCard';

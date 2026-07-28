@@ -78,6 +78,7 @@ def _to_response(job: CronJob, monitor_state: MonitorState | None = None) -> Cro
         triggers=_trigger_config_to_response(job.triggers),
         context_from=list(job.context_from) if job.context_from else [],
         pre_condition_script=job.pre_condition_script,
+        acceptance_criteria=list(job.acceptance_criteria) if job.acceptance_criteria else None,
         max_retries=job.max_retries,
         retry_backoff_ms=job.retry_backoff_ms,
         timeout_seconds=job.timeout_seconds,

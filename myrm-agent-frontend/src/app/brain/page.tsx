@@ -6,7 +6,7 @@ import { Button } from '@/components/primitives/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/primitives/card';
 import { showApiError } from '@/lib/api';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { Textarea } from '@/components/primitives/textarea';
 import { Loader2, Check, X, RefreshCw, XCircle, BrainCircuit, FileText, Inbox, Activity, Search } from 'lucide-react';
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';

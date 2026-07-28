@@ -23,6 +23,8 @@ suggestion_prompts:
   - "帮我写一篇关于AI编程趋势的2000字深度文章"
   - "Write a LinkedIn post about our new product launch"
   - "帮我撰写本周的技术Newsletter，主题是RAG最新进展"
+prebuilt_skill_ids:
+  - wechat-article-formatter
 members:
   - role: writer
     name:

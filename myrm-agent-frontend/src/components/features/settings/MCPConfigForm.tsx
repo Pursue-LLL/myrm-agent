@@ -2,14 +2,14 @@ import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { MCPServiceConfig } from '@/store/useConfigStore';
 import type { MCPScanResult } from '@/store/config/types';
-import { useMCPConfig } from '@/hooks/useMCPConfig';
+import { useMCPConfig } from '@/hooks/settings/useMCPConfig';
 import { MCPConfigList } from './mcp/MCPConfigList';
 import { MCPConfigEditor } from './mcp/MCPConfigEditor';
 import { MCPJsonImporter } from './mcp/MCPJsonImporter';
 import { DeleteConfirmDialog } from './mcp/DeleteConfirmDialog';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import { parseMCPConfigsFromJSON } from '@/lib/utils/mcpConfigParser';
-import { buildLastScanSummary, gateMcpConfigBatch } from '@/hooks/useMcpSecurityGate';
+import { buildLastScanSummary, gateMcpConfigBatch } from '@/hooks/settings/useMcpSecurityGate';
 import { getMcpFindingDescription } from '@/lib/utils/mcpScanFindingText';
 import { MCPScanAckDialog } from './mcp/MCPScanAckDialog';
 

@@ -19,7 +19,7 @@ Tauri 桌面端 CLI/ACP 工作区可视化：Diff 预览、文件树、文件预
 ## 约束
 
 - **禁止** `index.ts` 桶导出；消费者直引组件/hook 文件
-- Diff 解析共用 `@/hooks/useDiffParser`、`@/lib/diff/parseUnifiedDiff`
+- Diff 解析共用 `@/hooks/shared/useDiffParser`、`@/lib/diff/parseUnifiedDiff`
 
 ## 依赖
 

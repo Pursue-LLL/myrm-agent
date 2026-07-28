@@ -48,7 +48,7 @@ describe('useSystemConfig saveAndRestart', () => {
   });
 
   it('writes localStorage before restart_app', async () => {
-    const { useSystemConfig } = await import('@/hooks/useSystemConfig');
+    const { useSystemConfig } = await import('@/hooks/settings/useSystemConfig');
     const { result } = renderHook(() => useSystemConfig());
 
     await waitFor(() => {

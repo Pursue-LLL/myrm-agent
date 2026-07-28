@@ -508,6 +508,8 @@ class TopicContext:
 
     topic_id: str
     agent_id: str | None = None
+    project_id: str | None = None
+    authorized_path: str | None = None
     enabled: bool = True
     bound_at: str | None = None
     matched_by: str | None = None

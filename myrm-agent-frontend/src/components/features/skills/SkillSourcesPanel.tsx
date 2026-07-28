@@ -6,7 +6,7 @@ import { Globe, Plus, Trash2, Loader2, CheckCircle, XCircle } from 'lucide-react
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   getCustomSources,
   addCustomSource,

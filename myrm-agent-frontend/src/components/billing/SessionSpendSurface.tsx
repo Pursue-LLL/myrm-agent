@@ -18,8 +18,8 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import { isSandbox, isLocalMode } from '@/lib/deploy-mode';
-import { useEntitlements } from '@/hooks/useEntitlements';
-import { useBillingCatalog } from '@/hooks/useBillingCatalog';
+import { useEntitlements } from '@/hooks/billing/useEntitlements';
+import { useBillingCatalog } from '@/hooks/billing/useBillingCatalog';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 

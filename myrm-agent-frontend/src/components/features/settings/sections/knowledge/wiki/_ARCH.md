@@ -18,8 +18,8 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 ## Dependencies
 
 - `services/wikiService.ts` (POS: Wiki REST 客户端，对接 `/wiki/tree/*`)
-- `hooks/useMediaQuery.ts` (POS: 响应式断点检测)
-- `hooks/useSettingsSubTabUrl.ts` (POS: Settings 子 Tab URL 同步守卫)
+- `hooks/ui/useMediaQuery.ts` (POS: 响应式断点检测)
+- `hooks/settings/useSettingsSubTabUrl.ts` (POS: Settings 子 Tab URL 同步守卫)
 - `components/features/message-box/MarkdownContent.tsx` (POS: Markdown 渲染)
 
 ## API Surface

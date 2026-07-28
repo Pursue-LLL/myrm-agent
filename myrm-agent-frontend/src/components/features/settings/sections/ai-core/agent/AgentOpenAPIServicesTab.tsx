@@ -15,7 +15,7 @@ import {
   getSaaSPresets,
   type SaaSPreset,
 } from '@/services/agent';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface AgentOpenAPIServicesTabProps {
   services: OpenAPIServiceConfig[];

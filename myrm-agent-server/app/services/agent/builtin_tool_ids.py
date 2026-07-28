@@ -52,6 +52,8 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "planning",
     "structured_clarify",
     "external_cli",
+    "skill_market",
+    "skill_evolution",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -99,6 +101,14 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {
         "id": "external_cli",
         "desc": "Delegate tasks to external CLI agents (Claude Code, Codex, Gemini CLI)",
+    },
+    {
+        "id": "skill_market",
+        "desc": "Search and install skills from external marketplaces via skill_market_tool",
+    },
+    {
+        "id": "skill_evolution",
+        "desc": "Create and edit skills in chat via skill_manage_tool",
     },
 )
 

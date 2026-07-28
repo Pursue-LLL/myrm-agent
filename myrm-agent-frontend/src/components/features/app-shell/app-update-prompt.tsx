@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import { useAppUpdate, type AppUpdatePhase } from '@/hooks/useAppUpdate';
+import { useAppUpdate, type AppUpdatePhase } from '@/hooks/tauri/useAppUpdate';
 import { IconX } from '@/components/features/icons/PremiumIcons';
 
 function shouldShow(phase: AppUpdatePhase): boolean {

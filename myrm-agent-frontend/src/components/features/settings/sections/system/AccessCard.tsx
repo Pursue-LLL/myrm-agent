@@ -12,7 +12,7 @@ import {
   IconWifiOff,
 } from '@/components/features/icons/PremiumIcons';
 import IngressEntitlementGate from '@/components/billing/IngressEntitlementGate';
-import { useIngressRequirement } from '@/hooks/useIngressRequirement';
+import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
 import { getDocsUrl, isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { isValidPublicIngressBaseUrl } from '@/lib/utils/urlUtils';
@@ -22,7 +22,7 @@ import { fetchWebuiProtection } from '@/services/webui-auth';
 import { remoteAccessService, type TunnelStatus } from '@/services/remoteAccess';
 import { buildMobileHubUrl } from '@/lib/mobileRemote';
 import { computeE2EEFingerprintFromB64 } from '@/lib/e2ee/fingerprint';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePWAInstall } from '@/hooks/pwa/usePWAInstall';
 import { Button } from '@/components/primitives/button';
 import useConfigStore from '@/store/useConfigStore';
 import { SystemConfig } from '@/types/system';

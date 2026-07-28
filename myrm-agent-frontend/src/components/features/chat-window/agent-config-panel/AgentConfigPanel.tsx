@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Save, Zap } from 'lucide-react';
 import AgentConfigCards from './AgentConfigCards';
 import TypewriterWelcome from './TypewriterWelcome';
-import { useAgentConfigPanel } from '@/hooks/useAgentConfigPanel';
+import { useAgentConfigPanel } from '@/hooks/agent/useAgentConfigPanel';
 import { GalleryBackground } from './GalleryBackground';
 import { useTranslations } from 'next-intl';
 import { AiNetworkIcon } from 'hugeicons-react';

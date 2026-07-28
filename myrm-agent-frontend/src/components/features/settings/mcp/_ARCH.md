@@ -19,7 +19,7 @@ MCP 服务配置 UI 子模块：列表、编辑、JSON 导入、注册中心浏�
 
 ## 依赖
 
-- `hooks/useMcpSecurityGate.ts`：`gateMcpEnable` / `gateMcpConfig` / batch 统一门禁
-- `hooks/useMCPConfig.ts`：配置状态、保存/启用/导入流程
+- `hooks/settings/useMcpSecurityGate.ts`：`gateMcpEnable` / `gateMcpConfig` / batch 统一门禁
+- `hooks/settings/useMCPConfig.ts`：配置状态、保存/启用/导入流程
 - `lib/utils/mcpScanFindingText.ts`：`threat_type` 双语 + verify posture 错误 findings 解析（Editor/Ack/toast/catalog）
 - `services/llm-config.ts`：`/integrations/mcp/scan`、`/integrations/mcp/scan-batch`、`/integrations/mcp/verify`、`/integrations/mcp/registry/search`、`/integrations/mcp/registry/detail`、`/integrations/mcp/oauth/*` API

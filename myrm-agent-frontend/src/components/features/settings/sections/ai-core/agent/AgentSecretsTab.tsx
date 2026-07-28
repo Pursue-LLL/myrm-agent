@@ -8,7 +8,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { listAgentSecrets, createOrUpdateAgentSecret, deleteAgentSecret } from '@/services/agent';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface AgentSecretsTabProps {
   agentId: string | null;

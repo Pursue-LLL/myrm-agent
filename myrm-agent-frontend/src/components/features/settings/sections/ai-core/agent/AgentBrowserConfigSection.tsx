@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * hooks/useAgentEditor (POS: Agent editor state & lifecycle)
+ * hooks/agent/useAgentEditor (POS: Agent editor state & lifecycle)
  * primitives/select (POS: Shadcn select component)
  *
  * [OUTPUT]

@@ -18,6 +18,7 @@ from cdp_chat_support import (
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
+    signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
 )
 from mcp_chat_ui import McpChatSession
@@ -657,6 +658,15 @@ def _wall_clock_start() -> float:
 
 async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
     """Navigate off about:blank and wait for hydrated shell before chat automation."""
+    navigate_timeout = signoff_parallel_force_chat_timeout_sec(
+        _FORCE_CHAT_NAVIGATE_TIMEOUT_SEC
+    )
+    shell_ready_timeout = signoff_parallel_force_chat_timeout_sec(
+        _FORCE_CHAT_SHELL_READY_TIMEOUT_SEC
+    )
+    bridge_timeout = signoff_parallel_force_chat_timeout_sec(
+        _FORCE_CHAT_BRIDGE_TIMEOUT_SEC
+    )
     attempts = 3
     for attempt in range(1, attempts + 1):
         heartbeat_e2e_lease()
@@ -664,17 +674,17 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
         try:
             await _await_with_wall_timeout(
                 chat._navigate_to_chat_home(timeout_ms=90_000),
-                timeout_sec=_FORCE_CHAT_NAVIGATE_TIMEOUT_SEC,
+                timeout_sec=navigate_timeout,
                 label="force chat shell navigate",
             )
             await _await_with_wall_timeout(
                 chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True),
-                timeout_sec=_FORCE_CHAT_SHELL_READY_TIMEOUT_SEC,
+                timeout_sec=shell_ready_timeout,
                 label="force chat shell ready",
             )
             await _await_with_wall_timeout(
                 chat.ensure_react_e2e_bridge(timeout_sec=45.0),
-                timeout_sec=_FORCE_CHAT_BRIDGE_TIMEOUT_SEC,
+                timeout_sec=bridge_timeout,
                 label="force chat shell bridge",
             )
             return

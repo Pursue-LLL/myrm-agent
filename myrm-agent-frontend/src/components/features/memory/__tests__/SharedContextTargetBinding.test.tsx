@@ -27,7 +27,7 @@ vi.mock('@/services/memorySharedContexts', async (importOriginal) => ({
   deleteSharedContextBinding: memoryApi.deleteSharedContextBinding,
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: toastMock,
 }));
 

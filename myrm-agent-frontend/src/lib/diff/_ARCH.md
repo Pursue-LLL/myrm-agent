@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-unified diff 解析与可视化。纯函数解析器无 React 依赖，DiffViewer 为共享可视化组件。Hook 封装见 `src/hooks/useDiffParser.ts`。
+unified diff 解析与可视化。纯函数解析器无 React 依赖，DiffViewer 为共享可视化组件。Hook 封装见 `src/hooks/shared/useDiffParser.ts`。
 
 ## 文件清单
 
@@ -16,6 +16,6 @@ unified diff 解析与可视化。纯函数解析器无 React 依赖，DiffViewe
 
 ## 消费方
 
-- `hooks/useDiffParser.ts`
+- `hooks/shared/useDiffParser.ts`
 - `features/cli-visualization/CLIDiffViewer.tsx`（薄包装，透传 DiffViewer）
 - `features/markdown-render-tools/InlineDiffViewer.tsx`（薄包装，透传 DiffViewer）

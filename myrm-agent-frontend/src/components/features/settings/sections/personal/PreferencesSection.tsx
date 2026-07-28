@@ -31,7 +31,7 @@ import NotificationChannelEditor from '../integration/channels/NotificationChann
 import WebPushCard from './WebPushCard';
 import { SchemaForm } from '../../SchemaForm';
 import { ConfigTimeMachine } from '../../ConfigTimeMachine';
-import { usePersonalSettings } from '@/hooks/usePersonalSettings';
+import { usePersonalSettings } from '@/hooks/settings/usePersonalSettings';
 import OptionSelect from '../../OptionSelect';
 import { isLocalMode } from '@/lib/deploy-mode';
 import type { WebTtsProvider } from '@/services/config/types';

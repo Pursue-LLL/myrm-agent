@@ -19,7 +19,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }));
 
-import { useVoicePttListener } from '../useVoicePttListener';
+import { useVoicePttListener } from '../voice/useVoicePttListener';
 
 describe('useVoicePttListener', () => {
   beforeEach(() => {

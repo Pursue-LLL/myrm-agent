@@ -159,10 +159,10 @@ async def generate_cancellable_stream(
             derive_active_tool_groups_from_params,
         )
         from app.services.agent.stream_session.entitlement_gap_preflight import (
-            build_entitlement_gap_sse_event,
+            build_surface_unavailable_gap_sse_event,
         )
 
-        gap_event = build_entitlement_gap_sse_event(
+        surface_gap_event = build_surface_unavailable_gap_sse_event(
             message_id=session.params.message_id or "",
             user_text=session.entitlement_preflight_text,
             active_tool_groups=derive_active_tool_groups_from_params(session.params),
@@ -171,9 +171,9 @@ async def generate_cancellable_stream(
             client_surface=getattr(session.params, "client_surface", None),
             locale=getattr(session.params, "locale", None),
         )
-        if gap_event is not None:
-            session.collector.feed_event(gap_event)
-            yield SSEEnvelope.from_any(gap_event).to_sse_chunk()
+        if surface_gap_event is not None:
+            session.collector.feed_event(surface_gap_event)
+            yield SSEEnvelope.from_any(surface_gap_event).to_sse_chunk()
 
     await session.monitor.start()
 

@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from app.platform_utils import get_session_factory
 from app.services.agent.params import AgentRequest
 from app.services.memory.import_sessions import MemoryImportSessionService
 
@@ -59,6 +58,8 @@ async def record_migration_first_turn_outcome(
         had_fatal_error=had_fatal_error,
         has_assistant_content=has_assistant_content,
     )
+    from app.platform_utils import get_session_factory
+
     session_factory = get_session_factory()
     async with session_factory() as db:
         service = MemoryImportSessionService(db)

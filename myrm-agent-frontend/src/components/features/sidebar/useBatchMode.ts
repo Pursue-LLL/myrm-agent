@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { batchDeleteChats, type ChatItem } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import type { useTranslations } from 'next-intl';
 
 export function useBatchMode(chatHistoryItems: ChatItem[], t: ReturnType<typeof useTranslations>) {

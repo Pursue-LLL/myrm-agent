@@ -4,14 +4,14 @@ import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Upload, File, Loader2, AlertCircle, CheckCircle2, DownloadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useDragDrop } from '@/hooks/useDragDrop';
+import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { Badge } from '@/components/primitives/badge';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { resolveUserFacingArchiveSecurityError } from '@/services/archiveSecurityErrorCore';
 interface SkillBatchImportDialogProps {
   open: boolean;

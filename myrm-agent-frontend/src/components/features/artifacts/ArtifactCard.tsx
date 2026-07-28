@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, MessageSquarePlus, Play } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, MessageSquarePlus, Play, Send } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
+import { pushWeChatOfficialDraft } from '@/services/channels';
+import { useWechatCoverSuggest } from './useWechatCoverSuggest';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { toast } from 'sonner';
@@ -101,8 +105,25 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [ingestLoading, setIngestLoading] = useState(false);
+  const [wechatDraftOpen, setWechatDraftOpen] = useState(false);
+  const [wechatDraftTitle, setWechatDraftTitle] = useState('');
+  const [wechatDraftCoverPath, setWechatDraftCoverPath] = useState('');
+  const [wechatDraftLoading, setWechatDraftLoading] = useState(false);
+  const chatId = useChatStore((state) => state.chatId);
+  const {
+    suggestions: wechatCoverSuggestions,
+    panelOpen: wechatCoverSuggestOpen,
+    setPanelOpen: setWechatCoverSuggestOpen,
+    loading: wechatCoverSuggestLoading,
+    selectSuggestion: selectWechatCoverSuggestion,
+  } = useWechatCoverSuggest({
+    enabled: wechatDraftOpen,
+    chatId,
+    query: wechatDraftCoverPath,
+  });
   const [artifactState, setArtifactState] = useState(artifact);
   const hasLocalPath = Boolean(artifact.file_path);
+  const canPushWeChatDraft = (artifact.type as ArtifactType) === 'html' && hasLocalPath;
   const isDeployCandidate = isDeployCandidateArtifactType(artifact.type as ArtifactType);
   const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
   const canSharePreview = isSharePreviewableArtifact(artifactState);
@@ -458,6 +479,63 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     isPublicationStale(pub, artifactState.latest_version_id),
   );
 
+  const defaultWechatDraftTitle = useMemo(() => {
+    const base = artifactState.filename.replace(/\.(wechat\.)?html?$/i, '').trim();
+    return base || artifactState.filename;
+  }, [artifactState.filename]);
+
+  useEffect(() => {
+    if (wechatDraftOpen && !wechatDraftTitle) {
+      setWechatDraftTitle(defaultWechatDraftTitle);
+    }
+  }, [wechatDraftOpen, wechatDraftTitle, defaultWechatDraftTitle]);
+
+  const handleSelectWechatCoverSuggestion = useCallback(
+    (relativePath: string) => {
+      setWechatDraftCoverPath(relativePath);
+    },
+    [],
+  );
+
+  const handlePushWeChatDraft = useCallback(async () => {
+    const htmlPath = artifactState.file_path;
+    if (!htmlPath) {
+      toast.error(t('wechatDraft.pathMissing'));
+      return;
+    }
+    const title = wechatDraftTitle.trim() || defaultWechatDraftTitle;
+    if (!title) {
+      toast.error(t('wechatDraft.titlePlaceholder'));
+      return;
+    }
+    setWechatDraftLoading(true);
+    try {
+      const payload: Parameters<typeof pushWeChatOfficialDraft>[0] = {
+        htmlPath,
+        title,
+      };
+      const coverPath = wechatDraftCoverPath.trim();
+      if (coverPath) {
+        payload.coverPath = coverPath;
+      }
+      const result = await pushWeChatOfficialDraft(payload);
+      toast.success(t('wechatDraft.success'));
+      if (result.manageUrl) {
+        window.open(result.manageUrl, '_blank', 'noopener,noreferrer');
+      }
+      setWechatDraftOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('wechatDraft.failed');
+      if (message.toLowerCase().includes('credentials not configured')) {
+        toast.error(t('wechatDraft.credentialsMissing'));
+      } else {
+        toast.error(message || t('wechatDraft.failed'));
+      }
+    } finally {
+      setWechatDraftLoading(false);
+    }
+  }, [artifactState.file_path, defaultWechatDraftTitle, t, wechatDraftCoverPath, wechatDraftTitle]);
+
   return (
     <>
     <div
@@ -595,6 +673,23 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               }
             >
               <Globe className="w-4 h-4" />
+            </Button>
+          )}
+          {canPushWeChatDraft && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-8 w-8',
+                wechatDraftOpen ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                setWechatDraftOpen((prev) => !prev);
+              }}
+              title={t('wechatDraft.openPanel')}
+            >
+              <Send className="w-4 h-4" />
             </Button>
           )}
           {canIngestToWiki && (
@@ -784,6 +879,91 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               {t('inlinePreview.loadError')}
             </div>
           )}
+        </div>
+      )}
+
+      {canPushWeChatDraft && wechatDraftOpen && (
+        <div
+          className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <Label htmlFor={`wechat-draft-title-${artifact.id}`} className="text-xs">
+              {t('wechatDraft.titleLabel')}
+            </Label>
+            <Input
+              id={`wechat-draft-title-${artifact.id}`}
+              value={wechatDraftTitle}
+              onChange={(e) => setWechatDraftTitle(e.target.value)}
+              placeholder={t('wechatDraft.titlePlaceholder')}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`wechat-draft-cover-${artifact.id}`} className="text-xs">
+              {t('wechatDraft.coverLabel')}
+            </Label>
+            <div className="space-y-1">
+              <Input
+                id={`wechat-draft-cover-${artifact.id}`}
+                value={wechatDraftCoverPath}
+                onChange={(e) => {
+                  setWechatDraftCoverPath(e.target.value);
+                  setWechatCoverSuggestOpen(true);
+                }}
+                onFocus={() => {
+                  if (chatId) {
+                    setWechatCoverSuggestOpen(true);
+                  }
+                }}
+                placeholder={t('wechatDraft.coverPlaceholder')}
+                className="h-8 text-sm"
+                autoComplete="off"
+              />
+              {chatId && wechatCoverSuggestOpen && (
+                <div className="overflow-hidden rounded-md border border-border/60 bg-popover/95 shadow-sm">
+                  {wechatCoverSuggestLoading ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">{t('wechatDraft.coverSuggestLoading')}</p>
+                  ) : wechatCoverSuggestions.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">{t('wechatDraft.coverSuggestEmpty')}</p>
+                  ) : (
+                    <ul className="max-h-36 overflow-y-auto py-1">
+                      {wechatCoverSuggestions.map((item) => (
+                        <li key={`${item.reference_type}:${item.relative_path ?? item.file_id ?? item.label}`}>
+                          <button
+                            type="button"
+                            className="flex w-full flex-col items-start px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent/60"
+                            onClick={() => {
+                              const path = selectWechatCoverSuggestion(item);
+                              if (path) {
+                                handleSelectWechatCoverSuggestion(path);
+                              }
+                            }}
+                          >
+                            <span className="w-full truncate font-medium">{item.basename}</span>
+                            <span className="w-full truncate text-muted-foreground">{item.relative_path}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {t('wechatDraft.coverHint')}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            disabled={wechatDraftLoading}
+            onClick={() => {
+              void handlePushWeChatDraft();
+            }}
+          >
+            {wechatDraftLoading ? t('wechatDraft.pushing') : t('wechatDraft.confirm')}
+          </Button>
         </div>
       )}
     </div>

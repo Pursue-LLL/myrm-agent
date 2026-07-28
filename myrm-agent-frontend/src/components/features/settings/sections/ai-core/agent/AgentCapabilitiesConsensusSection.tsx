@@ -3,6 +3,7 @@
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/primitives/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
@@ -40,6 +41,8 @@ export function ConsensusSection({ editor, t }: SectionProps) {
               timeout_per_model: consensus.timeout_per_model ?? 120,
               timeout_total: consensus.timeout_total ?? 300,
               reference_max_tokens: consensus.reference_max_tokens ?? null,
+              reference_reasoning_effort: consensus.reference_reasoning_effort ?? null,
+              aggregator_reasoning_effort: consensus.aggregator_reasoning_effort ?? null,
               reference_model_selections: consensus.reference_model_selections ?? [],
               aggregator_model_selection: consensus.aggregator_model_selection ?? null,
             } : { ...consensus, enabled: false });
@@ -65,6 +68,22 @@ export function ConsensusSection({ editor, t }: SectionProps) {
                 />
               </div>
             ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ConsensusReasoningSelect
+              label={t('agent.consensusRefReasoning')}
+              hint={t('agent.consensusRefReasoningHint')}
+              value={(consensus.reference_reasoning_effort as string) || ''}
+              onChange={(v) => setConsensus({ reference_reasoning_effort: v || null })}
+              t={t}
+            />
+            <ConsensusReasoningSelect
+              label={t('agent.consensusAggReasoning')}
+              hint={t('agent.consensusAggReasoningHint')}
+              value={(consensus.aggregator_reasoning_effort as string) || ''}
+              onChange={(v) => setConsensus({ aggregator_reasoning_effort: v || null })}
+              t={t}
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -159,6 +178,50 @@ export function ConsensusAggModel({ consensus, setConsensus, t }: { consensus: R
           onSelect={(providerId, model) => setConsensus({ aggregator_model_selection: { providerId, model } })}
         />
       </div>
+    </div>
+  );
+}
+
+const _RE_DEFAULT = '__default__';
+const REASONING_OPTIONS = [
+  { value: _RE_DEFAULT, labelKey: 'consensusReasoningDefault' },
+  { value: 'low', labelKey: 'consensusReasoningLow' },
+  { value: 'medium', labelKey: 'consensusReasoningMedium' },
+  { value: 'high', labelKey: 'consensusReasoningHigh' },
+] as const;
+
+function ConsensusReasoningSelect({
+  label,
+  hint,
+  value,
+  onChange,
+  t,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (v: string) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{hint}</p>
+      <Select
+        value={value || _RE_DEFAULT}
+        onValueChange={(v) => onChange(v === _RE_DEFAULT ? '' : v)}
+      >
+        <SelectTrigger className="w-full mt-1 h-9 rounded-lg text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {REASONING_OPTIONS.map(({ value: v, labelKey }) => (
+            <SelectItem key={v} value={v}>
+              {t(`agent.${labelKey}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

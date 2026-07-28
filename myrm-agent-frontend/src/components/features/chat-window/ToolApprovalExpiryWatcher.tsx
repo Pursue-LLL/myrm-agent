@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 

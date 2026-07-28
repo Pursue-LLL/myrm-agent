@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
-import { useWidgetStorage } from '@/hooks/useWidgetStorage';
+import { useWidgetStorage } from '@/hooks/workspace/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 import { Pencil } from 'lucide-react';
 import { uploadAnnotatedImage } from '@/components/features/image-editor/uploadAnnotated';

@@ -5,7 +5,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useNavBadges } from '@/hooks/useNavBadges';
+import { useNavBadges } from '@/hooks/shell/useNavBadges';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
 

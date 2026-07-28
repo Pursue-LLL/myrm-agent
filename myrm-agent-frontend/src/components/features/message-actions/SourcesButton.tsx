@@ -4,7 +4,7 @@
  * [INPUT]
  * @/store/chat/types::Source (POS: Chat state and SSE event type definitions)
  * @/services/chat::deleteChat, updateChatRecallExclusion (POS: Chat API client)
- * @/hooks/useAgentName::useAgentName (POS: Resolve agent_id to human-friendly name)
+ * @/hooks/agent/useAgentName::useAgentName (POS: Resolve agent_id to human-friendly name)
  *
  * [OUTPUT]
  * SourcesButton: Message source sheet for Web, MCP and conversation history sources.
@@ -22,11 +22,11 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2 } from 'lucide-react';
-import { useAgentName } from '@/hooks/useAgentName';
+import { useAgentName } from '@/hooks/agent/useAgentName';
 
 interface SourcesButtonProps {
   sources: Source[];

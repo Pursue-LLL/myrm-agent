@@ -41,7 +41,7 @@ import KanbanBulkActionBar from './KanbanBulkActionBar';
 import { KanbanDropColumn } from './KanbanDndComponents';
 import { useKanbanDnD } from './useKanbanDnD';
 import { useKanbanAddTask } from './useKanbanAddTask';
-import { useAgentNameMap } from '@/hooks/useAgentName';
+import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 import useAgentStore from '@/store/useAgentStore';
 
 const KanbanGraphView = dynamic(() => import('./KanbanGraphView'), { ssr: false });

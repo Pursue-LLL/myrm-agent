@@ -68,6 +68,14 @@ def _cfg_int_or_none(cfg: dict[str, object], key: str) -> int | None:
     return n if n > 0 else None
 
 
+def _cfg_str_or_none(cfg: dict[str, object], key: str) -> str | None:
+    """Read a string config value, or ``None`` when unset/empty."""
+    value = cfg.get(key)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
 async def create_dynamic_workflow_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",
@@ -512,6 +520,8 @@ async def create_consensus_stream(
         timeout_per_model=_cfg_float(cfg, "timeout_per_model", 120.0),
         timeout_total=_cfg_float(cfg, "timeout_total", 300.0),
         reference_max_tokens=_cfg_int_or_none(cfg, "reference_max_tokens"),
+        reference_reasoning_effort=_cfg_str_or_none(cfg, "reference_reasoning_effort"),
+        aggregator_reasoning_effort=_cfg_str_or_none(cfg, "aggregator_reasoning_effort"),
     )
 
     engine = ConsensusEngine(

@@ -12,7 +12,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
-import type { InputHistoryPopupState } from '@/hooks/useInputHistory';
+import type { InputHistoryPopupState } from '@/hooks/message-input/useInputHistory';
 
 const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }) : null;
 

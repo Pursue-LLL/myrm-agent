@@ -54,6 +54,7 @@ class TaskSeed:
     role: str
     parents: list[int] = field(default_factory=list)
     repeat_for: str | None = None
+    repeat_for_item_skills: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,12 +87,19 @@ class InstantiateResult:
 
 def _parse_task_seed(raw: dict[str, object]) -> TaskSeed:
     repeat_for_val = raw.get("repeat_for")
+    item_skills_raw = raw.get("repeat_for_item_skills", {})
+    item_skills: dict[str, list[str]] = {}
+    if isinstance(item_skills_raw, dict):
+        for key, value in item_skills_raw.items():
+            if isinstance(value, list):
+                item_skills[str(key)] = [str(skill_id) for skill_id in value]
     return TaskSeed(
         title_template=str(raw.get("title_template", "")),
         description_template=str(raw.get("description_template", "")),
         role=str(raw.get("role", "")),
         parents=[int(p) for p in raw.get("parents", []) if isinstance(p, (int, float))],
         repeat_for=str(repeat_for_val) if repeat_for_val else None,
+        repeat_for_item_skills=item_skills,
     )
 
 

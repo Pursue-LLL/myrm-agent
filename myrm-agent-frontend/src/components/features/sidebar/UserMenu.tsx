@@ -12,8 +12,8 @@ import { STYLES } from './constants';
 import { localizeReactNode } from '@/lib/utils/localeText';
 import useAuthStore from '@/store/useAuthStore';
 import { useMemoryStore } from '@/store/memory';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
+import { useSubscription } from '@/hooks/billing/useSubscription';
+import { useUsageAnalytics } from '@/hooks/billing/useUsageAnalytics';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 

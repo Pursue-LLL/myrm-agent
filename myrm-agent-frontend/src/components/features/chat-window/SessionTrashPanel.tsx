@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import type { CascadeInfo, TrashedChatItem } from '@/services/chatTrash';
 import { emptyTrash, getCascadeInfo, getTrashedChats, permanentlyDeleteChat, restoreChat } from '@/services/chatTrash';

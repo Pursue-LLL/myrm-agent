@@ -29,7 +29,7 @@ import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { CommandBindingsEditor } from '@/components/agent/CommandBindingsEditor';
 
 // Zod Schema for validation

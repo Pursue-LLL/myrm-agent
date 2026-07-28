@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { dryRunImportMemories, confirmImportMemories, rollbackMemoryImport } from '@/services/memoryArchive';
 import { getConfigSyncManager } from '@/services/config';
 

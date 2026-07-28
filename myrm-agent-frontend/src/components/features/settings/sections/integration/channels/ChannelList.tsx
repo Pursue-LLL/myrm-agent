@@ -19,6 +19,7 @@ export function buildChannelEntries(t: (key: string) => string, sandbox = false)
   const all: ChannelEntry[] = [
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'wechat', label: t('wechatTitle') },
+    { id: 'wechat_official', label: t('wechatOfficialTitle') },
     { id: 'telegram', label: 'Telegram' },
     { id: 'discord', label: 'Discord' },
     { id: 'slack', label: 'Slack' },

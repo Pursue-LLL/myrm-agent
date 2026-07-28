@@ -177,6 +177,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         monitor_config=monitor_config,
         context_from=tuple(getattr(m, "context_from", None) or []),
         pre_condition_script=getattr(m, "pre_condition_script", None),
+        acceptance_criteria=tuple(getattr(m, "acceptance_criteria", None) or []),
         triggers=triggers,
         next_run_at=m.next_run_at,
         last_run_at=m.last_run_at,
@@ -225,6 +226,7 @@ def job_to_model(job: CronJob) -> CronJobModel:
         last_output_hash=job.last_output_hash,
         context_from=list(job.context_from) if job.context_from else None,
         pre_condition_script=job.pre_condition_script,
+        acceptance_criteria=list(job.acceptance_criteria) if job.acceptance_criteria else None,
         monitor_config=monitor_config_to_dict(job.monitor_config),
         triggers=trigger_config_to_dict(job.triggers),
         next_run_at=job.next_run_at,
@@ -269,6 +271,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.skip_if_active = job.skip_if_active
     m.last_output_hash = job.last_output_hash
     m.context_from = list(job.context_from) if job.context_from else None
+    m.acceptance_criteria = list(job.acceptance_criteria) if job.acceptance_criteria else None
     m.monitor_config = monitor_config_to_dict(job.monitor_config)
     m.triggers = trigger_config_to_dict(job.triggers)
     m.next_run_at = job.next_run_at

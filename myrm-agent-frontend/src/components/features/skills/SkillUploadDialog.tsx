@@ -4,7 +4,7 @@ import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Upload, X, File, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useDragDrop } from '@/hooks/useDragDrop';
+import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -13,7 +13,7 @@ import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription } from '@/components/primitives/alert';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { useSkillStore } from '@/store/skill';
 import type { CreateCustomSkillRequest, Skill } from '@/store/skill/types';
 

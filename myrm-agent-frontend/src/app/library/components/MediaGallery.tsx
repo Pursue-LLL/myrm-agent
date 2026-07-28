@@ -28,8 +28,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { useToast } from '@/hooks/useToast';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useToast } from '@/hooks/shared/useToast';
+import { useMediaQuery } from '@/hooks/ui/useMediaQuery';
 import {
   type MediaItem,
   type MediaQueryParams,

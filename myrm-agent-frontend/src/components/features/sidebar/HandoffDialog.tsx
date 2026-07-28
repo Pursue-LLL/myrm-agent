@@ -15,7 +15,7 @@ import {
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { listChannelInstances, type ChannelInstance } from '@/services/channels';
 import { handoffChat } from '@/services/chat';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface HandoffDialogProps {

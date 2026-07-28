@@ -6,12 +6,16 @@ import { IconAlertCircle, IconLoader, IconUser } from '@/components/features/ico
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { AgentListItem } from '@/services/agent';
+import type { Project } from '@/services/projects';
 import type { DraftTimeoutAction, ReplyMode, ThreadSharingMode, TopicBinding } from '@/services/channels';
+import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
 
 interface ChannelRoutingTopicRowProps {
   agents: AgentListItem[];
+  projects: Project[];
   isSaving: boolean;
   onBindTopic: (topicId: string, agentId: string) => void;
+  onBindTopicWorkspace: (topicId: string, projectId: string | null) => void;
   onSetDraftTimeout: (topicId: string, minutes: number, action: DraftTimeoutAction) => void;
   onSetReplyMode: (topicId: string, mode: ReplyMode) => void;
   onSetThreadSharingMode: (topicId: string, mode: ThreadSharingMode) => void;
@@ -20,8 +24,10 @@ interface ChannelRoutingTopicRowProps {
 
 export function ChannelRoutingTopicRow({
   agents,
+  projects,
   isSaving,
   onBindTopic,
+  onBindTopicWorkspace,
   onSetDraftTimeout,
   onSetReplyMode,
   onSetThreadSharingMode,
@@ -29,11 +35,12 @@ export function ChannelRoutingTopicRow({
 }: ChannelRoutingTopicRowProps) {
   const t = useTranslations('settings.sections.channelRouting');
   const locale = useLocale();
+  const workspaceDisplayLabel = resolveTopicWorkspaceDisplayLabel(topic, projects);
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-background border rounded-lg hover:border-primary/30 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
           {topic.avatarUrl ? (
             <img
               src={topic.avatarUrl}
@@ -51,7 +58,7 @@ export function ChannelRoutingTopicRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {isSaving && <IconLoader className="w-4 h-4 animate-spin text-primary/50" />}
           <select
             value={topic.agentId || 'none'}
@@ -67,6 +74,43 @@ export function ChannelRoutingTopicRow({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 pl-11 flex-wrap">
+        <span className="text-xs text-muted-foreground">{t('workspace.label')}:</span>
+        <select
+          value={topic.projectId || 'none'}
+          onChange={(event) => onBindTopicWorkspace(
+            topic.topicId,
+            event.target.value === 'none' ? null : event.target.value,
+          )}
+          disabled={isSaving || projects.length === 0}
+          className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none max-w-full"
+        >
+          <option value="none">{t('workspace.none')}</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        {workspaceDisplayLabel && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground font-mono truncate max-w-[240px] sm:max-w-md cursor-default">
+                  {workspaceDisplayLabel}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm break-all font-mono text-xs">
+                {workspaceDisplayLabel}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {projects.length === 0 && (
+          <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pl-11">

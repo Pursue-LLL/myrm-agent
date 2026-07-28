@@ -32,6 +32,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useApprovalStore.ts` | 审批队列；`activateBrowserTakeover()` / `resolveBrowserTakeoverMessageId()` SSOT；recovery 经 `isActiveChatForTakeover`（store chatId + URL pathname） | GET /approvals recovery + SSE interrupt |
 | `useBudgetExceededStore.ts` | WU 耗尽阻断弹窗状态 | balance=0 时由 SSE `budget_alert` 触发 |
 | `useUpgradeNudgeStore.ts` | 升级引导弹窗状态（低余额预警 + Feature Gate） | 24h 防骚扰 localStorage 节流 |
+| `useEmbedConsentStore.ts` | Link Embeds consent（ask/always/off）与 per-provider allowlist | persist `myrm-embed-consent`；Settings Preferences + `embeds/UrlEmbed` |
 | `use*Store.ts`（根级） | 看板、伴侣、浏览器检查器等 | 一域一 store |
 
 ## 依赖

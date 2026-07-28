@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/hooks/useEntitlements (POS: CP entitlements SWR)
+ * - @/hooks/billing/useEntitlements (POS: CP entitlements SWR)
  * - @/lib/deploy-mode::isSandbox (POS: 部署模式判定)
  *
  * [OUTPUT]
@@ -13,7 +13,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useEntitlements } from '@/hooks/useEntitlements';
+import { useEntitlements } from '@/hooks/billing/useEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';

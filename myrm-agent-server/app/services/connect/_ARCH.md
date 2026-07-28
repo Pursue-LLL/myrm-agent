@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
-| `service.py` | 核心 | `ConnectService`：连接档案、token 签发、ingress URL 解析与健康检查 | ✅ |
+| `service.py` | 核心 | `ConnectService`：连接档案、token 签发（携带 agent_id 作用域）、ingress URL 解析、resolve_token 返回 VerifiedConnectToken(profile_id, agent_id) 与健康检查 | ✅ |
 
 ## 依赖
 

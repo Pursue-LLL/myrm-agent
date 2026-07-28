@@ -143,13 +143,18 @@ topic_search_agent_rejected =
     Search agents cannot be bound to channels.
     Use a General agent here; use Web Fast mode for lightweight search.
 topic_bound =
-     { $scope } bound{ $agent_label }.
+     { $scope } bound{ $agent_label }{ $workspace_label }.
     Use /unbind to remove.
+topic_workspace_only =  (workspace: { $workspace })
+topic_workspace_unavailable =  Workspace binding failed: { $error }
+topic_status_workspace = Workspace: { $workspace }
+topic_status_workspace_default = Workspace: default
 topic_unbound =  { $scope } unbound.
 topic_no_binding = ℹ No binding found for this { $scope }.
 topic_status =
      { $scope } Status
     { $agent_label }
+    { $workspace_label }
     Status: { $status }{ $bound_label }
 topic_no_binding_defaults =  No binding for this { $scope } (using defaults).
 topic_command_failed =  { $scope } command failed: { $error }

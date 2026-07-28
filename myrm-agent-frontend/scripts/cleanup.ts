@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { basename, dirname, join, resolve } from 'path';
 import { readdirSync, rmSync, statSync, truncateSync } from 'fs';
 import { clearDevLock, clearStaleDevLock } from './dev-lock';
@@ -117,3 +117,16 @@ try {
 } catch {
   // absent is expected
 }
+
+function stripIsolatedTsconfig(): void {
+  const result = spawnSync('python3', ['scripts/strip_isolated_tsconfig.py'], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    console.warn('⚠️  strip_isolated_tsconfig.py exited with non-zero status');
+  }
+}
+
+stripIsolatedTsconfig();

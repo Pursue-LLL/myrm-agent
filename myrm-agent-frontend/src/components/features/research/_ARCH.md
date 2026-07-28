@@ -17,7 +17,7 @@ Research 三栏研究工作台 GUI。左栏资料池、中栏 ChatWindow 对话�
 
 - `@/store/useResearchStore` — Research 全局状态（资料勾选、面板切换）
 - `@/store/useChatStore` — 聊天状态（mentionReferences 注入，removeMentionReferencesByTypes 按类型清理）
-- `@/hooks/useMediaQuery` — 响应式断点 hook（useIsMobile）
+- `@/hooks/ui/useMediaQuery` — 响应式断点 hook（useIsMobile）
 - `@/store/useArtifactPortalStore` — 工件 Portal 状态（selector hooks）
 - `../chat-window/ChatWindow` — 聊天主组件（dynamic import）
 - `../artifacts/ArtifactRenderer` — 工件渲染器

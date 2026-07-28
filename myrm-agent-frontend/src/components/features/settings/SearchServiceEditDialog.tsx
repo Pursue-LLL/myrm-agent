@@ -13,7 +13,7 @@ import {
 import { InputField } from './FormFields';
 import Tooltip from './Tooltip';
 import OptionSelect from './OptionSelect';
-import { useDeployMode } from '@/hooks/useDeployMode';
+import { useDeployMode } from '@/hooks/shared/useDeployMode';
 import useConfigStore from '@/store/useConfigStore';
 import { isSoftSearchServiceValidationFailure } from '@/services/llm-config';
 import { buildSearxngExtraParams, detectSearxngPreset, type SearxngRegionPreset } from '@/lib/search/searxngPresets';

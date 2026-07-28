@@ -1,12 +1,19 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2, Copy, Link2, RefreshCw, Unlink, Zap } from 'lucide-react';
 
 import { Button } from '@/components/primitives/button';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/primitives/select';
 import {
   type ConnectProfile,
   type GenerateConfigResponse,
@@ -15,6 +22,7 @@ import {
   revokeConnect,
   runConnectDoctor,
 } from '@/services/connect';
+import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/integrationMemory';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -29,6 +37,8 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const t = useTranslations('connectWizard');
   const [step, setStep] = useState<WizardStep>('select');
   const [profiles, setProfiles] = useState<ConnectProfile[]>([]);
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('default');
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [configResult, setConfigResult] = useState<GenerateConfigResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,27 +56,47 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     }
   }, []);
 
+  const loadAgents = useCallback(async () => {
+    try {
+      const response = await listAgents(1, 100);
+      setAgents(response.items ?? []);
+    } catch {
+      setAgents([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (agents.length === 0) {
+      return;
+    }
+    if (!agents.some((agent) => agent.id === selectedAgentId)) {
+      setSelectedAgentId(agents[0]?.id ?? 'default');
+    }
+  }, [agents, selectedAgentId]);
+
   const handleOpen = useCallback(
     (isOpen: boolean) => {
       if (isOpen) {
         setStep('select');
+        setSelectedAgentId('default');
         setSelectedProfile(null);
         setConfigResult(null);
         setCopiedConfig(false);
         setCopiedToken(false);
         setDoctorResult(null);
+        void loadAgents();
         loadProfiles();
       }
       onOpenChange(isOpen);
     },
-    [onOpenChange, loadProfiles],
+    [onOpenChange, loadProfiles, loadAgents],
   );
 
   const handleGenerate = useCallback(async () => {
     if (!selectedProfile) return;
     setLoading(true);
     try {
-      const result = await generateConnectConfig(selectedProfile);
+      const result = await generateConnectConfig(selectedProfile, selectedAgentId);
       setConfigResult(result);
       setStep('config');
     } catch {
@@ -74,7 +104,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     } finally {
       setLoading(false);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile, selectedAgentId]);
 
   const handleCopyConfig = useCallback(async () => {
     if (!configResult) return;
@@ -146,8 +176,26 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
 
         {step === 'select' && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">{t('selectAgentDesc')}</p>
             <div className="space-y-2">
+              <p className="text-sm font-medium">{t('selectMyrmAgent')}</p>
+              <p className="text-xs text-muted-foreground">{t('selectMyrmAgentDesc')}</p>
+              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('selectMyrmAgent')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name || agent.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t('selectExternalTool')}</p>
+              <p className="text-xs text-muted-foreground">{t('selectAgentDesc')}</p>
               {profiles.map((profile) => (
                 <button
                   key={profile.id}
@@ -171,6 +219,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                 </button>
               ))}
             </div>
+
             <Button onClick={handleGenerate} disabled={!selectedProfile || loading} className="w-full">
               <Zap className="mr-2 h-4 w-4" />
               {loading ? t('generating') : t('generate')}
@@ -182,6 +231,13 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
           <div className="space-y-4">
             <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
               <p className="text-sm font-medium text-green-700 dark:text-green-400">{t('configReady')}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('memoryScopeAgent', {
+                  agent:
+                    agents.find((agent) => agent.id === configResult.agent_id)?.name ??
+                    configResult.agent_id,
+                })}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">{configResult.instructions}</p>
             </div>
 

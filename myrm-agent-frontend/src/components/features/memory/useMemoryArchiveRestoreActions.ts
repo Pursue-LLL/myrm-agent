@@ -14,7 +14,7 @@
 
 import { useCallback, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   confirmArchiveRestore,
   dryRunArchiveRestore,

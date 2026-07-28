@@ -7,7 +7,7 @@ import VisualApprovalRequestRenderer from '@/components/features/chat-window/app
 import SingleApprovalCard from '@/components/features/chat-window/SingleApprovalCard';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
-import type { ToolApprovalResolveExtra } from '@/hooks/useToolApprovalResolve';
+import type { ToolApprovalResolveExtra } from '@/hooks/approval/useToolApprovalResolve';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 

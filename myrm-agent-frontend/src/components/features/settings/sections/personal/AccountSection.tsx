@@ -22,7 +22,7 @@ import {
 import useAuthStore from '@/store/useAuthStore';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { QuotaDisplay } from '@/components/billing/QuotaDisplay';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscription } from '@/hooks/billing/useSubscription';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';

@@ -160,6 +160,8 @@ async def prepare_channel_execution(
         personal_settings_dict=configs.personal_settings_dict,
     )
     pre_events.extend(session_ctx.pre_events)
+    if not session_ctx.chat_id:
+        return PrepareChannelExecutionResult(pre_events=tuple(pre_events))
 
     agent_outcome = await build_channel_execution_agent(
         msg,

@@ -23,7 +23,7 @@ import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { browseDirectories, type DirectoryEntry } from '@/services/chat';
 import { updateProject } from '@/services/projects';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { isTauriEnvironment } from '@/lib/tauri';
 
 const RECENT_PROJECT_DIRS_KEY = 'myrm.projectWorkspace.recent';

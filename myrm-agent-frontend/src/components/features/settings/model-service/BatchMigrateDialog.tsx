@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { batchMigrateProvider, previewBatchMigrateProvider, BatchMigratePreviewResponse } from '@/services/provider';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import useProviderStore from '@/store/useProviderStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 

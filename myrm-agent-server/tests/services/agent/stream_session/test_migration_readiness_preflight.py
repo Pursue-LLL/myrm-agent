@@ -164,7 +164,7 @@ async def test_resolve_and_build_migration_readiness_gap_live_warning_mcp_path()
 
     with (
         patch(
-            "app.services.agent.stream_session.migration_readiness_preflight.get_session_factory",
+            "app.platform_utils.get_session_factory",
             return_value=mock_session_factory,
         ),
         patch(

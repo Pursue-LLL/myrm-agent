@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useVisualApprovalOsOverlay } from '@/hooks/useVisualApprovalOsOverlay';
+import { useVisualApprovalOsOverlay } from '@/hooks/approval/useVisualApprovalOsOverlay';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 const showMock = vi.fn().mockResolvedValue(undefined);

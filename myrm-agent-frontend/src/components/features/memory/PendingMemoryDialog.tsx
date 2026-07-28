@@ -16,7 +16,7 @@ import {
 } from '@/components/primitives/dialog';
 import { useMemoryStore } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 const PendingMemoryDialog = memo(() => {
   const t = useTranslations('memory');

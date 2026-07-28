@@ -6,8 +6,8 @@ import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
-import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
-import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
+import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
+import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
 import VisualApprovalRequestRenderer from './approval/VisualApprovalRequestRenderer';
 
 interface VisualApprovalInlineSectionProps {

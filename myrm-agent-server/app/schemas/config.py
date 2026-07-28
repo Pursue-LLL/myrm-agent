@@ -32,6 +32,7 @@ ConfigKey = Literal[
     "wecomCredentials",
     "wecomAibotCredentials",
     "wechatCredentials",
+    "wechatOfficialCredentials",
     "teamsCredentials",
     "matrixCredentials",
     "telegramCredentials",

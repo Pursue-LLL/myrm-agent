@@ -149,6 +149,9 @@ class CronJobCreate(BaseModel):
     pre_condition_script: str | None = Field(
         default=None, max_length=10000, description="Python script to evaluate before running the job"
     )
+    acceptance_criteria: list[dict[str, object]] | None = Field(
+        default=None, max_length=20, description="Structured acceptance criteria for post-run verification"
+    )
 
     @field_validator("name", mode="before")
     @classmethod
@@ -197,6 +200,9 @@ class CronJobUpdate(BaseModel):
     context_from: list[str] | None = None
     pre_condition_script: str | None = Field(
         default=None, max_length=10000, description="Python script to evaluate before running the job"
+    )
+    acceptance_criteria: list[dict[str, object]] | None = Field(
+        default=None, max_length=20, description="Structured acceptance criteria for post-run verification"
     )
 
 
@@ -287,6 +293,7 @@ class CronJobResponse(BaseModel):
     triggers: TriggerConfigResponse | None = None
     context_from: list[str] = Field(default_factory=list)
     pre_condition_script: str | None = None
+    acceptance_criteria: list[dict[str, object]] | None = None
 
     max_retries: int
     retry_backoff_ms: int

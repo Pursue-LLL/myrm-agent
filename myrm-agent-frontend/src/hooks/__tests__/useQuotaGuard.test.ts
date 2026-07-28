@@ -35,7 +35,7 @@ describe('useQuotaGuard', () => {
       getItem: () => null,
     });
 
-    const { useQuotaGuard } = await import('@/hooks/useQuotaGuard');
+    const { useQuotaGuard } = await import('@/hooks/billing/useQuotaGuard');
     const { result } = renderHook(() => useQuotaGuard());
 
     const quota = await result.current.validateMessageQuota(10, false, 'agent');

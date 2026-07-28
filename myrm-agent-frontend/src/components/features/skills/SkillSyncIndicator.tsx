@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getSkillSyncStatus, triggerSkillSync, type SkillSyncStatus } from '@/services/skill';
 import { cn } from '@/lib/utils';
 

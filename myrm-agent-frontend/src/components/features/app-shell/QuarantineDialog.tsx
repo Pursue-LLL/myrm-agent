@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useQuarantineCheck } from '@/hooks/useQuarantineCheck';
+import { useQuarantineCheck } from '@/hooks/shared/useQuarantineCheck';
 import {
   Dialog,
   DialogContent,

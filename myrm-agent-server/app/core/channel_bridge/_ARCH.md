@@ -25,12 +25,13 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `config_parsers.py` | ✅ 核心 | 配置解析器：从前端 dict 结构解析为类型化配置对象（SearchServiceConfig、SessionPolicy、TTSMode 等）。`extract_web_tts_config` 供 Web `/tts` 朗读；`extract_voice_config` 供频道出站。`session_policy_from_agent_dict` 支持 per-agent 会话策略覆盖。提供 `verify_search_service_available`（SearXNG HTTP 连通性检查，30s TTL 缓存）和 `invalidate_search_health_cache`（配置变更时清除缓存） | ✅ |
 | `config_cache.py` | ✅ 辅助 | 用户配置 TTL 缓存：30s 过期的内存缓存；`invalidate_user_configs_cache()` 同时失效 `ingress` 公网 URL 缓存 | ✅ |
 | `agent_executor/` | ChannelAgentExecutor 及子模块（executor、execute_preamble*、artifact_deep_links、stream_events、helpers、session） | [agent_executor/_ARCH.md](agent_executor/_ARCH.md) |
-| `executor_helpers/` | ✅ 辅助 | 历史持久化、标题生成、审批超时、流式累积、快捷回复。见 [executor_helpers/_ARCH.md](executor_helpers/_ARCH.md) | ✅ |
+| `executor_helpers/` | ✅ 辅助 | 历史持久化、标题生成、topic workspace sync、审批超时、流式累积、快捷回复。见 [executor_helpers/_ARCH.md](executor_helpers/_ARCH.md) | ✅ |
 | `personality_adapter.py` | ✅ 辅助 | AppPersonalityProvider：业务层 PersonalityTemplate 到框架层 PersonalityProvider 协议的适配器，注入到 AgentRouter 供 /personality 命令使用 | ❌ |
 | `model_resolver.py` | ✅ 核心 | 模型配置解析、上下文窗口自动填充和自定义定价注册：从 providers config 解析 ModelConfig，通过 `enrich_model_context_window()` 自动查询 customModelInfo 或 litellm 获取模型真实 max_input_tokens 并填充 `max_context_tokens`，当 providers 缺失或无有效配置时抛出 ConfigIncompleteError（携带中英双语友好消息和解决方案步骤），支持自定义 provider 类型和模型定价注册。凭证特例：`"platform-managed"` 自动注入 sandbox identity headers；`"__myrm_local_no_auth__"` 自动注入空 Authorization，避免本地 no-auth 端点外发伪 bearer token | ✅ |
 | `channel_policy.py` | ✅ 核心 | SqlChannelPolicyProvider：从 UserConfig 读取 DM/群聊策略、群组启用列表、Telegram guestMode（telegramCredentials）。单租户模式下默认查询 channels 配置 | ✅ |
 | `pairing_store.py` | ✅ 核心 | SqlPairingStore：PairingStore 协议的 SQLAlchemy 实现，管理 sender → user 绑定。新建 PENDING 配对时通过 ServerEventBus 发布 `PAIRING_PENDING` 事件 | ✅ |
-| `topic_config.py` | ✅ 核心 | SqlTopicManager：TopicManager 协议实现，读写 per-topic 配置（resolve/bind/unbind, agent_id, enabled, bound_at, replyMode, draftTimeoutMinutes, draftTimeoutAction）。`bind_topic` 拒绝 `prompt_mode=search`；`resolve_topic` / `get_all_topics` 读时清除 legacy Search 绑定。`sync_topic_metadata` 支持群组/话题元数据自动发现 | ✅ |
+| `topic_config.py` | ✅ 核心 | SqlTopicManager：Topic 配置 CRUD（agent、replyMode、**projectId/authorizedPath workspace 绑定**）。`bind_topic` 拒绝 search agent；读时清除 legacy Search 绑定 | ✅ |
+| `topic_workspace_bind.py` | ✅ 辅助 | Topic workspace 路径/Project 校验（`assert_project_workspace`、`validate_authorized_path`） | ✅ |
 | `background_task_handler.py` | ✅ 核心 | ChannelBackgroundTaskHandler：BackgroundTaskHandler 协议的业务层实现。管理 /background (/btw /bg) 命令触发的后台任务生命周期（spawn/list/cancel/steer），通过 Kanban 系统持久化任务状态，具备重启恢复和僵尸检测。cancel 时通过 KanbanService.cancel_task_execution 即时取消 asyncio 执行。维护内存级 CancellationToken/SteeringToken 用于运行时控制。spawn 时存储 locale 到 metadata 供通知本地化。list 时检测 FAILED 任务的 task.error 是否含 "timed out"，若是则返回独立的 "timed_out" 状态而非通用 "failed"，确保超时信息不丢失 | ✅ |
 | `btw_notifier.py` | ✅ 核心 | BtwTaskNotifier：ServerEventBus 订阅器，监听 `BACKGROUND_TASK_DONE` 事件，将 /btw 后台任务的完成/失败结果通过 `send_with_retry` 回推到原始发起渠道（channel/chat_id/thread_id），支持 i18n 多语言通知。与 NotificationDispatcher 并行运行，互不干扰 | ✅ |
 | `status_handler.py` | ✅ 核心 | ChannelStatusProvider：StatusProvider 协议的业务层实现。查询最近的 Chat 会话元数据（session_id、title、tokens、cost、calls、model、created_at、last_activity）供 /status 命令显示 | ✅ |
@@ -61,7 +62,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
                        ↓
         SqlPairingStore.resolve() -> policy
         SqlChannelPolicyProvider → DM/群聊策略
-        SqlTopicManager → 话题级路由 + 绑定管理
+        SqlTopicManager → 话题级路由 + Agent/workspace 绑定
                        ↓
           ChannelAgentExecutor.execute_stream()
                        ↓

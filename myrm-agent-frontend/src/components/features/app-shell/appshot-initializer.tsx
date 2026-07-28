@@ -1,7 +1,7 @@
 'use client';
 
-import { useAppshotListener } from '@/hooks/useAppshotListener';
-import { useInlineInputListener } from '@/hooks/useInlineInputListener';
+import { useAppshotListener } from '@/hooks/tauri/useAppshotListener';
+import { useInlineInputListener } from '@/hooks/tauri/useInlineInputListener';
 
 const AppshotInitializer = () => {
   useAppshotListener();

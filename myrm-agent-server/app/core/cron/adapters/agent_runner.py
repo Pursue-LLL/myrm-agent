@@ -449,12 +449,18 @@ class AgentJobRunner:
             effective_prompt = f"{effective_prompt}\n\n{context}"
 
         objective = f"[Cron: {job.name}] {effective_prompt[:200]}"
-        await provider.create_goal(session_id=chat_id, objective=objective)
+        criteria = list(job.acceptance_criteria) if job.acceptance_criteria else None
+        await provider.create_goal(
+            session_id=chat_id,
+            objective=objective,
+            acceptance_criteria=criteria,
+        )
         logger.info(
-            "Cron job %s enqueued as goal on chat %s (active goal: %s)",
+            "Cron job %s enqueued as goal on chat %s (active goal: %s, criteria=%d)",
             job.id,
             chat_id,
             active.goal_id,
+            len(criteria) if criteria else 0,
         )
         return True
 
@@ -743,6 +749,17 @@ class AgentJobRunner:
                             result,
                             enabled=True,
                             timeout_seconds=remaining,
+                        )
+
+                    if job.acceptance_criteria and result.success:
+                        from app.core.cron.adapters.acceptance_verification import (
+                            apply_acceptance_criteria_verification,
+                        )
+
+                        elapsed = time.monotonic() - run_started_at
+                        remaining = max(0.0, float(timeout) - elapsed)
+                        result = await apply_acceptance_criteria_verification(
+                            job, result, timeout_seconds=remaining,
                         )
                 finally:
                     await finalize_agent_session(

@@ -17,7 +17,7 @@ import type { WhatsAppCardProps } from './WhatsAppCard';
 import { Switch } from '@/components/primitives/switch';
 import { isSandbox } from '@/lib/deploy-mode';
 import { CardSkeleton } from '../../../common/SettingsSkeleton';
-import { useIngressRequirement } from '@/hooks/useIngressRequirement';
+import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
 import { ChannelIngressBadge } from './ChannelIngressBadge';
 
 // 动态加载渠道卡片
@@ -45,6 +45,10 @@ const WeComConfigCard = dynamic(() => import('./WeComConfigCard').then((mod) => 
 const WeComAiBotConfigCard = dynamic(() => import('./WeComAiBotConfigCard').then((mod) => mod.WeComAiBotConfigCard), {
   loading: () => <CardSkeleton />,
 });
+const WeChatOfficialConfigCard = dynamic(
+  () => import('./WeChatOfficialConfigCard').then((mod) => mod.WeChatOfficialConfigCard),
+  { loading: () => <CardSkeleton /> },
+);
 const TeamsConfigCard = dynamic(() => import('./TeamsConfigCard').then((mod) => mod.TeamsConfigCard), {
   loading: () => <CardSkeleton />,
 });
@@ -292,6 +296,7 @@ const CHANNELS_WITH_GUIDE = new Set([
   'discord',
   'wecom',
   'wecom_aibot',
+  'wechat_official',
   'teams',
   'matrix',
   'googlechat',
@@ -311,6 +316,7 @@ const DEVELOPER_PORTAL_URLS: Record<string, string> = {
   discord: 'https://discord.com/developers/applications',
   wecom: 'https://work.weixin.qq.com/wework_admin/frame#apps',
   wecom_aibot: 'https://work.weixin.qq.com/wework_admin/frame#apps',
+  wechat_official: 'https://mp.weixin.qq.com/',
   teams: 'https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps',
   line: 'https://developers.line.biz/console/',
   qq: 'https://q.qq.com/',
@@ -355,6 +361,8 @@ function ChannelConfigPanel({
       return <WhatsAppCard waStatus={waStatus} loading={waLoading} onRefresh={onRefreshWa} t={t} />;
     case 'wechat':
       return <WeChatConfigCard />;
+    case 'wechat_official':
+      return <WeChatOfficialConfigCard />;
     case 'feishu':
       return <FeishuConfigCard />;
     case 'dingtalk':

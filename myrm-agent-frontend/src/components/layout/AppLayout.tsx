@@ -9,13 +9,13 @@ import ContentSidebar from './ContentSidebar';
 import { MobileSidebarDrawer } from './MobileSidebarDrawer';
 import { NAVBAR_WIDTH, useAppLayoutState } from './useAppLayoutState';
 import { PanelLeftOpen } from 'lucide-react';
-import { useTrayStatus } from '@/hooks/useTrayStatus';
-import { useTabBadge } from '@/hooks/useTabBadge';
-import { usePowerLock } from '@/hooks/usePowerLock';
-import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
-import { useVisibilityThrottling } from '@/hooks/useVisibilityThrottling';
-import { useTrayEvents } from '@/hooks/useTrayEvents';
-import { useCrashLoopGuard } from '@/hooks/useCrashLoopGuard';
+import { useTrayStatus } from '@/hooks/tauri/useTrayStatus';
+import { useTabBadge } from '@/hooks/shell/useTabBadge';
+import { usePowerLock } from '@/hooks/tauri/usePowerLock';
+import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
+import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
+import { useTrayEvents } from '@/hooks/tauri/useTrayEvents';
+import { useCrashLoopGuard } from '@/hooks/shell/useCrashLoopGuard';
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
 import UpgradeNudgeDialog from '@/components/billing/UpgradeNudgeDialog';
 import CrashRecoveryDialog from '@/components/features/app-shell/crash-recovery-dialog';
@@ -24,7 +24,7 @@ import LocalBackendUnavailableBanner, {
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
-import { useWuBalanceWatcher } from '@/hooks/useWuBalanceWatcher';
+import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
 import E2EChatBridge from '@/components/dev/E2EChatBridge';
 
 const CronPushPoller = lazy(() =>

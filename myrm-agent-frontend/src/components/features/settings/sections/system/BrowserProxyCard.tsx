@@ -13,7 +13,7 @@ import { IconShield, IconCheck, IconLoader, IconAlertTriangle } from '@/componen
 import { Switch } from '@/components/primitives/switch';
 import { Button } from '@/components/primitives/button';
 import { getConfigSyncManager, type BrowserProxyConfigValue } from '@/services/config';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 const DEFAULT_CONFIG: BrowserProxyConfigValue = {
   enabled: false,

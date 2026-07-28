@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('@/hooks/useFeatureEntitlements', () => ({
+vi.mock('@/hooks/billing/useFeatureEntitlements', () => ({
   useFeatureEntitlements: () => ({ canUseCron: true, isLoading: false }),
 }));
 

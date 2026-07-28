@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Trash2, Eye, EyeOff, Check, Pencil, X, Copy, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { ApiKeyConfig, CredentialPoolStrategy } from '@/store/config/providerTypes';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 

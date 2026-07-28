@@ -52,7 +52,7 @@ describe('useBrowserTakeoverActions', () => {
     fetchWithTimeout.mockResolvedValue({ ok: true, json: async () => ({ learned: false }) });
     sendMessage.mockResolvedValue(undefined);
 
-    const { useBrowserTakeoverActions } = await import('@/hooks/useBrowserTakeoverActions');
+    const { useBrowserTakeoverActions } = await import('@/hooks/approval/useBrowserTakeoverActions');
     const { result } = renderHook(() => useBrowserTakeoverActions());
 
     await act(async () => {
@@ -69,7 +69,7 @@ describe('useBrowserTakeoverActions', () => {
     fetchWithTimeout.mockResolvedValue({ ok: true, json: async () => ({ learned: true }) });
     sendMessage.mockResolvedValue(undefined);
 
-    const { useBrowserTakeoverActions } = await import('@/hooks/useBrowserTakeoverActions');
+    const { useBrowserTakeoverActions } = await import('@/hooks/approval/useBrowserTakeoverActions');
     const { result } = renderHook(() => useBrowserTakeoverActions());
 
     await act(async () => {
@@ -84,7 +84,7 @@ describe('useBrowserTakeoverActions', () => {
     seedTakeover('managed');
     fetchWithTimeout.mockResolvedValue({ ok: false, status: 503 });
 
-    const { useBrowserTakeoverActions } = await import('@/hooks/useBrowserTakeoverActions');
+    const { useBrowserTakeoverActions } = await import('@/hooks/approval/useBrowserTakeoverActions');
     const { result } = renderHook(() => useBrowserTakeoverActions());
 
     await act(async () => {
@@ -101,7 +101,7 @@ describe('useBrowserTakeoverActions', () => {
     seedTakeover('extension');
     sendMessage.mockRejectedValue(new Error('network'));
 
-    const { useBrowserTakeoverActions } = await import('@/hooks/useBrowserTakeoverActions');
+    const { useBrowserTakeoverActions } = await import('@/hooks/approval/useBrowserTakeoverActions');
     const { result } = renderHook(() => useBrowserTakeoverActions());
 
     await act(async () => {
@@ -119,7 +119,7 @@ describe('useBrowserTakeoverActions', () => {
     fetchWithTimeout.mockResolvedValue({ ok: true, json: async () => ({ learned: false }) });
     sendMessage.mockRejectedValue(new Error('network'));
 
-    const { useBrowserTakeoverActions } = await import('@/hooks/useBrowserTakeoverActions');
+    const { useBrowserTakeoverActions } = await import('@/hooks/approval/useBrowserTakeoverActions');
     const { result } = renderHook(() => useBrowserTakeoverActions());
 
     await act(async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyVisionIntent } from '@/hooks/useVisionIntent';
+import { classifyVisionIntent } from '@/hooks/multimodal/useVisionIntent';
 
 describe('useVisionIntent', () => {
   const getClassify = () => {

@@ -97,10 +97,10 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
         active_leases = wave_active_lease_count(monorepo_root)
     except Exception:
         active_leases = 0
-    if active_leases < 2:
-        return base_sec
-    scaled = base_sec + active_leases * 12.0
-    return min(scaled, 120.0)
+    # Signoff always applies a parallel headroom floor (Run#11 showed 50s/35s base under load).
+    floor = max(base_sec, 90.0 if base_sec >= 45.0 else 70.0)
+    scaled = floor + active_leases * 10.0
+    return min(scaled, 150.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:

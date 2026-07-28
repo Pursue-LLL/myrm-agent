@@ -15,7 +15,7 @@ import {
 import type { Memory, MemoryType } from '@/store/memory';
 import { useMemoryStore } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface MemoryEditDialogProps {
   memory: Memory | null;

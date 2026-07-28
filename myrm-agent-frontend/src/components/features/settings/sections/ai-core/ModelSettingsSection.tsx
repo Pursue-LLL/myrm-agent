@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { IconCpu, IconSliders } from '@/components/features/icons/PremiumIcons';
-import { useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
+import { useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import ModelServiceSection from './ModelServiceSection';
 import DefaultModelSection from './DefaultModelSection';
 

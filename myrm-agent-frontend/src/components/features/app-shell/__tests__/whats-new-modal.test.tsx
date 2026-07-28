@@ -10,7 +10,7 @@ let mockHookReturn = {
   dismiss: mockDismiss,
 };
 
-vi.mock('@/hooks/useWhatsNew', () => ({
+vi.mock('@/hooks/pwa/useWhatsNew', () => ({
   useWhatsNew: () => mockHookReturn,
 }));
 

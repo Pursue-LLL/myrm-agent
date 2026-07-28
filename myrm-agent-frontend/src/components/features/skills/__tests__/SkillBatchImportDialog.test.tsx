@@ -20,7 +20,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => TRANSLATIONS[key] ?? key,
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: toastMock,
 }));
 

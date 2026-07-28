@@ -17,7 +17,7 @@ vi.mock('next-intl', () => ({
 
 const rejectAllMock = vi.fn();
 
-vi.mock('@/hooks/useToolApprovalResolve', () => ({
+vi.mock('@/hooks/approval/useToolApprovalResolve', () => ({
   useToolApprovalResolve: () => ({
     rejectAll: rejectAllMock,
     isLoading: false,

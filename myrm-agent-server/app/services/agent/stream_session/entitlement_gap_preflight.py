@@ -209,6 +209,28 @@ def build_web_search_config_gap_sse_event(
     }
 
 
+def build_surface_unavailable_gap_sse_event(
+    *,
+    message_id: str,
+    user_text: str,
+    active_tool_groups: frozenset[str],
+    chat_id: str | None,
+    channel_name: str = "web_chat",
+    client_surface: str | None = None,
+    locale: str | None = None,
+) -> dict[str, object] | None:
+    """Emit info-only capability_gap when render_ui is on but the channel cannot mount inline UI."""
+    return _build_surface_unavailable_sse_event(
+        message_id=message_id,
+        user_text=user_text,
+        active_tool_groups=active_tool_groups,
+        chat_id=chat_id,
+        channel_name=channel_name,
+        client_surface=client_surface,
+        locale=locale,
+    )
+
+
 def build_entitlement_gap_sse_event(
     *,
     message_id: str,

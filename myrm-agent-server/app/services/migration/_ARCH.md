@@ -20,6 +20,7 @@
 | id | 产品名 | 发现方式 |
 |----|--------|----------|
 | `chatgpt` | ChatGPT | ZIP upload 内检测 conversations.json |
+| `gbrain` | gbrain | ZIP upload 内检测 ≥3 个含 YAML frontmatter `type:` 字段的 .md 文件 |
 
 **政策**：不添加 Cowork、Cursor、Windsurf、Trae、QwenPaw 或其他工具的 Wizard 扫描/导入。Memory Center 手动导入（如 `cursor_rules`、`mem0`、归档 JSON）与 Wizard discover **解耦**，不受此政策限制。ChatGPT 属于 upload-only 类型，不扩展 filesystem probe。
 
@@ -35,7 +36,7 @@
 | `source_manifest.py` | 核心 | 迁移来源 SSOT：来源清单、display name、import source 映射、discover mode、deep-link 开关 | ✅ |
 | `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt）+ re-export openclaw；Hermes loader 含 .usage.json 导入 | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw；Hermes loader 含 .usage.json 导入；gbrain loader 解析 Markdown+YAML frontmatter 页面 | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |

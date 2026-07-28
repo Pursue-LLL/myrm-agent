@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - select_tool_capable_model_cfg(): 在 GeneralAgent 启动时选择支持 function calling 的主模型
-- create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例
+- create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
+- _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 factory.py Dynamic Ratio Shield 降级复用
 
 [POS]
 LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例，
@@ -27,6 +28,20 @@ from app.core.channel_bridge.model_resolver import (
 from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
+
+_LOW_REASONING_EFFORT = "low"
+
+
+def _inject_low_reasoning_effort(cfg: ModelConfig) -> ModelConfig:
+    """Return a ModelConfig copy with reasoning_effort='low' merged into model_kwargs.
+
+    Unsupported models silently ignore the parameter via litellm.drop_params=True.
+    """
+    existing = cfg.model_kwargs or {}
+    if existing.get("reasoning_effort") == _LOW_REASONING_EFFORT:
+        return cfg
+    merged = {**existing, "reasoning_effort": _LOW_REASONING_EFFORT}
+    return cfg.model_copy(update={"model_kwargs": merged})
 
 
 def _supports_function_calling(model_name: str) -> bool:
@@ -197,20 +212,27 @@ async def create_agent_llms(
             "Please check your model configuration (model name, API key, base URL)."
         ) from e
 
-    # 2. 创建过滤/摘要模型
+    # 2. 创建过滤/摘要模型（注入 reasoning_effort='low' 降低辅助任务推理开销）
     if lite_model_cfg is not None:
         try:
             filter_api_keys = getattr(lite_model_cfg, "api_keys", None)
-            lite_llm = await llm_manager.get_llm_from_config(lite_model_cfg, api_keys=filter_api_keys)
-            logger.info("Lite model: %s (independent)", lite_model_cfg.model)
+            lite_cfg_with_low_effort = _inject_low_reasoning_effort(lite_model_cfg)
+            lite_llm = await llm_manager.get_llm_from_config(
+                lite_cfg_with_low_effort, api_keys=filter_api_keys,
+            )
+            logger.info("Lite model: %s (independent, reasoning_effort=low)", lite_model_cfg.model)
         except Exception as e:
             raise ValueError(
                 f"Failed to create lite LLM with model '{lite_model_cfg.model}': {e}. "
                 "Please check your filter model configuration."
             ) from e
     else:
-        lite_llm = raw_main_llm
-        logger.info("Lite model: %s (reusing main)", model_cfg.model)
+        lite_cfg_with_low_effort = _inject_low_reasoning_effort(model_cfg)
+        main_api_keys = getattr(model_cfg, "api_keys", None)
+        lite_llm = await llm_manager.get_llm_from_config(
+            lite_cfg_with_low_effort, api_keys=main_api_keys,
+        )
+        logger.info("Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model)
 
     # 4. 创建安全审核拦截降级模型
     safety_fallback_llm = None

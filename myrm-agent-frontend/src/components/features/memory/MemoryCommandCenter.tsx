@@ -18,7 +18,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getProjects, type Project } from '@/services/projects';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { ConnectWizardDialog } from './ConnectWizardDialog';

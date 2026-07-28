@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface FileChangeInfo {
   path: string;

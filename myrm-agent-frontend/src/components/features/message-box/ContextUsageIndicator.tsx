@@ -26,7 +26,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import useChatStore from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { getSessionAnalytics } from '@/services/statistics';
 import { compactChat } from '@/services/chat';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';

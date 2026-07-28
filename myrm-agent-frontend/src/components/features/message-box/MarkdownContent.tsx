@@ -13,7 +13,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useSmoothStream } from '@/hooks/useSmoothStream';
+import { useSmoothStream } from '@/hooks/message-input/useSmoothStream';
 import useConfigStore from '@/store/useConfigStore';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';

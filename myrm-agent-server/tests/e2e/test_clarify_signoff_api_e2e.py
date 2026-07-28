@@ -72,7 +72,7 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
     clarify_result: dict[str, object] = {}
     for attempt in range(2):
         heartbeat_e2e_lease()
-        touch_wall_progress(f"signoff_clarify_api_attempt_{attempt + 1}")
+        touch_wall_progress()
         chat_id = f"signoff_clarify_{uuid.uuid4().hex[:8]}"
         create_e2e_chat_via_api(chat_id, api_url=api_base)
         clarify_result = start_clarify_turn_via_api(

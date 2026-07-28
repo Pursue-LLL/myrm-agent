@@ -128,8 +128,8 @@
 
 ## 依赖
 
-- `@/hooks/useIngressRequirement`
-- `@/hooks/useSystemConfig`
+- `@/hooks/billing/useIngressRequirement`
+- `@/hooks/settings/useSystemConfig`
 - `@/services/system`
 - `@/services/statistics`
 - `@/services/budget`

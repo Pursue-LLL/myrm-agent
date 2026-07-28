@@ -334,9 +334,10 @@ def chrome_e2e_skips_attach_health_reprobe(
     chrome_attach: bool,
     shared_hot: bool = False,
     stream_lock_held: bool = False,
+    api_only: bool = False,
 ) -> bool:
     """True when test.sh bootstrap already verified Chrome attach — skip pytest fixture reprobe."""
-    return chrome_attach or shared_hot or stream_lock_held
+    return chrome_attach or shared_hot or stream_lock_held or api_only
 
 
 def live_agent_stream_wait_sec(joined_argv: str) -> int:

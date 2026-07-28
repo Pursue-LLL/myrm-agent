@@ -8,8 +8,8 @@ import MCPConfigForm from '../../MCPConfigForm';
 import { MCPRegistryBrowser } from '../../mcp/MCPRegistryBrowser';
 import { MCPInstallWizard } from '../../mcp/MCPInstallWizard';
 import SettingsSection from '../SettingsSection';
-import { useToast } from '@/hooks/useToast';
-import { gateMcpConfigBatch } from '@/hooks/useMcpSecurityGate';
+import { useToast } from '@/hooks/shared/useToast';
+import { gateMcpConfigBatch } from '@/hooks/settings/useMcpSecurityGate';
 import type { MCPServiceConfig } from '@/store/config/types';
 
 type MCPTab = 'installed' | 'registry';
@@ -55,7 +55,7 @@ const MCPSection = memo(() => {
       }
       let finalConfig = { ...config };
       if (batchGate.scanResults[0]) {
-        const { buildLastScanSummary } = await import('@/hooks/useMcpSecurityGate');
+        const { buildLastScanSummary } = await import('@/hooks/settings/useMcpSecurityGate');
         finalConfig = { ...finalConfig, lastScanSummary: buildLastScanSummary(batchGate.scanResults[0]) };
       }
       const existingNames = new Set(mcpConfigs.map((c) => c.name));

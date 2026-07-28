@@ -115,6 +115,9 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "channels_manage": _RouterMount("app.api.channels.router", prefix="/channels/manage", tags=("channels",)),
     "channels_test": _RouterMount("app.api.channels.test_connections", prefix="/channels/manage", tags=("channels",)),
     "channels_wechat": _RouterMount("app.api.channels.wechat", prefix="/channels/manage", tags=("channels",)),
+    "channels_wechat_official": _RouterMount(
+        "app.api.channels.wechat_official", prefix="/channels/manage", tags=("channels",)
+    ),
     "feishu_register": _RouterMount("app.api.channels.feishu_register", prefix="/channels/manage", tags=("channels",)),
     "channels_instances": _RouterMount("app.api.channels.instances", prefix="/channels/manage", tags=("channels",)),
     "channels_topics": _RouterMount("app.api.channels.topics", prefix="/channels/manage", tags=("channels",)),
@@ -146,6 +149,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "channels_manage",
         "channels_test",
         "channels_wechat",
+        "channels_wechat_official",
         "feishu_register",
         "channels_instances",
         "channels_topics",

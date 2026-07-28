@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { checkIsMobile } from '@/lib/utils/deviceDetection';
 import { requestManager } from '@/lib/utils/requestManager';
 import { consumeMigrationChatAgent } from '@/lib/migrationChatHandoff';
-import { useResizableSidebar } from '@/hooks/useResizableSidebar';
+import { useResizableSidebar } from '@/hooks/ui/useResizableSidebar';
 import type { NavTab } from './NavBar';
 
 export const NAVBAR_WIDTH = 60;

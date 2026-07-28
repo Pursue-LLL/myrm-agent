@@ -119,7 +119,15 @@ async def build_general_agent(
                     f"vs Lite model ({lite_limit} tokens). "
                     "Gracefully degrading _lite_llm to main llm to prevent memory evaporation 400 Bad Request."
                 )
-                agent_wrapper._lite_llm = llm
+                from myrm_agent_harness.toolkits.llms import llm_manager as _llm_mgr
+
+                from .llm_factory import _inject_low_reasoning_effort
+
+                fallback_lite_cfg = _inject_low_reasoning_effort(agent_wrapper.model_cfg)
+                main_api_keys = getattr(agent_wrapper.model_cfg, "api_keys", None)
+                agent_wrapper._lite_llm = await _llm_mgr.get_llm_from_config(
+                    fallback_lite_cfg, api_keys=main_api_keys,
+                )
 
     # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
     escalation_target_llm = None
@@ -745,14 +753,19 @@ async def build_general_agent(
         has_mcp=bool(agent_wrapper.mcp_config),
     )
 
+    mount_skill_market = getattr(agent_wrapper, "enable_skill_market", False)
+    mount_skill_manage = getattr(agent_wrapper, "enable_skill_evolution", False) or getattr(
+        agent_wrapper, "force_skill_manage", False
+    )
+
     agent = await create_skill_agent(
         spec=spec,
         llm=llm,
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=skill_backend,
-        market_backend=market_service,
-        write_backend=skill_creation_service,
+        market_backend=market_service if mount_skill_market else None,
+        write_backend=skill_creation_service if mount_skill_manage else None,
         secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,
         enable_memory_auto_extraction=agent_wrapper.enable_memory

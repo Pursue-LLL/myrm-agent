@@ -44,7 +44,7 @@ vi.mock('@tauri-apps/plugin-notification', () => ({
   requestPermission: () => mockRequestPermission(),
 }));
 
-vi.mock('@/hooks/useLivenessState', () => ({
+vi.mock('@/hooks/shell/useLivenessState', () => ({
   useLivenessState: () => ({
     state: mockLivenessState,
     activeCount: mockLivenessState === 'busy' ? 1 : 0,
@@ -117,7 +117,7 @@ describe('useTrayStatus', () => {
 
   it('does nothing in non-Tauri environment', async () => {
     mockIsTauri = false;
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await vi.dynamicImportSettled();
     expect(mockInvoke).not.toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe('useTrayStatus', () => {
     mockIsTauri = true;
     mockLivenessState = 'idle';
     mockBgTasks = [];
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -143,7 +143,7 @@ describe('useTrayStatus', () => {
   it('sets busy tray + Indeterminate progress when liveness is busy', async () => {
     mockIsTauri = true;
     mockLivenessState = 'busy';
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -157,7 +157,7 @@ describe('useTrayStatus', () => {
   it('sets degraded tray when liveness is degraded', async () => {
     mockIsTauri = true;
     mockLivenessState = 'degraded';
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -170,7 +170,7 @@ describe('useTrayStatus', () => {
   it('maps offline liveness to degraded tray status with offline tooltip', async () => {
     mockIsTauri = true;
     mockLivenessState = 'offline';
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -184,7 +184,7 @@ describe('useTrayStatus', () => {
     mockIsTauri = true;
     mockLivenessState = 'idle';
     mockBgTasks = [{ status: 'running' }, { status: 'running' }, { status: 'completed' }];
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -197,7 +197,7 @@ describe('useTrayStatus', () => {
 
   it('requests attention on background job finish when window is hidden', async () => {
     mockIsTauri = true;
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await vi.dynamicImportSettled();
 
@@ -220,7 +220,7 @@ describe('useTrayStatus', () => {
 
   it('does not request attention when window is visible', async () => {
     mockIsTauri = true;
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await vi.dynamicImportSettled();
 
@@ -244,7 +244,7 @@ describe('useTrayStatus', () => {
     mockIsTauri = true;
     mockLivenessState = 'idle';
     mockGetUsageStatistics.mockResolvedValue({ totalTokens: 15200, costUsd: 0.34 });
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
@@ -257,7 +257,7 @@ describe('useTrayStatus', () => {
   it('fires native notification on budget_alert event', async () => {
     mockIsTauri = true;
     mockGetBudgetStatus.mockResolvedValue({ enabled: true, usage_pct: 0.85, remaining_usd: 1.5 });
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await vi.dynamicImportSettled();
 
@@ -274,7 +274,7 @@ describe('useTrayStatus', () => {
   it('does not fire notification when budget is disabled', async () => {
     mockIsTauri = true;
     mockGetBudgetStatus.mockResolvedValue({ enabled: false, usage_pct: 0, remaining_usd: 0 });
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     renderHook(() => useTrayStatus());
     await vi.dynamicImportSettled();
 
@@ -287,7 +287,7 @@ describe('useTrayStatus', () => {
     mockIsTauri = true;
     mockLoading = false;
     mockInvoke.mockRejectedValue(new Error('API unavailable'));
-    const { useTrayStatus } = await import('../useTrayStatus');
+    const { useTrayStatus } = await import('../tauri/useTrayStatus');
     expect(() => renderHook(() => useTrayStatus())).not.toThrow();
   });
 });

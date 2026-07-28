@@ -292,6 +292,25 @@ export function getAgentApiBaseUrl(): string {
   return `${backendBase}/v1`;
 }
 
+/**
+ * SSE notification stream URL.
+ * Loopback dev must bypass Next `/api/v1` rewrites — they do not reliably forward EventSource chunks.
+ */
+export function getNotificationStreamUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/api/v1/notifications/stream`;
+  }
+  const backend = getBackendBaseUrl();
+  if (backend) {
+    return `${backend}/api/v1/notifications/stream`;
+  }
+  if (typeof window !== 'undefined' && (isLocalMode() || isLoopbackDevHost())) {
+    return `${FALLBACK_BACKEND_BASE_URL}/api/v1/notifications/stream`;
+  }
+  return `${getApiBaseUrl()}/notifications/stream`;
+}
+
 /** Documentation site base URL (Mintlify). */
 export function getDocsUrl(path: string = '/'): string {
   const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, 'https://docs.myrm.ai');

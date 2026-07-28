@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getSkillFile } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';

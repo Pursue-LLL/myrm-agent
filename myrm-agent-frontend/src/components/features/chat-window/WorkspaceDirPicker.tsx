@@ -8,7 +8,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { isTauriEnvironment } from '@/lib/tauri';
 

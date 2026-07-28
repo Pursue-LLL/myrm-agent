@@ -16,7 +16,7 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import useConfigStore from '@/store/useConfigStore';
 import useProviderStore from '@/store/useProviderStore';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import type { ImageGenerationConfig, VideoGenerationConfig, VideoGenerationProvider } from '@/services/config/types';
 import {

@@ -11,7 +11,7 @@ import type { SMSCredentials } from '@/services/channels';
 import { getSMSCredentials, saveSMSCredentials, testSMSConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
-import { useIngressUrl } from '@/hooks/useIngressUrl';
+import { useIngressUrl } from '@/hooks/billing/useIngressUrl';
 
 const EMPTY_CREDS: SMSCredentials = { accountSid: '', authToken: '', phoneNumber: '' };
 

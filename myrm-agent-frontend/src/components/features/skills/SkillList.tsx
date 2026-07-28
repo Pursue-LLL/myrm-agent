@@ -2,7 +2,7 @@
 
 import { memo, useRef, useEffect, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useMediaQuery } from '@/hooks/ui/useMediaQuery';
 import { Skeleton } from '@/components/primitives/skeleton';
 import SkillCard from './SkillCard';
 import SkillEmptyState from './SkillEmptyState';

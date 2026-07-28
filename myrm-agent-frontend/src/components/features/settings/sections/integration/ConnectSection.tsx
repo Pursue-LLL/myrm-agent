@@ -39,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { cn } from '@/lib/utils';
 import SettingsSection from '../SettingsSection';

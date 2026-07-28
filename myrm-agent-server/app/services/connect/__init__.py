@@ -7,6 +7,7 @@ from app.services.connect.service import (
     ConnectorState,
     ConnectorStatus,
     ConnectService,
+    VerifiedConnectToken,
     get_connect_service,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "ConnectionProfile",
     "ConnectorState",
     "ConnectorStatus",
+    "VerifiedConnectToken",
     "get_connect_service",
 ]

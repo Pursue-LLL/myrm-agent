@@ -10,7 +10,7 @@ import { IconTrash, IconUndo } from '@/components/features/icons/PremiumIcons';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface FileChange {
   path: string;

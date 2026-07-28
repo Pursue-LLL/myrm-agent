@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat, createChatShare, revokeChatShare } from '@/services/chat';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import type { useTranslations } from 'next-intl';
 
 export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeof useTranslations>) {

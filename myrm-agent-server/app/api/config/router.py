@@ -1030,6 +1030,7 @@ _CREDENTIAL_KEY_TO_CHANNEL: dict[str, str] = {
     "emailCredentials": "email",
     "mattermostCredentials": "mattermost",
     "wechatCredentials": "wechat",
+    "wechatOfficialCredentials": "wechat_official",
     "whatsappCredentials": "whatsapp",
     "smsCredentials": "sms",
 }

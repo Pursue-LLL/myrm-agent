@@ -15,7 +15,7 @@ import {
 } from '@/components/primitives/dialog';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
-import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import SingleApprovalCard from './SingleApprovalCard';
 

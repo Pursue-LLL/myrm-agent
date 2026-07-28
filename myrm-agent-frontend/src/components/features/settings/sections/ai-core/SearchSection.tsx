@@ -18,7 +18,7 @@ import SearchServiceEditDialog from '../../SearchServiceEditDialog';
 import SearxngInstallConsentDialog from '../../SearxngInstallConsentDialog';
 import SettingsSection from '../SettingsSection';
 import WebFetchEscalationCard from './WebFetchEscalationCard';
-import { useDeployMode } from '@/hooks/useDeployMode';
+import { useDeployMode } from '@/hooks/shared/useDeployMode';
 
 const SearchSection = memo(() => {
   const t = useTranslations('settings');

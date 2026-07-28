@@ -23,4 +23,4 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `vault_service.py` | 生命周期 | 启动迁移、共享 archiver（cache key: llm + agent_id + manager） | ✅ |
 | `agent_scope.py` | 辅助 | chat_id → agent_id，供 ingest / archive 选 vault | ✅ |
 | `wiki_archive_hook.py` | 钩子 | compaction persist 后 SessionNotes 后台归档（按 chat.agent_id 选 vault） | ✅ |
-| `obsidian_adapter.py` | 适配器 | Obsidian Vault 导入预处理 | ✅ |
+| `obsidian_adapter.py` | 适配器 | Obsidian Vault 导入预处理；`parse_frontmatter` SSOT 来自 harness `markdown_frontmatter` | ✅ |

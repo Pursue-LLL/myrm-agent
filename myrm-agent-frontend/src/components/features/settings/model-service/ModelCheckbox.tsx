@@ -12,7 +12,7 @@ import { CustomProviderType } from '@/store/config/providerTypes';
 import { hasModelsDevSupport } from '@/services/models-dev';
 import { AddModelInput } from './AddModelInput';
 import { InlineModelInfo } from './InlineModelInfo';
-import { useModelCheckbox } from '@/hooks/useModelCheckbox';
+import { useModelCheckbox } from '@/hooks/ui/useModelCheckbox';
 
 interface ModelInfoItem {
   name: string;

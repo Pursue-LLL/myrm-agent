@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * hooks/useCameraInput (POS: Camera input manager with frame buffering)
+ * hooks/multimodal/useCameraInput (POS: Camera input manager with frame buffering)
  *
  * [OUTPUT]
  * CameraInputButton: Toggle button for camera input with facing mode switch
@@ -16,7 +16,7 @@ import { Camera, CameraOff, SwitchCamera } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import Tooltip from '@/components/features/settings/Tooltip';
-import type { CameraState, FacingMode } from '@/hooks/useCameraInput';
+import type { CameraState, FacingMode } from '@/hooks/multimodal/useCameraInput';
 
 interface CameraInputButtonProps {
   cameraState: CameraState;

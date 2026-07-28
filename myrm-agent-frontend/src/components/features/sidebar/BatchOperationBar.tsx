@@ -7,7 +7,7 @@ import type { useTranslations } from 'next-intl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { batchMoveChats } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import {
   batchExportAsZip,
   downloadBlob,

@@ -15,11 +15,15 @@ tags:
 allowed-tools: file_write_tool file_read_tool bash_code_execute_tool
 contract:
   steps:
+    - "Phase 0: Read — file_read the full target note before any edit (required)"
     - "Phase 1: Locate — find the Obsidian vault directory"
     - "Phase 2: Understand — scan vault structure and conventions"
-    - "Phase 3: Execute — create or update notes following vault conventions"
+    - "Phase 3: Execute — use file_edit str_replace for body changes; never CREATE-overwrite an existing note"
     - "Phase 4: Link — ensure proper wiki-links and backlinks"
   potential_traps:
+    - description: "Removing YAML frontmatter when rewriting a note"
+      mitigation: "Use str_replace on the body only; the system preserves frontmatter when you omit it, but never strip the --- block intentionally unless updating metadata"
+      severity: high
     - description: "Breaking existing wiki-links by renaming files"
       mitigation: "Search for [[filename]] references before renaming; update all occurrences"
       severity: high
@@ -96,6 +100,14 @@ Common patterns:
 2. Generate appropriate frontmatter (match existing schema)
 3. Write content in Markdown
 4. Add relevant `[[wiki-links]]` to connect with existing notes
+
+**Do not use file_write_tool CREATE to overwrite an existing note path.** Read the note first, then use file_edit str_replace for partial updates.
+
+### Update an Existing Note
+
+1. Read the full note with file_read_tool
+2. Apply file_edit str_replace targeting the body section only
+3. Leave frontmatter unchanged unless you intentionally edit metadata inside the `---` block
 
 ### Daily Note
 

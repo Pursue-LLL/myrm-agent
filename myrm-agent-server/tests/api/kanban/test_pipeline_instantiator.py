@@ -442,6 +442,38 @@ class TestFanOutTemplates:
         assert spec.task_graph_seed[0].repeat_for == "platforms"
         assert spec.task_graph_seed[1].repeat_for is None
         assert spec.task_graph_seed[1].parents == [0]
+        adapter = next(role for role in spec.role_templates if role.role_id == "adapter")
+        assert "wechat-article-formatter" not in adapter.required_skills
+        assert spec.task_graph_seed[0].repeat_for_item_skills.get("WeChat (微信公众号)") == [
+            "wechat-article-formatter"
+        ]
+
+    def test_parse_repeat_for_item_skills(self) -> None:
+        frontmatter: dict[str, object] = {
+            "name": "repeat-skills",
+            "description": "Repeat item skills",
+            "category": "pipeline",
+            "pipeline_spec": {
+                "discovery_questions": [],
+                "role_templates": [],
+                "task_graph_seed": [
+                    {
+                        "title_template": "T {item}",
+                        "description_template": "D",
+                        "role": "adapter",
+                        "repeat_for": "platforms",
+                        "repeat_for_item_skills": {
+                            "WeChat (微信公众号)": ["wechat-article-formatter"],
+                        },
+                    },
+                ],
+            },
+        }
+        spec = _parse_pipeline_spec("repeat-skills", frontmatter)
+        assert spec is not None
+        assert spec.task_graph_seed[0].repeat_for_item_skills["WeChat (微信公众号)"] == [
+            "wechat-article-formatter"
+        ]
 
     def test_competitive_analysis_pipeline(self) -> None:
         spec = get_pipeline_skill("competitive-analysis-pipeline")

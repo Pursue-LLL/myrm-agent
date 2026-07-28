@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getAgentApiBaseUrl, getApiBaseUrl, getBackendBaseUrl, getDocsUrl } from '@/lib/deploy-mode';
+import {
+  getAgentApiBaseUrl,
+  getApiBaseUrl,
+  getBackendBaseUrl,
+  getDocsUrl,
+  getNotificationStreamUrl,
+} from '@/lib/deploy-mode';
 import { getWsUrl } from '@/lib/api';
 
 const ENV_KEYS = ['NEXT_PUBLIC_DEPLOY_MODE', 'NEXT_PUBLIC_API_BASE_URL', 'NEXT_PUBLIC_BACKEND_BASE_URL'] as const;
@@ -40,6 +46,7 @@ describe('deploy-mode base url resolution', () => {
     expect(getApiBaseUrl()).toBe('/api/v1');
     expect(getBackendBaseUrl()).toBe('');
     expect(getAgentApiBaseUrl()).toBe('http://127.0.0.1:8080/v1');
+    expect(getNotificationStreamUrl()).toBe('http://127.0.0.1:8080/api/v1/notifications/stream');
   });
 
   it('rejects invalid configured base urls in sandbox mode', () => {

@@ -9,7 +9,7 @@ import { Wand2, Download, Package, Loader2, Check } from 'lucide-react';
 import { extractSkillDirectory } from '@/lib/constants/paths';
 import { getFriendlyErrorMessage } from '@/lib/utils/skillErrorMapper';
 import { Button } from '@/components/primitives/button';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { packageWorkspaceDirectory, uploadSkill, triggerDownload } from '@/services/skill';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { useSkillStore } from '@/store/skill';

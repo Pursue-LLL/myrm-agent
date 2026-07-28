@@ -8,7 +8,7 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import useAuthStore from '@/store/useAuthStore';
 import { useSkillDraftStore } from '@/store/skill/useSkillDraftStore';
 import type { SkillDraft } from '@/services/skill';

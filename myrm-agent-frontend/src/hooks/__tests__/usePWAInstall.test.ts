@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { usePWAInstall } from '../usePWAInstall';
+import { usePWAInstall } from '../pwa/usePWAInstall';
 
 describe('usePWAInstall', () => {
   let originalWindow: Window & typeof globalThis;

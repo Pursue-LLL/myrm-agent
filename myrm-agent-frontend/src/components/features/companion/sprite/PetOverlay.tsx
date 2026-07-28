@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
 import useCompanionStore from '@/store/useCompanionStore';
-import { useLivenessState } from '@/hooks/useLivenessState';
+import { useLivenessState } from '@/hooks/shell/useLivenessState';
 
 import { AnimRow, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
 import { resolveAnimRow } from './petStateMapping';

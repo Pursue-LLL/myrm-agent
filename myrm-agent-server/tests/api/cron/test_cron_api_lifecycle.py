@@ -494,6 +494,119 @@ class TestCronApiSessionTargetChatId:
         assert resp.json()["chat_id"] == "chat-keep"
 
 
+class TestCronApiAcceptanceCriteria:
+    """Tests for acceptance_criteria CRUD through the REST API."""
+
+    def test_create_with_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [
+            {"type": "shell", "command": "echo ok"},
+            {"type": "semantic", "description": "output must contain 'success'"},
+        ]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "verified-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "do work",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["acceptance_criteria"] == criteria
+
+    def test_create_without_acceptance_criteria(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "no-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["acceptance_criteria"] is None
+
+    def test_update_acceptance_criteria(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "update-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        new_criteria = [{"type": "shell", "command": "test -f /tmp/done"}]
+        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": new_criteria})
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == new_criteria
+
+    def test_clear_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "shell", "command": "echo ok"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "clear-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+        assert resp.json()["acceptance_criteria"] == criteria
+
+        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": None})
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] is None
+
+    def test_get_preserves_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "semantic", "description": "must mention price"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "get-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.get(f"/cron/{job_id}")
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == criteria
+
+    def test_pause_resume_preserves_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "shell", "command": "curl -s http://example.com"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "persist-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        client.post(f"/cron/{job_id}/pause")
+        resp = client.post(f"/cron/{job_id}/resume")
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == criteria
+
+
 class TestCronChatIdFilter:
     def test_list_jobs_filters_by_chat_id(self, client: TestClient) -> None:
         for chat_id, name in (("chat-a", "job-a"), ("chat-b", "job-b")):

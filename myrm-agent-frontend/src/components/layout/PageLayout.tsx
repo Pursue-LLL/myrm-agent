@@ -8,7 +8,7 @@ import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
 import { shouldShowBootScreen } from '@/components/features/app-shell/boot-screen-gate';
-import { useFocusedMode } from '@/hooks/useFocusedMode';
+import { useFocusedMode } from '@/hooks/ui/useFocusedMode';
 import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
 const READINESS_GATE_TIMEOUT_MS = 3_000;

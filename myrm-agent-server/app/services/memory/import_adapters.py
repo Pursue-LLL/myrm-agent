@@ -34,6 +34,7 @@ from app.services.memory.import_chatgpt import dry_run_chatgpt, is_chatgpt_paylo
 from app.services.memory.import_claude_code import dry_run_claude_code_jsonl, is_claude_code_jsonl
 from app.services.memory.import_codex import dry_run_codex
 from app.services.memory.import_cursor import dry_run_cursor
+from app.services.memory.import_gbrain import dry_run_gbrain
 from app.services.memory.import_hermes import dry_run_hermes
 from app.services.memory.import_mem0 import dry_run_mem0, is_mem0_payload
 from app.services.memory.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
@@ -114,6 +115,8 @@ def build_memory_import_dry_run(
         return dry_run_myrm_archive(resolved_payload)
     if detected == "agentmemory":
         return dry_run_agentmemory(resolved_payload)
+    if detected == "gbrain":
+        return dry_run_gbrain(resolved_payload)
     if detected == "claude_code_jsonl":
         return dry_run_claude_code_jsonl(resolved_payload)
     if detected == "hermes":
@@ -140,6 +143,8 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
 
     if is_myrm_archive(payload):
         return "myrm_archive"
+    if _is_gbrain_payload(payload):
+        return "gbrain"
     if is_claude_code_jsonl(payload):
         return "claude_code_jsonl"
     if _is_hermes_payload(payload):
@@ -209,6 +214,15 @@ def _detect_source_from_payload_tag(payload: dict[str, object]) -> MemoryImportS
     if not isinstance(raw, str):
         return None
     return _SOURCE_TAG_TO_IMPORT.get(raw.strip().lower())
+
+
+def _is_gbrain_payload(payload: dict[str, object]) -> bool:
+    """Detect gbrain data: has ``_source`` == 'gbrain' or characteristic gbrain_pages key."""
+
+    if payload.get("_source") == "gbrain":
+        return True
+    pages = payload.get("gbrain_pages")
+    return isinstance(pages, list) and len(pages) > 0
 
 
 def _is_hermes_payload(payload: dict[str, object]) -> bool:

@@ -46,7 +46,7 @@ import ConversationRecallPanel from '@/components/features/memory/ConversationRe
 import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { toast as actionToast } from '@/lib/utils/toast';
 import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';

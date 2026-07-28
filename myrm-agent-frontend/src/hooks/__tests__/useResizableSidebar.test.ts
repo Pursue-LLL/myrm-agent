@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useResizableSidebar } from '../useResizableSidebar';
+import { useResizableSidebar } from '../ui/useResizableSidebar';
 
 describe('useResizableSidebar', () => {
   beforeEach(() => {

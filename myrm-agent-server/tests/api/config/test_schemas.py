@@ -22,6 +22,7 @@ def test_all_credentials_keys_present() -> None:
         "discordCredentials",
         "wecomCredentials",
         "wechatCredentials",
+        "wechatOfficialCredentials",
         "teamsCredentials",
         "matrixCredentials",
         "telegramCredentials",

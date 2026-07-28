@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect } from 'vitest';
 
-import { toLivenessState, buildTooltip } from '../useLivenessState';
-import type { LivenessState } from '../useLivenessState';
+import { toLivenessState, buildTooltip } from '../shell/useLivenessState';
+import type { LivenessState } from '../shell/useLivenessState';
 
 // ── toLivenessState: state mapping logic ──
 

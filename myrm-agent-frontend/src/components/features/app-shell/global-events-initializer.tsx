@@ -1,8 +1,8 @@
 'use client';
 
-import { useGlobalEvents } from '@/hooks/useGlobalEvents';
-import { usePendingApprovalsRecovery } from '@/hooks/usePendingApprovalsRecovery';
-import { useWorkspaceStream } from '@/hooks/useWorkspaceStream';
+import { useGlobalEvents } from '@/hooks/globalEvents/useGlobalEvents';
+import { usePendingApprovalsRecovery } from '@/hooks/approval/usePendingApprovalsRecovery';
+import { useWorkspaceStream } from '@/hooks/workspace/useWorkspaceStream';
 
 /**
  * Mounts the global SSE event listener and pending approvals recovery at layout level.

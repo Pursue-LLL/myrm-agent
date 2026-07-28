@@ -17,7 +17,7 @@ vi.mock('@/services/projects', () => ({
   batchMoveChats,
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: toastMock,
 }));
 

@@ -10,7 +10,7 @@ import { Badge } from '@/components/primitives/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Alert, AlertDescription } from '@/components/primitives/alert';
 import { useSkillStore } from '@/store/skill';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 interface LocalPathsConfigProps {
   className?: string;

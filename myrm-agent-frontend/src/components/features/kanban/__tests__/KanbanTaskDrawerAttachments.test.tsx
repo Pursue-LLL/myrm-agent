@@ -6,7 +6,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/hooks/useAgentName', () => ({
+vi.mock('@/hooks/agent/useAgentName', () => ({
   useAgentName: () => null,
 }));
 

@@ -19,7 +19,7 @@ import { Activity, ArrowLeft, CheckCircle2, ExternalLink, Maximize2, XCircle } f
 import { useTranslations } from 'next-intl';
 
 import { mobileApiRequest, scheduleMobilePairRefresh } from '@/lib/mobileRemote';
-import { useBrowserTakeoverActions } from '@/hooks/useBrowserTakeoverActions';
+import { useBrowserTakeoverActions } from '@/hooks/approval/useBrowserTakeoverActions';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
 import { Button } from '@/components/primitives/button';

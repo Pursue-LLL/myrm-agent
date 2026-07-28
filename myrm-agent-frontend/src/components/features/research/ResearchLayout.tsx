@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { BookOpen, MessageSquare, FileText } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/primitives/tabs';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import ResourcePoolPanel from './ResourcePoolPanel';
 import useResearchStore from '@/store/useResearchStore';
 import type { ResearchTab } from '@/store/useResearchStore';

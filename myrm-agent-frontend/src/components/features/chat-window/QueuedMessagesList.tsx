@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/hooks/useMessageQueue::QueuedMessage (POS: 消息排队状态机)
+ * - @/hooks/message-input/useMessageQueue::QueuedMessage (POS: 消息排队状态机)
  *
  * [OUTPUT]
  * - QueuedMessagesList: 可拖拽排序的排队消息列表组件。
@@ -24,7 +24,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Clock, Pencil, X, Check, GripVertical } from 'lucide-react';
-import type { QueuedMessage } from '@/hooks/useMessageQueue';
+import type { QueuedMessage } from '@/hooks/message-input/useMessageQueue';
 
 interface QueuedMessagesListProps {
   queue: QueuedMessage[];

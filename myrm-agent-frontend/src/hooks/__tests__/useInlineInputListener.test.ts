@@ -36,7 +36,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: (...args: [string, ListenCallback<unknown>]) => mockListen(...args),
 }));
 
-import { useInlineInputListener } from '../useInlineInputListener';
+import { useInlineInputListener } from '../tauri/useInlineInputListener';
 
 describe('useInlineInputListener', () => {
   beforeEach(() => {

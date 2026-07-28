@@ -20,7 +20,7 @@ import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/uti
 import { Switch } from '@/components/primitives/switch';
 import { InputField } from '../FormFields';
 import { MCPServiceConfig, MCPOAuthSettings } from '@/store/useConfigStore';
-import { PendingDescriptionChoice } from '@/hooks/useMCPConfig';
+import { PendingDescriptionChoice } from '@/hooks/settings/useMCPConfig';
 import type { MCPScanFinding } from '@/store/config/types';
 import JsonEditor from '../JsonEditor';
 import OptionSelect from '../OptionSelect';

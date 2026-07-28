@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Monitor, Lock, Unlock, Shield, Trash2, Key } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import { useTauri } from '@/hooks/useTauri';
+import { useTauri } from '@/hooks/tauri/useTauri';
 
 interface LockedUseCardProps {
   enabled: boolean;

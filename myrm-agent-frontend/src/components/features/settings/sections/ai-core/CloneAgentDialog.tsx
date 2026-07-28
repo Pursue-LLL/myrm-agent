@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 import { Input } from '@/components/primitives/input';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { cloneAgent, Agent } from '@/services/agent';
 
 interface CloneAgentDialogProps {

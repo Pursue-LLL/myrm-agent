@@ -19,7 +19,7 @@ import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
-import { recoverPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
+import { recoverPendingApprovals } from '@/hooks/approval/usePendingApprovalsRecovery';
 import { connectionManager } from '@/services/ConnectionManager';
 import { resolveChatWikiEvidenceContext } from '@/services/wikiEvidenceContextCore';
 import { recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';

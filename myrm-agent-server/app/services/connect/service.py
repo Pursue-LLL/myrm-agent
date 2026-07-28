@@ -103,9 +103,18 @@ class ConnectorState:
     profile_id: str
     status: ConnectorStatus = ConnectorStatus.MISSING
     token_hash: str = ""
+    agent_id: str = "default"
     connected_at: datetime | None = None
     last_doctor_at: datetime | None = None
     doctor_ok: bool = False
+
+
+@dataclass(frozen=True)
+class VerifiedConnectToken:
+    """Resolved MCP bearer token binding."""
+
+    profile_id: str
+    agent_id: str
 
 
 @dataclass
@@ -113,6 +122,7 @@ class ConfigSnippet:
     """Generated config snippet for an external agent."""
 
     profile_id: str
+    agent_id: str
     config_json: dict[str, object]
     mcp_url: str
     token: str
@@ -147,6 +157,7 @@ class ConnectService:
                     profile_id=profile_id,
                     status=ConnectorStatus(data.get("status", "missing")),
                     token_hash=data.get("token_hash", ""),
+                    agent_id=self._normalize_agent_id(data.get("agent_id")),
                     connected_at=datetime.fromisoformat(data["connected_at"]) if data.get("connected_at") else None,
                     last_doctor_at=datetime.fromisoformat(data["last_doctor_at"]) if data.get("last_doctor_at") else None,
                     doctor_ok=data.get("doctor_ok", False),
@@ -163,6 +174,7 @@ class ConnectService:
             data[profile_id] = {
                 "status": state.status.value,
                 "token_hash": state.token_hash,
+                "agent_id": state.agent_id,
                 "connected_at": state.connected_at.isoformat() if state.connected_at else None,
                 "last_doctor_at": state.last_doctor_at.isoformat() if state.last_doctor_at else None,
                 "doctor_ok": state.doctor_ok,
@@ -186,16 +198,17 @@ class ConnectService:
             result.append(self.get_connector_status(pid))
         return result
 
-    async def generate_config(self, profile_id: str) -> ConfigSnippet:
+    async def generate_config(self, profile_id: str, *, agent_id: str = "default") -> ConfigSnippet:
         """Generate MCP config snippet and token for an external agent.
 
         Creates a new API token, generates the appropriate JSON config,
-        and persists the connection state.
+        and persists the connection state scoped to a Myrm Agent Profile.
         """
         if profile_id not in PROFILES:
             msg = f"Unknown profile: {profile_id}"
             raise ValueError(msg)
 
+        normalized_agent_id = self._normalize_agent_id(agent_id)
         profile = PROFILES[profile_id]
         token = self._generate_token()
 
@@ -214,25 +227,32 @@ class ConnectService:
             profile_id=profile_id,
             status=ConnectorStatus.CONFIGURED,
             token_hash=self._hash_token(token),
+            agent_id=normalized_agent_id,
             connected_at=datetime.now(UTC),
         )
         self._save_state()
 
         return ConfigSnippet(
             profile_id=profile_id,
+            agent_id=normalized_agent_id,
             config_json=config_json,
             mcp_url=mcp_url,
             token=token,
             instructions=instructions,
         )
 
-    def verify_token(self, token: str) -> str | None:
-        """Verify an incoming MCP token, return profile_id if valid."""
+    def resolve_token(self, token: str) -> VerifiedConnectToken | None:
+        """Verify an MCP bearer token and return its external + memory scope binding."""
         token_hash = self._hash_token(token)
         for pid, state in self._states.items():
             if state.token_hash and state.token_hash == token_hash:
-                return pid
+                return VerifiedConnectToken(profile_id=pid, agent_id=state.agent_id)
         return None
+
+    def verify_token(self, token: str) -> str | None:
+        """Verify an incoming MCP token, return profile_id if valid."""
+        resolved = self.resolve_token(token)
+        return resolved.profile_id if resolved is not None else None
 
     async def doctor(self, profile_id: str) -> bool:
         """Run a health check on a connector.
@@ -272,6 +292,13 @@ class ConnectService:
         state.doctor_ok = True
         state.last_doctor_at = datetime.now(UTC)
         self._save_state()
+
+    @staticmethod
+    def _normalize_agent_id(agent_id: object | None) -> str:
+        if not isinstance(agent_id, str):
+            return "default"
+        normalized = agent_id.strip()
+        return normalized or "default"
 
     @staticmethod
     def _generate_token() -> str:
@@ -348,5 +375,6 @@ __all__ = [
     "ConnectionProfile",
     "ConnectorState",
     "ConnectorStatus",
+    "VerifiedConnectToken",
     "get_connect_service",
 ]

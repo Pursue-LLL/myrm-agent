@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/hooks/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
+ * - @/hooks/voice/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
  * - @/lib/vision/frameSelector::VisualFrame (POS: Intelligent frame selector for vision)
  * - @/components/features/voice/VoiceSessionOverlay (POS: Full-screen voice session UI)
  * - @/store/useChatStore::useChatStore (POS: Chat state bus)
@@ -20,7 +20,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { HeadsetIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
-import { useVoiceSession, type VoiceSessionMode } from '@/hooks/useVoiceSession';
+import { useVoiceSession, type VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
 import type { VisualFrame } from '@/lib/vision/frameSelector';
 import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
 import Tooltip from '@/components/features/settings/Tooltip';

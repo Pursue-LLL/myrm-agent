@@ -67,5 +67,5 @@
 - `@/services/kanban` — `/api/v1/kanban/*` 客户端（Board/Task/Specify/Decompose/Pipeline）
 - `@dnd-kit/core` — 拖拽基础设施（传感器 / 碰撞检测 / DragOverlay）
 - `@/components/features/app-shell/confirm-dialog` — 通用确认弹窗
-- `@/hooks/useAgentName` — 智能体名称映射
+- `@/hooks/agent/useAgentName` — 智能体名称映射
 - `next-intl` — 国际化（`kanban` namespace）

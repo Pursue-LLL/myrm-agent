@@ -38,6 +38,6 @@ SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截�
 
 ## 依赖
 
-- `@/hooks/useSubscription`、`@/hooks/useEntitlements`
+- `@/hooks/billing/useSubscription`、`@/hooks/billing/useEntitlements`
 - `@/lib/cp-billing` — `BillingCatalogPlan.features` 字段由 CP 自动生成
 - 父模块 [`components/_ARCH.md`](../_ARCH.md)

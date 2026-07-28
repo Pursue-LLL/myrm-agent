@@ -9,8 +9,8 @@ import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
 import useAuthStore from '@/store/useAuthStore';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
-import { useEntitlements } from '@/hooks/useEntitlements';
-import { useBillingCatalog } from '@/hooks/useBillingCatalog';
+import { useEntitlements } from '@/hooks/billing/useEntitlements';
+import { useBillingCatalog } from '@/hooks/billing/useBillingCatalog';
 import { mergeBillingCatalog, formatWu, type PaidBillingPlanKey } from '@/lib/billing-plans';
 import { toast } from '@/lib/utils/toast';
 

@@ -4,7 +4,7 @@ import { isImageFile, isVideoFile, isAudioFile, isPdfFile, getDisplayUrl } from 
 import { useMemo, useRef, useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { ImageLightbox } from './ImageLightbox';
 import { blobToDataUrl } from '@/components/features/image-editor/uploadAnnotated';
 

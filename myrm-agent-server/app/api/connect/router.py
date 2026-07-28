@@ -35,10 +35,12 @@ class ProfileResponse(BaseModel):
 
 class GenerateConfigRequest(BaseModel):
     profile_id: str
+    agent_id: str = "default"
 
 
 class GenerateConfigResponse(BaseModel):
     profile_id: str
+    agent_id: str
     mcp_url: str
     token: str
     config_json: dict[str, object]
@@ -69,6 +71,7 @@ class ConnectorStatusResponse(BaseModel):
     profile_id: str
     label: str
     status: str
+    agent_id: str
     doctor_ok: bool
     connected_at: str | None
 
@@ -96,13 +99,14 @@ async def generate_config(body: GenerateConfigRequest) -> GenerateConfigResponse
     """Generate MCP config and token for an external agent."""
     service = get_connect_service()
     try:
-        snippet = await service.generate_config(body.profile_id)
+        snippet = await service.generate_config(body.profile_id, agent_id=body.agent_id)
     except ValueError as e:
         from fastapi import HTTPException
 
         raise HTTPException(status_code=400, detail=str(e)) from e
     return GenerateConfigResponse(
         profile_id=snippet.profile_id,
+        agent_id=snippet.agent_id,
         mcp_url=snippet.mcp_url,
         token=snippet.token,
         config_json=snippet.config_json,
@@ -150,6 +154,7 @@ async def list_connector_status() -> list[ConnectorStatusResponse]:
             profile_id=s.profile_id,
             label=profiles[s.profile_id].label if s.profile_id in profiles else s.profile_id,
             status=s.status.value,
+            agent_id=s.agent_id,
             doctor_ok=s.doctor_ok,
             connected_at=s.connected_at.isoformat() if s.connected_at else None,
         )

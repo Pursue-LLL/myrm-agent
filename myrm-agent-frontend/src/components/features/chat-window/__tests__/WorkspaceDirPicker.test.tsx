@@ -29,7 +29,7 @@ vi.mock('@/services/chat', () => ({
   updateChatWorkspaceDir: vi.fn(),
 }));
 
-vi.mock('@/hooks/useToast', () => ({
+vi.mock('@/hooks/shared/useToast', () => ({
   toast: vi.fn(),
 }));
 
@@ -51,7 +51,7 @@ vi.mock('@/lib/tauri', () => ({
 }));
 
 import { browseDirectories, updateChatWorkspaceDir } from '@/services/chat';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 
 function renderPicker() {
   return render(<WorkspaceDirPicker />);

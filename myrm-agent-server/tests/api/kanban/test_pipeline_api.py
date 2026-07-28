@@ -389,6 +389,33 @@ class TestInstantiatePipeline:
         assert any("Twitter" in t for t in titles)
         assert any("LinkedIn" in t for t in titles)
 
+    def test_content_distribution_wechat_injects_formatter_skill(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "content-distribution-pipeline",
+                "answers": {
+                    "source_content": "Launch post",
+                    "content_type": "Blog Post",
+                    "platforms": "LinkedIn,WeChat (微信公众号)",
+                    "tone": "Professional",
+                },
+            },
+        )
+        assert resp.status_code == 201
+
+        tasks_resp = client.get(f"/api/v1/kanban/boards/{board_id}/tasks")
+        tasks = tasks_resp.json()["items"]
+        wechat_tasks = [t for t in tasks if "WeChat" in t["title"]]
+        linkedin_tasks = [t for t in tasks if "LinkedIn" in t["title"]]
+        assert len(wechat_tasks) == 1
+        assert len(linkedin_tasks) == 1
+        assert wechat_tasks[0]["extra_skill_ids"] == ["wechat-article-formatter"]
+        assert "wechat-article-formatter" not in linkedin_tasks[0]["extra_skill_ids"]
+
     def test_repeat_for_competitive_analysis(self, client: TestClient) -> None:
         board = _create_board(client)
         board_id = board["board_id"]

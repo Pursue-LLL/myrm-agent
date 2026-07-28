@@ -29,6 +29,7 @@ export default function ChannelRoutingSection() {
     channels,
     globalAgentId,
     handleBindTopic,
+    handleBindTopicWorkspace,
     handleSetDraftTimeout,
     handleSetGlobalAgent,
     handleSetReplyMode,
@@ -40,6 +41,7 @@ export default function ChannelRoutingSection() {
     selectedChannelStatus,
     setSelectedChannel,
     topics,
+    workspaceProjects,
   } = useChannelRouting({
     initialLoadError: t('errors.initialLoad'),
     topicsLoadError: t('errors.topicsLoad'),
@@ -53,6 +55,8 @@ export default function ChannelRoutingSection() {
     draftTimeoutError: t('errors.draftTimeout'),
     globalAgentSetToast: t('toasts.globalAgentSet'),
     globalAgentError: t('errors.globalAgent'),
+    workspaceBoundToast: t('toasts.workspaceBound'),
+    workspaceBindError: t('errors.workspaceBind'),
   });
 
   if (loadingChannels) {
@@ -158,8 +162,10 @@ export default function ChannelRoutingSection() {
                               key={topic.topicId}
                               topic={topic}
                               agents={channelBindableAgents}
+                              projects={workspaceProjects}
                               isSaving={saving === topic.topicId}
                               onBindTopic={handleBindTopic}
+                              onBindTopicWorkspace={handleBindTopicWorkspace}
                               onSetThreadSharingMode={handleSetThreadSharingMode}
                               onSetReplyMode={handleSetReplyMode}
                               onSetDraftTimeout={handleSetDraftTimeout}

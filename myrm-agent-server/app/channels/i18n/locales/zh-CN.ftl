@@ -143,13 +143,18 @@ topic_search_agent_rejected =
     搜索类智能体不能绑定到渠道。
     请绑定 General 智能体；轻量搜索请使用 Web Fast 模式。
 topic_bound =
-     { $scope } 已绑定{ $agent_label }。
+     { $scope } 已绑定{ $agent_label }{ $workspace_label }。
     使用 /unbind 解除绑定。
+topic_workspace_only = （工作目录：{ $workspace }）
+topic_workspace_unavailable =  工作目录绑定失败：{ $error }
+topic_status_workspace = 工作目录：{ $workspace }
+topic_status_workspace_default = 工作目录：默认
 topic_unbound =  { $scope } 已解除绑定。
 topic_no_binding = ℹ 此 { $scope } 没有绑定。
 topic_status =
      { $scope } 状态
     { $agent_label }
+    { $workspace_label }
     状态：{ $status }{ $bound_label }
 topic_no_binding_defaults =  此 { $scope } 无绑定（使用默认配置）。
 topic_command_failed =  { $scope } 命令失败：{ $error }

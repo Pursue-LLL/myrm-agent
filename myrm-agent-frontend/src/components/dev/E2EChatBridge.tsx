@@ -1502,7 +1502,7 @@ export default function E2EChatBridge() {
       },
       recoverPendingBrowserTakeover: async () => {
         const chatId = useChatStore.getState().chatId;
-        const { fetchPendingApprovals } = await import('@/hooks/usePendingApprovalsRecovery');
+        const { fetchPendingApprovals } = await import('@/hooks/approval/usePendingApprovalsRecovery');
         const approvals = await fetchPendingApprovals();
         const matching = approvals.filter(
           (approval) =>
@@ -1552,67 +1552,26 @@ export default function E2EChatBridge() {
         });
         const { resolveBrowserTakeoverMessageId } = await import('@/store/useApprovalStore');
         const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
+        let resumeStarted = false;
+        if (resumeMessageId) {
+          void useChatStore
+            .getState()
+            .sendMessage('', resumeMessageId, undefined, { action: 'completed', message: '' })
+            .then(() => {
+              console.log('[E2E_TAKEOVER_RESUME] fire-and-forget sendMessage settled');
+            })
+            .catch((error: unknown) => {
+              console.error('[E2E_TAKEOVER_RESUME] fire-and-forget sendMessage failed', error);
+            });
+          resumeStarted = true;
+        }
         return {
           ok: true,
           chatId: chatId ?? null,
           resumeMessageId: resumeMessageId ?? null,
           storeMessageId: storeMessageId ?? null,
+          resumeStarted,
         };
-      },
-      /** Product Done path: clear takeover store then resume via sendMessage (atomic). */
-      completeBrowserTakeoverAndResumeViaUi: async () => {
-        const snap = useBrowserTakeoverStore.getState();
-        if (!snap.pending) {
-          return { ok: false, reason: 'not_pending' };
-        }
-        const storeMessageId = snap.messageId;
-        const chatIdBefore = useChatStore.getState().chatId;
-        flushSync(() => {
-          useBrowserTakeoverStore.getState().completeTakeover();
-        });
-        const { resolveBrowserTakeoverMessageId } = await import('@/store/useApprovalStore');
-        const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
-        if (!resumeMessageId) {
-          return {
-            ok: false,
-            busy: false,
-            err: 'missing-resume-message-id',
-            chatId: chatIdBefore ?? null,
-            storeMessageId: storeMessageId ?? null,
-          };
-        }
-        try {
-          await useChatStore.getState().sendMessage('', resumeMessageId, undefined, {
-            action: 'completed',
-            message: '',
-          });
-          return {
-            ok: true,
-            busy: false,
-            chatId: useChatStore.getState().chatId ?? chatIdBefore ?? null,
-            resumeMessageId,
-            storeMessageId: storeMessageId ?? null,
-          };
-        } catch (error) {
-          if (error instanceof AgentBusyError) {
-            return {
-              ok: false,
-              busy: true,
-              err: error.message,
-              chatId: chatIdBefore ?? null,
-              resumeMessageId,
-              storeMessageId: storeMessageId ?? null,
-            };
-          }
-          return {
-            ok: false,
-            busy: false,
-            err: error instanceof Error ? error.message : String(error),
-            chatId: chatIdBefore ?? null,
-            resumeMessageId,
-            storeMessageId: storeMessageId ?? null,
-          };
-        }
       },
       /** Resume an already-cleared takeover (legacy split-path helper). */
       resumeBrowserTakeoverViaUi: async (resumeMessageId: string) => {

@@ -5,7 +5,7 @@ import { Tree } from 'react-arborist';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, ChevronDown, Folder, FileText, Edit2 } from 'lucide-react';
 import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { TreeNode } from '@/services/wikiService';
 import type { Concept } from '@/services/wikiService';

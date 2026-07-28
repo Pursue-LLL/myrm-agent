@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/hooks/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
+ * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
@@ -50,14 +50,14 @@ import { ForkButton } from './ForkButton';
 import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
 import { useTranslations } from 'next-intl';
-import { useMessageInput } from '@/hooks/useMessageInput';
-import { useDragDrop } from '@/hooks/useDragDrop';
+import { useMessageInput } from '@/hooks/message-input/useMessageInput';
+import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { LinkDetectionDialog } from './LinkDetectionDialog';
 import { MobileActionSheet } from './MobileActionSheet';
 import { useMobileSheetEntries } from './useMobileSheetEntries';
 import { CommandPalette } from '@/components/features/app-shell/command-palette';
-import { useSlashCommand } from '@/hooks/useSlashCommand';
-import { useReferenceMention } from '@/hooks/useReferenceMention';
+import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
+import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
@@ -65,7 +65,7 @@ import useChatStore from '@/store/useChatStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
-import { useInputHistory } from '@/hooks/useInputHistory';
+import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 
 const KEYTERM_PATTERN =

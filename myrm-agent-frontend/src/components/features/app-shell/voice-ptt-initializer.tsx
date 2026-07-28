@@ -1,6 +1,6 @@
 'use client';
 
-import { useVoicePttListener } from '@/hooks/useVoicePttListener';
+import { useVoicePttListener } from '@/hooks/voice/useVoicePttListener';
 
 const VoicePttInitializer = () => {
   useVoicePttListener();

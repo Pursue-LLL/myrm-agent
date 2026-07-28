@@ -9,7 +9,8 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 公开 API 重导出 | ✅ |
-| `history.py` | 模块 | 频道聊天历史持久化、标题生成 | ✅ |
+| `history.py` | 模块 | 频道聊天历史持久化、标题生成；persist/resume 时 sync topic workspace | ✅ |
+| `topic_workspace_sync.py` | 模块 | Topic 绑定目录写入/清空 chat SSOT（project_id / workspace_dir） | ✅ |
 | `approval.py` | 模块 | 审批超时调度与超时结果通知 | ✅ |
 | `stream.py` | 模块 | StreamAccumulator、进度标签、ShareableArtifact | ✅ |
 | `quick_replies.py` | 模块 | 快捷回复建议、externalAgents 解析 | ✅ |
@@ -23,4 +24,5 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 - `tests/core/channel_bridge/test_channel_image_accumulator.py`
 - `tests/core/channel_bridge/test_executor_helpers_approval.py` — approval 超时 IM 通知 user_id
 - `tests/core/channel_bridge/test_executor_helpers_history.py` — history 持久化 helper
+- `tests/core/channel_bridge/test_topic_workspace_sync.py` — topic workspace sync + effective_workspace 链
 - `tests/core/channel_bridge/test_executor_helpers_stream.py` — stream accumulator / step_to_label

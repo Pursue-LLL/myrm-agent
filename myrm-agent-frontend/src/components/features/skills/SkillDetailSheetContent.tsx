@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';

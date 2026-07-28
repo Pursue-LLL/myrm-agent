@@ -30,7 +30,7 @@ import {
 import KanbanSpecifyDialog from './KanbanSpecifyDialog';
 import KanbanDecomposeDialog from './KanbanDecomposeDialog';
 import KanbanMarkdown from './KanbanMarkdown';
-import { useAgentName } from '@/hooks/useAgentName';
+import { useAgentName } from '@/hooks/agent/useAgentName';
 
 function ScheduledCountdown({ until }: { until: string }) {
   const [remaining, setRemaining] = useState('');

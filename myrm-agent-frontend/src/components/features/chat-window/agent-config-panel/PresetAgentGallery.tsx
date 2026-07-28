@@ -8,7 +8,7 @@ import { Settings, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
-import { useAgentGallery } from '@/hooks/useAgentGallery';
+import { useAgentGallery } from '@/hooks/agent/useAgentGallery';
 import PresetAgentCard from './PresetAgentCard';
 import CustomAgentCard from './CustomAgentCard';
 import TemplateMarket from './TemplateMarket';

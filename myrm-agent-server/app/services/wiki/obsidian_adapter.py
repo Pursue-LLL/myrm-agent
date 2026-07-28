@@ -4,11 +4,12 @@
 myrm_agent_harness.toolkits.wiki.core.structure::WikiFileStructure (POS: Wiki file layout and scanning)
 
 [OUTPUT]
-adapt_obsidian_file: Transforms Obsidian-specific syntax before Wiki ingestion.
+- adapt_obsidian_file: Transforms Obsidian-specific syntax before Wiki ingestion.
+- parse_frontmatter: imported from harness markdown_frontmatter SSOT.
 
 [POS]
 Business-layer adapter that pre-processes Obsidian Vault files for compatibility with the
-harness Wiki pipeline. Handles YAML frontmatter extraction, embedded image references
+harness Wiki pipeline. Uses harness SSOT for YAML frontmatter parsing, embedded image references
 (![[img]]), .canvas JSON text extraction, and content normalization. Delegates actual import
 to the existing scan_folder + WikiCompiler flow.
 """
@@ -22,9 +23,12 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from myrm_agent_harness.agent.meta_tools.file_ops.utils.markdown_frontmatter import (
+    parse_frontmatter,
+)
+
 logger = logging.getLogger(__name__)
 
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _EMBED_IMAGE_RE = re.compile(r"!\[\[([^\]]+\.(?:png|jpg|jpeg|gif|svg|webp|bmp|avif))\]\]", re.IGNORECASE)
 _CANVAS_EXT = ".canvas"
 
@@ -40,63 +44,6 @@ class ObsidianImportStats:
     images_copied: int = 0
     frontmatter_parsed: int = 0
     errors: list[str] = field(default_factory=list)
-
-
-def parse_frontmatter(content: str) -> tuple[dict[str, object], str]:
-    """Extract YAML frontmatter from Markdown content.
-
-    Returns (metadata_dict, body_without_frontmatter).
-    Supports both inline arrays (`tags: [a, b]`) and YAML indented lists
-    (`tags:\\n  - a\\n  - b`), which is the most common format in Obsidian.
-    """
-    match = _FRONTMATTER_RE.match(content)
-    if not match:
-        return {}, content
-
-    raw_fm = match.group(1)
-    body = content[match.end() :]
-    metadata: dict[str, object] = {}
-    current_list_key: str | None = None
-    current_list: list[str] = []
-
-    def _flush_list() -> None:
-        nonlocal current_list_key, current_list
-        if current_list_key and current_list:
-            metadata[current_list_key] = current_list
-        current_list_key = None
-        current_list = []
-
-    for raw_line in raw_fm.splitlines():
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        if stripped.startswith("- ") and current_list_key is not None:
-            current_list.append(stripped[2:].strip().strip("'\""))
-            continue
-
-        _flush_list()
-
-        if ":" not in stripped:
-            continue
-
-        key, _, value = stripped.partition(":")
-        key = key.strip().lower()
-        value = value.strip()
-
-        if not value:
-            current_list_key = key
-            current_list = []
-        elif value.startswith("[") and value.endswith("]"):
-            items = [v.strip().strip("'\"") for v in value[1:-1].split(",") if v.strip()]
-            metadata[key] = items
-        elif value.startswith("'") or value.startswith('"'):
-            metadata[key] = value.strip("'\"")
-        else:
-            metadata[key] = value
-
-    _flush_list()
-    return metadata, body
 
 
 def rewrite_image_embeds(content: str, source_file: Path, vault_root: Path, assets_dest: Path) -> tuple[str, int]:

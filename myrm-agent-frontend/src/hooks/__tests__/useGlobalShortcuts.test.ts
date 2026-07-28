@@ -72,7 +72,7 @@ describe('useGlobalShortcuts', () => {
   }
 
   async function mountHook() {
-    const mod = await import('../useGlobalShortcuts');
+    const mod = await import('../shell/useGlobalShortcuts');
     return renderHook(() => mod.useGlobalShortcuts());
   }
 

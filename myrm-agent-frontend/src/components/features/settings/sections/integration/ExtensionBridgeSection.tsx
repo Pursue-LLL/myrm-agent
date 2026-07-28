@@ -6,7 +6,7 @@ import { Globe, PlugZap, Trash2, RefreshCw, ExternalLink, Copy, AlertCircle } fr
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
-import { toast } from '@/hooks/useToast';
+import { toast } from '@/hooks/shared/useToast';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
