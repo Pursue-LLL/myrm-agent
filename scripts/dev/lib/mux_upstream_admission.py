@@ -268,7 +268,10 @@ def acquire_with_wait(
 ) -> str:
     if _admission_disabled():
         return ""
-    wait_sec = int(os.environ.get("MYRM_MUX_UPSTREAM_WAIT_SEC", str(DEFAULT_WAIT_SEC)))
+    from transport_supervisor import mux_upstream_wait_cap
+
+    env_wait = os.environ.get("MYRM_MUX_UPSTREAM_WAIT_SEC", "").strip()
+    wait_sec = int(env_wait) if env_wait else mux_upstream_wait_cap()
     poll_sec = int(os.environ.get("MYRM_MUX_UPSTREAM_POLL_SEC", str(DEFAULT_POLL_SEC)))
     poll_sec = max(1, poll_sec)
     started = time.monotonic()

@@ -23,11 +23,15 @@ from typing import Iterator
 from dev_gate_contract import (
     MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
     MUX_RECLAIM_STALL_TOKEN,
+    MUX_UPSTREAM_WAIT_SEC,
 )
 
 MUX_SESSION_RECOVERY_BUDGET_SEC: float = 120.0
 MUX_SESSION_RECOVERY_BUDGET_MAX_SEC: float = 300.0
 MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC: float = 30.0
+MUX_UPSTREAM_WAIT_BASE_SEC: float = float(MUX_UPSTREAM_WAIT_SEC)
+MUX_UPSTREAM_WAIT_MAX_SEC: float = 600.0
+MUX_UPSTREAM_WAIT_PER_PEER_SEC: float = 45.0
 MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
@@ -59,6 +63,17 @@ def session_recovery_budget_cap() -> float:
         (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
     )
     return min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
+
+
+def mux_upstream_wait_cap() -> int:
+    """Scale mux cold-attach queue wait under parallel wave/mux peers (R101)."""
+    peers = parallel_mux_peer_count()
+    if peers <= 3:
+        return int(MUX_UPSTREAM_WAIT_BASE_SEC)
+    scaled = MUX_UPSTREAM_WAIT_BASE_SEC + (
+        (peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC
+    )
+    return int(min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled))
 
 
 def recovery_budget_remaining() -> float:
