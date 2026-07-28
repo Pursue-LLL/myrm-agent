@@ -43,7 +43,14 @@ GATE_IDLE_NUDGE_SEC = 30.0
 GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
 # Hard wall-clock fail-fast for one desktop approval attempt.
 # 200s per attempt × 2 attempts + 60s bootstrap < 600s pytest-timeout.
-DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 200.0
+# Signoff may queue behind parallel SHPOIB; allow extra slack without exceeding 600s leg.
+def _resolve_desktop_e2e_wall_clock_fail_sec() -> float:
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return 260.0
+    return 200.0
+
+
+DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = _resolve_desktop_e2e_wall_clock_fail_sec()
 
 
 def _parse_gate_timeout_sec() -> float:
