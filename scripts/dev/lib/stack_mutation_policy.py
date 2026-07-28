@@ -152,6 +152,21 @@ def _command_failure_detail(
     return (proc.stderr or proc.stdout or fallback).strip()[:500]
 
 
+def _run_backend_only_ensure_with_harness_retry(
+    *, dev_stack: Path, root: Path, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    proc = _run_backend_only_ensure(dev_stack=dev_stack, root=root, env=env)
+    if proc.returncode == 0:
+        return proc
+    detail = _command_failure_detail(proc, "backend-only ensure failed")
+    if _HARNESS_IMPORT_FAILED_TOKEN not in detail:
+        return proc
+    install_proc = _run_harness_install(root=root, env=env)
+    if install_proc.returncode != 0:
+        return install_proc
+    return _run_backend_only_ensure(dev_stack=dev_stack, root=root, env=env)
+
+
 @dataclass(frozen=True, slots=True)
 class PendingDriftApplyResult:
     action: str
@@ -299,7 +314,7 @@ def attach_backend_crash_heal_inner(
             file=sys.stderr,
             flush=True,
         )
-        proc = _run_backend_only_ensure(
+        proc = _run_backend_only_ensure_with_harness_retry(
             dev_stack=dev_stack,
             root=monorepo_root,
             env=env,
