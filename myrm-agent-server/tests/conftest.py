@@ -470,73 +470,82 @@ def _require_live_e2e_lease(
     except ImportError:
         pass
 
-    reap_chrome_e2e_session_hygiene()
-    lease = require_e2e_runtime_lease()
-
-    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
-    if str(dev_infra) not in sys.path:
-        sys.path.insert(0, str(dev_infra))
-    from dev_gate_contract import chrome_e2e_skips_attach_health_reprobe
-
     try:
-        # Item runtimes already run chrome-e2e-preflight with attach checks on their env.
-        skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
-            chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1",
-            shared_hot=os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1",
-            stream_lock_held=os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip()
-            == "1",
-        )
-        if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:
-            assert_chrome_attach_health()
-        elif skip_attach_reprobe:
-            print(
-                "MYRM_TEST: skip attach health reprobe (bootstrap verified)",
-                flush=True,
-            )
-    except RuntimeError as exc:
-        pytest.fail(str(exc))
-    from e2e_orchestrator import begin_body_wall_budget
+        reap_chrome_e2e_session_hygiene()
+        lease = require_e2e_runtime_lease()
 
-    begin_body_wall_budget(phase_label=request.node.name)
-    reap_chrome_e2e_session_hygiene()
-    namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
-    os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
-    from tests.support.e2e_runtime_guard import live_agent_stream_lock
+        dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+        if str(dev_infra) not in sys.path:
+            sys.path.insert(0, str(dev_infra))
+        from dev_gate_contract import chrome_e2e_skips_attach_health_reprobe
 
-    marker = request.node.get_closest_marker("chrome_e2e")
-    private_backend = (
-        marker is not None and marker.kwargs.get("private_backend", True) is not False
-    )
-    if _desktop_approval_forces_shared_hot(request.node.nodeid):
-        private_backend = False
-    # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
-    shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
-    from dev_gate_contract import chrome_e2e_skips_shared_stream_lock
-
-    skip_stream_lock = chrome_e2e_skips_shared_stream_lock(
-        lane=lease.lane, shpoib=shpoib_session
-    ) or (private_backend and _chrome_e2e_item_runtime is not None)
-    stream_guard = (
-        live_agent_stream_lock()
-        if lease.lane == "LIVE_AGENT"
-        and not skip_stream_lock
-        and os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() != "1"
-        and os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() != "1"
-        else nullcontext()
-    )
-    with stream_guard:
-        from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV, prime_search_policy_env
-
-        prime_search_policy_env(request.node)
         try:
-            with e2e_lease_heartbeat_loop():
-                yield
-                reap_chrome_e2e_session_hygiene()
-        finally:
-            os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
-            if runtime_cell_id and _release_runtime_cell is not None:
-                _release_runtime_cell(runtime_cell_id)
-    assert_e2e_runtime_unchanged(lease)
+            # Item runtimes already run chrome-e2e-preflight with attach checks on their env.
+            skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
+                chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip()
+                == "1",
+                shared_hot=os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1",
+                stream_lock_held=os.environ.get(
+                    "MYRM_E2E_STREAM_LOCK_HELD", ""
+                ).strip()
+                == "1",
+            )
+            if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:
+                assert_chrome_attach_health()
+            elif skip_attach_reprobe:
+                print(
+                    "MYRM_TEST: skip attach health reprobe (bootstrap verified)",
+                    flush=True,
+                )
+        except RuntimeError as exc:
+            pytest.fail(str(exc))
+        from e2e_orchestrator import begin_body_wall_budget
+
+        begin_body_wall_budget(phase_label=request.node.name)
+        reap_chrome_e2e_session_hygiene()
+        namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
+        os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
+        from tests.support.e2e_runtime_guard import live_agent_stream_lock
+
+        marker = request.node.get_closest_marker("chrome_e2e")
+        private_backend = (
+            marker is not None
+            and marker.kwargs.get("private_backend", True) is not False
+        )
+        if _desktop_approval_forces_shared_hot(request.node.nodeid):
+            private_backend = False
+        # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
+        shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+        from dev_gate_contract import chrome_e2e_skips_shared_stream_lock
+
+        skip_stream_lock = chrome_e2e_skips_shared_stream_lock(
+            lane=lease.lane, shpoib=shpoib_session
+        ) or (private_backend and _chrome_e2e_item_runtime is not None)
+        stream_guard = (
+            live_agent_stream_lock()
+            if lease.lane == "LIVE_AGENT"
+            and not skip_stream_lock
+            and os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() != "1"
+            and os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() != "1"
+            else nullcontext()
+        )
+        with stream_guard:
+            from e2e_shared_ui_session import (
+                E2E_SEARCH_POLICY_ENV,
+                prime_search_policy_env,
+            )
+
+            prime_search_policy_env(request.node)
+            try:
+                with e2e_lease_heartbeat_loop():
+                    yield
+                    reap_chrome_e2e_session_hygiene()
+            finally:
+                os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
+        assert_e2e_runtime_unchanged(lease)
+    finally:
+        if runtime_cell_id and _release_runtime_cell is not None:
+            _release_runtime_cell(runtime_cell_id)
 
 
 @pytest.fixture
