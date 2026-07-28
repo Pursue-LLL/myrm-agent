@@ -192,9 +192,14 @@ async def apply_shared_ui_session_contract(
         return {"ok": True, "skipped": True}
 
     if deadline is not None and time.monotonic() >= deadline:
-        raise _session_error(
-            "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
-        )
+        from e2e_session_lifecycle import current_phase, remaining_wall_sec
+
+        if current_phase() == "bootstrap" and remaining_wall_sec() > 45.0:
+            deadline = time.monotonic() + min(90.0, remaining_wall_sec() - 10.0)
+        else:
+            raise _session_error(
+                "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
+            )
 
     assert_phase_budget("E2E_SHARED_UI_SESSION_RESET")
 

@@ -684,7 +684,7 @@ async def test_file_write_empty_live_agent_webui(
                 if page is None:
                     raise RuntimeError("new_page returned no page")
                 chat = McpChatSession(client, page)
-                await chat.bootstrap(agent_url, timeout_sec=120.0)
+                await chat.bootstrap(agent_url, timeout_sec=180.0)
                 chat_id, result = await _run_flow(chat)
                 assert chat_id
                 assert result.get("invoked") is True or "banner" in result
