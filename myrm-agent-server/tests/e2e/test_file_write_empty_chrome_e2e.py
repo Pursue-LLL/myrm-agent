@@ -25,6 +25,8 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate_contract import STALL_PROGRESS_SEC  # noqa: E402
+from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
@@ -46,15 +48,16 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
-_LIVE_EMPTY_WRITE_FILE = "live_empty_write_e2e.txt"
-_LIVE_USER_PROMPT = (
-    "INSTRUCTION: You MUST call tools. Do NOT reply with text only. "
-    f"Call file_write_tool exactly once with path {_LIVE_EMPTY_WRITE_FILE!r} and "
-    "content '' (empty string, zero bytes, no spaces). Do not use bash or file_edit_tool. "
-    "Reply EMPTY_WRITE_DONE after the tool returns."
-)
+_LIVE_EMPTY_WRITE_BASENAME = "live_empty_write_e2e"
 _FILE_WRITE_TOOL = "file_write_tool"
-_MAX_CHAT_ATTEMPTS = 1
+_MAX_CHAT_ATTEMPTS = 2
+
+
+def _bounded_wait_sec(default: float, *, reserve_sec: float = 45.0) -> float:
+    remaining = remaining_wall_sec()
+    if remaining <= reserve_sec:
+        return max(10.0, remaining - 5.0)
+    return min(default, remaining - reserve_sec)
 
 
 def _seed_live_workspace(api_url: str, chat_id: str) -> dict[str, object]:
@@ -68,9 +71,23 @@ def _seed_live_workspace(api_url: str, chat_id: str) -> dict[str, object]:
     return seeded
 
 
-def _empty_write_target_path(workspace_seed: dict[str, object]) -> Path:
+def _live_empty_write_filename() -> str:
+    return f"{_LIVE_EMPTY_WRITE_BASENAME}_{uuid.uuid4().hex[:8]}.txt"
+
+
+def _live_user_prompt(filename: str) -> str:
+    return (
+        "INSTRUCTION: You MUST call tools. Do NOT reply with text only. "
+        f"Call file_write_tool exactly once with path {filename!r} and "
+        "content '' (empty string, zero bytes, no spaces). Do not use bash or file_edit_tool. "
+        "Do NOT call file_write_tool a second time. "
+        "Reply EMPTY_WRITE_DONE after the tool returns."
+    )
+
+
+def _empty_write_target_path(workspace_seed: dict[str, object], filename: str) -> Path:
     workspace_dir = Path(str(workspace_seed["file_path"])).parent
-    return workspace_dir / _LIVE_EMPTY_WRITE_FILE
+    return workspace_dir / filename
 
 _PIN_LITE_MODEL_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -343,10 +360,53 @@ def _empty_write_failure_in_messages(chat_id: str, *, api_url: str) -> tuple[boo
     return tool_invoked, has_mutation_failure
 
 
+def _file_write_tool_call_count(chat_id: str, *, api_url: str) -> int:
+    count = 0
+    for msg in fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=30.0,
+        max_attempts=5,
+    ):
+        if not isinstance(msg, dict):
+            continue
+        tool_calls = msg.get("tool_calls")
+        if not isinstance(tool_calls, list):
+            continue
+        for call in tool_calls:
+            if not isinstance(call, dict):
+                continue
+            fn = call.get("function")
+            name = str(
+                call.get("name")
+                or (fn.get("name") if isinstance(fn, dict) else "")
+                or ""
+            )
+            if name == _FILE_WRITE_TOOL:
+                count += 1
+    return count
+
+
+def _assert_empty_write_disk_clean(target_file: Path) -> None:
+    if not target_file.exists():
+        return
+    try:
+        preview = target_file.read_bytes()[:200]
+    except OSError as exc:
+        raise AssertionError(
+            f"Empty write must not create file on disk: {target_file} (read failed: {exc})"
+        ) from exc
+    raise AssertionError(
+        f"Empty write must not create file on disk: {target_file} "
+        f"(size={target_file.stat().st_size} preview={preview!r}) — "
+        "likely LLM called file_write_tool twice or with non-empty content"
+    )
+
+
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_file_write_empty_live_agent_webui(
     e2e_resource_ledger: E2EResourceLedger,
@@ -365,12 +425,18 @@ async def test_file_write_empty_live_agent_webui(
     e2e_resource_ledger.register("agent", agent_id)
 
     async def _wait_agent_applied(
-        chat: McpChatSession, *, timeout_sec: float = 90.0
+        chat: McpChatSession, *, timeout_sec: float | None = None
     ) -> None:
-        deadline = time.monotonic() + timeout_sec
+        wait_cap = (
+            timeout_sec
+            if timeout_sec is not None
+            else _bounded_wait_sec(90.0, reserve_sec=120.0)
+        )
+        deadline = time.monotonic() + wait_cap
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            touch_wall_progress()
             raw = await chat.evaluate(
                 _AGENT_READY_JS, await_promise=False, recv_timeout=20.0
             )
@@ -400,10 +466,17 @@ async def test_file_write_empty_live_agent_webui(
         chat: McpChatSession,
         chat_id: str,
         *,
-        timeout_sec: float = 480.0,
+        timeout_sec: float | None = None,
     ) -> dict[str, object]:
-        deadline = time.monotonic() + timeout_sec
+        wait_cap = (
+            timeout_sec
+            if timeout_sec is not None
+            else _bounded_wait_sec(240.0, reserve_sec=30.0)
+        )
+        deadline = time.monotonic() + wait_cap
         last_api = (False, False)
+        last_progress_at = time.monotonic()
+        last_ui_sample = ""
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             try:
@@ -411,30 +484,34 @@ async def test_file_write_empty_live_agent_webui(
                     chat_id, api_url=api_base
                 )
             except (TimeoutError, OSError, urllib.error.URLError) as exc:
-                last_api = (False, False)
                 if time.monotonic() + 5.0 >= deadline:
                     raise AssertionError(
                         f"Live empty write API poll timed out under parallel load: {exc}"
                     ) from exc
                 await asyncio.sleep(2.0)
                 continue
+            if invoked != last_api[0] or has_failure != last_api[1]:
+                last_progress_at = time.monotonic()
+                touch_wall_progress()
             last_api = (invoked, has_failure)
             if invoked and has_failure:
-                banner = await chat.evaluate(
-                    _LIVE_MUTATION_BANNER_JS,
-                    await_promise=False,
-                    recv_timeout=20.0,
-                )
-                if isinstance(banner, dict) and banner.get("ready") is True:
-                    return {"source": "ui+api", "banner": banner, "invoked": True}
-                if time.monotonic() + 30.0 < deadline:
-                    await asyncio.sleep(1.5)
-                    continue
+                # R62-C1: API is SSOT under parallel MUX load — do not burn BODY
+                # waiting for DOM banner when messages already record the failure.
+                touch_wall_progress()
+                try:
+                    banner = await chat.evaluate(
+                        _LIVE_MUTATION_BANNER_JS,
+                        await_promise=False,
+                        recv_timeout=15.0,
+                    )
+                    if isinstance(banner, dict) and banner.get("ready") is True:
+                        return {"source": "ui+api", "banner": banner, "invoked": True}
+                except (RuntimeError, TimeoutError):
+                    pass
                 return {
                     "source": "api",
                     "invoked": True,
                     "has_failure": True,
-                    "banner": banner,
                 }
 
             raw = await chat.evaluate(
@@ -456,6 +533,11 @@ async def test_file_write_empty_live_agent_webui(
                 recv_timeout=20.0,
             )
             ui = raw if isinstance(raw, dict) else {"value": raw}
+            ui_sample = str(ui.get("sample") or "")
+            if ui_sample != last_ui_sample or int(ui.get("failureCount") or 0) >= 1:
+                last_ui_sample = ui_sample
+                last_progress_at = time.monotonic()
+                touch_wall_progress()
             if int(ui.get("failureCount") or 0) >= 1 and ui.get("isStreaming") is False:
                 banner = await chat.evaluate(
                     _LIVE_MUTATION_BANNER_JS,
@@ -464,6 +546,14 @@ async def test_file_write_empty_live_agent_webui(
                 )
                 if isinstance(banner, dict) and banner.get("ready") is True:
                     return {"source": "ui", "banner": banner, "ui": ui}
+            stall_elapsed = time.monotonic() - last_progress_at
+            if stall_elapsed >= float(STALL_PROGRESS_SEC):
+                raise AssertionError(
+                    "E2E_STALL: live empty write made no progress for "
+                    f"{int(stall_elapsed)}s (cap={STALL_PROGRESS_SEC}s); "
+                    f"api_invoked={last_api[0]} api_failure={last_api[1]} "
+                    f"remaining_wall={remaining_wall_sec():.0f}s"
+                )
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live empty write did not produce mutation failure banner; "
@@ -485,9 +575,13 @@ async def test_file_write_empty_live_agent_webui(
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
         assert chat_id, "Expected client chat id after new chat before sandbox seed"
         workspace_seed = _seed_live_workspace(api_base, chat_id)
-        target_file = _empty_write_target_path(workspace_seed)
+        live_filename = _live_empty_write_filename()
+        target_file = _empty_write_target_path(workspace_seed, live_filename)
+        if target_file.exists():
+            target_file.unlink()
 
-        send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
+        live_prompt = _live_user_prompt(live_filename)
+        send_result = await chat.send_message(live_prompt, live_prompt)
         chat_id_hint = str(
             send_result.get("started", {}).get("chatId")
             or send_result.get("submit", {}).get("chatId")
@@ -496,7 +590,9 @@ async def test_file_write_empty_live_agent_webui(
 
         heartbeat_e2e_lease()
         started = await chat.wait_stream_started(
-            _LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
+            live_prompt,
+            timeout_sec=_bounded_wait_sec(90.0, reserve_sec=120.0),
+            chat_id_hint=chat_id_hint or None,
         )
         resolved_chat_id = (
             chat_id_hint or str(started.get("chatId") or "").strip() or None
@@ -506,16 +602,25 @@ async def test_file_write_empty_live_agent_webui(
             f"model={pinned_model.get('providerId')}/{pinned_model.get('model')}"
         )
 
-        await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
-        result = await _wait_turn_done(chat, resolved_chat_id, timeout_sec=480.0)
+        current_chat = str((await chat.bridge_chat_id()) or "").strip()
+        if current_chat != resolved_chat_id:
+            await chat.navigate_to_chat(
+                resolved_chat_id,
+                BASE_URL,
+                timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
+            )
+        result = await _wait_turn_done(chat, resolved_chat_id)
         invoked, has_failure = _empty_write_failure_in_messages(
             resolved_chat_id, api_url=api_base
         )
+        write_calls = _file_write_tool_call_count(resolved_chat_id, api_url=api_base)
         assert invoked, f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
         assert has_failure, f"fileMutationFailures missing; result={result}"
-        assert not target_file.exists(), (
-            f"Empty write must not create file on disk: {target_file}"
+        assert write_calls <= 1, (
+            f"Expected at most one {_FILE_WRITE_TOOL} call, got {write_calls}; "
+            f"result={result}"
         )
+        _assert_empty_write_disk_clean(target_file)
         e2e_resource_ledger.register("chat", resolved_chat_id)
         return resolved_chat_id, result
 
