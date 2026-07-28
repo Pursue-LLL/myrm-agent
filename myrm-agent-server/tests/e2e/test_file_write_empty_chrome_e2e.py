@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -55,7 +56,7 @@ _FILE_WRITE_TOOL = "file_write_tool"
 _MAX_CHAT_ATTEMPTS = 2
 
 
-def _seed_live_workspace(api_url: str, chat_id: str) -> None:
+def _seed_live_workspace(api_url: str, chat_id: str) -> dict[str, object]:
     """Bind sandbox executor (same SSOT as file_edit batch LIVE E2E)."""
     seeded = http_json(
         "POST",
@@ -63,6 +64,12 @@ def _seed_live_workspace(api_url: str, chat_id: str) -> None:
     )
     assert isinstance(seeded, dict)
     assert str(seeded.get("chat_id")) == chat_id
+    return seeded
+
+
+def _empty_write_target_path(workspace_seed: dict[str, object]) -> Path:
+    workspace_dir = Path(str(workspace_seed["file_path"])).parent
+    return workspace_dir / _LIVE_EMPTY_WRITE_FILE
 
 _PIN_LITE_MODEL_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -462,7 +469,8 @@ async def test_file_write_empty_live_agent_webui(
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
         assert chat_id, "Expected client chat id after new chat before sandbox seed"
-        _seed_live_workspace(api_base, chat_id)
+        workspace_seed = _seed_live_workspace(api_base, chat_id)
+        target_file = _empty_write_target_path(workspace_seed)
 
         send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
         chat_id_hint = str(
@@ -490,6 +498,9 @@ async def test_file_write_empty_live_agent_webui(
         )
         assert invoked, f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
         assert has_failure, f"fileMutationFailures missing; result={result}"
+        assert not target_file.exists(), (
+            f"Empty write must not create file on disk: {target_file}"
+        )
         e2e_resource_ledger.register("chat", resolved_chat_id)
         return resolved_chat_id, result
 
