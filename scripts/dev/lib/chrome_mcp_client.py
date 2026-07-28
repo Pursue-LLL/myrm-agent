@@ -79,6 +79,7 @@ from cdp_chat_support import (
 )
 from dev_gate_contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+    MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
     MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
     MUX_RECLAIM_STALL_TOKEN,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
@@ -104,7 +105,28 @@ _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 def _is_mux_parallel_fail_fast_message(message: str) -> bool:
     from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
 
-    return MUX_RECLAIM_STALL_TOKEN in message or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+    return (
+        MUX_RECLAIM_STALL_TOKEN in message
+        or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+        or MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN in message
+    )
+
+
+def _parallel_mux_peer_count() -> int:
+    try:
+        load = snapshot_mux_load(force=True)
+    except Exception:
+        return 0
+    return max(0, load.mux_contexts, load.wave_leases)
+
+
+def _assert_safe_global_mux_teardown(*, phase: str) -> None:
+    peer_count = _parallel_mux_peer_count()
+    if peer_count > 1:
+        raise RuntimeError(
+            f"{MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN}: refusing global shim "
+            f"teardown during {phase} with parallel_mux_peers={peer_count}"
+        )
 
 
 def _reclaim_wall_deadline() -> float:
@@ -228,7 +250,7 @@ class ChromeMcpClient:
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
         self._request_generation = self._initial_mux_generation()
-        self._request_lock = threading.Lock()
+        self._request_lock = threading.RLock()
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
         self._pages: dict[int, McpPage] = {}
@@ -1098,7 +1120,8 @@ class ChromeMcpClient:
         self._stderr_thread.start()
 
     def _initialize_shim_session(self) -> None:
-        with self._request_lock:
+        held_lock = self._acquire_request_lock()
+        try:
             process = self._require_live_process()
             response = self._exchange_locked(
                 process,
@@ -1110,15 +1133,14 @@ class ChromeMcpClient:
                 },
                 timeout_sec=self._resolve_tool_timeout_sec(None),
             )
-        result = response.get("result")
-        if not isinstance(result, dict) or not isinstance(
-            result.get("capabilities"), dict
-        ):
-            self._teardown_shim_process()
-            raise RuntimeError(
-                f"Chrome MCP initialize returned invalid result: {response}"
-            )
-        with self._request_lock:
+            result = response.get("result")
+            if not isinstance(result, dict) or not isinstance(
+                result.get("capabilities"), dict
+            ):
+                self._teardown_shim_process()
+                raise RuntimeError(
+                    f"Chrome MCP initialize returned invalid result: {response}"
+                )
             process = self._require_live_process()
             self._write(
                 process,
@@ -1128,6 +1150,8 @@ class ChromeMcpClient:
                     "params": {},
                 },
             )
+        finally:
+            self._release_request_lock(held_lock)
         self._page_lease_heartbeat.start()
 
     def _recover_mux_transport(self, *, start_generation: int | None = None) -> None:
@@ -1139,60 +1163,63 @@ class ChromeMcpClient:
     def _recover_mux_transport_inner(
         self, *, start_generation: int | None = None
     ) -> None:
-        _LOGGER.warning(
-            "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
-            start_generation,
-            len(self._pages),
-            len(self._disconnected_pages),
-        )
-        reclaim_deadline = _reclaim_wall_deadline()
-        saved_pages = self._collapse_pages_for_recovery(
-            {**self._disconnected_pages, **self._pages}
-        )
-        self._teardown_shim_process()
-        last_error: RuntimeError | None = None
-        for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
-            if (
-                start_generation is not None
-                and start_generation != self._request_generation
-            ):
-                raise RuntimeError(
-                    f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned during "
-                    f"transport recovery (orphan recovery in progress)"
-                )
-            _check_mux_reclaim_deadline(
-                reclaim_deadline,
-                "recover_mux_transport",
-                started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+        held_lock = self._acquire_request_lock()
+        try:
+            _LOGGER.warning(
+                "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
+                start_generation,
+                len(self._pages),
+                len(self._disconnected_pages),
             )
-            try:
-                self._spawn_shim_process()
-                self._initialize_shim_session()
-                break
-            except RuntimeError as exc:
-                last_error = exc
-                self._teardown_shim_process()
-                if attempt + 1 < _TRANSPORT_RECOVER_ATTEMPTS:
-                    time.sleep(
-                        min(
-                            0.75 * (attempt + 1),
-                            _remaining_reclaim_sec(reclaim_deadline),
-                        )
+            reclaim_deadline = _reclaim_wall_deadline()
+            saved_pages = self._collapse_pages_for_recovery(
+                {**self._disconnected_pages, **self._pages}
+            )
+            _assert_safe_global_mux_teardown(phase="recover_mux_transport")
+            self._teardown_shim_process()
+            last_error: RuntimeError | None = None
+            for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
+                if (
+                    start_generation is not None
+                    and start_generation != self._request_generation
+                ):
+                    raise RuntimeError(
+                        f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned during "
+                        f"transport recovery (orphan recovery in progress)"
                     )
-        else:
-            if last_error is not None:
-                raise last_error
-            _check_mux_reclaim_deadline(
-                reclaim_deadline,
-                "recover_mux_transport",
-                started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
-            )
-            return
-        if not saved_pages:
-            return
-        self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
-        if self._pages:
-            return
+                _check_mux_reclaim_deadline(
+                    reclaim_deadline,
+                    "recover_mux_transport",
+                    started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+                )
+                try:
+                    self._spawn_shim_process()
+                    self._initialize_shim_session()
+                    break
+                except RuntimeError as exc:
+                    last_error = exc
+                    self._teardown_shim_process()
+                    if attempt + 1 < _TRANSPORT_RECOVER_ATTEMPTS:
+                        time.sleep(
+                            min(
+                                0.75 * (attempt + 1),
+                                _remaining_reclaim_sec(reclaim_deadline),
+                            )
+                        )
+            else:
+                if last_error is not None:
+                    raise last_error
+                _check_mux_reclaim_deadline(
+                    reclaim_deadline,
+                    "recover_mux_transport",
+                    started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+                )
+                return
+            if not saved_pages:
+                return
+            self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
+        finally:
+            self._release_request_lock(held_lock)
 
     def _rebuild_disconnected_pages(
         self,
@@ -1297,10 +1324,11 @@ class ChromeMcpClient:
             pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
+        _assert_safe_global_mux_teardown(phase="abandon_inflight")
         self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
-        self._request_lock = threading.Lock()
+        self._request_lock = threading.RLock()
 
     def reset_after_orphan(self) -> None:
         """Single orphan recovery entry: invalidate in-flight mux I/O and restart transport."""
