@@ -114,6 +114,28 @@ _start_backend_bg() {
             echo "Backend already running (pid ${old_pid})"
             return 0
           fi
+          # R92: defer kill while backend is still in startup grace (health_wait window).
+          local backend_start_grace_sec="${MYRM_BACKEND_START_GRACE_SEC:-60}"
+          if [[ -f "${identity_file}" ]]; then
+            local backend_age_sec=""
+            backend_age_sec="$("${py}" -c "
+import json, sys, time
+from pathlib import Path
+path = Path(sys.argv[1])
+try:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    recorded = float(payload.get('recordedAt', 0))
+    if recorded > 0:
+        print(int(time.time() - recorded))
+except Exception:
+    pass
+" "${identity_file}" 2>/dev/null || true)"
+            if [[ "${backend_age_sec}" =~ ^[0-9]+$ ]] && [[ "${backend_age_sec}" -lt "${backend_start_grace_sec}" ]]; then
+              echo "STACK_WARN: backend starting (age=${backend_age_sec}s < grace=${backend_start_grace_sec}s) — defer kill (pid=${old_pid})" >&2
+              echo "Backend starting (pid ${old_pid})"
+              return 0
+            fi
+          fi
           echo "STACK_HEAL: backend PID alive but not responding (pid=${old_pid}) — kill and restart" >&2
           kill -TERM "${old_pid}" 2>/dev/null || true
           local heal_i
@@ -197,6 +219,7 @@ _start_backend_bg() {
   cd "${server_dir}"
   # Dev log is append-only; truncate on fresh start to avoid unbounded growth.
   : >"${log_file}"
+  export PYTHONUNBUFFERED=1
   # Record $! against the Python backend, not a nohup wrapper (macOS ps shows "(nohup)").
   if command -v setsid >/dev/null 2>&1; then
     setsid "${py}" run.py >>"${log_file}" 2>&1 &
