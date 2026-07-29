@@ -4,7 +4,10 @@
  * [OUTPUT]
  * - stripDatetimeTag: 剥离时间戳标签
  * - stripUiActionPayload: 剥离 Agent 用 ui_action JSON 块
- * - stripUserMessageDisplayText: 用户消息展示用清理
+ * - stripUserMessageDisplayText: 用户消息展示用清理（含 explicit skill wire 前缀）
+ * - parseExplicitSkillActivation: 解析 `[use s1,s2]` wire 前缀
+ * - buildExplicitSkillWireMessage: 由 pending activation + 用户文本构建 wire
+ * - formatSkillChipLabel: Skill chip 展示名
  * - stripMarkdown: 剥离 markdown 语法为纯文本
  * - getBrowserTimezone: 获取浏览器时区
  *

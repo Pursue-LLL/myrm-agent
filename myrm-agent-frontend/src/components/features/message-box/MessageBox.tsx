@@ -25,7 +25,7 @@ import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
-import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { stripDatetimeTag, parseExplicitSkillActivation, buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
@@ -515,6 +515,11 @@ const MessageBox = ({
       if (loading || !chatId) return;
       setEditingMessageId(null);
 
+      const activation = parseExplicitSkillActivation(message.content);
+      const wireContent = activation
+        ? buildExplicitSkillWireMessage(activation, newContent)
+        : newContent;
+
       try {
         await truncateAfterMessage(chatId, message.messageId);
       } catch (error) {
@@ -524,7 +529,7 @@ const MessageBox = ({
       useChatStore.setState((state) => ({
         messages: state.messages.slice(0, messageIndex),
       }));
-      sendMessage(newContent);
+      sendMessage(wireContent);
     };
 
     const handleCancelEdit = () => setEditingMessageId(null);
