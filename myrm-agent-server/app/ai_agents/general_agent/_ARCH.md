@@ -69,5 +69,5 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 
 - `compression_intent` 的生成属于 server 业务语义：依赖当前 query、最近用户轮次和产品对“任务重点”的理解。
 - harness 只负责消费标准化的 `compression_intent` 并执行通用压缩，不负责推断业务目标。
-- harness 的 `conversation_search_tool` 只定义 Protocol/DTO 与工具格式；Server 负责 DB/FTS5/Agent 身份过滤与摘要读取。
+- harness 的 `conversation_search/` 模块只定义 Protocol/DTO、formatter 与单元测试工厂；产品 Turn1 经 `memory_search_tool(corpus=sessions)` ACL。Server 负责 DB/FTS5/Agent 身份过滤与摘要读取。
 - control plane 不生成语义型压缩意图，只负责调度、隔离、资源和运行基础设施。
