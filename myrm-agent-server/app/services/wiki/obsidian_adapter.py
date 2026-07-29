@@ -18,6 +18,7 @@ bypass the raw publication gate.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -125,12 +126,14 @@ def rewrite_image_embeds(content: str, source_file: Path, vault_root: Path, asse
         img_name = m.group(1).strip()
         img_source = _find_image(img_name, source_file.parent, vault_root)
         if img_source and img_source.exists():
-            dest = assets_dest / img_source.name
+            file_hash = hashlib.sha256(img_source.read_bytes()).hexdigest()[:12]
+            dest_name = f"{file_hash}_{img_source.name}"
+            dest = assets_dest / dest_name
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(img_source, dest)
             copied += 1
-            return f"![{img_source.stem}]({img_source.name})"
+            return f"![{img_source.stem}]({dest_name})"
         return m.group(0)
 
     result = _EMBED_IMAGE_RE.sub(_replace, content)

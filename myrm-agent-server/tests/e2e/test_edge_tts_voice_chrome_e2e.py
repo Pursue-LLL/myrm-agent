@@ -738,17 +738,10 @@ async def test_voice_settings_no_local_banner_when_available(
     from e2e_session_lifecycle import complete_bootstrap_phase
 
     complete_bootstrap_phase(phase_label="test_voice_settings_no_local_banner_when_available")
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
-    try:
-        page = await asyncio.to_thread(
-            client.new_page,
-            f"{get_e2e_ui_url()}/",
-            timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS,
-        )
-        state = await _probe_voice_banner(client, page)
-    finally:
-        await asyncio.to_thread(client.close)
+    state = await asyncio.to_thread(
+        _chrome_probe_voice_settings_with_retry,
+        progress_node="test_voice_settings_no_local_banner_when_available",
+    )
 
     assert state.get("hasVoicePanel") is True, state
     assert state.get("showLocalSttBanner") is False, state

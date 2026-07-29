@@ -525,6 +525,8 @@ async def _run_fast_evicted_read_live_e2e(
         deadline = time.monotonic() + 420.0
         last: dict[str, object] = {}
         api_last: dict[str, object] = {"ready": False, "source": "api"}
+        stall_retry_used = False
+        turn_started = time.monotonic()
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             ui_last, api_last = await _poll_fast_search_progress(
@@ -534,6 +536,36 @@ async def _run_fast_evicted_read_live_e2e(
                 last = _merge_fast_search_progress(ui_last, api_last)
                 break
             last = _merge_fast_search_progress(ui_last, api_last)
+            api_err = str(api_last.get("err") or "")
+            stalled = (
+                not stall_retry_used
+                and time.monotonic() - turn_started >= 90.0
+                and api_err in ("no-assistant", "no-messages")
+                and ui_last.get("isStreaming") is True
+            )
+            if stalled:
+                stall_retry_used = True
+                await chat.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      bridge?.abortActiveStream?.();
+                      bridge?.releaseActiveStreamForApiResume?.();
+                      return { ok: true };
+                    })()""",
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
+                await asyncio.sleep(2.0)
+                kickoff = await chat.evaluate(
+                    kickoff_js, await_promise=True, recv_timeout=120.0
+                )
+                assert isinstance(kickoff, dict) and kickoff.get("ok") is True, (
+                    f"fast {search_depth} stall recovery kickoff failed: {kickoff!r}"
+                )
+                chat_id = str(kickoff.get("chatId") or chat_id).strip()
+                assert chat_id, kickoff
+                turn_started = time.monotonic()
+                continue
             await asyncio.sleep(2.0)
 
         assert last.get("ready") is True, (

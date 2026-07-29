@@ -26,5 +26,6 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `wiki_archive_hook.py` | 钩子 | compaction persist 后 SessionNotes 后台归档（按 chat.agent_id 选 vault） | ✅ |
 | `consolidation_bridge.py` | 钩子 | consolidation 完成后 insight → `publish_raw` + enqueue（上游 enable_wiki 门控） | ✅ |
 | `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存；compile/maintain/repair-types/import/apply/delete concept/delete folder/pending approve/delete raw + ingest tree-sync 成功后失效 | ✅ |
+| `asset_index_service.py` | 核心 | Obsidian wiki/assets vision caption 索引；import 后 `schedule_wiki_asset_index` 后台运行并在完成后 publish ingest snapshot；compile/maintain 同步 `run_wiki_asset_index` | ✅ |
 | `obsidian_adapter.py` | 适配器 | Obsidian Vault 导入：`prepare_obsidian_file()` 转换 frontmatter/inline tags/images；`adapt_obsidian_file()` 仅测试/legacy 直写；生产 import 经 `router` → harness `publish_raw` | ✅ |
-| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；**tree_sync_required** 信号（stale/compile 指纹变化 → FE REST 刷新树 badge + **structural lint cache invalidate**） | ✅ |
+| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；**tree_sync_required** / **stats_refresh_required** 信号 → FE REST 刷新 | ✅ |

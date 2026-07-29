@@ -117,7 +117,7 @@ export interface OrgMCPDelivery {
 export interface OrgMCPServer {
   id: string;
   name: string;
-  type: 'sse' | 'streamable_http';
+  type: 'sse' | 'streamable_http' | 'tunnel';
   url: string | null;
   command: string | null;
   args: string[] | null;
@@ -136,19 +136,86 @@ export interface OrgMCPMutateResult {
 
 export interface CreateOrgMCPServerInput {
   name: string;
-  type: 'sse' | 'streamable_http';
-  url: string;
+  type: 'sse' | 'streamable_http' | 'tunnel';
+  url?: string;
   description?: string;
   headers?: Record<string, string>;
+  tunnel_id?: string;
 }
 
 export interface UpdateOrgMCPServerInput {
   name?: string;
-  type?: 'sse' | 'streamable_http';
+  type?: 'sse' | 'streamable_http' | 'tunnel';
   url?: string;
   description?: string;
   headers?: Record<string, string>;
   enabled?: boolean;
+  tunnel_id?: string;
+}
+
+// ── Tunnel Management ──────────────────────────────────────────────
+
+export interface Tunnel {
+  id: string;
+  name: string;
+  upstream_url: string;
+  description: string;
+  status: 'online' | 'offline';
+  last_heartbeat_at: number | null;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface TunnelCreateResult {
+  tunnel: Tunnel;
+  auth_token: string;
+}
+
+export interface CreateTunnelInput {
+  name: string;
+  upstream_url: string;
+  description?: string;
+}
+
+function tunnelUrl(orgId: string, tunnelId?: string): string {
+  const base = cpUrl(`/${orgId}/tunnels`);
+  return tunnelId ? `${base}/${tunnelId}` : base;
+}
+
+export async function listTunnels(orgId: string): Promise<Tunnel[]> {
+  const res = await fetch(tunnelUrl(orgId));
+  if (!res.ok) throw new Error(`List tunnels failed: ${res.status}`);
+  return res.json();
+}
+
+export async function createTunnel(
+  orgId: string,
+  input: CreateTunnelInput,
+): Promise<TunnelCreateResult> {
+  const res = await fetch(tunnelUrl(orgId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Create tunnel failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteTunnel(orgId: string, tunnelId: string): Promise<void> {
+  const res = await fetch(tunnelUrl(orgId, tunnelId), { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete tunnel failed: ${res.status}`);
+}
+
+export async function rotateTunnelToken(
+  orgId: string,
+  tunnelId: string,
+): Promise<TunnelCreateResult> {
+  const res = await fetch(`${tunnelUrl(orgId, tunnelId)}/rotate-token`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Rotate tunnel token failed: ${res.status}`);
+  return res.json();
 }
 
 function mcpUrl(orgId: string, serverId?: string): string {

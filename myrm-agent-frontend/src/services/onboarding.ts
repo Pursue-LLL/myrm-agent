@@ -52,3 +52,39 @@ export async function applyTelegramAssistantOnboarding(
     silent: true,
   });
 }
+
+export interface SecondBrainChecklistItem {
+  id: 'agent_tools' | 'cron_job' | 'vault_content' | 'provider_ready';
+  ready: boolean;
+  label_key: string;
+  detail?: string | null;
+}
+
+export interface SecondBrainPresetStatus {
+  applied: boolean;
+  agent_id?: string | null;
+  agent_name?: string | null;
+  cron_job_id?: string | null;
+  applied_at?: string | null;
+  checklist: SecondBrainChecklistItem[];
+}
+
+export interface SecondBrainApplyResponse extends SecondBrainPresetStatus {
+  success: boolean;
+  message: string;
+  agent_id: string;
+  agent_name: string;
+}
+
+export async function getSecondBrainPresetStatus(): Promise<SecondBrainPresetStatus> {
+  return apiRequest<SecondBrainPresetStatus>('/config/onboarding/second-brain/status', {
+    method: 'GET',
+  });
+}
+
+export async function applySecondBrainPreset(): Promise<SecondBrainApplyResponse> {
+  return apiRequest<SecondBrainApplyResponse>('/config/onboarding/second-brain/apply', {
+    method: 'POST',
+    silent: true,
+  });
+}

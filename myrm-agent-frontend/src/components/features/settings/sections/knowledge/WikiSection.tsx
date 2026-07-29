@@ -16,6 +16,7 @@ import { isTauri } from '@/lib/utils/clipboardUtils';
 import {
   wikiService,
   buildWikiApiPath,
+  buildWikiAssetUrl,
   type CompileRunStatus,
   type ImportResultResponse,
   type ObsidianImportResultResponse,
@@ -38,6 +39,7 @@ import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
 import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
 import { useWikiIngestSubscription } from './useWikiIngestSubscription';
+import SecondBrainSetupCard from './SecondBrainSetupCard';
 
 interface WikiStats {
   total_concepts: number;
@@ -53,6 +55,13 @@ interface WikiStats {
     broken_links: number;
     invalid_frontmatter_types: number;
     scanned_concepts: number;
+  };
+  asset_index?: {
+    indexed: number;
+    pending: number;
+    failed: number;
+    total_files: number;
+    enabled: boolean;
   };
 }
 
@@ -106,6 +115,7 @@ export function WikiSection() {
     snippet: string;
     level?: WikiSourceLevel;
     snapshotStatus?: WikiSourceSnippet['snapshot_status'];
+    thumbnailUrl?: string | null;
   }>({ open: false, title: '', snippet: '' });
   const [stats, setStats] = useState<WikiStats | null>(null);
   const [staleSummary, setStaleSummary] = useState<WikiStaleSummary | null>(null);
@@ -473,6 +483,8 @@ export function WikiSection() {
       if (snap.tree_sync_required) {
         void refreshIngestTreesSilently();
         void loadStats();
+      } else if (snap.stats_refresh_required) {
+        void loadStats();
       }
       const active =
         snap.stats.processing > 0 ||
@@ -695,6 +707,8 @@ export function WikiSection() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          <SecondBrainSetupCard onApplied={() => void loadStats()} />
+
           {/* Purpose / Direction */}
           <Card>
             <CardHeader>
@@ -786,7 +800,22 @@ export function WikiSection() {
                         })}
                       </span>
                     )}
+                    {(stats.asset_index?.total_files ?? 0) > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-sky-500/10 px-3 py-1 text-sky-700 dark:text-sky-300">
+                        {t('stats.indexedAssets', { count: stats.asset_index?.indexed ?? 0 })}
+                      </span>
+                    )}
+                    {(stats.asset_index?.failed ?? 0) > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
+                        {t('stats.failedAssets', { count: stats.asset_index?.failed ?? 0 })}
+                      </span>
+                    )}
                   </div>
+                  {(stats.asset_index?.total_files ?? 0) > 0 && !stats.asset_index?.enabled ? (
+                    <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                      {t('stats.assetsVisionHint')}
+                    </p>
+                  ) : null}
                   {(stats.structural_issues?.broken_links ?? 0) > 0 ||
                   (stats.structural_issues?.invalid_frontmatter_types ?? 0) > 0 ? (
                     <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
@@ -932,6 +961,7 @@ export function WikiSection() {
                       <div className="space-y-2">
                         {sourceSnippets.map((snippet, idx) => {
                           const level = normalizeWikiLevel(snippet.level);
+                          const isAssetHit = snippet.hit_kind === 'asset' && snippet.asset_filename;
                           const levelLabel = level
                             ? level === 'L0'
                               ? tSources('kb_level_l0')
@@ -941,6 +971,9 @@ export function WikiSection() {
                             : null;
                           const cardTitle = snippet.name || snippet.path;
                           const sectionLabel = resolveWikiSectionLabel(snippet.section || undefined, tSources);
+                          const thumbnailUrl = isAssetHit
+                            ? buildWikiAssetUrl(snippet.asset_filename!, agentScopeId)
+                            : null;
                           return (
                             <button
                               key={`${snippet.path}-${idx}`}
@@ -954,9 +987,19 @@ export function WikiSection() {
                                   snippet: snippet.snippet,
                                   level,
                                   snapshotStatus: snippet.snapshot_status,
+                                  thumbnailUrl,
                                 })
                               }
                             >
+                              <div className="flex items-start gap-3">
+                                {thumbnailUrl ? (
+                                  <img
+                                    src={thumbnailUrl}
+                                    alt=""
+                                    className="h-14 w-14 shrink-0 rounded-md border border-border/60 object-cover bg-muted"
+                                  />
+                                ) : null}
+                                <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-medium truncate">{cardTitle}</span>
                                 {levelLabel && (
@@ -993,6 +1036,8 @@ export function WikiSection() {
                                   {t('evidenceSnapshotMissing')}
                                 </p>
                               )}
+                                </div>
+                              </div>
                             </button>
                           );
                         })}
@@ -1024,6 +1069,7 @@ export function WikiSection() {
             snippet={snippetDrawerState.snippet}
             level={snippetDrawerState.level}
             snapshotStatus={snippetDrawerState.snapshotStatus}
+            thumbnailUrl={snippetDrawerState.thumbnailUrl}
             surface="settings"
             contextKey={evidenceContextKey}
           />

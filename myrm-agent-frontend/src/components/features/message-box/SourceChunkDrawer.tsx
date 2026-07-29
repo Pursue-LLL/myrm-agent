@@ -22,6 +22,7 @@ interface SourceChunkDrawerProps {
   snippet: string;
   level?: WikiSourceLevel;
   snapshotStatus?: 'verified' | 'stale' | 'missing';
+  thumbnailUrl?: string | null;
   surface?: WikiEvidenceSurface;
   contextKey?: string;
 }
@@ -39,7 +40,7 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, surface = 'chat', contextKey }) => {
+  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, thumbnailUrl, surface = 'chat', contextKey }) => {
     const t = useTranslations('MessageSources');
     const tWiki = useTranslations('settings.wiki');
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
@@ -117,6 +118,13 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
             </div>
 
             <div className="bg-muted/40 rounded-lg p-4 border border-border/30">
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt=""
+                  className="mb-3 h-28 w-full max-w-xs rounded-md border border-border/60 object-cover bg-muted"
+                />
+              ) : null}
               {renderedSnippet.length > 0 ? (
                 renderedSnippet
               ) : (

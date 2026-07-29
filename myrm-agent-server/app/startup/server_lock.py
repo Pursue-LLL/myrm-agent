@@ -95,6 +95,14 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
                     continue
                 cmd_str = " ".join(cmdline).lower()
 
+                # Never kill harness install/verify tooling (concurrent ./myrm harness install).
+                if (
+                    "verify-harness-distribution" in cmd_str
+                    or "install_harness.sh" in cmd_str
+                    or "harness install" in cmd_str
+                ):
+                    continue
+
                 # 严格指纹匹配，包括孤儿 worker
                 if "run.py" in cmd_str or "myrm-agent" in cmd_str or "granian" in cmd_str or "app.main" in cmd_str:
                     # 工作区级严格指纹锁定

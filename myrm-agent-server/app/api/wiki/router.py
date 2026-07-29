@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
@@ -103,6 +103,8 @@ class WikiSourceSnippet(BaseModel):
     line_range: str = ""
     claim_status: str = ""
     snapshot_status: str = ""
+    hit_kind: str = "concept"
+    asset_filename: str = ""
 
 
 class WikiClaimEvidenceItem(BaseModel):
@@ -175,6 +177,14 @@ class WikiStructuralIssuesResponse(BaseModel):
     scanned_concepts: int = 0
 
 
+class WikiAssetIndexStatsResponse(BaseModel):
+    indexed: int = 0
+    pending: int = 0
+    failed: int = 0
+    total_files: int = 0
+    enabled: bool = False
+
+
 class WikiStatsResponse(BaseModel):
     total_concepts: int
     total_articles: int
@@ -186,6 +196,7 @@ class WikiStatsResponse(BaseModel):
     cognitive_log_entries: int = 0
     cognitive_hot_updated_at: str | None = None
     structural_issues: WikiStructuralIssuesResponse = Field(default_factory=WikiStructuralIssuesResponse)
+    asset_index: WikiAssetIndexStatsResponse = Field(default_factory=WikiAssetIndexStatsResponse)
 
 
 class GraphNodeItem(BaseModel):
@@ -428,6 +439,8 @@ async def query_wiki(
                 line_range=snippet.line_range,
                 claim_status=snippet.claim_status,
                 snapshot_status=snippet.evidence_snapshot_status,
+                hit_kind=snippet.hit_kind,
+                asset_filename=snippet.asset_filename,
             )
             for snippet in result.source_snippets
         ]
@@ -441,6 +454,35 @@ async def query_wiki(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/assets/{filename}")
+async def serve_wiki_asset(
+    filename: str,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> FileResponse:
+    from myrm_agent_harness.core.security.path_security import safe_join_path
+
+    assets_dir = archiver._structure.wiki_dir / "assets"
+    try:
+        asset_path = safe_join_path(assets_dir, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid asset path") from exc
+
+    if not asset_path.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    media_type = "application/octet-stream"
+    headers: dict[str, str] = {"Content-Disposition": f'inline; filename="{filename}"'}
+    if filename.lower().endswith(".svg"):
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    return FileResponse(
+        path=asset_path,
+        media_type=media_type,
+        filename=filename,
+        headers=headers,
+    )
+
+
 @router.post("/compile", response_model=WikiCompileResponse)
 async def compile_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
@@ -450,6 +492,9 @@ async def compile_wiki(
 
     try:
         result = await archiver._compiler.compile_all()
+        from app.services.wiki.asset_index_service import run_wiki_asset_index
+
+        await run_wiki_asset_index(archiver)
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
         _invalidate_wiki_structural_stats_cache(archiver)
         return WikiCompileResponse(
@@ -473,6 +518,9 @@ async def maintain_wiki(
 ) -> WikiMaintenanceResponse:
     try:
         result = await archiver._linter.lint_and_maintain()
+        from app.services.wiki.asset_index_service import run_wiki_asset_index
+
+        await run_wiki_asset_index(archiver)
         _invalidate_wiki_structural_stats_cache(archiver)
         return WikiMaintenanceResponse(
             issues_found=result.issues_found,
@@ -507,6 +555,27 @@ async def get_wiki_stats(
 
         structural_cached = get_structural_lint_snapshot_cached(archiver._structure)
         structural = structural_cached.snapshot
+        from app.services.wiki.asset_index_service import ensure_archiver_asset_indexer, wiki_asset_index_enabled
+
+        await ensure_archiver_asset_indexer(archiver)
+        asset_enabled = await wiki_asset_index_enabled()
+        if archiver._asset_indexer is not None:
+            asset_stats = archiver._asset_indexer.get_stats()
+            asset_index = WikiAssetIndexStatsResponse(
+                indexed=asset_stats.indexed,
+                pending=asset_stats.pending,
+                failed=asset_stats.failed,
+                total_files=asset_stats.total_files,
+                enabled=True,
+            )
+        else:
+            assets_dir = archiver._structure.wiki_dir / "assets"
+            total_files = len([p for p in assets_dir.iterdir() if p.is_file()]) if assets_dir.is_dir() else 0
+            asset_index = WikiAssetIndexStatsResponse(
+                total_files=total_files,
+                pending=total_files,
+                enabled=asset_enabled,
+            )
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),
@@ -522,6 +591,7 @@ async def get_wiki_stats(
                 invalid_frontmatter_types=structural.invalid_frontmatter_types,
                 scanned_concepts=structural.scanned_concepts,
             ),
+            asset_index=asset_index,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -1752,6 +1822,7 @@ async def _process_obsidian_vault(
     on_conflict: Literal["skip", "supersede"] = "skip",
     supersede_reason: str = "",
     source_label: str = "",
+    agent_id: str | None = None,
 ) -> ObsidianImportResultResponse:
     """Shared logic for processing an Obsidian vault directory into Wiki."""
     from app.services.wiki.obsidian_adapter import ObsidianImportStats, prepare_obsidian_file
@@ -1837,6 +1908,10 @@ async def _process_obsidian_vault(
         message_parts.append("compilation started")
     if enqueued_paths or stats.files_superseded > 0:
         _invalidate_wiki_structural_stats_cache(archiver)
+    if stats.images_copied > 0:
+        from app.services.wiki.asset_index_service import schedule_wiki_asset_index
+
+        schedule_wiki_asset_index(archiver, agent_id=agent_id)
     return ObsidianImportResultResponse(
         success=True,
         files_scanned=stats.files_scanned,
@@ -1859,6 +1934,7 @@ async def _process_obsidian_vault(
 async def import_obsidian_vault(
     request: ObsidianImportRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ObsidianImportResultResponse:
     """Import an Obsidian vault with frontmatter parsing and image embed handling."""
     _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
@@ -1872,6 +1948,7 @@ async def import_obsidian_vault(
             request.auto_compile,
             on_conflict=request.on_conflict,
             supersede_reason=request.supersede_reason,
+            agent_id=agent_id,
         )
     except HTTPException:
         raise
@@ -1887,6 +1964,7 @@ async def import_obsidian_zip(
     auto_compile: bool = Query(True),
     on_conflict: Literal["skip", "supersede"] = Query("skip"),
     supersede_reason: str = Query(""),
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ObsidianImportResultResponse:
     """Upload an Obsidian vault as ZIP (for WebUI / cloud-hosted deployments)."""
     import tempfile
@@ -1924,6 +2002,7 @@ async def import_obsidian_zip(
                 on_conflict=on_conflict,
                 supersede_reason=supersede_reason,
                 source_label="ZIP",
+                agent_id=agent_id,
             )
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid ZIP file") from None

@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
+import app.services.agent.stream_session.turn_capability_terminal as turn_capability_terminal
 from app.services.agent.params.models import AgentRequest
-from app.services.agent.stream_session import turn_capability_terminal
 
 
 def _build_request_with_terminal_context() -> AgentRequest:

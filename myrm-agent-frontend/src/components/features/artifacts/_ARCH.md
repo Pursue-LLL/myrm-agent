@@ -20,7 +20,7 @@
 | `wechatDraftCoverUtils.ts` | 辅助 | 从 artifact HTML 解析首张本地 `<img>` 供草稿封面预填 |
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
 | `artifactUtils.ts` | 辅助 | preflight/share API、`isPublicationStale`、`publicationsChanged` |
-| `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由；Code/Document/Mermaid 预览 dynamic import |
+| `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由；Code/Document/Mermaid/Diff 预览 dynamic import |
 | `ReactPreview.tsx` | 核心 | React 组件纯预览器（Sandpack）；视图切换由 PortalHeader 统一控制 |
 | `components/SandpackErrorBoundary.tsx` | 辅助 | Sandpack 编译/运行时错误边界 |
 | `components/CompileErrorDisplay.tsx` | 辅助 | Sandpack 编译错误展示面板 |
@@ -31,6 +31,7 @@
 | `portal/DocumentSelectionToolbar.tsx` | 辅助 | 文档预览 DOM 选中文本悬浮操作栏 |
 | `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取指令栏 |
 | `renderers/DocumentPreview.tsx` | 核心 | 文档/Markdown 渲染预览（集成 DocumentSelectionToolbar） |
+| `renderers/DiffPreview.tsx` | 核心 | 版本间差异对比渲染器（Monaco DiffEditor，inline/side-by-side 双模式） |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 表格预览 |
 | `__tests__/largeFileInlinePreview.test.ts` | 测试 | large-file inline preview 文案与阈值回归守卫 |
 | `__tests__/useWechatCoverSuggest.test.ts` | 测试 | 封面 suggest 图片扩展名过滤 |

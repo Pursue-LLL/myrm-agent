@@ -152,6 +152,11 @@ def signoff_stream_holder_health_errors(payload: HealthJsonPayload) -> list[str]
     return errors
 
 
+def read_attach_health_errors(payload: HealthJsonPayload) -> list[str]:
+    """READ lane attach without shared_hot — mux/epochs live; no clientHot compile gate."""
+    return stack_core_health_errors(payload)
+
+
 def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:
     """Stack liveness for stack-core keepalive — ignore compile-time shell/client warmth."""
     errors: list[str] = []
@@ -244,7 +249,9 @@ def api_health_errors(api_base: str) -> list[str]:
 
 def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
-    ui_timeout = 30.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
+    from dev_gate_contract import attach_ui_probe_timeout_sec
+
+    ui_timeout = attach_ui_probe_timeout_sec()
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
     api_url = api_base.rstrip("/") + "/api/v1/health"
 
@@ -863,6 +870,11 @@ def main() -> None:
         help="Exit 2 unless mux/upstream/epochs are live (ignores shellHot/clientHot compile windows; probes API /health only, not UI curl)",
     )
     parser.add_argument(
+        "--require-read-attach-ready",
+        action="store_true",
+        help="Exit 2 for READ lane without shared_hot: stack core + UI/API reachability; no clientHot gate",
+    )
+    parser.add_argument(
         "--require-signoff-stream-ready",
         action="store_true",
         help="Exit 2 unless mux/CDP/backend identity is live for signoff stream-lock holder (ignores clientHot/frontendEpoch under parallel SMP defer)",
@@ -912,6 +924,13 @@ def main() -> None:
     )
     if args.require_attach_ready:
         errors = attach_health_errors(payload) + attach_endpoint_errors(
+            args.ui, args.api
+        )
+        if errors:
+            print(format_attach_endpoint_failure(errors), file=sys.stderr)
+            raise SystemExit(2)
+    if args.require_read_attach_ready:
+        errors = read_attach_health_errors(payload) + attach_endpoint_errors(
             args.ui, args.api
         )
         if errors:

@@ -23,6 +23,7 @@ HIDDEN_BUILTIN_AGENT_IDS: frozenset[str] = frozenset(
 HIDDEN_PREBUILT_TEMPLATE_IDS: frozenset[str] = frozenset(
     {
         "research_analysis_squad",
+        "second_brain_assistant",
     }
 )
 

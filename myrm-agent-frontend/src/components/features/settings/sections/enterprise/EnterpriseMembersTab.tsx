@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from '@/components/primitives/dialog';
 import OrgMcpAdminPanel from './OrgMcpAdminPanel';
+import TunnelAdminPanel from './TunnelAdminPanel';
 import { canManageOrgMcp } from './orgMcpAccess';
 import {
   type OrgInfo,
@@ -197,7 +198,12 @@ const EnterpriseMembersTab = memo(() => {
         )}
       </SettingsSection>
 
-      {orgId && isOrgAdmin && <OrgMcpAdminPanel orgId={orgId} />}
+      {orgId && isOrgAdmin && (
+        <>
+          <TunnelAdminPanel orgId={orgId} />
+          <OrgMcpAdminPanel orgId={orgId} />
+        </>
+      )}
 
       {/* Members */}
       <SettingsSection

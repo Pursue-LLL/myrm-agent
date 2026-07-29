@@ -15,12 +15,40 @@ const mockChatState = {
   messages: [] as Array<{ role: string; content: string; messageId?: string }>,
   loading: false,
 };
+
+const mockGetTemplates = vi.fn().mockResolvedValue([
+  {
+    id: 'cloudq-team-template',
+    name: 'CloudQ Team',
+    description: 'Cloud incident experts',
+    avatar_url: '',
+    agent_type: 'team',
+    members: [
+      { role: 'lead', name: 'CloudQ', description: 'Incident commander' },
+      { role: 'backup', name: 'AndonQ', description: 'Escalation specialist' },
+    ],
+    use_cases: ['Diagnose cloud outage', 'Review migration risks'],
+  },
+]);
+const mockInstantiateTemplate = vi.fn().mockResolvedValue({ id: 'cloudq-instance' });
+
 const makeMockAgentDetail = (agentId: string) => ({
   id: agentId,
   user_id: 'user-1',
-  name: agentId === 'writer-agent' ? 'Writer Agent' : 'General Agent',
-  system_prompt: agentId === 'writer-agent' ? 'Write with concise style.' : '',
-  skill_ids: agentId === 'writer-agent' ? ['writing'] : [],
+  name:
+    agentId === 'writer-agent'
+      ? 'Writer Agent'
+      : agentId === 'cloudq-instance'
+        ? 'CloudQ Team'
+        : 'General Agent',
+  system_prompt:
+    agentId === 'writer-agent'
+      ? 'Write with concise style.'
+      : agentId === 'cloudq-instance'
+        ? 'Handle cloud incidents with strict RCA structure.'
+        : '',
+  skill_ids:
+    agentId === 'writer-agent' ? ['writing'] : agentId === 'cloudq-instance' ? ['ops-triage'] : [],
   mcp_ids: [],
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -99,6 +127,11 @@ vi.mock('@/lib/deploy-mode', () => ({
   normalizeConfiguredBaseUrl: (val: string) => val || 'http://localhost:8000',
 }));
 
+vi.mock('@/services/agent', () => ({
+  getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
+  instantiateTemplate: (...args: unknown[]) => mockInstantiateTemplate(...args),
+}));
+
 const mockInvoke = vi.fn().mockResolvedValue(undefined);
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
@@ -140,6 +173,8 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     mockAgentStoreState.loading = false;
     mockAgentStoreState.fetchAgents.mockClear();
     mockAgentStoreState.fetchAgent.mockClear();
+    mockGetTemplates.mockClear();
+    mockInstantiateTemplate.mockClear();
     mockInvoke.mockClear();
     vi.clearAllMocks();
   });
@@ -874,5 +909,33 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         resolve();
       }
     });
+  });
+
+  it('can summon expert template from route menu and prefill use case prompt', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'Cloud Console', extractedText: 'alert', timestamp: 1 },
+      1940,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+
+    const useCaseButton = await screen.findByTestId(
+      'flowpad-inline-template-usecase-cloudq-team-template-0',
+    );
+    await act(async () => {
+      fireEvent.click(useCaseButton);
+    });
+
+    expect(mockInstantiateTemplate).toHaveBeenCalledWith('cloudq-team-template');
+    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith(
+      'cloudq-instance',
+      expect.any(AbortSignal),
+    );
+
+    await screen.findByDisplayValue('Diagnose cloud outage');
   });
 });

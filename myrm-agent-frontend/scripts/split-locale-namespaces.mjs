@@ -27,6 +27,20 @@ function namespaceFilename(namespace) {
   return `${namespace}.json`;
 }
 
+function resetDirectory(dirPath) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      rmSync(dirPath, { recursive: true, force: true });
+      break;
+    } catch (error) {
+      if (error?.code !== 'ENOTEMPTY' || attempt === 2) {
+        throw error;
+      }
+    }
+  }
+  mkdirSync(dirPath, { recursive: true });
+}
+
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   let sourcePath = resolve(rootDir, `locales/${lang}.json`);
   if (!existsSync(sourcePath) && lang === 'zh-TW') {
@@ -35,8 +49,7 @@ function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   const messages = JSON.parse(readFileSync(sourcePath, 'utf-8'));
   const localeDir = resolve(namespacesRoot, lang);
 
-  rmSync(localeDir, { recursive: true, force: true });
-  mkdirSync(localeDir, { recursive: true });
+  resetDirectory(localeDir);
 
   for (const namespace of canonicalNamespaces) {
     writeJson(resolve(localeDir, namespaceFilename(namespace)), messages[namespace] ?? {});

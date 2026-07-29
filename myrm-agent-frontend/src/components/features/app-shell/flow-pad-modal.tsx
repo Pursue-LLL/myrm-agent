@@ -5,17 +5,19 @@
  * - useFlowPadStore (POS: FlowPad 全局状态)
  * - useChatStore (POS: 消息发送)
  * - useFeatureGateStore (POS: Feature Gate 检查)
+ * - useAgentStore (POS: 可用 agent 列表与详情加载)
+ * - getTemplates / instantiateTemplate (POS: 专家模板发现与召唤)
  *
  * [OUTPUT]
- * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 语音/文本输入
+ * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 语音/文本输入 + Inline 专家召唤
  *
  * [POS]
  * Omni-FlowPad 核心 UI 组件。全局居中 Dialog，
  * 同时服务 Appshot 截屏、语音输入、deep link Quick Ask 和 Inline Input 场景。
- * Inline Mode 下 AI 结果局部流式显示，支持一键 Paste 回写原应用。
+ * Inline Mode 下支持请求级路由切换、专家模板召唤与结果回写。
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { Dialog, DialogContent, DialogTitle } from '@/components/primitives/dialog';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
@@ -37,6 +39,8 @@ import {
   TextSelect,
   ChevronDown,
   Check,
+  Search,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -46,6 +50,7 @@ import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import useAgentStore from '@/store/useAgentStore';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import type { AgentConfig } from '@/store/chat/types';
+import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
 
 import { formatAppshotMessage, CapturePreview, ImageLightbox } from './FlowPadModalParts';
 
@@ -82,6 +87,10 @@ function createFallbackRouteConfig(agentId: string): AgentConfig {
   };
 }
 
+function normalizeSearchText(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 export function FlowPadModal() {
   const t = useTranslations('flowPad');
   const {
@@ -110,6 +119,12 @@ export function FlowPadModal() {
   const [agentRouteMenuOpen, setAgentRouteMenuOpen] = useState(false);
   const [inlineRouteSwitching, setInlineRouteSwitching] = useState(false);
   const [inlineRouteSwitchError, setInlineRouteSwitchError] = useState<string | null>(null);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+  const [expertTemplates, setExpertTemplates] = useState<TemplateListItem[]>([]);
+  const [expertTemplatesLoading, setExpertTemplatesLoading] = useState(false);
+  const [expertTemplatesLoaded, setExpertTemplatesLoaded] = useState(false);
+  const [expertTemplatesError, setExpertTemplatesError] = useState(false);
+  const [instantiatingTemplateId, setInstantiatingTemplateId] = useState<string | null>(null);
   const inlineActiveRequestIdRef = useRef<string | null>(null);
   const inlineRouteSwitchNonceRef = useRef(0);
   const inlineRouteSwitchAbortRef = useRef<AbortController | null>(null);
@@ -140,6 +155,8 @@ export function FlowPadModal() {
       setInlineRouteSwitchError(null);
       setInlineRouteSwitching(false);
       setAgentRouteMenuOpen(false);
+      setTemplateSearchQuery('');
+      setInstantiatingTemplateId(null);
       inlineActiveRequestIdRef.current = null;
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
@@ -147,6 +164,8 @@ export function FlowPadModal() {
       inlineRouteSwitchAbortRef.current = null;
       inlineRouteSwitchNonceRef.current += 1;
       setAgentRouteMenuOpen(false);
+      setTemplateSearchQuery('');
+      setInstantiatingTemplateId(null);
       inlineActiveRequestIdRef.current = null;
     }
   }, [isOpen, initialText, mode, sourcePid]);
@@ -180,6 +199,48 @@ export function FlowPadModal() {
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [agentRouteMenuOpen]);
+
+  const loadExpertTemplates = useCallback(async () => {
+    setExpertTemplatesLoading(true);
+    setExpertTemplatesError(false);
+    try {
+      const templates = await getTemplates();
+      const teamTemplates = templates.filter((item) => item.agent_type === 'team');
+      setExpertTemplates(teamTemplates);
+      setExpertTemplatesLoaded(true);
+    } catch (error) {
+      console.error('FlowPad template list fetch failed:', error);
+      setExpertTemplatesError(true);
+    } finally {
+      setExpertTemplatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'inline' || !agentRouteMenuOpen) {
+      return;
+    }
+    if (expertTemplatesLoaded || expertTemplatesLoading) {
+      return;
+    }
+    void loadExpertTemplates();
+  }, [mode, agentRouteMenuOpen, expertTemplatesLoaded, expertTemplatesLoading, loadExpertTemplates]);
+
+  const filteredExpertTemplates = useMemo(() => {
+    const query = normalizeSearchText(templateSearchQuery);
+    if (!query) {
+      return expertTemplates;
+    }
+    return expertTemplates.filter((template) => {
+      const searchableParts = [
+        template.name,
+        template.description ?? '',
+        ...(template.use_cases ?? []),
+        ...((template.members ?? []).flatMap((member) => [member.name, member.description ?? ''])),
+      ];
+      return searchableParts.some((part) => normalizeSearchText(part).includes(query));
+    });
+  }, [expertTemplates, templateSearchQuery]);
 
   // Inline Mode: bridge streaming messages to inlineResult
   useEffect(() => {
@@ -305,6 +366,43 @@ export function FlowPadModal() {
     setInlineRouteSwitchError(null);
     toast.success(t('inlineRouteFallbackApplied'), { duration: 2000 });
   }, [t]);
+
+  const handleInstantiateExpertTemplate = useCallback(
+    async (template: TemplateListItem, starterPrompt?: string) => {
+      if (instantiatingTemplateId || inlineRouteSwitching || isSubmitting) {
+        return;
+      }
+      const normalizedStarterPrompt = starterPrompt?.trim() ?? '';
+      if (normalizedStarterPrompt) {
+        // Preserve existing draft to avoid overriding in-progress user edits.
+        setText((prev) => (prev.trim() ? prev : normalizedStarterPrompt));
+      }
+      setInstantiatingTemplateId(template.id);
+      setInlineRouteSwitchError(null);
+      try {
+        const newAgent = await instantiateTemplate(template.id);
+        try {
+          await fetchAgents(1, 100, true);
+        } catch (refreshError) {
+          console.error('FlowPad agent list refresh failed after template instantiate:', refreshError);
+        }
+        await handleSelectInlineRouteAgent(newAgent.id);
+      } catch (error) {
+        console.error('FlowPad expert template instantiate failed:', error);
+        toast.error(t('inlineRouteTemplateApplyFailed'), { duration: 3000 });
+      } finally {
+        setInstantiatingTemplateId(null);
+      }
+    },
+    [
+      instantiatingTemplateId,
+      inlineRouteSwitching,
+      isSubmitting,
+      fetchAgents,
+      handleSelectInlineRouteAgent,
+      t,
+    ],
+  );
 
   const sendWithInlineRoute = useCallback(
     async (message: string) => {
@@ -591,7 +689,7 @@ export function FlowPadModal() {
                       )}
                     </button>
                     {agentRouteMenuOpen && (
-                      <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[300px] rounded-md border border-border/60 bg-background p-1 shadow-xl">
+                      <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[min(300px,calc(100vw-2rem))] rounded-md border border-border/60 bg-background p-1 shadow-xl">
                         <div className="max-h-64 overflow-y-auto">
                           <button
                             type="button"
@@ -632,6 +730,84 @@ export function FlowPadModal() {
                           ) : (
                             <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteNoAgents')}</p>
                           )}
+
+                          <div className="mt-1 border-t border-border/50 pt-1.5">
+                            <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                              {t('inlineRouteTemplateSectionTitle')}
+                            </p>
+                            <div className="px-2 pb-1">
+                              <div className="relative">
+                                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/60" />
+                                <input
+                                  type="text"
+                                  value={templateSearchQuery}
+                                  onChange={(event) => setTemplateSearchQuery(event.target.value)}
+                                  placeholder={t('inlineRouteTemplateSearchPlaceholder')}
+                                  className="h-7 w-full rounded-md border border-border/60 bg-background pl-6 pr-2 text-[11px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary/40"
+                                />
+                              </div>
+                            </div>
+                            {expertTemplatesLoading ? (
+                              <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                                {t('inlineRouteTemplateLoading')}
+                              </p>
+                            ) : expertTemplatesError ? (
+                              <button
+                                type="button"
+                                className="mx-2 my-1 w-[calc(100%-1rem)] rounded-sm border border-border/60 px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-accent/50"
+                                onClick={() => void loadExpertTemplates()}
+                              >
+                                {t('inlineRouteTemplateRetry')}
+                              </button>
+                            ) : filteredExpertTemplates.length > 0 ? (
+                              filteredExpertTemplates.map((template) => {
+                                const isInstantiating = instantiatingTemplateId === template.id;
+                                return (
+                                  <div key={template.id} className="px-1.5 pb-1">
+                                    <button
+                                      type="button"
+                                      data-testid={`flowpad-inline-template-${template.id}`}
+                                      disabled={isInstantiating || inlineRouteSwitching || isSubmitting}
+                                      className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1.5 text-left text-xs hover:bg-accent/50 disabled:opacity-60"
+                                      onClick={() => void handleInstantiateExpertTemplate(template)}
+                                    >
+                                      <span className="flex min-w-0 items-center gap-1.5">
+                                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+                                        <span className="truncate">{template.name}</span>
+                                      </span>
+                                      {isInstantiating ? (
+                                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+                                      ) : (
+                                        <ChevronDown className="h-3 w-3 shrink-0 -rotate-90 text-muted-foreground" />
+                                      )}
+                                    </button>
+                                    {template.use_cases && template.use_cases.length > 0 && (
+                                      <div className="mt-0.5 flex flex-wrap gap-1 pl-5">
+                                        {template.use_cases.slice(0, 3).map((useCase, useCaseIndex) => (
+                                          <button
+                                            key={useCase}
+                                            type="button"
+                                            data-testid={`flowpad-inline-template-usecase-${template.id}-${useCaseIndex}`}
+                                            disabled={isInstantiating || inlineRouteSwitching || isSubmitting}
+                                            onClick={() => void handleInstantiateExpertTemplate(template, useCase)}
+                                            className="rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary/15 disabled:opacity-60"
+                                          >
+                                            {useCase}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                                {templateSearchQuery.trim()
+                                  ? t('inlineRouteTemplateNoResults')
+                                  : t('inlineRouteTemplateEmpty')}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

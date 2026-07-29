@@ -29,7 +29,9 @@ def is_transport_stall_node(node: str) -> bool:
     if not text:
         return False
     lowered = text.lower()
-    return any(lowered.startswith(prefix.lower()) for prefix in TRANSPORT_STALL_NODE_PREFIXES)
+    return any(
+        lowered.startswith(prefix.lower()) for prefix in TRANSPORT_STALL_NODE_PREFIXES
+    )
 
 
 def node_started_from_snapshot(snapshot: dict[str, object]) -> float | None:
@@ -105,14 +107,21 @@ def transport_stall_cap_sec() -> float:
     return _transport_stall_cap_sec()
 
 
-def assert_transport_node_not_stuck(*, current_node: str, node_started: float) -> None:
+def assert_transport_node_not_stuck(
+    *,
+    current_node: str,
+    node_started: float,
+    stall_cap: float | None = None,
+) -> None:
     """Fail-fast when a transport node exceeds stall cap (scaled under parallel)."""
     if not is_transport_stall_node(current_node):
         return
-    stall_cap = _transport_stall_cap_sec()
+    resolved_cap = (
+        float(stall_cap) if stall_cap is not None else _transport_stall_cap_sec()
+    )
     elapsed = time.monotonic() - node_started
-    if elapsed >= stall_cap:
+    if elapsed >= resolved_cap:
         raise RuntimeError(
             f"{MUX_RECLAIM_STALL_TOKEN}: {current_node} blocked for {elapsed:.1f}s "
-            f"(cap={stall_cap:.0f}s); recover mux and retry"
+            f"(cap={resolved_cap:.0f}s); recover mux and retry"
         )

@@ -11,12 +11,15 @@ import { Badge } from '@/components/primitives/badge';
 import { Switch } from '@/components/primitives/switch';
 import {
   type OrgMCPServer,
+  type Tunnel,
   type UpdateOrgMCPServerInput,
   createOrgMcpServer,
   deleteOrgMcpServer,
   listOrgMcpServers,
+  listTunnels,
   updateOrgMcpServer,
 } from '@/services/enterprise-org';
+import type { OrgMcpType } from './OrgMcpServerFormFields';
 import {
   OrgMcpCreateDialog,
   OrgMcpDeleteDialog,
@@ -28,9 +31,15 @@ interface OrgMcpAdminPanelProps {
   orgId: string;
 }
 
+function typeLabel(type: string): string {
+  if (type === 'tunnel') return 'Tunnel';
+  return type.replace('_', ' ').toUpperCase();
+}
+
 const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   const t = useTranslations('settings.enterprise');
   const [servers, setServers] = useState<OrgMCPServer[]>([]);
+  const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<OrgMCPServer | null>(null);
@@ -38,22 +47,34 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<'sse' | 'streamable_http'>('sse');
+  const [type, setType] = useState<OrgMcpType>('sse');
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
   const [authHeader, setAuthHeader] = useState('');
+  const [tunnelId, setTunnelId] = useState('');
 
   const [editName, setEditName] = useState('');
-  const [editType, setEditType] = useState<'sse' | 'streamable_http'>('sse');
+  const [editType, setEditType] = useState<OrgMcpType>('sse');
   const [editUrl, setEditUrl] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editAuthHeader, setEditAuthHeader] = useState('');
+  const [editTunnelId, setEditTunnelId] = useState('');
 
-  const loadServers = useCallback(async () => {
+  const tunnelOptions = tunnels.map((tun) => ({
+    id: tun.id,
+    name: tun.name,
+    status: tun.status,
+  }));
+
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await listOrgMcpServers(orgId);
-      setServers(data);
+      const [serversData, tunnelsData] = await Promise.all([
+        listOrgMcpServers(orgId),
+        listTunnels(orgId).catch(() => [] as Tunnel[]),
+      ]);
+      setServers(serversData);
+      setTunnels(tunnelsData);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('mcpLoadFailed'));
     } finally {
@@ -62,20 +83,25 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   }, [orgId, t]);
 
   useEffect(() => {
-    void loadServers();
-  }, [loadServers]);
+    void loadData();
+  }, [loadData]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim() || !url.trim()) return;
+    if (!name.trim()) return;
+    const isTunnel = type === 'tunnel';
+    if (isTunnel && !tunnelId) return;
+    if (!isTunnel && !url.trim()) return;
+
     try {
       setSaving(true);
       const headers = authHeader.trim() ? { Authorization: authHeader.trim() } : undefined;
       const result = await createOrgMcpServer(orgId, {
         name: name.trim(),
         type,
-        url: url.trim(),
+        url: isTunnel ? undefined : url.trim(),
         description: description.trim(),
-        headers,
+        headers: isTunnel ? undefined : headers,
+        tunnel_id: isTunnel ? tunnelId : undefined,
       });
       showOrgMcpDeliveryToast(t, result.delivery);
       setShowCreate(false);
@@ -83,32 +109,39 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
       setUrl('');
       setDescription('');
       setAuthHeader('');
-      await loadServers();
+      setTunnelId('');
+      await loadData();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('mcpCreateFailed'));
     } finally {
       setSaving(false);
     }
-  }, [orgId, name, type, url, description, authHeader, t, loadServers]);
+  }, [orgId, name, type, url, description, authHeader, tunnelId, t, loadData]);
 
   const openEditDialog = useCallback((server: OrgMCPServer) => {
     setEditTarget(server);
     setEditName(server.name);
-    setEditType(server.type as 'sse' | 'streamable_http');
+    setEditType(server.type as OrgMcpType);
     setEditUrl(server.url ?? '');
     setEditDescription(server.description ?? '');
     setEditAuthHeader('');
+    setEditTunnelId(server.type === 'tunnel' ? (server.url ?? '') : '');
   }, []);
 
   const handleEdit = useCallback(async () => {
-    if (!editTarget || !editName.trim() || !editUrl.trim()) return;
+    if (!editTarget || !editName.trim()) return;
+    const isTunnel = editType === 'tunnel';
+    if (isTunnel && !editTunnelId) return;
+    if (!isTunnel && !editUrl.trim()) return;
+
     try {
       setSaving(true);
       const payload: UpdateOrgMCPServerInput = {
         name: editName.trim(),
         type: editType,
-        url: editUrl.trim(),
+        url: isTunnel ? undefined : editUrl.trim(),
         description: editDescription.trim(),
+        tunnel_id: isTunnel ? editTunnelId : undefined,
       };
       if (editAuthHeader.trim()) {
         payload.headers = { Authorization: editAuthHeader.trim() };
@@ -116,13 +149,13 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
       const result = await updateOrgMcpServer(orgId, editTarget.id, payload);
       showOrgMcpDeliveryToast(t, result.delivery);
       setEditTarget(null);
-      await loadServers();
+      await loadData();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('mcpUpdateFailed'));
     } finally {
       setSaving(false);
     }
-  }, [orgId, editTarget, editName, editType, editUrl, editDescription, editAuthHeader, t, loadServers]);
+  }, [orgId, editTarget, editName, editType, editUrl, editDescription, editAuthHeader, editTunnelId, t, loadData]);
 
   const handleToggle = useCallback(
     async (server: OrgMCPServer) => {
@@ -131,12 +164,12 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
           enabled: !server.enabled,
         });
         showOrgMcpDeliveryToast(t, result.delivery);
-        await loadServers();
+        await loadData();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t('mcpUpdateFailed'));
       }
     },
-    [orgId, t, loadServers],
+    [orgId, t, loadData],
   );
 
   const handleDelete = useCallback(async () => {
@@ -145,11 +178,11 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
       const result = await deleteOrgMcpServer(orgId, deleteTarget.id);
       showOrgMcpDeliveryToast(t, result.delivery);
       setDeleteTarget(null);
-      await loadServers();
+      await loadData();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('mcpDeleteFailed'));
     }
-  }, [orgId, deleteTarget, t, loadServers]);
+  }, [orgId, deleteTarget, t, loadData]);
 
   return (
     <SettingsSection
@@ -185,7 +218,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-sm">{server.name}</span>
                   <Badge variant="secondary" className="text-xs uppercase">
-                    {server.type.replace('_', ' ')}
+                    {typeLabel(server.type)}
                   </Badge>
                   {!server.enabled && (
                     <Badge variant="outline" className="text-xs">
@@ -198,7 +231,9 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                     </Badge>
                   )}
                 </div>
-                {server.url && <p className="text-xs text-muted-foreground truncate">{server.url}</p>}
+                {server.url && server.type !== 'tunnel' && (
+                  <p className="text-xs text-muted-foreground truncate">{server.url}</p>
+                )}
                 {server.description && <p className="text-xs text-muted-foreground">{server.description}</p>}
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -243,12 +278,15 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         url={url}
         description={description}
         authHeader={authHeader}
+        tunnelId={tunnelId}
+        tunnels={tunnelOptions}
         onOpenChange={setShowCreate}
         onNameChange={setName}
         onTypeChange={setType}
         onUrlChange={setUrl}
         onDescriptionChange={setDescription}
         onAuthHeaderChange={setAuthHeader}
+        onTunnelIdChange={setTunnelId}
         onConfirm={() => void handleCreate()}
         t={t}
       />
@@ -261,12 +299,15 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         url={editUrl}
         description={editDescription}
         authHeader={editAuthHeader}
+        tunnelId={editTunnelId}
+        tunnels={tunnelOptions}
         onClose={() => setEditTarget(null)}
         onNameChange={setEditName}
         onTypeChange={setEditType}
         onUrlChange={setEditUrl}
         onDescriptionChange={setEditDescription}
         onAuthHeaderChange={setEditAuthHeader}
+        onTunnelIdChange={setEditTunnelId}
         onConfirm={() => void handleEdit()}
         t={t}
       />

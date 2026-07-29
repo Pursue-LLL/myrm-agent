@@ -30,7 +30,7 @@
 | `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
-| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+Paste 回写 | ✅ |
+| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+专家模板检索/召唤并自动绑定新 agent 路由+Paste 回写 | ✅ |
 | `FlowPadModalParts.tsx` | 辅助 | FlowPad 截图预览/lightbox 与 Appshot 消息格式化 | ✅ |
 | `config-load-error.tsx` | 组件 | Settings 配置加载失败 UI；复用 `lib/local-backend-dev` hint SSOT | ✅ |
 | `confirm-dialog.tsx` | 辅助 | 全局确认对话框 imperative API 包装 | ✅ |
@@ -51,6 +51,7 @@
 | `__tests__/SystemStatusBanner.test.tsx` | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定 |
 | `__tests__/SystemStatusBanner.locales.test.ts` | 五语言 `notifications.database*` keys 完整性 |
 | `__tests__/crash-recovery-dialog.test.tsx` | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见 |
+| `__tests__/flow-pad-inline-mode.test.tsx` | Inline 路由切换、请求级中断隔离、专家模板召唤与场景预填回归 |
 | `__tests__/` | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、FlowPad、PWA 等壳层组件 |
 
 ## 依赖

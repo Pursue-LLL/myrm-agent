@@ -120,24 +120,26 @@ class McpChatSession(CdpChatSession):
         heal_attempts = 0
         max_heal_attempts = 0 if recv_timeout <= 15.0 else 3
         mux_attempts = 0
-        max_mux_attempts = (
-            3 if shpoib_parallel else (1 if recv_timeout <= 15.0 else 2)
-        )
+        max_mux_attempts = 3 if shpoib_parallel else (1 if recv_timeout <= 15.0 else 2)
         loop = asyncio.get_running_loop()
 
         async def _reset_mux_after_orphan() -> None:
+            from dev_gate_contract import mux_reset_after_orphan_timeout_sec
+
+            orphan_timeout = mux_reset_after_orphan_timeout_sec()
             try:
                 await asyncio.wait_for(
                     loop.run_in_executor(
                         self._client.mux_reset_executor(),
                         self._client.reset_after_orphan,
                     ),
-                    timeout=90.0,
+                    timeout=orphan_timeout,
                 )
             except TimeoutError as exc:
                 self._client.discard_mux_reset_executor()
                 raise RuntimeError(
-                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 90s"
+                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after "
+                    f"{int(orphan_timeout)}s"
                 ) from exc
             await self._sync_page_after_mux_reset()
 

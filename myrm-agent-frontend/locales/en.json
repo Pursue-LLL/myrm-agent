@@ -2052,6 +2052,24 @@
     "wiki": {
       "title": "LLM-Wiki Knowledge Base",
       "description": "AI-maintained structured knowledge base that grows with your conversations",
+      "secondBrain": {
+        "title": "Second Brain Quick Start",
+        "description": "One click to set up a knowledge agent with wiki, memory, and daily read-it-later ingestion.",
+        "loading": "Loading setup status…",
+        "loadFailed": "Could not load Second Brain setup status",
+        "applyFailed": "Could not apply Second Brain preset",
+        "applying": "Applying…",
+        "apply": "Set up Second Brain",
+        "reapply": "Re-apply preset",
+        "useAgent": "Use Second Brain agent",
+        "appliedAs": "Active agent: {name}",
+        "checklist": {
+          "agentTools": "Agent has wiki, memory, and cron tools",
+          "cronJob": "Daily read-it-later cron job",
+          "vaultContent": "Knowledge vault has content",
+          "providerReady": "Model provider configured"
+        }
+      },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",
       "agentScopePlaceholder": "Select an agent",
@@ -2092,7 +2110,10 @@
         "cognitiveHotEmpty": "Not refreshed yet",
         "brokenLinks": "{count, plural, one {# broken link} other {# broken links}}",
         "invalidPageTypes": "{count, plural, one {# invalid page type} other {# invalid page types}}",
-        "structuralHint": "Use Maintain or Repair Page Types in Wiki Actions below to fix structural issues."
+        "structuralHint": "Use Maintain or Repair Page Types in Wiki Actions below to fix structural issues.",
+        "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
+        "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
+        "assetsVisionHint": "Images were imported but are not searchable yet. Configure a Vision Fallback Model under Settings → Models to index them."
       },
       "query": {
         "title": "Query Wiki",
@@ -3470,6 +3491,30 @@
       "mcpAuthHeader": "Authorization header (optional)",
       "mcpAuthHeaderPlaceholder": "Bearer sk-...",
       "mcpHeadersConfigured": "Auth configured",
+      "mcpTypeTunnel": "Private Tunnel",
+      "mcpTunnelSelect": "Select Tunnel",
+      "mcpTunnelSelectPlaceholder": "Choose a registered tunnel...",
+      "mcpTunnelNone": "No tunnels registered. Create a tunnel first.",
+      "tunnelTitle": "Private Tunnels",
+      "tunnelDescription": "Connect cloud sandboxes to on-premise MCP servers via secure outbound tunnels. No inbound firewall rules needed.",
+      "tunnelAdd": "Register Tunnel",
+      "tunnelAddDesc": "Register a new private tunnel endpoint. You'll receive an auth token to configure the tunnel agent.",
+      "tunnelName": "Tunnel Name",
+      "tunnelUpstreamUrl": "Internal MCP Server URL",
+      "tunnelEmpty": "No private tunnels registered yet.",
+      "tunnelOnline": "Connected",
+      "tunnelOffline": "Disconnected",
+      "tunnelRotateToken": "Rotate Token",
+      "tunnelDelete": "Delete Tunnel",
+      "tunnelDeleted": "Tunnel deleted",
+      "tunnelLoadFailed": "Failed to load tunnels",
+      "tunnelCreateFailed": "Failed to create tunnel",
+      "tunnelDeleteFailed": "Failed to delete tunnel",
+      "tunnelRotateFailed": "Failed to rotate tunnel token",
+      "tunnelTokenTitle": "Tunnel Auth Token",
+      "tunnelTokenDesc": "Copy this token now. It will not be shown again.",
+      "tunnelTokenWarning": "This token is shown only once. Store it securely.",
+      "tunnelTokenCopied": "Token copied to clipboard",
       "mcpDeleteTitle": "Remove MCP server",
       "mcpDeleteDesc": "Remove \"{name}\" from the organization? Members will lose this tool on next sync.",
       "membersTab": "Members",
@@ -9022,6 +9067,12 @@
     },
     "sideBySide": "Side by Side",
     "overlay": "Overlay",
+    "diff": {
+      "label": "Diff",
+      "inline": "Inline",
+      "sideBySide": "Side by Side",
+      "noVersions": "At least two versions are required to compare differences"
+    },
     "elementPicker": {
       "toggle": "Point & Edit",
       "placeholder": "Describe what to change on this element...",
@@ -12988,7 +13039,14 @@
     "inlineRouteSwitchingBlocked": "Please wait for profile route switch to finish",
     "inlineRouteSwitchFailedHint": "Switch to {agent} failed. You can fallback to current session route.",
     "inlineRouteFallbackAction": "Use current session route",
-    "inlineRouteFallbackApplied": "Fallback to current session route applied"
+    "inlineRouteFallbackApplied": "Fallback to current session route applied",
+    "inlineRouteTemplateSectionTitle": "Summon experts",
+    "inlineRouteTemplateSearchPlaceholder": "Search expert templates...",
+    "inlineRouteTemplateLoading": "Loading expert templates...",
+    "inlineRouteTemplateRetry": "Failed to load templates, click to retry",
+    "inlineRouteTemplateNoResults": "No matching expert templates",
+    "inlineRouteTemplateEmpty": "No expert templates available",
+    "inlineRouteTemplateApplyFailed": "Failed to summon expert template"
   },
   "billing": {
     "wuBalance": "Work Units",

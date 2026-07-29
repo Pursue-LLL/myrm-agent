@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 
 from app.services.wiki.obsidian_adapter import (
@@ -12,6 +14,12 @@ from app.services.wiki.obsidian_adapter import (
     parse_frontmatter,
     rewrite_image_embeds,
 )
+
+
+def _linked_asset_name(markdown: str) -> str:
+    match = re.search(r"!\[[^\]]*\]\(([^)]+)\)", markdown)
+    return match.group(1) if match else ""
+
 
 # ---------------------------------------------------------------------------
 # parse_frontmatter
@@ -96,8 +104,9 @@ class TestRewriteImageEmbeds:
 
         result, count = rewrite_image_embeds("See ![[photo.png]] here", md_file, vault, assets)
         assert count == 1
-        assert "![photo](photo.png)" in result
-        assert (assets / "photo.png").exists()
+        linked = _linked_asset_name(result)
+        assert linked.endswith("_photo.png")
+        assert (assets / linked).exists()
 
     def test_preserves_missing_image(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"
@@ -117,11 +126,12 @@ class TestRewriteImageEmbeds:
         md_file = vault / "note.md"
         assets = tmp_path / "assets"
         assets.mkdir()
-        (assets / "photo.png").write_bytes(b"\x89PNG_OLD")
+        linked_name = f"{hashlib.sha256(b'\\x89PNG').hexdigest()[:12]}_photo.png"
+        (assets / linked_name).write_bytes(b"\x89PNG_OLD")
 
         _, count = rewrite_image_embeds("![[photo.png]]", md_file, vault, assets)
         assert count == 1
-        assert (assets / "photo.png").read_bytes() == b"\x89PNG_OLD"
+        assert (assets / linked_name).read_bytes() == b"\x89PNG_OLD"
 
     def test_case_insensitive_extension(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"
@@ -351,8 +361,10 @@ class TestRewriteImageEdgeCases:
 
         result, count = rewrite_image_embeds("![[a.png]] and ![[b.jpg]]", md_file, vault, assets)
         assert count == 2
-        assert "![a](a.png)" in result
-        assert "![b](b.jpg)" in result
+        linked = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", result)
+        assert len(linked) == 2
+        assert linked[0].endswith("_a.png")
+        assert linked[1].endswith("_b.jpg")
 
     def test_image_in_subdirectory(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"

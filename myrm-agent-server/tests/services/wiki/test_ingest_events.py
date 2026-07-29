@@ -165,3 +165,36 @@ def test_build_wiki_tree_fingerprint_tracks_stale_and_queue_stats() -> None:
     assert '"failed":4' in fingerprint
     assert '"stale_count":2' in fingerprint
     assert "2026-07-28T00:00:00+00:00" in fingerprint
+
+
+@pytest.mark.asyncio
+async def test_publish_wiki_ingest_snapshot_sets_stats_refresh_required() -> None:
+    bus = WikiIngestEventBus(poll_interval_seconds=60.0)
+    queue = bus.subscribe("agent-a")
+    mock_archiver = MagicMock()
+    mock_queue = MagicMock()
+    mock_queue.get_stats.return_value = {
+        "pending": 0,
+        "processing": 0,
+        "completed": 0,
+        "failed": 0,
+    }
+    mock_queue.get_compile_run.return_value = CompileRunSnapshot(state="running")
+    mock_archiver._queue = mock_queue
+    mock_archiver._structure = MagicMock()
+
+    with (
+        patch("app.services.wiki.ingest_events.wiki_ingest_event_bus", bus),
+        patch(
+            "app.services.wiki.ingest_events.build_wiki_tree_fingerprint",
+            return_value="tree-fp-stats-refresh",
+        ),
+    ):
+        await publish_wiki_ingest_snapshot(
+            mock_archiver,
+            agent_id="agent-a",
+            stats_refresh_required=True,
+        )
+
+    payload = queue.get_nowait()
+    assert payload.get("stats_refresh_required") is True

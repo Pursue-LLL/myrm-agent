@@ -1,14 +1,28 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+/**
+ * [INPUT]
+ * - ensureLocalBackendReady (POS: 本地后端可用性探测)
+ * - getTemplates / instantiateTemplate (POS: 模板列表与实例化 API)
+ * - useChatStore.setInputMessage (POS: 会话输入草稿写入)
+ *
+ * [OUTPUT]
+ * - TemplateMarket: 模板检索、展示与一键实例化入口
+ *
+ * [POS]
+ * EmptyChat/AgentConfigPanel 的模板发现层组件。
+ * 负责在不改动后端契约的前提下，把模板检索、团队场景召唤与会话预填闭环接入 GUI。
+ */
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Bot, Plus, Loader2, Users } from 'lucide-react';
+import { Bot, Plus, Loader2, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { resolveLucideIcon } from '@/components/agent/agent-icons';
+import useChatStore from '@/store/useChatStore';
 
 interface TemplateMarketProps {
   className?: string;
@@ -25,12 +39,16 @@ const renderAvatar = (avatarUrl: string | null | undefined, isTeam: boolean) => 
   return isTeam ? <Users size={16} /> : <Bot size={16} />;
 };
 
+const normalizeSearchText = (value: string): string => value.trim().toLowerCase();
+
 const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   const t = useTranslations('agent.configPanel');
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [instantiatingId, setInstantiatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const setInputMessage = useChatStore((state) => state.setInputMessage);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,11 +79,14 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     };
   }, []);
 
-  const handleInstantiate = async (templateId: string) => {
+  const handleInstantiate = async (templateId: string, starterPrompt?: string) => {
     if (instantiatingId) return;
     setInstantiatingId(templateId);
     try {
       const newAgent = await instantiateTemplate(templateId);
+      if (starterPrompt?.trim()) {
+        setInputMessage(starterPrompt.trim());
+      }
       toast.success(t('instantiateSuccess') || 'Agent created from template!');
       if (onInstantiated) {
         onInstantiated(newAgent.id);
@@ -80,6 +101,22 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     }
   };
 
+  const filteredTemplates = useMemo(() => {
+    const query = normalizeSearchText(searchQuery);
+    if (!query) {
+      return templates;
+    }
+    return templates.filter((template) => {
+      const searchableParts = [
+        template.name,
+        template.description ?? '',
+        ...(template.use_cases ?? []),
+        ...((template.members ?? []).flatMap((member) => [member.name, member.description ?? ''])),
+      ];
+      return searchableParts.some((part) => normalizeSearchText(part).includes(query));
+    });
+  }, [searchQuery, templates]);
+
   if (loading) {
     return (
       <div className={cn("flex justify-center p-4", className)}>
@@ -92,8 +129,8 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     return null;
   }
 
-  const individualTemplates = templates.filter(item => item.agent_type !== 'team');
-  const teamTemplates = templates.filter(item => item.agent_type === 'team');
+  const individualTemplates = filteredTemplates.filter(item => item.agent_type !== 'team');
+  const teamTemplates = filteredTemplates.filter(item => item.agent_type === 'team');
 
   return (
     <div className={cn("space-y-3 pt-2", className)}>
@@ -102,7 +139,22 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         <span className="text-xs text-muted-foreground">{t('templateMarket') || 'Template Market'}</span>
         <div className="flex-1 h-px bg-border/50" />
       </div>
-      
+
+      <div className="relative px-1">
+        <Search size={12} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t('searchMarketplace') || 'Search agents...'}
+          className="h-8 w-full rounded-lg border border-border/60 bg-background pl-7 pr-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/40"
+        />
+      </div>
+
+      {filteredTemplates.length === 0 && (
+        <p className="px-1 text-xs text-muted-foreground/80">{t('noResults') || 'No agents found'}</p>
+      )}
+
       {teamTemplates.length > 0 && (
         <div className="grid grid-cols-1 gap-3">
           {teamTemplates.map(template => (
@@ -162,7 +214,7 @@ function TeamTemplateCard({
 }: {
   template: TemplateListItem;
   instantiatingId: string | null;
-  onInstantiate: (id: string) => void;
+  onInstantiate: (id: string, starterPrompt?: string) => void;
 }) {
   return (
     <div
@@ -200,13 +252,31 @@ function TeamTemplateCard({
 
       {template.members && template.members.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pl-[46px]">
-          {template.members.map((member) => (
+          {template.members.map((member, memberIndex) => (
             <span
-              key={member.role}
+              key={`${member.role}-${member.name}-${memberIndex}`}
               className="inline-flex items-center px-2 py-0.5 text-[11px] rounded-md bg-muted/60 text-muted-foreground"
             >
               {member.name}
             </span>
+          ))}
+        </div>
+      )}
+
+      {template.use_cases && template.use_cases.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-[46px]">
+          {template.use_cases.map((useCase, useCaseIndex) => (
+            <button
+              key={`${useCase}-${useCaseIndex}`}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onInstantiate(template.id, useCase);
+              }}
+              className="inline-flex items-center rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/15"
+            >
+              {useCase}
+            </button>
           ))}
         </div>
       )}

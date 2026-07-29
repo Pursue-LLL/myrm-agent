@@ -12,4 +12,5 @@
 | `SpreadsheetPreview/` | CSV/XLSX 表格 |
 | `DocxPreview/` | Word 文档（docx-preview 库） |
 | `PptxPreview/` | 演示文稿（@aiden0z/pptx-renderer 库） |
+| `DiffPreview.tsx` | 版本间差异对比（Monaco DiffEditor，inline/side-by-side） |
 | `NoPreview.tsx` / `SkeletonLoader.tsx` | 占位与加载 |

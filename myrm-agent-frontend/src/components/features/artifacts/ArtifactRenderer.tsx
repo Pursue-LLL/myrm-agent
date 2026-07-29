@@ -3,7 +3,7 @@
 import React, { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { Artifact } from '@/store/chat/types';
+import { Artifact, ArtifactVersion } from '@/store/chat/types';
 import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
 import { isSvgType, isMermaidType } from './artifactUtils';
 import ArtifactErrorBoundary from './ArtifactErrorBoundary';
@@ -72,6 +72,11 @@ const ReactPreviewDynamic = dynamic(() => import('./ReactPreview'), {
   ),
 });
 
+const DiffPreviewDynamic = dynamic(() => import('./renderers/DiffPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
 interface ArtifactRendererProps {
   artifact: Artifact;
   content: string;
@@ -81,14 +86,29 @@ interface ArtifactRendererProps {
   pickerMode?: boolean;
   onElementPick?: (element: PickedElement) => void;
   chatId?: string;
+  /** 版本列表（Diff 模式使用） */
+  versions?: ArtifactVersion[];
+  /** 当前查看的版本索引（Diff 模式使用，-1 表示最新） */
+  viewingVersionIndex?: number;
 }
 
 /** 内部渲染器 */
-const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId }) => {
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId, versions, viewingVersionIndex }) => {
   const t = useTranslations('artifacts');
 
   if (loading) {
     return <SkeletonLoader type={artifact.type} />;
+  }
+
+  if (displayMode === ArtifactDisplayMode.Diff && versions && versions.length >= 2) {
+    return (
+      <DiffPreviewDynamic
+        currentContent={content}
+        versions={versions}
+        viewingVersionIndex={viewingVersionIndex ?? -1}
+        language={artifact.language}
+      />
+    );
   }
 
   const { type, preview_url, filename, content_type } = artifact;

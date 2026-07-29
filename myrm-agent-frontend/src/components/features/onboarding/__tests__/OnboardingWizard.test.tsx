@@ -69,6 +69,15 @@ vi.mock('../LocalCapabilitiesSetup', () => ({
   ),
 }));
 
+vi.mock('../SyncFolderOnboardingStep', () => ({
+  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+    <div data-testid="sync-folder-step">
+      <button data-testid="sync-folder-done" onClick={onComplete}>Done</button>
+      <button data-testid="sync-folder-skip" onClick={onSkip}>Skip</button>
+    </div>
+  ),
+}));
+
 vi.mock('../SmartRoutingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="smart-routing-step">
@@ -237,6 +246,12 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
       });
     });
@@ -251,6 +266,12 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
@@ -318,6 +339,12 @@ describe('OnboardingWizard', () => {
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
       });
     });
@@ -338,6 +365,12 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -361,6 +394,12 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -387,6 +426,12 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
@@ -417,6 +462,12 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
@@ -456,6 +507,12 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
       });
 
@@ -485,6 +542,12 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
       });
     });
@@ -497,6 +560,12 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
@@ -532,6 +601,12 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
       });
 
@@ -550,6 +625,12 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
       });
 
@@ -566,6 +647,12 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
@@ -588,6 +675,12 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();

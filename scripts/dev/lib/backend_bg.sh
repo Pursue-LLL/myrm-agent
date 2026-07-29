@@ -4,6 +4,7 @@
 #   - identity mismatch: recycle state files
 #   - health probe fail + leases=0: kill+restart
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
+#   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
 #   - source drift + leases>0: defer reload + record-pending (R31-G SMP)
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
@@ -97,6 +98,17 @@ _start_backend_bg() {
         --expected-pid "${old_pid}" \
         --expected-runtime-id "${runtime_id}" >/dev/null; then
         echo "STACK_WARN: stale PID ownership mismatch (pid=${old_pid}) — recycling state files" >&2
+        if kill -0 "${old_pid}" 2>/dev/null; then
+          kill -TERM "${old_pid}" 2>/dev/null || true
+          local mismatch_i
+          for mismatch_i in $(seq 1 20); do
+            kill -0 "${old_pid}" 2>/dev/null || break
+            sleep 0.25
+          done
+          if kill -0 "${old_pid}" 2>/dev/null; then
+            kill -KILL "${old_pid}" 2>/dev/null || true
+          fi
+        fi
         rm -f "${pid_file}" "${identity_file}"
       else
         if ! curl -sf --max-time 3 "${health_url}" >/dev/null 2>&1; then
@@ -110,12 +122,15 @@ _start_backend_bg() {
           monorepo_root_heal="$(cd "${agent_root_heal}/.." && pwd)"
           active_leases_heal="$(_wave_active_lease_count "${monorepo_root_heal}" 2>/dev/null || echo 0)"
           if [[ "${active_leases_heal}" != "0" ]]; then
-            echo "STACK_WARN: backend unresponsive (pid=${old_pid}) but ${active_leases_heal} active leases — defer kill" >&2
-            echo "Backend already running (pid ${old_pid})"
-            return 0
+            if [[ "${MYRM_SUPERVISOR_BYPASS:-}" != "1" && "${MYRM_WAVE_GATE_BYPASS:-}" != "1" ]]; then
+              echo "STACK_WARN: backend unresponsive (pid=${old_pid}) but ${active_leases_heal} active leases — defer kill" >&2
+              echo "Backend already running (pid ${old_pid})"
+              return 0
+            fi
+            echo "STACK_HEAL: bypass crash heal — unresponsive backend (pid=${old_pid}, ${active_leases_heal} active leases)" >&2
           fi
           # R92: defer kill while backend is still in startup grace (health_wait window).
-          local backend_start_grace_sec="${MYRM_BACKEND_START_GRACE_SEC:-60}"
+          local backend_start_grace_sec="${MYRM_BACKEND_START_GRACE_SEC:-180}"
           if [[ -f "${identity_file}" ]]; then
             local backend_age_sec=""
             backend_age_sec="$("${py}" -c "
@@ -242,10 +257,7 @@ except Exception:
     return 1
   fi
 
-  local health_wait_sec=45
-  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
-    health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-60}"
-  fi
+  local health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-180}"
 
   for _ in $(seq 1 "${health_wait_sec}"); do
     if curl -sf "${health_url}" >/dev/null 2>&1; then

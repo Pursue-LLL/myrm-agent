@@ -13,7 +13,26 @@ FRONTEND_WARM_STREAK="${MYRM_FRONTEND_WARM_STREAK:-2}"
 FRONTEND_WARM_MAX_SEC="${MYRM_FRONTEND_WARM_MAX_SEC:-180}"
 FRONTEND_WARM_FAST_SEC="${MYRM_FRONTEND_WARM_FAST_SEC:-2}"
 MYRM_UI_HEAL_SLOW_SEC="${MYRM_UI_HEAL_SLOW_SEC:-5}"
-MYRM_UI_HEAL_PROBE_TIMEOUT_SEC="${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC:-12}"
+MYRM_UI_HEAL_PROBE_TIMEOUT_SEC="${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC:-}"
+
+_attach_ui_probe_timeout_sec() {
+  if [[ "${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC:-}" =~ ^[0-9]+$ && "${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC}" -gt 0 ]]; then
+    echo "${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC}"
+    return 0
+  fi
+  local resolved=""
+  resolved="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
+from dev_gate_contract import attach_ui_probe_timeout_sec
+print(int(attach_ui_probe_timeout_sec()))
+" 2>/dev/null)" || true
+  if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
+    echo "${resolved}"
+    return 0
+  fi
+  echo 12
+}
 
 # Frontend dev-server lock holder must be alive (warmth invalid if Turbopack process died).
 # Also sourced by chrome-e2e-preflight.sh without dev-stack.sh — must live here.
@@ -397,7 +416,35 @@ _warmup_frontend_compile() {
 }
 
 _frontend_root_probe_seconds() {
-  curl -sf --max-time "${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
+  local probe_timeout
+  probe_timeout="$(_attach_ui_probe_timeout_sec)"
+  curl -sf --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
+}
+
+# R149: parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
+_frontend_post_heal_warm_streak_ok() {
+  local max_sec="${MYRM_UI_HEAL_POST_ENSURE_MAX_SEC:-60}"
+  local streak=0 i timing=""
+  for i in $(seq 1 "${max_sec}"); do
+    if timing="$(_frontend_root_probe_seconds)"; then
+      if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
+        streak=$((streak + 1))
+        if [[ "${streak}" -ge "${FRONTEND_WARM_STREAK}" ]]; then
+          echo "${timing}"
+          return 0
+        fi
+        echo "CHROME_E2E_HEAL: post-ensure warm streak ${streak}/${FRONTEND_WARM_STREAK} (${timing}s)..." >&2
+      else
+        streak=0
+        echo "CHROME_E2E_HEAL: post-ensure still slow (${timing}s)..." >&2
+      fi
+    else
+      streak=0
+      echo "CHROME_E2E_HEAL: post-ensure HTTP not ready (${i}/${max_sec}s)..." >&2
+    fi
+    sleep 1
+  done
+  return 1
 }
 
 # Wave-safe heal: detect LISTEN-but-slow / stale warmth (black-screen class) and cold-start Next.
@@ -418,30 +465,28 @@ _heal_shared_ui_if_stale() {
     echo "CHROME_E2E_HEAL_SKIP: shared UI stale (${reason}) but MYRM_DEV_STACK missing" >&2
     return 1
   }
-  local heal_attempt timing_after=""
+  local monorepo_root heal_py outcome timing_after=""
+  monorepo_root="$(cd "$(dirname "${stack}")/../../.." && pwd)"
+  heal_py="${_MYRM_WARMUP_LIB_DIR}/e2e_warm_ui_heal.py"
   for heal_attempt in 1 2; do
     echo "CHROME_E2E_HEAL: shared UI stale (${reason}) — frontend-only ensure ${heal_attempt}/2" >&2
     _frontend_clear_warmth
-    MYRM_SUPERVISOR_BYPASS=1 \
-      MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" \
-      MYRM_CHROME_E2E_FRONTEND_HEAL=1 \
-      MYRM_E2E_ATTACH_FRONTEND_HEAL=1 \
-      bash "${stack}" frontend-only ensure || true
-    if timing_after="$(_frontend_root_probe_seconds)"; then
-      echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after frontend-only ensure" >&2
+    outcome="$("${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" 2>&1 | tail -1 || true)"
+    if timing_after="$(_frontend_post_heal_warm_streak_ok)"; then
+      echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after frontend-only ensure (${outcome})" >&2
       return 0
+    fi
+    if [[ "${heal_attempt}" -eq 1 && "${outcome}" == "follower_timeout" ]]; then
+      echo "CHROME_E2E_HEAL: attach frontend heal deferred — retry after leader window" >&2
+      sleep 5
+      continue
     fi
     if [[ "${heal_attempt}" -eq 1 ]]; then
       echo "CHROME_E2E_HEAL: frontend-only ensure failed — supervisor fallback (wave-safe frontend heal)" >&2
       if bash "${stack%/*}/stack-supervisor.sh" rpc ping >/dev/null 2>&1; then
-        MYRM_SUPERVISOR_BYPASS=1 \
-          MYRM_E2E_SHPOIB=1 \
-          MYRM_CHROME_E2E_FRONTEND_HEAL=1 \
-          MYRM_E2E_ATTACH_FRONTEND_HEAL=1 \
-          MYRM_WAVE_GATE_BYPASS=1 \
-          bash "${stack}" frontend-only ensure || true
-        if timing_after="$(_frontend_root_probe_seconds)"; then
-          echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after supervisor frontend fallback" >&2
+        outcome="$("${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" 2>&1 | tail -1 || true)"
+        if timing_after="$(_frontend_post_heal_warm_streak_ok)"; then
+          echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after supervisor frontend fallback (${outcome})" >&2
           return 0
         fi
       fi

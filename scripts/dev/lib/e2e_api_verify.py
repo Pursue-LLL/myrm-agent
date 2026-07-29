@@ -684,16 +684,30 @@ def _compute_next_action(
     mux_fields: dict[str, object],
 ) -> str:
     from dev_gate_contract import (  # noqa: PLC0415
+        E2E_ADMISSION_WALL_CLOCK_SEC,
+        E2E_BODY_WALL_EXCEEDED_TOKEN,
+        LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
         NODE_STUCK_FAIL_FAST_SEC,
     )
     from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
 
+    admit_active = 0
     for row in active_tests:
+        wall_phase = str(row.get("wall_phase") or "").strip().lower()
+        admit_elapsed = row.get("admit_elapsed_sec")
+        if wall_phase == "admit":
+            admit_active += 1
+            if isinstance(admit_elapsed, (int, float)):
+                if float(admit_elapsed) >= float(E2E_ADMISSION_WALL_CLOCK_SEC):
+                    return "FAIL_FAST"
+            elif isinstance(row.get("elapsed_sec"), (int, float)):
+                if float(row["elapsed_sec"]) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+                    return "FAIL_FAST"
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
-            if float(body_elapsed) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+            if float(body_elapsed) >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC):
                 return "FAIL_FAST"
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
@@ -710,6 +724,8 @@ def _compute_next_action(
                 return "FAIL_FAST"
     if headroom.get("parallelQueueExpected") is True:
         return "QUEUE"
+    if ctx.blocked and admit_active > 0:
+        return "ADMIT_STACK_HEAL_WAIT"
     if ctx.blocked and not ctx.epoch_match:
         return "SHPOIB_OR_VERIFY_API"
     if mux_fields.get("muxColdAttachSaturated") is True:
@@ -728,6 +744,11 @@ def _format_agent_decision_human(
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
 ) -> list[str]:
+    from dev_gate_contract import (  # noqa: PLC0415
+        E2E_BODY_WALL_EXCEEDED_TOKEN,
+        LIVE_AGENT_BODY_WALL_CLOCK_SEC,
+    )
+
     next_action = _compute_next_action(
         ctx,
         headroom=headroom,
@@ -759,6 +780,8 @@ def _format_agent_decision_human(
             parts.append(f"current_node={current_node}")
         if isinstance(body_elapsed, (int, float)):
             parts.append(f"body_elapsed={float(body_elapsed):.0f}s")
+            if float(body_elapsed) >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC):
+                parts.append(f"{E2E_BODY_WALL_EXCEEDED_TOKEN}=yes")
         if isinstance(node_elapsed, (int, float)):
             parts.append(f"node_elapsed={float(node_elapsed):.0f}s")
         lines.append(f"E2E_TEST_PROGRESS: {' '.join(str(p) for p in parts)}")
@@ -927,6 +950,21 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         )
         + "\n"
     )
+    admit_count = int(parallel_snapshot.get("admit_active_count", 0))
+    body_count = int(parallel_snapshot.get("body_active_count", 0))
+    sys.stdout.write(
+        f"E2E_SESSIONS_ACTIVE: admit={admit_count} body={body_count} "
+        f"total={active_test_count}\n"
+    )
+    try:
+        from stack_heal_coordinator import coordinator_snapshot  # noqa: PLC0415
+
+        heal = coordinator_snapshot()
+        leader = heal.get("leaderPid")
+        if leader is not None:
+            sys.stdout.write(f"E2E_STACK_HEAL: leader_pid={leader}\n")
+    except ImportError:
+        pass
     queue_human = _format_queue_human(
         lease_counts=counts,
         mux_fields=mux_fields,

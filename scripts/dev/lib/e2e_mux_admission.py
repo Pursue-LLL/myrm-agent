@@ -33,6 +33,20 @@ def _default_mux_admission_wait_sec() -> int:
     return mux_admission_wait_sec()
 
 
+def _resolve_mux_admission_wait_sec() -> int:
+    raw = os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return _default_mux_admission_wait_sec()
+
+
+def _resolve_mux_admission_poll_sec() -> int:
+    raw = os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return max(1, int(raw))
+    return max(1, int(DEFAULT_POLL_SEC))
+
+
 class MuxAdmissionRecord(TypedDict):
     sessionId: str
     ownerPid: int
@@ -272,16 +286,8 @@ def acquire_with_wait(
 ) -> tuple[str, str]:
     from e2e_capacity_messages import format_mux_wait, format_mux_wait_timeout
 
-    wait_sec = int(
-        os.environ.get(
-            "MYRM_E2E_MUX_ADMISSION_WAIT_SEC",
-            str(_default_mux_admission_wait_sec()),
-        )
-    )
-    poll_sec = int(
-        os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", str(DEFAULT_POLL_SEC))
-    )
-    poll_sec = max(1, poll_sec)
+    wait_sec = _resolve_mux_admission_wait_sec()
+    poll_sec = _resolve_mux_admission_poll_sec()
     started = time.monotonic()
     while True:
         ok, token, reason = try_acquire(

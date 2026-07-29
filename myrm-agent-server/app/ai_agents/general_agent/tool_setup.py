@@ -796,7 +796,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
                 lite_llm = self._lite_llm
 
-                async def _query_wiki(question: str) -> str:
+                async def _query_wiki(question: str):
                     archiver = get_wiki_archiver(
                         lite_llm, manager, agent_id=self.agent_id
                     )
@@ -815,6 +815,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 )
             search_backends = MemorySearchBackends(
                 query_wiki=query_wiki,
+                wiki_agent_id=self.agent_id,
                 conversation_provider=conversation_provider,
             )
             memory_tools = create_memory_tools(

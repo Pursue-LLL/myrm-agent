@@ -142,11 +142,6 @@ def _shutdown_test_session_resources() -> None:
         _logger.warning("Failed to shutdown test session resources: %s", exc)
 
 
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    _cleanup_browser_child_processes()
-    _shutdown_test_session_resources()
-
-
 def _chrome_e2e_timeout_failure(item: pytest.Item, rep: pytest.TestReport) -> bool:
     if item.get_closest_marker("chrome_e2e") is None:
         return False
@@ -621,6 +616,22 @@ def pytest_runtest_makereport(
         end_signoff_trace(outcome="FAILED")
     elif rep.skipped:
         end_signoff_trace(outcome="SKIPPED")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """R148: orphan signoff trace + session cleanup on abort."""
+    del exitstatus
+    if any(_is_formal_chrome_e2e(item) for item in getattr(session, "items", ())):
+        dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+        if str(dev_infra) not in sys.path:
+            sys.path.insert(0, str(dev_infra))
+        from e2e_signoff_trace import end_signoff_trace, signoff_trace_path
+
+        if signoff_trace_path() is not None:
+            end_signoff_trace(outcome="INTERRUPTED")
+    _cleanup_browser_child_processes()
+    _shutdown_test_session_resources()
 
 
 @pytest.hookimpl(hookwrapper=True)

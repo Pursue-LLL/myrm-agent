@@ -61,6 +61,8 @@ export enum ArtifactDisplayMode {
   Preview = 'preview',
   /** 代码模式 */
   Code = 'code',
+  /** 版本对比模式 */
+  Diff = 'diff',
 }
 
 /** 错误类型枚举 */

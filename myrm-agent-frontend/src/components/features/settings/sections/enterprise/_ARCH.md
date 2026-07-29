@@ -19,6 +19,7 @@ SaaS / sandbox 部署下的 Enterprise Org 管理 Section（`SettingsMenu` 中 `
 | `OrgMcpServerFormFields.tsx` | 子模块 | MCP 表单字段（create/edit 共用） | ✅ |
 | `orgMcpAdminUtils.ts` | 工具 | delivery toast 辅助 | ✅ |
 | `orgMcpAccess.ts` | 工具 | `canManageOrgMcp` — 前端 RBAC，与 CP `require_admin` 对齐 | ✅ |
+| `TunnelAdminPanel.tsx` | 子模块 | MCP Private Tunnel 列表、注册、删除、token 轮换与安全展示 | ✅ |
 
 ## Tab 结构
 
@@ -31,7 +32,7 @@ EnterpriseOrgSection (Tab 容器, 58 行)
 
 ## 依赖
 
-- `@/services/enterprise-org` — Org API 客户端（成员、离职）
+- `@/services/enterprise-org` — Org API 客户端（成员、离职、MCP、Tunnel）
 - `@/services/enterprise-admin` — Audit + Usage API 客户端（安全审计、用量查询、预算）
 - [`../SettingsSection.tsx`](../SettingsSection.tsx) — Section 容器
 - `recharts` — 数据可视化图表

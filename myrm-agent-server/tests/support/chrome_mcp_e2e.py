@@ -40,8 +40,15 @@ from dev_gate_contract import (
     is_e2e_signoff_runtime,
 )  # noqa: E402
 from e2e_orchestrator import touch_wall_progress  # noqa: E402
+from e2e_shared_ui_hydrate import (  # noqa: E402
+    parallel_shared_ui_hydrate_queue_enabled,
+    shared_ui_hydrate_slot,
+)
 from e2e_warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
-from mux_upstream_admission import read_mux_cold_attach_status  # noqa: E402
+from mux_upstream_admission import (  # noqa: E402
+    read_mux_cold_attach_status,
+    wait_mux_hand_probe_allowed,
+)
 
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
 
@@ -152,11 +159,13 @@ def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
     """Extend warm budget when wave leases contend for shared Next compile (R120)."""
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
+        from dev_gate_contract import shared_ui_hydrate_wait_sec
         from stack_mutation_policy import wave_active_lease_count
 
         active = wave_active_lease_count(monorepo_root)
         if active > 0:
-            return min(base_wait_sec + active * 30.0, 300.0)
+            cap = float(shared_ui_hydrate_wait_sec())
+            return min(base_wait_sec + active * 45.0, cap)
     except (ImportError, OSError, RuntimeError, ValueError):
         pass
     return base_wait_sec
@@ -193,55 +202,62 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             subprocess_timeout_sec=60.0,
         )
 
-    while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
-        touch_wall_progress(current_node="warm_ui_route")
-        if time.monotonic() >= next_heal_at:
-            next_heal_at = time.monotonic() + heal_interval
-            _heal_shared_frontend()
-        request = urllib.request.Request(  # noqa: S310 - loopback only
-            url, method="GET"
-        )
-        per_attempt = max(3.0, min(10.0, deadline - time.monotonic()))
-        try:
-            with urllib.request.urlopen(  # noqa: S310
-                request, timeout=per_attempt
-            ) as response:
-                if response.status == 200:
-                    return
-                last_error = RuntimeError(
-                    f"warm_ui_route GET {url} returned HTTP {response.status}"
-                )
-                if response.status in {404, 502, 503}:
+    def _warm_ui_poll_loop() -> None:
+        nonlocal last_error, next_heal_at
+        while time.monotonic() < deadline:
+            heartbeat_e2e_lease()
+            touch_wall_progress(current_node="warm_ui_route")
+            if time.monotonic() >= next_heal_at:
+                next_heal_at = time.monotonic() + heal_interval
+                _heal_shared_frontend()
+            request = urllib.request.Request(  # noqa: S310 - loopback only
+                url, method="GET"
+            )
+            per_attempt = max(3.0, min(10.0, deadline - time.monotonic()))
+            try:
+                with urllib.request.urlopen(  # noqa: S310
+                    request, timeout=per_attempt
+                ) as response:
+                    if response.status == 200:
+                        return
+                    last_error = RuntimeError(
+                        f"warm_ui_route GET {url} returned HTTP {response.status}"
+                    )
+                    if response.status in {404, 502, 503}:
+                        _heal_shared_frontend()
+                        next_heal_at = time.monotonic() + heal_interval
+            except urllib.error.HTTPError as exc:
+                # Next.js cold compile often returns 404 before routes are ready.
+                if exc.code in {404, 502, 503}:
+                    last_error = exc
                     _heal_shared_frontend()
                     next_heal_at = time.monotonic() + heal_interval
-        except urllib.error.HTTPError as exc:
-            # Next.js cold compile often returns 404 before routes are ready.
-            if exc.code in {404, 502, 503}:
+                else:
+                    last_error = exc
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last_error = exc
                 _heal_shared_frontend()
                 next_heal_at = time.monotonic() + heal_interval
-            else:
-                last_error = exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            last_error = exc
-            _heal_shared_frontend()
-            next_heal_at = time.monotonic() + heal_interval
-        time.sleep(poll_sec)
-    warm_error = RuntimeError(
-        f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}"
-    )
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        import sys
-
-        print(
-            f"E2E_WARM_UI_SOFT_SKIP: signoff defers compile to Chrome bootstrap — {warm_error}",
-            file=sys.stderr,
-            flush=True,
+            time.sleep(poll_sec)
+        warm_error = RuntimeError(
+            f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}"
         )
-        touch_wall_progress(current_node="warm_ui_route_soft_skip")
-        return
-    raise warm_error
+        if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+            print(
+                f"E2E_WARM_UI_SOFT_SKIP: signoff defers compile to Chrome bootstrap — {warm_error}",
+                file=sys.stderr,
+                flush=True,
+            )
+            touch_wall_progress(current_node="warm_ui_route_soft_skip")
+            return
+        raise warm_error
+
+    # R148: SHPOIB parallel must serialize shared :3000 compile bursts (same flock as navigate).
+    if parallel_shared_ui_hydrate_queue_enabled():
+        with shared_ui_hydrate_slot():
+            _warm_ui_poll_loop()
+    else:
+        _warm_ui_poll_loop()
 
 
 def _wait_for_shpoib_runtime_ready(
@@ -426,24 +442,71 @@ _OPEN_PAGE_ATTEMPTS = 2
 _OPEN_PAGE_LAYOUT_WAIT_SEC = 120.0
 _OPEN_PAGE_WALL_BUDGET_SEC = 150.0
 _OPEN_PAGE_TOTAL_BUDGET_SEC = 280.0
+_OPEN_PAGE_BODY_FRACTION = 0.35
+_OPEN_PAGE_BODY_FRACTION_WALL_RATIO = 0.55
+_OPEN_PAGE_BODY_FRACTION_FLOOR_SEC = 90.0
 _PROGRESS_HEARTBEAT_INTERVAL_SEC = 15.0
+_TRANSPORT_PROGRESS_INTERVAL_SEC = 30.0
+
+
+def _emit_transport_progress(*, current_node: str, node_started: float) -> None:
+    from dev_gate_contract import E2E_TRANSPORT_PROGRESS_TOKEN
+
+    elapsed = time.monotonic() - node_started
+    print(
+        f"{E2E_TRANSPORT_PROGRESS_TOKEN}: node={current_node} "
+        f"node_elapsed={int(elapsed)}s (do not stop other pytest)",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 @contextmanager
 def _blocking_progress_loop(*, current_node: str) -> Iterator[None]:
     """Keep lease + wall progress fresh while mux MCP calls may block (anti hung-reap)."""
-    from e2e_stall_guard import assert_transport_node_not_stuck
+    import os
+    import signal
+
+    from e2e_stall_guard import assert_transport_node_not_stuck, transport_stall_cap_sec
 
     stop = threading.Event()
     node_started = time.monotonic()
+    last_transport_emit = node_started
+    (
+        _client_timeout,
+        _page_timeout_ms,
+        _wall_budget,
+        open_page_total_budget,
+        _attempts,
+    ) = _open_page_parallel_budgets(
+        _OPEN_PAGE_REQUEST_TIMEOUT_SEC,
+        new_page_timeout_ms=_OPEN_PAGE_NEW_PAGE_TIMEOUT_MS,
+    )
+    stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
+    if _parallel_open_page_peer_count() >= 2:
+        stall_cap = min(transport_stall_cap_sec(), _wall_budget + 10.0)
 
     def _loop() -> None:
+        nonlocal last_transport_emit
         while not stop.wait(_PROGRESS_HEARTBEAT_INTERVAL_SEC):
-            assert_transport_node_not_stuck(
-                current_node=current_node, node_started=node_started
-            )
+            try:
+                assert_transport_node_not_stuck(
+                    current_node=current_node,
+                    node_started=node_started,
+                    stall_cap=stall_cap,
+                )
+            except RuntimeError:
+                # Stall tripwire must interrupt the main thread blocked in MCP I/O.
+                os.kill(os.getpid(), signal.SIGINT)
+                return
             heartbeat_e2e_lease()
             touch_wall_progress(current_node=current_node)
+            now = time.monotonic()
+            if now - last_transport_emit >= _TRANSPORT_PROGRESS_INTERVAL_SEC:
+                _emit_transport_progress(
+                    current_node=current_node, node_started=node_started
+                )
+                last_transport_emit = now
 
     worker = threading.Thread(target=_loop, name="open-mcp-page-progress", daemon=True)
     worker.start()
@@ -452,6 +515,24 @@ def _blocking_progress_loop(*, current_node: str) -> Iterator[None]:
     finally:
         stop.set()
         worker.join(timeout=2.0)
+
+
+def _open_page_body_fraction_cap_sec() -> float:
+    """R143: open_mcp_page must not consume more than 35% of LIVE BODY wall."""
+    try:
+        from transport_supervisor import live_agent_body_wall_cap_sec
+
+        body_cap = float(live_agent_body_wall_cap_sec())
+    except ImportError:
+        body_cap = 600.0
+    base = max(
+        _OPEN_PAGE_BODY_FRACTION_FLOOR_SEC,
+        body_cap * _OPEN_PAGE_BODY_FRACTION,
+    )
+    peers = _parallel_open_page_peer_count()
+    if peers >= 2:
+        return min(base + peers * 25.0, body_cap * 0.45)
+    return base
 
 
 def _open_page_layout_wait_sec() -> float:
@@ -492,6 +573,12 @@ def _open_page_parallel_budgets(
     if parallel_peers >= 2:
         wall_budget = min(wall_budget + parallel_peers * 18.0, wall_cap)
         total_budget = min(total_budget + parallel_peers * 30.0, total_cap)
+        body_frac_cap = _open_page_body_fraction_cap_sec()
+        total_budget = min(total_budget, body_frac_cap)
+        wall_budget = min(
+            wall_budget,
+            body_frac_cap * _OPEN_PAGE_BODY_FRACTION_WALL_RATIO,
+        )
     return (
         min(request_timeout_sec, _OPEN_PAGE_REQUEST_TIMEOUT_SEC),
         capped_ms,
@@ -686,6 +773,9 @@ def open_mcp_page(
     wall_deadline = time.monotonic() + open_page_wall_budget_sec
     last_exc: BaseException | None = None
     mux_restarted = False
+    if _parallel_open_page_peer_count() >= 2:
+        probe_budget = min(120.0, open_page_wall_budget_sec * 0.55)
+        wait_mux_hand_probe_allowed(budget_sec=probe_budget)
     for attempt in range(open_page_attempts):
         if time.monotonic() >= total_deadline:
             if (

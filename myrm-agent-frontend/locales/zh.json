@@ -2052,6 +2052,24 @@
     "wiki": {
       "title": "LLM-Wiki 知识库",
       "description": "AI自动维护的结构化知识库，随对话持续成长",
+      "secondBrain": {
+        "title": "第二大脑快速开始",
+        "description": "一键配置知识库智能体：开启 Wiki、记忆与每日稍后读内化。",
+        "loading": "正在加载设置状态…",
+        "loadFailed": "无法加载第二大脑设置状态",
+        "applyFailed": "无法应用第二大脑预设",
+        "applying": "正在应用…",
+        "apply": "设置第二大脑",
+        "reapply": "重新应用预设",
+        "useAgent": "使用第二大脑智能体",
+        "appliedAs": "当前智能体：{name}",
+        "checklist": {
+          "agentTools": "智能体已开启 Wiki、记忆与定时任务工具",
+          "cronJob": "每日稍后读定时任务",
+          "vaultContent": "知识库已有内容",
+          "providerReady": "模型服务已配置"
+        }
+      },
       "loading": "加载中...",
       "agentScopeLabel": "智能体知识库",
       "agentScopePlaceholder": "选择智能体",
@@ -2092,7 +2110,10 @@
         "cognitiveHotEmpty": "尚未刷新",
         "brokenLinks": "{count, plural, other {# 处断链}}",
         "invalidPageTypes": "{count, plural, other {# 处页面类型无效}}",
-        "structuralHint": "请在下方 Wiki 操作中使用「维护」或「修复页面类型」处理结构问题。"
+        "structuralHint": "请在下方 Wiki 操作中使用「维护」或「修复页面类型」处理结构问题。",
+        "indexedAssets": "已索引 {count} 张图片",
+        "failedAssets": "{count} 张图片索引失败",
+        "assetsVisionHint": "图片已导入但尚不可搜索。请在「设置 → 模型」中配置视觉降级模型以建立索引。"
       },
       "query": {
         "title": "查询 Wiki",
@@ -3470,6 +3491,30 @@
       "mcpAuthHeader": "Authorization 请求头（可选）",
       "mcpAuthHeaderPlaceholder": "Bearer sk-...",
       "mcpHeadersConfigured": "已配置认证",
+      "mcpTypeTunnel": "私有隧道",
+      "mcpTunnelSelect": "选择隧道",
+      "mcpTunnelSelectPlaceholder": "选择已注册的隧道...",
+      "mcpTunnelNone": "暂无已注册的隧道，请先注册。",
+      "tunnelTitle": "私有隧道",
+      "tunnelDescription": "通过安全出站隧道将云沙箱连接到内网 MCP 服务器，无需配置入站防火墙规则。",
+      "tunnelAdd": "注册隧道",
+      "tunnelAddDesc": "注册新的私有隧道端点，创建后将获得用于配置隧道代理的认证令牌。",
+      "tunnelName": "隧道名称",
+      "tunnelUpstreamUrl": "内网 MCP 服务器地址",
+      "tunnelEmpty": "暂无已注册的私有隧道。",
+      "tunnelOnline": "已连接",
+      "tunnelOffline": "未连接",
+      "tunnelRotateToken": "轮换令牌",
+      "tunnelDelete": "删除隧道",
+      "tunnelDeleted": "隧道已删除",
+      "tunnelLoadFailed": "加载隧道列表失败",
+      "tunnelCreateFailed": "创建隧道失败",
+      "tunnelDeleteFailed": "删除隧道失败",
+      "tunnelRotateFailed": "轮换隧道令牌失败",
+      "tunnelTokenTitle": "隧道认证令牌",
+      "tunnelTokenDesc": "请立即复制此令牌，关闭后将无法再次查看。",
+      "tunnelTokenWarning": "此令牌仅显示一次，请妥善保存。",
+      "tunnelTokenCopied": "令牌已复制到剪贴板",
       "mcpDeleteTitle": "删除 MCP 服务",
       "mcpDeleteDesc": "确定从组织中移除「{name}」？成员将在下次同步后失去该工具。",
       "membersTab": "成员管理",
@@ -9022,6 +9067,12 @@
     },
     "sideBySide": "并排显示",
     "overlay": "浮层显示",
+    "diff": {
+      "label": "对比",
+      "inline": "单栏",
+      "sideBySide": "双栏",
+      "noVersions": "至少需要两个版本才能对比差异"
+    },
     "elementPicker": {
       "toggle": "指哪改哪",
       "placeholder": "描述你想对这个元素做的修改...",
@@ -12959,7 +13010,14 @@
     "inlineRouteSwitchingBlocked": "正在切换路由 Profile，请稍候再发送",
     "inlineRouteSwitchFailedHint": "切换到 {agent} 失败，可降级为当前会话路由",
     "inlineRouteFallbackAction": "改用当前会话路由",
-    "inlineRouteFallbackApplied": "已降级为当前会话路由"
+    "inlineRouteFallbackApplied": "已降级为当前会话路由",
+    "inlineRouteTemplateSectionTitle": "召唤专家",
+    "inlineRouteTemplateSearchPlaceholder": "搜索专家模板...",
+    "inlineRouteTemplateLoading": "正在加载专家模板...",
+    "inlineRouteTemplateRetry": "加载模板失败，点击重试",
+    "inlineRouteTemplateNoResults": "未找到匹配的专家模板",
+    "inlineRouteTemplateEmpty": "暂无可用专家模板",
+    "inlineRouteTemplateApplyFailed": "召唤专家模板失败"
   },
   "billing": {
     "wuBalance": "Work Units",

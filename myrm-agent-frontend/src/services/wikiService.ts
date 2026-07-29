@@ -9,6 +9,10 @@ export function buildWikiApiPath(path: string, agentId?: string | null): string 
   return `${path}${joiner}agent_id=${encodeURIComponent(trimmed)}`;
 }
 
+export function buildWikiAssetUrl(filename: string, agentId?: string | null): string {
+  return getApiUrl(buildWikiApiPath(`/wiki/assets/${encodeURIComponent(filename)}`, agentId));
+}
+
 export interface WikiEditorSections {
   compiled_truth: string;
   timeline: string;
@@ -38,6 +42,8 @@ export interface WikiSourceSnippet {
   line_range?: string;
   claim_status?: string;
   snapshot_status?: 'verified' | 'stale' | 'missing';
+  hit_kind?: 'concept' | 'asset';
+  asset_filename?: string;
 }
 
 export interface WikiClaimEvidence {

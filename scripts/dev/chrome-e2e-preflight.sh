@@ -53,6 +53,26 @@ _admit_poll_budget_or_fail() {
     "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" assert-budget --node "${node}"
 }
 
+_attach_health_require_args() {
+  if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
+    echo "--require-read-attach-ready"
+    return 0
+  fi
+  if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
+    echo "--require-signoff-stream-ready"
+    return 0
+  fi
+  echo "--require-attach-ready"
+}
+
+_attach_wait_label() {
+  if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
+    echo "READ stack-core attach"
+    return 0
+  fi
+  echo "shared hot pool is recovering; read-only attach"
+}
+
 export MYRM_CHROME_E2E_DATA_DIR
 export MYRM_CHROME_E2E_PORT
 export CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}"
@@ -99,18 +119,40 @@ _maybe_seed_providers() {
   echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
 }
 
+_parallel_attach_active_leases() {
+  local active_leases
+  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+  [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
+  if [[ "${active_leases}" -le 0 ]]; then
+    active_leases="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_session_registry import list_live_e2e_sessions
+print(len(list_live_e2e_sessions()))
+" 2>/dev/null || echo 0)"
+    [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
+  fi
+  echo "${active_leases}"
+}
+
 _wait_attach_endpoints_under_parallel_load() {
   local initial_errors="$1"
   [[ -n "${initial_errors}" ]] || return 0
   local active_leases wait_sec poll_sec waited errors heal_during_wait=0 ui_heal_during_wait=0
-  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
-  [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
+  active_leases="$(_parallel_attach_active_leases)"
+  # R150: never fast-fail ui=unreachable when attach errors exist — wave lease count can lag registry under parallel ADMIT.
+  if [[ "${active_leases}" -le 0 ]]; then
+    active_leases=1
+    echo "CHROME_E2E_ATTACH: registry peer count=0 — minimum parallel ADMIT attach wait (R150)" >&2
+  fi
 
   wait_sec="$(_attach_parallel_wait_sec)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  local wait_started=$SECONDS
   waited=0
   while true; do
+    waited=$((SECONDS - wait_started))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
@@ -152,15 +194,16 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}/${wait_sec}s" >&2
     fi
+    _admit_poll_touch "CHROME_E2E_ATTACH_ENDPOINT_WAIT"
+    _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_ENDPOINT_WAIT" || return $?
     sleep "${poll_sec}"
-    waited=$((waited + poll_sec))
   done
 }
 
 _attach_parallel_wait_sec() {
   local base="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
   local active_leases scaled cap
-  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+  active_leases="$(_parallel_attach_active_leases)"
   [[ "${base}" =~ ^[0-9]+$ ]] || base=180
   if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
     scaled=$((base + active_leases * 45))
@@ -180,20 +223,34 @@ _attach_parallel_wait_sec() {
 
 _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
-  local health="" waited=0 ui_heal_during_wait=0
-  local wait_sec poll_sec active_leases errors
+  local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
+  local wait_sec poll_sec active_leases errors require_ready
+  require_ready="$(_attach_health_require_args)"
   wait_sec="$(_attach_parallel_wait_sec)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  if [[ "${require_ready}" == "--require-read-attach-ready" ]]; then
+    local read_base="${MYRM_CHROME_E2E_READ_ATTACH_WAIT_SEC:-120}"
+    [[ "${read_base}" =~ ^[0-9]+$ ]] || read_base=120
+    if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+      wait_sec=$((read_base + active_leases * 15))
+      if [[ "${wait_sec}" -gt 240 ]]; then
+        wait_sec=240
+      fi
+    else
+      wait_sec="${read_base}"
+    fi
+    echo "CHROME_E2E_ATTACH: READ lane stack-core attach (no clientHot gate; wait≤${wait_sec}s)" >&2
+  fi
   while true; do
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
       --auto-probe \
       --auto-hot \
-      --require-attach-ready \
       --ui "${UI_BASE}" \
       --api "${API_BASE}" \
-      --attach-mode 2>&1)"; then
+      --attach-mode \
+      "${require_ready}" 2>&1)"; then
       echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
       echo "${health}"
       return 0
@@ -217,8 +274,19 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       _heal_shared_ui_if_stale || true
       continue
     fi
+    if [[ "${health}" == *"shellHot=false"* || "${health}" == *"clientHot=false"* ]] \
+      && [[ "${require_ready}" == "--require-attach-ready" ]] \
+      && [[ "${waited}" -ge 60 ]] \
+      && [[ $((waited % 60)) -eq 0 ]] \
+      && [[ "${mux_heal_during_wait}" -lt 2 ]]; then
+      mux_heal_during_wait=$((mux_heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: mux heal during shared_hot wait ${mux_heal_during_wait}/2 (R142)" >&2
+      _heal_mux_request_timeout_drift || true
+      _heal_mux_under_parallel_attach_load || true
+      continue
+    fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
-      echo "CHROME_E2E_WAIT: shared hot pool is recovering; read-only attach ${waited}/${wait_sec}s (leases=${active_leases})" >&2
+      echo "CHROME_E2E_WAIT: $(_attach_wait_label) ${waited}/${wait_sec}s (leases=${active_leases})" >&2
     fi
     _admit_poll_touch "CHROME_E2E_ATTACH_SHARED_HOT_WAIT"
     _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_SHARED_HOT_WAIT" || return $?
@@ -248,6 +316,8 @@ _wait_shared_ui_reachable() {
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: shared UI recovering ${waited}/${wait_sec}s (${shared_ui})" >&2
     fi
+    _admit_poll_touch "CHROME_E2E_SHARED_UI_REACHABLE_WAIT"
+    _admit_poll_budget_or_fail "CHROME_E2E_SHARED_UI_REACHABLE_WAIT" || return $?
     sleep "${poll_sec}"
     waited=$((waited + poll_sec))
   done
@@ -904,11 +974,7 @@ _print_e2e_health_json() {
   [[ "${client_hot}" == "true" ]] && health_args+=(--client-hot)
   [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && health_args+=(--attach-mode)
   if [[ "${require_ready}" == "1" ]]; then
-    if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
-      health_args+=(--require-signoff-stream-ready)
-    else
-      health_args+=(--require-attach-ready)
-    fi
+    health_args+=("$(_attach_health_require_args)")
   fi
   "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
 }

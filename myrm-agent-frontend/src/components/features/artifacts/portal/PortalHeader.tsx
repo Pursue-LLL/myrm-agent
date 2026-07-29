@@ -15,6 +15,7 @@ import {
   Cursor02Icon,
   LeftToRightBlockQuoteIcon,
   SquareArrowMoveRightDownIcon,
+  GitCompareIcon,
 } from 'hugeicons-react';
 import type { PortalLayoutMode } from '@/store/useArtifactPortalStore';
 import { Button } from '@/components/primitives/button';
@@ -58,6 +59,7 @@ interface PortalHeaderProps {
   labels: {
     preview: string;
     code: string;
+    diff?: string;
     copied: string;
     copyCode: string;
     openInNewTab: string;
@@ -170,6 +172,20 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
               <CodeIcon className="w-3.5 h-3.5" />
               {labels.code}
             </button>
+            {versions.length >= 2 && (
+              <button
+                onClick={() => onSetDisplayMode(ArtifactDisplayMode.Diff)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap',
+                  displayMode === ArtifactDisplayMode.Diff
+                    ? 'bg-background text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <GitCompareIcon className="w-3.5 h-3.5" />
+                {labels.diff ?? 'Diff'}
+              </button>
+            )}
           </div>
         )}
 

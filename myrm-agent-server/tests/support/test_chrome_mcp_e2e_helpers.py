@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 import time
 import urllib.error
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -30,8 +32,7 @@ def test_open_mcp_page_applies_shpoib_bootstrap_without_initial_reload() -> None
     )
     assert "_blocking_progress_loop" in block
     assert "open_mcp_page_blocking" in block
-    assert "_wait_mux_hand_probe_allowed" not in source
-    assert "wait_mux_hand_probe_allowed" not in block
+    assert "wait_mux_hand_probe_allowed" in block
     assert (
         "connection reset"
         in source.split("def _retryable_open_page_error", 1)[1].split("\ndef ", 1)[0]
@@ -125,12 +126,38 @@ def test_open_page_parallel_budgets_scale_with_live_peer_count(
     assert idle == (60.0, 120_000, 150.0, 280.0, 2)
 
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 6)
+    monkeypatch.setattr(
+        chrome_mcp_e2e,
+        "_open_page_body_fraction_cap_sec",
+        lambda: 210.0,
+    )
     loaded = _open_page_parallel_budgets(300.0, new_page_timeout_ms=120_000, peers=8)
     assert loaded[0] == 60.0
     assert loaded[1] == 120_000
-    assert loaded[2] == 258.0
-    assert loaded[3] == 460.0
+    assert loaded[2] == pytest.approx(115.5)
+    assert loaded[3] == pytest.approx(210.0)
     assert loaded[4] == 2
+
+
+def test_open_page_body_fraction_cap_scales_with_live_body_wall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.delenv("MYRM_E2E_SIGNOFF", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "transport_supervisor",
+        type(
+            "TransportSupervisorStub",
+            (),
+            {
+                "live_agent_body_wall_cap_sec": staticmethod(lambda: 720),
+            },
+        )(),
+    )
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    assert chrome_mcp_e2e._open_page_body_fraction_cap_sec() == pytest.approx(252.0)
 
 
 def test_wait_for_state_parses_json_string_ready() -> None:
@@ -151,9 +178,7 @@ def test_warm_ui_route_retries_until_shared_ui_recovers(
 
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "_warm_ui_parallel_wait_sec", lambda base: base
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "_warm_ui_parallel_wait_sec", lambda base: base)
     monkeypatch.setattr(
         chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None
     )
@@ -184,6 +209,133 @@ def test_warm_ui_route_retries_until_shared_ui_recovers(
     assert attempts["count"] == 3
 
 
+def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setenv("MYRM_E2E_SHPOIB", "1")
+    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
+    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
+    monkeypatch.setattr(chrome_mcp_e2e, "_warm_ui_parallel_wait_sec", lambda base: base)
+    monkeypatch.setattr(
+        chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None
+    )
+    slot_calls = {"count": 0}
+
+    class _FakeResponse:
+        status = 200
+
+        def __enter__(self) -> _FakeResponse:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    @contextmanager
+    def _track_slot() -> Iterator[None]:
+        slot_calls["count"] += 1
+        yield
+
+    monkeypatch.setattr(chrome_mcp_e2e, "shared_ui_hydrate_slot", _track_slot)
+
+    with patch(
+        "tests.support.chrome_mcp_e2e.get_e2e_ui_url",
+        return_value="http://127.0.0.1:3000",
+    ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse()):
+            warm_ui_route("/")
+    assert slot_calls["count"] == 1
+
+
+def test_blocking_progress_loop_emits_transport_progress_token(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setattr(chrome_mcp_e2e, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
+    monkeypatch.setattr(chrome_mcp_e2e, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
+    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_e2e_lease", lambda: None)
+    monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
+    import e2e_stall_guard
+
+    monkeypatch.setattr(
+        e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None
+    )
+
+    with chrome_mcp_e2e._blocking_progress_loop(current_node="open_mcp_page_blocking"):
+        time.sleep(0.05)
+
+    captured = capsys.readouterr()
+    assert "E2E_TRANSPORT_PROGRESS" in captured.err
+    assert "open_mcp_page_blocking" in captured.err
+
+
+def test_open_page_body_fraction_cap_scales_with_parallel_peers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MYRM_E2E_SIGNOFF", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "transport_supervisor",
+        type(
+            "TransportSupervisorStub",
+            (),
+            {
+                "live_agent_body_wall_cap_sec": staticmethod(lambda: 600),
+            },
+        )(),
+    )
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
+    assert chrome_mcp_e2e._open_page_body_fraction_cap_sec() == pytest.approx(270.0)
+
+
+def test_blocking_progress_loop_stall_sends_sigint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setattr(chrome_mcp_e2e, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
+    monkeypatch.setattr(
+        chrome_mcp_e2e,
+        "_open_page_parallel_budgets",
+        lambda *args, **kwargs: (60.0, 120_000, 30.0, 5.0, 2),
+    )
+    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_e2e_lease", lambda: None)
+    monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
+
+    import e2e_stall_guard
+
+    def _stall(**_: object) -> None:
+        raise RuntimeError("MUX_RECLAIM_STALL: open_mcp_page_blocking blocked")
+
+    monkeypatch.setattr(e2e_stall_guard, "assert_transport_node_not_stuck", _stall)
+
+    import os
+    import signal
+
+    real_kill = os.kill
+    sigint_calls: list[int] = []
+
+    def _record_sigint(pid: int, sig: int) -> None:
+        if sig == signal.SIGINT:
+            sigint_calls.append(sig)
+            return
+        if sig == 0:
+            return
+        real_kill(pid, sig)
+
+    monkeypatch.setattr("os.kill", _record_sigint)
+
+    with chrome_mcp_e2e._blocking_progress_loop(current_node="open_mcp_page_blocking"):
+        time.sleep(0.05)
+
+    assert sigint_calls == [2]  # signal.SIGINT
+
+
 def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -199,6 +351,17 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
         "stack_mutation_policy",
         _FakePolicy(),  # type: ignore[arg-type]
     )
+
+    class _FakeContract:
+        @staticmethod
+        def shared_ui_hydrate_wait_sec() -> int:
+            return 900
+
+    monkeypatch.setitem(
+        sys.modules,
+        "dev_gate_contract",
+        _FakeContract(),  # type: ignore[arg-type]
+    )
     from tests.support import chrome_mcp_e2e
 
-    assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(180.0) == 300.0
+    assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(180.0) == 360.0

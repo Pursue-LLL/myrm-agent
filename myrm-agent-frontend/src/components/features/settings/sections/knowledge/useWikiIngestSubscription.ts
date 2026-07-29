@@ -26,6 +26,7 @@ export interface WikiIngestSnapshot {
   compile_run?: CompileRunStatus | null;
   sync_required?: boolean;
   tree_sync_required?: boolean;
+  stats_refresh_required?: boolean;
 }
 
 function buildIngestStreamUrl(agentScopeId?: string | null): string {

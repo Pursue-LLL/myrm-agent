@@ -104,7 +104,17 @@ def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAc
 
 
 def should_defer_harness_install(active_leases: int) -> bool:
-    return active_leases > 0
+    """Defer under wave leases or parallel chrome_e2e ADMIT (R150 harness install dogpile)."""
+    if active_leases > 0:
+        return True
+    try:
+        from e2e_session_registry import list_live_e2e_sessions
+
+        if len(list_live_e2e_sessions()) > 1:
+            return True
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return False
 
 
 def should_defer_supervisor_backend_heal(
@@ -113,9 +123,18 @@ def should_defer_supervisor_backend_heal(
     pending_drift: bool,
     api_http_ok: bool,
 ) -> bool:
-    if pending_drift and active_leases > 0:
-        return True
-    return False
+    del pending_drift, api_http_ok
+    # R143 / BUG-DG-2026-07-29-008: never backend-only heal while wave leases active.
+    return active_leases > 0
+
+
+def _backend_only_ensure_timeout_sec() -> float:
+    """Wall timeout for dev-stack backend-only ensure (cold app.main import can exceed 120s)."""
+    raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
+    try:
+        return max(120.0, float(raw))
+    except ValueError:
+        return 360.0
 
 
 def _run_backend_only_ensure(
@@ -125,7 +144,7 @@ def _run_backend_only_ensure(
         ["bash", str(dev_stack), "backend-only", "ensure"],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=_backend_only_ensure_timeout_sec(),
         check=False,
         cwd=str(root),
         env=env,
@@ -160,6 +179,9 @@ def _run_backend_only_ensure_with_harness_retry(
         return proc
     detail = _command_failure_detail(proc, "backend-only ensure failed")
     if _HARNESS_IMPORT_FAILED_TOKEN not in detail:
+        return proc
+    active_leases = wave_active_lease_count(root)
+    if should_defer_harness_install(active_leases):
         return proc
     install_proc = _run_harness_install(root=root, env=env)
     if install_proc.returncode != 0:
@@ -292,25 +314,29 @@ def backend_heal_file_lock(lock_file: Path, wait_sec: float) -> Iterator[None]:
         os.close(fd)
 
 
-def attach_backend_crash_heal_inner(
-    *, monorepo_root: Path, dev_stack: Path
-) -> int:
+def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> int:
     active_leases = wave_active_lease_count(monorepo_root)
     if shared_api_http_ok():
         return 0
     print(
         "CHROME_E2E_ATTACH_HEAL: shared api down — crash heal starting "
-        f"({active_leases} active leases)",
+        f"({active_leases} active leases; SHC leader)",
         file=sys.stderr,
         flush=True,
     )
-    env = {**os.environ, "MYRM_WAVE_GATE_BYPASS": "1"}
-    for attempt, backoff_sec in enumerate((0, 5, 10), start=1):
+    env = {
+        **os.environ,
+        "MYRM_WAVE_GATE_BYPASS": "1",
+        "MYRM_SUPERVISOR_BYPASS": "1",
+    }
+    max_attempts = 1 if active_leases > 0 else 3
+    backoff_schedule = (0,) if max_attempts == 1 else (0, 5, 10)
+    for attempt, backoff_sec in enumerate(backoff_schedule, start=1):
         if backoff_sec > 0:
             time.sleep(backoff_sec)
         print(
             "CHROME_E2E_ATTACH_HEAL: crash heal attempt "
-            f"{attempt}/3 ({active_leases} active leases)",
+            f"{attempt}/{max_attempts} ({active_leases} active leases)",
             file=sys.stderr,
             flush=True,
         )
@@ -329,12 +355,12 @@ def attach_backend_crash_heal_inner(
             return 0
         print(
             "CHROME_E2E_ATTACH_HEAL: crash heal attempt "
-            f"{attempt}/3 failed (api still down)",
+            f"{attempt}/{max_attempts} failed (api still down)",
             file=sys.stderr,
             flush=True,
         )
     print(
-        "CHROME_E2E_FAIL: attach backend crash heal failed after 3 attempts "
+        f"CHROME_E2E_FAIL: attach backend crash heal failed after {max_attempts} attempts "
         "(api still down)",
         file=sys.stderr,
         flush=True,
@@ -348,23 +374,17 @@ def attach_backend_crash_heal(
     dev_stack: Path,
     lock_file: Path,
     wait_sec: float,
+    shpoib: bool = False,
 ) -> int:
-    if shared_api_http_ok():
-        return 0
-    try:
-        with backend_heal_file_lock(lock_file, wait_sec):
-            return attach_backend_crash_heal_inner(
-                monorepo_root=monorepo_root,
-                dev_stack=dev_stack,
-            )
-    except TimeoutError:
-        print(
-            f"CHROME_E2E_ATTACH_HEAL: HEAL_DEFERRED flock busy after {wait_sec}s "
-            "(another attach heal in flight; do not stop other pytest)",
-            file=sys.stderr,
-            flush=True,
-        )
-        return 0
+    from stack_heal_coordinator import request_attach_crash_heal
+
+    return request_attach_crash_heal(
+        monorepo_root=monorepo_root,
+        dev_stack=dev_stack,
+        lock_file=lock_file,
+        wait_sec=wait_sec,
+        shpoib=shpoib,
+    )
 
 
 def wave_active_lease_count(monorepo_root: Path) -> int:
@@ -451,6 +471,20 @@ def _cmd_attach_crash_heal(args: argparse.Namespace) -> int:
         dev_stack=Path(args.dev_stack),
         lock_file=Path(args.lock_file),
         wait_sec=float(args.wait_sec),
+        shpoib=args.shpoib == "1",
+    )
+
+
+def _cmd_attach_health_preflight(args: argparse.Namespace) -> int:
+    from stack_heal_coordinator import run_attach_health_preflight  # noqa: PLC0415
+
+    return run_attach_health_preflight(
+        monorepo_root=Path(args.monorepo_root),
+        dev_stack=Path(args.dev_stack),
+        server_dir=Path(args.server_dir),
+        lock_file=Path(args.lock_file),
+        wait_sec=float(args.wait_sec),
+        shpoib=args.shpoib == "1",
     )
 
 
@@ -488,7 +522,27 @@ def main(argv: list[str] | None = None) -> int:
     crash.add_argument("--dev-stack", required=True)
     crash.add_argument("--lock-file", required=True)
     crash.add_argument("--wait-sec", type=float, default=180.0)
+    crash.add_argument(
+        "--shpoib",
+        choices=("0", "1"),
+        default="0",
+        help="1 when caller is SHPOIB lane (skip shared :8080 heal)",
+    )
     crash.set_defaults(handler=_cmd_attach_crash_heal)
+
+    preflight = sub.add_parser("attach-health-preflight")
+    preflight.add_argument("--monorepo-root", required=True)
+    preflight.add_argument("--dev-stack", required=True)
+    preflight.add_argument("--server-dir", required=True)
+    preflight.add_argument("--lock-file", required=True)
+    preflight.add_argument("--wait-sec", type=float, default=5.0)
+    preflight.add_argument(
+        "--shpoib",
+        choices=("0", "1"),
+        default="0",
+        help="1 when caller is SHPOIB lane (skip shared :8080 preflight)",
+    )
+    preflight.set_defaults(handler=_cmd_attach_health_preflight)
 
     parsed = parser.parse_args(argv)
     handler = getattr(parsed, "handler", None)

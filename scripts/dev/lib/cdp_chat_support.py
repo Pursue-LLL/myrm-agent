@@ -1456,14 +1456,18 @@ def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
     may briefly stream via Next ``/api/v1`` proxy before ``__MYRM_E2E_API_BASE__``
     inject completes, and parallel LIVE tests leave YOLO on the shared backend.
 
+    Signoff clarify SHPOIB pool (API-only warm) pins only the private backend;
+    shared ``:8080`` may be down under parallel wave without blocking clarify warm.
+
     Also clears wildcard ``permissions.*=allow`` left by ``ensure_e2e_yolo_mode``.
     """
     targets: list[str] = []
     if api_url:
         targets.append(api_url.rstrip("/"))
-    shared = shared_hot_e2e_api_base()
-    if shared not in targets:
-        targets.append(shared)
+    if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() != "1":
+        shared = shared_hot_e2e_api_base()
+        if shared not in targets:
+            targets.append(shared)
     for target in targets:
         _pin_hitl_on_api_with_retry(target)
 

@@ -46,15 +46,18 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
     "allowed_tools",
 )
 
-_FOCUS_INITIAL_QUERY: Final[str] = """
+_FOCUS_INITIAL_QUERY: Final[str] = (
+    """
 简要解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。约150字。
 """.strip()
+)
 
 _FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
     "继续。用一句话对比 asyncio.Event 与 threading.Event。",
 )
 
-_FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = """
+_FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (
+    """
 请用 bash 执行以下命令并报告结果：
 1. echo "hello world"
 2. ls {missing_path}
@@ -62,17 +65,24 @@ _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = """
 
 逐个执行，报告每个命令的执行结果，如果失败请说明原因。
 """.strip()
+)
 
-_FAILURE_FOLLOWUP_TEMPLATE: Final[str] = "继续。回顾刚才的命令执行：哪个命令失败了？失败的路径是 {missing_path}，为什么失败？"
+_FAILURE_FOLLOWUP_TEMPLATE: Final[str] = (
+    "继续。回顾刚才的命令执行：哪个命令失败了？失败的路径是 {missing_path}，为什么失败？"
+)
 
 
 @pytest.fixture(autouse=True)
 def shrink_model_context_window(mock_load_user_configs) -> None:
     configs = mock_load_user_configs.return_value
-    configs.model_cfg = configs.model_cfg.model_copy(update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS})
+    configs.model_cfg = configs.model_cfg.model_copy(
+        update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS}
+    )
 
 
-def _build_payload(query: str, chat_id: str, *, action_mode: str = "agent") -> dict[str, object]:
+def _build_payload(
+    query: str, chat_id: str, *, action_mode: str = "agent"
+) -> dict[str, object]:
     return {
         "query": query,
         "chatId": chat_id,
@@ -92,13 +102,20 @@ def _collect_stream_events(
     message_chunks: list[str],
     error_events: list[dict[str, object]],
 ) -> None:
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=240.0) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=payload, timeout=240.0
+    ) as response:
         if response.status_code != 200:
             response.read()
             response_text = response.text
-            if any(keyword.lower() in response_text.lower() for keyword in _SKIP_ERROR_KEYWORDS):
+            if any(
+                keyword.lower() in response_text.lower()
+                for keyword in _SKIP_ERROR_KEYWORDS
+            ):
                 pytest.skip(f"External environment error: {response_text[:200]}")
-            pytest.fail(f"Agent request failed with status {response.status_code}: {response_text[:500]}")
+            pytest.fail(
+                f"Agent request failed with status {response.status_code}: {response_text[:500]}"
+            )
 
         assert response.headers["content-type"].startswith("text/event-stream")
 
@@ -167,7 +184,9 @@ def _stream_agent_turn(
 
     if error_events:
         error_text = json.dumps(error_events[0], ensure_ascii=False)
-        if any(keyword.lower() in error_text.lower() for keyword in _SKIP_ERROR_KEYWORDS):
+        if any(
+            keyword.lower() in error_text.lower() for keyword in _SKIP_ERROR_KEYWORDS
+        ):
             pytest.skip(f"External environment error: {error_text[:200]}")
         pytest.fail(f"Agent execution error: {error_text[:500]}")
 
@@ -198,17 +217,21 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
     assert len(all_events) > 0, "Expected events from multi-turn conversation"
 
     normalized_answer = final_answer.lower()
-    assert "asyncio" in normalized_answer or "event" in normalized_answer, (
-        f"Final answer should reference asyncio.Event from earlier turns. Got: {final_answer[:300]}"
-    )
+    assert (
+        "asyncio" in normalized_answer or "event" in normalized_answer
+    ), f"Final answer should reference asyncio.Event from earlier turns. Got: {final_answer[:300]}"
 
 
-def test_real_context_compression_preserves_failed_tool_chain(client: TestClient) -> None:
+def test_real_context_compression_preserves_failed_tool_chain(
+    client: TestClient,
+) -> None:
     """Failed tool calls should survive context compression and remain referenced."""
     chat_id = f"context-failure-{uuid.uuid4().hex}"
     # Workspace-relative path: absolute paths outside sandbox are security-blocked, not "missing file".
     missing_path = f"./definitely_missing_context_path_{uuid.uuid4().hex}"
-    failure_initial_query = _FAILURE_INITIAL_QUERY_TEMPLATE.format(missing_path=missing_path)
+    failure_initial_query = _FAILURE_INITIAL_QUERY_TEMPLATE.format(
+        missing_path=missing_path
+    )
     failure_followup = _FAILURE_FOLLOWUP_TEMPLATE.format(missing_path=missing_path)
 
     all_events: list[dict[str, object]] = []
@@ -218,7 +241,9 @@ def test_real_context_compression_preserves_failed_tool_chain(client: TestClient
         final_answer, events = _stream_agent_turn(client, query=query, chat_id=chat_id)
         all_events.extend(events)
 
-    assert _task_step_count(all_events) > 0, "Expected real tool/task activity in failure-chain scenario"
+    assert (
+        _task_step_count(all_events) > 0
+    ), "Expected real tool/task activity in failure-chain scenario"
 
     normalized_answer = final_answer.lower()
     missing_basename = missing_path.removeprefix("./").lower()

@@ -45,13 +45,41 @@ def _pytest_node_from_env() -> str:
     return raw.split(" ", 1)[0]
 
 
-def write_session_snapshot(*, current_node: str, phase: str | None = None) -> None:
-    """Persist per-pytest session state for e2e-context + hung reap (parallel-safe)."""
+def _session_started_monotonic(existing: dict[str, object] | None, *, now: float) -> float:
+    if existing is None:
+        return now
+    for key in ("sessionStartedMonotonic", "bodyStartedMonotonic"):
+        raw = existing.get(key)
+        if raw is None:
+            continue
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            continue
+    return now
+
+
+def _write_snapshot_file(*, pid: int, payload: dict[str, object]) -> None:
+    session_snapshot_dir().mkdir(parents=True, exist_ok=True)
+    session_snapshot_path(pid).write_text(
+        json.dumps(payload, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def write_holder_session_snapshot(
+    *,
+    holder_pid: int,
+    test_id: str,
+    current_node: str,
+    lane: str = "",
+    shpoib: bool = False,
+) -> None:
+    """R144: test.sh ADMIT session sidecar — visible before inner pytest spawns."""
     now = time.monotonic()
-    resolved_phase = (phase or current_phase()).strip().lower() or "body"
-    started = wall_started_monotonic() or now
+    existing = read_session_snapshot(holder_pid)
+    started = _session_started_monotonic(existing, now=now)
     node_started = now
-    existing = read_session_snapshot(os.getpid())
     if existing is not None:
         prev_node = str(existing.get("currentNode") or "").strip()
         if prev_node == current_node.strip():
@@ -62,19 +90,88 @@ def write_session_snapshot(*, current_node: str, phase: str | None = None) -> No
                 except (TypeError, ValueError):
                     pass
     payload = {
-        "pid": os.getpid(),
+        "pid": holder_pid,
+        "holderPid": holder_pid,
+        "testId": test_id.strip(),
         "currentNode": current_node,
-        "phase": resolved_phase,
+        "phase": "admit",
+        "lane": lane.strip(),
+        "shpoib": bool(shpoib),
+        "sessionStartedMonotonic": started,
         "bodyStartedMonotonic": started,
         "nodeStartedMonotonic": node_started,
         "progressAtMonotonic": now,
         "updatedAtEpoch": time.time(),
     }
-    session_snapshot_dir().mkdir(parents=True, exist_ok=True)
-    session_snapshot_path().write_text(
-        json.dumps(payload, ensure_ascii=False),
-        encoding="utf-8",
+    _write_snapshot_file(pid=holder_pid, payload=payload)
+
+
+def touch_holder_session_progress(
+    *,
+    holder_pid: int,
+    current_node: str | None = None,
+) -> None:
+    existing = read_session_snapshot(holder_pid)
+    if existing is None:
+        return
+    node = (current_node or str(existing.get("currentNode") or "")).strip()
+    if not node:
+        return
+    write_holder_session_snapshot(
+        holder_pid=holder_pid,
+        test_id=str(existing.get("testId") or node),
+        current_node=node,
+        lane=str(existing.get("lane") or ""),
+        shpoib=bool(existing.get("shpoib")),
     )
+
+
+def write_session_snapshot(
+    *,
+    current_node: str,
+    phase: str | None = None,
+    test_id: str | None = None,
+) -> None:
+    """Persist per-pytest session state for e2e-context + hung reap (parallel-safe)."""
+    now = time.monotonic()
+    resolved_phase = (phase or current_phase()).strip().lower() or "body"
+    started = wall_started_monotonic() or now
+    node_started = now
+    existing = read_session_snapshot(os.getpid())
+    session_started = _session_started_monotonic(existing, now=started)
+    if existing is not None:
+        prev_node = str(existing.get("currentNode") or "").strip()
+        if prev_node == current_node.strip():
+            raw_node_started = existing.get("nodeStartedMonotonic")
+            if raw_node_started is not None:
+                try:
+                    node_started = float(raw_node_started)
+                except (TypeError, ValueError):
+                    pass
+    resolved_test_id = (test_id or _pytest_node_from_env() or current_node).strip()
+    payload: dict[str, object] = {
+        "pid": os.getpid(),
+        "currentNode": current_node,
+        "phase": resolved_phase,
+        "testId": resolved_test_id,
+        "sessionStartedMonotonic": session_started,
+        "bodyStartedMonotonic": started,
+        "nodeStartedMonotonic": node_started,
+        "progressAtMonotonic": now,
+        "updatedAtEpoch": time.time(),
+    }
+    if existing is not None and existing.get("holderPid") is not None:
+        payload["holderPid"] = existing["holderPid"]
+    if existing is not None and existing.get("lane"):
+        payload["lane"] = existing["lane"]
+    if existing is not None and existing.get("shpoib") is not None:
+        payload["shpoib"] = existing["shpoib"]
+    _write_snapshot_file(pid=os.getpid(), payload=payload)
+    holder_raw = os.environ.get("MYRM_E2E_DEDUPE_HOLDER_PID", "").strip()
+    if holder_raw.isdigit():
+        holder_pid = int(holder_raw)
+        if holder_pid != os.getpid():
+            clear_session_snapshot(holder_pid)
 
 
 def _pid_alive(pid: int) -> bool:
@@ -131,6 +228,13 @@ def progress_at_from_snapshot(snapshot: dict[str, object]) -> float | None:
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+def admit_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
+    phase = str(snapshot.get("phase") or "").strip().lower()
+    if phase != "admit":
+        return None
+    return phase_elapsed_from_snapshot(snapshot)
 
 
 def body_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
@@ -229,7 +333,10 @@ def read_session_snapshot_by_test_id(
     if not target:
         return None
     for pid, payload in _load_all_session_snapshots(live_only=True):
+        stored = str(payload.get("testId") or "").strip()
         node = str(payload.get("currentNode") or "").strip()
+        if stored and test_ids_match(target, stored):
+            return pid, payload
         if test_ids_match(target, node):
             return pid, payload
     return None

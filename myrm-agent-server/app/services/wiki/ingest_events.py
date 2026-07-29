@@ -59,6 +59,7 @@ def build_wiki_ingest_snapshot(
     *,
     agent_id: str | None,
     tree_sync_required: bool = False,
+    stats_refresh_required: bool = False,
 ) -> dict[str, object]:
     stats = archiver._queue.get_stats()
     compile_run = archiver._queue.get_compile_run()
@@ -73,6 +74,8 @@ def build_wiki_ingest_snapshot(
     }
     if tree_sync_required:
         snapshot["tree_sync_required"] = True
+    if stats_refresh_required:
+        snapshot["stats_refresh_required"] = True
     return snapshot
 
 
@@ -244,10 +247,13 @@ async def publish_wiki_ingest_snapshot(
     archiver: MemoryToWikiArchiver,
     *,
     agent_id: str | None,
+    stats_refresh_required: bool = False,
 ) -> None:
     try:
         scope_key = normalize_agent_scope_key(agent_id)
         snapshot = wiki_ingest_event_bus.prepare_snapshot(scope_key, archiver, agent_id)
+        if stats_refresh_required:
+            snapshot["stats_refresh_required"] = True
         await wiki_ingest_event_bus.emit(scope_key, snapshot)
     except Exception as exc:
         logger.warning("Failed to publish wiki ingest snapshot: %s", exc)

@@ -1750,6 +1750,12 @@ class ChromeMcpClient:
 
     def reset_after_orphan(self) -> None:
         """Single orphan recovery entry: invalidate in-flight mux I/O and restart transport."""
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node="reset_after_orphan")
+        except ImportError:
+            pass
         self.abandon_inflight_requests()
         self._recover_mux_transport()
 

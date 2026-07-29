@@ -36,6 +36,7 @@ import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Source, WikiSourceLevel } from '@/store/chat/types';
+import { buildWikiAssetUrl } from '@/services/wikiService';
 import { recordEvidenceSurface } from '@/services/wikiEvidenceMetrics';
 import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
 import { useTranslations } from 'next-intl';
@@ -119,6 +120,7 @@ const MarkdownContent = React.memo(
       snippet: string;
       level?: WikiSourceLevel;
       snapshotStatus?: Source['snapshot_status'];
+      thumbnailUrl?: string | null;
     }>({ open: false, title: '', snippet: '' });
 
     const openKbDrawer = useCallback(
@@ -128,8 +130,9 @@ const MarkdownContent = React.memo(
         snippet: string,
         level?: WikiSourceLevel,
         snapshotStatus?: Source['snapshot_status'],
+        thumbnailUrl?: string | null,
       ) => {
-        setDrawerState({ open: true, title, section, snippet, level, snapshotStatus });
+        setDrawerState({ open: true, title, section, snippet, level, snapshotStatus, thumbnailUrl });
       },
       [],
     );
@@ -322,6 +325,10 @@ const MarkdownContent = React.memo(
               ? `${source.filename}${sectionLabel ? ` § ${sectionLabel}` : ''}`
               : source.kb_name;
             const kbSnippet = source.snippet || source.summary || '';
+            const assetThumbnailUrl =
+              source.hit_kind === 'asset' && source.asset_filename
+                ? buildWikiAssetUrl(source.asset_filename, source.agent_id)
+                : null;
             if (kbSnippet) {
               return (
                 <span
@@ -333,6 +340,7 @@ const MarkdownContent = React.memo(
                       kbSnippet,
                       normalizeWikiLevel(source.level),
                       source.snapshot_status,
+                      assetThumbnailUrl,
                     )
                   }
                 >
@@ -390,6 +398,7 @@ const MarkdownContent = React.memo(
           snippet={drawerState.snippet}
           level={drawerState.level}
           snapshotStatus={drawerState.snapshotStatus}
+          thumbnailUrl={drawerState.thumbnailUrl}
           surface="chat"
           contextKey={`chat:${_messageId}`}
         />

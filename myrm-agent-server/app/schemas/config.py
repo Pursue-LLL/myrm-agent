@@ -45,6 +45,7 @@ ConfigKey = Literal[
     "channelInstances",
     "channelLabels",
     "onboarding",
+    "secondBrainPreset",
     "budget_policy",
     "companion_config",
     "backupSync",

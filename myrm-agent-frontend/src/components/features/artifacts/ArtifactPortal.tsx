@@ -464,6 +464,7 @@ const ArtifactPortal: React.FC = () => {
           labels={{
             preview: t('preview'),
             code: t('code'),
+            diff: t('diff.label'),
             copied: t('copied'),
             copyCode: t('copyCode'),
             openInNewTab: t('openInNewTab'),
@@ -522,6 +523,8 @@ const ArtifactPortal: React.FC = () => {
                 pickerMode={pickerMode}
                 onElementPick={handleElementPick}
                 chatId={chatId}
+                versions={versions}
+                viewingVersionIndex={viewingVersionIndex}
               />
 
               {/* 行号滚动逻辑 */}

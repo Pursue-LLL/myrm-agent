@@ -24,7 +24,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import get_args
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from filelock import FileLock, Timeout
 from pydantic import BaseModel, Field
 
@@ -572,6 +572,32 @@ async def get_onboarding_recommendations() -> dict[str, object]:
     from app.services.config.onboarding import get_recommended_providers
 
     return {"providers": get_recommended_providers()}
+
+
+@router.get("/onboarding/second-brain/status")
+async def get_second_brain_onboarding_status(request: Request) -> dict[str, object]:
+    """Return Second Brain preset checklist (agent, cron, vault, provider)."""
+    from app.services.onboarding.second_brain_preset import get_second_brain_preset_status
+
+    accept_lang = request.headers.get("Accept-Language", "en")
+    status = await get_second_brain_preset_status(accept_language=accept_lang)
+    return status.model_dump()
+
+
+@router.post("/onboarding/second-brain/apply")
+async def apply_second_brain_onboarding(request: Request) -> dict[str, object]:
+    """Apply Second Brain preset: user agent + read-it-later cron + checklist state."""
+    from app.services.onboarding.second_brain_preset import apply_second_brain_preset
+
+    accept_lang = request.headers.get("Accept-Language", "en")
+    try:
+        result = await apply_second_brain_preset(accept_language=accept_lang)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Failed to apply Second Brain preset")
+        raise HTTPException(status_code=500, detail="Failed to apply Second Brain preset") from exc
+    return result.model_dump()
 
 
 @router.post(

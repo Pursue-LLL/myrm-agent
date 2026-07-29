@@ -25,7 +25,8 @@ import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
-import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2 } from 'lucide-react';
+import { buildWikiAssetUrl } from '@/services/wikiService';
+import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2, BookOpen } from 'lucide-react';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
 interface SourcesButtonProps {
@@ -150,7 +151,45 @@ export function SourceItem({ source }: { source: Source }) {
   const [busy, setBusy] = useState(false);
   const isMcp = source.type === 'mcp' || !!source.skill_name;
   const isConversation = source.type === 'conversation_history';
+  const isKnowledge = source.type === 'knowledge' || !!source.kb_name;
   const agentName = useAgentName(isConversation ? source.agent_id : null);
+
+  if (isKnowledge) {
+    const sectionLabel = source.section ? source.section : undefined;
+    const title = source.filename
+      ? `${source.filename}${sectionLabel ? ` § ${sectionLabel}` : ''}`
+      : source.kb_name || 'LLM-Wiki';
+    const description = source.snippet || source.summary;
+    const assetThumbnailUrl =
+      source.hit_kind === 'asset' && source.asset_filename
+        ? buildWikiAssetUrl(source.asset_filename, source.agent_id)
+        : null;
+
+    return (
+      <div className={cn('p-3 rounded-lg bg-accent hover:bg-muted transition-colors')}>
+        <div className="flex items-start gap-3">
+          {assetThumbnailUrl ? (
+            <img
+              src={assetThumbnailUrl}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-md border border-border/60 object-cover bg-muted"
+            />
+          ) : (
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
+              <span className="text-sm font-medium truncate flex-1">{title}</span>
+            </div>
+            {description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{description}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isConversation) {
     const chatId = source.conversation_id;

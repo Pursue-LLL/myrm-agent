@@ -46,6 +46,14 @@ BACKEND_ONLY_HEAL_COOLDOWN_SEC = float(
 )
 
 
+def _backend_only_ensure_rpc_timeout_sec() -> float:
+    raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
+    try:
+        return max(90.0, float(raw))
+    except ValueError:
+        return 360.0
+
+
 @dataclass
 class SupervisorDaemon:
     paths: StackPaths
@@ -241,7 +249,7 @@ class SupervisorDaemon:
                 )
                 result = self._run_dev_stack(
                     "backend-only",
-                    timeout_sec=90.0,
+                    timeout_sec=_backend_only_ensure_rpc_timeout_sec(),
                     subcommand="ensure",
                 )
             else:
@@ -441,7 +449,7 @@ class SupervisorDaemon:
                     )
                     dev = self._run_dev_stack(
                         "backend-only",
-                        timeout_sec=90.0,
+                        timeout_sec=_backend_only_ensure_rpc_timeout_sec(),
                         subcommand="ensure",
                         env_overrides=env_overrides,
                     )

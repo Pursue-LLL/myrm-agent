@@ -123,6 +123,8 @@ class MemoryToWikiArchiver:
         self._queue = self._compiler._queue
         self._pending_mgr = WikiPendingEditsManager(self._structure, indexer=indexer)
 
+        self._asset_indexer = None
+
         # Start the background drainer for this user's queue
         self._compiler.start_background_worker()
 

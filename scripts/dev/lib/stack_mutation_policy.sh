@@ -132,7 +132,8 @@ _smp_attach_backend_crash_heal() {
     --monorepo-root "${monorepo_root}" \
     --dev-stack "${dev_stack}" \
     --lock-file "${flock_file}" \
-    --wait-sec "${wait_sec}"
+    --wait-sec "${wait_sec}" \
+    --shpoib "$([[ "${E2E_PROFILE_SHPOIB:-0}" == "1" ]] && echo 1 || echo 0)"
 }
 
 _smp_attach_backend_drift_heal() {
@@ -172,10 +173,17 @@ _smp_attach_backend_drift_heal() {
 
 _smp_should_defer_harness_install() {
   local monorepo_root="${1:?}"
-  local stack_epoch_lib active_leases
+  local stack_epoch_lib active_leases policy_py
   stack_epoch_lib="${2:-$(dirname "${BASH_SOURCE[0]}")/stack-epoch.sh}"
   # shellcheck source=stack-epoch.sh
   source "${stack_epoch_lib}"
   active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+  policy_py="$(dirname "${BASH_SOURCE[0]}")/stack_mutation_policy.py"
+  python3 -c "
+import sys
+sys.path.insert(0, '$(dirname "${BASH_SOURCE[0]}")')
+from stack_mutation_policy import should_defer_harness_install
+raise SystemExit(0 if should_defer_harness_install(${active_leases}) else 1)
+" 2>/dev/null && return 0
   [[ "${active_leases}" != "0" ]]
 }

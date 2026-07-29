@@ -41,14 +41,41 @@ def _lock_path() -> Path:
     return _state_dir() / "shared-ui-hydrate.lock"
 
 
+def _monorepo_root() -> Path | None:
+    override = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
+    if override:
+        return Path(override)
+    agent_root = os.environ.get("MYRM_AGENT_ROOT", "").strip()
+    if agent_root:
+        return Path(agent_root).parent
+    return None
+
+
 def shpoib_shared_ui_queue_enabled() -> bool:
     return os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+
+
+def parallel_shared_ui_hydrate_queue_enabled() -> bool:
+    """Serialize shared :3000 compile bursts for parallel Chrome E2E (SHPOIB + READ shared-hot)."""
+    if shpoib_shared_ui_queue_enabled():
+        return True
+    if os.environ.get("MYRM_PRIVATE_BACKEND", "").strip() == "1":
+        return False
+    root = _monorepo_root()
+    if root is None:
+        return False
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        return wave_active_lease_count(root) > 1
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return False
 
 
 @contextmanager
 def shared_ui_hydrate_slot() -> Iterator[None]:
     """Exclusive slot for shared UI shell hydration (SHPOIB parallel only)."""
-    if not shpoib_shared_ui_queue_enabled():
+    if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return
 
@@ -116,7 +143,7 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
 @contextmanager
 def shared_ui_hydrate_burst() -> Iterator[None]:
     """Exclusive slot for navigate/reload burst only (R36 — not probe polling)."""
-    if not shpoib_shared_ui_queue_enabled():
+    if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return
     depth = _burst_depth_var.get()
@@ -138,7 +165,7 @@ def shared_ui_hydrate_burst() -> Iterator[None]:
 @asynccontextmanager
 async def async_shared_ui_hydrate_burst() -> AsyncIterator[None]:
     """Async navigate/reload burst slot (R36)."""
-    if not shpoib_shared_ui_queue_enabled():
+    if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return
     depth = _burst_depth_var.get()
@@ -164,7 +191,7 @@ async def async_shared_ui_hydrate_burst() -> AsyncIterator[None]:
 @asynccontextmanager
 async def async_shared_ui_hydrate_slot() -> AsyncIterator[None]:
     """Async wrapper for ``shared_ui_hydrate_slot`` (SHPOIB parallel Chrome E2E)."""
-    if not shpoib_shared_ui_queue_enabled():
+    if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return
     slot = shared_ui_hydrate_slot()

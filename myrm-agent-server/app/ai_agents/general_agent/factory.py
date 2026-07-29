@@ -64,7 +64,10 @@ async def build_general_agent(
     from .agent_middlewares.signoff_clarify_contract_middleware import (
         build_signoff_clarify_contract_middleware,
     )
-    from .signoff_clarify_contract_core import signoff_clarify_contract_enabled, signoff_clarify_pool_active
+    from .signoff_clarify_contract_core import (
+        signoff_clarify_contract_enabled,
+        signoff_clarify_pool_active,
+    )
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
         make_loaded_skills_persist_callback,
@@ -105,6 +108,25 @@ async def build_general_agent(
             agent_wrapper.safety_fallback_model_cfg,
         )
     )
+
+    if signoff_clarify_contract_enabled(
+        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
+    ):
+        from .signoff_clarify_contract_core import (
+            build_signoff_clarify_deterministic_model,
+        )
+
+        agent_wrapper.signoff_clarify_contract = True
+        agent_wrapper.enable_structured_clarify = True
+        stub_llm = build_signoff_clarify_deterministic_model()
+        llm = stub_llm
+        agent_wrapper._lite_llm = stub_llm
+        logger.info(
+            "SignoffClarifyContract: main+lite LLM swapped to deterministic stub "
+            "(chat_id=%s pool=%s)",
+            effective_chat_id,
+            signoff_clarify_pool_active(),
+        )
 
     # 1.3 Validate auxiliary model context mismatch
     if agent_wrapper._lite_llm is not None:
@@ -190,13 +212,24 @@ async def build_general_agent(
     allowed_prebuilt = frozenset(_user_skill_cfg.enabled_prebuilt_ids)
     runtime_skill_ids = await resolve_runtime_skill_ids(agent_wrapper.skill_ids)
 
-    skill_backend = await create_skill_backend(
-        storage=storage_backend,
-        skill_ids=runtime_skill_ids or None,
-        user_id=user_id,
-        workspace_path=workspace_root,
-        allowed_prebuilt_ids=allowed_prebuilt,
-    )
+    if signoff_clarify_contract_enabled(
+        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
+    ):
+        skill_backend = None
+        runtime_skill_ids = []
+        logger.info(
+            "SignoffClarifyContract: skipping skill backend cold-start (chat_id=%s pool=%s)",
+            effective_chat_id,
+            signoff_clarify_pool_active(),
+        )
+    else:
+        skill_backend = await create_skill_backend(
+            storage=storage_backend,
+            skill_ids=runtime_skill_ids or None,
+            user_id=user_id,
+            workspace_path=workspace_root,
+            allowed_prebuilt_ids=allowed_prebuilt,
+        )
 
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
@@ -858,6 +891,7 @@ async def build_general_agent(
         wiki_search_fn=(
             agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None
         ),
+        wiki_scope_id=agent_wrapper.agent_id,
         similarity_checker=sim_checker,
         model_resolver=subagent_model_resolver,
         enable_file_tools=effective_enable_file,

@@ -13,9 +13,11 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_live_chrome_pytest_scan import (  # noqa: E402
-    extract_chrome_e2e_test_id as _extract_test_id,
-    list_live_chrome_e2e_pytest_rows,
+from e2e_session_registry import (  # noqa: E402
+    LiveE2ESessionRow,
+    admit_active_count,
+    body_active_count,
+    list_live_e2e_sessions,
 )
 from e2e_session_snapshot import (  # noqa: E402
     body_elapsed_from_snapshot,
@@ -38,6 +40,7 @@ class E2EActiveTest:
     state: str
     current_node: str | None = None
     wall_phase: str | None = None
+    admit_elapsed_sec: float | None = None
     body_elapsed_sec: float | None = None
     node_elapsed_sec: float | None = None
     batch_mode: bool = False
@@ -155,26 +158,26 @@ def _session_fields_for_pid(
     return current_node, wall_phase, body_elapsed, node_elapsed
 
 
-def _list_active_pytest_chrome_e2e() -> tuple[E2EActiveTest, ...]:
+def _session_row_to_active_test(row: LiveE2ESessionRow) -> E2EActiveTest:
+    return E2EActiveTest(
+        pid=row.pid,
+        test_id=row.test_id,
+        elapsed_sec=row.elapsed_sec,
+        state=row.state,
+        current_node=row.current_node,
+        wall_phase=row.wall_phase,
+        admit_elapsed_sec=row.admit_elapsed_sec,
+        body_elapsed_sec=row.body_elapsed_sec,
+        node_elapsed_sec=row.node_elapsed_sec,
+        batch_mode=row.batch_mode,
+    )
+
+
+def _list_active_e2e_sessions() -> tuple[E2EActiveTest, ...]:
     rows: list[E2EActiveTest] = []
-    for row in list_live_chrome_e2e_pytest_rows():
-        current_node, wall_phase, body_elapsed, node_elapsed = _session_fields_for_pid(
-            row.pid,
-            test_id=row.test_id,
-        )
-        rows.append(
-            E2EActiveTest(
-                pid=row.pid,
-                test_id=row.test_id,
-                elapsed_sec=row.elapsed_sec,
-                state=row.state,
-                current_node=current_node,
-                wall_phase=wall_phase,
-                body_elapsed_sec=body_elapsed,
-                node_elapsed_sec=node_elapsed,
-                batch_mode=_is_batch_file_invocation(row.test_id),
-            )
-        )
+    for row in list_live_e2e_sessions():
+        active = _session_row_to_active_test(row)
+        rows.append(active)
     return tuple(rows)
 
 
@@ -191,11 +194,12 @@ def snapshot_live_e2e_processes(
     return E2EParallelSnapshot(
         agent_stream_lock=read_e2e_lock_holder(stream_path),
         desktop_approval_lock=read_e2e_lock_holder(desktop_path),
-        active_tests=_list_active_pytest_chrome_e2e(),
+        active_tests=_list_active_e2e_sessions(),
     )
 
 
 def parallel_snapshot_to_dict(snapshot: E2EParallelSnapshot) -> dict[str, object]:
+    sessions = list_live_e2e_sessions()
     return {
         "agent_stream_lock": (
             asdict(snapshot.agent_stream_lock) if snapshot.agent_stream_lock else None
@@ -207,6 +211,8 @@ def parallel_snapshot_to_dict(snapshot: E2EParallelSnapshot) -> dict[str, object
         ),
         "active_tests": [asdict(row) for row in snapshot.active_tests],
         "active_test_count": len(snapshot.active_tests),
+        "admit_active_count": admit_active_count(sessions),
+        "body_active_count": body_active_count(sessions),
     }
 
 
@@ -223,6 +229,8 @@ def format_parallel_snapshot_human(snapshot: E2EParallelSnapshot) -> list[str]:
                 detail += f" current_node={row.current_node}"
             if row.wall_phase:
                 detail += f" wall_phase={row.wall_phase}"
+            if row.admit_elapsed_sec is not None:
+                detail += f" admit_elapsed={row.admit_elapsed_sec:.0f}s"
             if row.body_elapsed_sec is not None:
                 detail += f" body_elapsed={row.body_elapsed_sec:.0f}s"
             if row.node_elapsed_sec is not None:

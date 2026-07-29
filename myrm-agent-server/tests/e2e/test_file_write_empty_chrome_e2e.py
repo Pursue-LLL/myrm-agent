@@ -406,6 +406,13 @@ def _create_empty_write_live_agent(api_url: str) -> str:
     return agent_id
 
 
+def _live_chat_attempt_cap() -> int:
+    """R144: parallel mux — one open_mcp pass; outer retry amplifies BODY stall."""
+    if _parallel_live_agent_peer_count() >= 2:
+        return 1
+    return _MAX_CHAT_ATTEMPTS
+
+
 def _parallel_live_agent_peer_count() -> int:
     """Wave/mux peers for LIVE empty-write post-send stall scaling (R134)."""
     try:
@@ -978,11 +985,7 @@ async def test_file_write_empty_live_agent_webui(
     turn_ever_sent = False
 
     def _run_live_in_open_page() -> tuple[str, dict[str, object]]:
-        with open_mcp_page(
-            agent_url,
-            timeout_ms=120_000,
-            request_timeout_sec=300.0,
-        ) as (client, page):
+        with open_mcp_page(agent_url, timeout_ms=120_000) as (client, page):
 
             async def _inner() -> tuple[str, dict[str, object]]:
                 chat = McpChatSession(client, page)
@@ -993,7 +996,7 @@ async def test_file_write_empty_live_agent_webui(
 
             return asyncio.run(_inner())
 
-    for attempt in range(_MAX_CHAT_ATTEMPTS):
+    for attempt in range(_live_chat_attempt_cap()):
         heartbeat_e2e_lease()
         try:
             chat_id, result = await asyncio.to_thread(_run_live_in_open_page)
@@ -1012,8 +1015,15 @@ async def test_file_write_empty_live_agent_webui(
                 raise
             if not _is_transport_retryable(exc):
                 raise
-            if attempt >= _MAX_CHAT_ATTEMPTS - 1:
+            if attempt >= _live_chat_attempt_cap() - 1:
                 raise
+            body_reserve = 200.0 if _parallel_live_agent_peer_count() >= 2 else 120.0
+            if remaining_wall_sec() < body_reserve:
+                raise AssertionError(
+                    "E2E live empty write: skip transport retry — insufficient BODY "
+                    f"reserve {body_reserve:.0f}s remaining={remaining_wall_sec():.0f}s; "
+                    f"parallel_peers={_parallel_live_agent_peer_count()} err={last_error[:200]!r}"
+                ) from exc
             _force_mux_heal_before_live_retry()
             await asyncio.sleep(8.0)
     else:
