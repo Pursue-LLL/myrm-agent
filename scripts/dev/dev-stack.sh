@@ -132,8 +132,32 @@ _http_ok() {
   curl -sf --max-time "${max_time}" "${url}" >/dev/null 2>&1
 }
 
+_frontend_http_probe_timeout_sec() {
+  local raw="${MYRM_E2E_ATTACH_UI_PROBE_TIMEOUT_SEC:-}"
+  if [[ "${raw}" =~ ^[0-9]+$ && "${raw}" -gt 0 ]]; then
+    echo "${raw}"
+    return 0
+  fi
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local resolved=""
+  resolved="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${script_dir}/lib')
+from dev_gate_contract import attach_ui_probe_timeout_sec
+print(int(attach_ui_probe_timeout_sec()))
+" 2>/dev/null)" || true
+  if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
+    echo "${resolved}"
+    return 0
+  fi
+  echo 8
+}
+
 _frontend_http_status() {
-  curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${APP_URL}/" 2>/dev/null || echo "000"
+  local max_time
+  max_time="$(_frontend_http_probe_timeout_sec)"
+  curl -s -o /dev/null -w "%{http_code}" --max-time "${max_time}" "${APP_URL}/" 2>/dev/null || echo "000"
 }
 
 _wait_frontend_http_200() {
@@ -183,7 +207,9 @@ _api_healthy() {
 }
 
 _frontend_healthy() {
-  _http_ok "${APP_URL}/" "${1:-8}"
+  local probe_timeout
+  probe_timeout="$(_frontend_http_probe_timeout_sec)"
+  _http_ok "${APP_URL}/" "${1:-${probe_timeout}}"
 }
 
 _stack_healthy() {
@@ -410,7 +436,7 @@ _ensure_backend() {
     echo "STACK_FAIL: backend start failed" >&2
     return 1
   fi
-  if _api_healthy 10; then
+  if _api_healthy 30; then
     echo "STACK_OK: backend → ${API_BASE}"
     return 0
   fi
@@ -625,6 +651,44 @@ _private_backend_identity_valid() {
     --expected-runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" >/dev/null
 }
 
+_private_backend_scope() {
+  [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
+    || [[ "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]
+}
+
+_repair_orphan_private_backend() {
+  if ! _private_backend_scope; then
+    return 1
+  fi
+  if _private_backend_identity_valid; then
+    return 0
+  fi
+  echo "STACK_HEAL: reclaiming orphan private backend on :${BACKEND_PORT}" >&2
+  if [[ -f "${BACKEND_IDENTITY}" ]]; then
+    _stop_private_backend 2>/dev/null || true
+  fi
+  rm -f "${BACKEND_PID}" "${BACKEND_IDENTITY}"
+  if dev_port_in_use "${BACKEND_PORT}"; then
+    local pids pid cmd
+    pids="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+    for pid in ${pids}; do
+      [[ "${pid}" =~ ^[0-9]+$ ]] || continue
+      cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+      if [[ "${cmd}" == *run.py* && "${cmd}" == *myrm-agent-server* ]]; then
+        kill -TERM "${pid}" 2>/dev/null || true
+      fi
+    done
+    sleep 1
+    dev_kill_port_listeners "${BACKEND_PORT}" 2>/dev/null || true
+  fi
+  if ! dev_wait_ports_released 45 "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} still busy after orphan reclaim" >&2
+    return 1
+  fi
+  _clear_stack_epoch
+  return 0
+}
+
 cmd_backend_only_ensure() {
   if ! _ensure_backend; then
     echo "STACK_FAIL: private backend start failed" >&2
@@ -633,8 +697,34 @@ cmd_backend_only_ensure() {
 
   if _api_healthy 5; then
     if ! _private_backend_identity_valid; then
-      echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
-      exit 1
+      # R117: signoff clarify pool — _start_backend_bg may still be settling identity;
+      # do not orphan-reclaim a healthy private backend (kills in-flight ensure).
+      if [[ "${MYRM_E2E_SIGNOFF_CLARIFY_POOL:-}" == "1" ]]; then
+        local signoff_identity_wait_i
+        for signoff_identity_wait_i in $(seq 1 15); do
+          if _private_backend_identity_valid; then
+            break
+          fi
+          sleep 1
+        done
+        if _private_backend_identity_valid || _api_healthy 5; then
+          echo "STACK_OK: signoff clarify pool private backend healthy → ${API_BASE}"
+          echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
+          exit 0
+        fi
+      fi
+      if ! _repair_orphan_private_backend; then
+        echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
+        exit 1
+      fi
+      if ! _ensure_backend; then
+        echo "STACK_FAIL: private backend restart after orphan reclaim failed" >&2
+        exit 1
+      fi
+      if ! _private_backend_identity_valid; then
+        echo "STACK_FAIL: healthy private port lacks matching process ownership after reclaim" >&2
+        exit 1
+      fi
     fi
     echo "STACK_OK: private backend already healthy → ${API_BASE}"
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"

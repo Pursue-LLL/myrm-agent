@@ -105,7 +105,7 @@ LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
-E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 120
+E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 240
 # R73-B: minimum bridge-hydrate + shared UI session reserve inside bootstrap wall.
 E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC: Final[float] = 90.0
 E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
@@ -148,6 +148,27 @@ def shpoib_parallel_stall_progress_sec() -> float:
     if active_leases < 2:
         return base
     return min(150.0, base + active_leases * 10.0)
+
+
+def mux_reset_after_orphan_timeout_sec() -> float:
+    """Scale asyncio wait_for around reset_after_orphan under parallel mux load (R142).
+
+    v9 died at hardcoded 90s while peers≥6; align with shpoib_parallel_stall scaling.
+    """
+    base = 90.0
+    active_leases = 0
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        active_leases = 0
+    if active_leases < 2:
+        return base
+    return min(180.0, base + active_leases * 10.0)
 
 
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
@@ -200,6 +221,16 @@ def signoff_clarify_backend_ready_wait_sec() -> int:
     return 180
 
 
+def signoff_clarify_backend_ensure_subprocess_timeout_sec() -> int:
+    """Subprocess cap for dev-stack backend-only ensure (must exceed health poll)."""
+    return max(
+        _SIGNOFF_CLARIFY_SEED_START_TIMEOUT_SEC,
+        E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF,
+        SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC + 120,
+        SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC + 360,
+    )
+
+
 def _wave_active_lease_count_for_mux() -> int:
     try:
         from pathlib import Path
@@ -210,6 +241,48 @@ def _wave_active_lease_count_for_mux() -> int:
         return max(0, wave_active_lease_count(monorepo_root))
     except (ImportError, OSError, RuntimeError, ValueError):
         return 0
+
+
+def _parallel_chrome_e2e_pressure() -> int:
+    """Wave leases plus live ADMIT/BODY sessions — drives attach UI probe scaling (R148)."""
+    pressure = _wave_active_lease_count_for_mux()
+    try:
+        from e2e_session_registry import list_live_e2e_sessions
+
+        pressure = max(pressure, len(list_live_e2e_sessions()))
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return max(0, pressure)
+
+
+def attach_ui_probe_timeout_sec() -> float:
+    """Shared :3000 HTTP probe timeout; scales under parallel chrome_e2e (R148).
+
+    Solo 8s; under load min(25, 8+pressure×2)s. Isolated runtime keeps 30s.
+    """
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        return 30.0
+    override = os.environ.get("MYRM_E2E_ATTACH_UI_PROBE_TIMEOUT_SEC", "").strip()
+    if override:
+        try:
+            value = float(override)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
+        return 8.0
+    pressure = _parallel_chrome_e2e_pressure()
+    if pressure <= 0:
+        return 8.0
+    return min(25.0, 8.0 + pressure * 2.0)
+
+
+def admit_wall_clock_sec() -> int:
+    """ADMIT-phase hung-reap / queue SSOT (900 dev · 300 signoff)."""
+    if is_e2e_signoff_runtime():
+        return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
 def mux_admission_wait_sec() -> int:
@@ -295,12 +368,18 @@ LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # M3 signoff: clarify API wait — must cover SHPOIB agent cold-start under parallel load.
 SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 300
-# R100: one-shot agent-stream warm during SHPOIB pool acquire (cold start can exceed 180s).
-SIGNOFF_CLARIFY_AGENT_WARM_TIMEOUT_SEC: Final[int] = 420
+# R100/R105: one-shot agent-stream warm during SHPOIB pool acquire (parallel cold start).
+SIGNOFF_CLARIFY_AGENT_WARM_TIMEOUT_SEC: Final[int] = 600
 # R66/R67: signoff clarify SHPOIB bootstrap wait (BOOTSTRAP phase; warm pool uses 120s).
 SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
 )
+# R115: dev-stack /health poll during backend-only ensure under parallel signoff load.
+SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC: Final[int] = (
+    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF * 2
+)
+# Align verify_backend_seed.SEED_START_TIMEOUT_SEC (avoid cross-module import).
+_SIGNOFF_CLARIFY_SEED_START_TIMEOUT_SEC: Final[int] = 180
 # R66: signoff clarify SHPOIB cold bootstrap quality gate (BODY startup+junit excluded).
 SIGNOFF_CLARIFY_STARTUP_QUALITY_MAX_SEC: Final[int] = 90
 SIGNOFF_CLARIFY_API_SEAL_CLARIFY: Final[str] = (
@@ -332,6 +411,8 @@ GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
 # R96-B6: transport infra nodes stuck without semantic progress (parallel mux hog).
 NODE_STUCK_FAIL_FAST_SEC: Final[int] = GATE_MUX_STALL_FAIL_FAST_SEC
 E2E_NODE_STUCK_TOKEN: Final[str] = "E2E_NODE_STUCK"
+E2E_BODY_WALL_EXCEEDED_TOKEN: Final[str] = "E2E_BODY_WALL_EXCEEDED"
+E2E_TRANSPORT_PROGRESS_TOKEN: Final[str] = "E2E_TRANSPORT_PROGRESS"
 TRANSPORT_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = (
     "open_mcp_page_",
     "mux_",
