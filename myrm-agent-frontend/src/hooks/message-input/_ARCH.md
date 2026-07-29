@@ -13,7 +13,7 @@
 | `useInputHistory.ts` | ArrowUp 空框输入历史（per-agent localStorage） |
 | `useMessageInputWikiEvidenceCore.ts` | Wiki 证据复问口径与 steer success 挂起确认 |
 | `useReferenceMention.ts` | `@` 引用 autocomplete |
-| `useSlashCommand.ts` | `/` Slash 命令面板 |
+| `useSlashCommand.ts` | `/` Slash 命令面板；skill 选中写入 pendingExplicitSkillActivation + chip |
 | `useSmoothStream.ts` | 流式 markdown 平滑渲染（message-box 消费） |
 
 ## 依赖
