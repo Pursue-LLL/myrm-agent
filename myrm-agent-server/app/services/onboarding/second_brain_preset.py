@@ -22,7 +22,10 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Literal
+
 import yaml
+from pydantic import BaseModel, Field
 from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType, Schedule, ScheduleKind, SessionTarget
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
@@ -47,6 +50,36 @@ _DEVICE_ID = "second-brain-preset"
 _REQUIRED_TOOLS = frozenset({"memory", "wiki", "cron"})
 
 
+class ChecklistItem(BaseModel):
+    id: Literal["agent_tools", "cron_job", "vault_content", "provider_ready"]
+    ready: bool
+
+
+class SecondBrainPresetState(BaseModel):
+    agent_id: str | None = None
+    agent_name: str | None = None
+    cron_job_id: str | None = None
+    applied_at: str | None = None
+    origin: str = _ORIGIN
+
+
+class SecondBrainApplyResponse(BaseModel):
+    success: bool
+    message: str
+    agent_id: str
+    agent_name: str
+    cron_job_id: str | None
+    checklist: list[ChecklistItem]
+    applied_at: str
+
+
+class SecondBrainStatusResponse(BaseModel):
+    applied: bool
+    agent_id: str | None = None
+    agent_name: str | None = None
+    cron_job_id: str | None = None
+    applied_at: str | None = None
+    checklist: list[ChecklistItem] = Field(default_factory=list)
 
 
 @dataclass(slots=True)

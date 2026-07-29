@@ -202,21 +202,33 @@ def _process_alive(pid: int) -> bool:
 
 
 def _terminate_hung_pytest(pid: int, *, admit_stall: bool) -> bool:
-    """Best-effort terminate hung pytest; ADMIT stalls escalate past SIGINT."""
-    signals: tuple[int, ...]
+    """Best-effort terminate hung pytest process group; ADMIT stalls use SIGKILL."""
+    _ensure_harness_os_compat()
+    from myrm_agent_harness.utils.os_compat import (  # noqa: PLC0415
+        kill_process_group,
+        terminate_process_graceful,
+    )
+
     if admit_stall:
-        signals = (signal.SIGINT, signal.SIGTERM, signal.SIGKILL)
-    else:
-        signals = (signal.SIGINT,)
-    for sig in signals:
         try:
-            os.kill(pid, sig)
+            kill_process_group(pid, signal.SIGKILL)
         except OSError:
             return False
-        time.sleep(0.5 if sig != signal.SIGKILL else 0.1)
-        if not _process_alive(pid):
-            return True
+        time.sleep(0.1)
+        return not _process_alive(pid)
+
+    try:
+        terminate_process_graceful(pid, grace_seconds=1.0)
+    except OSError:
+        return False
     return not _process_alive(pid)
+
+
+def _ensure_harness_os_compat() -> None:
+    root = _monorepo_root()
+    harness_src = root / "myrm-agent-harness" / "src"
+    if harness_src.is_dir() and str(harness_src) not in sys.path:
+        sys.path.insert(0, str(harness_src))
 
 
 def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:

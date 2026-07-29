@@ -151,6 +151,17 @@ _wait_attach_endpoints_under_parallel_load() {
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   local wait_started=$SECONDS
   waited=0
+  local ui_heal_cap=2 ui_heal_timeout_sec=60
+  if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    ui_heal_cap=$((2 + active_leases / 3))
+    if [[ "${ui_heal_cap}" -gt 6 ]]; then
+      ui_heal_cap=6
+    fi
+    ui_heal_timeout_sec=$((60 + active_leases * 12))
+    if [[ "${ui_heal_timeout_sec}" -gt 240 ]]; then
+      ui_heal_timeout_sec=240
+    fi
+  fi
   while true; do
     waited=$((SECONDS - wait_started))
     errors="$("${PREFLIGHT_PY}" -c "
@@ -181,11 +192,11 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
       && [[ "${waited}" -ge 30 ]] \
       && [[ $((waited % 30)) -eq 0 ]] \
-      && [[ "${ui_heal_during_wait:-0}" -lt 2 ]]; then
+      && [[ "${ui_heal_during_wait:-0}" -lt "${ui_heal_cap}" ]]; then
       ui_heal_during_wait=$((ui_heal_during_wait + 1))
-      echo "CHROME_E2E_ATTACH_HEAL: ui half_dead during attach queue — bounded frontend heal ${ui_heal_during_wait}/2 (do not stop other pytest)" >&2
+      echo "CHROME_E2E_ATTACH_HEAL: ui half_dead during attach queue — bounded frontend heal ${ui_heal_during_wait}/${ui_heal_cap} (do not stop other pytest)" >&2
       if command -v timeout >/dev/null 2>&1; then
-        timeout 60 bash -c '_heal_shared_ui_if_stale' || true
+        timeout "${ui_heal_timeout_sec}" bash -c '_heal_shared_ui_if_stale' || true
       else
         _heal_shared_ui_if_stale || true
       fi

@@ -258,7 +258,8 @@ def _parallel_chrome_e2e_pressure() -> int:
 def attach_ui_probe_timeout_sec() -> float:
     """Shared :3000 HTTP probe timeout; scales under parallel chrome_e2e (R148).
 
-    Solo 8s; under load min(25, 8+pressure×2)s. Isolated runtime keeps 30s.
+    Solo 8s; under load min(25, 8+pressure×2)s for SHPOIB.
+    READ shared-hot parallel + attach frontend heal allow cold compile (≤210s).
     """
     if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
         return 30.0
@@ -270,9 +271,16 @@ def attach_ui_probe_timeout_sec() -> float:
                 return value
         except ValueError:
             pass
-    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
-        return 8.0
+    if (
+        os.environ.get("MYRM_E2E_ATTACH_FRONTEND_HEAL", "").strip() == "1"
+        or os.environ.get("MYRM_CHROME_E2E_FRONTEND_HEAL", "").strip() == "1"
+    ):
+        return 210.0
     pressure = _parallel_chrome_e2e_pressure()
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
+        if pressure <= 0:
+            return 8.0
+        return min(210.0, 30.0 + pressure * 15.0)
     if pressure <= 0:
         return 8.0
     return min(25.0, 8.0 + pressure * 2.0)
@@ -375,7 +383,7 @@ SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
 )
 # R118: harness import smoke under parallel signoff load (cold editable import).
-SIGNOFF_CLARIFY_HARNESS_SMOKE_TIMEOUT_SEC: Final[int] = 120
+SIGNOFF_CLARIFY_HARNESS_SMOKE_TIMEOUT_SEC: Final[int] = 180
 # R115: dev-stack /health poll during backend-only ensure under parallel signoff load.
 SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF * 2
