@@ -82,6 +82,11 @@ async def complete_discovery_adoption(
         AgentUpdate(skill_ids=merged),
     )
     if outcome is None:
+        logger.warning(
+            "Failed to append skill %s to agent %s allowlist after discovery adoption",
+            normalized_new,
+            context_agent_id,
+        )
         return DiscoveryAdoptionResult()
 
     logger.info(

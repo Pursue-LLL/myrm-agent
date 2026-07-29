@@ -277,7 +277,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    search_query, skill_id, skill_name = _find_prebuilt_target(api_url)
+    search_query, skill_id, _skill_name = _find_prebuilt_target(api_url)
     prior_enabled = _disable_prebuilt_for_install(api_url, skill_id)
     _assert_agent_allowlist_untouched(api_url)
 

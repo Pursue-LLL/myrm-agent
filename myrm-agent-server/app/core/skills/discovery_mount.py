@@ -7,11 +7,11 @@
 
 [OUTPUT]
 - resolve_mount_skill_id: Map install result to catalog skill ID
-- maybe_mount_after_install: Post-install enable orchestration (does not mutate agent.skill_ids)
+- maybe_mount_after_install: Post-install catalog enable (allowlist append is discovery_adopt)
 
 [POS]
-Discovery install enable bridge. Adds installed skills to the user-enabled catalog so agents
-with an empty skill allowlist pick them up via resolve_runtime_skill_ids.
+Discovery install catalog enable bridge. Adds installed skills to the user-enabled catalog.
+Explicit agent allowlist append is handled by discovery_adopt after mount succeeds.
 """
 
 from __future__ import annotations

@@ -71,3 +71,24 @@ async def test_adoption_no_op_when_skill_already_in_allowlist() -> None:
 
     assert result.allowlist_appended is False
     update_agent.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_adoption_logs_and_no_ops_when_update_fails() -> None:
+    agent = type("Agent", (), {"skills": ["code-review"]})()
+    with (
+        patch(
+            "app.core.skills.discovery_adopt.AgentService.get_agent_by_id",
+            new=AsyncMock(return_value=agent),
+        ),
+        patch(
+            "app.core.skills.discovery_adopt.AgentService.update_agent",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        result = await complete_discovery_adoption(
+            "builtin-general",
+            "systematic-debugging",
+        )
+
+    assert result.allowlist_appended is False
