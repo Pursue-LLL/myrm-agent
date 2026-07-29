@@ -707,7 +707,13 @@ export function WikiSection() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <SecondBrainSetupCard onApplied={() => void loadStats()} />
+          <SecondBrainSetupCard
+            onApplied={() => void loadStats()}
+            onGoToImport={() =>
+              document.getElementById('wiki-obsidian-import')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            onGoToProviders={() => router.push('/settings/models')}
+          />
 
           {/* Purpose / Direction */}
           <Card>
@@ -1214,7 +1220,7 @@ export function WikiSection() {
           </Card>
 
           {/* Obsidian Vault Import */}
-          <Card>
+          <Card id="wiki-obsidian-import">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconBook className="w-5 h-5" />

@@ -18,6 +18,8 @@ import {
 
 interface SecondBrainSetupCardProps {
   onApplied?: (agentId: string) => void;
+  onGoToImport?: () => void;
+  onGoToProviders?: () => void;
 }
 
 function ChecklistRow({ item, label }: { item: SecondBrainChecklistItem; label: string }) {
@@ -30,15 +32,16 @@ function ChecklistRow({ item, label }: { item: SecondBrainChecklistItem; label: 
         )}
         aria-hidden
       />
-      <span className={cn(item.ready ? 'text-foreground' : 'text-muted-foreground')}>
-        {label}
-        {item.detail ? <span className="block text-xs text-muted-foreground">{item.detail}</span> : null}
-      </span>
+      <span className={cn(item.ready ? 'text-foreground' : 'text-muted-foreground')}>{label}</span>
     </li>
   );
 }
 
-export default function SecondBrainSetupCard({ onApplied }: SecondBrainSetupCardProps) {
+export default function SecondBrainSetupCard({
+  onApplied,
+  onGoToImport,
+  onGoToProviders,
+}: SecondBrainSetupCardProps) {
   const t = useTranslations('settings.wiki.secondBrain');
   const [status, setStatus] = useState<SecondBrainPresetStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +105,9 @@ export default function SecondBrainSetupCard({ onApplied }: SecondBrainSetupCard
     provider_ready: t('checklist.providerReady'),
   };
 
+  const vaultReady = status?.checklist.find((item) => item.id === 'vault_content')?.ready ?? false;
+  const providerReady = status?.checklist.find((item) => item.id === 'provider_ready')?.ready ?? false;
+
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent-warm/5">
       <CardHeader>
@@ -133,6 +139,16 @@ export default function SecondBrainSetupCard({ onApplied }: SecondBrainSetupCard
                   onClick={() => void selectSecondBrainAgent(status.agent_id!)}
                 >
                   {t('useAgent')}
+                </Button>
+              ) : null}
+              {!vaultReady && onGoToImport ? (
+                <Button variant="outline" onClick={onGoToImport}>
+                  {t('goImport')}
+                </Button>
+              ) : null}
+              {!providerReady && onGoToProviders ? (
+                <Button variant="outline" onClick={onGoToProviders}>
+                  {t('goProviders')}
                 </Button>
               ) : null}
             </div>

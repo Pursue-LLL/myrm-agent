@@ -1,4 +1,18 @@
-"""Pydantic schemas for Second Brain onboarding preset."""
+"""Pydantic schemas for Second Brain onboarding preset.
+
+[INPUT]
+- None (self-contained schema definitions)
+
+[OUTPUT]
+- ChecklistItem: 4-item readiness checklist item model
+- SecondBrainPresetState: persistent state for preset application
+- SecondBrainApplyResponse: API response after applying preset
+- SecondBrainStatusResponse: API response for preset status query
+
+[POS]
+Pure data models extracted from second_brain_preset for line-budget compliance.
+No business logic; consumed by second_brain_preset.py and API layer.
+"""
 
 from __future__ import annotations
 

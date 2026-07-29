@@ -2068,7 +2068,9 @@
           "cronJob": "每日稍后读定时任务",
           "vaultContent": "知识库已有内容",
           "providerReady": "模型服务已配置"
-        }
+        },
+        "goImport": "导入知识库",
+        "goProviders": "配置模型"
       },
       "loading": "加载中...",
       "agentScopeLabel": "智能体知识库",

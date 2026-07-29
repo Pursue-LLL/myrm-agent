@@ -193,6 +193,32 @@ def _healthy_body_sessions_active(*, skip_pid: int | None = None) -> bool:
     return False
 
 
+def _process_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _terminate_hung_pytest(pid: int, *, admit_stall: bool) -> bool:
+    """Best-effort terminate hung pytest; ADMIT stalls escalate past SIGINT."""
+    signals: tuple[int, ...]
+    if admit_stall:
+        signals = (signal.SIGINT, signal.SIGTERM, signal.SIGKILL)
+    else:
+        signals = (signal.SIGINT,)
+    for sig in signals:
+        try:
+            os.kill(pid, sig)
+        except OSError:
+            return False
+        time.sleep(0.5 if sig != signal.SIGKILL else 0.1)
+        if not _process_alive(pid):
+            return True
+    return not _process_alive(pid)
+
+
 def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
     """SIGINT pytest processes exceeding BODY budget or progress stall; then wave reap."""
     reaped = False
@@ -208,9 +234,8 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
             file=sys.stderr,
             flush=True,
         )
-        try:
-            os.kill(row.pid, signal.SIGINT)
-        except OSError:
+        admit_stall = "E2E_ADMIT_STALL" in reason
+        if not _terminate_hung_pytest(row.pid, admit_stall=admit_stall):
             continue
         reaped = True
         time.sleep(0.5)

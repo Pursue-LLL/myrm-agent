@@ -56,8 +56,6 @@ export async function applyTelegramAssistantOnboarding(
 export interface SecondBrainChecklistItem {
   id: 'agent_tools' | 'cron_job' | 'vault_content' | 'provider_ready';
   ready: boolean;
-  label_key: string;
-  detail?: string | null;
 }
 
 export interface SecondBrainPresetStatus {

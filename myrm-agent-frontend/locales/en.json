@@ -2068,7 +2068,9 @@
           "cronJob": "Daily read-it-later cron job",
           "vaultContent": "Knowledge vault has content",
           "providerReady": "Model provider configured"
-        }
+        },
+        "goImport": "Import knowledge",
+        "goProviders": "Configure models"
       },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",

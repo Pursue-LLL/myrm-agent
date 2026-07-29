@@ -24,7 +24,8 @@
 | `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 | — |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 | — |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 | — |
-| `WikiSection.tsx` | 容器 | Wiki 子 Tab；… Overview **asset_index** badges + vision hint；**ingest SSE** → tree_sync / **stats_refresh** 自动 loadStats | ✅ |
+| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Overview **SecondBrainSetupCard** + asset_index badges + vision hint；ingest SSE → tree_sync / stats_refresh 自动 loadStats | ✅ |
+| `SecondBrainSetupCard.tsx` | 核心 | 第二大脑一键预设：apply/status checklist、自动 selectAgent、vault/provider 深链 | ✅ |
 | `WikiPendingEdits.tsx` | 核心 | HITL 待审列表；**agentScopeId 显式 reload** + scope chip | ✅ |
 | `WikiConceptsList.tsx` | 编排 | 词条 Tab；接收 `agentScopeId` + scopeRevision remount key | ✅ |
 | `WikiScopeChip.tsx` | UI | Pending/Queue scope 提示 badge | ✅ |
