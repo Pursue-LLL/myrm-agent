@@ -13,16 +13,26 @@
  * EmptyChat/AgentConfigPanel 的模板发现层组件。
  * 负责在不改动后端契约的前提下，把模板检索、团队场景召唤与会话预填闭环接入 GUI。
  */
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
-import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
+import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Bot, Plus, Loader2, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { resolveLucideIcon } from '@/components/agent/agent-icons';
 import useChatStore from '@/store/useChatStore';
+import {
+  normalizeTemplateSearchText,
+  resolveTemplateKind,
+  templateMatchesSearchQuery,
+} from '@/services/templateDiscovery';
+import {
+  recordExpertSummonSearchUsed,
+  recordExpertSummonSurfaceViewed,
+} from '@/services/expertSummonMetrics';
+import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 
 interface TemplateMarketProps {
   className?: string;
@@ -39,14 +49,14 @@ const renderAvatar = (avatarUrl: string | null | undefined, isTeam: boolean) => 
   return isTeam ? <Users size={16} /> : <Bot size={16} />;
 };
 
-const normalizeSearchText = (value: string): string => value.trim().toLowerCase();
-
 const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   const t = useTranslations('agent.configPanel');
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [instantiatingId, setInstantiatingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const hasReportedSurfaceViewRef = useRef(false);
+  const hasReportedSearchUseRef = useRef(false);
   const router = useRouter();
   const setInputMessage = useChatStore((state) => state.setInputMessage);
 
@@ -62,6 +72,10 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         const data = await getTemplates();
         if (!cancelled) {
           setTemplates(data);
+          if (data.length > 0 && !hasReportedSurfaceViewRef.current) {
+            hasReportedSurfaceViewRef.current = true;
+            recordExpertSummonSurfaceViewed('template_market', 'template-market');
+          }
         }
       } catch {
         // Template market is optional; hide section when backend is unavailable.
@@ -79,13 +93,33 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     };
   }, []);
 
-  const handleInstantiate = async (templateId: string, starterPrompt?: string) => {
+  useEffect(() => {
+    const query = normalizeTemplateSearchText(searchQuery);
+    if (!query || hasReportedSearchUseRef.current) {
+      return;
+    }
+    hasReportedSearchUseRef.current = true;
+    recordExpertSummonSearchUsed('template_market', query.length, 'template-market');
+  }, [searchQuery]);
+
+  const handleInstantiate = async (template: TemplateListItem, starterPrompt?: string) => {
     if (instantiatingId) return;
-    setInstantiatingId(templateId);
+    const normalizedStarterPrompt = starterPrompt?.trim() ?? '';
+    const fromSearch = normalizeTemplateSearchText(searchQuery).length > 0;
+    const usedUseCase = normalizedStarterPrompt.length > 0;
+    setInstantiatingId(template.id);
     try {
-      const newAgent = await instantiateTemplate(templateId);
-      if (starterPrompt?.trim()) {
-        setInputMessage(starterPrompt.trim());
+      const newAgent = await instantiateTemplateWithMetrics({
+        templateId: template.id,
+        surface: 'template_market',
+        trigger: usedUseCase ? 'use_case_chip' : 'template_card',
+        templateKind: resolveTemplateKind(template.agent_type),
+        fromSearch,
+        usedUseCase,
+        contextKey: 'template-market',
+      });
+      if (normalizedStarterPrompt) {
+        setInputMessage(normalizedStarterPrompt);
       }
       toast.success(t('instantiateSuccess') || 'Agent created from template!');
       if (onInstantiated) {
@@ -102,19 +136,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   };
 
   const filteredTemplates = useMemo(() => {
-    const query = normalizeSearchText(searchQuery);
-    if (!query) {
-      return templates;
-    }
-    return templates.filter((template) => {
-      const searchableParts = [
-        template.name,
-        template.description ?? '',
-        ...(template.use_cases ?? []),
-        ...((template.members ?? []).flatMap((member) => [member.name, member.description ?? ''])),
-      ];
-      return searchableParts.some((part) => normalizeSearchText(part).includes(query));
-    });
+    return templates.filter((template) => templateMatchesSearchQuery(template, searchQuery));
   }, [searchQuery, templates]);
 
   if (loading) {
@@ -146,6 +168,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
           type="text"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
+          aria-label={t('searchMarketplace') || 'Search agents'}
           placeholder={t('searchMarketplace') || 'Search agents...'}
           className="h-8 w-full rounded-lg border border-border/60 bg-background pl-7 pr-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/40"
         />
@@ -171,15 +194,18 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       {individualTemplates.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {individualTemplates.map(template => (
-            <div 
+            <button
+              type="button"
               key={template.id}
+              disabled={Boolean(instantiatingId)}
               className={cn(
                 "relative flex flex-col gap-2 p-3 rounded-xl",
                 "border border-border/40 bg-card/40 backdrop-blur-sm",
-                "hover:border-primary/30 hover:bg-primary/5 transition-all",
-                "group cursor-pointer"
+                "hover:border-primary/30 hover:bg-primary/5 transition-all text-left",
+                "group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                "disabled:opacity-60 disabled:cursor-not-allowed"
               )}
-              onClick={() => handleInstantiate(template.id)}
+              onClick={() => void handleInstantiate(template)}
             >
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
@@ -199,7 +225,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -214,17 +240,33 @@ function TeamTemplateCard({
 }: {
   template: TemplateListItem;
   instantiatingId: string | null;
-  onInstantiate: (id: string, starterPrompt?: string) => void;
+  onInstantiate: (template: TemplateListItem, starterPrompt?: string) => void;
 }) {
+  const isDisabled = Boolean(instantiatingId);
+
   return (
     <div
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled}
       className={cn(
         "relative flex flex-col gap-2.5 p-3.5 rounded-xl",
         "border border-border/40 bg-card/40 backdrop-blur-sm",
         "hover:border-primary/30 hover:bg-primary/5 transition-all",
-        "group cursor-pointer"
+        "group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        isDisabled && "opacity-60 cursor-not-allowed"
       )}
-      onClick={() => onInstantiate(template.id)}
+      onClick={() => {
+        if (isDisabled) return;
+        void onInstantiate(template);
+      }}
+      onKeyDown={(event) => {
+        if (isDisabled) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void onInstantiate(template);
+        }
+      }}
     >
       <div className="flex items-center gap-2.5">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 text-primary shrink-0">
@@ -269,11 +311,12 @@ function TeamTemplateCard({
             <button
               key={`${useCase}-${useCaseIndex}`}
               type="button"
+              disabled={isDisabled}
               onClick={(event) => {
                 event.stopPropagation();
-                onInstantiate(template.id, useCase);
+                void onInstantiate(template, useCase);
               }}
-              className="inline-flex items-center rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/15"
+              className="inline-flex items-center rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/15 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {useCase}
             </button>

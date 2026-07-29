@@ -424,6 +424,7 @@ myrm_agent_harness.toolkits.wiki.pipeline.apply
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map
 myrm_agent_harness.toolkits.wiki.pipeline.publication
 myrm_agent_harness.toolkits.wiki.pipeline.raw_gate
+myrm_agent_harness.toolkits.wiki.retrieval.asset_index
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils

@@ -424,16 +424,29 @@ _frontend_root_probe_seconds() {
 # R149: parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
 _frontend_post_heal_warm_streak_ok() {
   local max_sec="${MYRM_UI_HEAL_POST_ENSURE_MAX_SEC:-60}"
-  local streak=0 i timing=""
+  local streak_required="${FRONTEND_WARM_STREAK}" streak=0 i timing="" pressure=0
+  pressure="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
+from dev_gate_contract import _parallel_chrome_e2e_pressure
+print(_parallel_chrome_e2e_pressure())
+" 2>/dev/null || echo 0)"
+  if [[ "${pressure}" =~ ^[0-9]+$ && "${pressure}" -ge 4 ]]; then
+    streak_required=1
+    max_sec=$((60 + pressure * 6))
+    if [[ "${max_sec}" -gt 120 ]]; then
+      max_sec=120
+    fi
+  fi
   for i in $(seq 1 "${max_sec}"); do
     if timing="$(_frontend_root_probe_seconds)"; then
       if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
         streak=$((streak + 1))
-        if [[ "${streak}" -ge "${FRONTEND_WARM_STREAK}" ]]; then
+        if [[ "${streak}" -ge "${streak_required}" ]]; then
           echo "${timing}"
           return 0
         fi
-        echo "CHROME_E2E_HEAL: post-ensure warm streak ${streak}/${FRONTEND_WARM_STREAK} (${timing}s)..." >&2
+        echo "CHROME_E2E_HEAL: post-ensure warm streak ${streak}/${streak_required} (${timing}s)..." >&2
       else
         streak=0
         echo "CHROME_E2E_HEAL: post-ensure still slow (${timing}s)..." >&2

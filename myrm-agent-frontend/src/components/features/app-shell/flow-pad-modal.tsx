@@ -29,36 +29,51 @@ import {
   Send,
   X,
   Monitor,
-  MessageSquareReply,
-  FileText,
-  Languages,
-  Lightbulb,
   ClipboardPaste,
   Copy,
   Loader2,
   TextSelect,
-  ChevronDown,
-  Check,
-  Search,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
-import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import useAgentStore from '@/store/useAgentStore';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import type { AgentConfig } from '@/store/chat/types';
-import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
+import { getTemplates, type TemplateListItem } from '@/services/agent';
+import {
+  recordExpertSummonFirstMessageSent,
+  recordExpertSummonRouteApplied,
+  recordExpertSummonRouteApplyFailed,
+  recordExpertSummonSearchUsed,
+  recordExpertSummonSurfaceViewed,
+} from '@/services/expertSummonMetrics';
+import {
+  normalizeTemplateSearchText,
+  resolveTemplateKind,
+  templateMatchesSearchQuery,
+} from '@/services/templateDiscovery';
+import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 
 import { formatAppshotMessage, CapturePreview, ImageLightbox } from './FlowPadModalParts';
+import { FlowPadInlineRouteSwitcher } from './flow-pad-inline-route-switcher';
+import { FlowPadQuickActions } from './flow-pad-quick-actions';
 
 interface InlineRouteSelection {
   id: string;
   name: string;
   avatarUrl?: string;
   config: AgentConfig;
+}
+
+interface SummonedRouteConversionState {
+  agentId: string;
+  trigger: 'template_card' | 'use_case_chip';
+  templateKind: 'team' | 'individual';
+  fromSearch: boolean;
+  usedUseCase: boolean;
+  firstMessageSent: boolean;
 }
 
 function getAgentDisplayName(config: AgentConfig | null): string | null {
@@ -85,10 +100,6 @@ function createFallbackRouteConfig(agentId: string): AgentConfig {
     useGlobalInstruction: true,
     autoRestoreDomains: [],
   };
-}
-
-function normalizeSearchText(value: string): string {
-  return value.trim().toLowerCase();
 }
 
 export function FlowPadModal() {
@@ -128,6 +139,9 @@ export function FlowPadModal() {
   const inlineActiveRequestIdRef = useRef<string | null>(null);
   const inlineRouteSwitchNonceRef = useRef(0);
   const inlineRouteSwitchAbortRef = useRef<AbortController | null>(null);
+  const hasReportedInlineTemplateSurfaceViewRef = useRef(false);
+  const hasReportedInlineTemplateSearchRef = useRef(false);
+  const summonedRouteRef = useRef<SummonedRouteConversionState | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const agentRouteMenuRef = useRef<HTMLDivElement>(null);
 
@@ -158,6 +172,9 @@ export function FlowPadModal() {
       setTemplateSearchQuery('');
       setInstantiatingTemplateId(null);
       inlineActiveRequestIdRef.current = null;
+      hasReportedInlineTemplateSurfaceViewRef.current = false;
+      hasReportedInlineTemplateSearchRef.current = false;
+      summonedRouteRef.current = null;
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
       inlineRouteSwitchAbortRef.current?.abort();
@@ -167,6 +184,9 @@ export function FlowPadModal() {
       setTemplateSearchQuery('');
       setInstantiatingTemplateId(null);
       inlineActiveRequestIdRef.current = null;
+      hasReportedInlineTemplateSurfaceViewRef.current = false;
+      hasReportedInlineTemplateSearchRef.current = false;
+      summonedRouteRef.current = null;
     }
   }, [isOpen, initialText, mode, sourcePid]);
 
@@ -226,20 +246,28 @@ export function FlowPadModal() {
     void loadExpertTemplates();
   }, [mode, agentRouteMenuOpen, expertTemplatesLoaded, expertTemplatesLoading, loadExpertTemplates]);
 
-  const filteredExpertTemplates = useMemo(() => {
-    const query = normalizeSearchText(templateSearchQuery);
-    if (!query) {
-      return expertTemplates;
+  useEffect(() => {
+    if (mode !== 'inline' || !agentRouteMenuOpen || hasReportedInlineTemplateSurfaceViewRef.current) {
+      return;
     }
-    return expertTemplates.filter((template) => {
-      const searchableParts = [
-        template.name,
-        template.description ?? '',
-        ...(template.use_cases ?? []),
-        ...((template.members ?? []).flatMap((member) => [member.name, member.description ?? ''])),
-      ];
-      return searchableParts.some((part) => normalizeSearchText(part).includes(query));
-    });
+    hasReportedInlineTemplateSurfaceViewRef.current = true;
+    recordExpertSummonSurfaceViewed('flow_pad_inline', 'flowpad:inline');
+  }, [mode, agentRouteMenuOpen]);
+
+  useEffect(() => {
+    if (mode !== 'inline' || !agentRouteMenuOpen || hasReportedInlineTemplateSearchRef.current) {
+      return;
+    }
+    const normalizedQuery = normalizeTemplateSearchText(templateSearchQuery);
+    if (!normalizedQuery) {
+      return;
+    }
+    hasReportedInlineTemplateSearchRef.current = true;
+    recordExpertSummonSearchUsed('flow_pad_inline', normalizedQuery.length, 'flowpad:inline');
+  }, [mode, agentRouteMenuOpen, templateSearchQuery]);
+
+  const filteredExpertTemplates = useMemo(() => {
+    return expertTemplates.filter((template) => templateMatchesSearchQuery(template, templateSearchQuery));
   }, [expertTemplates, templateSearchQuery]);
 
   // Inline Mode: bridge streaming messages to inlineResult
@@ -291,7 +319,10 @@ export function FlowPadModal() {
   }, [captures, setFiles]);
 
   const handleSelectInlineRouteAgent = useCallback(
-    async (agentId: string | null) => {
+    async (
+      agentId: string | null,
+      options?: { fromTemplate?: boolean },
+    ): Promise<boolean> => {
       setAgentRouteMenuOpen(false);
       if (agentId === null) {
         inlineRouteSwitchAbortRef.current?.abort();
@@ -300,10 +331,14 @@ export function FlowPadModal() {
         setInlineRouteSelection(null);
         setInlineRouteSwitchError(null);
         setInlineRouteSwitching(false);
-        return;
+        summonedRouteRef.current = null;
+        return true;
+      }
+      if (!options?.fromTemplate) {
+        summonedRouteRef.current = null;
       }
       if (inlineRouteSelection?.id === agentId) {
-        return;
+        return true;
       }
 
       const switchNonce = inlineRouteSwitchNonceRef.current + 1;
@@ -317,13 +352,13 @@ export function FlowPadModal() {
         const listItem = availableAgents.find((agent) => agent.id === agentId);
         const fullAgent = await fetchAgent(agentId, abortController.signal);
         if (abortController.signal.aborted) {
-          return;
+          return false;
         }
         if (!fullAgent) {
           throw new Error('Failed to load target agent profile');
         }
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
-          return;
+          return false;
         }
         const nextName = listItem?.name ?? fullAgent?.name ?? agentId;
         const nextAvatar = listItem?.avatar_url ?? fullAgent?.avatar_url;
@@ -336,12 +371,13 @@ export function FlowPadModal() {
         });
         setInlineRouteSwitchError(null);
         toast.success(t('inlineRouteApplied', { agent: nextName }), { duration: 2000 });
+        return true;
       } catch (err) {
         if (abortController.signal.aborted) {
-          return;
+          return false;
         }
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
-          return;
+          return false;
         }
         console.error('FlowPad inline route switch failed:', err);
         const failedName = availableAgents.find((agent) => agent.id === agentId)?.name ?? agentId;
@@ -349,6 +385,7 @@ export function FlowPadModal() {
         setInlineRouteSelection(null);
         setInlineRouteSwitchError(failedName);
         toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
+        return false;
       } finally {
         if (inlineRouteSwitchAbortRef.current === abortController) {
           inlineRouteSwitchAbortRef.current = null;
