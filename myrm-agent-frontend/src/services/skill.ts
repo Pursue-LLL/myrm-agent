@@ -385,8 +385,7 @@ export interface DiscoveryInstallResponse {
   mount_skill_id?: string;
   mount_already_present?: boolean;
   mount_error?: string;
-  runtime_blocked_by_allowlist?: boolean;
-  allowlist_agent_id?: string;
+  allowlist_appended?: boolean;
 }
 
 export interface DiscoveryInstallOptions {

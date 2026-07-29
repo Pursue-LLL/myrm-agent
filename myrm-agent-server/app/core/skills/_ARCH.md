@@ -41,7 +41,8 @@
 | `clawhub_registry.py` | 核心 | ClawHub 镜像 URL 持久化/apply（CLAWHUB_URL SSOT + 清除 shadow env）；CN 预设 skill.xfyun.cn | ✅ |
 | `clawhub_probe.py` | 核心 | 薄封装：委托 harness strict registry probe | ✅ |
 | `effective_skill_ids.py` | 核心 | Agent 空 allowlist 时解析运行时 skill_ids（enabled prebuilt + local） | ✅ |
-| `discovery_mount.py` | 核心 | Discovery 安装/更新后唯一 catalog enable 入口（不写入 agent allowlist） | ✅ |
+| `discovery_adopt.py` | 核心 | Discover 采纳：显式 allowlist 时 install 自动 append skill_id | ✅ |
+| `discovery_mount.py` | 核心 | Discovery 安装/更新后 catalog enable 入口 | ✅ |
 | `market_service.py` | 核心 | 业务层技能市场服务（SSE 进度、自定义源、ClawHub 镜像懒加载） | ✅ |
 | `disabled_skill_roots.py` | 核心 | 收集用户未启用技能的 `storage_path` 根目录，注入 agent runtime context 供 glob/grep/file_read 过滤 | ✅ |
 

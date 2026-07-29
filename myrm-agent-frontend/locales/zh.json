@@ -2497,8 +2497,8 @@
         "installedAndEnabled": "已安装并启用：{name}",
         "installedAlreadyEnabled": "{name} 已启用",
         "installedEnableFailed": "已安装 {name}，但启用失败",
-        "installedAllowlistBlocked": "{name} 已加入目录，但尚未进入对话",
-        "installedAllowlistBlockedDesc": "Agent「{agentId}」使用了显式技能白名单。请在 Agent 设置中添加该技能，或清空白名单。",
+        "installedAllowlistAppended": "{name} 已加入智能体技能白名单",
+        "installedAllowlistAppendedDesc": "该 Agent 使用显式技能白名单，新技能已自动加入。",
         "source": {
           "prebuilt": "官方",
           "github": "GitHub",

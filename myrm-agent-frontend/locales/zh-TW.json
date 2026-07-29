@@ -2404,8 +2404,8 @@
         "installedAndEnabled": "已安裝並啟用：{name}",
         "installedAlreadyEnabled": "{name} 已啟用",
         "installedEnableFailed": "已安裝 {name}，但啟用失敗",
-        "installedAllowlistBlocked": "{name} 已加入目錄，但尚未進入對話",
-        "installedAllowlistBlockedDesc": "Agent「{agentId}」使用了顯式技能白名單。請在 Agent 設定中新增該技能，或清空白名單。",
+        "installedAllowlistAppended": "{name} 已加入智能體技能白名單",
+        "installedAllowlistAppendedDesc": "該 Agent 使用顯式技能白名單，新技能已自動加入。",
         "source": {
           "prebuilt": "官方",
           "github": "GitHub",

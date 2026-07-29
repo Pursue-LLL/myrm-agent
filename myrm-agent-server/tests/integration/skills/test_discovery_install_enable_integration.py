@@ -110,7 +110,7 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
     assert catalog_id in runtime_ids
 
     update_agent.assert_not_called()
-    assert body.get("runtime_blocked_by_allowlist") is False
+    assert body.get("allowlist_appended") is False
 
 
 @pytest.mark.asyncio
@@ -346,7 +346,7 @@ async def test_explicit_allowlist_takes_precedence_over_catalog() -> None:
 
 
 @pytest.mark.asyncio
-async def test_install_reports_allowlist_block_when_agent_has_explicit_subset(
+async def test_install_appends_explicit_allowlist_when_agent_has_subset(
     discovery_client: TestClient,
 ) -> None:
     prebuilt_id = "systematic-debugging"
@@ -356,7 +356,8 @@ async def test_install_reports_allowlist_block_when_agent_has_explicit_subset(
         skill_id=prebuilt_id,
         installed_path="prebuilt (already installed)",
     )
-    agent = type("Agent", (), {"skill_ids": ["code-review"]})()
+    agent = type("Agent", (), {"skills": ["code-review"]})()
+    update_agent = AsyncMock(return_value=agent)
 
     with (
         patch.object(
@@ -371,6 +372,10 @@ async def test_install_reports_allowlist_block_when_agent_has_explicit_subset(
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new=AsyncMock(return_value=agent),
+        ),
+        patch(
+            "app.services.agent.agent_service.AgentService.update_agent",
+            new=update_agent,
         ),
         patch("app.api.skills.discovery._audit_skill_action"),
     ):
@@ -387,5 +392,7 @@ async def test_install_reports_allowlist_block_when_agent_has_explicit_subset(
     assert response.status_code == 200
     body = response.json()
     assert body["mounted"] is True
-    assert body["runtime_blocked_by_allowlist"] is True
-    assert body["allowlist_agent_id"] == "builtin-general"
+    assert body["allowlist_appended"] is True
+    update_agent.assert_awaited_once()
+    merged = update_agent.await_args.args[1].skill_ids
+    assert merged == ["code-review", prebuilt_id]

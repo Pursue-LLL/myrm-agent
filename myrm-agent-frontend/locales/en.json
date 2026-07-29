@@ -2497,8 +2497,8 @@
         "installedAndEnabled": "Installed and enabled: {name}",
         "installedAlreadyEnabled": "{name} is already enabled",
         "installedEnableFailed": "Installed {name}, but failed to enable",
-        "installedAllowlistBlocked": "{name} is enabled in catalog but not in chat yet",
-        "installedAllowlistBlockedDesc": "Agent \"{agentId}\" uses an explicit skill allowlist. Add this skill in Agent settings or clear the allowlist.",
+        "installedAllowlistAppended": "{name} added to agent skill allowlist",
+        "installedAllowlistAppendedDesc": "This agent uses an explicit skill allowlist. The new skill was added automatically.",
         "source": {
           "prebuilt": "Official",
           "github": "GitHub",

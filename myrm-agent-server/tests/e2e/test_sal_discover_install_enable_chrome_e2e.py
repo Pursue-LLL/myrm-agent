@@ -271,22 +271,11 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(180)
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:
-    """Discover: CN/custom mirror + prebuilt install; agent.skill_ids stays empty."""
+    """Discover prebuilt install enables catalog; empty agent.skill_ids stays unchanged."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-
-    probe = http_json(
-        "GET", f"{api_url}/api/v1/skills/discovery/registry-probe?mirror=cn"
-    )
-    assert isinstance(probe, dict)
-    assert (
-        probe.get("reachable") is True
-    ), f"CN registry probe must be reachable: {probe!r}"
-
-    prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
-    prior_registry_url = str(prior_config.get("clawhub_registry_url") or "")
 
     search_query, skill_id, skill_name = _find_prebuilt_target(api_url)
     prior_enabled = _disable_prebuilt_for_install(api_url, skill_id)
@@ -305,9 +294,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                 timeout_sec=15.0,
             )
             assert isinstance(submitted, dict)
-            assert (
-                submitted.get("ok") is True
-            ), f"Discover search submit failed: {submitted}"
+            assert submitted.get("ok") is True, submitted
 
             wait_for_state(client, page, _results_ready_js(skill_id), timeout_sec=60.0)
 
@@ -317,9 +304,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                 timeout_sec=15.0,
             )
             assert isinstance(clicked, dict)
-            assert (
-                clicked.get("ok") is True
-            ), f"Discover install click failed: {clicked}"
+            assert clicked.get("ok") is True, clicked
 
             install_deadline = time.monotonic() + 90.0
             toast_state: dict[str, object] = {"ready": False}
@@ -335,10 +320,52 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                     toast_state = {"ready": True, "via": "api-catalog"}
                     break
                 time.sleep(1.0)
-            assert (
-                toast_state.get("ready") is True
-            ), f"Expected install+enable toast or catalog enable: {toast_state}"
+            assert toast_state.get("ready") is True, toast_state
+    finally:
+        config_check = http_json("GET", f"{api_url}/api/v1/skills/config")
+        enabled_now = set(config_check.get("enabled_prebuilt_ids") or [])
+        if skill_id not in enabled_now:
+            http_json(
+                "PUT",
+                f"{api_url}/api/v1/skills/config",
+                {"enabled_prebuilt_ids": prior_enabled},
+            )
 
+    config_after = http_json("GET", f"{api_url}/api/v1/skills/config")
+    enabled_after = set(config_after.get("enabled_prebuilt_ids") or [])
+    assert skill_id in enabled_after, f"Expected {skill_id} enabled; got {enabled_after!r}"
+    _assert_agent_allowlist_untouched(api_url)
+
+
+def _restore_registry_url(api_url: str, prior_registry_url: str) -> None:
+    http_json(
+        "PUT",
+        f"{api_url}/api/v1/skills/config",
+        {"clawhub_registry_url": prior_registry_url or ""},
+    )
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(120)
+def test_discover_cn_mirror_select_save_via_ui() -> None:
+    """Discover settings: CN mirror select persists via API."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    probe = http_json(
+        "GET", f"{api_url}/api/v1/skills/discovery/registry-probe?mirror=cn"
+    )
+    assert probe.get("reachable") is True, probe
+
+    prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
+    prior_registry_url = str(prior_config.get("clawhub_registry_url") or "")
+
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route("/settings/skills")
+
+    try:
+        with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
             wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
             opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
@@ -349,17 +376,36 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
             )
             assert mirror_toast.get("ready") is True, mirror_toast
             mirror_config = http_json("GET", f"{api_url}/api/v1/skills/config")
-            assert (
-                mirror_config.get("clawhub_registry_url") == "https://skill.xfyun.cn"
-            ), f"Expected CN mirror URL; got {mirror_config!r}"
+            assert mirror_config.get("clawhub_registry_url") == "https://skill.xfyun.cn"
+    finally:
+        _restore_registry_url(api_url, prior_registry_url)
 
-            opened_custom = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
-            assert isinstance(opened_custom, dict) and opened_custom.get("ok") is True, opened_custom
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(120)
+def test_discover_custom_mirror_url_save_via_ui() -> None:
+    """Discover settings: Custom URL input + Save persists normalized registry URL."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
+    prior_registry_url = str(prior_config.get("clawhub_registry_url") or "")
+
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route("/settings/skills")
+
+    custom_url = "https://clawhub.ai"
+    expected_custom_stored = ""
+
+    try:
+        with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
+            wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
+            opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
+            assert isinstance(opened, dict) and opened.get("ok") is True, opened
             picked_custom = client.evaluate(page, _SELECT_CUSTOM_MIRROR_JS, timeout_sec=15.0)
             assert isinstance(picked_custom, dict) and picked_custom.get("ok") is True, picked_custom
             wait_for_state(client, page, _CUSTOM_INPUT_READY_JS, timeout_sec=30.0)
-            custom_url = "https://clawhub.ai"
-            expected_custom_stored = ""  # normalize maps default intl URL to empty string
             focused = client.evaluate(
                 page, _FOCUS_CUSTOM_MIRROR_INPUT_JS, timeout_sec=15.0
             )
@@ -389,23 +435,4 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
             )
             assert custom_config.get("clawhub_registry_url") == expected_custom_stored
     finally:
-        http_json(
-            "PUT",
-            f"{api_url}/api/v1/skills/config",
-            {"clawhub_registry_url": prior_registry_url or ""},
-        )
-        config_check = http_json("GET", f"{api_url}/api/v1/skills/config")
-        enabled_now = set(config_check.get("enabled_prebuilt_ids") or [])
-        if skill_id not in enabled_now:
-            http_json(
-                "PUT",
-                f"{api_url}/api/v1/skills/config",
-                {"enabled_prebuilt_ids": prior_enabled},
-            )
-
-    config_after = http_json("GET", f"{api_url}/api/v1/skills/config")
-    enabled_after = set(config_after.get("enabled_prebuilt_ids") or [])
-    assert (
-        skill_id in enabled_after
-    ), f"Expected {skill_id} in enabled_prebuilt_ids; got {enabled_after!r}"
-    _assert_agent_allowlist_untouched(api_url)
+        _restore_registry_url(api_url, prior_registry_url)
