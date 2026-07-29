@@ -21,6 +21,8 @@
 | `SkillDetailSheetContent.tsx` | 辅助 | 技能详情滚动内容区（元信息/安全扫描/存储路径/生命周期/SKILL.md 渲染） | ✅ |
 | `SkillDetailHelpers.tsx` | 辅助 | 技能详情辅助组件（RequirementRow/SecurityScan/KnownPitfalls） | ✅ |
 | `SkillDiscoverTab.tsx` | 组件 | 技能发现/市场浏览 Tab（安装后 enable toast；canonical installed_skill_id 卸载） | ✅ |
+| `skillDiscoverInstallToast.ts` | 辅助 | Discover install API 响应 → 单条 toast 文案解析（含 partial-failure 合并） | ✅ |
+| `__tests__/skillDiscoverInstallToast.test.ts` | 测试 | toast 解析三分支回归（append 成功/失败/普通 enable） | ✅ |
 | `SkillRegistryMirrorPanel.tsx` | 组件 | ClawHub registry 镜像（国际/CN/自定义 URL）+ strict probe 拦截 | ✅ |
 | `SkillDraftReviewPanel.tsx` | 组件 | AI 生成技能草稿审阅面板 | ✅ |
 | `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |

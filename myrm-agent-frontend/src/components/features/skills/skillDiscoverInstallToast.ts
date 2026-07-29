@@ -1,3 +1,16 @@
+/** Discover install toast resolver — maps install API fields to a single toast payload.
+
+[INPUT]
+- settings.skills.discover locale keys (POS: Install success/allowlist toast copy)
+
+[OUTPUT]
+- resolveSkillInstallToastMessage: Pure message keys/variant from API response
+- formatSkillInstallToast: Localized title/description for toast()
+
+[POS]
+Discover install feedback helper. Keeps SkillDiscoverTab free of branching toast logic.
+*/
+
 export type SkillInstallToastResponse = {
   mounted?: boolean;
   mount_error?: string;
