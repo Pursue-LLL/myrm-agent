@@ -299,10 +299,18 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
         if not complete_results:
             return
 
-        WikiConfig()
+        wiki_config = WikiConfig()
+        if not wiki_config.auto_archive_enabled:
+            return
+
         structure = WikiStructure(wiki_base_dir)
-        raw_dir = structure.raw_dir
-        raw_dir.mkdir(parents=True, exist_ok=True)
+        structure.ensure_structure()
+
+        from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
+            RawConflictPolicy,
+            RawPublishRequest,
+            publish_raw,
+        )
 
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         written_files: list[Path] = []
@@ -314,20 +322,35 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
                 continue
 
             safe_task = "".join(c if c.isalnum() or c in "-_" else "_" for c in task[:60]).strip("_")
-            filename = f"deep_research_{timestamp}_{idx}_{safe_task}.md"
-            file_path = raw_dir / filename
+            relative_path = f"deep_research_{timestamp}_{idx}_{safe_task}.md"
 
             escaped_task = task.replace('"', '\\"')
             frontmatter = (
                 f"---\n"
                 f"source: deep_research\n"
+                f"bridge_source: deep_research\n"
                 f"task: \"{escaped_task}\"\n"
                 f"timestamp: \"{timestamp}\"\n"
                 f"session_id: \"{params.chat_id or ''}\"\n"
                 f"---\n\n"
             )
-            file_path.write_text(frontmatter + content, encoding="utf-8")
-            written_files.append(file_path)
+            result = await publish_raw(
+                structure,
+                RawPublishRequest(
+                    relative_path=relative_path,
+                    content=frontmatter + content,
+                    conflict_policy=RawConflictPolicy.FAIL,
+                ),
+                caller="chat",
+            )
+            if result.security_blocked:
+                logger.warning(
+                    "[deep-research-vault] Blocked raw write for %s: sensitive content",
+                    relative_path,
+                )
+                continue
+            if result.written:
+                written_files.append(result.absolute_path)
 
         if not written_files:
             return

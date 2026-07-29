@@ -970,6 +970,10 @@ async def convert_to_general_agent_params(
         )
         prompt_mode = resolved.prompt_mode if resolved else "full"
 
+    signoff_clarify_contract = _resolve_signoff_clarify_contract(request)
+    if signoff_clarify_contract and not is_fast_search:
+        tool_flags = {**tool_flags, "enable_structured_clarify": True}
+
     params = GeneralAgentParams(
         message_id=request.message_id,
         chat_id=request.chat_id,
@@ -1063,7 +1067,7 @@ async def convert_to_general_agent_params(
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
-        signoff_clarify_contract=_resolve_signoff_clarify_contract(request),
+        signoff_clarify_contract=signoff_clarify_contract,
     )
     return params, routing_tier, mention_warnings, archive_restore_results
 

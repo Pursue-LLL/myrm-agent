@@ -675,142 +675,51 @@ async def _run_migration_readiness_gap_e2e(
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
-@pytest.mark.chrome_e2e_signoff_batch(body_sec=1200)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
-@pytest.mark.timeout(1800)
-async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
+@pytest.mark.timeout(600)
+async def test_migration_readiness_gap_chrome_e2e_mcp_warning(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """Single SHPOIB lease: mcp_warning + provider_critical + diagnostic_critical gap toasts."""
-
-    from app.services.agent.stream_session.entitlement_gap_preflight import (
-        reset_capability_gap_emission_tracker,
+    """Post-import mcp_warning readiness: toast + capability_gap SSE on first chat."""
+    await _run_migration_readiness_gap_e2e(
+        variant="mcp_warning",
+        expected_readiness="warning",
+        gap_pattern=_MIGRATION_GAP_TOAST_PATTERN,
+        e2e_resource_ledger=e2e_resource_ledger,
     )
 
-    async def _batch_wait_verified_api() -> str:
-        deadline = time.monotonic() + 360.0
-        while time.monotonic() < deadline:
-            critical_api = get_e2e_api_url().rstrip("/")
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            if wait_e2e_provider_ready(
-                api_url=critical_api,
-                timeout_sec=min(45.0, remaining),
-            ):
-                return critical_api
-            await asyncio.sleep(5.0)
-        pytest.fail(
-            "private backend not ready before batch critical scenario: "
-            f"{get_e2e_api_url()}"
-        )
 
-    async def _batch_fresh_client(
-        current: ChromeMcpClient,
-        *,
-        reason: str,
-    ) -> ChromeMcpClient:
-        from mux_attach_force_restart import force_mux_attach_restart_scoped
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.timeout(600)
+async def test_migration_readiness_gap_chrome_e2e_provider_critical(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """Post-import provider_critical readiness: critical toast + capability_gap SSE."""
+    await _run_migration_readiness_gap_e2e(
+        variant="provider_critical",
+        expected_readiness="critical",
+        gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
+        e2e_resource_ledger=e2e_resource_ledger,
+    )
 
-        force_mux_attach_restart_scoped(reason=reason)
-        reset_session_recovery_budget()
-        await asyncio.sleep(2.0)
-        await asyncio.to_thread(current.close)
-        fresh = ChromeMcpClient(request_timeout_sec=180.0)
-        await asyncio.to_thread(fresh.start)
-        return fresh
 
-    async def _batch_run_critical_scenario(
-        current: ChromeMcpClient,
-        *,
-        variant: str,
-        verified_api: str,
-    ) -> ChromeMcpClient:
-        last_error: BaseException | None = None
-        for attempt in range(3):
-            try:
-                if attempt > 0:
-                    current = await _batch_fresh_client(
-                        current,
-                        reason=f"migration batch {variant} mux retry attempt={attempt + 1}",
-                    )
-                await _run_migration_readiness_gap_e2e(
-                    variant=variant,
-                    expected_readiness="critical",
-                    gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
-                    e2e_resource_ledger=e2e_resource_ledger,
-                    client=current,
-                    skip_warm_ui=True,
-                    provider_preverified=True,
-                    api_base_hint=verified_api,
-                )
-                return current
-            except RuntimeError as exc:
-                last_error = exc
-                message = str(exc)
-                retriable = (
-                    "MUX_RECLAIM_STALL" in message
-                    or "No page found" in message
-                    or "MUX_TRANSPORT" in message
-                )
-                if not retriable or attempt >= 2:
-                    raise
-        if last_error is not None:
-            raise last_error
-        return current
-
-    reset_capability_gap_emission_tracker()
-
-    os.environ["MYRM_E2E_SIGNOFF_BATCH_BODY_SEC"] = "1200"
-
-    from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
-
-    reap_chrome_e2e_session_hygiene()
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
-
-    force_mux_attach_restart_scoped(reason="migration batch preflight")
-    from transport_supervisor import reset_session_recovery_budget
-
-    reset_session_recovery_budget()
-    await asyncio.sleep(3.0)
-
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
-    try:
-        await _run_migration_readiness_gap_e2e(
-            variant="mcp_warning",
-            expected_readiness="warning",
-            gap_pattern=_MIGRATION_GAP_TOAST_PATTERN,
-            e2e_resource_ledger=e2e_resource_ledger,
-            client=client,
-        )
-
-        reset_capability_gap_emission_tracker()
-        from transport_supervisor import reset_session_recovery_budget
-
-        reset_session_recovery_budget()
-        from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
-
-        reap_chrome_e2e_session_hygiene()
-        from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV
-
-        os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
-        verified_critical_api = await _batch_wait_verified_api()
-
-        for variant in ("provider_critical", "diagnostic_critical"):
-            reset_capability_gap_emission_tracker()
-            reset_session_recovery_budget()
-            reap_chrome_e2e_session_hygiene()
-            client = await _batch_fresh_client(
-                client,
-                reason=f"migration batch {variant} preflight",
-            )
-            client = await _batch_run_critical_scenario(
-                client,
-                variant=variant,
-                verified_api=verified_critical_api,
-            )
-    finally:
-        await asyncio.to_thread(client.close)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.timeout(600)
+async def test_migration_readiness_gap_chrome_e2e_diagnostic_critical(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """Post-import diagnostic_critical readiness: critical toast + capability_gap SSE."""
+    await _run_migration_readiness_gap_e2e(
+        variant="diagnostic_critical",
+        expected_readiness="critical",
+        gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
+        e2e_resource_ledger=e2e_resource_ledger,
+    )

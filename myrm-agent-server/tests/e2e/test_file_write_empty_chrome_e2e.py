@@ -79,9 +79,20 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "Dev E2E chat bridge",
 )
 
+_BUSINESS_FAILURE_MARKERS: tuple[str, ...] = (
+    "E2E_STALL",
+    "LLM idle without file_write_tool",
+    "file_write_tool not found",
+    "Live empty write API nudge failed",
+    "fileMutationFailures missing",
+    "E2E_AGENT_TOOLS_DENY",
+)
+
 
 def _is_transport_retryable(exc: BaseException) -> bool:
     text = str(exc)
+    if any(marker in text for marker in _BUSINESS_FAILURE_MARKERS):
+        return False
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
 
 
@@ -416,6 +427,11 @@ def _live_empty_write_post_steer_idle_cap_sec() -> float:
     return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
+def _live_bridge_ready_timeout_sec() -> float:
+    """R138: React E2E bridge wait scales under parallel mux load."""
+    return _live_empty_write_parallel_scaled_cap_sec(base=90.0)
+
+
 def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
     fetched = http_json("GET", f"{api_url}/api/v1/user-agents/{agent_id}")
     data = fetched.get("data") if isinstance(fetched.get("data"), dict) else fetched
@@ -517,11 +533,11 @@ async def test_file_write_empty_live_agent_webui(
         )
         return pinned_model
 
-    async def _api_nudge_turn(agent_id: str, filename: str) -> None:
+    async def _api_nudge_turn(resolved_chat_id: str, agent_id: str, filename: str) -> None:
         nudge_prompt = _live_user_prompt(filename)
         nudge_result = await asyncio.to_thread(
             nudge_agent_stream_turn,
-            chat_id,
+            resolved_chat_id,
             agent_id,
             nudge_prompt,
             api_url=api_base,
@@ -732,17 +748,17 @@ async def test_file_write_empty_live_agent_webui(
                         last_progress_at = not_invoked_since
                         if steer_result.get("ok") is not True:
                             ui_nudge_attempts += 1
-                            await _api_nudge_turn(agent_id, nudge_filename)
+                            await _api_nudge_turn(chat_id, agent_id, nudge_filename)
                             not_invoked_since = time.monotonic()
                             last_progress_at = not_invoked_since
                     elif ui.get("isStreaming") is not True:
                         ui_nudge_attempts += 1
-                        await _api_nudge_turn(agent_id, nudge_filename)
+                        await _api_nudge_turn(chat_id, agent_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                     elif steer_attempted and idle_sec >= 45.0:
                         ui_nudge_attempts += 1
-                        await _api_nudge_turn(agent_id, nudge_filename)
+                        await _api_nudge_turn(chat_id, agent_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                 elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
@@ -822,12 +838,18 @@ async def test_file_write_empty_live_agent_webui(
             f"Agent not bound in UI before live turn: {last}"
         )
 
+    async def _ensure_live_bridge_ready(chat: McpChatSession) -> None:
+        """R138: parallel-safe bridge gate before new-chat / chat surface."""
+        bridge_cap = _live_bridge_ready_timeout_sec()
+        await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
+
     async def _run_flow(chat: McpChatSession) -> tuple[str, dict[str, object]]:
         await chat.dismiss_modals()
         await _wait_agent_applied(chat)
         await _assert_agent_bound(chat, agent_id)
+        await _ensure_live_bridge_ready(chat)
         pinned_model = await _pin_lite_model(chat)
-        await chat.click_new_chat()
+        await chat.click_new_chat(timeout_sec=_live_bridge_ready_timeout_sec())
         await chat.ensure_chat_surface(BASE_URL)
 
         ensured = await chat.evaluate(
@@ -915,6 +937,7 @@ async def test_file_write_empty_live_agent_webui(
                 chat = McpChatSession(client, page)
                 await chat.bootstrap(agent_url, timeout_sec=180.0)
                 await _ensure_agent_url_loaded(chat, agent_url)
+                await _ensure_live_bridge_ready(chat)
                 return await _run_flow(chat)
 
             return asyncio.run(_inner())

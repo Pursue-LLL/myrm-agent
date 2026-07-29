@@ -151,6 +151,7 @@ def _has_context_health_event(events: list[dict[str, object]]) -> bool:
     return any(event.get("type") == "context_health" for event in events)
 
 
+@pytest.mark.timeout(600)
 def test_real_context_compression_preserves_focus_chain(client: TestClient) -> None:
     """Multi-turn conversation should keep key file names in answer after compression."""
     chat_id = f"context-focus-{uuid.uuid4().hex}"

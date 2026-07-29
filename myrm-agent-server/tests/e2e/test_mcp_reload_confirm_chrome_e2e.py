@@ -72,10 +72,26 @@ _CLICK_PROBE_DELETE_JS = """(() => {
 })()"""
 
 _RELOAD_DIALOG_STATE_JS = """(() => {
-  const text = document.body?.innerText || '';
+  const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
+    const text = node.textContent || '';
+    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+  });
+  if (!alert) {
+    return {
+      ready: false,
+      titleMatch: false,
+      descMatch: false,
+      hasCancel: false,
+      hasConfirm: false,
+      buttons: [],
+    };
+  }
+  const text = alert.textContent || '';
   const titleMatch = /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
   const descMatch = /提示词缓存|prompt-cache|Prompt-Cache|프롬프트 캐시/i.test(text);
-  const buttons = Array.from(document.querySelectorAll('button')).map((b) => (b.textContent || '').trim());
+  const buttons = Array.from(alert.querySelectorAll('button')).map((b) =>
+    (b.textContent || '').trim()
+  );
   const hasCancel = buttons.some((b) => /^(取消|Cancel|Abbrechen|취소)$/i.test(b));
   const hasConfirm = buttons.some((b) =>
     /^(保存并应用|Save and apply|Speichern und anwenden|저장 및 적용)$/i.test(b)
@@ -86,16 +102,16 @@ _RELOAD_DIALOG_STATE_JS = """(() => {
     descMatch,
     hasCancel,
     hasConfirm,
-    buttons: buttons.slice(0, 20),
+    buttons,
   };
 })()"""
 
 _RELOAD_DIALOG_CLOSED_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const open =
-    /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text) &&
-    /提示词缓存|prompt-cache|Prompt-Cache|프롬프트 캐시/i.test(text);
-  return { ready: !open };
+  const alert = Array.from(document.querySelectorAll('[role="alertdialog"]')).find((node) => {
+    const text = node.textContent || '';
+    return /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text);
+  });
+  return { ready: !alert };
 })()"""
 
 _DELETE_DIALOG_STATE_JS = """(() => {
@@ -286,6 +302,76 @@ _CLICK_SAVE_CONFIG_JS = """(() => {
   return { ok: true };
 })()"""
 
+_MCP_MODAL_VALIDATION_ERROR_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  if (!modal) return { ready: true, hasError: false };
+  const errBox = modal.querySelector('.text-red-600, .text-red-400');
+  if (!errBox) return { ready: true, hasError: false };
+  return {
+    ready: false,
+    hasError: true,
+    error: (errBox.textContent || '').trim().slice(0, 500),
+  };
+})()"""
+
+_ADD_MODAL_OPEN_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  const heading = Array.from(modal?.querySelectorAll('h3') || []).find((h) =>
+    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test(
+      (h.textContent || '').trim()
+    )
+  );
+  return { ready: !!heading };
+})()"""
+
+_MCP_SAVE_VALIDATION_IDLE_JS = """(() => {
+  const saveBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+    /Save Configuration|保存配置|Konfiguration speichern|구성 저장/i.test((b.textContent || '').trim())
+  );
+  if (!saveBtn) return { ready: true, phase: 'no-save-btn' };
+  const text = (saveBtn.textContent || '').trim();
+  const validating = saveBtn.disabled || /Validating|验证|驗證|검증|Validierung/i.test(text);
+  return { ready: !validating, validating, text };
+})()"""
+
+_CLICK_SCAN_ACK_CONFIRM_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find((b) =>
+    /Acknowledge and continue|了解风险并继续|瞭解風險並繼續|リスク.*続行|risques.*continuer/i.test(
+      (b.textContent || '').trim()
+    )
+  );
+  if (!btn) return { ok: false, err: 'scan-ack-not-found' };
+  btn.click();
+  return { ok: true };
+})()"""
+
+_CLICK_DESCRIPTION_CUSTOM_JS = """(() => {
+  const heading = Array.from(document.querySelectorAll('h3')).find((h) =>
+    /Choose Description|选择描述|選擇描述|説明を選択|Beschreibung wählen|설명 선택/i.test(
+      (h.textContent || '').trim()
+    )
+  );
+  if (!heading) return { ok: false, err: 'description-dialog-not-found' };
+  const root = heading.closest('.fixed.inset-0') || document.body;
+  const customLabel = Array.from(root.querySelectorAll('span')).find((s) =>
+    /Custom Description|自定义描述|自訂描述|カスタム|Benutzerdefiniert|사용자/i.test(
+      (s.textContent || '').trim()
+    )
+  );
+  const btn = customLabel?.closest('button');
+  if (!btn) return { ok: false, err: 'description-custom-not-found' };
+  btn.click();
+  return { ok: true };
+})()"""
+
+_LOCALHOST_PAGE_JS = """(() => {
+  const host = location.hostname;
+  return {
+    ready: host === '127.0.0.1' || host === 'localhost',
+    href: location.href,
+  };
+})()"""
+
 
 def _fetch_mcp_servers_record() -> dict[str, object]:
     payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/config/mcpServers")
@@ -406,6 +492,78 @@ def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
     confirmed = client.evaluate(page, _CLICK_DIALOG_CONFIRM_JS, timeout_sec=10.0)
     assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
     wait_for_state(client, page, _RELOAD_DIALOG_CLOSED_JS, timeout_sec=30.0)
+
+
+def _confirm_reload_dialog_after_save(
+    client, page, *, timeout_sec: float = 120.0
+) -> None:
+    """Wait for async MCP save validation, intermediate ack dialogs, then reload confirm."""
+    wait_for_state(client, page, _MCP_SAVE_VALIDATION_IDLE_JS, timeout_sec=90.0)
+    err = client.evaluate(page, _MCP_MODAL_VALIDATION_ERROR_JS, timeout_sec=10.0)
+    if isinstance(err, dict) and err.get("hasError") is True:
+        raise AssertionError(f"MCP add/save validation failed: {err.get('error')!r}")
+    target_url = f"{get_e2e_ui_url().rstrip('/')}/settings/mcp"
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    save_retries = 0
+    while time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        try:
+            host = client.evaluate(
+                page, _LOCALHOST_PAGE_JS, timeout_sec=min(10.0, remaining)
+            )
+        except (RuntimeError, TimeoutError):
+            try:
+                client.recover_mux_transport()
+            except RuntimeError:
+                pass
+            reload_mcp_page(client, page, target_url=target_url)
+            dismiss_blocking_modals(client, page)
+            time.sleep(1.0)
+            continue
+        if not (isinstance(host, dict) and host.get("ready") is True):
+            reload_mcp_page(client, page, target_url=target_url)
+            dismiss_blocking_modals(client, page)
+            time.sleep(1.0)
+            continue
+        handled_intermediate = False
+        for intermediate_js in (
+            _CLICK_SCAN_ACK_CONFIRM_JS,
+            _CLICK_DESCRIPTION_CUSTOM_JS,
+        ):
+            result = client.evaluate(
+                page, intermediate_js, timeout_sec=min(8.0, remaining)
+            )
+            if isinstance(result, dict) and result.get("ok") is True:
+                handled_intermediate = True
+                time.sleep(0.6)
+                break
+        if handled_intermediate:
+            continue
+        raw = client.evaluate(
+            page, _RELOAD_DIALOG_STATE_JS, timeout_sec=min(10.0, remaining)
+        )
+        last = raw if isinstance(raw, dict) else {"value": raw}
+        if last.get("ready") is True:
+            _confirm_reload_dialog(client, page, timeout_sec=min(45.0, remaining))
+            return
+        modal_open = client.evaluate(
+            page, _ADD_MODAL_OPEN_JS, timeout_sec=min(8.0, remaining)
+        )
+        if (
+            save_retries < 2
+            and isinstance(modal_open, dict)
+            and modal_open.get("ready") is True
+        ):
+            save_retries += 1
+            retried = client.evaluate(page, _CLICK_SAVE_CONFIG_JS, timeout_sec=10.0)
+            assert isinstance(retried, dict) and retried.get("ok") is True, retried
+            wait_for_state(
+                client, page, _MCP_SAVE_VALIDATION_IDLE_JS, timeout_sec=min(60.0, remaining)
+            )
+            continue
+        time.sleep(0.4)
+    raise AssertionError(f"reload confirm dialog after save did not appear: {last}")
 
 
 _APP_LAYOUT_READY_JS = """(() => ({
@@ -591,7 +749,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
             )
         saved = client.evaluate(page, _CLICK_SAVE_CONFIG_JS, timeout_sec=15.0)
         assert isinstance(saved, dict) and saved.get("ok") is True, saved
-        _confirm_reload_dialog(client, page, timeout_sec=90.0)
+        _confirm_reload_dialog_after_save(client, page, timeout_sec=120.0)
         _wait_for_server_present(_ADD_SERVER_NAME)
         ui_ready = wait_for_state(
             client, page, _MCP_PAGE_HAS_ADD_PROBE_JS, timeout_sec=60.0

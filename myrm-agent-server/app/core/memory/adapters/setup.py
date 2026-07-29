@@ -37,7 +37,11 @@ from app.core.memory.adapters.policy import (
 from app.core.memory.adapters.types import ResolvedContextBinding
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConflictCallback, ConflictContext
+    from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
+        ConflictCallback,
+        ConflictContext,
+        ConsolidationCompleteCallback,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +113,7 @@ async def create_memory_manager(
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
     on_conflict: ConflictCallback | None = None,
+    on_consolidation_complete: ConsolidationCompleteCallback | None = None,
 ) -> MemoryManager:
     """Create a MemoryManager wired to local/volume-backed storage.
 
@@ -144,6 +149,8 @@ async def create_memory_manager(
     async with _memory_manager_cache_lock:
         cached = _memory_manager_cache.get(cache_key)
         if cached is not None:
+            cached._on_conflict = on_conflict
+            cached._on_consolidation_complete = on_consolidation_complete
             return cached
 
         from app.core.retriever.vector.defaults import create_default_vector_store
@@ -166,6 +173,7 @@ async def create_memory_manager(
             vector_store=store,
             time_decay_half_life_days=time_decay_half_life_days,
             on_conflict=on_conflict,
+            on_consolidation_complete=on_consolidation_complete,
         )
 
         _memory_manager_cache[cache_key] = manager

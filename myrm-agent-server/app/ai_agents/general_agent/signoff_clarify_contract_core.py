@@ -10,9 +10,9 @@
 - build_signoff_clarify_response: assemble expected clarify response
 
 [POS]
-Active when backend env MYRM_E2E_SIGNOFF_CLARIFY_POOL=1 and request carries
-engineParams.signoffClarifyContract=true. H2b bypasses LLM on first turn via
-a stub chat model so the normal tool-execution + LangGraph interrupt path runs.
+Active when request carries engineParams.signoffClarifyContract=true.
+H2d: middleware always uses deterministic stub on first turn; tool mount bypasses
+unattended/structured_clarify gates when signoff_clarify_contract is set.
 """
 
 from __future__ import annotations

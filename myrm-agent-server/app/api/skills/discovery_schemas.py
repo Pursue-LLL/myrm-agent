@@ -60,6 +60,8 @@ class SkillInstallResponse(BaseModel):
     mount_skill_id: str = ""
     mount_already_present: bool = False
     mount_error: str = ""
+    runtime_blocked_by_allowlist: bool = False
+    allowlist_agent_id: str = ""
 
 
 class SkillUpdateInfoResponse(BaseModel):

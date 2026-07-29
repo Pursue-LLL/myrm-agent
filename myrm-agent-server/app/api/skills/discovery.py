@@ -66,6 +66,8 @@ def _install_response(
     result: SkillInstallResult,
     *,
     mount_result: SkillMountResult | None = None,
+    runtime_blocked_by_allowlist: bool = False,
+    allowlist_agent_id: str = "",
 ) -> SkillInstallResponse:
     response_skill_id = resolve_mount_skill_id(result) or result.skill_id
     mounted = False
@@ -93,6 +95,40 @@ def _install_response(
         mount_skill_id=mount_skill_id,
         mount_already_present=mount_already_present,
         mount_error=mount_error,
+        runtime_blocked_by_allowlist=runtime_blocked_by_allowlist,
+        allowlist_agent_id=allowlist_agent_id,
+    )
+
+
+async def _install_response_with_allowlist_check(
+    result: SkillInstallResult,
+    *,
+    mount_result: SkillMountResult | None = None,
+) -> SkillInstallResponse:
+    blocked = False
+    allowlist_agent_id = ""
+    if (
+        mount_result is not None
+        and mount_result.mounted
+        and mount_result.mount_skill_id
+        and mount_result.agent_id
+    ):
+        from app.core.skills.effective_skill_ids import (
+            is_skill_excluded_by_explicit_allowlist,
+        )
+
+        blocked = await is_skill_excluded_by_explicit_allowlist(
+            mount_result.agent_id,
+            mount_result.mount_skill_id,
+        )
+        if blocked:
+            allowlist_agent_id = mount_result.agent_id
+
+    return _install_response(
+        result,
+        mount_result=mount_result,
+        runtime_blocked_by_allowlist=blocked,
+        allowlist_agent_id=allowlist_agent_id,
     )
 
 
@@ -217,7 +253,7 @@ async def install_skill(
             agent_id=request.agent_id,
             mount_to_agent=request.mount_to_agent,
         )
-    return _install_response(result, mount_result=mount_result)
+    return await _install_response_with_allowlist_check(result, mount_result=mount_result)
 
 
 @router.get(
@@ -306,7 +342,7 @@ async def update_skill(
             mount_to_agent=True,
         )
 
-    return _install_response(result, mount_result=mount_result)
+    return await _install_response_with_allowlist_check(result, mount_result=mount_result)
 
 
 @router.post("/uninstall", response_model=SkillInstallResponse)
@@ -365,7 +401,7 @@ async def install_skill_from_url(
             agent_id=request.agent_id,
             mount_to_agent=request.mount_to_agent,
         )
-    return _install_response(result, mount_result=mount_result)
+    return await _install_response_with_allowlist_check(result, mount_result=mount_result)
 
 
 # ---------------------------------------------------------------------------

@@ -172,17 +172,18 @@ def assert_body_progress_not_stale(phase_label: str) -> None:
     """Fail-fast when BODY phase has no progress token refresh within STALL_PROGRESS_SEC."""
     if current_phase() != "body":
         return
-    from dev_gate_contract import STALL_PROGRESS_SEC
+    from dev_gate_contract import shpoib_parallel_stall_progress_sec
 
+    stall_cap = shpoib_parallel_stall_progress_sec()
     progress_at = _read_progress_at_monotonic()
     elapsed = elapsed_wall_sec()
     if progress_at is None:
         return
     stale = time.monotonic() - progress_at
-    if elapsed >= 30.0 and stale >= float(STALL_PROGRESS_SEC):
+    if elapsed >= 30.0 and stale >= stall_cap:
         print(
             f"E2E_BODY_PROGRESS_STALL: stale={int(stale)}s "
-            f"cap={STALL_PROGRESS_SEC}s elapsed={int(elapsed)}s "
+            f"cap={int(stall_cap)}s elapsed={int(elapsed)}s "
             f"phase={phase_label} wall_phase=body",
             file=sys.stderr,
             flush=True,

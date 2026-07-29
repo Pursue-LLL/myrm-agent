@@ -107,6 +107,7 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
                 error_type in ("AgentStreamClarifyIncomplete", "AgentStreamIdleTimeout")
                 and attempt + 1 < 4
             ):
+                cancel_e2e_chat_agent_via_api(chat_id, api_url=api_base)
                 time.sleep(10.0 if error_type == "AgentStreamIdleTimeout" else 4.0)
 
     assert clarify_result.get("has_clarification"), (

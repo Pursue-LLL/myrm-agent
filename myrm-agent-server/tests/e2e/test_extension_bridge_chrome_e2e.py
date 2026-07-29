@@ -15,6 +15,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.extension_bridge_ws_stub import hold_extension_bridge_session
 
 _EXTENSION_BRIDGE_STATE = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
@@ -87,3 +88,70 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
         assert f":{api_port}/api/v1/ws/extension" in ws_url, state
         heading = str(state.get("heading") or "")
         assert "浏览器扩展桥接" in heading or "Browser Extension" in heading, state
+
+
+_CONNECTED_BRIDGE_STATE = """(() => {
+  const root = document.querySelector('[data-section="extensionBridge"][data-active]');
+  const bodyText = root?.innerText || '';
+  const fetchErrorVisible = /无法连接服务器|Unable to connect to the server/i.test(bodyText);
+  const matrixLabels = ['URL 导航', '标签页发现', '调试器附加', '调试器分离',
+    'URL navigation', 'Tab discovery', 'Debugger attach', 'Debugger detach'];
+  const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
+  const availableHits = (bodyText.match(/可用|Available/g) || []).length;
+  const relayLine = (bodyText.match(/私网中继能力[^\\n]*/i) || [])[0] || '';
+  return {
+    ready:
+      !!root &&
+      location.pathname.includes('/settings/extensionBridge') &&
+      !fetchErrorVisible &&
+      matrixHits.length >= 4 &&
+      availableHits >= 4 &&
+      (/已连接|Connected/i.test(bodyText)) &&
+      (/已就绪|Ready \\(all required actions available\\)/i.test(relayLine) ||
+        /全部必需动作可用/i.test(relayLine)),
+    hasActiveSection: !!root,
+    fetchErrorVisible,
+    matrixHits: matrixHits.length,
+    availableHits,
+    relayLine,
+    pathname: location.pathname,
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None:
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    with hold_extension_bridge_session(api_url):
+        status = http_json("GET", f"{api_url}/api/v1/extension/status")
+        assert isinstance(status, dict)
+        assert status.get("connected") is True
+        assert status.get("handshake_ready") is True
+        assert set(status.get("capabilities") or []) >= {
+            "navigate_url",
+            "list_tabs",
+            "attach_debugger",
+            "detach_debugger",
+        }
+
+        warm_ui_route("/settings/extensionBridge")
+
+        with open_mcp_page(f"{ui_url}/settings/extensionBridge") as (client, page):
+            dismiss_blocking_modals(client, page)
+            client.navigate(page, f"{ui_url}/settings/extensionBridge", timeout_ms=90_000)
+            state = wait_for_state(
+                client,
+                page,
+                _CONNECTED_BRIDGE_STATE,
+                timeout_sec=90.0,
+            )
+            assert state.get("fetchErrorVisible") is not True, state
+            assert state.get("hasActiveSection") is True, state
+            assert int(state.get("matrixHits") or 0) >= 4, state
+            assert int(state.get("availableHits") or 0) >= 4, state
+            relay_line = str(state.get("relayLine") or "")
+            assert "已就绪" in relay_line or "Ready" in relay_line, state

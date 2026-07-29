@@ -8,7 +8,11 @@ import pytest
 
 from app.services.agent.execution_cache import ExecutionMode
 from app.services.agent.params.models import AgentRequest
-from app.services.agent.runtime_context import build_agent_runtime_context, prefer_direct_agent_stream
+from app.services.agent.runtime_context import (
+    build_agent_runtime_context,
+    prefer_direct_agent_stream,
+    resolve_stream_execution_mode,
+)
 
 
 @pytest.mark.asyncio
@@ -53,3 +57,11 @@ def test_prefer_direct_agent_stream_skips_without_shpoib(monkeypatch: pytest.Mon
     request = AgentRequest(message_id="m1", chat_id="c1", query="hi", multiplexed=True)
     resolved = prefer_direct_agent_stream(request)
     assert resolved.multiplexed is True
+
+
+def test_resolve_stream_execution_mode_signoff_pool_ephemeral(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MYRM_E2E_FORCE_EPHEMERAL", raising=False)
+    monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
+    assert resolve_stream_execution_mode() is ExecutionMode.EPHEMERAL

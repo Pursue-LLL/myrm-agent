@@ -43,29 +43,7 @@ class _Request:
 
 
 @pytest.mark.asyncio
-async def test_signoff_clarify_contract_forces_first_turn_tool_choice(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", raising=False)
-    middleware = SignoffClarifyContractMiddleware(enabled=True)
-    captured: dict[str, object] = {}
-
-    async def handler(request: object) -> object:
-        captured["tool_choice"] = getattr(request, "tool_choice", None)
-        return object()
-
-    await middleware.awrap_model_call(
-        _Request([HumanMessage(content="hi")], [_FakeTool("ask_question_tool")]),
-        handler,  # type: ignore[arg-type]
-    )
-    assert captured["tool_choice"] == "required"
-
-
-@pytest.mark.asyncio
-async def test_signoff_clarify_contract_h2b_deterministic_no_llm(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
+async def test_signoff_clarify_contract_h2d_always_uses_stub_model() -> None:
     middleware = SignoffClarifyContractMiddleware(enabled=True)
     handler = AsyncMock(return_value=ModelResponse(result=[]))
 
@@ -82,6 +60,19 @@ async def test_signoff_clarify_contract_h2b_deterministic_no_llm(
     model = getattr(call_request, "model", None)
     assert model is not None
     assert getattr(model, "_llm_type", "") == "signoff_clarify_deterministic"
+
+
+@pytest.mark.asyncio
+async def test_signoff_clarify_contract_raises_when_tool_missing() -> None:
+    middleware = SignoffClarifyContractMiddleware(enabled=True)
+    handler = AsyncMock(return_value=ModelResponse(result=[]))
+
+    with pytest.raises(RuntimeError, match="ask_question_tool not mounted"):
+        await middleware.awrap_model_call(
+            _Request([HumanMessage(content="hi")], [_FakeTool("web_search")]),
+            handler,  # type: ignore[arg-type]
+        )
+    handler.assert_not_awaited()
 
 
 @pytest.mark.asyncio

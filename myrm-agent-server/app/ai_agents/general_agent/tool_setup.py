@@ -63,8 +63,11 @@ def _should_mount_ask_question_tool(
     channel_name: str,
     prompt_mode: str,
     enable_structured_clarify: bool,
+    signoff_clarify_contract: bool = False,
 ) -> bool:
     """Return True when structured HITL clarification is safe and product-appropriate."""
+    if signoff_clarify_contract:
+        return True
     if not enable_structured_clarify:
         return False
     if unattended_mode:
@@ -371,6 +374,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             channel_name=getattr(self, "channel_name", "web_chat"),
             prompt_mode=getattr(self, "prompt_mode", "full"),
             enable_structured_clarify=getattr(self, "enable_structured_clarify", False),
+            signoff_clarify_contract=getattr(
+                self, "signoff_clarify_contract", False
+            ),
         ):
             return
 
@@ -750,6 +756,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 time_decay_half_life_days = 7.0
 
             on_conflict = create_conflict_callback(agent_id=self.agent_id)
+            on_consolidation_complete = None
+            if self.enable_wiki and not self.incognito_mode and self._lite_llm is not None:
+                from app.services.wiki.consolidation_bridge import make_consolidation_wiki_bridge
+
+                on_consolidation_complete = make_consolidation_wiki_bridge(
+                    agent_id=self.agent_id,
+                    llm=self._lite_llm,
+                )
             manager = await create_memory_manager(
                 binding,
                 self.embedding_config,
@@ -757,6 +771,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 dedup_llm=self._lite_llm,
                 time_decay_half_life_days=time_decay_half_life_days,
                 on_conflict=on_conflict,
+                on_consolidation_complete=on_consolidation_complete,
             )
 
             from myrm_agent_harness.toolkits.memory.memory_search_policy import (

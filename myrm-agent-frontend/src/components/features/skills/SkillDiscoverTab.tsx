@@ -178,12 +178,27 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   );
 
   const showInstallToast = useCallback(
-    (skillName: string, response: { mounted?: boolean; mount_agent_id?: string; mount_error?: string; mount_already_present?: boolean }) => {
+    (skillName: string, response: {
+      mounted?: boolean;
+      mount_agent_id?: string;
+      mount_error?: string;
+      mount_already_present?: boolean;
+      runtime_blocked_by_allowlist?: boolean;
+      allowlist_agent_id?: string;
+    }) => {
       if (response.mounted && !response.mount_error) {
         if (response.mount_already_present) {
           toast({ title: t('installedAlreadyEnabled', { name: skillName }) });
         } else {
           toast({ title: t('installedAndEnabled', { name: skillName }) });
+        }
+        if (response.runtime_blocked_by_allowlist) {
+          toast({
+            title: t('installedAllowlistBlocked', { name: skillName }),
+            description: t('installedAllowlistBlockedDesc', {
+              agentId: response.allowlist_agent_id || mountAgentId,
+            }),
+          });
         }
         return;
       }
@@ -197,7 +212,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       }
       toast({ title: `${t('installed')} ${skillName}` });
     },
-    [t],
+    [t, mountAgentId],
   );
 
   const doInstall = useCallback(

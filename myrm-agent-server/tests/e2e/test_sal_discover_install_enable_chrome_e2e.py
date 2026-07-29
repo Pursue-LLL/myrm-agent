@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.parse
 
 import pytest
@@ -158,6 +159,72 @@ _MIRROR_SAVED_TOAST_JS = """(() => {
 })()"""
 
 
+_SELECT_CUSTOM_MIRROR_JS = """(() => {
+  const option = Array.from(document.querySelectorAll('[role="option"]')).find((el) =>
+    /Custom|自定义|自訂/i.test(el.textContent || ''),
+  );
+  if (!option) {
+    return { ok: false, reason: 'custom-option-missing' };
+  }
+  option.click();
+  return { ok: true };
+})()"""
+
+
+def _wait_registry_url(api_url: str, expected_url: str, *, timeout_sec: float = 60.0) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        last = http_json("GET", f"{api_url}/api/v1/skills/config")
+        if last.get("clawhub_registry_url") == expected_url:
+            return last
+        time.sleep(1.0)
+    pytest.fail(
+        f"Timed out waiting for clawhub_registry_url={expected_url!r}; last={last!r}"
+    )
+
+
+_CUSTOM_INPUT_READY_JS = """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const input = mirrorPanel?.querySelector('input');
+  const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+  );
+  return { ready: !!input && !!saveBtn, hasInput: !!input, hasSave: !!saveBtn };
+})()"""
+
+
+_FOCUS_CUSTOM_MIRROR_INPUT_JS = """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const input = mirrorPanel?.querySelector('input');
+  if (!input) {
+    return { ok: false, reason: 'input-missing' };
+  }
+  input.focus();
+  input.click();
+  return { ok: true, focused: document.activeElement === input };
+})()"""
+
+
+_CLICK_CUSTOM_MIRROR_SAVE_JS = """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+  );
+  if (!saveBtn || saveBtn.disabled) {
+    return { ok: false, reason: 'save-disabled-or-missing', disabled: !!saveBtn?.disabled };
+  }
+  saveBtn.click();
+  return { ok: true };
+})()"""
+
+
 def _find_prebuilt_target(api_url: str) -> tuple[str, str, str]:
     """Return (search_query, skill_id, skill_name) for a prebuilt skill."""
     for query in ("systematic", "code review", "debugging"):
@@ -204,9 +271,9 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(240)
+@pytest.mark.timeout(300)
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:
-    """Discover: mirror Select CN → prebuilt install → catalog enable; agent.skill_ids empty."""
+    """Discover: CN/custom mirror + prebuilt install; agent.skill_ids stays empty."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
@@ -245,6 +312,39 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
             assert (
                 mirror_config.get("clawhub_registry_url") == "https://skill.xfyun.cn"
             ), f"Expected CN mirror URL; got {mirror_config!r}"
+
+            opened_custom = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
+            assert isinstance(opened_custom, dict) and opened_custom.get("ok") is True, opened_custom
+            picked_custom = client.evaluate(page, _SELECT_CUSTOM_MIRROR_JS, timeout_sec=15.0)
+            assert isinstance(picked_custom, dict) and picked_custom.get("ok") is True, picked_custom
+            wait_for_state(client, page, _CUSTOM_INPUT_READY_JS, timeout_sec=30.0)
+            custom_url = "https://clawhub.ai"
+            focused = client.evaluate(
+                page, _FOCUS_CUSTOM_MIRROR_INPUT_JS, timeout_sec=15.0
+            )
+            assert isinstance(focused, dict) and focused.get("ok") is True, focused
+            client.type_text(page, custom_url)
+            save_ready = wait_for_state(
+                client,
+                page,
+                """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const saveBtn = Array.from(mirrorPanel?.querySelectorAll('button') || []).find((btn) =>
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+  );
+  return { ready: !!saveBtn && !saveBtn.disabled };
+})()""",
+                timeout_sec=15.0,
+            )
+            assert save_ready.get("ready") is True, save_ready
+            clicked_save = client.evaluate(
+                page, _CLICK_CUSTOM_MIRROR_SAVE_JS, timeout_sec=15.0
+            )
+            assert isinstance(clicked_save, dict) and clicked_save.get("ok") is True, clicked_save
+            custom_config = _wait_registry_url(api_url, custom_url, timeout_sec=60.0)
+            assert custom_config.get("clawhub_registry_url") == custom_url
 
             submitted = client.evaluate(
                 page,

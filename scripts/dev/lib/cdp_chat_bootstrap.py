@@ -1018,7 +1018,14 @@ class CdpChatBootstrap(CdpChatTransport):
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"path": ""}
         self._mark_bootstrap_started()
+        mux_recover_attempts = 0
         while time.monotonic() < deadline:
+            try:
+                from e2e_session_lifecycle import touch_wall_progress
+
+                touch_wall_progress(current_node="ensure_chat_surface")
+            except ImportError:
+                pass
             self._check_bootstrap_stall_fail_fast(phase="ensure_chat_surface")
             try:
                 probe = await self.evaluate(
@@ -1026,7 +1033,23 @@ class CdpChatBootstrap(CdpChatTransport):
                     await_promise=False,
                     recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
                 )
-            except (RuntimeError, TimeoutError):
+            except RuntimeError as exc:
+                from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+
+                if MUX_RECLAIM_STALL_TOKEN in str(exc):
+                    if mux_recover_attempts < 1:
+                        mux_recover_attempts = await self._recover_shell_probe_mux(
+                            mux_recover_attempts
+                        )
+                        client = getattr(self, "_client", None)
+                        abandon = getattr(client, "abandon_inflight_requests", None)
+                        if callable(abandon):
+                            abandon()
+                        await asyncio.sleep(1.0)
+                        continue
+                    raise
+                probe = {"probeError": "evaluate_failed"}
+            except TimeoutError:
                 probe = {"probeError": "evaluate_failed"}
             last = probe if isinstance(probe, dict) else {"probeError": probe}
             self._check_skeleton_stall(last, phase="ensure_chat_surface")

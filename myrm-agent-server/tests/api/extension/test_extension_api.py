@@ -493,6 +493,41 @@ class TestActionCapabilityContract:
         ):
             await bridge._request_debugger_attach(domain="example.com")
 
+    @pytest.mark.asyncio
+    async def test_send_request_requires_detach_debugger_capability(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._capabilities = {"attach_debugger"}
+
+        with pytest.raises(
+            ExtensionBridgeNotAvailable,
+            match="missing required capability 'detach_debugger'",
+        ):
+            await bridge._send_request("detach_debugger", {"tabId": 42})
+
+    @pytest.mark.asyncio
+    async def test_send_request_detach_debugger_roundtrip(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._hello_received = True
+        bridge._capabilities = {"detach_debugger"}
+        mock_ws = MagicMock()
+        mock_ws.send_text = AsyncMock()
+        bridge._ws = mock_ws
+
+        async def set_result_later() -> None:
+            await asyncio.sleep(0.01)
+            req_id = list(bridge._pending_requests.keys())[0]
+            bridge._pending_requests[req_id].set_result({"detached": True, "tabId": 42})
+
+        task = asyncio.create_task(set_result_later())
+        result = await bridge._send_request("detach_debugger", {"tabId": 42}, timeout=2.0)
+        await task
+
+        assert result == {"detached": True, "tabId": 42}
+
 
 class TestDirectCdpRiskGovernance:
     """Test explicit direct CDP risk warning emission."""

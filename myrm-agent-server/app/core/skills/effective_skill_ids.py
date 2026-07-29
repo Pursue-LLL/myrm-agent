@@ -125,3 +125,28 @@ async def resolve_runtime_skill_ids(profile_skill_ids: list[str] | None) -> list
         seen.add(skill_id)
         resolved.append(skill_id)
     return resolved
+
+
+async def is_skill_excluded_by_explicit_allowlist(
+    agent_id: str,
+    catalog_skill_id: str,
+) -> bool:
+    """True when the agent profile has a non-empty skill_ids list excluding catalog_skill_id."""
+    from app.services.agent.agent_service import AgentService
+
+    agent = await AgentService.get_agent_by_id(agent_id)
+    if agent is None:
+        return False
+
+    profile_ids = getattr(agent, "skill_ids", None) or []
+    explicit = [sid.strip() for sid in profile_ids if sid and sid.strip()]
+    if not explicit:
+        return False
+
+    config = await skills_service.user_config.get_config()
+    install_roots = _legacy_install_roots(config.local_skill_paths)
+    normalized_catalog = normalize_local_skill_id(catalog_skill_id, install_roots)
+    normalized_explicit = {
+        normalize_local_skill_id(sid, install_roots) for sid in explicit
+    }
+    return normalized_catalog not in normalized_explicit

@@ -101,6 +101,9 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "enable_external_cli": agent_wrapper.enable_external_cli,
         "enable_render_ui": agent_wrapper.enable_render_ui,
         "enable_structured_clarify": agent_wrapper.enable_structured_clarify,
+        "signoff_clarify_contract": getattr(
+            agent_wrapper, "signoff_clarify_contract", False
+        ),
         "unattended_mode": agent_wrapper.unattended_mode,
         "declared_capabilities": list(agent_wrapper.declared_capabilities),
         "declared_allowed_roots": list(agent_wrapper.declared_allowed_roots),

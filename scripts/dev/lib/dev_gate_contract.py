@@ -123,6 +123,29 @@ SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 # Holder / progress stale detection while queueing on shared_hot stream.
 STALL_PROGRESS_SEC: Final[int] = 90
+
+
+def shpoib_parallel_stall_progress_sec() -> float:
+    """Scale BODY progress-stale cap under parallel SHPOIB load (R124).
+
+    Matches file_write LIVE scaling: base 90s + 10s per active wave lease (max 150s).
+    """
+    base = float(STALL_PROGRESS_SEC)
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
+        return base
+    active_leases = 0
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        active_leases = 0
+    if active_leases < 2:
+        return base
+    return min(150.0, base + active_leases * 10.0)
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 # Single desktop approval chrome_e2e uses the global wall budget (not matrix duration).
 CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC

@@ -2,13 +2,12 @@
 
 [INPUT]
 - engineParams.signoffClarifyContract (POS: Request flag for M3 signoff pool)
-- MYRM_E2E_SIGNOFF_CLARIFY_POOL env (POS: SHPOIB pool gate)
 
 [OUTPUT]
-- SignoffClarifyContractMiddleware: H2b synthetic AIMessage tool_call on first turn
+- SignoffClarifyContractMiddleware: H2d deterministic stub model on first turn
 
 [POS]
-General agent middleware for clarify signoff E2E contract (zero LLM when pool active).
+General agent middleware for clarify signoff E2E contract (zero LLM on first turn).
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from app.ai_agents.general_agent.signoff_clarify_contract_core import (
     build_signoff_clarify_deterministic_model,
-    signoff_clarify_pool_active,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,25 +73,15 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
                     tool_names.add(raw_name)
 
         if _ASK_QUESTION_TOOL not in tool_names:
-            logger.warning(
-                "SignoffClarifyContractMiddleware: %s not in tool set; skipping force",
-                _ASK_QUESTION_TOOL,
+            raise RuntimeError(
+                "SignoffClarifyContractMiddleware: ask_question_tool not mounted; "
+                "enable_structured_clarify/signoff mount bypass required"
             )
-            return await handler(request)
 
-        if signoff_clarify_pool_active():
-            logger.info(
-                "SignoffClarifyContractMiddleware: H2b deterministic stub model (no LLM)",
-            )
-            request = request.override(
-                model=build_signoff_clarify_deterministic_model()
-            )
-            return await handler(request)
-
-        request = request.override(tool_choice="required")
         logger.info(
-            "SignoffClarifyContractMiddleware: forcing tool_choice=required (first turn)",
+            "SignoffClarifyContractMiddleware: H2d deterministic stub model (no LLM)",
         )
+        request = request.override(model=build_signoff_clarify_deterministic_model())
         return await handler(request)
 
 

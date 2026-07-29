@@ -110,16 +110,19 @@ class McpChatSession(CdpChatSession):
             MUX_RECLAIM_STALL_TOKEN,
         )
 
+        shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
         reclaim_budget = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0
         if recv_timeout <= 15.0:
-            reclaim_budget = 20.0
+            reclaim_budget = 45.0 if shpoib_parallel else 20.0
         elif recv_timeout <= 30.0:
             reclaim_budget = 35.0
         wall_deadline = time.monotonic() + recv_timeout + reclaim_budget
         heal_attempts = 0
         max_heal_attempts = 0 if recv_timeout <= 15.0 else 3
         mux_attempts = 0
-        max_mux_attempts = 1 if recv_timeout <= 15.0 else 2
+        max_mux_attempts = (
+            3 if shpoib_parallel else (1 if recv_timeout <= 15.0 else 2)
+        )
         loop = asyncio.get_running_loop()
 
         async def _reset_mux_after_orphan() -> None:

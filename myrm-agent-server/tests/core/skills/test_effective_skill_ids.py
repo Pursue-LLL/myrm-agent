@@ -80,3 +80,42 @@ async def test_migrates_legacy_name_based_local_ids(tmp_path: Path) -> None:
     save_mock.assert_awaited_once()
     saved = save_mock.await_args.args[0]
     assert saved.enabled_local_skill_ids == [expected_id]
+
+
+@pytest.mark.asyncio
+async def test_allowlist_exclusion_when_explicit_list_omits_skill() -> None:
+    from app.core.skills.effective_skill_ids import is_skill_excluded_by_explicit_allowlist
+
+    agent = type("Agent", (), {"skill_ids": ["prebuilt::only-one"]})()
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new=AsyncMock(return_value=agent),
+    ):
+        blocked = await is_skill_excluded_by_explicit_allowlist(
+            "builtin-general",
+            "systematic-debugging",
+        )
+        not_blocked = await is_skill_excluded_by_explicit_allowlist(
+            "builtin-general",
+            "prebuilt::only-one",
+        )
+
+    assert blocked is True
+    assert not_blocked is False
+
+
+@pytest.mark.asyncio
+async def test_allowlist_exclusion_false_when_allowlist_empty() -> None:
+    from app.core.skills.effective_skill_ids import is_skill_excluded_by_explicit_allowlist
+
+    agent = type("Agent", (), {"skill_ids": []})()
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new=AsyncMock(return_value=agent),
+    ):
+        blocked = await is_skill_excluded_by_explicit_allowlist(
+            "builtin-general",
+            "systematic-debugging",
+        )
+
+    assert blocked is False

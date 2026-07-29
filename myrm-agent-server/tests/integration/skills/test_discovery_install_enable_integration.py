@@ -109,8 +109,8 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
     runtime_ids = await resolve_runtime_skill_ids([])
     assert catalog_id in runtime_ids
 
-    get_agent.assert_not_called()
     update_agent.assert_not_called()
+    assert body.get("runtime_blocked_by_allowlist") is False
 
 
 @pytest.mark.asyncio
@@ -343,3 +343,49 @@ async def test_explicit_allowlist_takes_precedence_over_catalog() -> None:
 
     runtime = await resolve_runtime_skill_ids([explicit_id])
     assert runtime == [explicit_id]
+
+
+@pytest.mark.asyncio
+async def test_install_reports_allowlist_block_when_agent_has_explicit_subset(
+    discovery_client: TestClient,
+) -> None:
+    prebuilt_id = "systematic-debugging"
+    install_result = SkillInstallResult(
+        success=True,
+        skill_name="Systematic Debugging",
+        skill_id=prebuilt_id,
+        installed_path="prebuilt (already installed)",
+    )
+    agent = type("Agent", (), {"skill_ids": ["code-review"]})()
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=install_result),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new=AsyncMock(return_value=agent),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": prebuilt_id,
+                "source": "prebuilt",
+                "mount_to_agent": True,
+                "agent_id": "builtin-general",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mounted"] is True
+    assert body["runtime_blocked_by_allowlist"] is True
+    assert body["allowlist_agent_id"] == "builtin-general"

@@ -2095,19 +2095,21 @@
         "operationFailed": "Batch operation failed"
       },
       "categories": {
-        "development": "Development",
-        "research": "Research",
-        "creative": "Creative",
-        "productivity": "Productivity",
-        "data": "Data",
+        "development": "Entwicklung",
+        "research": "Forschung",
+        "creative": "Kreativ",
+        "productivity": "Produktivität",
+        "pipeline": "Pipeline",
+        "design": "Design",
         "data-science": "Data Science",
-        "data-collection": "Data Collection",
+        "data-collection": "Datenerfassung",
         "social-media": "Social Media",
-        "media": "Media",
-        "mlops": "MLOps",
+        "media": "Medien",
+        "content": "Inhalt",
+        "automation": "Automatisierung",
+        "operations": "Betrieb",
         "workflow": "Workflow",
-        "other": "Other",
-        "pipeline": "Pipeline"
+        "other": "Sonstige"
       },
       "tagLabels": {
         "code": "Code",
