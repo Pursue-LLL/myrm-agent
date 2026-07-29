@@ -22,12 +22,9 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal
-
 import yaml
 from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType, Schedule, ScheduleKind, SessionTarget
 from myrm_agent_harness.toolkits.wiki import WikiStructure
-from pydantic import BaseModel, Field
 
 from app.api.agents.templates import PREBUILT_AGENTS_DIR, _ensure_skills_enabled, resolve_i18n
 from app.core.channel_bridge.config_loader import load_user_configs
@@ -50,38 +47,6 @@ _DEVICE_ID = "second-brain-preset"
 _REQUIRED_TOOLS = frozenset({"memory", "wiki", "cron"})
 
 
-class ChecklistItem(BaseModel):
-    id: Literal["agent_tools", "cron_job", "vault_content", "provider_ready"]
-    ready: bool
-    label_key: str
-    detail: str | None = None
-
-
-class SecondBrainPresetState(BaseModel):
-    agent_id: str | None = None
-    agent_name: str | None = None
-    cron_job_id: str | None = None
-    applied_at: str | None = None
-    origin: str = _ORIGIN
-
-
-class SecondBrainApplyResponse(BaseModel):
-    success: bool
-    message: str
-    agent_id: str
-    agent_name: str
-    cron_job_id: str | None
-    checklist: list[ChecklistItem]
-    applied_at: str
-
-
-class SecondBrainStatusResponse(BaseModel):
-    applied: bool
-    agent_id: str | None = None
-    agent_name: str | None = None
-    cron_job_id: str | None = None
-    applied_at: str | None = None
-    checklist: list[ChecklistItem] = Field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -289,16 +254,12 @@ async def _build_checklist(
     *,
     agent_id: str | None,
     cron_job_id: str | None,
-    locale: str,
 ) -> list[ChecklistItem]:
     agent_ready = False
-    agent_detail: str | None = None
     if agent_id:
         profile = await AgentService.get_agent_by_id(agent_id)
         if profile is not None:
             agent_ready = _agent_has_required_tools(profile.tools_allowed)
-            if not agent_ready:
-                agent_detail = "missing wiki/memory/cron tools"
 
     cron_ready = False
     if cron_job_id:
@@ -309,41 +270,24 @@ async def _build_checklist(
     vault_ready = _wiki_has_content(agent_id)
     provider_ready = await _provider_is_ready()
 
-    labels = {
-        "agent_tools": "settings.wiki.secondBrain.checklist.agentTools",
-        "cron_job": "settings.wiki.secondBrain.checklist.cronJob",
-        "vault_content": "settings.wiki.secondBrain.checklist.vaultContent",
-        "provider_ready": "settings.wiki.secondBrain.checklist.providerReady",
-    }
     return [
-        ChecklistItem(id="agent_tools", ready=agent_ready, label_key=labels["agent_tools"], detail=agent_detail),
-        ChecklistItem(id="cron_job", ready=cron_ready, label_key=labels["cron_job"]),
-        ChecklistItem(
-            id="vault_content",
-            ready=vault_ready,
-            label_key=labels["vault_content"],
-            detail=None if vault_ready else ("import or add notes" if locale == "en" else "导入或添加笔记"),
-        ),
-        ChecklistItem(
-            id="provider_ready",
-            ready=provider_ready,
-            label_key=labels["provider_ready"],
-            detail=None if provider_ready else ("configure model provider" if locale == "en" else "配置模型服务"),
-        ),
+        ChecklistItem(id="agent_tools", ready=agent_ready),
+        ChecklistItem(id="cron_job", ready=cron_ready),
+        ChecklistItem(id="vault_content", ready=vault_ready),
+        ChecklistItem(id="provider_ready", ready=provider_ready),
     ]
 
 
 async def get_second_brain_preset_status(*, accept_language: str | None = None) -> SecondBrainStatusResponse:
-    locale = _normalize_locale(accept_language)
+    _ = accept_language
     state = await _load_preset_state()
     if state is None or not state.agent_id:
-        checklist = await _build_checklist(agent_id=None, cron_job_id=None, locale=locale)
+        checklist = await _build_checklist(agent_id=None, cron_job_id=None)
         return SecondBrainStatusResponse(applied=False, checklist=checklist)
 
     checklist = await _build_checklist(
         agent_id=state.agent_id,
         cron_job_id=state.cron_job_id,
-        locale=locale,
     )
     return SecondBrainStatusResponse(
         applied=True,
@@ -383,7 +327,7 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
             )
         )
 
-        checklist = await _build_checklist(agent_id=agent_id, cron_job_id=cron_job_id, locale=locale)
+        checklist = await _build_checklist(agent_id=agent_id, cron_job_id=cron_job_id)
         message = (
             "Second Brain preset applied successfully"
             if locale == "en"

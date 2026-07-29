@@ -707,7 +707,7 @@ cmd_backend_only_ensure() {
           fi
           sleep 1
         done
-        if _private_backend_identity_valid || _api_healthy 5; then
+        if _private_backend_identity_valid; then
           echo "STACK_OK: signoff clarify pool private backend healthy → ${API_BASE}"
           echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
           exit 0
