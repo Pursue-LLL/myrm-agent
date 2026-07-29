@@ -25,7 +25,10 @@ export function SkillActivationChips({
   }
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
+    <div
+      data-testid="skill-activation-chips"
+      className={cn('flex flex-wrap items-center gap-1.5', className)}
+    >
       {skillNames.map((name) => (
         <span
           key={name}

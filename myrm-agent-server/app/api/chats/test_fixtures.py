@@ -9,6 +9,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
+seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户消息（Skill chip Chrome E2E）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
 
@@ -123,6 +124,57 @@ async def seed_citation_fixture() -> dict[str, str | int]:
         "citation_count": _CITATION_COUNT,
         "ui_path": f"/{chat_id}",
         "wiki_settings_path": f"/settings/wiki?agentId={agent_id}",
+    }
+
+
+_SKILL_CHIP_WIRE_SKILL = "systematic-debugging"
+_SKILL_CHIP_USER_TEXT = "analyze this bug"
+
+
+@router.post("/test/seed-skill-chip-transcript-fixture", include_in_schema=False)
+async def seed_skill_chip_transcript_fixture() -> dict[str, str]:
+    """Local dev/test only: seed user message with explicit skill wire prefix for chip Chrome E2E."""
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    agents, _total = await AgentService.get_agent_list(1, 100)
+    if not agents:
+        raise HTTPException(
+            status_code=500, detail="No agents available for skill chip E2E seed"
+        )
+
+    agent = agents[0]
+    agent_id = agent.id
+
+    chat_id = f"e2eskillchip{uuid4().hex[:8]}"
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="Skill chip Chrome E2E",
+            agent_id=agent_id,
+            messages=[],
+        ),
+    )
+
+    now = datetime.now(UTC)
+    timezone = "UTC"
+    wire_content = f"[use {_SKILL_CHIP_WIRE_SKILL}] {_SKILL_CHIP_USER_TEXT}"
+
+    await ChatService.append_message(
+        chat_id,
+        "user",
+        wire_content,
+        now,
+        timezone,
+    )
+
+    return {
+        "chat_id": chat_id,
+        "agent_id": agent_id,
+        "skill_name": _SKILL_CHIP_WIRE_SKILL,
+        "user_text": _SKILL_CHIP_USER_TEXT,
+        "wire_content": wire_content,
+        "ui_path": f"/{chat_id}",
     }
 
 

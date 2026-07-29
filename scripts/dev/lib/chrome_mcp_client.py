@@ -632,7 +632,9 @@ class ChromeMcpClient:
             )
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
         last_observed: dict[str, object] | str | None = None
-        for attempt in range(5):
+        shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+        max_binding_attempts = 8 if shpoib_parallel else 5
+        for attempt in range(max_binding_attempts):
             self.evaluate(page, f"(() => {{{source} return true; }})()")
             self.navigate(page, url, timeout_ms=timeout_ms)
             if bootstrap_js is not None:
@@ -673,11 +675,11 @@ class ChromeMcpClient:
                 else str(last_observed)
             )
             transient = "Failed to fetch" in error_text or "fetch" in error_text.lower()
-            if attempt < 4 and transient and api_base:
+            if attempt + 1 < max_binding_attempts and transient and api_base:
                 wait_e2e_provider_ready(
                     api_url=api_base, timeout_sec=bootstrap_timeout_sec
                 )
-                time.sleep(2.0 * (attempt + 1))
+                time.sleep(4.0 * (attempt + 1))
                 self.navigate(page, "about:blank", timeout_ms=min(timeout_ms, 30_000))
                 continue
             break

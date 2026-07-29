@@ -2091,7 +2091,8 @@
         "cognitiveHotUpdated": "Updated {time}",
         "cognitiveHotEmpty": "Not refreshed yet",
         "brokenLinks": "{count, plural, one {# broken link} other {# broken links}}",
-        "invalidPageTypes": "{count, plural, one {# invalid page type} other {# invalid page types}}"
+        "invalidPageTypes": "{count, plural, one {# invalid page type} other {# invalid page types}}",
+        "structuralHint": "Use Maintain or Repair Page Types in Wiki Actions below to fix structural issues."
       },
       "query": {
         "title": "Query Wiki",

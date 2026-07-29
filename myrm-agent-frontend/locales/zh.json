@@ -2091,7 +2091,8 @@
         "cognitiveHotUpdated": "更新于 {time}",
         "cognitiveHotEmpty": "尚未刷新",
         "brokenLinks": "{count, plural, other {# 处断链}}",
-        "invalidPageTypes": "{count, plural, other {# 处页面类型无效}}"
+        "invalidPageTypes": "{count, plural, other {# 处页面类型无效}}",
+        "structuralHint": "请在下方 Wiki 操作中使用「维护」或「修复页面类型」处理结构问题。"
       },
       "query": {
         "title": "查询 Wiki",

@@ -40,6 +40,7 @@ import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
 import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
+import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 function isLocalDevHost(): boolean {
@@ -953,12 +954,22 @@ export default function E2EChatBridge() {
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
+      peekOutboundUserMessage: () => {
+        const state = useChatStore.getState();
+        const pending = state.pendingExplicitSkillActivation;
+        const userText = state.inputMessage;
+        if (pending) {
+          return buildExplicitSkillWireMessage(pending, userText);
+        }
+        return userText;
+      },
       turnSnapshot: () => {
         const state = useChatStore.getState();
         const users = state.messages.filter((message) => message.role === 'user');
         const assistants = state.messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
         const assistantText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        const pending = state.pendingExplicitSkillActivation;
         return {
           chatId: state.chatId?.trim() || null,
           userCount: users.length,
@@ -970,6 +981,9 @@ export default function E2EChatBridge() {
           lastAssistantHasDoneSkipped: /DONE-SKIPPED/i.test(assistantText),
           clarificationAnswered: lastAssistant?.clarification?.answered === true,
           toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,
+          pendingSkillNames: pending?.skillNames ?? [],
+          pendingSkillInstruction: pending?.instruction ?? null,
+          agentSelectedSkillCount: state.agentConfig?.selectedSkillIds?.length ?? 0,
         };
       },
       toolApprovalSnapshot: () => ({

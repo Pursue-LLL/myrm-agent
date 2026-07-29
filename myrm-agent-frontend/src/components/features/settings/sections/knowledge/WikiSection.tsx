@@ -786,6 +786,12 @@ export function WikiSection() {
                       </span>
                     )}
                   </div>
+                  {(stats.structural_issues?.broken_links ?? 0) > 0 ||
+                  (stats.structural_issues?.invalid_frontmatter_types ?? 0) > 0 ? (
+                    <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                      {t('stats.structuralHint')}
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
                       <div className="text-xs text-muted-foreground">{t('stats.cognitiveIndex')}</div>

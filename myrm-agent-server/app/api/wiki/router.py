@@ -444,6 +444,9 @@ async def compile_wiki(
     try:
         result = await archiver._compiler.compile_all()
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+        from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+
+        invalidate_structural_lint_cache(archiver._structure)
         return WikiCompileResponse(
             concepts_count=result.concepts_count,
             articles_generated=result.articles_generated,
@@ -465,6 +468,9 @@ async def maintain_wiki(
 ) -> WikiMaintenanceResponse:
     try:
         result = await archiver._linter.lint_and_maintain()
+        from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+
+        invalidate_structural_lint_cache(archiver._structure)
         return WikiMaintenanceResponse(
             issues_found=result.issues_found,
             issues_fixed=result.issues_fixed,
@@ -494,9 +500,10 @@ async def get_wiki_stats(
         )
 
         index_path = archiver._structure.get_index_file_path()
-        from myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint import collect_structural_lint_snapshot
+        from app.services.wiki.structural_stats_cache import get_structural_lint_snapshot_cached
 
-        structural = collect_structural_lint_snapshot(archiver._structure)
+        structural_cached = get_structural_lint_snapshot_cached(archiver._structure)
+        structural = structural_cached.snapshot
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),

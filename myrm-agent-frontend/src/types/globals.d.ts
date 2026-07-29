@@ -66,6 +66,7 @@ interface Window {
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
+    peekOutboundUserMessage?: () => string;
     ensureProviders?: () => Promise<void>;
     prepareAutomationSend?: () => void;
     ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;

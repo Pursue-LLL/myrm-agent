@@ -72,13 +72,13 @@ def shrink_model_context_window(mock_load_user_configs) -> None:
     configs.model_cfg = configs.model_cfg.model_copy(update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS})
 
 
-def _build_payload(query: str, chat_id: str) -> dict[str, object]:
+def _build_payload(query: str, chat_id: str, *, action_mode: str = "agent") -> dict[str, object]:
     return {
         "query": query,
         "chatId": chat_id,
         "messageId": f"msg-{uuid.uuid4().hex}",
         "modelSelection": get_model_selection(),
-        "actionMode": "agent",
+        "actionMode": action_mode,
     }
 
 
@@ -87,9 +87,10 @@ def _stream_agent_turn(
     *,
     query: str,
     chat_id: str,
+    action_mode: str = "agent",
 ) -> tuple[str, list[dict[str, object]]]:
     """Execute one agent turn and return (answer_text, all_events)."""
-    payload = _build_payload(query, chat_id)
+    payload = _build_payload(query, chat_id, action_mode=action_mode)
     collected_events: list[dict[str, object]] = []
     message_chunks: list[str] = []
     error_events: list[dict[str, object]] = []
@@ -153,7 +154,9 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
     final_answer = ""
 
     for query in (_FOCUS_INITIAL_QUERY, *_FOCUS_FOLLOWUPS):
-        final_answer, events = _stream_agent_turn(client, query=query, chat_id=chat_id)
+        final_answer, events = _stream_agent_turn(
+            client, query=query, chat_id=chat_id, action_mode="fast"
+        )
         all_events.extend(events)
 
     assert len(all_events) > 0, "Expected events from multi-turn conversation"

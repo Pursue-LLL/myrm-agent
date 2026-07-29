@@ -82,6 +82,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, sel
     <Popover open={open} modal={false}>
       {anchorEl && <PopoverAnchor virtualRef={{ current: anchorEl }} />}
       <PopoverContent
+        data-testid="slash-command-palette"
         className="w-[420px] p-0 shadow-xl border-border/50"
         side="top"
         align="start"
