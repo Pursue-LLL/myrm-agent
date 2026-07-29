@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 class DiscoveryAdoptionResult:
     allowlist_appended: bool = False
     agent_id: str = ""
+    allowlist_append_error: str = ""
 
 
 def _profile_explicit_skill_ids(agent: object) -> list[str]:
@@ -87,7 +88,11 @@ async def complete_discovery_adoption(
             normalized_new,
             context_agent_id,
         )
-        return DiscoveryAdoptionResult()
+        return DiscoveryAdoptionResult(
+            allowlist_append_error=(
+                "Failed to update agent skill allowlist after install"
+            ),
+        )
 
     logger.info(
         "Appended skill %s to agent %s allowlist after discovery adoption",

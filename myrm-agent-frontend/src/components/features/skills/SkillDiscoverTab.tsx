@@ -184,6 +184,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       mount_error?: string;
       mount_already_present?: boolean;
       allowlist_appended?: boolean;
+      allowlist_append_error?: string;
     }) => {
       if (response.mounted && !response.mount_error) {
         if (response.mount_already_present) {
@@ -191,7 +192,13 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
         } else {
           toast({ title: t('installedAndEnabled', { name: skillName }) });
         }
-        if (response.allowlist_appended) {
+        if (response.allowlist_append_error) {
+          toast({
+            title: t('installedAllowlistAppendFailed', { name: skillName }),
+            description: t('installedAllowlistAppendFailedDesc'),
+            variant: 'destructive',
+          });
+        } else if (response.allowlist_appended) {
           toast({
             title: t('installedAllowlistAppended', { name: skillName }),
             description: t('installedAllowlistAppendedDesc'),

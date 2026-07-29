@@ -92,3 +92,6 @@ async def test_adoption_logs_and_no_ops_when_update_fails() -> None:
         )
 
     assert result.allowlist_appended is False
+    assert result.allowlist_append_error == (
+        "Failed to update agent skill allowlist after install"
+    )

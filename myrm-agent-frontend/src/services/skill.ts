@@ -386,6 +386,7 @@ export interface DiscoveryInstallResponse {
   mount_already_present?: boolean;
   mount_error?: string;
   allowlist_appended?: boolean;
+  allowlist_append_error?: string;
 }
 
 export interface DiscoveryInstallOptions {

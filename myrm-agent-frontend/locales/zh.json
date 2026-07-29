@@ -2499,6 +2499,8 @@
         "installedEnableFailed": "已安装 {name}，但启用失败",
         "installedAllowlistAppended": "{name} 已加入智能体技能白名单",
         "installedAllowlistAppendedDesc": "该 Agent 使用显式技能白名单，新技能已自动加入。",
+        "installedAllowlistAppendFailed": "{name} 已加入目录，但未能加入对话白名单",
+        "installedAllowlistAppendFailedDesc": "请在 Agent 设置中手动添加该技能，或稍后重试安装。",
         "source": {
           "prebuilt": "官方",
           "github": "GitHub",

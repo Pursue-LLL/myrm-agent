@@ -68,6 +68,7 @@ def _install_response(
     *,
     mount_result: SkillMountResult | None = None,
     allowlist_appended: bool = False,
+    allowlist_append_error: str = "",
 ) -> SkillInstallResponse:
     response_skill_id = resolve_mount_skill_id(result) or result.skill_id
     mounted = False
@@ -96,6 +97,7 @@ def _install_response(
         mount_already_present=mount_already_present,
         mount_error=mount_error,
         allowlist_appended=allowlist_appended,
+        allowlist_append_error=allowlist_append_error,
     )
 
 
@@ -105,6 +107,7 @@ async def _install_response_with_adoption(
     mount_result: SkillMountResult | None = None,
 ) -> SkillInstallResponse:
     allowlist_appended = False
+    allowlist_append_error = ""
     if (
         mount_result is not None
         and mount_result.mounted
@@ -116,11 +119,13 @@ async def _install_response_with_adoption(
             mount_result.mount_skill_id,
         )
         allowlist_appended = adoption.allowlist_appended
+        allowlist_append_error = adoption.allowlist_append_error
 
     return _install_response(
         result,
         mount_result=mount_result,
         allowlist_appended=allowlist_appended,
+        allowlist_append_error=allowlist_append_error,
     )
 
 

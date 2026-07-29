@@ -61,6 +61,7 @@ class SkillInstallResponse(BaseModel):
     mount_already_present: bool = False
     mount_error: str = ""
     allowlist_appended: bool = False
+    allowlist_append_error: str = ""
 
 
 class SkillUpdateInfoResponse(BaseModel):

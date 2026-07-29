@@ -2499,6 +2499,8 @@
         "installedEnableFailed": "Installed {name}, but failed to enable",
         "installedAllowlistAppended": "{name} added to agent skill allowlist",
         "installedAllowlistAppendedDesc": "This agent uses an explicit skill allowlist. The new skill was added automatically.",
+        "installedAllowlistAppendFailed": "{name} enabled in catalog but not added to chat allowlist",
+        "installedAllowlistAppendFailedDesc": "Add this skill in Agent settings or try installing again.",
         "source": {
           "prebuilt": "Official",
           "github": "GitHub",
