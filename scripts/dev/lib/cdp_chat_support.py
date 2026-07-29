@@ -957,6 +957,40 @@ def steer_chat_message(
     return {"ok": False, "err": "steer-api-rejected", "payload": payload}
 
 
+def nudge_agent_stream_turn(
+    chat_id: str,
+    agent_id: str,
+    message: str,
+    *,
+    api_url: str | None = None,
+    timeout_sec: float = 180.0,
+) -> dict[str, object]:
+    """Follow-up turn via agent-stream REST (no Chrome bridge; R137 LIVE empty-write nudge)."""
+    normalized_chat = chat_id.strip()
+    normalized_agent = agent_id.strip()
+    normalized_message = message.strip()
+    if not normalized_chat or not normalized_agent or not normalized_message:
+        return {"ok": False, "err": "missing-chat-agent-or-message"}
+    payload: dict[str, object] = {
+        "messageId": f"e2e-nudge-{uuid.uuid4().hex[:10]}",
+        "chatId": normalized_chat,
+        "query": normalized_message,
+        "actionMode": "agent",
+        "agentId": normalized_agent,
+        "memoryRequireConfirmation": False,
+        "enableMemoryAutoExtraction": False,
+    }
+    result = _collect_agent_stream_events(
+        payload,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+    )
+    error = result.get("error")
+    if isinstance(error, dict):
+        return {"ok": False, "mode": "agentStreamNudge", "error": error, "events": result.get("events")}
+    return {"ok": True, "mode": "agentStreamNudge", "events": result.get("events", [])}
+
+
 def chat_browser_gate_from_api(
     chat_id: str,
     *,

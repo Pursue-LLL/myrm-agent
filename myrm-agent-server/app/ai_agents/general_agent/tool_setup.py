@@ -202,7 +202,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
-    def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
+    def _setup_skill_market_tool(
+        self, tools: list[object], market_backend: object
+    ) -> None:
         """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
         from myrm_agent_harness.agent.meta_tools.skills.market import (
             create_skill_market_tool,
@@ -1007,7 +1009,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             tools.append(create_artifact_publish_tool())
-            logger.info("Loaded artifact_publish tool [conditional, hosting configured]")
+            logger.info(
+                "Loaded artifact_publish tool [conditional, hosting configured]"
+            )
         except Exception as e:
             logger.debug("artifact_publish tool skipped: %s", e)
 

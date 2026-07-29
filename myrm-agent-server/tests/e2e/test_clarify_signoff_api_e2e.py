@@ -61,7 +61,9 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
 
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         provider_ready_timeout = 90.0
-        if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=provider_ready_timeout):
+        if not wait_e2e_provider_ready(
+            api_url=api_base, timeout_sec=provider_ready_timeout
+        ):
             pytest.fail("provider not ready on signoff clarify pool backend")
     else:
         ensure_e2e_yolo_mode(api_url=api_base)
@@ -69,7 +71,9 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
             pytest.fail("provider not ready within 30s on signoff clarify API leg")
 
     model_selection = get_lite_model_selection()
-    api_timeout = min(float(clarify_skip_api_wait_sec()), max(15.0, remaining_wall_sec() - 30.0))
+    api_timeout = min(
+        float(clarify_skip_api_wait_sec()), max(15.0, remaining_wall_sec() - 30.0)
+    )
 
     chat_id = ""
     clarify_result: dict[str, object] = {}
@@ -99,7 +103,10 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
             if error_type == "AgentBusyError" and attempt + 1 < 4:
                 cancel_e2e_chat_agent_via_api(chat_id, api_url=api_base)
                 time.sleep(10.0)
-            elif error_type in ("AgentStreamClarifyIncomplete", "AgentStreamIdleTimeout") and attempt + 1 < 4:
+            elif (
+                error_type in ("AgentStreamClarifyIncomplete", "AgentStreamIdleTimeout")
+                and attempt + 1 < 4
+            ):
                 time.sleep(10.0 if error_type == "AgentStreamIdleTimeout" else 4.0)
 
     assert clarify_result.get("has_clarification"), (

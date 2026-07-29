@@ -43,7 +43,9 @@ class _Request:
 
 
 @pytest.mark.asyncio
-async def test_signoff_clarify_contract_forces_first_turn_tool_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_signoff_clarify_contract_forces_first_turn_tool_choice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", raising=False)
     middleware = SignoffClarifyContractMiddleware(enabled=True)
     captured: dict[str, object] = {}
@@ -60,7 +62,9 @@ async def test_signoff_clarify_contract_forces_first_turn_tool_choice(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_signoff_clarify_contract_h2b_deterministic_no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_signoff_clarify_contract_h2b_deterministic_no_llm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
     middleware = SignoffClarifyContractMiddleware(enabled=True)
     handler = AsyncMock(return_value=ModelResponse(result=[]))

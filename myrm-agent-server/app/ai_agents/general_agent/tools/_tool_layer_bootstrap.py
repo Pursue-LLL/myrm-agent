@@ -17,7 +17,9 @@ product media LangChain adapters) into the harness registry at import time.
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.sub_agents.delegation_policy import register_leaf_blocked_tools
+from myrm_agent_harness.agent.sub_agents.delegation_policy import (
+    register_leaf_blocked_tools,
+)
 from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_layer
 
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {

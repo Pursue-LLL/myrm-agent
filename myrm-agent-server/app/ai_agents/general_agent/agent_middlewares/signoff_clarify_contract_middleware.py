@@ -85,7 +85,9 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
             logger.info(
                 "SignoffClarifyContractMiddleware: H2b deterministic stub model (no LLM)",
             )
-            request = request.override(model=build_signoff_clarify_deterministic_model())
+            request = request.override(
+                model=build_signoff_clarify_deterministic_model()
+            )
             return await handler(request)
 
         request = request.override(tool_choice="required")
@@ -95,5 +97,7 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
         return await handler(request)
 
 
-def build_signoff_clarify_contract_middleware(*, enabled: bool) -> SignoffClarifyContractMiddleware:
+def build_signoff_clarify_contract_middleware(
+    *, enabled: bool
+) -> SignoffClarifyContractMiddleware:
     return SignoffClarifyContractMiddleware(enabled=enabled)

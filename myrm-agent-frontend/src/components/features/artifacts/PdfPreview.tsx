@@ -3,11 +3,12 @@
 import React, { useState, useRef, memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { IconPdf } from '@/components/features/icons/PremiumIcons';
 
-// 配置 PDF.js worker（使用 CDN）
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfPreviewProps {
@@ -110,8 +111,8 @@ const PdfPreview: React.FC<PdfPreviewProps> = memo(({ url, filename }) => {
           <Page
             pageNumber={pageNumber}
             width={pageWidth}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
             className="shadow-lg rounded-lg overflow-hidden"
           />
         </Document>

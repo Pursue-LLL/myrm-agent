@@ -21,7 +21,7 @@ from typing import Literal
 
 from app.database.models import TurnCapabilityMetricEvent
 from app.platform_utils import get_session_factory
-from app.services.agent.params.models import AgentRequest
+from app.services.agent.params.models import AgentRequest, TurnCapabilityTelemetryRequest
 
 TurnCapabilityFailureReason = Literal[
     "network_error",
@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 def has_turn_capability_terminal_context(request: AgentRequest) -> bool:
-    return request.turn_capability_telemetry is not None
+    telemetry = getattr(request, "turn_capability_telemetry", None)
+    return isinstance(telemetry, TurnCapabilityTelemetryRequest)
 
 
 def _resolve_turn_capability_context_key(request: AgentRequest) -> str:
@@ -102,8 +103,8 @@ async def _write_turn_capability_event(
 
 
 async def record_turn_capability_send_completed(request: AgentRequest) -> bool:
-    telemetry = request.turn_capability_telemetry
-    if telemetry is None:
+    telemetry = getattr(request, "turn_capability_telemetry", None)
+    if not isinstance(telemetry, TurnCapabilityTelemetryRequest):
         return False
     return await _write_turn_capability_event(
         source=telemetry.source,
@@ -118,8 +119,8 @@ async def record_turn_capability_send_failed(
     request: AgentRequest,
     reason: TurnCapabilityFailureReason,
 ) -> bool:
-    telemetry = request.turn_capability_telemetry
-    if telemetry is None:
+    telemetry = getattr(request, "turn_capability_telemetry", None)
+    if not isinstance(telemetry, TurnCapabilityTelemetryRequest):
         return False
     return await _write_turn_capability_event(
         source=telemetry.source,

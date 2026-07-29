@@ -23,6 +23,7 @@ from cdp_chat_support import (  # noqa: E402
     empty_write_failure_in_messages,
     ensure_e2e_yolo_mode,
     file_write_tool_call_count,
+    nudge_agent_stream_turn,
     steer_chat_message,
     wait_e2e_provider_ready,
 )
@@ -75,6 +76,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "E2E_BOOTSTRAP",
     "recover_mux",
     "TypeError",
+    "Dev E2E chat bridge",
 )
 
 
@@ -515,10 +517,28 @@ async def test_file_write_empty_live_agent_webui(
         )
         return pinned_model
 
+    async def _api_nudge_turn(agent_id: str, filename: str) -> None:
+        nudge_prompt = _live_user_prompt(filename)
+        nudge_result = await asyncio.to_thread(
+            nudge_agent_stream_turn,
+            chat_id,
+            agent_id,
+            nudge_prompt,
+            api_url=api_base,
+            timeout_sec=_bounded_wait_sec(120.0, reserve_sec=90.0),
+        )
+        touch_wall_progress()
+        if nudge_result.get("ok") is not True:
+            raise AssertionError(
+                f"Live empty write API nudge failed: {nudge_result}; "
+                f"filename={filename!r}"
+            )
+
     async def _wait_turn_done(
         chat: McpChatSession,
         chat_id: str,
         *,
+        agent_id: str,
         target_file: Path | None = None,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
@@ -712,37 +732,17 @@ async def test_file_write_empty_live_agent_webui(
                         last_progress_at = not_invoked_since
                         if steer_result.get("ok") is not True:
                             ui_nudge_attempts += 1
-                            nudge_prompt = _live_user_prompt(nudge_filename)
-                            await chat.send_message(nudge_prompt, nudge_prompt)
-                            await chat.wait_stream_started(
-                                nudge_prompt,
-                                timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
-                                chat_id_hint=chat_id,
-                            )
+                            await _api_nudge_turn(agent_id, nudge_filename)
                             not_invoked_since = time.monotonic()
                             last_progress_at = not_invoked_since
                     elif ui.get("isStreaming") is not True:
                         ui_nudge_attempts += 1
-                        nudge_prompt = _live_user_prompt(nudge_filename)
-                        await chat.send_message(nudge_prompt, nudge_prompt)
-                        await chat.wait_stream_started(
-                            nudge_prompt,
-                            timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
-                            chat_id_hint=chat_id,
-                        )
-                        touch_wall_progress()
+                        await _api_nudge_turn(agent_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                     elif steer_attempted and idle_sec >= 45.0:
                         ui_nudge_attempts += 1
-                        nudge_prompt = _live_user_prompt(nudge_filename)
-                        await chat.send_message(nudge_prompt, nudge_prompt)
-                        await chat.wait_stream_started(
-                            nudge_prompt,
-                            timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
-                            chat_id_hint=chat_id,
-                        )
-                        touch_wall_progress()
+                        await _api_nudge_turn(agent_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                 elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
@@ -872,7 +872,9 @@ async def test_file_write_empty_live_agent_webui(
                 BASE_URL,
                 timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
             )
-        result = await _wait_turn_done(chat, resolved_chat_id, target_file=target_file)
+        result = await _wait_turn_done(
+            chat, resolved_chat_id, agent_id=agent_id, target_file=target_file
+        )
         invoked, has_failure = _empty_write_failure_in_messages(
             resolved_chat_id, api_url=api_base
         )

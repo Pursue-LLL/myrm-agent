@@ -90,6 +90,14 @@ _RELOAD_DIALOG_STATE_JS = """(() => {
   };
 })()"""
 
+_RELOAD_DIALOG_CLOSED_JS = """(() => {
+  const text = document.body?.innerText || '';
+  const open =
+    /重新加载 MCP 工具|Reload MCP tools|MCP.*neu laden|MCP.*다시 로드/i.test(text) &&
+    /提示词缓存|prompt-cache|Prompt-Cache|프롬프트 캐시/i.test(text);
+  return { ready: !open };
+})()"""
+
 _DELETE_DIALOG_STATE_JS = """(() => {
   const text = document.body?.innerText || '';
   const titleMatch = /Confirm Delete|确认删除|Löschen bestätigen|삭제 확인/i.test(text);
@@ -381,6 +389,15 @@ def _wait_for_server_present(name: str, timeout_sec: float = 20.0) -> None:
     raise AssertionError(f"server {name!r} not present in API")
 
 
+def _wait_for_probe_disabled(timeout_sec: float = 45.0) -> None:
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if not _probe_enabled_in_api():
+            return
+        time.sleep(0.4)
+    raise AssertionError("confirm must persist disabled MCP server")
+
+
 def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
     dialog = wait_for_state(
         client, page, _RELOAD_DIALOG_STATE_JS, timeout_sec=timeout_sec
@@ -388,6 +405,7 @@ def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
     assert dialog.get("ready") is True, json.dumps(dialog, ensure_ascii=False)
     confirmed = client.evaluate(page, _CLICK_DIALOG_CONFIRM_JS, timeout_sec=10.0)
     assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
+    wait_for_state(client, page, _RELOAD_DIALOG_CLOSED_JS, timeout_sec=30.0)
 
 
 _APP_LAYOUT_READY_JS = """(() => ({
@@ -400,9 +418,9 @@ def _reload_mcp_page(client, page) -> None:
     last: dict[str, object] = {}
     for attempt in range(3):
         reload_mcp_page(client, page, target_url=target_url)
-        dismiss_blocking_modals(client, page)
         try:
             wait_for_state(client, page, _APP_LAYOUT_READY_JS, timeout_sec=120.0)
+            dismiss_blocking_modals(client, page)
             return
         except AssertionError as exc:
             if attempt >= 2:
@@ -449,7 +467,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         assert dialog.get("ready") is True, json.dumps(dialog, ensure_ascii=False)
         cancelled = client.evaluate(page, _CLICK_DIALOG_CANCEL_JS, timeout_sec=10.0)
         assert isinstance(cancelled, dict) and cancelled.get("ok") is True, cancelled
-        time.sleep(0.8)
+        wait_for_state(client, page, _RELOAD_DIALOG_CLOSED_JS, timeout_sec=15.0)
         assert _probe_enabled_in_api() is True, "cancel must not persist disable"
 
         toggled_again = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
@@ -457,10 +475,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
             isinstance(toggled_again, dict) and toggled_again.get("ok") is True
         ), toggled_again
         _confirm_reload_dialog(client, page)
-        deadline = time.monotonic() + 20.0
-        while time.monotonic() < deadline and _probe_enabled_in_api():
-            time.sleep(0.4)
-        assert not _probe_enabled_in_api(), "confirm must persist disabled MCP server"
+        _wait_for_probe_disabled(timeout_sec=45.0)
 
         # --- Path 2: delete ---
         _seed_probe_mcp_server()

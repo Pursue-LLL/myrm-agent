@@ -79,8 +79,18 @@ def ensure_desktop_viewport(
     return raw if isinstance(raw, dict) else {"value": raw}
 
 
+_LOCALHOST_PAGE_JS = """(() => {
+  const host = location.hostname;
+  return {
+    ready: host === '127.0.0.1' || host === 'localhost',
+    href: location.href,
+  };
+})()"""
+
+
 def dismiss_blocking_modals(client: ChromeMcpClient, page: McpPage) -> None:
     """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
+    wait_for_state(client, page, _LOCALHOST_PAGE_JS, timeout_sec=45.0)
     dismissed = client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
     assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
     boot = client.evaluate(

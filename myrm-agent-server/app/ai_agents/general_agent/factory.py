@@ -503,8 +503,8 @@ async def build_general_agent(
     if getattr(agent_wrapper, "signoff_clarify_contract", False):
         system_prompt += (
             "\n\n[Signoff Clarify Contract] Your first and only action MUST be "
-            "ask_question_tool with title \"Pick stack\", one question id \"stack\", "
-            "prompt \"Which stack?\", options a/Option A and b/Option B, "
+            'ask_question_tool with title "Pick stack", one question id "stack", '
+            'prompt "Which stack?", options a/Option A and b/Option B, '
             "requires_confirmation false. No text before the tool call."
         )
 

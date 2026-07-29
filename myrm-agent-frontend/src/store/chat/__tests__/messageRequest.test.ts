@@ -249,6 +249,7 @@ describe('messageRequest - archive restore contract', () => {
 describe('messageRequest - turn capability telemetry contract', () => {
   it('serializes one-turn capability terminal telemetry in snake_case', async () => {
     const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
     createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const state = {
