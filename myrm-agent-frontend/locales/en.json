@@ -2089,7 +2089,9 @@
         "cognitivePending": "Not built yet",
         "cognitiveLogEntries": "{count, plural, =0 {No entries yet} one {# entry} other {# entries}}",
         "cognitiveHotUpdated": "Updated {time}",
-        "cognitiveHotEmpty": "Not refreshed yet"
+        "cognitiveHotEmpty": "Not refreshed yet",
+        "brokenLinks": "{count, plural, one {# broken link} other {# broken links}}",
+        "invalidPageTypes": "{count, plural, one {# invalid page type} other {# invalid page types}}"
       },
       "query": {
         "title": "Query Wiki",

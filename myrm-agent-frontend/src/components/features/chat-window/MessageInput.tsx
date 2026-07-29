@@ -565,7 +565,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                           <ListPlus size={17} />
                         </button>
                       </>
-                    )}
+                    ) : null}
                     <button
                       type="button"
                       onClick={stopMessage}

@@ -205,3 +205,35 @@ def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
     assert binding.agent_overlay.memory_scenes_pinned is True
     assert binding.bundle_id == "default"
     assert binding.schema_version == 1
+
+
+@pytest.mark.asyncio
+async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(tmp_path: Path) -> None:
+    custom_base_path = tmp_path / "callback_refresh_memory"
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+
+    async def _wiki_hook(_stats: object) -> None:
+        return None
+
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id="builder",
+        channel_id=None,
+        conversation_id="chat-callback",
+        task_id=None,
+    )
+
+    with _patch_memory_path(str(custom_base_path)):
+        first = await create_memory_manager(
+            binding,
+            embedding_config=embedding_config,
+            on_consolidation_complete=_wiki_hook,
+        )
+        second = await create_memory_manager(
+            binding,
+            embedding_config=embedding_config,
+            on_consolidation_complete=None,
+        )
+
+    assert first is second
+    assert second._on_consolidation_complete is None

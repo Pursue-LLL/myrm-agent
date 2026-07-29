@@ -1073,9 +1073,14 @@ async def convert_to_general_agent_params(
 
 
 def _resolve_signoff_clarify_contract(request: AgentRequest) -> bool:
-    """Enable first-turn ask_question tool_choice for M3 signoff clarify API leg."""
+    """Enable first-turn ask_question stub for M3 signoff clarify SHPOIB pool."""
+    import os
+
     engine_params = request.engine_params or {}
-    return engine_params.get("signoffClarifyContract") is True
+    for key in ("signoffClarifyContract", "signoff_clarify_contract"):
+        if engine_params.get(key) is True:
+            return True
+    return os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1"
 
 
 def _is_learn_skill_authoring_query(query: object) -> bool:

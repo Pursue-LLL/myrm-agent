@@ -1152,8 +1152,11 @@ class ChromeMcpClient:
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
         depth = getattr(self, "_reclaim_depth", 0)
         if depth >= 1:
-            # Nested reclaim during orphan recovery — return page; caller will retry or fail fast.
-            return page
+            from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+
+            raise RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: nested page reclaim during active recovery"
+            )
         self._reclaim_depth = depth + 1
         try:
             return self._reopen_owned_page_inner(page)
@@ -1550,65 +1553,91 @@ class ChromeMcpClient:
                 )
                 break
             new_page_id: int | None = None
-            try:
-                old_target = old_page.target_id.strip()
-                if old_target:
-                    _http_close_exact_target(old_target)
-                reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
-                runtime_binding = self._runtime_binding_source_for(reopen_url)
-                initial_url = (
-                    "about:blank" if runtime_binding is not None else reopen_url
-                )
-                arguments: dict[str, object] = {"url": initial_url, "timeout": 60_000}
-                if old_page.context_id is not None:
-                    arguments["isolatedContext"] = old_page.context_id
-                result = self._call_tool_direct(
-                    "new_page", arguments, timeout_sec=min(65.0, remaining)
-                )
-                page_id, target_id = parse_new_page(result)
-                new_page_id = page_id
-                rebuilt = McpPage(
-                    page_id=page_id,
-                    target_id=target_id,
-                    lease_id=old_page.lease_id,
-                    context_id=old_page.context_id,
-                    url=reopen_url,
-                )
-                self._heartbeat_lease(old_page.lease_id)
-                self._bind_page_lease(rebuilt)
-                if runtime_binding is not None:
-                    self._bind_and_navigate_runtime_page(
-                        rebuilt,
-                        reopen_url,
-                        runtime_binding,
-                        timeout_ms=min(60_000, int(remaining * 1000)),
+            for rebuild_attempt in range(2):
+                remaining = _remaining_reclaim_sec(reclaim_deadline)
+                if remaining < 5.0:
+                    break
+                try:
+                    old_target = old_page.target_id.strip()
+                    if old_target and rebuild_attempt == 0:
+                        _http_close_exact_target(old_target)
+                    reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
+                    runtime_binding = self._runtime_binding_source_for(reopen_url)
+                    initial_url = (
+                        "about:blank" if runtime_binding is not None else reopen_url
                     )
-                self._pages[page_id] = rebuilt
-                self._disconnected_pages.pop(old_page_id, None)
-                self._page_lease_heartbeat.track(old_page.lease_id)
-                _LOGGER.info(
-                    "rebuilt page %d→%d (url=%s) after transport recovery",
-                    old_page_id,
-                    page_id,
-                    reopen_url,
-                )
-            except Exception as exc:
-                _LOGGER.warning(
-                    "failed to rebuild page %d after transport recovery: %s",
-                    old_page_id,
-                    exc,
-                )
-                self._disconnected_pages.pop(old_page_id, None)
-                if new_page_id is not None:
-                    self._pages.pop(new_page_id, None)
-                    try:
-                        self._call_tool_direct(
-                            "close_page",
-                            {"pageId": new_page_id},
-                            timeout_sec=10.0,
+                    arguments: dict[str, object] = {
+                        "url": initial_url,
+                        "timeout": 60_000,
+                    }
+                    if old_page.context_id is not None:
+                        arguments["isolatedContext"] = old_page.context_id
+                    result = self._call_tool_direct(
+                        "new_page", arguments, timeout_sec=min(65.0, remaining)
+                    )
+                    page_id, target_id = parse_new_page(result)
+                    new_page_id = page_id
+                    self._call_tool_direct(
+                        "evaluate_script",
+                        {
+                            "pageId": page_id,
+                            "function": "async () => document.readyState",
+                        },
+                        timeout_sec=min(10.0, remaining),
+                    )
+                    rebuilt = McpPage(
+                        page_id=page_id,
+                        target_id=target_id,
+                        lease_id=old_page.lease_id,
+                        context_id=old_page.context_id,
+                        url=reopen_url,
+                    )
+                    self._heartbeat_lease(old_page.lease_id)
+                    self._bind_page_lease(rebuilt)
+                    if runtime_binding is not None:
+                        self._bind_and_navigate_runtime_page(
+                            rebuilt,
+                            reopen_url,
+                            runtime_binding,
+                            timeout_ms=min(60_000, int(remaining * 1000)),
                         )
-                    except Exception:
-                        pass
+                    self._pages[page_id] = rebuilt
+                    self._disconnected_pages.pop(old_page_id, None)
+                    self._page_lease_heartbeat.track(old_page.lease_id)
+                    _LOGGER.info(
+                        "rebuilt page %d→%d (url=%s) after transport recovery",
+                        old_page_id,
+                        page_id,
+                        reopen_url,
+                    )
+                    break
+                except Exception as exc:
+                    if new_page_id is not None:
+                        self._pages.pop(new_page_id, None)
+                        try:
+                            self._call_tool_direct(
+                                "close_page",
+                                {"pageId": new_page_id},
+                                timeout_sec=10.0,
+                            )
+                        except Exception:
+                            pass
+                        new_page_id = None
+                    if rebuild_attempt + 1 >= 2 or not _is_page_ownership_error(str(exc)):
+                        _LOGGER.warning(
+                            "failed to rebuild page %d after transport recovery: %s",
+                            old_page_id,
+                            exc,
+                        )
+                        self._disconnected_pages.pop(old_page_id, None)
+                        break
+                    _LOGGER.warning(
+                        "rebuild page %d ownership probe failed (attempt %d): %s",
+                        old_page_id,
+                        rebuild_attempt + 1,
+                        exc,
+                    )
+                    time.sleep(min(1.0, _remaining_reclaim_sec(reclaim_deadline)))
 
     def _reclaim_pages_parallel_safe(
         self,

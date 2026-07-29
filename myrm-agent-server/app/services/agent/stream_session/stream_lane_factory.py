@@ -283,7 +283,6 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
         from datetime import UTC, datetime
 
         from myrm_agent_harness.toolkits.llms import llm_manager
-        from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
         from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
@@ -297,10 +296,6 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
 
         complete_results = [r for r in agent_results if not r.get("partial")]
         if not complete_results:
-            return
-
-        wiki_config = WikiConfig()
-        if not wiki_config.auto_archive_enabled:
             return
 
         structure = WikiStructure(wiki_base_dir)

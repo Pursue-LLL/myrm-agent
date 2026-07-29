@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -23,6 +24,9 @@ from tests.support.chrome_mcp_e2e import (
 _PROBE_SERVER_NAME = "e2e-reload-probe"
 _IMPORT_SERVER_NAME = "e2e-import-probe"
 _ADD_SERVER_NAME = "e2e-add-probe"
+_E2E_STDIO_MCP_STUB = (
+    Path(__file__).resolve().parents[1] / "support" / "e2e_minimal_stdio_mcp_server.py"
+)
 
 _MCP_PAGE_READY_JS = """(() => {
   const text = document.body?.innerText || '';
@@ -735,7 +739,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         )
         for label_pattern, value in (
             ("Command|命令|コマンド|Befehl|명령", sys.executable),
-            ("Arguments|参数|參數|Argumente|인수", "-c\npass"),
+            ("Arguments|参数|參數|Argumente|인수", str(_E2E_STDIO_MCP_STUB)),
             ("Description|描述|服務描述|サービス説明|Beschreibung|설명", "E2E add probe server"),
         ):
             filled_field = client.evaluate(

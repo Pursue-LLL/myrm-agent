@@ -8,7 +8,7 @@ myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw public
 make_consolidation_wiki_bridge / archive_consolidation_insights_to_wiki
 
 [POS]
-Server hook: when Memory consolidation yields insights and Wiki auto-archive is on,
+Server hook: when Memory consolidation yields insights (enable_wiki gate is upstream),
 writes a digest markdown under wiki/raw/memory/ and enqueues compile.
 """
 
@@ -22,7 +22,6 @@ from datetime import UTC, datetime
 from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConsolidationStats
-from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
     RawConflictPolicy,
     RawPublishRequest,
@@ -51,12 +50,8 @@ async def archive_consolidation_insights_to_wiki(
     agent_id: str | None,
     llm: BaseChatModel,
 ) -> None:
-    """Write consolidation insights to wiki/raw when auto-archive is enabled."""
+    """Write consolidation insights to wiki/raw (caller must gate on enable_wiki)."""
     if not stats.insights:
-        return
-
-    wiki_config = WikiConfig()
-    if not wiki_config.auto_archive_enabled:
         return
 
     insight_lines = [line.strip() for line in stats.insights if line.strip()]

@@ -2089,7 +2089,9 @@
         "cognitivePending": "尚未生成",
         "cognitiveLogEntries": "{count, plural, =0 {暂无记录} other {# 条记录}}",
         "cognitiveHotUpdated": "更新于 {time}",
-        "cognitiveHotEmpty": "尚未刷新"
+        "cognitiveHotEmpty": "尚未刷新",
+        "brokenLinks": "{count, plural, other {# 处断链}}",
+        "invalidPageTypes": "{count, plural, other {# 处页面类型无效}}"
       },
       "query": {
         "title": "查询 Wiki",

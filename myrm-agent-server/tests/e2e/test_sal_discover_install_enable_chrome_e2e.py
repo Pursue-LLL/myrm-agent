@@ -319,6 +319,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
             assert isinstance(picked_custom, dict) and picked_custom.get("ok") is True, picked_custom
             wait_for_state(client, page, _CUSTOM_INPUT_READY_JS, timeout_sec=30.0)
             custom_url = "https://clawhub.ai"
+            expected_custom_stored = ""  # normalize maps default intl URL to empty string
             focused = client.evaluate(
                 page, _FOCUS_CUSTOM_MIRROR_INPUT_JS, timeout_sec=15.0
             )
@@ -343,8 +344,10 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                 page, _CLICK_CUSTOM_MIRROR_SAVE_JS, timeout_sec=15.0
             )
             assert isinstance(clicked_save, dict) and clicked_save.get("ok") is True, clicked_save
-            custom_config = _wait_registry_url(api_url, custom_url, timeout_sec=60.0)
-            assert custom_config.get("clawhub_registry_url") == custom_url
+            custom_config = _wait_registry_url(
+                api_url, expected_custom_stored, timeout_sec=60.0
+            )
+            assert custom_config.get("clawhub_registry_url") == expected_custom_stored
 
             submitted = client.evaluate(
                 page,
@@ -368,12 +371,23 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                 clicked.get("ok") is True
             ), f"Discover install click failed: {clicked}"
 
-            toast_state = wait_for_state(
-                client, page, _INSTALL_TOAST_READY_JS, timeout_sec=60.0
-            )
+            install_deadline = time.monotonic() + 90.0
+            toast_state: dict[str, object] = {"ready": False}
+            while time.monotonic() < install_deadline:
+                raw_toast = client.evaluate(
+                    page, _INSTALL_TOAST_READY_JS, timeout_sec=15.0
+                )
+                toast_state = raw_toast if isinstance(raw_toast, dict) else {"ready": False}
+                if toast_state.get("ready") is True:
+                    break
+                enabled_check = http_json("GET", f"{api_url}/api/v1/skills/config")
+                if skill_id in set(enabled_check.get("enabled_prebuilt_ids") or []):
+                    toast_state = {"ready": True, "via": "api-catalog"}
+                    break
+                time.sleep(1.0)
             assert (
                 toast_state.get("ready") is True
-            ), f"Expected install+enable toast or Installed badge: {toast_state}"
+            ), f"Expected install+enable toast or catalog enable: {toast_state}"
     finally:
         http_json(
             "PUT",

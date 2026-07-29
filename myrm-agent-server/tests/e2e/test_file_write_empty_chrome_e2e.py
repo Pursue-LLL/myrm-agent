@@ -77,6 +77,10 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "recover_mux",
     "TypeError",
     "Dev E2E chat bridge",
+    "UI send did not start stream",
+    "chrome-error",
+    "LEASE_NOT_ACTIVE",
+    "Chrome MCP transport",
 )
 
 _BUSINESS_FAILURE_MARKERS: tuple[str, ...] = (
@@ -86,6 +90,7 @@ _BUSINESS_FAILURE_MARKERS: tuple[str, ...] = (
     "Live empty write API nudge failed",
     "fileMutationFailures missing",
     "E2E_AGENT_TOOLS_DENY",
+    "Live empty write did not produce mutation failure banner",
 )
 
 
@@ -809,7 +814,26 @@ async def test_file_write_empty_live_agent_webui(
     async def _ensure_agent_url_loaded(
         chat: McpChatSession, target_agent_url: str
     ) -> None:
-        """R135: shared UI bootstrap may drop ?agentId= — re-navigate before bind assert."""
+        """R135/R139: re-navigate when shared UI drops ?agentId= or tab is chrome-error."""
+        raw = await chat.evaluate(
+            "(() => ({ href: String(location.href || ''), path: String(location.pathname || '') }))()",
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+        probe = raw if isinstance(raw, dict) else {"value": raw}
+        href = str(probe.get("href") or "")
+        needs_navigate = (
+            href.startswith("chrome-error:")
+            or href in ("about:blank", "")
+            or "agentId=" not in href
+        )
+        if not needs_navigate:
+            return
+        print(
+            f"E2E_AGENT_URL_RELOAD: href={href[:120]!r} target={target_agent_url[:120]!r}",
+            file=sys.stderr,
+            flush=True,
+        )
         await chat.cdp(
             "Page.navigate",
             {"url": target_agent_url},
@@ -844,6 +868,7 @@ async def test_file_write_empty_live_agent_webui(
         await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
 
     async def _run_flow(chat: McpChatSession) -> tuple[str, dict[str, object]]:
+        nonlocal live_turn_sent
         await chat.dismiss_modals()
         await _wait_agent_applied(chat)
         await _assert_agent_bound(chat, agent_id)
@@ -886,6 +911,12 @@ async def test_file_write_empty_live_agent_webui(
             f"Expected chat id after stream start: started={started}; send={send_result}; "
             f"model={pinned_model.get('providerId')}/{pinned_model.get('model')}"
         )
+        live_turn_sent = True
+        print(
+            f"E2E_SEND_TURN: chat_id={resolved_chat_id} parallel_peers={_parallel_live_agent_peer_count()}",
+            file=sys.stderr,
+            flush=True,
+        )
 
         current_chat = str((await chat.bridge_chat_id()) or "").strip()
         if current_chat != resolved_chat_id:
@@ -925,8 +956,11 @@ async def test_file_write_empty_live_agent_webui(
 
     last_error = ""
     agent_url = f"{ui_base}/?agentId={agent_id}"
+    live_turn_sent = False
 
     def _run_live_in_open_page() -> tuple[str, dict[str, object]]:
+        nonlocal live_turn_sent
+        live_turn_sent = False
         with open_mcp_page(
             agent_url,
             timeout_ms=120_000,
@@ -951,6 +985,14 @@ async def test_file_write_empty_live_agent_webui(
             break
         except (AssertionError, RuntimeError, TimeoutError) as exc:
             last_error = str(exc)
+            if live_turn_sent:
+                print(
+                    "E2E_BUSINESS_FAIL_NO_RETRY: turn already sent; "
+                    f"parallel_peers={_parallel_live_agent_peer_count()} err={last_error[:240]!r}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                raise
             if not _is_transport_retryable(exc):
                 raise
             if attempt >= _MAX_CHAT_ATTEMPTS - 1:

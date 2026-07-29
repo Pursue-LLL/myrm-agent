@@ -162,6 +162,12 @@ class WikiMaintenanceResponse(BaseModel):
     raw_security_removed_paths: list[str] = Field(default_factory=list)
 
 
+class WikiStructuralIssuesResponse(BaseModel):
+    broken_links: int = 0
+    invalid_frontmatter_types: int = 0
+    scanned_concepts: int = 0
+
+
 class WikiStatsResponse(BaseModel):
     total_concepts: int
     total_articles: int
@@ -172,6 +178,7 @@ class WikiStatsResponse(BaseModel):
     cognitive_index_ready: bool = False
     cognitive_log_entries: int = 0
     cognitive_hot_updated_at: str | None = None
+    structural_issues: WikiStructuralIssuesResponse = Field(default_factory=WikiStructuralIssuesResponse)
 
 
 class GraphNodeItem(BaseModel):
@@ -487,6 +494,9 @@ async def get_wiki_stats(
         )
 
         index_path = archiver._structure.get_index_file_path()
+        from myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint import collect_structural_lint_snapshot
+
+        structural = collect_structural_lint_snapshot(archiver._structure)
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),
@@ -497,6 +507,11 @@ async def get_wiki_stats(
             cognitive_index_ready=index_path.exists(),
             cognitive_log_entries=count_log_entries(archiver._structure),
             cognitive_hot_updated_at=hot_updated_at_iso(archiver._structure),
+            structural_issues=WikiStructuralIssuesResponse(
+                broken_links=structural.broken_links,
+                invalid_frontmatter_types=structural.invalid_frontmatter_types,
+                scanned_concepts=structural.scanned_concepts,
+            ),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

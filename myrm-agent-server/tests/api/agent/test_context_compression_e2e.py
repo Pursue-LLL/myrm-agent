@@ -42,22 +42,16 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
     "Rate limit",
     "Recursion limit",
     "timeout",
+    "Invalid tool choice",
 )
 
 _FOCUS_INITIAL_QUERY: Final[str] = """
-请详细解释 Python 中 asyncio.Event 的用法，包括：
-1. 基本用法和场景
-2. 与 asyncio.Lock 的区别
-3. 在生产者-消费者模式中的应用
-4. 常见的陷阱和最佳实践
-
-每个点都要举代码示例。回答要详细，至少1000字。
+请解释 Python asyncio.Event 的用法：基本场景、与 asyncio.Lock 的区别、生产者-消费者示例。
+每个点举简短代码示例，回答约400字。
 """.strip()
 
-_FOCUS_FOLLOWUPS: Final[tuple[str, str]] = (
-    "继续。基于刚才的讨论，asyncio.Event 和 threading.Event 有什么核心区别？"
-    "请特别说明在 aiohttp 或 FastAPI 中使用 asyncio.Event 的最佳实践。",
-    "继续。回顾我们整个讨论，总结 asyncio.Event 的三个最重要的使用场景，并且说明为什么它比 asyncio.Condition 更适合这些场景。",
+_FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
+    "继续。总结 asyncio.Event 与 threading.Event 的两个核心区别，并回顾 Event 的两个关键使用场景。",
 )
 
 _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = """

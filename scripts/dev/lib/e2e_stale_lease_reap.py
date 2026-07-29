@@ -52,9 +52,9 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
         return None
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
-    from dev_gate_contract import (  # noqa: PLC0415
-        STALL_PROGRESS_SEC,
-    )
+    from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
+
+    stall_cap = shpoib_parallel_stall_progress_sec()
     from transport_supervisor import live_agent_pytest_wall_cap_sec  # noqa: PLC0415
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
@@ -88,7 +88,7 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             body_cap = float(live_agent_body_wall_cap_sec(pessimistic=True))
             stale = progress_stale_sec(snapshot)
             if body_elapsed >= body_cap and (
-                stale is None or stale >= float(STALL_PROGRESS_SEC)
+                stale is None or stale >= stall_cap
             ):
                 stale_note = (
                     f" progress_stale={int(stale)}s"
@@ -109,9 +109,9 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             body_elapsed is not None
             and body_elapsed >= 30.0
             and stale is not None
-            and stale >= float(STALL_PROGRESS_SEC)
+            and stale >= stall_cap
         ):
-            return f"progress_stale={int(stale)}s>={STALL_PROGRESS_SEC}s"
+            return f"progress_stale={int(stale)}s>={int(stall_cap)}s"
     if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec(pessimistic_peers=True)):
         return (
             f"process_elapsed={int(row.elapsed_sec)}s>="

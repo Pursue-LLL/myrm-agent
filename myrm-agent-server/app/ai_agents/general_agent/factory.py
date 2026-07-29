@@ -461,6 +461,10 @@ async def build_general_agent(
             insert_at,
             build_signoff_clarify_contract_middleware(enabled=True),
         )
+        logger.info(
+            "SignoffClarifyContractMiddleware mounted (chat_id=%s)",
+            effective_chat_id,
+        )
 
     if workspace_root:
         middlewares_list.append(

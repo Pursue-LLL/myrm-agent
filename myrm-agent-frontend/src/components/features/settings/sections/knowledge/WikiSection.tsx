@@ -49,6 +49,11 @@ interface WikiStats {
   cognitive_index_ready: boolean;
   cognitive_log_entries: number;
   cognitive_hot_updated_at: string | null;
+  structural_issues?: {
+    broken_links: number;
+    invalid_frontmatter_types: number;
+    scanned_concepts: number;
+  };
 }
 
 function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string): string {
@@ -766,6 +771,18 @@ export function WikiSection() {
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
                         {t('stats.legacyPending')}
+                      </span>
+                    )}
+                    {(stats.structural_issues?.broken_links ?? 0) > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
+                        {t('stats.brokenLinks', { count: stats.structural_issues?.broken_links ?? 0 })}
+                      </span>
+                    )}
+                    {(stats.structural_issues?.invalid_frontmatter_types ?? 0) > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
+                        {t('stats.invalidPageTypes', {
+                          count: stats.structural_issues?.invalid_frontmatter_types ?? 0,
+                        })}
                       </span>
                     )}
                   </div>

@@ -249,6 +249,20 @@ def _mux_registry_active_count() -> int:
         return _active_count(registry)
 
 
+def _mux_registry_session_holders() -> list[tuple[str, int, str]]:
+    now = time.time()
+    with _locked_registry() as registry_path:
+        registry = _load_registry(registry_path)
+        _prune_stale(registry, now=now)
+        holders: list[tuple[str, int, str]] = []
+        for session_id, record in registry["sessions"].items():
+            owner_pid = record.get("ownerPid")
+            lane = record.get("lane")
+            if isinstance(owner_pid, int) and isinstance(lane, str):
+                holders.append((session_id, owner_pid, lane))
+        return holders
+
+
 def acquire_with_wait(
     *,
     session_id: str,
@@ -287,6 +301,16 @@ def acquire_with_wait(
         cap = effective_max_sessions()
         active = _mux_registry_active_count()
         if elapsed >= wait_sec:
+            holders = _mux_registry_session_holders()
+            if holders:
+                holder_summary = ", ".join(
+                    f"{session_id}(pid={owner_pid},lane={holder_lane})"
+                    for session_id, owner_pid, holder_lane in holders
+                )
+                print(
+                    f"E2E_MUX_ADMISSION_HOLDERS: {holder_summary}",
+                    file=sys.stderr,
+                )
             print(
                 f"E2E_MUX_ADMISSION_WAIT_TIMEOUT: lane={lane} waited {wait_sec}s "
                 f"(cap={cap})",

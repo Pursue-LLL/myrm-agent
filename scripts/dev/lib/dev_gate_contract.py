@@ -94,6 +94,8 @@ LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000
 MUX_MAX_CONCURRENT_SESSIONS: Final[int] = MUX_COLD_ATTACH_SLOTS
 E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 300
 E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
+# R123/BUG-DG-022: mux ADMIT wait scales with active wave leases (align attach scaling).
+MUX_ADMISSION_WAIT_LEASE_SEC: Final[int] = 45
 MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 # Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
@@ -196,13 +198,29 @@ def signoff_clarify_backend_ready_wait_sec() -> int:
     return 180
 
 
+def _wave_active_lease_count_for_mux() -> int:
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        return max(0, wave_active_lease_count(monorepo_root))
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return 0
+
+
 def mux_admission_wait_sec() -> int:
-    """Mux session ADMIT queue; dev aligns with wave lease ADMIT (900s)."""
+    """Mux session ADMIT queue; dev scales under parallel wave load (R123/BUG-DG-022)."""
     override = os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", "").strip()
     if override.isdigit() and int(override) > 0:
         return int(override)
     if is_e2e_signoff_runtime():
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    active_leases = _wave_active_lease_count_for_mux()
+    if active_leases > 0:
+        scaled = E2E_MUX_ADMISSION_WAIT_SEC + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
+        return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
 

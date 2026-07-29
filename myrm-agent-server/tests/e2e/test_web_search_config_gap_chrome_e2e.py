@@ -33,6 +33,30 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 AGENT_PROMPT = "搜索一下今天的新闻"
 FAST_PROMPT = "快速搜索今天新闻"
 
+
+async def _open_e2e_page_with_runtime_retry(
+    client: ChromeMcpClient,
+    base_url: str,
+    api_base: str,
+) -> object:
+    """Open CDP page with SHPOIB runtime binding; retry transient fetch failures."""
+    last_exc: RuntimeError | None = None
+    for attempt in range(4):
+        if attempt > 0:
+            wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
+            await asyncio.sleep(2.0 * attempt)
+        try:
+            return await asyncio.to_thread(
+                client.new_page, base_url, timeout_ms=120_000
+            )
+        except RuntimeError as exc:
+            message = str(exc)
+            if "E2E_RUNTIME_BINDING_FAILED" not in message:
+                raise
+            last_exc = exc
+    assert last_exc is not None
+    raise last_exc
+
 _COUNT_TOASTS_JS = """(() => {
   const toastNodes = Array.from(
     document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
@@ -545,9 +569,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
         client = ChromeMcpClient(request_timeout_sec=120.0)
         await asyncio.to_thread(client.start)
         try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await _open_e2e_page_with_runtime_retry(client, BASE_URL, api_base)
             chat = McpChatSession(client, page)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
             await _prepare_chat(chat)

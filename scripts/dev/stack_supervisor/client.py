@@ -7,6 +7,7 @@ import os
 import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from stack_supervisor.paths import StackPaths, resolve_paths
@@ -77,9 +78,18 @@ def _forward_env() -> dict[str, str]:
 
 def call_rpc(paths: StackPaths, command: RpcCommand, timeout_sec: float = 600.0) -> RpcResponse:
     payload = json.dumps({"cmd": command, "env": _forward_env()}) + "\n"
-    with _connect(paths) as sock:
-        sock.sendall(payload.encode("utf-8"))
-        return _read_response(sock, timeout_sec=timeout_sec)
+    last_response: RpcResponse | None = None
+    for attempt in range(3):
+        with _connect(paths) as sock:
+            sock.sendall(payload.encode("utf-8"))
+            response = _read_response(sock, timeout_sec=timeout_sec)
+        last_response = response
+        if response.stderr != "empty RPC response":
+            return response
+        if attempt < 2:
+            time.sleep(0.25 * (attempt + 1))
+    assert last_response is not None
+    return last_response
 
 
 def _supervisor_script(paths: StackPaths) -> Path:

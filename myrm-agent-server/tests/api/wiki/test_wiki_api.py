@@ -71,6 +71,9 @@ def test_wiki_stats_endpoint(client: TestClient) -> None:
         assert "legacy_migrated" in data
         assert isinstance(data["vault_ready"], bool)
         assert isinstance(data["legacy_migrated"], bool)
+        assert "structural_issues" in data
+        assert isinstance(data["structural_issues"]["broken_links"], int)
+        assert isinstance(data["structural_issues"]["invalid_frontmatter_types"], int)
     else:
         print(f"❌ Error: {response.text}")
         # Stats endpoint should work even if wiki is empty

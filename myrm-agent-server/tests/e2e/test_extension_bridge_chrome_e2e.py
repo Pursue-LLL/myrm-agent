@@ -64,6 +64,8 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
     assert status.get("handshake_ready") is False
     assert status.get("capabilities") == []
 
+    http_json("POST", f"{api_url}/api/v1/extension/disconnect")
+
     hints = http_json("GET", f"{api_url}/api/v1/extension/setup-hints")
     assert isinstance(hints, dict)
     assert "auth_token_configured" in hints
@@ -125,6 +127,8 @@ _CONNECTED_BRIDGE_STATE = """(() => {
 def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
+
+    http_json("POST", f"{api_url}/api/v1/extension/disconnect")
 
     with hold_extension_bridge_session(api_url):
         status = http_json("GET", f"{api_url}/api/v1/extension/status")

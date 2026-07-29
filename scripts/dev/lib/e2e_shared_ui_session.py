@@ -202,6 +202,12 @@ async def apply_shared_ui_session_contract(
             )
 
     assert_phase_budget("E2E_SHARED_UI_SESSION_RESET")
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_RESET")
+    except ImportError:
+        pass
 
     # R56: empty policy two-state contract:
     # 1) first pass per nodeid+api does strong clear;
@@ -243,6 +249,12 @@ async def apply_shared_ui_session_contract(
     ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
     if callable(ensure_bridge):
         assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_BRIDGE")
+        except ImportError:
+            pass
         bridge_wall = bridge_timeout + 5.0
         try:
             await asyncio.wait_for(
