@@ -30,6 +30,11 @@ export interface TurnCapabilityTerminalTelemetry {
   effectiveMcpCount: number;
 }
 
+export interface PendingExplicitSkillActivation {
+  skillNames: string[];
+  instruction?: string | null;
+}
+
 export interface ChatState {
   // 聊天基本信息
   chatId: string | undefined;
@@ -90,6 +95,7 @@ export interface ChatState {
 
   // 当前输入框内容（用于实时 Token 估算）
   inputMessage: string;
+  pendingExplicitSkillActivation: PendingExplicitSkillActivation | null;
   pendingArchiveRestoreAction: ArchiveRestoreAction | null;
   pendingArchiveRestoreActions: ArchiveRestoreAction[];
 
@@ -186,6 +192,7 @@ export interface ChatState {
   updateAgentConfig: (partial: Partial<AgentConfig>) => void;
   setSelectedModels: (models: SelectedModels) => void;
   setInputMessage: (message: string) => void;
+  setPendingExplicitSkillActivation: (activation: PendingExplicitSkillActivation | null) => void;
   setPendingArchiveRestoreAction: (action: ArchiveRestoreAction | null) => void;
   setPendingArchiveRestoreActions: (actions: ArchiveRestoreAction[]) => void;
   setPendingGapRetry: (pending: PendingGapRetry | null) => void;

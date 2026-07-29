@@ -2494,6 +2494,8 @@
         "installedAndEnabled": "Installed and enabled: {name}",
         "installedAlreadyEnabled": "{name} is already enabled",
         "installedEnableFailed": "Installed {name}, but failed to enable",
+        "installedAllowlistBlocked": "{name} is enabled in catalog but not in chat yet",
+        "installedAllowlistBlockedDesc": "Agent \"{agentId}\" uses an explicit skill allowlist. Add this skill in Agent settings or clear the allowlist.",
         "source": {
           "prebuilt": "Official",
           "github": "GitHub",
@@ -2940,12 +2942,14 @@
         "creative": "Creative",
         "productivity": "Productivity",
         "pipeline": "Pipeline",
-        "data": "Data",
+        "design": "Design",
         "data-science": "Data Science",
         "data-collection": "Data Collection",
         "social-media": "Social Media",
         "media": "Media",
-        "mlops": "MLOps",
+        "content": "Content",
+        "automation": "Automation",
+        "operations": "Operations",
         "workflow": "Workflow",
         "other": "Other"
       },
@@ -5905,6 +5909,9 @@
     }
   },
   "chat": {
+    "skillActivation": {
+      "remove": "Remove selected skills"
+    },
     "jumpBar": {
       "ariaLabel": "Conversation navigation",
       "title": "Message Navigation",

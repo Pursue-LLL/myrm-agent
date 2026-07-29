@@ -65,11 +65,13 @@ import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore from '@/store/useChatStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
+import { SkillActivationChips } from '../message-box/SkillActivationChips';
 
 const KEYTERM_PATTERN =
   /(?:[A-Z][a-z]+(?:[A-Z][a-z]+)+|[A-Z]{2,}[a-z]*|[a-zA-Z][\w.-]{2,}(?:\.[\w]+)+|[\u4e00-\u9fff]{2,4}(?:[\u4e00-\u9fff]+)?)/g;
@@ -192,6 +194,13 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     removeMessage,
     reorder,
   } = useMessageInput();
+
+  const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
+    useShallow((state) => ({
+      pendingExplicitSkillActivation: state.pendingExplicitSkillActivation,
+      setPendingExplicitSkillActivation: state.setPendingExplicitSkillActivation,
+    })),
+  );
 
   const inputHistory = useInputHistory({
     agentId: agentConfig?.id,
@@ -420,6 +429,14 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               />
             ) : (
               <>
+            {pendingExplicitSkillActivation ? (
+              <SkillActivationChips
+                skillNames={pendingExplicitSkillActivation.skillNames}
+                instruction={pendingExplicitSkillActivation.instruction}
+                className="mb-2"
+                onRemove={() => setPendingExplicitSkillActivation(null)}
+              />
+            ) : null}
             <TextareaAutosize
               ref={inputRef}
               data-chat-input
@@ -518,7 +535,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 {isVoiceEnabled && <VoiceSessionButton disabled={loading} keyterms={keyterms} />}
                 {loading ? (
                   <div className="flex items-center gap-1">
-                    {inputMessage.trim().length > 0 && (
+                    {inputMessage.trim().length > 0 || pendingExplicitSkillActivation ? (
                       <>
                         <button
                           type="button"
@@ -565,7 +582,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                       onClick={() => {
                         void handleSubmit();
                       }}
-                      disabled={inputMessage.trim().length === 0 && files.length === 0}
+                      disabled={
+                        inputMessage.trim().length === 0 &&
+                        files.length === 0 &&
+                        !pendingExplicitSkillActivation
+                      }
                       className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
                       aria-label={commonT('send')}
                     >

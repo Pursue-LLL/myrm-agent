@@ -2494,6 +2494,8 @@
         "installedAndEnabled": "已安装并启用：{name}",
         "installedAlreadyEnabled": "{name} 已启用",
         "installedEnableFailed": "已安装 {name}，但启用失败",
+        "installedAllowlistBlocked": "{name} 已加入目录，但尚未进入对话",
+        "installedAllowlistBlockedDesc": "Agent「{agentId}」使用了显式技能白名单。请在 Agent 设置中添加该技能，或清空白名单。",
         "source": {
           "prebuilt": "官方",
           "github": "GitHub",
@@ -2940,12 +2942,14 @@
         "creative": "创意",
         "productivity": "效率",
         "pipeline": "流水线",
-        "data": "数据",
+        "design": "设计",
         "data-science": "数据科学",
         "data-collection": "数据采集",
         "social-media": "社交媒体",
         "media": "媒体",
-        "mlops": "MLOps",
+        "content": "内容",
+        "automation": "自动化",
+        "operations": "运维",
         "workflow": "工作流",
         "other": "其他"
       },
@@ -5905,6 +5909,9 @@
     }
   },
   "chat": {
+    "skillActivation": {
+      "remove": "移除已选技能"
+    },
     "jumpBar": {
       "ariaLabel": "对话导航",
       "title": "消息导航",

@@ -49,6 +49,11 @@ export interface ActionResult {
   error?: string;
   /** 新的输入值（可选） */
   newInputValue?: string;
+  /** Skill slash activation — composer chip + wire prefix on send */
+  skillActivation?: {
+    skillNames: string[];
+    instruction?: string | null;
+  };
 }
 
 /**

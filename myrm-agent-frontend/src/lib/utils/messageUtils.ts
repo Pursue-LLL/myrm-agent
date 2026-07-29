@@ -24,9 +24,62 @@ export const stripUiActionPayload = (text: string): string => {
   return text.replace(/\n?<ui_action_data>[\s\S]*?<\/ui_action_data>\s*$/g, '').trim();
 };
 
-/** User-visible chat text: datetime tag + hidden ui_action payload removed. */
+/** Matches harness `_preload_explicit_skill()` and channel `skill_command_handler` wire prefix. */
+const EXPLICIT_SKILL_ACTIVATION_PATTERN =
+  /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?(.*)$/s;
+
+export interface ExplicitSkillActivation {
+  skillNames: string[];
+  instruction: string | null;
+  userText: string;
+}
+
+export const formatSkillChipLabel = (skillName: string): string =>
+  skillName.replace(/_skill$/, '').replace(/_/g, ' ');
+
+/** Parse `[use s1,s2] [instruction: ...] user text` wire prefix when present. */
+export const parseExplicitSkillActivation = (text: string): ExplicitSkillActivation | null => {
+  const match = text.match(EXPLICIT_SKILL_ACTIVATION_PATTERN);
+  if (!match) {
+    return null;
+  }
+  const skillNames = match[1]
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (skillNames.length === 0) {
+    return null;
+  }
+  const instruction = match[2]?.trim() ? match[2].trim() : null;
+  const userText = (match[3] ?? '').trim();
+  return { skillNames, instruction, userText };
+};
+
+export const stripExplicitSkillActivationPrefix = (text: string): string => {
+  const parsed = parseExplicitSkillActivation(text);
+  if (!parsed) {
+    return text;
+  }
+  return parsed.userText;
+};
+
+/** Build harness-visible wire message from pending activation + composer user text. */
+export const buildExplicitSkillWireMessage = (
+  activation: Pick<ExplicitSkillActivation, 'skillNames' | 'instruction'>,
+  userText: string,
+): string => {
+  const names = activation.skillNames.join(',');
+  const instructionPart = activation.instruction ? `[instruction: ${activation.instruction}] ` : '';
+  const trimmedUser = userText.trim();
+  if (!trimmedUser) {
+    return `[use ${names}] ${instructionPart}`.trim();
+  }
+  return `[use ${names}] ${instructionPart}${trimmedUser}`.trim();
+};
+
+/** User-visible chat text: datetime tag + hidden ui_action + skill wire prefix removed. */
 export const stripUserMessageDisplayText = (text: string): string => {
-  return stripUiActionPayload(stripDatetimeTag(text));
+  return stripExplicitSkillActivationPrefix(stripUiActionPayload(stripDatetimeTag(text)));
 };
 
 /** 剥离 markdown 语法为纯文本，用于预览、TTS 等场景 */

@@ -19,6 +19,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import useChatStore from '@/store/useChatStore';
+import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { compactChat } from '@/services/chat';
 import { toast } from '@/lib/utils/toast';
 import { useQuotaGuard } from '@/hooks/billing/useQuotaGuard';
@@ -45,6 +46,20 @@ import {
   type TurnCapabilityMetricSource,
 } from '@/services/turnCapabilityMetrics';
 const MAX_DRAIN_RETRIES = 4;
+
+function composeOutboundUserMessage(rawInput: string): string {
+  const pending = useChatStore.getState().pendingExplicitSkillActivation;
+  if (pending) {
+    return buildExplicitSkillWireMessage(pending, rawInput);
+  }
+  return rawInput;
+}
+
+function clearPendingExplicitSkillActivation(): void {
+  if (useChatStore.getState().pendingExplicitSkillActivation) {
+    useChatStore.getState().setPendingExplicitSkillActivation(null);
+  }
+}
 
 function getOptionalSelectionCount(values: readonly string[] | null): number | undefined {
   return values === null ? undefined : values.length;
@@ -389,7 +404,11 @@ export const useMessageInput = () => {
   );
 
   const _validateAndPrepare = useCallback(async (): Promise<boolean> => {
-    if (inputMessage.trim().length === 0 && files.length === 0) return false;
+    if (inputMessage.trim().length === 0 && files.length === 0) {
+      if (!useChatStore.getState().pendingExplicitSkillActivation) {
+        return false;
+      }
+    }
 
     const { actionMode } = useChatStore.getState();
 
@@ -434,10 +453,11 @@ export const useMessageInput = () => {
     if (!(await _validateAndPrepare())) return;
     clearDraft();
     recordChatQueryMetric();
-    const steerText = inputMessage.trim();
+    const steerText = composeOutboundUserMessage(inputMessage.trim());
     const injectedText = _injectDirtyArtifacts(steerText);
 
     setInputMessage('');
+    clearPendingExplicitSkillActivation();
     const success = await steerMessage(injectedText);
     if (success) {
       const chatState = useChatStore.getState();
@@ -468,10 +488,11 @@ export const useMessageInput = () => {
     if (!(await _validateAndPrepare())) return;
     clearDraft();
     recordChatQueryMetric();
-    const redirectText = inputMessage.trim();
+    const redirectText = composeOutboundUserMessage(inputMessage.trim());
     const injectedText = _injectDirtyArtifacts(redirectText);
 
     setInputMessage('');
+    clearPendingExplicitSkillActivation();
     const success = await redirectMessage(injectedText);
     if (success) {
       const chatState = useChatStore.getState();
@@ -503,11 +524,12 @@ export const useMessageInput = () => {
       if (!skipValidation && !(await _validateAndPrepare())) return;
       clearDraft();
       recordChatQueryMetric();
-      const queueText = inputMessage.trim();
+      const queueText = composeOutboundUserMessage(inputMessage.trim());
       const injectedText = _injectDirtyArtifacts(queueText);
       const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(injectedText, pendingArchiveRestoreActions);
 
       setInputMessage('');
+      clearPendingExplicitSkillActivation();
       setPendingArchiveRestoreActions([]);
       const effectiveTurnSelection =
         queuedTurnSelection === undefined ? consumeTurnCapabilitySelection() : queuedTurnSelection;
@@ -538,7 +560,9 @@ export const useMessageInput = () => {
 
   const handleSubmit = useCallback(async () => {
     if (inputMessage.trim().length === 0 && files.length === 0) {
-      return;
+      if (!useChatStore.getState().pendingExplicitSkillActivation) {
+        return;
+      }
     }
 
     const trimmedLower = inputMessage.trim().toLowerCase();
@@ -581,9 +605,10 @@ export const useMessageInput = () => {
     setHideAttachList(true);
     recordChatQueryMetric();
 
-    const finalMessage = _injectDirtyArtifacts(inputMessage);
+    const finalMessage = _injectDirtyArtifacts(composeOutboundUserMessage(inputMessage));
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
     setPendingArchiveRestoreActions([]);
+    clearPendingExplicitSkillActivation();
     const currentTurnSelection = consumeTurnCapabilitySelection();
     const turnAgentConfigOverride = buildTurnAgentConfigOverride(agentConfig, currentTurnSelection) ?? undefined;
     if (currentTurnSelection) {

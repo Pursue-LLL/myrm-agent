@@ -129,6 +129,7 @@ const useChatStore = create<ChatState>()(
       // Hydrated from localStorage after mount via hydrateChatPreferencesFromStorage().
       currentBuiltinTools: [...DEFAULT_ENABLED_BUILTIN_TOOLS],
       inputMessage: '',
+      pendingExplicitSkillActivation: null,
       pendingArchiveRestoreAction: null,
       pendingArchiveRestoreActions: [],
       pendingGapRetry: null,
@@ -261,6 +262,8 @@ const useChatStore = create<ChatState>()(
         set({ currentBuiltinTools: tools });
       },
       setInputMessage: (message) => set({ inputMessage: message }),
+      setPendingExplicitSkillActivation: (activation) =>
+        set({ pendingExplicitSkillActivation: activation }),
       setPendingArchiveRestoreAction: (action) => {
         const actions = action ? normalizeArchiveRestoreActions([action]) : [];
         set({

@@ -12,9 +12,10 @@ import { useSkillStore } from '@/store/skill';
 import type { SlashItem, SlashAction } from '@/types/command';
 
 export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
-  const { setInputMessage, agentConfig } = useChatStore(
+  const { setInputMessage, setPendingExplicitSkillActivation, agentConfig } = useChatStore(
     useShallow((state) => ({
       setInputMessage: state.setInputMessage,
+      setPendingExplicitSkillActivation: state.setPendingExplicitSkillActivation,
       agentConfig: state.agentConfig,
     })),
   );
@@ -44,7 +45,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
         type: 'action',
         execute: async (_input: string) => ({
           success: true,
-          newInputValue: `[use ${skill.name}] `,
+          skillActivation: { skillNames: [skill.name] },
         }),
       }),
     );
@@ -58,7 +59,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
         .map((id: string) => allSkills.find((s) => s.id === id)?.name || id)
         .filter(Boolean);
       if (!names.length) continue;
-      const instrPart = binding.instruction ? `[instruction: ${binding.instruction}] ` : '';
+      const instrPart = binding.instruction ? binding.instruction : undefined;
       bundleActions.push({
         id: `bundle:${binding.command_name}`,
         name: binding.command_name,
@@ -67,7 +68,10 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
         type: 'action',
         execute: async (_input: string) => ({
           success: true,
-          newInputValue: `[use ${names.join(',')}] ${instrPart}`,
+          skillActivation: {
+            skillNames: names,
+            instruction: instrPart ?? null,
+          },
         }),
       });
     }
@@ -122,7 +126,10 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
           }
 
           // 如果行为返回了新的输入值，更新输入框
-          if (result.newInputValue !== undefined) {
+          if (result.skillActivation) {
+            setPendingExplicitSkillActivation(result.skillActivation);
+            setInputMessage('');
+          } else if (result.newInputValue !== undefined) {
             setInputMessage(result.newInputValue);
           }
         } else {
@@ -149,7 +156,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
       // 重置选中索引（命令执行后关闭面板）
       setSelectedIndex(0);
     },
-    [inputValue, cursorPosition, setInputMessage, recordUsage],
+    [inputValue, cursorPosition, setInputMessage, setPendingExplicitSkillActivation, recordUsage],
   );
 
   // 键盘导航

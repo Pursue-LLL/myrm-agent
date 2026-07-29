@@ -2,7 +2,8 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/classnameUtils';
-import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
+import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
+import { SkillActivationChips } from './SkillActivationChips';
 import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
 import { File as FileType } from '@/store/chat/types';
 import { isImageFile, getDisplayUrl } from '@/lib/utils/fileUtils';
@@ -155,6 +156,7 @@ const UserMessage = React.memo(
       [createdAt, locale, t],
     );
 
+    const skillActivation = useMemo(() => parseExplicitSkillActivation(content), [content]);
     const cleanContent = stripUserMessageDisplayText(content);
     const parts = splitTextWithAtLinks(cleanContent);
 
@@ -256,6 +258,13 @@ const UserMessage = React.memo(
             </div>
           ) : (
             <>
+              {skillActivation ? (
+                <SkillActivationChips
+                  skillNames={skillActivation.skillNames}
+                  instruction={skillActivation.instruction}
+                  className="mb-2 lg:w-9/12"
+                />
+              ) : null}
               <h2
                 className={cn(
                   'font-medium text-2xl lg:w-9/12 flex-1',
