@@ -14,6 +14,7 @@ from app.ai_agents.general_agent.agent_middlewares.signoff_clarify_contract_midd
 from app.ai_agents.general_agent.signoff_clarify_contract_core import (
     SIGNOFF_CLARIFY_FORM_ARGS,
     build_signoff_clarify_ai_message,
+    build_signoff_clarify_deterministic_model,
 )
 
 
@@ -26,6 +27,7 @@ class _Request:
     state: dict[str, list[object]]
     tools: list[_FakeTool]
     tool_choice: str = "auto"
+    model: object | None = None
 
     def __init__(self, messages: list[object], tools: list[_FakeTool]) -> None:
         self.state = {"messages": messages}
@@ -33,7 +35,10 @@ class _Request:
 
     def override(self, **kwargs: object) -> "_Request":
         clone = _Request(list(self.state["messages"]), list(self.tools))
-        clone.tool_choice = str(kwargs.get("tool_choice", self.tool_choice))
+        if "tool_choice" in kwargs:
+            clone.tool_choice = str(kwargs["tool_choice"])
+        if "model" in kwargs:
+            clone.model = kwargs["model"]
         return clone
 
 
@@ -58,9 +63,9 @@ async def test_signoff_clarify_contract_forces_first_turn_tool_choice(monkeypatc
 async def test_signoff_clarify_contract_h2b_deterministic_no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
     middleware = SignoffClarifyContractMiddleware(enabled=True)
-    handler = AsyncMock(return_value="ok")
+    handler = AsyncMock(return_value=ModelResponse(result=[]))
 
-    result = await middleware.awrap_model_call(
+    await middleware.awrap_model_call(
         _Request(
             [HumanMessage(content="hi")],
             [_FakeTool("ask_question_tool"), _FakeTool("web_search")],
@@ -68,14 +73,11 @@ async def test_signoff_clarify_contract_h2b_deterministic_no_llm(monkeypatch: py
         handler,  # type: ignore[arg-type]
     )
 
-    handler.assert_not_awaited()
-    assert isinstance(result, ModelResponse)
-    assert len(result.result) == 1
-    msg = result.result[0]
-    assert isinstance(msg, AIMessage)
-    assert msg.tool_calls
-    assert msg.tool_calls[0]["name"] == "ask_question_tool"
-    assert msg.tool_calls[0]["args"] == SIGNOFF_CLARIFY_FORM_ARGS
+    handler.assert_awaited_once()
+    call_request = handler.await_args.args[0]
+    model = getattr(call_request, "model", None)
+    assert model is not None
+    assert getattr(model, "_llm_type", "") == "signoff_clarify_deterministic"
 
 
 @pytest.mark.asyncio
@@ -103,3 +105,13 @@ def test_build_signoff_clarify_ai_message_matches_contract() -> None:
     questions = args["questions"]
     assert isinstance(questions, list)
     assert questions[0]["id"] == "stack"
+
+
+@pytest.mark.asyncio
+async def test_signoff_clarify_deterministic_model_emits_tool_call() -> None:
+    model = build_signoff_clarify_deterministic_model()
+    result = await model._agenerate([])
+    msg = result.generations[0].message
+    assert isinstance(msg, AIMessage)
+    assert msg.tool_calls[0]["name"] == "ask_question_tool"
+    assert msg.tool_calls[0]["args"] == SIGNOFF_CLARIFY_FORM_ARGS

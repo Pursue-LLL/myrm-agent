@@ -112,6 +112,52 @@ _INSTALL_TOAST_READY_JS = """(() => {
 })()"""
 
 
+_MIRROR_PANEL_READY_JS = """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const combobox = mirrorPanel?.querySelector('button[role="combobox"]');
+  return {
+    ready: !!mirrorPanel && !!combobox,
+    hasMirrorPanel: !!mirrorPanel,
+    hasCombobox: !!combobox,
+  };
+})()"""
+
+
+_OPEN_MIRROR_SELECT_JS = """(() => {
+  const mirrorPanel = Array.from(document.querySelectorAll('.rounded-md.border')).find((panel) =>
+    /Skill market mirror|技能市场镜像|技能市場鏡像/i.test(panel.textContent || ''),
+  );
+  const trigger = mirrorPanel?.querySelector('button[role="combobox"]');
+  if (!trigger) {
+    return { ok: false, reason: 'combobox-missing' };
+  }
+  trigger.click();
+  return { ok: true };
+})()"""
+
+
+_SELECT_CN_MIRROR_JS = """(() => {
+  const option = Array.from(document.querySelectorAll('[role="option"]')).find((el) =>
+    /China|中国|iFlytek|讯飞/i.test(el.textContent || ''),
+  );
+  if (!option) {
+    return { ok: false, reason: 'cn-option-missing' };
+  }
+  option.click();
+  return { ok: true };
+})()"""
+
+
+_MIRROR_SAVED_TOAST_JS = """(() => {
+  const bodyText = document.body?.innerText || '';
+  return {
+    ready: /Mirror settings saved|镜像设置已保存|鏡像設定已儲存/i.test(bodyText),
+  };
+})()"""
+
+
 def _find_prebuilt_target(api_url: str) -> tuple[str, str, str]:
     """Return (search_query, skill_id, skill_name) for a prebuilt skill."""
     for query in ("systematic", "code review", "debugging"):
@@ -158,9 +204,9 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(240)
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:
-    """Discover tab: install prebuilt → toast + catalog enable; agent.skill_ids stays empty."""
+    """Discover: mirror Select CN → prebuilt install → catalog enable; agent.skill_ids empty."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
@@ -172,6 +218,9 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
         probe.get("reachable") is True
     ), f"CN registry probe must be reachable: {probe!r}"
 
+    prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
+    prior_registry_url = str(prior_config.get("clawhub_registry_url") or "")
+
     search_query, skill_id, skill_name = _find_prebuilt_target(api_url)
     prior_enabled = _disable_prebuilt_for_install(api_url, skill_id)
     _assert_agent_allowlist_untouched(api_url)
@@ -182,6 +231,20 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
     try:
         with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
             wait_for_state(client, page, _DISCOVER_TAB_READY_JS, timeout_sec=90.0)
+
+            wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
+            opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
+            assert isinstance(opened, dict) and opened.get("ok") is True, opened
+            selected = client.evaluate(page, _SELECT_CN_MIRROR_JS, timeout_sec=15.0)
+            assert isinstance(selected, dict) and selected.get("ok") is True, selected
+            mirror_toast = wait_for_state(
+                client, page, _MIRROR_SAVED_TOAST_JS, timeout_sec=60.0
+            )
+            assert mirror_toast.get("ready") is True, mirror_toast
+            mirror_config = http_json("GET", f"{api_url}/api/v1/skills/config")
+            assert (
+                mirror_config.get("clawhub_registry_url") == "https://skill.xfyun.cn"
+            ), f"Expected CN mirror URL; got {mirror_config!r}"
 
             submitted = client.evaluate(
                 page,
@@ -212,6 +275,11 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
                 toast_state.get("ready") is True
             ), f"Expected install+enable toast or Installed badge: {toast_state}"
     finally:
+        http_json(
+            "PUT",
+            f"{api_url}/api/v1/skills/config",
+            {"clawhub_registry_url": prior_registry_url or ""},
+        )
         config_check = http_json("GET", f"{api_url}/api/v1/skills/config")
         enabled_now = set(config_check.get("enabled_prebuilt_ids") or [])
         if skill_id not in enabled_now:

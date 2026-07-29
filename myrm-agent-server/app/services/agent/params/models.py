@@ -180,6 +180,18 @@ class MigrationReadinessAnchorRequest(BaseModel):
         populate_by_name = True
 
 
+class TurnCapabilityTelemetryRequest(BaseModel):
+    """Server-side terminal telemetry context for one-turn capability override."""
+
+    source: Literal["direct", "queue_drain"]
+    effective_skill_count: int = Field(..., ge=0, le=1000)
+    effective_mcp_count: int = Field(..., ge=0, le=1000)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
 class AgentRequest(BaseModel):
     """Agent streaming request — backend resolves API keys from DB."""
 
@@ -187,6 +199,7 @@ class AgentRequest(BaseModel):
     chat_id: str | None = None
     agent_id: str | None = None
     migration_readiness_anchor: MigrationReadinessAnchorRequest | None = None
+    turn_capability_telemetry: TurnCapabilityTelemetryRequest | None = None
     migration_bound_project_id: str | None = Field(
         default=None,
         max_length=255,

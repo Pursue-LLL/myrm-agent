@@ -28,6 +28,7 @@ import {
   type BuiltinToolId,
   type ArchiveRestoreAction,
   type MentionReference,
+  type TurnCapabilityTerminalTelemetry,
 } from '@/store/chat/types';
 import useConfigStore from '../useConfigStore';
 import useProviderStore from '../useProviderStore';
@@ -498,6 +499,7 @@ export const createMessageRequest = async (
   modelSelection: ModelSelection | null,
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
+  turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
 ): Promise<Response> => {
   const { fetchRawWebpage, mcpConfigs, systemInstructions, enableMemory } = useConfigStore.getState();
   const { chatId, abortController, actionMode, searchDepth, agentConfig, currentBuiltinTools } = state;
@@ -589,6 +591,13 @@ export const createMessageRequest = async (
           })),
         }
       : {}),
+    ...(turnCapabilityTelemetry && {
+      turn_capability_telemetry: {
+        source: turnCapabilityTelemetry.source,
+        effective_skill_count: turnCapabilityTelemetry.effectiveSkillCount,
+        effective_mcp_count: turnCapabilityTelemetry.effectiveMcpCount,
+      },
+    }),
     ...(modelSelection && { model_selection: modelSelection }),
     timezone: configStore.timezone || getBrowserTimezone(),
     timestamp: getCurrentTimestamp(),
@@ -822,6 +831,7 @@ export const sendMessage = async (
   archiveRestoreActions?: ArchiveRestoreAction[],
   agentConfigOverride?: AgentConfig | null,
   shouldRecordWikiQuerySuccess: boolean = false,
+  turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
 ): Promise<void> => {
   const isHitlResume = resumeValue !== undefined;
 
@@ -994,6 +1004,7 @@ export const sendMessage = async (
       resumeValue,
       archiveRestoreActions,
       shouldRecordWikiQuerySuccess,
+      turnCapabilityTelemetry,
     );
     useCompanionStore.getState().incrementConversation();
   } catch (error) {

@@ -20,7 +20,7 @@ from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResp
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.ai_agents.general_agent.signoff_clarify_contract_core import (
-    build_signoff_clarify_ai_message,
+    build_signoff_clarify_deterministic_model,
     signoff_clarify_pool_active,
 )
 
@@ -83,9 +83,10 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
 
         if signoff_clarify_pool_active():
             logger.info(
-                "SignoffClarifyContractMiddleware: H2b deterministic ask_question_tool (no LLM)",
+                "SignoffClarifyContractMiddleware: H2b deterministic stub model (no LLM)",
             )
-            return ModelResponse(result=[build_signoff_clarify_ai_message()])
+            request = request.override(model=build_signoff_clarify_deterministic_model())
+            return await handler(request)
 
         request = request.override(tool_choice="required")
         logger.info(

@@ -1,23 +1,33 @@
 """Signoff clarify contract SSOT — deterministic ask_question form for M3 E2E.
 
 [INPUT]
-- MYRM_E2E_SIGNOFF_CLARIFY_POOL env (POS: Pool activation gate)
-- engineParams.signoffClarifyContract (POS: Per-request contract flag)
+- langchain_core BaseChatModel (POS: stub LLM for deterministic E2E path)
 
 [OUTPUT]
-- build_signoff_clarify_contract_message: Synthetic AIMessage with ask_question_tool call
+- SignoffClarifyContractStubModel: fake chat model emitting tool_call for ask_question
+- SIGNOFF_CLARIFY_FORM_ARGS: canonical form payload
+- is_signoff_clarify_enabled: gate predicate for the contract path
+- build_signoff_clarify_response: assemble expected clarify response
 
 [POS]
-Pure contract builder for clarify signoff Chrome/API E2E (no LLM dependency).
+Active when backend env MYRM_E2E_SIGNOFF_CLARIFY_POOL=1 and request carries
+engineParams.signoffClarifyContract=true. H2b bypasses LLM on first turn via
+a stub chat model so the normal tool-execution + LangGraph interrupt path runs.
 """
 
 from __future__ import annotations
 
 import os
 import uuid
-from typing import Final
+from typing import Any, Final
 
-from langchain_core.messages import AIMessage
+from langchain_core.callbacks import (
+    AsyncCallbackManagerForLLMRun,
+    CallbackManagerForLLMRun,
+)
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 
 _ASK_QUESTION_TOOL: Final[str] = "ask_question_tool"
 
@@ -55,3 +65,35 @@ def build_signoff_clarify_ai_message() -> AIMessage:
             }
         ],
     )
+
+
+class SignoffClarifyDeterministicChatModel(BaseChatModel):
+    """Stub LLM that always emits the signoff ask_question_tool call."""
+
+    @property
+    def _llm_type(self) -> str:
+        return "signoff_clarify_deterministic"
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        message = build_signoff_clarify_ai_message()
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        message = build_signoff_clarify_ai_message()
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+
+def build_signoff_clarify_deterministic_model() -> SignoffClarifyDeterministicChatModel:
+    return SignoffClarifyDeterministicChatModel()

@@ -40,7 +40,6 @@ import {
   recordTurnCapabilityOverrideNoop,
   recordTurnCapabilityQueueEnqueued,
   recordTurnCapabilitySelectionSubmitted,
-  recordTurnCapabilitySendCompleted,
   recordTurnCapabilitySendFailed,
   type TurnCapabilityFailureReason,
   type TurnCapabilityMetricSource,
@@ -89,6 +88,18 @@ function classifyTurnCapabilityFailureReason(error: unknown): TurnCapabilityFail
     }
   }
   return 'unknown_error';
+}
+
+function buildTurnCapabilityTerminalTelemetry(
+  source: 'direct' | 'queue_drain',
+  effectiveSkillCount: number,
+  effectiveMcpCount: number,
+) {
+  return {
+    source,
+    effectiveSkillCount,
+    effectiveMcpCount,
+  } as const;
 }
 export const useMessageInput = () => {
   const t = useTranslations('chat');
@@ -262,6 +273,13 @@ export const useMessageInput = () => {
         nextMessage.archiveRestoreActions,
         queuedAgentConfigOverride,
         true,
+        queuedTurnSelection && queuedAgentConfigOverride
+          ? buildTurnCapabilityTerminalTelemetry(
+              'queue_drain',
+              queuedAgentConfigOverride.selectedSkillIds.length,
+              queuedAgentConfigOverride.selectedMcpNames.length,
+            )
+          : undefined,
       )
         .then(() => {
           if (queuedTurnSelection) {
@@ -271,12 +289,6 @@ export const useMessageInput = () => {
                 queuedTurnSelection,
                 queuedAgentConfigOverride.selectedSkillIds.length,
                 queuedAgentConfigOverride.selectedMcpNames.length,
-              );
-              recordTurnCapabilitySendCompleted(
-                'queue_drain',
-                queuedAgentConfigOverride.selectedSkillIds.length,
-                queuedAgentConfigOverride.selectedMcpNames.length,
-                turnCapabilityContextKey,
               );
             } else {
               recordTurnOverrideNoop('queue_drain', queuedTurnSelection);
@@ -303,11 +315,10 @@ export const useMessageInput = () => {
                 queuedAgentConfigOverride.selectedSkillIds.length,
                 queuedAgentConfigOverride.selectedMcpNames.length,
               );
-              recordTurnCapabilitySendFailed(
-                'queue_drain',
-                classifyTurnCapabilityFailureReason(error),
-                turnCapabilityContextKey,
-              );
+              const failureReason = classifyTurnCapabilityFailureReason(error);
+              if (failureReason === 'network_error') {
+                recordTurnCapabilitySendFailed('queue_drain', failureReason, turnCapabilityContextKey);
+              }
             } else {
               recordTurnOverrideNoop('queue_drain', queuedTurnSelection);
             }
@@ -579,7 +590,22 @@ export const useMessageInput = () => {
       recordTurnSelectionSubmitted('direct', currentTurnSelection);
     }
 
-    sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions, turnAgentConfigOverride, true)
+    sendMessage(
+      finalMessage,
+      undefined,
+      undefined,
+      undefined,
+      archiveRestoreActions,
+      turnAgentConfigOverride,
+      true,
+      currentTurnSelection && turnAgentConfigOverride
+        ? buildTurnCapabilityTerminalTelemetry(
+            'direct',
+            turnAgentConfigOverride.selectedSkillIds.length,
+            turnAgentConfigOverride.selectedMcpNames.length,
+          )
+        : undefined,
+    )
       .then(() => {
         if (currentTurnSelection) {
           if (turnAgentConfigOverride) {
@@ -588,12 +614,6 @@ export const useMessageInput = () => {
               currentTurnSelection,
               turnAgentConfigOverride.selectedSkillIds.length,
               turnAgentConfigOverride.selectedMcpNames.length,
-            );
-            recordTurnCapabilitySendCompleted(
-              'direct',
-              turnAgentConfigOverride.selectedSkillIds.length,
-              turnAgentConfigOverride.selectedMcpNames.length,
-              turnCapabilityContextKey,
             );
           } else {
             recordTurnOverrideNoop('direct', currentTurnSelection);
@@ -618,11 +638,10 @@ export const useMessageInput = () => {
               turnAgentConfigOverride.selectedSkillIds.length,
               turnAgentConfigOverride.selectedMcpNames.length,
             );
-            recordTurnCapabilitySendFailed(
-              'direct',
-              classifyTurnCapabilityFailureReason(error),
-              turnCapabilityContextKey,
-            );
+            const failureReason = classifyTurnCapabilityFailureReason(error);
+            if (failureReason === 'network_error') {
+              recordTurnCapabilitySendFailed('direct', failureReason, turnCapabilityContextKey);
+            }
           } else {
             recordTurnOverrideNoop('direct', currentTurnSelection);
           }

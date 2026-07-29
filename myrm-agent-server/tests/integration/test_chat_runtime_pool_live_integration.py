@@ -49,14 +49,14 @@ async def test_live_setup_reuses_registry_pool_and_wraps_facade() -> None:
     chat_id = "live-int-chat-reuse"
 
     mixin_a = _new_mixin(chat_scope_id=chat_id)
-    await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_a._do_setup_external_agents([], mount_delegate_tool=False)
 
     assert isinstance(mixin_a._runtime_pool, ChatScopedRuntimePoolFacade)
     assert mixin_a._runtime_pool_from_registry is True
     raw_a = mixin_a._runtime_pool._pool
 
     mixin_b = _new_mixin(chat_scope_id=chat_id)
-    await mixin_b._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_b._do_setup_external_agents([], mount_delegate_tool=False)
 
     assert isinstance(mixin_b._runtime_pool, ChatScopedRuntimePoolFacade)
     raw_b = mixin_b._runtime_pool._pool
@@ -68,7 +68,7 @@ async def test_live_setup_reuses_registry_pool_and_wraps_facade() -> None:
 async def test_live_guard_turn_serializes_concurrent_run_turn() -> None:
     """Concurrent run_turn on same chat must not overlap (real Facade + registry)."""
     mixin = _new_mixin(chat_scope_id="live-int-chat-serialize")
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
     assert mixin._runtime_pool is not None
 
     order: list[str] = []
@@ -81,6 +81,7 @@ async def test_live_guard_turn_serializes_concurrent_run_turn() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: object = None,
     ):
         order.append(f"{name}_start")
         gate.set()
@@ -117,14 +118,14 @@ async def test_live_release_preserves_pool_for_next_message() -> None:
     chat_id = "live-int-chat-release"
 
     mixin_a = _new_mixin(chat_scope_id=chat_id)
-    await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_a._do_setup_external_agents([], mount_delegate_tool=False)
     assert isinstance(mixin_a._runtime_pool, ChatScopedRuntimePoolFacade)
     raw_pool = mixin_a._runtime_pool._pool
 
     await registry.release(chat_id)
 
     mixin_b = _new_mixin(chat_scope_id=chat_id)
-    await mixin_b._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_b._do_setup_external_agents([], mount_delegate_tool=False)
     assert mixin_b._runtime_pool._pool is raw_pool
 
 
@@ -141,7 +142,7 @@ async def test_ephemeral_scope_skips_registry_facade() -> None:
     mixin.agent_id = "general"
     mixin.force_delegate_agent = None
 
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
 
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
 
@@ -155,7 +156,7 @@ async def test_ephemeral_scope_skips_registry_facade() -> None:
 async def test_live_facade_cancel_during_active_run_turn() -> None:
     """Cancel must complete while run_turn holds the chat lock (production stop path)."""
     mixin = _new_mixin(chat_scope_id="live-int-chat-cancel")
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
     pool = mixin._runtime_pool
     assert isinstance(pool, ChatScopedRuntimePoolFacade)
 
@@ -169,6 +170,7 @@ async def test_live_facade_cancel_during_active_run_turn() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: object = None,
     ):
         entered.set()
         await unblock.wait()
@@ -207,7 +209,7 @@ async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
     get_chat_runtime_pool_registry()
 
     mixin_a = _new_mixin(chat_scope_id=chat_id)
-    await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_a._do_setup_external_agents([], mount_delegate_tool=False)
     pool = mixin_a._runtime_pool
     assert isinstance(pool, ChatScopedRuntimePoolFacade)
     raw_first = pool._pool
@@ -221,6 +223,7 @@ async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: object = None,
     ):
         entered.set()
         await unblock.wait()
@@ -246,7 +249,7 @@ async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
     ]
     mixin_b = _new_mixin(chat_scope_id=chat_id)
     mixin_b.external_agents_config = alt_cfg
-    await mixin_b._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_b._do_setup_external_agents([], mount_delegate_tool=False)
     assert mixin_b._runtime_pool._pool is raw_first
 
     unblock.set()
@@ -255,7 +258,7 @@ async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
 
     mixin_c = _new_mixin(chat_scope_id=chat_id)
     mixin_c.external_agents_config = alt_cfg
-    await mixin_c._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_c._do_setup_external_agents([], mount_delegate_tool=False)
     assert mixin_c._runtime_pool._pool is not raw_first
 
 
@@ -265,8 +268,8 @@ async def test_live_parallel_run_turn_different_chats() -> None:
     """Different chats must not block each other's run_turn (independent turn locks)."""
     mixin_a = _new_mixin(chat_scope_id="live-int-chat-a")
     mixin_b = _new_mixin(chat_scope_id="live-int-chat-b")
-    await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)
-    await mixin_b._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin_a._do_setup_external_agents([], mount_delegate_tool=False)
+    await mixin_b._do_setup_external_agents([], mount_delegate_tool=False)
     pool_a = mixin_a._runtime_pool
     pool_b = mixin_b._runtime_pool
     assert isinstance(pool_a, ChatScopedRuntimePoolFacade)
@@ -283,6 +286,7 @@ async def test_live_parallel_run_turn_different_chats() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: object = None,
     ):
         label = session_id.split("-")[-1]
         order.append(f"{label}_start")
@@ -329,7 +333,7 @@ async def test_live_general_agent_close_release_preserves_pool() -> None:
     agent._current_chat_id = None
     agent.agent = None
 
-    await agent._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await agent._do_setup_external_agents([], mount_delegate_tool=False)
     assert isinstance(agent._runtime_pool, ChatScopedRuntimePoolFacade)
     raw_pool = agent._runtime_pool._pool
 
@@ -349,7 +353,7 @@ async def test_live_general_agent_close_release_preserves_pool() -> None:
     agent2._current_chat_id = None
     agent2.agent = None
 
-    await agent2._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await agent2._do_setup_external_agents([], mount_delegate_tool=False)
     assert agent2._runtime_pool._pool is raw_pool
 
 
@@ -361,7 +365,7 @@ async def test_live_direct_delegate_stream_cancel_propagates() -> None:
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
     mixin = _new_mixin(chat_scope_id="live-int-direct-cancel")
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
     pool = mixin._runtime_pool
     assert isinstance(pool, ChatScopedRuntimePoolFacade)
 
@@ -374,6 +378,7 @@ async def test_live_direct_delegate_stream_cancel_propagates() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: object = None,
     ):
         entered.set()
         while True:
@@ -416,7 +421,7 @@ async def test_live_close_external_agent_pool_on_chat_delete() -> None:
     """Simulates chat delete: pool must be torn down immediately, not after idle."""
     chat_id = "live-int-chat-delete"
     mixin = _new_mixin(chat_scope_id=chat_id)
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
     pool = mixin._runtime_pool
     assert isinstance(pool, ChatScopedRuntimePoolFacade)
     raw_pool = pool._pool

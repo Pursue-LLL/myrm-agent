@@ -12,7 +12,6 @@ const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideNoop = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityQueueEnqueued = vi.hoisted(() => vi.fn());
-const mockRecordTurnCapabilitySendCompleted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilitySendFailed = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityBusyRequeued = vi.hoisted(() => vi.fn());
 const mockSetInputMessage = vi.hoisted(() => vi.fn());
@@ -96,7 +95,6 @@ vi.mock('@/services/turnCapabilityMetrics', () => ({
   recordTurnCapabilityOverrideApplied: (...args: unknown[]) => mockRecordTurnCapabilityOverrideApplied(...args),
   recordTurnCapabilityOverrideNoop: (...args: unknown[]) => mockRecordTurnCapabilityOverrideNoop(...args),
   recordTurnCapabilityQueueEnqueued: (...args: unknown[]) => mockRecordTurnCapabilityQueueEnqueued(...args),
-  recordTurnCapabilitySendCompleted: (...args: unknown[]) => mockRecordTurnCapabilitySendCompleted(...args),
   recordTurnCapabilitySendFailed: (...args: unknown[]) => mockRecordTurnCapabilitySendFailed(...args),
   recordTurnCapabilityBusyRequeued: (...args: unknown[]) => mockRecordTurnCapabilityBusyRequeued(...args),
 }));
@@ -163,7 +161,6 @@ describe('useMessageInput submit telemetry integration', () => {
     mockRecordTurnCapabilityOverrideApplied.mockClear();
     mockRecordTurnCapabilityOverrideNoop.mockClear();
     mockRecordTurnCapabilityQueueEnqueued.mockClear();
-    mockRecordTurnCapabilitySendCompleted.mockClear();
     mockRecordTurnCapabilitySendFailed.mockClear();
     mockRecordTurnCapabilityBusyRequeued.mockClear();
     chatStoreRef.state = buildChatState();
@@ -186,6 +183,7 @@ describe('useMessageInput submit telemetry integration', () => {
       undefined,
       undefined,
       true,
+      undefined,
     );
   });
 
@@ -269,6 +267,11 @@ describe('useMessageInput submit telemetry integration', () => {
         selectedMcpNames: ['mcp-a', 'mcp-b'],
       }),
       true,
+      {
+        source: 'direct',
+        effectiveSkillCount: 1,
+        effectiveMcpCount: 2,
+      },
     );
     expect(mockRecordTurnCapabilitySelectionSubmitted).toHaveBeenCalledTimes(1);
   });
@@ -363,7 +366,7 @@ describe('useMessageInput submit telemetry integration', () => {
     expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledWith('direct', 'network_error', 'chat:chat-test');
   });
 
-  it('maps fatal 5xx failure to server_error enum reason', async () => {
+  it('does not emit client failure metric for fatal 5xx failures', async () => {
     const { FatalNetworkError } = await import('@/lib/utils/networkResilience');
     mockSendMessage.mockRejectedValueOnce(new FatalNetworkError('upstream 500', { status: 500 }));
     chatStoreRef.state = buildChatState({
@@ -387,7 +390,6 @@ describe('useMessageInput submit telemetry integration', () => {
       await Promise.resolve();
     });
 
-    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledTimes(1);
-    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledWith('direct', 'server_error', 'chat:chat-test');
+    expect(mockRecordTurnCapabilitySendFailed).not.toHaveBeenCalled();
   });
 });

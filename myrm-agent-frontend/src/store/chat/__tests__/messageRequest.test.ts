@@ -246,6 +246,76 @@ describe('messageRequest - archive restore contract', () => {
   });
 });
 
+describe('messageRequest - turn capability telemetry contract', () => {
+  it('serializes one-turn capability terminal telemetry in snake_case', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      chatId: 'chat-telemetry',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest(
+      'telemetry request',
+      'msg-telemetry',
+      state,
+      null,
+      undefined,
+      undefined,
+      {
+        source: 'direct',
+        effectiveSkillCount: 2,
+        effectiveMcpCount: 1,
+      },
+    );
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      turn_capability_telemetry: {
+        source: 'direct',
+        effective_skill_count: 2,
+        effective_mcp_count: 1,
+      },
+    });
+    expect(requestBody).not.toHaveProperty('turnCapabilityTelemetry');
+  });
+});
+
 describe('messageRequest - memory settings contract', () => {
   it('includes enable_conversation_search when memory opt-in is enabled', async () => {
     const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;

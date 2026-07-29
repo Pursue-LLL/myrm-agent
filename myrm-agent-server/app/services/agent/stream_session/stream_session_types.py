@@ -40,6 +40,7 @@ class AgentStreamSession:
     consensus_agg_model_cfg: object | None = field(default=None)
     durable_registered: bool = field(default=False)
     had_fatal_error: bool = field(default=False)
+    turn_capability_terminal_recorded: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
     entitlement_preflight_text: str | None = field(default=None)
     migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)

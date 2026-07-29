@@ -12,9 +12,12 @@ def test_live_empty_write_post_send_stall_cap_scales_with_peers(
 ) -> None:
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 0)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 90.0
+    assert mod._live_empty_write_post_steer_idle_cap_sec() == 90.0
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 4)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 130.0
+    assert mod._live_empty_write_post_steer_idle_cap_sec() == 130.0
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 8)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 150.0
+    assert mod._live_empty_write_post_steer_idle_cap_sec() == 150.0

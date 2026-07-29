@@ -626,6 +626,7 @@ const useChatStore = create<ChatState>()(
         archiveRestoreActions,
         agentConfigOverride,
         shouldRecordWikiQuerySuccess,
+        turnCapabilityTelemetry,
       ) => {
         const state = get();
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
@@ -652,6 +653,7 @@ const useChatStore = create<ChatState>()(
           archiveRestoreActions,
           agentConfigOverride,
           shouldRecordWikiQuerySuccess,
+          turnCapabilityTelemetry,
         );
       },
 

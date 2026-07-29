@@ -15,7 +15,12 @@ import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
-import { type AgentStreamEvent, type ArchiveRestoreAction, ModelSelection } from './types';
+import {
+  type AgentStreamEvent,
+  type ArchiveRestoreAction,
+  type TurnCapabilityTerminalTelemetry,
+  ModelSelection,
+} from './types';
 import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
@@ -216,6 +221,7 @@ export async function executeStreamWithRetry(
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
   shouldRecordWikiQuerySuccess: boolean = false,
+  turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
 ): Promise<void> {
   let lastError: Error | null = null;
   let querySuccessRecorded = false;
@@ -273,6 +279,7 @@ export async function executeStreamWithRetry(
         modelSelection,
         resumeValue,
         archiveRestoreActions,
+        turnCapabilityTelemetry,
       );
 
       if (!res.ok) {

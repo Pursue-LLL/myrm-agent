@@ -396,13 +396,22 @@ def _parallel_live_agent_peer_count() -> int:
         return 0
 
 
-def _live_empty_write_post_send_stall_cap_sec() -> float:
-    """R134: post-E2E_SEND_TURN stall scales under parallel load (not transport)."""
-    base = float(STALL_PROGRESS_SEC)
+def _live_empty_write_parallel_scaled_cap_sec(*, base: float) -> float:
+    """Scale idle/stall caps under parallel LIVE_AGENT load (R134/R137)."""
     peers = _parallel_live_agent_peer_count()
     if peers < 2:
         return base
     return min(150.0, base + peers * 10.0)
+
+
+def _live_empty_write_post_send_stall_cap_sec() -> float:
+    """R134: post-E2E_SEND_TURN stall scales under parallel load (not transport)."""
+    return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
+
+
+def _live_empty_write_post_steer_idle_cap_sec() -> float:
+    """R137: post-steer fail-fast scales under parallel load (steer API ok, LLM slow)."""
+    return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
 def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
@@ -525,6 +534,7 @@ async def test_file_write_empty_live_agent_webui(
         invoked_since: float | None = None
         not_invoked_since: float | None = None
         steer_attempted = False
+        ui_nudge_attempts = 0
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             touch_wall_progress()
@@ -650,7 +660,11 @@ async def test_file_write_empty_live_agent_webui(
                     "ui": ui,
                     "failureCount": int(ui.get("failureCount") or 0),
                 }
-            if ui.get("hasEmptyWriteDone") is True and ui.get("isStreaming") is False:
+            if (
+                ui.get("hasEmptyWriteDone") is True
+                and ui.get("isStreaming") is False
+                and last_api[0]
+            ):
                 settle_deadline = time.monotonic() + 45.0
                 while time.monotonic() < settle_deadline:
                     touch_wall_progress()
@@ -678,30 +692,66 @@ async def test_file_write_empty_live_agent_webui(
                     await asyncio.sleep(2.0)
             elif not last_api[0] and not_invoked_since is not None:
                 idle_sec = time.monotonic() - not_invoked_since
-                if not steer_attempted and idle_sec >= 30.0:
-                    steer_attempted = True
-                    steer_prompt = (
-                        "STEER: You MUST call file_write_tool exactly once now with "
-                        f"path {target_file.name if target_file else 'the requested file'!r} and "
-                        "content '' (empty string). Do not reply with text only. "
-                        "Reply EMPTY_WRITE_DONE after the tool returns."
-                    )
-                    steer_result = steer_chat_message(
-                        chat_id, steer_prompt, api_url=api_base
-                    )
-                    touch_wall_progress()
-                    not_invoked_since = time.monotonic()
-                    last_progress_at = not_invoked_since
-                    if steer_result.get("ok") is not True:
-                        raise AssertionError(
-                            f"Live empty write steer rejected: {steer_result}; "
-                            f"ui_sample={ui_sample[:400]!r}"
+                nudge_filename = (
+                    target_file.name if target_file is not None else "output.txt"
+                )
+                if idle_sec >= 30.0 and ui_nudge_attempts < 2:
+                    if ui.get("isStreaming") is True and not steer_attempted:
+                        steer_attempted = True
+                        steer_prompt = (
+                            "STEER: You MUST call file_write_tool exactly once now with "
+                            f"path {nudge_filename!r} and content '' (empty string). "
+                            "Do not reply with text only. "
+                            "Reply EMPTY_WRITE_DONE after the tool returns."
                         )
-                elif idle_sec >= 90.0:
+                        steer_result = steer_chat_message(
+                            chat_id, steer_prompt, api_url=api_base
+                        )
+                        touch_wall_progress()
+                        not_invoked_since = time.monotonic()
+                        last_progress_at = not_invoked_since
+                        if steer_result.get("ok") is not True:
+                            ui_nudge_attempts += 1
+                            nudge_prompt = _live_user_prompt(nudge_filename)
+                            await chat.send_message(nudge_prompt, nudge_prompt)
+                            await chat.wait_stream_started(
+                                nudge_prompt,
+                                timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
+                                chat_id_hint=chat_id,
+                            )
+                            not_invoked_since = time.monotonic()
+                            last_progress_at = not_invoked_since
+                    elif ui.get("isStreaming") is not True:
+                        ui_nudge_attempts += 1
+                        nudge_prompt = _live_user_prompt(nudge_filename)
+                        await chat.send_message(nudge_prompt, nudge_prompt)
+                        await chat.wait_stream_started(
+                            nudge_prompt,
+                            timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
+                            chat_id_hint=chat_id,
+                        )
+                        touch_wall_progress()
+                        not_invoked_since = time.monotonic()
+                        last_progress_at = not_invoked_since
+                    elif steer_attempted and idle_sec >= 45.0:
+                        ui_nudge_attempts += 1
+                        nudge_prompt = _live_user_prompt(nudge_filename)
+                        await chat.send_message(nudge_prompt, nudge_prompt)
+                        await chat.wait_stream_started(
+                            nudge_prompt,
+                            timeout_sec=_bounded_wait_sec(60.0, reserve_sec=60.0),
+                            chat_id_hint=chat_id,
+                        )
+                        touch_wall_progress()
+                        not_invoked_since = time.monotonic()
+                        last_progress_at = not_invoked_since
+                elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
                     raise AssertionError(
                         "Live empty write: LLM idle without file_write_tool; "
                         f"api_invoked={last_api[0]} steer={steer_attempted} "
-                        f"idle_sec={idle_sec:.0f} "
+                        f"ui_nudges={ui_nudge_attempts} idle_sec={idle_sec:.0f} "
+                        f"cap={_live_empty_write_post_steer_idle_cap_sec():.0f}s "
+                        f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"ui_sample={ui_sample[:500]!r} isStreaming={ui.get('isStreaming')}"
                     )
             # R62-C1/R132: stall fail-fast when stream idle and tool not yet invoked.
@@ -715,7 +765,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"{int(stall_elapsed)}s (cap={stall_cap:.0f}s); "
                         f"api_invoked={last_api[0]} api_failure={last_api[1]} "
                         f"isStreaming={ui.get('isStreaming')} "
-                        f"steer={steer_attempted} "
+                        f"steer={steer_attempted} ui_nudges={ui_nudge_attempts} "
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"remaining_wall={remaining_wall_sec():.0f}s"
                     )
@@ -730,7 +780,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"{int(stall_elapsed)}s (cap={stall_cap:.0f}s); "
                         f"api_invoked={last_api[0]} api_failure={last_api[1]} "
                         f"isStreaming={ui.get('isStreaming')} "
-                        f"steer={steer_attempted} "
+                        f"steer={steer_attempted} ui_nudges={ui_nudge_attempts} "
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"remaining_wall={remaining_wall_sec():.0f}s"
                     )

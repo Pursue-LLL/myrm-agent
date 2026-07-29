@@ -62,8 +62,7 @@ async def test_general_agent_image_tool_enqueues_task_with_chat_and_agent_ids(
     agent._task_user_id = "user-wiring-int"
 
     tools: list[object] = []
-    discoverable: list[object] = []
-    agent._setup_search_and_basic_tools(tools, discoverable)
+    agent._setup_search_and_basic_tools(tools)
 
     image_tools = [tool for tool in tools if getattr(tool, "name", None) == "image_tool"]
     assert len(image_tools) == 1

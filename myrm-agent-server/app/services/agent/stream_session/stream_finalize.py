@@ -37,6 +37,13 @@ from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
     ClarificationTimeoutHolder,
 )
+from app.services.agent.stream_session.turn_capability_terminal import (
+    TurnCapabilityFailureReason,
+    classify_turn_capability_failure_reason,
+    has_turn_capability_terminal_context,
+    record_turn_capability_send_completed,
+    record_turn_capability_send_failed,
+)
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
@@ -95,6 +102,36 @@ def _clarification_timeout_needed(
     return _collector_has_unanswered_clarification(session)
 
 
+async def _record_turn_capability_failed_once(
+    session: AgentStreamSession,
+    reason: TurnCapabilityFailureReason,
+) -> None:
+    if (
+        session.turn_capability_terminal_recorded
+        or not has_turn_capability_terminal_context(session.request)
+    ):
+        return
+    recorded = await record_turn_capability_send_failed(
+        session.request,
+        reason,
+    )
+    if recorded:
+        session.turn_capability_terminal_recorded = True
+
+
+async def _record_turn_capability_completed_once(
+    session: AgentStreamSession,
+) -> None:
+    if (
+        session.turn_capability_terminal_recorded
+        or not has_turn_capability_terminal_context(session.request)
+    ):
+        return
+    recorded = await record_turn_capability_send_completed(session.request)
+    if recorded:
+        session.turn_capability_terminal_recorded = True
+
+
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -124,19 +161,35 @@ async def yield_stream_exception_chunks(
             yield error_sse(f"Resume failed: {error_msg}", session.params.message_id)
         else:
             yield error_sse(f"Agent error: {error_msg}", session.params.message_id)
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     elif isinstance(exc, AgentQueueTimeout):
         yield error_sse(
             str(exc) or "Server is busy, please try again later.",
             session.params.message_id,
+        )
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
         )
     elif isinstance(exc, AgentDrainingError):
         yield error_sse(
             "Service is restarting, please try again shortly.",
             session.params.message_id,
         )
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     elif isinstance(exc, AgentExecutionTimeout):
         session.had_fatal_error = True
         yield error_sse("Request timed out.", session.params.message_id)
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     elif isinstance(exc, asyncio.CancelledError):
         logger.warning("Agent cancelled: message_id=%s", session.params.message_id)
         session.cancel_token.cancel(CancelReason.DISCONNECT)
@@ -161,6 +214,10 @@ async def yield_stream_exception_chunks(
                     session.request.chat_id,
                     bg_exc,
                 )
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     elif type(exc).__name__ == "AgentBusyError":
         logger.warning(
             "Agent is busy (AgentBusyError): message_id=%s", session.params.message_id
@@ -200,10 +257,18 @@ async def yield_stream_exception_chunks(
         if exc.context and "cooldown_remaining_ms" in exc.context:
             error_data["retry_after_ms"] = exc.context["cooldown_remaining_ms"]
         yield SSEEnvelope.from_any(error_data).to_sse_chunk()
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     else:
         session.had_fatal_error = True
         logger.error("Agent stream error: %s", exc, exc_info=True)
         yield error_sse(f"Agent execution error: {exc}", session.params.message_id)
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
 
 
 async def finalize_agent_stream_session(
@@ -431,6 +496,14 @@ async def finalize_agent_stream_session(
         or (approval.value and not clarification_sched_needed)
         or session.collector.has_pending_hitl_replay()
     )
+    if not pending_hitl and has_turn_capability_terminal_context(session.request):
+        if session.cancel_token.is_cancelled:
+            await _record_turn_capability_failed_once(session, "abort")
+        elif session.had_fatal_error or not session.collector.has_content:
+            await _record_turn_capability_failed_once(session, "unknown_error")
+        else:
+            await _record_turn_capability_completed_once(session)
+
     if pending_hitl:
         logger.info(
             "Deferring collector cleanup for pending HITL: chat_id=%s",

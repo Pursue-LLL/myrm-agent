@@ -66,6 +66,11 @@ from app.services.agent.stream_session.stream_generator import (
 from app.services.agent.stream_session.stream_lane_factory import (
     archive_restore_error_response,
 )
+from app.services.agent.stream_session.turn_capability_terminal import (
+    TurnCapabilityFailureReason,
+    has_turn_capability_terminal_context,
+    record_turn_capability_send_failed,
+)
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 logger = logging.getLogger(__name__)
@@ -95,6 +100,14 @@ async def run_agent_stream(
     """
     stream_started_at_monotonic = time.perf_counter()
     request = prefer_direct_agent_stream(request)
+
+    async def _record_terminal_failure_if_needed(
+        reason: TurnCapabilityFailureReason,
+    ) -> None:
+        if not has_turn_capability_terminal_context(request):
+            return
+        await record_turn_capability_send_failed(request, reason)
+
     async for _ in http_request.stream():
         pass
 
@@ -110,6 +123,7 @@ async def run_agent_stream(
         from myrm_agent_harness.core.features import get_features
 
         if not get_features().enabled(gated_feature):
+            await _record_terminal_failure_if_needed("server_error")
             return JSONResponse(
                 status_code=403,
                 content={
@@ -124,6 +138,7 @@ async def run_agent_stream(
         logger.warning(
             f"Gateway rejected massive payload: length={len(text_content)} chars"
         )
+        await _record_terminal_failure_if_needed("server_error")
         return JSONResponse(
             status_code=400,
             content={
@@ -134,10 +149,12 @@ async def run_agent_stream(
     if request.resume_value is None:
         risk_block = await check_stream_risk(text_content, request.chat_id)
         if risk_block is not None:
+            await _record_terminal_failure_if_needed("server_error")
             return risk_block
         try:
             await prevalidate_archive_restore_actions(request)
         except ArchiveRestoreRequestError as exc:
+            await _record_terminal_failure_if_needed("archive_restore_invalid")
             return archive_restore_error_response(exc)
 
     session_reservation = ChatSessionReservation()
@@ -179,6 +196,7 @@ async def run_agent_stream(
                             "Resume rejected (timeout already resolved): chat_id=%s",
                             request.chat_id,
                         )
+                        await _record_terminal_failure_if_needed("unknown_error")
                         return JSONResponse(
                             status_code=409,
                             content={
@@ -211,6 +229,7 @@ async def run_agent_stream(
                     )
                 )
         except ArchiveRestoreRequestError as exc:
+            await _record_terminal_failure_if_needed("archive_restore_invalid")
             return archive_restore_error_response(exc)
 
         research_model_cfg: ModelConfig | None = None
@@ -228,6 +247,7 @@ async def run_agent_stream(
                 logger.warning("Failed to resolve research model")
 
         if request.action_mode == "deep_research" and not params.enable_web_search:
+            await _record_terminal_failure_if_needed("server_error")
             return JSONResponse(
                 status_code=422,
                 content={
@@ -236,6 +256,7 @@ async def run_agent_stream(
             )
 
         if request.agent_id in _SEARCH_AGENT_IDS and not params.enable_web_search:
+            await _record_terminal_failure_if_needed("server_error")
             return JSONResponse(
                 status_code=422,
                 content={

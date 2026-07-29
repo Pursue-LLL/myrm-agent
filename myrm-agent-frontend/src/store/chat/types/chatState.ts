@@ -24,6 +24,11 @@ import type {
 import type { PendingGapRetry } from './pendingGapRetry';
 
 export type SecurityPreset = 'hitl' | 'accept_edits' | 'explore';
+export interface TurnCapabilityTerminalTelemetry {
+  source: 'direct' | 'queue_drain';
+  effectiveSkillCount: number;
+  effectiveMcpCount: number;
+}
 
 export interface ChatState {
   // 聊天基本信息
@@ -233,6 +238,7 @@ export interface ChatState {
     archiveRestoreActions?: ArchiveRestoreAction[],
     agentConfigOverride?: AgentConfig | null,
     shouldRecordWikiQuerySuccess?: boolean,
+    turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
   ) => Promise<void>;
   recoverHitlStream: (
     chatId: string,

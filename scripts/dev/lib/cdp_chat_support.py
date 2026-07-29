@@ -1172,6 +1172,8 @@ def _config_http_json(
     body: dict[str, object] | None = None,
     *,
     api_url: str | None = None,
+    timeout_sec: float = 10.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> dict[str, object]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     data = json.dumps(body).encode("utf-8") if body is not None else None
@@ -1181,7 +1183,9 @@ def _config_http_json(
         headers={"Content-Type": "application/json"} if data is not None else {},
         method=method,
     )
-    with _e2e_api_urlopen(req, timeout_sec=10) as resp:  # noqa: S310
+    with _e2e_api_urlopen(
+        req, timeout_sec=timeout_sec, max_attempts=max_attempts
+    ) as resp:  # noqa: S310
         raw = resp.read()
         if not raw:
             return {}
@@ -1203,11 +1207,14 @@ def put_config_value(
     *,
     api_url: str | None = None,
 ) -> None:
+    # PUT may block under parallel chrome_e2e on shared :8080 — longer timeout + retries.
     _config_http_json(
         "PUT",
         f"/api/v1/config/{config_key}",
         {"deviceId": "web", "value": value},
         api_url=api_url,
+        timeout_sec=30.0,
+        max_attempts=5,
     )
 
 

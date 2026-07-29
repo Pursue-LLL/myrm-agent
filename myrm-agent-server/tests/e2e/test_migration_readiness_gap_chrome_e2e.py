@@ -682,15 +682,87 @@ async def _run_migration_readiness_gap_e2e(
 async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """Single SHPOIB lease: mcp_warning + diagnostic_critical gap toasts (UX plane)."""
+    """Single SHPOIB lease: mcp_warning + provider_critical + diagnostic_critical gap toasts."""
 
     from app.services.agent.stream_session.entitlement_gap_preflight import (
         reset_capability_gap_emission_tracker,
     )
 
+    async def _batch_wait_verified_api() -> str:
+        deadline = time.monotonic() + 360.0
+        while time.monotonic() < deadline:
+            critical_api = get_e2e_api_url().rstrip("/")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            if wait_e2e_provider_ready(
+                api_url=critical_api,
+                timeout_sec=min(45.0, remaining),
+            ):
+                return critical_api
+            await asyncio.sleep(5.0)
+        pytest.fail(
+            "private backend not ready before batch critical scenario: "
+            f"{get_e2e_api_url()}"
+        )
+
+    async def _batch_fresh_client(
+        current: ChromeMcpClient,
+        *,
+        reason: str,
+    ) -> ChromeMcpClient:
+        from mux_attach_force_restart import force_mux_attach_restart_scoped
+
+        force_mux_attach_restart_scoped(reason=reason)
+        reset_session_recovery_budget()
+        await asyncio.sleep(2.0)
+        await asyncio.to_thread(current.close)
+        fresh = ChromeMcpClient(request_timeout_sec=180.0)
+        await asyncio.to_thread(fresh.start)
+        return fresh
+
+    async def _batch_run_critical_scenario(
+        current: ChromeMcpClient,
+        *,
+        variant: str,
+        verified_api: str,
+    ) -> ChromeMcpClient:
+        last_error: BaseException | None = None
+        for attempt in range(2):
+            try:
+                if attempt > 0:
+                    current = await _batch_fresh_client(
+                        current,
+                        reason=f"migration batch {variant} mux retry attempt={attempt + 1}",
+                    )
+                await _run_migration_readiness_gap_e2e(
+                    variant=variant,
+                    expected_readiness="critical",
+                    gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
+                    e2e_resource_ledger=e2e_resource_ledger,
+                    client=current,
+                    skip_warm_ui=True,
+                    provider_preverified=True,
+                    api_base_hint=verified_api,
+                )
+                return current
+            except RuntimeError as exc:
+                last_error = exc
+                message = str(exc)
+                retriable = (
+                    "MUX_RECLAIM_STALL" in message
+                    or "No page found" in message
+                    or "MUX_TRANSPORT" in message
+                )
+                if not retriable or attempt >= 1:
+                    raise
+        if last_error is not None:
+            raise last_error
+        return current
+
     reset_capability_gap_emission_tracker()
 
-    os.environ["MYRM_E2E_SIGNOFF_BATCH_BODY_SEC"] = "900"
+    os.environ["MYRM_E2E_SIGNOFF_BATCH_BODY_SEC"] = "1200"
 
     from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
 
@@ -724,73 +796,20 @@ async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
         from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV
 
         os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
-        verified_critical_api: str | None = None
-        batch_provider_deadline = time.monotonic() + 360.0
-        while time.monotonic() < batch_provider_deadline:
-            critical_api = get_e2e_api_url().rstrip("/")
-            remaining = batch_provider_deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            if wait_e2e_provider_ready(
-                api_url=critical_api,
-                timeout_sec=min(45.0, remaining),
-            ):
-                verified_critical_api = critical_api
-                break
-            await asyncio.sleep(5.0)
-        else:
-            pytest.fail(
-                "private backend not ready before diagnostic_critical scenario: "
-                f"{get_e2e_api_url()}"
+        verified_critical_api = await _batch_wait_verified_api()
+
+        for variant in ("provider_critical", "diagnostic_critical"):
+            reset_capability_gap_emission_tracker()
+            reset_session_recovery_budget()
+            reap_chrome_e2e_session_hygiene()
+            client = await _batch_fresh_client(
+                client,
+                reason=f"migration batch {variant} preflight",
             )
-
-        async def _run_s2_diagnostic_critical() -> None:
-            await _run_migration_readiness_gap_e2e(
-                variant="diagnostic_critical",
-                expected_readiness="critical",
-                gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
-                e2e_resource_ledger=e2e_resource_ledger,
-                client=client,
-                skip_warm_ui=True,
-                provider_preverified=True,
-                api_base_hint=verified_critical_api,
+            client = await _batch_run_critical_scenario(
+                client,
+                variant=variant,
+                verified_api=verified_critical_api,
             )
-
-        from mux_attach_force_restart import force_mux_attach_restart_scoped
-
-        force_mux_attach_restart_scoped(reason="migration batch S2 preflight")
-        reset_session_recovery_budget()
-        await asyncio.sleep(3.0)
-        await asyncio.to_thread(client.close)
-        client = ChromeMcpClient(request_timeout_sec=180.0)
-        await asyncio.to_thread(client.start)
-
-        last_s2_error: BaseException | None = None
-        for s2_attempt in range(2):
-            try:
-                if s2_attempt > 0:
-                    force_mux_attach_restart_scoped(
-                        reason=f"migration batch S2 mux retry attempt={s2_attempt + 1}",
-                    )
-                    reset_session_recovery_budget()
-                    await asyncio.sleep(5.0)
-                    await asyncio.to_thread(client.close)
-                    client = ChromeMcpClient(request_timeout_sec=180.0)
-                    await asyncio.to_thread(client.start)
-                await _run_s2_diagnostic_critical()
-                break
-            except RuntimeError as exc:
-                last_s2_error = exc
-                message = str(exc)
-                retriable = (
-                    "MUX_RECLAIM_STALL" in message
-                    or "No page found" in message
-                    or "MUX_TRANSPORT" in message
-                )
-                if not retriable or s2_attempt >= 1:
-                    raise
-        else:
-            if last_s2_error is not None:
-                raise last_s2_error
     finally:
         await asyncio.to_thread(client.close)
