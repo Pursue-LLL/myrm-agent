@@ -126,6 +126,17 @@ _CLICK_DELETE_CONFIRM_JS = """(() => {
   return { ok: true };
 })()"""
 
+_MCP_IMPORT_MODAL_READY_JS = """(() => {
+  const heading = Array.from(document.querySelectorAll('h3')).find((h) =>
+    /Import MCP Configuration|导入 MCP 配置|MCP-Konfiguration importieren|MCP 구성 가져오기/i.test(
+      (h.textContent || '').trim()
+    )
+  );
+  const modal = heading?.closest('.fixed.inset-0');
+  const textarea = modal?.querySelector('textarea');
+  return { ready: !!textarea, err: textarea ? null : 'import-textarea-not-found' };
+})()"""
+
 _CLICK_IMPORT_JSON_BUTTON_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
     /Import JSON|导入 JSON|JSON importieren|JSON 가져오기/i.test((b.textContent || '').trim())
@@ -135,13 +146,63 @@ _CLICK_IMPORT_JSON_BUTTON_JS = """(() => {
   return { ok: true };
 })()"""
 
+_MCP_ADD_EDITOR_READY_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  const heading = Array.from(modal?.querySelectorAll('h3') || []).find((h) =>
+    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test(
+      (h.textContent || '').trim()
+    )
+  );
+  const nameField = modal?.querySelector('input');
+  return { ready: !!heading && !!nameField };
+})()"""
+
 _CLICK_ADD_SERVICE_BUTTON_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Add Service|添加服务|Dienst hinzufügen|서비스 추가/i.test((b.textContent || '').trim())
+    /Add Service|添加服务|新增服務|追加サービス|Dienst hinzufügen|서비스 추가/i.test((b.textContent || '').trim())
   );
   if (!btn) return { ok: false, err: 'add-button-not-found' };
   btn.click();
   return { ok: true };
+})()"""
+
+_SELECT_STDIO_CONNECTION_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  if (!modal) return { ok: false, err: 'add-modal-not-found' };
+  const findTypeTrigger = () => {
+    const typeLabel = Array.from(modal.querySelectorAll('label, p.text-sm')).find((node) =>
+      /Connection Type|连接类型|連線類型|接続タイプ|Verbindungstyp|연결 유형/i.test(
+        (node.textContent || '').replace(/\\s+/g, ' ').trim()
+      )
+    );
+    return typeLabel?.closest('.flex.flex-col')?.querySelector('button[type="button"]') || null;
+  };
+  const trigger = findTypeTrigger();
+  if (!trigger) return { ok: false, err: 'connection-type-trigger-not-found' };
+  const findStdio = () =>
+    Array.from(document.querySelectorAll('button[type="button"]')).find((b) => {
+      if (b === trigger) return false;
+      return /\\bSTDIO\\b/i.test((b.textContent || '').replace(/\\s+/g, ' ').trim());
+    }) || null;
+  trigger.click();
+  let stdioOption = null;
+  for (let i = 0; i < 30; i++) {
+    stdioOption = findStdio();
+    if (stdioOption) break;
+    const start = Date.now();
+    while (Date.now() - start < 50) {}
+  }
+  if (!stdioOption) return { ok: false, err: 'stdio-option-not-found' };
+  stdioOption.click();
+  return { ok: true };
+})()"""
+
+_MCP_STDIO_FIELDS_READY_JS = """(() => {
+  const modal = document.querySelector('.fixed.inset-0');
+  const commandLabel = Array.from(modal?.querySelectorAll('label, p.text-sm') || []).find((node) =>
+    /Command|命令|コマンド|Befehl|명령/i.test((node.textContent || '').replace(/\\s+/g, ' ').trim())
+  );
+  return { ready: !!commandLabel };
 })()"""
 
 
@@ -153,7 +214,7 @@ def _set_import_textarea_js(value: str) -> str:
       (h.textContent || '').trim()
     )
   );
-  const modal = heading?.closest('div');
+  const modal = heading?.closest('.fixed.inset-0');
   const el = modal?.querySelector('textarea');
   if (!el) return {{ ok: false, err: 'import-textarea-not-found' }};
   const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
@@ -169,11 +230,16 @@ def _fill_input_by_label_js(label_pattern: str, value: str) -> str:
     escaped_value = json.dumps(value)
     escaped_pattern = json.dumps(label_pattern)
     return f"""(() => {{
+  const modal = document.querySelector('.fixed.inset-0');
+  if (!modal) return {{ ok: false, err: 'add-modal-not-found' }};
   const pattern = new RegExp({escaped_pattern}, 'i');
-  const labels = Array.from(document.querySelectorAll('label'));
-  const label = labels.find((node) => pattern.test((node.textContent || '').trim()));
+  const candidates = Array.from(modal.querySelectorAll('label, p.text-sm'));
+  const label = candidates.find((node) => {{
+    const text = (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    return pattern.test(text);
+  }});
   if (!label) return {{ ok: false, err: 'label-not-found' }};
-  const container = label.closest('div');
+  const container = label.closest('.flex.flex-col') || label.parentElement;
   const el = container?.querySelector('input, textarea');
   if (!el) return {{ ok: false, err: 'input-not-found' }};
   const proto = el instanceof HTMLTextAreaElement
@@ -193,7 +259,7 @@ _CLICK_IMPORT_SUBMIT_JS = """(() => {
     /Import MCP Configuration|导入 MCP 配置|MCP-Konfiguration importieren|MCP 구성 가져오기/i.test(
       (h.textContent || '').trim()
     )
-  )?.closest('div');
+  )?.closest('.fixed.inset-0');
   const scope = modal || document;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
     /^(Import|导入|Importieren|가져오기)$/i.test((b.textContent || '').trim())
@@ -330,9 +396,10 @@ _APP_LAYOUT_READY_JS = """(() => ({
 
 
 def _reload_mcp_page(client, page) -> None:
+    target_url = f"{get_e2e_ui_url().rstrip('/')}/settings/mcp"
     last: dict[str, object] = {}
     for attempt in range(3):
-        reload_mcp_page(client, page)
+        reload_mcp_page(client, page, target_url=target_url)
         dismiss_blocking_modals(client, page)
         try:
             wait_for_state(client, page, _APP_LAYOUT_READY_JS, timeout_sec=120.0)
@@ -436,6 +503,12 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
 
         opened = client.evaluate(page, _CLICK_IMPORT_JSON_BUTTON_JS, timeout_sec=15.0)
         assert isinstance(opened, dict) and opened.get("ok") is True, opened
+        import_modal = wait_for_state(
+            client, page, _MCP_IMPORT_MODAL_READY_JS, timeout_sec=30.0
+        )
+        assert import_modal.get("ready") is True, json.dumps(
+            import_modal, ensure_ascii=False
+        )
         filled = client.evaluate(
             page, _set_import_textarea_js(import_payload), timeout_sec=15.0
         )
@@ -455,11 +528,42 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
             page, _CLICK_ADD_SERVICE_BUTTON_JS, timeout_sec=15.0
         )
         assert isinstance(opened_add, dict) and opened_add.get("ok") is True, opened_add
+        add_editor = wait_for_state(
+            client, page, _MCP_ADD_EDITOR_READY_JS, timeout_sec=30.0
+        )
+        assert add_editor.get("ready") is True, json.dumps(
+            add_editor, ensure_ascii=False
+        )
+        name_filled = client.evaluate(
+            page,
+            _fill_input_by_label_js(
+                "Service Name|服务名称|服務名稱|サービス名前|Dienstname|서비스 이름",
+                _ADD_SERVER_NAME,
+            ),
+            timeout_sec=15.0,
+        )
+        assert isinstance(name_filled, dict) and name_filled.get("ok") is True, name_filled
+        selected_stdio: dict[str, object] = {"ok": False}
+        for attempt in range(3):
+            selected_stdio = client.evaluate(
+                page, _SELECT_STDIO_CONNECTION_JS, timeout_sec=15.0
+            )
+            if isinstance(selected_stdio, dict) and selected_stdio.get("ok") is True:
+                break
+            time.sleep(1.0 * (attempt + 1))
+        assert isinstance(selected_stdio, dict) and selected_stdio.get("ok") is True, (
+            selected_stdio
+        )
+        stdio_ready = wait_for_state(
+            client, page, _MCP_STDIO_FIELDS_READY_JS, timeout_sec=15.0
+        )
+        assert stdio_ready.get("ready") is True, json.dumps(
+            stdio_ready, ensure_ascii=False
+        )
         for label_pattern, value in (
-            ("Service Name|服务名称|Dienstname|서비스 이름", _ADD_SERVER_NAME),
-            ("Command|命令|Befehl|명령", sys.executable),
-            ("Arguments|参数|Argumente|인수", "-c\npass"),
-            ("Description|描述|Beschreibung|설명", "E2E add probe server"),
+            ("Command|命令|コマンド|Befehl|명령", sys.executable),
+            ("Arguments|参数|參數|Argumente|인수", "-c\npass"),
+            ("Description|描述|服務描述|サービス説明|Beschreibung|설명", "E2E add probe server"),
         ):
             filled_field = client.evaluate(
                 page,

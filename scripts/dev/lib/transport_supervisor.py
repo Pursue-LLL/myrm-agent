@@ -35,13 +35,16 @@ MUX_UPSTREAM_WAIT_PER_PEER_SEC: float = 45.0
 MUX_BOOTSTRAP_WALL_BASE_SEC: float = 180.0
 MUX_BOOTSTRAP_WALL_MAX_SEC: float = 420.0
 MUX_BOOTSTRAP_WALL_PER_PEER_SEC: float = 45.0
-MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
+LIVE_AGENT_BODY_WALL_BASE_SEC: float = 600.0
+LIVE_AGENT_BODY_WALL_MAX_SEC: float = 900.0
+LIVE_AGENT_BODY_WALL_PER_PEER_SEC: float = 45.0
+MUX_RECOVERY_LOCK_WAIT_SEC: float = 180.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
 MUX_TRANSPORT_EXHAUSTED_TOKEN: str = "E2E_MUX_TRANSPORT_EXHAUSTED"
 MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
 
-_GLOBAL_RECOVERY_LOCK = threading.Lock()
+_GLOBAL_RECOVERY_LOCK = threading.RLock()
 _session_recovery_spent: dict[str, float] = {}
 _session_lock = threading.Lock()
 
@@ -57,9 +60,23 @@ def session_key() -> str:
     return f"pid-{os.getpid()}"
 
 
-def session_recovery_budget_cap() -> float:
-    """Scale mux recovery budget under parallel wave/mux peers (R100)."""
+def _mux_peer_count(*, pessimistic: bool = False) -> int:
+    """Peer load for cap scaling; pessimistic floor for pytest-timeout under signoff waves (R108)."""
     peers = parallel_mux_peer_count()
+    if not pessimistic:
+        return peers
+    from dev_gate_contract import (  # noqa: PLC0415
+        DEFAULT_BOOTSTRAP_SLOTS,
+        MUX_MAX_CONCURRENT_SESSIONS,
+    )
+
+    floor = MUX_MAX_CONCURRENT_SESSIONS + DEFAULT_BOOTSTRAP_SLOTS + 1
+    return max(peers, floor)
+
+
+def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
+    """Scale mux recovery budget under parallel wave/mux peers (R100)."""
+    peers = _mux_peer_count(pessimistic=pessimistic)
     if peers <= 3:
         return MUX_SESSION_RECOVERY_BUDGET_SEC
     scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
@@ -68,20 +85,18 @@ def session_recovery_budget_cap() -> float:
     return min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
 
 
-def mux_upstream_wait_cap() -> int:
+def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
     """Scale mux cold-attach queue wait under parallel wave/mux peers (R101)."""
-    peers = parallel_mux_peer_count()
+    peers = _mux_peer_count(pessimistic=pessimistic)
     if peers <= 3:
         return int(MUX_UPSTREAM_WAIT_BASE_SEC)
-    scaled = MUX_UPSTREAM_WAIT_BASE_SEC + (
-        (peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC
-    )
+    scaled = MUX_UPSTREAM_WAIT_BASE_SEC + ((peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC)
     return int(min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled))
 
 
-def bootstrap_wall_cap_sec() -> int:
+def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
     """Scale SHPOIB bootstrap wall under parallel wave/mux peers (R102)."""
-    peers = parallel_mux_peer_count()
+    peers = _mux_peer_count(pessimistic=pessimistic)
     if peers <= 3:
         return int(MUX_BOOTSTRAP_WALL_BASE_SEC)
     scaled = MUX_BOOTSTRAP_WALL_BASE_SEC + (
@@ -90,17 +105,27 @@ def bootstrap_wall_cap_sec() -> int:
     return int(min(MUX_BOOTSTRAP_WALL_MAX_SEC, scaled))
 
 
-def live_agent_pytest_wall_cap_sec() -> int:
-    """pytest-timeout outer cap: scaled bootstrap + body + teardown (R103)."""
-    from dev_gate_contract import (  # noqa: PLC0415
-        E2E_TEARDOWN_WALL_CLOCK_SEC,
-        LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
+    """Scale LIVE_AGENT BODY wall under parallel wave/mux peers (R123)."""
+    peers = _mux_peer_count(pessimistic=pessimistic)
+    if peers <= 3:
+        return int(LIVE_AGENT_BODY_WALL_BASE_SEC)
+    scaled = LIVE_AGENT_BODY_WALL_BASE_SEC + (
+        (peers - 3) * LIVE_AGENT_BODY_WALL_PER_PEER_SEC
     )
+    return int(min(LIVE_AGENT_BODY_WALL_MAX_SEC, scaled))
+
+
+def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
+    """pytest-timeout outer cap: bootstrap + body + teardown + mux queue + recovery (R103/R105/R108)."""
+    from dev_gate_contract import E2E_TEARDOWN_WALL_CLOCK_SEC  # noqa: PLC0415
 
     return (
-        bootstrap_wall_cap_sec()
-        + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        bootstrap_wall_cap_sec(pessimistic=pessimistic_peers)
+        + live_agent_body_wall_cap_sec(pessimistic=pessimistic_peers)
         + E2E_TEARDOWN_WALL_CLOCK_SEC
+        + mux_upstream_wait_cap(pessimistic=pessimistic_peers)
+        + int(session_recovery_budget_cap(pessimistic=pessimistic_peers))
     )
 
 
@@ -145,7 +170,24 @@ def parallel_mux_peer_count() -> int:
         daemon_count = max(1, int(mux_owned_daemon_count()))
     except (ImportError, OSError, TypeError, ValueError):
         pass
-    return max(wave_leases, mux_contexts, daemon_count, parallel_active_test_count())
+    policy_wave_leases = 0
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        policy_wave_leases = max(
+            0, wave_active_lease_count(Path(__file__).resolve().parents[4])
+        )
+    except ImportError:
+        pass
+    return max(
+        wave_leases,
+        mux_contexts,
+        daemon_count,
+        parallel_active_test_count(),
+        policy_wave_leases,
+    )
 
 
 def recovery_lock_wait_sec() -> float:
@@ -158,6 +200,9 @@ def assert_mux_daemons_single(*, phase: str) -> None:
     from runtime_probe import mux_owned_daemon_count  # noqa: PLC0415
 
     count = mux_owned_daemon_count()
+    if phase == "restart_cold_shim" and count == 0:
+        # Parallel cold-shim restart may begin after teardown (muxDaemons=0).
+        return
     if count != 1:
         raise RuntimeError(
             f"{MUX_DAEMONS_FAIL_CLOSED_TOKEN}: muxDaemons={count} expected=1 "

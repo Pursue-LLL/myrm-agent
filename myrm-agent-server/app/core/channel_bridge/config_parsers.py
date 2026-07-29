@@ -19,7 +19,9 @@ Extract typed configs from frontend dict structures.
 - extract_web_tts_config: Web read-aloud TTS config (ignores channel ttsMode gate)
 - session_policy_from_agent_dict: build SessionPolicy from per-agent metadata dict
 - is_search_user_configured: check if user explicitly configured a search service (vs default fallback)
-- verify_search_service_available: async connectivity check for configured search service (30s TTL cache)
+- extract_search_provider_chain: enabled search configs sorted by priority → harness SearchServiceConfig list
+- extract_active_search_config: head provider + full provider_chain for agent runtime
+- verify_search_service_available: async live probe for chain head (30s TTL cache via search_verify)
 - invalidate_search_health_cache: clear search health cache on config change
 """
 
@@ -91,7 +93,11 @@ def extract_mcp_configs(mcp_dict: dict[str, object] | None) -> list["MCPServerCo
         try:
             result.append(MCPServerConfig.model_validate(cfg))
         except Exception as e:
-            logger.warning("config_parsers: skipping invalid MCP config '%s': %s", cfg.get("name", "?"), e)
+            logger.warning(
+                "config_parsers: skipping invalid MCP config '%s': %s",
+                cfg.get("name", "?"),
+                e,
+            )
 
     return result
 
@@ -102,14 +108,22 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
 
     stt_enabled = bool(voice_dict.get("sttEnabled", False))
     tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
-    tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
+    tts_mode = (
+        TTSMode(tts_mode_raw)
+        if tts_mode_raw in ("off", "always", "inbound")
+        else TTSMode.OFF
+    )
 
     return VoiceConfig(
         stt_enabled=stt_enabled,
         stt_provider=str(voice_dict.get("sttProvider", "openai")),
         stt_api_key=str(voice_dict.get("sttApiKey", "")),
         stt_model=str(voice_dict.get("sttModel", "whisper-1")),
-        stt_language=voice_dict.get("sttLanguage") if isinstance(voice_dict.get("sttLanguage"), str) else None,
+        stt_language=(
+            voice_dict.get("sttLanguage")
+            if isinstance(voice_dict.get("sttLanguage"), str)
+            else None
+        ),
         stt_local_model=str(voice_dict.get("sttLocalModel", "base")),
         stt_local_device=str(voice_dict.get("sttLocalDevice", "auto")),
         stt_local_compute_type=str(voice_dict.get("sttLocalComputeType", "auto")),
@@ -123,7 +137,9 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
         tts_pitch=float(voice_dict.get("ttsPitch", 0.0)),
         tts_max_length=_int_setting(voice_dict.get("ttsMaxLength", 4000), 4000),
         tts_summary_enabled=bool(voice_dict.get("ttsSummaryEnabled", True)),
-        tts_summary_threshold=_int_setting(voice_dict.get("ttsSummaryThreshold", 1500), 1500),
+        tts_summary_threshold=_int_setting(
+            voice_dict.get("ttsSummaryThreshold", 1500), 1500
+        ),
         tts_summary_model=str(voice_dict.get("ttsSummaryModel", "")),
     )
 
@@ -143,7 +159,9 @@ def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig |
     return built
 
 
-def extract_web_tts_config(voice_dict: dict[str, object] | None) -> "VoiceConfig | None":
+def extract_web_tts_config(
+    voice_dict: dict[str, object] | None,
+) -> "VoiceConfig | None":
     """Extract VoiceConfig for Web UI read-aloud (/tts API).
 
     Unlike extract_voice_config, does not require ttsMode != off or sttEnabled.
@@ -154,7 +172,9 @@ def extract_web_tts_config(voice_dict: dict[str, object] | None) -> "VoiceConfig
     return _build_voice_config_from_dict(voice_dict)
 
 
-def extract_lite_model_config(providers_dict: dict[str, object] | None) -> "ModelConfig | None":
+def extract_lite_model_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
     """Extract the filter/summary model config from the frontend's providers config."""
     from app.core.types import ModelConfig
 
@@ -183,7 +203,11 @@ def extract_lite_model_config(providers_dict: dict[str, object] | None) -> "Mode
         return None
 
     provider = next(
-        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
+        (
+            p
+            for p in providers
+            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+        ),
         None,
     )
     if not provider:
@@ -205,7 +229,9 @@ def extract_lite_model_config(providers_dict: dict[str, object] | None) -> "Mode
     )
 
 
-def extract_user_instructions(personal_settings_dict: dict[str, object] | None) -> str | None:
+def extract_user_instructions(
+    personal_settings_dict: dict[str, object] | None,
+) -> str | None:
     """Extract global user instructions from personalSettings."""
     if not personal_settings_dict:
         return None
@@ -231,8 +257,12 @@ def extract_fallback_model_configs(
     if not isinstance(providers, list):
         return None, None
 
-    base_fallback = _resolve_slot_fallback(default_model_cfg.get("baseModel"), providers)
-    lite_fallback = _resolve_slot_fallback(default_model_cfg.get("liteModel"), providers)
+    base_fallback = _resolve_slot_fallback(
+        default_model_cfg.get("baseModel"), providers
+    )
+    lite_fallback = _resolve_slot_fallback(
+        default_model_cfg.get("liteModel"), providers
+    )
 
     from app.core.channel_bridge.model_resolver import enrich_model_context_window
 
@@ -273,7 +303,9 @@ def extract_session_policy(
     return SessionPolicy(
         mode=mode,
         daily_reset_hour=int(daily_hour) if isinstance(daily_hour, (int, float)) else 4,
-        idle_minutes=int(idle_minutes) if isinstance(idle_minutes, (int, float)) else 120,
+        idle_minutes=(
+            int(idle_minutes) if isinstance(idle_minutes, (int, float)) else 120
+        ),
         notify_on_reset=bool(notify_raw) if notify_raw is not None else True,
     )
 
@@ -316,30 +348,19 @@ _SEARCH_HEALTH_TTL = 30.0
 
 
 async def verify_search_service_available(cfg: "SearchServiceConfig | None") -> bool:
-    """Lightweight connectivity check for the configured search service.
+    """Lightweight connectivity check for the configured search provider chain.
 
-    For SearXNG: HTTP GET to the base URL (expects 200), result cached 30s.
-    For API services (Tavily, Perplexity, etc.): verifies API key is present (no network call).
-    Returns True if the service is likely available, False otherwise.
+    Uses live search probe with TTL cache (same semantics as Settings verify).
     """
     if cfg is None:
         return False
-    if cfg.search_service != "searxng":
-        if not cfg.api_key:
-            logger.warning("Search service check: %s requires API key but none configured", cfg.search_service)
-            return False
-        return True
 
-    global _search_health_cache
-    now = time.monotonic()
-    if _search_health_cache is not None:
-        cached_at, cached_result = _search_health_cache
-        if now - cached_at < _SEARCH_HEALTH_TTL:
-            return cached_result
+    from app.services.integrations.search_verify import verify_search_config_cached
 
-    result = await _ping_searxng(cfg)
-    _search_health_cache = (now, result)
-    return result
+    if cfg.provider_chain:
+        head = cfg.provider_chain[0]
+        return await verify_search_config_cached(head)
+    return await verify_search_config_cached(cfg)
 
 
 async def _ping_searxng(cfg: "SearchServiceConfig") -> bool:
@@ -355,13 +376,17 @@ async def _ping_searxng(cfg: "SearchServiceConfig") -> bool:
             resp = await client.get(url)
             if resp.status_code < 500:
                 return True
-            logger.warning("Search service check: SearXNG returned %d at %s", resp.status_code, url)
+            logger.warning(
+                "Search service check: SearXNG returned %d at %s", resp.status_code, url
+            )
             return False
     except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
         logger.warning("Search service check: SearXNG unreachable at %s (%s)", url, exc)
         return False
     except Exception as exc:
-        logger.warning("Search service check: SearXNG unexpected error at %s (%s)", url, exc)
+        logger.warning(
+            "Search service check: SearXNG unexpected error at %s (%s)", url, exc
+        )
         return False
 
 
@@ -369,24 +394,26 @@ def invalidate_search_health_cache() -> None:
     """Clear the search service health cache (call after config changes)."""
     global _search_health_cache
     _search_health_cache = None
+    from app.services.integrations.search_verify import invalidate_search_verify_cache
+
+    invalidate_search_verify_cache()
 
 
-def extract_active_search_config(
+def extract_search_provider_chain(
     search_services_dict: dict[str, object] | None,
-) -> "SearchServiceConfig | None":
-    """Extract primary and fallback search configs based on role field.
-
-    Each config can have a role: "primary" | "fallback".
-    - Primary: the main search service (max 1 enabled)
-    - Fallback: backup service when primary fails (max 1 enabled)
-
-    Returns None when the user has not configured an enabled search service.
-    """
+) -> list["SearchServiceConfig"]:
+    """Extract enabled search configs sorted by priority (1 = highest)."""
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
+    from app.core.integrations.search_catalog.migration import (
+        migrate_search_service_configs,
+    )
+    from app.core.integrations.search_catalog.registry import (
+        SearchProviderCatalogRegistry,
+    )
+
     if not search_services_dict:
-        logger.warning("config_parsers: no search config in WebUI Settings")
-        return None
+        return []
 
     if isinstance(search_services_dict, str):
         import json
@@ -394,44 +421,68 @@ def extract_active_search_config(
         try:
             search_services_dict = json.loads(search_services_dict)
         except Exception:
-            logger.warning("config_parsers: invalid search config JSON in WebUI Settings")
-            return None
+            return []
     if not isinstance(search_services_dict, dict):
-        logger.warning("config_parsers: search config is not an object in WebUI Settings")
-        return None
+        return []
 
     configs = search_services_dict.get("searchServiceConfigs")
     if not isinstance(configs, list) or not configs:
-        logger.warning("config_parsers: empty searchServiceConfigs in WebUI Settings")
-        return None
+        return []
 
-    enabled_configs = [c for c in configs if isinstance(c, dict) and c.get("enabled")]
-    if not enabled_configs:
-        logger.warning("config_parsers: no enabled search config in WebUI Settings")
-        return None
+    dict_configs = [c for c in configs if isinstance(c, dict)]
+    migrated = migrate_search_service_configs(dict_configs)
+    enabled = [c for c in migrated if c.get("enabled")]
+    if not enabled:
+        return []
 
-    primary = next((c for c in enabled_configs if c.get("role") == "primary"), None)
-    fallback = next((c for c in enabled_configs if c.get("role") == "fallback"), None)
+    registry = SearchProviderCatalogRegistry.get_instance()
+    max_chain = registry.max_chain_size()
 
-    if not primary:
-        primary = enabled_configs[0]
-        logger.warning("config_parsers: no primary search config, using first enabled entry for sandbox user")
+    def _priority(row: dict[str, object]) -> int:
+        raw = row.get("priority", 999)
+        return int(raw) if isinstance(raw, int) else 999
 
-    fallback_cfg = None
-    if fallback:
-        fallback_cfg = SearchServiceConfig(
-            search_service=fallback.get("search_service", "searxng"),
-            api_key=fallback.get("api_key"),
-            api_base=fallback.get("api_base"),
-            extra_params=fallback.get("extra_params"),
+    enabled.sort(key=_priority)
+    chain: list[SearchServiceConfig] = []
+    for row in enabled[:max_chain]:
+        slug = str(row.get("search_service", ""))
+        if not registry.is_selectable_slug(slug):
+            continue
+        chain.append(
+            SearchServiceConfig(
+                search_service=slug,
+                api_key=str(row["api_key"]) if row.get("api_key") else None,
+                api_base=str(row["api_base"]) if row.get("api_base") else None,
+                extra_params=(
+                    row.get("extra_params")
+                    if isinstance(row.get("extra_params"), dict)
+                    else None
+                ),
+            )
         )
+    return chain
 
+
+def extract_active_search_config(
+    search_services_dict: dict[str, object] | None,
+) -> "SearchServiceConfig | None":
+    """Extract active search config with priority provider chain attached."""
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
+
+    chain = extract_search_provider_chain(search_services_dict)
+    if not chain:
+        logger.warning(
+            "config_parsers: no enabled search provider chain in WebUI Settings"
+        )
+        return None
+
+    head = chain[0]
     return SearchServiceConfig(
-        search_service=primary.get("search_service", "searxng"),
-        api_key=primary.get("api_key"),
-        api_base=primary.get("api_base"),
-        extra_params=primary.get("extra_params"),
-        fallback_config=fallback_cfg,
+        search_service=head.search_service,
+        api_key=head.api_key,
+        api_base=head.api_base,
+        extra_params=head.extra_params,
+        provider_chain=chain,
     )
 
 
@@ -455,7 +506,11 @@ def _resolve_slot_fallback(
         return None
 
     provider = next(
-        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
+        (
+            p
+            for p in providers
+            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+        ),
         None,
     )
     if not provider:
@@ -476,7 +531,9 @@ def _build_embedding_config(
     cls: type["EmbeddingConfig"],
 ) -> "EmbeddingConfig | None":
     """Build EmbeddingConfig from retrieval dict."""
-    params = _parse_retrieval_params(retrieval_dict, "embeddingConfig", "embeddingApplied")
+    params = _parse_retrieval_params(
+        retrieval_dict, "embeddingConfig", "embeddingApplied"
+    )
     if not params:
         return None
     return cls(model=params[0], api_key=params[1], api_base=params[2])
@@ -487,7 +544,9 @@ def _build_reranker_config(
     cls: type["RerankerConfig"],
 ) -> "RerankerConfig | None":
     """Build RerankerConfig from retrieval dict."""
-    params = _parse_retrieval_params(retrieval_dict, "rerankerConfig", "rerankerApplied")
+    params = _parse_retrieval_params(
+        retrieval_dict, "rerankerConfig", "rerankerApplied"
+    )
     if not params:
         return None
     return cls(model=params[0], api_key=params[1], api_base=params[2])
@@ -537,7 +596,9 @@ def _extract_active_key(provider: dict[str, object]) -> str | None:
     keys = provider.get("keys")
     if isinstance(keys, list) and len(keys) > 0:
         # Find active key or first key
-        active_key = next((k for k in keys if isinstance(k, dict) and k.get("isActive")), keys[0])
+        active_key = next(
+            (k for k in keys if isinstance(k, dict) and k.get("isActive")), keys[0]
+        )
         if isinstance(active_key, dict):
             key_val = active_key.get("key")
             if isinstance(key_val, str) and key_val:

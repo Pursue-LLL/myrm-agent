@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/primitives/checkbox';
 import { Alert, AlertDescription } from '@/components/primitives/alert';
 import { toast } from '@/hooks/shared/useToast';
 import { analyzeDiscoveryUrl, installDiscoverySkillFromUrl, SkillUrlInfo } from '@/services/skill';
+import useChatStore from '@/store/useChatStore';
 
 interface SkillUrlImportDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ interface SkillUrlImportDialogProps {
 
 const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl }: SkillUrlImportDialogProps) => {
   const t = useTranslations('settings.skills.discover');
+  const mountAgentId = useChatStore((state) => state.agentConfig?.agentId) ?? 'builtin-general';
   const [url, setUrl] = useState(initialUrl || '');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzedUrls, setAnalyzedUrls] = useState<SkillUrlInfo[]>([]);
@@ -94,7 +96,10 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
         const results = await Promise.all(
           chunk.map(async (targetUrl) => {
             try {
-              const res = await installDiscoverySkillFromUrl(targetUrl);
+              const res = await installDiscoverySkillFromUrl(targetUrl, {
+                agentId: mountAgentId,
+                mountToAgent: true,
+              });
               if (res.success) {
                 return true;
               } else {

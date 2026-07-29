@@ -21,6 +21,7 @@ from e2e_session_snapshot import (  # noqa: E402
     body_elapsed_from_snapshot,
     resolve_session_snapshot,
 )
+from e2e_stall_guard import node_elapsed_from_snapshot  # noqa: E402
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class E2EActiveTest:
     current_node: str | None = None
     wall_phase: str | None = None
     body_elapsed_sec: float | None = None
+    node_elapsed_sec: float | None = None
     batch_mode: bool = False
 
 
@@ -142,20 +144,21 @@ def _session_fields_for_pid(
     pid: int,
     *,
     test_id: str | None = None,
-) -> tuple[str | None, str | None, float | None]:
+) -> tuple[str | None, str | None, float | None, float | None]:
     snapshot = resolve_session_snapshot(pid=pid, test_id=test_id)
     if snapshot is None:
-        return None, None, None
+        return None, None, None, None
     current_node = str(snapshot.get("currentNode") or "").strip() or None
     wall_phase = str(snapshot.get("phase") or "").strip().lower() or None
     body_elapsed = body_elapsed_from_snapshot(snapshot)
-    return current_node, wall_phase, body_elapsed
+    node_elapsed = node_elapsed_from_snapshot(snapshot)
+    return current_node, wall_phase, body_elapsed, node_elapsed
 
 
 def _list_active_pytest_chrome_e2e() -> tuple[E2EActiveTest, ...]:
     rows: list[E2EActiveTest] = []
     for row in list_live_chrome_e2e_pytest_rows():
-        current_node, wall_phase, body_elapsed = _session_fields_for_pid(
+        current_node, wall_phase, body_elapsed, node_elapsed = _session_fields_for_pid(
             row.pid,
             test_id=row.test_id,
         )
@@ -168,6 +171,7 @@ def _list_active_pytest_chrome_e2e() -> tuple[E2EActiveTest, ...]:
                 current_node=current_node,
                 wall_phase=wall_phase,
                 body_elapsed_sec=body_elapsed,
+                node_elapsed_sec=node_elapsed,
                 batch_mode=_is_batch_file_invocation(row.test_id),
             )
         )
@@ -221,6 +225,8 @@ def format_parallel_snapshot_human(snapshot: E2EParallelSnapshot) -> list[str]:
                 detail += f" wall_phase={row.wall_phase}"
             if row.body_elapsed_sec is not None:
                 detail += f" body_elapsed={row.body_elapsed_sec:.0f}s"
+            if row.node_elapsed_sec is not None:
+                detail += f" node_elapsed={row.node_elapsed_sec:.0f}s"
             if row.batch_mode:
                 detail += " batch_mode=yes"
             lines.append(detail)

@@ -28,7 +28,13 @@ import { WikiConceptTree } from './wiki/WikiConceptTree';
 import { WikiConceptDetailPanel } from './wiki/WikiConceptDetailPanel';
 import { WikiFolderSelectTree } from './wiki/WikiFolderSelectTree';
 
-export function WikiConceptsList() {
+export function WikiConceptsList({
+  treeSyncNonce = 0,
+  agentScopeId = null,
+}: {
+  treeSyncNonce?: number;
+  agentScopeId?: string | null;
+}) {
   const t = useTranslations('settings.wiki.concepts');
   const {
     query,
@@ -39,8 +45,19 @@ export function WikiConceptsList() {
     selectedConcept,
     isEditing,
     setIsEditing,
+    editTab,
+    setEditTab,
     editContent,
     setEditContent,
+    editCompiledTruth,
+    setEditCompiledTruth,
+    editTimelineDisplay,
+    editTimelineAppend,
+    setEditTimelineAppend,
+    editTags,
+    setEditTags,
+    editAliases,
+    setEditAliases,
     isSaving,
     isDeleting,
     dialogOpen,
@@ -62,7 +79,7 @@ export function WikiConceptsList() {
     handleEdit,
     handleSave,
     confirmDelete,
-  } = useWikiConceptsList();
+  } = useWikiConceptsList({ treeSyncNonce, agentScopeId });
 
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [treeHeight, setTreeHeight] = useState(400);
@@ -129,12 +146,23 @@ export function WikiConceptsList() {
       <WikiConceptDetailPanel
         selectedConcept={selectedConcept}
         isEditing={isEditing}
+        editTab={editTab}
         editContent={editContent}
+        editCompiledTruth={editCompiledTruth}
+        editTimelineDisplay={editTimelineDisplay}
+        editTimelineAppend={editTimelineAppend}
+        editTags={editTags}
+        editAliases={editAliases}
         isSaving={isSaving}
         onEdit={handleEdit}
         onCancelEdit={() => setIsEditing(false)}
         onSave={handleSave}
+        onEditTabChange={setEditTab}
         onEditContentChange={setEditContent}
+        onEditCompiledTruthChange={setEditCompiledTruth}
+        onEditTimelineAppendChange={setEditTimelineAppend}
+        onEditTagsChange={setEditTags}
+        onEditAliasesChange={setEditAliases}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -18,8 +18,14 @@ def frustration_messages_verbosity() -> list[dict[str, str]]:
     """User frustrated by verbosity."""
     return [
         {"role": "user", "content": "How do I reverse a list in Python?"},
-        {"role": "assistant", "content": "Here's a detailed 10-paragraph explanation..."},
-        {"role": "user", "content": "just give me the answer, stop explaining everything"},
+        {
+            "role": "assistant",
+            "content": "Here's a detailed 10-paragraph explanation...",
+        },
+        {
+            "role": "user",
+            "content": "just give me the answer, stop explaining everything",
+        },
     ]
 
 
@@ -28,7 +34,10 @@ def frustration_messages_style_zh() -> list[dict[str, str]]:
     """Chinese user frustrated by excessive comments."""
     return [
         {"role": "user", "content": "帮我写一个排序函数"},
-        {"role": "assistant", "content": "# 这是排序函数\ndef sort(arr):\n    # 排序逻辑\n    ..."},
+        {
+            "role": "assistant",
+            "content": "# 这是排序函数\ndef sort(arr):\n    # 排序逻辑\n    ...",
+        },
         {"role": "user", "content": "以后都别加这么多注释了，我能看懂代码"},
     ]
 
@@ -48,7 +57,10 @@ def neutral_messages() -> list[dict[str, str]]:
     """Normal conversation without frustration."""
     return [
         {"role": "user", "content": "How do I create a class in Python?"},
-        {"role": "assistant", "content": "You can define a class using the class keyword..."},
+        {
+            "role": "assistant",
+            "content": "You can define a class using the class keyword...",
+        },
         {"role": "user", "content": "Thanks, that makes sense!"},
     ]
 
@@ -61,7 +73,9 @@ def neutral_messages() -> list[dict[str, str]]:
 class TestFrustrationDetectionUnit:
     """Pure unit tests for frustration detection (no LLM)."""
 
-    def test_detects_verbosity_frustration(self, frustration_messages_verbosity: list) -> None:
+    def test_detects_verbosity_frustration(
+        self, frustration_messages_verbosity: list
+    ) -> None:
         from myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector import (
             FrustrationCategory,
             detect_frustration,
@@ -71,7 +85,9 @@ class TestFrustrationDetectionUnit:
         assert result is not None
         assert result.category == FrustrationCategory.VERBOSITY
 
-    def test_detects_style_frustration_chinese(self, frustration_messages_style_zh: list) -> None:
+    def test_detects_style_frustration_chinese(
+        self, frustration_messages_style_zh: list
+    ) -> None:
         from myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector import (
             FrustrationCategory,
             detect_frustration,
@@ -81,7 +97,9 @@ class TestFrustrationDetectionUnit:
         assert result is not None
         assert result.category == FrustrationCategory.STYLE
 
-    def test_detects_format_frustration(self, frustration_messages_format: list) -> None:
+    def test_detects_format_frustration(
+        self, frustration_messages_format: list
+    ) -> None:
         from myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector import (
             FrustrationCategory,
             detect_frustration,
@@ -109,32 +127,40 @@ class TestFrustrationRoutingUnit:
 
     @pytest.mark.asyncio
     async def test_skips_when_no_frustration(self, neutral_messages: list) -> None:
-        from app.ai_agents.general_agent.frustration_routing import make_frustration_skill_routing_callback
+        from app.ai_agents.general_agent.frustration_routing import (
+            make_frustration_skill_routing_callback,
+        )
 
         mock_llm = AsyncMock(return_value="YES")
         cb = make_frustration_skill_routing_callback(
             agent_id="test-agent",
-            skill_ids=["skill-1"],
+            profile_skill_ids=["skill-1"],
             llm_func=mock_llm,
         )
         await cb(neutral_messages, "chat-1")
         mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_when_no_skills_bound(self, frustration_messages_verbosity: list) -> None:
-        from app.ai_agents.general_agent.frustration_routing import make_frustration_skill_routing_callback
+    async def test_skips_when_no_skills_bound(
+        self, frustration_messages_verbosity: list
+    ) -> None:
+        from app.ai_agents.general_agent.frustration_routing import (
+            make_frustration_skill_routing_callback,
+        )
 
         mock_llm = AsyncMock(return_value="YES")
         cb = make_frustration_skill_routing_callback(
             agent_id="test-agent",
-            skill_ids=[],
+            profile_skill_ids=[],
             llm_func=mock_llm,
         )
         await cb(frustration_messages_verbosity, "chat-1")
         mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_routes_to_relevant_skill(self, frustration_messages_verbosity: list) -> None:
+    async def test_routes_to_relevant_skill(
+        self, frustration_messages_verbosity: list
+    ) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )
@@ -178,7 +204,9 @@ class TestFrustrationRoutingUnit:
             mock_bus.return_value.publish.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_skips_locked_skill(self, frustration_messages_verbosity: list) -> None:
+    async def test_skips_locked_skill(
+        self, frustration_messages_verbosity: list
+    ) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )
@@ -204,7 +232,9 @@ class TestFrustrationRoutingUnit:
             mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_when_llm_says_not_relevant(self, frustration_messages_verbosity: list) -> None:
+    async def test_skips_when_llm_says_not_relevant(
+        self, frustration_messages_verbosity: list
+    ) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )

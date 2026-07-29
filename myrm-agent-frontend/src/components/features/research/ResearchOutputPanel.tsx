@@ -6,12 +6,13 @@
  * ../artifacts/ArtifactRenderer (POS: Artifact 预览渲染器)
  * ../artifacts/portal/PortalTabs (POS: Artifact 标签页)
  * @/services/wikiService (POS: Wiki API 客户端)
+ * @/store/useChatStore (POS: Chat session agent scope)
  *
  * [OUTPUT]
  * ResearchOutputPanel: 右栏工件输出面板
  *
  * [POS]
- * Research 右栏输出面板。复用 ArtifactRenderer 展示生成的工件，支持下载和存入 Wiki。
+ * Research 右栏输出面板。复用 ArtifactRenderer 展示生成的工件，支持下载和存入 Wiki（chat agentConfig.agentId scoped ingest）。
  */
 
 import { useTranslations } from 'next-intl';
@@ -31,6 +32,7 @@ import PortalTabs from '../artifacts/portal/PortalTabs';
 import { formatBytes, getDownloadFilename } from '../artifacts/artifactUtils';
 import { getStorageUrl } from '@/lib/api';
 import { wikiService } from '@/services/wikiService';
+import useChatStore from '@/store/useChatStore';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
 
@@ -65,7 +67,8 @@ export default function ResearchOutputPanel() {
   const handleSaveToWiki = useCallback(async () => {
     if (!activeTab) return;
     try {
-      const result = await wikiService.ingestArtifact(activeTab.artifact.id);
+      const agentId = useChatStore.getState().agentConfig?.agentId;
+      const result = await wikiService.ingestArtifact(activeTab.artifact.id, agentId);
       if (result.success) {
         toast.success(t('savedToWiki'));
       } else {

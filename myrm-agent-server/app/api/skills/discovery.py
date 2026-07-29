@@ -4,11 +4,12 @@
 app.api.skills.discovery_schemas (POS: Request/response Pydantic models)
 app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
 app.core.skills.market_service::SkillMarketService (POS: Skill search/install orchestrator)
+app.core.skills.discovery_mount::maybe_mount_after_install (POS: Post-install user catalog enable)
 app.core.skills.discovery_autoupdate::get_update_checker (POS: Update availability checker)
 
 [OUTPUT]
 router: FastAPI router with skill search, install, preview, update, uninstall,
-        URL analysis, and custom source management endpoints.
+        registry mirror probe, URL analysis, and custom source management endpoints.
 
 [POS]
 Skill discovery API. Delegates to harness BaseSkillMarketService for
@@ -21,6 +22,7 @@ from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 from app.api.skills.audit import _audit_skill_action
 from app.api.skills.discovery_schemas import (
@@ -43,6 +45,11 @@ from app.api.skills.discovery_schemas import (
     SkillUrlInfo,
     UpdateCheckResponse,
 )
+from app.core.skills.discovery_mount import (
+    SkillMountResult,
+    maybe_mount_after_install,
+    resolve_mount_skill_id,
+)
 from app.core.skills.discovery_autoupdate import get_update_checker
 from app.core.skills.market_service import SkillMarketService, market_service
 
@@ -55,17 +62,83 @@ def _discovery_framework(svc: SkillMarketService) -> BaseSkillMarketService:
     return cast(BaseSkillMarketService, svc._base)
 
 
+def _install_response(
+    result: SkillInstallResult,
+    *,
+    mount_result: SkillMountResult | None = None,
+) -> SkillInstallResponse:
+    response_skill_id = resolve_mount_skill_id(result) or result.skill_id
+    mounted = False
+    mount_agent_id = ""
+    mount_skill_id = ""
+    mount_already_present = False
+    mount_error = ""
+
+    if mount_result is not None:
+        mounted = mount_result.mounted
+        mount_agent_id = mount_result.agent_id
+        mount_skill_id = mount_result.mount_skill_id
+        mount_already_present = mount_result.already_mounted
+        mount_error = mount_result.error
+
+    return SkillInstallResponse(
+        success=result.success,
+        skill_name=result.skill_name,
+        skill_id=response_skill_id,
+        installed_path=result.installed_path,
+        error=result.error,
+        error_code=result.error_code,
+        mounted=mounted,
+        mount_agent_id=mount_agent_id,
+        mount_skill_id=mount_skill_id,
+        mount_already_present=mount_already_present,
+        mount_error=mount_error,
+    )
+
+
+@router.get("/registry-probe")
+async def probe_registry_mirror(
+    mirror: str = Query("cn", description="Mirror preset to probe (cn|intl)"),
+    url: str = Query("", description="Explicit registry base URL to probe"),
+) -> dict[str, bool | str]:
+    """Probe ClawHub-compatible registry reachability before switching mirrors."""
+    from app.core.skills.clawhub_probe import (
+        probe_clawhub_registry,
+        probe_configured_cn_mirror,
+    )
+
+    explicit = url.strip()
+    if explicit:
+        reachable, detail = await probe_clawhub_registry(explicit)
+        return {"reachable": reachable, "error": detail}
+
+    if mirror.strip().lower() == "cn":
+        reachable, detail = await probe_configured_cn_mirror()
+    else:
+        from myrm_agent_harness.agent.skills.market.sources.clawhub_registry import (
+            CLAWHUB_DEFAULT_URL,
+        )
+
+        reachable, detail = await probe_clawhub_registry(CLAWHUB_DEFAULT_URL)
+    return {"reachable": reachable, "error": detail}
+
+
 @router.get("/search", response_model=SkillSearchResponse)
 async def search_skills(
-    q: str = Query("", description="Search keywords (empty returns popular skills)"),
+    q: str = Query(
+        "",
+        description="Search keywords (empty returns no results; user must enter a query)",
+    ),
     limit: int = Query(30, ge=1, le=50, description="Max results"),
 ) -> SkillSearchResponse:
     """Search skills from external sources.
 
-    Searches across GitHub, skills.sh, and prebuilt skills.
-    When q is empty, returns all available skills sorted by popularity.
+    Searches across configured discovery sources when q is non-empty.
+    Empty q returns no results (browse requires an explicit search).
     """
+    await market_service.ensure_clawhub_registry()
     enriched = await market_service.search(q, limit)
+    installed_ids = await market_service.get_installed_local_ids_by_name()
     return SkillSearchResponse(
         results=[
             SkillSearchResultResponse(
@@ -84,6 +157,7 @@ async def search_skills(
                 subdirectory=e.result.subdirectory,
                 installed_version=e.installed_version,
                 upgrade_available=e.upgrade_available,
+                installed_skill_id=installed_ids.get(e.result.name.lower(), ""),
             )
             for e in enriched
         ],
@@ -131,19 +205,19 @@ async def install_skill(
     request: SkillInstallRequest,
 ) -> SkillInstallResponse:
     """Install a skill from external source to local filesystem."""
+    await market_service.ensure_clawhub_registry()
     result = await market_service.install(request.skill_id, request.source)
+    mount_result = None
     if result.success:
         _audit_skill_action(
             "install", result.skill_id or request.skill_id, source=request.source
         )
-    return SkillInstallResponse(
-        success=result.success,
-        skill_name=result.skill_name,
-        skill_id=result.skill_id,
-        installed_path=result.installed_path,
-        error=result.error,
-        error_code=result.error_code,
-    )
+        mount_result = await maybe_mount_after_install(
+            result,
+            agent_id=request.agent_id,
+            mount_to_agent=request.mount_to_agent,
+        )
+    return _install_response(result, mount_result=mount_result)
 
 
 @router.get(
@@ -221,19 +295,18 @@ async def update_skill(
     checker = get_update_checker()
     result = await checker.update_skill(update_info, "default")
 
+    mount_result = None
     if result.success:
         _audit_skill_action(
             "update", result.skill_id or request.skill_id, source=request.source
         )
+        mount_result = await maybe_mount_after_install(
+            result,
+            agent_id=None,
+            mount_to_agent=True,
+        )
 
-    return SkillInstallResponse(
-        success=result.success,
-        skill_name=result.skill_name,
-        skill_id=result.skill_id,
-        installed_path=result.installed_path,
-        error=result.error,
-        error_code=result.error_code,
-    )
+    return _install_response(result, mount_result=mount_result)
 
 
 @router.post("/uninstall", response_model=SkillInstallResponse)
@@ -280,19 +353,19 @@ async def install_skill_from_url(
     request: SkillInstallFromUrlRequest,
 ) -> SkillInstallResponse:
     """Install a skill directly from a GitHub URL."""
+    await market_service.ensure_clawhub_registry()
     result = await market_service.install_from_url(request.url)
+    mount_result = None
     if result.success:
         _audit_skill_action(
             "install_from_url", result.skill_id or request.url, source="github"
         )
-    return SkillInstallResponse(
-        success=result.success,
-        skill_name=result.skill_name,
-        skill_id=result.skill_id,
-        installed_path=result.installed_path,
-        error=result.error,
-        error_code=result.error_code,
-    )
+        mount_result = await maybe_mount_after_install(
+            result,
+            agent_id=request.agent_id,
+            mount_to_agent=request.mount_to_agent,
+        )
+    return _install_response(result, mount_result=mount_result)
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+/**
+ * [INPUT]
+ * @/store/useChatStore::agentConfig (POS: Chat session agent scope)
+ * @/services/wikiService::wikiService (POS: Wiki REST client with explicit agentId)
+ *
+ * [OUTPUT]
+ * SaveToWikiButton: Save assistant message content into the active agent wiki vault.
+ *
+ * [POS]
+ * Chat message action. Writes scoped concepts via the same agentId contract as ArtifactCard ingest.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { BookPlus, Loader2 } from 'lucide-react';
 import {
@@ -24,11 +36,14 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { wikiService } from '@/services/wikiService';
+import useChatStore from '@/store/useChatStore';
 import type { Message } from '@/store/chat/types';
 import {
   filterFolderNodes,
   getWikiOperationErrorMessage,
+  getWikiErrorCode,
   isNotFoundApiError,
 } from '@/components/features/settings/sections/knowledge/wiki/wikiTreeUtils';
 import { WikiFolderSelectTree } from '@/components/features/settings/sections/knowledge/wiki/WikiFolderSelectTree';
@@ -37,21 +52,23 @@ interface SaveToWikiButtonProps {
   message: Message;
 }
 
-function buildWikiContentWithProvenance(message: Message): string {
-  const savedAt = new Date().toISOString();
-  const frontmatter = [
-    '---',
-    `source_chat: ${message.chatId}`,
-    `source_message: ${message.messageId}`,
-    `saved_at: ${savedAt}`,
-    '---',
-    '',
-  ].join('\n');
-  return `${frontmatter}${message.content}`;
+function buildSaveMetadata(message: Message): Record<string, string> {
+  return {
+    source_chat: message.chatId,
+    source_message: message.messageId,
+    saved_at: new Date().toISOString(),
+  };
 }
 
 export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
   const t = useTranslations('settings.wiki.saveToWiki');
+  const tWiki = useTranslations('settings.wiki');
+  const locale = useLocale();
+  const agentId = useChatStore((state) => state.agentConfig?.agentId);
+  const agentName = useChatStore((state) => state.agentConfig?.agentName);
+  const scopeLabel = agentId
+    ? getBuiltinAgentName(agentId, agentName ?? agentId, locale)
+    : tWiki('agentScopeDefault');
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<ReturnType<typeof filterFolderNodes>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,10 +77,10 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
   const [filename, setFilename] = useState('');
   const [overwritePath, setOverwritePath] = useState<string | null>(null);
 
-  const fetchTree = async () => {
+  const fetchTree = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await wikiService.getTree();
+      const res = await wikiService.getTree(agentId);
       setTreeData(filterFolderNodes(res));
     } catch (error) {
       console.error('Failed to load wiki tree:', error);
@@ -71,7 +88,7 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [agentId, t]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,19 +102,57 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
       .toLowerCase();
     setFilename(snippet || 'untitled-note');
     setOverwritePath(null);
-  }, [isOpen, message.content]);
+    setSelectedFolder(null);
+  }, [fetchTree, isOpen, message.content]);
 
   const buildFullPath = () => (selectedFolder ? `${selectedFolder}/${filename}` : filename);
 
-  const performSave = async (fullPath: string) => {
+  const performSave = async (fullPath: string, overwrite = false) => {
     setIsSaving(true);
     try {
-      await wikiService.updateConcept(fullPath, buildWikiContentWithProvenance(message));
+      if (overwrite) {
+        const savedAt = new Date().toISOString();
+        await wikiService.applyWiki(
+          {
+            op: 'patch_compiled_truth',
+            concept_name: fullPath,
+            compiled_truth: message.content,
+          },
+          agentId,
+          'chat',
+        );
+        await wikiService.applyWiki(
+          {
+            op: 'append_timeline',
+            concept_name: fullPath,
+            timeline_entry: `Updated from chat at ${savedAt}`,
+          },
+          agentId,
+          'chat',
+        );
+      } else {
+        await wikiService.applyWiki(
+          {
+            op: 'create_note',
+            concept_name: fullPath,
+            body: message.content,
+            metadata: buildSaveMetadata(message),
+            provenance: 'chat-save',
+          },
+          agentId,
+          'chat',
+        );
+      }
       toast.success(t('saveSuccess'));
       setIsOpen(false);
       setOverwritePath(null);
     } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, t('saveFailed')));
+      const code = getWikiErrorCode(error);
+      if (code === 'canonical_conflict') {
+        toast.error(t('canonicalConflict'));
+      } else {
+        toast.error(getWikiOperationErrorMessage(error, t('saveFailed')));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +166,7 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
 
     const fullPath = buildFullPath();
     try {
-      await wikiService.getConcept(fullPath);
+      await wikiService.getConcept(fullPath, agentId);
       setOverwritePath(fullPath);
     } catch (error) {
       if (isNotFoundApiError(error)) {
@@ -144,6 +199,7 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <p className="text-xs text-muted-foreground">{tWiki('scopeChip.label', { scope: scopeLabel })}</p>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">{t('filenameLabel')}</label>
               <Input
@@ -199,7 +255,7 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (overwritePath) void performSave(overwritePath);
+                if (overwritePath) void performSave(overwritePath, true);
               }}
             >
               {t('overwriteConfirm')}

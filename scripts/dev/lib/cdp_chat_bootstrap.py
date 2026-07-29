@@ -127,9 +127,7 @@ class CdpChatBootstrap(CdpChatTransport):
             self._shell_session_started = time.monotonic()
         return self._shell_session_started
 
-    def _check_skeleton_stall(
-        self, probe: dict[str, object], *, phase: str
-    ) -> None:
+    def _check_skeleton_stall(self, probe: dict[str, object], *, phase: str) -> None:
         """Fail-fast when UI stays skeleton/blank without progress (R73-A)."""
         from dev_gate_contract import (
             E2E_SHELL_SKELETON_STALL_TOKEN,

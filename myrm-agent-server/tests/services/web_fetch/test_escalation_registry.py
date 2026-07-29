@@ -34,7 +34,7 @@ def test_resolve_firecrawl_api_key_inherits_from_search() -> None:
             SearchServiceConfigItem(
                 id="fc1",
                 enabled=True,
-                role="primary",
+                priority=1,
                 search_service="firecrawl",
                 api_key="fc-test-key",
                 createdAt=1,

@@ -171,14 +171,31 @@ class MemoryToWikiArchiver:
 
             import uuid
 
+            from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
+                RawConflictPolicy,
+                RawPublishRequest,
+                publish_raw,
+            )
+
             session_id = notes.get("session_id") or chat_id or "unknown"
             file_name = f"conversation_{session_id}_{uuid.uuid4().hex[:8]}.md"
-            raw_path = self._structure.get_raw_file_path(file_name)
-            raw_path.write_text(content, encoding="utf-8")
-            logger.info(f"Archived memory to: {raw_path}")
-
-            await self._compiler.compile_all()
-            logger.info("Wiki compilation complete")
+            result = await publish_raw(
+                self._structure,
+                RawPublishRequest(
+                    relative_path=file_name,
+                    content=content,
+                    conflict_policy=RawConflictPolicy.FAIL,
+                ),
+                caller="chat",
+            )
+            if result.security_blocked:
+                logger.warning("Skipped memory archive: sensitive content detected")
+                return False
+            if not result.written:
+                logger.warning("Skipped memory archive: raw publish did not write")
+                return False
+            logger.info(f"Archived memory to: {result.absolute_path}")
+            self._compiler.enqueue_file(result.absolute_path)
 
             return True
 
@@ -284,16 +301,27 @@ class MemoryToWikiArchiver:
                 return idx
         return 0
 
-    async def query_wiki(self, question: str) -> QueryResult:
+    async def query_wiki(
+        self,
+        question: str,
+        *,
+        query_mode: str | None = None,
+    ) -> QueryResult:
         """
         Query user's wiki knowledge base.
 
         Args:
             question: Question to ask
+            query_mode: Optional retrieval mode override (auto | raw_claim)
 
         Returns:
             Structured query result with related sources
         """
+        if query_mode and query_mode != "auto":
+            from dataclasses import replace
+
+            effective_config = replace(self._query_engine._query_config, query_mode=query_mode)
+            return await self._query_engine.query(question, query_config=effective_config)
         return await self._query_engine.query(question)
 
     async def maintain_wiki(self) -> None:

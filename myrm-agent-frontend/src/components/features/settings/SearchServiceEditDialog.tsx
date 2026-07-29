@@ -1,13 +1,12 @@
 'use client';
 
 import { memo, useState, useEffect, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { IconX, IconCheck, IconLoader, IconAlertCircle, IconHelpCircle } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   SearchServiceConfigItem,
   SearchServiceConfig,
-  SearchServiceType,
   ValidationResult,
 } from '@/store/config/types';
 import { InputField } from './FormFields';
@@ -15,8 +14,9 @@ import Tooltip from './Tooltip';
 import OptionSelect from './OptionSelect';
 import { useDeployMode } from '@/hooks/shared/useDeployMode';
 import useConfigStore from '@/store/useConfigStore';
-import { isSoftSearchServiceValidationFailure } from '@/services/llm-config';
+import { fetchSearchProviders, isSoftSearchServiceValidationFailure, type SearchProviderManifestEntry } from '@/services/llm-config';
 import { buildSearxngExtraParams, detectSearxngPreset, type SearxngRegionPreset } from '@/lib/search/searxngPresets';
+import { suggestNextPriority } from '@/store/config/searchService';
 
 interface SearchServiceEditDialogProps {
   isOpen: boolean;
@@ -30,19 +30,22 @@ interface SearchServiceEditDialogProps {
 const SearchServiceEditDialog = memo(
   ({ isOpen, onClose, config, isCreating, onSave, onValidate }: SearchServiceEditDialogProps) => {
     const t = useTranslations('settings');
+    const locale = useLocale();
+    const isZh = locale.startsWith('zh');
     const { isLocal } = useDeployMode();
 
-    // 表单状态
     const [name, setName] = useState('');
-    const [searchService, setSearchService] = useState<SearchServiceType>('tavily');
+    const [searchService, setSearchService] = useState('tavily');
     const [apiKey, setApiKey] = useState('');
     const [apiBase, setApiBase] = useState('');
     const [extraParams, setExtraParams] = useState('');
     const [regionPreset, setRegionPreset] = useState<SearxngRegionPreset>('global');
     const [enabled, setEnabled] = useState(false);
-    const [role, setRole] = useState<'primary' | 'fallback'>('primary');
+    const [priority, setPriority] = useState(1);
+    const [providers, setProviders] = useState<SearchProviderManifestEntry[]>([]);
+    const [maxChainSize, setMaxChainSize] = useState(5);
+    const [providersLoading, setProvidersLoading] = useState(false);
 
-    // 验证状态
     const [isValidating, setIsValidating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [validationSuccess, setValidationSuccess] = useState(false);
@@ -50,40 +53,33 @@ const SearchServiceEditDialog = memo(
     const [validationLatency, setValidationLatency] = useState<number | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // 需要 API Key 的服务列表
-    const servicesRequiringApiKey: SearchServiceType[] = [
-      'perplexity',
-      'tavily',
-      'exa_ai',
-      'parallel_ai',
-      'google_pse',
-      'dataforseo',
-      'firecrawl',
-    ];
-
-    // 获取当前所有配置（用于智能角色推荐）
     const { searchServiceConfigs } = useConfigStore();
 
-    // 智能推荐角色（仅在创建新配置时）
-    const recommendedRole = useMemo(() => {
+    const activeProvider = useMemo(
+      () => providers.find((p) => p.slug === searchService),
+      [providers, searchService],
+    );
+
+    const recommendedPriority = useMemo(() => {
       if (!isOpen || config) {
-        return 'primary';
+        return 1;
       }
-
-      const enabledConfigs = searchServiceConfigs.filter((c) => c.enabled);
-      const hasPrimary = enabledConfigs.some((c) => c.role === 'primary');
-      const hasFallback = enabledConfigs.some((c) => c.role === 'fallback');
-
-      return hasPrimary && !hasFallback ? 'fallback' : 'primary';
+      return suggestNextPriority(searchServiceConfigs);
     }, [isOpen, config, searchServiceConfigs]);
 
-    // 计算当前已启用的配置信息（用于显示提示）
-    const enabledConfigsInfo = useMemo(() => {
+    const enabledByPriority = useMemo(() => {
       const enabled = searchServiceConfigs.filter((c) => c.enabled && c.id !== config?.id);
-      const primary = enabled.find((c) => c.role === 'primary');
-      const fallback = enabled.find((c) => c.role === 'fallback');
-      return { primary, fallback };
+      return [...enabled].sort((a, b) => a.priority - b.priority);
     }, [searchServiceConfigs, config?.id]);
+
+    const priorityOptions = useMemo(
+      () =>
+        Array.from({ length: maxChainSize }, (_, i) => {
+          const value = i + 1;
+          return { value: String(value), label: t('searchServicePriorityOption', { priority: value }) };
+        }),
+      [maxChainSize, t],
+    );
 
     const searxngPresetOptions = useMemo(
       () => [
@@ -94,6 +90,30 @@ const SearchServiceEditDialog = memo(
       ],
       [t],
     );
+
+    useEffect(() => {
+      if (!isOpen) {
+        return;
+      }
+      let cancelled = false;
+      setProvidersLoading(true);
+      void fetchSearchProviders(isLocal)
+        .then((data) => {
+          if (cancelled) return;
+          setProviders(data.providers);
+          setMaxChainSize(data.maxChainSize);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setProviders([]);
+        })
+        .finally(() => {
+          if (!cancelled) setProvidersLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [isOpen, isLocal]);
 
     const resolveExtraParams = (): Record<string, unknown> | null => {
       if (searchService === 'searxng') {
@@ -109,7 +129,6 @@ const SearchServiceEditDialog = memo(
       }
     };
 
-    // 初始化表单
     useEffect(() => {
       if (isOpen) {
         if (config) {
@@ -124,9 +143,8 @@ const SearchServiceEditDialog = memo(
               : 'global',
           );
           setEnabled(config.enabled);
-          setRole(config.role || 'primary');
+          setPriority(config.priority || 1);
         } else {
-          // 创建新配置时重置表单
           setName('');
           setSearchService(isLocal ? 'searxng' : 'tavily');
           setApiKey('');
@@ -134,16 +152,15 @@ const SearchServiceEditDialog = memo(
           setExtraParams('');
           setRegionPreset('global');
           setEnabled(false);
-          setRole(recommendedRole);
+          setPriority(recommendedPriority);
         }
         setErrors({});
         setValidationError('');
         setValidationSuccess(false);
         setValidationLatency(null);
       }
-    }, [isOpen, config, recommendedRole, isLocal]);
+    }, [isOpen, config, recommendedPriority, isLocal]);
 
-    // 表单验证
     const validateForm = (): boolean => {
       const newErrors: Record<string, string> = {};
 
@@ -161,8 +178,14 @@ const SearchServiceEditDialog = memo(
         newErrors.searchService = t('modelRequired');
       }
 
-      if (servicesRequiringApiKey.includes(searchService) && !apiKey) {
+      const requiresKey = activeProvider?.requiresApiKey ?? searchService !== 'searxng';
+      if (requiresKey && !apiKey) {
         newErrors.apiKey = t('apiKeyRequired');
+      }
+
+      const requiresBase = activeProvider?.requiresApiBase ?? searchService === 'searxng';
+      if (requiresBase && !apiBase.trim()) {
+        newErrors.apiBase = t('apiBaseRequired');
       }
 
       if (searchService !== 'searxng' && extraParams.trim()) {
@@ -177,7 +200,6 @@ const SearchServiceEditDialog = memo(
       return Object.keys(newErrors).length === 0;
     };
 
-    // 验证配置
     const handleValidate = async () => {
       if (!validateForm()) return;
 
@@ -213,19 +235,15 @@ const SearchServiceEditDialog = memo(
       }
     };
 
-    // 保存配置（点击保存时自动验证，验证通过才可保存成功）
     const handleSave = async () => {
       if (!validateForm()) return;
 
-      // 只有当配置已启用时才检查角色冲突
-      // 未启用的配置可以自由设置任何角色，冲突将在启用时检查
       if (config?.enabled) {
         const existingConfigs = searchServiceConfigs.filter((c) => c.id !== config?.id);
-        const hasConflict = existingConfigs.some((c) => c.role === role && c.enabled);
+        const hasConflict = existingConfigs.some((c) => c.priority === priority && c.enabled);
 
         if (hasConflict) {
-          const conflictMessage = role === 'primary' ? t('onlyOnePrimaryService') : t('onlyOneFallbackService');
-          setErrors({ role: conflictMessage });
+          setErrors({ priority: t('duplicatePriorityError') });
           return;
         }
       }
@@ -256,7 +274,6 @@ const SearchServiceEditDialog = memo(
           const warningMessage = result.message || t('searchServiceValidationFailed');
           setValidationError(warningMessage);
           setValidationSuccess(false);
-          // 外部搜索服务可能因为配额/限流/瞬时网络问题无法通过验证，但配置本身仍可保存。
           if (searchService !== 'searxng' && !isSoftSearchServiceValidationFailure(result)) {
             return;
           }
@@ -270,8 +287,8 @@ const SearchServiceEditDialog = memo(
         const newConfig: SearchServiceConfigItem = {
           id: config?.id || '',
           name: name.trim() || null,
-          enabled: enabled,
-          role: role,
+          enabled,
+          priority,
           search_service: searchService,
           api_key: apiKey || null,
           api_base: apiBase || null,
@@ -289,14 +306,14 @@ const SearchServiceEditDialog = memo(
       }
     };
 
-    // 处理服务类型变更
     const handleServiceChange = (value: string) => {
-      const newService = value as SearchServiceType;
-      setSearchService(newService);
-
-      // 清除相关字段
+      const entry = providers.find((p) => p.slug === value);
+      if (entry && !entry.backendReady) {
+        return;
+      }
+      setSearchService(value);
       setApiKey('');
-      setApiBase(newService === 'searxng' ? 'http://127.0.0.1:8081' : '');
+      setApiBase(value === 'searxng' ? 'http://127.0.0.1:8081' : '');
       setExtraParams('');
       setRegionPreset('global');
       setErrors({});
@@ -304,32 +321,45 @@ const SearchServiceEditDialog = memo(
       setValidationSuccess(false);
     };
 
-    const showApiKeyField = servicesRequiringApiKey.includes(searchService);
-    const isFormValid =
-      searchService && (!showApiKeyField || apiKey) && (searchService !== 'searxng' || !!apiBase.trim());
+    const serviceOptions = useMemo(() => {
+      if (providers.length > 0) {
+        return providers.map((entry) => ({
+          value: entry.slug,
+          label: isZh ? entry.nameZh : entry.name,
+          disabled: !entry.backendReady,
+          description: !entry.backendReady ? t('searchServiceProviderNotReady') : undefined,
+        }));
+      }
+      const fallback = [
+        ...(isLocal ? [{ value: 'searxng', label: t('searxngFreeLocal') }] : []),
+        { value: 'perplexity', label: 'Perplexity' },
+        { value: 'tavily', label: 'Tavily' },
+        { value: 'exa_ai', label: 'Exa AI' },
+        { value: 'parallel_ai', label: 'Parallel AI' },
+        { value: 'google_pse', label: 'Google PSE' },
+        { value: 'dataforseo', label: 'DataForSEO' },
+        { value: 'firecrawl', label: 'Firecrawl' },
+        { value: 'brave', label: 'Brave Search' },
+        { value: 'serper', label: 'Serper' },
+      ];
+      return fallback;
+    }, [providers, isLocal, isZh, t]);
 
-    // 根据部署模式动态生成选项列表
-    const serviceOptions = [
-      ...(isLocal ? [{ value: 'searxng', label: t('searxngFreeLocal') }] : []),
-      { value: 'perplexity', label: 'Perplexity' },
-      { value: 'tavily', label: 'Tavily' },
-      { value: 'exa_ai', label: 'Exa AI' },
-      { value: 'parallel_ai', label: 'Parallel AI' },
-      { value: 'google_pse', label: 'Google PSE' },
-      { value: 'dataforseo', label: 'DataForSEO' },
-      { value: 'firecrawl', label: 'Firecrawl' },
-    ];
+    const showApiKeyField = activeProvider?.requiresApiKey ?? searchService !== 'searxng';
+    const showApiBaseField = activeProvider?.requiresApiBase ?? searchService === 'searxng';
+    const isFormValid =
+      searchService &&
+      (!showApiKeyField || apiKey) &&
+      (!showApiBaseField || !!apiBase.trim()) &&
+      (!activeProvider || activeProvider.backendReady);
 
     if (!isOpen) return null;
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">
-        {/* 背景遮罩 */}
         <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-        {/* 对话框 */}
         <div className="relative bg-background rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-          {/* 头部 */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">
               {isCreating ? t('searchService.addConfig') : t('searchService.editConfig')}
@@ -342,9 +372,7 @@ const SearchServiceEditDialog = memo(
             </button>
           </div>
 
-          {/* 内容 */}
           <div className="px-6 py-4 space-y-4">
-            {/* 可选的配置名称 */}
             <InputField
               label={t('searchService.configName')}
               placeholder={t('searchService.configNamePlaceholder')}
@@ -356,7 +384,6 @@ const SearchServiceEditDialog = memo(
               error={errors.name}
             />
 
-            {/* 搜索服务类型 */}
             <div className="flex flex-col space-y-1">
               <div className="flex items-center space-x-1">
                 <p className="text-black/70 dark:text-white/70 text-sm">
@@ -366,16 +393,19 @@ const SearchServiceEditDialog = memo(
                   <IconHelpCircle className="w-3.5 h-3.5 text-black/50 dark:text-white/50 cursor-help" />
                 </Tooltip>
               </div>
-              <OptionSelect
-                value={searchService}
-                onChange={handleServiceChange}
-                error={errors.searchService}
-                hideDescription
-                options={serviceOptions}
-              />
+              {providersLoading ? (
+                <p className="text-sm text-muted-foreground">{t('searchServiceLoadingProviders')}</p>
+              ) : (
+                <OptionSelect
+                  value={searchService}
+                  onChange={handleServiceChange}
+                  error={errors.searchService}
+                  hideDescription={false}
+                  options={serviceOptions}
+                />
+              )}
             </div>
 
-            {/* API Key */}
             {showApiKeyField && (
               <InputField
                 label={t('searchApiKey')}
@@ -388,7 +418,6 @@ const SearchServiceEditDialog = memo(
               />
             )}
 
-            {/* SearXNG Sandbox 模式警告 */}
             {searchService === 'searxng' && !isLocal && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <IconAlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
@@ -396,8 +425,7 @@ const SearchServiceEditDialog = memo(
               </div>
             )}
 
-            {/* API Base URL - 对 searxng 显示（可选配置本地实例地址） */}
-            {searchService === 'searxng' && (
+            {showApiBaseField && (
               <InputField
                 label={t('apiBase')}
                 placeholder="http://127.0.0.1:8081"
@@ -425,7 +453,6 @@ const SearchServiceEditDialog = memo(
               </div>
             )}
 
-            {/* Extra Params - non-SearXNG services */}
             {searchService !== 'searxng' && (
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center space-x-1">
@@ -447,72 +474,47 @@ const SearchServiceEditDialog = memo(
               </div>
             )}
 
-            {/* 角色选择 */}
             <div className="border-t border-border pt-4 mt-4">
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center space-x-1">
                   <p className="text-black/70 dark:text-white/70 text-sm font-medium">
-                    {t('searchServiceRole')} <span className="text-red-500">*</span>
+                    {t('searchServicePriority')} <span className="text-red-500">*</span>
                   </p>
-                  <Tooltip content={t('searchServiceRoleTooltip')}>
+                  <Tooltip content={t('searchServicePriorityTooltip')}>
                     <IconHelpCircle className="w-3.5 h-3.5 text-black/50 dark:text-white/50 cursor-help" />
                   </Tooltip>
                 </div>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={role === 'primary'}
-                      onChange={() => {
-                        setRole('primary');
-                        setErrors((prev) => ({ ...prev, role: undefined }));
-                      }}
-                      className="w-4 h-4 accent-primary border-border focus:ring-primary"
-                    />
-                    <span className="text-sm text-black dark:text-white">{t('primaryService')}</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={role === 'fallback'}
-                      onChange={() => {
-                        setRole('fallback');
-                        setErrors((prev) => ({ ...prev, role: undefined }));
-                      }}
-                      className="w-4 h-4 accent-primary border-border focus:ring-primary"
-                    />
-                    <span className="text-sm text-black dark:text-white">{t('fallbackService')}</span>
-                  </label>
-                </div>
+                <OptionSelect
+                  value={String(priority)}
+                  onChange={(value) => {
+                    setPriority(Number(value));
+                    setErrors((prev) => ({ ...prev, priority: undefined }));
+                  }}
+                  hideDescription
+                  options={priorityOptions}
+                  error={errors.priority}
+                />
 
-                {/* 已启用配置信息提示 */}
-                {(enabledConfigsInfo.primary || enabledConfigsInfo.fallback) && (
+                {enabledByPriority.length > 0 && (
                   <div className="mt-2 p-2 bg-accent dark:bg-accent border border-border dark:border-border rounded-lg">
                     <p className="text-xs text-accent-foreground dark:text-accent-foreground font-medium mb-1">
                       {t('currentEnabledConfigs')}
                     </p>
                     <div className="space-y-0.5">
-                      {enabledConfigsInfo.primary && (
-                        <p className="text-xs text-muted-foreground dark:text-muted-foreground">
-                          • {t('primaryService')}:{' '}
-                          {enabledConfigsInfo.primary.name || enabledConfigsInfo.primary.search_service}
+                      {enabledByPriority.map((item) => (
+                        <p key={item.id} className="text-xs text-muted-foreground dark:text-muted-foreground">
+                          • {t('searchServicePriorityOption', { priority: item.priority })}:{' '}
+                          {item.name || item.search_service}
                         </p>
-                      )}
-                      {enabledConfigsInfo.fallback && (
-                        <p className="text-xs text-muted-foreground dark:text-muted-foreground">
-                          • {t('fallbackService')}:{' '}
-                          {enabledConfigsInfo.fallback.name || enabledConfigsInfo.fallback.search_service}
-                        </p>
-                      )}
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {errors.role && <p className="text-xs text-red-500 font-medium">{errors.role}</p>}
+                {errors.priority && <p className="text-xs text-red-500 font-medium">{errors.priority}</p>}
               </div>
             </div>
 
-            {/* 验证错误 */}
             {validationError && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 flex items-start space-x-2">
                 <IconAlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -520,7 +522,6 @@ const SearchServiceEditDialog = memo(
               </div>
             )}
 
-            {/* 验证成功 */}
             {validationSuccess && (
               <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-start space-x-2">
                 <IconCheck className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
@@ -532,9 +533,7 @@ const SearchServiceEditDialog = memo(
             )}
           </div>
 
-          {/* 底部操作 */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/30">
-            {/* 验证按钮 */}
             <button
               onClick={handleValidate}
               disabled={isValidating || !isFormValid}

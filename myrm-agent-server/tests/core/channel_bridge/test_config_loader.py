@@ -4,16 +4,67 @@ from app.core.channel_bridge.config_parsers import (
     extract_active_search_config as _extract_active_search_config,
 )
 from app.core.channel_bridge.config_parsers import (
+    extract_search_provider_chain,
     extract_voice_config,
     extract_web_tts_config,
 )
 
 
 class TestExtractActiveSearchConfig:
-    """测试_extract_active_search_config函数"""
+    """测试_extract_active_search_config函数（priority chain）"""
 
-    def test_primary_and_fallback_extraction(self):
-        """测试提取主服务和备用服务"""
+    def test_priority_chain_extraction(self):
+        search_services = {
+            "searchServiceConfigs": [
+                {
+                    "id": "1",
+                    "enabled": True,
+                    "priority": 1,
+                    "search_service": "tavily",
+                    "api_key": "tavily_key",
+                },
+                {
+                    "id": "2",
+                    "enabled": True,
+                    "priority": 2,
+                    "search_service": "searxng",
+                    "api_base": "http://localhost:8081",
+                },
+            ]
+        }
+
+        result = _extract_active_search_config(search_services)
+
+        assert result is not None
+        assert result.search_service == "tavily"
+        assert result.api_key == "tavily_key"
+        assert result.provider_chain is not None
+        assert len(result.provider_chain) == 2
+        assert result.provider_chain[0].search_service == "tavily"
+        assert result.provider_chain[1].search_service == "searxng"
+        assert result.provider_chain[1].api_base == "http://localhost:8081"
+
+    def test_only_single_provider(self):
+        search_services = {
+            "searchServiceConfigs": [
+                {
+                    "id": "1",
+                    "enabled": True,
+                    "priority": 1,
+                    "search_service": "tavily",
+                    "api_key": "key",
+                }
+            ]
+        }
+
+        result = _extract_active_search_config(search_services)
+
+        assert result is not None
+        assert result.search_service == "tavily"
+        assert result.provider_chain is not None
+        assert len(result.provider_chain) == 1
+
+    def test_legacy_role_migration(self):
         search_services = {
             "searchServiceConfigs": [
                 {
@@ -21,7 +72,7 @@ class TestExtractActiveSearchConfig:
                     "enabled": True,
                     "role": "primary",
                     "search_service": "tavily",
-                    "api_key": "tavily_key",
+                    "api_key": "key",
                 },
                 {
                     "id": "2",
@@ -33,65 +84,25 @@ class TestExtractActiveSearchConfig:
             ]
         }
 
-        result = _extract_active_search_config(search_services)
-
-        assert result.search_service == "tavily"
-        assert result.api_key == "tavily_key"
-        assert result.fallback_config is not None
-        assert result.fallback_config.search_service == "searxng"
-        assert result.fallback_config.api_base == "http://localhost:8081"
-
-    def test_only_primary_no_fallback(self):
-        """测试只有主服务，无备用服务"""
-        search_services = {
-            "searchServiceConfigs": [
-                {
-                    "id": "1",
-                    "enabled": True,
-                    "role": "primary",
-                    "search_service": "tavily",
-                    "api_key": "key",
-                }
-            ]
-        }
-
-        result = _extract_active_search_config(search_services)
-
-        assert result.search_service == "tavily"
-        assert result.fallback_config is None
-
-    def test_only_fallback_no_primary(self):
-        """测试只有备用服务，无主服务（应使用fallback作为primary）"""
-        search_services = {
-            "searchServiceConfigs": [
-                {
-                    "id": "1",
-                    "enabled": True,
-                    "role": "fallback",
-                    "search_service": "searxng",
-                }
-            ]
-        }
-
-        result = _extract_active_search_config(search_services)
-
-        assert result.search_service == "searxng"
+        chain = extract_search_provider_chain(search_services)
+        assert len(chain) == 2
+        assert chain[0].search_service == "tavily"
+        assert chain[1].search_service == "searxng"
 
     def test_disabled_configs_ignored(self):
-        """测试禁用的配置被忽略"""
         search_services = {
             "searchServiceConfigs": [
                 {
                     "id": "1",
                     "enabled": False,
-                    "role": "primary",
+                    "priority": 1,
                     "search_service": "tavily",
                     "api_key": "key",
                 },
                 {
                     "id": "2",
                     "enabled": True,
-                    "role": "fallback",
+                    "priority": 2,
                     "search_service": "searxng",
                 },
             ]
@@ -99,86 +110,52 @@ class TestExtractActiveSearchConfig:
 
         result = _extract_active_search_config(search_services)
 
+        assert result is not None
         assert result.search_service == "searxng"
-        assert result.fallback_config is not None
-        assert result.fallback_config.search_service == "searxng"
+        assert result.provider_chain is not None
+        assert len(result.provider_chain) == 1
 
     def test_empty_config_returns_none(self):
-        """Unconfigured search returns None (no implicit searxng fallback)."""
         result = _extract_active_search_config(None)
-
         assert result is None
 
     def test_empty_list_returns_none(self):
-        """Empty searchServiceConfigs returns None."""
         search_services = {"searchServiceConfigs": []}
-
         result = _extract_active_search_config(search_services)
-
         assert result is None
 
     def test_no_enabled_configs_returns_none(self):
-        """All-disabled configs return None."""
         search_services = {
             "searchServiceConfigs": [
-                {"id": "1", "enabled": False, "role": "primary", "search_service": "tavily"},
+                {"id": "1", "enabled": False, "priority": 1, "search_service": "tavily"},
             ]
         }
-
         result = _extract_active_search_config(search_services)
-
         assert result is None
 
-    def test_backward_compatibility_no_role(self):
-        """测试向后兼容（无role字段时使用第一个enabled配置）"""
+    def test_priority_sorting(self):
         search_services = {
             "searchServiceConfigs": [
-                {"id": "1", "enabled": True, "search_service": "tavily", "api_key": "key"},
-                {"id": "2", "enabled": True, "search_service": "perplexity", "api_key": "key2"},
+                {"id": "1", "enabled": True, "priority": 3, "search_service": "perplexity", "api_key": "k"},
+                {"id": "2", "enabled": True, "priority": 1, "search_service": "tavily", "api_key": "k1"},
             ]
         }
 
         result = _extract_active_search_config(search_services)
 
+        assert result is not None
         assert result.search_service == "tavily"
-
-    def test_multiple_primary_uses_first(self):
-        """测试多个primary时使用第一个"""
-        search_services = {
-            "searchServiceConfigs": [
-                {"id": "1", "enabled": True, "role": "primary", "search_service": "tavily", "api_key": "key1"},
-                {"id": "2", "enabled": True, "role": "primary", "search_service": "perplexity", "api_key": "key2"},
-            ]
-        }
-
-        result = _extract_active_search_config(search_services)
-
-        assert result.search_service == "tavily"
-
-    def test_multiple_fallback_uses_first(self):
-        """测试多个fallback时使用第一个"""
-        search_services = {
-            "searchServiceConfigs": [
-                {"id": "1", "enabled": True, "role": "primary", "search_service": "tavily", "api_key": "key"},
-                {"id": "2", "enabled": True, "role": "fallback", "search_service": "searxng"},
-                {"id": "3", "enabled": True, "role": "fallback", "search_service": "perplexity", "api_key": "key2"},
-            ]
-        }
-
-        result = _extract_active_search_config(search_services)
-
-        assert result.search_service == "tavily"
-        assert result.fallback_config is not None
-        assert result.fallback_config.search_service == "searxng"
+        assert result.provider_chain is not None
+        assert result.provider_chain[0].search_service == "tavily"
+        assert result.provider_chain[1].search_service == "perplexity"
 
     def test_extra_params_preserved(self):
-        """测试额外参数被保留"""
         search_services = {
             "searchServiceConfigs": [
                 {
                     "id": "1",
                     "enabled": True,
-                    "role": "primary",
+                    "priority": 1,
                     "search_service": "tavily",
                     "api_key": "key",
                     "extra_params": {"search_depth": "advanced", "topic": "news"},
@@ -186,7 +163,7 @@ class TestExtractActiveSearchConfig:
                 {
                     "id": "2",
                     "enabled": True,
-                    "role": "fallback",
+                    "priority": 2,
                     "search_service": "searxng",
                     "extra_params": {"engines": ["google", "bing"]},
                 },
@@ -195,8 +172,10 @@ class TestExtractActiveSearchConfig:
 
         result = _extract_active_search_config(search_services)
 
+        assert result is not None
         assert result.extra_params == {"search_depth": "advanced", "topic": "news"}
-        assert result.fallback_config.extra_params == {"engines": ["google", "bing"]}
+        assert result.provider_chain is not None
+        assert result.provider_chain[1].extra_params == {"engines": ["google", "bing"]}
 
 
 class TestExtractVoiceConfig:

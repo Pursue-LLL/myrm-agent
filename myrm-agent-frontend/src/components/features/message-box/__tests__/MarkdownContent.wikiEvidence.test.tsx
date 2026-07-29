@@ -56,12 +56,20 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
     open,
     level,
     surface,
+    snapshotStatus,
   }: {
     open: boolean;
     level?: string;
     surface?: string;
+    snapshotStatus?: string;
   }) => (
-    <div data-testid="kb-drawer" data-open={open ? '1' : '0'} data-level={level ?? ''} data-surface={surface ?? ''} />
+    <div
+      data-testid="kb-drawer"
+      data-open={open ? '1' : '0'}
+      data-level={level ?? ''}
+      data-surface={surface ?? ''}
+      data-snapshot-status={snapshotStatus ?? ''}
+    />
   ),
 }));
 
@@ -106,5 +114,35 @@ describe('MarkdownContent wiki evidence flow', () => {
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-level')).toBe('L1');
     expect(drawer.getAttribute('data-surface')).toBe('chat');
+  });
+
+  it('opens kb drawer with snapshot status for stale claim evidence', () => {
+    const sources: Source[] = [
+      {
+        index: 1,
+        type: 'knowledge',
+        kb_name: 'LLM-Wiki',
+        filename: 'budget',
+        section: 'Claim',
+        snippet: 'Budget fact',
+        level: 'L2',
+        snapshot_status: 'stale',
+        source_key: 'kb:LLM-Wiki:/concepts/budget.md:claim:claim.budget:evidence:raw/source.md:1-3',
+      },
+    ];
+
+    render(
+      <MarkdownContent
+        content="Answer with evidence <citation data-source-index='0' data-num='1' />"
+        sources={sources}
+        messageId="msg-stale"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('1'));
+
+    const drawer = screen.getByTestId('kb-drawer');
+    expect(drawer.getAttribute('data-open')).toBe('1');
+    expect(drawer.getAttribute('data-snapshot-status')).toBe('stale');
   });
 });

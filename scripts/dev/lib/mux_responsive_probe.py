@@ -100,6 +100,17 @@ def _mux_tools_list_probe(socket_path: str, *, timeout_sec: float) -> bool:
         sock.close()
 
 
+def mux_tools_list_responsive(*, timeout_sec: float = 8.0) -> bool:
+    """Lightweight mux daemon responsiveness check (tools/list over Unix socket)."""
+    socket_path = os.environ.get("CDMCP_MUX_SOCKET", "").strip()
+    if not socket_path:
+        socket_path = str(Path.home() / ".local/state/cdmcp-mux/daemon.sock")
+    if not socket_path or not os.path.exists(socket_path):
+        return False
+    bounded = max(0.5, min(timeout_sec, 60.0))
+    return _mux_tools_list_probe(socket_path, timeout_sec=bounded)
+
+
 def mux_timeout_effective(
     *,
     state_dir: Path,

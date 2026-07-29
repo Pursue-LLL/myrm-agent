@@ -5,10 +5,12 @@ from __future__ import annotations
 import pytest
 
 from tests.e2e.desktop_approval.infra_retry import (
+    _resolve_open_nav_strategies,
     _resolve_open_nav_wall_timeout_sec,
     is_retriable_page_transport,
     should_abort_desktop_e2e_retries,
 )
+from tests.e2e.desktop_approval.constants import BASE_URL
 
 
 def test_detached_frame_is_retriable_not_abort() -> None:
@@ -49,4 +51,25 @@ def test_signoff_open_nav_wall_timeout_extended(
     monkeypatch.delenv("E2E_SIGNOFF", raising=False)
     assert _resolve_open_nav_wall_timeout_sec() == 70.0
     monkeypatch.setenv("E2E_SIGNOFF", "1")
-    assert _resolve_open_nav_wall_timeout_sec() == 420.0
+    assert _resolve_open_nav_wall_timeout_sec() == 900.0
+
+
+def test_signoff_open_nav_strategies_direct_with_mux_recover(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("E2E_SIGNOFF", raising=False)
+    assert len(_resolve_open_nav_strategies()) == 3
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+    assert _resolve_open_nav_strategies() == [
+        ("direct", BASE_URL),
+        ("direct_recover", BASE_URL),
+        ("direct_recover", BASE_URL),
+    ]
+
+
+def test_connection_reset_during_tools_call_is_retriable_not_abort() -> None:
+    exc = RuntimeError(
+        "Chrome MCP tools/call error: Chrome MCP connection reset during tools/call; retry this call"
+    )
+    assert is_retriable_page_transport(exc) is True
+    assert should_abort_desktop_e2e_retries(exc) is False

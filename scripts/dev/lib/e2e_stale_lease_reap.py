@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - maybe_reap_excess_wave_leases: run wave reap when leases exceed live tests + slack
-- maybe_reap_hung_chrome_e2e_pytest: SIGINT hung BODY tests + wave reap
+- maybe_reap_hung_chrome_e2e_pytest: SIGINT hung BODY tests + wave reap (body≥600 · progress_stale≥90 · E2E_NODE_STUCK≥120s on transport nodes)
 
 [POS]
 Admission queue relief — stale/hung leases inflate cap pressure under parallel chrome_e2e.
@@ -53,26 +53,57 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import (  # noqa: PLC0415
-        LIVE_AGENT_PYTEST_WALL_CAP_SEC,
-        LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
         STALL_PROGRESS_SEC,
     )
     from transport_supervisor import live_agent_pytest_wall_cap_sec  # noqa: PLC0415
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
+        phase_elapsed_from_snapshot,
         progress_stale_sec,
         resolve_session_snapshot,
     )
 
     snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
     if snapshot is not None:
-        body_elapsed = body_elapsed_from_snapshot(snapshot)
-        if body_elapsed is not None and body_elapsed >= float(
-            LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-        ):
-            return (
-                f"body_elapsed={int(body_elapsed)}s>={LIVE_SINGLE_TEST_WALL_CLOCK_SEC}s"
+        phase = str(snapshot.get("phase") or "").strip().lower()
+        if phase == "bootstrap":
+            from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
+
+            bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
+            bootstrap_elapsed = phase_elapsed_from_snapshot(snapshot)
+            elapsed_for_cap = (
+                bootstrap_elapsed if bootstrap_elapsed is not None else row.elapsed_sec
             )
+            if elapsed_for_cap >= bootstrap_cap:
+                return (
+                    f"bootstrap_elapsed={int(elapsed_for_cap)}s>={int(bootstrap_cap)}s"
+                )
+            return None
+        body_elapsed = body_elapsed_from_snapshot(snapshot)
+        if body_elapsed is not None:
+            from transport_supervisor import (
+                live_agent_body_wall_cap_sec,
+            )  # noqa: PLC0415
+
+            body_cap = float(live_agent_body_wall_cap_sec(pessimistic=True))
+            stale = progress_stale_sec(snapshot)
+            if body_elapsed >= body_cap and (
+                stale is None or stale >= float(STALL_PROGRESS_SEC)
+            ):
+                stale_note = (
+                    f" progress_stale={int(stale)}s"
+                    if stale is not None
+                    else " progress_stale=unknown"
+                )
+                return (
+                    f"body_elapsed={int(body_elapsed)}s>={int(body_cap)}s"
+                    f"{stale_note}"
+                )
+        from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+
+        node_stuck = node_stuck_reason_from_snapshot(snapshot)
+        if node_stuck is not None:
+            return node_stuck
         stale = progress_stale_sec(snapshot)
         if (
             body_elapsed is not None
@@ -81,10 +112,10 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             and stale >= float(STALL_PROGRESS_SEC)
         ):
             return f"progress_stale={int(stale)}s>={STALL_PROGRESS_SEC}s"
-    if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec()):
+    if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec(pessimistic_peers=True)):
         return (
             f"process_elapsed={int(row.elapsed_sec)}s>="
-            f"{live_agent_pytest_wall_cap_sec()}s"
+            f"{live_agent_pytest_wall_cap_sec(pessimistic_peers=True)}s"
         )
     return None
 

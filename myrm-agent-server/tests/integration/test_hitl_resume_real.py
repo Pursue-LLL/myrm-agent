@@ -54,10 +54,12 @@ def _build_mock_user_configs() -> object:
     search_services_dict: dict[str, object] = {
         "searchServiceConfigs": [
             {
+                "id": "hitl-search-primary",
                 "enabled": True,
-                "role": "primary",
+                "priority": 1,
                 "search_service": os.getenv("SEARCH_SERVICE", "tavily"),
                 "api_key": os.getenv("TAVILY_API_KEY", "test-tavily-key"),
+                "createdAt": 1,
             }
         ]
     }

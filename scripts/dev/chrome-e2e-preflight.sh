@@ -89,13 +89,12 @@ _maybe_seed_providers() {
 _wait_attach_endpoints_under_parallel_load() {
   local initial_errors="$1"
   [[ -n "${initial_errors}" ]] || return 0
-  local active_leases wait_sec poll_sec waited errors heal_during_wait=0
+  local active_leases wait_sec poll_sec waited errors heal_during_wait=0 ui_heal_during_wait=0
   active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
   [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
 
-  wait_sec="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
+  wait_sec="$(_attach_parallel_wait_sec)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
-  [[ "${wait_sec}" =~ ^[0-9]+$ ]] || wait_sec=180
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   waited=0
   while true; do
@@ -108,6 +107,9 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     [[ -z "${errors}" ]] && return 0
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       printf '%s\n' "${errors}" >&2
+      if [[ "${errors}" == *"ui=half_dead"* ]]; then
+        echo "E2E_ATTACH_UI_HALF_DEAD_QUEUE: attach ADMIT waited ${wait_sec}s — shared UI still half_dead; leases=${active_leases} (do not stop other pytest; pending heal when idle)" >&2
+      fi
       return 1
     fi
     if [[ "${errors}" == *"api=unreachable"* ]] \
@@ -121,6 +123,19 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
         continue
       fi
     fi
+    if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
+      && [[ "${waited}" -ge 30 ]] \
+      && [[ $((waited % 30)) -eq 0 ]] \
+      && [[ "${ui_heal_during_wait:-0}" -lt 2 ]]; then
+      ui_heal_during_wait=$((ui_heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: ui half_dead during attach queue — bounded frontend heal ${ui_heal_during_wait}/2 (do not stop other pytest)" >&2
+      if command -v timeout >/dev/null 2>&1; then
+        timeout 60 bash -c '_heal_shared_ui_if_stale' || true
+      else
+        _heal_shared_ui_if_stale || true
+      fi
+      continue
+    fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}/${wait_sec}s" >&2
     fi
@@ -129,12 +144,34 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
   done
 }
 
+_attach_parallel_wait_sec() {
+  local base="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
+  local active_leases scaled cap
+  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+  [[ "${base}" =~ ^[0-9]+$ ]] || base=180
+  if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    scaled=$((base + active_leases * 45))
+    if [[ "${scaled}" -gt 900 ]]; then
+      scaled=900
+    fi
+    cap="${MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC:-}"
+    if [[ "${cap}" =~ ^[0-9]+$ && "${cap}" -gt 0 && "${scaled}" -gt "${cap}" ]]; then
+      echo "CHROME_E2E_ATTACH_WAIT_CAP: scaled=${scaled}s capped=${cap}s (leases=${active_leases}; R123 solo ready)" >&2
+      scaled="${cap}"
+    fi
+    echo "${scaled}"
+    return 0
+  fi
+  echo "${base}"
+}
+
 _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
-  local health="" waited=0
-  local wait_sec="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
-  local poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
-  [[ "${wait_sec}" =~ ^[0-9]+$ ]] || wait_sec=180
+  local health="" waited=0 ui_heal_during_wait=0
+  local wait_sec poll_sec active_leases errors
+  wait_sec="$(_attach_parallel_wait_sec)"
+  poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
+  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   while true; do
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
@@ -152,8 +189,23 @@ _attach_fast_path() {
       echo "${health}" >&2
       fail "parallel attach health snapshot did not recover within ${wait_sec}s — wait for shared hot recovery or stream-lock holder client_hot; do not stop other pytest; solo warmup: ./myrm ready --chrome"
     fi
+    errors="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from runtime_identity import attach_endpoint_errors
+print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
+")"
+    if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
+      && [[ "${waited}" -ge 30 ]] \
+      && [[ $((waited % 30)) -eq 0 ]] \
+      && [[ "${ui_heal_during_wait}" -lt 2 ]]; then
+      ui_heal_during_wait=$((ui_heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: ui stale during shared_hot wait — bounded frontend heal ${ui_heal_during_wait}/2 (R122)" >&2
+      _heal_shared_ui_if_stale || true
+      continue
+    fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
-      echo "CHROME_E2E_WAIT: shared hot pool is recovering; read-only attach ${waited}/${wait_sec}s" >&2
+      echo "CHROME_E2E_WAIT: shared hot pool is recovering; read-only attach ${waited}/${wait_sec}s (leases=${active_leases})" >&2
     fi
     sleep "${poll_sec}"
     waited=$((waited + poll_sec))
@@ -233,7 +285,7 @@ if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; 
 fi
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" ]]; then
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
@@ -271,7 +323,8 @@ print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.
       fi
     fi
   fi
-elif ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
+elif [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && "${MYRM_MUX_FORCE_ATTACH_RESTART:-}" != "1" ]] \
+  && ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
     echo "CHROME_E2E_WARN: frontend down — attach or ensure via supervisor" >&2
     bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" attach \
@@ -584,6 +637,14 @@ _ensure_mux_upstream() {
     _restart_mux_safely "upstream self-heal timeout"
   else
     echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — daemon options require a new endpoint" >&2
+    # R94: signoff stream-lock client_hot must not fail-closed when parallel contexts block mux restart.
+    if [[ "${E2E_SIGNOFF:-}" == "1" ]] && _mux_upstream_ready; then
+      echo "CHROME_E2E_SIGNOFF_MUX_WS_RESTAMP: upstreamReady with parallel contexts — restamp ws without restart" >&2
+      _stamp_mux_ws_url || true
+      _stamp_mux_daemon_ws_url || true
+      ok "cdmcp-mux signoff ws restamp (upstreamReady=1)"
+      return 0
+    fi
     _restart_mux_safely "CDP WebSocket drift"
   fi
   local i
@@ -747,7 +808,15 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     ok "mux heal-only complete (attach mode, timeout=${MUX_REQUEST_TIMEOUT_MS}ms)"
     exit 0
   fi
-  if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+  if [[ "${MYRM_MUX_FORCE_ATTACH_RESTART:-}" == "1" ]]; then
+    _restart_mux_safely "attach new_page timeout (forced open_mcp_page heal)"
+    ok "mux daemon force-restarted (attach new_page heal)"
+    exit 0
+  fi
+  attach_parallel_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}" 2>/dev/null || echo 0)"
+  if [[ "${attach_parallel_leases}" =~ ^[0-9]+$ && "${attach_parallel_leases}" -gt 0 ]]; then
+    echo "CHROME_E2E_ATTACH: parallel leases=${attach_parallel_leases} — skip SMP stack heal (R123-D; ADMIT queue SSOT)" >&2
+  elif [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
     _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_apply_pending_drift_if_idle "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
@@ -819,7 +888,13 @@ _print_e2e_health_json() {
   [[ "${shell_hot}" == "true" ]] && health_args+=(--shell-hot)
   [[ "${client_hot}" == "true" ]] && health_args+=(--client-hot)
   [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && health_args+=(--attach-mode)
-  [[ "${require_ready}" == "1" ]] && health_args+=(--require-attach-ready)
+  if [[ "${require_ready}" == "1" ]]; then
+    if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
+      health_args+=(--require-signoff-stream-ready)
+    else
+      health_args+=(--require-attach-ready)
+    fi
+  fi
   "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
 }
 

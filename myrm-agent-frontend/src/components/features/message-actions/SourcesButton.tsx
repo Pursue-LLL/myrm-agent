@@ -187,6 +187,8 @@ export function SourceItem({ source }: { source: Source }) {
       }
     };
 
+    const sourceDescription = source.summary || source.snippet;
+
     return (
       <div className={cn('p-3 rounded-lg bg-accent hover:bg-muted transition-colors')}>
         <div className="flex items-start gap-3">
@@ -220,8 +222,9 @@ export function SourceItem({ source }: { source: Source }) {
               )}
             </div>
 
-            {source.summary && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{source.summary}</p>}
-            {source.snippet && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{source.snippet}</p>}
+            {sourceDescription && (
+              <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{sourceDescription}</p>
+            )}
 
             <div className="mt-3 flex flex-wrap gap-2">
               <button
@@ -307,6 +310,7 @@ export function SourceItem({ source }: { source: Source }) {
   };
 
   const faviconUrl = clickUrl ? `https://www.google.com/s2/favicons?sz=64&domain=${getDomain(clickUrl)}` : '';
+  const sourceDescription = source.summary || source.snippet;
 
   const content = (
     <div
@@ -347,7 +351,9 @@ export function SourceItem({ source }: { source: Source }) {
 
         {clickUrl && <p className="text-xs text-muted-foreground mt-1 truncate">{getDomain(clickUrl)}</p>}
 
-        {source.snippet && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{source.snippet}</p>}
+        {sourceDescription && (
+          <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{sourceDescription}</p>
+        )}
       </div>
     </div>
   );

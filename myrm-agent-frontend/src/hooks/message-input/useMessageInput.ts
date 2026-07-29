@@ -6,6 +6,7 @@
  * - @/hooks/message-input/useMessageQueue::useMessageQueue (POS: 消息排队状态机)
  * - @/hooks/message-input/useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt (POS: Chat 输入链路的 Wiki 证据复问口径核心)
  * - @/hooks/message-input/useMessageInputWikiEvidenceCore::queuePendingChatWikiQuerySuccess (POS: steer success 延迟确认注册)
+ * - @/services/turnCapabilityMetrics::recordTurnCapability* (POS: 单轮 Skill/MCP 能力覆写可观测埋点)
  *
  * [OUTPUT]
  * - useMessageInput: exposes chat input state, upload handling and submit handlers.
@@ -23,13 +24,72 @@ import { toast } from '@/lib/utils/toast';
 import { useQuotaGuard } from '@/hooks/billing/useQuotaGuard';
 import { useDraftPersistence } from '@/hooks/shared/useDraftPersistence';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
+import { FatalNetworkError, isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { useMessageQueue } from './useMessageQueue';
 import { useInputFileUpload } from './useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
 import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from './useMessageInputWikiEvidenceCore';
 import { addInputHistory } from './useInputHistory';
+import {
+  buildTurnAgentConfigOverride,
+  type TurnCapabilitySelection,
+} from './turnCapabilityOverrideCore';
+import {
+  recordTurnCapabilityBusyRequeued,
+  recordTurnCapabilityOverrideApplied,
+  recordTurnCapabilityOverrideNoop,
+  recordTurnCapabilityQueueEnqueued,
+  recordTurnCapabilitySelectionSubmitted,
+  recordTurnCapabilitySendCompleted,
+  recordTurnCapabilitySendFailed,
+  type TurnCapabilityFailureReason,
+  type TurnCapabilityMetricSource,
+} from '@/services/turnCapabilityMetrics';
 const MAX_DRAIN_RETRIES = 4;
+
+function getOptionalSelectionCount(values: readonly string[] | null): number | undefined {
+  return values === null ? undefined : values.length;
+}
+
+function classifyTurnCapabilityFailureReason(error: unknown): TurnCapabilityFailureReason {
+  if (isArchiveRestoreActionInvalidError(error)) {
+    return 'archive_restore_invalid';
+  }
+  if (error instanceof Error) {
+    if (error.name === 'AbortError') {
+      return 'abort';
+    }
+    if (error instanceof FatalNetworkError && typeof error.status === 'number' && error.status >= 500) {
+      return 'server_error';
+    }
+    const combined = `${error.name} ${error.message}`.toLowerCase();
+    if (
+      combined.includes('network') ||
+      combined.includes('timeout') ||
+      combined.includes('fetch') ||
+      combined.includes('connection')
+    ) {
+      return 'network_error';
+    }
+    if (combined.includes('server') || combined.includes('http') || combined.includes('status')) {
+      return 'server_error';
+    }
+    return 'unknown_error';
+  }
+  if (error && typeof error === 'object') {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === 'string') {
+      const lowerMessage = maybeMessage.toLowerCase();
+      if (lowerMessage.includes('network') || lowerMessage.includes('timeout') || lowerMessage.includes('fetch')) {
+        return 'network_error';
+      }
+      if (lowerMessage.includes('server') || lowerMessage.includes('http') || lowerMessage.includes('status')) {
+        return 'server_error';
+      }
+    }
+  }
+  return 'unknown_error';
+}
 export const useMessageInput = () => {
   const t = useTranslations('chat');
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -105,8 +165,75 @@ export const useMessageInput = () => {
 
   // ─── 消息排队 ───
   const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue, requeue, reorder } = useMessageQueue(chatId);
+  const [turnCapabilitySelection, setTurnCapabilitySelection] = useState<TurnCapabilitySelection | null>(null);
+  const agentSkillSignature = (agentConfig?.selectedSkillIds ?? []).join('\u0001');
+  const agentMcpSignature = (agentConfig?.selectedMcpNames ?? []).join('\u0001');
+  const turnCapabilityContextKey = chatId ? `chat:${chatId}` : undefined;
+
+  const recordTurnSelectionSubmitted = useCallback(
+    (source: TurnCapabilityMetricSource, selection: TurnCapabilitySelection) => {
+      recordTurnCapabilitySelectionSubmitted(
+        source,
+        getOptionalSelectionCount(selection.skillIds),
+        getOptionalSelectionCount(selection.mcpNames),
+        turnCapabilityContextKey,
+      );
+    },
+    [turnCapabilityContextKey],
+  );
+
+  const recordTurnOverrideApplied = useCallback(
+    (source: TurnCapabilityMetricSource, selection: TurnCapabilitySelection, effectiveSkillCount: number, effectiveMcpCount: number) => {
+      recordTurnCapabilityOverrideApplied(
+        source,
+        getOptionalSelectionCount(selection.skillIds),
+        getOptionalSelectionCount(selection.mcpNames),
+        effectiveSkillCount,
+        effectiveMcpCount,
+        turnCapabilityContextKey,
+      );
+    },
+    [turnCapabilityContextKey],
+  );
+
+  const recordTurnOverrideNoop = useCallback(
+    (source: TurnCapabilityMetricSource, selection: TurnCapabilitySelection) => {
+      recordTurnCapabilityOverrideNoop(
+        source,
+        getOptionalSelectionCount(selection.skillIds),
+        getOptionalSelectionCount(selection.mcpNames),
+        turnCapabilityContextKey,
+      );
+    },
+    [turnCapabilityContextKey],
+  );
+
+  const recordTurnQueueEnqueued = useCallback(
+    (source: TurnCapabilityMetricSource, selection: TurnCapabilitySelection) => {
+      recordTurnCapabilityQueueEnqueued(
+        source,
+        getOptionalSelectionCount(selection.skillIds),
+        getOptionalSelectionCount(selection.mcpNames),
+        turnCapabilityContextKey,
+      );
+    },
+    [turnCapabilityContextKey],
+  );
+
+  const consumeTurnCapabilitySelection = useCallback(() => {
+    if (!turnCapabilitySelection) {
+      return null;
+    }
+    const consumed = turnCapabilitySelection;
+    setTurnCapabilitySelection(null);
+    return consumed;
+  }, [turnCapabilitySelection]);
 
   const drainFailCountRef = useRef(0);
+
+  useEffect(() => {
+    setTurnCapabilitySelection(null);
+  }, [chatId, agentConfig?.agentId, agentSkillSignature, agentMcpSignature]);
 
   // busy→idle 时重置重试计数，允许后续 auto-drain 正常工作
   useEffect(() => {
@@ -124,23 +251,73 @@ export const useMessageInput = () => {
     if (!nextMessage) return;
 
     setTimeout(() => {
-      sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions, undefined, true).catch(
-        (error) => {
+      const queuedTurnSelection = nextMessage.turnCapabilitySelection ?? null;
+      const queuedAgentConfigOverride =
+        buildTurnAgentConfigOverride(useChatStore.getState().agentConfig, queuedTurnSelection) ?? undefined;
+      sendMessage(
+        nextMessage.text,
+        undefined,
+        undefined,
+        undefined,
+        nextMessage.archiveRestoreActions,
+        queuedAgentConfigOverride,
+        true,
+      )
+        .then(() => {
+          if (queuedTurnSelection) {
+            if (queuedAgentConfigOverride) {
+              recordTurnOverrideApplied(
+                'queue_drain',
+                queuedTurnSelection,
+                queuedAgentConfigOverride.selectedSkillIds.length,
+                queuedAgentConfigOverride.selectedMcpNames.length,
+              );
+              recordTurnCapabilitySendCompleted(
+                'queue_drain',
+                queuedAgentConfigOverride.selectedSkillIds.length,
+                queuedAgentConfigOverride.selectedMcpNames.length,
+                turnCapabilityContextKey,
+              );
+            } else {
+              recordTurnOverrideNoop('queue_drain', queuedTurnSelection);
+            }
+          }
+        })
+        .catch((error) => {
           if (error && error.name === 'AgentBusyError') {
             drainFailCountRef.current += 1;
             requeue(nextMessage);
+            if (queuedTurnSelection) {
+              recordTurnCapabilityBusyRequeued('queue_drain', turnCapabilityContextKey);
+            }
             if (drainFailCountRef.current >= MAX_DRAIN_RETRIES) {
               toast.error(t('queue.stuck'));
             }
             return;
+          }
+          if (queuedTurnSelection) {
+            if (queuedAgentConfigOverride) {
+              recordTurnOverrideApplied(
+                'queue_drain',
+                queuedTurnSelection,
+                queuedAgentConfigOverride.selectedSkillIds.length,
+                queuedAgentConfigOverride.selectedMcpNames.length,
+              );
+              recordTurnCapabilitySendFailed(
+                'queue_drain',
+                classifyTurnCapabilityFailureReason(error),
+                turnCapabilityContextKey,
+              );
+            } else {
+              recordTurnOverrideNoop('queue_drain', queuedTurnSelection);
+            }
           }
           if (isArchiveRestoreActionInvalidError(error)) {
             setInputMessage(nextMessage.text);
             setFiles(nextMessage.files);
             setPendingArchiveRestoreActions(nextMessage.archiveRestoreActions ?? []);
           }
-        },
-      );
+        });
     }, 300);
   }, [
     loading,
@@ -151,6 +328,9 @@ export const useMessageInput = () => {
     setInputMessage,
     setFiles,
     setPendingArchiveRestoreActions,
+    turnCapabilityContextKey,
+    recordTurnOverrideApplied,
+    recordTurnOverrideNoop,
     t,
   ]);
 
@@ -307,31 +487,43 @@ export const useMessageInput = () => {
   /**
    * Queue 模式提交：不干扰当前任务，等完成后自动发送
    */
-  const handleQueueSubmit = useCallback(async () => {
-    if (!(await _validateAndPrepare())) return;
-    clearDraft();
-    recordChatQueryMetric();
-    const queueText = inputMessage.trim();
-    const injectedText = _injectDirtyArtifacts(queueText);
-    const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(injectedText, pendingArchiveRestoreActions);
+  const handleQueueSubmit = useCallback(
+    async (queuedTurnSelection?: TurnCapabilitySelection | null, skipValidation: boolean = false) => {
+      if (!skipValidation && !(await _validateAndPrepare())) return;
+      clearDraft();
+      recordChatQueryMetric();
+      const queueText = inputMessage.trim();
+      const injectedText = _injectDirtyArtifacts(queueText);
+      const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(injectedText, pendingArchiveRestoreActions);
 
-    setInputMessage('');
-    setPendingArchiveRestoreActions([]);
-    enqueue(injectedText, files, archiveRestoreActions);
-    toast.info(t('queue.added'));
-  }, [
-    _validateAndPrepare,
-    clearDraft,
-    inputMessage,
-    setInputMessage,
-    setPendingArchiveRestoreActions,
-    enqueue,
-    files,
-    t,
-    _injectDirtyArtifacts,
-    pendingArchiveRestoreActions,
-    recordChatQueryMetric,
-  ]);
+      setInputMessage('');
+      setPendingArchiveRestoreActions([]);
+      const effectiveTurnSelection =
+        queuedTurnSelection === undefined ? consumeTurnCapabilitySelection() : queuedTurnSelection;
+      if (effectiveTurnSelection) {
+        recordTurnSelectionSubmitted('queue_submit', effectiveTurnSelection);
+        recordTurnQueueEnqueued('queue_submit', effectiveTurnSelection);
+      }
+      enqueue(injectedText, files, archiveRestoreActions, effectiveTurnSelection);
+      toast.info(t('queue.added'));
+    },
+    [
+      _validateAndPrepare,
+      clearDraft,
+      inputMessage,
+      setInputMessage,
+      setPendingArchiveRestoreActions,
+      enqueue,
+      files,
+      t,
+      _injectDirtyArtifacts,
+      pendingArchiveRestoreActions,
+      recordChatQueryMetric,
+      consumeTurnCapabilitySelection,
+      recordTurnSelectionSubmitted,
+      recordTurnQueueEnqueued,
+    ],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (inputMessage.trim().length === 0 && files.length === 0) {
@@ -367,7 +559,7 @@ export const useMessageInput = () => {
           await handleSteerSubmit();
           break;
         case 'queue':
-          await handleQueueSubmit();
+          await handleQueueSubmit(undefined, true);
           break;
       }
       return;
@@ -381,19 +573,69 @@ export const useMessageInput = () => {
     const finalMessage = _injectDirtyArtifacts(inputMessage);
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
     setPendingArchiveRestoreActions([]);
+    const currentTurnSelection = consumeTurnCapabilitySelection();
+    const turnAgentConfigOverride = buildTurnAgentConfigOverride(agentConfig, currentTurnSelection) ?? undefined;
+    if (currentTurnSelection) {
+      recordTurnSelectionSubmitted('direct', currentTurnSelection);
+    }
 
-    sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions, undefined, true).catch((error) => {
-      if (error && error.name === 'AgentBusyError') {
-        enqueue(finalMessage, files, archiveRestoreActions);
-        toast.info(t('queue.added_with_position', { position: queue.length + 1 }));
-        return;
-      }
-      if (isArchiveRestoreActionInvalidError(error)) {
-        setInputMessage(finalMessage);
-        setFiles(files);
-        setPendingArchiveRestoreActions(archiveRestoreActions ?? []);
-      }
-    });
+    sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions, turnAgentConfigOverride, true)
+      .then(() => {
+        if (currentTurnSelection) {
+          if (turnAgentConfigOverride) {
+            recordTurnOverrideApplied(
+              'direct',
+              currentTurnSelection,
+              turnAgentConfigOverride.selectedSkillIds.length,
+              turnAgentConfigOverride.selectedMcpNames.length,
+            );
+            recordTurnCapabilitySendCompleted(
+              'direct',
+              turnAgentConfigOverride.selectedSkillIds.length,
+              turnAgentConfigOverride.selectedMcpNames.length,
+              turnCapabilityContextKey,
+            );
+          } else {
+            recordTurnOverrideNoop('direct', currentTurnSelection);
+          }
+        }
+      })
+      .catch((error) => {
+        if (error && error.name === 'AgentBusyError') {
+          enqueue(finalMessage, files, archiveRestoreActions, currentTurnSelection);
+          if (currentTurnSelection) {
+            recordTurnCapabilityBusyRequeued('direct', turnCapabilityContextKey);
+            recordTurnQueueEnqueued('busy_requeue', currentTurnSelection);
+          }
+          toast.info(t('queue.added_with_position', { position: queue.length + 1 }));
+          return;
+        }
+        if (currentTurnSelection) {
+          if (turnAgentConfigOverride) {
+            recordTurnOverrideApplied(
+              'direct',
+              currentTurnSelection,
+              turnAgentConfigOverride.selectedSkillIds.length,
+              turnAgentConfigOverride.selectedMcpNames.length,
+            );
+            recordTurnCapabilitySendFailed(
+              'direct',
+              classifyTurnCapabilityFailureReason(error),
+              turnCapabilityContextKey,
+            );
+          } else {
+            recordTurnOverrideNoop('direct', currentTurnSelection);
+          }
+        }
+        if (isArchiveRestoreActionInvalidError(error)) {
+          setInputMessage(finalMessage);
+          setFiles(files);
+          setPendingArchiveRestoreActions(archiveRestoreActions ?? []);
+          if (currentTurnSelection) {
+            setTurnCapabilitySelection(currentTurnSelection);
+          }
+        }
+      });
   }, [
     inputMessage,
     executeCompact,
@@ -414,6 +656,13 @@ export const useMessageInput = () => {
     files,
     _injectDirtyArtifacts,
     recordChatQueryMetric,
+    consumeTurnCapabilitySelection,
+    setTurnCapabilitySelection,
+    recordTurnSelectionSubmitted,
+    recordTurnOverrideApplied,
+    recordTurnOverrideNoop,
+    recordTurnQueueEnqueued,
+    turnCapabilityContextKey,
   ]);
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -514,6 +763,8 @@ export const useMessageInput = () => {
     setShowCompactConfirm,
     dontRemindCompact,
     setDontRemindCompact,
+    turnCapabilitySelection,
+    setTurnCapabilitySelection,
 
     // Refs
     inputRef,

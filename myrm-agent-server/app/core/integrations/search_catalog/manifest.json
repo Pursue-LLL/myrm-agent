@@ -1,0 +1,112 @@
+[
+  {
+    "slug": "searxng",
+    "connector": "litellm",
+    "name": "SearXNG",
+    "nameZh": "SearXNG（本地自托管）",
+    "deploymentScope": "local_tauri_only",
+    "requiresApiKey": false,
+    "requiresApiBase": true,
+    "backendReady": true
+  },
+  {
+    "slug": "tavily",
+    "connector": "litellm",
+    "name": "Tavily",
+    "nameZh": "Tavily",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "perplexity",
+    "connector": "litellm",
+    "name": "Perplexity",
+    "nameZh": "Perplexity",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "exa_ai",
+    "connector": "litellm",
+    "name": "Exa AI",
+    "nameZh": "Exa AI",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "parallel_ai",
+    "connector": "litellm",
+    "name": "Parallel AI",
+    "nameZh": "Parallel AI",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "google_pse",
+    "connector": "litellm",
+    "name": "Google PSE",
+    "nameZh": "Google 可编程搜索",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "dataforseo",
+    "connector": "litellm",
+    "name": "DataForSEO",
+    "nameZh": "DataForSEO",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "firecrawl",
+    "connector": "litellm",
+    "name": "Firecrawl",
+    "nameZh": "Firecrawl",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "brave",
+    "connector": "litellm",
+    "name": "Brave Search",
+    "nameZh": "Brave 搜索",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "serper",
+    "connector": "litellm",
+    "name": "Serper",
+    "nameZh": "Serper",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  },
+  {
+    "slug": "volcengine_doubao",
+    "connector": "native",
+    "name": "Volcengine Doubao",
+    "nameZh": "火山引擎 · 豆包搜索",
+    "deploymentScope": "all_modes",
+    "requiresApiKey": true,
+    "requiresApiBase": false,
+    "backendReady": true
+  }
+]

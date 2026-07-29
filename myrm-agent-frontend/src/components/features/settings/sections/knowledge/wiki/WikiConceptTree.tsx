@@ -103,6 +103,14 @@ export function WikiConceptTree({
                 <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
               )}
 
+              {node.data.ingest_status === 'tracked-modified' && (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400"
+                  title={t('staleSourceModified')}
+                  aria-label={t('staleSourceModified')}
+                />
+              )}
+
               <span className="font-medium truncate text-sm">{node.data.name}</span>
             </div>
 

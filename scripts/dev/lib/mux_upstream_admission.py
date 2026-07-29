@@ -26,6 +26,7 @@ from dev_gate_contract import (
 
 SCHEMA_VERSION = 1
 DEFAULT_OWNER_TTL_SEC = 900.0
+DEFAULT_COLD_ATTACH_HOLD_CAP_SEC = 120.0
 DEFAULT_MAX_SLOTS = MUX_COLD_ATTACH_SLOTS
 DEFAULT_WAIT_SEC = MUX_UPSTREAM_WAIT_SEC
 DEFAULT_POLL_SEC = MUX_UPSTREAM_POLL_SEC
@@ -107,21 +108,46 @@ def _save_registry(path: Path, registry: UpstreamAdmissionRegistry) -> None:
     tmp.replace(path)
 
 
+def _owner_ttl_sec() -> float:
+    return DEFAULT_OWNER_TTL_SEC
+
+
+def _cold_attach_hold_cap_sec() -> float:
+    raw = os.environ.get(
+        "MYRM_MUX_COLD_ATTACH_HOLD_CAP_SEC",
+        str(DEFAULT_COLD_ATTACH_HOLD_CAP_SEC),
+    ).strip()
+    try:
+        return max(30.0, float(raw))
+    except ValueError:
+        return DEFAULT_COLD_ATTACH_HOLD_CAP_SEC
+
+
 def _prune_stale(registry: UpstreamAdmissionRegistry, *, now: float) -> int:
     removed = 0
     operations = registry["operations"]
     stale_ids: list[str] = []
+    hold_cap = _cold_attach_hold_cap_sec()
+    owner_ttl = _owner_ttl_sec()
     for operation_id, record in operations.items():
         owner_pid = record.get("ownerPid")
         heartbeat_at = record.get("heartbeatAt")
+        acquired_at = record.get("acquiredAt")
         if not isinstance(owner_pid, int) or not isinstance(heartbeat_at, (int, float)):
             stale_ids.append(operation_id)
             continue
         if not _pid_alive(owner_pid):
             stale_ids.append(operation_id)
             continue
-        if now - float(heartbeat_at) > DEFAULT_OWNER_TTL_SEC:
+        if now - float(heartbeat_at) > owner_ttl:
             stale_ids.append(operation_id)
+            continue
+        if (
+            isinstance(acquired_at, (int, float))
+            and now - float(acquired_at) > hold_cap
+        ):
+            stale_ids.append(operation_id)
+            continue
     for operation_id in stale_ids:
         operations.pop(operation_id, None)
         removed += 1
@@ -173,14 +199,63 @@ def read_mux_cold_attach_status() -> MuxColdAttachStatus:
             "saturated": False,
             "handProbeAllowed": True,
         }
+    prune_stale()
     active, resolved_cap = _active_snapshot()
     saturated = active >= resolved_cap
+    peers = _parallel_mux_peer_count()
+    parallel_headroom = _parallel_cold_attach_headroom(peers)
+    hand_allowed = active + parallel_headroom <= resolved_cap
     return {
         "active": active,
         "maxSlots": resolved_cap,
         "saturated": saturated,
-        "handProbeAllowed": not saturated,
+        "handProbeAllowed": hand_allowed and not saturated,
     }
+
+
+def _parallel_mux_peer_count() -> int:
+    try:
+        from mux_load import snapshot_mux_load
+
+        load = snapshot_mux_load(force=True)
+        return max(0, load.wave_leases, load.mux_contexts)
+    except (ImportError, OSError, TypeError, ValueError):
+        return 0
+
+
+def _parallel_cold_attach_headroom(peers: int) -> int:
+    """Reserve mux cold-attach slots under parallel wave/pytest load (R113)."""
+    if peers <= 1:
+        return 0
+    cap = effective_max_slots()
+    return min(max(1, cap - 1), max(1, peers - 1))
+
+
+def wait_mux_hand_probe_allowed(*, budget_sec: float | None = None) -> None:
+    """Wait until mux accepts cold attach; refresh session progress for hung-reap (R113)."""
+    from transport_supervisor import mux_upstream_wait_cap
+
+    wait_budget = float(
+        budget_sec if budget_sec is not None else mux_upstream_wait_cap()
+    )
+    deadline = time.monotonic() + max(5.0, wait_budget)
+    last: MuxColdAttachStatus | dict[str, object] = {}
+    while time.monotonic() < deadline:
+        prune_stale()
+        last = read_mux_cold_attach_status()
+        if last.get("handProbeAllowed") is True:
+            return
+        try:
+            from e2e_session_snapshot import touch_session_progress
+
+            touch_session_progress()
+        except ImportError:
+            pass
+        time.sleep(2.0)
+    raise RuntimeError(
+        f"MUX cold attach saturated after {wait_budget:.0f}s: "
+        f"active={last.get('active')!r} maxSlots={last.get('maxSlots')!r}"
+    )
 
 
 def _active_snapshot() -> tuple[int, int]:
@@ -305,6 +380,12 @@ def acquire_with_wait(
             f"(elapsed={elapsed}s cap={cap})",
             file=sys.stderr,
         )
+        try:
+            from e2e_session_snapshot import touch_session_progress
+
+            touch_session_progress()
+        except ImportError:
+            pass
         prune_stale()
         time.sleep(poll_sec)
 

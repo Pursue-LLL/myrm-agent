@@ -8,6 +8,13 @@ const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockSendMessage = vi.hoisted(() => vi.fn(async () => undefined));
 const mockSteerMessage = vi.hoisted(() => vi.fn(async () => true));
 const mockEnqueue = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilityOverrideNoop = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilityQueueEnqueued = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilitySendCompleted = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilitySendFailed = vi.hoisted(() => vi.fn());
+const mockRecordTurnCapabilityBusyRequeued = vi.hoisted(() => vi.fn());
 const mockSetInputMessage = vi.hoisted(() => vi.fn());
 const mockSetPendingArchiveRestoreActions = vi.hoisted(() => vi.fn());
 const mockClearDraft = vi.hoisted(() => vi.fn());
@@ -84,6 +91,16 @@ vi.mock('@/hooks/message-input/useMessageInputWikiEvidenceCore', () => ({
   queuePendingChatWikiQuerySuccess: (...args: unknown[]) => mockQueuePendingChatWikiQuerySuccess(...args),
 }));
 
+vi.mock('@/services/turnCapabilityMetrics', () => ({
+  recordTurnCapabilitySelectionSubmitted: (...args: unknown[]) => mockRecordTurnCapabilitySelectionSubmitted(...args),
+  recordTurnCapabilityOverrideApplied: (...args: unknown[]) => mockRecordTurnCapabilityOverrideApplied(...args),
+  recordTurnCapabilityOverrideNoop: (...args: unknown[]) => mockRecordTurnCapabilityOverrideNoop(...args),
+  recordTurnCapabilityQueueEnqueued: (...args: unknown[]) => mockRecordTurnCapabilityQueueEnqueued(...args),
+  recordTurnCapabilitySendCompleted: (...args: unknown[]) => mockRecordTurnCapabilitySendCompleted(...args),
+  recordTurnCapabilitySendFailed: (...args: unknown[]) => mockRecordTurnCapabilitySendFailed(...args),
+  recordTurnCapabilityBusyRequeued: (...args: unknown[]) => mockRecordTurnCapabilityBusyRequeued(...args),
+}));
+
 vi.mock('@/services/chat', () => ({
   compactChat: vi.fn(),
 }));
@@ -142,6 +159,13 @@ describe('useMessageInput submit telemetry integration', () => {
     mockSetPendingArchiveRestoreActions.mockClear();
     mockClearDraft.mockClear();
     mockQueuePendingChatWikiQuerySuccess.mockClear();
+    mockRecordTurnCapabilitySelectionSubmitted.mockClear();
+    mockRecordTurnCapabilityOverrideApplied.mockClear();
+    mockRecordTurnCapabilityOverrideNoop.mockClear();
+    mockRecordTurnCapabilityQueueEnqueued.mockClear();
+    mockRecordTurnCapabilitySendCompleted.mockClear();
+    mockRecordTurnCapabilitySendFailed.mockClear();
+    mockRecordTurnCapabilityBusyRequeued.mockClear();
     chatStoreRef.state = buildChatState();
   });
 
@@ -174,7 +198,7 @@ describe('useMessageInput submit telemetry integration', () => {
     });
 
     expect(mockRecordChatWikiQueryAttempt).toHaveBeenCalledTimes(1);
-    expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined);
+    expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined, null);
   });
 
   it('records query attempt and falls back to sendMessage when steer fails', async () => {
@@ -212,5 +236,158 @@ describe('useMessageInput submit telemetry integration', () => {
     expect(mockQueuePendingChatWikiQuerySuccess).toHaveBeenCalledWith([], 'chat-test', 'msg-live');
     expect(mockRecordChatWikiQuerySubmitted).not.toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('applies one-turn capability override on handleSubmit', async () => {
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: null });
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      'hello world',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      expect.objectContaining({
+        selectedSkillIds: ['skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+      }),
+      true,
+    );
+    expect(mockRecordTurnCapabilitySelectionSubmitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('consumes one-turn capability selection on direct queue submit', async () => {
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: ['mcp-a'] });
+    });
+
+    await act(async () => {
+      await result.current.handleQueueSubmit();
+    });
+
+    expect(mockEnqueue).toHaveBeenCalledWith(
+      'hello world',
+      [],
+      undefined,
+      { skillIds: ['skill-b'], mcpNames: ['mcp-a'] },
+    );
+    expect(mockRecordTurnCapabilitySelectionSubmitted).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilityQueueEnqueued).toHaveBeenCalledTimes(1);
+  });
+
+  it('records busy requeue without applied metric on direct busy fallback', async () => {
+    const busyError = new Error('busy');
+    busyError.name = 'AgentBusyError';
+    mockSendMessage.mockRejectedValueOnce(busyError);
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: ['mcp-a'] });
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit();
+      await Promise.resolve();
+    });
+
+    expect(mockRecordTurnCapabilitySelectionSubmitted).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilityBusyRequeued).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilityQueueEnqueued).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilityOverrideApplied).toHaveBeenCalledTimes(0);
+  });
+
+  it('maps direct send failure to enum reason', async () => {
+    const networkError = new Error('network timeout');
+    networkError.name = 'TypeError';
+    mockSendMessage.mockRejectedValueOnce(networkError);
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: ['mcp-a'] });
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit();
+      await Promise.resolve();
+    });
+
+    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledWith('direct', 'network_error', 'chat:chat-test');
+  });
+
+  it('maps fatal 5xx failure to server_error enum reason', async () => {
+    const { FatalNetworkError } = await import('@/lib/utils/networkResilience');
+    mockSendMessage.mockRejectedValueOnce(new FatalNetworkError('upstream 500', { status: 500 }));
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a', 'mcp-b'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: ['mcp-a'] });
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit();
+      await Promise.resolve();
+    });
+
+    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledTimes(1);
+    expect(mockRecordTurnCapabilitySendFailed).toHaveBeenCalledWith('direct', 'server_error', 'chat:chat-test');
   });
 });

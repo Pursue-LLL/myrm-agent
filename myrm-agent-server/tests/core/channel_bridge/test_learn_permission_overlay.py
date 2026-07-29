@@ -10,7 +10,7 @@ from app.services.agent.params.converter import _apply_session_preset
 
 _LEARN_PROMPT = (
     "[/learn] The user wants you to learn a reusable skill\n"
-    "3. Save it with the `skill_manage_tool` (action=\"save\")."
+    '3. Save it with the `skill_manage_tool` (action="save").'
 )
 
 

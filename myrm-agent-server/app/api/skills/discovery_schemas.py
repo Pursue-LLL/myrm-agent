@@ -32,6 +32,7 @@ class SkillSearchResultResponse(BaseModel):
     subdirectory: str | None = None
     installed_version: str = ""
     upgrade_available: bool = False
+    installed_skill_id: str = ""
 
 
 class SkillSearchResponse(BaseModel):
@@ -43,6 +44,8 @@ class SkillSearchResponse(BaseModel):
 class SkillInstallRequest(BaseModel):
     skill_id: str
     source: str
+    agent_id: str | None = None
+    mount_to_agent: bool = True
 
 
 class SkillInstallResponse(BaseModel):
@@ -52,6 +55,11 @@ class SkillInstallResponse(BaseModel):
     installed_path: str = ""
     error: str = ""
     error_code: str = ""
+    mounted: bool = False
+    mount_agent_id: str = ""
+    mount_skill_id: str = ""
+    mount_already_present: bool = False
+    mount_error: str = ""
 
 
 class SkillUpdateInfoResponse(BaseModel):
@@ -102,6 +110,8 @@ class SkillPreviewResponse(BaseModel):
 
 class SkillInstallFromUrlRequest(BaseModel):
     url: str
+    agent_id: str | None = None
+    mount_to_agent: bool = True
 
 
 class SkillUrlInfo(BaseModel):

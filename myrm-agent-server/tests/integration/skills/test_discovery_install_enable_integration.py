@@ -1,0 +1,345 @@
+"""Integration: discovery install → catalog enable → runtime skill IDs (SSOT).
+
+Mocks only external market download (_base.install). enable, user config,
+and runtime resolution run without mocks.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
+
+from app.api.skills import discovery
+from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+from app.core.skills.market_service import market_service
+from app.core.skills.store.service import SkillsService
+
+
+@pytest.fixture
+def storage(tmp_path: Path) -> LocalStorageBackend:
+    return LocalStorageBackend(str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
+def bind_skills_service(storage: LocalStorageBackend) -> SkillsService:
+    service = SkillsService(storage=storage)
+    with (
+        patch("app.core.skills.store.service.skills_service", service),
+        patch("app.core.skills.effective_skill_ids.skills_service", service),
+    ):
+        yield service
+
+
+@pytest.fixture
+def discovery_client() -> TestClient:
+    app = FastAPI(title="Discovery Install Integration")
+    app.include_router(discovery.router, prefix="/api/v1/skills")
+    return TestClient(app)
+
+
+def _local_install_result(skill_dir: Path) -> SkillInstallResult:
+    return SkillInstallResult(
+        success=True,
+        skill_name=skill_dir.name,
+        skill_id=f"local::{skill_dir.name}",
+        installed_path=str(skill_dir),
+    )
+
+
+@pytest.mark.asyncio
+async def test_install_api_enables_catalog_and_runtime_includes_skill(
+    storage: LocalStorageBackend,
+    discovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    skill_dir = tmp_path / "demo-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: demo-skill\ndescription: demo\n---\n"
+    )
+    catalog_id = local_skill_id_from_path(skill_dir)
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        ),
+        patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new=AsyncMock(),
+        ) as get_agent,
+        patch(
+            "app.services.agent.agent_service.AgentService.update_agent",
+            new=AsyncMock(),
+        ) as update_agent,
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "demo-skill",
+                "source": "clawhub",
+                "mount_to_agent": True,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["mounted"] is True
+    assert body["mount_error"] == ""
+
+    from app.core.skills.store.service import skills_service
+
+    user_config = await skills_service.user_config.get_config()
+    assert catalog_id in user_config.enabled_local_skill_ids
+
+    runtime_ids = await resolve_runtime_skill_ids([])
+    assert catalog_id in runtime_ids
+
+    get_agent.assert_not_called()
+    update_agent.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_install_api_skips_enable_when_mount_disabled(
+    discovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    skill_dir = tmp_path / "keep-disabled"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: keep-disabled\ndescription: x\n---\n"
+    )
+    catalog_id = local_skill_id_from_path(skill_dir)
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "keep-disabled",
+                "source": "clawhub",
+                "mount_to_agent": False,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["mounted"] is False
+
+    from app.core.skills.store.service import skills_service
+
+    user_config = await skills_service.user_config.get_config()
+    assert catalog_id not in user_config.enabled_local_skill_ids
+
+    runtime_ids = await resolve_runtime_skill_ids([])
+    assert catalog_id not in runtime_ids
+
+
+@pytest.mark.asyncio
+async def test_install_from_url_enables_catalog(
+    discovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    skill_dir = tmp_path / "url-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("---\nname: url-skill\ndescription: u\n---\n")
+    catalog_id = local_skill_id_from_path(skill_dir)
+
+    with (
+        patch.object(
+            market_service._base,
+            "install_from_url",
+            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install-from-url",
+            json={"url": "https://github.com/example/repo", "mount_to_agent": True},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["mounted"] is True
+
+    from app.core.skills.store.service import skills_service
+
+    user_config = await skills_service.user_config.get_config()
+    assert catalog_id in user_config.enabled_local_skill_ids
+
+
+@pytest.mark.asyncio
+async def test_update_api_enables_catalog_after_reinstall(
+    discovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    skill_dir = tmp_path / "update-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: update-skill\ndescription: u\n---\n"
+    )
+    catalog_id = local_skill_id_from_path(skill_dir)
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/update",
+            json={
+                "skill_name": "update-skill",
+                "skill_id": "update-skill",
+                "source": "clawhub",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["mounted"] is True
+
+    from app.core.skills.store.service import skills_service
+
+    user_config = await skills_service.user_config.get_config()
+    assert catalog_id in user_config.enabled_local_skill_ids
+
+
+@pytest.mark.asyncio
+async def test_prebuilt_install_enables_catalog(
+    discovery_client: TestClient,
+) -> None:
+    prebuilt_id = "systematic-debugging"
+    install_result = SkillInstallResult(
+        success=True,
+        skill_name="Systematic Debugging",
+        skill_id=prebuilt_id,
+        installed_path="prebuilt (already installed)",
+    )
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=install_result),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": prebuilt_id,
+                "source": "prebuilt",
+                "mount_to_agent": True,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mounted"] is True
+    assert body["mount_skill_id"] == prebuilt_id
+
+    from app.core.skills.store.service import skills_service
+
+    user_config = await skills_service.user_config.get_config()
+    assert prebuilt_id in user_config.enabled_prebuilt_ids
+
+    runtime_ids = await resolve_runtime_skill_ids([])
+    assert prebuilt_id in runtime_ids
+
+
+@pytest.mark.asyncio
+async def test_install_idempotent_reports_already_enabled(
+    discovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    skill_dir = tmp_path / "idem-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("---\nname: idem-skill\ndescription: i\n---\n")
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        first = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "idem-skill",
+                "source": "clawhub",
+                "mount_to_agent": True,
+            },
+        )
+        second = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "idem-skill",
+                "source": "clawhub",
+                "mount_to_agent": True,
+            },
+        )
+
+    assert first.json()["mounted"] is True
+    assert first.json()["mount_already_present"] is False
+    assert second.json()["mounted"] is True
+    assert second.json()["mount_already_present"] is True
+
+
+@pytest.mark.asyncio
+async def test_explicit_allowlist_takes_precedence_over_catalog() -> None:
+    from app.core.skills.store.service import skills_service
+
+    explicit_id = "prebuilt::only-one"
+    await skills_service.user_config.enable_prebuilt_skill("systematic-debugging")
+    await skills_service.user_config.enable_prebuilt_skill("code-review")
+
+    runtime = await resolve_runtime_skill_ids([explicit_id])
+    assert runtime == [explicit_id]

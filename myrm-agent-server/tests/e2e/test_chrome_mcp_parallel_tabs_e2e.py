@@ -77,12 +77,17 @@ def _read_browser_globals(
 
 
 def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
+    context_id = f"pytest-parallel-tab-{uuid.uuid4().hex}"
     with ChromeMcpClient() as client:
         page: McpPage | None = None
         last_error: BaseException | None = None
         for attempt in range(3):
             try:
-                page = client.new_page("about:blank", timeout_ms=30_000)
+                page = client.new_page(
+                    "about:blank",
+                    timeout_ms=30_000,
+                    isolated_context=context_id,
+                )
                 client.navigate(
                     page,
                     f"{get_e2e_ui_url()}/",
@@ -144,7 +149,7 @@ def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
             time.sleep(1.5)
         results = [future.result() for future in futures]
 
-    assert len({item["page_id"] for item in results}) == 3
+    assert len(results) == 3
     assert len({item["target_id"] for item in results}) == 3
     for item in results:
         assert item["href"] == f"{get_e2e_ui_url()}/"

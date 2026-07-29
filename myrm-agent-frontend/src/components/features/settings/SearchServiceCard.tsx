@@ -116,16 +116,16 @@ const SearchServiceCard = memo(
               <h3 className="font-medium text-foreground truncate">
                 {config.name || getSearchServiceDisplayName(config.search_service)}
               </h3>
-              {/* 角色标签 */}
+              {/* Priority badge */}
               <span
                 className={cn(
                   'shrink-0 px-2 py-0.5 text-xs rounded-full font-medium',
-                  config.role === 'primary'
+                  config.priority === 1
                     ? 'bg-primary/10 dark:bg-primary/20 text-primary'
-                    : 'bg-[rgb(245,174,116)]/20 dark:bg-[rgb(232,140,48)]/25 text-[rgb(217,112,56)] dark:text-[rgb(232,140,48)]',
+                    : 'bg-secondary text-muted-foreground',
                 )}
               >
-                {config.role === 'primary' ? t('primaryService') : t('fallbackService')}
+                {t('searchServicePriorityOption', { priority: config.priority })}
               </span>
               {/* 如果有自定义名称，显示服务商标签 */}
               {config.name && (
@@ -215,10 +215,10 @@ const SearchServiceCard = memo(
               <AlertDialogDescription>
                 {conflictingService
                   ? t('searchService.enableConflictDescription', {
+                      priority: config.priority,
                       currentName:
                         conflictingService.name || getSearchServiceDisplayName(conflictingService.search_service),
                       newName: config.name || getSearchServiceDisplayName(config.search_service),
-                      role: config.role === 'primary' ? t('primaryService') : t('fallbackService'),
                     })
                   : ''}
               </AlertDialogDescription>

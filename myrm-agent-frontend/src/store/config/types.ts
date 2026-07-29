@@ -1,21 +1,12 @@
-// 搜索服务类型（LiteLLM 统一架构）
-export type SearchServiceType =
-  | 'perplexity'
-  | 'tavily'
-  | 'exa_ai'
-  | 'parallel_ai'
-  | 'google_pse'
-  | 'dataforseo'
-  | 'firecrawl'
-  | 'searxng';
+// 搜索服务类型（manifest slug，由服务端 catalog SSOT 驱动）
+export type SearchServiceType = string;
 
-// 搜索服务配置接口（基础配置，用于API请求）
+// 搜索服务配置接口（基础配置，用于 API 验证请求）
 export interface SearchServiceConfig {
   search_service: SearchServiceType;
   api_key?: string | null;
   api_base?: string | null;
   extra_params?: Record<string, unknown> | null;
-  fallback_config?: SearchServiceConfig | null; // 备用搜索服务配置
 }
 
 // 搜索服务配置项（带元数据，用于多配置管理）
@@ -23,7 +14,8 @@ export interface SearchServiceConfigItem {
   id: string;
   name?: string | null;
   enabled: boolean;
-  role: 'primary' | 'fallback'; // 主服务或备用服务（最多 1 主 + 1 备同时启用）
+  /** 优先级 1–5，数字越小越优先；启用项内必须唯一 */
+  priority: number;
   search_service: SearchServiceType;
   api_key?: string | null;
   api_base?: string | null;

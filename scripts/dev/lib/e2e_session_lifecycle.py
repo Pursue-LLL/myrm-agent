@@ -76,7 +76,12 @@ def resolve_budget_policy() -> BudgetPolicy:
     lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
     body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     if profile == "dev" and lane == "LIVE_AGENT":
-        body_sec = LIVE_AGENT_BODY_WALL_CLOCK_SEC
+        try:
+            from transport_supervisor import live_agent_body_wall_cap_sec
+
+            body_sec = live_agent_body_wall_cap_sec()
+        except ImportError:
+            body_sec = LIVE_AGENT_BODY_WALL_CLOCK_SEC
     bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "dev":
         try:
@@ -86,11 +91,29 @@ def resolve_budget_policy() -> BudgetPolicy:
         except ImportError:
             bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "signoff":
+        body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+        batch_body_raw = os.environ.get("MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "").strip()
+        if batch_body_raw.isdigit():
+            body_sec = max(body_sec, int(batch_body_raw))
+        batch_bootstrap_raw = os.environ.get(
+            "MYRM_E2E_SIGNOFF_BATCH_BOOTSTRAP_SEC", ""
+        ).strip()
+        if batch_bootstrap_raw.isdigit():
+            bootstrap_sec = max(bootstrap_sec, int(batch_bootstrap_raw))
+        try:
+            from transport_supervisor import bootstrap_wall_cap_sec
+
+            bootstrap_sec = max(
+                bootstrap_sec, bootstrap_wall_cap_sec(pessimistic=False)
+            )
+        except ImportError:
+            pass
         return BudgetPolicy(
             profile=profile,
             admit_sec=E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
-            bootstrap_sec=E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF,
-            body_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+            bootstrap_sec=bootstrap_sec,
+            body_sec=body_sec,
             teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
         )
     return BudgetPolicy(
@@ -260,6 +283,12 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
     transition_to_phase("body", label=phase_label)
     _reset_phase_mux_recovery_budget(phase_label=phase_label)
+    try:
+        from e2e_session_snapshot import touch_session_progress
+
+        touch_session_progress()
+    except ImportError:
+        pass
     print(
         f"E2E_WALL_BUDGET_BODY_START: cap={phase_cap_sec('body')}s phase={phase_label}",
         file=sys.stderr,

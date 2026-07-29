@@ -13,8 +13,7 @@ config updates so load_user_configs returns fresh data.
 
 ## 搜索服务配置
 
-前端可配置多个搜索服务，每个服务通过 role 字段指定为主服务或备用服务。
-未在 WebUI 配置时 ``search_cfg`` 为 ``None``；主服务遇到不可重试错误时可切换到备用服务。
+前端可配置多个搜索服务，每个 enabled 服务通过 `priority`（1 最高）参与优先级链；`extract_active_search_config` 产出带 `provider_chain` 的 harness 配置。未在 WebUI 配置时 ``search_cfg`` 为 ``None``。
 
 [INPUT]
 - app.database.models::UserConfig
@@ -153,11 +152,17 @@ async def load_user_configs() -> UserConfigs:
                 try:
                     if isinstance(value, str):
                         value = service.decrypt(value)
-                    elif isinstance(value, dict) and isinstance(value.get("_cipher"), str):
+                    elif isinstance(value, dict) and isinstance(
+                        value.get("_cipher"), str
+                    ):
                         value = service.decrypt(value["_cipher"])
 
                     # Handle double encryption
-                    if isinstance(value, dict) and "_cipher" in value and len(value) == 1:
+                    if (
+                        isinstance(value, dict)
+                        and "_cipher" in value
+                        and len(value) == 1
+                    ):
                         inner = value["_cipher"]
                         if isinstance(inner, str):
                             logger.warning(

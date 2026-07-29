@@ -147,7 +147,7 @@ def _build_learn_prompt(user_args: str) -> str:
         "INSTRUCTIONS:\n"
         "1. Gather the material using the tools you already have.\n"
         "2. Author ONE SKILL.md following the standards below.\n"
-        "3. Save it with the `skill_manage_tool` (action=\"save\"). "
+        '3. Save it with the `skill_manage_tool` (action="save"). '
         "Pick a sensible name (lowercase-hyphenated).\n\n"
         f"{_AUTHORING_STANDARDS}\n\n"
         "When done, tell the user:\n"

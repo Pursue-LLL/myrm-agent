@@ -418,13 +418,35 @@ _heal_shared_ui_if_stale() {
     echo "CHROME_E2E_HEAL_SKIP: shared UI stale (${reason}) but MYRM_DEV_STACK missing" >&2
     return 1
   }
-  echo "CHROME_E2E_HEAL: shared UI stale (${reason}) — frontend-only ensure" >&2
-  _frontend_clear_warmth
-  MYRM_SUPERVISOR_BYPASS=1 MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" bash "${stack}" frontend-only ensure || return 1
-  if timing="$(_frontend_root_probe_seconds)"; then
-    echo "CHROME_E2E_HEAL_OK: shared UI ${timing}s after frontend-only ensure" >&2
-    return 0
-  fi
-  echo "CHROME_E2E_HEAL_FAIL: shared UI still unhealthy after frontend-only ensure" >&2
+  local heal_attempt timing_after=""
+  for heal_attempt in 1 2; do
+    echo "CHROME_E2E_HEAL: shared UI stale (${reason}) — frontend-only ensure ${heal_attempt}/2" >&2
+    _frontend_clear_warmth
+    MYRM_SUPERVISOR_BYPASS=1 \
+      MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" \
+      MYRM_CHROME_E2E_FRONTEND_HEAL=1 \
+      MYRM_E2E_ATTACH_FRONTEND_HEAL=1 \
+      bash "${stack}" frontend-only ensure || true
+    if timing_after="$(_frontend_root_probe_seconds)"; then
+      echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after frontend-only ensure" >&2
+      return 0
+    fi
+    if [[ "${heal_attempt}" -eq 1 ]]; then
+      echo "CHROME_E2E_HEAL: frontend-only ensure failed — supervisor fallback (wave-safe frontend heal)" >&2
+      if bash "${stack%/*}/stack-supervisor.sh" rpc ping >/dev/null 2>&1; then
+        MYRM_SUPERVISOR_BYPASS=1 \
+          MYRM_E2E_SHPOIB=1 \
+          MYRM_CHROME_E2E_FRONTEND_HEAL=1 \
+          MYRM_E2E_ATTACH_FRONTEND_HEAL=1 \
+          MYRM_WAVE_GATE_BYPASS=1 \
+          bash "${stack}" frontend-only ensure || true
+        if timing_after="$(_frontend_root_probe_seconds)"; then
+          echo "CHROME_E2E_HEAL_OK: shared UI ${timing_after}s after supervisor frontend fallback" >&2
+          return 0
+        fi
+      fi
+    fi
+  done
+  echo "CHROME_E2E_HEAL_FAIL: shared UI still unhealthy after frontend-only ensure (2 attempts)" >&2
   return 1
 }

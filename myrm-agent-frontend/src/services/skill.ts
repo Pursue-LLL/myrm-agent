@@ -365,6 +365,7 @@ export interface DiscoverySearchResult {
   subdirectory: string | null;
   installed_version: string;
   upgrade_available: boolean;
+  installed_skill_id?: string;
 }
 
 export interface DiscoverySearchResponse {
@@ -379,6 +380,16 @@ export interface DiscoveryInstallResponse {
   skill_id: string;
   installed_path: string;
   error: string;
+  mounted?: boolean;
+  mount_agent_id?: string;
+  mount_skill_id?: string;
+  mount_already_present?: boolean;
+  mount_error?: string;
+}
+
+export interface DiscoveryInstallOptions {
+  agentId?: string;
+  mountToAgent?: boolean;
 }
 
 export interface DiscoveryPreviewResponse {
@@ -408,10 +419,19 @@ export async function previewDiscoverySkill(skillId: string, source: string): Pr
   });
 }
 
-export async function installDiscoverySkill(skillId: string, source: string): Promise<DiscoveryInstallResponse> {
+export async function installDiscoverySkill(
+  skillId: string,
+  source: string,
+  options?: DiscoveryInstallOptions,
+): Promise<DiscoveryInstallResponse> {
   return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/install`, {
     method: 'POST',
-    body: JSON.stringify({ skill_id: skillId, source }),
+    body: JSON.stringify({
+      skill_id: skillId,
+      source,
+      agent_id: options?.agentId,
+      mount_to_agent: options?.mountToAgent ?? true,
+    }),
   });
 }
 
@@ -440,10 +460,17 @@ export async function analyzeDiscoveryUrl(url: string): Promise<DiscoveryAnalyze
   });
 }
 
-export async function installDiscoverySkillFromUrl(url: string): Promise<DiscoveryInstallResponse> {
+export async function installDiscoverySkillFromUrl(
+  url: string,
+  options?: DiscoveryInstallOptions,
+): Promise<DiscoveryInstallResponse> {
   return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/install-from-url`, {
     method: 'POST',
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({
+      url,
+      agent_id: options?.agentId,
+      mount_to_agent: options?.mountToAgent ?? true,
+    }),
   });
 }
 

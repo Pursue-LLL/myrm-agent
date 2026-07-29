@@ -36,7 +36,12 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from tests.support.chrome_mcp_e2e import open_mcp_page, wait_for_state, warm_ui_route  # noqa: E402
+from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    _force_mux_attach_restart_after_new_page_timeout,
+    open_mcp_page,
+    wait_for_state,
+    warm_ui_route,
+)
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
 from tests.support.e2e_wall_progress import touch_e2e_wall_progress, write_e2e_session_snapshot  # noqa: E402
 
@@ -63,10 +68,18 @@ _VOICE_PROBE_JS = """(() => {
   const hasVoicePanel = !!document.querySelector('[data-testid="voice-settings-panel"]');
   const onChannelsSettings = location.pathname.includes('/settings/channels');
   const onVoiceRoute = location.search.includes('sub=voice') && onChannelsSettings;
-  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-  const voiceTab = tabs.find((el) => /语音|Voice/i.test(el.textContent || ''))
+  const tablist = document.querySelector('[role="tablist"]');
+  let tabs = tablist ? Array.from(tablist.querySelectorAll('[role="tab"]')) : [];
+  if (tabs.length === 0) {
+    tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  }
+  const voiceTab = tabs.find((el) => /语音|Voice/i.test((el.textContent || '').trim()))
     || (tabs.length >= 3 ? tabs[2] : null);
-  if (onChannelsSettings && !hasVoicePanel && voiceTab && voiceTab.getAttribute('aria-selected') !== 'true') {
+  const voiceTabActive = voiceTab
+    ? voiceTab.getAttribute('aria-selected') === 'true'
+      || voiceTab.getAttribute('data-state') === 'active'
+    : false;
+  if (onChannelsSettings && !hasVoicePanel && voiceTab && !voiceTabActive) {
     voiceTab.click();
   }
   if (onChannelsSettings && !hasVoicePanel && tabs.length === 0) {
@@ -86,6 +99,7 @@ _VOICE_PROBE_JS = """(() => {
     onVoiceRoute,
     onChannelsSettings,
     tabCount: tabs.length,
+    voiceTabActive,
     showEdgeBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
     showLocalSttBanner: /Local Whisper STT is not available|本地 Whisper 语音识别不可用/i.test(text),
     showLocalSttHint: /Free, no API key required|无需 API Key|Audio stays on your device|音频保留在/i.test(text),
@@ -453,21 +467,6 @@ async def _probe_voice_banner(
         return await cdp.wait_voice_settings()
 
 
-def _probe_voice_settings_sync(
-    client: ChromeMcpClient, page: McpPage
-) -> dict[str, object]:
-    """Sync voice settings probe — matches voice_memory_acl open_mcp_page pattern."""
-    heartbeat_e2e_lease()
-    write_e2e_session_snapshot(current_node="voice_settings_dismiss_migration", phase="body")
-    client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-    heartbeat_e2e_lease()
-    write_e2e_session_snapshot(current_node="voice_settings_navigate", phase="body")
-    client.navigate(page, _voice_settings_url(), timeout_ms=90_000)
-    heartbeat_e2e_lease()
-    write_e2e_session_snapshot(current_node="voice_settings_wait_panel", phase="body")
-    return wait_for_state(client, page, _VOICE_PROBE_JS, timeout_sec=90.0)
-
-
 @contextmanager
 def _voice_e2e_progress_loop(*, current_node: str) -> Iterator[None]:
     """Keep lease + wall progress fresh while mux new_page may block (anti hung-reap)."""
@@ -488,23 +487,50 @@ def _voice_e2e_progress_loop(*, current_node: str) -> Iterator[None]:
 
 
 def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, object]:
-    warm_ui_route("/settings/channels?sub=voice", timeout_sec=90.0)
-    ui_base = get_e2e_ui_url()
+    """Open home via mux then navigate to voice settings (matches #7 / chrome_page pattern)."""
+    voice_url = _voice_settings_url()
+    ui_root = f"{get_e2e_ui_url()}/"
+    warm_ui_route("/settings/channels?sub=voice", timeout_sec=60.0)
     last_exc: BaseException | None = None
-    for attempt in range(4):
-        node = f"{progress_node}:open_mcp:{attempt}"
-        with _voice_e2e_progress_loop(current_node=node):
+    for outer in range(2):
+        with _voice_e2e_progress_loop(current_node=progress_node):
             heartbeat_e2e_lease()
-            touch_e2e_wall_progress(current_node=node)
+            touch_e2e_wall_progress(current_node=progress_node)
             try:
-                with open_mcp_page(ui_base, timeout_ms=60_000) as (client, page):
-                    return _probe_voice_settings_sync(client, page)
-            except BaseException as exc:
+                with open_mcp_page(ui_root, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS) as (
+                    client,
+                    page,
+                ):
+                    heartbeat_e2e_lease()
+                    write_e2e_session_snapshot(
+                        current_node="voice_settings_dismiss_migration", phase="body"
+                    )
+                    client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+                    heartbeat_e2e_lease()
+                    write_e2e_session_snapshot(
+                        current_node="voice_settings_navigate", phase="body"
+                    )
+                    client.navigate(page, voice_url, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS)
+                    heartbeat_e2e_lease()
+                    wait_for_state(
+                        client,
+                        page,
+                        """(() => ({
+                          ready: !!document.querySelector('[data-testid="app-layout"]'),
+                        }))()""",
+                        timeout_sec=90.0,
+                    )
+                    write_e2e_session_snapshot(
+                        current_node="voice_settings_wait_panel", phase="body"
+                    )
+                    return wait_for_state(client, page, _VOICE_PROBE_JS, timeout_sec=90.0)
+            except (RuntimeError, TimeoutError) as exc:
                 last_exc = exc
-                touch_e2e_wall_progress(current_node=f"{node}:retry")
-                time.sleep(min(5 * (attempt + 1), 15))
-    assert last_exc is not None
-    raise last_exc
+                if outer + 1 >= 2:
+                    raise
+                _force_mux_attach_restart_after_new_page_timeout()
+                time.sleep(5.0 * (outer + 1))
+    raise last_exc or RuntimeError("voice settings chrome probe failed")
 
 
 async def _probe_read_aloud_fetch(
@@ -699,7 +725,8 @@ def test_live_stt_status_reflects_local_install() -> None:
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
-def test_voice_settings_no_local_banner_when_available(
+@pytest.mark.asyncio
+async def test_voice_settings_no_local_banner_when_available(
     require_local_stt_available: None,
 ) -> None:
     _ensure_voice_feature_enabled()
@@ -708,9 +735,20 @@ def test_voice_settings_no_local_banner_when_available(
         current_node="test_voice_settings_no_local_banner_when_available",
         phase="body",
     )
-    state = _chrome_probe_voice_settings_with_retry(
-        progress_node="test_voice_settings_no_local_banner_when_available",
-    )
+    from e2e_session_lifecycle import complete_bootstrap_phase
+
+    complete_bootstrap_phase(phase_label="test_voice_settings_no_local_banner_when_available")
+    client = ChromeMcpClient(request_timeout_sec=180.0)
+    await asyncio.to_thread(client.start)
+    try:
+        page = await asyncio.to_thread(
+            client.new_page,
+            f"{get_e2e_ui_url()}/",
+            timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS,
+        )
+        state = await _probe_voice_banner(client, page)
+    finally:
+        await asyncio.to_thread(client.close)
 
     assert state.get("hasVoicePanel") is True, state
     assert state.get("showLocalSttBanner") is False, state

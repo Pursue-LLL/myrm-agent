@@ -18,7 +18,7 @@
 | `RevertFiles.tsx` | 组件 | 消息级文件撤销：空变更/不可撤销 toast 分流；混合变更 Popover 标注 skip_reason；部分成功 toast | ✅ |
 | `SaveEvalCase.tsx` | 组件 | 保存为 Eval Lab 用例 | ✅ |
 | `SaveToMemoryButton.tsx` | 组件 | 一键保存 assistant 消息到长期记忆（调用 createMemory API） | ✅ |
-| `SaveToWikiButton.tsx` | 组件 | 保存到 Wiki 知识库 | ✅ |
+| `SaveToWikiButton.tsx` | 组件 | 保存到 Wiki 知识库（**chat agentConfig.agentId scoped**）；Vitest：`__tests__/SaveToWikiButton.scope.test.tsx` | ✅ |
 | `SiblingNav.tsx` | 组件 | 同 prompt 多分支 sibling 导航（←/→） | ✅ |
 | `SourcesButton.tsx` | 组件 | 独立消息来源 Sheet（web/mcp/conversation）；导出 `SourceItem` 供 `MemoryCitationsButton` 复用 | ✅ |
 | `Undo.tsx` | 组件 | 撤销上一条 user 发送（编辑重发入口） | ✅ |
@@ -27,3 +27,7 @@
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)
+
+## 约束
+
+- Chat→Wiki 写入 SSOT：与 `artifacts/ArtifactCard`、`research/ResearchOutputPanel` 一致，均传 `useChatStore.agentConfig.agentId`

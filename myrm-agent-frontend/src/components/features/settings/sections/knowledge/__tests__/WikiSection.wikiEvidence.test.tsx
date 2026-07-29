@@ -4,7 +4,6 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryWikiMock = vi.fn();
-const setAgentScopeMock = vi.fn();
 const listAgentsMock = vi.fn();
 const apiRequestMock = vi.fn();
 const recordWikiQueryAttemptMock = vi.fn();
@@ -26,6 +25,8 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
   },
 }));
 
@@ -39,9 +40,24 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
-    setAgentScope: (...args: unknown[]) => setAgentScopeMock(...args),
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
+    getStaleSummary: vi.fn().mockResolvedValue({
+      stale_count: 0,
+      last_compile_time: null,
+      stale_files: [],
+    }),
+    getRawTree: vi.fn().mockResolvedValue([]),
+    getQueueStatus: vi.fn().mockResolvedValue({
+      stats: {},
+      pending_items: [],
+      failed_items: [],
+      compile_run: null,
+    }),
   },
+}));
+
+vi.mock('../useWikiIngestSubscription', () => ({
+  useWikiIngestSubscription: () => ({ connected: false, snapshot: null }),
 }));
 
 vi.mock('@/services/agent', () => ({
@@ -172,7 +188,6 @@ import { WikiSection } from '../WikiSection';
 describe('WikiSection evidence snippet flow', () => {
   beforeEach(() => {
     queryWikiMock.mockReset();
-    setAgentScopeMock.mockReset();
     listAgentsMock.mockReset();
     apiRequestMock.mockReset();
     recordWikiQueryAttemptMock.mockReset();
@@ -221,7 +236,7 @@ describe('WikiSection evidence snippet flow', () => {
     fireEvent.click(queryButton);
 
     await waitFor(() => {
-      expect(queryWikiMock).toHaveBeenCalledWith('where is policy?');
+      expect(queryWikiMock).toHaveBeenCalledWith('where is policy?', 'auto', null);
     });
     expect(recordWikiQueryAttemptMock).toHaveBeenCalledWith('settings', 'agent:default');
     expect(recordWikiQuerySubmittedMock).toHaveBeenCalledWith('settings', 'agent:default');

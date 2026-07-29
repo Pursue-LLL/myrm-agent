@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -9,8 +9,14 @@ import { Badge } from '@/components/primitives/badge';
 import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/components/features/icons/PremiumIcons';
 import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
+import { WikiScopeChip } from './WikiScopeChip';
 
-export function WikiPendingEdits() {
+interface WikiPendingEditsProps {
+  agentScopeId?: string | null;
+  scopeLabel: string;
+}
+
+export function WikiPendingEdits({ agentScopeId, scopeLabel }: WikiPendingEditsProps) {
   const t = useTranslations('settings.wiki');
   const [edits, setEdits] = useState<PendingEdit[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -18,10 +24,10 @@ export function WikiPendingEdits() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState<string>('');
 
-  const loadPending = async () => {
+  const loadPending = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await wikiService.getPendingEdits();
+      const res = await wikiService.getPendingEdits(agentScopeId);
       setEdits(res.pending_edits);
       setStats(res.stats);
     } catch (error) {
@@ -30,19 +36,23 @@ export function WikiPendingEdits() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [agentScopeId, t]);
 
   useEffect(() => {
-    loadPending();
-  }, []);
+    setEdits([]);
+    setStats({});
+    setEditingId(null);
+    setEditContent('');
+    void loadPending();
+  }, [loadPending]);
 
   const handleApprove = async (id: number, modifiedContent?: string) => {
     try {
-      await wikiService.approveEdit(id, modifiedContent);
+      await wikiService.approveEdit(id, modifiedContent, agentScopeId);
       toast.success(t('success.approveComplete'));
       setEditingId(null);
       setEditContent('');
-      loadPending();
+      void loadPending();
     } catch (error) {
       console.error('Failed to approve:', error);
       if (error instanceof ApiError) {
@@ -61,9 +71,9 @@ export function WikiPendingEdits() {
 
   const handleReject = async (id: number) => {
     try {
-      await wikiService.rejectEdit(id);
+      await wikiService.rejectEdit(id, agentScopeId);
       toast.success(t('success.rejectComplete'));
-      loadPending();
+      void loadPending();
     } catch (error) {
       console.error('Failed to reject:', error);
       toast.error(t('errors.rejectFailed'));
@@ -87,16 +97,19 @@ export function WikiPendingEdits() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <IconCheckCircle className="w-5 h-5" />
             {t('pendingEdits.title')}
           </div>
-          {stats.pending > 0 && (
-            <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
-              {stats.pending} {t('pendingEdits.status.pending')}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <WikiScopeChip scopeLabel={scopeLabel} />
+            {stats.pending > 0 && (
+              <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
+                {stats.pending} {t('pendingEdits.status.pending')}
+              </Badge>
+            )}
+          </div>
         </CardTitle>
         <CardDescription>{t('pendingEdits.description')}</CardDescription>
       </CardHeader>
@@ -110,8 +123,8 @@ export function WikiPendingEdits() {
           <div className="space-y-4">
             {edits.map((edit) => (
               <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
-                <div className="flex items-center justify-between p-4 bg-muted/30 border-b">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-semibold text-lg">{edit.concept_name}</span>
                     <Badge
                       variant="outline"
@@ -121,7 +134,7 @@ export function WikiPendingEdits() {
                       {formatDate(edit.created_at)}
                     </Badge>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {editingId === edit.id ? (
                       <>
                         <Button size="sm" variant="outline" onClick={cancelEditing}>

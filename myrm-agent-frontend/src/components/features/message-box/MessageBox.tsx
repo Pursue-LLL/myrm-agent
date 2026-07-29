@@ -397,6 +397,8 @@ const MessageBox = ({
           } else if (source.skill_name) {
             // 只有 skill_name 没有 calls
             key = `skill:${source.skill_name}`;
+          } else if (source.source_key) {
+            key = source.source_key;
           } else if (source.kb_name && source.filename) {
             key = `kb:${source.kb_name}:${source.filename}`;
           } else {

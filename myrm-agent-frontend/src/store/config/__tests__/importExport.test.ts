@@ -102,7 +102,7 @@ describe('importConfig', () => {
     const setMCPConfigs = vi.fn();
     const setProviders = vi.fn();
 
-    const configs = [{ id: '1', enabled: true, role: 'primary', search_service: 'tavily', createdAt: 1 }];
+    const configs = [{ id: '1', enabled: true, priority: 1, search_service: 'tavily', createdAt: 1 }];
     const mcps = [{ name: 'test', type: 'sse', url: 'http://test.com' }];
     const providers = [{ id: 'test', name: 'Test' }];
 

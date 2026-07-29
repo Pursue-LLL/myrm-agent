@@ -38,6 +38,11 @@
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation 集成；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
 | `custom_source_config.py` | 核心 | 自定义技能源持久化管理（.well-known/skills 端点）— CRUD 配置存储至 MYRM_DATA_DIR | ✅ |
+| `clawhub_registry.py` | 核心 | ClawHub 镜像 URL 持久化/apply（CLAWHUB_URL SSOT + 清除 shadow env）；CN 预设 skill.xfyun.cn | ✅ |
+| `clawhub_probe.py` | 核心 | 薄封装：委托 harness strict registry probe | ✅ |
+| `effective_skill_ids.py` | 核心 | Agent 空 allowlist 时解析运行时 skill_ids（enabled prebuilt + local） | ✅ |
+| `discovery_mount.py` | 核心 | Discovery 安装/更新后唯一 catalog enable 入口（不写入 agent allowlist） | ✅ |
+| `market_service.py` | 核心 | 业务层技能市场服务（SSE 进度、自定义源、ClawHub 镜像懒加载） | ✅ |
 | `disabled_skill_roots.py` | 核心 | 收集用户未启用技能的 `storage_path` 根目录，注入 agent runtime context 供 glob/grep/file_read 过滤 | ✅ |
 
 ---

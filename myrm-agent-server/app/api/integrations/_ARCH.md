@@ -23,4 +23,4 @@
 | `xai_oauth.py` | 模块 | xAI OAuth device-code flow；SuperGrok 订阅授权；复用 oauth_store 持久化 | ✅ |
 | `retrieval.py` | 模块 | Retrieval Service Configuration Validation API | ✅ |
 | `router.py` | 路由 | Integrations API router | ✅ |
-| `search.py` | 模块 | 搜索引擎验证请求模型 | ✅ |
+| `search.py` | 模块 | Search provider manifest (`GET /providers`) 与 live probe 验证 (`POST /verify`)；manifest 驱动 Settings 下拉 | ✅ |

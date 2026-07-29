@@ -16,8 +16,13 @@ from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import AsyncIterator, Iterator
 
-DEFAULT_WAIT_SEC = 300
 DEFAULT_POLL_SEC = 2
+
+
+def _default_shared_ui_hydrate_wait_sec() -> int:
+    from dev_gate_contract import shared_ui_hydrate_wait_sec
+
+    return shared_ui_hydrate_wait_sec()
 
 # R68: nested navigate/reload bursts on one asyncio task must not re-enter flock.
 _burst_depth_var: contextvars.ContextVar[int] = contextvars.ContextVar(
@@ -52,14 +57,20 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
         from e2e_runtime_cell import cell_ui_hydrate_slot
 
         wait_sec = int(
-            os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+            os.environ.get(
+                "MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC",
+                str(_default_shared_ui_hydrate_wait_sec()),
+            )
         )
         with cell_ui_hydrate_slot(wait_sec=wait_sec):
             yield
         return
 
     wait_sec = int(
-        os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+        os.environ.get(
+            "MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC",
+            str(_default_shared_ui_hydrate_wait_sec()),
+        )
     )
     poll_sec = max(
         1,

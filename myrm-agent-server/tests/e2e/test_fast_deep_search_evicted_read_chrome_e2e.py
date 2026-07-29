@@ -144,7 +144,7 @@ def _minimal_e2e_search_services() -> dict[str, object]:
         "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
         "name": "E2E Search",
         "enabled": True,
-        "role": "primary",
+        "priority": 1,
         "search_service": search_service,
         "api_key": api_key or "test-tavily-key",
         "createdAt": int(time.time() * 1000),

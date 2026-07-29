@@ -1,53 +1,33 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { apiRequest } from '@/lib/api';
-import { wikiService } from '@/services/wikiService';
+import { buildWikiApiPath, buildWikiQueryRequestBody } from '@/services/wikiService';
 
-vi.mock('@/lib/api', () => ({
-  apiRequest: vi.fn(),
-}));
-
-const apiRequestMock = vi.mocked(apiRequest);
-
-describe('wikiService.queryWiki', () => {
-  beforeEach(() => {
-    apiRequestMock.mockReset();
-    wikiService.setAgentScope(undefined);
-    apiRequestMock.mockResolvedValue({
-      answer: 'ok',
-      related_articles: [],
-      source_snippets: [],
+describe('wikiService query payload', () => {
+  it('defaults retrieval mode to auto', () => {
+    expect(buildWikiQueryRequestBody('What is revenue growth?')).toEqual({
+      question: 'What is revenue growth?',
+      mode: 'auto',
     });
   });
 
-  it('posts wiki query without agent scope by default', async () => {
-    await wikiService.queryWiki('where is my policy');
-
-    expect(apiRequestMock).toHaveBeenCalledWith('/wiki/query', {
-      method: 'POST',
-      body: JSON.stringify({ question: 'where is my policy' }),
+  it('includes raw_claim mode when selected', () => {
+    expect(buildWikiQueryRequestBody('Annual revenue claim', 'raw_claim')).toEqual({
+      question: 'Annual revenue claim',
+      mode: 'raw_claim',
     });
   });
+});
 
-  it('posts wiki query with scoped agent id when scope is set', async () => {
-    wikiService.setAgentScope('agent-123');
-
-    await wikiService.queryWiki('where is my policy');
-
-    expect(apiRequestMock).toHaveBeenCalledWith('/wiki/query?agent_id=agent-123', {
-      method: 'POST',
-      body: JSON.stringify({ question: 'where is my policy' }),
-    });
+describe('buildWikiApiPath', () => {
+  it('returns the base path when agent scope is empty', () => {
+    expect(buildWikiApiPath('/wiki/pending')).toBe('/wiki/pending');
+    expect(buildWikiApiPath('/wiki/pending', '   ')).toBe('/wiki/pending');
   });
 
-  it('trims scoped agent id before building query URL', async () => {
-    wikiService.setAgentScope('  agent-456  ');
-
-    await wikiService.queryWiki('where is my policy');
-
-    expect(apiRequestMock).toHaveBeenCalledWith('/wiki/query?agent_id=agent-456', {
-      method: 'POST',
-      body: JSON.stringify({ question: 'where is my policy' }),
-    });
+  it('appends agent_id query parameter for scoped requests', () => {
+    expect(buildWikiApiPath('/wiki/pending', 'agent-a')).toBe('/wiki/pending?agent_id=agent-a');
+    expect(buildWikiApiPath('/wiki/concepts?limit=10', 'agent/b')).toBe(
+      '/wiki/concepts?limit=10&agent_id=agent%2Fb',
+    );
   });
 });

@@ -102,6 +102,11 @@ class SkillListResponse(BaseModel):
     total: int
 
 
+class RegistryPresetResponse(BaseModel):
+    id: str
+    url: str
+
+
 class UserSkillConfigResponse(BaseModel):
     """User skill configuration."""
 
@@ -110,6 +115,8 @@ class UserSkillConfigResponse(BaseModel):
     local_skill_paths: list[str] = []
     enabled_local_skill_ids: list[str] = []
     evolution_strategy: str = "balanced"
+    clawhub_registry_url: str = ""
+    registry_presets: list[RegistryPresetResponse] = []
     updated_at: str
 
 
@@ -118,6 +125,7 @@ class UpdateUserSkillConfigRequest(BaseModel):
 
     enabled_prebuilt_ids: list[str] | None = None
     evolution_strategy: str | None = None
+    clawhub_registry_url: str | None = None
 
 
 class LocalSkillPathsRequest(BaseModel):
@@ -257,7 +265,9 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             ],
         )
 
-    traps, verification_steps, store_evolution_locked = _lookup_evolution_data(skill.name)
+    traps, verification_steps, store_evolution_locked = _lookup_evolution_data(
+        skill.name
+    )
     evolution_locked = skill.evolution_locked or store_evolution_locked
 
     usage = SkillUsageStatsResponse()
@@ -266,7 +276,11 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             call_count=int(skill.usage_stats.get("call_count", 0)),
             success_count=int(skill.usage_stats.get("success_count", 0)),
             failure_count=int(skill.usage_stats.get("failure_count", 0)),
-            last_used_at=(str(skill.usage_stats["last_used_at"]) if skill.usage_stats.get("last_used_at") else None),
+            last_used_at=(
+                str(skill.usage_stats["last_used_at"])
+                if skill.usage_stats.get("last_used_at")
+                else None
+            ),
             success_rate=float(skill.usage_stats.get("success_rate", 0.0)),
             avg_duration_ms=float(skill.usage_stats.get("avg_duration_ms", 0.0)),
             lifecycle_status=str(skill.usage_stats.get("lifecycle_status", "active")),

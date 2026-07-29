@@ -11,6 +11,7 @@
 - _should_mount_ask_question_tool: interactive web_chat clarify mount predicate
 - _should_mount_render_ui_tools: inline A2UI mount predicate (WEB_CHAT + web/tauri surface)
 - _setup_x_live_search_tool: skill 绑定后 Turn1 eager x_search_tool（独立于 enable_web_search）
+- _setup_artifact_publish_tool: hosting 已配置时 conditional mount artifact_publish tool
 
 [POS]
 GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
@@ -200,6 +201,63 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
+
+    def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
+        """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
+        from myrm_agent_harness.agent.meta_tools.skills.market import (
+            create_skill_market_tool,
+        )
+
+        install_url_fn = getattr(market_backend, "install_from_url", None)
+        uninstall_fn = getattr(market_backend, "uninstall", None)
+        tools.append(
+            create_skill_market_tool(
+                market_backend,
+                install_from_url_fn=install_url_fn,
+                uninstall_fn=uninstall_fn,
+            )
+        )
+        logger.info("Loaded skill_market_tool [Turn1]")
+
+    def _setup_skill_manage_tool(
+        self,
+        tools: list[object],
+        write_backend: object,
+        skill_backend: object,
+        similarity_checker: object | None,
+        *,
+        auxiliary_llm: object | None = None,
+    ) -> None:
+        """Turn1 mount skill_manage_tool with ScanningSkillWriteBackend wrapper."""
+        from myrm_agent_harness.agent.meta_tools.skills.manage import (
+            create_skill_manage_tool,
+        )
+        from myrm_agent_harness.agent.skills.runtime.loader import skill_md_loader
+        from myrm_agent_harness.backends.skills.scanning_write_backend import (
+            ScanningSkillWriteBackend,
+        )
+
+        llm_auditor_instance = None
+        if auxiliary_llm is not None:
+            from myrm_agent_harness.backends.skills.scanning.llm_auditor import (
+                SkillLLMAuditor,
+            )
+
+            llm_auditor_instance = SkillLLMAuditor(llm=auxiliary_llm)
+
+        scanning_backend = ScanningSkillWriteBackend(
+            inner=write_backend,
+            loader=skill_md_loader,
+            llm_auditor=llm_auditor_instance,
+        )
+        tools.append(
+            create_skill_manage_tool(
+                scanning_backend,
+                skill_backend,
+                similarity_checker,
+            )
+        )
+        logger.info("Loaded skill_manage_tool [Turn1]")
 
     def _setup_search_and_basic_tools(self, tools: list[object]) -> None:
         """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
@@ -931,6 +989,27 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception:
             pass
         return None
+
+    async def _setup_artifact_publish_tool(self, tools: list[object]) -> None:
+        """Register artifact_publish tool when hosting targets are configured.
+
+        Conditional loading: only mounted when the user has at least one
+        hosting target, keeping zero prompt-token overhead for unconfigured users.
+        """
+        try:
+            from app.services.hosting.credentials import has_any_hosting_credentials
+
+            if not await has_any_hosting_credentials():
+                return
+
+            from app.services.hosting.agent_publish_tool import (
+                create_artifact_publish_tool,
+            )
+
+            tools.append(create_artifact_publish_tool())
+            logger.info("Loaded artifact_publish tool [conditional, hosting configured]")
+        except Exception as e:
+            logger.debug("artifact_publish tool skipped: %s", e)
 
     def _setup_computer_use_tools(self, tools: list[object]) -> None:
         """Set up system-wide computer use tools (screenshot + action)."""

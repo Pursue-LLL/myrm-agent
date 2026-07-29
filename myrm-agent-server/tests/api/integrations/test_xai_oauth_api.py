@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import Response
+from fastapi.testclient import TestClient
+from httpx import Request, Response
 
 from app.api.integrations.xai_oauth import (
-    XAI_OAUTH_CLIENT_ID,
-    XAI_OAUTH_DEVICE_CODE_URL,
     XAI_OAUTH_SCOPE,
-    XAI_OAUTH_TOKEN_URL,
+    _DeviceCodePending,
     _pending_flows,
 )
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="integrations")
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with patch(
+        "app.core.security.auth.identity.is_loopback_ip",
+        return_value=True,
+    ):
+        yield TestClient(app)
 
 
 @pytest.fixture(autouse=True)
@@ -23,8 +36,7 @@ def _clean_pending_flows():
     _pending_flows.clear()
 
 
-@pytest.mark.asyncio
-async def test_start_xai_oauth_returns_user_code(client):
+def test_start_xai_oauth_returns_user_code(client: TestClient):
     """POST /integrations/xai/oauth/start returns device code info."""
     mock_response = Response(
         200,
@@ -36,6 +48,7 @@ async def test_start_xai_oauth_returns_user_code(client):
             "interval": 5,
             "expires_in": 600,
         },
+        request=Request("POST", "https://auth.x.ai/oauth2/device/code"),
     )
 
     with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
@@ -45,7 +58,7 @@ async def test_start_xai_oauth_returns_user_code(client):
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        resp = await client.post("/api/integrations/xai/oauth/start")
+        resp = client.post("/api/v1/integrations/xai/oauth/start")
 
     assert resp.status_code == 200
     data = resp.json()["data"]
@@ -54,13 +67,8 @@ async def test_start_xai_oauth_returns_user_code(client):
     assert "ABCD-1234" in _pending_flows
 
 
-@pytest.mark.asyncio
-async def test_poll_returns_pending_before_auth(client):
+def test_poll_returns_pending_before_auth(client: TestClient):
     """POST /integrations/xai/oauth/poll returns pending when user hasn't authorized yet."""
-    from app.api.integrations.xai_oauth import _DeviceCodePending
-
-    import time
-
     _pending_flows["TEST-CODE"] = _DeviceCodePending(
         device_code="dc-456",
         user_code="TEST-CODE",
@@ -83,19 +91,14 @@ async def test_poll_returns_pending_before_auth(client):
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        resp = await client.post("/api/integrations/xai/oauth/poll?user_code=TEST-CODE")
+        resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=TEST-CODE")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "pending"
 
 
-@pytest.mark.asyncio
-async def test_poll_succeeds_and_stores_credential(client, db_session):
+def test_poll_succeeds_and_stores_credential(client: TestClient):
     """POST /integrations/xai/oauth/poll stores credential on success."""
-    from app.api.integrations.xai_oauth import _DeviceCodePending
-
-    import time
-
     _pending_flows["SUCCESS-CODE"] = _DeviceCodePending(
         device_code="dc-789",
         user_code="SUCCESS-CODE",
@@ -123,7 +126,7 @@ async def test_poll_succeeds_and_stores_credential(client, db_session):
         mock_client_cls.return_value = mock_client
 
         with patch("app.api.integrations.xai_oauth.upsert_oauth_credential", new_callable=AsyncMock) as mock_upsert:
-            resp = await client.post("/api/integrations/xai/oauth/poll?user_code=SUCCESS-CODE")
+            resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=SUCCESS-CODE")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "success"
@@ -135,15 +138,11 @@ async def test_poll_succeeds_and_stores_credential(client, db_session):
         entry = call_args[0][2]
         assert entry["token"] == "xai-access-token"
         assert entry["refresh_token"] == "xai-refresh-token"
+        assert entry["base_url"] == "https://api.x.ai/v1"
 
 
-@pytest.mark.asyncio
-async def test_poll_returns_expired_when_flow_timed_out(client):
+def test_poll_returns_expired_when_flow_timed_out(client: TestClient):
     """POST /integrations/xai/oauth/poll returns expired for timed-out flows."""
-    from app.api.integrations.xai_oauth import _DeviceCodePending
-
-    import time
-
     _pending_flows["EXPIRED-CODE"] = _DeviceCodePending(
         device_code="dc-exp",
         user_code="EXPIRED-CODE",
@@ -153,16 +152,15 @@ async def test_poll_returns_expired_when_flow_timed_out(client):
         interval=5,
     )
 
-    resp = await client.post("/api/integrations/xai/oauth/poll?user_code=EXPIRED-CODE")
+    resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=EXPIRED-CODE")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "expired"
     assert "EXPIRED-CODE" not in _pending_flows
 
 
-@pytest.mark.asyncio
-async def test_poll_returns_404_for_unknown_code(client):
+def test_poll_returns_404_for_unknown_code(client: TestClient):
     """POST /integrations/xai/oauth/poll returns 404 for unknown user_code."""
-    resp = await client.post("/api/integrations/xai/oauth/poll?user_code=UNKNOWN")
+    resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=UNKNOWN")
 
     assert resp.status_code == 404

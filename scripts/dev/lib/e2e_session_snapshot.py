@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - write_session_snapshot / read_session_snapshot / body_elapsed_from_snapshot
+- nodeStartedMonotonic + node elapsed for e2e_stall_guard (R96-B6)
 
 [POS]
 Dev Gate layer — parallel-safe progress for ./myrm e2e-context and hung pytest reap.
@@ -49,11 +50,23 @@ def write_session_snapshot(*, current_node: str, phase: str | None = None) -> No
     now = time.monotonic()
     resolved_phase = (phase or current_phase()).strip().lower() or "body"
     started = wall_started_monotonic() or now
+    node_started = now
+    existing = read_session_snapshot(os.getpid())
+    if existing is not None:
+        prev_node = str(existing.get("currentNode") or "").strip()
+        if prev_node == current_node.strip():
+            raw_node_started = existing.get("nodeStartedMonotonic")
+            if raw_node_started is not None:
+                try:
+                    node_started = float(raw_node_started)
+                except (TypeError, ValueError):
+                    pass
     payload = {
         "pid": os.getpid(),
         "currentNode": current_node,
         "phase": resolved_phase,
         "bodyStartedMonotonic": started,
+        "nodeStartedMonotonic": node_started,
         "progressAtMonotonic": now,
         "updatedAtEpoch": time.time(),
     }
@@ -124,6 +137,11 @@ def body_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
     phase = str(snapshot.get("phase") or "").strip().lower()
     if phase != "body":
         return None
+    return phase_elapsed_from_snapshot(snapshot)
+
+
+def phase_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
+    """Monotonic seconds since current phase wall started (bootstrap or body)."""
     started = snapshot.get("bodyStartedMonotonic")
     if started is None:
         return None

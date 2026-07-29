@@ -1,62 +1,73 @@
-"""Fallback Provider集成测试（真实场景）"""
+"""Priority provider chain integration tests (real services when available)."""
 
 import os
 
 import pytest
-from myrm_agent_harness.toolkits.web_search.exceptions import SearchAPIError
+from myrm_agent_harness.toolkits.web_search.exceptions import (
+    AllQueriesFailedError,
+    SearchAPIError,
+)
 from myrm_agent_harness.toolkits.web_search.metrics import WebSearchMetrics
-from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig, WebSearcher
+from myrm_agent_harness.toolkits.web_search.web_searcher import (
+    SearchServiceConfig,
+    WebSearcher,
+)
 
 
-class TestFallbackIntegration:
-    """Fallback集成测试（使用真实服务）"""
+def _chain_config(*hops: SearchServiceConfig) -> SearchServiceConfig:
+    head = hops[0]
+    return SearchServiceConfig(
+        search_service=head.search_service,
+        api_key=head.api_key,
+        api_base=head.api_base,
+        provider_chain=list(hops),
+    )
+
+
+class TestProviderChainIntegration:
+    """Provider chain integration (uses real services when available)."""
 
     @pytest.mark.asyncio
-    async def test_fallback_with_invalid_tavily_key(self):
-        """测试Tavily配额超限后fallback到SearXNG"""
-        fallback_config = SearchServiceConfig(
-            search_service="searxng",
-            api_base="http://localhost:8081",
-        )
-
-        primary_config = SearchServiceConfig(
-            search_service="tavily",
-            api_key="tvly-invalid-key-for-fallback-test",
-            fallback_config=fallback_config,
+    async def test_chain_with_invalid_tavily_key(self):
+        cfg = _chain_config(
+            SearchServiceConfig(
+                search_service="tavily", api_key="tvly-invalid-key-for-fallback-test"
+            ),
+            SearchServiceConfig(
+                search_service="searxng", api_base="http://localhost:8081"
+            ),
         )
 
         metrics = WebSearchMetrics()
-        searcher = WebSearcher(primary_config, metrics=metrics)
+        searcher = WebSearcher(cfg, metrics=metrics)
 
         try:
             results = await searcher.search("Python programming", num_results=3)
 
-            assert len(results) > 0, "Fallback should return results"
+            assert len(results) > 0, "Chain should return results from SearXNG"
 
             snap = metrics.snapshot()
-            assert snap["fallback_triggered_count"] >= 1, "Fallback should be triggered"
-            assert snap["fallback_successes"] >= 1, "Fallback should succeed"
+            assert snap["chain_hop_count"] >= 1, "Chain hop should be recorded"
 
-            print(f"✓ Fallback test passed: {len(results)} results from SearXNG")
-        except SearchAPIError as e:
+            print(f"✓ Chain test passed: {len(results)} results from fallback hop")
+        except (SearchAPIError, AllQueriesFailedError) as e:
             pytest.skip(f"SearXNG not available: {e}")
 
     @pytest.mark.asyncio
-    async def test_no_fallback_when_primary_succeeds(self):
-        """测试主服务成功时不触发fallback"""
+    async def test_no_chain_hop_when_primary_succeeds(self):
         api_key = os.getenv("TAVILY_API_KEY") or os.getenv("BASIC_API_KEY")
         if not api_key:
             pytest.skip("No valid Tavily API key available")
 
-        fallback_config = SearchServiceConfig(search_service="searxng")
-        primary_config = SearchServiceConfig(
-            search_service="tavily",
-            api_key=api_key,
-            fallback_config=fallback_config,
+        cfg = _chain_config(
+            SearchServiceConfig(search_service="tavily", api_key=api_key),
+            SearchServiceConfig(
+                search_service="searxng", api_base="http://localhost:8081"
+            ),
         )
 
         metrics = WebSearchMetrics()
-        searcher = WebSearcher(primary_config, metrics=metrics)
+        searcher = WebSearcher(cfg, metrics=metrics)
 
         try:
             results = await searcher.search("AI news", num_results=3)
@@ -64,7 +75,9 @@ class TestFallbackIntegration:
             assert len(results) > 0
 
             snap = metrics.snapshot()
-            assert snap["fallback_triggered_count"] == 0, "Fallback should not be triggered"
+            assert (
+                snap["chain_hop_count"] == 0
+            ), "Chain hop should not occur when primary succeeds"
 
             print(f"✓ Primary service test passed: {len(results)} results from Tavily")
         except SearchAPIError as e:
@@ -73,8 +86,7 @@ class TestFallbackIntegration:
             raise
 
     @pytest.mark.asyncio
-    async def test_no_fallback_when_not_configured(self):
-        """测试未配置fallback时的行为"""
+    async def test_no_chain_when_not_configured(self):
         config = SearchServiceConfig(
             search_service="tavily",
             api_key="tvly-invalid-no-fallback",
@@ -87,12 +99,13 @@ class TestFallbackIntegration:
             await searcher.search("test query", num_results=3)
 
         snap = metrics.snapshot()
-        assert snap["fallback_triggered_count"] == 0
+        assert snap["chain_hop_count"] == 0
         assert snap["search_terminal_failures"] >= 1
 
-    def test_config_loader_role_extraction(self):
-        """测试config_loader正确提取primary和fallback角色"""
-        from app.core.channel_bridge.config_parsers import extract_active_search_config as _extract_active_search_config
+    def test_config_loader_legacy_role_migration(self):
+        from app.core.channel_bridge.config_parsers import (
+            extract_active_search_config as _extract_active_search_config,
+        )
 
         search_services = {
             "searchServiceConfigs": [
@@ -115,10 +128,12 @@ class TestFallbackIntegration:
 
         result = _extract_active_search_config(search_services)
 
+        assert result is not None
         assert result.search_service == "tavily"
         assert result.api_key == "primary_key"
-        assert result.fallback_config is not None
-        assert result.fallback_config.search_service == "searxng"
-        assert result.fallback_config.api_base == "http://localhost:8081"
+        assert result.provider_chain is not None
+        assert len(result.provider_chain) == 2
+        assert result.provider_chain[1].search_service == "searxng"
+        assert result.provider_chain[1].api_base == "http://localhost:8081"
 
-        print("✓ Config loader role extraction test passed")
+        print("✓ Config loader legacy role migration test passed")

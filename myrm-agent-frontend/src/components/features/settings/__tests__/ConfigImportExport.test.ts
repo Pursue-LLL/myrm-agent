@@ -11,7 +11,7 @@ describe('parseImportJson', () => {
         fetchRawWebpage: true,
         generateSearchSuggestions: false,
         enableCostEstimation: true,
-        searchServiceConfigs: [{ id: '1', enabled: true, role: 'primary', search_service: 'tavily', createdAt: 1 }],
+        searchServiceConfigs: [{ id: '1', enabled: true, priority: 1, search_service: 'tavily', createdAt: 1 }],
         mcpConfigs: [{ name: 'test-mcp', type: 'sse', url: 'http://example.com' }],
         providers: [
           {

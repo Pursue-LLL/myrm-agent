@@ -49,8 +49,8 @@ const SearchSection = memo(() => {
       : searchServiceConfigs.filter((config) => config.search_service !== 'searxng');
 
     return [...configs].sort((a, b) => {
-      if (a.role !== b.role) {
-        return a.role === 'primary' ? -1 : 1;
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
       }
       return (a.createdAt || 0) - (b.createdAt || 0);
     });
@@ -231,7 +231,7 @@ const SearchSection = memo(() => {
           <div className="grid gap-3">
             {filteredConfigs.map((config) => {
               const conflictingService = filteredConfigs.find(
-                (c) => c.id !== config.id && c.enabled && c.role === config.role,
+                (c) => c.id !== config.id && c.enabled && c.priority === config.priority,
               );
               return (
                 <SearchServiceCard

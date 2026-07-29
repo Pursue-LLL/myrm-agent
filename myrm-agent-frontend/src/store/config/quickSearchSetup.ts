@@ -21,7 +21,7 @@ export function buildQuickSearchConfig(
     id: generateSearchServiceConfigId(),
     name: service === 'searxng' ? 'SearXNG Local' : service,
     enabled: true,
-    role: 'primary',
+    priority: 1,
     search_service: service,
     api_key: null,
     api_base: apiBase ?? null,

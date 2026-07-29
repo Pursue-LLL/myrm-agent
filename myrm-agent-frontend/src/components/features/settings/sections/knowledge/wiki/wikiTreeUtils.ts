@@ -46,6 +46,13 @@ export function isNotFoundApiError(error: unknown): boolean {
   return error instanceof ApiError && error.code === 404;
 }
 
+export function getWikiErrorCode(error: unknown): string | undefined {
+  if (error instanceof ApiError && error.businessCode) {
+    return String(error.businessCode);
+  }
+  return undefined;
+}
+
 export function getWikiOperationErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     return error.message || fallback;

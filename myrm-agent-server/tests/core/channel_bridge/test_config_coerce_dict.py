@@ -5,7 +5,7 @@ from app.core.channel_bridge.config_parsers import extract_active_search_config
 
 
 def test_coerce_config_dict_parses_json_string() -> None:
-    raw = '{"searchServiceConfigs": [{"enabled": true, "role": "primary", "search_service": "tavily", "api_key": "k"}]}'
+    raw = '{"searchServiceConfigs": [{"id": "1", "enabled": true, "priority": 1, "search_service": "tavily", "api_key": "k", "createdAt": 1}]}'
     parsed = _coerce_config_dict(raw)
     assert parsed is not None
     assert extract_active_search_config(parsed) is not None

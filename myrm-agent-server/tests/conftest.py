@@ -419,6 +419,14 @@ def _chrome_e2e_item_runtime(
     dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
     if str(dev_infra) not in sys.path:
         sys.path.insert(0, str(dev_infra))
+    from e2e_orchestrator import begin_bootstrap_phase
+    from e2e_session_snapshot import write_session_snapshot
+
+    begin_bootstrap_phase(phase_label=request.node.name)
+    write_session_snapshot(
+        current_node=request.node.nodeid,
+        phase="bootstrap",
+    )
     from chrome_e2e_runtime import start_chrome_e2e_runtime
 
     runtime_lane = lane if lane in {"READ", "LIVE_AGENT"} else "LIVE_AGENT"
@@ -507,14 +515,14 @@ def _require_live_e2e_lease(
                 )
         except RuntimeError as exc:
             pytest.fail(str(exc))
-        from e2e_orchestrator import begin_body_wall_budget
+        from e2e_orchestrator import begin_bootstrap_phase
 
-        begin_body_wall_budget(phase_label=request.node.name)
+        begin_bootstrap_phase(phase_label=request.node.name)
         from e2e_session_snapshot import write_session_snapshot
 
         write_session_snapshot(
             current_node=request.node.nodeid,
-            phase="body",
+            phase="bootstrap",
         )
         reap_chrome_e2e_session_hygiene()
         from e2e_signoff_trace import begin_signoff_trace
@@ -553,6 +561,13 @@ def _require_live_e2e_lease(
             )
 
             prime_search_policy_env(request.node)
+            from e2e_session_lifecycle import complete_bootstrap_phase
+
+            complete_bootstrap_phase(phase_label=request.node.name)
+            write_session_snapshot(
+                current_node=request.node.nodeid,
+                phase="body",
+            )
             try:
                 with e2e_lease_heartbeat_loop():
                     yield

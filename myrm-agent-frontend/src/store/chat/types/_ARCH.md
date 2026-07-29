@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `index.ts` | 核心 | 子模块 barrel | ✅ |
 | `builtinTools.ts` | 核心 | GUI 可切换 builtin 产品 ID（不含 `answer_tool`；Fast Search 由服务端强制挂载） | ✅ |
-| `sources.ts` | 核心 | 引用来源 / citation（含知识库来源分层 level 与 path 契约） | ✅ |
+| `sources.ts` | 核心 | 引用来源 / citation（含 KB level/path、claim evidence、`snapshot_status`、`source_key`） | ✅ |
 | `sessionConfig.ts` | 核心 | Agent 与会话模式 | ✅ |
 | `archiveRestore.ts` | 辅助 | 归档恢复 payload | ✅ |
 | `progress.ts` | 核心 | ProgressItem 树 | ✅ |

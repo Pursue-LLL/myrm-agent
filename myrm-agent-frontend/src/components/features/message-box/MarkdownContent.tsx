@@ -37,6 +37,8 @@ import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Source, WikiSourceLevel } from '@/store/chat/types';
 import { recordEvidenceSurface } from '@/services/wikiEvidenceMetrics';
+import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
+import { useTranslations } from 'next-intl';
 import { detectEmbed, UrlEmbed } from '@/components/features/embeds';
 import { OgCard } from '@/components/features/embeds/OgCard';
 
@@ -108,6 +110,7 @@ const MarkdownContent = React.memo(
     const smoothStreamEnabled = useConfigStore((state) => state.smoothStreamEnabled);
     const { addChunk, displayedContent, flush, reset } = useSmoothStream();
     const prevContentRef = React.useRef('');
+    const tSources = useTranslations('MessageSources');
 
     const [drawerState, setDrawerState] = useState<{
       open: boolean;
@@ -115,11 +118,18 @@ const MarkdownContent = React.memo(
       section?: string;
       snippet: string;
       level?: WikiSourceLevel;
+      snapshotStatus?: Source['snapshot_status'];
     }>({ open: false, title: '', snippet: '' });
 
     const openKbDrawer = useCallback(
-      (title: string, section: string | undefined, snippet: string, level?: WikiSourceLevel) => {
-        setDrawerState({ open: true, title, section, snippet, level });
+      (
+        title: string,
+        section: string | undefined,
+        snippet: string,
+        level?: WikiSourceLevel,
+        snapshotStatus?: Source['snapshot_status'],
+      ) => {
+        setDrawerState({ open: true, title, section, snippet, level, snapshotStatus });
       },
       [],
     );
@@ -307,15 +317,24 @@ const MarkdownContent = React.memo(
           }
 
           if (source?.kb_name) {
+            const sectionLabel = resolveWikiSectionLabel(source.section, tSources);
             const kbTitle = source.filename
-              ? `${source.filename}${source.section ? ` § ${source.section}` : ''}`
+              ? `${source.filename}${sectionLabel ? ` § ${sectionLabel}` : ''}`
               : source.kb_name;
             const kbSnippet = source.snippet || source.summary || '';
             if (kbSnippet) {
               return (
                 <span
                   className="bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-amber-500/30 hover:text-amber-800 dark:hover:text-amber-300 transition-colors duration-200 cursor-pointer"
-                  onClick={() => openKbDrawer(kbTitle, source.section, kbSnippet, normalizeWikiLevel(source.level))}
+                  onClick={() =>
+                    openKbDrawer(
+                      kbTitle,
+                      sectionLabel,
+                      kbSnippet,
+                      normalizeWikiLevel(source.level),
+                      source.snapshot_status,
+                    )
+                  }
                 >
                   {num}
                 </span>
@@ -337,13 +356,13 @@ const MarkdownContent = React.memo(
 
           // 默认渲染网页引用 (web_search, web_fetch)
           const title = source?.title;
-          const description = source?.snippet;
+          const description = source?.summary || source?.snippet;
           const linkUrl = url && url !== '' ? url : '#';
 
           return <LinkPopover url={linkUrl} title={title} description={description} label={num} />;
         },
       }),
-      [sources, isStreaming, openKbDrawer],
+      [sources, isStreaming, openKbDrawer, tSources],
     );
 
     return (
@@ -370,6 +389,7 @@ const MarkdownContent = React.memo(
           section={drawerState.section}
           snippet={drawerState.snippet}
           level={drawerState.level}
+          snapshotStatus={drawerState.snapshotStatus}
           surface="chat"
           contextKey={`chat:${_messageId}`}
         />

@@ -1063,8 +1063,15 @@ async def convert_to_general_agent_params(
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
+        signoff_clarify_contract=_resolve_signoff_clarify_contract(request),
     )
     return params, routing_tier, mention_warnings, archive_restore_results
+
+
+def _resolve_signoff_clarify_contract(request: AgentRequest) -> bool:
+    """Enable first-turn ask_question tool_choice for M3 signoff clarify API leg."""
+    engine_params = request.engine_params or {}
+    return engine_params.get("signoffClarifyContract") is True
 
 
 def _is_learn_skill_authoring_query(query: object) -> bool:

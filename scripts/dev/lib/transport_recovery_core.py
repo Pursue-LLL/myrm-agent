@@ -34,5 +34,9 @@ def resolve_transport_recovery_mode(
 
 
 def should_skip_global_teardown(mode: TransportRecoveryMode) -> bool:
-    """Global shim teardown harms peer mux sessions only when peers>1 and shim up."""
+    """Global shim teardown harms peer mux sessions only when peers>1 and shim up.
+
+    R121: callers may pass ``cdp_drift=True`` to ``abandon_inflight_requests`` for
+    scoped mux attach restart instead of skipping all teardown under parallel reclaim.
+    """
     return mode == TransportRecoveryMode.PARALLEL_PAGE_RECLAIM

@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ArchiveRestoreAction, File as ChatFile } from '@/store/chat/types';
+import type { TurnCapabilitySelection } from './turnCapabilityOverrideCore';
 
 const QUEUE_STORAGE_KEY_PREFIX = 'myrm_message_queue_';
 
@@ -19,6 +20,7 @@ export interface QueuedMessage {
   text: string;
   files: ChatFile[];
   archiveRestoreActions?: ArchiveRestoreAction[];
+  turnCapabilitySelection?: TurnCapabilitySelection | null;
   timestamp: number;
 }
 
@@ -38,7 +40,7 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
       if (storedQueue) {
         // Note: File objects cannot be fully serialized to localStorage.
         // For a robust implementation, we'd need IndexedDB or to only store text/metadata.
-        // For now, we restore the text and timestamp, but files will be lost across reloads.
+        // Current strategy restores serializable fields and may drop non-serializable File blobs after reload.
         const parsed = JSON.parse(storedQueue);
         if (Array.isArray(parsed)) {
           setQueue(parsed);
@@ -72,17 +74,26 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
     }
   }, [queue, chatId]);
 
-  const enqueue = useCallback((text: string, files: ChatFile[], archiveRestoreActions?: ArchiveRestoreAction[]) => {
-    const newMessage: QueuedMessage = {
-      id: Math.random().toString(36).substring(2, 9),
-      text,
-      files,
-      archiveRestoreActions,
-      timestamp: Date.now(),
-    };
-    setQueue((prev) => [...prev, newMessage]);
-    return newMessage;
-  }, []);
+  const enqueue = useCallback(
+    (
+      text: string,
+      files: ChatFile[],
+      archiveRestoreActions?: ArchiveRestoreAction[],
+      turnCapabilitySelection?: TurnCapabilitySelection | null,
+    ) => {
+      const newMessage: QueuedMessage = {
+        id: Math.random().toString(36).substring(2, 9),
+        text,
+        files,
+        archiveRestoreActions,
+        turnCapabilitySelection,
+        timestamp: Date.now(),
+      };
+      setQueue((prev) => [...prev, newMessage]);
+      return newMessage;
+    },
+    [],
+  );
 
   const dequeue = useCallback(() => {
     if (queue.length === 0) return null;

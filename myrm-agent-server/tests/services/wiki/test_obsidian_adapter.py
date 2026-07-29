@@ -7,6 +7,8 @@ from pathlib import Path
 from app.services.wiki.obsidian_adapter import (
     ObsidianImportStats,
     adapt_obsidian_file,
+    extract_inline_obsidian_tags,
+    merge_obsidian_tags,
     parse_frontmatter,
     rewrite_image_embeds,
 )
@@ -134,6 +136,45 @@ class TestRewriteImageEmbeds:
 
 
 # ---------------------------------------------------------------------------
+# extract_inline_obsidian_tags
+# ---------------------------------------------------------------------------
+
+
+class TestExtractInlineObsidianTags:
+    def test_promotes_inline_tags_and_strips_body(self) -> None:
+        body = "Notes about #python and #web/dev topics."
+        cleaned, tags = extract_inline_obsidian_tags(body)
+        assert tags == ["python", "web/dev"]
+        assert "#python" not in cleaned
+        assert "#web/dev" not in cleaned
+        assert "Notes about" in cleaned
+
+    def test_skips_fenced_code_blocks(self) -> None:
+        body = "Use `#python` in prose but keep ```py\n#python\n``` intact."
+        cleaned, tags = extract_inline_obsidian_tags(body)
+        assert tags == []
+        assert "#python" in cleaned
+
+    def test_skips_inline_code_spans(self) -> None:
+        body = "See `#tag` in inline code, real tag #real."
+        cleaned, tags = extract_inline_obsidian_tags(body)
+        assert tags == ["real"]
+        assert "`#tag`" in cleaned
+        assert "#real" not in cleaned
+
+    def test_does_not_match_headings_or_numeric_only_tokens(self) -> None:
+        body = "# Heading line\nAlso #2024 and #tag1."
+        cleaned, tags = extract_inline_obsidian_tags(body)
+        assert tags == ["tag1"]
+        assert "# Heading line" in cleaned
+        assert "#2024" in cleaned
+
+    def test_merge_obsidian_tags_deduplicates_case_insensitively(self) -> None:
+        merged = merge_obsidian_tags(["Python"], ["python", "web"])
+        assert merged == ["Python", "web"]
+
+
+# ---------------------------------------------------------------------------
 # adapt_obsidian_file
 # ---------------------------------------------------------------------------
 
@@ -209,6 +250,34 @@ class TestAdaptObsidianFile:
         assert "aliases:" in text
         assert "Aliases:" not in text
         assert meta["aliases"] == ["alias1", "alias2"]
+
+    def test_inline_tags_promoted_to_frontmatter(self, tmp_path: Path) -> None:
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "inline-tags.md"
+        note.write_text("# Daily\nCaptured #python and #research/notes here.")
+        raw = tmp_path / "raw"
+        assets = tmp_path / "assets"
+
+        dest, meta, _ = adapt_obsidian_file(note, vault, raw, assets)
+        assert dest is not None
+        text = dest.read_text()
+        assert "tags:" in text
+        assert meta["tags"] == ["python", "research/notes"]
+        assert "#python" not in text
+        assert "#research/notes" not in text
+
+    def test_inline_tags_merge_with_existing_frontmatter(self, tmp_path: Path) -> None:
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "merged-tags.md"
+        note.write_text("---\ntags:\n  - python\n---\nMore on #Python and #web.")
+        raw = tmp_path / "raw"
+        assets = tmp_path / "assets"
+
+        dest, meta, _ = adapt_obsidian_file(note, vault, raw, assets)
+        assert dest is not None
+        assert meta["tags"] == ["python", "web"]
 
 
 # ---------------------------------------------------------------------------

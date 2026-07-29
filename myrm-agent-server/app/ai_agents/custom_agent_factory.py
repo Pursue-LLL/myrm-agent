@@ -61,7 +61,9 @@ def _coerce_str_frozenset(value: object) -> frozenset[str]:
     return frozenset(item for item in value if isinstance(item, str))
 
 
-def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[str, ...]) -> list[object]:
+def _filter_tools_by_profile(
+    tools: list[object], enabled_builtin_tools: tuple[str, ...]
+) -> list[object]:
     """Filter inherited tools based on the active agent's tool boundaries."""
     from myrm_agent_harness.core.security.tool_registry import TOOL_TO_GROUP
 
@@ -97,7 +99,11 @@ def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[s
 def _without_legacy_conversation_search_tool(tools: list[object]) -> list[object]:
     """Drop standalone conversation_search_tool inherited from older parent binds."""
 
-    return [tool for tool in tools if getattr(tool, "name", "") != "conversation_search_tool"]
+    return [
+        tool
+        for tool in tools
+        if getattr(tool, "name", "") != "conversation_search_tool"
+    ]
 
 
 def _parent_chat_id(parent_agent: object) -> str | None:
@@ -111,7 +117,10 @@ def _parent_chat_id(parent_agent: object) -> str | None:
 def _parent_memory_search_flags(parent_agent: object) -> tuple[bool, bool]:
     """Mirror GeneralAgent MemorySearchPolicy gates from the parent runtime agent."""
     incognito = bool(getattr(parent_agent, "incognito_mode", False))
-    allow_sessions = bool(getattr(parent_agent, "enable_conversation_search", False)) and not incognito
+    allow_sessions = (
+        bool(getattr(parent_agent, "enable_conversation_search", False))
+        and not incognito
+    )
     allow_wiki = bool(getattr(parent_agent, "enable_wiki", False)) and not incognito
     return allow_sessions, allow_wiki
 
@@ -157,7 +166,9 @@ def _rebind_subagent_memory_search_tool(
 
     conversation_provider = None
     if allow_sessions:
-        from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+        from app.services.chat.conversation_search_service import (
+            ConversationHistorySearchProvider,
+        )
 
         conversation_provider = ConversationHistorySearchProvider(
             current_chat_id=chat_id,
@@ -165,7 +176,9 @@ def _rebind_subagent_memory_search_tool(
             memory_manager=memory_manager,
         )
 
-    search_policy = MemorySearchPolicy(allow_wiki=allow_wiki, allow_sessions=allow_sessions)
+    search_policy = MemorySearchPolicy(
+        allow_wiki=allow_wiki, allow_sessions=allow_sessions
+    )
     wiki_query = query_wiki if allow_wiki and callable(query_wiki) else None
     search_backends = MemorySearchBackends(
         query_wiki=wiki_query,
@@ -284,20 +297,26 @@ class CustomAgentFactory:
             profile = self._agent_profile
             metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
 
+            from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
             from app.core.skills.loader import create_skill_backend
             from app.core.skills.store.user_config import UserSkillConfigManager
             from app.platform_utils import get_storage_provider
 
             storage_backend = get_storage_provider()
-            skill_ids: list[str] = getattr(profile, "skills", None) or []
+            skill_ids = await resolve_runtime_skill_ids(
+                getattr(profile, "skills", None) or []
+            )
             # Keep custom subagents in the same prebuilt-visibility contract as GeneralAgent:
             # only user-enabled prebuilt skills are loaded into runtime action space.
             user_skill_cfg = await UserSkillConfigManager(storage_backend).get_config()
-            allowed_prebuilt = _coerce_str_frozenset(getattr(user_skill_cfg, "enabled_prebuilt_ids", []))
+            allowed_prebuilt = _coerce_str_frozenset(
+                getattr(user_skill_cfg, "enabled_prebuilt_ids", [])
+            )
 
             self._cached_skill_backend = await create_skill_backend(
                 storage=storage_backend,
                 skill_ids=skill_ids or None,
+                user_id="default",
                 allowed_prebuilt_ids=allowed_prebuilt,
             )
 
@@ -305,7 +324,9 @@ class CustomAgentFactory:
             if mcp_ids:
                 try:
                     from app.core.channel_bridge.config_loader import load_user_configs
-                    from app.core.channel_bridge.config_parsers import extract_mcp_configs
+                    from app.core.channel_bridge.config_parsers import (
+                        extract_mcp_configs,
+                    )
                     from app.services.agent.params.mcp_selection import (
                         apply_agent_mcp_selection,
                         coerce_tool_selections,
@@ -314,14 +335,18 @@ class CustomAgentFactory:
                     configs = await load_user_configs()
                     if configs and configs.mcp_dict:
                         all_mcp = extract_mcp_configs(configs.mcp_dict) or []
-                        tool_selections = coerce_tool_selections(metadata.get("mcp_tool_selections"))
+                        tool_selections = coerce_tool_selections(
+                            metadata.get("mcp_tool_selections")
+                        )
                         self._cached_mcp_configs = apply_agent_mcp_selection(
                             all_mcp,
                             mcp_ids=tuple(mcp_ids),
                             mcp_tool_selections=tool_selections,
                         )
                 except Exception as e:
-                    logger.warning("[CustomAgentFactory] MCP config resolution failed: %s", e)
+                    logger.warning(
+                        "[CustomAgentFactory] MCP config resolution failed: %s", e
+                    )
 
             self._initialized = True
 
@@ -368,7 +393,9 @@ class CustomAgentFactory:
                     providers_dict,
                     model_override=config.model,
                 )
-                llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
+                llm = await llm_manager.get_llm_from_config(
+                    model_cfg, api_keys=getattr(model_cfg, "api_keys", None)
+                )
             except Exception as e:
                 logger.warning(
                     "[CustomAgentFactory] Failed to resolve model '%s', falling back to parent LLM: %s",
@@ -380,9 +407,15 @@ class CustomAgentFactory:
 
         # --- 2. Memory Manager (respects memory_isolation policy) ---
         memory_manager = None
-        if str(getattr(config, "memory_isolation", _EPHEMERAL_MEMORY_ISOLATION)) != _EPHEMERAL_MEMORY_ISOLATION:
+        if (
+            str(getattr(config, "memory_isolation", _EPHEMERAL_MEMORY_ISOLATION))
+            != _EPHEMERAL_MEMORY_ISOLATION
+        ):
             try:
-                from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+                from app.core.memory.adapters.setup import (
+                    create_memory_manager,
+                    resolve_context_binding,
+                )
 
                 embedding_cfg = await self._resolve_embedding_config()
                 if embedding_cfg is not None:
@@ -424,12 +457,20 @@ class CustomAgentFactory:
         if personality_style != DEFAULT_PERSONALITY_STYLE:
             try:
                 template = get_personality_template(personality_style)
-                system_prompt += f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+                system_prompt += (
+                    f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+                )
             except Exception as e:
-                logger.warning("Failed to load personality template '%s': %s", personality_style, e)
+                logger.warning(
+                    "Failed to load personality template '%s': %s", personality_style, e
+                )
 
         # --- 5. Build AgentRuntimeSpec & create SkillAgent ---
-        skill_ids: list[str] = getattr(profile, "skills", None) or []
+        from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+
+        skill_ids = await resolve_runtime_skill_ids(
+            getattr(profile, "skills", None) or []
+        )
         spec = AgentRuntimeSpec(
             agent_id=self._agent_id,
             name=getattr(profile, "display_name", None) or self._agent_id,
@@ -440,7 +481,9 @@ class CustomAgentFactory:
         )
 
         enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
-        filtered_parent_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
+        filtered_parent_tools = _filter_tools_by_profile(
+            list(cast("list[BaseTool]", tools)), enabled_builtin
+        )
         all_tools = _without_legacy_conversation_search_tool(filtered_parent_tools)
         _apply_subagent_memory_search_rebind(
             all_tools,
@@ -485,7 +528,9 @@ class EphemeralAgentFactory:
 
     __slots__ = ("_agent_id", "_metadata")
 
-    def __init__(self, agent_id: str, metadata: dict[str, object] | None = None) -> None:
+    def __init__(
+        self, agent_id: str, metadata: dict[str, object] | None = None
+    ) -> None:
         self._agent_id = agent_id
         self._metadata = metadata or {}
 
@@ -527,9 +572,15 @@ class EphemeralAgentFactory:
                     providers_dict,
                     model_override=config.model,
                 )
-                llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
+                llm = await llm_manager.get_llm_from_config(
+                    model_cfg, api_keys=getattr(model_cfg, "api_keys", None)
+                )
             except Exception as e:
-                logger.warning("[EphemeralAgentFactory] Failed to resolve model '%s': %s", config.model, e)
+                logger.warning(
+                    "[EphemeralAgentFactory] Failed to resolve model '%s': %s",
+                    config.model,
+                    e,
+                )
 
         if llm is None:
             llm = getattr(parent_agent, "llm", None)
@@ -545,7 +596,10 @@ class EphemeralAgentFactory:
 
         raw_builtin = self._metadata.get("enabled_builtin_tools")
         if not isinstance(raw_builtin, (list, tuple)):
-            from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
+            from app.services.agent.profile_resolver import (
+                DEFAULT_ENABLED_BUILTIN_TOOLS,
+            )
+
             raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
         enabled_builtin = tuple(str(x) for x in raw_builtin)
         filtered_tools = _filter_tools_by_profile(list(tools), enabled_builtin)

@@ -27,6 +27,7 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "image_tool": ToolLayer.EXTENDED,
     "video_tool": ToolLayer.EXTENDED,
     "tts_generate": ToolLayer.EXTENDED,
+    "artifact_publish": ToolLayer.EXTENDED,
 }
 
 

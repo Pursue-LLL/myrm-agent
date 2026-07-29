@@ -39,6 +39,7 @@ import EnvironmentShield from '../message-input-actions/EnvironmentShield';
 import AgentIndicator from '../message-input-actions/AgentIndicator';
 import ToolsPanel from '../message-input-actions/ToolsPanel';
 import SessionSkillsToggle from '../message-input-actions/SessionSkillsToggle';
+import TurnCapabilityToggle from '../message-input-actions/TurnCapabilityToggle';
 import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
@@ -163,6 +164,8 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     setShowCompactConfirm,
     dontRemindCompact,
     setDontRemindCompact,
+    turnCapabilitySelection,
+    setTurnCapabilitySelection,
     inputRef,
     actionMode,
     setActionMode,
@@ -476,6 +479,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   )}
                   <AgentIndicator />
                   <SessionSkillsToggle />
+                  <TurnCapabilityToggle
+                    selection={turnCapabilitySelection}
+                    onSelectionChange={setTurnCapabilitySelection}
+                    disabled={loading}
+                  />
                   <ToolsPanel />
                   {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
                   <button
@@ -632,6 +640,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
             <SandboxModeToggle />
             <SecurityPresetSelector />
             <AgentIndicator />
+            <TurnCapabilityToggle
+              selection={turnCapabilitySelection}
+              onSelectionChange={setTurnCapabilitySelection}
+              disabled={loading}
+            />
           </>
         }
       />

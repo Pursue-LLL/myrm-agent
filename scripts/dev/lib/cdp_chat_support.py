@@ -64,6 +64,23 @@ def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None
     _e2e_api_post_json(url, {"chat_id": chat_id}, timeout_sec=timeout_sec)
 
 
+def cancel_e2e_chat_agent_via_api(chat_id: str, *, api_url: str | None = None) -> bool:
+    """Cancel in-flight agent-stream on chat_id (releases AgentBusy session for retry)."""
+    resolved = resolve_e2e_api_base(api_url or get_e2e_api_url())
+    if not resolved:
+        return False
+    url = f"{resolved.rstrip('/')}/api/v1/agents/chats/{chat_id}/cancel"
+    try:
+        result = _e2e_api_post_json(url, {}, timeout_sec=10.0, max_attempts=1)
+    except (TimeoutError, OSError, urllib.error.URLError, urllib.error.HTTPError):
+        return False
+    if isinstance(result, dict):
+        data = result.get("data")
+        if isinstance(data, dict) and data.get("cancelled") is True:
+            return True
+    return False
+
+
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """Shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000.
 
@@ -396,21 +413,20 @@ def wait_e2e_provider_ready(
     """Poll private-pool health + provider readiness (SHPOIB bootstrap race)."""
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     deadline = time.monotonic() + timeout_sec
-    health_ok = False
     while time.monotonic() < deadline:
-        if not health_ok:
-            try:
-                health_payload = _e2e_api_get_json(
-                    f"{resolved_api}/api/v1/health",
-                    timeout_sec=5.0,
-                )
-                health_ok = (
-                    isinstance(health_payload, dict)
-                    and health_payload.get("status") == "healthy"
-                )
-            except Exception:
-                health_ok = False
-        if health_ok and _api_provider_ready(api_url=api_url):
+        health_ok = False
+        try:
+            health_payload = _e2e_api_get_json(
+                f"{resolved_api}/api/v1/health",
+                timeout_sec=5.0,
+            )
+            health_ok = (
+                isinstance(health_payload, dict)
+                and health_payload.get("status") == "healthy"
+            )
+        except Exception:
+            health_ok = False
+        if health_ok and _api_provider_ready(api_url=resolved_api):
             return True
         time.sleep(poll_interval_sec)
     return False
@@ -825,6 +841,94 @@ def fetch_chat_messages(
         return []
     messages = data.get("messages")
     return messages if isinstance(messages, list) else []
+
+
+FILE_WRITE_TOOL_E2E_NAME = "file_write_tool"
+EMPTY_FILE_WRITE_ERROR = "Cannot write empty file content"
+
+
+def _structured_tool_name(call: dict[str, object]) -> str:
+    fn = call.get("function")
+    return str(
+        call.get("name") or (fn.get("name") if isinstance(fn, dict) else "") or ""
+    )
+
+
+def file_write_tool_call_count(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
+) -> int:
+    count = 0
+    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+        if not isinstance(msg, dict):
+            continue
+        tool_calls = msg.get("tool_calls")
+        if isinstance(tool_calls, list):
+            for call in tool_calls:
+                if isinstance(call, dict) and _structured_tool_name(call) == tool_name:
+                    count += 1
+        if str(msg.get("role") or "") == "tool":
+            name = str(msg.get("name") or msg.get("tool_name") or "")
+            if name == tool_name:
+                count += 1
+    return count
+
+
+def file_write_tool_invoked_in_messages(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
+) -> bool:
+    """SSOT: real tool invoke from assistant/tool messages — never user prompt text."""
+    return (
+        file_write_tool_call_count(chat_id, api_url=api_url, tool_name=tool_name) >= 1
+    )
+
+
+def empty_write_failure_in_messages(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
+    empty_error: str = EMPTY_FILE_WRITE_ERROR,
+) -> tuple[bool, bool]:
+    tool_invoked = file_write_tool_invoked_in_messages(
+        chat_id, api_url=api_url, tool_name=tool_name
+    )
+    has_mutation_failure = False
+    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+        if not isinstance(msg, dict):
+            continue
+        role = str(msg.get("role") or "")
+        blob = json.dumps(msg, ensure_ascii=False, default=str)
+        failures = msg.get("fileMutationFailures")
+        if not isinstance(failures, list):
+            meta = msg.get("metadata")
+            if isinstance(meta, dict):
+                failures = meta.get("fileMutationFailures")
+                steps = meta.get("progressSteps")
+                if isinstance(steps, list):
+                    for step in steps:
+                        if not isinstance(step, dict):
+                            continue
+                        if step.get("type") == "file_mutation_failed":
+                            has_mutation_failure = True
+                        detail = json.dumps(step, ensure_ascii=False, default=str)
+                        if empty_error in detail:
+                            has_mutation_failure = True
+        if isinstance(failures, list) and failures:
+            for row in failures:
+                if not isinstance(row, dict):
+                    continue
+                preview = str(row.get("error_preview") or "")
+                if empty_error in preview:
+                    has_mutation_failure = True
+        if role != "user" and empty_error in blob:
+            has_mutation_failure = True
+    return tool_invoked, has_mutation_failure
 
 
 def steer_chat_message(
@@ -1770,8 +1874,12 @@ def _collect_agent_stream_events(
     deadline = time.monotonic() + timeout_sec
     idle_timeout_sec = min(45.0, max(15.0, timeout_sec / 3.0))
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        # Signoff clarify/API legs: parallel wave load can stall SSE >30s between tokens.
-        idle_timeout_sec = min(90.0, max(45.0, timeout_sec / 2.0))
+        # Signoff clarify/API legs: parallel wave load can stall SSE >45s between tokens.
+        idle_timeout_sec = signoff_parallel_force_chat_timeout_sec(45.0)
+        idle_timeout_sec = min(120.0, max(idle_timeout_sec, timeout_sec * 0.5))
+        if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
+            # SHPOIB pool: agent may stall >120s between progress and ask_question under wave load.
+            idle_timeout_sec = min(240.0, max(idle_timeout_sec, timeout_sec * 0.85))
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
     clarification_seen = False
@@ -1792,7 +1900,12 @@ def _collect_agent_stream_events(
                 }
             while time.monotonic() < deadline:
                 now = time.monotonic()
-                if now - last_event_at >= idle_timeout_sec:
+                skip_idle_break = (
+                    stop_on_clarification
+                    and os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip()
+                    == "1"
+                )
+                if not skip_idle_break and now - last_event_at >= idle_timeout_sec:
                     error_event = {
                         "type": "error",
                         "error_type": "AgentStreamIdleTimeout",
@@ -1869,6 +1982,24 @@ def _collect_agent_stream_events(
             "error": str(exc),
         }
 
+    if stop_on_clarification and error_event is None and not clarification_seen:
+        event_types = sorted(
+            {
+                str(event.get("type"))
+                for event in events
+                if isinstance(event, dict) and event.get("type") is not None
+            }
+        )
+        error_event = {
+            "type": "error",
+            "error_type": "AgentStreamClarifyIncomplete",
+            "error": (
+                "agent-stream ended without clarification_required "
+                f"within {timeout_sec:.0f}s"
+            ),
+            "event_types": event_types,
+        }
+
     return {
         "events": events,
         "error": error_event,
@@ -1892,6 +2023,7 @@ def start_clarify_turn_via_api(
         "actionMode": "agent",
         "enableMemory": False,
         "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
+        "engineParams": {"signoffClarifyContract": True},
     }
     collected = _collect_agent_stream_events(
         payload,
@@ -2007,7 +2139,11 @@ def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     if is_hitl_already_resolved_by_timeout(result):
         return False
     error = result.get("error")
-    if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
+    if isinstance(error, dict) and error.get("error_type") in {
+        "AgentBusyError",
+        "AgentStreamClarifyIncomplete",
+        "AgentStreamIdleTimeout",
+    }:
         return True
     events = result.get("events")
     if isinstance(events, list):

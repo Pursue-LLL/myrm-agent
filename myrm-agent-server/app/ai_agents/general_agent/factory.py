@@ -58,8 +58,12 @@ async def build_general_agent(
     )
     from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt
     from app.core.skills.loader import create_skill_backend
+    from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
 
     from .agent_middlewares.citation_rules_middleware import citation_rules_middleware
+    from .agent_middlewares.signoff_clarify_contract_middleware import (
+        build_signoff_clarify_contract_middleware,
+    )
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
         make_loaded_skills_persist_callback,
@@ -123,10 +127,13 @@ async def build_general_agent(
 
                 from .llm_factory import _inject_low_reasoning_effort
 
-                fallback_lite_cfg = _inject_low_reasoning_effort(agent_wrapper.model_cfg)
+                fallback_lite_cfg = _inject_low_reasoning_effort(
+                    agent_wrapper.model_cfg
+                )
                 main_api_keys = getattr(agent_wrapper.model_cfg, "api_keys", None)
                 agent_wrapper._lite_llm = await _llm_mgr.get_llm_from_config(
-                    fallback_lite_cfg, api_keys=main_api_keys,
+                    fallback_lite_cfg,
+                    api_keys=main_api_keys,
                 )
 
     # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
@@ -180,10 +187,12 @@ async def build_general_agent(
 
     _user_skill_cfg = await UserSkillConfigManager(storage_backend).get_config()
     allowed_prebuilt = frozenset(_user_skill_cfg.enabled_prebuilt_ids)
+    runtime_skill_ids = await resolve_runtime_skill_ids(agent_wrapper.skill_ids)
 
     skill_backend = await create_skill_backend(
         storage=storage_backend,
-        skill_ids=agent_wrapper.skill_ids or None,
+        skill_ids=runtime_skill_ids or None,
+        user_id=user_id,
         workspace_path=workspace_root,
         allowed_prebuilt_ids=allowed_prebuilt,
     )
@@ -224,6 +233,8 @@ async def build_general_agent(
 
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
+
+    await agent_wrapper._setup_artifact_publish_tool(tools)
 
     from app.ai_agents.general_agent.external_agents import (
         needs_runtime_pool,
@@ -444,6 +455,13 @@ async def build_general_agent(
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
 
+    if getattr(agent_wrapper, "signoff_clarify_contract", False):
+        insert_at = middlewares_list.index(tool_selection_middleware)
+        middlewares_list.insert(
+            insert_at,
+            build_signoff_clarify_contract_middleware(enabled=True),
+        )
+
     if workspace_root:
         middlewares_list.append(
             FilesystemFileSearchMiddleware(root_path=workspace_root)
@@ -480,6 +498,14 @@ async def build_general_agent(
             "\n\n[Unattended Mode] You are running without human supervision. "
             "Do not ask the user for clarification or approval. "
             "Make reasonable decisions independently and proceed to completion."
+        )
+
+    if getattr(agent_wrapper, "signoff_clarify_contract", False):
+        system_prompt += (
+            "\n\n[Signoff Clarify Contract] Your first and only action MUST be "
+            "ask_question_tool with title \"Pick stack\", one question id \"stack\", "
+            "prompt \"Which stack?\", options a/Option A and b/Option B, "
+            "requires_confirmation false. No text before the tool call."
         )
 
     from app.ai_agents.general_agent.kanban_tool_mode import resolve_kanban_tool_mode
@@ -682,7 +708,7 @@ async def build_general_agent(
         system_prompt=system_prompt,
         allowed_tools=allowed_tool_names,
         tool_groups=active_tool_groups,
-        skill_ids=agent_wrapper.skill_ids or [],
+        skill_ids=runtime_skill_ids,
         skill_configs=agent_wrapper.skill_configs,
         mcp_servers=agent_wrapper.mcp_config or [],
         openapi_services=agent_wrapper.openapi_services or [],
@@ -754,9 +780,20 @@ async def build_general_agent(
     )
 
     mount_skill_market = getattr(agent_wrapper, "enable_skill_market", False)
-    mount_skill_manage = getattr(agent_wrapper, "enable_skill_manage", False) or getattr(
-        agent_wrapper, "force_skill_manage", False
-    )
+    mount_skill_manage = getattr(
+        agent_wrapper, "enable_skill_manage", False
+    ) or getattr(agent_wrapper, "force_skill_manage", False)
+
+    if mount_skill_market:
+        agent_wrapper._setup_skill_market_tool(tools, market_service)
+    if mount_skill_manage:
+        agent_wrapper._setup_skill_manage_tool(
+            tools,
+            skill_creation_service,
+            skill_backend,
+            sim_checker,
+            auxiliary_llm=fallback_llm or llm,
+        )
 
     agent = await create_skill_agent(
         spec=spec,
@@ -764,8 +801,8 @@ async def build_general_agent(
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=skill_backend,
-        market_backend=market_service if mount_skill_market else None,
-        write_backend=skill_creation_service if mount_skill_manage else None,
+        market_backend=None,
+        write_backend=None,
         secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,
         enable_memory_auto_extraction=agent_wrapper.enable_memory
@@ -1093,7 +1130,7 @@ def _build_session_cleanup_callback(
         ),
         make_frustration_skill_routing_callback(
             agent_id=agent_id,
-            skill_ids=agent_wrapper.skill_ids or [],
+            profile_skill_ids=list(agent_wrapper.skill_ids or []),
             llm_func=llm_func,
         ),
     ]

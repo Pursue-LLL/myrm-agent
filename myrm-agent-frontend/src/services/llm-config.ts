@@ -199,6 +199,27 @@ export const isSoftSearchServiceValidationFailure = (
   return result.retriable === true || softSearchServiceValidationFailurePatterns.test(result.message ?? '');
 };
 
+export interface SearchProviderManifestEntry {
+  slug: string;
+  connector: string;
+  name: string;
+  nameZh: string;
+  deploymentScope: string;
+  requiresApiKey: boolean;
+  requiresApiBase: boolean;
+  backendReady: boolean;
+}
+
+export interface SearchProvidersResponse {
+  providers: SearchProviderManifestEntry[];
+  maxChainSize: number;
+}
+
+/** Fetch search provider manifest for Settings UI (server SSOT). */
+export const fetchSearchProviders = async (isLocal: boolean): Promise<SearchProvidersResponse> => {
+  return apiRequest<SearchProvidersResponse>(`/integrations/search/providers?isLocal=${isLocal ? 'true' : 'false'}`);
+};
+
 /**
  * 验证搜索服务配置
  */

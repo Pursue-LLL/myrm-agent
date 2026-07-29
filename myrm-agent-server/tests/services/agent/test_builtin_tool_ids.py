@@ -100,19 +100,23 @@ def test_normalize_migrates_renamed_skill_evolution_to_skill_manage() -> None:
 
 
 def test_strip_deploy_incompatible_removes_computer_use_when_unsupported() -> None:
-    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+    from app.services.agent.builtin_tool_ids import (
+        strip_deploy_incompatible_builtin_tools,
+    )
 
     with patch(
         "app.config.computer_use_deploy.is_computer_use_deploy_supported",
         return_value=False,
     ):
-        assert strip_deploy_incompatible_builtin_tools(["web_search", "computer_use"]) == [
-            "web_search"
-        ]
+        assert strip_deploy_incompatible_builtin_tools(
+            ["web_search", "computer_use"]
+        ) == ["web_search"]
 
 
 def test_strip_deploy_incompatible_keeps_computer_use_when_supported() -> None:
-    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+    from app.services.agent.builtin_tool_ids import (
+        strip_deploy_incompatible_builtin_tools,
+    )
 
     with patch(
         "app.config.computer_use_deploy.is_computer_use_deploy_supported",
@@ -125,19 +129,25 @@ def test_strip_deploy_incompatible_keeps_computer_use_when_supported() -> None:
 
 
 def test_strip_deploy_incompatible_removes_external_cli_when_unsupported() -> None:
-    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+    from app.services.agent.builtin_tool_ids import (
+        strip_deploy_incompatible_builtin_tools,
+    )
 
     with patch(
         "app.config.external_cli_deploy.is_external_cli_deploy_supported",
         return_value=False,
     ):
-        assert strip_deploy_incompatible_builtin_tools(["web_search", "external_cli"]) == [
+        assert strip_deploy_incompatible_builtin_tools(
+            ["web_search", "external_cli"]
+        ) == [
             "web_search",
         ]
 
 
 def test_strip_deploy_incompatible_keeps_external_cli_when_supported() -> None:
-    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+    from app.services.agent.builtin_tool_ids import (
+        strip_deploy_incompatible_builtin_tools,
+    )
 
     with patch(
         "app.config.external_cli_deploy.is_external_cli_deploy_supported",
@@ -232,30 +242,40 @@ def test_builtin_initializer_specs_exclude_agent_baseline_tools() -> None:
         if spec.enabled_builtin_tools is None:
             continue
         overlap = baseline.intersection(spec.enabled_builtin_tools)
-        assert not overlap, f"{spec.id!r} must not persist baseline tools {sorted(overlap)}"
+        assert (
+            not overlap
+        ), f"{spec.id!r} must not persist baseline tools {sorted(overlap)}"
 
 
 def test_optional_builtin_tools_validator_accepts_none() -> None:
-    from app.services.agent.builtin_tool_validation import _validate_optional_builtin_tools
+    from app.services.agent.builtin_tool_validation import (
+        _validate_optional_builtin_tools,
+    )
 
     assert _validate_optional_builtin_tools(None) is None
 
 
 def test_optional_builtin_tools_validator_rejects_non_list() -> None:
-    from app.services.agent.builtin_tool_validation import _validate_optional_builtin_tools
+    from app.services.agent.builtin_tool_validation import (
+        _validate_optional_builtin_tools,
+    )
 
     with pytest.raises(TypeError, match="must be a list"):
         _validate_optional_builtin_tools("web_search")
 
 
 def test_required_builtin_tools_validator_defaults_when_none() -> None:
-    from app.services.agent.builtin_tool_validation import _validate_required_builtin_tools
+    from app.services.agent.builtin_tool_validation import (
+        _validate_required_builtin_tools,
+    )
 
     assert _validate_required_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
 
 def test_required_builtin_tools_validator_rejects_non_list() -> None:
-    from app.services.agent.builtin_tool_validation import _validate_required_builtin_tools
+    from app.services.agent.builtin_tool_validation import (
+        _validate_required_builtin_tools,
+    )
 
     with pytest.raises(TypeError, match="must be a list"):
         _validate_required_builtin_tools({"web_search"})

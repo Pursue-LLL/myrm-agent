@@ -21,6 +21,7 @@ interface SourceChunkDrawerProps {
   section?: string;
   snippet: string;
   level?: WikiSourceLevel;
+  snapshotStatus?: 'verified' | 'stale' | 'missing';
   surface?: WikiEvidenceSurface;
   contextKey?: string;
 }
@@ -38,8 +39,9 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level, surface = 'chat', contextKey }) => {
+  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, surface = 'chat', contextKey }) => {
     const t = useTranslations('MessageSources');
+    const tWiki = useTranslations('settings.wiki');
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
     const openStartedAtRef = useRef<number | null>(null);
     const wasOpenRef = useRef(false);
@@ -47,7 +49,7 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
     useEffect(() => {
       if (open && !wasOpenRef.current) {
         openStartedAtRef.current = Date.now();
-        recordSnippetOpen(surface, level, contextKey);
+        recordSnippetOpen(surface, level, contextKey, snapshotStatus);
       } else if (!open && wasOpenRef.current) {
         const startedAt = openStartedAtRef.current;
         const dwellMs = startedAt !== null ? Date.now() - startedAt : 0;
@@ -121,6 +123,20 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
                 <p className="text-sm text-muted-foreground italic">{t('no_snippet')}</p>
               )}
             </div>
+
+            {snapshotStatus === 'verified' && (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-3">
+                {tWiki('evidenceSnapshotVerified')}
+              </p>
+            )}
+            {snapshotStatus === 'stale' && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-3">
+                {tWiki('evidenceSnapshotStale')}
+              </p>
+            )}
+            {snapshotStatus === 'missing' && (
+              <p className="text-[11px] text-muted-foreground mt-3">{tWiki('evidenceSnapshotMissing')}</p>
+            )}
 
             <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
               <BookOpen size={12} />

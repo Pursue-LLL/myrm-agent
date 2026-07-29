@@ -166,7 +166,9 @@ def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
 
     registry_ids = {entry.tool_id for entry in CAPABILITY_GAP_REGISTRY}
     assert registry_ids == set(BUILTIN_TOOL_ID_TO_GROUP)
-    assert set(BUILTIN_TOOL_ID_TO_GROUP) == set(TOGGLABLE_BUILTIN_TOOL_IDS) - gap_excluded
+    assert (
+        set(BUILTIN_TOOL_ID_TO_GROUP) == set(TOGGLABLE_BUILTIN_TOOL_IDS) - gap_excluded
+    )
     assert gap_excluded <= set(TOGGLABLE_BUILTIN_TOOL_IDS)
     for entry in CAPABILITY_GAP_REGISTRY:
         assert BUILTIN_TOOL_ID_TO_GROUP[entry.tool_id] == entry.tool_group

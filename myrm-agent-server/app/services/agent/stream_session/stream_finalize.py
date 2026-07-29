@@ -321,11 +321,7 @@ async def finalize_agent_stream_session(
 
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
 
-    if (
-        approval.value
-        and session.request.chat_id
-        and not clarification_sched_needed
-    ):
+    if approval.value and session.request.chat_id and not clarification_sched_needed:
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,
@@ -454,6 +450,8 @@ async def _clear_interrupted_turn_marker(chat_id: str) -> None:
     factory = get_session_factory()
     async with factory() as db:
         await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id)
+            delete(InterruptedTurnMarker).where(
+                InterruptedTurnMarker.chat_id == chat_id
+            )
         )
         await db.commit()

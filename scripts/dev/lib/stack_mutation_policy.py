@@ -359,11 +359,12 @@ def attach_backend_crash_heal(
             )
     except TimeoutError:
         print(
-            f"CHROME_E2E_ATTACH_HEAL: backend heal flock timeout after {wait_sec}s",
+            f"CHROME_E2E_ATTACH_HEAL: HEAL_DEFERRED flock busy after {wait_sec}s "
+            "(another attach heal in flight; do not stop other pytest)",
             file=sys.stderr,
             flush=True,
         )
-        return 1
+        return 0
 
 
 def wave_active_lease_count(monorepo_root: Path) -> int:

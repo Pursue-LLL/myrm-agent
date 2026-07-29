@@ -112,6 +112,7 @@ class GeneralAgentParams(BaseAgentParams):
     reranker_config: RerankerConfig | None = None
     enable_render_ui: bool = False
     enable_structured_clarify: bool = False
+    signoff_clarify_contract: bool = False
     client_surface: str | None = None
     enable_browser: bool = False
     browser_source: str | None = None
@@ -279,6 +280,7 @@ class AgentFactory:
             reranker_config=params.reranker_config,
             enable_render_ui=params.enable_render_ui,
             enable_structured_clarify=params.enable_structured_clarify,
+            signoff_clarify_contract=params.signoff_clarify_contract,
             client_surface=params.client_surface,
             enable_web_search=params.enable_web_search,
             enable_web_fetch=params.enable_web_fetch,

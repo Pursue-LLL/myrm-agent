@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -14,6 +15,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
+    cancel_e2e_chat_agent_via_api,
     create_e2e_chat_via_api,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
@@ -58,7 +60,8 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
     print(f"SIGNOFF_CLARIFY_API_BASE={api_base}", flush=True)
 
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
-        if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0):
+        provider_ready_timeout = 90.0
+        if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=provider_ready_timeout):
             pytest.fail("provider not ready on signoff clarify pool backend")
     else:
         ensure_e2e_yolo_mode(api_url=api_base)
@@ -70,7 +73,7 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
 
     chat_id = ""
     clarify_result: dict[str, object] = {}
-    for attempt in range(2):
+    for attempt in range(4):
         heartbeat_e2e_lease()
         touch_wall_progress()
         chat_id = f"signoff_clarify_{uuid.uuid4().hex[:8]}"
@@ -84,6 +87,20 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
         )
         if clarify_result.get("has_clarification"):
             break
+        err = clarify_result.get("error")
+        if isinstance(err, dict):
+            error_type = str(err.get("error_type") or "")
+            print(
+                f"SIGNOFF_CLARIFY_ATTEMPT_FAIL attempt={attempt + 1}/4 "
+                f"error_type={error_type!r} "
+                f"event_types={clarify_result.get('event_types')!r}",
+                flush=True,
+            )
+            if error_type == "AgentBusyError" and attempt + 1 < 4:
+                cancel_e2e_chat_agent_via_api(chat_id, api_url=api_base)
+                time.sleep(10.0)
+            elif error_type in ("AgentStreamClarifyIncomplete", "AgentStreamIdleTimeout") and attempt + 1 < 4:
+                time.sleep(10.0 if error_type == "AgentStreamIdleTimeout" else 4.0)
 
     assert clarify_result.get("has_clarification"), (
         "Expected clarification_required on signoff clarify API leg; "

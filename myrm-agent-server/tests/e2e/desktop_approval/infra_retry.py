@@ -79,6 +79,8 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
         return True
     if "dev e2e chat bridge not available" in message:
         return True
+    if "connection reset during tools/call" in message:
+        return True
     if isinstance(exc, ExceptionGroup):
         return any(is_retriable_page_transport(sub) for sub in exc.exceptions)
     return False
@@ -99,14 +101,41 @@ def _resolve_open_nav_wall_timeout_sec() -> float:
     return 70.0
 
 
+def _resolve_open_nav_strategies() -> list[tuple[str, str]]:
+    """R86/R88/R91: signoff direct-only with mux-recover retries (no about:blank burn)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        from dev_gate_contract import SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT
+
+        count = max(1, SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT)
+        strategies: list[tuple[str, str]] = [("direct", BASE_URL)]
+        strategies.extend(("direct_recover", BASE_URL) for _ in range(count - 1))
+        return strategies
+    return [
+        ("about_blank", "about:blank"),
+        ("about_blank_recover", "about:blank"),
+        ("direct", BASE_URL),
+    ]
+
+
+def _is_signoff_open_nav() -> bool:
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+
+
+def _finalize_open_nav_page(page: McpPage) -> McpPage:
+    """R88: signoff open/nav reserve is pre-body; reset BODY wall for test proper."""
+    if _is_signoff_open_nav():
+        from e2e_session_lifecycle import begin_body_wall_budget
+
+        progress("signoff body wall reset after open/nav")
+        begin_body_wall_budget(phase_label="desktop_post_open")
+    return page
+
+
 async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
     """Open chat UI; prefer about:blank (no runtime binding), then recover, then direct :3000."""
     last_exc: BaseException | None = None
     open_nav_wall = _resolve_open_nav_wall_timeout_sec()
-    new_page_wall_timeout_sec = open_nav_wall
-    navigate_wall_timeout_sec = open_nav_wall
     eval_wall_timeout_sec = 45.0
-    reload_wall_timeout_sec = open_nav_wall
 
     async def _call_with_wall_timeout(
         label: str,
@@ -125,20 +154,20 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 f"{label} wall timeout after {wall_timeout_sec:.0f}s"
             ) from exc
 
-    strategies: list[tuple[str, str]] = [
-        ("about_blank", "about:blank"),
-        ("about_blank_recover", "about:blank"),
-        ("direct", BASE_URL),
-    ]
+    strategies: list[tuple[str, str]] = _resolve_open_nav_strategies()
+    strategy_count = len(strategies)
     for attempt, (mode, url) in enumerate(strategies, start=1):
         heartbeat_e2e_lease()
+        new_page_wall_timeout_sec = open_nav_wall
+        navigate_wall_timeout_sec = open_nav_wall
+        reload_wall_timeout_sec = open_nav_wall
         try:
             if mode.endswith("_recover"):
-                progress(f"mux recover before new_page attempt {attempt}/3")
+                progress(f"mux recover before new_page attempt {attempt}/{strategy_count}")
                 await heal_chrome_attach_before_reopen()
                 await asyncio.to_thread(client.recover_mux_transport)
             if url == "about:blank":
-                progress(f"new_page about:blank attempt {attempt}/3")
+                progress(f"new_page about:blank attempt {attempt}/{strategy_count}")
                 page = await _call_with_wall_timeout(
                     "new_page about:blank",
                     new_page_wall_timeout_sec,
@@ -191,7 +220,7 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                             timeout_sec=30.0,
                         )
                         if isinstance(probe, dict) and probe.get("hasLayout"):
-                            return page
+                            return _finalize_open_nav_page(page)
                         if nav_pass == 1:
                             progress(
                                 "post-reload layout retry "
@@ -209,7 +238,7 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                     f"(path={probe.get('path') if isinstance(probe, dict) else probe}); next strategy"
                 )
                 continue
-            progress(f"new_page {url} attempt {attempt}/3 (direct fallback)")
+            progress(f"new_page {url} attempt {attempt}/{strategy_count} (direct fallback)")
             page = await _call_with_wall_timeout(
                 f"new_page {url}",
                 new_page_wall_timeout_sec,
@@ -229,7 +258,7 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 timeout_sec=30.0,
             )
             if isinstance(probe, dict) and probe.get("hasLayout"):
-                return page
+                return _finalize_open_nav_page(page)
             progress(
                 "direct new_page layout missing "
                 f"(path={probe.get('path') if isinstance(probe, dict) else probe})"
@@ -243,7 +272,7 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 raise
             if attempt >= len(strategies) or not is_retriable_page_transport(exc):
                 raise
-            progress(f"open/nav mux retry {attempt}/3 after: {exc}")
+            progress(f"open/nav mux retry {attempt}/{strategy_count} after: {exc}")
             if isinstance(exc, TimeoutError):
                 progress("open/nav wall timeout — abandon in-flight mux requests")
                 await asyncio.to_thread(client.abandon_inflight_requests)

@@ -123,7 +123,7 @@ _smp_attach_backend_crash_heal_inner() {
 
 _smp_attach_backend_crash_heal() {
   local monorepo_root="${1:?}" dev_stack="${2:?}"
-  local wait_sec="${MYRM_E2E_CRASH_HEAL_FLOCK_WAIT_SEC:-180}"
+  local wait_sec="${MYRM_E2E_CRASH_HEAL_FLOCK_WAIT_SEC:-5}"
   local policy_py flock_file
   policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
   flock_file="$(_smp_backend_heal_flock_file)"

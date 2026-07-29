@@ -44,6 +44,7 @@
 | `wikiEvidenceContextCore.ts` | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance` 计算），供输入 Hook 与流式发送链路复用统一口径 |
 | `wikiEvidenceQuerySuccessPendingCore.ts` | Chat steer query success 延迟确认核心：按 `chatId + expectedMessageId` 注册待确认 success，在首个匹配业务 SSE 帧到达时消费，避免 accepted 即 success 的提前误计 |
 | `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/query attempt+success/负向结果事件（按 `context_key` 隔离复问口径，query 事件携带 `turn_distance`；离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome + query success rate）。 |
+| `turnCapabilityMetrics.ts` | `/statistics/turn-capability/*` 客户端：记录单轮 Skill/MCP 能力覆写的提交/生效/noop/排队/完成/失败/busy 重排队事件（含 selected/effective 能力规模与 `failure_reason` 枚举：`network_error/archive_restore_invalid/abort/server_error/unknown_error`）；支持离线丢样按 source 分桶聚合回补 `dropped_report`，并查询 apply/noop/queue/completion/failure 率聚合。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖

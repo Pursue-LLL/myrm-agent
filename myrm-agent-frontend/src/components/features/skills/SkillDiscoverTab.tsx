@@ -16,6 +16,7 @@ import {
   Store,
   MessageSquare,
   Link as LinkIcon,
+  Cloud,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
@@ -27,6 +28,8 @@ import type { DiscoverySearchResult } from '@/services/skill';
 import ScanConfirmDialog from './ScanConfirmDialog';
 import SkillUrlImportDialog from './SkillUrlImportDialog';
 import SkillSourcesPanel from './SkillSourcesPanel';
+import SkillRegistryMirrorPanel from './SkillRegistryMirrorPanel';
+import useChatStore from '@/store/useChatStore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +51,8 @@ const SOURCE_ICONS: Record<string, typeof Globe> = {
   skills_sh: Globe,
   clawhub: Store,
   lobehub: MessageSquare,
+  modelscope: Cloud,
+  aliyun: Cloud,
 };
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -56,6 +61,8 @@ const SOURCE_COLORS: Record<string, string> = {
   skills_sh: 'text-primary',
   clawhub: 'text-accent-warm',
   lobehub: 'text-primary',
+  modelscope: 'text-primary',
+  aliyun: 'text-accent-warm',
 };
 
 const SORT_OPTIONS: { value: SortMode; labelKey: string }[] = [
@@ -77,8 +84,10 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   const [urlImportOpen, setUrlImportOpen] = useState(false);
   const [initialImportUrl, setInitialImportUrl] = useState('');
   const [pendingSkill, setPendingSkill] = useState<DiscoverySearchResult | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const initialLoadRef = useRef(false);
+
+  const mountAgentId = useChatStore((state) => state.agentConfig?.agentId) ?? 'builtin-general';
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -113,14 +122,15 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
     install,
     uninstall,
     clearPreview,
-  } = useSkillDiscovery();
+  } = useSkillDiscovery({ agentId: mountAgentId, mountToAgent: true });
 
-  useEffect(() => {
-    if (!initialLoadRef.current) {
-      initialLoadRef.current = true;
-      search('');
-    }
-  }, [search]);
+  const runSearch = useCallback(
+    async (value: string) => {
+      setHasSearched(true);
+      await search(value);
+    },
+    [search],
+  );
 
   const availableTags = useMemo(() => {
     const tagCounts = new Map<string, number>();
@@ -152,32 +162,55 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       setActiveTag('all');
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => search(value), 500);
+      debounceRef.current = setTimeout(() => runSearch(value), 500);
     },
-    [search],
+    [runSearch],
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        search(query);
+        runSearch(query);
       }
     },
-    [query, search],
+    [query, runSearch],
+  );
+
+  const showInstallToast = useCallback(
+    (skillName: string, response: { mounted?: boolean; mount_agent_id?: string; mount_error?: string; mount_already_present?: boolean }) => {
+      if (response.mounted && !response.mount_error) {
+        if (response.mount_already_present) {
+          toast({ title: t('installedAlreadyEnabled', { name: skillName }) });
+        } else {
+          toast({ title: t('installedAndEnabled', { name: skillName }) });
+        }
+        return;
+      }
+      if (response.mount_error) {
+        toast({
+          title: t('installedEnableFailed', { name: skillName }),
+          description: response.mount_error,
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({ title: `${t('installed')} ${skillName}` });
+    },
+    [t],
   );
 
   const doInstall = useCallback(
     async (skill: DiscoverySearchResult) => {
-      const success = await install(skill.id, skill.source);
-      if (success) {
-        toast({ title: `${t('installed')} ${skill.name}` });
+      const response = await install(skill.id, skill.source);
+      if (response) {
+        showInstallToast(skill.name, response);
         onInstalled?.();
       } else {
         toast({ title: t('installFailed'), variant: 'destructive' });
       }
     },
-    [install, t, onInstalled],
+    [install, t, onInstalled, showInstallToast],
   );
 
   const handleInstall = useCallback(
@@ -213,7 +246,12 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
     setUninstallDialogOpen(false);
     if (!pendingUninstall) return;
 
-    const skillId = `local::${pendingUninstall.name}`;
+    const skillId = pendingUninstall.installed_skill_id;
+    if (!skillId) {
+      toast({ title: t('uninstallFailed'), variant: 'destructive' });
+      setPendingUninstall(null);
+      return;
+    }
     const success = await uninstall(skillId);
     if (success) {
       toast({ title: `${t('uninstalled')} ${pendingUninstall.name}` });
@@ -301,7 +339,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
               skill={skill}
               isInstalling={isInstalling === skill.id}
               isPreviewing={isPreviewing === skill.id}
-              isUninstalling={isUninstalling === `local::${skill.name}`}
+              isUninstalling={isUninstalling === skill.installed_skill_id}
               justInstalled={installSuccess === skill.name}
               onInstall={handleInstall}
               onUninstall={handleUninstall}
@@ -309,11 +347,17 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
             />
           ))}
         </div>
-      ) : !isSearching ? (
+      ) : !isSearching && hasSearched ? (
         <div className="text-center py-12 text-muted-foreground">
           <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="font-medium">{t('noResults')}</p>
           <p className="text-sm mt-1">{t('noResultsDesc')}</p>
+        </div>
+      ) : !isSearching && !hasSearched ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">{t('browseEmptyTitle')}</p>
+          <p className="text-sm mt-1">{t('browseEmptyDesc')}</p>
         </div>
       ) : null}
 
@@ -369,6 +413,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
       {/* Custom Sources Management */}
       <div className="border-t pt-4 mt-4">
+        <SkillRegistryMirrorPanel />
         <SkillSourcesPanel />
       </div>
     </div>

@@ -15,13 +15,14 @@ from pathlib import Path
 from typing import TypedDict
 
 
-class _DedupeRecord(TypedDict):
+class _DedupeRecord(TypedDict, total=False):
     fingerprint: str
     holderPid: int
     parentPid: int
     argv: list[str]
     acquiredAt: float
     heartbeatAt: float
+    lane: str
 
 
 def _dev_state_dir() -> Path:
@@ -104,10 +105,35 @@ def _load_record(path: Path) -> _DedupeRecord | None:
     return payload  # type: ignore[return-value]
 
 
-def _max_holder_wall_sec() -> float:
-    """Match LIVE chrome_e2e pytest floor so long runs are not dedupe-released early."""
-    from dev_gate_contract import LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
+def _infer_lane_from_record(record: _DedupeRecord) -> str:
+    raw_lane = record.get("lane")
+    if isinstance(raw_lane, str) and raw_lane in {"READ", "LIVE_AGENT"}:
+        return raw_lane
+    argv = record.get("argv") or []
+    joined = " ".join(str(part) for part in argv).lower()
+    if "extension_bridge" in joined:
+        return "READ"
+    if "live_agent" in joined or "file_write_empty" in joined:
+        return "LIVE_AGENT"
+    return ""
 
+
+def _max_holder_wall_sec(record: _DedupeRecord | None = None) -> float:
+    """Lane-aware chrome_e2e wall — READ sessions must not inherit LIVE 1110s dedupe lock."""
+    from dev_gate_contract import (
+        LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC,
+        READ_CHROME_E2E_PYTEST_TIMEOUT_SEC,
+    )
+
+    lane = ""
+    if record is not None:
+        lane = _infer_lane_from_record(record)
+    if not lane:
+        lane = os.environ.get("MYRM_E2E_LANE", "")
+    if lane == "READ":
+        return float(READ_CHROME_E2E_PYTEST_TIMEOUT_SEC)
+    if lane == "LIVE_AGENT":
+        return float(LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC)
     return float(LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC)
 
 
@@ -120,7 +146,7 @@ def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     acquired_at = record.get("acquiredAt")
     if (
         isinstance(acquired_at, (int, float))
-        and now - float(acquired_at) > _max_holder_wall_sec()
+        and now - float(acquired_at) > _max_holder_wall_sec(record)
     ):
         return True
     heartbeat_at = record.get("heartbeatAt")
@@ -184,14 +210,21 @@ def acquire_session_lock(
         fingerprint, exclude_pids=(resolved_pid, os.getppid())
     )
     if duplicate is not None:
-        message = (
+        print(
+            f"E2E_DEDUPE_HOLDER_RUNNING: holder_pid={duplicate} fingerprint={fingerprint} — "
+            "existing chrome_e2e run in progress; read ./myrm e2e-context "
+            "E2E_TEST_PROGRESS (do not relaunch; do not stop other pytest)",
+            file=sys.stderr,
+        )
+        print(
             f"E2E_PYTEST_DEDUPE_DENIED: duplicate chrome_e2e session "
             f"fingerprint={fingerprint} holder_pid={duplicate} — "
-            "wait for the existing run or stop relaunching the same test"
+            "wait for the existing run or stop relaunching the same test",
+            file=sys.stderr,
         )
-        print(message, file=sys.stderr)
         raise SystemExit(2)
     now = time.time()
+    lane = os.environ.get("MYRM_E2E_LANE", "")
     record: _DedupeRecord = {
         "fingerprint": fingerprint,
         "holderPid": resolved_pid,
@@ -200,6 +233,8 @@ def acquire_session_lock(
         "acquiredAt": now,
         "heartbeatAt": now,
     }
+    if lane in {"READ", "LIVE_AGENT"}:
+        record["lane"] = lane
     path = _record_path(fingerprint)
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")

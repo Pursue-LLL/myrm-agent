@@ -28,9 +28,14 @@ async def test_oauth_reauth_event_flows_through_eventbus() -> None:
     bus = get_event_bus()
     queue = bus.subscribe()
     try:
+        while not queue.empty():
+            queue.get_nowait()
+
         _emit_reauth_if_needed("integration_issuer", "invalid_grant")
 
         event: AppEvent = await asyncio.wait_for(queue.get(), timeout=2.0)
+        while event.event_type != AppEventType.OAUTH_REAUTH_REQUIRED:
+            event = await asyncio.wait_for(queue.get(), timeout=2.0)
         assert event.event_type == AppEventType.OAUTH_REAUTH_REQUIRED
         assert event.data["issuer"] == "integration_issuer"
         assert event.data["reason"] == "invalid_grant"
@@ -52,6 +57,8 @@ async def test_sse_json_format_matches_frontend_contract() -> None:
         _emit_reauth_if_needed("google_workspace", "token_expired")
 
         event: AppEvent = await asyncio.wait_for(queue.get(), timeout=2.0)
+        while event.event_type != AppEventType.OAUTH_REAUTH_REQUIRED:
+            event = await asyncio.wait_for(queue.get(), timeout=2.0)
 
         payload = json.dumps(
             {"type": event.event_type, "data": event.data, "timestamp": event.timestamp},

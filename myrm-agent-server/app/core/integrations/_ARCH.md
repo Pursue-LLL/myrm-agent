@@ -10,3 +10,4 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 模块入口 | ✅ |
 | `catalog/` | 子模块 | Integration Catalog 预配置服务目录（模型、注册表、JSON 数据），详见 [catalog/_ARCH.md](catalog/_ARCH.md) | ✅ |
+| `search_catalog/` | 子模块 | Search Provider Manifest SSOT（slug、connector、deployment_scope、backendReady），详见 [search_catalog/_ARCH.md](search_catalog/_ARCH.md) | ✅ |

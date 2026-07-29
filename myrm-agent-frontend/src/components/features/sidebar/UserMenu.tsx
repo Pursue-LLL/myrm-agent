@@ -92,8 +92,8 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
         },
         {
           icon: BrainCircuit,
-          label: 'Brain Console',
-          onClick: () => handleNavigate('/brain'),
+          label: t('wikiKnowledgeBase'),
+          onClick: () => handleNavigate('/settings/wiki'),
         },
         {
           icon: Layers,
@@ -125,8 +125,8 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
         },
         {
           icon: BrainCircuit,
-          label: 'Brain Console',
-          onClick: () => handleNavigate('/brain'),
+          label: t('wikiKnowledgeBase'),
+          onClick: () => handleNavigate('/settings/wiki'),
         },
         {
           icon: Layers,

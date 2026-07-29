@@ -10,19 +10,50 @@ export {
   runWebSearchConfigGapAction,
 } from './webSearchConfigGap';
 
+const MAX_CHAIN_SIZE = 5;
+
+type LegacySearchConfigItem = SearchServiceConfigItem & { role?: 'primary' | 'fallback' };
+
 /**
- * 搜索服务配置管理模块
- *
- * 注意：不再手动管理 localStorage
- * 所有持久化由 useConfigStore 的 persist 中间件自动处理
+ * Migrate legacy role primary/fallback → priority integers (mirrors server migration).
  */
+export const migrateSearchConfigItem = (config: LegacySearchConfigItem): SearchServiceConfigItem => {
+  if (typeof config.priority === 'number' && config.priority >= 1 && config.priority <= MAX_CHAIN_SIZE) {
+    const { role: _role, ...rest } = config;
+    return rest;
+  }
+  const role = config.role ?? 'primary';
+  const { role: _role, ...rest } = config;
+  return {
+    ...rest,
+    priority: role === 'fallback' ? 2 : 1,
+  };
+};
+
+export const normalizeSearchServiceConfigs = (configs: LegacySearchConfigItem[]): SearchServiceConfigItem[] => {
+  const migrated = configs.map(migrateSearchConfigItem);
+  const used = new Set<number>();
+  let next = 1;
+  return migrated.map((config) => {
+    let priority = config.priority;
+    if (!Number.isInteger(priority) || priority < 1 || priority > MAX_CHAIN_SIZE || used.has(priority)) {
+      while (next <= MAX_CHAIN_SIZE && used.has(next)) {
+        next += 1;
+      }
+      priority = next <= MAX_CHAIN_SIZE ? next : MAX_CHAIN_SIZE;
+    }
+    used.add(priority);
+    next = Math.max(next, priority + 1);
+    return { ...config, priority };
+  });
+};
 
 // 生成唯一的搜索服务配置 ID
 export const generateSearchServiceConfigId = (): string => {
   return `search-service-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-// 获取搜索服务的显示名称
+// 获取搜索服务的显示名称（manifest 未加载时的后备）
 export const getSearchServiceDisplayName = (serviceType: string): string => {
   const displayNames: Record<string, string> = {
     perplexity: 'Perplexity',
@@ -33,51 +64,52 @@ export const getSearchServiceDisplayName = (serviceType: string): string => {
     dataforseo: 'DataForSEO',
     firecrawl: 'Firecrawl',
     searxng: 'SearXNG',
+    brave: 'Brave Search',
+    serper: 'Serper',
+    volcengine_doubao: 'Volcengine Doubao',
   };
   return displayNames[serviceType] || serviceType;
 };
 
-/**
- * Ensure config has a valid role field (defaults to 'primary')
- */
-const ensureRole = (config: SearchServiceConfigItem): SearchServiceConfigItem => {
-  return {
-    ...config,
-    role: config.role || 'primary',
-  };
+const ensurePriority = (config: SearchServiceConfigItem): SearchServiceConfigItem => {
+  const priority =
+    typeof config.priority === 'number' && config.priority >= 1 && config.priority <= MAX_CHAIN_SIZE
+      ? config.priority
+      : 1;
+  return { ...config, priority };
+};
+
+const disableSamePriority = (
+  configs: SearchServiceConfigItem[],
+  priority: number,
+  exceptId?: string,
+): SearchServiceConfigItem[] => {
+  return configs.map((c) =>
+    c.id !== exceptId && c.enabled && c.priority === priority ? { ...c, enabled: false } : c,
+  );
 };
 
 // 加载搜索服务配置列表（已废弃，persist 自动处理）
-// 保留此函数仅为了兼容性，实际上 persist 会自动加载
 export const loadSearchServiceConfigs = (): SearchServiceConfigItem[] => {
-  // persist 中间件会自动加载，这里返回空数组作为初始值
   return [];
 };
 
-// 设置所有搜索服务配置
-export const setSearchServiceConfigs = (configs: SearchServiceConfigItem[]): SearchServiceConfigItem[] => {
-  return configs.map(ensureRole);
+export const setSearchServiceConfigs = (configs: LegacySearchConfigItem[]): SearchServiceConfigItem[] => {
+  return normalizeSearchServiceConfigs(configs);
 };
 
-// 添加搜索服务配置
 export const addSearchServiceConfig = (
   currentConfigs: SearchServiceConfigItem[],
   config: SearchServiceConfigItem,
 ): SearchServiceConfigItem[] => {
-  const validatedConfig = ensureRole(config);
-
+  const validatedConfig = ensurePriority(config);
   if (validatedConfig.enabled) {
-    const newConfigs = currentConfigs.map((c) => ({
-      ...c,
-      enabled: c.role === validatedConfig.role ? false : c.enabled,
-    }));
-    newConfigs.push(validatedConfig);
-    return newConfigs;
+    const withoutConflict = disableSamePriority(currentConfigs, validatedConfig.priority);
+    return [...withoutConflict, validatedConfig];
   }
   return [...currentConfigs, validatedConfig];
 };
 
-// 更新搜索服务配置
 export const updateSearchServiceConfig = (
   currentConfigs: SearchServiceConfigItem[],
   id: string,
@@ -88,21 +120,17 @@ export const updateSearchServiceConfig = (
     return currentConfigs;
   }
 
-  const validatedUpdates = updates.role ? { ...updates, role: updates.role || 'primary' } : updates;
-  const updatedConfig = ensureRole({ ...targetConfig, ...validatedUpdates });
+  const merged = ensurePriority({ ...targetConfig, ...updates });
+  const willEnable = updates.enabled === true || (updates.enabled === undefined && merged.enabled);
 
-  if (validatedUpdates.enabled === true) {
-    return currentConfigs.map((config) => ({
-      ...config,
-      ...(config.id === id ? validatedUpdates : {}),
-      enabled: config.id === id ? true : config.role === updatedConfig.role ? false : config.enabled,
-    }));
+  if (willEnable) {
+    const withoutConflict = disableSamePriority(currentConfigs, merged.priority, id);
+    return withoutConflict.map((config) => (config.id === id ? merged : config));
   }
 
-  return currentConfigs.map((config) => (config.id === id ? { ...config, ...validatedUpdates } : config));
+  return currentConfigs.map((config) => (config.id === id ? { ...config, ...updates, priority: merged.priority } : config));
 };
 
-// 删除搜索服务配置
 export const removeSearchServiceConfig = (
   currentConfigs: SearchServiceConfigItem[],
   id: string,
@@ -110,7 +138,6 @@ export const removeSearchServiceConfig = (
   return currentConfigs.filter((config) => config.id !== id);
 };
 
-// 启用指定的搜索服务配置（禁用同角色的其他配置）
 export const enableSearchServiceConfig = (
   currentConfigs: SearchServiceConfigItem[],
   id: string,
@@ -120,52 +147,46 @@ export const enableSearchServiceConfig = (
     return currentConfigs;
   }
 
-  return currentConfigs.map((config) => ({
+  const withoutConflict = disableSamePriority(currentConfigs, targetConfig.priority, id);
+  return withoutConflict.map((config) => ({
     ...config,
-    enabled: config.id === id ? true : config.role === targetConfig.role ? false : config.enabled,
+    enabled: config.id === id ? true : config.enabled,
   }));
 };
 
-/**
- * Get active search service configuration (primary + fallback)
- * Returns the primary service with optional fallback_config
- */
-export const getActiveSearchServiceConfig = (configs: SearchServiceConfigItem[]): SearchServiceConfig | null => {
-  const enabledConfigs = configs.filter((c) => c.enabled);
-
-  const primaryConfig = enabledConfigs.find((c) => c.role === 'primary');
-  const fallbackConfig = enabledConfigs.find((c) => c.role === 'fallback');
-
-  if (!primaryConfig) {
-    return null;
+export const suggestNextPriority = (configs: SearchServiceConfigItem[]): number => {
+  const enabled = configs.filter((c) => c.enabled);
+  const used = new Set(enabled.map((c) => c.priority));
+  for (let p = 1; p <= MAX_CHAIN_SIZE; p += 1) {
+    if (!used.has(p)) {
+      return p;
+    }
   }
-
-  // Build primary service config
-  const result: SearchServiceConfig = {
-    search_service: primaryConfig.search_service,
-    api_key: primaryConfig.api_key || null,
-    api_base: primaryConfig.api_base || null,
-    extra_params: primaryConfig.extra_params || null,
-  };
-
-  // Attach fallback if exists
-  if (fallbackConfig) {
-    result.fallback_config = {
-      search_service: fallbackConfig.search_service,
-      api_key: fallbackConfig.api_key || null,
-      api_base: fallbackConfig.api_base || null,
-      extra_params: fallbackConfig.extra_params || null,
-    };
-  }
-
-  return result;
+  return MAX_CHAIN_SIZE;
 };
 
 /**
- * Show a warning toast when search service is not configured.
- * Centralized here to avoid duplicating toast parameters across components.
- * Copy fallbacks align with gapEvents SSE toast and locales/chat.searchNotConfigured.
+ * Returns head of enabled priority chain for readiness checks (server builds full chain).
  */
+export const getActiveSearchServiceConfig = (configs: SearchServiceConfigItem[]): SearchServiceConfig | null => {
+  const enabled = configs
+    .filter((c) => c.enabled)
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, MAX_CHAIN_SIZE);
+
+  if (enabled.length === 0) {
+    return null;
+  }
+
+  const head = enabled[0];
+  return {
+    search_service: head.search_service,
+    api_key: head.api_key || null,
+    api_base: head.api_base || null,
+    extra_params: head.extra_params || null,
+  };
+};
+
 export const showSearchNotConfiguredToast = (): void => {
   const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
   const isZh = lang?.startsWith('zh');
@@ -191,10 +212,6 @@ export const showSearchNotConfiguredToast = (): void => {
   });
 };
 
-/**
- * Check if search service is configured and show toast if not.
- * Returns true if search is available, false otherwise.
- */
 export const guardSearchServiceConfigured = (configs: SearchServiceConfigItem[]): boolean => {
   if (getActiveSearchServiceConfig(configs)) return true;
   showSearchNotConfiguredToast();

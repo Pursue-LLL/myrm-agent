@@ -125,6 +125,33 @@ def attach_health_errors(payload: HealthJsonPayload) -> list[str]:
     return errors
 
 
+def signoff_stream_holder_health_errors(payload: HealthJsonPayload) -> list[str]:
+    """Signoff desktop stream-lock client_hot under parallel load.
+
+    UI compile warmth and frontendEpoch may be deferred by SMP; pytest ADMIT hydrates.
+    Require mux/CDP/backend identity only.
+    """
+    errors: list[str] = []
+    if payload["muxDaemons"] != 1:
+        errors.append(f"muxDaemons={payload['muxDaemons']}")
+    for name, ready in (
+        ("upstreamReady", payload["upstreamReady"]),
+        ("wsStampMatch", payload["wsStampMatch"]),
+    ):
+        if not ready:
+            errors.append(f"{name}=false")
+    if not payload["runtimeId"]:
+        errors.append("runtimeId=empty")
+    for name, epoch in (
+        ("backendEpoch", payload["backendEpoch"]),
+        ("chromeEpoch", payload["chromeEpoch"]),
+        ("muxEpoch", payload["muxEpoch"]),
+    ):
+        if epoch is None:
+            errors.append(f"{name}=missing")
+    return errors
+
+
 def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:
     """Stack liveness for stack-core keepalive — ignore compile-time shell/client warmth."""
     errors: list[str] = []
@@ -200,7 +227,8 @@ def format_attach_endpoint_failure(errors: list[str]) -> str:
     if any(error.strip() == "ui=half_dead" for error in errors):
         return (
             "STACK_UI_HALF_DEAD: shared UI listening but HTTP unreachable — "
-            "run: ./myrm restart --chrome (do not stop other pytest)"
+            "ADMIT queue waited; when wave_leases=0 run: ./myrm restart --chrome "
+            "(do not stop other pytest)"
         )
     return "CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors)
 
@@ -834,6 +862,11 @@ def main() -> None:
         action="store_true",
         help="Exit 2 unless mux/upstream/epochs are live (ignores shellHot/clientHot compile windows; probes API /health only, not UI curl)",
     )
+    parser.add_argument(
+        "--require-signoff-stream-ready",
+        action="store_true",
+        help="Exit 2 unless mux/CDP/backend identity is live for signoff stream-lock holder (ignores clientHot/frontendEpoch under parallel SMP defer)",
+    )
     parser.add_argument("--frontend-dir", default="")
     parser.add_argument("--cdp-port", type=int, default=0)
     parser.add_argument("--profile-dir", default="")
@@ -883,6 +916,16 @@ def main() -> None:
         )
         if errors:
             print(format_attach_endpoint_failure(errors), file=sys.stderr)
+            raise SystemExit(2)
+    if args.require_signoff_stream_ready:
+        errors = signoff_stream_holder_health_errors(payload) + api_health_errors(
+            args.api
+        )
+        if errors:
+            print(
+                "CHROME_E2E_SIGNOFF_STREAM_NOT_READY: " + ", ".join(errors),
+                file=sys.stderr,
+            )
             raise SystemExit(2)
     if args.require_stack_core:
         errors = stack_core_health_errors(payload) + api_health_errors(args.api)

@@ -18,12 +18,19 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, NotRequired, TypedDict
 
+from dev_gate_contract import MUX_MAX_CONCURRENT_SESSIONS
+
 SCHEMA_VERSION = 1
 DEFAULT_OWNER_TTL_SEC = 900.0
-DEFAULT_MAX_SESSIONS = 6
-DEFAULT_WAIT_SEC = 300
+DEFAULT_MAX_SESSIONS = MUX_MAX_CONCURRENT_SESSIONS
 DEFAULT_POLL_SEC = 15
 NORMAL_PRIORITY = 0
+
+
+def _default_mux_admission_wait_sec() -> int:
+    from dev_gate_contract import mux_admission_wait_sec
+
+    return mux_admission_wait_sec()
 
 
 class MuxAdmissionRecord(TypedDict):
@@ -252,7 +259,10 @@ def acquire_with_wait(
     from e2e_capacity_messages import format_mux_wait, format_mux_wait_timeout
 
     wait_sec = int(
-        os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+        os.environ.get(
+            "MYRM_E2E_MUX_ADMISSION_WAIT_SEC",
+            str(_default_mux_admission_wait_sec()),
+        )
     )
     poll_sec = int(
         os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", str(DEFAULT_POLL_SEC))
@@ -303,6 +313,12 @@ def acquire_with_wait(
             ),
             file=sys.stderr,
         )
+        try:
+            from e2e_session_snapshot import touch_session_progress
+
+            touch_session_progress(current_node="mux_admission_wait")
+        except ImportError:
+            pass
         prune_stale()
         time.sleep(poll_sec)
 

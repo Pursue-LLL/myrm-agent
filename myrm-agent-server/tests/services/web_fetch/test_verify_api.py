@@ -75,7 +75,7 @@ async def test_resolve_firecrawl_verify_key_from_search_services() -> None:
             {
                 "id": "1",
                 "enabled": True,
-                "role": "primary",
+                "priority": 1,
                 "search_service": "firecrawl",
                 "api_key": "from-search",
                 "createdAt": 1,

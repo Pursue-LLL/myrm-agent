@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
@@ -15,17 +15,29 @@ import { apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';
 import {
   wikiService,
+  buildWikiApiPath,
+  type CompileRunStatus,
+  type ImportResultResponse,
   type ObsidianImportResultResponse,
+  type WikiImportConflictOptions,
   type WikiSourceLevel,
   type WikiSourceSnippet,
+  type WikiStaleSummary,
+  type TreeNode,
 } from '@/services/wikiService';
 import { recordEvidenceSurface, recordWikiQueryAttempt, recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
+import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
 import { WikiConceptsList } from './WikiConceptsList';
+import { WikiImportConflictDialog } from './wiki/WikiImportConflictDialog';
+import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
+import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
+import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
+import { useWikiIngestSubscription } from './useWikiIngestSubscription';
 
 interface WikiStats {
   total_concepts: number;
@@ -53,19 +65,17 @@ function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string
   }).format(parsed);
 }
 
-function wikiScopedPath(path: string, agentId?: string | null): string {
-  if (!agentId) {
-    return path;
-  }
-  const joiner = path.includes('?') ? '&' : '?';
-  return `${path}${joiner}agent_id=${encodeURIComponent(agentId)}`;
-}
-
 function normalizeWikiLevel(level: string | undefined): WikiSourceLevel | undefined {
   if (level === 'L0' || level === 'L1' || level === 'L2') {
     return level;
   }
   return undefined;
+}
+
+interface PendingImportRetry {
+  kind: 'folder' | 'zip' | 'obsidian-folder' | 'obsidian-zip';
+  folderPath?: string;
+  zipFile?: File;
 }
 
 export function WikiSection() {
@@ -80,6 +90,7 @@ export function WikiSection() {
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [queryMode, setQueryMode] = useState<'auto' | 'raw_claim'>('auto');
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
   const [sourceSnippets, setSourceSnippets] = useState<WikiSourceSnippet[]>([]);
@@ -89,10 +100,17 @@ export function WikiSection() {
     section?: string;
     snippet: string;
     level?: WikiSourceLevel;
+    snapshotStatus?: WikiSourceSnippet['snapshot_status'];
   }>({ open: false, title: '', snippet: '' });
   const [stats, setStats] = useState<WikiStats | null>(null);
+  const [staleSummary, setStaleSummary] = useState<WikiStaleSummary | null>(null);
+  const [rawTreeData, setRawTreeData] = useState<TreeNode[]>([]);
+  const [treeSyncNonce, setTreeSyncNonce] = useState(0);
+  const [isLoadingRawTree, setIsLoadingRawTree] = useState(false);
   const [isQuerying, setIsQuerying] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [compileRun, setCompileRun] = useState<CompileRunStatus | null>(null);
+  const [isResumingCompile, setIsResumingCompile] = useState(false);
   const [isMaintaining, setIsMaintaining] = useState(false);
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isRepairingPublication, setIsRepairingPublication] = useState(false);
@@ -103,12 +121,130 @@ export function WikiSection() {
   const [isSavingPurpose, setIsSavingPurpose] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportingObsidian, setIsImportingObsidian] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [scopeRevision, setScopeRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   const zipInputRef = useRef<HTMLInputElement>(null);
   const obsidianZipRef = useRef<HTMLInputElement>(null);
   const webFolderInputRef = useRef<HTMLInputElement>(null);
+  const [importConflictOpen, setImportConflictOpen] = useState(false);
+  const [importConflictPaths, setImportConflictPaths] = useState<string[]>([]);
+  const [importSecurityOpen, setImportSecurityOpen] = useState(false);
+  const [importSecurityBlockedPaths, setImportSecurityBlockedPaths] = useState<string[]>([]);
+  const [importSecurityRedactedPaths, setImportSecurityRedactedPaths] = useState<string[]>([]);
+  const [pendingImportRetry, setPendingImportRetry] = useState<PendingImportRetry | null>(null);
 
   const isTauriEnv = isTauri();
+
+  const scopeLabel = agentScopeId
+    ? getBuiltinAgentName(
+        agentScopeId,
+        agents.find((agent) => agent.id === agentScopeId)?.name ?? agentScopeId,
+        locale,
+      )
+    : t('agentScopeDefault');
+
+  const showObsidianResult = (result: ObsidianImportResultResponse) => {
+    toast.success(
+      t('import.obsidianResult', {
+        processed: result.files_processed,
+        tags: result.tags_extracted,
+        images: result.images_copied,
+        skipped: result.files_skipped + (result.files_skipped_conflict ?? 0),
+      }),
+    );
+  };
+
+  const finishImportResult = async (
+    result: ImportResultResponse | ObsidianImportResultResponse,
+    retry: PendingImportRetry | null,
+    toastMode: 'default' | 'obsidian' = 'default',
+  ) => {
+    if (result.success) {
+      if (toastMode === 'obsidian') {
+        showObsidianResult(result as ObsidianImportResultResponse);
+      } else {
+        toast.success(result.message);
+      }
+      setActiveTab('queue');
+      await loadStats();
+      const blocked = result.security_blocked_paths ?? [];
+      const redacted = result.security_redacted_paths ?? [];
+      if (blocked.length > 0 || redacted.length > 0) {
+        setImportSecurityBlockedPaths(blocked);
+        setImportSecurityRedactedPaths(redacted);
+        setImportSecurityOpen(true);
+      }
+      const conflicts = result.conflict_paths ?? [];
+      if (conflicts.length > 0 && retry) {
+        setImportConflictPaths(conflicts);
+        setPendingImportRetry(retry);
+        setImportConflictOpen(true);
+      }
+    } else {
+      toast.error(result.message);
+    }
+  };
+
+  const retryImportWithSupersede = async (reason: string) => {
+    if (!pendingImportRetry) {
+      setImportConflictOpen(false);
+      return;
+    }
+
+    const conflictOptions: WikiImportConflictOptions = {
+      onConflict: 'supersede',
+      supersedeReason: reason,
+    };
+
+    setImportConflictOpen(false);
+    setImportConflictPaths([]);
+    const retry = pendingImportRetry;
+    setPendingImportRetry(null);
+
+    try {
+      if (retry.kind === 'folder' && retry.folderPath) {
+        setIsImporting(true);
+        const result = await wikiService.importFolder(
+          retry.folderPath,
+          ['.md', '.txt', '.org'],
+          true,
+          agentScopeId,
+          conflictOptions,
+        );
+        await finishImportResult(result, null);
+      } else if (retry.kind === 'zip' && retry.zipFile) {
+        setIsImporting(true);
+        const result = await wikiService.importZip(
+          retry.zipFile,
+          '.md,.txt,.org',
+          true,
+          agentScopeId,
+          conflictOptions,
+        );
+        await finishImportResult(result, null);
+      } else if (retry.kind === 'obsidian-folder' && retry.folderPath) {
+        setIsImportingObsidian(true);
+        const result = await wikiService.importObsidianFolder(
+          retry.folderPath,
+          true,
+          agentScopeId,
+          conflictOptions,
+        );
+        await finishImportResult(result, null);
+      } else if (retry.kind === 'obsidian-zip' && retry.zipFile) {
+        setIsImportingObsidian(true);
+        const result = await wikiService.importObsidianZip(retry.zipFile, true, agentScopeId, conflictOptions);
+        await finishImportResult(result, null);
+      }
+    } catch (error) {
+      console.error('Import supersede retry failed:', error);
+      toast.error(t('errors.importFailed'));
+    } finally {
+      setIsImporting(false);
+      setIsImportingObsidian(false);
+    }
+  };
 
   const handleImportFolder = async () => {
     if (isTauriEnv) {
@@ -118,14 +254,9 @@ export function WikiSection() {
         if (!selected) return;
 
         setIsImporting(true);
-        const result = await wikiService.importFolder(selected as string);
-        if (result.success) {
-          toast.success(result.message);
-          setActiveTab('queue');
-          await loadStats();
-        } else {
-          toast.error(result.message);
-        }
+        const folderPath = selected as string;
+        const result = await wikiService.importFolder(folderPath, ['.md', '.txt', '.org'], true, agentScopeId);
+        await finishImportResult(result, { kind: 'folder', folderPath });
       } catch (error) {
         console.error('Folder import failed:', error);
         toast.error(t('errors.importFailed'));
@@ -167,14 +298,8 @@ export function WikiSection() {
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
       const zipFile = new File([blob], 'folder-import.zip', { type: 'application/zip' });
 
-      const result = await wikiService.importZip(zipFile);
-      if (result.success) {
-        toast.success(result.message);
-        setActiveTab('queue');
-        await loadStats();
-      } else {
-        toast.error(result.message);
-      }
+      const result = await wikiService.importZip(zipFile, '.md,.txt,.org', true, agentScopeId);
+      await finishImportResult(result, { kind: 'zip', zipFile });
     } catch (error) {
       console.error('Web folder import failed:', error);
       toast.error(t('errors.importFailed'));
@@ -190,14 +315,8 @@ export function WikiSection() {
 
     setIsImporting(true);
     try {
-      const result = await wikiService.importZip(file);
-      if (result.success) {
-        toast.success(result.message);
-        setActiveTab('queue');
-        await loadStats();
-      } else {
-        toast.error(result.message);
-      }
+      const result = await wikiService.importZip(file, '.md,.txt,.org', true, agentScopeId);
+      await finishImportResult(result, { kind: 'zip', zipFile: file });
     } catch (error) {
       console.error('ZIP import failed:', error);
       toast.error(t('errors.importFailed'));
@@ -205,17 +324,6 @@ export function WikiSection() {
       setIsImporting(false);
       if (zipInputRef.current) zipInputRef.current.value = '';
     }
-  };
-
-  const showObsidianResult = (result: ObsidianImportResultResponse) => {
-    toast.success(
-      t('import.obsidianResult', {
-        processed: result.files_processed,
-        tags: result.tags_extracted,
-        images: result.images_copied,
-        skipped: result.files_skipped,
-      }),
-    );
   };
 
   const handleImportObsidianFolder = async () => {
@@ -226,14 +334,9 @@ export function WikiSection() {
       if (!selected) return;
 
       setIsImportingObsidian(true);
-      const result = await wikiService.importObsidianFolder(selected as string);
-      if (result.success) {
-        showObsidianResult(result);
-        setActiveTab('queue');
-        await loadStats();
-      } else {
-        toast.error(result.message);
-      }
+      const vaultPath = selected as string;
+      const result = await wikiService.importObsidianFolder(vaultPath, true, agentScopeId);
+      await finishImportResult(result, { kind: 'obsidian-folder', folderPath: vaultPath }, 'obsidian');
     } catch (error) {
       console.error('Obsidian folder import failed:', error);
       toast.error(t('errors.importFailed'));
@@ -248,14 +351,8 @@ export function WikiSection() {
 
     setIsImportingObsidian(true);
     try {
-      const result = await wikiService.importObsidianZip(file);
-      if (result.success) {
-        showObsidianResult(result);
-        setActiveTab('queue');
-        await loadStats();
-      } else {
-        toast.error(result.message);
-      }
+      const result = await wikiService.importObsidianZip(file, true, agentScopeId);
+      await finishImportResult(result, { kind: 'obsidian-zip', zipFile: file }, 'obsidian');
     } catch (error) {
       console.error('Obsidian ZIP import failed:', error);
       toast.error(t('errors.importFailed'));
@@ -285,19 +382,26 @@ export function WikiSection() {
   };
 
   useEffect(() => {
-    wikiService.setAgentScope(agentScopeId);
+    setScopeRevision((revision) => revision + 1);
     void loadPurpose();
     void loadStats();
     setAnswer('');
     setRelatedArticles([]);
     setSourceSnippets([]);
-    return () => wikiService.setAgentScope(undefined);
   }, [agentScopeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const prevTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (activeTab === 'overview' && prevTabRef.current !== 'overview') {
+      void loadStats();
+    }
+    prevTabRef.current = activeTab;
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPurpose = async () => {
     setIsLoadingPurpose(true);
     try {
-      const data = await apiRequest<{ purpose: string }>(wikiScopedPath('/wiki/purpose', agentScopeId));
+      const data = await apiRequest<{ purpose: string }>(buildWikiApiPath('/wiki/purpose', agentScopeId));
       setPurpose(data.purpose);
       setPurposeDraft(data.purpose);
     } catch (error) {
@@ -310,7 +414,7 @@ export function WikiSection() {
   const handleSavePurpose = async () => {
     setIsSavingPurpose(true);
     try {
-      await apiRequest(wikiScopedPath('/wiki/purpose', agentScopeId), {
+      await apiRequest(buildWikiApiPath('/wiki/purpose', agentScopeId), {
         method: 'PUT',
         body: JSON.stringify({ purpose: purposeDraft }),
       });
@@ -326,16 +430,54 @@ export function WikiSection() {
 
   const loadStats = async () => {
     setIsLoadingStats(true);
+    setIsLoadingRawTree(true);
     try {
-      const data = await apiRequest<WikiStats>(wikiScopedPath('/wiki/stats', agentScopeId));
+      const [data, stale, rawTree, queueStatus] = await Promise.all([
+        apiRequest<WikiStats>(buildWikiApiPath('/wiki/stats', agentScopeId)),
+        wikiService.getStaleSummary(agentScopeId),
+        wikiService.getRawTree(agentScopeId),
+        wikiService.getQueueStatus(agentScopeId),
+      ]);
       setStats(data);
+      setStaleSummary(stale);
+      setRawTreeData(rawTree);
+      setCompileRun(queueStatus.compile_run ?? null);
     } catch (error) {
       console.error('Failed to load Wiki stats:', error);
       toast.error(t('errors.loadStatsFailed'));
     } finally {
       setIsLoadingStats(false);
+      setIsLoadingRawTree(false);
     }
   };
+
+  const ingestActivityRef = useRef(false);
+  const refreshIngestTreesSilently = useCallback(async () => {
+    try {
+      const rawTree = await wikiService.getRawTree(agentScopeId);
+      setRawTreeData(rawTree);
+      setTreeSyncNonce((nonce) => nonce + 1);
+    } catch (error) {
+      console.warn('Failed to refresh wiki ingest trees after SSE signal.', error);
+    }
+  }, [agentScopeId]);
+
+  const { connected: ingestLive, snapshot: ingestSnapshot } = useWikiIngestSubscription(agentScopeId, {
+    onSnapshot: (snap) => {
+      setCompileRun(snap.compile_run ?? null);
+      if (snap.tree_sync_required) {
+        void refreshIngestTreesSilently();
+      }
+      const active =
+        snap.stats.processing > 0 ||
+        snap.stats.pending > 0 ||
+        snap.compile_run?.state === 'paused';
+      if (ingestActivityRef.current && !active) {
+        void loadStats();
+      }
+      ingestActivityRef.current = active;
+    },
+  });
 
   const handleQuery = async () => {
     if (!query.trim()) {
@@ -350,7 +492,7 @@ export function WikiSection() {
     setSourceSnippets([]);
 
     try {
-      const data = await wikiService.queryWiki(query);
+      const data = await wikiService.queryWiki(query, queryMode, agentScopeId);
 
       setAnswer(data.answer);
       setRelatedArticles(data.related_articles || []);
@@ -369,16 +511,22 @@ export function WikiSection() {
   const handleCompile = async () => {
     setIsCompiling(true);
     try {
-      const result = await wikiService.compileWiki();
-      toast.success(
-        t('success.compileSummary', {
-          published: result.articles_published,
-          pending: result.articles_pending,
-          blocked: result.articles_blocked,
-        }),
-      );
-      if (result.articles_pending > 0) {
-        setActiveTab('pendingEdits');
+      const result = await wikiService.compileWiki(agentScopeId);
+      setCompileRun(result.compile_run ?? null);
+      if (result.compile_run?.state === 'paused') {
+        toast.warning(result.compile_run.pause_reason || t('compileRun.pausedDefaultReason'));
+        setActiveTab('queue');
+      } else {
+        toast.success(
+          t('success.compileSummary', {
+            published: result.articles_published,
+            pending: result.articles_pending,
+            blocked: result.articles_blocked,
+          }),
+        );
+        if (result.articles_pending > 0) {
+          setActiveTab('pendingEdits');
+        }
       }
       await loadStats();
     } catch (error) {
@@ -389,12 +537,43 @@ export function WikiSection() {
     }
   };
 
+  const handleResumeCompile = async () => {
+    setIsResumingCompile(true);
+    try {
+      await wikiService.resumeCompileCircuit(agentScopeId);
+      toast.success(t('compileRun.resumeSuccess'));
+      await loadStats();
+    } catch (error) {
+      console.error('Resume compile failed:', error);
+      toast.error(t('compileRun.resumeFailed'));
+    } finally {
+      setIsResumingCompile(false);
+    }
+  };
+
   const handleMaintain = async () => {
     setIsMaintaining(true);
     try {
-      await apiRequest(wikiScopedPath('/wiki/maintain', agentScopeId), { method: 'POST' });
-      toast.success(t('success.maintainComplete'));
+      const result = await apiRequest<{
+        raw_security_removed?: number;
+        raw_security_removed_paths?: string[];
+      }>(buildWikiApiPath('/wiki/maintain', agentScopeId), { method: 'POST' });
+      const removed = result.raw_security_removed ?? 0;
+      if (removed > 0) {
+        const pathsJoined = (result.raw_security_removed_paths ?? []).join(', ');
+        const displayPaths =
+          pathsJoined.length > 120 ? `${pathsJoined.slice(0, 117)}...` : pathsJoined;
+        toast.success(
+          t('success.maintainRemovedSensitive', {
+            count: removed,
+            paths: displayPaths,
+          }),
+        );
+      } else {
+        toast.success(t('success.maintainComplete'));
+      }
       await loadStats();
+      setTreeSyncNonce((value) => value + 1);
     } catch (error) {
       console.error('Maintain failed:', error);
       toast.error(t('errors.maintainFailed'));
@@ -406,7 +585,7 @@ export function WikiSection() {
   const handleRepairPageTypes = async () => {
     setIsRepairingTypes(true);
     try {
-      const result = await wikiService.repairPageTypes();
+      const result = await wikiService.repairPageTypes(agentScopeId);
       if (result.success) {
         toast.success(t('success.repairTypesComplete', { count: result.files_repaired }));
       } else {
@@ -424,7 +603,7 @@ export function WikiSection() {
   const handleRepairPublication = async () => {
     setIsRepairingPublication(true);
     try {
-      const result = await wikiService.repairPublication();
+      const result = await wikiService.repairPublication(agentScopeId);
       if (result.success) {
         const skippedDrafts = result.files_skipped_intentional_drafts ?? 0;
         toast.success(
@@ -451,8 +630,26 @@ export function WikiSection() {
     }
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await wikiService.exportVault(agentScopeId);
+      toast.success(t('export.success'));
+    } catch (error) {
+      console.error('Wiki export failed:', error);
+      toast.error(t('export.failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <WikiAgentScopeProvider
+      agentScopeId={agentScopeId}
+      scopeRevision={scopeRevision}
+      scopeLabel={scopeLabel}
+    >
+      <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold mb-2">{t('title')}</h2>
         <p className="text-muted-foreground">{t('description')}</p>
@@ -621,6 +818,29 @@ export function WikiSection() {
                     </Button>
                   </div>
                   </div>
+                  <div className="space-y-2 border-t border-border/60 pt-4">
+                    <div className="text-sm font-medium">{t('concepts.rawSourcesTitle')}</div>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                        {t('concepts.rawIngestNotCompiled')}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                        {t('concepts.rawIngestClean')}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 dark:bg-amber-400" />
+                        {t('concepts.rawIngestModified')}
+                      </span>
+                    </div>
+                    <WikiRawSourceTree
+                      treeData={rawTreeData}
+                      isLoading={isLoadingRawTree}
+                      agentScopeId={agentScopeId}
+                      onRawDeleted={() => void refreshIngestTreesSilently()}
+                    />
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -636,16 +856,45 @@ export function WikiSection() {
               <CardDescription>{t('query.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder={t('query.placeholder')}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleQuery()}
-                />
-                <Button onClick={handleQuery} disabled={isQuerying || !query.trim()}>
-                  {isQuerying ? t('querying') : t('actions.query')}
-                </Button>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                <div className="flex w-full flex-col gap-1.5 lg:w-56">
+                  <label htmlFor="wiki-query-mode" className="text-xs font-medium text-muted-foreground">
+                    {t('query.modeLabel')}
+                  </label>
+                  <Select
+                    value={queryMode}
+                    onValueChange={(value) => setQueryMode(value as 'auto' | 'raw_claim')}
+                  >
+                    <SelectTrigger id="wiki-query-mode" className="w-full">
+                      <SelectValue placeholder={t('query.modeAuto')}>
+                        {queryMode === 'raw_claim' ? t('query.modeRawClaim') : t('query.modeAuto')}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{t('query.modeAuto')}</SelectItem>
+                      <SelectItem value="raw_claim">{t('query.modeRawClaim')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {queryMode === 'raw_claim' ? t('query.modeRawClaimHint') : t('query.modeAutoHint')}
+                  </p>
+                </div>
+                <div className="flex w-full flex-1 flex-col gap-2 sm:flex-row">
+                  <Input
+                    placeholder={t('query.placeholder')}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleQuery()}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleQuery}
+                    disabled={isQuerying || !query.trim()}
+                    className="w-full sm:w-auto"
+                  >
+                    {isQuerying ? t('querying') : t('actions.query')}
+                  </Button>
+                </div>
               </div>
 
               {answer && (
@@ -667,6 +916,7 @@ export function WikiSection() {
                                 : tSources('kb_level_l2')
                             : null;
                           const cardTitle = snippet.name || snippet.path;
+                          const sectionLabel = resolveWikiSectionLabel(snippet.section || undefined, tSources);
                           return (
                             <button
                               key={`${snippet.path}-${idx}`}
@@ -676,9 +926,10 @@ export function WikiSection() {
                                 setSnippetDrawerState({
                                   open: true,
                                   title: cardTitle,
-                                  section: snippet.section || undefined,
+                                  section: sectionLabel,
                                   snippet: snippet.snippet,
                                   level,
+                                  snapshotStatus: snippet.snapshot_status,
                                 })
                               }
                             >
@@ -690,12 +941,33 @@ export function WikiSection() {
                                   </span>
                                 )}
                               </div>
-                              {snippet.section && <div className="mt-1 text-xs text-muted-foreground">{snippet.section}</div>}
+                              {sectionLabel && <div className="mt-1 text-xs text-muted-foreground">{sectionLabel}</div>}
                               {snippet.path && (
                                 <div className="mt-1 text-[11px] text-muted-foreground truncate font-mono">{snippet.path}</div>
                               )}
                               {snippet.snippet && (
                                 <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{snippet.snippet}</p>
+                              )}
+                              {snippet.claim_id && (
+                                <p className="mt-1 text-[11px] text-primary/80 font-mono truncate">
+                                  {snippet.evidence_path}
+                                  {snippet.line_range ? ` · L${snippet.line_range}` : ''}
+                                </p>
+                              )}
+                              {snippet.snapshot_status === 'verified' && (
+                                <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                                  {t('evidenceSnapshotVerified')}
+                                </p>
+                              )}
+                              {snippet.snapshot_status === 'stale' && (
+                                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                                  {t('evidenceSnapshotStale')}
+                                </p>
+                              )}
+                              {snippet.snapshot_status === 'missing' && snippet.evidence_path && (
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  {t('evidenceSnapshotMissing')}
+                                </p>
                               )}
                             </button>
                           );
@@ -727,6 +999,7 @@ export function WikiSection() {
             section={snippetDrawerState.section}
             snippet={snippetDrawerState.snippet}
             level={snippetDrawerState.level}
+            snapshotStatus={snippetDrawerState.snapshotStatus}
             surface="settings"
             contextKey={evidenceContextKey}
           />
@@ -740,8 +1013,55 @@ export function WikiSection() {
               </CardTitle>
               <CardDescription>{t('actions.description')}</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
-              <Button onClick={handleCompile} disabled={isCompiling} className="flex-1">
+            <CardContent className="flex flex-col gap-4">
+              {staleSummary && staleSummary.stale_count > 0 && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+                  <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    {t('stale.bannerTitle')}
+                  </div>
+                  <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+                    {t('stale.bannerDescription', { count: staleSummary.stale_count })}
+                  </p>
+                  {staleSummary.stale_files.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-amber-800/90 dark:text-amber-200/90">
+                        {t('stale.fileListTitle')}
+                      </div>
+                      <ul className="max-h-24 overflow-y-auto text-xs font-mono text-amber-900/70 dark:text-amber-100/70 space-y-0.5">
+                        {staleSummary.stale_files.slice(0, 8).map((file) => (
+                          <li key={file.relative_path} className="truncate">
+                            {file.relative_path}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {compileRun?.state === 'paused' && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                  <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    {t('compileRun.pausedTitle')}
+                  </div>
+                  <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+                    {compileRun.pause_reason || t('compileRun.pausedDefault')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" disabled={isResumingCompile} onClick={() => void handleResumeCompile()}>
+                      {isResumingCompile ? t('compileRun.resuming') : t('compileRun.resume')}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setActiveTab('queue')}>
+                      {t('compileRun.viewQueue')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
+              <Button
+                onClick={handleCompile}
+                disabled={isCompiling || compileRun?.state === 'paused'}
+                className="flex-1"
+              >
                 <IconGlow className="w-4 h-4 mr-2" />
                 {isCompiling ? t('compiling') : t('actions.compile')}
               </Button>
@@ -767,6 +1087,16 @@ export function WikiSection() {
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isRepairingPublication ? t('repairingPublication') : t('actions.repairPublication')}
               </Button>
+              <Button
+                onClick={() => void handleExport()}
+                disabled={isExporting}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconDatabase className="w-4 h-4 mr-2" />
+                {isExporting ? t('export.exporting') : t('export.button')}
+              </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -855,17 +1185,53 @@ export function WikiSection() {
         </TabsContent>
 
         <TabsContent value="concepts" className="space-y-6 flex flex-col flex-1 min-h-0">
-          <WikiConceptsList />
+          <WikiConceptsList
+            key={`${agentScopeId ?? 'default'}-${scopeRevision}`}
+            treeSyncNonce={treeSyncNonce}
+            agentScopeId={agentScopeId}
+          />
         </TabsContent>
 
         <TabsContent value="pendingEdits" className="space-y-6">
-          <WikiPendingEdits />
+          <WikiPendingEdits agentScopeId={agentScopeId} scopeLabel={scopeLabel} />
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-6">
-          <WikiQueuePanel />
+          <WikiQueuePanel
+            agentScopeId={agentScopeId}
+            scopeLabel={scopeLabel}
+            liveIngestConnected={ingestLive}
+            liveIngestSnapshot={ingestSnapshot}
+          />
         </TabsContent>
       </Tabs>
-    </div>
+      <WikiImportConflictDialog
+        open={importConflictOpen}
+        conflictPaths={importConflictPaths}
+        onClose={() => {
+          setImportConflictOpen(false);
+          setPendingImportRetry(null);
+          setImportConflictPaths([]);
+        }}
+        onKeepSkipped={() => {
+          toast.message(t('import.conflictSkippedToast', { count: importConflictPaths.length }));
+          setImportConflictOpen(false);
+          setPendingImportRetry(null);
+          setImportConflictPaths([]);
+        }}
+        onSupersede={retryImportWithSupersede}
+      />
+      <WikiImportSecurityDialog
+        open={importSecurityOpen}
+        blockedPaths={importSecurityBlockedPaths}
+        redactedPaths={importSecurityRedactedPaths}
+        onClose={() => {
+          setImportSecurityOpen(false);
+          setImportSecurityBlockedPaths([]);
+          setImportSecurityRedactedPaths([]);
+        }}
+      />
+      </div>
+    </WikiAgentScopeProvider>
   );
 }

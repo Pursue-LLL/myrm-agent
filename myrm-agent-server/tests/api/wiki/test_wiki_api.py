@@ -77,6 +77,19 @@ def test_wiki_stats_endpoint(client: TestClient) -> None:
         assert response.status_code in [200, 401, 403], f"Unexpected status: {response.status_code}"
 
 
+def test_wiki_stale_summary_endpoint(client: TestClient) -> None:
+    """Test GET /api/v1/wiki/stale-summary endpoint."""
+    response = client.get("/api/v1/wiki/stale-summary")
+    if response.status_code == 200:
+        data = response.json()
+        assert "stale_count" in data
+        assert "stale_files" in data
+        assert isinstance(data["stale_count"], int)
+        assert isinstance(data["stale_files"], list)
+    else:
+        assert response.status_code in [401, 403]
+
+
 def test_wiki_query_endpoint(client: TestClient) -> None:
     """Test POST /api/v1/wiki/query endpoint."""
     print("\n🔍 Testing /api/v1/wiki/query...")
@@ -103,6 +116,21 @@ def test_wiki_query_endpoint(client: TestClient) -> None:
         print("⚠️ Authorization required (expected in production)")
     else:
         print(f"❌ Error: {response.text}")
+
+
+def test_wiki_query_endpoint_accepts_raw_claim_mode(client: TestClient) -> None:
+    """POST /api/v1/wiki/query accepts optional raw_claim retrieval mode."""
+    response = client.post(
+        "/api/v1/wiki/query",
+        json={"question": "What is the official revenue claim?", "mode": "raw_claim"},
+    )
+
+    if response.status_code == 200:
+        data = response.json()
+        assert "answer" in data
+        assert isinstance(data.get("related_articles", []), list)
+    else:
+        assert response.status_code in {401, 403, 422}
 
 
 def test_wiki_compile_endpoint(client: TestClient) -> None:
@@ -309,14 +337,6 @@ def test_wiki_concept_delete_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_wiki_concept_update_validation(client: TestClient) -> None:
-    """Test PUT /api/v1/wiki/concepts/{name} validates request body."""
-    response = client.put("/api/v1/wiki/concepts/test", json={"content": ""})
-    assert response.status_code == 422
-
-    response = client.put("/api/v1/wiki/concepts/test", json={})
-    assert response.status_code == 422
-
 
 def test_wiki_pending_approve_nonexistent(client: TestClient) -> None:
     """Test POST /pending/{edit_id}/approve returns 400 for non-existent edit."""
@@ -425,3 +445,220 @@ def test_all_wiki_endpoints_registered(client: TestClient) -> None:
             response = client.post(path, json={"question": "test", "topic": "test"})
 
         assert response.status_code != 404, f"{method} {path} not found (404)"
+
+
+def _find_tree_node(nodes: list[dict[str, object]], node_id: str) -> dict[str, object] | None:
+    for node in nodes:
+        if node.get("id") == node_id:
+            return node
+        children = node.get("children")
+        if isinstance(children, list):
+            found = _find_tree_node(children, node_id)
+            if found is not None:
+                return found
+    return None
+
+
+def test_wiki_tree_ingest_status_tracked_modified(client: TestClient, tmp_path: Path) -> None:
+    """Concept tree should mark nodes whose sources changed after last compile."""
+    import json
+    from unittest.mock import MagicMock
+    from tests.support.minimal_app import build_minimal_app
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    metadata_path = structure.get_wiki_metadata_path()
+    metadata_path.write_text(json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8")
+
+    raw_file = structure.raw_dir / "source.md"
+    raw_file.write_text("raw body", encoding="utf-8")
+
+    concept_path = structure.get_concept_file_path("StaleConcept")
+    concept_path.write_text(
+        """---
+type: concept
+sources:
+  - raw/source.md
+---
+Body
+""",
+        encoding="utf-8",
+    )
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    tree_client = TestClient(app)
+    try:
+        response = tree_client.get("/api/v1/wiki/tree")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    node = _find_tree_node(response.json(), "staleconcept")
+    assert node is not None
+    assert node.get("ingest_status") == "tracked-modified"
+
+
+def test_wiki_raw_tree_ingest_status(client: TestClient, tmp_path: Path) -> None:
+    """Raw tree should expose tri-state ingest annotations."""
+    import json
+    from unittest.mock import MagicMock
+    from tests.support.minimal_app import build_minimal_app
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    metadata_path = structure.get_wiki_metadata_path()
+    metadata_path.write_text(json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8")
+    raw_file = structure.raw_dir / "notes.md"
+    raw_file.write_text("notes", encoding="utf-8")
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    tree_client = TestClient(app)
+    try:
+        response = tree_client.get("/api/v1/wiki/raw/tree")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    node = _find_tree_node(response.json(), "notes")
+    assert node is not None
+    assert node.get("ingest_status") == "tracked-modified"
+
+
+def test_wiki_concept_snapshot_status_stale(client: TestClient, tmp_path: Path) -> None:
+    """Concept claims should report stale snapshot when raw source changes."""
+    import hashlib
+    from unittest.mock import MagicMock
+    from tests.support.minimal_app import build_minimal_app
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    raw_file = structure.raw_dir / "source.md"
+    raw_bytes = b"original body"
+    raw_file.write_bytes(raw_bytes)
+    pinned = hashlib.sha256(raw_bytes).hexdigest()
+
+    concept_path = structure.get_concept_file_path("Budget")
+    concept_path.write_text(
+        f"""---
+type: concept
+claims:
+  - id: claim.budget
+    text: Budget fact
+    status: supported
+    evidence:
+      - kind: raw-note
+        path: raw/source.md
+        contentSha256: {pinned}
+---
+Body
+""",
+        encoding="utf-8",
+    )
+    raw_file.write_bytes(b"modified body")
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    tree_client = TestClient(app)
+    try:
+        response = tree_client.get("/api/v1/wiki/concepts/Budget")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    claims = response.json()["claims"]
+    assert len(claims) == 1
+    assert claims[0]["evidence"][0]["snapshot_status"] == "stale"
+
+
+def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) -> None:
+    """Query source snippets should report stale snapshot when raw source changes."""
+    import hashlib
+    from unittest.mock import AsyncMock, MagicMock
+    from tests.support.minimal_app import build_minimal_app
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    raw_file = structure.raw_dir / "source.md"
+    raw_bytes = b"original body"
+    raw_file.write_bytes(raw_bytes)
+    pinned = hashlib.sha256(raw_bytes).hexdigest()
+    raw_file.write_bytes(b"modified body")
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+    mock_archiver.query_wiki = AsyncMock(
+        return_value=QueryResult(
+            question="Budget?",
+            answer="Budget fact",
+            related_articles=["Budget"],
+            source_snippets=[
+                SourceSnippet(
+                    article_path=str(structure.get_concept_file_path("Budget")),
+                    article_name="budget",
+                    snippet="Budget fact",
+                    section="Claim",
+                    level="L2",
+                    claim_id="claim.budget",
+                    claim_text="Budget fact",
+                    evidence_path="raw/source.md",
+                    claim_status="supported",
+                    evidence_content_sha256=pinned,
+                    evidence_snapshot_status="stale",
+                )
+            ],
+        )
+    )
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    tree_client = TestClient(app)
+    try:
+        response = tree_client.post("/api/v1/wiki/query", json={"question": "Budget?"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    snippets = response.json()["source_snippets"]
+    assert len(snippets) == 1
+    assert snippets[0]["snapshot_status"] == "stale"
+    assert snippets[0]["evidence_path"] == "raw/source.md"

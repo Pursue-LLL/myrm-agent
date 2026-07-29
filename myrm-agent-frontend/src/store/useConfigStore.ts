@@ -460,10 +460,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
           const migratedPersonal = normalizePersonalSettings(personalSettings);
 
           const rawSearchConfigs = searchServices?.searchServiceConfigs ?? [];
-          const validatedSearchConfigs = rawSearchConfigs.map((c: SearchServiceConfigItem) => ({
-            ...c,
-            role: c.role || 'primary',
-          }));
+          const validatedSearchConfigs = searchServiceManager.setSearchServiceConfigs(rawSearchConfigs);
 
           const orgConfigs: MCPServiceConfig[] = (orgMcpServers?.servers ?? []).map((s) => ({
             ...s,

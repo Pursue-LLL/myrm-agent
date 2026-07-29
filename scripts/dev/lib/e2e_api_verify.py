@@ -686,13 +686,24 @@ def _compute_next_action(
     from dev_gate_contract import (  # noqa: PLC0415
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+        NODE_STUCK_FAIL_FAST_SEC,
     )
+    from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
 
     for row in active_tests:
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
             if float(body_elapsed) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
                 return "FAIL_FAST"
+        current_node = row.get("current_node")
+        node_elapsed = row.get("node_elapsed_sec")
+        if (
+            isinstance(current_node, str)
+            and isinstance(node_elapsed, (int, float))
+            and is_transport_stall_node(current_node)
+            and float(node_elapsed) >= float(NODE_STUCK_FAIL_FAST_SEC)
+        ):
+            return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         if isinstance(process_elapsed, (int, float)):
             if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
@@ -739,7 +750,8 @@ def _format_agent_decision_human(
     for row in active_tests:
         current_node = row.get("current_node")
         body_elapsed = row.get("body_elapsed_sec")
-        if not current_node and body_elapsed is None:
+        node_elapsed = row.get("node_elapsed_sec")
+        if not current_node and body_elapsed is None and node_elapsed is None:
             continue
         pid = row.get("pid")
         parts = [f"pid={pid}"]
@@ -747,6 +759,8 @@ def _format_agent_decision_human(
             parts.append(f"current_node={current_node}")
         if isinstance(body_elapsed, (int, float)):
             parts.append(f"body_elapsed={float(body_elapsed):.0f}s")
+        if isinstance(node_elapsed, (int, float)):
+            parts.append(f"node_elapsed={float(node_elapsed):.0f}s")
         lines.append(f"E2E_TEST_PROGRESS: {' '.join(str(p) for p in parts)}")
     return lines
 

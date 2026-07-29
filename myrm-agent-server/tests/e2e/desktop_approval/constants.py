@@ -84,7 +84,6 @@ INFRA_ABORT_MARKERS = (
     "LEASE_NOT_ACTIVE",
     "LEASE_CLEANUP_FAILED",
     "upstream request timed out",
-    "connection reset",
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (

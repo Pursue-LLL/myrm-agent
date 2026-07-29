@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api';
 import type { WikiSourceLevel } from '@/store/chat/types';
 
+export type WikiEvidenceSnapshotStatus = 'verified' | 'stale' | 'missing';
 export type WikiEvidenceSurface = 'chat' | 'settings';
 type WikiEvidenceEventType =
   | 'evidence_surface'
@@ -16,6 +17,7 @@ interface WikiEvidenceEventPayload {
   surface: WikiEvidenceSurface;
   context_key?: string;
   level?: WikiSourceLevel;
+  snapshot_status?: WikiEvidenceSnapshotStatus;
   count?: number;
   dwell_ms?: number;
   after_evidence?: boolean;
@@ -238,7 +240,12 @@ export function recordEvidenceSurface(surface: WikiEvidenceSurface, count: numbe
   );
 }
 
-export function recordSnippetOpen(surface: WikiEvidenceSurface, level?: WikiSourceLevel, contextKey?: string): void {
+export function recordSnippetOpen(
+  surface: WikiEvidenceSurface,
+  level?: WikiSourceLevel,
+  contextKey?: string,
+  snapshotStatus?: WikiEvidenceSnapshotStatus,
+): void {
   const normalizedContextKey = normalizeContextKey(contextKey);
   markEvidenceInteraction(normalizedContextKey);
   enqueueWikiEvidenceEvent(
@@ -247,6 +254,7 @@ export function recordSnippetOpen(surface: WikiEvidenceSurface, level?: WikiSour
       surface,
       context_key: normalizedContextKey,
       level,
+      snapshot_status: snapshotStatus,
     },
     normalizedContextKey,
   );

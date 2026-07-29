@@ -65,6 +65,7 @@ from .skill_optimization import (
     SkillQualityHistory,
     SkillVersionModel,
 )
+from .turn_capability_metric import TurnCapabilityMetricEvent
 from .vault_credential import VaultCredential
 from .web_push_subscription import WebPushSubscription
 from .widget_kv import WidgetKVEntry
@@ -169,6 +170,8 @@ __all__ = [
     "WidgetKVEntry",
     # Daily Wrap Cache
     "DailyWrapCache",
+    # Turn Capability Observability
+    "TurnCapabilityMetricEvent",
     # Wiki Evidence Observability
     "WikiEvidenceMetricEvent",
 ]

@@ -46,7 +46,9 @@ class BuiltinToolFlags(TypedDict):
     enable_browser: bool
     enable_computer_use: bool
     enable_file_ops: bool
-    enable_evicted_read: bool  # WEB_FAST: UECD read-only file_read without full file_ops
+    enable_evicted_read: (
+        bool  # WEB_FAST: UECD read-only file_read without full file_ops
+    )
     enable_shell_tools: bool
     enable_wiki: bool
     enable_kanban: bool

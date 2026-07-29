@@ -52,6 +52,8 @@ TRANSIENT_MUX_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "Chrome MCP response timed out",
     "Network.enable timed out",
     "Navigation timeout",
+    "Timed out after waiting",
+    "timed out after waiting",
     "protocolTimeout",
     "MUX_NOT_READY",
     "main frame too early",
@@ -61,6 +63,8 @@ TRANSIENT_MUX_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "MUX_UPSTREAM_WAIT_TIMEOUT",
     "Chrome MCP transport closed",
     "retry this call",
+    "Could not connect to Chrome",
+    "Unexpected server response: 404",
 )
 
 PAGE_OWNERSHIP_ERROR_TOKENS: Final[tuple[str, ...]] = (
@@ -68,6 +72,7 @@ PAGE_OWNERSHIP_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "Chrome MCP context reset",
     "call new_page before",
     "No McpPage found for the given page",
+    "No page found",
 )
 
 # --- Retry policy ---
@@ -85,7 +90,8 @@ MUX_COLD_ATTACH_SLOTS: Final[int] = 3
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000)
-MUX_MAX_CONCURRENT_SESSIONS: Final[int] = 6
+# R107: align mux session admission with upstream cold-attach cap (SSOT).
+MUX_MAX_CONCURRENT_SESSIONS: Final[int] = MUX_COLD_ATTACH_SLOTS
 E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 300
 E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
 MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
@@ -130,6 +136,8 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 E2E_UNIFIED_WAIT_SEC: Final[int] = 300
 # R58: lease/mux/SHPOIB bootstrap queue budget (separate from 600s body wall clock).
 E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
+# R122: attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
+E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
@@ -162,6 +170,26 @@ def signoff_clarify_backend_ready_wait_sec() -> int:
     if override.isdigit() and int(override) > 0:
         return int(override)
     return 180
+
+
+def mux_admission_wait_sec() -> int:
+    """Mux session ADMIT queue; dev aligns with wave lease ADMIT (900s)."""
+    override = os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", "").strip()
+    if override.isdigit() and int(override) > 0:
+        return int(override)
+    if is_e2e_signoff_runtime():
+        return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    return E2E_ADMISSION_WALL_CLOCK_SEC
+
+
+def shared_ui_hydrate_wait_sec() -> int:
+    """SHPOIB shared :3000 hydrate burst queue; dev ADMIT 900s."""
+    override = os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", "").strip()
+    if override.isdigit() and int(override) > 0:
+        return int(override)
+    if is_e2e_signoff_runtime():
+        return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
 def chrome_e2e_skips_signoff_private_preflight() -> bool:
@@ -220,7 +248,7 @@ LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # M3 signoff: fail-fast clarify wait (LLM flake should not burn full BODY 600s).
-SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 90
+SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # R66/R67: signoff clarify SHPOIB bootstrap wait (BOOTSTRAP phase; warm pool uses 120s).
 SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
@@ -236,16 +264,33 @@ SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 # R83: signoff desktop under parallel chrome_e2e may block on bind_lease >120s.
-MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC: Final[int] = (
-    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
-)
-# R85: desktop new_page/navigate wall must cover mux cold-attach queue (≤ADMIT 300s) + page ops.
-SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC: Final[int] = (
-    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC + 120
+MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC: Final[int] = E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+# R85/R88: mux cold-attach queue + bind_lease under parallel (≤ ADMIT + reclaim).
+# R85/R88/R89: mux cold-attach + bind_lease under parallel (≤ 3× ADMIT queue budget).
+SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC: Final[int] = E2E_MUX_ADMISSION_WAIT_SEC * 3
+# R91/R92: signoff open uses direct + direct_recover retries (see infra_retry strategies).
+SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT: Final[int] = 3
+# R88/R92: desktop pytest spans bootstrap + N× open/nav reserve + fresh BODY after open.
+SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
+    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+    + SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC
+    * SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT
+    + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    + E2E_TEARDOWN_WALL_CLOCK_SEC
 )
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 # R96-MUX: browser takeover gate — consecutive MUX stall without API gate progress.
 GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
+# R96-B6: transport infra nodes stuck without semantic progress (parallel mux hog).
+NODE_STUCK_FAIL_FAST_SEC: Final[int] = GATE_MUX_STALL_FAIL_FAST_SEC
+E2E_NODE_STUCK_TOKEN: Final[str] = "E2E_NODE_STUCK"
+TRANSPORT_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = (
+    "open_mcp_page_",
+    "mux_",
+    "bootstrap_",
+    "bridge_",
+    "E2E_BOOTSTRAP",
+)
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 # R69: refuse global mux shim teardown when other wave leases/contexts are active.
@@ -268,6 +313,28 @@ SIGNOFF_OUTER_KILL_SEC: Final[int] = (
     + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
     + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
+)
+# R93: READ SHPOIB signoff panel legs reserve UEA capacity wait inside pytest (func_only=False).
+SIGNOFF_READ_SHPOIB_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
+    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    + E2E_ADMISSION_WALL_CLOCK_SEC
+    + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+    + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+)
+SIGNOFF_READ_SHPOIB_OUTER_KILL_SEC: Final[int] = (
+    SIGNOFF_READ_SHPOIB_PYTEST_TIMEOUT_CEILING_SEC + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
+)
+# R97: signoff READ SHPOIB open/rebind waits under parallel turbopack + mux contention.
+SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC: Final[int] = 180
+SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC: Final[int] = 240
+SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC: Final[int] = 420
+SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC: Final[int] = 420
+SIGNOFF_OPEN_PAGE_PARALLEL_TOTAL_CAP_SEC: Final[int] = 600
+SIGNOFF_SHPOIB_REBIND_WALL_SEC: Final[int] = 300
+SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC: Final[int] = 120
+# R90: desktop signoff spans open/nav reserve inside pytest (not quality-gate BODY).
+SIGNOFF_DESKTOP_OUTER_KILL_SEC: Final[int] = (
+    SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
 )
 # Stream lock holder heartbeat file (waiters read holder identity while queueing).
 LIVE_AGENT_STREAM_HOLDER_INFO_BASENAME: Final[str] = (
@@ -319,6 +386,33 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     return buffer
 
 
+def _signoff_read_shpoib_leg(joined_argv: str) -> bool:
+    """True when signoff READ lane runs SHPOIB chrome_e2e (panel_stdin legs)."""
+    if CHROME_E2E_DESKTOP_MARKER in joined_argv:
+        return False
+    shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    return shpoib and lane == "READ"
+
+
+def signoff_pytest_timeout_ceiling_sec(joined_argv: str) -> int:
+    """Signoff pytest-timeout ceiling; desktop leg reserves open/nav inside pytest."""
+    if CHROME_E2E_DESKTOP_MARKER in joined_argv:
+        return SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC
+    if _signoff_read_shpoib_leg(joined_argv):
+        return SIGNOFF_READ_SHPOIB_PYTEST_TIMEOUT_CEILING_SEC
+    return SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
+
+
+def signoff_outer_kill_sec(joined_argv: str) -> int:
+    """run_pytest_safe outer budget for signoff chrome_e2e legs."""
+    if CHROME_E2E_DESKTOP_MARKER in joined_argv:
+        return SIGNOFF_DESKTOP_OUTER_KILL_SEC
+    if _signoff_read_shpoib_leg(joined_argv):
+        return SIGNOFF_READ_SHPOIB_OUTER_KILL_SEC
+    return SIGNOFF_OUTER_KILL_SEC
+
+
 def chrome_e2e_pytest_safe_timeout_sec(
     lane: str,
     item_count: int,
@@ -326,7 +420,7 @@ def chrome_e2e_pytest_safe_timeout_sec(
 ) -> int:
     """Hard timeout for run_pytest_safe wrapper across a chrome_e2e session."""
     if resolve_e2e_wall_profile() == "signoff":
-        return SIGNOFF_OUTER_KILL_SEC
+        return signoff_outer_kill_sec(joined_argv)
     per_item = chrome_e2e_pytest_timeout_floor(lane, joined_argv)
     normalized_count = max(1, int(item_count))
     raw = per_item * normalized_count
@@ -343,20 +437,20 @@ def chrome_e2e_pytest_safe_timeout_sec(
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     """Lane floor with marker-aware overrides; SHPOIB admission runs inside pytest fixture."""
     if resolve_e2e_wall_profile() == "signoff":
-        return SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
+        return signoff_pytest_timeout_ceiling_sec(joined_argv)
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
-    body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
-    if shpoib and lane.strip().upper() == "LIVE_AGENT":
+    normalized_lane = lane.strip().upper()
+    if shpoib and normalized_lane in {"LIVE_AGENT", "READ"}:
         try:
             from transport_supervisor import live_agent_pytest_wall_cap_sec
 
-            body_cap = live_agent_pytest_wall_cap_sec()
+            return max(floor, live_agent_pytest_wall_cap_sec(pessimistic_peers=True))
         except ImportError:
-            body_cap = LIVE_AGENT_PYTEST_WALL_CAP_SEC
-    return min(floor, body_cap)
+            return max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+    return floor
 
 
 def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bool:
@@ -392,7 +486,7 @@ def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> s
         return raw
     value = int(raw)
     if ceiling:
-        return str(min(value, SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC))
+        return str(min(value, floor))
     if value < floor:
         return str(floor)
     return raw

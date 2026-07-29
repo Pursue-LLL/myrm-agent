@@ -10,13 +10,13 @@ Research 三栏研究工作台 GUI。左栏资料池、中栏 ChatWindow 对话�
 |------|------|------|-------|
 | `ResearchLayout.tsx` | 核心 | 三栏布局容器（可拖拽分割线 + 移动端 Tab 降级） | ✅ |
 | `ResourcePoolPanel.tsx` | 核心 | 左栏资料池（Wiki 概念搜索 + 文件上传 + checkbox 勾选） | ✅ |
-| `ResearchOutputPanel.tsx` | 核心 | 右栏工件输出（复用 ArtifactRenderer + PortalTabs + 下载/存 Wiki） | ✅ |
+| `ResearchOutputPanel.tsx` | 核心 | 右栏工件输出（复用 ArtifactRenderer + PortalTabs + 下载/存 Wiki，**chat agentConfig.agentId scoped ingest**）；Vitest：`__tests__/ResearchOutputPanel.scope.test.tsx` | ✅ |
 | `useResearchSync.ts` | 辅助 | 勾选资料 → ChatStore mentionReferences 同步 Hook | ✅ |
 
 ## 依赖
 
 - `@/store/useResearchStore` — Research 全局状态（资料勾选、面板切换）
-- `@/store/useChatStore` — 聊天状态（mentionReferences 注入，removeMentionReferencesByTypes 按类型清理）
+- `@/store/useChatStore` — 聊天状态（mentionReferences 注入，removeMentionReferencesByTypes 按类型清理；**Wiki ingest agent scope**）
 - `@/hooks/ui/useMediaQuery` — 响应式断点 hook（useIsMobile）
 - `@/store/useArtifactPortalStore` — 工件 Portal 状态（selector hooks）
 - `../chat-window/ChatWindow` — 聊天主组件（dynamic import）
@@ -30,3 +30,4 @@ Research 三栏研究工作台 GUI。左栏资料池、中栏 ChatWindow 对话�
 - PC 三栏布局需 `≥ 768px` 宽度；移动端自动降级为 Tab 模式
 - 资料同步通过 `useResearchSync` 在 effect 中操作 ChatStore，仅管理 `wiki_concept`/`wiki_raw_file` 类型引用，不影响用户手动 @ 的其他引用
 - 不修改 ChatWindow 或 ArtifactPortal 内部逻辑，仅通过组合复用
+- Chat→Wiki 写入三入口 SSOT：`SaveToWikiButton`、`ArtifactCard` ingest、`ResearchOutputPanel` ingest 均传 `useChatStore.agentConfig.agentId`

@@ -90,10 +90,12 @@ def _build_search_services_config() -> dict[str, object]:
     return {
         "searchServiceConfigs": [
             {
+                "id": "e2e-search-primary",
                 "enabled": True,
-                "role": "primary",
+                "priority": 1,
                 "search_service": os.getenv("SEARCH_SERVICE", "tavily"),
                 "api_key": os.getenv("TAVILY_API_KEY", "test-tavily-key"),
+                "createdAt": 1,
             }
         ]
     }

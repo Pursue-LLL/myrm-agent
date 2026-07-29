@@ -138,6 +138,8 @@ export interface UserSkillConfig {
   local_skill_paths: string[];
   enabled_local_skill_ids: string[];
   evolution_strategy?: string;
+  clawhub_registry_url?: string;
+  registry_presets?: Array<{ id: string; url: string }>;
   updated_at: string;
 }
 
@@ -149,6 +151,7 @@ export interface LocalSkillPathsResponse {
 export interface UpdateUserSkillConfigRequest {
   enabled_prebuilt_ids?: string[];
   evolution_strategy?: string;
+  clawhub_registry_url?: string;
 }
 
 export type SkillSortBy = 'name' | 'created_at' | 'updated_at' | 'token_cost';

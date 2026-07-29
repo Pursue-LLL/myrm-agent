@@ -57,7 +57,7 @@ _PREFERENCE_SUMMARY_SYSTEM = (
 
 def make_frustration_skill_routing_callback(
     agent_id: str,
-    skill_ids: list[str],
+    profile_skill_ids: list[str] | None,
     llm_func: Callable[[str, str], Awaitable[str]],
 ) -> Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]]:
     """Create a session cleanup callback that routes frustration signals to skill evolution.
@@ -69,6 +69,9 @@ def make_frustration_skill_routing_callback(
 
     async def _route(messages: Sequence[dict[str, str]], chat_id: str | None) -> None:
         try:
+            from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+
+            skill_ids = await resolve_runtime_skill_ids(profile_skill_ids)
             await _run_frustration_routing(
                 list(messages),
                 agent_id=agent_id,

@@ -28,6 +28,7 @@
 | `SecurityPresetSelector.tsx` | 组件 | 会话级安全预设三档下拉（HITL/Auto-Approve Edits/Read-Only）：Agent 模式下可见；选择 accept_edits 时互斥关闭 YOLO；发送 `security_preset` 字段到 server | ✅ |
 | `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent / Consensus（深度研究已移除，未来上线见 server `features/_ARCH.md`） | ✅ |
 | `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出当前 Agent 绑定的 Skill（`agentConfig.selectedSkillIds`），用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
+| `TurnCapabilityToggle.tsx` | 组件 | 单轮能力作用域切换：Agent 模式下按“下一条消息”临时收敛 Skill/MCP 子集，不持久化，发送后自动清空 | ✅ |
 | `SpeechInputButton.tsx` | 组件 | 语音转文字输入按钮（STT） | ✅ |
 | `ThinkingIntensityButton.tsx` | 组件 | 思考强度/推理预算调节 | ✅ |
 | `ToolsPanel.tsx` | 组件 | 输入区工具/MCP 快捷面板 Popover | ✅ |

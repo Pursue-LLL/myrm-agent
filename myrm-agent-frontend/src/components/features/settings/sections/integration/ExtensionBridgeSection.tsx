@@ -8,6 +8,11 @@ import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/shared/useToast';
 import SettingsSection from '../SettingsSection';
+import {
+  buildRelayCapabilityRows,
+  listMissingRelayCapabilities,
+  resolveRelayCapabilityStatusKind,
+} from './extensionRelayCapabilityCore';
 import { cn } from '@/lib/utils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import {
@@ -37,8 +42,6 @@ const EMPTY_HINTS: ExtensionSetupHints = {
   cdp_endpoint_discovered: false,
 };
 
-const REQUIRED_RELAY_CAPABILITIES = ['navigate_url', 'list_tabs', 'attach_debugger', 'detach_debugger'] as const;
-
 const ExtensionBridgeSection = memo(() => {
   const t = useTranslations('settings');
   const wsUrl = useMemo(() => getExtensionWebSocketUrl(), []);
@@ -48,48 +51,45 @@ const ExtensionBridgeSection = memo(() => {
   const [fetchError, setFetchError] = useState(false);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
-  const capabilitySet = useMemo(() => new Set(status.capabilities), [status.capabilities]);
   const relayCapabilityRows = useMemo(
-    () => [
-      {
-        key: 'navigate_url',
-        label: t('extension.relayCapabilityNavigateLabel'),
-      },
-      {
-        key: 'list_tabs',
-        label: t('extension.relayCapabilityListTabsLabel'),
-      },
-      {
-        key: 'attach_debugger',
-        label: t('extension.relayCapabilityAttachLabel'),
-      },
-      {
-        key: 'detach_debugger',
-        label: t('extension.relayCapabilityDetachLabel'),
-      },
-    ].map((cap) => ({ ...cap, available: capabilitySet.has(cap.key) })),
-    [capabilitySet, t],
+    () =>
+      buildRelayCapabilityRows(status.capabilities).map((cap) => ({
+        key: cap.key,
+        label: {
+          navigate_url: t('extension.relayCapabilityNavigateLabel'),
+          list_tabs: t('extension.relayCapabilityListTabsLabel'),
+          attach_debugger: t('extension.relayCapabilityAttachLabel'),
+          detach_debugger: t('extension.relayCapabilityDetachLabel'),
+        }[cap.key],
+        available: cap.available,
+      })),
+    [status.capabilities, t],
   );
   const missingRelayCapabilityLabels = useMemo(
     () => relayCapabilityRows.filter((cap) => !cap.available).map((cap) => cap.label),
     [relayCapabilityRows],
   );
   const missingRelayCapabilities = useMemo(
-    () => REQUIRED_RELAY_CAPABILITIES.filter((cap) => !capabilitySet.has(cap)),
-    [capabilitySet],
+    () => listMissingRelayCapabilities(status.capabilities),
+    [status.capabilities],
   );
   const relayCapabilityStatus = useMemo(() => {
-    if (!status.connected) {
+    const statusKind = resolveRelayCapabilityStatusKind(
+      status.connected,
+      status.handshake_ready,
+      status.capabilities,
+    );
+    if (statusKind === 'not_connected') {
       return t('extension.notConnected');
     }
-    if (!status.handshake_ready) {
+    if (statusKind === 'syncing') {
       return t('extension.relayCapabilitySyncing');
     }
-    if (missingRelayCapabilities.length === 0) {
+    if (statusKind === 'ready') {
       return t('extension.relayCapabilityReady');
     }
     return t('extension.relayCapabilityUpgradeRequired');
-  }, [missingRelayCapabilities.length, status.connected, status.handshake_ready, t]);
+  }, [status.capabilities, status.connected, status.handshake_ready, t]);
 
   const fetchStatus = useCallback(async () => {
     let statusOk = false;

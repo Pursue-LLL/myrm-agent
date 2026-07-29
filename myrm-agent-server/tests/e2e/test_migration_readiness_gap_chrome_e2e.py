@@ -94,6 +94,7 @@ def _wait_assistant_message_via_api(
         f"last_payload={last_payload!r}"
     )
 
+
 _WAIT_CHAT_IDLE_BEFORE_SEND_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ok: false, err: 'no-bridge' };
@@ -180,7 +181,6 @@ def _seed_migration_readiness(*, variant: str = "mcp_warning") -> dict[str, str]
     raise AssertionError(
         f"seed-migration-readiness-fixture failed after retries on {url}; last_error={last_error!r}"
     ) from last_error
-
 
 
 def _prepare_migration_chat_js(seed: dict[str, str]) -> str:
@@ -374,7 +374,9 @@ async def _send_and_collect_migration_gap(
     _assert_gap_wall_budget(wall_deadline)
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
-    idle = await chat.evaluate(_WAIT_CHAT_IDLE_BEFORE_SEND_JS, await_promise=True, recv_timeout=25.0)
+    idle = await chat.evaluate(
+        _WAIT_CHAT_IDLE_BEFORE_SEND_JS, await_promise=True, recv_timeout=25.0
+    )
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
 
     pre_send = await chat.evaluate(
@@ -395,7 +397,9 @@ async def _send_and_collect_migration_gap(
         await_promise=False,
         recv_timeout=10.0,
     )
-    assert isinstance(direct_off, dict) and direct_off.get("directSse") is False, direct_off
+    assert (
+        isinstance(direct_off, dict) and direct_off.get("directSse") is False
+    ), direct_off
 
     send_task = asyncio.create_task(
         chat.send_chat_message_atomic(_AGENT_PROMPT, baseline_user_msgs=0),
@@ -416,13 +420,18 @@ async def _send_and_collect_migration_gap(
             wall_deadline=wall_deadline,
             gap_pattern=gap_pattern,
         )
-        if isinstance(snapshot.get("streamMessageId"), str) and snapshot["streamMessageId"].strip():
+        if (
+            isinstance(snapshot.get("streamMessageId"), str)
+            and snapshot["streamMessageId"].strip()
+        ):
             stream_message_id = snapshot["streamMessageId"].strip()
         toast_state = (
             snapshot.get("toast") if isinstance(snapshot.get("toast"), dict) else {}
         )
         sse_events = (
-            snapshot.get("sseEvents") if isinstance(snapshot.get("sseEvents"), list) else []
+            snapshot.get("sseEvents")
+            if isinstance(snapshot.get("sseEvents"), list)
+            else []
         )
         best_toast = toast_state
         best_sse = [str(item) for item in sse_events]
@@ -463,18 +472,45 @@ async def _open_migration_chat_page(
     chat_url: str,
 ) -> object:
     """Open chat page with mux-flake retries (parallel SHPOIB)."""
+    from chrome_mcp_errors import is_transient_mux_error
+
     last_error: RuntimeError | None = None
     for attempt in range(3):
         try:
-            return await asyncio.to_thread(client.new_page, chat_url, timeout_ms=120_000)
+            return await asyncio.to_thread(
+                client.new_page, chat_url, timeout_ms=120_000
+            )
         except RuntimeError as exc:
             last_error = exc
             message = str(exc)
-            if "new_page failed" not in message or attempt >= 2:
+            lowered = message.lower()
+            from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+
+            retriable = (
+                "new_page failed" in message
+                or "E2E_MUX_DAEMONS_FAIL_CLOSED" in message
+                or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+                or "could not connect to chrome" in lowered
+                or "unexpected server response: 404" in lowered
+                or is_transient_mux_error(message)
+            )
+            if not retriable or attempt >= 2:
                 raise
             from transport_supervisor import reset_session_recovery_budget
 
             reset_session_recovery_budget()
+            if (
+                "unexpected server response: 404" in lowered
+                or "could not connect to chrome" in lowered
+            ):
+                from mux_attach_force_restart import force_mux_attach_restart_scoped
+
+                await asyncio.to_thread(
+                    force_mux_attach_restart_scoped,
+                    reason=f"migration new_page retry attempt={attempt + 1}",
+                )
+            else:
+                await asyncio.to_thread(client.recover_mux_transport)
             await asyncio.sleep(5.0 * (attempt + 1))
     if last_error is not None:
         raise last_error
@@ -488,6 +524,9 @@ async def _run_migration_readiness_gap_e2e(
     gap_pattern: str,
     e2e_resource_ledger: E2EResourceLedger,
     client: ChromeMcpClient | None = None,
+    skip_warm_ui: bool = False,
+    provider_preverified: bool = False,
+    api_base_hint: str | None = None,
 ) -> None:
     from app.services.agent.stream_session.entitlement_gap_preflight import (
         reset_capability_gap_emission_tracker,
@@ -496,18 +535,40 @@ async def _run_migration_readiness_gap_e2e(
     _ensure_shared_ui_base()
     reset_capability_gap_emission_tracker()
 
-    api_base = get_e2e_api_url()
-    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=120.0):
-        pytest.fail(f"E2E provider not ready on {api_base}")
+    api_base = (api_base_hint or get_e2e_api_url()).rstrip("/")
+    initial_provider_wait_sec = 180.0 if skip_warm_ui else 120.0
+    if not provider_preverified:
+        if not wait_e2e_provider_ready(
+            api_url=api_base,
+            timeout_sec=initial_provider_wait_sec,
+        ):
+            pytest.fail(
+                f"E2E provider not ready on {api_base} "
+                f"(wait={initial_provider_wait_sec}s variant={variant})"
+            )
 
     seed = _seed_migration_readiness(variant=variant)
-    assert seed.get("readiness_status") == expected_readiness, (
-        f"seed fixture must report {expected_readiness} readiness; seed={seed!r}"
-    )
+    assert (
+        seed.get("readiness_status") == expected_readiness
+    ), f"seed fixture must report {expected_readiness} readiness; seed={seed!r}"
     await asyncio.sleep(1.0)
+    api_base = get_e2e_api_url()
+    provider_wait_sec = 180.0 if skip_warm_ui else 120.0
+    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=provider_wait_sec):
+        pytest.fail(
+            f"E2E provider not ready after seed on {api_base} variant={variant}"
+        )
 
     prepare_e2e_ui_session(api_base)
-    warm_ui_route(seed["chat_ui_path"])
+    if skip_warm_ui:
+        from e2e_orchestrator import touch_wall_progress
+
+        touch_wall_progress(current_node="warm_ui_route_skipped_batch_reuse")
+    else:
+        warm_ui_route(seed["chat_ui_path"])
+    from transport_supervisor import reset_session_recovery_budget
+
+    reset_session_recovery_budget()
 
     ui_url = get_e2e_ui_url()
     chat_url = f"{ui_url}{seed['chat_ui_path']}"
@@ -518,6 +579,7 @@ async def _run_migration_readiness_gap_e2e(
         client = ChromeMcpClient(request_timeout_sec=180.0)
         await asyncio.to_thread(client.start)
     assert client is not None
+    page: object | None = None
     try:
         page = await _open_migration_chat_page(client, chat_url)
         chat = McpChatSession(client, page)
@@ -547,28 +609,32 @@ async def _run_migration_readiness_gap_e2e(
             recv_timeout=10.0,
         )
         assert isinstance(binding, dict), binding
-        bound_api = str(binding.get("apiBase") or binding.get("runtimeApi") or "").rstrip("/")
-        assert bound_api == api_base.rstrip("/"), (
-            f"SHPOIB API binding mismatch: expected {api_base}, got {binding!r}"
-        )
+        bound_api = str(
+            binding.get("apiBase") or binding.get("runtimeApi") or ""
+        ).rstrip("/")
+        assert bound_api == api_base.rstrip(
+            "/"
+        ), f"SHPOIB API binding mismatch: expected {api_base}, got {binding!r}"
 
         workspace_ready = await chat.evaluate(
             WAIT_WORKSPACE_STREAM_JS,
             await_promise=True,
             recv_timeout=45.0,
         )
-        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
-            f"workspace stream not ready: {workspace_ready!r}; api={api_base}"
-        )
+        assert (
+            isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
+        ), f"workspace stream not ready: {workspace_ready!r}; api={api_base}"
 
-        toast_state, sse_events, send_result, diag = await _send_and_collect_migration_gap(
-            chat,
-            api_base=api_base,
-            seed=seed,
-            wall_deadline=wall_deadline,
-            gap_pattern=gap_pattern,
-            gap_timeout_sec=90.0,
-            require_assistant_reply=False,
+        toast_state, sse_events, send_result, diag = (
+            await _send_and_collect_migration_gap(
+                chat,
+                api_base=api_base,
+                seed=seed,
+                wall_deadline=wall_deadline,
+                gap_pattern=gap_pattern,
+                gap_timeout_sec=90.0,
+                require_assistant_reply=False,
+            )
         )
 
         recorded_sse = list(sse_events)
@@ -589,12 +655,21 @@ async def _run_migration_readiness_gap_e2e(
         if not chat_id:
             turn = diag.get("turn") if isinstance(diag.get("turn"), dict) else {}
             chat_id = str(turn.get("chatId") or "").strip()
-        assert chat_id, f"missing chat id after send; send={send_result!r}; diag={diag!r}"
-        assert send_result.get("ok") is True, f"send turn failed: {send_result!r}; diag={diag!r}"
+        assert (
+            chat_id
+        ), f"missing chat id after send; send={send_result!r}; diag={diag!r}"
+        assert (
+            send_result.get("ok") is True
+        ), f"send turn failed: {send_result!r}; diag={diag!r}"
 
         if chat_id:
             e2e_resource_ledger.register("chat", chat_id)
     finally:
+        if page is not None:
+            try:
+                await asyncio.to_thread(client.close_page, page, ignore_errors=True)
+            except RuntimeError:
+                pass
         if owns_client:
             await asyncio.to_thread(client.close)
 
@@ -603,7 +678,7 @@ async def _run_migration_readiness_gap_e2e(
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
-@pytest.mark.timeout(1200)
+@pytest.mark.timeout(1800)
 async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
@@ -614,6 +689,19 @@ async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
     )
 
     reset_capability_gap_emission_tracker()
+
+    os.environ["MYRM_E2E_SIGNOFF_BATCH_BODY_SEC"] = "900"
+
+    from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
+
+    reap_chrome_e2e_session_hygiene()
+    from mux_attach_force_restart import force_mux_attach_restart_scoped
+
+    force_mux_attach_restart_scoped(reason="migration batch preflight")
+    from transport_supervisor import reset_session_recovery_budget
+
+    reset_session_recovery_budget()
+    await asyncio.sleep(3.0)
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
@@ -630,12 +718,79 @@ async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
         from transport_supervisor import reset_session_recovery_budget
 
         reset_session_recovery_budget()
-        await _run_migration_readiness_gap_e2e(
-            variant="diagnostic_critical",
-            expected_readiness="critical",
-            gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
-            e2e_resource_ledger=e2e_resource_ledger,
-            client=client,
-        )
+        from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
+
+        reap_chrome_e2e_session_hygiene()
+        from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV
+
+        os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
+        verified_critical_api: str | None = None
+        batch_provider_deadline = time.monotonic() + 360.0
+        while time.monotonic() < batch_provider_deadline:
+            critical_api = get_e2e_api_url().rstrip("/")
+            remaining = batch_provider_deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            if wait_e2e_provider_ready(
+                api_url=critical_api,
+                timeout_sec=min(45.0, remaining),
+            ):
+                verified_critical_api = critical_api
+                break
+            await asyncio.sleep(5.0)
+        else:
+            pytest.fail(
+                "private backend not ready before diagnostic_critical scenario: "
+                f"{get_e2e_api_url()}"
+            )
+
+        async def _run_s2_diagnostic_critical() -> None:
+            await _run_migration_readiness_gap_e2e(
+                variant="diagnostic_critical",
+                expected_readiness="critical",
+                gap_pattern=_MIGRATION_CRITICAL_GAP_TOAST_PATTERN,
+                e2e_resource_ledger=e2e_resource_ledger,
+                client=client,
+                skip_warm_ui=True,
+                provider_preverified=True,
+                api_base_hint=verified_critical_api,
+            )
+
+        from mux_attach_force_restart import force_mux_attach_restart_scoped
+
+        force_mux_attach_restart_scoped(reason="migration batch S2 preflight")
+        reset_session_recovery_budget()
+        await asyncio.sleep(3.0)
+        await asyncio.to_thread(client.close)
+        client = ChromeMcpClient(request_timeout_sec=180.0)
+        await asyncio.to_thread(client.start)
+
+        last_s2_error: BaseException | None = None
+        for s2_attempt in range(2):
+            try:
+                if s2_attempt > 0:
+                    force_mux_attach_restart_scoped(
+                        reason=f"migration batch S2 mux retry attempt={s2_attempt + 1}",
+                    )
+                    reset_session_recovery_budget()
+                    await asyncio.sleep(5.0)
+                    await asyncio.to_thread(client.close)
+                    client = ChromeMcpClient(request_timeout_sec=180.0)
+                    await asyncio.to_thread(client.start)
+                await _run_s2_diagnostic_critical()
+                break
+            except RuntimeError as exc:
+                last_s2_error = exc
+                message = str(exc)
+                retriable = (
+                    "MUX_RECLAIM_STALL" in message
+                    or "No page found" in message
+                    or "MUX_TRANSPORT" in message
+                )
+                if not retriable or s2_attempt >= 1:
+                    raise
+        else:
+            if last_s2_error is not None:
+                raise last_s2_error
     finally:
         await asyncio.to_thread(client.close)

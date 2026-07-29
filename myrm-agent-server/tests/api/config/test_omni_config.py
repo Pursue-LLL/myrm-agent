@@ -142,7 +142,7 @@ async def test_sync_config_uses_omni_validation_without_500():
                     "searchServiceConfigs": [
                         {
                             "id": "bad-search",
-                            "role": "primary",
+                            "priority": 1,
                             "search_service": "unknown",
                             "createdAt": 1,
                         }
@@ -163,6 +163,42 @@ async def test_sync_config_uses_omni_validation_without_500():
         "personalSettings",
         "searchServices",
     ]
+
+
+@pytest.mark.asyncio
+async def test_sync_rejects_duplicate_enabled_search_priority() -> None:
+    payload = {
+        "changes": [
+            {
+                "key": "searchServices",
+                "value": {
+                    "searchServiceConfigs": [
+                        {
+                            "id": "a",
+                            "enabled": True,
+                            "priority": 1,
+                            "search_service": "tavily",
+                            "api_key": "k1",
+                            "createdAt": 1,
+                        },
+                        {
+                            "id": "b",
+                            "enabled": True,
+                            "priority": 1,
+                            "search_service": "perplexity",
+                            "api_key": "k2",
+                            "createdAt": 2,
+                        },
+                    ],
+                },
+                "expectedVersion": None,
+                "timestamp": 1,
+            }
+        ],
+        "deviceId": "test_device",
+    }
+    response = client.post("/api/v1/config/sync", json=payload)
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

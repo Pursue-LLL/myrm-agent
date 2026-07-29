@@ -798,6 +798,25 @@ INDEX_STATEMENTS = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE
     )""",
+    # One-turn capability override observability
+    """CREATE TABLE IF NOT EXISTS turn_capability_metric_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type VARCHAR(40) NOT NULL,
+        source VARCHAR(20) NOT NULL,
+        context_key VARCHAR(128),
+        count INTEGER NOT NULL DEFAULT 1,
+        selected_skill_count INTEGER,
+        selected_mcp_count INTEGER,
+        effective_skill_count INTEGER,
+        effective_mcp_count INTEGER,
+        failure_reason VARCHAR(80),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_turn_capability_metrics_created_at ON turn_capability_metric_events(created_at)",
+    """CREATE INDEX IF NOT EXISTS ix_turn_capability_metrics_event_type_created_at
+        ON turn_capability_metric_events(event_type, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_turn_capability_metrics_context_created_at
+        ON turn_capability_metric_events(context_key, created_at)""",
 ]
 
 
@@ -807,7 +826,10 @@ async def run_migrations(engine: AsyncEngine) -> None:
     采用状态化迁移引擎，自动维护 _schema_migrations 表，
     提供精准计时、慢查询捕获和基线平滑升级能力。
     """
-    migrations = [MigrationStatement(version=i, sql=stmt) for i, stmt in enumerate(MIGRATION_STATEMENTS)]
+    migrations = [
+        MigrationStatement(version=i, sql=stmt)
+        for i, stmt in enumerate(MIGRATION_STATEMENTS)
+    ]
 
     migration_engine = StatefulMigrationEngine(
         engine=engine,
@@ -825,12 +847,16 @@ async def run_migrations(engine: AsyncEngine) -> None:
             report.failed_sql,
             report.error_message,
         )
-        raise RuntimeError(f"Database migration failed at version {report.failed_version}: {report.error_message}")
+        raise RuntimeError(
+            f"Database migration failed at version {report.failed_version}: {report.error_message}"
+        )
 
     if report.applied_count > 0:
         summary = f"Database migrations done: {report.applied_count} applied, {report.skipped_count} skipped in {report.total_duration_ms:.1f}ms."
         if report.slowest_migrations:
-            slow_str = ", ".join([f"V{m[0]}: {m[2]:.1f}ms" for m in report.slowest_migrations[:3]])
+            slow_str = ", ".join(
+                [f"V{m[0]}: {m[2]:.1f}ms" for m in report.slowest_migrations[:3]]
+            )
             summary += f" (Slowest: {slow_str})"
         logger.info(summary)
     elif report.baselined:
@@ -848,7 +874,10 @@ async def create_indexes(engine: AsyncEngine) -> None:
 
     采用状态化迁移引擎，自动维护 _schema_indexes 表。
     """
-    indexes = [MigrationStatement(version=i, sql=stmt) for i, stmt in enumerate(INDEX_STATEMENTS)]
+    indexes = [
+        MigrationStatement(version=i, sql=stmt)
+        for i, stmt in enumerate(INDEX_STATEMENTS)
+    ]
 
     index_engine = StatefulMigrationEngine(
         engine=engine,
@@ -866,12 +895,16 @@ async def create_indexes(engine: AsyncEngine) -> None:
             report.failed_sql,
             report.error_message,
         )
-        raise RuntimeError(f"Database index creation failed at version {report.failed_version}: {report.error_message}")
+        raise RuntimeError(
+            f"Database index creation failed at version {report.failed_version}: {report.error_message}"
+        )
 
     if report.applied_count > 0:
         summary = f"Database indexes created: {report.applied_count} applied, {report.skipped_count} skipped in {report.total_duration_ms:.1f}ms."
         if report.slowest_migrations:
-            slow_str = ", ".join([f"V{m[0]}: {m[2]:.1f}ms" for m in report.slowest_migrations[:3]])
+            slow_str = ", ".join(
+                [f"V{m[0]}: {m[2]:.1f}ms" for m in report.slowest_migrations[:3]]
+            )
             summary += f" (Slowest: {slow_str})"
         logger.info(summary)
     elif report.baselined:

@@ -11,7 +11,9 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_state,
+    warm_ui_route,
 )
 
 _AGENT_EDITOR_READY_JS = """(() => ({
@@ -123,6 +125,8 @@ def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> No
     ui_url = get_e2e_ui_url()
     agent_id = _create_agent(api_url)
     agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}"
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route(f"/settings/agents?agentId={agent_id}")
 
     try:
         with open_mcp_page(agent_settings_url) as (client, page):
@@ -138,7 +142,9 @@ def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> No
             )
             opened = client.evaluate(page, _OPEN_BUILTIN_DIALOG_JS, timeout_sec=15.0)
             assert isinstance(opened, dict)
-            assert opened.get("clicked") is True, f"Built-in Tools card not found: {opened}"
+            assert (
+                opened.get("clicked") is True
+            ), f"Built-in Tools card not found: {opened}"
 
             wait_for_state(client, page, _SKILL_MOUNT_DIALOG_READY_JS, timeout_sec=30.0)
 
@@ -146,19 +152,21 @@ def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> No
                 page, _SKILL_MARKET_DEFAULT_OFF_JS, timeout_sec=10.0
             )
             assert isinstance(default_off, dict)
-            assert default_off.get("ok") is True, (
-                f"skill_market should default OFF for v1-min: {default_off}"
-            )
+            assert (
+                default_off.get("ok") is True
+            ), f"skill_market should default OFF for v1-min: {default_off}"
 
             toggled = client.evaluate(page, _TOGGLE_SKILL_MARKET_JS, timeout_sec=10.0)
             assert isinstance(toggled, dict)
-            assert toggled.get("toggled") is True, f"Failed to toggle skill_market: {toggled}"
+            assert (
+                toggled.get("toggled") is True
+            ), f"Failed to toggle skill_market: {toggled}"
 
             enabled = wait_for_state(
                 client, page, _SKILL_MARKET_ENABLED_JS, timeout_sec=15.0
             )
-            assert enabled.get("ready") is True, (
-                f"skill_market should be enabled after toggle: {enabled}"
-            )
+            assert (
+                enabled.get("ready") is True
+            ), f"skill_market should be enabled after toggle: {enabled}"
     finally:
         _delete_agent(api_url, agent_id)

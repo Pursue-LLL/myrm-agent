@@ -3,13 +3,15 @@
 [INPUT] pydantic::BaseModel (POS: 数据验证基础类)
 [OUTPUT] ConfigSetRequest: 配置保存请求模型
 [OUTPUT] ConfigRecord: 配置记录响应模型
+[OUTPUT] SearchServiceConfigItem: 搜索服务单条配置（slug/priority/selectable 校验）
+[OUTPUT] SearchServicesConfigValue: 搜索服务配置集合（enabled priority 唯一性校验）
 [OUTPUT] OMNI_CONFIG_MODELS: Omni-Config 域配置模型映射字典
 [POS] 配置服务 API 数据模型层。定义请求、响应结构以及 Omni-Config 强类型校验 Schema。
 """
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 ConfigKey = Literal[
     "providers",
@@ -58,16 +60,7 @@ ConfigKey = Literal[
 # Omni-Config: Domain-Specific Settings Models (Pre-flight Validation & Schema-Driven UI)
 # ============================================================================
 
-SearchServiceType = Literal[
-    "perplexity",
-    "tavily",
-    "exa_ai",
-    "parallel_ai",
-    "google_pse",
-    "dataforseo",
-    "firecrawl",
-    "searxng",
-]
+SearchServiceType = str
 
 
 class SearchServiceConfigItem(BaseModel):
@@ -76,19 +69,51 @@ class SearchServiceConfigItem(BaseModel):
     id: str = Field(..., description="唯一标识符")
     name: str | None = Field(None, description="配置名称")
     enabled: bool = Field(default=False, description="是否启用")
-    role: Literal["primary", "fallback"] = Field(..., description="主服务或备用服务")
-    search_service: SearchServiceType = Field(..., description="搜索服务提供商类型")
+    priority: int = Field(..., ge=1, le=5, description="优先级（1 最高，启用项内唯一）")
+    search_service: SearchServiceType = Field(..., description="搜索服务提供商 slug")
     api_key: str | None = Field(None, description="API 密钥", json_schema_extra={"ui:widget": "password"})
     api_base: str | None = Field(None, description="自定义 API 基础地址")
     extra_params: dict[str, object] | None = Field(None, description="额外参数")
     latency: int | None = Field(None, description="延迟 (ms)")
     createdAt: int = Field(..., description="创建时间戳")
 
+    @field_validator("search_service")
+    @classmethod
+    def validate_search_service_slug(cls, value: str) -> str:
+        from app.core.integrations.search_catalog.registry import SearchProviderCatalogRegistry
+
+        registry = SearchProviderCatalogRegistry.get_instance()
+        if not registry.is_known_slug(value):
+            raise ValueError(f"Unknown search provider slug: {value}")
+        return value
+
+    @model_validator(mode="after")
+    def validate_enabled_provider_ready(self) -> Self:
+        if not self.enabled:
+            return self
+        from app.core.integrations.search_catalog.registry import SearchProviderCatalogRegistry
+
+        registry = SearchProviderCatalogRegistry.get_instance()
+        if not registry.is_selectable_slug(self.search_service):
+            raise ValueError(f"Search provider is not available: {self.search_service}")
+        return self
+
 
 class SearchServicesConfigValue(BaseModel):
     """搜索服务配置集合"""
 
     searchServiceConfigs: list[SearchServiceConfigItem] = Field(default_factory=list, description="搜索服务配置列表")
+
+    @model_validator(mode="after")
+    def validate_unique_enabled_priorities(self) -> Self:
+        seen: set[int] = set()
+        for item in self.searchServiceConfigs:
+            if not item.enabled:
+                continue
+            if item.priority in seen:
+                raise ValueError(f"Duplicate priority {item.priority} among enabled search configs")
+            seen.add(item.priority)
+        return self
 
 
 def _personal_settings_field(

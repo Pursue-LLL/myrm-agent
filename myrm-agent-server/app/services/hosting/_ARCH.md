@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify / HTTP Webhook 托管 API，负责静态文件打包、SPA 路由注入、发布状态轮询与 SSRF 防护。**GUI Globe 发布专用，无 Agent 工具。**
+Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify / HTTP Webhook 托管 API，负责静态文件打包、SPA 路由注入、发布状态轮询与 SSRF 防护。GUI Globe 发布 + Agent `artifact_publish` tool 双入口共用 `orchestrator.publish_artifact_to_target`。
 
 ---
 
@@ -22,6 +22,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
 | `vercel_client.py` | ✅ 核心 | Vercel API v13 客户端 |
+| `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |
 | `providers/*.py` | ✅ 核心 | 四平台 HostingProvider 实现 |
 
 ---
@@ -29,7 +30,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 ## 依赖关系
 
 - `httpx`：异步 HTTP（webhook 禁用 follow_redirects）
-- 调用方：`app/api/files/hosting_api.py`、`artifact_share_api.py`
+- 调用方：`app/api/files/hosting_api.py`、`artifact_share_api.py`、`agent_publish_tool.py`（Agent tool）
 
 ---
 
@@ -52,4 +53,4 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 
 ## Prompt Cache
 
-不注册 LangChain deploy 工具；发布走 REST + GUI，零 LLM token。
+`artifact_publish` tool 仅在用户配置了 hosting target 时 conditional mount（~100 tok）。未配置用户零 token 开销。

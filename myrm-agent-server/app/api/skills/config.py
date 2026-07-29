@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.skills.audit import _audit_skill_action
 from app.api.skills.schemas import (
     EnableSkillResponse,
+    RegistryPresetResponse,
     ScanFindingResponse,
     SkillConfigVersionResponse,
     SkillEnvVarsResponse,
@@ -17,8 +18,16 @@ from app.api.skills.schemas import (
     UserSkillConfigResponse,
     skill_to_response,
 )
-from app.core.skills.config_version import bump_skill_config_version, get_skill_config_version
+from app.core.skills.config_version import (
+    bump_skill_config_version,
+    get_skill_config_version,
+)
+from app.core.skills.clawhub_registry import (
+    apply_clawhub_registry_url,
+    get_registry_presets,
+)
 from app.core.skills.oauth_availability import apply_integration_oauth_availability
+from app.core.skills.models import UserSkillConfig
 from app.core.skills.store.service import skills_service
 from app.database.connection import get_db
 
@@ -26,18 +35,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/config", response_model=UserSkillConfigResponse)
-async def get_user_skill_config() -> UserSkillConfigResponse:
-    """Get user skill configuration (enabled prebuilt skills and local skill paths)."""
-    config = await skills_service.user_config.get_config()
+def _user_skill_config_response(config: UserSkillConfig) -> UserSkillConfigResponse:
+    presets = [
+        RegistryPresetResponse(id=item.id, url=item.url)
+        for item in get_registry_presets()
+    ]
     return UserSkillConfigResponse(
         enabled_prebuilt_ids=config.enabled_prebuilt_ids,
         disabled_prebuilt_ids=config.disabled_prebuilt_ids,
         local_skill_paths=config.local_skill_paths,
         enabled_local_skill_ids=config.enabled_local_skill_ids,
         evolution_strategy=config.evolution_strategy,
+        clawhub_registry_url=config.clawhub_registry_url,
+        registry_presets=presets,
         updated_at=config.updated_at.isoformat(),
     )
+
+
+@router.get("/config", response_model=UserSkillConfigResponse)
+async def get_user_skill_config() -> UserSkillConfigResponse:
+    """Get user skill configuration (enabled prebuilt skills and local skill paths)."""
+    config = await skills_service.user_config.get_config()
+    return _user_skill_config_response(config)
 
 
 @router.put("/config", response_model=UserSkillConfigResponse)
@@ -50,6 +69,12 @@ async def update_user_skill_config(
         kwargs["enabled_prebuilt_ids"] = request.enabled_prebuilt_ids
     if request.evolution_strategy is not None:
         kwargs["evolution_strategy"] = request.evolution_strategy
+    if request.clawhub_registry_url is not None:
+        from app.core.skills.clawhub_registry import normalize_clawhub_registry_url
+
+        kwargs["clawhub_registry_url"] = normalize_clawhub_registry_url(
+            request.clawhub_registry_url
+        )
 
     config = await skills_service.user_config.update_config(**kwargs)
 
@@ -63,19 +88,17 @@ async def update_user_skill_config(
             integration = get_global_evolution_integration()
             if integration:
                 integration.evolution_strategy = request.evolution_strategy
-                logger.info("Evolution strategy hot-updated to '%s'", request.evolution_strategy)
+                logger.info(
+                    "Evolution strategy hot-updated to '%s'", request.evolution_strategy
+                )
         except Exception as e:
             logger.warning("Failed to hot-update evolution strategy: %s", e)
 
+    if request.clawhub_registry_url is not None:
+        apply_clawhub_registry_url(request.clawhub_registry_url)
+
     bump_skill_config_version()
-    return UserSkillConfigResponse(
-        enabled_prebuilt_ids=config.enabled_prebuilt_ids,
-        disabled_prebuilt_ids=config.disabled_prebuilt_ids,
-        local_skill_paths=config.local_skill_paths,
-        enabled_local_skill_ids=config.enabled_local_skill_ids,
-        evolution_strategy=config.evolution_strategy,
-        updated_at=config.updated_at.isoformat(),
-    )
+    return _user_skill_config_response(config)
 
 
 @router.post("/{skill_id}/enable", response_model=EnableSkillResponse)
@@ -89,13 +112,21 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
-    from myrm_agent_harness.backends.skills.scanning import ScanSeverity, get_scan_cache, scan_skill_content
+    from myrm_agent_harness.backends.skills.scanning import (
+        ScanSeverity,
+        get_scan_cache,
+        scan_skill_content,
+    )
 
     scan_responses: list[ScanFindingResponse] = []
 
     skill_content = await skills_service.get_skill_file(skill_id, "SKILL.md")
     if skill_content:
-        content_str = skill_content.decode("utf-8") if isinstance(skill_content, bytes) else skill_content
+        content_str = (
+            skill_content.decode("utf-8")
+            if isinstance(skill_content, bytes)
+            else skill_content
+        )
 
         scan_cache = get_scan_cache()
         scan_result = scan_cache.get(content_str)
@@ -115,8 +146,14 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
                 )
                 for f in scan_result.findings
             ]
-            if scan_result.max_severity and scan_result.max_severity >= ScanSeverity.CRITICAL and not force:
-                _audit_skill_action("enable_blocked", skill_id, scan_findings=len(scan_responses))
+            if (
+                scan_result.max_severity
+                and scan_result.max_severity >= ScanSeverity.CRITICAL
+                and not force
+            ):
+                _audit_skill_action(
+                    "enable_blocked", skill_id, scan_findings=len(scan_responses)
+                )
                 return EnableSkillResponse(
                     skill_id=skill_id,
                     enabled=False,
@@ -159,7 +196,9 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
     if skill_id.startswith("local::"):
         if skill_id not in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.append(skill_id)
-            await skills_service.user_config.update_config(enabled_local_skill_ids=config.enabled_local_skill_ids)
+            await skills_service.user_config.update_config(
+                enabled_local_skill_ids=config.enabled_local_skill_ids
+            )
     else:
         await skills_service.user_config.enable_prebuilt_skill(skill_id)
 
@@ -181,7 +220,9 @@ async def disable_skill(skill_id: str) -> EnableSkillResponse:
     if skill_id.startswith("local::"):
         if skill_id in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.remove(skill_id)
-            await skills_service.user_config.update_config(enabled_local_skill_ids=config.enabled_local_skill_ids)
+            await skills_service.user_config.update_config(
+                enabled_local_skill_ids=config.enabled_local_skill_ids
+            )
     else:
         await skills_service.user_config.disable_prebuilt_skill(skill_id)
 
@@ -213,7 +254,9 @@ async def untrust_skill(skill_id: str) -> dict[str, str]:
 
 
 @router.post("/{skill_id}/evolution-lock")
-async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str, str | bool]:
+async def toggle_evolution_lock(
+    skill_id: str, locked: bool = True
+) -> dict[str, str | bool]:
     """Lock or unlock a skill's auto-evolution.
 
     Locked skills are protected from being modified by the Agent's
@@ -234,7 +277,9 @@ async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str,
 
         evolution = get_global_evolution_integration()
         if not evolution or not evolution.store:
-            raise HTTPException(status_code=503, detail="Evolution system not initialized")
+            raise HTTPException(
+                status_code=503, detail="Evolution system not initialized"
+            )
 
         await evolution.store.set_evolution_lock(skill_id, locked=locked)
 
@@ -251,7 +296,9 @@ async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str,
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update evolution lock: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update evolution lock: {e}"
+        ) from e
 
     action = "evolution_lock" if locked else "evolution_unlock"
     _audit_skill_action(action, skill_id)
@@ -310,7 +357,9 @@ async def get_config_version() -> SkillConfigVersionResponse:
 
 
 @router.get("/available", response_model=SkillListResponse)
-async def get_user_available_skills(db: AsyncSession = Depends(get_db)) -> SkillListResponse:
+async def get_user_available_skills(
+    db: AsyncSession = Depends(get_db),
+) -> SkillListResponse:
     """Get user's available skills (enabled prebuilt + local skills)."""
     skills = await skills_service.get_user_available_skills()
     await apply_integration_oauth_availability(skills, db)

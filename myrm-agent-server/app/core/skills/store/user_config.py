@@ -49,7 +49,9 @@ class UserSkillConfigManager:
         except FileNotFoundError:
             return UserSkillConfig(user_id="sandbox")
 
-    async def ensure_prebuilt_enabled_after_sync(self, prebuilt_skill_ids: list[str]) -> UserSkillConfig:
+    async def ensure_prebuilt_enabled_after_sync(
+        self, prebuilt_skill_ids: list[str]
+    ) -> UserSkillConfig:
         """Enable prebuilt skills after seed sync.
 
         - New install (no config file): enable all seeded prebuilt skills.
@@ -64,8 +66,12 @@ class UserSkillConfigManager:
         config = await self.get_config()
         changed = False
 
-        pruned_enabled = sorted(sid for sid in config.enabled_prebuilt_ids if sid in valid_ids)
-        pruned_disabled = sorted(sid for sid in config.disabled_prebuilt_ids if sid in valid_ids)
+        pruned_enabled = sorted(
+            sid for sid in config.enabled_prebuilt_ids if sid in valid_ids
+        )
+        pruned_disabled = sorted(
+            sid for sid in config.disabled_prebuilt_ids if sid in valid_ids
+        )
         if pruned_enabled != config.enabled_prebuilt_ids:
             config.enabled_prebuilt_ids = pruned_enabled
             changed = True
@@ -101,13 +107,16 @@ class UserSkillConfigManager:
     async def save_config(self, config: UserSkillConfig) -> None:
         """保存技能配置"""
         config_path = get_user_skill_config_path()
-        await self._storage.write_text(config_path, json.dumps(config.to_dict(), indent=2))
+        await self._storage.write_text(
+            config_path, json.dumps(config.to_dict(), indent=2)
+        )
 
     async def update_config(
         self,
         enabled_prebuilt_ids: list[str] | None = None,
         enabled_local_skill_ids: list[str] | None = None,
         evolution_strategy: str | None = None,
+        clawhub_registry_url: str | None = None,
         **_kwargs: object,
     ) -> UserSkillConfig:
         """Update user skill configuration."""
@@ -119,6 +128,8 @@ class UserSkillConfigManager:
             config.enabled_local_skill_ids = enabled_local_skill_ids
         if evolution_strategy is not None:
             config.evolution_strategy = evolution_strategy
+        if clawhub_registry_url is not None:
+            config.clawhub_registry_url = clawhub_registry_url
 
         config.updated_at = datetime.now(UTC)
         await self.save_config(config)

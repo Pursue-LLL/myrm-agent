@@ -367,6 +367,14 @@ def _validate_config_value(config_key: str, value: dict[str, object], *, operati
     if not model_class:
         return value
 
+    if config_key == "searchServices" and isinstance(value, dict):
+        raw_configs = value.get("searchServiceConfigs")
+        if isinstance(raw_configs, list):
+            from app.core.integrations.search_catalog.migration import migrate_search_service_configs
+
+            dict_rows = [row for row in raw_configs if isinstance(row, dict)]
+            value = {**value, "searchServiceConfigs": migrate_search_service_configs(dict_rows)}
+
     try:
         validated_data = model_class.model_validate(value)
     except Exception as exc:

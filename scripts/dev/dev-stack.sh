@@ -276,8 +276,15 @@ _repair_orphan_frontend() {
   rm -f "${FRONTEND_PID}" "${FRONTEND_LOCK}"
 }
 
+_frontend_heal_stack_write_allowed() {
+  [[ "${MYRM_CHROME_E2E_FRONTEND_HEAL:-}" == "1" ]] || [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" ]]
+}
+
 _wave_assert_stack_write_allowed() {
   if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+    return 0
+  fi
+  if _frontend_heal_stack_write_allowed; then
     return 0
   fi
   local wave_sh="${SCRIPT_DIR}/wave.sh"
@@ -660,11 +667,30 @@ cmd_frontend_only_ensure() {
       echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=yes"
       exit 0
     fi
+    if _frontend_heal_stack_write_allowed; then
+      echo "STACK_HEAL: frontend listening but not HTTP 200 — clean retry (E2E attach heal)" >&2
+      _kill_frontend_supervisor || true
+      _repair_orphan_frontend || true
+      if _try_frontend_start_with_clean_fallback; then
+        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=clean_retry"
+        exit 0
+      fi
+    fi
     echo "STACK_FAIL: frontend listening but not HTTP 200 within ${ATTACH_WAIT_SEC}s" >&2
     exit 1
   fi
   echo "STACK_HEAL: shared frontend port :${FRONTEND_PORT} dead — cold start (no kill)" >&2
   if ! _start_frontend_supervisor; then
+    if _frontend_heal_stack_write_allowed; then
+      echo "STACK_HEAL: frontend cold start failed — retry with --clean (E2E attach heal)" >&2
+      _kill_frontend_supervisor || true
+      _repair_orphan_frontend || true
+      if _try_frontend_start_with_clean_fallback; then
+        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=clean_retry"
+        exit 0
+      fi
+    fi
+    echo "STACK_FAIL: frontend cold start failed" >&2
     exit 1
   fi
   echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=yes"

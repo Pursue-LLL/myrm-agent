@@ -46,10 +46,18 @@ SkillBackend.load_skills(skill_ids)
 ### 3.2 技能发现与安装
 
 ```
-discovery/    搜索外部源
-    → sources/     MCP 源、市场源
+discovery/    搜索外部源（空 query 返回 []，需用户显式搜索）
+    → sources/     MCP 源、市场源（ClawHub / ModelScope / Aliyun 等）
     → installers/  安装流程编排
+market_service  业务层：SSE 进度、自定义源、ClawHub 镜像懒加载、installed_skill_id 搜索 enrich
+discovery_mount 安装/更新后唯一 catalog enable 入口（prebuilt/local）；不写入 agent.skill_ids
+clawhub_registry UserSkillConfig.clawhub_registry_url → CLAWHUB_URL（运行时 SSOT）；bootstrap 迁移 OpenClaw legacy env；CN 预设 skill.xfyun.cn；legacy skillhub.cn 自动迁移；strict probe 验 ClawHub dict JSON
+clawhub_probe     切换国内镜像前 Block 0 可达性探测（GET /skills/discovery/registry-probe）
+effective_skill_ids  Agent 空 skill allowlist 时解析 runtime skill_ids；legacy local::{name} 读时迁移（全 local_skill_paths 根）
+local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
 ```
+
+**运维**：SAL-Final-Lite 前通过 Discover 安装的 Agent 若 profile `skill_ids` 已被写入，runtime 会锁定为 allowlist；用户可在 Agent 设置清空 allowlist 恢复「全部已启用」行为。
 
 ### 3.3 打包与解包
 

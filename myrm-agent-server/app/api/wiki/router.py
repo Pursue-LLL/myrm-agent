@@ -13,23 +13,26 @@ app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest �
 router: Wiki API 路由器（完整增删改查、后台队列审核、批量导入、artifact 内容写入接口）
 Wiki概念 CRUD 接口
 Wiki队列与审核状态接口
-批量导入接口（folder/zip）
+批量导入接口（folder/zip/obsidian；`on_conflict` skip|supersede + `conflict_paths`）
 Artifact 内容写入接口
 
 [POS]
 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用：
 查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
-/import/folder + /import/zip (批量导入)、/ingest (artifact 内容写入)。
+/import/* (批量导入经 harness raw_gate)、/ingest (artifact 内容写入)。
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
@@ -75,6 +78,10 @@ def _refresh_wiki_cognitive_map(
 
 class WikiQueryRequest(BaseModel):
     question: str = Field(..., min_length=1, description="Question to ask the wiki")
+    mode: Literal["auto", "raw_claim"] = Field(
+        default="auto",
+        description="Retrieval mode: auto (default) or raw_claim (prioritize frontmatter claims)",
+    )
 
 
 class WikiSourceSnippet(BaseModel):
@@ -83,6 +90,44 @@ class WikiSourceSnippet(BaseModel):
     snippet: str = ""
     section: str = ""
     level: str = "L2"
+    claim_id: str = ""
+    claim_text: str = ""
+    evidence_path: str = ""
+    line_range: str = ""
+    claim_status: str = ""
+    snapshot_status: str = ""
+
+
+class WikiClaimEvidenceItem(BaseModel):
+    kind: str = ""
+    source_id: str = ""
+    path: str = ""
+    lines: str = ""
+    weight: float = 1.0
+    confidence: float = 0.0
+    note: str = ""
+    content_sha256: str = ""
+    updated_at: str = ""
+    snapshot_status: str = "missing"
+
+
+class WikiClaimItem(BaseModel):
+    id: str
+    text: str
+    status: str = "unknown"
+    confidence: float = 0.0
+    updated_at: str = ""
+    evidence: list[WikiClaimEvidenceItem] = Field(default_factory=list)
+
+
+class WikiStaleFileItem(BaseModel):
+    relative_path: str
+
+
+class WikiStaleSummaryResponse(BaseModel):
+    stale_count: int
+    last_compile_time: str | None = None
+    stale_files: list[WikiStaleFileItem] = Field(default_factory=list)
 
 
 class WikiQueryResponse(BaseModel):
@@ -99,6 +144,13 @@ class WikiCompileResponse(BaseModel):
     articles_pending: int = 0
     articles_published: int = 0
     articles_blocked: int = 0
+    compile_run: "CompileRunResponse | None" = None
+
+
+class CompileRunResponse(BaseModel):
+    state: Literal["running", "paused"]
+    pause_reason: str = ""
+    primary_error_kind: str = ""
 
 
 class WikiMaintenanceResponse(BaseModel):
@@ -106,6 +158,8 @@ class WikiMaintenanceResponse(BaseModel):
     issues_fixed: int
     connections_discovered: int
     duration_ms: int
+    raw_security_removed: int = 0
+    raw_security_removed_paths: list[str] = Field(default_factory=list)
 
 
 class WikiStatsResponse(BaseModel):
@@ -138,9 +192,19 @@ class WikiGraphResponse(BaseModel):
     edges: list[GraphEdgeItem]
 
 
+class WikiEditorSectionsResponse(BaseModel):
+    compiled_truth: str = ""
+    timeline: str = ""
+    tags: list[str] = Field(default_factory=list)
+    aliases: list[str] = Field(default_factory=list)
+
+
 class ConceptResponse(BaseModel):
     name: str
     content: str
+    content_hash: str = ""
+    claims: list[WikiClaimItem] = Field(default_factory=list)
+    editor_sections: WikiEditorSectionsResponse = Field(default_factory=WikiEditorSectionsResponse)
 
 
 class ConceptListResponse(BaseModel):
@@ -153,6 +217,7 @@ class TreeNode(BaseModel):
     id: str
     name: str
     is_dir: bool
+    ingest_status: str | None = None
     children: list["TreeNode"] | None = None
 
 
@@ -169,13 +234,55 @@ class DeleteFolderRequest(BaseModel):
     path: str = Field(..., min_length=1)
 
 
-class ConceptUpdateRequest(BaseModel):
-    content: str = Field(..., min_length=1)
+class WikiApplyClaimPatch(BaseModel):
+    id: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1)
+    status: str = "unknown"
+    confidence: float = 0.0
+    updated_at: str = ""
+    evidence: list[dict[str, object]] = Field(default_factory=list)
+
+
+class WikiApplyRequestBody(BaseModel):
+    op: Literal[
+        "update_metadata",
+        "patch_compiled_truth",
+        "append_timeline",
+        "create_note",
+        "replace_full_document",
+    ]
+    concept_name: str = Field(..., min_length=1)
+    compiled_truth: str = ""
+    timeline_entry: str = ""
+    content: str = ""
+    body: str = ""
+    tags: list[str] | None = None
+    aliases: list[str] | None = None
+    sources: list[str] | None = None
+    claims: list[WikiApplyClaimPatch] = Field(default_factory=list)
+    clear_confidence: bool = False
+    page_type: str = "session"
+    provenance: str = ""
+    metadata: dict[str, object] = Field(default_factory=dict)
+    canonical_id: str | None = None
+    if_match: str | None = None
+
+
+class WikiApplyResponse(BaseModel):
+    success: bool
+    op: str
+    concept_name: str
+    message: str
+    created: bool = False
+    appended: bool = False
+    content_hash: str = ""
 
 
 class QueueStatusResponse(BaseModel):
     stats: dict[str, int]
     pending_items: list[dict[str, object]]
+    failed_items: list[dict[str, object]] = Field(default_factory=list)
+    compile_run: CompileRunResponse | None = None
 
 
 class PendingEditsResponse(BaseModel):
@@ -221,6 +328,69 @@ async def _get_wiki_archiver(
     return get_wiki_archiver(llm, manager, agent_id=agent_id)
 
 
+def _compile_run_response(archiver: MemoryToWikiArchiver) -> CompileRunResponse:
+    snapshot = archiver._queue.get_compile_run()
+    return CompileRunResponse(
+        state=snapshot.state,
+        pause_reason=snapshot.pause_reason,
+        primary_error_kind=snapshot.primary_error_kind,
+    )
+
+
+def _claims_to_response_items(
+    content: str,
+    structure: "WikiStructure | None" = None,
+) -> list[WikiClaimItem]:
+    from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
+        parse_claims_from_content,
+        resolve_evidence_snapshot_status,
+    )
+
+    items: list[WikiClaimItem] = []
+    for claim in parse_claims_from_content(content):
+        items.append(
+            WikiClaimItem(
+                id=claim.id,
+                text=claim.text,
+                status=claim.status,
+                confidence=claim.confidence,
+                updated_at=claim.updated_at,
+                evidence=[
+                    WikiClaimEvidenceItem(
+                        kind=evidence.kind,
+                        source_id=evidence.source_id,
+                        path=evidence.path,
+                        lines=evidence.lines,
+                        weight=evidence.weight,
+                        confidence=evidence.confidence,
+                        note=evidence.note,
+                        content_sha256=evidence.content_sha256,
+                        updated_at=evidence.updated_at,
+                        snapshot_status=resolve_evidence_snapshot_status(
+                            evidence.path,
+                            evidence.content_sha256,
+                            structure,
+                        ),
+                    )
+                    for evidence in claim.evidence
+                ],
+            )
+        )
+    return items
+
+
+def _editor_sections_to_response(content: str) -> WikiEditorSectionsResponse:
+    from myrm_agent_harness.toolkits.wiki.core.section_contract import parse_editor_sections
+
+    sections = parse_editor_sections(content)
+    return WikiEditorSectionsResponse(
+        compiled_truth=sections.compiled_truth,
+        timeline=sections.timeline,
+        tags=list(sections.tags),
+        aliases=list(sections.aliases),
+    )
+
+
 # --- Core RAG & Compilation Endpoints ---
 
 
@@ -230,7 +400,7 @@ async def query_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> WikiQueryResponse:
     try:
-        result = await archiver.query_wiki(request.question)
+        result = await archiver.query_wiki(request.question, query_mode=request.mode)
         source_snippets = [
             WikiSourceSnippet(
                 path=snippet.article_path,
@@ -238,6 +408,12 @@ async def query_wiki(
                 snippet=snippet.snippet,
                 section=snippet.section,
                 level=snippet.level,
+                claim_id=snippet.claim_id,
+                claim_text=snippet.claim_text,
+                evidence_path=snippet.evidence_path,
+                line_range=snippet.line_range,
+                claim_status=snippet.claim_status,
+                snapshot_status=snippet.evidence_snapshot_status,
             )
             for snippet in result.source_snippets
         ]
@@ -254,9 +430,13 @@ async def query_wiki(
 @router.post("/compile", response_model=WikiCompileResponse)
 async def compile_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiCompileResponse:
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
     try:
         result = await archiver._compiler.compile_all()
+        await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
         return WikiCompileResponse(
             concepts_count=result.concepts_count,
             articles_generated=result.articles_generated,
@@ -265,6 +445,7 @@ async def compile_wiki(
             articles_pending=result.articles_pending,
             articles_published=result.articles_published,
             articles_blocked=result.articles_blocked,
+            compile_run=_compile_run_response(archiver),
         )
     except Exception as e:
         logger.error(f"Wiki compilation failed: {e}")
@@ -282,6 +463,8 @@ async def maintain_wiki(
             issues_fixed=result.issues_fixed,
             connections_discovered=result.connections_discovered,
             duration_ms=result.duration_ms,
+            raw_security_removed=result.raw_security_removed,
+            raw_security_removed_paths=list(result.raw_security_removed_paths),
         )
     except Exception as e:
         logger.error(f"Wiki maintenance failed: {e}")
@@ -317,6 +500,21 @@ async def get_wiki_stats(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/stale-summary", response_model=WikiStaleSummaryResponse)
+async def get_wiki_stale_summary(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> WikiStaleSummaryResponse:
+    """Return raw files modified after the last wiki compilation."""
+    from myrm_agent_harness.toolkits.wiki.maintenance.stale_summary import collect_stale_raw_files
+
+    summary = collect_stale_raw_files(archiver._structure)
+    return WikiStaleSummaryResponse(
+        stale_count=summary.stale_count,
+        last_compile_time=summary.last_compile_time,
+        stale_files=[WikiStaleFileItem(relative_path=item.relative_path) for item in summary.stale_files],
+    )
 
 
 # --- Concepts CRUD Endpoints ---
@@ -361,10 +559,16 @@ async def list_concepts(
 @router.get("/tree", response_model=list[TreeNode])
 async def get_wiki_tree(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> list[TreeNode]:
     """Get the full directory tree of the wiki concepts."""
+    from myrm_agent_harness.toolkits.wiki.maintenance.stale_summary import (
+        collect_stale_raw_path_set,
+        concept_uses_stale_sources,
+    )
+
     concepts_dir = archiver._structure.concepts_dir
+    stale_paths = collect_stale_raw_path_set(archiver._structure)
 
     def build_tree(dir_path: Path, rel_base: Path) -> list[TreeNode]:
-        nodes = []
+        nodes: list[TreeNode] = []
         if not dir_path.exists():
             return nodes
 
@@ -372,13 +576,105 @@ async def get_wiki_tree(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_w
             if item.is_dir():
                 rel_id = str(item.relative_to(rel_base)).replace("\\", "/")
                 children = build_tree(item, rel_base)
-                nodes.append(TreeNode(id=rel_id, name=item.name, is_dir=True, children=children))
+                child_statuses = [child.ingest_status for child in children if child.ingest_status]
+                folder_status: str | None = None
+                if any(status == "tracked-modified" for status in child_statuses):
+                    folder_status = "tracked-modified"
+                elif child_statuses:
+                    folder_status = "tracked-clean"
+                nodes.append(
+                    TreeNode(
+                        id=rel_id,
+                        name=item.name,
+                        is_dir=True,
+                        ingest_status=folder_status,
+                        children=children,
+                    )
+                )
             elif item.suffix == ".md":
                 rel_id = str(item.relative_to(rel_base).with_suffix("")).replace("\\", "/")
-                nodes.append(TreeNode(id=rel_id, name=item.stem, is_dir=False))
+                ingest_status: str | None = None
+                if stale_paths:
+                    try:
+                        concept_content = item.read_text(encoding="utf-8")
+                        ingest_status = (
+                            "tracked-modified"
+                            if concept_uses_stale_sources(concept_content, stale_paths)
+                            else "tracked-clean"
+                        )
+                    except OSError:
+                        ingest_status = None
+                nodes.append(
+                    TreeNode(
+                        id=rel_id,
+                        name=item.stem,
+                        is_dir=False,
+                        ingest_status=ingest_status,
+                    )
+                )
         return nodes
 
     return build_tree(concepts_dir, concepts_dir)
+
+
+@router.get("/raw/tree", response_model=list[TreeNode])
+async def get_wiki_raw_tree(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> list[TreeNode]:
+    """Get the directory tree of raw source files with ingest status annotations."""
+    from myrm_agent_harness.toolkits.wiki.maintenance.stale_summary import (
+        collect_stale_raw_files,
+        collect_stale_raw_path_set,
+        resolve_raw_file_ingest_status,
+    )
+
+    raw_dir = archiver._structure.raw_dir
+    summary = collect_stale_raw_files(archiver._structure)
+    stale_paths = collect_stale_raw_path_set(archiver._structure)
+    last_compile_time = summary.last_compile_time
+
+    def build_raw_tree(dir_path: Path, rel_base: Path) -> list[TreeNode]:
+        nodes: list[TreeNode] = []
+        if not dir_path.exists():
+            return nodes
+
+        for item in sorted(dir_path.iterdir(), key=lambda x: (not x.is_dir(), x.name)):
+            rel_path = item.relative_to(rel_base)
+            rel_id = str(rel_path).replace("\\", "/")
+            if item.is_dir():
+                children = build_raw_tree(item, rel_base)
+                child_statuses = [child.ingest_status for child in children if child.ingest_status]
+                folder_status: str | None = None
+                if any(status == "tracked-modified" for status in child_statuses):
+                    folder_status = "tracked-modified"
+                elif child_statuses:
+                    folder_status = "tracked-clean"
+                nodes.append(
+                    TreeNode(
+                        id=rel_id,
+                        name=item.name,
+                        is_dir=True,
+                        ingest_status=folder_status,
+                        children=children,
+                    )
+                )
+            elif item.suffix == ".md":
+                rel_id = str(rel_path.with_suffix("")).replace("\\", "/")
+                stale_key = f"raw/{rel_id}.md"
+                ingest_status = resolve_raw_file_ingest_status(
+                    stale_key,
+                    stale_paths=stale_paths,
+                    last_compile_time=last_compile_time,
+                )
+                nodes.append(
+                    TreeNode(
+                        id=rel_id,
+                        name=item.stem,
+                        is_dir=False,
+                        ingest_status=ingest_status,
+                    )
+                )
+        return nodes
+
+    return build_raw_tree(raw_dir, raw_dir)
 
 
 @router.post("/tree/folder", response_model=OperationResult)
@@ -479,36 +775,103 @@ async def get_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, Depen
     path = archiver._structure.resolve_concept_file_path(name)
     if path is None or not path.exists():
         raise HTTPException(status_code=404, detail="Concept not found")
-    return ConceptResponse(name=name, content=path.read_text(encoding="utf-8"))
+    content = path.read_text(encoding="utf-8")
+    from myrm_agent_harness.toolkits.wiki.core.canonical_registry import compute_page_lease_hash
+
+    return ConceptResponse(
+        name=name,
+        content=content,
+        content_hash=compute_page_lease_hash(content),
+        claims=_claims_to_response_items(content, archiver._structure),
+        editor_sections=_editor_sections_to_response(content),
+    )
 
 
-@router.put("/concepts/{name:path}", response_model=OperationResult)
-async def update_concept(
-    name: str, request: ConceptUpdateRequest, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> OperationResult:
-    """Update or create a concept file manually."""
-    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import FrontmatterValidationError
-    from myrm_agent_harness.toolkits.wiki.pipeline.publication import publish_concept_article
+def _wiki_apply_http_status(code: str) -> int:
+    mapping = {
+        "concept_not_found": 404,
+        "concept_exists": 409,
+        "canonical_conflict": 409,
+        "conflict": 409,
+        "forbidden_for_caller": 403,
+        "forbidden_for_agent": 403,
+        "invalid_frontmatter": 422,
+        "invalid_request": 422,
+        "timeline_rejected": 422,
+    }
+    return mapping.get(code, 400)
 
+
+@router.post("/apply", response_model=WikiApplyResponse)
+async def apply_wiki_mutation_endpoint(
+    request: WikiApplyRequestBody,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    caller: Annotated[
+        Literal["agent", "settings", "chat"],
+        Query(description="Apply caller surface; full-document replace is settings-only"),
+    ] = "settings",
+) -> WikiApplyResponse:
+    """Apply a narrow wiki mutation through the WPG publish gate."""
+    from myrm_agent_harness.toolkits.wiki.pipeline.apply import (
+        WikiApplyError,
+        WikiApplyOp,
+        WikiApplyRequest,
+        apply_wiki_mutation,
+    )
+
+    claim_payloads: tuple[dict[str, object], ...] = tuple(
+        {
+            "id": claim.id,
+            "text": claim.text,
+            "status": claim.status,
+            "confidence": claim.confidence,
+            "updatedAt": claim.updated_at,
+            "evidence": claim.evidence,
+        }
+        for claim in request.claims
+    )
+    apply_request = WikiApplyRequest(
+        op=WikiApplyOp(request.op),
+        concept_name=request.concept_name,
+        compiled_truth=request.compiled_truth,
+        timeline_entry=request.timeline_entry,
+        content=request.content,
+        body=request.body,
+        tags=tuple(request.tags) if request.tags is not None else None,
+        aliases=tuple(request.aliases) if request.aliases is not None else None,
+        sources=tuple(request.sources) if request.sources is not None else None,
+        claims=claim_payloads,
+        clear_confidence=request.clear_confidence,
+        page_type=request.page_type,
+        provenance=request.provenance,
+        metadata=dict(request.metadata),
+        canonical_id=request.canonical_id,
+        if_match=request.if_match,
+    )
     try:
-        await publish_concept_article(
+        result = await apply_wiki_mutation(
             archiver._structure,
             archiver._query_engine._indexer,
-            name,
-            request.content,
+            apply_request,
+            caller=caller,
         )
-        return OperationResult(success=True, message=f"Concept {name} updated")
-    except FrontmatterValidationError as exc:
+    except WikiApplyError as exc:
         raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "invalid_frontmatter",
-                "message": "Page metadata is incomplete. Add a valid page type before publishing.",
-                "errors": list(exc.errors),
-            },
+            status_code=_wiki_apply_http_status(exc.code),
+            detail={"code": exc.code, "message": exc.message},
         ) from exc
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return WikiApplyResponse(
+        success=result.success,
+        op=result.op.value,
+        concept_name=result.concept_name,
+        message=result.message,
+        created=result.created,
+        appended=result.appended,
+        content_hash=result.content_hash,
+    )
 
 
 @router.delete("/concepts/{name:path}", response_model=OperationResult)
@@ -525,6 +888,43 @@ async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, De
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+class DeleteRawRequest(BaseModel):
+    forget_reason: str = Field(..., min_length=1, description="Why this raw evidence is being removed")
+
+
+@router.delete("/raw/{path:path}", response_model=OperationResult)
+async def delete_raw_source(
+    path: str,
+    body: DeleteRawRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> OperationResult:
+    """Forget a raw source file and re-anchor dependent compiled pages."""
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawGateError, forget_evidence
+
+    try:
+        result = await forget_evidence(
+            archiver._structure,
+            path,
+            reason=body.forget_reason,
+            caller="settings",
+            compiler=archiver._compiler,
+            indexer=archiver._query_engine._indexer,
+        )
+    except RawGateError as exc:
+        if exc.code == "not_found":
+            raise HTTPException(status_code=404, detail=exc.message) from exc
+        if exc.code in {"invalid_request", "forbidden_for_caller"}:
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
+        raise HTTPException(status_code=500, detail=exc.message) from exc
+
+    affected = len(result.affected_concepts)
+    republished = len(result.republished_concepts)
+    return OperationResult(
+        success=True,
+        message=f"Forgot raw source {result.relative_path} ({affected} affected, {republished} republished)",
+    )
+
+
 # --- Queue Management Endpoints ---
 
 
@@ -533,21 +933,66 @@ async def get_queue_status(archiver: Annotated[MemoryToWikiArchiver, Depends(_ge
     """Get ingestion queue statistics and pending items."""
     stats = archiver._queue.get_stats()
     items = archiver._queue.get_pending_items(limit=20)
-    return QueueStatusResponse(stats=stats, pending_items=items)
+    failed_items = archiver._queue.get_failed_items(limit=20)
+    return QueueStatusResponse(
+        stats=stats,
+        pending_items=items,
+        failed_items=failed_items,
+        compile_run=_compile_run_response(archiver),
+    )
 
 
 @router.post("/queue/cancel", response_model=OperationResult)
-async def cancel_queue(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
+async def cancel_queue(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
     """Cancel all pending ingestion jobs."""
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
     count = archiver._queue.cancel_pending()
+    await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
     return OperationResult(success=True, message=f"Cancelled {count} jobs")
 
 
 @router.post("/queue/retry", response_model=OperationResult)
-async def retry_queue_failed(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
+async def retry_queue_failed(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
+    """Reset transient failed jobs back to pending."""
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
+    count = archiver._queue.reset_transient_failed()
+    await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+    return OperationResult(success=True, message=f"Reset {count} transient failed jobs to pending")
+
+
+@router.post("/queue/retry-all", response_model=OperationResult)
+async def retry_queue_failed_all(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
     """Reset all failed jobs back to pending."""
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
     count = archiver._queue.reset_failed()
+    archiver._compiler.resume_compile_worker()
+    await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
     return OperationResult(success=True, message=f"Reset {count} failed jobs to pending")
+
+
+@router.post("/queue/resume-circuit", response_model=OperationResult)
+async def resume_compile_circuit(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
+    """Resume compile worker after a circuit pause."""
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+
+    archiver._compiler.resume_compile_worker()
+    await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+    return OperationResult(success=True, message="Compile worker resumed")
 
 
 # --- HITL Pending Edits Endpoints ---
@@ -901,18 +1346,32 @@ class ImportFolderRequest(BaseModel):
         description="File extensions to include",
     )
     auto_compile: bool = Field(default=True, description="Start compilation after import")
+    on_conflict: Literal["skip", "supersede"] = Field(
+        default="skip",
+        description="When a raw file already exists with different content",
+    )
+    supersede_reason: str = Field(default="", description="Required when on_conflict is supersede")
 
 
 class ImportResultResponse(BaseModel):
     success: bool
     files_scanned: int
     files_enqueued: int
+    files_skipped_conflict: int = 0
+    files_superseded: int = 0
+    files_security_blocked: int = 0
+    files_security_redacted: int = 0
+    conflict_paths: list[str] = Field(default_factory=list)
+    security_blocked_paths: list[str] = Field(default_factory=list)
+    security_redacted_paths: list[str] = Field(default_factory=list)
     message: str
 
 
 class ObsidianImportRequest(BaseModel):
     vault_path: str = Field(..., min_length=1, description="Absolute path to Obsidian vault folder")
     auto_compile: bool = Field(default=True, description="Start compilation after import")
+    on_conflict: Literal["skip", "supersede"] = Field(default="skip")
+    supersede_reason: str = Field(default="")
 
 
 class ObsidianImportResultResponse(BaseModel):
@@ -920,9 +1379,117 @@ class ObsidianImportResultResponse(BaseModel):
     files_scanned: int
     files_processed: int
     files_skipped: int
+    files_skipped_conflict: int = 0
+    files_superseded: int = 0
+    files_security_blocked: int = 0
+    files_security_redacted: int = 0
+    conflict_paths: list[str] = Field(default_factory=list)
+    security_blocked_paths: list[str] = Field(default_factory=list)
+    security_redacted_paths: list[str] = Field(default_factory=list)
     tags_extracted: int
     images_copied: int
     message: str
+
+
+async def _publish_import_raw(
+    structure: "WikiStructure",
+    relative_path: str,
+    content: str,
+    *,
+    on_conflict: Literal["skip", "supersede"],
+    supersede_reason: str,
+):
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
+        RawConflictPolicy,
+        RawGateError,
+        RawPublishRequest,
+        RawPublishResult,
+        publish_raw,
+    )
+
+    policy = (
+        RawConflictPolicy.SUPERSEDE if on_conflict == "supersede" else RawConflictPolicy.SKIP
+    )
+    try:
+        return await publish_raw(
+            structure,
+            RawPublishRequest(
+                relative_path=relative_path,
+                content=content,
+                conflict_policy=policy,
+                supersede_reason=supersede_reason,
+            ),
+            caller="settings",
+        )
+    except RawGateError as exc:
+        if exc.code == "invalid_request":
+            raise HTTPException(
+                status_code=422,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+        raise
+
+
+def _validate_import_conflict_options(
+    on_conflict: Literal["skip", "supersede"],
+    supersede_reason: str,
+) -> None:
+    if on_conflict == "supersede" and not supersede_reason.strip():
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_request",
+                "message": "supersede_reason is required when on_conflict is supersede.",
+            },
+        )
+
+
+def _track_import_publish_result(
+    result,
+    *,
+    enqueued_paths: list[Path],
+    conflict_paths: list[str],
+    security_blocked_paths: list[str],
+    security_redacted_paths: list[str],
+) -> tuple[int, int]:
+    """Returns (skipped_conflict_count, superseded_count) for one publish result."""
+    if result.security_blocked:
+        security_blocked_paths.append(result.relative_path)
+        return 0, 0
+    if result.written:
+        enqueued_paths.append(result.absolute_path)
+        if result.security_redacted:
+            security_redacted_paths.append(result.relative_path)
+    if result.conflict_skipped:
+        conflict_paths.append(result.relative_path)
+        return 1, 0
+    if result.superseded:
+        return 0, 1
+    return 0, 0
+
+
+def _build_import_message(
+    *,
+    enqueued: int,
+    skipped_conflict: int,
+    superseded: int,
+    security_blocked: int,
+    security_redacted: int,
+    auto_compile: bool,
+    source_label: str = "",
+) -> str:
+    parts = [f"Imported {enqueued} file(s){source_label}"]
+    if skipped_conflict:
+        parts.append(f"{skipped_conflict} conflict(s) skipped")
+    if superseded:
+        parts.append(f"{superseded} superseded")
+    if security_blocked:
+        parts.append(f"{security_blocked} blocked (sensitive content)")
+    if security_redacted:
+        parts.append(f"{security_redacted} redacted")
+    parts.append("compilation started" if auto_compile else "queued without auto-compile")
+    return ", ".join(parts)
 
 
 @router.post("/import/folder", response_model=ImportResultResponse)
@@ -931,6 +1498,7 @@ async def import_folder(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> ImportResultResponse:
     """Batch import all text documents from a local folder into the wiki raw/ directory."""
+    _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
     try:
         source_dir = Path(request.folder_path)
         scanned_files = archiver._structure.scan_folder(source_dir, request.extensions)
@@ -941,6 +1509,12 @@ async def import_folder(
             )
 
         enqueued_paths: list[Path] = []
+        conflict_paths: list[str] = []
+        security_blocked_paths: list[str] = []
+        security_redacted_paths: list[str] = []
+        files_skipped_conflict = 0
+        files_superseded = 0
+
         for src_file in scanned_files:
             try:
                 content = src_file.read_text(encoding="utf-8")
@@ -951,12 +1525,23 @@ async def import_folder(
                     logger.warning(f"Skipping unreadable file: {src_file}")
                     continue
 
-            # Preserve relative directory structure from source
-            rel_path = src_file.relative_to(source_dir)
-            raw_dest = archiver._structure.get_raw_file_path(str(rel_path))
-            raw_dest.parent.mkdir(parents=True, exist_ok=True)
-            raw_dest.write_text(content, encoding="utf-8")
-            enqueued_paths.append(raw_dest)
+            rel_path = src_file.relative_to(source_dir).as_posix()
+            result = await _publish_import_raw(
+                archiver._structure,
+                rel_path,
+                content,
+                on_conflict=request.on_conflict,
+                supersede_reason=request.supersede_reason,
+            )
+            skipped, superseded = _track_import_publish_result(
+                result,
+                enqueued_paths=enqueued_paths,
+                conflict_paths=conflict_paths,
+                security_blocked_paths=security_blocked_paths,
+                security_redacted_paths=security_redacted_paths,
+            )
+            files_skipped_conflict += skipped
+            files_superseded += superseded
 
         if enqueued_paths:
             archiver._queue.add_batch(enqueued_paths)
@@ -974,7 +1559,21 @@ async def import_folder(
             success=True,
             files_scanned=len(scanned_files),
             files_enqueued=len(enqueued_paths),
-            message=f"Imported {len(enqueued_paths)} files, compilation {'started' if request.auto_compile else 'queued'}",
+            files_skipped_conflict=files_skipped_conflict,
+            files_superseded=files_superseded,
+            files_security_blocked=len(security_blocked_paths),
+            files_security_redacted=len(security_redacted_paths),
+            conflict_paths=conflict_paths,
+            security_blocked_paths=security_blocked_paths,
+            security_redacted_paths=security_redacted_paths,
+            message=_build_import_message(
+                enqueued=len(enqueued_paths),
+                skipped_conflict=files_skipped_conflict,
+                superseded=files_superseded,
+                security_blocked=len(security_blocked_paths),
+                security_redacted=len(security_redacted_paths),
+                auto_compile=request.auto_compile,
+            ),
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -989,12 +1588,18 @@ async def import_zip(
     file: UploadFile = File(..., description="ZIP file to import"),
     extensions: str = Query(".md,.txt,.org", description="Comma-separated extensions"),
     auto_compile: bool = Query(True, description="Start compilation after import"),
+    on_conflict: Literal["skip", "supersede"] = Query(
+        "skip",
+        description="When a raw file already exists with different content",
+    ),
+    supersede_reason: str = Query("", description="Required when on_conflict is supersede"),
 ) -> ImportResultResponse:
     """Upload and import a ZIP archive of documents into the wiki."""
     import tempfile
     import zipfile
 
     _MAX_ZIP_BYTES = 100 * 1024 * 1024  # 100 MB
+    _validate_import_conflict_options(on_conflict, supersede_reason)
 
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only .zip files are accepted")
@@ -1026,6 +1631,12 @@ async def import_zip(
                 )
 
             enqueued_paths: list[Path] = []
+            conflict_paths: list[str] = []
+            security_blocked_paths: list[str] = []
+            security_redacted_paths: list[str] = []
+            files_skipped_conflict = 0
+            files_superseded = 0
+
             for src_file in scanned_files:
                 try:
                     file_content = src_file.read_text(encoding="utf-8")
@@ -1036,11 +1647,23 @@ async def import_zip(
                         logger.warning(f"Skipping unreadable file in ZIP: {src_file}")
                         continue
 
-                rel_path = src_file.relative_to(extracted_dir)
-                raw_dest = archiver._structure.get_raw_file_path(str(rel_path))
-                raw_dest.parent.mkdir(parents=True, exist_ok=True)
-                raw_dest.write_text(file_content, encoding="utf-8")
-                enqueued_paths.append(raw_dest)
+                rel_path = src_file.relative_to(extracted_dir).as_posix()
+                result = await _publish_import_raw(
+                    archiver._structure,
+                    rel_path,
+                    file_content,
+                    on_conflict=on_conflict,
+                    supersede_reason=supersede_reason,
+                )
+                skipped, superseded = _track_import_publish_result(
+                    result,
+                    enqueued_paths=enqueued_paths,
+                    conflict_paths=conflict_paths,
+                    security_blocked_paths=security_blocked_paths,
+                    security_redacted_paths=security_redacted_paths,
+                )
+                files_skipped_conflict += skipped
+                files_superseded += superseded
 
             if enqueued_paths:
                 archiver._queue.add_batch(enqueued_paths)
@@ -1058,7 +1681,22 @@ async def import_zip(
                 success=True,
                 files_scanned=len(scanned_files),
                 files_enqueued=len(enqueued_paths),
-                message=f"Imported {len(enqueued_paths)} files from ZIP, compilation {'started' if auto_compile else 'queued'}",
+                files_skipped_conflict=files_skipped_conflict,
+                files_superseded=files_superseded,
+                files_security_blocked=len(security_blocked_paths),
+                files_security_redacted=len(security_redacted_paths),
+                conflict_paths=conflict_paths,
+                security_blocked_paths=security_blocked_paths,
+                security_redacted_paths=security_redacted_paths,
+                message=_build_import_message(
+                    enqueued=len(enqueued_paths),
+                    skipped_conflict=files_skipped_conflict,
+                    superseded=files_superseded,
+                    security_blocked=len(security_blocked_paths),
+                    security_redacted=len(security_redacted_paths),
+                    auto_compile=auto_compile,
+                    source_label=" from ZIP",
+                ),
             )
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid ZIP file") from None
@@ -1069,41 +1707,63 @@ async def import_zip(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-def _process_obsidian_vault(
+async def _process_obsidian_vault(
     vault_root: Path,
     archiver: MemoryToWikiArchiver,
     auto_compile: bool,
+    *,
+    on_conflict: Literal["skip", "supersede"] = "skip",
+    supersede_reason: str = "",
     source_label: str = "",
 ) -> ObsidianImportResultResponse:
     """Shared logic for processing an Obsidian vault directory into Wiki."""
-    from app.services.wiki.obsidian_adapter import (
-        ObsidianImportStats,
-        adapt_obsidian_file,
-    )
+    from app.services.wiki.obsidian_adapter import ObsidianImportStats, prepare_obsidian_file
 
     scanned_files = archiver._structure.scan_folder(vault_root, [".md"])
     stats = ObsidianImportStats(files_scanned=len(scanned_files))
 
-    raw_dir = archiver._structure.raw_dir
     assets_dir = archiver._structure.wiki_dir / "assets"
     enqueued_paths: list[Path] = []
+    conflict_paths: list[str] = []
+    security_blocked_paths: list[str] = []
+    security_redacted_paths: list[str] = []
 
     for src_file in scanned_files:
         try:
-            dest, metadata, imgs = adapt_obsidian_file(src_file, vault_root, raw_dir, assets_dir)
-            if dest is None:
+            prepared = prepare_obsidian_file(src_file, vault_root, assets_dir)
+            if prepared is None:
                 stats.files_skipped += 1
                 continue
+
+            result = await _publish_import_raw(
+                archiver._structure,
+                prepared.relative_path,
+                prepared.content,
+                on_conflict=on_conflict,
+                supersede_reason=supersede_reason,
+            )
+            skipped_conflict, superseded = _track_import_publish_result(
+                result,
+                enqueued_paths=enqueued_paths,
+                conflict_paths=conflict_paths,
+                security_blocked_paths=security_blocked_paths,
+                security_redacted_paths=security_redacted_paths,
+            )
+            stats.files_skipped_conflict += skipped_conflict
+            stats.files_superseded += superseded
+
+            if result.conflict_skipped or result.security_blocked:
+                continue
+
             stats.files_processed += 1
-            stats.images_copied += imgs
-            if metadata:
+            stats.images_copied += prepared.images_copied
+            if prepared.metadata:
                 stats.frontmatter_parsed += 1
-                tags = metadata.get("tags")
+                tags = prepared.metadata.get("tags")
                 if isinstance(tags, list):
                     stats.tags_extracted += len(tags)
                 elif tags:
                     stats.tags_extracted += 1
-            enqueued_paths.append(dest)
         except Exception as exc:
             stats.files_skipped += 1
             stats.errors.append(f"{src_file.name}: {exc}")
@@ -1122,18 +1782,37 @@ def _process_obsidian_vault(
             )
 
     suffix = f" from {source_label}" if source_label else ""
+    message_parts = [
+        f"Imported {stats.files_processed} Obsidian notes{suffix}",
+        f"({stats.tags_extracted} tags, {stats.images_copied} images)",
+    ]
+    if stats.files_skipped_conflict:
+        message_parts.append(f"{stats.files_skipped_conflict} conflict(s) skipped")
+    if stats.files_superseded:
+        message_parts.append(f"{stats.files_superseded} superseded")
+    if security_blocked_paths:
+        message_parts.append(f"{len(security_blocked_paths)} blocked (sensitive content)")
+    if security_redacted_paths:
+        message_parts.append(f"{len(security_redacted_paths)} redacted")
+    if stats.files_skipped:
+        message_parts.append(f"{stats.files_skipped} skipped")
+    if auto_compile:
+        message_parts.append("compilation started")
     return ObsidianImportResultResponse(
         success=True,
         files_scanned=stats.files_scanned,
         files_processed=stats.files_processed,
         files_skipped=stats.files_skipped,
+        files_skipped_conflict=stats.files_skipped_conflict,
+        files_superseded=stats.files_superseded,
+        files_security_blocked=len(security_blocked_paths),
+        files_security_redacted=len(security_redacted_paths),
+        conflict_paths=conflict_paths,
+        security_blocked_paths=security_blocked_paths,
+        security_redacted_paths=security_redacted_paths,
         tags_extracted=stats.tags_extracted,
         images_copied=stats.images_copied,
-        message=(
-            f"Imported {stats.files_processed} Obsidian notes{suffix}"
-            f" ({stats.tags_extracted} tags, {stats.images_copied} images)"
-            f"{', compilation started' if auto_compile else ''}"
-        ),
+        message=", ".join(message_parts),
     )
 
 
@@ -1143,11 +1822,18 @@ async def import_obsidian_vault(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> ObsidianImportResultResponse:
     """Import an Obsidian vault with frontmatter parsing and image embed handling."""
+    _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
     try:
         vault_root = Path(request.vault_path)
         if not vault_root.is_dir():
             raise HTTPException(status_code=404, detail=f"Vault directory not found: {request.vault_path}")
-        return _process_obsidian_vault(vault_root, archiver, request.auto_compile)
+        return await _process_obsidian_vault(
+            vault_root,
+            archiver,
+            request.auto_compile,
+            on_conflict=request.on_conflict,
+            supersede_reason=request.supersede_reason,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -1160,12 +1846,15 @@ async def import_obsidian_zip(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     file: UploadFile = File(..., description="ZIP of Obsidian vault"),
     auto_compile: bool = Query(True),
+    on_conflict: Literal["skip", "supersede"] = Query("skip"),
+    supersede_reason: str = Query(""),
 ) -> ObsidianImportResultResponse:
     """Upload an Obsidian vault as ZIP (for WebUI / cloud-hosted deployments)."""
     import tempfile
     import zipfile
 
     _MAX_ZIP_BYTES = 100 * 1024 * 1024
+    _validate_import_conflict_options(on_conflict, supersede_reason)
 
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only .zip files are accepted")
@@ -1189,7 +1878,14 @@ async def import_obsidian_zip(
             if len(top_items) == 1 and top_items[0].is_dir():
                 vault_root = top_items[0]
 
-            return _process_obsidian_vault(vault_root, archiver, auto_compile, source_label="ZIP")
+            return await _process_obsidian_vault(
+                vault_root,
+                archiver,
+                auto_compile,
+                on_conflict=on_conflict,
+                supersede_reason=supersede_reason,
+                source_label="ZIP",
+            )
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid ZIP file") from None
     except HTTPException:
@@ -1197,3 +1893,35 @@ async def import_obsidian_zip(
     except Exception as e:
         logger.error("Obsidian ZIP import failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/portability/export")
+async def export_wiki_vault(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to export")] = None,
+) -> StreamingResponse:
+    """Export concepts, OKF index/log, and manifest as a portable ZIP archive."""
+    from app.services.wiki.vault_export import build_wiki_export_zip
+
+    structure = archiver._structure
+    try:
+        memory_file = await asyncio.to_thread(build_wiki_export_zip, structure, agent_id)
+        scope = agent_id or "default"
+        filename = f"myrm_wiki_export_{scope}.zip"
+
+        def iterfile() -> Iterator[bytes]:
+            yield memory_file.read()
+
+        return StreamingResponse(
+            iterfile(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error("Wiki vault export failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+from app.api.wiki.ingest_stream import register_ingest_stream_routes
+
+register_ingest_stream_routes(router)

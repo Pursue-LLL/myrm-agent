@@ -7,6 +7,10 @@ import re
 
 _PAGE_RE = re.compile(r"^(?:Page\s+(?:idx\s+)?)?(\d+)\s*:", re.MULTILINE)
 _TARGET_RE = re.compile(r"Myrm exact targetId:\s*([A-Za-z0-9-]+)")
+_SELECTED_LINE_RE = re.compile(
+    r"^(?:Page\s+(?:idx\s+)?)?(\d+)\s*:.*?\[selected\]",
+    re.MULTILINE | re.IGNORECASE,
+)
 _JSON_FENCE_RE = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL)
 
 
@@ -23,15 +27,34 @@ def text_content(result: dict[str, object]) -> str:
     return "\n".join(blocks)
 
 
+def _page_id_for_new_page(text: str, *, target_index: int) -> int | None:
+    """Prefer [selected] line or last page entry before targetId (parallel-safe)."""
+    selected = _SELECTED_LINE_RE.findall(text)
+    if selected:
+        return int(selected[-1])
+    prefix = text[:target_index]
+    prefix_matches = _PAGE_RE.findall(prefix)
+    if prefix_matches:
+        return int(prefix_matches[-1])
+    all_matches = _PAGE_RE.findall(text)
+    if len(all_matches) == 1:
+        return int(all_matches[0])
+    return None
+
+
 def parse_new_page(result: dict[str, object]) -> tuple[int, str]:
     text = text_content(result)
-    page_matches = _PAGE_RE.findall(text)
     target_match = _TARGET_RE.search(text)
-    if not page_matches or target_match is None:
+    if target_match is None:
         raise RuntimeError(
             f"MCP new_page did not return pageId + exact targetId: {text[:500]}"
         )
-    return int(page_matches[-1]), target_match.group(1)
+    page_id = _page_id_for_new_page(text, target_index=target_match.start())
+    if page_id is None:
+        raise RuntimeError(
+            f"MCP new_page did not return pageId + exact targetId: {text[:500]}"
+        )
+    return page_id, target_match.group(1)
 
 
 def is_retryable_incomplete_new_page_error(
