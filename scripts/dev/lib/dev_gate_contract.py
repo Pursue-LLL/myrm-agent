@@ -374,10 +374,8 @@ SIGNOFF_CLARIFY_AGENT_WARM_TIMEOUT_SEC: Final[int] = 600
 SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
 )
-# R115: dev-stack /health poll during backend-only ensure under parallel signoff load.
-SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC: Final[int] = (
-    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF * 2
-)
+# R118: harness import smoke under parallel signoff load (cold editable import).
+SIGNOFF_CLARIFY_HARNESS_SMOKE_TIMEOUT_SEC: Final[int] = 120
 # Align verify_backend_seed.SEED_START_TIMEOUT_SEC (avoid cross-module import).
 _SIGNOFF_CLARIFY_SEED_START_TIMEOUT_SEC: Final[int] = 180
 # R66: signoff clarify SHPOIB cold bootstrap quality gate (BODY startup+junit excluded).
