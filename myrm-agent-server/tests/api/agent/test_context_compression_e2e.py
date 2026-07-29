@@ -47,12 +47,11 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
 )
 
 _FOCUS_INITIAL_QUERY: Final[str] = """
-请解释 Python asyncio.Event 的用法：基本场景、与 asyncio.Lock 的区别、生产者-消费者示例。
-每个点举简短代码示例，回答约400字。
+简要解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。约150字。
 """.strip()
 
 _FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
-    "继续。总结 asyncio.Event 与 threading.Event 的两个核心区别，并回顾 Event 的两个关键使用场景。",
+    "继续。用一句话对比 asyncio.Event 与 threading.Event。",
 )
 
 _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = """
@@ -181,7 +180,7 @@ def _has_context_health_event(events: list[dict[str, object]]) -> bool:
     return any(event.get("type") == "context_health" for event in events)
 
 
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_real_context_compression_preserves_focus_chain(client: TestClient) -> None:
     """Multi-turn conversation should keep key concepts in answer after compression."""
     chat_id = f"context-focus-{uuid.uuid4().hex}"

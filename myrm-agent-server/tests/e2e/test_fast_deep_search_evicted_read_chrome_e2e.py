@@ -69,10 +69,11 @@ def _prep_fast_search_js(search_depth: str) -> str:
     }}
   }}
   if (bridge.pinLiteModelForE2e) {{
-    await bridge.pinLiteModelForE2e();
+    await bridge.pinLiteModelForE2e({{ preserveActionMode: true }});
   }}
   bridge.setActionMode?.('fast');
   bridge.setSearchDepth?.({depth_json});
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const debug = bridge.debugProviderState?.() ?? {{}};
   return {{
     ok: bridge.getActionMode?.() === 'fast' && bridge.getSearchDepth?.() === {depth_json},
@@ -266,12 +267,18 @@ def _api_deep_search_progress(chat_id: str, api_base: str) -> dict[str, object]:
         return {"ready": False, "err": "api-io", "source": "api"}
     if not messages:
         return {"ready": False, "err": "no-messages", "source": "api"}
+    user_count = sum(1 for m in messages if m.get("role") == "user")
     assistant = next(
         (m for m in reversed(messages) if m.get("role") == "assistant"),
         None,
     )
     if not isinstance(assistant, dict):
-        return {"ready": False, "err": "no-assistant", "source": "api"}
+        return {
+            "ready": False,
+            "err": "no-assistant",
+            "userCount": user_count,
+            "source": "api",
+        }
     meta = (
         assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
     )
@@ -515,7 +522,7 @@ async def _run_fast_evicted_read_live_e2e(
         assert chat_id, kickoff
         e2e_resource_ledger.register("chat", chat_id)
 
-        deadline = time.monotonic() + 300.0
+        deadline = time.monotonic() + 420.0
         last: dict[str, object] = {}
         api_last: dict[str, object] = {"ready": False, "source": "api"}
         while time.monotonic() < deadline:

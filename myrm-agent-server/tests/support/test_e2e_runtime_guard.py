@@ -25,6 +25,28 @@ def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     heartbeat_e2e_lease()
 
 
+def test_heartbeat_loop_reaps_other_hung_pytest(monkeypatch: pytest.MonkeyPatch) -> None:
+    import time
+
+    from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
+
+    reaped: list[int | None] = []
+
+    def _fake_reap(*, skip_pid: int | None = None) -> bool:
+        reaped.append(skip_pid)
+        return False
+
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-unit-heartbeat")
+    monkeypatch.setattr(
+        "e2e_stale_lease_reap.maybe_reap_hung_chrome_e2e_pytest",
+        _fake_reap,
+    )
+    with e2e_lease_heartbeat_loop(interval_sec=0.05):
+        time.sleep(0.12)
+    assert reaped
+    assert all(pid == os.getpid() for pid in reaped)
+
+
 def test_assert_chrome_attach_health_passes_on_ready_probe(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
