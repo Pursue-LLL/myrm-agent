@@ -129,6 +129,7 @@ CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
 CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeover_live"
+CHROME_E2E_SIGNOFF_BATCH_MARKER: Final[str] = "chrome_e2e_signoff_batch"
 CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
@@ -395,8 +396,33 @@ def _signoff_read_shpoib_leg(joined_argv: str) -> bool:
     return shpoib and lane == "READ"
 
 
+def _parse_signoff_batch_body_sec(joined_argv: str) -> int | None:
+    """Extract body_sec from chrome_e2e_signoff_batch marker in joined argv."""
+    if CHROME_E2E_SIGNOFF_BATCH_MARKER not in joined_argv:
+        return None
+    for token in joined_argv.split():
+        if token.startswith("body_sec="):
+            raw = token.split("=", 1)[1]
+            if raw.isdigit():
+                return int(raw)
+    return None
+
+
+def signoff_batch_pytest_timeout_ceiling_sec(body_sec: int) -> int:
+    """pytest-timeout for multi-scenario signoff batch legs (R81 + extended BODY)."""
+    return (
+        E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+        + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+        + body_sec
+        + E2E_TEARDOWN_WALL_CLOCK_SEC
+    )
+
+
 def signoff_pytest_timeout_ceiling_sec(joined_argv: str) -> int:
     """Signoff pytest-timeout ceiling; desktop leg reserves open/nav inside pytest."""
+    batch_body = _parse_signoff_batch_body_sec(joined_argv)
+    if batch_body is not None:
+        return signoff_batch_pytest_timeout_ceiling_sec(batch_body)
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC
     if _signoff_read_shpoib_leg(joined_argv):
@@ -406,6 +432,12 @@ def signoff_pytest_timeout_ceiling_sec(joined_argv: str) -> int:
 
 def signoff_outer_kill_sec(joined_argv: str) -> int:
     """run_pytest_safe outer budget for signoff chrome_e2e legs."""
+    batch_body = _parse_signoff_batch_body_sec(joined_argv)
+    if batch_body is not None:
+        return (
+            signoff_batch_pytest_timeout_ceiling_sec(batch_body)
+            + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
+        )
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return SIGNOFF_DESKTOP_OUTER_KILL_SEC
     if _signoff_read_shpoib_leg(joined_argv):

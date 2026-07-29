@@ -195,6 +195,11 @@ def _chrome_e2e_marker_joined_argv(item: pytest.Item) -> str:
             lane = marker.kwargs.get("lane")
             if lane:
                 parts.append(f"lane={lane}")
+        elif marker.name == "chrome_e2e_signoff_batch":
+            parts.append(marker.name)
+            body_sec = marker.kwargs.get("body_sec")
+            if body_sec is not None:
+                parts.append(f"body_sec={int(body_sec)}")
         else:
             parts.append(marker.name)
     return " ".join(parts)

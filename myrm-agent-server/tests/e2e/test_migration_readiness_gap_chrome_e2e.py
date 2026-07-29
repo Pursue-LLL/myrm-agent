@@ -675,6 +675,7 @@ async def _run_migration_readiness_gap_e2e(
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e_signoff_batch(body_sec=1200)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -728,7 +729,7 @@ async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
         verified_api: str,
     ) -> ChromeMcpClient:
         last_error: BaseException | None = None
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 if attempt > 0:
                     current = await _batch_fresh_client(
@@ -754,7 +755,7 @@ async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
                     or "No page found" in message
                     or "MUX_TRANSPORT" in message
                 )
-                if not retriable or attempt >= 1:
+                if not retriable or attempt >= 2:
                     raise
         if last_error is not None:
             raise last_error

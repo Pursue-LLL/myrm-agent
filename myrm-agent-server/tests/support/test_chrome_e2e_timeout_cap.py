@@ -49,3 +49,15 @@ def test_r43_caps_takeover_live_timeout_mark_to_lane_floor() -> None:
     timeout_marker = item.get_closest_marker("timeout")
     assert timeout_marker is not None
     assert int(timeout_marker.args[0]) == 660
+
+
+def test_r43_signoff_batch_marker_raises_pytest_timeout_to_body_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+    item = _TimeoutCapItem()
+    item.own_markers.append(pytest.mark.chrome_e2e_signoff_batch(body_sec=1200))
+    _apply_chrome_e2e_lane_timeout(item)
+    timeout_marker = item.get_closest_marker("timeout")
+    assert timeout_marker is not None
+    assert int(timeout_marker.args[0]) == 1650

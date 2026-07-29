@@ -166,17 +166,17 @@ describe('SelectionToolbar', () => {
   it('shows toolbar after text selection with debounce', () => {
     const editorMock = createMockEditor();
 
-    render(<SelectionToolbar editorInstance={editorMock} artifactId="art-1" language="typescript" />);
+    const { container } = render(<SelectionToolbar editorInstance={editorMock} artifactId="art-1" language="typescript" />);
 
     act(() => {
       editorMock._fireSelection();
     });
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(container.querySelectorAll('button')).toHaveLength(0);
 
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(screen.getAllByRole('button')).toHaveLength(5);
+    expect(container.querySelectorAll('button')).toHaveLength(5);
   });
 
   it('displays all 5 action buttons with correct labels', () => {
@@ -201,7 +201,7 @@ describe('SelectionToolbar', () => {
     );
 
     triggerSelection(editorMock);
-    expect(screen.getAllByRole('button')).toHaveLength(5);
+    expect(container.querySelectorAll('button')).toHaveLength(5);
 
     act(() => {
       editorMock._fireScroll();
