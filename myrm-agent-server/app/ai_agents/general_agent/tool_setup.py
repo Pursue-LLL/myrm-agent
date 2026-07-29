@@ -374,9 +374,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             channel_name=getattr(self, "channel_name", "web_chat"),
             prompt_mode=getattr(self, "prompt_mode", "full"),
             enable_structured_clarify=getattr(self, "enable_structured_clarify", False),
-            signoff_clarify_contract=getattr(
-                self, "signoff_clarify_contract", False
-            ),
+            signoff_clarify_contract=getattr(self, "signoff_clarify_contract", False),
         ):
             return
 
@@ -757,8 +755,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             on_conflict = create_conflict_callback(agent_id=self.agent_id)
             on_consolidation_complete = None
-            if self.enable_wiki and not self.incognito_mode and self._lite_llm is not None:
-                from app.services.wiki.consolidation_bridge import make_consolidation_wiki_bridge
+            if (
+                self.enable_wiki
+                and not self.incognito_mode
+                and self._lite_llm is not None
+            ):
+                from app.services.wiki.consolidation_bridge import (
+                    make_consolidation_wiki_bridge,
+                )
 
                 on_consolidation_complete = make_consolidation_wiki_bridge(
                     agent_id=self.agent_id,

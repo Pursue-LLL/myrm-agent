@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
-from tests.api.agent.utils import get_model_selection, get_search_service_config
+from tests.api.agent.utils import build_approval_resume_value, get_model_selection, get_search_service_config
 
 
 def _extract_engine_limit_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -118,7 +118,7 @@ class TestEngineLimitE2E:
 
             if approval_required:
                 resume_request = search_request.copy()
-                resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+                resume_request["resumeValue"] = build_approval_resume_value()
                 resume_collected, _ = _consume_agent_stream(client, resume_request)
                 collected_data.extend(resume_collected)
 

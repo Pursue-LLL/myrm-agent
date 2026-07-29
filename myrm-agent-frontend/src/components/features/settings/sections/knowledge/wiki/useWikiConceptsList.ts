@@ -30,9 +30,11 @@ export interface DeleteTarget {
 export function useWikiConceptsList(options?: {
   treeSyncNonce?: number;
   agentScopeId?: string | null;
+  onVaultMutated?: () => void;
 }) {
   const t = useTranslations('settings.wiki.concepts');
   const agentScopeId = options?.agentScopeId ?? null;
+  const onVaultMutated = options?.onVaultMutated;
   const [query, setQuery] = useState('');
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -245,6 +247,7 @@ export function useWikiConceptsList(options?: {
       }
       setIsEditing(false);
       toast.success(t('updateSuccess'));
+      onVaultMutated?.();
     } catch (error) {
       const code = getWikiErrorCode(error);
       if (code === 'conflict') {
@@ -273,6 +276,7 @@ export function useWikiConceptsList(options?: {
       }
       toast.success(t('deleteSuccess'));
       await fetchTree();
+      onVaultMutated?.();
     } catch (error) {
       toast.error(getWikiOperationErrorMessage(error, t('deleteFailed')));
     } finally {

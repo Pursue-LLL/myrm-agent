@@ -18,6 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import (
+    build_approval_resume_value,
     get_model_selection,
     get_search_service_config,
 )
@@ -48,7 +49,7 @@ def _run_agent_until_settled(client: TestClient, req_data: dict[str, object]) ->
         if not approval_required:
             break
 
-        req_data["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+        req_data["resumeValue"] = build_approval_resume_value()
 
     error_events = [d for d in collected_data if d.get("type") == "error"]
     if error_events:

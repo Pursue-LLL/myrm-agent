@@ -290,8 +290,7 @@ def mock_load_user_configs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         yield mock_fn
 
 
-# Removed auto_approve_tools fixture - ApprovalDecision/ApprovalResponse API no longer exists
-# Batch approval now uses { "decisions": [{"type": "approve", ...}] } format
+# Removed auto_approve_tools fixture - use build_approval_resume_value() from tests.api.agent.utils
 
 
 @pytest.fixture(autouse=True)

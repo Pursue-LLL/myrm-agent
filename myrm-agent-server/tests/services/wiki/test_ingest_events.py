@@ -116,6 +116,27 @@ async def test_prepare_snapshot_sets_tree_sync_required_on_tree_change() -> None
         assert second.get("tree_sync_required") is True
 
 
+def test_prepare_snapshot_invalidates_structural_cache_on_tree_change() -> None:
+    bus = WikiIngestEventBus(poll_interval_seconds=60.0)
+    mock_archiver = MagicMock()
+    mock_structure = MagicMock()
+    mock_archiver._structure = mock_structure
+
+    with (
+        patch(
+            "app.services.wiki.ingest_events.build_wiki_tree_fingerprint",
+            side_effect=["tree-fp-1", "tree-fp-2"],
+        ),
+        patch(
+            "app.services.wiki.structural_stats_cache.invalidate_structural_lint_cache",
+        ) as invalidate_mock,
+    ):
+        bus.prepare_snapshot("__default__", mock_archiver, None)
+        bus.prepare_snapshot("__default__", mock_archiver, None)
+
+    invalidate_mock.assert_called_once_with(mock_structure)
+
+
 def test_build_wiki_tree_fingerprint_tracks_stale_and_queue_stats() -> None:
     mock_archiver = MagicMock()
     mock_queue = MagicMock()

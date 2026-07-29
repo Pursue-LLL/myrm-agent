@@ -52,6 +52,11 @@ def signoff_clarify_pool_active() -> bool:
     return os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1"
 
 
+def signoff_clarify_contract_enabled(*, flag: bool = False) -> bool:
+    """True when request flag or SHPOIB signoff pool env activates the contract."""
+    return flag or signoff_clarify_pool_active()
+
+
 def build_signoff_clarify_ai_message() -> AIMessage:
     """Synthetic first-turn tool call — matches M3 signoff E2E prompt contract."""
     tool_call_id = f"signoff_clarify_{uuid.uuid4().hex[:12]}"

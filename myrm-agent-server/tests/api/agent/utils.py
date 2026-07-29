@@ -331,3 +331,11 @@ def perform_agent_search(
     print(f"  - 完整回答长度: {len(full_answer)} 字符")
 
     return full_answer, collected_data, message_chunks, tool_results
+
+
+def build_approval_resume_value(*, allow_always: bool = True) -> dict[str, object]:
+    """Resume payload for agent-stream HITL approval (dict, not list)."""
+    decision: dict[str, object] = {"type": "approve"}
+    if allow_always:
+        decision["extensions"] = {"allowAlways": True}
+    return {"decisions": [decision]}

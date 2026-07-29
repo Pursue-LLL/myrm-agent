@@ -20,6 +20,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from app.ai_agents.general_agent.signoff_clarify_contract_core import (
     build_signoff_clarify_deterministic_model,
+    signoff_clarify_pool_active,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,32 +36,19 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
     def __init__(self, *, enabled: bool) -> None:
         self._enabled = enabled
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse:
-        raise NotImplementedError(
-            "SignoffClarifyContractMiddleware does not support synchronous wrap_model_call"
-        )
-
-    async def awrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
-    ) -> ModelResponse:
+    def _maybe_override_request(self, request: ModelRequest) -> ModelRequest:
         if not self._enabled:
-            return await handler(request)
+            return request
 
         state = request.state
         raw_messages = state.get("messages", [])
         messages: list[object] = raw_messages if isinstance(raw_messages, list) else []
 
         if any(isinstance(msg, AIMessage) for msg in messages):
-            return await handler(request)
+            return request
 
         if not any(isinstance(msg, HumanMessage) for msg in messages):
-            return await handler(request)
+            return request
 
         tool_names: set[str] = set()
         for tool in request.tools or []:
@@ -72,7 +60,7 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
                 if isinstance(raw_name, str):
                     tool_names.add(raw_name)
 
-        if _ASK_QUESTION_TOOL not in tool_names:
+        if _ASK_QUESTION_TOOL not in tool_names and not signoff_clarify_pool_active():
             raise RuntimeError(
                 "SignoffClarifyContractMiddleware: ask_question_tool not mounted; "
                 "enable_structured_clarify/signoff mount bypass required"
@@ -81,8 +69,21 @@ class SignoffClarifyContractMiddleware(AgentMiddleware):  # type: ignore[type-ar
         logger.info(
             "SignoffClarifyContractMiddleware: H2d deterministic stub model (no LLM)",
         )
-        request = request.override(model=build_signoff_clarify_deterministic_model())
-        return await handler(request)
+        return request.override(model=build_signoff_clarify_deterministic_model())
+
+    def wrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], ModelResponse],
+    ) -> ModelResponse:
+        return handler(self._maybe_override_request(request))
+
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        return await handler(self._maybe_override_request(request))
 
 
 def build_signoff_clarify_contract_middleware(

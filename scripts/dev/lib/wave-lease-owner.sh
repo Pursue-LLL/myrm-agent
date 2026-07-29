@@ -72,6 +72,16 @@ _capacity_lease_msg() {
   python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_capacity_messages.py" "${subcommand}" "$@"
 }
 
+_admit_poll_progress() {
+  local node="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_admit_poll.py" touch --node "${node}" 2>/dev/null || true
+}
+
+_admit_poll_budget_or_exit() {
+  local node="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_admit_poll.py" assert-budget --node "${node}"
+}
+
 _wave_acquire_owned_lease_with_wait() {
   local wave="$1" prefix="$2" lane="$3" namespace="${4:-}"
   local wait_sec="${MYRM_E2E_LEASE_WAIT_SEC:-900}"
@@ -101,6 +111,8 @@ _wave_acquire_owned_lease_with_wait() {
     elapsed=$((SECONDS - started_at))
     echo "E2E_LEASE_WAIT: lane=${lane} busy — retry in ${poll_sec}s (elapsed=${elapsed}s)" >&2
     _capacity_lease_msg lease-wait --lane "${lane}" --elapsed "${elapsed}" --wait-sec "${wait_sec}" --poll-sec "${poll_sec}" >&2 || true
+    _admit_poll_progress "E2E_LEASE_WAIT"
+    _admit_poll_budget_or_exit "E2E_LEASE_WAIT" || return $?
     _wave_reap_stale_lease_state "${wave}"
     sleep "${poll_sec}"
   done

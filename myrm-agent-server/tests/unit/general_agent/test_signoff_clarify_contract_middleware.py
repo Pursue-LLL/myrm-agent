@@ -62,8 +62,33 @@ async def test_signoff_clarify_contract_h2d_always_uses_stub_model() -> None:
     assert getattr(model, "_llm_type", "") == "signoff_clarify_deterministic"
 
 
+def test_signoff_clarify_contract_sync_wrap_uses_stub_model() -> None:
+    middleware = SignoffClarifyContractMiddleware(enabled=True)
+    seen: list[object] = []
+
+    def handler(request: _Request) -> ModelResponse:
+        seen.append(getattr(request, "model", None))
+        return ModelResponse(result=[])
+
+    middleware.wrap_model_call(
+        _Request(
+            [HumanMessage(content="hi")],
+            [_FakeTool("ask_question_tool")],
+        ),
+        handler,  # type: ignore[arg-type]
+    )
+
+    assert len(seen) == 1
+    model = seen[0]
+    assert model is not None
+    assert getattr(model, "_llm_type", "") == "signoff_clarify_deterministic"
+
+
 @pytest.mark.asyncio
-async def test_signoff_clarify_contract_raises_when_tool_missing() -> None:
+async def test_signoff_clarify_contract_raises_when_tool_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", raising=False)
     middleware = SignoffClarifyContractMiddleware(enabled=True)
     handler = AsyncMock(return_value=ModelResponse(result=[]))
 
@@ -73,6 +98,21 @@ async def test_signoff_clarify_contract_raises_when_tool_missing() -> None:
             handler,  # type: ignore[arg-type]
         )
     handler.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_signoff_clarify_contract_pool_skips_tool_presence_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
+    middleware = SignoffClarifyContractMiddleware(enabled=True)
+    handler = AsyncMock(return_value=ModelResponse(result=[]))
+
+    await middleware.awrap_model_call(
+        _Request([HumanMessage(content="hi")], [_FakeTool("web_search")]),
+        handler,  # type: ignore[arg-type]
+    )
+    handler.assert_awaited_once()
 
 
 @pytest.mark.asyncio

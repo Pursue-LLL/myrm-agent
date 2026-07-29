@@ -506,54 +506,44 @@ def _confirm_reload_dialog_after_save(
     err = client.evaluate(page, _MCP_MODAL_VALIDATION_ERROR_JS, timeout_sec=10.0)
     if isinstance(err, dict) and err.get("hasError") is True:
         raise AssertionError(f"MCP add/save validation failed: {err.get('error')!r}")
-    target_url = f"{get_e2e_ui_url().rstrip('/')}/settings/mcp"
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     save_retries = 0
     while time.monotonic() < deadline:
         remaining = max(0.0, deadline - time.monotonic())
-        try:
-            host = client.evaluate(
-                page, _LOCALHOST_PAGE_JS, timeout_sec=min(10.0, remaining)
-            )
-        except (RuntimeError, TimeoutError):
-            try:
-                client.recover_mux_transport()
-            except RuntimeError:
-                pass
-            reload_mcp_page(client, page, target_url=target_url)
-            dismiss_blocking_modals(client, page)
-            time.sleep(1.0)
-            continue
-        if not (isinstance(host, dict) and host.get("ready") is True):
-            reload_mcp_page(client, page, target_url=target_url)
-            dismiss_blocking_modals(client, page)
-            time.sleep(1.0)
-            continue
         handled_intermediate = False
         for intermediate_js in (
             _CLICK_SCAN_ACK_CONFIRM_JS,
             _CLICK_DESCRIPTION_CUSTOM_JS,
         ):
-            result = client.evaluate(
-                page, intermediate_js, timeout_sec=min(8.0, remaining)
-            )
+            try:
+                result = client.evaluate(
+                    page, intermediate_js, timeout_sec=min(8.0, remaining)
+                )
+            except (RuntimeError, TimeoutError):
+                result = {"ok": False}
             if isinstance(result, dict) and result.get("ok") is True:
                 handled_intermediate = True
                 time.sleep(0.6)
                 break
         if handled_intermediate:
             continue
-        raw = client.evaluate(
-            page, _RELOAD_DIALOG_STATE_JS, timeout_sec=min(10.0, remaining)
-        )
+        try:
+            raw = client.evaluate(
+                page, _RELOAD_DIALOG_STATE_JS, timeout_sec=min(10.0, remaining)
+            )
+        except (RuntimeError, TimeoutError):
+            raw = last
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
             _confirm_reload_dialog(client, page, timeout_sec=min(45.0, remaining))
             return
-        modal_open = client.evaluate(
-            page, _ADD_MODAL_OPEN_JS, timeout_sec=min(8.0, remaining)
-        )
+        try:
+            modal_open = client.evaluate(
+                page, _ADD_MODAL_OPEN_JS, timeout_sec=min(8.0, remaining)
+            )
+        except (RuntimeError, TimeoutError):
+            modal_open = {"ready": False}
         if (
             save_retries < 2
             and isinstance(modal_open, dict)

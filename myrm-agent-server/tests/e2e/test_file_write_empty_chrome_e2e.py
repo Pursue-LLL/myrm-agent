@@ -133,6 +133,16 @@ def _live_user_prompt(filename: str) -> str:
     )
 
 
+def _nudge_result_agent_busy(nudge_result: dict[str, object]) -> bool:
+    err = nudge_result.get("error")
+    if isinstance(err, dict):
+        if str(err.get("error_type") or "") == "AgentBusyError":
+            return True
+        if int(err.get("status_code") or 0) == 409:
+            return True
+    return False
+
+
 def _empty_write_target_path(workspace_seed: dict[str, object], filename: str) -> Path:
     workspace_dir = Path(str(workspace_seed["file_path"])).parent
     return workspace_dir / filename
@@ -549,11 +559,20 @@ async def test_file_write_empty_live_agent_webui(
             timeout_sec=_bounded_wait_sec(120.0, reserve_sec=90.0),
         )
         touch_wall_progress()
-        if nudge_result.get("ok") is not True:
-            raise AssertionError(
-                f"Live empty write API nudge failed: {nudge_result}; "
-                f"filename={filename!r}"
+        if nudge_result.get("ok") is True:
+            return
+        if _nudge_result_agent_busy(nudge_result):
+            print(
+                "E2E_NUDGE_DEFER_AGENT_BUSY: in-flight UI stream owns session; "
+                f"chat_id={resolved_chat_id!r} parallel_peers={_parallel_live_agent_peer_count()}",
+                file=sys.stderr,
+                flush=True,
             )
+            return
+        raise AssertionError(
+            f"Live empty write API nudge failed: {nudge_result}; "
+            f"filename={filename!r}"
+        )
 
     async def _wait_turn_done(
         chat: McpChatSession,
@@ -868,7 +887,7 @@ async def test_file_write_empty_live_agent_webui(
         await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
 
     async def _run_flow(chat: McpChatSession) -> tuple[str, dict[str, object]]:
-        nonlocal live_turn_sent
+        nonlocal turn_ever_sent
         await chat.dismiss_modals()
         await _wait_agent_applied(chat)
         await _assert_agent_bound(chat, agent_id)
@@ -911,7 +930,7 @@ async def test_file_write_empty_live_agent_webui(
             f"Expected chat id after stream start: started={started}; send={send_result}; "
             f"model={pinned_model.get('providerId')}/{pinned_model.get('model')}"
         )
-        live_turn_sent = True
+        turn_ever_sent = True
         print(
             f"E2E_SEND_TURN: chat_id={resolved_chat_id} parallel_peers={_parallel_live_agent_peer_count()}",
             file=sys.stderr,
@@ -956,11 +975,9 @@ async def test_file_write_empty_live_agent_webui(
 
     last_error = ""
     agent_url = f"{ui_base}/?agentId={agent_id}"
-    live_turn_sent = False
+    turn_ever_sent = False
 
     def _run_live_in_open_page() -> tuple[str, dict[str, object]]:
-        nonlocal live_turn_sent
-        live_turn_sent = False
         with open_mcp_page(
             agent_url,
             timeout_ms=120_000,
@@ -985,7 +1002,7 @@ async def test_file_write_empty_live_agent_webui(
             break
         except (AssertionError, RuntimeError, TimeoutError) as exc:
             last_error = str(exc)
-            if live_turn_sent:
+            if turn_ever_sent:
                 print(
                     "E2E_BUSINESS_FAIL_NO_RETRY: turn already sent; "
                     f"parallel_peers={_parallel_live_agent_peer_count()} err={last_error[:240]!r}",

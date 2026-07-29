@@ -29,6 +29,7 @@ import ScanConfirmDialog from './ScanConfirmDialog';
 import SkillUrlImportDialog from './SkillUrlImportDialog';
 import SkillSourcesPanel from './SkillSourcesPanel';
 import SkillRegistryMirrorPanel from './SkillRegistryMirrorPanel';
+import { formatSkillInstallToast } from './skillDiscoverInstallToast';
 import useChatStore from '@/store/useChatStore';
 import {
   AlertDialog,
@@ -186,37 +187,10 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       allowlist_appended?: boolean;
       allowlist_append_error?: string;
     }) => {
-      if (response.mounted && !response.mount_error) {
-        if (response.mount_already_present) {
-          toast({ title: t('installedAlreadyEnabled', { name: skillName }) });
-        } else {
-          toast({ title: t('installedAndEnabled', { name: skillName }) });
-        }
-        if (response.allowlist_append_error) {
-          toast({
-            title: t('installedAllowlistAppendFailed', { name: skillName }),
-            description: t('installedAllowlistAppendFailedDesc'),
-            variant: 'destructive',
-          });
-        } else if (response.allowlist_appended) {
-          toast({
-            title: t('installedAllowlistAppended', { name: skillName }),
-            description: t('installedAllowlistAppendedDesc'),
-          });
-        }
-        return;
-      }
-      if (response.mount_error) {
-        toast({
-          title: t('installedEnableFailed', { name: skillName }),
-          description: response.mount_error,
-          variant: 'destructive',
-        });
-        return;
-      }
-      toast({ title: `${t('installed')} ${skillName}` });
+      const payload = formatSkillInstallToast(skillName, response, t);
+      toast(payload);
     },
-    [t, mountAgentId],
+    [t],
   );
 
   const doInstall = useCallback(

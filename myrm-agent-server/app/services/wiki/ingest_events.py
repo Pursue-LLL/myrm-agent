@@ -7,9 +7,10 @@
 - wiki_ingest_event_bus: broadcast hub for scoped ingest snapshots
 - build_wiki_ingest_snapshot: queue stats + compile_run DTO for SSE payloads
 - publish_wiki_ingest_snapshot: push snapshot to subscribers for an agent scope
+- prepare_snapshot: invalidates structural lint stats cache when vault tree fingerprint changes
 
 [POS]
-Server-side real-time wiki ingest visibility. Decouples compile worker progress from Settings polling.
+Server-side real-time wiki ingest visibility. Decouples compile worker progress from Settings polling; tree fingerprint changes drop `/wiki/stats` structural lint TTL cache.
 """
 
 from __future__ import annotations
@@ -129,6 +130,10 @@ class WikiIngestEventBus:
             previous_tree_fingerprint is not None and tree_fingerprint != previous_tree_fingerprint
         )
         self._last_tree_fingerprint[scope_key] = tree_fingerprint
+        if tree_sync_required:
+            from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+
+            invalidate_structural_lint_cache(archiver._structure)
         return build_wiki_ingest_snapshot(
             archiver,
             agent_id=agent_id,

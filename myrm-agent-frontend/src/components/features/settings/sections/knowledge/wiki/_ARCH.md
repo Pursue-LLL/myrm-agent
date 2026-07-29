@@ -8,7 +8,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 
 | File                            | Role | Description                                               | I/O/P |
 | ------------------------------- | ---- | --------------------------------------------------------- | ----- |
-| useWikiConceptsList.ts          | Core | 词条树状态 + **apply 窄写** 保存编排；`if_match` 来自 `content_hash` | ✅    |
+| useWikiConceptsList.ts          | Core | 词条树状态 + **apply 窄写** 保存编排；`if_match` 来自 `content_hash`；save/delete 后 `onVaultMutated` 刷新 Overview stats | ✅    |
 | WikiConceptTree.tsx             | UI   | react-arborist 管理树；`ingest_status` amber 点标示关联源过期 | ✅    |
 | WikiConceptDetailPanel.tsx      | UI   | 预览 + **四标签编辑** + 结构化 claims 展示                | ✅    |
 | WikiRawSourceTree.tsx           | UI   | Overview raw 目录树；三色 ingest 点；Settings 侧 forget raw（reason dialog） | ✅    |

@@ -79,7 +79,7 @@ class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse | Any:
-        raise NotImplementedError("WidgetCapabilityMiddleware does not support synchronous wrap_model_call")
+        return handler(request)
 
     async def awrap_model_call(
         self,

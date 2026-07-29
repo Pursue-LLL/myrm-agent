@@ -472,6 +472,7 @@ export function WikiSection() {
       setCompileRun(snap.compile_run ?? null);
       if (snap.tree_sync_required) {
         void refreshIngestTreesSilently();
+        void loadStats();
       }
       const active =
         snap.stats.processing > 0 ||
@@ -1212,11 +1213,20 @@ export function WikiSection() {
             key={`${agentScopeId ?? 'default'}-${scopeRevision}`}
             treeSyncNonce={treeSyncNonce}
             agentScopeId={agentScopeId}
+            onVaultMutated={() => {
+              void loadStats();
+            }}
           />
         </TabsContent>
 
         <TabsContent value="pendingEdits" className="space-y-6">
-          <WikiPendingEdits agentScopeId={agentScopeId} scopeLabel={scopeLabel} />
+          <WikiPendingEdits
+            agentScopeId={agentScopeId}
+            scopeLabel={scopeLabel}
+            onVaultMutated={() => {
+              void loadStats();
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-6">

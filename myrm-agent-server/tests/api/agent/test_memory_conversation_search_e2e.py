@@ -66,7 +66,7 @@ def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
 def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> None:
     """Incognito: no memory tools in stream (even when globally enabled)."""
     payload = {
-        "query": "What is 2+2? Answer briefly.",
+        "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-incognito",
         "chat_id": "test_memory_e2e_incognito",
         "action_mode": "agent",

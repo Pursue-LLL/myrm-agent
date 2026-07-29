@@ -112,6 +112,8 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             and stale >= stall_cap
         ):
             return f"progress_stale={int(stale)}s>={int(stall_cap)}s"
+        # R141: healthy body/bootstrap snapshot must not fall through to process_elapsed.
+        return None
     if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec(pessimistic_peers=True)):
         return (
             f"process_elapsed={int(row.elapsed_sec)}s>="

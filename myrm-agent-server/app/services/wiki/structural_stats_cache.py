@@ -6,9 +6,10 @@ myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint::collect_structural
 
 [OUTPUT]
 get_structural_lint_snapshot_cached: cached StructuralLintSnapshot for /wiki/stats
+invalidate_structural_lint_cache: drop TTL entry after vault mutations
 
 [POS]
-Server wiki service helper. Short-TTL cache for structural lint counts on stats API.
+Server wiki service helper. Short-TTL cache for structural lint counts on /wiki/stats; invalidated by compile/maintain/repair-types/import routes and ingest tree-sync.
 """
 
 from __future__ import annotations
@@ -34,7 +35,9 @@ class CachedStructuralLintSnapshot:
     cache_hit: bool
 
 
-def get_structural_lint_snapshot_cached(structure: WikiStructure) -> CachedStructuralLintSnapshot:
+def get_structural_lint_snapshot_cached(
+    structure: WikiStructure,
+) -> CachedStructuralLintSnapshot:
     """Return structural lint counts with a short TTL to protect /wiki/stats latency."""
     cache_key = str(structure.base_dir.resolve())
     now = time.monotonic()
@@ -48,5 +51,5 @@ def get_structural_lint_snapshot_cached(structure: WikiStructure) -> CachedStruc
 
 
 def invalidate_structural_lint_cache(structure: WikiStructure) -> None:
-    """Drop cached structural lint counts after compile/maintain mutations."""
+    """Drop cached structural lint counts after vault mutations that affect concept files."""
     _cache.pop(str(structure.base_dir.resolve()), None)

@@ -8,7 +8,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import build_approval_resume_value, get_model_selection
 
 
 def _digits(text: str) -> str:
@@ -71,7 +71,7 @@ def perform_code_execution_agent(
         if not approval_required:
             break
         resume_request = dict(request_data)
-        resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+        resume_request["resumeValue"] = build_approval_resume_value()
         _stream_req(resume_request)
 
     return "".join(message_chunks), collected_data, tool_call_count

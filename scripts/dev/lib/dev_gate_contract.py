@@ -148,6 +148,8 @@ def shpoib_parallel_stall_progress_sec() -> float:
     if active_leases < 2:
         return base
     return min(150.0, base + active_leases * 10.0)
+
+
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 # Single desktop approval chrome_e2e uses the global wall budget (not matrix duration).
 CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
@@ -219,7 +221,9 @@ def mux_admission_wait_sec() -> int:
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
     active_leases = _wave_active_lease_count_for_mux()
     if active_leases > 0:
-        scaled = E2E_MUX_ADMISSION_WAIT_SEC + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
+        scaled = (
+            E2E_MUX_ADMISSION_WAIT_SEC + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
+        )
         return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
@@ -289,8 +293,10 @@ LIVE_AGENT_PYTEST_WALL_CAP_SEC: Final[int] = (
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
-# M3 signoff: fail-fast clarify wait (LLM flake should not burn full BODY 600s).
-SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
+# M3 signoff: clarify API wait — must cover SHPOIB agent cold-start under parallel load.
+SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 300
+# R100: one-shot agent-stream warm during SHPOIB pool acquire (cold start can exceed 180s).
+SIGNOFF_CLARIFY_AGENT_WARM_TIMEOUT_SEC: Final[int] = 420
 # R66/R67: signoff clarify SHPOIB bootstrap wait (BOOTSTRAP phase; warm pool uses 120s).
 SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF

@@ -146,7 +146,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None:
@@ -209,7 +209,7 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
         _delete_agent(api_url, agent_id)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_transcript_hides_skill_wire_prefix_and_shows_chip() -> None:

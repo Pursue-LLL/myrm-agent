@@ -14,9 +14,10 @@ import { WikiScopeChip } from './WikiScopeChip';
 interface WikiPendingEditsProps {
   agentScopeId?: string | null;
   scopeLabel: string;
+  onVaultMutated?: () => void;
 }
 
-export function WikiPendingEdits({ agentScopeId, scopeLabel }: WikiPendingEditsProps) {
+export function WikiPendingEdits({ agentScopeId, scopeLabel, onVaultMutated }: WikiPendingEditsProps) {
   const t = useTranslations('settings.wiki');
   const [edits, setEdits] = useState<PendingEdit[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -53,6 +54,7 @@ export function WikiPendingEdits({ agentScopeId, scopeLabel }: WikiPendingEditsP
       setEditingId(null);
       setEditContent('');
       void loadPending();
+      onVaultMutated?.();
     } catch (error) {
       console.error('Failed to approve:', error);
       if (error instanceof ApiError) {

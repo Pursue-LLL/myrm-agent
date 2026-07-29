@@ -11,7 +11,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection, get_search_service_config
+from tests.api.agent.utils import build_approval_resume_value, get_model_selection, get_search_service_config
 
 
 def perform_agent_search_with_auto_approve(client: TestClient, query: str):
@@ -72,7 +72,7 @@ def perform_agent_search_with_auto_approve(client: TestClient, query: str):
 
             logging.getLogger(__name__).error("\n🔧 Auto-approving tool call...")
             resume_request = search_request.copy()
-            resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+            resume_request["resumeValue"] = build_approval_resume_value()
             _stream_req(resume_request)
         else:
             break

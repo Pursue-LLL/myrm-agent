@@ -446,3 +446,55 @@ async def test_install_reports_allowlist_append_error_when_update_fails(
     assert body["mounted"] is True
     assert body["allowlist_appended"] is False
     assert body["allowlist_append_error"]
+
+
+@pytest.mark.asyncio
+async def test_install_skips_mount_and_adoption_when_mount_to_agent_false(
+    discovery_client: TestClient,
+) -> None:
+    prebuilt_id = "systematic-debugging"
+    install_result = SkillInstallResult(
+        success=True,
+        skill_name="Systematic Debugging",
+        skill_id=prebuilt_id,
+        installed_path="prebuilt (already installed)",
+    )
+    agent = type("Agent", (), {"skills": ["code-review"]})()
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=install_result),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new=AsyncMock(return_value=agent),
+        ) as get_agent,
+        patch(
+            "app.services.agent.agent_service.AgentService.update_agent",
+            new=AsyncMock(return_value=agent),
+        ) as update_agent,
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": prebuilt_id,
+                "source": "prebuilt",
+                "mount_to_agent": False,
+                "agent_id": "builtin-general",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mounted"] is False
+    assert body["allowlist_appended"] is False
+    assert body.get("allowlist_append_error") in ("", None)
+    get_agent.assert_not_awaited()
+    update_agent.assert_not_awaited()

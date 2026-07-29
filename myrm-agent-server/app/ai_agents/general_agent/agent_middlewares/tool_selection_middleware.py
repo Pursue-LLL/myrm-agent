@@ -66,7 +66,8 @@ class ToolSelectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        raise NotImplementedError("ToolSelectionMiddleware does not support synchronous wrap_model_call")
+        # Sync path (rare): pass through without tool_choice mutation — signoff warm uses it.
+        return handler(request)
 
     async def awrap_model_call(
         self,

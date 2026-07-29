@@ -40,6 +40,19 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
+_admit_poll_touch() {
+  local node="$1"
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" touch --node "${node}" \
+    2>/dev/null || true
+}
+
+_admit_poll_budget_or_fail() {
+  local node="$1"
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" assert-budget --node "${node}"
+}
+
 export MYRM_CHROME_E2E_DATA_DIR
 export MYRM_CHROME_E2E_PORT
 export CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}"
@@ -207,6 +220,8 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: shared hot pool is recovering; read-only attach ${waited}/${wait_sec}s (leases=${active_leases})" >&2
     fi
+    _admit_poll_touch "CHROME_E2E_ATTACH_SHARED_HOT_WAIT"
+    _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_SHARED_HOT_WAIT" || return $?
     sleep "${poll_sec}"
     waited=$((waited + poll_sec))
   done

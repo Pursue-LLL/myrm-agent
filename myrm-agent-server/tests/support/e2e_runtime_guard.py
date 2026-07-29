@@ -94,6 +94,12 @@ def e2e_lease_heartbeat_loop(
     def _loop() -> None:
         while not stop.wait(interval_sec):
             heartbeat_e2e_lease()
+            try:
+                from e2e_stale_lease_reap import maybe_reap_hung_chrome_e2e_pytest
+
+                maybe_reap_hung_chrome_e2e_pytest(skip_pid=os.getpid())
+            except ImportError:
+                pass
 
     heartbeat_e2e_lease()
     worker = threading.Thread(target=_loop, name="e2e-lease-heartbeat", daemon=True)

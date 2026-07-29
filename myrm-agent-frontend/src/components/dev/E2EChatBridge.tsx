@@ -513,7 +513,9 @@ async function submitAndObserveTurn(
         },
       };
     }
-    prepareAutomationSend();
+    if (shouldRunPrepareAutomationSend(shouldPreserveActionMode)) {
+      prepareAutomationSend();
+    }
     useToolApprovalStore.getState().clearAll();
     const { actionMode, agentConfig } = useChatStore.getState();
     if (!getModelSelection(actionMode, agentConfig)) {

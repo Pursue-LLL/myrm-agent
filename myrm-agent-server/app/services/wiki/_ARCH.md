@@ -3,7 +3,7 @@
 
 ## 架构概述
 
-Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。REST `/api/wiki/stats` 返回 **cognitive map** 字段与 **`structural_issues`**（deterministic broken links + invalid frontmatter types，120s TTL 缓存 via `structural_stats_cache.py`）。
+Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。REST `/api/wiki/stats` 返回 **cognitive map** 字段与 **`structural_issues`**（deterministic broken markdown/wikilink links — path + frontmatter title alias — and invalid frontmatter types，120s TTL 缓存 via `structural_stats_cache.py`）。
 
 ## Vault SSOT
 
@@ -25,6 +25,6 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `agent_scope.py` | 辅助 | chat_id → agent_id，供 ingest / archive 选 vault | ✅ |
 | `wiki_archive_hook.py` | 钩子 | compaction persist 后 SessionNotes 后台归档（按 chat.agent_id 选 vault） | ✅ |
 | `consolidation_bridge.py` | 钩子 | consolidation 完成后 insight → `publish_raw` + enqueue（上游 enable_wiki 门控） | ✅ |
-| `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存 + compile/maintain 失效 | ✅ |
+| `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存；compile/maintain/repair-types/import/apply/delete concept/delete folder/pending approve/delete raw + ingest tree-sync 成功后失效 | ✅ |
 | `obsidian_adapter.py` | 适配器 | Obsidian Vault 导入：`prepare_obsidian_file()` 转换 frontmatter/inline tags/images；`adapt_obsidian_file()` 仅测试/legacy 直写；生产 import 经 `router` → harness `publish_raw` | ✅ |
-| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；**tree_sync_required** 信号（stale/compile 指纹变化 → FE REST 刷新树 badge） | ✅ |
+| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；**tree_sync_required** 信号（stale/compile 指纹变化 → FE REST 刷新树 badge + **structural lint cache invalidate**） | ✅ |

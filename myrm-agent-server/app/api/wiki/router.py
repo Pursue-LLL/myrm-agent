@@ -73,6 +73,13 @@ def _refresh_wiki_cognitive_map(
     )
 
 
+def _invalidate_wiki_structural_stats_cache(archiver: MemoryToWikiArchiver) -> None:
+    """Drop structural lint TTL cache after vault mutations that affect /wiki/stats badges."""
+    from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+
+    invalidate_structural_lint_cache(archiver._structure)
+
+
 # --- Request/Response Models ---
 
 
@@ -444,9 +451,7 @@ async def compile_wiki(
     try:
         result = await archiver._compiler.compile_all()
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-        from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
-
-        invalidate_structural_lint_cache(archiver._structure)
+        _invalidate_wiki_structural_stats_cache(archiver)
         return WikiCompileResponse(
             concepts_count=result.concepts_count,
             articles_generated=result.articles_generated,
@@ -468,9 +473,7 @@ async def maintain_wiki(
 ) -> WikiMaintenanceResponse:
     try:
         result = await archiver._linter.lint_and_maintain()
-        from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
-
-        invalidate_structural_lint_cache(archiver._structure)
+        _invalidate_wiki_structural_stats_cache(archiver)
         return WikiMaintenanceResponse(
             issues_found=result.issues_found,
             issues_fixed=result.issues_fixed,
@@ -786,6 +789,7 @@ async def delete_wiki_folder(
     """Safely delete a folder and clear all its files from the indexer."""
     try:
         deleted_count = await archiver._structure.delete_folder_safe(path, archiver._query_engine._indexer)
+        _invalidate_wiki_structural_stats_cache(archiver)
         return OperationResult(success=True, message=f"Folder deleted. Unindexed {deleted_count} files.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -885,6 +889,7 @@ async def apply_wiki_mutation_endpoint(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    _invalidate_wiki_structural_stats_cache(archiver)
     return WikiApplyResponse(
         success=result.success,
         op=result.op.value,
@@ -905,6 +910,7 @@ async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, De
     try:
         path.unlink()
         await archiver._query_engine._indexer.delete(name)
+        _invalidate_wiki_structural_stats_cache(archiver)
         return OperationResult(success=True, message=f"Concept {name} deleted")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -941,6 +947,7 @@ async def delete_raw_source(
 
     affected = len(result.affected_concepts)
     republished = len(result.republished_concepts)
+    _invalidate_wiki_structural_stats_cache(archiver)
     return OperationResult(
         success=True,
         message=f"Forgot raw source {result.relative_path} ({affected} affected, {republished} republished)",
@@ -1065,6 +1072,7 @@ async def approve_pending_edit(
         f"Approved pending edit {edit_id}",
         {"edit_id": edit_id},
     )
+    _invalidate_wiki_structural_stats_cache(archiver)
     return OperationResult(success=True, message=f"Approved edit {edit_id}")
 
 
@@ -1101,6 +1109,7 @@ async def repair_wiki_frontmatter_types(
                 "files_skipped": result.files_skipped,
             },
         )
+        _invalidate_wiki_structural_stats_cache(archiver)
     return RepairTypesResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -1577,6 +1586,9 @@ async def import_folder(
                     {"files_enqueued": len(enqueued_paths)},
                 )
 
+        if enqueued_paths or files_superseded > 0:
+            _invalidate_wiki_structural_stats_cache(archiver)
+
         return ImportResultResponse(
             success=True,
             files_scanned=len(scanned_files),
@@ -1699,6 +1711,9 @@ async def import_zip(
                         {"files_enqueued": len(enqueued_paths)},
                     )
 
+            if enqueued_paths or files_superseded > 0:
+                _invalidate_wiki_structural_stats_cache(archiver)
+
             return ImportResultResponse(
                 success=True,
                 files_scanned=len(scanned_files),
@@ -1820,6 +1835,8 @@ async def _process_obsidian_vault(
         message_parts.append(f"{stats.files_skipped} skipped")
     if auto_compile:
         message_parts.append("compilation started")
+    if enqueued_paths or stats.files_superseded > 0:
+        _invalidate_wiki_structural_stats_cache(archiver)
     return ObsidianImportResultResponse(
         success=True,
         files_scanned=stats.files_scanned,

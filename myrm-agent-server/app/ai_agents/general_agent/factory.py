@@ -64,6 +64,7 @@ async def build_general_agent(
     from .agent_middlewares.signoff_clarify_contract_middleware import (
         build_signoff_clarify_contract_middleware,
     )
+    from .signoff_clarify_contract_core import signoff_clarify_contract_enabled, signoff_clarify_pool_active
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
         make_loaded_skills_persist_callback,
@@ -455,15 +456,19 @@ async def build_general_agent(
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
 
-    if getattr(agent_wrapper, "signoff_clarify_contract", False):
+    if signoff_clarify_contract_enabled(
+        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
+    ):
+        agent_wrapper.signoff_clarify_contract = True
         insert_at = middlewares_list.index(tool_selection_middleware)
         middlewares_list.insert(
             insert_at,
             build_signoff_clarify_contract_middleware(enabled=True),
         )
         logger.info(
-            "SignoffClarifyContractMiddleware mounted (chat_id=%s)",
+            "SignoffClarifyContractMiddleware mounted (chat_id=%s pool=%s)",
             effective_chat_id,
+            signoff_clarify_pool_active(),
         )
 
     if workspace_root:
@@ -504,7 +509,9 @@ async def build_general_agent(
             "Make reasonable decisions independently and proceed to completion."
         )
 
-    if getattr(agent_wrapper, "signoff_clarify_contract", False):
+    if signoff_clarify_contract_enabled(
+        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
+    ):
         system_prompt += (
             "\n\n[Signoff Clarify Contract] Your first and only action MUST be "
             'ask_question_tool with title "Pick stack", one question id "stack", '

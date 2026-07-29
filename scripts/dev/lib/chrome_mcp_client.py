@@ -1046,6 +1046,10 @@ class ChromeMcpClient:
             except RuntimeError as exc:
                 message = str(exc)
                 if reload_attempt < 2 and _is_page_ownership_error(message):
+                    if getattr(self, "_reclaim_in_progress", False):
+                        time.sleep(0.3)
+                        resolved = self._resolve_page(page)
+                        continue
                     resolved = self.reclaim_owned_page(resolved)
                     continue
                 if reload_attempt == 0 and (
@@ -1156,14 +1160,29 @@ class ChromeMcpClient:
         if depth >= 1:
             from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
 
+            wait_deadline = time.monotonic() + min(
+                30.0,
+                max(1.0, _remaining_reclaim_sec(_reclaim_wall_deadline())),
+            )
+            lookup_id = page.page_id
+            while time.monotonic() < wait_deadline:
+                if getattr(self, "_reclaim_depth", 0) < 1:
+                    tracked = self._lookup_page_for_reclaim(lookup_id)
+                    if tracked is not None and tracked.page_id in self._pages:
+                        return self._resolve_page(tracked)
+                    break
+                time.sleep(0.2)
             raise RuntimeError(
                 f"{MUX_RECLAIM_STALL_TOKEN}: nested page reclaim during active recovery"
             )
+        self._reclaim_in_progress = True
         self._reclaim_depth = depth + 1
         try:
             return self._reopen_owned_page_inner(page)
         finally:
             self._reclaim_depth = depth
+            if depth == 0:
+                self._reclaim_in_progress = False
 
     def _reopen_owned_page_inner(self, page: McpPage) -> McpPage:
         reclaim_deadline = _reclaim_wall_deadline()
@@ -1625,7 +1644,9 @@ class ChromeMcpClient:
                         except Exception:
                             pass
                         new_page_id = None
-                    if rebuild_attempt + 1 >= 2 or not _is_page_ownership_error(str(exc)):
+                    if rebuild_attempt + 1 >= 2 or not _is_page_ownership_error(
+                        str(exc)
+                    ):
                         _LOGGER.warning(
                             "failed to rebuild page %d after transport recovery: %s",
                             old_page_id,

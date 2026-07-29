@@ -5,7 +5,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import build_approval_resume_value, get_model_selection
 
 
 def _stream_with_auto_approve(
@@ -37,7 +37,7 @@ def _stream_with_auto_approve(
         if not approval_required:
             break
         resume_request = dict(request_data)
-        resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+        resume_request["resumeValue"] = build_approval_resume_value()
         _stream_once(resume_request)
 
     return collected

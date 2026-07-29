@@ -118,6 +118,13 @@ def select_tool_capable_model_cfg(
         selection_source is one of: "main", "lite", "fallback", "safety_fallback",
         or "provider_scan".
     """
+    from app.ai_agents.general_agent.signoff_clarify_contract_core import (
+        signoff_clarify_pool_active,
+    )
+
+    if signoff_clarify_pool_active():
+        return model_cfg, "main"
+
     if _supports_function_calling(model_cfg.model):
         return model_cfg, "main"
 

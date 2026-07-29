@@ -18,7 +18,7 @@
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
 | `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe | ✅ |
-| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 install enable + allowlist_appended） | ✅ |
+| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 install enable + allowlist_appended/allowlist_append_error） | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计 | ✅ |

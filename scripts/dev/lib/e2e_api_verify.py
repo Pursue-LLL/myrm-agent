@@ -869,6 +869,12 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
+    try:
+        from e2e_stale_lease_reap import maybe_reap_hung_chrome_e2e_pytest
+
+        maybe_reap_hung_chrome_e2e_pytest()
+    except ImportError:
+        pass
     from e2e_lease_liveness import (  # noqa: PLC0415
         build_lease_liveness,
         format_lease_liveness_human,
