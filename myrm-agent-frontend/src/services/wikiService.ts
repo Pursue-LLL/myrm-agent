@@ -98,6 +98,10 @@ export interface CompileRunStatus {
   state: 'running' | 'paused';
   pause_reason: string;
   primary_error_kind: string;
+  phase?: 'idle' | 'structure_survey' | 'semantic_compile' | 'postprocess';
+  facet_count?: number;
+  warning_count?: number;
+  survey_skipped?: boolean;
 }
 
 export interface QueueStatus {
@@ -198,6 +202,7 @@ export interface WikiCompileResponse {
   articles_pending: number;
   articles_published: number;
   articles_blocked: number;
+  synthesis_pending: number;
   compile_run?: CompileRunStatus | null;
 }
 
@@ -525,5 +530,17 @@ export const wikiService = {
 
   exportVault: async (agentId?: string | null): Promise<void> => {
     await downloadWikiExportBlob(buildWikiApiPath('/wiki/portability/export', agentId));
+  },
+
+  revealWikiVault: async (agentId?: string | null): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(buildWikiApiPath('/wiki/vault/reveal', agentId), {
+      method: 'POST',
+    });
+  },
+
+  openWikiVaultInObsidian: async (agentId?: string | null): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(buildWikiApiPath('/wiki/vault/open-obsidian', agentId), {
+      method: 'POST',
+    });
   },
 };

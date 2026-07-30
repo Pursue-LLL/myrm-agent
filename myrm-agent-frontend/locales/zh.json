@@ -2054,7 +2054,7 @@
       "description": "AI自动维护的结构化知识库，随对话持续成长",
       "secondBrain": {
         "title": "第二大脑快速开始",
-        "description": "一键配置知识库智能体：开启 Wiki、记忆与每日稍后读内化。",
+        "description": "一键配置知识库智能体：开启 Wiki、记忆、每日稍后读内化（6:00）与知识库晨间摘要（7:00）。",
         "loading": "正在加载设置状态…",
         "loadFailed": "无法加载第二大脑设置状态",
         "applyFailed": "无法应用第二大脑预设",
@@ -2065,12 +2065,38 @@
         "appliedAs": "当前智能体：{name}",
         "checklist": {
           "agentTools": "智能体已开启 Wiki、记忆与定时任务工具",
-          "cronJob": "每日稍后读定时任务",
+          "cronJob": "每日稍后读（6:00）与知识库晨间摘要（7:00）定时任务",
           "vaultContent": "知识库已有内容",
           "providerReady": "模型服务已配置"
         },
         "goImport": "导入知识库",
         "goProviders": "配置模型"
+      },
+      "sources": {
+        "title": "外部来源",
+        "description": "定时将 Gmail 标签与 RSS 订阅拉入知识库（同步过程不消耗 AI 额度）。",
+        "gmailLabel": "Gmail 稍后读",
+        "gmailTagLabel": "Gmail 标签",
+        "googleConnected": "已连接 Google",
+        "googleDisconnected": "请先在集成设置中连接 Google",
+        "rssFeedsLabel": "RSS 地址（每行一个）",
+        "rssFeedsPlaceholder": "https://example.com/feed.xml",
+        "mirrorIntegrations": "将集成同步镜像到知识库",
+        "autoCompile": "同步后自动编译",
+        "save": "保存",
+        "saving": "保存中…",
+        "saveSuccess": "来源设置已保存",
+        "saveError": "无法保存来源设置",
+        "syncNow": "立即同步",
+        "syncing": "同步中…",
+        "syncSuccess": "已同步 {count} 条新内容",
+        "syncEmpty": "没有新内容需要同步",
+        "syncError": "同步失败",
+        "loadError": "无法加载来源设置",
+        "connectGoogle": "连接 Google",
+        "lastSync": "上次同步：{time}",
+        "lastSyncNever": "尚未同步",
+        "lastSyncSummary": "新增 {published} · 跳过 {skipped} · 失败 {failed}"
       },
       "loading": "加载中...",
       "agentScopeLabel": "智能体知识库",
@@ -2081,11 +2107,29 @@
       "scopeChip": {
         "label": "目标知识库：{scope}"
       },
-      "export": {
-        "button": "导出知识库",
-        "exporting": "导出中...",
-        "success": "知识库导出成功",
-        "failed": "知识库导出失败"
+      "obsidianVault": {
+        "title": "Obsidian 知识库",
+        "description": "在 Obsidian 中打开或下载已编译 wiki，使用图谱视图",
+        "mountHint": "要在自己磁盘上的文件夹里实时编辑？请使用「设置 → 项目 → 挂载同步目录」。",
+        "openObsidian": "在 Obsidian 中打开",
+        "revealFolder": "在文件夹中显示",
+        "copyPath": "复制库路径",
+        "downloadPack": "下载 Obsidian 包",
+        "exporting": "准备中...",
+        "opening": "打开中...",
+        "copyPathSuccess": "已复制库路径",
+        "copyPathFailed": "复制路径失败",
+        "revealSuccess": "已打开库文件夹",
+        "revealFailed": "无法打开库文件夹",
+        "openObsidianSuccess": "已在 Obsidian 中打开",
+        "openObsidianFailed": "无法打开 Obsidian，请尝试「在文件夹中显示」",
+        "exportSuccess": "已下载 Obsidian 包 — 解压后在 Obsidian 中选择「Open folder as vault」",
+        "exportFailed": "下载失败",
+        "cloudHint": "云托管：请下载知识库包后在本地电脑用 Obsidian 打开。",
+        "postWorkflowHint": "可在下方 Obsidian 卡片中打开 Graph 视图或下载 Obsidian 包。",
+        "postWorkflowAction": "定位 Obsidian 卡片",
+        "gitHistoryHint": "本地知识库会记录 git 变更历史，便于审计与回溯。",
+        "gitHistoryHintWithCommit": "最近快照：{commit}"
       },
       "querying": "查询中...",
       "compiling": "编译中...",
@@ -2115,7 +2159,8 @@
         "structuralHint": "请在下方 Wiki 操作中使用「维护」或「修复页面类型」处理结构问题。",
         "indexedAssets": "已索引 {count} 张图片",
         "failedAssets": "{count} 张图片索引失败",
-        "assetsVisionHint": "图片已导入但尚不可搜索。请在「设置 → 模型」中配置视觉降级模型以建立索引。"
+        "assetsVisionHint": "图片已导入但尚不可搜索。请在「设置 → 模型」中配置视觉降级模型以建立索引。",
+        "synthesisPending": "{count, plural, other {# 条演化合成待审核}}"
       },
       "query": {
         "title": "查询 Wiki",
@@ -2158,6 +2203,7 @@
         "queryComplete": "查询完成",
         "compileComplete": "Wiki 编译完成",
         "compileSummary": "编译完成：{published} 篇已发布，{pending} 篇待审核，{blocked} 篇未生成。待审核内容请在「待审草稿」标签查看。",
+        "compileSummaryWithSynthesis": "编译完成：{published} 篇已发布，{pending} 篇待审核，{synthesis} 篇演变合成，{blocked} 篇未生成。请在「待审草稿 → 演变合成」查看演变页。",
         "maintainComplete": "Wiki 维护完成",
         "maintainRemovedSensitive": "维护已移除 {count} 个含敏感内容的 raw 文件：{paths}",
         "repairTypesComplete": "已修复 {count} 篇笔记的页面类型",
@@ -2259,7 +2305,19 @@
         },
         "refresh": "刷新",
         "refreshStale": "队列状态可能已过期，请检查网络后点击刷新。",
-        "pendingItems": "待处理项目："
+        "pendingItems": "待处理项目：",
+        "compilePhase": {
+          "title": "编译阶段：{phase}",
+          "idle": "空闲",
+          "structure_survey": "结构扫描",
+          "semantic_compile": "语义编译",
+          "postprocess": "后处理",
+          "fastPath": "快速路径（小型 vault）",
+          "facetSummary": "{facets} 个 facet · {warnings} 条警告",
+          "structureSurveyHint": "在 LLM 抽取前扫描目录布局与 chunk 分组。",
+          "semanticCompileHint": "从原始文档抽取概念并生成文章。",
+          "postprocessHint": "执行反向链接、sidecar 与合成 passes。"
+        }
       },
       "compileRun": {
         "pausedTitle": "编译已暂停",
@@ -2390,10 +2448,16 @@
         "saveApprove": "保存并批准",
         "cancelEdit": "取消编辑",
         "noPending": "没有需要审核的草稿",
+        "noFiltered": "当前筛选条件下没有草稿",
+        "filterAll": "全部",
+        "filterConcepts": "概念草稿",
+        "filterSynthesis": "演变合成",
+        "synthesisBadge": "演变",
         "status": {
           "pending": "待审核",
           "approved": "已批准",
-          "rejected": "已拒绝"
+          "rejected": "已拒绝",
+          "synthesisPending": "演变合成"
         }
       }
     },

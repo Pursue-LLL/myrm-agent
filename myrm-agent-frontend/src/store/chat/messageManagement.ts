@@ -25,6 +25,7 @@ import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import useAgentStore from '@/store/useAgentStore';
+import { useSkillStore } from '@/store/skill';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import {
   extractNavigationSnapshot,
@@ -61,8 +62,10 @@ function restoreAgentConfigFromChat(chatId: string, agentId: string | null | und
   const currentConfig = useChatStore.getState().agentConfig;
   if (currentConfig?.agentId === agentId) return;
 
-  useAgentStore.getState().fetchAgent(agentId).then((agent) => {
+  useAgentStore.getState().fetchAgent(agentId).then(async (agent) => {
     if (!agent || useChatStore.getState().chatId !== chatId) return;
+    const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
+    await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
     useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
   }).catch(() => {});
 }

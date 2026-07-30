@@ -559,9 +559,9 @@ async def _run_fast_evicted_read_live_e2e(
                 kickoff = await chat.evaluate(
                     kickoff_js, await_promise=True, recv_timeout=120.0
                 )
-                assert isinstance(kickoff, dict) and kickoff.get("ok") is True, (
-                    f"fast {search_depth} stall recovery kickoff failed: {kickoff!r}"
-                )
+                assert (
+                    isinstance(kickoff, dict) and kickoff.get("ok") is True
+                ), f"fast {search_depth} stall recovery kickoff failed: {kickoff!r}"
                 chat_id = str(kickoff.get("chatId") or chat_id).strip()
                 assert chat_id, kickoff
                 turn_started = time.monotonic()

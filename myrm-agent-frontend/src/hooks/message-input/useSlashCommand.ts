@@ -20,21 +20,33 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     })),
   );
   const { getAllItems, searchItems, recordUsage } = useCommandStore();
-  const { marketSkills, localSkills } = useSkillStore(
+  const { marketSkills, localSkills, fetchMarketSkills, fetchLocalSkills } = useSkillStore(
     useShallow((state) => ({
       marketSkills: state.marketSkills,
       localSkills: state.localSkills,
+      fetchMarketSkills: state.fetchMarketSkills,
+      fetchLocalSkills: state.fetchLocalSkills,
     })),
   );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  useEffect(() => {
+    if (!agentConfig?.selectedSkillIds?.length) return;
+    void fetchMarketSkills();
+    void fetchLocalSkills();
+  }, [agentConfig?.selectedSkillIds, fetchMarketSkills, fetchLocalSkills]);
+
   const skillActions = useMemo((): SlashAction[] => {
     if (!agentConfig?.selectedSkillIds?.length) return [];
     const allSkills = [...marketSkills, ...localSkills];
-    const boundSkills = agentConfig.selectedSkillIds
-      .map((id) => allSkills.find((s) => s.id === id))
-      .filter((s): s is (typeof allSkills)[number] => s != null && s.user_invocable !== false);
+    const boundSkills = agentConfig.selectedSkillIds.flatMap((id) => {
+      const fromCatalog = allSkills.find((skill) => skill.id === id);
+      if (fromCatalog) {
+        return fromCatalog.user_invocable === false ? [] : [fromCatalog];
+      }
+      return [{ id, name: id, description: id, user_invocable: true as const }];
+    });
 
     const singleSkillActions: SlashAction[] = boundSkills.map(
       (skill): SlashAction => ({

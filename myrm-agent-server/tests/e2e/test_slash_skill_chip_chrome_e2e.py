@@ -22,6 +22,13 @@ _SLASH_QUERY = "systematic"
 
 
 def _ensure_skill_enabled(api_url: str, skill_id: str) -> None:
+    catalog = http_json(
+        "POST",
+        f"{api_url}/api/v1/skills/test/ensure-prebuilt-catalog",
+    )
+    assert isinstance(catalog, dict)
+    assert catalog.get("contains_systematic_debugging") is True, catalog
+
     config = http_json("GET", f"{api_url}/api/v1/skills/config")
     assert isinstance(config, dict)
     enabled = list(config.get("enabled_prebuilt_ids") or [])
@@ -84,9 +91,18 @@ _COMPOSER_READY_JS = """(() => ({
     window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.agentSelectedSkillCount ?? 0,
 }))()"""
 
-_PALETTE_OPEN_JS = """(() => ({
-  open: !!document.querySelector('[data-testid="slash-command-palette"]'),
-}))()"""
+_SKILL_PALETTE_ITEM_READY_JS = f"""(() => {{
+  const palette = document.querySelector('[data-testid="slash-command-palette"]');
+  if (!palette) return {{ ready: false, reason: 'no-palette' }};
+  const needle = {json.dumps(_SLASH_QUERY)};
+  const items = Array.from(palette.querySelectorAll('[cmdk-item], [role="option"]'));
+  const target = items.find((el) => (el.textContent || '').toLowerCase().includes(needle));
+  return {{
+    ready: Boolean(target),
+    itemCount: items.length,
+    sample: items.slice(0, 5).map((el) => (el.textContent || '').slice(0, 80)),
+  }};
+}})()"""
 
 _CLICK_SKILL_PALETTE_ITEM_JS = f"""(() => {{
   const palette = document.querySelector('[data-testid="slash-command-palette"]');
@@ -147,6 +163,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None:
@@ -158,10 +175,11 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
     agent_id = _create_agent_with_skill(api_url, _SKILL_ID)
     chat_id = f"e2eslashchip-{uuid.uuid4().hex[:10]}"
     _create_chat(api_url, chat_id=chat_id, agent_id=agent_id)
-    warm_ui_route(f"/{chat_id}")
+    agent_chat_path = f"/{chat_id}?agentId={agent_id}"
+    warm_ui_route(agent_chat_path)
 
     try:
-        with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+        with open_mcp_page(f"{ui_url}{agent_chat_path}") as (client, page):
             wait_for_state(client, page, _COMPOSER_READY_JS, timeout_sec=90.0)
 
             input_el = client.evaluate(
@@ -177,7 +195,7 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
             assert isinstance(input_el, dict) and input_el.get("ok") is True
 
             client.type_text(page, f"/{_SLASH_QUERY}")
-            wait_for_state(client, page, _PALETTE_OPEN_JS, timeout_sec=30.0)
+            wait_for_state(client, page, _SKILL_PALETTE_ITEM_READY_JS, timeout_sec=60.0)
 
             clicked = client.evaluate(page, _CLICK_SKILL_PALETTE_ITEM_JS, timeout_sec=15.0)
             assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
@@ -210,6 +228,7 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_transcript_hides_skill_wire_prefix_and_shows_chip() -> None:

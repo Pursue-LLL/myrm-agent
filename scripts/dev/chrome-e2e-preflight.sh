@@ -54,12 +54,12 @@ _admit_poll_budget_or_fail() {
 }
 
 _attach_health_require_args() {
-  if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
-    echo "--require-read-attach-ready"
-    return 0
-  fi
   if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
     echo "--require-signoff-stream-ready"
+    return 0
+  fi
+  if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
+    echo "--require-read-attach-ready"
     return 0
   fi
   echo "--require-attach-ready"
@@ -151,16 +151,26 @@ _wait_attach_endpoints_under_parallel_load() {
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   local wait_started=$SECONDS
   waited=0
-  local ui_heal_cap=2 ui_heal_timeout_sec=60
+  local ui_heal_cap=2 ui_heal_timeout_sec=60 ui_heal_post_ensure_max_sec=120 ui_heal_next_at=30 api_heal_next_at=30
   if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
     ui_heal_cap=$((2 + active_leases / 3))
     if [[ "${ui_heal_cap}" -gt 6 ]]; then
       ui_heal_cap=6
     fi
-    ui_heal_timeout_sec=$((60 + active_leases * 12))
-    if [[ "${ui_heal_timeout_sec}" -gt 240 ]]; then
-      ui_heal_timeout_sec=240
-    fi
+    ui_heal_timeout_sec="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from dev_gate_contract import attach_ui_heal_timeout_sec
+print(attach_ui_heal_timeout_sec(${active_leases}))
+")"
+    ui_heal_post_ensure_max_sec="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from dev_gate_contract import attach_ui_heal_post_ensure_max_sec
+print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
+")"
+    [[ "${ui_heal_timeout_sec}" =~ ^[0-9]+$ ]] || ui_heal_timeout_sec=300
+    [[ "${ui_heal_post_ensure_max_sec}" =~ ^[0-9]+$ ]] || ui_heal_post_ensure_max_sec=120
   fi
   while true; do
     waited=$((SECONDS - wait_started))
@@ -179,24 +189,30 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       return 1
     fi
     if [[ "${errors}" == *"api=unreachable"* ]] \
-      && [[ "${waited}" -ge 30 ]] \
-      && [[ $((waited % 30)) -eq 0 ]] \
+      && [[ "${waited}" -ge "${api_heal_next_at}" ]] \
       && [[ "${heal_during_wait}" -lt 2 ]] \
       && [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
       heal_during_wait=$((heal_during_wait + 1))
+      api_heal_next_at=$((api_heal_next_at + 30))
       echo "CHROME_E2E_ATTACH_HEAL: api unreachable during attach wait — retry crash heal ${heal_during_wait}/2" >&2
       if _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"; then
         continue
       fi
     fi
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
-      && [[ "${waited}" -ge 30 ]] \
-      && [[ $((waited % 30)) -eq 0 ]] \
+      && [[ "${waited}" -ge "${ui_heal_next_at}" ]] \
       && [[ "${ui_heal_during_wait:-0}" -lt "${ui_heal_cap}" ]]; then
       ui_heal_during_wait=$((ui_heal_during_wait + 1))
+      ui_heal_next_at=$((ui_heal_next_at + 30))
       echo "CHROME_E2E_ATTACH_HEAL: ui half_dead during attach queue — bounded frontend heal ${ui_heal_during_wait}/${ui_heal_cap} (do not stop other pytest)" >&2
       if command -v timeout >/dev/null 2>&1; then
-        timeout "${ui_heal_timeout_sec}" bash -c '_heal_shared_ui_if_stale' || true
+        timeout "${ui_heal_timeout_sec}" env \
+          SCRIPT_DIR="${SCRIPT_DIR}" UI_BASE="${UI_BASE}" FRONTEND_PORT="${FRONTEND_PORT}" \
+          MYRM_DEV_STACK="${MYRM_DEV_STACK}" MYRM_DEV_STATE_DIR="${STATE_DIR}" \
+          MYRM_FRONTEND_DIR="${FRONTEND_DIR}" \
+          MYRM_UI_HEAL_POST_ENSURE_MAX_SEC="${ui_heal_post_ensure_max_sec}" \
+          MYRM_STACK_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-360}" \
+          bash "${SCRIPT_DIR}/lib/frontend-warmup-heal-entry.sh" || true
       else
         _heal_shared_ui_if_stale || true
       fi

@@ -9,6 +9,8 @@
 - list_legacy_wiki_vault_paths(): directories that may hold pre-unification data
 - migrate_legacy_wiki_vaults(): one-time copy-merge into canonical vault
 - migrate_global_wiki_to_agent_layout(): one-time move flat wiki tree to agents/default/
+- vault_has_wiki_content(): whether an agent vault has raw or concept pages
+- seed_agent_vault_from_default(): non-destructive copy when preset agent vault is empty
 
 [POS]
 Single source of truth for wiki filesystem layout.
@@ -48,6 +50,16 @@ class WikiAgentLayoutMigrationResult:
     skipped: bool
     target_path: Path
     entries_moved: int
+
+
+@dataclass(frozen=True, slots=True)
+class WikiVaultSeedResult:
+    """Outcome of seeding a preset agent vault from the default agent vault."""
+
+    skipped: bool
+    files_copied: int
+    source_path: Path
+    target_path: Path
 
 
 def wiki_root() -> Path:
@@ -225,6 +237,68 @@ def is_vault_ready(agent_id: str | None = None) -> bool:
     """Return True when the agent wiki vault directory layout exists."""
     vault = resolve_agent_wiki_vault_path(agent_id)
     return vault.is_dir() and (vault / "raw").is_dir()
+
+
+def vault_has_wiki_content(agent_id: str | None = None) -> bool:
+    """Return True when the agent vault has at least one raw file or concept page."""
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+    vault_path = resolve_agent_wiki_vault_path(agent_id)
+    structure = WikiStructure(vault_path)
+    try:
+        raw_count = len(structure.list_raw_files())
+        concept_count = len(structure.list_concepts())
+    except Exception:
+        return False
+    return raw_count > 0 or concept_count > 0
+
+
+def seed_agent_vault_from_default(target_agent_id: str) -> WikiVaultSeedResult:
+    """Copy default-agent wiki content into a new preset agent vault when target is empty."""
+    source_path = resolve_agent_wiki_vault_path("default")
+    target_path = resolve_agent_wiki_vault_path(target_agent_id)
+
+    if sanitize_wiki_scope_id(target_agent_id) == "default":
+        return WikiVaultSeedResult(
+            skipped=True,
+            files_copied=0,
+            source_path=source_path,
+            target_path=target_path,
+        )
+
+    if vault_has_wiki_content(target_agent_id):
+        return WikiVaultSeedResult(
+            skipped=True,
+            files_copied=0,
+            source_path=source_path,
+            target_path=target_path,
+        )
+
+    if not vault_has_wiki_content("default"):
+        return WikiVaultSeedResult(
+            skipped=True,
+            files_copied=0,
+            source_path=source_path,
+            target_path=target_path,
+        )
+
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+    target_path.mkdir(parents=True, exist_ok=True)
+    WikiStructure(target_path).ensure_structure()
+    files_copied = _merge_tree_copy(source_path, target_path)
+    if files_copied:
+        logger.info(
+            "Seeded wiki vault for agent %s: copied %d files from default vault",
+            target_agent_id,
+            files_copied,
+        )
+    return WikiVaultSeedResult(
+        skipped=False,
+        files_copied=files_copied,
+        source_path=source_path,
+        target_path=target_path,
+    )
 
 
 def _list_flat_layout_entries(root: Path) -> list[Path]:

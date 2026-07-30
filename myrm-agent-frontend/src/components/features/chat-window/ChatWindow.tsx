@@ -315,8 +315,11 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       try {
         const agent = await getAgent(agentIdFromUrl);
         if (agent) {
+          const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
+          await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
+          const skillStore = useSkillStore.getState();
+          const allSkills = [...skillStore.marketSkills, ...skillStore.localSkills];
           // 校验智能体依赖
-          const allSkills = [...marketSkills, ...localSkills];
           const validation = validateAgentDependencies(agent, allSkills, mcpConfigs);
           if (!validation.isValid) {
             const missingParts = buildMissingDependenciesParts(validation);
@@ -352,8 +355,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           // 标记已应用
           hasAppliedAgentRef.current = agentIdFromUrl;
 
-          // 清除 URL 参数，避免刷新时重复应用
-          router.replace('/', { scroll: false });
+          // 清除 URL 参数，避免刷新时重复应用（保留当前会话路由）
+          const nextPath = id ? `/${encodeURIComponent(id)}` : '/';
+          router.replace(nextPath, { scroll: false });
         }
       } catch (error) {
         console.warn('加载智能体配置失败:', error);

@@ -56,6 +56,8 @@ async def _sync_job() -> None:
         total_created = sum(r.created for r in results)
         total_errors = sum(r.failed for r in results)
 
+        await _maybe_mirror_integrations_to_wiki(results)
+
         if total_created > 0 or total_errors > 0:
             logger.info(
                 "Integration sync completed: providers=%d, created=%d, errors=%d",
@@ -65,6 +67,29 @@ async def _sync_job() -> None:
             )
     except Exception as exc:
         logger.warning("Integration sync job failed: %s", exc)
+
+
+async def _maybe_mirror_integrations_to_wiki(results: list[object]) -> None:
+    try:
+        from app.database.connection import get_session
+        from app.services.agent.llm_access import get_optional_llm_for_user
+        from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
+        from app.services.wiki.source_sync.runner import run_wiki_source_sync
+
+        async with get_session() as db:
+            config = await load_wiki_source_sync_config(db)
+        if not config.mirror_integrations_to_wiki:
+            return
+        llm = await get_optional_llm_for_user()
+        await run_wiki_source_sync(
+            llm=llm,
+            agent_id=None,
+            config=config,
+            integration_sync_results=results,
+            sync_gmail_rss=False,
+        )
+    except Exception as exc:
+        logger.warning("Integration→Wiki mirror failed: %s", exc)
 
 
 async def _register_mcp_providers(

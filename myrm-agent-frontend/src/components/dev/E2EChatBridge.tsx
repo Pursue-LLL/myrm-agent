@@ -25,6 +25,7 @@ import useApprovalStore from '@/store/useApprovalStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
+import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
@@ -972,6 +973,9 @@ export default function E2EChatBridge() {
         const lastAssistant = assistants[assistants.length - 1];
         const assistantText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
         const pending = state.pendingExplicitSkillActivation;
+        const boundSkillIds = state.agentConfig?.selectedSkillIds ?? [];
+        const skillCatalog = useSkillStore.getState();
+        const slashBoundSkillResolvedCount = boundSkillIds.length;
         return {
           chatId: state.chatId?.trim() || null,
           userCount: users.length,
@@ -985,7 +989,21 @@ export default function E2EChatBridge() {
           toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,
           pendingSkillNames: pending?.skillNames ?? [],
           pendingSkillInstruction: pending?.instruction ?? null,
-          agentSelectedSkillCount: state.agentConfig?.selectedSkillIds?.length ?? 0,
+          agentSelectedSkillCount: boundSkillIds.length,
+          slashBoundSkillResolvedCount,
+          slashSkillCatalogReady: boundSkillIds.length === 0 || slashBoundSkillResolvedCount === boundSkillIds.length,
+          marketSkillCount: skillCatalog.marketSkills.length,
+        };
+      },
+      prefetchSlashSkillCatalog: async () => {
+        const store = useSkillStore.getState();
+        await Promise.all([store.fetchMarketSkills(true), store.fetchLocalSkills()]);
+        const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+        return {
+          marketSkillCount: snap.marketSkillCount ?? 0,
+          slashBoundSkillResolvedCount: snap.slashBoundSkillResolvedCount ?? 0,
+          slashSkillCatalogReady: snap.slashSkillCatalogReady === true,
+          skillStoreError: useSkillStore.getState().error,
         };
       },
       toolApprovalSnapshot: () => ({

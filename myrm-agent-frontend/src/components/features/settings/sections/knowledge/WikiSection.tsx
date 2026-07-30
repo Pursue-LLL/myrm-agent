@@ -37,9 +37,12 @@ import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
 import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
+import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
 import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
 import { useWikiIngestSubscription } from './useWikiIngestSubscription';
+import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
+import { ObsidianVaultActions } from './ObsidianVaultActions';
 
 interface WikiStats {
   total_concepts: number;
@@ -63,6 +66,11 @@ interface WikiStats {
     total_files: number;
     enabled: boolean;
   };
+  synthesis_pending?: number;
+  obsidian_launch_available?: boolean;
+  vault_git_enabled?: boolean;
+  vault_git_initialized?: boolean;
+  vault_git_last_commit?: string | null;
 }
 
 function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string): string {
@@ -136,9 +144,9 @@ export function WikiSection() {
   const [isSavingPurpose, setIsSavingPurpose] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportingObsidian, setIsImportingObsidian] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [scopeRevision, setScopeRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
+  const [pendingEditsInitialFilter, setPendingEditsInitialFilter] = useState<'all' | 'concepts' | 'synthesis'>('all');
   const zipInputRef = useRef<HTMLInputElement>(null);
   const obsidianZipRef = useRef<HTMLInputElement>(null);
   const webFolderInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +167,17 @@ export function WikiSection() {
       )
     : t('agentScopeDefault');
 
+  const nudgeObsidianVaultCard = useCallback(() => {
+    toast.message(t('obsidianVault.postWorkflowHint'), {
+      action: {
+        label: t('obsidianVault.postWorkflowAction'),
+        onClick: () => {
+          document.getElementById('wiki-obsidian-vault-actions')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      },
+    });
+  }, [t]);
+
   const showObsidianResult = (result: ObsidianImportResultResponse) => {
     toast.success(
       t('import.obsidianResult', {
@@ -168,6 +187,7 @@ export function WikiSection() {
         skipped: result.files_skipped + (result.files_skipped_conflict ?? 0),
       }),
     );
+    nudgeObsidianVaultCard();
   };
 
   const finishImportResult = async (
@@ -480,6 +500,11 @@ export function WikiSection() {
   const { connected: ingestLive, snapshot: ingestSnapshot } = useWikiIngestSubscription(agentScopeId, {
     onSnapshot: (snap) => {
       setCompileRun(snap.compile_run ?? null);
+      if (typeof snap.synthesis_pending_count === 'number') {
+        setStats((prev) =>
+          prev ? { ...prev, synthesis_pending: snap.synthesis_pending_count } : prev,
+        );
+      }
       if (snap.tree_sync_required) {
         void refreshIngestTreesSilently();
         void loadStats();
@@ -496,6 +521,18 @@ export function WikiSection() {
       ingestActivityRef.current = active;
     },
   });
+
+  const handleOpenSynthesisPending = () => {
+    setPendingEditsInitialFilter('synthesis');
+    setActiveTab('pendingEdits');
+  };
+
+  const synthesisPendingCount =
+    (typeof ingestSnapshot?.synthesis_pending_count === 'number'
+      ? ingestSnapshot.synthesis_pending_count
+      : undefined) ??
+    stats?.synthesis_pending ??
+    0;
 
   const handleQuery = async () => {
     if (!query.trim()) {
@@ -535,14 +572,23 @@ export function WikiSection() {
         toast.warning(result.compile_run.pause_reason || t('compileRun.pausedDefaultReason'));
         setActiveTab('queue');
       } else {
+        const synthesisCount = result.synthesis_pending ?? 0;
         toast.success(
-          t('success.compileSummary', {
-            published: result.articles_published,
-            pending: result.articles_pending,
-            blocked: result.articles_blocked,
-          }),
+          synthesisCount > 0
+            ? t('success.compileSummaryWithSynthesis', {
+                published: result.articles_published,
+                pending: result.articles_pending,
+                blocked: result.articles_blocked,
+                synthesis: synthesisCount,
+              })
+            : t('success.compileSummary', {
+                published: result.articles_published,
+                pending: result.articles_pending,
+                blocked: result.articles_blocked,
+              }),
         );
-        if (result.articles_pending > 0) {
+        if (result.articles_pending > 0 || synthesisCount > 0) {
+          setPendingEditsInitialFilter(synthesisCount > 0 ? 'synthesis' : 'all');
           setActiveTab('pendingEdits');
         }
       }
@@ -648,19 +694,6 @@ export function WikiSection() {
     }
   };
 
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      await wikiService.exportVault(agentScopeId);
-      toast.success(t('export.success'));
-    } catch (error) {
-      console.error('Wiki export failed:', error);
-      toast.error(t('export.failed'));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return (
     <WikiAgentScopeProvider
       agentScopeId={agentScopeId}
@@ -708,12 +741,19 @@ export function WikiSection() {
 
         <TabsContent value="overview" className="space-y-6">
           <SecondBrainSetupCard
-            onApplied={() => void loadStats()}
+            onApplied={(agentId) => {
+              void loadStats();
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('agentId', agentId);
+              router.replace(`${pathname}?${params.toString()}`);
+            }}
             onGoToImport={() =>
               document.getElementById('wiki-obsidian-import')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
             onGoToProviders={() => router.push('/settings/models')}
           />
+
+          <WikiSourceSyncPanel onGoToIntegrations={() => router.push('/settings/credentials')} />
 
           {/* Purpose / Direction */}
           <Card>
@@ -816,6 +856,15 @@ export function WikiSection() {
                         {t('stats.failedAssets', { count: stats.asset_index?.failed ?? 0 })}
                       </span>
                     )}
+                    {synthesisPendingCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleOpenSynthesisPending}
+                        className="inline-flex items-center rounded-full bg-violet-500/10 px-3 py-1 text-violet-700 transition-colors hover:bg-violet-500/20 dark:text-violet-300"
+                      >
+                        {t('stats.synthesisPending', { count: synthesisPendingCount })}
+                      </button>
+                    )}
                   </div>
                   {(stats.asset_index?.total_files ?? 0) > 0 && !stats.asset_index?.enabled ? (
                     <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
@@ -904,6 +953,16 @@ export function WikiSection() {
               )}
             </CardContent>
           </Card>
+
+          <ObsidianVaultActions
+            agentScopeId={agentScopeId}
+            wikiPath={stats?.wiki_path}
+            vaultReady={stats?.vault_ready ?? false}
+            obsidianLaunchAvailable={stats?.obsidian_launch_available ?? false}
+            vaultGitEnabled={stats?.vault_git_enabled ?? false}
+            vaultGitInitialized={stats?.vault_git_initialized ?? false}
+            vaultGitLastCommit={stats?.vault_git_last_commit ?? null}
+          />
 
           {/* Wiki Query */}
           <Card>
@@ -1132,6 +1191,14 @@ export function WikiSection() {
                   </div>
                 </div>
               )}
+              {compileRun && compileRun.state !== 'paused' && (
+                <WikiCompilePhaseBar
+                  compileRun={compileRun}
+                  pendingCount={ingestSnapshot?.stats.pending ?? 0}
+                  processingCount={ingestSnapshot?.stats.processing ?? 0}
+                  forceVisible={isCompiling}
+                />
+              )}
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
               <Button
                 onClick={handleCompile}
@@ -1162,15 +1229,6 @@ export function WikiSection() {
               >
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isRepairingPublication ? t('repairingPublication') : t('actions.repairPublication')}
-              </Button>
-              <Button
-                onClick={() => void handleExport()}
-                disabled={isExporting}
-                variant="outline"
-                className="flex-1"
-              >
-                <IconDatabase className="w-4 h-4 mr-2" />
-                {isExporting ? t('export.exporting') : t('export.button')}
               </Button>
               </div>
             </CardContent>
@@ -1275,6 +1333,7 @@ export function WikiSection() {
           <WikiPendingEdits
             agentScopeId={agentScopeId}
             scopeLabel={scopeLabel}
+            initialFilter={pendingEditsInitialFilter}
             onVaultMutated={() => {
               void loadStats();
             }}

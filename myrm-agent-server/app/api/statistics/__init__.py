@@ -8,6 +8,7 @@
 - app.api.statistics.daily_journal (POS: daily journal aggregation routes)
 - app.api.statistics.daily_wrap (POS: AI-generated daily wrap summary routes)
 - app.api.statistics.turn_capability (POS: one-turn capability observability routes)
+- app.api.statistics.expert_summon (POS: expert summon funnel observability routes)
 
 [OUTPUT]
 - build_statistics_router: compose statistics routers on explicit application startup.
@@ -25,6 +26,7 @@ def build_statistics_router() -> APIRouter:
     from app.api.statistics.agent_usage import router as agent_usage_router
     from app.api.statistics.daily_journal import router as daily_journal_router
     from app.api.statistics.daily_wrap import router as daily_wrap_router
+    from app.api.statistics.expert_summon import router as expert_summon_router
     from app.api.statistics.growth_dashboard import router as growth_dashboard_router
     from app.api.statistics.router import router as base_router
     from app.api.statistics.turn_capability import router as turn_capability_router
@@ -36,6 +38,7 @@ def build_statistics_router() -> APIRouter:
     statistics_router.include_router(growth_dashboard_router)
     statistics_router.include_router(daily_journal_router)
     statistics_router.include_router(daily_wrap_router)
+    statistics_router.include_router(expert_summon_router)
     statistics_router.include_router(turn_capability_router)
     statistics_router.include_router(wiki_evidence_router)
     return statistics_router

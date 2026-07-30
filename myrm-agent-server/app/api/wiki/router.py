@@ -73,11 +73,11 @@ def _refresh_wiki_cognitive_map(
     )
 
 
-def _invalidate_wiki_structural_stats_cache(archiver: MemoryToWikiArchiver) -> None:
-    """Drop structural lint TTL cache after vault mutations that affect /wiki/stats badges."""
-    from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+async def _after_wiki_vault_mutation(archiver: MemoryToWikiArchiver, reason: str) -> None:
+    """Drop stats cache and commit vault git snapshot after wiki mutations."""
+    from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
 
-    invalidate_structural_lint_cache(archiver._structure)
+    await after_wiki_vault_mutation(archiver, reason)
 
 
 # --- Request/Response Models ---
@@ -153,6 +153,7 @@ class WikiCompileResponse(BaseModel):
     articles_pending: int = 0
     articles_published: int = 0
     articles_blocked: int = 0
+    synthesis_pending: int = 0
     compile_run: "CompileRunResponse | None" = None
 
 
@@ -160,6 +161,10 @@ class CompileRunResponse(BaseModel):
     state: Literal["running", "paused"]
     pause_reason: str = ""
     primary_error_kind: str = ""
+    phase: Literal["idle", "structure_survey", "semantic_compile", "postprocess"] = "idle"
+    facet_count: int = 0
+    warning_count: int = 0
+    survey_skipped: bool = False
 
 
 class WikiMaintenanceResponse(BaseModel):
@@ -195,6 +200,11 @@ class WikiStatsResponse(BaseModel):
     cognitive_index_ready: bool = False
     cognitive_log_entries: int = 0
     cognitive_hot_updated_at: str | None = None
+    synthesis_pending: int = 0
+    obsidian_launch_available: bool = False
+    vault_git_enabled: bool = False
+    vault_git_initialized: bool = False
+    vault_git_last_commit: str | None = None
     structural_issues: WikiStructuralIssuesResponse = Field(default_factory=WikiStructuralIssuesResponse)
     asset_index: WikiAssetIndexStatsResponse = Field(default_factory=WikiAssetIndexStatsResponse)
 
@@ -359,6 +369,10 @@ def _compile_run_response(archiver: MemoryToWikiArchiver) -> CompileRunResponse:
         state=snapshot.state,
         pause_reason=snapshot.pause_reason,
         primary_error_kind=snapshot.primary_error_kind,
+        phase=snapshot.phase,
+        facet_count=snapshot.facet_count,
+        warning_count=snapshot.warning_count,
+        survey_skipped=snapshot.survey_skipped,
     )
 
 
@@ -496,7 +510,7 @@ async def compile_wiki(
 
         await run_wiki_asset_index(archiver)
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "compile")
         return WikiCompileResponse(
             concepts_count=result.concepts_count,
             articles_generated=result.articles_generated,
@@ -505,6 +519,7 @@ async def compile_wiki(
             articles_pending=result.articles_pending,
             articles_published=result.articles_published,
             articles_blocked=result.articles_blocked,
+            synthesis_pending=result.synthesis_pending,
             compile_run=_compile_run_response(archiver),
         )
     except Exception as e:
@@ -521,7 +536,7 @@ async def maintain_wiki(
         from app.services.wiki.asset_index_service import run_wiki_asset_index
 
         await run_wiki_asset_index(archiver)
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "maintain")
         return WikiMaintenanceResponse(
             issues_found=result.issues_found,
             issues_fixed=result.issues_fixed,
@@ -551,11 +566,13 @@ async def get_wiki_stats(
         )
 
         index_path = archiver._structure.get_index_file_path()
+        from app.services.files.reveal_utils import is_obsidian_direct_launch_available
         from app.services.wiki.structural_stats_cache import get_structural_lint_snapshot_cached
 
         structural_cached = get_structural_lint_snapshot_cached(archiver._structure)
         structural = structural_cached.snapshot
         from app.services.wiki.asset_index_service import ensure_archiver_asset_indexer, wiki_asset_index_enabled
+        from app.services.wiki.vault_git_status import read_vault_git_status
 
         await ensure_archiver_asset_indexer(archiver)
         asset_enabled = await wiki_asset_index_enabled()
@@ -576,6 +593,7 @@ async def get_wiki_stats(
                 pending=total_files,
                 enabled=asset_enabled,
             )
+        git_status = read_vault_git_status(archiver._structure, archiver._config)
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),
@@ -586,6 +604,11 @@ async def get_wiki_stats(
             cognitive_index_ready=index_path.exists(),
             cognitive_log_entries=count_log_entries(archiver._structure),
             cognitive_hot_updated_at=hot_updated_at_iso(archiver._structure),
+            synthesis_pending=archiver._pending_mgr.count_synthesis_pending(),
+            obsidian_launch_available=is_obsidian_direct_launch_available(),
+            vault_git_enabled=git_status.enabled,
+            vault_git_initialized=git_status.initialized,
+            vault_git_last_commit=git_status.last_commit,
             structural_issues=WikiStructuralIssuesResponse(
                 broken_links=structural.broken_links,
                 invalid_frontmatter_types=structural.invalid_frontmatter_types,
@@ -846,6 +869,7 @@ async def move_wiki_node(
             mappings,
         )
 
+        await _after_wiki_vault_mutation(archiver, "move concept")
         return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -859,7 +883,7 @@ async def delete_wiki_folder(
     """Safely delete a folder and clear all its files from the indexer."""
     try:
         deleted_count = await archiver._structure.delete_folder_safe(path, archiver._query_engine._indexer)
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "delete folder")
         return OperationResult(success=True, message=f"Folder deleted. Unindexed {deleted_count} files.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -959,7 +983,7 @@ async def apply_wiki_mutation_endpoint(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    _invalidate_wiki_structural_stats_cache(archiver)
+    await _after_wiki_vault_mutation(archiver, "apply mutation")
     return WikiApplyResponse(
         success=result.success,
         op=result.op.value,
@@ -980,7 +1004,7 @@ async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, De
     try:
         path.unlink()
         await archiver._query_engine._indexer.delete(name)
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "delete concept")
         return OperationResult(success=True, message=f"Concept {name} deleted")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -1017,7 +1041,7 @@ async def delete_raw_source(
 
     affected = len(result.affected_concepts)
     republished = len(result.republished_concepts)
-    _invalidate_wiki_structural_stats_cache(archiver)
+    await _after_wiki_vault_mutation(archiver, "forget raw source")
     return OperationResult(
         success=True,
         message=f"Forgot raw source {result.relative_path} ({affected} affected, {republished} republished)",
@@ -1101,6 +1125,7 @@ async def resume_compile_circuit(
 async def get_pending_edits(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> PendingEditsResponse:
     """Get stats and list of pending Wiki edits (HITL)."""
     stats = archiver._pending_mgr.get_stats()
+    stats["synthesis_pending"] = archiver._pending_mgr.count_synthesis_pending()
     edits = archiver._pending_mgr.get_pending_edits(limit=50)
     return PendingEditsResponse(stats=stats, pending_edits=edits)
 
@@ -1142,7 +1167,7 @@ async def approve_pending_edit(
         f"Approved pending edit {edit_id}",
         {"edit_id": edit_id},
     )
-    _invalidate_wiki_structural_stats_cache(archiver)
+    await _after_wiki_vault_mutation(archiver, f"approve pending edit {edit_id}")
     return OperationResult(success=True, message=f"Approved edit {edit_id}")
 
 
@@ -1179,7 +1204,7 @@ async def repair_wiki_frontmatter_types(
                 "files_skipped": result.files_skipped,
             },
         )
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "repair frontmatter types")
     return RepairTypesResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -1220,6 +1245,7 @@ async def repair_wiki_publication(
                 "reindexed": result.reindexed,
             },
         )
+        await _after_wiki_vault_mutation(archiver, "repair publication status")
     return RepairPublicationResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -1657,7 +1683,7 @@ async def import_folder(
                 )
 
         if enqueued_paths or files_superseded > 0:
-            _invalidate_wiki_structural_stats_cache(archiver)
+            await _after_wiki_vault_mutation(archiver, "import folder")
 
         return ImportResultResponse(
             success=True,
@@ -1782,7 +1808,7 @@ async def import_zip(
                     )
 
             if enqueued_paths or files_superseded > 0:
-                _invalidate_wiki_structural_stats_cache(archiver)
+                await _after_wiki_vault_mutation(archiver, "import zip")
 
             return ImportResultResponse(
                 success=True,
@@ -1907,7 +1933,7 @@ async def _process_obsidian_vault(
     if auto_compile:
         message_parts.append("compilation started")
     if enqueued_paths or stats.files_superseded > 0:
-        _invalidate_wiki_structural_stats_cache(archiver)
+        await _after_wiki_vault_mutation(archiver, "import obsidian")
     if stats.images_copied > 0:
         from app.services.wiki.asset_index_service import schedule_wiki_asset_index
 
@@ -2013,19 +2039,65 @@ async def import_obsidian_zip(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/vault/reveal", response_model=OperationResult)
+async def reveal_wiki_vault(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
+    """Reveal the agent wiki vault folder in the local file manager (local mode only)."""
+    from app.config.deploy_mode import is_local_mode
+    from app.services.files.reveal_utils import reveal_path_in_file_manager
+
+    if not is_local_mode():
+        raise HTTPException(status_code=403, detail="Vault reveal is only available in local mode")
+
+    vault_path = archiver.get_wiki_path().resolve()
+    if not vault_path.is_dir():
+        raise HTTPException(status_code=404, detail="Wiki vault directory not found")
+
+    reveal_path_in_file_manager(vault_path)
+    return OperationResult(success=True, message=str(vault_path))
+
+
+@router.post("/vault/open-obsidian", response_model=OperationResult)
+async def open_wiki_vault_in_obsidian(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> OperationResult:
+    """Open the wiki vault in Obsidian when available, otherwise reveal the folder (local mode only)."""
+    from app.config.deploy_mode import is_local_mode
+    from app.services.files.reveal_utils import open_vault_in_obsidian_app, reveal_path_in_file_manager
+
+    if not is_local_mode():
+        raise HTTPException(status_code=403, detail="Obsidian open is only available in local mode")
+
+    vault_path = archiver.get_wiki_path().resolve()
+    if not vault_path.is_dir():
+        raise HTTPException(status_code=404, detail="Wiki vault directory not found")
+
+    if open_vault_in_obsidian_app(vault_path):
+        return OperationResult(success=True, message=str(vault_path))
+
+    reveal_path_in_file_manager(vault_path)
+    return OperationResult(success=True, message=str(vault_path))
+
+
 @router.get("/portability/export")
 async def export_wiki_vault(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to export")] = None,
 ) -> StreamingResponse:
-    """Export concepts, OKF index/log, and manifest as a portable ZIP archive."""
+    """Export the full wiki vault as an Obsidian-ready ZIP (raw + wiki + graph preset)."""
     from app.services.wiki.vault_export import build_wiki_export_zip
+    from myrm_agent_harness.toolkits.wiki.portability.vault_archive import iter_vault_files
 
     structure = archiver._structure
+    if not iter_vault_files(structure):
+        raise HTTPException(status_code=400, detail="Wiki vault is empty")
     try:
         memory_file = await asyncio.to_thread(build_wiki_export_zip, structure, agent_id)
         scope = agent_id or "default"
-        filename = f"myrm_wiki_export_{scope}.zip"
+        filename = f"myrm_wiki_obsidian_{scope}.zip"
 
         def iterfile() -> Iterator[bytes]:
             yield memory_file.read()
@@ -2041,5 +2113,7 @@ async def export_wiki_vault(
 
 
 from app.api.wiki.ingest_stream import register_ingest_stream_routes
+from app.api.wiki.sources import router as wiki_sources_router
 
 register_ingest_stream_routes(router)
+router.include_router(wiki_sources_router)

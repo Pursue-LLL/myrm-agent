@@ -142,6 +142,12 @@ def test_build_signoff_clarify_ai_message_matches_contract() -> None:
     assert questions[0]["id"] == "stack"
 
 
+def test_signoff_clarify_deterministic_model_bind_tools_returns_self() -> None:
+    model = build_signoff_clarify_deterministic_model()
+    bound = model.bind_tools([object()], tool_choice="auto")
+    assert bound is model
+
+
 @pytest.mark.asyncio
 async def test_signoff_clarify_deterministic_model_emits_tool_call() -> None:
     model = build_signoff_clarify_deterministic_model()

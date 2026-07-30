@@ -34,6 +34,21 @@ print(int(attach_ui_probe_timeout_sec()))
   echo 12
 }
 
+_attach_ui_liveness_probe_timeout_sec() {
+  local resolved=""
+  resolved="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
+from dev_gate_contract import attach_ui_liveness_probe_timeout_sec
+print(int(attach_ui_liveness_probe_timeout_sec()))
+" 2>/dev/null)" || true
+  if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
+    echo "${resolved}"
+    return 0
+  fi
+  echo 8
+}
+
 # Frontend dev-server lock holder must be alive (warmth invalid if Turbopack process died).
 # Also sourced by chrome-e2e-preflight.sh without dev-stack.sh — must live here.
 _lock_supervisor_alive() {
@@ -418,7 +433,13 @@ _warmup_frontend_compile() {
 _frontend_root_probe_seconds() {
   local probe_timeout
   probe_timeout="$(_attach_ui_probe_timeout_sec)"
-  curl -sf --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
+  curl -sf --connect-timeout 5 --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
+}
+
+_frontend_liveness_probe_seconds() {
+  local probe_timeout
+  probe_timeout="$(_attach_ui_liveness_probe_timeout_sec)"
+  curl -sf --connect-timeout 3 --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
 }
 
 # R149: parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
@@ -431,15 +452,15 @@ sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
 from dev_gate_contract import _parallel_chrome_e2e_pressure
 print(_parallel_chrome_e2e_pressure())
 " 2>/dev/null || echo 0)"
-  if [[ "${pressure}" =~ ^[0-9]+$ && "${pressure}" -ge 4 ]]; then
+  if [[ "${pressure}" =~ ^[0-9]+$ && "${pressure}" -ge 1 ]]; then
     streak_required=1
-    max_sec=$((60 + pressure * 6))
-    if [[ "${max_sec}" -gt 120 ]]; then
-      max_sec=120
+    local scaled=$((60 + pressure * 6))
+    if [[ "${scaled}" -gt "${max_sec}" ]]; then
+      max_sec="${scaled}"
     fi
   fi
   for i in $(seq 1 "${max_sec}"); do
-    if timing="$(_frontend_root_probe_seconds)"; then
+    if timing="$(_frontend_liveness_probe_seconds)"; then
       if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
         streak=$((streak + 1))
         if [[ "${streak}" -ge "${streak_required}" ]]; then
@@ -466,7 +487,7 @@ _heal_shared_ui_if_stale() {
   local timing="" reason=""
   if ! _frontend_port_listening; then
     reason="port_down"
-  elif timing="$(_frontend_root_probe_seconds)"; then
+  elif timing="$(_frontend_liveness_probe_seconds)"; then
     if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
       return 0
     fi

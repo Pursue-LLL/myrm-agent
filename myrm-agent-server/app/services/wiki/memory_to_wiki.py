@@ -34,6 +34,8 @@ MemoryToWikiArchiver: Memory→Wiki 自动归档服务
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -81,7 +83,12 @@ class MemoryToWikiArchiver:
             search_fn: Optional semantic search function injected from retriever
         """
         self._llm = llm
-        self._config = config or WikiConfig()
+        from app.config.deploy_mode import is_local_mode
+
+        resolved_config = config or WikiConfig()
+        if is_local_mode() and not resolved_config.enable_version_control:
+            resolved_config = replace(resolved_config, enable_version_control=True)
+        self._config = resolved_config
 
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
@@ -198,7 +205,7 @@ class MemoryToWikiArchiver:
                 return False
             logger.info(f"Archived memory to: {result.absolute_path}")
             self._compiler.enqueue_file(result.absolute_path)
-
+            await asyncio.to_thread(self.commit_vault_git, "session archive")
             return True
 
         except Exception as e:
@@ -330,6 +337,20 @@ class MemoryToWikiArchiver:
         """Run wiki maintenance (health checks + auto-repair)."""
         await self._linter.lint_and_maintain()
         logger.info("Wiki maintenance complete")
+
+    def commit_vault_git(self, reason: str):
+        """Commit vault snapshot when local version control is enabled."""
+        from myrm_agent_harness.toolkits.wiki.portability.vault_git import (
+            VaultGitCommitResult,
+            maybe_commit_vault_git_snapshot,
+        )
+
+        result: VaultGitCommitResult = maybe_commit_vault_git_snapshot(
+            self._structure,
+            self._config,
+            reason=reason,
+        )
+        return result
 
     def get_wiki_path(self) -> Path:
         """Get the path to user's wiki directory."""

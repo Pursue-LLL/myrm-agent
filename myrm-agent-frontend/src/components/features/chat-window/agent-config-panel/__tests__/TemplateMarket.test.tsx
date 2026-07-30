@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mockGetTemplates = vi.fn();
-const mockInstantiateTemplate = vi.fn();
+const mockInstantiateTemplateWithMetrics = vi.fn();
 const mockSetInputMessage = vi.fn();
 const mockPush = vi.fn();
 
@@ -17,7 +17,10 @@ vi.mock('@/lib/backend-health', () => ({
 
 vi.mock('@/services/agent', () => ({
   getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
-  instantiateTemplate: (...args: unknown[]) => mockInstantiateTemplate(...args),
+}));
+
+vi.mock('@/services/templateSummon', () => ({
+  instantiateTemplateWithMetrics: (...args: unknown[]) => mockInstantiateTemplateWithMetrics(...args),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -35,6 +38,12 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    promise: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    message: vi.fn(),
   },
 }));
 
@@ -47,7 +56,7 @@ import TemplateMarket from '../TemplateMarket';
 describe('TemplateMarket', () => {
   beforeEach(() => {
     mockGetTemplates.mockReset();
-    mockInstantiateTemplate.mockReset();
+    mockInstantiateTemplateWithMetrics.mockReset();
     mockSetInputMessage.mockReset();
     mockPush.mockReset();
   });
@@ -71,7 +80,7 @@ describe('TemplateMarket', () => {
         agent_type: 'normal',
       },
     ]);
-    mockInstantiateTemplate.mockResolvedValue({ id: 'team-cloudq-instance' });
+    mockInstantiateTemplateWithMetrics.mockResolvedValue({ id: 'team-cloudq-instance' });
 
     render(<TemplateMarket />);
 
@@ -97,7 +106,7 @@ describe('TemplateMarket', () => {
         use_cases: ['Diagnose cloud outage'],
       },
     ]);
-    mockInstantiateTemplate.mockResolvedValue({ id: 'team-cloudq-instance' });
+    mockInstantiateTemplateWithMetrics.mockResolvedValue({ id: 'team-cloudq-instance' });
     const onInstantiated = vi.fn();
 
     render(<TemplateMarket onInstantiated={onInstantiated} />);
@@ -107,8 +116,43 @@ describe('TemplateMarket', () => {
       fireEvent.click(useCaseChip);
     });
 
-    expect(mockInstantiateTemplate).toHaveBeenCalledWith('team-cloudq');
+    expect(mockInstantiateTemplateWithMetrics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: 'team-cloudq',
+        surface: 'template_market',
+        trigger: 'use_case_chip',
+      }),
+    );
     expect(mockSetInputMessage).toHaveBeenCalledWith('Diagnose cloud outage');
     expect(onInstantiated).toHaveBeenCalledWith('team-cloudq-instance');
+  });
+
+  it('supports keyboard summon on team card', async () => {
+    mockGetTemplates.mockResolvedValue([
+      {
+        id: 'team-cloudq',
+        name: 'CloudQ Team',
+        description: 'Cloud incident experts',
+        avatar_url: '',
+        agent_type: 'team',
+        members: [{ role: 'lead', name: 'CloudQ', description: 'Incident commander' }],
+        use_cases: ['Diagnose cloud outage'],
+      },
+    ]);
+    mockInstantiateTemplateWithMetrics.mockResolvedValue({ id: 'team-cloudq-instance' });
+
+    render(<TemplateMarket />);
+
+    const teamCard = await screen.findByRole('button', { name: /CloudQ Team/ });
+    await act(async () => {
+      fireEvent.keyDown(teamCard, { key: 'Enter' });
+    });
+
+    expect(mockInstantiateTemplateWithMetrics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: 'team-cloudq',
+        trigger: 'template_card',
+      }),
+    );
   });
 });

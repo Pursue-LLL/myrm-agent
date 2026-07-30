@@ -6,7 +6,7 @@
  * - useChatStore (POS: 消息发送)
  * - useFeatureGateStore (POS: Feature Gate 检查)
  * - useAgentStore (POS: 可用 agent 列表与详情加载)
- * - getTemplates / instantiateTemplate (POS: 专家模板发现与召唤)
+ * - getTemplates / instantiateTemplateWithMetrics (POS: 专家模板发现与召唤)
  *
  * [OUTPUT]
  * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 语音/文本输入 + Inline 专家召唤
@@ -24,19 +24,13 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
 import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
-import { cn } from '@/lib/utils/classnameUtils';
 import {
-  Send,
   X,
   Monitor,
   ClipboardPaste,
-  Copy,
-  Loader2,
-  TextSelect,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useAgentStore from '@/store/useAgentStore';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
@@ -56,9 +50,13 @@ import {
 } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 
-import { formatAppshotMessage, CapturePreview, ImageLightbox } from './FlowPadModalParts';
+import { formatAppshotMessage, ImageLightbox } from './FlowPadModalParts';
+import { FlowPadCapturesStrip } from './flow-pad-captures-strip';
+import { FlowPadComposer } from './flow-pad-composer';
 import { FlowPadInlineRouteSwitcher } from './flow-pad-inline-route-switcher';
+import { FlowPadInlineResultPanel } from './flow-pad-inline-result-panel';
 import { FlowPadQuickActions } from './flow-pad-quick-actions';
+import { FlowPadSelectedTextChip } from './flow-pad-selected-text-chip';
 
 interface InlineRouteSelection {
   id: string;
@@ -205,6 +203,7 @@ export function FlowPadModal() {
     if (!stillExists) {
       setInlineRouteSelection(null);
       setInlineRouteSwitchError(null);
+      summonedRouteRef.current = null;
     }
   }, [availableAgents, inlineRouteSelection]);
 
@@ -401,6 +400,7 @@ export function FlowPadModal() {
   const handleFallbackToCurrentRoute = useCallback(() => {
     setInlineRouteSelection(null);
     setInlineRouteSwitchError(null);
+    summonedRouteRef.current = null;
     toast.success(t('inlineRouteFallbackApplied'), { duration: 2000 });
   }, [t]);
 
@@ -410,6 +410,10 @@ export function FlowPadModal() {
         return;
       }
       const normalizedStarterPrompt = starterPrompt?.trim() ?? '';
+      const fromSearch = normalizeTemplateSearchText(templateSearchQuery).length > 0;
+      const usedUseCase = normalizedStarterPrompt.length > 0;
+      const trigger = usedUseCase ? 'use_case_chip' : 'template_card';
+      const templateKind = resolveTemplateKind(template.agent_type);
       if (normalizedStarterPrompt) {
         // Preserve existing draft to avoid overriding in-progress user edits.
         setText((prev) => (prev.trim() ? prev : normalizedStarterPrompt));
@@ -417,13 +421,45 @@ export function FlowPadModal() {
       setInstantiatingTemplateId(template.id);
       setInlineRouteSwitchError(null);
       try {
-        const newAgent = await instantiateTemplate(template.id);
+        const newAgent = await instantiateTemplateWithMetrics({
+          templateId: template.id,
+          surface: 'flow_pad_inline',
+          trigger,
+          templateKind,
+          fromSearch,
+          usedUseCase,
+          contextKey: 'flowpad:inline',
+        });
         try {
           await fetchAgents(1, 100, true);
         } catch (refreshError) {
           console.error('FlowPad agent list refresh failed after template instantiate:', refreshError);
         }
-        await handleSelectInlineRouteAgent(newAgent.id);
+        const routeApplied = await handleSelectInlineRouteAgent(newAgent.id, { fromTemplate: true });
+        if (routeApplied) {
+          recordExpertSummonRouteApplied('flow_pad_inline', trigger, {
+            contextKey: 'flowpad:inline',
+            templateKind,
+            fromSearch,
+            usedUseCase,
+          });
+          summonedRouteRef.current = {
+            agentId: newAgent.id,
+            trigger,
+            templateKind,
+            fromSearch,
+            usedUseCase,
+            firstMessageSent: false,
+          };
+        } else {
+          recordExpertSummonRouteApplyFailed('flow_pad_inline', trigger, {
+            contextKey: 'flowpad:inline',
+            templateKind,
+            fromSearch,
+            usedUseCase,
+          });
+          summonedRouteRef.current = null;
+        }
       } catch (error) {
         console.error('FlowPad expert template instantiate failed:', error);
         toast.error(t('inlineRouteTemplateApplyFailed'), { duration: 3000 });
@@ -435,6 +471,7 @@ export function FlowPadModal() {
       instantiatingTemplateId,
       inlineRouteSwitching,
       isSubmitting,
+      templateSearchQuery,
       fetchAgents,
       handleSelectInlineRouteAgent,
       t,
@@ -454,6 +491,16 @@ export function FlowPadModal() {
         useFlowPadStore.setState({ inlineResult: '', inlineGenerating: true });
 
         if (inlineRouteSelection) {
+          const summoned = summonedRouteRef.current;
+          if (summoned && !summoned.firstMessageSent && summoned.agentId === inlineRouteSelection.id) {
+            summoned.firstMessageSent = true;
+            recordExpertSummonFirstMessageSent('flow_pad_inline', summoned.trigger, {
+              contextKey: 'flowpad:inline',
+              templateKind: summoned.templateKind,
+              fromSearch: summoned.fromSearch,
+              usedUseCase: summoned.usedUseCase,
+            });
+          }
           await sendMessage(
             message,
             inlineRequestId,
@@ -635,7 +682,6 @@ export function FlowPadModal() {
             <DialogTitle>{mode === 'inline' ? t('inlineTitle') : t('title')}</DialogTitle>
           </VisuallyHidden>
 
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/20">
             <div className="flex items-center gap-2">
               {mode === 'inline' ? (
@@ -661,343 +707,86 @@ export function FlowPadModal() {
             </Button>
           </div>
 
-          {/* Captures Preview */}
           {hasCaptures && (
-            <div className="px-4 py-3 border-b border-border/30 bg-muted/10">
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                {captures.map((capture, idx) => (
-                  <CapturePreview
-                    key={capture.timestamp + idx}
-                    capture={capture}
-                    collapseLabel={t('collapse')}
-                    onRemove={() => removeCapture(idx)}
-                    onImageClick={() =>
-                      capture.screenshot && setLightboxSrc(`data:image/jpeg;base64,${capture.screenshot}`)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Selected Text Chip */}
-          {selectedTextPreview && (
-            <div className="px-4 py-2 border-b border-border/30">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary/8 border border-primary/15">
-                <TextSelect className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-xs font-medium text-primary/80 truncate">
-                  {selectedTextPreview.length > 80
-                    ? `${selectedTextPreview.slice(0, 80)}...`
-                    : selectedTextPreview}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Agent route indicator / switcher */}
-          <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
-            {mode === 'inline' ? (
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-muted-foreground/60">{t('sendTo')}</span>
-                  <div className="relative" ref={agentRouteMenuRef}>
-                    <button
-                      type="button"
-                      data-testid="flowpad-inline-route-trigger"
-                      disabled={isSubmitting || inlineRouteSwitching}
-                      className="inline-flex max-w-[320px] items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent/40 disabled:opacity-60"
-                      onClick={() => setAgentRouteMenuOpen((open) => !open)}
-                    >
-                      <AgentAvatar
-                        url={effectiveInlineRouteAvatar}
-                        name={effectiveInlineRouteLabel}
-                        agentId={inlineRouteSelection?.id ?? agentConfig?.agentId}
-                        className="h-4 w-4"
-                        size="sm"
-                      />
-                      <span className="truncate">{effectiveInlineRouteLabel}</span>
-                      <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
-                        {inlineRouteSelection ? t('inlineRouteProfile') : t('inlineRouteCurrent')}
-                      </span>
-                      {inlineRouteSwitching ? (
-                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      )}
-                    </button>
-                    {agentRouteMenuOpen && (
-                      <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[min(300px,calc(100vw-2rem))] rounded-md border border-border/60 bg-background p-1 shadow-xl">
-                        <div className="max-h-64 overflow-y-auto">
-                          <button
-                            type="button"
-                            data-testid="flowpad-inline-route-follow-current"
-                            className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
-                            onClick={() => void handleSelectInlineRouteAgent(null)}
-                          >
-                            <span className="truncate">{t('inlineRouteFollowCurrent', { agent: currentAgentLabel })}</span>
-                            {!inlineRouteSelection && <Check className="h-3.5 w-3.5 text-primary" />}
-                          </button>
-                          {agentListLoading ? (
-                            <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteLoadingAgents')}</p>
-                          ) : availableAgents.length > 0 ? (
-                            availableAgents.map((agent) => {
-                              const selected = inlineRouteSelection?.id === agent.id;
-                              return (
-                                <button
-                                  key={agent.id}
-                                  type="button"
-                                  data-testid={`flowpad-inline-route-agent-${agent.id}`}
-                                  className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
-                                  onClick={() => void handleSelectInlineRouteAgent(agent.id)}
-                                >
-                                  <span className="flex min-w-0 items-center gap-2">
-                                    <AgentAvatar
-                                      url={agent.avatar_url}
-                                      name={agent.name}
-                                      agentId={agent.id}
-                                      className="h-4 w-4"
-                                      size="sm"
-                                    />
-                                    <span className="truncate">{agent.name}</span>
-                                  </span>
-                                  {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteNoAgents')}</p>
-                          )}
-
-                          <div className="mt-1 border-t border-border/50 pt-1.5">
-                            <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                              {t('inlineRouteTemplateSectionTitle')}
-                            </p>
-                            <div className="px-2 pb-1">
-                              <div className="relative">
-                                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/60" />
-                                <input
-                                  type="text"
-                                  value={templateSearchQuery}
-                                  onChange={(event) => setTemplateSearchQuery(event.target.value)}
-                                  placeholder={t('inlineRouteTemplateSearchPlaceholder')}
-                                  className="h-7 w-full rounded-md border border-border/60 bg-background pl-6 pr-2 text-[11px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary/40"
-                                />
-                              </div>
-                            </div>
-                            {expertTemplatesLoading ? (
-                              <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                                {t('inlineRouteTemplateLoading')}
-                              </p>
-                            ) : expertTemplatesError ? (
-                              <button
-                                type="button"
-                                className="mx-2 my-1 w-[calc(100%-1rem)] rounded-sm border border-border/60 px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-accent/50"
-                                onClick={() => void loadExpertTemplates()}
-                              >
-                                {t('inlineRouteTemplateRetry')}
-                              </button>
-                            ) : filteredExpertTemplates.length > 0 ? (
-                              filteredExpertTemplates.map((template) => {
-                                const isInstantiating = instantiatingTemplateId === template.id;
-                                return (
-                                  <div key={template.id} className="px-1.5 pb-1">
-                                    <button
-                                      type="button"
-                                      data-testid={`flowpad-inline-template-${template.id}`}
-                                      disabled={isInstantiating || inlineRouteSwitching || isSubmitting}
-                                      className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1.5 text-left text-xs hover:bg-accent/50 disabled:opacity-60"
-                                      onClick={() => void handleInstantiateExpertTemplate(template)}
-                                    >
-                                      <span className="flex min-w-0 items-center gap-1.5">
-                                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-                                        <span className="truncate">{template.name}</span>
-                                      </span>
-                                      {isInstantiating ? (
-                                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-                                      ) : (
-                                        <ChevronDown className="h-3 w-3 shrink-0 -rotate-90 text-muted-foreground" />
-                                      )}
-                                    </button>
-                                    {template.use_cases && template.use_cases.length > 0 && (
-                                      <div className="mt-0.5 flex flex-wrap gap-1 pl-5">
-                                        {template.use_cases.slice(0, 3).map((useCase, useCaseIndex) => (
-                                          <button
-                                            key={useCase}
-                                            type="button"
-                                            data-testid={`flowpad-inline-template-usecase-${template.id}-${useCaseIndex}`}
-                                            disabled={isInstantiating || inlineRouteSwitching || isSubmitting}
-                                            onClick={() => void handleInstantiateExpertTemplate(template, useCase)}
-                                            className="rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary/15 disabled:opacity-60"
-                                          >
-                                            {useCase}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                                {templateSearchQuery.trim()
-                                  ? t('inlineRouteTemplateNoResults')
-                                  : t('inlineRouteTemplateEmpty')}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {inlineRouteSwitchError && (
-                  <div className="flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1">
-                    <span className="truncate text-[10px] text-amber-700 dark:text-amber-300">
-                      {t('inlineRouteSwitchFailedHint', { agent: inlineRouteSwitchError })}
-                    </span>
-                    <button
-                      type="button"
-                      data-testid="flowpad-inline-route-fallback-current"
-                      className="shrink-0 text-[10px] font-medium text-amber-700 underline decoration-dotted underline-offset-2 dark:text-amber-300"
-                      onClick={handleFallbackToCurrentRoute}
-                    >
-                      {t('inlineRouteFallbackAction')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <span className="text-[10px] text-muted-foreground/60">
-                {t('sendTo')} <span className="font-medium text-muted-foreground">{currentAgentLabel}</span>
-              </span>
-            )}
-          </div>
-
-          {/* Quick Actions */}
-          {hasCaptures && (
-            <div className="px-4 py-2 border-b border-border/20 flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                disabled={isSubmitting || inlineRouteSwitching}
-                onClick={() => handleQuickAction('replyPrompt')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <MessageSquareReply className="w-3 h-3" />
-                {t('quickReply')}
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || inlineRouteSwitching}
-                onClick={() => handleQuickAction('summarizePrompt')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <FileText className="w-3 h-3" />
-                {t('quickSummarize')}
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || inlineRouteSwitching}
-                onClick={() => handleQuickAction('translatePrompt')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <Languages className="w-3 h-3" />
-                {t('quickTranslate')}
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || inlineRouteSwitching}
-                onClick={() => handleQuickAction('explainPrompt')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <Lightbulb className="w-3 h-3" />
-                {t('quickExplain')}
-              </button>
-            </div>
-          )}
-
-          {/* Inline Result Display */}
-          {mode === 'inline' && inlineResult && (
-            <div className="px-4 py-3 border-b border-border/30 bg-muted/5 max-h-[200px] overflow-y-auto">
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {inlineResult}
-              </p>
-              {inlineGenerating && (
-                <span className="inline-flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  {t('generating')}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Inline Paste/Copy Actions */}
-          {mode === 'inline' && inlineResult && !inlineGenerating && (
-            <div className="px-4 py-2.5 border-b border-border/20 flex items-center gap-2">
-              <Button
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={handlePasteBack}
-              >
-                <ClipboardPaste className="w-3 h-3" />
-                {t('pasteBack')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1.5 text-xs"
-                onClick={handleCopyResult}
-              >
-                <Copy className="w-3 h-3" />
-                {t('copyResult')}
-              </Button>
-            </div>
-          )}
-
-          {/* Input */}
-          <div className="p-4 relative">
-            <textarea
-              ref={inputRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                mode === 'inline'
-                  ? t('inlinePlaceholder')
-                  : hasCaptures
-                    ? t('placeholderWithCapture')
-                    : t('placeholder')
-              }
-              className={cn(
-                'w-full resize-none border-0 focus:outline-none focus-visible:ring-0',
-                'text-base bg-transparent placeholder:text-muted-foreground/40',
-                'min-h-[80px] max-h-[200px]',
-              )}
-              rows={3}
+            <FlowPadCapturesStrip
+              captures={captures}
+              collapseLabel={t('collapse')}
+              onRemoveCapture={removeCapture}
+              onOpenLightbox={setLightboxSrc}
             />
-            <div className="flex items-center justify-end gap-2 mt-2">
-              <span className="text-[10px] text-muted-foreground/40">
-                Enter {t('toSend')} · Esc {t('toCancel')}
-              </span>
-              {isVoiceEnabled && (
-                <SpeechInputButton
-                  onTranscript={handleSpeechTranscript}
-                  disabled={isSubmitting}
-                />
-              )}
-              <Button
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={handleSubmit}
-                disabled={isSubmitting || inlineRouteSwitching || (!text.trim() && !hasCaptures)}
-              >
-                {isSubmitting ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+          )}
+
+          {selectedTextPreview && (
+            <FlowPadSelectedTextChip selectedText={selectedTextPreview} />
+          )}
+
+          <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
+            <FlowPadInlineRouteSwitcher
+              isInlineMode={mode === 'inline'}
+              isSubmitting={isSubmitting}
+              inlineRouteSwitching={inlineRouteSwitching}
+              inlineRouteSwitchError={inlineRouteSwitchError}
+              currentAgentLabel={currentAgentLabel}
+              currentAgentId={agentConfig?.agentId}
+              effectiveInlineRouteLabel={effectiveInlineRouteLabel}
+              effectiveInlineRouteAvatar={effectiveInlineRouteAvatar}
+              inlineRouteSelection={inlineRouteSelection}
+              agentRouteMenuOpen={agentRouteMenuOpen}
+              setAgentRouteMenuOpen={setAgentRouteMenuOpen}
+              agentRouteMenuRef={agentRouteMenuRef}
+              agentListLoading={agentListLoading}
+              availableAgents={availableAgents}
+              templateSearchQuery={templateSearchQuery}
+              setTemplateSearchQuery={setTemplateSearchQuery}
+              expertTemplatesLoading={expertTemplatesLoading}
+              expertTemplatesError={expertTemplatesError}
+              filteredExpertTemplates={filteredExpertTemplates}
+              instantiatingTemplateId={instantiatingTemplateId}
+              onSelectInlineRouteAgent={handleSelectInlineRouteAgent}
+              onFallbackToCurrentRoute={handleFallbackToCurrentRoute}
+              onLoadExpertTemplates={loadExpertTemplates}
+              onInstantiateExpertTemplate={handleInstantiateExpertTemplate}
+              t={t}
+            />
           </div>
+
+          {hasCaptures && (
+            <FlowPadQuickActions
+              disabled={isSubmitting || inlineRouteSwitching}
+              onQuickAction={(key) => {
+                void handleQuickAction(key);
+              }}
+              t={t}
+            />
+          )}
+
+          <FlowPadInlineResultPanel
+            mode={mode}
+            inlineResult={inlineResult}
+            inlineGenerating={inlineGenerating}
+            onPasteBack={() => {
+              void handlePasteBack();
+            }}
+            onCopyResult={() => {
+              void handleCopyResult();
+            }}
+            t={t}
+          />
+
+          <FlowPadComposer
+            mode={mode}
+            hasCaptures={hasCaptures}
+            text={text}
+            isSubmitting={isSubmitting}
+            inlineRouteSwitching={inlineRouteSwitching}
+            isVoiceEnabled={isVoiceEnabled}
+            inputRef={inputRef}
+            onTextChange={setText}
+            onKeyDown={handleKeyDown}
+            onSpeechTranscript={handleSpeechTranscript}
+            onSubmit={handleSubmit}
+            t={t}
+          />
         </DialogContent>
       </Dialog>
 

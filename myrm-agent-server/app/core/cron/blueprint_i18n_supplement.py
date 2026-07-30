@@ -372,4 +372,34 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
+    "wiki_morning_delta": {
+        "title": {
+            "ja": "Wiki 朝のデルタ",
+            "de": "Wiki-Morgen-Delta",
+            "ko": "위키 모닝 델타",
+        },
+        "description": {
+            "ja": "新規 raw ノートを整理し、Vault の変更を短く要約",
+            "de": "Neue Raw-Notizen ordnen und Vault-Änderungen kurz zusammenfassen",
+            "ko": "새 raw 노트를 정리하고 vault 변경을 짧게 요약",
+        },
+        "prompt_template": {
+            "ja": (
+                "過去24時間の Wiki 朝次ルーチンを実行：raw/ の新規・更新ファイルを確認し、"
+                "wiki_query_tool で関連概念を調べ、必要時のみ wiki_apply_tool で軽微更新。"
+                "Vault の変化を最大3行で要約。実質的な変化がなければ [SILENT] のみ。"
+            ),
+            "de": (
+                "Führe die Wiki-Morgen-Delta-Routine der letzten 24 Stunden aus: "
+                "prüfe raw/ auf neue oder aktualisierte Dateien, nutze wiki_query_tool, "
+                "wiki_apply_tool nur bei klarem Bedarf. Fasse Vault-Änderungen in "
+                "max. 3 Zeilen zusammen. Ohne relevante Änderung nur [SILENT]."
+            ),
+            "ko": (
+                "지난 24시간 위키 모닝 델타 루틴 실행: raw/ 신규·갱신 파일 확인, "
+                "wiki_query_tool로 관련 개념 조회, 필요할 때만 wiki_apply_tool로 경미 업데이트. "
+                "vault 변화를 최대 3줄로 요약. 실질 변화 없으면 [SILENT]만 반환."
+            ),
+        },
+    },
 }

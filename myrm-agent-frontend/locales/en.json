@@ -2054,7 +2054,7 @@
       "description": "AI-maintained structured knowledge base that grows with your conversations",
       "secondBrain": {
         "title": "Second Brain Quick Start",
-        "description": "One click to set up a knowledge agent with wiki, memory, and daily read-it-later ingestion.",
+        "description": "One click to set up a knowledge agent with wiki, memory, daily read-it-later ingestion, and a 7:00 AM vault delta digest.",
         "loading": "Loading setup status…",
         "loadFailed": "Could not load Second Brain setup status",
         "applyFailed": "Could not apply Second Brain preset",
@@ -2065,12 +2065,38 @@
         "appliedAs": "Active agent: {name}",
         "checklist": {
           "agentTools": "Agent has wiki, memory, and cron tools",
-          "cronJob": "Daily read-it-later cron job",
+          "cronJob": "Daily read-it-later (6:00) and wiki morning delta (7:00) cron jobs",
           "vaultContent": "Knowledge vault has content",
           "providerReady": "Model provider configured"
         },
         "goImport": "Import knowledge",
         "goProviders": "Configure models"
+      },
+      "sources": {
+        "title": "External sources",
+        "description": "Pull Gmail labels and RSS feeds into your knowledge base on a schedule (zero AI cost for sync).",
+        "gmailLabel": "Gmail read-later",
+        "gmailTagLabel": "Gmail label",
+        "googleConnected": "Google connected",
+        "googleDisconnected": "Connect Google in Integrations first",
+        "rssFeedsLabel": "RSS feed URLs (one per line)",
+        "rssFeedsPlaceholder": "https://example.com/feed.xml",
+        "mirrorIntegrations": "Mirror integration sync to wiki",
+        "autoCompile": "Auto-compile after sync",
+        "save": "Save",
+        "saving": "Saving…",
+        "saveSuccess": "Source settings saved",
+        "saveError": "Could not save source settings",
+        "syncNow": "Sync now",
+        "syncing": "Syncing…",
+        "syncSuccess": "Synced {count} new items",
+        "syncEmpty": "Nothing new to sync",
+        "syncError": "Sync failed",
+        "loadError": "Could not load source settings",
+        "connectGoogle": "Connect Google",
+        "lastSync": "Last sync: {time}",
+        "lastSyncNever": "Not synced yet",
+        "lastSyncSummary": "+{published} new · {skipped} skipped · {failed} failed"
       },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",
@@ -2081,11 +2107,29 @@
       "scopeChip": {
         "label": "Target vault: {scope}"
       },
-      "export": {
-        "button": "Export Knowledge Base",
-        "exporting": "Exporting...",
-        "success": "Knowledge base exported",
-        "failed": "Failed to export knowledge base"
+      "obsidianVault": {
+        "title": "Obsidian Vault",
+        "description": "Open or download your compiled wiki for Graph view in Obsidian",
+        "mountHint": "Editing your own disk folder live? Use Settings → Projects → mount sync folder instead.",
+        "openObsidian": "Open in Obsidian",
+        "revealFolder": "Show in folder",
+        "copyPath": "Copy vault path",
+        "downloadPack": "Download Obsidian pack",
+        "exporting": "Preparing...",
+        "opening": "Opening...",
+        "copyPathSuccess": "Vault path copied",
+        "copyPathFailed": "Could not copy path",
+        "revealSuccess": "Vault folder opened",
+        "revealFailed": "Could not open vault folder",
+        "openObsidianSuccess": "Vault opened in Obsidian",
+        "openObsidianFailed": "Could not open Obsidian — try Show in folder",
+        "exportSuccess": "Obsidian pack downloaded — unzip and use Open folder as vault",
+        "exportFailed": "Download failed",
+        "cloudHint": "Cloud hosting: download the pack and open it in Obsidian on your computer.",
+        "postWorkflowHint": "Open Graph view or download an Obsidian pack from the card below.",
+        "postWorkflowAction": "Show Obsidian card",
+        "gitHistoryHint": "This vault keeps a local git history for auditing changes.",
+        "gitHistoryHintWithCommit": "Latest snapshot: {commit}"
       },
       "querying": "Querying...",
       "compiling": "Compiling...",
@@ -2115,7 +2159,8 @@
         "structuralHint": "Use Maintain or Repair Page Types in Wiki Actions below to fix structural issues.",
         "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
         "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
-        "assetsVisionHint": "Images were imported but are not searchable yet. Configure a Vision Fallback Model under Settings → Models to index them."
+        "assetsVisionHint": "Images were imported but are not searchable yet. Configure a Vision Fallback Model under Settings → Models to index them.",
+        "synthesisPending": "{count, plural, one {# evolution synthesis pending review} other {# evolution syntheses pending review}}"
       },
       "query": {
         "title": "Query Wiki",
@@ -2158,6 +2203,7 @@
         "queryComplete": "Query completed successfully",
         "compileComplete": "Wiki compiled successfully",
         "compileSummary": "Compile complete: {published} published, {pending} pending review, {blocked} not generated. Review pending drafts in the Pending Edits tab.",
+        "compileSummaryWithSynthesis": "Compile complete: {published} published, {pending} pending review, {synthesis} evolution synthesis, {blocked} not generated. Review evolution pages in Pending Edits → Evolution synthesis.",
         "maintainComplete": "Wiki maintenance completed",
         "maintainRemovedSensitive": "Maintenance removed {count} sensitive raw file(s): {paths}",
         "repairTypesComplete": "Repaired page types on {count} notes",
@@ -2259,7 +2305,19 @@
         },
         "refresh": "Refresh",
         "refreshStale": "Queue status may be outdated. Check your connection and tap Refresh.",
-        "pendingItems": "Pending Items:"
+        "pendingItems": "Pending Items:",
+        "compilePhase": {
+          "title": "Compile phase: {phase}",
+          "idle": "Idle",
+          "structure_survey": "Structure survey",
+          "semantic_compile": "Semantic compile",
+          "postprocess": "Post-process",
+          "fastPath": "Fast path (small vault)",
+          "facetSummary": "{facets} facets · {warnings} warnings",
+          "structureSurveyHint": "Scanning folder layout and chunk groups before LLM extraction.",
+          "semanticCompileHint": "Extracting concepts and generating articles from raw documents.",
+          "postprocessHint": "Running backlinks, sidecars, and synthesis passes."
+        }
       },
       "compileRun": {
         "pausedTitle": "Compilation paused",
@@ -2390,10 +2448,16 @@
         "saveApprove": "Save & Approve",
         "cancelEdit": "Cancel Edit",
         "noPending": "No pending edits to review",
+        "noFiltered": "No drafts match this filter",
+        "filterAll": "All",
+        "filterConcepts": "Concept drafts",
+        "filterSynthesis": "Evolution synthesis",
+        "synthesisBadge": "Evolution",
         "status": {
           "pending": "Pending",
           "approved": "Approved",
-          "rejected": "Rejected"
+          "rejected": "Rejected",
+          "synthesisPending": "Evolution synthesis"
         }
       }
     },

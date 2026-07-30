@@ -30,7 +30,13 @@
 | `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
-| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+专家模板检索/召唤并自动绑定新 agent 路由+Paste 回写 | ✅ |
+| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+专家模板召唤漏斗埋点+首条发送转化口径 | ✅ |
+| `flow-pad-inline-route-switcher.tsx` | 辅助 | Inline 路由切换与专家召唤菜单子组件（跟随当前会话/指定 Agent/模板召唤入口，含搜索与失败降级 UI） | ✅ |
+| `flow-pad-quick-actions.tsx` | 辅助 | FlowPad 截图场景快捷动作条（reply/summarize/translate/explain） | ✅ |
+| `flow-pad-captures-strip.tsx` | 辅助 | FlowPad 截图预览条子组件（横向缩略图列表与移除/放大回调） | ✅ |
+| `flow-pad-inline-result-panel.tsx` | 辅助 | Inline 结果展示 + Paste/Copy 操作区子组件 | ✅ |
+| `flow-pad-composer.tsx` | 辅助 | FlowPad 输入区子组件（textarea、语音转写、发送按钮） | ✅ |
+| `flow-pad-selected-text-chip.tsx` | 辅助 | Appshot 选中文本提示条子组件（截断显示） | ✅ |
 | `FlowPadModalParts.tsx` | 辅助 | FlowPad 截图预览/lightbox 与 Appshot 消息格式化 | ✅ |
 | `config-load-error.tsx` | 组件 | Settings 配置加载失败 UI；复用 `lib/local-backend-dev` hint SSOT | ✅ |
 | `confirm-dialog.tsx` | 辅助 | 全局确认对话框 imperative API 包装 | ✅ |

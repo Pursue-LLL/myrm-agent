@@ -24,6 +24,7 @@ def _default_shared_ui_hydrate_wait_sec() -> int:
 
     return shared_ui_hydrate_wait_sec()
 
+
 # R68: nested navigate/reload bursts on one asyncio task must not re-enter flock.
 _burst_depth_var: contextvars.ContextVar[int] = contextvars.ContextVar(
     "e2e_shared_ui_burst_depth", default=0

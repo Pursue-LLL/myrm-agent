@@ -79,6 +79,16 @@ class SignoffClarifyDeterministicChatModel(BaseChatModel):
     def _llm_type(self) -> str:
         return "signoff_clarify_deterministic"
 
+    def bind_tools(
+        self,
+        tools: object,
+        *,
+        tool_choice: object | None = None,
+        **kwargs: object,
+    ) -> SignoffClarifyDeterministicChatModel:
+        """LangChain agent factory requires bind_tools when tools are mounted."""
+        return self
+
     def _generate(
         self,
         messages: list[BaseMessage],

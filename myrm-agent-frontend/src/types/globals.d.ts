@@ -67,6 +67,12 @@ interface Window {
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
     peekOutboundUserMessage?: () => string;
+    prefetchSlashSkillCatalog?: () => Promise<{
+      marketSkillCount: number;
+      slashBoundSkillResolvedCount: number;
+      slashSkillCatalogReady: boolean;
+      skillStoreError: string | null;
+    }>;
     ensureProviders?: () => Promise<void>;
     prepareAutomationSend?: () => void;
     ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;

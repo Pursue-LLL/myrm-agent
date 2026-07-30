@@ -817,6 +817,28 @@ INDEX_STATEMENTS = [
         ON turn_capability_metric_events(event_type, created_at)""",
     """CREATE INDEX IF NOT EXISTS ix_turn_capability_metrics_context_created_at
         ON turn_capability_metric_events(context_key, created_at)""",
+    # Expert template summon funnel observability
+    """CREATE TABLE IF NOT EXISTS expert_summon_metric_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type VARCHAR(40) NOT NULL,
+        surface VARCHAR(32) NOT NULL,
+        context_key VARCHAR(128),
+        trigger VARCHAR(32),
+        template_kind VARCHAR(16),
+        from_search BOOLEAN,
+        used_use_case BOOLEAN,
+        query_length INTEGER,
+        failure_reason VARCHAR(80),
+        count INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_created_at ON expert_summon_metric_events(created_at)",
+    """CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_event_type_created_at
+        ON expert_summon_metric_events(event_type, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_surface_created_at
+        ON expert_summon_metric_events(surface, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_context_created_at
+        ON expert_summon_metric_events(context_key, created_at)""",
 ]
 
 

@@ -12,7 +12,7 @@ from pathlib import Path
 _DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
 _ATTACH_FLOCK_WAIT_SEC = 300.0
-_ATTACH_SUBPROCESS_TIMEOUT_SEC = 300.0
+_ATTACH_SUBPROCESS_TIMEOUT_SEC = 600.0
 
 
 def _state_dir() -> Path:
@@ -37,7 +37,9 @@ def _attach_heal_flock_path() -> Path:
     return _state_dir() / "attach-frontend-heal.flock"
 
 
-def warm_ui_heal_recently_applied(*, debounce_sec: float = _DEFAULT_DEBOUNCE_SEC) -> bool:
+def warm_ui_heal_recently_applied(
+    *, debounce_sec: float = _DEFAULT_DEBOUNCE_SEC
+) -> bool:
     stamp = _stamp_path()
     if not stamp.is_file():
         return False
@@ -93,6 +95,10 @@ def heal_shared_frontend_debounced(
                     "MYRM_SUPERVISOR_BYPASS": "1",
                     "MYRM_E2E_SHPOIB": os.environ.get("MYRM_E2E_SHPOIB", "1"),
                     "MYRM_CHROME_E2E_FRONTEND_HEAL": "1",
+                    "MYRM_FRONTEND_ENSURE_INNER": "1",
+                    "MYRM_STACK_FRONTEND_WAIT_SEC": os.environ.get(
+                        "MYRM_STACK_FRONTEND_WAIT_SEC", "360"
+                    ),
                 },
                 capture_output=True,
                 text=True,
@@ -116,7 +122,9 @@ def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
     ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     request = urllib.request.Request(f"{ui_base}/", method="GET")  # noqa: S310
     try:
-        with urllib.request.urlopen(request, timeout=timeout_sec) as response:  # noqa: S310
+        with urllib.request.urlopen(
+            request, timeout=timeout_sec
+        ) as response:  # noqa: S310
             return response.status == 200
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         return False
@@ -169,6 +177,10 @@ def heal_shared_frontend_attach(
                     "MYRM_E2E_SHPOIB": os.environ.get("MYRM_E2E_SHPOIB", "1"),
                     "MYRM_CHROME_E2E_FRONTEND_HEAL": "1",
                     "MYRM_E2E_ATTACH_FRONTEND_HEAL": "1",
+                    "MYRM_FRONTEND_ENSURE_INNER": "1",
+                    "MYRM_STACK_FRONTEND_WAIT_SEC": os.environ.get(
+                        "MYRM_STACK_FRONTEND_WAIT_SEC", "360"
+                    ),
                 },
                 capture_output=True,
                 text=True,

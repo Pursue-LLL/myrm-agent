@@ -45,7 +45,9 @@ def _pytest_node_from_env() -> str:
     return raw.split(" ", 1)[0]
 
 
-def _session_started_monotonic(existing: dict[str, object] | None, *, now: float) -> float:
+def _session_started_monotonic(
+    existing: dict[str, object] | None, *, now: float
+) -> float:
     if existing is None:
         return now
     for key in ("sessionStartedMonotonic", "bodyStartedMonotonic"):

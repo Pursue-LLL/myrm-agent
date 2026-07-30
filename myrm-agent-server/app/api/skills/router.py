@@ -16,6 +16,7 @@ from app.api.skills import (
     permissions,
     prebuilt,
     sync,
+    test_fixtures,
 )
 
 # Keep backward compatibility for imports from other modules
@@ -38,5 +39,6 @@ router.include_router(permissions.router, tags=["skills-permissions"])
 router.include_router(history.router, tags=["skills-history"])
 router.include_router(instances.router, tags=["skills-instances"])
 router.include_router(config.router, tags=["skills-config"])
+router.include_router(test_fixtures.router, tags=["skills-test-fixtures"])
 # core.router MUST be last — it has a catch-all GET /{skill_id} route
 router.include_router(core.router, tags=["skills-core"])

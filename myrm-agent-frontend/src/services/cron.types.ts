@@ -353,4 +353,5 @@ export interface BlueprintFillResponse {
     cooldown_seconds: number;
   } | null;
   pre_condition_script?: string | null;
+  command?: string | null;
 }

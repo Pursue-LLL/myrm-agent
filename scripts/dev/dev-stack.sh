@@ -358,6 +358,14 @@ _launch_frontend_supervisor() {
   fi
   cd "${FRONTEND_DIR}"
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
+  if [[ -f "${FRONTEND_LOG}" ]]; then
+    local log_bytes=0
+    log_bytes="$(wc -c <"${FRONTEND_LOG}" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "${log_bytes}" =~ ^[0-9]+$ && "${log_bytes}" -gt 52428800 ]]; then
+      echo "STACK_HEAL: rotating oversized frontend.log (${log_bytes} bytes)" >&2
+      mv "${FRONTEND_LOG}" "${FRONTEND_LOG}.1" 2>/dev/null || : >"${FRONTEND_LOG}"
+    fi
+  fi
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
@@ -865,7 +873,19 @@ main() {
       case "${subcmd}" in
         ensure)
           if _supervisor_internal_call; then cmd_frontend_only_ensure; exit $?; fi
+          if [[ "${MYRM_FRONTEND_ENSURE_INNER:-}" == "1" ]]; then
+            cmd_frontend_only_ensure
+            exit $?
+          fi
           if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_E2E_SHPOIB:-}" == "1" ]]; then
+            local monorepo_root heal_py heal_rc
+            monorepo_root="$(cd "${REPO_ROOT}/.." && pwd)"
+            heal_py="${SCRIPT_DIR}/lib/e2e_warm_ui_heal.py"
+            if [[ -f "${heal_py}" ]]; then
+              heal_rc=0
+              "${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" || heal_rc=$?
+              exit "${heal_rc}"
+            fi
             cmd_frontend_only_ensure
             exit $?
           fi

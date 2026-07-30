@@ -15,6 +15,7 @@
 | `context_health_restore.py` | 模块 | Statistics API restore-health normalization layer. | ✅ |
 | `daily_journal.py` | 模块 | Daily journal API. | ✅ |
 | `daily_wrap.py` | 模块 | Daily Wrap API — AI-generated daily activity summary with SQLite caching. | ✅ |
+| `expert_summon.py` | 模块 | 专家召唤漏斗观测 API：写入 `surface_viewed/search_used/summon_attempted/summon_succeeded/summon_failed/route_applied/route_apply_failed/first_message_sent/dropped_report` 事件；聚合召唤成功率、路由应用率、首条发送转化率、use_case 触发率、搜索辅助率、失败原因分布，并做 90 天 retention 清理。 | ✅ |
 | `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics, cost/savings summary, and per-skill usage efficiency trends. | ✅ |
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
 | `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数）. | ✅ |

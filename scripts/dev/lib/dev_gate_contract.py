@@ -187,6 +187,30 @@ E2E_UNIFIED_WAIT_SEC: Final[int] = 300
 E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
 # R122: attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
 E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
+# R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
+E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC: Final[int] = 120
+E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
+E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC: Final[int] = 600
+STACK_FRONTEND_ENSURE_WAIT_SEC: Final[int] = 180
+STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC: Final[int] = 360
+
+
+def attach_ui_heal_post_ensure_max_sec(active_leases: int = 0) -> int:
+    """Post-ensure warm streak cap after attach frontend heal leader returns."""
+    scaled = 60 + max(active_leases, 0) * 12
+    return max(E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC, scaled)
+
+
+def attach_ui_heal_timeout_sec(active_leases: int = 0) -> int:
+    """Outer timeout for frontend-warmup-heal-entry.sh during parallel ADMIT attach."""
+    post = attach_ui_heal_post_ensure_max_sec(active_leases)
+    total = STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC + post + 60
+    return min(
+        E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC,
+        max(E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC, total),
+    )
+
+
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
@@ -253,6 +277,30 @@ def _parallel_chrome_e2e_pressure() -> int:
     except (ImportError, OSError, RuntimeError, ValueError):
         pass
     return max(0, pressure)
+
+
+def attach_ui_liveness_probe_timeout_sec() -> float:
+    """Short :3000 probe for LISTEN-but-hung / post-heal streak (R150).
+
+    Never uses the 210s cold-compile budget — hung TCP must fail fast so parallel
+    chrome_e2e does not block for hours on HTTP 000.
+    """
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        return 10.0
+    override = os.environ.get(
+        "MYRM_E2E_ATTACH_UI_LIVENESS_PROBE_TIMEOUT_SEC", ""
+    ).strip()
+    if override:
+        try:
+            value = float(override)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    pressure = _parallel_chrome_e2e_pressure()
+    if pressure <= 0:
+        return 8.0
+    return min(15.0, 8.0 + pressure * 2.0)
 
 
 def attach_ui_probe_timeout_sec() -> float:

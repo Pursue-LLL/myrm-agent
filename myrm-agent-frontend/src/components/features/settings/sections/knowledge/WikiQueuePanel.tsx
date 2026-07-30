@@ -6,7 +6,7 @@
  * ./wikiQueuePoll::{computeShouldPollQueue, queueStatsDiverge, QUEUE_POLL_INTERVAL_MS, SILENT_FAIL_STALE_THRESHOLD, shouldShowStaleRefreshBanner} (POS: queue poll eligibility pure logic)
  *
  * [OUTPUT]
- * WikiQueuePanel: Settings Wiki ingestion queue monitor with circuit pause controls and active polling.
+ * WikiQueuePanel: Settings Wiki ingestion queue monitor with compile phase bar, circuit pause controls, and active polling.
  *
  * [POS]
  * Settings Knowledge Wiki Queue tab. Surfaces compile queue stats, failure details, retry/resume actions, and live refresh while active.
@@ -26,6 +26,7 @@ import {
   queueStatsDiverge,
   shouldShowStaleRefreshBanner,
 } from './wikiQueuePoll';
+import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
 import type { WikiIngestSnapshot } from './useWikiIngestSubscription';
 
 interface WikiQueuePanelProps {
@@ -247,6 +248,14 @@ export function WikiQueuePanel({
                   {isResuming ? t('resuming') : t('resumeCompile')}
                 </Button>
               </div>
+            )}
+
+            {compileRun && !isPaused && (
+              <WikiCompilePhaseBar
+                compileRun={compileRun}
+                pendingCount={mergedStats?.pending ?? 0}
+                processingCount={mergedStats?.processing ?? 0}
+              />
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

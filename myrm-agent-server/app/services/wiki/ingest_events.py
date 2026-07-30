@@ -63,13 +63,19 @@ def build_wiki_ingest_snapshot(
 ) -> dict[str, object]:
     stats = archiver._queue.get_stats()
     compile_run = archiver._queue.get_compile_run()
+    synthesis_pending = archiver._pending_mgr.count_synthesis_pending()
     snapshot: dict[str, object] = {
         "agent_id": agent_id,
         "stats": stats,
+        "synthesis_pending_count": synthesis_pending,
         "compile_run": {
             "state": compile_run.state,
             "pause_reason": compile_run.pause_reason,
             "primary_error_kind": compile_run.primary_error_kind,
+            "phase": compile_run.phase,
+            "facet_count": compile_run.facet_count,
+            "warning_count": compile_run.warning_count,
+            "survey_skipped": compile_run.survey_skipped,
         },
     }
     if tree_sync_required:

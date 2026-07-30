@@ -25,6 +25,16 @@ vi.mock('@/lib/local-backend-dev', () => ({
   resolveBackendUnreachableMessage: (...args: unknown[]) => resolveBackendUnreachableMessage(...args),
 }));
 
+const mockConfigGetState = vi.fn(() => ({
+  personalSettings: undefined as { locale?: string } | undefined,
+}));
+
+vi.mock('@/store/useConfigStore', () => ({
+  default: {
+    getState: () => mockConfigGetState(),
+  },
+}));
+
 describe('getApiUrl', () => {
   it('routes /webui paths without /api/v1 prefix', () => {
     expect(getApiUrl('/webui/desktop/permissions')).toBe(
@@ -178,6 +188,7 @@ describe('apiRequest local backend gate', () => {
     ensureLocalBackendReady.mockResolvedValue(true);
     resolveBackendUnreachableMessage.mockClear();
     markLocalBackendUnreachable.mockClear();
+    mockConfigGetState.mockReturnValue({ personalSettings: undefined });
 
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
@@ -275,5 +286,80 @@ describe('apiRequest local backend gate', () => {
     });
     expect(resolveBackendUnreachableMessage).toHaveBeenCalled();
     expect(markLocalBackendUnreachable).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends Accept-Language from personalSettings locale', async () => {
+    mockConfigGetState.mockReturnValueOnce({ personalSettings: { locale: 'zh' } });
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ applied: false, checklist: [] }),
+    } as Response);
+
+    await apiRequest('/config/onboarding/second-brain/status', { silent: true });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/config/onboarding/second-brain/status'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Language': 'zh-CN',
+        }),
+      }),
+    );
+  });
+
+  it('does not override caller-provided Accept-Language', async () => {
+    mockConfigGetState.mockReturnValueOnce({ personalSettings: { locale: 'zh' } });
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ applied: false, checklist: [] }),
+    } as Response);
+
+    await apiRequest('/config/onboarding/second-brain/status', {
+      silent: true,
+      headers: { 'Accept-Language': 'en' },
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Language': 'en',
+        }),
+      }),
+    );
+  });
+
+  it('keeps merged auth and locale headers when fetchOptions includes headers', async () => {
+    localStorage.setItem('auth_token', 'test-token');
+    mockConfigGetState.mockReturnValueOnce({ personalSettings: { locale: 'zh' } });
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve({ ok: true }),
+    } as Response);
+
+    await apiRequest('/config/onboarding/second-brain/apply', {
+      silent: true,
+      method: 'POST',
+      body: '{}',
+      headers: { 'X-Test': '1' },
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+          'Accept-Language': 'zh-CN',
+          'X-Test': '1',
+        }),
+      }),
+    );
+    localStorage.removeItem('auth_token');
   });
 });

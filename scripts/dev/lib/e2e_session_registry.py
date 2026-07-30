@@ -194,7 +194,10 @@ def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
             continue
         if _phase_rank(row.phase) > _phase_rank(existing.phase):
             grouped[key] = row
-        elif _phase_rank(row.phase) == _phase_rank(existing.phase) and row.pid > existing.pid:
+        elif (
+            _phase_rank(row.phase) == _phase_rank(existing.phase)
+            and row.pid > existing.pid
+        ):
             grouped[key] = row
     covered = set(grouped.keys())
     for row in _list_test_sh_admit_fallback(covered):
@@ -203,9 +206,7 @@ def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
 
 
 def admit_active_count(sessions: tuple[LiveE2ESessionRow, ...]) -> int:
-    return sum(
-        1 for row in sessions if row.phase in {"admit", "bootstrap"}
-    )
+    return sum(1 for row in sessions if row.phase in {"admit", "bootstrap"})
 
 
 def body_active_count(sessions: tuple[LiveE2ESessionRow, ...]) -> int:

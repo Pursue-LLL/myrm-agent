@@ -63,6 +63,7 @@ export interface SecondBrainPresetStatus {
   agent_id?: string | null;
   agent_name?: string | null;
   cron_job_id?: string | null;
+  delta_cron_job_id?: string | null;
   applied_at?: string | null;
   checklist: SecondBrainChecklistItem[];
 }

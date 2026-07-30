@@ -21,7 +21,6 @@ exposes listing and one-click instantiation for both individual and team templat
 import glob
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -29,20 +28,23 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.core.skills.store.service import skills_service
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
 from app.database.dto import AgentCreate
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
+from app.services.agent.template_utils import (
+    PREBUILT_AGENTS_DIR,
+    SkillEnablementError,
+    resolve_i18n,
+    ensure_skills_enabled as _ensure_skills_enabled_svc,
+)
 from app.services.features.product_surface import is_hidden_prebuilt_template
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_PREBUILT_AGENTS_ROOT = Path(__file__).resolve().parents[3]
-PREBUILT_AGENTS_DIR = str(_PREBUILT_AGENTS_ROOT / "assets" / "prebuilt_agents")
 
 
 class TeamMemberBrief(BaseModel):
@@ -61,34 +63,6 @@ class TemplateListItem(BaseModel):
     use_cases: list[str] | None = None
 
 
-def resolve_i18n(value: Any, accept_language: str | None) -> str:
-    """Resolve a multi-language dictionary to a single string based on Accept-Language.
-    If value is a string, returns it directly.
-    """
-    if not isinstance(value, dict):
-        return str(value) if value is not None else ""
-
-    # Simple content negotiation
-    lang = "en"
-    if accept_language:
-        # Very basic parsing, e.g. "zh-CN,zh;q=0.9" -> "zh"
-        if "zh" in accept_language.lower():
-            lang = "zh"
-
-    # Try exact match, then general prefix, then first available
-    if lang in value:
-        return value[lang]
-
-    for k in value:
-        if k.startswith(lang):
-            return value[k]
-
-    # Fallback to English if available
-    if "en" in value:
-        return value["en"]
-
-    # Ultimate fallback to the first key
-    return str(next(iter(value.values()))) if value else ""
 
 
 @router.get("/templates", response_model=StandardSuccessResponse)
@@ -185,23 +159,11 @@ async def instantiate_template(template_id: str, request: Request) -> JSONRespon
 
 async def _ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str) -> None:
     """Pre-flight check and enable all required skills. Raises HTTPException on failure."""
-    for skill_id in prebuilt_skill_ids:
-        skill = await skills_service.get_skill(skill_id)
-        if not skill:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Template requires skill '{skill_id}' which does not exist in the system.",
-            )
-
-    for skill_id in prebuilt_skill_ids:
-        try:
-            await skills_service.user_config.enable_prebuilt_skill(skill_id)
-        except Exception as e:
-            logger.error("Failed to auto-enable skill %s for template %s: %s", skill_id, template_id, e)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to enable required skill '{skill_id}'. Agent creation aborted.",
-            ) from e
+    try:
+        await _ensure_skills_enabled_svc(prebuilt_skill_ids, template_id)
+    except SkillEnablementError as e:
+        status = 400 if "does not exist" in str(e) else 500
+        raise HTTPException(status_code=status, detail=str(e)) from e
 
 
 async def _instantiate_individual_template(

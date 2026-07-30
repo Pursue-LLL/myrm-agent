@@ -74,6 +74,7 @@ class BlueprintFillResult:
     monitor_config: "BlueprintMonitorDefaults | None" = None
     failure_alert: "BlueprintFailureAlertDefaults | None" = None
     pre_condition_script: str | None = None
+    command: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +107,7 @@ class BlueprintJobDefaults:
     monitor_config: BlueprintMonitorDefaults | None = None
     failure_alert: BlueprintFailureAlertDefaults | None = None
     pre_condition_script_template: dict[str, str] | None = None
+    command: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +135,8 @@ _CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
 _TOOLS_RESEARCH = ("web_search", "file_ops")
 _CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter_tool")
 _TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
+_CAP_WIKI = ("file_read", "file_write")
+_TOOLS_WIKI = ("wiki", "memory", "file_ops")
 _ASSET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _QUOTE_CURRENCY_RE = re.compile(r"^[a-z0-9]{2,10}$")
 
@@ -852,19 +856,12 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         },
         prompt_template={
             "en": (
-                "Run the read-it-later ingestion pipeline: "
-                "pull unprocessed items from my read-it-later source, "
-                "fetch each article's content, ingest into the wiki knowledge base "
-                "under Read-it-Later/<current-month>/, and write back a summary "
-                "with a 'digested' tag to the source. "
-                "Skip items already tagged as processed. Cap at 10 items per run."
+                "Wiki source sync job (router mode). The sync summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when nothing was ingested."
             ),
             "zh": (
-                "执行稍后读内化流程："
-                "从我的稍后读来源拉取未处理的项目，"
-                "抓取每篇文章的内容，存入知识库的 Read-it-Later/<当前月份>/ 目录，"
-                "并将摘要写回原来源并标记为\u201c已内化\u201d。"
-                "跳过已标记的项目。每次最多处理 10 篇。"
+                "知识库来源同步任务（router 模式）。同步摘要由服务端生成，请原样投递。"
+                "若无新内容则回复 [SILENT]。"
             ),
         },
         slots=(
@@ -880,8 +877,61 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="productivity",
         tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
         sort_order=12,
-        default_required_capabilities=("net_fetch", "file_read"),
-        default_tools_allowed=("file_ops",),
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=120,
+            command="__wiki_source_sync__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="wiki_morning_delta",
+        icon="BookMarked",
+        title={"en": "Wiki Morning Delta", "zh": "知识库晨间摘要"},
+        description={
+            "en": "Daily vault delta digest: organize new raw notes and summarize changes",
+            "zh": "每日检查知识库变更，整理新 raw 笔记并输出简短摘要",
+        },
+        prompt_template={
+            "en": (
+                "Run the wiki morning delta routine for the last 24 hours:\n"
+                "1. Scan raw/ for new or updated source files that still need organizing.\n"
+                "2. Use wiki_query_tool to inspect related concepts; use wiki_apply_tool only "
+                "for small metadata or timeline updates when clearly needed.\n"
+                "3. Note outdated wiki pages that may need attention (do not rewrite whole articles).\n"
+                "4. Reply with at most 3 short lines summarizing what changed in the vault "
+                "(new ingests, compiles, edits, or maintenance findings).\n"
+                "If nothing meaningful changed, reply with exactly [SILENT]."
+            ),
+            "zh": (
+                "执行过去 24 小时的知识库晨间巡检：\n"
+                "1. 扫描 raw/ 中新增或更新、仍需整理的原始文件。\n"
+                "2. 用 wiki_query_tool 查看相关概念；仅在必要时用 wiki_apply_tool 做少量元数据或时间线条目更新。\n"
+                "3. 标记可能过时的 wiki 页面（不要整页重写）。\n"
+                "4. 用不超过 3 行简短总结 vault 发生了什么变化（新入库、编译、编辑或维护发现）。\n"
+                "若无实质变化，必须仅回复 [SILENT]。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="07:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "digest", "daily", "second-brain", "knowledge"),
+        sort_order=13,
+        default_required_capabilities=_CAP_WIKI,
+        default_tools_allowed=_TOOLS_WIKI,
         _schedule_builder="time_weekdays",
     ),
 )
@@ -968,6 +1018,7 @@ def fill_blueprint(
         monitor_config=defaults.monitor_config,
         failure_alert=defaults.failure_alert,
         pre_condition_script=pre_condition_script,
+        command=defaults.command,
     )
 
 

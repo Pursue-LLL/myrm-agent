@@ -15,12 +15,25 @@ interface WikiPendingEditsProps {
   agentScopeId?: string | null;
   scopeLabel: string;
   onVaultMutated?: () => void;
+  initialFilter?: PendingEditFilter;
 }
 
-export function WikiPendingEdits({ agentScopeId, scopeLabel, onVaultMutated }: WikiPendingEditsProps) {
+type PendingEditFilter = 'all' | 'concepts' | 'synthesis';
+
+function isSynthesisEdit(edit: PendingEdit): boolean {
+  return edit.concept_name.startsWith('Comparisons/');
+}
+
+export function WikiPendingEdits({
+  agentScopeId,
+  scopeLabel,
+  onVaultMutated,
+  initialFilter = 'all',
+}: WikiPendingEditsProps) {
   const t = useTranslations('settings.wiki');
   const [edits, setEdits] = useState<PendingEdit[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
+  const [filter, setFilter] = useState<PendingEditFilter>(initialFilter);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState<string>('');
@@ -38,6 +51,10 @@ export function WikiPendingEdits({ agentScopeId, scopeLabel, onVaultMutated }: W
       setIsLoading(false);
     }
   }, [agentScopeId, t]);
+
+  useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
 
   useEffect(() => {
     setEdits([]);
@@ -96,6 +113,23 @@ export function WikiPendingEdits({ agentScopeId, scopeLabel, onVaultMutated }: W
     return new Date(dateStr).toLocaleString();
   };
 
+  const synthesisPendingCount = stats.synthesis_pending ?? 0;
+  const filteredEdits = edits.filter((edit) => {
+    if (filter === 'synthesis') {
+      return isSynthesisEdit(edit);
+    }
+    if (filter === 'concepts') {
+      return !isSynthesisEdit(edit);
+    }
+    return true;
+  });
+
+  const filterOptions: Array<{ id: PendingEditFilter; label: string }> = [
+    { id: 'all', label: t('pendingEdits.filterAll') },
+    { id: 'concepts', label: t('pendingEdits.filterConcepts') },
+    { id: 'synthesis', label: t('pendingEdits.filterSynthesis') },
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -111,23 +145,52 @@ export function WikiPendingEdits({ agentScopeId, scopeLabel, onVaultMutated }: W
                 {stats.pending} {t('pendingEdits.status.pending')}
               </Badge>
             )}
+            {synthesisPendingCount > 0 && (
+              <Badge variant="secondary" className="bg-violet-500/10 text-violet-600 hover:bg-violet-500/20">
+                {synthesisPendingCount} {t('pendingEdits.status.synthesisPending')}
+              </Badge>
+            )}
           </div>
         </CardTitle>
         <CardDescription>{t('pendingEdits.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {edits.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.map((option) => (
+              <Button
+                key={option.id}
+                size="sm"
+                variant={filter === option.id ? 'default' : 'outline'}
+                onClick={() => setFilter(option.id)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        )}
         {edits.length === 0 && !isLoading ? (
           <div className="p-8 border border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground bg-muted/20">
             <IconCheck className="w-8 h-8 mb-2 text-green-500/50" />
             <div>{t('pendingEdits.noPending')}</div>
           </div>
+        ) : filteredEdits.length === 0 && !isLoading ? (
+          <div className="p-8 border border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground bg-muted/20">
+            <IconCheck className="w-8 h-8 mb-2 text-green-500/50" />
+            <div>{t('pendingEdits.noFiltered')}</div>
+          </div>
         ) : (
           <div className="space-y-4">
-            {edits.map((edit) => (
+            {filteredEdits.map((edit) => (
               <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
                 <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-semibold text-lg">{edit.concept_name}</span>
+                    {isSynthesisEdit(edit) && (
+                      <Badge variant="outline" className="text-violet-600 border-violet-500/30">
+                        {t('pendingEdits.synthesisBadge')}
+                      </Badge>
+                    )}
                     <Badge
                       variant="outline"
                       className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal"

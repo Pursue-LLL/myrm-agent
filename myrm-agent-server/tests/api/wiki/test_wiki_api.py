@@ -74,6 +74,12 @@ def test_wiki_stats_endpoint(client: TestClient) -> None:
         assert "structural_issues" in data
         assert isinstance(data["structural_issues"]["broken_links"], int)
         assert isinstance(data["structural_issues"]["invalid_frontmatter_types"], int)
+        assert "synthesis_pending" in data
+        assert isinstance(data["synthesis_pending"], int)
+        assert "obsidian_launch_available" in data
+        assert isinstance(data["obsidian_launch_available"], bool)
+        assert "vault_git_enabled" in data
+        assert "vault_git_initialized" in data
     else:
         print(f"❌ Error: {response.text}")
         # Stats endpoint should work even if wiki is empty

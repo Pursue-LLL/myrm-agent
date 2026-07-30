@@ -29,6 +29,16 @@ class _RepairTypesResult:
     errors: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True, slots=True)
+class _RepairPublicationResult:
+    files_scanned: int = 5
+    files_repaired: int = 2
+    files_skipped: int = 0
+    files_skipped_intentional_drafts: int = 0
+    reindexed: int = 1
+    errors: tuple[str, ...] = ()
+
+
 @pytest.fixture
 def client() -> TestClient:
     from tests.support.minimal_app import build_minimal_app
@@ -47,7 +57,8 @@ def _bypass_auth():
 
 def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
     with patch(
-        "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+        "app.api.wiki.router._after_wiki_vault_mutation",
+        new_callable=AsyncMock,
     ) as invalidate_mock, patch(
         "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
         return_value=_RepairTypesResult(),
@@ -60,7 +71,8 @@ def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
 
 def test_repair_types_skips_invalidate_when_nothing_repaired(client: TestClient) -> None:
     with patch(
-        "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+        "app.api.wiki.router._after_wiki_vault_mutation",
+        new_callable=AsyncMock,
     ) as invalidate_mock, patch(
         "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
         return_value=_RepairTypesResult(files_repaired=0),
@@ -80,7 +92,8 @@ def test_apply_invalidates_structural_cache(client: TestClient) -> None:
         content_hash="abc",
     )
     with patch(
-        "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+        "app.api.wiki.router._after_wiki_vault_mutation",
+        new_callable=AsyncMock,
     ) as invalidate_mock, patch(
         "myrm_agent_harness.toolkits.wiki.pipeline.apply.apply_wiki_mutation",
         new_callable=AsyncMock,
@@ -118,7 +131,8 @@ def test_delete_concept_invalidates_structural_cache() -> None:
     scoped_client = TestClient(app)
     try:
         with patch(
-            "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
         ) as invalidate_mock:
             response = scoped_client.delete("/api/v1/wiki/concepts/Gravity")
     finally:
@@ -144,7 +158,8 @@ def test_pending_approve_invalidates_structural_cache() -> None:
     scoped_client = TestClient(app)
     try:
         with patch(
-            "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
         ) as invalidate_mock, patch(
             "app.api.wiki.router._refresh_wiki_cognitive_map",
         ):
@@ -172,7 +187,8 @@ def test_delete_folder_invalidates_structural_cache() -> None:
     scoped_client = TestClient(app)
     try:
         with patch(
-            "app.api.wiki.router._invalidate_wiki_structural_stats_cache",
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
         ) as invalidate_mock:
             response = scoped_client.delete("/api/v1/wiki/tree/folder?path=notes")
     finally:
@@ -180,3 +196,86 @@ def test_delete_folder_invalidates_structural_cache() -> None:
 
     assert response.status_code == 200
     invalidate_mock.assert_called_once()
+
+
+def test_move_invalidates_structural_cache(tmp_path) -> None:
+    from tests.support.minimal_app import build_minimal_app
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path / "vault")
+    structure.ensure_structure()
+    concept_path = structure.get_concept_file_path("Physics/Gravity")
+    concept_path.write_text("---\ntype: concept\n---\n\n# Gravity\n", encoding="utf-8")
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+    mock_archiver._query_engine._indexer = MagicMock()
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    scoped_client = TestClient(app)
+    try:
+        with patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock, patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.publication.reindex_concepts_after_move",
+            new_callable=AsyncMock,
+        ):
+            response = scoped_client.put(
+                "/api/v1/wiki/tree/move",
+                json={
+                    "source_path": "Physics/Gravity",
+                    "target_path": "Physics/Gravitation",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    invalidate_mock.assert_called_once()
+    assert invalidate_mock.await_args.args[1] == "move concept"
+
+
+def test_repair_publication_invalidates_structural_cache(client: TestClient) -> None:
+    with patch(
+        "app.api.wiki.router._after_wiki_vault_mutation",
+        new_callable=AsyncMock,
+    ) as invalidate_mock, patch(
+        "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
+        new_callable=AsyncMock,
+        return_value=_RepairPublicationResult(),
+    ), patch(
+        "app.api.wiki.router._refresh_wiki_cognitive_map",
+    ):
+        response = client.post("/api/v1/wiki/repair-publication")
+
+    assert response.status_code == 200
+    invalidate_mock.assert_called_once()
+    assert invalidate_mock.await_args.args[1] == "repair publication status"
+
+
+def test_repair_publication_skips_invalidate_when_nothing_changed(client: TestClient) -> None:
+    with patch(
+        "app.api.wiki.router._after_wiki_vault_mutation",
+        new_callable=AsyncMock,
+    ) as invalidate_mock, patch(
+        "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
+        new_callable=AsyncMock,
+        return_value=_RepairPublicationResult(
+            files_scanned=3,
+            files_repaired=0,
+            files_skipped=3,
+            reindexed=0,
+        ),
+    ):
+        response = client.post("/api/v1/wiki/repair-publication")
+
+    assert response.status_code == 200
+    invalidate_mock.assert_not_called()

@@ -45,9 +45,22 @@ def _process_has_signoff_env(pid: int) -> bool:
     return "E2E_SIGNOFF=1" in proc.stdout
 
 
+def _admit_wall_cap_for_pid(pid: int) -> float:
+    """ADMIT hung-reap cap: signoff child 300s · dev chrome_e2e 900s (R149)."""
+    if _process_has_signoff_env(pid):
+        from dev_gate_contract import E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC  # noqa: PLC0415
+
+        return float(E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC)
+    from dev_gate_contract import admit_wall_clock_sec  # noqa: PLC0415
+
+    return float(admit_wall_clock_sec())
+
+
 def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
-    if _process_has_signoff_env(row.pid):
-        return None
+    signoff = _process_has_signoff_env(row.pid)
+    if signoff:
+        # Signoff: only ADMIT stall below; defer BODY/bootstrap to signoff budgets.
+        pass
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
@@ -65,18 +78,18 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
     if snapshot is not None:
         phase = str(snapshot.get("phase") or "").strip().lower()
         if phase == "admit":
-            from dev_gate_contract import admit_wall_clock_sec  # noqa: PLC0415
-
             admit_elapsed = phase_elapsed_from_snapshot(snapshot)
             elapsed_for_cap = (
                 admit_elapsed if admit_elapsed is not None else row.elapsed_sec
             )
-            admit_cap = float(admit_wall_clock_sec())
+            admit_cap = _admit_wall_cap_for_pid(row.pid)
             if elapsed_for_cap >= admit_cap:
                 return (
                     f"admit_elapsed={int(elapsed_for_cap)}s>={int(admit_cap)}s "
                     "(E2E_ADMIT_STALL)"
                 )
+            return None
+        if signoff:
             return None
         if phase == "bootstrap":
             from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
@@ -134,8 +147,6 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
 
 
 def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
-    if _process_has_signoff_env(row.pid):
-        return None
     chrome_row = LiveChromeE2ERow(
         pid=row.pid,
         elapsed_sec=row.elapsed_sec,
@@ -148,12 +159,11 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
         return reason
     if row.phase != "admit":
         return None
-    from dev_gate_contract import admit_wall_clock_sec  # noqa: PLC0415
 
     admit_elapsed = (
         row.admit_elapsed_sec if row.admit_elapsed_sec is not None else row.elapsed_sec
     )
-    admit_cap = float(admit_wall_clock_sec())
+    admit_cap = _admit_wall_cap_for_pid(row.pid)
     if admit_elapsed >= admit_cap:
         return (
             f"admit_elapsed={int(admit_elapsed)}s>={int(admit_cap)}s "

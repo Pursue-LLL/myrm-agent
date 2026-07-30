@@ -29,6 +29,17 @@ function resolveNextDistDir(): string {
 const LOCK_DIR = resolveNextDistDir();
 const LOCK_FILE = path.join(LOCK_DIR, 'dev-server.lock');
 
+function removeDevLockFileIfPresent(): void {
+  try {
+    fs.unlinkSync(LOCK_FILE);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
 export interface DevLockRecord {
   pid: number;
   port: number;
@@ -181,7 +192,7 @@ function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: stri
     // already gone
   }
   killListenersOnPort(port, true);
-  fs.unlinkSync(LOCK_FILE);
+  removeDevLockFileIfPresent();
 }
 
 /** Refuse when another dev-server.lock owner is alive and healthy. */
@@ -193,7 +204,7 @@ export function assertDevLockAvailable(port: number): void {
     if (tryAttachToHealthyDevServer(port)) {
       return;
     }
-    fs.unlinkSync(LOCK_FILE);
+    removeDevLockFileIfPresent();
     return;
   }
 

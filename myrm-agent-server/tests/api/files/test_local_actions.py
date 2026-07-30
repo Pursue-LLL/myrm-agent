@@ -18,10 +18,15 @@ from fastapi import HTTPException
 
 from app.api.files.local_actions import (
     _get_workspace_dir,
-    _open_with_default_app,
     _resolve_artifact_path,
-    _reveal_in_file_manager,
     _validate_local_mode,
+)
+from app.services.files.reveal_utils import (
+    is_obsidian_app_installed,
+    is_obsidian_direct_launch_available,
+    open_vault_in_obsidian_app,
+    open_with_default_app,
+    reveal_path_in_file_manager,
 )
 
 
@@ -178,59 +183,147 @@ class TestResolveArtifactPath:
 
 
 class TestRevealInFileManager:
-    """Tests for _reveal_in_file_manager platform commands."""
+    """Tests for reveal_path_in_file_manager platform commands."""
 
-    def test_darwin_uses_open_r(self):
+    def test_darwin_file_uses_open_r(self):
         path = Path("/workspace/test.txt")
-        with patch("app.api.files.local_actions.platform.system", return_value="Darwin"):
-            with patch("app.api.files.local_actions.subprocess.Popen") as mock_popen:
-                _reveal_in_file_manager(path)
-                mock_popen.assert_called_once_with(["open", "-R", str(path)])
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Darwin"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                reveal_path_in_file_manager(path)
+                mock_popen.assert_called_once_with(["open", "-R", str(path.resolve())])
+
+    def test_darwin_directory_uses_open(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = Path(workspace)
+            with patch("app.services.files.reveal_utils.platform.system", return_value="Darwin"):
+                with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                    reveal_path_in_file_manager(path)
+                    mock_popen.assert_called_once_with(["open", str(path.resolve())])
 
     def test_windows_uses_explorer(self):
         path = Path("/workspace/test.txt")
-        with patch("app.api.files.local_actions.platform.system", return_value="Windows"):
-            with patch("app.api.files.local_actions.subprocess.Popen") as mock_popen:
-                _reveal_in_file_manager(path)
-                mock_popen.assert_called_once_with(["explorer.exe", f"/select,{path}"])
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Windows"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                reveal_path_in_file_manager(path)
+                mock_popen.assert_called_once_with(["explorer.exe", f"/select,{path.resolve()}"])
 
     def test_linux_uses_xdg_open(self):
         path = Path("/workspace/subdir/test.txt")
-        with patch("app.api.files.local_actions.platform.system", return_value="Linux"):
-            with patch("app.api.files.local_actions.subprocess.Popen") as mock_popen:
-                _reveal_in_file_manager(path)
-                mock_popen.assert_called_once_with(["xdg-open", str(path.parent)])
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Linux"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                reveal_path_in_file_manager(path)
+                mock_popen.assert_called_once_with(["xdg-open", str(path.resolve().parent)])
 
     def test_command_not_found_raises_500(self):
         path = Path("/workspace/test.txt")
-        with patch("app.api.files.local_actions.platform.system", return_value="Darwin"):
-            with patch("app.api.files.local_actions.subprocess.Popen", side_effect=FileNotFoundError):
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Darwin"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen", side_effect=FileNotFoundError):
                 with pytest.raises(HTTPException) as exc_info:
-                    _reveal_in_file_manager(path)
+                    reveal_path_in_file_manager(path)
                 assert exc_info.value.status_code == 500
 
 
 class TestOpenWithDefaultApp:
-    """Tests for _open_with_default_app platform commands."""
+    """Tests for open_with_default_app platform commands."""
 
     def test_darwin_uses_open(self):
         path = Path("/workspace/report.pdf")
-        with patch("app.api.files.local_actions.platform.system", return_value="Darwin"):
-            with patch("app.api.files.local_actions.subprocess.Popen") as mock_popen:
-                _open_with_default_app(path)
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Darwin"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                open_with_default_app(path)
                 mock_popen.assert_called_once_with(["open", str(path)])
 
     def test_linux_uses_xdg_open(self):
         path = Path("/workspace/report.pdf")
-        with patch("app.api.files.local_actions.platform.system", return_value="Linux"):
-            with patch("app.api.files.local_actions.subprocess.Popen") as mock_popen:
-                _open_with_default_app(path)
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Linux"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                open_with_default_app(path)
                 mock_popen.assert_called_once_with(["xdg-open", str(path)])
 
     def test_command_not_found_raises_500(self):
         path = Path("/workspace/test.txt")
-        with patch("app.api.files.local_actions.platform.system", return_value="Linux"):
-            with patch("app.api.files.local_actions.subprocess.Popen", side_effect=FileNotFoundError):
+        with patch("app.services.files.reveal_utils.platform.system", return_value="Linux"):
+            with patch("app.services.files.reveal_utils.subprocess.Popen", side_effect=FileNotFoundError):
                 with pytest.raises(HTTPException) as exc_info:
-                    _open_with_default_app(path)
+                    open_with_default_app(path)
                 assert exc_info.value.status_code == 500
+
+
+class TestOpenVaultInObsidianApp:
+    """Tests for open_vault_in_obsidian_app."""
+
+    def test_darwin_launches_obsidian(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = Path(workspace)
+            with patch("app.services.files.reveal_utils.platform.system", return_value="Darwin"):
+                with patch(
+                    "app.services.files.reveal_utils._resolve_obsidian_executable",
+                    return_value=Path("/Applications/Obsidian.app"),
+                ):
+                    with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                        assert open_vault_in_obsidian_app(path) is True
+                        mock_popen.assert_called_once_with(["open", "-a", "Obsidian", str(path.resolve())])
+
+    def test_windows_launches_obsidian_when_executable_present(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = Path(workspace)
+            fake_exe = Path("C:/Local/Programs/Obsidian/Obsidian.exe")
+            with patch("app.services.files.reveal_utils.platform.system", return_value="Windows"):
+                with patch(
+                    "app.services.files.reveal_utils._resolve_obsidian_executable",
+                    return_value=fake_exe,
+                ):
+                    with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                        assert open_vault_in_obsidian_app(path) is True
+                        mock_popen.assert_called_once_with([str(fake_exe), str(path.resolve())])
+
+    def test_linux_launches_obsidian_when_on_path(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = Path(workspace)
+            fake_bin = Path("/usr/bin/obsidian")
+            with patch("app.services.files.reveal_utils.platform.system", return_value="Linux"):
+                with patch(
+                    "app.services.files.reveal_utils._resolve_obsidian_executable",
+                    return_value=fake_bin,
+                ):
+                    with patch("app.services.files.reveal_utils.subprocess.Popen") as mock_popen:
+                        assert open_vault_in_obsidian_app(path) is True
+                        mock_popen.assert_called_once_with([str(fake_bin), str(path.resolve())])
+
+    def test_returns_false_when_obsidian_missing(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = Path(workspace)
+            with patch("app.services.files.reveal_utils.platform.system", return_value="Windows"):
+                with patch("app.services.files.reveal_utils._resolve_obsidian_executable", return_value=None):
+                    assert open_vault_in_obsidian_app(path) is False
+
+    def test_returns_false_for_missing_directory(self):
+        missing = Path("/tmp/definitely-not-a-vault-dir-obsidian-test")
+        with patch("app.services.files.reveal_utils._resolve_obsidian_executable", return_value=Path("/usr/bin/obsidian")):
+            assert open_vault_in_obsidian_app(missing) is False
+
+
+class TestObsidianLaunchAvailability:
+    """Tests for Obsidian install detection on Local/Tauri deployments."""
+
+    def test_is_obsidian_app_installed_when_executable_resolved(self):
+        with patch(
+            "app.services.files.reveal_utils._resolve_obsidian_executable",
+            return_value=Path("/usr/bin/obsidian"),
+        ):
+            assert is_obsidian_app_installed() is True
+
+    def test_is_obsidian_direct_launch_available_requires_local_mode(self):
+        with patch("app.config.deploy_mode.is_local_mode", return_value=True):
+            with patch(
+                "app.services.files.reveal_utils._resolve_obsidian_executable",
+                return_value=Path("/usr/bin/obsidian"),
+            ):
+                assert is_obsidian_direct_launch_available() is True
+
+        with patch("app.config.deploy_mode.is_local_mode", return_value=False):
+            with patch(
+                "app.services.files.reveal_utils._resolve_obsidian_executable",
+                return_value=Path("/usr/bin/obsidian"),
+            ):
+                assert is_obsidian_direct_launch_available() is False

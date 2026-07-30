@@ -120,6 +120,15 @@ def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) ->
     return False
 
 
+def _wait_backend_health_ok(api_base: str, *, deadline: float) -> bool:
+    """Health-only wait — signoff direct start already wrote stack-epoch at boot."""
+    while time.monotonic() < deadline:
+        if _health_ok(api_base):
+            return True
+        time.sleep(0.5)
+    return False
+
+
 def _cap_reached_result(active: int) -> VerifyBackendSeedResult:
     return VerifyBackendSeedResult(
         ok=False,

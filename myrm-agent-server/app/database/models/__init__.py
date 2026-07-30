@@ -17,6 +17,7 @@ from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
 from .daily_wrap import DailyWrapCache
+from .expert_summon_metric import ExpertSummonMetricEvent
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
 from .media import BatchImageJob, MediaLibrary
@@ -172,6 +173,8 @@ __all__ = [
     "DailyWrapCache",
     # Turn Capability Observability
     "TurnCapabilityMetricEvent",
+    # Expert Summon Funnel Observability
+    "ExpertSummonMetricEvent",
     # Wiki Evidence Observability
     "WikiEvidenceMetricEvent",
 ]

@@ -23,7 +23,7 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 | `__tests__/CuPermissionInline.test.tsx` | Test | vitest: granted / missing+deeplink / API fail |
 | `__tests__/TemplateMarket.test.tsx` | Test | 模板检索命中与 use_cases 场景召唤（实例化 + 预填输入） |
 | `PresetAgentGallery.tsx` | Feature | Wrapper containing TemplateMarket + OrgMarketplace sections |
-| `TemplateMarket.tsx` | Feature | Individual / Team template market with关键词检索；Team 卡显示 `members` + `use_cases`，可直接点击场景标签召唤并预填首条消息 |
+| `TemplateMarket.tsx` | Feature | Individual / Team template market with 统一检索口径；Team 卡显示 `members` + `use_cases`，支持键盘可达召唤；实例化链路统一接入召唤漏斗埋点并预填首条消息 |
 | `OrgMarketplace.tsx` | Feature | Org marketplace browse/install grid + admin force-push button (sandbox-only) |
 | `PublishToOrgButton.tsx` | Feature | One-click publish current agent to org marketplace (sandbox-only) |
 

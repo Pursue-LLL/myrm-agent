@@ -95,6 +95,7 @@ class BlueprintFillResponse(BaseModel):
     monitor_config: MonitorConfigPresetResponse | None = None
     failure_alert: FailureAlertPresetResponse | None = None
     pre_condition_script: str | None = None
+    command: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -182,4 +183,5 @@ async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillRe
             else None
         ),
         pre_condition_script=result.pre_condition_script,
+        command=result.command,
     )

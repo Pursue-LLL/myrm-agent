@@ -236,6 +236,7 @@ export async function buildBlueprintCreatePayload(
     ...(filled.monitor_config ? { monitor_config: filled.monitor_config } : {}),
     ...(filled.failure_alert ? { failure_alert: filled.failure_alert } : {}),
     ...(filled.pre_condition_script != null ? { pre_condition_script: filled.pre_condition_script } : {}),
+    ...(filled.command != null ? { command: filled.command } : {}),
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }

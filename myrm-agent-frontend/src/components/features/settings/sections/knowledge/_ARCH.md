@@ -24,16 +24,18 @@
 | `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 | — |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 | — |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 | — |
-| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Overview **SecondBrainSetupCard** + asset_index badges + vision hint；ingest SSE → tree_sync / stats_refresh 自动 loadStats | ✅ |
-| `SecondBrainSetupCard.tsx` | 核心 | 第二大脑一键预设：apply/status checklist、自动 selectAgent、vault/provider 深链 | ✅ |
-| `WikiPendingEdits.tsx` | 核心 | HITL 待审列表；**agentScopeId 显式 reload** + scope chip | ✅ |
+| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Overview **ObsidianVaultActions** + **WikiSourceSyncPanel** + synthesis badge + SecondBrainSetupCard | ✅ |
+| `WikiSourceSyncPanel.tsx` | 核心 | Overview 外部来源同步（Gmail/RSS/镜像/auto-compile）；响应式 Card | ✅ |
+| `ObsidianVaultActions.tsx` | 核心 | Overview Obsidian 打开/文件夹/reveal/下载包；Open 仅 `obsidian_launch_available`；Local git 历史 hint | ✅ |
+| `SecondBrainSetupCard.tsx` | 核心 | 第二大脑一键预设：apply/status checklist（含 read-it-later + wiki-morning-delta 双 cron）、toast 展示 server message（含 vault seed 计数）、自动 selectAgent、vault/provider 深链 | ✅ |
+| `WikiPendingEdits.tsx` | 核心 | HITL 待审列表；**全部/概念/演变合成** 筛选 + synthesis badge；**initialFilter** prop；**agentScopeId 显式 reload** + scope chip；approve 区分 `stale_pending` / `invalid_frontmatter` toast | ✅ |
 | `WikiConceptsList.tsx` | 编排 | 词条 Tab；接收 `agentScopeId` + scopeRevision remount key | ✅ |
 | `WikiScopeChip.tsx` | UI | Pending/Queue scope 提示 badge | ✅ |
 | `WikiAgentScopeContext.tsx` | 核心 | URL `?agentId=` scope provider（scopeRevision + scopeLabel） | ✅ |
-| `WikiQueuePanel.tsx` | 核心 | 编译队列面板；pause banner + failed_items；transient/all retry/resume；**ingest SSE live stats**（stats 变化 silent reload；fallback 10s poll）；seq guard + stale refresh 提示；**explicit agentId API** + scope chip | ✅ |
-| `useWikiIngestSubscription.ts` | 辅助 | EventSource hook for `/wiki/ingest/stream` scoped snapshots | ✅ |
+| `WikiQueuePanel.tsx` | 核心 | 编译队列面板；pause banner + **WikiCompilePhaseBar**；failed_items；… | ✅ |
+| `WikiCompilePhaseBar.tsx` | 核心 | 共享 compile phase 三阶段条（Queue + Overview 同源 SSE） | ✅ |
+| `useWikiIngestSubscription.ts` | 辅助 | EventSource hook for `/wiki/ingest/stream` scoped snapshots（含 `synthesis_pending_count`） | ✅ |
 | `wikiQueuePoll.ts` | 辅助 | Queue poll 纯函数（`computeShouldPollQueue`、`queueStatsDiverge`、间隔/失败阈值常量）；Vitest：`__tests__/wikiQueuePoll.test.ts` | ✅ |
-| `WikiPendingEdits.tsx` | 核心 | HITL 待审核队列；approve 区分 `stale_pending` / `invalid_frontmatter` toast | ✅ |
 | `wiki/` | 子模块 | Wiki 概念树与编辑（见 [wiki/_ARCH.md](wiki/_ARCH.md)） | — |
 
 ## 依赖

@@ -83,116 +83,123 @@ async def build_general_agent(
         wrap_with_privacy_routing,
     )
     from .llm_factory import create_agent_llms, select_tool_capable_model_cfg
-
-    # 1. Create LLM instances
-    selected_model_cfg, selected_source = select_tool_capable_model_cfg(
-        agent_wrapper.model_cfg,
-        lite_model_cfg=agent_wrapper.lite_model_cfg,
-        fallback_model_cfg=agent_wrapper.fallback_model_cfg,
-        safety_fallback_model_cfg=agent_wrapper.safety_fallback_model_cfg,
-        providers_dict=agent_wrapper.providers_dict,
-    )
-    if selected_source == "fallback":
-        agent_wrapper.fallback_model_cfg = None
-    elif selected_source == "lite":
-        agent_wrapper.lite_model_cfg = None
-    elif selected_source == "safety_fallback":
-        agent_wrapper.safety_fallback_model_cfg = None
-    agent_wrapper.model_cfg = selected_model_cfg
-
-    llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
-        await create_agent_llms(
-            agent_wrapper.model_cfg,
-            agent_wrapper.lite_model_cfg,
-            agent_wrapper.fallback_model_cfg,
-            agent_wrapper.safety_fallback_model_cfg,
-        )
+    from .signoff_clarify_contract_core import (
+        build_signoff_clarify_deterministic_model,
     )
 
-    if signoff_clarify_contract_enabled(
+    signoff_contract_active = signoff_clarify_contract_enabled(
         flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
-    ):
-        from .signoff_clarify_contract_core import (
-            build_signoff_clarify_deterministic_model,
-        )
-
+    )
+    if signoff_contract_active:
         agent_wrapper.signoff_clarify_contract = True
         agent_wrapper.enable_structured_clarify = True
+
+    # 1. Create LLM instances — signoff pool skips real provider LLM init (R125 warm).
+    if signoff_contract_active:
         stub_llm = build_signoff_clarify_deterministic_model()
         llm = stub_llm
         agent_wrapper._lite_llm = stub_llm
-        logger.info(
-            "SignoffClarifyContract: main+lite LLM swapped to deterministic stub "
+        fallback_llm = stub_llm
+        safety_fallback_llm = stub_llm
+        logger.warning(
+            "SignoffClarifyContract: deterministic stub LLM only "
             "(chat_id=%s pool=%s)",
             effective_chat_id,
             signoff_clarify_pool_active(),
         )
+    else:
+        selected_model_cfg, selected_source = select_tool_capable_model_cfg(
+            agent_wrapper.model_cfg,
+            lite_model_cfg=agent_wrapper.lite_model_cfg,
+            fallback_model_cfg=agent_wrapper.fallback_model_cfg,
+            safety_fallback_model_cfg=agent_wrapper.safety_fallback_model_cfg,
+            providers_dict=agent_wrapper.providers_dict,
+        )
+        if selected_source == "fallback":
+            agent_wrapper.fallback_model_cfg = None
+        elif selected_source == "lite":
+            agent_wrapper.lite_model_cfg = None
+        elif selected_source == "safety_fallback":
+            agent_wrapper.safety_fallback_model_cfg = None
+        agent_wrapper.model_cfg = selected_model_cfg
 
-    # 1.3 Validate auxiliary model context mismatch
-    if agent_wrapper._lite_llm is not None:
-        from myrm_agent_harness.toolkits.llms.utils.model_utils import (
-            get_model_context_limit,
+        llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
+            await create_agent_llms(
+                agent_wrapper.model_cfg,
+                agent_wrapper.lite_model_cfg,
+                agent_wrapper.fallback_model_cfg,
+                agent_wrapper.safety_fallback_model_cfg,
+            )
         )
 
-        main_limit = get_model_context_limit(llm) or 128000
-        lite_limit = get_model_context_limit(agent_wrapper._lite_llm)
-
-        if lite_limit and main_limit:
-            # Dynamic Ratio Shield: If the auxiliary model's context is smaller than 85% of the main model,
-            # it will crash when receiving the almost-full context during compression.
-            if lite_limit < main_limit * 0.85:
-                logger.warning(
-                    f"Context capacity mismatch: Main model {agent_wrapper.model_cfg.model} ({main_limit} tokens) "
-                    f"vs Lite model ({lite_limit} tokens). "
-                    "Gracefully degrading _lite_llm to main llm to prevent memory evaporation 400 Bad Request."
-                )
-                from myrm_agent_harness.toolkits.llms import llm_manager as _llm_mgr
-
-                from .llm_factory import _inject_low_reasoning_effort
-
-                fallback_lite_cfg = _inject_low_reasoning_effort(
-                    agent_wrapper.model_cfg
-                )
-                main_api_keys = getattr(agent_wrapper.model_cfg, "api_keys", None)
-                agent_wrapper._lite_llm = await _llm_mgr.get_llm_from_config(
-                    fallback_lite_cfg,
-                    api_keys=main_api_keys,
-                )
-
-    # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
-    escalation_target_llm = None
-    if agent_wrapper.reasoning_model_cfg is not None:
-        reasoning_model_name = agent_wrapper.reasoning_model_cfg.model
-        main_model_name = agent_wrapper.model_cfg.model
-        if reasoning_model_name != main_model_name:
-            try:
-                reasoning_api_keys = getattr(
-                    agent_wrapper.reasoning_model_cfg, "api_keys", None
-                )
-                from myrm_agent_harness.toolkits.llms import llm_manager
-
-                escalation_target_llm = await llm_manager.get_llm_from_config(
-                    agent_wrapper.reasoning_model_cfg, api_keys=reasoning_api_keys
-                )
-                logger.warning(
-                    "Escalation target model: %s (auto-upgrade from %s)",
-                    reasoning_model_name,
-                    main_model_name,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to create escalation target LLM: %s, auto-escalation disabled",
-                    e,
-                )
-
-    # 1.5 Privacy routing wrapper for auxiliary LLM
+    # 1.3–1.5 Real-LLM post-processing (skip for signoff deterministic stub path).
     privacy_routing_cfg = build_privacy_routing_config(
         agent_wrapper.privacy_routing_raw
     )
-    if privacy_routing_cfg is not None and agent_wrapper._lite_llm is not None:
-        agent_wrapper._lite_llm = wrap_with_privacy_routing(
-            agent_wrapper._lite_llm, privacy_routing_cfg
-        )
+    if not signoff_contract_active:
+        if agent_wrapper._lite_llm is not None:
+            from myrm_agent_harness.toolkits.llms.utils.model_utils import (
+                get_model_context_limit,
+            )
+
+            main_limit = get_model_context_limit(llm) or 128000
+            lite_limit = get_model_context_limit(agent_wrapper._lite_llm)
+
+            if lite_limit and main_limit:
+                # Dynamic Ratio Shield: If the auxiliary model's context is smaller than 85% of the main model,
+                # it will crash when receiving the almost-full context during compression.
+                if lite_limit < main_limit * 0.85:
+                    logger.warning(
+                        f"Context capacity mismatch: Main model {agent_wrapper.model_cfg.model} ({main_limit} tokens) "
+                        f"vs Lite model ({lite_limit} tokens). "
+                        "Gracefully degrading _lite_llm to main llm to prevent memory evaporation 400 Bad Request."
+                    )
+                    from myrm_agent_harness.toolkits.llms import llm_manager as _llm_mgr
+
+                    from .llm_factory import _inject_low_reasoning_effort
+
+                    fallback_lite_cfg = _inject_low_reasoning_effort(
+                        agent_wrapper.model_cfg
+                    )
+                    main_api_keys = getattr(agent_wrapper.model_cfg, "api_keys", None)
+                    agent_wrapper._lite_llm = await _llm_mgr.get_llm_from_config(
+                        fallback_lite_cfg,
+                        api_keys=main_api_keys,
+                    )
+
+        # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
+        escalation_target_llm = None
+        if agent_wrapper.reasoning_model_cfg is not None:
+            reasoning_model_name = agent_wrapper.reasoning_model_cfg.model
+            main_model_name = agent_wrapper.model_cfg.model
+            if reasoning_model_name != main_model_name:
+                try:
+                    reasoning_api_keys = getattr(
+                        agent_wrapper.reasoning_model_cfg, "api_keys", None
+                    )
+                    from myrm_agent_harness.toolkits.llms import llm_manager
+
+                    escalation_target_llm = await llm_manager.get_llm_from_config(
+                        agent_wrapper.reasoning_model_cfg, api_keys=reasoning_api_keys
+                    )
+                    logger.warning(
+                        "Escalation target model: %s (auto-upgrade from %s)",
+                        reasoning_model_name,
+                        main_model_name,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to create escalation target LLM: %s, auto-escalation disabled",
+                        e,
+                    )
+
+        # 1.5 Privacy routing wrapper for auxiliary LLM
+        if privacy_routing_cfg is not None and agent_wrapper._lite_llm is not None:
+            agent_wrapper._lite_llm = wrap_with_privacy_routing(
+                agent_wrapper._lite_llm, privacy_routing_cfg
+            )
+    else:
+        escalation_target_llm = None
 
     # 2. Storage backend (adapts to DEPLOY_MODE)
     from app.platform_utils import get_storage_provider

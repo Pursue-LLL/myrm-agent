@@ -95,6 +95,17 @@ async def start_cron_scheduler() -> None:
     except Exception as exc:
         logger.warning("Cron startup monitor_config cleanup failed: %s", exc)
 
+    try:
+        from app.services.onboarding.second_brain_preset import reconcile_second_brain_cron_ids
+        from app.services.wiki.source_sync.read_it_later_hygiene import migrate_stale_read_it_later_jobs
+
+        hygiene = await migrate_stale_read_it_later_jobs()
+        if hygiene.migrated_count:
+            logger.info("Cron startup migrated %d stale read-it-later job(s)", hygiene.migrated_count)
+        await reconcile_second_brain_cron_ids(hygiene.id_remaps)
+    except Exception as exc:
+        logger.warning("Cron startup read-it-later hygiene failed: %s", exc)
+
     await get_cron_scheduler().start()
     logger.info("Cron scheduler started")
 

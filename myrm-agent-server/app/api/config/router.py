@@ -110,6 +110,12 @@ _TELEGRAM_ONBOARDING_IN_PROGRESS_CODE = "TELEGRAM_ONBOARDING_IN_PROGRESS"
 _TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = (
     "Telegram onboarding is already in progress. Please retry shortly."
 )
+_SECOND_BRAIN_APPLY_LOCK = asyncio.Lock()
+_SECOND_BRAIN_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
+_SECOND_BRAIN_ONBOARDING_IN_PROGRESS_CODE = "SECOND_BRAIN_ONBOARDING_IN_PROGRESS"
+_SECOND_BRAIN_ONBOARDING_IN_PROGRESS_MESSAGE = (
+    "Second Brain preset apply is already in progress. Please retry shortly."
+)
 
 
 def _normalize_telegram_agent_name(raw: str) -> str:
@@ -140,6 +146,32 @@ def _acquire_telegram_agent_cross_process_lock(lock: FileLock) -> None:
 
 
 def _release_telegram_agent_cross_process_lock(lock: FileLock) -> None:
+    if lock.is_locked:
+        lock.release()
+
+
+def _second_brain_apply_lock_path() -> Path:
+    from app.config.settings import settings
+
+    lock_dir = Path(settings.database.state_dir) / "locks" / "onboarding"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    return lock_dir / "second-brain-preset.lock"
+
+
+def _acquire_second_brain_cross_process_lock(lock: FileLock) -> None:
+    try:
+        lock.acquire(timeout=_SECOND_BRAIN_CROSS_PROCESS_LOCK_TIMEOUT_SEC)
+    except Timeout as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": _SECOND_BRAIN_ONBOARDING_IN_PROGRESS_CODE,
+                "message": _SECOND_BRAIN_ONBOARDING_IN_PROGRESS_MESSAGE,
+            },
+        ) from exc
+
+
+def _release_second_brain_cross_process_lock(lock: FileLock) -> None:
     if lock.is_locked:
         lock.release()
 
@@ -587,16 +619,26 @@ async def get_second_brain_onboarding_status(request: Request) -> dict[str, obje
 @router.post("/onboarding/second-brain/apply")
 async def apply_second_brain_onboarding(request: Request) -> dict[str, object]:
     """Apply Second Brain preset: user agent + read-it-later cron + checklist state."""
-    from app.services.onboarding.second_brain_preset import apply_second_brain_preset
+    from app.services.onboarding.second_brain_preset import (
+        SecondBrainPresetError,
+        apply_second_brain_preset,
+    )
 
     accept_lang = request.headers.get("Accept-Language", "en")
-    try:
-        result = await apply_second_brain_preset(accept_language=accept_lang)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.exception("Failed to apply Second Brain preset")
-        raise HTTPException(status_code=500, detail="Failed to apply Second Brain preset") from exc
+    async with _SECOND_BRAIN_APPLY_LOCK:
+        cross_process_lock = FileLock(str(_second_brain_apply_lock_path()))
+        _acquire_second_brain_cross_process_lock(cross_process_lock)
+        try:
+            result = await apply_second_brain_preset(accept_language=accept_lang)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except SecondBrainPresetError as exc:
+            raise HTTPException(status_code=500, detail=exc.message) from exc
+        except Exception as exc:
+            logger.exception("Failed to apply Second Brain preset")
+            raise HTTPException(status_code=500, detail="Failed to apply Second Brain preset") from exc
+        finally:
+            _release_second_brain_cross_process_lock(cross_process_lock)
     return result.model_dump()
 
 

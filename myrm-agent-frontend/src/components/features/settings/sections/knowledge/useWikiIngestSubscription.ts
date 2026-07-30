@@ -23,6 +23,7 @@ export interface WikiIngestSnapshotStats {
 export interface WikiIngestSnapshot {
   agent_id?: string | null;
   stats: WikiIngestSnapshotStats;
+  synthesis_pending_count?: number;
   compile_run?: CompileRunStatus | null;
   sync_required?: boolean;
   tree_sync_required?: boolean;

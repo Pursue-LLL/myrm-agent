@@ -240,8 +240,20 @@ _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _TRANSPORT_RECOVER_ATTEMPTS = 3
 _REQUEST_LOCK_ACQUIRE_SEC = 5.0
 _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC = 90.0
+_REQUEST_LOCK_ACQUIRE_SIGNOFF_PARALLEL_CAP_SEC = 180.0
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
+
+
+def _parallel_request_lock_cap_sec() -> float:
+    try:
+        from dev_gate_contract import is_e2e_signoff_runtime
+
+        if is_e2e_signoff_runtime():
+            return _REQUEST_LOCK_ACQUIRE_SIGNOFF_PARALLEL_CAP_SEC
+    except ImportError:
+        pass
+    return _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC
 
 
 def _resolve_request_lock_acquire_sec() -> float:
@@ -264,10 +276,10 @@ def _resolve_request_lock_acquire_sec() -> float:
         peer_scaled = _REQUEST_LOCK_ACQUIRE_SEC + (peer_count - 1) * 15.0
         scaled = max(scaled, peer_scaled)
     if os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() == "1":
-        return _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC
+        return _parallel_request_lock_cap_sec()
     return min(
         max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
-        _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC,
+        _parallel_request_lock_cap_sec(),
     )
 
 

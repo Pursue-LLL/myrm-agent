@@ -328,6 +328,7 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
         **os.environ,
         "MYRM_WAVE_GATE_BYPASS": "1",
         "MYRM_SUPERVISOR_BYPASS": "1",
+        "MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC": "600",
     }
     max_attempts = 1 if active_leases > 0 else 3
     backoff_schedule = (0,) if max_attempts == 1 else (0, 5, 10)

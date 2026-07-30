@@ -30,7 +30,7 @@ const mockGetTemplates = vi.fn().mockResolvedValue([
     use_cases: ['Diagnose cloud outage', 'Review migration risks'],
   },
 ]);
-const mockInstantiateTemplate = vi.fn().mockResolvedValue({ id: 'cloudq-instance' });
+const mockInstantiateTemplateWithMetrics = vi.fn().mockResolvedValue({ id: 'cloudq-instance' });
 
 const makeMockAgentDetail = (agentId: string) => ({
   id: agentId,
@@ -129,7 +129,19 @@ vi.mock('@/lib/deploy-mode', () => ({
 
 vi.mock('@/services/agent', () => ({
   getTemplates: (...args: unknown[]) => mockGetTemplates(...args),
-  instantiateTemplate: (...args: unknown[]) => mockInstantiateTemplate(...args),
+}));
+
+vi.mock('@/services/templateSummon', () => ({
+  instantiateTemplateWithMetrics: (...args: unknown[]) =>
+    mockInstantiateTemplateWithMetrics(...args),
+}));
+
+vi.mock('@/services/expertSummonMetrics', () => ({
+  recordExpertSummonSurfaceViewed: vi.fn(),
+  recordExpertSummonSearchUsed: vi.fn(),
+  recordExpertSummonRouteApplied: vi.fn(),
+  recordExpertSummonRouteApplyFailed: vi.fn(),
+  recordExpertSummonFirstMessageSent: vi.fn(),
 }));
 
 const mockInvoke = vi.fn().mockResolvedValue(undefined);
@@ -174,7 +186,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     mockAgentStoreState.fetchAgents.mockClear();
     mockAgentStoreState.fetchAgent.mockClear();
     mockGetTemplates.mockClear();
-    mockInstantiateTemplate.mockClear();
+    mockInstantiateTemplateWithMetrics.mockClear();
     mockInvoke.mockClear();
     vi.clearAllMocks();
   });
@@ -930,7 +942,12 @@ describe('FlowPadModal - Inline Mode Integration', () => {
       fireEvent.click(useCaseButton);
     });
 
-    expect(mockInstantiateTemplate).toHaveBeenCalledWith('cloudq-team-template');
+    expect(mockInstantiateTemplateWithMetrics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: 'cloudq-team-template',
+        surface: 'flow_pad_inline',
+      }),
+    );
     expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith(
       'cloudq-instance',
       expect.any(AbortSignal),

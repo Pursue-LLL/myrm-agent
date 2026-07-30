@@ -116,6 +116,37 @@ class TestReadItLaterBlueprint:
         assert "}" not in result.prompt
 
 
+class TestWikiMorningDeltaBlueprint:
+    """Specific tests for the wiki_morning_delta blueprint."""
+
+    def test_exists_in_registry(self) -> None:
+        bp = get_blueprint("wiki_morning_delta")
+        assert bp is not None
+        assert bp.id == "wiki_morning_delta"
+
+    def test_default_time_is_0700(self) -> None:
+        bp = get_blueprint("wiki_morning_delta")
+        assert bp is not None
+        time_slot = next(s for s in bp.slots if s.name == "time")
+        assert time_slot.default == "07:00"
+
+    def test_fill_produces_0700_cron(self) -> None:
+        result = fill_blueprint("wiki_morning_delta", {"time": "07:00", "weekdays": "everyday"})
+        assert result is not None
+        assert result.schedule.expr == "0 7 * * *"
+
+    def test_tools_allow_wiki_memory_file_ops(self) -> None:
+        result = fill_blueprint("wiki_morning_delta", {"time": "07:00", "weekdays": "everyday"})
+        assert result is not None
+        assert result.tools_allowed == ("wiki", "memory", "file_ops")
+
+    def test_prompt_mentions_silent_and_three_lines(self) -> None:
+        result = fill_blueprint("wiki_morning_delta", {"time": "07:00", "weekdays": "everyday"}, locale="en")
+        assert result is not None
+        assert "[SILENT]" in result.prompt
+        assert "3 short lines" in result.prompt
+
+
 class TestFinancialMonitorBlueprints:
     """Specific tests for financial monitor simple/advanced blueprints."""
 
@@ -295,6 +326,10 @@ class TestToolDescription:
     def test_includes_read_it_later(self) -> None:
         desc = get_blueprints_for_tool_description("en")
         assert "read_it_later" in desc
+
+    def test_includes_wiki_morning_delta(self) -> None:
+        desc = get_blueprints_for_tool_description("en")
+        assert "wiki_morning_delta" in desc
 
     def test_output_is_concise(self) -> None:
         desc = get_blueprints_for_tool_description("en")

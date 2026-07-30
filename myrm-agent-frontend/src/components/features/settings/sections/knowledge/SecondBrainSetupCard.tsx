@@ -85,6 +85,7 @@ export default function SecondBrainSetupCard({
         agent_id: result.agent_id,
         agent_name: result.agent_name,
         cron_job_id: result.cron_job_id,
+        delta_cron_job_id: result.delta_cron_job_id,
         applied_at: result.applied_at,
         checklist: result.checklist,
       });

@@ -6,7 +6,7 @@
  * - API_BASE_URL: 规范化的 API 基础地址。
  * - BACKEND_BASE_URL: 规范化的后端基础地址。
  * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
- * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；运输失败后 `markLocalBackendUnreachable` 失效缓存；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截）
+ * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；relay UI locale via `Accept-Language`；运输失败后 `markLocalBackendUnreachable` 失效缓存；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截）
  *
  * [POS]
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
@@ -21,6 +21,8 @@ import {
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
+import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import useConfigStore from '@/store/useConfigStore';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -342,6 +344,12 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('auth_token');
 };
 
+function resolveAcceptLanguageHeader(): string | undefined {
+  const savedLocale = useConfigStore.getState().personalSettings?.locale;
+  const cookieLocale = getClientLocale();
+  return normalizeLocaleForBackend(savedLocale || cookieLocale);
+}
+
 /**
  * 通用API请求函数
  * @param endpoint - API端点
@@ -372,9 +380,14 @@ export const apiRequest = async <T = unknown>(
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    const acceptLanguage = resolveAcceptLanguageHeader();
+    if (acceptLanguage && !headers['Accept-Language']) {
+      headers['Accept-Language'] = acceptLanguage;
+    }
+
     const response = await fetchWithTimeout(endpoint, {
-      headers,
       ...fetchOptions,
+      headers,
     });
 
     if (!response.ok) {

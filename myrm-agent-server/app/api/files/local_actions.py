@@ -21,11 +21,11 @@ from __future__ import annotations
 
 import logging
 import os
-import platform
-import subprocess
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+
+from app.services.files.reveal_utils import open_with_default_app, reveal_path_in_file_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -83,34 +83,6 @@ async def _resolve_artifact_path(file_id: str) -> Path:
     return resolved
 
 
-def _reveal_in_file_manager(path: Path) -> None:
-    """Open the file's parent directory in the system file manager."""
-    system = platform.system()
-    try:
-        if system == "Darwin":
-            subprocess.Popen(["open", "-R", str(path)])
-        elif system == "Windows":
-            subprocess.Popen(["explorer.exe", f"/select,{path}"])
-        else:
-            subprocess.Popen(["xdg-open", str(path.parent)])
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail=f"File manager command not found on {system}") from None
-
-
-def _open_with_default_app(path: Path) -> None:
-    """Open the file with the system's default application."""
-    system = platform.system()
-    try:
-        if system == "Darwin":
-            subprocess.Popen(["open", str(path)])
-        elif system == "Windows":
-            os.startfile(str(path))  # type: ignore[attr-defined]  # noqa: S606
-        else:
-            subprocess.Popen(["xdg-open", str(path)])
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail=f"Open command not found on {system}") from None
-
-
 @router.post("/files/{file_id}/reveal", tags=["files-local-actions"])
 async def reveal_file(file_id: str) -> dict[str, str]:
     """Reveal a file in the system file manager (Finder/Explorer).
@@ -119,7 +91,7 @@ async def reveal_file(file_id: str) -> dict[str, str]:
     """
     _validate_local_mode()
     path = await _resolve_artifact_path(file_id)
-    _reveal_in_file_manager(path)
+    reveal_path_in_file_manager(path)
     return {"status": "ok", "path": str(path)}
 
 
@@ -132,5 +104,5 @@ async def open_file(file_id: str) -> dict[str, str]:
     """
     _validate_local_mode()
     path = await _resolve_artifact_path(file_id)
-    _open_with_default_app(path)
+    open_with_default_app(path)
     return {"status": "ok", "path": str(path)}

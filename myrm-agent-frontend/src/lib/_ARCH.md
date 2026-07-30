@@ -8,7 +8,7 @@
 
 | 目录 / 文件 | 职责 | 文档 |
 |-------------|------|------|
-| `api.ts` | 通用 fetch 封装；`apiRequest` / `fetchWithTimeout` 共享本地 gate（`BACKEND_UNREACHABLE`）+ Next 代理纯文本 5xx 与 local `Failed to fetch` 归一化；`fetchWithTimeout` 另注入 mobile pair header | 内联 |
+| `api.ts` | 通用 fetch 封装；`apiRequest` / `fetchWithTimeout` 共享本地 gate（`BACKEND_UNREACHABLE`）+ relay UI locale（`personalSettings.locale` → `Accept-Language`）+ Next 代理纯文本 5xx 与 local `Failed to fetch` 归一化；`fetchWithTimeout` 另注入 mobile pair header | 内联 |
 | `mobileRemote.ts` | Pair token 存储/刷新；Hub URL 构建；`withMobilePairHeaders`（Hub list + scoped 控制） | 内联 |
 | `batch-optimization.ts` | 批量优化页类型、状态过滤、进度/统计聚合与格式化（无 HTTP；列表/创建在 page 直调 `apiRequest`） | 内联 |
 | `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL、Billing API 与 `BillingPlanKey` SSOT；Tauri 在 loopback dev host 走 `/api/v1` 代理 | 内联 |
