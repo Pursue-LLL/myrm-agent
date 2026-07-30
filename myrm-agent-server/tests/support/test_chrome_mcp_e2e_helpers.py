@@ -33,6 +33,12 @@ def test_open_mcp_page_applies_shpoib_bootstrap_without_initial_reload() -> None
     assert "_blocking_progress_loop" in block
     assert "open_mcp_page_blocking" in block
     assert "wait_mux_hand_probe_allowed" in block
+    assert "mux_upstream_wait_cap" in block
+    assert block.index("wait_mux_hand_probe_allowed") < block.index(
+        "transport_session_started = time.monotonic()"
+    )
+    assert "R156: runtime inject must not share sliced tool wall" in block
+    assert block.index("set_tool_wall_deadline(None)") < block.index("binding_source")
     assert (
         "connection reset"
         in source.split("def _retryable_open_page_error", 1)[1].split("\ndef ", 1)[0]
@@ -136,7 +142,7 @@ def test_open_page_parallel_budgets_scale_with_live_peer_count(
     assert loaded[1] == 120_000
     assert loaded[2] == pytest.approx(115.5)
     assert loaded[3] == pytest.approx(210.0)
-    assert loaded[4] == 2
+    assert loaded[4] == 1
 
 
 def test_open_page_body_fraction_cap_scales_with_live_body_wall(
@@ -365,3 +371,14 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
     from tests.support import chrome_mcp_e2e
 
     assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(180.0) == 360.0
+
+
+def test_open_page_attempt_count_is_one_under_parallel_peers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
+    assert chrome_mcp_e2e._open_page_attempt_count() == 1
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    assert chrome_mcp_e2e._open_page_attempt_count() == chrome_mcp_e2e._OPEN_PAGE_ATTEMPTS

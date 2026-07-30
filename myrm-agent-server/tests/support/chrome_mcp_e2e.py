@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -462,7 +463,11 @@ def _emit_transport_progress(*, current_node: str, node_started: float) -> None:
 
 
 @contextmanager
-def _blocking_progress_loop(*, current_node: str) -> Iterator[None]:
+def _blocking_progress_loop(
+    *,
+    current_node: str,
+    transport_session_started: float | None = None,
+) -> Iterator[None]:
     """Keep lease + wall progress fresh while mux MCP calls may block (anti hung-reap)."""
     import os
     import signal
@@ -470,7 +475,11 @@ def _blocking_progress_loop(*, current_node: str) -> Iterator[None]:
     from e2e_stall_guard import assert_transport_node_not_stuck, transport_stall_cap_sec
 
     stop = threading.Event()
-    node_started = time.monotonic()
+    node_started = (
+        transport_session_started
+        if transport_session_started is not None
+        else time.monotonic()
+    )
     last_transport_emit = node_started
     (
         _client_timeout,
@@ -484,7 +493,10 @@ def _blocking_progress_loop(*, current_node: str) -> Iterator[None]:
     )
     stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
     if _parallel_open_page_peer_count() >= 2:
-        stall_cap = min(transport_stall_cap_sec(), _wall_budget + 10.0)
+        stall_cap = min(
+            transport_stall_cap_sec(),
+            _open_page_body_fraction_cap_sec(),
+        )
 
     def _loop() -> None:
         nonlocal last_transport_emit
@@ -547,6 +559,13 @@ def _shpoib_rebind_location_wait_cap() -> float:
     return 45.0
 
 
+def _open_page_attempt_count() -> int:
+    """R152 TPMc: parallel mux — single outer pass; no retry that resets session clock."""
+    if _parallel_open_page_peer_count() >= 2:
+        return 1
+    return _OPEN_PAGE_ATTEMPTS
+
+
 def _open_page_parallel_budgets(
     request_timeout_sec: float,
     *,
@@ -584,7 +603,7 @@ def _open_page_parallel_budgets(
         capped_ms,
         wall_budget,
         total_budget,
-        _OPEN_PAGE_ATTEMPTS,
+        _open_page_attempt_count(),
     )
 
 
@@ -769,13 +788,31 @@ def open_mcp_page(
     )
     heartbeat_e2e_lease()
     touch_wall_progress(current_node="open_mcp_page_attempt")
-    total_deadline = time.monotonic() + open_page_total_budget_sec
-    wall_deadline = time.monotonic() + open_page_wall_budget_sec
+    parallel_transport = _open_page_parallel_total_wall_only()
+    boot_mux_gate_ok = os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
+    if _parallel_open_page_peer_count() >= 2:
+        if boot_mux_gate_ok:
+            # R155: BOOT gate already waited — short BODY sanity only.
+            wait_mux_hand_probe_allowed(budget_sec=15.0)
+        else:
+            from transport_supervisor import mux_upstream_wait_cap
+
+            probe_budget = float(mux_upstream_wait_cap())
+            wait_mux_hand_probe_allowed(budget_sec=probe_budget)
+            # R154: drain mux cold-attach slots before BODY transport pass (not mid-retry).
+            try:
+                _wait_mux_cold_attach_drain(budget_sec=min(60.0, probe_budget))
+            except RuntimeError as drain_exc:
+                if parallel_transport:
+                    raise RuntimeError(
+                        f"E2E_MUX_PRE_BODY_BACKPRESSURE: {drain_exc}"
+                    ) from drain_exc
+                raise
+    transport_session_started = time.monotonic()
+    total_deadline = transport_session_started + open_page_total_budget_sec
+    wall_deadline = transport_session_started + open_page_wall_budget_sec
     last_exc: BaseException | None = None
     mux_restarted = False
-    if _parallel_open_page_peer_count() >= 2:
-        probe_budget = min(120.0, open_page_wall_budget_sec * 0.55)
-        wait_mux_hand_probe_allowed(budget_sec=probe_budget)
     for attempt in range(open_page_attempts):
         if time.monotonic() >= total_deadline:
             if (
@@ -808,7 +845,10 @@ def open_mcp_page(
         touch_wall_progress(current_node="open_mcp_page_attempt")
         client = ChromeMcpClient(request_timeout_sec=client_timeout_sec)
         try:
-            with _blocking_progress_loop(current_node="open_mcp_page_blocking"):
+            with _blocking_progress_loop(
+                current_node="open_mcp_page_blocking",
+                transport_session_started=transport_session_started,
+            ):
                 heartbeat_e2e_lease()
                 touch_wall_progress(current_node="open_mcp_page_blocking")
                 _require_e2e_cdp_ready()
@@ -831,9 +871,17 @@ def open_mcp_page(
                     )
                     binding_source = e2e_runtime_binding_source()
                     if binding_source:
+                        # R156: runtime inject must not share sliced tool wall under parallel mux.
+                        client.set_tool_wall_deadline(None)
                         client.evaluate(
                             page,
                             f"(() => {{{binding_source} return true; }})()",
+                        )
+                        _sync_open_page_tool_wall(
+                            client,
+                            wall_deadline=wall_deadline,
+                            total_deadline=total_deadline,
+                            steps_remaining=open_steps,
                         )
                     client.navigate(page, url, timeout_ms=resolved_timeout_ms)
                     open_steps -= 1
@@ -920,6 +968,8 @@ def open_mcp_page(
                         ).recover_mux_transport()
                     except RuntimeError:
                         pass
+            if parallel_transport:
+                raise
             if attempt >= open_page_attempts - 1 or not _retryable_open_page_error(exc):
                 raise
             time.sleep(3.0 * (attempt + 1))
