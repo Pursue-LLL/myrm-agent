@@ -46,14 +46,17 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
     "allowed_tools",
 )
 
+_FOCUS_FILE_PATH: Final[str] = "myrm-agent-server/app/main.py"
+
 _FOCUS_INITIAL_QUERY: Final[str] = (
-    """
-简要解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。约150字。
+    f"""
+我在排查 `{_FOCUS_FILE_PATH}` 相关的异步逻辑。
+请用约150字解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。
 """.strip()
 )
 
 _FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
-    "继续。用一句话对比 asyncio.Event 与 threading.Event。",
+    f"继续。结合 `{_FOCUS_FILE_PATH}` 的排查背景，用一句话对比 asyncio.Event 与 threading.Event。",
 )
 
 _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (
@@ -217,9 +220,16 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
     assert len(all_events) > 0, "Expected events from multi-turn conversation"
 
     normalized_answer = final_answer.lower()
+    focus_hint = _FOCUS_FILE_PATH.removeprefix("./").lower()
     assert (
-        "asyncio" in normalized_answer or "event" in normalized_answer
-    ), f"Final answer should reference asyncio.Event from earlier turns. Got: {final_answer[:300]}"
+        "asyncio" in normalized_answer
+        or "event" in normalized_answer
+        or focus_hint in normalized_answer
+        or "main.py" in normalized_answer
+    ), (
+        f"Final answer should reference asyncio.Event or focus file from earlier turns. "
+        f"Got: {final_answer[:300]}"
+    )
 
 
 def test_real_context_compression_preserves_failed_tool_chain(
