@@ -22,7 +22,7 @@ _EXTENSION_BRIDGE_STATE = """(() => {
   const bodyText = root?.innerText || '';
   const fetchErrorVisible = /无法连接服务器|Unable to connect to the server/i.test(bodyText);
   const matrixLabels = ['URL 导航', '标签页发现', '调试器附加', '调试器分离',
-    'URL Navigation', 'Tab Discovery', 'Debugger Attach', 'Debugger Detach'];
+    'URL navigation', 'Tab discovery', 'Debugger attach', 'Debugger detach'];
   const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
   const unavailableHits = (bodyText.match(/不可用|Unavailable/g) || []).length;
   const relayLine = (bodyText.match(/私网中继能力[^\\n]*/i) || [])[0] || '';

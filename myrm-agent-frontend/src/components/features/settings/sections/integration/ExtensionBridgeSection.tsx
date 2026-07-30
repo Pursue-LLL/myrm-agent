@@ -192,14 +192,6 @@ const ExtensionBridgeSection = memo(() => {
     }
   }, [fetchStatus, t]);
 
-  if (loading) {
-    return (
-      <SettingsSection title={t('extension.title')}>
-        <div className="animate-pulse h-20 bg-muted/50 rounded-lg" />
-      </SettingsSection>
-    );
-  }
-
   return (
     <SettingsSection
       title={
@@ -322,8 +314,8 @@ const ExtensionBridgeSection = memo(() => {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="ghost" size="sm" onClick={fetchStatus}>
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={fetchStatus} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
           {status.connected && (
             <Button variant="destructive" size="sm" onClick={handleDisconnect}>
