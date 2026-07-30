@@ -2,7 +2,7 @@
 
 [INPUT]
 - assets/prebuilt_agents/*.yaml (POS: agent template seed files)
-- app.services.agent.agent_service::skills_service (POS: skill enablement)
+- app.core.skills.store::skills_service (POS: skill store singleton for skill enablement)
 
 [OUTPUT]
 - PREBUILT_AGENTS_DIR: path to prebuilt agent assets
@@ -66,7 +66,7 @@ async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str)
 
     Raises SkillEnablementError if a skill is missing or cannot be enabled.
     """
-    from app.services.agent.agent_service import skills_service
+    from app.core.skills.store import skills_service
 
     for skill_id in prebuilt_skill_ids:
         skill = await skills_service.get_skill(skill_id)

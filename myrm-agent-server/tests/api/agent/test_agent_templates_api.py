@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
+from fastapi import HTTPException
 from starlette.testclient import TestClient
 
 
@@ -53,12 +54,9 @@ def test_official_document_assistant_template_loaded(client: TestClient):
 
 def test_official_document_assistant_instantiate(client: TestClient):
     """Instantiating official_document_assistant creates an agent with correct fields."""
-    mock_skill = AsyncMock()
-    mock_skill.id = "office-document"
-
-    with (
-        patch("app.api.agents.templates.skills_service.get_skill", new_callable=AsyncMock, return_value=mock_skill),
-        patch("app.api.agents.templates.skills_service.user_config.enable_prebuilt_skill", new_callable=AsyncMock),
+    with patch(
+        "app.api.agents.templates._ensure_skills_enabled",
+        new_callable=AsyncMock,
     ):
         response = client.post("/api/v1/agents/instantiate-template/official_document_assistant")
 
@@ -93,7 +91,13 @@ def test_official_document_assistant_i18n_en(client: TestClient):
 
 def test_official_document_assistant_instantiate_missing_skill(client: TestClient):
     """Instantiation fails gracefully when required skill is not in the system."""
-    with patch("app.api.agents.templates.skills_service.get_skill", new_callable=AsyncMock, return_value=None):
+    from app.services.agent.template_utils import SkillEnablementError
+
+    with patch(
+        "app.api.agents.templates._ensure_skills_enabled",
+        new_callable=AsyncMock,
+        side_effect=HTTPException(status_code=400, detail="Skill 'office-document' does not exist"),
+    ):
         response = client.post("/api/v1/agents/instantiate-template/official_document_assistant")
 
     assert response.status_code == 400

@@ -5,7 +5,7 @@ Supports both individual and team templates. Team templates atomically create al
 member agents plus a leader, with full rollback on failure.
 
 [INPUT]
-- app.core.skills.store.service::skills_service (POS: Skill store singleton for prebuilt skill management)
+- app.services.agent.template_utils::ensure_skills_enabled (POS: Pre-flight skill check and enablement)
 - app.database.dto::AgentCreate (POS: Agent creation request model)
 - app.services.agent.agent_service::AgentService (POS: Agent CRUD service)
 
