@@ -230,23 +230,21 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
 
 _attach_parallel_wait_sec() {
   local base="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
-  local active_leases scaled cap
+  local active_leases scaled
   active_leases="$(_parallel_attach_active_leases)"
   [[ "${base}" =~ ^[0-9]+$ ]] || base=180
-  if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
-    scaled=$((base + active_leases * 45))
-    if [[ "${scaled}" -gt 900 ]]; then
-      scaled=900
-    fi
-    cap="${MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC:-}"
-    if [[ "${cap}" =~ ^[0-9]+$ && "${cap}" -gt 0 && "${scaled}" -gt "${cap}" ]]; then
-      echo "CHROME_E2E_ATTACH_WAIT_CAP: scaled=${scaled}s capped=${cap}s (leases=${active_leases}; R123 solo ready)" >&2
-      scaled="${cap}"
-    fi
-    echo "${scaled}"
-    return 0
+  [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
+  scaled="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from dev_gate_contract import attach_parallel_wait_sec
+print(attach_parallel_wait_sec(${active_leases}, base=${base}))
+")"
+  [[ "${scaled}" =~ ^[0-9]+$ ]] || scaled="${base}"
+  if [[ "${active_leases}" -gt 0 ]]; then
+    echo "CHROME_E2E_ATTACH: parallel ADMIT scaled wait ≤${scaled}s (R161; leases=${active_leases}; do not stop other pytest)" >&2
   fi
-  echo "${base}"
+  echo "${scaled}"
 }
 
 _attach_fast_path() {

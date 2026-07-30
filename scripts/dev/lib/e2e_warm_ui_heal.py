@@ -37,6 +37,10 @@ def _attach_heal_flock_path() -> Path:
     return _state_dir() / "attach-frontend-heal.flock"
 
 
+def _ui_heal_global_flock_path() -> Path:
+    return _state_dir() / "ui-heal-global.flock"
+
+
 def warm_ui_heal_recently_applied(
     *, debounce_sec: float = _DEFAULT_DEBOUNCE_SEC
 ) -> bool:
@@ -204,6 +208,120 @@ def heal_shared_frontend_attach(
         os.close(fd)
 
 
+def _route_probe_ok(route: str, *, timeout_sec: float = 12.0) -> bool:
+    import urllib.error
+    import urllib.request
+
+    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    path = route if route.startswith("/") else f"/{route}"
+    request = urllib.request.Request(f"{ui_base}{path}", method="GET")  # noqa: S310
+    try:
+        with urllib.request.urlopen(
+            request, timeout=timeout_sec
+        ) as response:  # noqa: S310
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return False
+
+
+def run_ui_heal_cli(
+    monorepo_root: Path,
+    *,
+    route: str = "",
+    flock_wait_sec: float = 120.0,
+    slow_sec: float = 5.0,
+) -> int:
+    """Global single-flight ./myrm ui-heal — wave-safe, parallel pytest may continue."""
+    if _shared_ui_probe_ok(timeout_sec=slow_sec):
+        before = "ok"
+    else:
+        before = "fail"
+
+    flock_file = _ui_heal_global_flock_path()
+    flock_file.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(flock_file), os.O_RDWR | os.O_CREAT, 0o644)
+    acquired = False
+    deadline = time.monotonic() + flock_wait_sec
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                if _shared_ui_probe_ok(timeout_sec=slow_sec):
+                    print(f"MYRM_UI_HEAL: probe before={before}s")
+                    print("MYRM_UI_HEAL_DEFER: global flock busy — UI already healthy")
+                    if route and _route_probe_ok(route, timeout_sec=slow_sec):
+                        ui_base = os.environ.get(
+                            "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+                        ).rstrip("/")
+                        path = route if route.startswith("/") else f"/{route}"
+                        print(f"MYRM_UI_HEAL: route OK {ui_base}{path}")
+                    print(f"MYRM_UI_HEAL_OK ui=follower before={before} after=ok")
+                    return 0
+                if time.monotonic() >= deadline:
+                    print(
+                        "MYRM_UI_HEAL_FAIL: global ui-heal flock busy after "
+                        f"{flock_wait_sec}s",
+                        file=sys.stderr,
+                    )
+                    return 1
+                time.sleep(2.0)
+
+        print(f"MYRM_UI_HEAL: probe before={before}s")
+        if not _shared_ui_probe_ok(timeout_sec=slow_sec):
+            outcome = heal_shared_frontend_attach(monorepo_root)
+            if outcome not in {"leader_ok", "follower_ok"}:
+                print(
+                    f"MYRM_UI_HEAL_FAIL: shared UI still unhealthy ({outcome})",
+                    file=sys.stderr,
+                )
+                return 1
+
+        post_deadline = time.monotonic() + float(
+            os.environ.get("MYRM_UI_HEAL_POST_ENSURE_MAX_SEC", "120")
+        )
+        while time.monotonic() < post_deadline:
+            if _shared_ui_probe_ok(timeout_sec=slow_sec):
+                break
+            time.sleep(2.0)
+        else:
+            print("MYRM_UI_HEAL_FAIL: root probe failed after heal", file=sys.stderr)
+            return 1
+
+        after = "ok"
+        print(f"MYRM_UI_HEAL: probe after={after}s")
+
+        if route:
+            route_timeout = float(os.environ.get("MYRM_UI_HEAL_ROUTE_PROBE_SEC", "15"))
+            if not _route_probe_ok(route, timeout_sec=route_timeout):
+                ui_base = os.environ.get(
+                    "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+                ).rstrip("/")
+                path = route if route.startswith("/") else f"/{route}"
+                print(
+                    f"MYRM_UI_HEAL_FAIL: route unreachable {ui_base}{path}",
+                    file=sys.stderr,
+                )
+                return 1
+            ui_base = os.environ.get(
+                "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+            ).rstrip("/")
+            path = route if route.startswith("/") else f"/{route}"
+            print(f"MYRM_UI_HEAL: route OK {ui_base}{path}")
+
+        ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
+        print(f"MYRM_UI_HEAL_OK ui={ui_base} before={before} after={after}")
+        return 0
+    finally:
+        if acquired:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
 def main() -> int:
     if len(sys.argv) >= 2 and sys.argv[1] == "attach":
         if len(sys.argv) != 3:
@@ -213,6 +331,17 @@ def main() -> int:
         outcome = heal_shared_frontend_attach(root)
         print(outcome)
         return 0 if outcome in {"leader_ok", "follower_ok"} else 1
+    if len(sys.argv) >= 2 and sys.argv[1] == "ui-heal":
+        root = Path(sys.argv[2]).resolve() if len(sys.argv) >= 3 else Path.cwd()
+        route = ""
+        idx = 3
+        while idx < len(sys.argv):
+            if sys.argv[idx] == "--route" and idx + 1 < len(sys.argv):
+                route = sys.argv[idx + 1]
+                idx += 2
+                continue
+            idx += 1
+        return run_ui_heal_cli(root, route=route)
     if len(sys.argv) != 2:
         print("usage: e2e_warm_ui_heal.py <monorepo_root>", file=sys.stderr)
         return 2

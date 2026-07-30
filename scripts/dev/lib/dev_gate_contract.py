@@ -211,6 +211,24 @@ def attach_ui_heal_timeout_sec(active_leases: int = 0) -> int:
     )
 
 
+def attach_parallel_wait_sec(active_leases: int = 0, *, base: int = 180) -> int:
+    """Parallel ADMIT attach endpoint wait — must cover at least one UI heal cycle (R161)."""
+    leases = max(active_leases, 0)
+    if leases <= 0:
+        cap_raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC", "").strip()
+        if cap_raw.isdigit() and int(cap_raw) > 0:
+            return min(base, int(cap_raw))
+        return base
+    scaled = base + leases * 45
+    heal_floor = attach_ui_heal_timeout_sec(leases) + 120
+    scaled = max(scaled, heal_floor)
+    cap = E2E_ADMISSION_WALL_CLOCK_SEC
+    cap_raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC", "").strip()
+    if cap_raw.isdigit() and int(cap_raw) > 0:
+        cap = int(cap_raw)
+    return min(scaled, cap)
+
+
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (

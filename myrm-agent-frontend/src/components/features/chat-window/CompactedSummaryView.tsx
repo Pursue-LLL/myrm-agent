@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+'use client';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
-import { FileText, Edit2, Save, X, History } from 'lucide-react';
-import { getChatArchive, updateCompactionSummary } from '@/services/chat';
+import { FileText, PencilSimple, FloppyDisk, X, ClockCounterClockwise, BookmarkSimple } from '@phosphor-icons/react';
+import { useTranslations } from 'next-intl';
+import {
+  createContextBranch,
+  getChatArchive,
+  listContextBranches,
+  updateCompactionSummary,
+  type ContextBranchRecord,
+} from '@/services/chat';
 import type { Message } from '@/store/chat/types';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { showI18nToast } from '@/services/i18nToastService';
 
 const markdownLinkComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -29,22 +39,86 @@ const markdownLinkComponents = {
   },
 };
 
+const MAX_BOOKMARKS_DISPLAY = 5;
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1000) {
+    return `${(tokens / 1000).toFixed(1)}K`;
+  }
+  return String(tokens);
+}
+
+function bookmarkDisplayLabel(record: ContextBranchRecord): string {
+  const label = record.label.trim();
+  if (label) {
+    return label;
+  }
+  const segments = record.snapshot_path.split(/[/\\]/);
+  return segments[segments.length - 1] || record.snapshot_path;
+}
+
+function formatBookmarkTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return format(date, 'yyyy-MM-dd HH:mm');
+}
+
 export const CompactedSummaryView = () => {
-  const { chatId, compactedSummary, setCompactedSummary } = useChatStore(
+  const t = useTranslations('chat.compactedSummary');
+  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta } = useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
       compactedSummary: state.compactedSummary,
       setCompactedSummary: state.setCompactedSummary,
+      lastCompactionMeta: state.lastCompactionMeta,
     })),
   );
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBookmark, setIsSavingBookmark] = useState(false);
 
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archiveMessages, setArchiveMessages] = useState<Message[]>([]);
   const [isLoadingArchive, setIsLoadingArchive] = useState(false);
+  const [bookmarks, setBookmarks] = useState<ContextBranchRecord[]>([]);
+  const [bookmarksLoading, setBookmarksLoading] = useState(false);
+
+  const loadBookmarks = useCallback(async () => {
+    const requestChatId = chatId;
+    if (!requestChatId) {
+      setBookmarks([]);
+      return;
+    }
+    setBookmarksLoading(true);
+    try {
+      const branches = await listContextBranches(requestChatId);
+      if (useChatStore.getState().chatId !== requestChatId) {
+        return;
+      }
+      setBookmarks(branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse());
+    } catch (err) {
+      console.error('[CompactedSummaryView] failed to load bookmarks', err);
+      if (useChatStore.getState().chatId === requestChatId) {
+        setBookmarks([]);
+      }
+    } finally {
+      if (useChatStore.getState().chatId === requestChatId) {
+        setBookmarksLoading(false);
+      }
+    }
+  }, [chatId]);
+
+  useEffect(() => {
+    if (compactedSummary && chatId) {
+      void loadBookmarks();
+      return;
+    }
+    setBookmarks([]);
+  }, [compactedSummary, chatId, loadBookmarks]);
 
   if (!compactedSummary) return null;
 
@@ -65,7 +139,7 @@ export const CompactedSummaryView = () => {
       setCompactedSummary(editValue);
       setIsEditing(false);
     } catch (err) {
-      console.error('Failed to save summary:', err);
+      console.error('[CompactedSummaryView] failed to save summary', err);
     } finally {
       setIsSaving(false);
     }
@@ -80,15 +154,30 @@ export const CompactedSummaryView = () => {
       const res = await getChatArchive(chatId);
       setArchiveMessages(res.messages || []);
     } catch (err) {
-      console.error('Failed to fetch archive:', err);
+      console.error('[CompactedSummaryView] failed to fetch archive', err);
     } finally {
       setIsLoadingArchive(false);
     }
   };
 
+  const handleSaveBookmark = async () => {
+    const snapshotPath = lastCompactionMeta?.snapshotPath;
+    if (!chatId || !snapshotPath || isSavingBookmark) return;
+    setIsSavingBookmark(true);
+    try {
+      await createContextBranch(chatId, { snapshot_path: snapshotPath });
+      await loadBookmarks();
+      showI18nToast('chat.compactedSummary.bookmarkSaved', undefined, { type: 'success' });
+    } catch (err) {
+      console.error('[CompactedSummaryView] failed to save bookmark', err);
+      showI18nToast('chat.compactedSummary.bookmarkSaveFailed', undefined, { type: 'error' });
+    } finally {
+      setIsSavingBookmark(false);
+    }
+  };
+
   return (
     <div className="w-full flex flex-col items-center my-6 max-w-5xl mx-auto px-4 md:px-0">
-      {/* Fold Line UI */}
       <div className="flex items-center w-full my-4 opacity-50">
         <div className="flex-1 h-px bg-border" />
         <span
@@ -96,39 +185,43 @@ export const CompactedSummaryView = () => {
           tabIndex={0}
           className="px-4 text-xs font-medium text-muted-foreground flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors"
           onClick={handleViewArchive}
-          onKeyDown={(e) => e.key === 'Enter' && handleViewArchive()}
+          onKeyDown={(event) => event.key === 'Enter' && handleViewArchive()}
         >
-          <History className="w-3.5 h-3.5" />
-          上下文已压缩 Context Folded
+          <ClockCounterClockwise size={14} weight="duotone" />
+          {t('foldLabel')}
         </span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      {/* Editable Glass Box */}
       <div className="w-full relative group rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm transition-all hover:border-primary/40">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <FileText className="w-4 h-4" />
-            AI 记忆胶囊 (Structured Summary)
+            <FileText size={16} weight="duotone" />
+            {t('title')}
           </div>
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             {!isEditing ? (
               <button
+                type="button"
                 onClick={handleEdit}
                 className="text-xs flex items-center gap-1 bg-background hover:bg-muted text-foreground px-2 py-1 rounded-full border"
               >
-                <Edit2 className="w-3 h-3" /> 编辑记忆
+                <PencilSimple size={12} />
+                {t('edit')}
               </button>
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={handleCancel}
                   className="text-xs flex items-center gap-1 bg-background hover:bg-muted text-foreground px-2 py-1 rounded-full border"
                   disabled={isSaving}
                 >
-                  <X className="w-3 h-3" /> 取消
+                  <X size={12} />
+                  {t('cancel')}
                 </button>
                 <button
+                  type="button"
                   onClick={handleSave}
                   className="text-xs flex items-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground px-2 py-1 rounded-full"
                   disabled={isSaving}
@@ -136,9 +229,9 @@ export const CompactedSummaryView = () => {
                   {isSaving ? (
                     <div className="w-3 h-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
                   ) : (
-                    <Save className="w-3 h-3" />
+                    <FloppyDisk size={12} />
                   )}
-                  保存
+                  {t('save')}
                 </button>
               </>
             )}
@@ -148,7 +241,7 @@ export const CompactedSummaryView = () => {
         {isEditing ? (
           <textarea
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(event) => setEditValue(event.target.value)}
             className="w-full min-h-[200px] text-sm bg-background border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary font-mono resize-y"
           />
         ) : (
@@ -162,19 +255,65 @@ export const CompactedSummaryView = () => {
             </ReactMarkdown>
           </div>
         )}
+
+        {(lastCompactionMeta?.tokensSaved ?? 0) > 0 && (
+          <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span>{t('tokensSaved', { tokens: formatTokens(lastCompactionMeta!.tokensSaved) })}</span>
+            {lastCompactionMeta?.snapshotPath && (
+              <button
+                type="button"
+                disabled={isSavingBookmark}
+                onClick={handleSaveBookmark}
+                className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+              >
+                <BookmarkSimple size={12} weight="duotone" />
+                {isSavingBookmark ? t('savingBookmark') : t('saveBookmark')}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-t border-border/50 flex flex-col gap-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground">{t('bookmarksTitle')}</span>
+          {bookmarksLoading ? (
+            <span className="text-[10px] text-muted-foreground">{t('bookmarksLoading')}</span>
+          ) : bookmarks.length === 0 ? (
+            <span className="text-[10px] text-muted-foreground">{t('bookmarksEmpty')}</span>
+          ) : (
+            <ul className="flex flex-col gap-1 max-h-28 overflow-y-auto">
+              {bookmarks.map((bookmark) => {
+                const bookmarkTime = formatBookmarkTime(bookmark.created_at);
+                return (
+                  <li
+                    key={bookmark.branch_id}
+                    className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 text-[10px] text-foreground/80 min-w-0"
+                    title={bookmark.snapshot_path}
+                  >
+                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <BookmarkSimple size={10} weight="duotone" className="shrink-0 text-primary/70" />
+                      <span className="truncate">{bookmarkDisplayLabel(bookmark)}</span>
+                    </div>
+                    {bookmarkTime ? (
+                      <span className="shrink-0 tabular-nums text-muted-foreground sm:ml-auto">{bookmarkTime}</span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
 
-      {/* Archive Modal (Simplified) */}
       {isArchiveOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 md:p-8">
           <div className="bg-background border shadow-xl rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b flex items-center justify-between bg-muted/30">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <History className="w-5 h-5" />
-                折叠的历史消息 Archive
+                <ClockCounterClockwise size={20} weight="duotone" />
+                {t('archiveTitle')}
               </h2>
-              <button onClick={() => setIsArchiveOpen(false)} className="p-2 hover:bg-muted rounded-full">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setIsArchiveOpen(false)} className="p-2 hover:bg-muted rounded-full">
+                <X size={20} />
               </button>
             </div>
 
@@ -184,7 +323,7 @@ export const CompactedSummaryView = () => {
                   <div className="w-8 h-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
               ) : archiveMessages.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8">暂无归档数据 No archived messages found.</div>
+                <div className="text-center text-muted-foreground p-8">{t('archiveEmpty')}</div>
               ) : (
                 archiveMessages.map((msg, idx) => (
                   <div
@@ -192,11 +331,11 @@ export const CompactedSummaryView = () => {
                     className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
                     <div className="text-xs text-muted-foreground mb-1">
-                      {msg.role === 'user' ? 'You' : 'AI'} •{' '}
+                      {msg.role === 'user' ? t('roleUser') : t('roleAssistant')} •{' '}
                       {msg.createdAt ? format(new Date(msg.createdAt), 'yyyy-MM-dd HH:mm:ss') : ''}
                     </div>
                     <div
-                      className={`prose dark:prose-invert prose-sm max-w-none break-words max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
+                      className={`prose dark:prose-invert prose-sm break-words w-full max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
                         msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
                       }`}
                     >
