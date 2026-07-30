@@ -245,6 +245,7 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   context_pruned: 'thinking',
   archive_checkpoint: 'thinking',
   memory_archived: 'thinking',
+  allowed_tools_rejected_recovery: 'safety',
 };
 
 // 默认类别

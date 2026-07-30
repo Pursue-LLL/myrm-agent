@@ -1443,6 +1443,12 @@
         "modeRawClaimHint": "Prioritize concepts with structured claims and linked evidence.",
         "placeholder": "Ask a question about your knowledge...",
         "answer": "Answer:",
+        "confidenceScore": "Match confidence: {value}",
+        "retrievalTraceTitle": "Retrieval path",
+        "retrievalTraceIndex": "Index catalog",
+        "retrievalTraceSidecar": "Directory scope",
+        "retrievalTraceSeeds": "Retrieval seeds",
+        "retrievalTraceConcepts": "Selected concepts",
         "relatedArticles": "Related Articles:"
       },
       "actions": {
@@ -1530,6 +1536,9 @@
         "evidenceSnapshotVerified": "Source snapshot verified at compile",
         "evidenceSnapshotStale": "Source file changed since compile snapshot",
         "evidenceSnapshotMissing": "No compile snapshot for this source",
+        "evidenceStructuredClaim": "Structured claim",
+        "evidenceExcerpt": "Evidence excerpt",
+        "evidenceClaimConfidence": "Confidence {value}",
         "evidenceResourceUri": "Source version: {uri}",
         "evidenceSupersededFrom": "Previous import version: {uri}",
         "rawSourcesTitle": "Raw source ingest status",
@@ -5859,6 +5868,7 @@
     "analyzing_video": "Analyzing video...",
     "media_stripped": "Removed media — model does not support images",
     "media_rejected_recovery": "Model rejected media — removed and retrying",
+    "allowed_tools_rejected_recovery": "Gateway hat Tool-Richtlinie angepasst und erneut versucht",
     "consensus_active": "Multi-model consensus in progress",
     "consensus_reference_done": "Referenzmodell abgeschlossen",
     "workflow_init": "Dynamischen Workflow initialisieren",
@@ -5876,7 +5886,8 @@
       "execution_failure": "Execution Failure",
       "segfault": "Segmentation Fault",
       "signal_terminated": "Signal Terminated",
-      "nonzero_exit": "Non-Zero Exit"
+      "nonzero_exit": "Non-Zero Exit",
+      "trust_attenuation": "Vertrauen reduziert"
     },
     "toolSemanticLabels": {
       "file_read_tool": "Reading files",

@@ -10,6 +10,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
 seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户消息（Skill chip Chrome E2E）
+seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
 
@@ -32,11 +33,17 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.config.deploy_mode import is_local_mode
-from app.database.dto import ChatCreate
+from app.database.dto import AgentCreate, ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
 from app.services.kanban import KanbanService
 
+from .test_fixtures_allowed_tools_recovery import (
+    router as allowed_tools_recovery_fixture_router,
+)
+from .test_fixtures_context_retention import (
+    router as context_retention_fixture_router,
+)
 from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_evicted import router as evicted_fixture_router
 from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
@@ -175,6 +182,44 @@ async def seed_skill_chip_transcript_fixture() -> dict[str, str]:
         "user_text": _SKILL_CHIP_USER_TEXT,
         "wire_content": wire_content,
         "ui_path": f"/{chat_id}",
+    }
+
+
+@router.post("/test/seed-skill-chip-composer-fixture", include_in_schema=False)
+async def seed_skill_chip_composer_fixture() -> dict[str, str]:
+    """Local dev/test only: seed empty chat bound to agent with systematic-debugging skill."""
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    suffix = uuid4().hex[:8]
+    agent = await AgentService.create_agent(
+        AgentCreate.model_validate(
+            {
+                "name": f"Slash Skill Chip Composer E2E {suffix}",
+                "description": "Chrome READ E2E for slash skill chip composer UX",
+                "system_prompt": "You are a test agent.",
+                "mcp_ids": [],
+                "skill_ids": [_SKILL_CHIP_WIRE_SKILL],
+            }
+        )
+    )
+    agent_id = agent.id
+
+    chat_id = f"e2eslashchip{uuid4().hex[:10]}"
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="Slash skill chip composer Chrome E2E",
+            agent_id=agent_id,
+            messages=[],
+        ),
+    )
+
+    return {
+        "chat_id": chat_id,
+        "agent_id": agent_id,
+        "skill_id": _SKILL_CHIP_WIRE_SKILL,
+        "ui_path": f"/{chat_id}?agentId={agent_id}",
     }
 
 
@@ -318,3 +363,5 @@ router.include_router(file_mutation_fixture_router)
 router.include_router(evicted_fixture_router)
 router.include_router(revert_fixture_router)
 router.include_router(stream_retry_busy_fixture_router)
+router.include_router(allowed_tools_recovery_fixture_router)
+router.include_router(context_retention_fixture_router)

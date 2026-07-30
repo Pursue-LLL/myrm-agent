@@ -29,6 +29,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'analyzing_video',
   'media_stripped',
   'media_rejected_recovery',
+  'allowed_tools_rejected_recovery',
   'ux_warning_truncated',
   'consensus_active',
   'consensus_reference_done',
@@ -218,6 +219,28 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       }
     }
   });
+  if (
+    (stepKey === 'context_pruned' ||
+      (stepKey === 'context_compaction' &&
+        (data.data as Record<string, unknown> | undefined)?.phase === 'completed')) &&
+    typeof data.tokens_saved === 'number' &&
+    data.tokens_saved > 0
+  ) {
+    const snapshotPath =
+      typeof data.snapshot_path === 'string'
+        ? data.snapshot_path
+        : typeof (data.data as Record<string, unknown> | undefined)?.snapshot_path === 'string'
+          ? ((data.data as Record<string, unknown>).snapshot_path as string)
+          : undefined;
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const chatId = useChatStore.getState().chatId;
+    if (chatId) {
+      await useChatStore.getState().refreshCompactionState(chatId, {
+        tokensSaved: data.tokens_saved,
+        snapshotPath,
+      });
+    }
+  }
   if (stepKey === 'archive_restore_blocked') {
     const message = archiveRestoreBlock?.message ?? 'Archived context restore was blocked.';
     const { toast } = await import('@/lib/utils/toast');
