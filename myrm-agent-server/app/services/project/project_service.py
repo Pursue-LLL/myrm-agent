@@ -39,6 +39,7 @@ def _project_to_dict(p: Project) -> dict[str, object]:
         "color": p.color,
         "sortOrder": p.sort_order,
         "workspacePath": p.workspace_path or "",
+        "defaultAgentId": p.default_agent_id,
         "goalSummary": p.goal_summary,
         "createdAt": p.created_at.isoformat() if p.created_at else None,
         "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
@@ -102,6 +103,7 @@ class ProjectService:
         workspace_path: str | None = None,
         description: str | None = None,
         goal_summary: str | None = None,
+        default_agent_id: str | None = ...,
     ) -> dict[str, object] | None:
         async with get_session() as db:
             stmt = select(Project).where(Project.id == project_id)
@@ -129,6 +131,8 @@ class ProjectService:
                 project.description = description.strip()
             if goal_summary is not None:
                 project.goal_summary = goal_summary.strip()
+            if default_agent_id is not ...:
+                project.default_agent_id = default_agent_id or None
 
             await db.commit()
             await db.refresh(project)

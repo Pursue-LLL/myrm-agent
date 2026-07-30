@@ -12,6 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 from cdp_chat_support import (
     PAGE_PROBE_JS,
     e2e_api_base_inject_js,
+    e2e_runtime_bootstrap_apply_js,
     shpoib_parallel_shell_timeout_sec,
 )
 from cdp_chat_ui import CdpChatSession
@@ -215,6 +216,24 @@ class McpChatSession(CdpChatSession):
         )
 
     async def _inject_e2e_api_base(self) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js:
+            try:
+                result = await self.evaluate(
+                    bootstrap_js,
+                    await_promise=True,
+                    recv_timeout=60.0,
+                )
+                if isinstance(result, dict) and result.get("ok") is True:
+                    return
+                _LOGGER.warning("E2E_RUNTIME_BOOTSTRAP_WARN: %s", result)
+            except RuntimeError as exc:
+                if is_target_closed_error(exc) or is_page_ownership_error(exc):
+                    raise
+                _LOGGER.warning(
+                    "E2E_RUNTIME_BOOTSTRAP_WARN: %s",
+                    str(exc)[:200],
+                )
         inject_js = e2e_api_base_inject_js()
         if not inject_js:
             return

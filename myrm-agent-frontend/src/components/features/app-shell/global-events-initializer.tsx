@@ -2,6 +2,7 @@
 
 import { useGlobalEvents } from '@/hooks/globalEvents/useGlobalEvents';
 import { usePendingApprovalsRecovery } from '@/hooks/approval/usePendingApprovalsRecovery';
+import { useProjectDefaultAgent } from '@/hooks/useProjectDefaultAgent';
 import { useWorkspaceStream } from '@/hooks/workspace/useWorkspaceStream';
 
 /**
@@ -12,5 +13,6 @@ export default function GlobalEventsInitializer() {
   useWorkspaceStream();
   useGlobalEvents();
   usePendingApprovalsRecovery();
+  useProjectDefaultAgent();
   return null;
 }

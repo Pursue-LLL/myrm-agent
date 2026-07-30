@@ -24,7 +24,8 @@
 | `skill.py` | 域模块 | PendingEvolution (deprecated), PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |
 | `notification.py` | 域模块 | SystemNotification | ✅ |
-| `project.py` | 域模块 | Project（会话项目分组及工作区，含 workspace_path/description/goal_summary 字段） | ✅ |
+| `assessment_import.py` | 域模块 | AssessmentImportLedger（评估导入幂等台账，`project_id+artifact_version_id` 唯一约束） | ✅ |
+| `project.py` | 域模块 | Project（会话项目分组及工作区，含 workspace_path/description/goal_summary/default_agent_id 字段） | ✅ |
 | `milestone.py` | 域模块 | Milestone（项目里程碑，阶段性目标追踪和状态流转） | ✅ |
 | `kanban.py` | 域模块 | KanbanBoardModel, KanbanTaskModel（看板/任务 ORM，含 project_id/milestone_id 关联和 attachment_ids_json） | ✅ |
 | `message_filter.py` | 域模块 | MessageFilterConfig, MessageFilterRule, MessageFilterAudit, MessageFilterConfigHistory | ✅ |

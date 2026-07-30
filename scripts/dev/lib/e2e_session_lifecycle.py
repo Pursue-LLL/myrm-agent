@@ -348,13 +348,27 @@ def budgets_remaining() -> dict[str, object]:
 
 def provider_readiness_gate_sync() -> None:
     """Fail-closed provider readiness gate for BOOTSTRAP phase."""
+    import sys
+
     from cdp_chat_support import (  # noqa: PLC0415
         fetch_provider_readiness_snapshot,
         wait_e2e_provider_ready,
     )
+    from dev_gate_contract import (  # noqa: PLC0415
+        PROVIDER_READINESS_GATE_BASE_SEC,
+        provider_readiness_gate_wait_sec,
+    )
 
     bootstrap_cap = float(phase_cap_sec("bootstrap"))
-    wait_budget = max(5.0, min(60.0, bootstrap_cap))
+    scaled_wait = provider_readiness_gate_wait_sec()
+    wait_budget = max(5.0, min(scaled_wait, bootstrap_cap))
+    if scaled_wait > PROVIDER_READINESS_GATE_BASE_SEC:
+        print(
+            f"E2E_PROVIDER_READINESS_GATE_WAIT: budget={wait_budget:.0f}s "
+            f"parallel_scaled={scaled_wait:.0f}s",
+            file=sys.stderr,
+            flush=True,
+        )
     if wait_e2e_provider_ready(timeout_sec=wait_budget):
         return
     snapshot = fetch_provider_readiness_snapshot()

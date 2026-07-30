@@ -7,12 +7,13 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Plus, Pencil, Trash2, FolderOpen, FolderCog } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderOpen, FolderCog, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/services/projects';
 import { useTranslations } from 'next-intl';
 import ProjectWorkspaceMount from '@/components/features/project-workspace/ProjectWorkspaceMount';
+import { ProjectDefaultAgentDialog } from './ProjectDefaultAgentDialog';
 
 const PROJECT_COLORS = [
   '#7cb9ff',
@@ -41,6 +42,7 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   const [editingName, setEditingName] = useState('');
   const [contextMenu, setContextMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
   const [workspaceMountProject, setWorkspaceMountProject] = useState<Project | null>(null);
+  const [defaultAgentProject, setDefaultAgentProject] = useState<Project | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -240,6 +242,10 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             setWorkspaceMountProject(p);
             setContextMenu(null);
           }}
+          onSetDefaultAgent={(p) => {
+            setDefaultAgentProject(p);
+            setContextMenu(null);
+          }}
           t={t}
         />
       )}
@@ -254,6 +260,16 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             if (!nextOpen) setWorkspaceMountProject(null);
           }}
           onBound={handleWorkspaceBound}
+        />
+      )}
+
+      {defaultAgentProject && (
+        <ProjectDefaultAgentDialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setDefaultAgentProject(null);
+          }}
+          project={defaultAgentProject}
         />
       )}
     </div>
@@ -313,6 +329,7 @@ interface ContextMenuProps {
   onDelete: (p: Project) => void;
   onChangeColor: (p: Project, color: string) => void;
   onSetWorkspace: (p: Project) => void;
+  onSetDefaultAgent: (p: Project) => void;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -324,6 +341,7 @@ const ContextMenu = ({
   onDelete,
   onChangeColor,
   onSetWorkspace,
+  onSetDefaultAgent,
   t,
   ref,
 }: ContextMenuProps & { ref: React.Ref<HTMLDivElement> }) => {
@@ -344,6 +362,12 @@ const ContextMenu = ({
         onClick={() => onSetWorkspace(project)}
       >
         <FolderCog size={12} /> {t('project.setWorkspace')}
+      </button>
+      <button
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
+        onClick={() => onSetDefaultAgent(project)}
+      >
+        <Bot size={12} /> {t('project.setDefaultAgent')}
       </button>
       <div className="px-3 py-1.5">
         <div className="flex gap-1 flex-wrap">

@@ -36,7 +36,7 @@ from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 from app.core.cron.adapters.situation_sections import build_situation_report_builder
-from app.core.cron.adapters.wiki_source_sync_runner import WikiSourceSyncJobRunner
+from app.core.cron.adapters.wiki_router_job_runner import WikiRouterJobRunner
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
 from app.core.cron.adapters.sqlalchemy_trigger_provider import SqlAlchemyTriggerProvider
 
@@ -119,7 +119,7 @@ def _build_runners() -> dict[JobType, JobRunner]:
     situation_builder = build_situation_report_builder()
     runners: dict[JobType, JobRunner] = {
         JobType.AGENT: AgentJobRunner(situation_builder=situation_builder),
-        JobType.ROUTER: WikiSourceSyncJobRunner(),
+        JobType.ROUTER: WikiRouterJobRunner(),
         JobType.REMINDER: NotificationRunner(),
     }
     if is_local_mode():

@@ -24,7 +24,7 @@
 | `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 | — |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 | — |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 | — |
-| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Overview **ObsidianVaultActions** + **WikiSourceSyncPanel** + synthesis badge + SecondBrainSetupCard；Query 结果 snippet 卡片 → SourceChunkDrawer（含 `claim_status`） | ✅ |
+| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Overview Obsidian/sync/SecondBrain + maintain_state badge（skip 原因细分）；Actions maintain mode + 成功 toast 摘要 + compile-busy 禁用/409；Query→SourceChunkDrawer | ✅ |
 | `WikiSourceSyncPanel.tsx` | 核心 | Overview 外部来源同步（Gmail/GDrive/RSS/镜像/上次同步/Drive 重连引导）；响应式 Card | ✅ |
 | `ObsidianVaultActions.tsx` | 核心 | Overview Obsidian 打开/文件夹/reveal/下载包；Open 仅 `obsidian_launch_available`；Local git 历史 hint | ✅ |
 | `SecondBrainSetupCard.tsx` | 核心 | 第二大脑一键预设：apply/status checklist（含 read-it-later + wiki-morning-delta 双 cron）、toast 展示 server message（含 vault seed 计数）、自动 selectAgent、vault/provider 深链 | ✅ |

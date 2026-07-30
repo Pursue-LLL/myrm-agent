@@ -12880,6 +12880,13 @@
     "delete": "刪除專案",
     "current": "當前",
     "setWorkspace": "設定工作目錄",
+    "setDefaultAgent": "預設智能體",
+    "defaultAgent": {
+      "title": "預設智能體",
+      "description": "在此專案下新建對話時，將自動選用此智能體。",
+      "none": "不指定",
+      "saveFailed": "儲存預設智能體失敗"
+    },
     "workspacePlaceholder": "絕對路徑，如 /workspace/docs",
     "workspaceUpdated": "工作目錄已更新",
     "workspaceCleared": "工作目錄已清除",

@@ -1,9 +1,15 @@
+"""
+[INPUT] app.database.standard_responses::create_error_response, BusinessCode
+[OUTPUT] not_found_handler, general_exception_handler
+[POS] FastAPI 全局异常响应适配层，负责 404/500 标准错误体输出。
+"""
+
 from __future__ import annotations
 
 import logging
 import traceback
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.requests import ClientDisconnect
 
@@ -13,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, HTTPException) and isinstance(exc.detail, dict):
+        detail = exc.detail
+        if "code" in detail and "message" in detail:
+            return JSONResponse(status_code=404, content=detail)
     return JSONResponse(
         status_code=404,
         content=create_error_response(

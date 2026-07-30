@@ -218,6 +218,16 @@ class WikiAssetIndexStatsResponse(BaseModel):
     enabled: bool = False
 
 
+class WikiMaintainStateResponse(BaseModel):
+    last_run_at: str | None = None
+    last_mode: str | None = None
+    last_issues_found: int = 0
+    last_issues_fixed: int = 0
+    last_connections_discovered: int = 0
+    last_duration_ms: int = 0
+    last_skipped_reason: str | None = None
+
+
 class WikiStatsResponse(BaseModel):
     total_concepts: int
     total_articles: int
@@ -234,6 +244,7 @@ class WikiStatsResponse(BaseModel):
     vault_git_initialized: bool = False
     vault_git_last_commit: str | None = None
     structural_issues: WikiStructuralIssuesResponse = Field(default_factory=WikiStructuralIssuesResponse)
+    maintain_state: WikiMaintainStateResponse = Field(default_factory=WikiMaintainStateResponse)
     asset_index: WikiAssetIndexStatsResponse = Field(default_factory=WikiAssetIndexStatsResponse)
 
 
@@ -628,13 +639,27 @@ async def compile_wiki(
 @router.post("/maintain", response_model=WikiMaintenanceResponse)
 async def maintain_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+    mode: Annotated[
+        Literal["structural", "full"],
+        Query(description="Maintenance intensity: structural (default) or full"),
+    ] = "structural",
 ) -> WikiMaintenanceResponse:
     try:
-        result = await archiver._linter.lint_and_maintain()
-        from app.services.wiki.asset_index_service import run_wiki_asset_index
+        from app.services.wiki.maintain_runner import run_wiki_maintain_job
+        from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
-        await run_wiki_asset_index(archiver)
-        await _after_wiki_vault_mutation(archiver, "maintain")
+        maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
+        result = await run_wiki_maintain_job(
+            llm=archiver._llm,
+            agent_id=agent_id,
+            mode=maintain_mode,
+        )
+        if result.skipped and result.skipped_reason == "compile_in_progress":
+            raise HTTPException(
+                status_code=409,
+                detail="Wiki compilation is in progress; maintain skipped",
+            )
         return WikiMaintenanceResponse(
             issues_found=result.issues_found,
             issues_fixed=result.issues_fixed,
@@ -643,6 +668,8 @@ async def maintain_wiki(
             raw_security_removed=result.raw_security_removed,
             raw_security_removed_paths=list(result.raw_security_removed_paths),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Wiki maintenance failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -692,6 +719,20 @@ async def get_wiki_stats(
                 enabled=asset_enabled,
             )
         git_status = read_vault_git_status(archiver._structure, archiver._config)
+        from app.database.connection import get_session
+        from app.services.wiki.maintain_state_store import load_wiki_maintain_state
+
+        async with get_session() as db:
+            maintain = await load_wiki_maintain_state(db, agent_id=agent_id)
+        maintain_state = WikiMaintainStateResponse(
+            last_run_at=maintain.last_run_at.isoformat() if maintain.last_run_at else None,
+            last_mode=maintain.last_mode,
+            last_issues_found=maintain.last_issues_found,
+            last_issues_fixed=maintain.last_issues_fixed,
+            last_connections_discovered=maintain.last_connections_discovered,
+            last_duration_ms=maintain.last_duration_ms,
+            last_skipped_reason=maintain.last_skipped_reason,
+        )
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),
@@ -712,6 +753,7 @@ async def get_wiki_stats(
                 invalid_frontmatter_types=structural.invalid_frontmatter_types,
                 scanned_concepts=structural.scanned_concepts,
             ),
+            maintain_state=maintain_state,
             asset_index=asset_index,
         )
     except Exception as e:

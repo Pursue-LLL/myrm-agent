@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
 
-from app.core.cron.adapters.wiki_source_sync_runner import WIKI_SOURCE_SYNC_COMMAND
+from app.core.cron.adapters.wiki_router_job_runner import WIKI_SOURCE_SYNC_COMMAND
 from app.services.wiki.source_sync.read_it_later_hygiene import (
     is_stale_read_it_later_job,
     migrate_stale_read_it_later_jobs,

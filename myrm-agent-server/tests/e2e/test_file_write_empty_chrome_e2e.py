@@ -163,6 +163,18 @@ def _nudge_result_agent_busy(nudge_result: dict[str, object]) -> bool:
     return False
 
 
+def _nudge_result_deferrable(nudge_result: dict[str, object]) -> bool:
+    """R168: parallel mux — steer may own the turn; nudge idle/409 is not fatal."""
+    if _nudge_result_agent_busy(nudge_result):
+        return True
+    err = nudge_result.get("error")
+    if isinstance(err, dict):
+        error_type = str(err.get("error_type") or "")
+        if error_type in {"AgentStreamIdleTimeout", "AgentStreamError"}:
+            return True
+    return False
+
+
 def _empty_write_target_path(workspace_seed: dict[str, object], filename: str) -> Path:
     workspace_dir = Path(str(workspace_seed["file_path"])).parent
     return workspace_dir / filename
@@ -617,10 +629,11 @@ async def test_file_write_empty_live_agent_webui(
         touch_wall_progress()
         if nudge_result.get("ok") is True:
             return "ok"
-        if _nudge_result_agent_busy(nudge_result):
+        if _nudge_result_deferrable(nudge_result):
             print(
-                "E2E_NUDGE_DEFER_AGENT_BUSY: in-flight UI stream owns session; "
-                f"chat_id={resolved_chat_id!r} parallel_peers={_parallel_live_agent_peer_count()}",
+                "E2E_NUDGE_DEFER: steer/in-flight owns session or stream idle; "
+                f"chat_id={resolved_chat_id!r} parallel_peers={_parallel_live_agent_peer_count()} "
+                f"err={nudge_result.get('error')!r}",
                 file=sys.stderr,
                 flush=True,
             )
@@ -685,7 +698,7 @@ async def test_file_write_empty_live_agent_webui(
             touch_wall_progress()
             try:
                 invoked, has_failure = await _poll_empty_write_api(chat_id)
-            except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            except (TimeoutError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
                 print(
                     "E2E_API_POLL_DEFER: parallel private-backend poll deferred "
                     f"parallel_peers={_parallel_live_agent_peer_count()} "
@@ -867,7 +880,9 @@ async def test_file_write_empty_live_agent_webui(
                         if steer_ok:
                             await asyncio.sleep(1.5)
                             continue
-                    if ui_nudge_attempts < 2:
+                    if ui_nudge_attempts < 2 and not (
+                        steer_attempted and _parallel_live_agent_peer_count() >= 2
+                    ):
                         nudge_outcome = await _api_nudge_turn(
                             chat_id, agent_id, nudge_filename
                         )
@@ -876,7 +891,8 @@ async def test_file_write_empty_live_agent_webui(
                         if nudge_outcome == "ok":
                             ui_nudge_attempts += 1
                         elif nudge_outcome == "deferred":
-                            # Steer already attempted; wait for in-flight turn progress.
+                            if steer_attempted:
+                                touch_wall_progress()
                             pass
                 elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
                     raise AssertionError(

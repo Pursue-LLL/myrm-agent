@@ -39,14 +39,19 @@ export default function KanbanSection() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      const result = await listBoards({ projectId: activeProjectId });
-      setBoards(result.items);
+      const scoped = await listBoards({ projectId: activeProjectId });
+      let items = scoped.items;
+      if (!activeProjectId && boardIdParam && !items.some((board) => board.board_id === boardIdParam)) {
+        const all = await listBoards();
+        items = all.items;
+      }
+      setBoards(items);
     } catch {
       toast.error(t('fetchBoardsError'));
     } finally {
       setLoading(false);
     }
-  }, [activeProjectId, t]);
+  }, [activeProjectId, boardIdParam, t]);
 
   useEffect(() => {
     fetchBoards();
@@ -68,11 +73,9 @@ export default function KanbanSection() {
         selectBoard(boards[0]!);
         return;
       }
-      const lastId = readKanbanLastBoardId();
       const scopedLastId = readKanbanLastBoardId(activeProjectId);
-      const lastBoardId = scopedLastId ?? lastId;
-      if (lastBoardId) {
-        const match = boards.find((b) => b.board_id === lastBoardId);
+      if (scopedLastId) {
+        const match = boards.find((b) => b.board_id === scopedLastId);
         if (match) {
           selectBoard(match);
           return;

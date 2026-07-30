@@ -3,7 +3,7 @@
 [INPUT]
 - app.core.cron.adapters.setup::get_cron_manager (POS: Cron job CRUD)
 - app.core.cron.blueprints::fill_blueprint (POS: read_it_later blueprint SSOT)
-- app.core.cron.adapters.wiki_source_sync_runner::WIKI_SOURCE_SYNC_COMMAND (POS: router command id)
+- app.core.cron.adapters.wiki_router_job_runner::WIKI_SOURCE_SYNC_COMMAND (POS: router command id)
 
 [OUTPUT]
 - is_stale_read_it_later_job / migrate_stale_read_it_later_jobs
@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, SessionTarget
 
 from app.core.cron.adapters.setup import get_cron_manager
-from app.core.cron.adapters.wiki_source_sync_runner import WIKI_SOURCE_SYNC_COMMAND
+from app.core.cron.adapters.wiki_router_job_runner import WIKI_SOURCE_SYNC_COMMAND
 from app.core.cron.blueprints import fill_blueprint
 
 logger = logging.getLogger(__name__)

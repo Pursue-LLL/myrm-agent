@@ -195,18 +195,6 @@ export default function WikiGraph3D() {
   }, []);
 
   useEffect(() => {
-    const handleIdleStatus = (e: CustomEvent) => {
-      const detail = e.detail;
-      if (detail && detail.status === 'completed' && detail.task_name === 'wiki_maintenance') {
-        setRefreshTrigger((prev) => prev + 1);
-      }
-    };
-
-    window.addEventListener('idle-status', handleIdleStatus as EventListener);
-    return () => window.removeEventListener('idle-status', handleIdleStatus as EventListener);
-  }, []);
-
-  useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
         setDimensions({

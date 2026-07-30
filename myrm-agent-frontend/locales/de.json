@@ -10780,6 +10780,13 @@
     "delete": "Projekt löschen",
     "current": "aktuell",
     "setWorkspace": "Arbeitsverzeichnis festlegen",
+    "setDefaultAgent": "Standard-Agent",
+    "defaultAgent": {
+      "title": "Standard-Agent",
+      "description": "Beim Erstellen eines neuen Chats in diesem Projekt wird der ausgewählte Agent automatisch angewendet.",
+      "none": "Keiner",
+      "saveFailed": "Standard-Agent konnte nicht gespeichert werden"
+    },
     "workspacePlaceholder": "Absoluter Pfad, z.B. /workspace/docs",
     "workspaceUpdated": "Arbeitsverzeichnis aktualisiert",
     "workspaceCleared": "Arbeitsverzeichnis gelöscht",

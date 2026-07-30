@@ -307,6 +307,17 @@ function bumpE2eSendGeneration(_reason: string): number {
 const SEND_TURN_REV = 'R72-F';
 const SEND_TURN_NO_OP_MS = 3_000;
 
+/** SHPOIB private-backend E2E: user persist + SSE arm can exceed 3s under parallel MUX. */
+function resolveSendTurnNoOpMs(): number {
+  if (typeof window === 'undefined') {
+    return SEND_TURN_NO_OP_MS;
+  }
+  if (resolveE2eApiBase()) {
+    return 12_000;
+  }
+  return SEND_TURN_NO_OP_MS;
+}
+
 function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown> {
   const processingIds = [...useToolApprovalStore.getState().processingMessageIds];
   return {
@@ -593,7 +604,7 @@ async function submitAndObserveTurn(
         };
       }
       if (
-        elapsedMs >= SEND_TURN_NO_OP_MS &&
+        elapsedMs >= resolveSendTurnNoOpMs() &&
         !uiProgress
       ) {
         const apiUsersProbe = await countApiUserMessages(chatId);

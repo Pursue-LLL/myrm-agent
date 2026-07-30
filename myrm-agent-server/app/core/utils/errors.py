@@ -222,12 +222,18 @@ def field_validation_error(field_errors: dict[str, object]) -> StandardHTTPExcep
     return validation_error(message="Request parameter validation failed", details=details)
 
 
-def not_found_error(resource: str = "Resource", trace_id: str | None = None) -> StandardHTTPException:
+def not_found_error(
+    resource: str = "Resource",
+    *,
+    details: list[ErrorDetail] | None = None,
+    trace_id: str | None = None,
+) -> StandardHTTPException:
     """Create resource not found error 404"""
     return StandardHTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         business_code=BusinessCode.RESOURCE_NOT_FOUND,
         message=f"{resource} not found",
+        details=details,
         trace_id=trace_id,
     )
 
@@ -262,12 +268,18 @@ def permission_error(message: str = "Permission denied", trace_id: str | None = 
     )
 
 
-def conflict_error(message: str = "Resource conflict", trace_id: str | None = None) -> StandardHTTPException:
+def conflict_error(
+    message: str = "Resource conflict",
+    *,
+    details: list[ErrorDetail] | None = None,
+    trace_id: str | None = None,
+) -> StandardHTTPException:
     """Create conflict error 409"""
     return StandardHTTPException(
         status_code=status.HTTP_409_CONFLICT,
         business_code=BusinessCode.RESOURCE_CONFLICT,
         message=message,
+        details=details,
         trace_id=trace_id,
     )
 

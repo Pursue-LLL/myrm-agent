@@ -14,6 +14,7 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from app.database.models.agent import Agent
 from app.database.models.chat import Chat
 from tests.support.minimal_app import build_minimal_app
 
@@ -406,3 +407,139 @@ async def test_projectid_visible_in_chat_list(async_client: httpx.AsyncClient) -
     chat = next((c for c in items if c["id"] == chat_id), None)
     assert chat is not None
     assert chat["projectId"] == project_id
+
+
+# ── Default Agent Binding ────────────────────────────────────────────
+
+
+async def _create_agent(agent_id: str) -> None:
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        agent = Agent(id=agent_id, name=f"Test Agent {agent_id[:8]}")
+        db.add(agent)
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_set_default_agent(async_client: httpx.AsyncClient) -> None:
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Set"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_id})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["defaultAgentId"] == agent_id
+
+
+@pytest.mark.asyncio
+async def test_clear_default_agent(async_client: httpx.AsyncClient) -> None:
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Clear"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_id})
+
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": None})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["defaultAgentId"] is None
+
+
+@pytest.mark.asyncio
+async def test_default_agent_only_update(async_client: httpx.AsyncClient) -> None:
+    """default_agent_id alone (no name/color) should be accepted."""
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Only"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_id})
+    assert resp.status_code == 200
+    project = resp.json()["data"]["project"]
+    assert project["defaultAgentId"] == agent_id
+    assert project["name"] == "DA Only"
+
+
+@pytest.mark.asyncio
+async def test_default_agent_persists_in_list(async_client: httpx.AsyncClient) -> None:
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Persist"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_id})
+
+    list_resp = await async_client.get(f"{PREFIX}/")
+    projects = list_resp.json()["data"]["projects"]
+    project = next((p for p in projects if p["id"] == project_id), None)
+    assert project is not None
+    assert project["defaultAgentId"] == agent_id
+
+
+@pytest.mark.asyncio
+async def test_new_project_has_no_default_agent(async_client: httpx.AsyncClient) -> None:
+    resp = await async_client.post(f"{PREFIX}/", json={"name": "No DA"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["defaultAgentId"] is None
+
+
+@pytest.mark.asyncio
+async def test_switch_default_agent(async_client: httpx.AsyncClient) -> None:
+    """Switching from one agent to another should update correctly."""
+    agent_a = f"agent-{uuid.uuid4().hex[:8]}"
+    agent_b = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_a)
+    await _create_agent(agent_b)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Switch"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+
+    await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_a})
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_b})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["defaultAgentId"] == agent_b
+
+
+@pytest.mark.asyncio
+async def test_update_name_and_default_agent_together(async_client: httpx.AsyncClient) -> None:
+    """Updating name and default_agent_id in one request should both persist."""
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Combined"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+
+    resp = await async_client.put(
+        f"{PREFIX}/{project_id}", json={"name": "DA Combined Updated", "default_agent_id": agent_id}
+    )
+    assert resp.status_code == 200
+    project = resp.json()["data"]["project"]
+    assert project["name"] == "DA Combined Updated"
+    assert project["defaultAgentId"] == agent_id
+
+
+@pytest.mark.asyncio
+async def test_delete_agent_clears_default_agent(async_client: httpx.AsyncClient) -> None:
+    """Deleting the bound agent should SET NULL on project.default_agent_id."""
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    await _create_agent(agent_id)
+
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Cascade"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    await async_client.put(f"{PREFIX}/{project_id}", json={"default_agent_id": agent_id})
+
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        from sqlalchemy import delete as sql_delete
+
+        await db.execute(sql_delete(Agent).where(Agent.id == agent_id))
+        await db.commit()
+
+    list_resp = await async_client.get(f"{PREFIX}/")
+    projects = list_resp.json()["data"]["projects"]
+    project = next((p for p in projects if p["id"] == project_id), None)
+    assert project is not None
+    assert project["defaultAgentId"] is None

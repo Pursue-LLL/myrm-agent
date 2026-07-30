@@ -66,7 +66,7 @@ def _mock_agent_profile(
     )
 
 
-def _dual_cron_mock_mgr(
+def _triple_cron_mock_mgr(
     *,
     list_jobs: list[SimpleNamespace] | None = None,
     create_side_effect: object | None = None,
@@ -75,11 +75,22 @@ def _dual_cron_mock_mgr(
         id="cron-read-later-1",
         name="Second Brain · Read-it-Later",
         agent_id="agent-second-brain-1",
+        command="__wiki_source_sync__",
+        job_type="router",
     )
     delta_job = SimpleNamespace(
         id="cron-wiki-delta-1",
         name="Second Brain · Wiki Morning Delta",
         agent_id="agent-second-brain-1",
+        command=None,
+        job_type="agent",
+    )
+    maintain_job = SimpleNamespace(
+        id="cron-wiki-maintain-1",
+        name="Second Brain · Wiki Maintenance",
+        agent_id="agent-second-brain-1",
+        command="__wiki_maintain__:full",
+        job_type="router",
     )
 
     async def _get_job(job_id: str, _user_id: str) -> SimpleNamespace | None:
@@ -87,13 +98,15 @@ def _dual_cron_mock_mgr(
             return read_later_job
         if job_id == delta_job.id:
             return delta_job
+        if job_id == maintain_job.id:
+            return maintain_job
         return None
 
     create_job = AsyncMock(
         side_effect=create_side_effect,
     )
     if create_side_effect is None:
-        create_job = AsyncMock(side_effect=[read_later_job, delta_job])
+        create_job = AsyncMock(side_effect=[read_later_job, delta_job, maintain_job])
 
     return SimpleNamespace(
         list_jobs=AsyncMock(return_value=list_jobs or []),
@@ -120,6 +133,8 @@ def test_seed_agent_vault_from_default_copies_content(tmp_path: Path, monkeypatc
     assert result.files_copied == 1
     copied_note = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "raw" / "migration-note.md"
     assert copied_note.is_file()
+    schema_path = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "wiki" / "SCHEMA.md"
+    assert schema_path.is_file()
     assert vault_has_wiki_content("agent-second-brain-1") is True
 
 
@@ -141,7 +156,7 @@ def test_second_brain_status_before_apply() -> None:
 def test_apply_second_brain_preset_success() -> None:
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    mock_mgr = _dual_cron_mock_mgr()
+    mock_mgr = _triple_cron_mock_mgr()
     created_profile = _mock_agent_profile()
     try:
         with (
@@ -178,7 +193,8 @@ def test_apply_second_brain_preset_success() -> None:
             assert payload["agent_id"] == "agent-second-brain-1"
             assert payload["cron_job_id"] == "cron-read-later-1"
             assert payload["delta_cron_job_id"] == "cron-wiki-delta-1"
-            assert mock_mgr.create_job.call_count == 2
+            assert payload["maintain_cron_job_id"] == "cron-wiki-maintain-1"
+            assert mock_mgr.create_job.call_count == 3
             assert any(item["id"] == "agent_tools" and item["ready"] for item in payload["checklist"])
             assert any(item["id"] == "cron_job" and item["ready"] for item in payload["checklist"])
 
@@ -323,7 +339,7 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
 
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    mock_mgr = _dual_cron_mock_mgr()
+    mock_mgr = _triple_cron_mock_mgr()
     existing_profile = _mock_agent_profile()
     create_agent = AsyncMock()
     try:
@@ -370,7 +386,7 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
 
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    mock_mgr = _dual_cron_mock_mgr()
+    mock_mgr = _triple_cron_mock_mgr()
     created_profile = _mock_agent_profile()
     try:
         with (
@@ -455,7 +471,7 @@ def test_second_brain_status_clears_stale_agent_id() -> None:
 def test_apply_second_brain_message_includes_vault_seed_count() -> None:
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    mock_mgr = _dual_cron_mock_mgr()
+    mock_mgr = _triple_cron_mock_mgr()
     created_profile = _mock_agent_profile()
     try:
         with (
@@ -496,7 +512,7 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
 def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    mock_mgr = _dual_cron_mock_mgr()
+    mock_mgr = _triple_cron_mock_mgr()
     created_profile = _mock_agent_profile()
     try:
         with (

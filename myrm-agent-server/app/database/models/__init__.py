@@ -7,6 +7,7 @@ from .agent import Agent, AgentProfileSnapshot, AgentSecret
 from .agent_event import AgentEvent, AgentTurn
 from .agent_history import AgentProfileHistory
 from .api_key import APIKey
+from .assessment_import import AssessmentImportLedger
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .artifact_publication import ArtifactPublication
@@ -74,6 +75,8 @@ from .wiki_evidence_metric import WikiEvidenceMetricEvent
 
 __all__ = [
     "Base",
+    # Assessment Import
+    "AssessmentImportLedger",
     # API Key
     "APIKey",
     # Chat

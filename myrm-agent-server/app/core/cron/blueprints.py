@@ -934,6 +934,56 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         default_tools_allowed=_TOOLS_WIKI,
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="wiki_maintain",
+        icon="Wrench",
+        title={"en": "Wiki Vault Maintenance", "zh": "知识库自动维护"},
+        description={
+            "en": "Scheduled structural lint and auto-repair for broken links, stale raw, and vault hygiene",
+            "zh": "定时执行知识库结构巡检，自动修复断链、过期 raw 与安全项",
+        },
+        prompt_template={
+            "en": (
+                "Wiki maintain job (router mode). The maintenance summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when nothing changed."
+            ),
+            "zh": (
+                "知识库维护任务（router 模式）。维护摘要由服务端生成，请原样投递。"
+                "若无变化则回复 [SILENT]。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="03:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekends",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="mode",
+                type="enum",
+                label="mode",
+                default="structural",
+                options=("structural", "full"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "maintenance", "lint", "automation", "second-brain"),
+        sort_order=14,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=900,
+            command="__wiki_maintain__:structural",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(
@@ -1004,6 +1054,13 @@ def fill_blueprint(
     name = _resolve_locale_title(bp, locale)[:40]
     defaults = bp.job_defaults
 
+    command = defaults.command
+    if bp.id == "wiki_maintain":
+        mode = effective_values.get("mode", "structural")
+        if mode not in ("structural", "full"):
+            raise BlueprintFillError(f"mode={mode!r} not allowed — one of structural, full")
+        command = f"__wiki_maintain__:{mode}"
+
     return BlueprintFillResult(
         schedule=schedule,
         prompt=prompt,
@@ -1018,7 +1075,7 @@ def fill_blueprint(
         monitor_config=defaults.monitor_config,
         failure_alert=defaults.failure_alert,
         pre_condition_script=pre_condition_script,
-        command=defaults.command,
+        command=command,
     )
 
 

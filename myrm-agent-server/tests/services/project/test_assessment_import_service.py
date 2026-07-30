@@ -41,3 +41,32 @@ No actionable list items.
 """
     with pytest.raises(ValueError, match="does not contain importable"):
         parse_assessment_markdown(content, fallback_title="Assessment Plan")
+
+
+def test_parse_assessment_markdown_rejects_non_actionable_checklist() -> None:
+    content = """
+## Context Digest
+- [ ] Notes: summarize current progress
+- [ ] Background: collect assumptions
+"""
+    with pytest.raises(ValueError, match="none are actionable tasks"):
+        parse_assessment_markdown(content, fallback_title="Assessment Plan")
+
+
+def test_parse_assessment_markdown_rejects_non_actionable_chinese_prefix() -> None:
+    content = """
+## 里程碑
+- [ ] 说明：补充上下文
+- [ ] 背景：整理输入来源
+"""
+    with pytest.raises(ValueError, match="none are actionable tasks"):
+        parse_assessment_markdown(content, fallback_title="评估计划")
+
+
+def test_parse_assessment_markdown_keeps_risk_mitigation_task() -> None:
+    content = """
+## Milestone Risk
+- [ ] Risk mitigation plan for flaky API timeout
+"""
+    parsed = parse_assessment_markdown(content, fallback_title="Assessment Plan")
+    assert parsed[0].tasks == ["Risk mitigation plan for flaky API timeout"]

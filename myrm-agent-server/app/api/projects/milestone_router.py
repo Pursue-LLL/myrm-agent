@@ -10,13 +10,35 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.core.utils.errors import internal_error, not_found_error, validation_error
+from app.core.utils.errors import (
+    conflict_error,
+    internal_error,
+    not_found_error,
+    unprocessable_error,
+    validation_error,
+)
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
-from app.services.project.assessment_import_service import AssessmentImportService
+from app.database.standard_responses import ErrorDetail, StandardSuccessResponse
+from app.services.project.assessment_import_service import (
+    ERROR_ARTIFACT_VERSION_ALREADY_IMPORTED,
+    ERROR_NO_ACTIONABLE_TASKS,
+    ERROR_NO_IMPORTABLE_TASKS,
+    AssessmentImportService,
+)
 from app.services.project.milestone_service import MILESTONE_STATUSES, MilestoneService
 
 router = APIRouter()
+
+IMPORT_REASON_FIELD = "import_reason"
+IMPORT_REASON_ARTIFACT_VERSION_ALREADY_IMPORTED = "artifact_version_already_imported"
+IMPORT_REASON_NO_ACTIONABLE_TASKS = "no_actionable_tasks"
+IMPORT_REASON_NO_IMPORTABLE_TASKS = "no_importable_tasks"
+IMPORT_REASON_ARTIFACT_NOT_FOUND = "artifact_not_found"
+IMPORT_REASON_PROJECT_NOT_FOUND = "project_not_found"
+
+
+def _import_reason_details(issue: str) -> list[ErrorDetail]:
+    return [ErrorDetail(field=IMPORT_REASON_FIELD, issue=issue)]
 
 
 class MilestoneCreateRequest(BaseModel):
@@ -170,10 +192,29 @@ async def import_assessment(project_id: str, req: AssessmentImportRequest) -> JS
     except FileNotFoundError as exc:
         detail = str(exc).lower()
         if "project" in detail:
-            raise not_found_error("Project") from exc
-        raise not_found_error("Artifact") from exc
+            raise not_found_error(
+                "Project",
+                details=_import_reason_details(IMPORT_REASON_PROJECT_NOT_FOUND),
+            ) from exc
+        raise not_found_error(
+            "Artifact",
+            details=_import_reason_details(IMPORT_REASON_ARTIFACT_NOT_FOUND),
+        ) from exc
     except ValueError as exc:
-        raise validation_error(str(exc)) from exc
+        detail = str(exc).strip()
+        if detail == ERROR_ARTIFACT_VERSION_ALREADY_IMPORTED:
+            raise conflict_error(
+                detail,
+                details=_import_reason_details(IMPORT_REASON_ARTIFACT_VERSION_ALREADY_IMPORTED),
+            ) from exc
+        if detail in {ERROR_NO_ACTIONABLE_TASKS, ERROR_NO_IMPORTABLE_TASKS}:
+            issue = (
+                IMPORT_REASON_NO_ACTIONABLE_TASKS
+                if detail == ERROR_NO_ACTIONABLE_TASKS
+                else IMPORT_REASON_NO_IMPORTABLE_TASKS
+            )
+            raise unprocessable_error(detail, details=_import_reason_details(issue)) from exc
+        raise validation_error(detail) from exc
     except HTTPException:
         raise
     except Exception as exc:

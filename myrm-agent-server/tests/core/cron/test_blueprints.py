@@ -147,6 +147,33 @@ class TestWikiMorningDeltaBlueprint:
         assert "3 short lines" in result.prompt
 
 
+class TestWikiMaintainBlueprint:
+    """Specific tests for the wiki_maintain blueprint."""
+
+    def test_exists_in_registry(self) -> None:
+        bp = get_blueprint("wiki_maintain")
+        assert bp is not None
+        assert bp.id == "wiki_maintain"
+
+    def test_fill_sets_structural_command(self) -> None:
+        result = fill_blueprint(
+            "wiki_maintain",
+            {"time": "03:00", "weekdays": "weekends", "mode": "structural"},
+        )
+        assert result is not None
+        assert result.command == "__wiki_maintain__:structural"
+        assert result.job_type == "router"
+        assert result.timeout_seconds == 900
+
+    def test_fill_full_mode_command(self) -> None:
+        result = fill_blueprint(
+            "wiki_maintain",
+            {"time": "04:00", "weekdays": "everyday", "mode": "full"},
+        )
+        assert result is not None
+        assert result.command == "__wiki_maintain__:full"
+
+
 class TestFinancialMonitorBlueprints:
     """Specific tests for financial monitor simple/advanced blueprints."""
 

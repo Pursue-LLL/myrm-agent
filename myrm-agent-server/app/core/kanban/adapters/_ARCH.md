@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `sqlalchemy_mapping.py` | 核心 | ORM ↔ 领域对象双向映射（含 board settings、task workspace/branch、attachment_ids） | — |
-| `sqlalchemy_store.py` | 核心 | `KanbanStore`：Board/Task/Run/Event/Edge CRUD、claim、heartbeat、zombie、Boot Recovery、批量统计 | — |
+| `sqlalchemy_store.py` | 核心 | `KanbanStore`：Board/Task/Run/Event/Edge CRUD、board scope（`project_id/milestone_id`）写入与 project 过滤、claim、heartbeat、zombie、Boot Recovery、批量统计 | — |
 
 ## 依赖
 

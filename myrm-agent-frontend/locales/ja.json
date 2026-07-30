@@ -13292,6 +13292,13 @@
     "delete": "プロジェクト削除",
     "current": "現で",
     "setWorkspace": "作業ディレクトリ設定",
+    "setDefaultAgent": "デフォルトエージェント",
+    "defaultAgent": {
+      "title": "デフォルトエージェント",
+      "description": "このプロジェクトで新しいチャットを作成すると、選択したエージェントが自動的に適用されます。",
+      "none": "指定なし",
+      "saveFailed": "デフォルトエージェントの保存に失敗しました"
+    },
     "workspacePlaceholder": "絶対パス 例: /workspace/docs",
     "workspaceUpdated": "作業ディレクトリを更新規しました",
     "workspaceCleared": "作業ディレクトリをクリアしました",

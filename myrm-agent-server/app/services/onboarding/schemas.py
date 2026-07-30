@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ChecklistItem: 4-item readiness checklist item model
-- SecondBrainPresetState: persistent state (agent + read-it-later + wiki-morning-delta cron ids)
+- SecondBrainPresetState: persistent state (agent + read-it-later + wiki-morning-delta + wiki-maintain cron ids)
 - SecondBrainApplyResponse: API response after applying preset
 - SecondBrainStatusResponse: API response for preset status query
 
@@ -33,6 +33,7 @@ class SecondBrainPresetState(BaseModel):
     agent_name: str | None = None
     cron_job_id: str | None = None
     delta_cron_job_id: str | None = None
+    maintain_cron_job_id: str | None = None
     applied_at: str | None = None
     origin: str = _ORIGIN
 
@@ -44,6 +45,7 @@ class SecondBrainApplyResponse(BaseModel):
     agent_name: str
     cron_job_id: str | None
     delta_cron_job_id: str | None = None
+    maintain_cron_job_id: str | None = None
     checklist: list[ChecklistItem]
     applied_at: str
 
@@ -54,5 +56,6 @@ class SecondBrainStatusResponse(BaseModel):
     agent_name: str | None = None
     cron_job_id: str | None = None
     delta_cron_job_id: str | None = None
+    maintain_cron_job_id: str | None = None
     applied_at: str | None = None
     checklist: list[ChecklistItem] = Field(default_factory=list)

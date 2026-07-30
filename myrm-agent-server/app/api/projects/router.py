@@ -34,6 +34,7 @@ class ProjectUpdateRequest(BaseModel):
     workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
     description: str | None = Field(None, max_length=5000, description="项目描述")
     goal_summary: str | None = Field(None, max_length=2000, description="项目当前目标摘要")
+    default_agent_id: str | None = Field(None, max_length=255, description="默认智能体 ID (null=清除)")
 
 
 class ChatMoveRequest(BaseModel):
@@ -73,13 +74,17 @@ async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResp
     """更新项目（名称/颜色/工作目录/描述/目标摘要）"""
     if req.color and not _HEX_COLOR_RE.match(req.color):
         raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
-    has_update = any(
+    agent_id_provided = "default_agent_id" in req.model_fields_set
+    has_update = agent_id_provided or any(
         v is not None for v in (req.name, req.color, req.workspace_path, req.description, req.goal_summary)
     )
     if not has_update:
         raise validation_error("At least one field must be provided")
 
     try:
+        kwargs: dict[str, str | None] = {}
+        if agent_id_provided:
+            kwargs["default_agent_id"] = req.default_agent_id
         project = await ProjectService.update_project(
             project_id,
             name=req.name,
@@ -87,6 +92,7 @@ async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResp
             workspace_path=req.workspace_path,
             description=req.description,
             goal_summary=req.goal_summary,
+            **kwargs,
         )
         if not project:
             raise not_found_error("Project")

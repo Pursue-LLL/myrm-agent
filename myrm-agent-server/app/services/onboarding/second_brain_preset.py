@@ -1,14 +1,14 @@
-"""Second Brain onboarding preset — agent template + dual cron jobs + checklist.
+"""Second Brain onboarding preset — agent template + triple cron jobs + checklist.
 
 [INPUT]
 - assets/prebuilt_agents/second_brain_assistant.yaml (POS: agent template seed)
 - app.services.agent.template_utils::ensure_skills_enabled (POS: prebuilt skill enablement)
-- app.core.cron.blueprints::fill_blueprint (POS: read_it_later + wiki_morning_delta blueprints)
+- app.core.cron.blueprints::fill_blueprint (POS: read_it_later + wiki_morning_delta + wiki_maintain blueprints)
 - app.services.config.service::config_service (POS: preset state persistence)
 - app.services.wiki.vault_resolver::seed_agent_vault_from_default (POS: default→agent vault seed)
 
 [OUTPUT]
-- apply_second_brain_preset(): create/reuse agent + read-it-later + wiki-morning-delta crons, persist checklist state
+- apply_second_brain_preset(): create/reuse agent + read-it-later + wiki-morning-delta + wiki-maintain crons, persist checklist state
 - get_second_brain_preset_status(): honest 4-item readiness checklist; clears stale preset when stored agent was deleted
 - _apply_success_message(): localized apply toast copy
 - _clear_preset_state(): delete persisted secondBrainPreset config
@@ -52,6 +52,7 @@ _CONFIG_KEY = "secondBrainPreset"
 _TEMPLATE_ID = "second_brain_assistant"
 _CRON_JOB_NAME = "Second Brain · Read-it-Later"
 _CRON_DELTA_JOB_NAME = "Second Brain · Wiki Morning Delta"
+_CRON_MAINTAIN_JOB_NAME = "Second Brain · Wiki Maintenance"
 _USER_ID = "default"
 _DEVICE_ID = "second-brain-preset"
 _REQUIRED_TOOLS = frozenset({"memory", "wiki", "cron"})
@@ -124,13 +125,23 @@ async def reconcile_second_brain_cron_ids(id_remaps: dict[str, str]) -> None:
     delta_cron_job_id = (
         id_remaps.get(state.delta_cron_job_id, state.delta_cron_job_id) if state.delta_cron_job_id else None
     )
-    if cron_job_id == state.cron_job_id and delta_cron_job_id == state.delta_cron_job_id:
+    maintain_cron_job_id = (
+        id_remaps.get(state.maintain_cron_job_id, state.maintain_cron_job_id)
+        if state.maintain_cron_job_id
+        else None
+    )
+    if (
+        cron_job_id == state.cron_job_id
+        and delta_cron_job_id == state.delta_cron_job_id
+        and maintain_cron_job_id == state.maintain_cron_job_id
+    ):
         return
     await _save_preset_state(
         state.model_copy(
             update={
                 "cron_job_id": cron_job_id,
                 "delta_cron_job_id": delta_cron_job_id,
+                "maintain_cron_job_id": maintain_cron_job_id,
             }
         )
     )
@@ -272,6 +283,12 @@ async def _find_wiki_morning_delta_cron_job() -> str | None:
     return await _find_preset_cron_job(job_name=_CRON_DELTA_JOB_NAME, stored_job_id=stored_id)
 
 
+async def _find_wiki_maintain_cron_job() -> str | None:
+    state = await _load_preset_state()
+    stored_id = state.maintain_cron_job_id if state else None
+    return await _find_preset_cron_job(job_name=_CRON_MAINTAIN_JOB_NAME, stored_job_id=stored_id)
+
+
 async def _ensure_blueprint_cron(
     *,
     blueprint_id: str,
@@ -348,6 +365,17 @@ async def _ensure_wiki_morning_delta_cron(*, agent_id: str, locale: str) -> tupl
     )
 
 
+async def _ensure_wiki_maintain_cron(*, agent_id: str, locale: str) -> tuple[str | None, bool]:
+    return await _ensure_blueprint_cron(
+        blueprint_id="wiki_maintain",
+        job_name=_CRON_MAINTAIN_JOB_NAME,
+        slot_values={"time": "03:00", "weekdays": "weekends", "mode": "full"},
+        agent_id=agent_id,
+        locale=locale,
+        find_existing_job_id=_find_wiki_maintain_cron_job,
+    )
+
+
 async def _rollback_apply(mutation: _ApplyMutation) -> None:
     if mutation.created_cron_job_ids:
         mgr = get_cron_manager()
@@ -368,6 +396,7 @@ async def _build_checklist(
     agent_id: str | None,
     cron_job_id: str | None,
     delta_cron_job_id: str | None,
+    maintain_cron_job_id: str | None,
 ) -> list[ChecklistItem]:
     agent_ready = False
     if agent_id:
@@ -376,11 +405,14 @@ async def _build_checklist(
             agent_ready = _agent_has_required_tools(profile.tools_allowed)
 
     cron_ready = False
-    if cron_job_id and delta_cron_job_id:
+    if cron_job_id and delta_cron_job_id and maintain_cron_job_id:
         mgr = get_cron_manager()
         read_later_job = await mgr.get_job(cron_job_id, _USER_ID)
         delta_job = await mgr.get_job(delta_cron_job_id, _USER_ID)
-        cron_ready = read_later_job is not None and delta_job is not None
+        maintain_job = await mgr.get_job(maintain_cron_job_id, _USER_ID)
+        cron_ready = (
+            read_later_job is not None and delta_job is not None and maintain_job is not None
+        )
 
     vault_ready = _wiki_has_content(agent_id)
     provider_ready = await _provider_is_ready()
@@ -394,11 +426,15 @@ async def _build_checklist(
 
 
 async def get_second_brain_preset_status(*, accept_language: str | None = None) -> SecondBrainStatusResponse:
-    _ = accept_language
     await _run_read_it_later_hygiene()
     state = await _load_preset_state()
     if state is None or not state.agent_id:
-        checklist = await _build_checklist(agent_id=None, cron_job_id=None, delta_cron_job_id=None)
+        checklist = await _build_checklist(
+            agent_id=None,
+            cron_job_id=None,
+            delta_cron_job_id=None,
+            maintain_cron_job_id=None,
+        )
         return SecondBrainStatusResponse(applied=False, checklist=checklist)
 
     profile = await AgentService.get_agent_by_id(state.agent_id)
@@ -408,13 +444,31 @@ async def get_second_brain_preset_status(*, accept_language: str | None = None) 
             state.agent_id,
         )
         await _clear_preset_state()
-        checklist = await _build_checklist(agent_id=None, cron_job_id=None, delta_cron_job_id=None)
+        checklist = await _build_checklist(
+            agent_id=None,
+            cron_job_id=None,
+            delta_cron_job_id=None,
+            maintain_cron_job_id=None,
+        )
         return SecondBrainStatusResponse(applied=False, checklist=checklist)
+
+    maintain_cron_job_id = state.maintain_cron_job_id
+    if maintain_cron_job_id is None:
+        locale = _normalize_locale(accept_language)
+        maintain_cron_job_id, _ = await _ensure_wiki_maintain_cron(
+            agent_id=state.agent_id,
+            locale=locale,
+        )
+        if maintain_cron_job_id:
+            await _save_preset_state(
+                state.model_copy(update={"maintain_cron_job_id": maintain_cron_job_id})
+            )
 
     checklist = await _build_checklist(
         agent_id=state.agent_id,
         cron_job_id=state.cron_job_id,
         delta_cron_job_id=state.delta_cron_job_id,
+        maintain_cron_job_id=maintain_cron_job_id,
     )
     return SecondBrainStatusResponse(
         applied=True,
@@ -422,6 +476,7 @@ async def get_second_brain_preset_status(*, accept_language: str | None = None) 
         agent_name=state.agent_name,
         cron_job_id=state.cron_job_id,
         delta_cron_job_id=state.delta_cron_job_id,
+        maintain_cron_job_id=maintain_cron_job_id,
         applied_at=state.applied_at,
         checklist=checklist,
     )
@@ -460,6 +515,13 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
         if delta_cron_created and delta_cron_job_id:
             mutation.created_cron_job_ids = (*mutation.created_cron_job_ids, delta_cron_job_id)
 
+        maintain_cron_job_id, maintain_cron_created = await _ensure_wiki_maintain_cron(
+            agent_id=agent_id,
+            locale=locale,
+        )
+        if maintain_cron_created and maintain_cron_job_id:
+            mutation.created_cron_job_ids = (*mutation.created_cron_job_ids, maintain_cron_job_id)
+
         await _maybe_enable_wiki_gmail_source()
 
         applied_at = datetime.now(UTC).isoformat()
@@ -469,6 +531,7 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
                 agent_name=agent_name,
                 cron_job_id=cron_job_id,
                 delta_cron_job_id=delta_cron_job_id,
+                maintain_cron_job_id=maintain_cron_job_id,
                 applied_at=applied_at,
             )
         )
@@ -477,6 +540,7 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
             agent_id=agent_id,
             cron_job_id=cron_job_id,
             delta_cron_job_id=delta_cron_job_id,
+            maintain_cron_job_id=maintain_cron_job_id,
         )
         message = _apply_success_message(
             locale=locale,
@@ -489,6 +553,7 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
             agent_name=agent_name,
             cron_job_id=cron_job_id,
             delta_cron_job_id=delta_cron_job_id,
+            maintain_cron_job_id=maintain_cron_job_id,
             checklist=checklist,
             applied_at=applied_at,
         )

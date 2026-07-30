@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/primitive
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore } from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
-import { apiRequest } from '@/lib/api';
+import { ApiError, apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';
 import {
   wikiService,
@@ -73,6 +73,15 @@ interface WikiStats {
   vault_git_enabled?: boolean;
   vault_git_initialized?: boolean;
   vault_git_last_commit?: string | null;
+  maintain_state?: {
+    last_run_at: string | null;
+    last_mode: string | null;
+    last_issues_found: number;
+    last_issues_fixed: number;
+    last_connections_discovered: number;
+    last_duration_ms: number;
+    last_skipped_reason: string | null;
+  };
 }
 
 function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string): string {
@@ -87,6 +96,19 @@ function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(parsed);
+}
+
+function maintainSkippedBadgeLabel(
+  reason: string,
+  translate: (key: string) => string,
+): string {
+  if (reason === 'compile_in_progress') {
+    return translate('stats.lastMaintainSkippedCompile');
+  }
+  if (reason === 'no_llm_configured') {
+    return translate('stats.lastMaintainSkippedNoModel');
+  }
+  return translate('stats.lastMaintainSkipped');
 }
 
 function normalizeWikiLevel(level: string | undefined): WikiSourceLevel | undefined {
@@ -115,6 +137,7 @@ export function WikiSection() {
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [queryMode, setQueryMode] = useState<'auto' | 'raw_claim'>('auto');
+  const [maintainMode, setMaintainMode] = useState<'structural' | 'full'>('structural');
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
   const [sourceSnippets, setSourceSnippets] = useState<WikiSourceSnippet[]>([]);
@@ -531,6 +554,11 @@ export function WikiSection() {
     },
   });
 
+  const isWikiCompileBusy =
+    isCompiling ||
+    compileRun?.state === 'running' ||
+    (ingestSnapshot?.stats.processing ?? 0) > 0;
+
   const handleOpenSynthesisPending = () => {
     setPendingEditsInitialFilter('synthesis');
     setActiveTab('pendingEdits');
@@ -631,10 +659,16 @@ export function WikiSection() {
   const handleMaintain = async () => {
     setIsMaintaining(true);
     try {
+      const maintainParams = new URLSearchParams({ mode: maintainMode });
       const result = await apiRequest<{
+        issues_found?: number;
+        issues_fixed?: number;
+        connections_discovered?: number;
         raw_security_removed?: number;
         raw_security_removed_paths?: string[];
-      }>(buildWikiApiPath('/wiki/maintain', agentScopeId), { method: 'POST' });
+      }>(buildWikiApiPath(`/wiki/maintain?${maintainParams.toString()}`, agentScopeId), {
+        method: 'POST',
+      });
       const removed = result.raw_security_removed ?? 0;
       if (removed > 0) {
         const pathsJoined = (result.raw_security_removed_paths ?? []).join(', ');
@@ -647,13 +681,28 @@ export function WikiSection() {
           }),
         );
       } else {
-        toast.success(t('success.maintainComplete'));
+        const found = result.issues_found ?? 0;
+        const fixed = result.issues_fixed ?? 0;
+        const connections = result.connections_discovered ?? 0;
+        if (found > 0 || fixed > 0 || connections > 0) {
+          toast.success(
+            connections > 0
+              ? t('success.maintainSummaryWithLinks', { found, fixed, connections })
+              : t('success.maintainSummary', { found, fixed }),
+          );
+        } else {
+          toast.success(t('success.maintainComplete'));
+        }
       }
       await loadStats();
       setTreeSyncNonce((value) => value + 1);
     } catch (error) {
       console.error('Maintain failed:', error);
-      toast.error(t('errors.maintainFailed'));
+      if (error instanceof ApiError && error.code === 409) {
+        toast.error(t('errors.maintainCompileBusy'));
+      } else {
+        toast.error(t('errors.maintainFailed'));
+      }
     } finally {
       setIsMaintaining(false);
     }
@@ -878,7 +927,31 @@ export function WikiSection() {
                         {t('stats.synthesisPending', { count: synthesisPendingCount })}
                       </button>
                     )}
+                    {stats.maintain_state?.last_run_at ? (
+                      <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                        {stats.maintain_state.last_skipped_reason
+                          ? maintainSkippedBadgeLabel(stats.maintain_state.last_skipped_reason, t)
+                          : t('stats.lastMaintain', {
+                              time: formatCognitiveUpdatedAt(stats.maintain_state.last_run_at, locale),
+                            })}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                        {t('stats.lastMaintainNever')}
+                      </span>
+                    )}
                   </div>
+                  {stats.maintain_state?.last_run_at &&
+                  !stats.maintain_state.last_skipped_reason &&
+                  (stats.maintain_state.last_issues_found > 0 ||
+                    stats.maintain_state.last_issues_fixed > 0) ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t('stats.lastMaintainSummary', {
+                        fixed: stats.maintain_state.last_issues_fixed,
+                        found: stats.maintain_state.last_issues_found,
+                      })}
+                    </p>
+                  ) : null}
                   {(stats.asset_index?.total_files ?? 0) > 0 && !stats.asset_index?.enabled ? (
                     <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
                       {t('stats.assetsVisionHint')}
@@ -1277,6 +1350,36 @@ export function WikiSection() {
                   forceVisible={isCompiling}
                 />
               )}
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <label htmlFor="wiki-maintain-mode" className="text-sm font-medium text-foreground">
+                    {t('actions.maintainModeLabel')}
+                  </label>
+                  <Select
+                    value={maintainMode}
+                    onValueChange={(value) => setMaintainMode(value as 'structural' | 'full')}
+                  >
+                    <SelectTrigger id="wiki-maintain-mode" className="w-full sm:w-64">
+                      <SelectValue placeholder={t('actions.maintainModeStructural')}>
+                        {maintainMode === 'full'
+                          ? t('actions.maintainModeFull')
+                          : t('actions.maintainModeStructural')}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="structural">{t('actions.maintainModeStructural')}</SelectItem>
+                      <SelectItem value="full">{t('actions.maintainModeFull')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isWikiCompileBusy
+                    ? t('actions.maintainCompileBusyHint')
+                    : maintainMode === 'full'
+                      ? t('actions.maintainModeFullHint')
+                      : t('actions.maintainModeStructuralHint')}
+                </p>
+              </div>
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
               <Button
                 onClick={handleCompile}
@@ -1286,7 +1389,12 @@ export function WikiSection() {
                 <IconGlow className="w-4 h-4 mr-2" />
                 {isCompiling ? t('compiling') : t('actions.compile')}
               </Button>
-              <Button onClick={handleMaintain} disabled={isMaintaining} variant="outline" className="flex-1">
+              <Button
+                onClick={handleMaintain}
+                disabled={isMaintaining || isWikiCompileBusy}
+                variant="outline"
+                className="flex-1"
+              >
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isMaintaining ? t('maintaining') : t('actions.maintain')}
               </Button>

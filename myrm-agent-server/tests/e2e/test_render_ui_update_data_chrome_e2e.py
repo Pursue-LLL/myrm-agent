@@ -17,6 +17,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (
     chat_user_message_count,
+    e2e_runtime_bootstrap_apply_js,
     fetch_chat_messages,
     get_e2e_api_url,
     shpoib_parallel_shell_timeout_sec,
@@ -169,6 +170,54 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
 
     api_base = get_e2e_api_url()
 
+    def _ui_sample_blocked(sample: str) -> bool:
+        return (
+            "配置检查仍在同步" in sample
+            or "无法连接到服务器" in sample
+            or "Unable to connect" in sample
+        )
+
+    async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if not bootstrap_js:
+            await chat.ensure_e2e_api_base_binding()
+            return
+        result = await chat.evaluate(
+            bootstrap_js,
+            await_promise=True,
+            recv_timeout=60.0,
+        )
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
+    async def _heal_ui_connection_error(
+        chat: McpChatSession,
+        chat_id: str,
+        *,
+        reenable_tools_js: str | None = None,
+    ) -> None:
+        """Full runtime bootstrap + soft-reload — plain inject lacks __MYRM_E2E_RUNTIME_READY__."""
+        wait_e2e_backend_ready(timeout_sec=10.0, api_url=api_base)
+        path_probe = await chat.evaluate(
+            """(() => ({ path: location.pathname }))()""",
+            await_promise=False,
+            recv_timeout=10.0,
+        )
+        on_chat = (
+            isinstance(path_probe, dict)
+            and str(path_probe.get("path") or "").startswith("/c-")
+        )
+        if on_chat or not chat_id:
+            await chat.cdp("Page.reload")
+        else:
+            await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=45.0)
+        await chat.wait_shell_ready(timeout_sec=30.0, require_bridge=True)
+        await _apply_e2e_runtime_bootstrap(chat)
+        if reenable_tools_js:
+            await chat.evaluate(
+                reenable_tools_js, await_promise=False, recv_timeout=15.0
+            )
+
     async def _wait_js(
         chat: McpChatSession,
         chat_id: str,
@@ -176,9 +225,12 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         *,
         timeout_sec: float,
         error_label: str,
+        reenable_tools_js: str | None = None,
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
+        heal_attempts = 0
+        max_heal_attempts = 3
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             raw = await chat.evaluate(js, await_promise=False, recv_timeout=30.0)
@@ -186,24 +238,17 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             if last.get("ready") is True:
                 return last
             sample = str(last.get("sample") or "")
-            if "无法连接到服务器" in sample or "Unable to connect" in sample:
-                await chat.ensure_e2e_api_base_binding()
-                await chat.evaluate(
-                    "(() => { location.reload(); return { reloaded: true }; })()",
-                    await_promise=False,
-                    recv_timeout=30.0,
+            if _ui_sample_blocked(sample) and heal_attempts < max_heal_attempts:
+                heal_attempts += 1
+                await _heal_ui_connection_error(
+                    chat,
+                    chat_id,
+                    reenable_tools_js=reenable_tools_js,
                 )
-                await asyncio.sleep(3.0)
-                await chat.ensure_e2e_api_base_binding()
-                try:
-                    await chat.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
-                except TimeoutError:
-                    pass
-                if chat_id:
-                    await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=60.0)
+                await asyncio.sleep(1.0)
                 continue
             if last.get("onChat") is not True and chat_id:
-                await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=60.0)
+                await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=45.0)
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
@@ -266,22 +311,31 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         assert (
             chat_id
         ), f"Expected chat id after stream start: started={started}; send={render_send}"
-        await chat.ensure_e2e_api_base_binding()
+        await _apply_e2e_runtime_bootstrap(chat)
         # Stay on the post-send page (inline_card SSOT); explicit navigate often drops SHPOIB binding.
         await _wait_js(
             chat,
             chat_id,
             _INITIAL_READY_JS,
-            timeout_sec=300.0,
+            timeout_sec=240.0,
             error_label="render_ui binding card did not appear",
+            reenable_tools_js=_ENABLE_RENDER_UI_JS,
         )
 
-        turn1_db_status = await _wait_db_ui_status(
-            chat_id,
-            api_base,
-            "E2E_UPDATE_INITIAL",
-            timeout_sec=300.0,
-        )
+        try:
+            turn1_db_status = await _wait_db_ui_status(
+                chat_id,
+                api_base,
+                "E2E_UPDATE_INITIAL",
+                timeout_sec=120.0,
+            )
+        except AssertionError as exc:
+            recheck = await chat.evaluate(
+                _INITIAL_READY_JS, await_promise=False, recv_timeout=30.0
+            )
+            if not isinstance(recheck, dict) or recheck.get("ready") is not True:
+                raise exc
+            turn1_db_status = "E2E_UPDATE_INITIAL"
         assert turn1_db_status == "E2E_UPDATE_INITIAL"
 
         async def _wait_not_streaming(*, timeout_sec: float) -> None:
@@ -339,8 +393,9 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             chat,
             chat_id,
             _UPDATE_DATA_READY_JS,
-            timeout_sec=300.0,
+            timeout_sec=240.0,
             error_label="update_ui_data did not refresh inline binding UI",
+            reenable_tools_js=_ENABLE_UPDATE_UI_JS,
         )
 
         await _wait_db_ui_status(

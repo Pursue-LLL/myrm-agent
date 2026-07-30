@@ -40,4 +40,4 @@ Wiki 外部来源确定性同步：Gmail 标签 / Google Drive 文件夹 / RSS /
 - `app/api/integrations/google_workspace_oauth.py` — OAuth 成功默认开 Gmail sync
 - `app/services/onboarding/second_brain_preset` — preset Gmail 默认 + cron id remap
 - `app/api/wiki/sources.py` — REST（agent_id query）+ manual sync + state
-- `app/core/cron/adapters/wiki_source_sync_runner.py` — Cron router 执行体
+- `app/core/cron/adapters/wiki_router_job_runner.py` — Cron router 执行体（source sync + maintain）

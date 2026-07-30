@@ -8,14 +8,13 @@
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, retrieving, verifying artifacts; exposes publication state via `publications[]`.
+Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` for bounded candidate queries and exposes publication state via `publications[]`.
 """
 
 import logging
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,6 +55,7 @@ def _artifact_summary(
 
 @router.get("")
 async def list_artifacts(
+    limit: int | None = Query(default=None, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List all artifacts (soft-deleted ones are excluded)."""
@@ -65,6 +65,8 @@ async def list_artifacts(
         .where(Artifact.is_deleted.is_(False))
         .order_by(Artifact.updated_at.desc())
     )
+    if limit is not None:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     artifacts = result.scalars().all()
     artifact_ids = [artifact.id for artifact in artifacts]

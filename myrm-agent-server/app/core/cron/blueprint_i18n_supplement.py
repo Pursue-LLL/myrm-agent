@@ -402,4 +402,30 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
+    "wiki_maintain": {
+        "title": {
+            "ja": "Wiki 自動メンテ",
+            "de": "Wiki-Wartung",
+            "ko": "위키 자동 유지보수",
+        },
+        "description": {
+            "ja": "断链・stale raw・vault 衛生の定期構造 lint と自動修復",
+            "de": "Geplante strukturelle Lint- und Auto-Reparatur für Links, stale Raw und Vault-Hygiene",
+            "ko": "깨진 링크, stale raw, vault 위생을 위한 정기 구조 lint 및 자동 복구",
+        },
+        "prompt_template": {
+            "ja": (
+                "Wiki メンテ job（router モード）。サーバー生成の要約をそのまま配信。"
+                "変更がなければ [SILENT] のみ。"
+            ),
+            "de": (
+                "Wiki-Wartungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Bei keiner Änderung nur [SILENT]."
+            ),
+            "ko": (
+                "위키 유지보수 작업(router 모드). 서버 요약을 그대로 전달. "
+                "변경 없으면 [SILENT]만 반환."
+            ),
+        },
+    },
 }

@@ -100,6 +100,18 @@ async def test_list_artifacts_includes_publications(client: TestClient, db_sessi
 
 
 @pytest.mark.asyncio
+async def test_list_artifacts_supports_limit_query(client: TestClient, db_session: AsyncSession):
+    db_session.add(Artifact(id="art-limit-1", name="Limit One"))
+    db_session.add(Artifact(id="art-limit-2", name="Limit Two"))
+    await db_session.commit()
+
+    response = client.get("/api/v1/files/artifacts?limit=1")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["artifacts"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_get_artifact_returns_publications(client: TestClient, db_session: AsyncSession):
     artifact = Artifact(
         id="art-get-1",

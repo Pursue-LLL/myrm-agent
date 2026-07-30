@@ -1,7 +1,7 @@
 /**
  * [INPUT] @/lib/api::apiRequest
  * [OUTPUT] Milestone CRUD API 封装
- * [POS] 里程碑管理 API 服务层。封装里程碑增删改查、进度查询和路线图摘要。
+ * [POS] 里程碑管理 API 服务层。封装里程碑增删改查、进度查询、路线图摘要，以及评估导入候选工件读取。
  */
 
 import { apiRequest } from '@/lib/api';
@@ -44,6 +44,7 @@ export interface AssessmentImportMilestoneReceipt {
 }
 
 export interface AssessmentImportReceipt {
+  import_id: number;
   project_id: string;
   artifact_id: string;
   artifact_version_id: string;
@@ -52,6 +53,51 @@ export interface AssessmentImportReceipt {
   total_milestones: number;
   total_tasks: number;
   imported_at: string;
+}
+
+export interface AssessmentImportArtifactCandidate {
+  id: string;
+  name: string;
+  updated_at: string;
+  latest_version_id: string | null;
+}
+
+interface ArtifactListItem {
+  id?: string;
+  name?: string;
+  updated_at?: string;
+  latest_version_id?: string;
+}
+
+function parseTimestamp(value: string): number {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+export function normalizeAssessmentImportArtifactCandidates(
+  artifacts: ArtifactListItem[],
+  limit = 8,
+): AssessmentImportArtifactCandidate[] {
+  const cappedLimit = Math.max(1, limit);
+  const normalized: AssessmentImportArtifactCandidate[] = [];
+  for (const artifact of artifacts) {
+    const id = typeof artifact.id === 'string' ? artifact.id.trim() : '';
+    if (!id) {
+      continue;
+    }
+    const nameValue = typeof artifact.name === 'string' ? artifact.name.trim() : '';
+    const updatedAtValue = typeof artifact.updated_at === 'string' ? artifact.updated_at.trim() : '';
+    const latestVersionValue =
+      typeof artifact.latest_version_id === 'string' ? artifact.latest_version_id.trim() : '';
+    normalized.push({
+      id,
+      name: nameValue || id,
+      updated_at: updatedAtValue,
+      latest_version_id: latestVersionValue || null,
+    });
+  }
+  normalized.sort((left, right) => parseTimestamp(right.updated_at) - parseTimestamp(left.updated_at));
+  return normalized.slice(0, cappedLimit);
 }
 
 export const getMilestones = async (projectId: string, includeArchived = false): Promise<Milestone[]> => {
@@ -116,4 +162,14 @@ export const importAssessmentArtifact = async (
     body: JSON.stringify(payload),
   })) as { receipt: AssessmentImportReceipt };
   return data.receipt;
+};
+
+export const listAssessmentImportArtifactCandidates = async (
+  limit = 8,
+): Promise<AssessmentImportArtifactCandidate[]> => {
+  const cappedLimit = Math.min(Math.max(1, limit), 500);
+  const data = (await apiRequest(`/files/artifacts?limit=${cappedLimit}`)) as {
+    artifacts?: ArtifactListItem[];
+  };
+  return normalizeAssessmentImportArtifactCandidates(data.artifacts ?? [], limit);
 };

@@ -24,7 +24,7 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 
 | 域 | 端点摘要 |
 |----|----------|
-| Boards | `GET/POST /boards`；`GET/PATCH/DELETE /boards/{id}`；`GET .../summary`；`GET .../events` |
+| Boards | `GET/POST /boards`（GET 支持 `project_id` 过滤；POST 支持 `project_id` / `milestone_id` 作用域绑定）；`GET/PATCH/DELETE /boards/{id}`；`GET .../summary`；`GET .../events` |
 | Tasks | `GET/POST /boards/{id}/tasks`（GET 可选 `source_chat_id` 按来源会话过滤；POST body 可选 `metadata` 合并入 task.metadata，如 `source_chat_id`）；`GET/PATCH/DELETE /tasks/{id}`；… |
 | Bulk | `POST /boards/{id}/tasks/bulk-action`（move/archive/reassign/reclaim/delete） |
 | Meta | runs/events/comments/diagnostics；board/task 依赖边 CRUD |

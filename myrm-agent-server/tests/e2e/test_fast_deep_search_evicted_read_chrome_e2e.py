@@ -409,7 +409,7 @@ def _merge_fast_search_progress(
         return ui_last
     if api_last.get("ready") is True:
         return api_last
-    if ui_last.get("err") == "ui-eval-failed":
+    if ui_last.get("err") in ("ui-eval-failed", "no-progress-snapshot"):
         return api_last
     return ui_last
 
@@ -419,23 +419,173 @@ _TRANSIENT_KICKOFF_ERRORS = (
     "send-message-settled-without-progress",
     "send-turn-observe-timeout",
     "session-reset-during-submit",
+    "no-sendChatMessage",
+    "no-bridge",
+    "no-retryStreamWithSameMessageId",
 )
 
+_FAST_SEARCH_ABORT_STREAM_JS = """(() => {
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  bridge?.abortActiveStream?.();
+  bridge?.releaseActiveStreamForApiResume?.();
+  return { ok: true };
+})()"""
 
-async def _soft_reset_fast_search_turn(chat: McpChatSession, base_url: str) -> None:
-    """In-page stream reset — avoid click_new_chat/MUX during kickoff retries."""
-    await chat.evaluate(
-        """(() => {
-          window.__MYRM_E2E_DIRECT_SSE__ = true;
-          const bridge = window.__MYRM_E2E_CHAT__;
-          bridge?.abortActiveStream?.();
-          bridge?.releaseActiveStreamForApiResume?.();
-          return { ok: true };
-        })()""",
-        await_promise=False,
-        recv_timeout=15.0,
+_SYNC_PRIVATE_SEARCH_JS = """(async () => {
+  delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.syncSearchServicesFromE2eApi) {
+    return { ok: false, err: 'no-bridge', phase: 'SEARCH_POLICY' };
+  }
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const sync = await bridge.syncSearchServicesFromE2eApi();
+    if (sync?.ok && (sync.count ?? 0) > 0) {
+      return { ok: true, count: sync.count, phase: 'SEARCH_POLICY' };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return { ok: false, err: 'empty-search-configs', phase: 'SEARCH_POLICY' };
+})()"""
+
+
+def _fast_search_attach_js(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) return {{ ok: false, err: 'no-bridge' }};
+  await bridge.attachToChat({chat_id_json});
+  const snap = bridge.turnSnapshot?.() ?? {{}};
+  return {{
+    ok: snap.chatId === {chat_id_json},
+    chatId: snap.chatId ?? null,
+    userCount: snap.userCount ?? 0,
+  }};
+}})()"""
+
+
+async def _abort_fast_search_stream(chat: McpChatSession) -> None:
+    try:
+        await chat.evaluate(
+            _FAST_SEARCH_ABORT_STREAM_JS,
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+    except (RuntimeError, TimeoutError):
+        pass
+
+
+async def _restore_fast_search_bridge_light(
+    chat: McpChatSession,
+    base_url: str,
+    *,
+    chat_id: str = "",
+) -> dict[str, object]:
+    """Re-bind bridge after MUX orphan without shared-ui SEARCH_POLICY contract."""
+    await _abort_fast_search_stream(chat)
+    ensure_binding = getattr(chat, "ensure_e2e_api_base_binding", None)
+    if callable(ensure_binding):
+        await ensure_binding()
+    ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
+    if callable(ensure_bridge):
+        try:
+            await ensure_bridge(timeout_sec=90.0)
+        except TimeoutError:
+            heal_shell = getattr(chat, "_heal_empty_chat_shell_for_bridge", None)
+            if callable(heal_shell):
+                await heal_shell()
+            await ensure_bridge(timeout_sec=60.0)
+    attach: dict[str, object] = {"ok": True, "skipped": True}
+    normalized_chat_id = chat_id.strip()
+    if normalized_chat_id:
+        attach_raw = await chat.evaluate(
+            _fast_search_attach_js(normalized_chat_id),
+            await_promise=True,
+            recv_timeout=90.0,
+        )
+        attach = attach_raw if isinstance(attach_raw, dict) else {"ok": False, "err": attach_raw}
+        if attach.get("ok") is not True:
+            touch_wall_progress(current_node="fast_search_bridge_nav_retry")
+            ui_base = base_url.rstrip("/")
+            await chat.cdp(
+                "Page.navigate",
+                {"url": f"{ui_base}/{normalized_chat_id}"},
+                recv_timeout=120.0,
+            )
+            await asyncio.sleep(2.0)
+            if callable(ensure_binding):
+                await ensure_binding()
+            if callable(ensure_bridge):
+                await ensure_bridge(timeout_sec=60.0)
+            attach_raw = await chat.evaluate(
+                _fast_search_attach_js(normalized_chat_id),
+                await_promise=True,
+                recv_timeout=90.0,
+            )
+            attach = (
+                attach_raw if isinstance(attach_raw, dict) else {"ok": False, "err": attach_raw}
+            )
+    search_raw = await chat.evaluate(
+        _SYNC_PRIVATE_SEARCH_JS,
+        await_promise=True,
+        recv_timeout=45.0,
     )
+    search = search_raw if isinstance(search_raw, dict) else {"ok": False, "err": search_raw}
+    bridge_ok = attach.get("ok") is True or not normalized_chat_id
+    return {
+        "ok": bridge_ok and search.get("ok") is True,
+        "attach": attach,
+        "search": search,
+        "chatId": normalized_chat_id or None,
+    }
+
+
+async def _soft_reset_fast_search_turn(
+    chat: McpChatSession,
+    base_url: str,
+    *,
+    light: bool = False,
+    chat_id: str = "",
+) -> None:
+    """In-page stream reset — avoid click_new_chat/MUX during kickoff retries."""
+    if light:
+        await _restore_fast_search_bridge_light(chat, base_url, chat_id=chat_id)
+        return
+    await _abort_fast_search_stream(chat)
     await chat.ensure_chat_surface(base_url)
+
+
+async def _heal_fast_search_bridge_after_mux_loss(
+    chat: McpChatSession,
+    *,
+    api_base: str,
+    chat_id: str,
+    prep_js: str,
+) -> dict[str, object]:
+    """Restore E2E bridge + chat binding after MUX orphan/shim respawn drops window globals."""
+    restored = await _restore_fast_search_bridge_light(
+        chat, BASE_URL, chat_id=chat_id
+    )
+    if restored.get("ok") is not True:
+        touch_wall_progress(current_node="fast_search_bridge_attach_retry")
+        await asyncio.sleep(2.0)
+        restored = await _restore_fast_search_bridge_light(
+            chat, BASE_URL, chat_id=chat_id
+        )
+        if restored.get("ok") is not True:
+            return {
+                "ok": False,
+                "err": "bridge-restore-failed",
+                "restore": restored,
+            }
+    _ensure_private_search_configured(api_base)
+    _ensure_private_providers_configured(api_base)
+    raw_prep = await chat.evaluate(prep_js, await_promise=True, recv_timeout=90.0)
+    if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+        return raw_prep
+    return raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": "prep-failed"}
 
 
 async def _kickoff_fast_search_with_retries(
@@ -445,7 +595,8 @@ async def _kickoff_fast_search_with_retries(
     prep_js: str,
     kickoff_js: str,
     prep: dict[str, object],
-    max_attempts: int = 3,
+    chat_id: str = "",
+    max_attempts: int = 5,
 ) -> tuple[dict[str, object], dict[str, object]]:
     kickoff: dict[str, object] | None = None
     for kickoff_attempt in range(max_attempts):
@@ -454,9 +605,32 @@ async def _kickoff_fast_search_with_retries(
                 kickoff_js, await_promise=True, recv_timeout=120.0
             )
         except RuntimeError as exc:
-            if kickoff_attempt + 1 < max_attempts and "MUX_RECLAIM_STALL" in str(exc):
+            exc_msg = str(exc)
+            mux_transient = (
+                "MUX_RECLAIM_STALL" in exc_msg
+                or "MUX_EVALUATE_ORPHAN" in exc_msg
+                or "orphan" in exc_msg.lower()
+            )
+            if kickoff_attempt + 1 < max_attempts and mux_transient:
                 touch_wall_progress(current_node="fast_search_kickoff_mux_retry")
-                await _soft_reset_fast_search_turn(chat, BASE_URL)
+                if chat_id.strip():
+                    healed_prep = await _heal_fast_search_bridge_after_mux_loss(
+                        chat,
+                        api_base=api_base,
+                        chat_id=chat_id,
+                        prep_js=prep_js,
+                    )
+                    if isinstance(healed_prep, dict) and healed_prep.get("ok") is True:
+                        prep = healed_prep
+                else:
+                    await _soft_reset_fast_search_turn(chat, BASE_URL, light=True)
+                    _ensure_private_search_configured(api_base)
+                    _ensure_private_providers_configured(api_base)
+                    raw_prep = await chat.evaluate(
+                        prep_js, await_promise=True, recv_timeout=90.0
+                    )
+                    if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                        prep = raw_prep
                 await asyncio.sleep(2.0 * (kickoff_attempt + 1))
                 continue
             raise
@@ -468,14 +642,49 @@ async def _kickoff_fast_search_with_retries(
         )
         if kickoff_attempt + 1 < max_attempts and transient_kickoff:
             touch_wall_progress(current_node="fast_search_kickoff_soft_retry")
-            await _soft_reset_fast_search_turn(chat, BASE_URL)
-            _ensure_private_search_configured(api_base)
-            _ensure_private_providers_configured(api_base)
-            raw_prep = await chat.evaluate(
-                prep_js, await_promise=True, recv_timeout=90.0
+            bridge_err = str(kickoff.get("err") or "") if isinstance(kickoff, dict) else ""
+            partial_chat_id = (
+                str(kickoff.get("chatId") or "").strip()
+                if isinstance(kickoff, dict)
+                else ""
             )
-            if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
-                prep = raw_prep
+            effective_chat_id = chat_id.strip() or partial_chat_id
+            if effective_chat_id and bridge_err in (
+                "no-sendChatMessage",
+                "no-bridge",
+                "no-retryStreamWithSameMessageId",
+            ):
+                healed_prep = await _heal_fast_search_bridge_after_mux_loss(
+                    chat,
+                    api_base=api_base,
+                    chat_id=effective_chat_id,
+                    prep_js=prep_js,
+                )
+                if isinstance(healed_prep, dict) and healed_prep.get("ok") is True:
+                    prep = healed_prep
+                else:
+                    await _soft_reset_fast_search_turn(
+                        chat,
+                        BASE_URL,
+                        light=True,
+                        chat_id=effective_chat_id,
+                    )
+                    _ensure_private_search_configured(api_base)
+                    _ensure_private_providers_configured(api_base)
+                    raw_prep = await chat.evaluate(
+                        prep_js, await_promise=True, recv_timeout=90.0
+                    )
+                    if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                        prep = raw_prep
+            else:
+                await _soft_reset_fast_search_turn(chat, BASE_URL, light=True)
+                _ensure_private_search_configured(api_base)
+                _ensure_private_providers_configured(api_base)
+                raw_prep = await chat.evaluate(
+                    prep_js, await_promise=True, recv_timeout=90.0
+                )
+                if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                    prep = raw_prep
             await asyncio.sleep(2.0 * (kickoff_attempt + 1))
             continue
         break
@@ -539,7 +748,21 @@ async def _recover_stalled_fast_search_turn(
             {json.dumps(message_id)},
           );
         }})()"""
-        retry = await chat.evaluate(retry_js, await_promise=True, recv_timeout=120.0)
+        try:
+            retry = await chat.evaluate(
+                retry_js, await_promise=True, recv_timeout=120.0
+            )
+        except RuntimeError as exc:
+            if "MUX" not in str(exc) and "orphan" not in str(exc).lower():
+                raise
+            touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry_mux_heal")
+            prep = await _heal_fast_search_bridge_after_mux_loss(
+                chat,
+                api_base=api_base,
+                chat_id=chat_id,
+                prep_js=prep_js,
+            )
+            retry = {"ok": False, "err": "mux-evaluate-orphan"}
         if (
             isinstance(retry, dict)
             and retry.get("ok") is True
@@ -551,6 +774,19 @@ async def _recover_stalled_fast_search_turn(
                 "mode": "stream-retry",
                 "retry": retry,
             }
+        bridge_retry_err = str(retry.get("err") or "") if isinstance(retry, dict) else ""
+        if bridge_retry_err in (
+            "no-bridge",
+            "no-retryStreamWithSameMessageId",
+            "mux-evaluate-orphan",
+        ):
+            touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry_bridge_heal")
+            prep = await _heal_fast_search_bridge_after_mux_loss(
+                chat,
+                api_base=api_base,
+                chat_id=chat_id,
+                prep_js=prep_js,
+            )
     touch_wall_progress(current_node=f"fast_{search_depth}_stall_kickoff_retry")
     return await _kickoff_fast_search_with_retries(
         chat,
@@ -558,6 +794,7 @@ async def _recover_stalled_fast_search_turn(
         prep_js=prep_js,
         kickoff_js=kickoff_js,
         prep=prep,
+        chat_id=chat_id,
     )
 
 

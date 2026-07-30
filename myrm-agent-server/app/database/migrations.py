@@ -517,6 +517,20 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE kanban_boards ADD COLUMN milestone_id VARCHAR(32) REFERENCES project_milestones(id) ON DELETE SET NULL",
     "CREATE INDEX IF NOT EXISTS ix_kanban_boards_project_id ON kanban_boards(project_id)",
     "CREATE INDEX IF NOT EXISTS ix_kanban_boards_milestone_id ON kanban_boards(milestone_id)",
+    """CREATE TABLE IF NOT EXISTS assessment_import_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id VARCHAR(255) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        artifact_id VARCHAR(255) NOT NULL,
+        artifact_version_id VARCHAR(255) NOT NULL,
+        source_chat_id VARCHAR(255),
+        status VARCHAR(20) NOT NULL DEFAULT 'reserved',
+        total_milestones INTEGER NOT NULL DEFAULT 0,
+        total_tasks INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, artifact_version_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_assessment_import_project_created_at ON assessment_import_ledger(project_id, created_at)",
     """CREATE TABLE IF NOT EXISTS web_push_subscriptions (
         endpoint_hash VARCHAR(32) PRIMARY KEY,
         endpoint TEXT NOT NULL,
@@ -839,6 +853,7 @@ INDEX_STATEMENTS = [
         ON expert_summon_metric_events(surface, created_at)""",
     """CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_context_created_at
         ON expert_summon_metric_events(context_key, created_at)""",
+    "ALTER TABLE projects ADD COLUMN default_agent_id VARCHAR(255) REFERENCES agents(id) ON DELETE SET NULL",
 ]
 
 

@@ -1,0 +1,127 @@
+"""Wiki maintain orchestration SSOT for REST and cron.
+
+[INPUT]
+- app.services.wiki.vault_service::get_wiki_archiver (POS: shared archiver accessor)
+- app.services.wiki.maintain_state_store (POS: wikiMaintainState persistence)
+- myrm_agent_harness.toolkits.wiki.maintenance.modes::MaintainMode (POS: structural vs full)
+
+[OUTPUT]
+- run_wiki_maintain_job: deterministic maintain pipeline + state persistence + cron summary text
+
+[POS]
+Server SSOT bridging POST /wiki/maintain and router cron __wiki_maintain__ commands.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from langchain_core.language_models import BaseChatModel
+from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
+
+from app.database.connection import get_session
+from app.services.wiki.maintain_schemas import WikiMaintainRunResult
+from app.services.wiki.maintain_state_store import (
+    save_wiki_maintain_state,
+    state_from_run_result,
+)
+
+logger = logging.getLogger(__name__)
+
+_COMPILE_BUSY_REASON = "compile_in_progress"
+_NO_LLM_REASON = "no_llm_configured"
+
+
+def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
+    if result.skipped:
+        if result.skipped_reason == _COMPILE_BUSY_REASON:
+            return "[SILENT]"
+        if result.skipped_reason == _NO_LLM_REASON:
+            return "[SILENT]"
+        return f"Wiki maintain skipped: {result.skipped_reason}"
+
+    changed = (
+        result.issues_fixed > 0
+        or result.connections_discovered > 0
+        or result.raw_security_removed > 0
+    )
+    if not changed:
+        return "[SILENT]"
+
+    parts = [
+        f"Wiki maintain ({result.mode}): {result.issues_found} issue(s)",
+        f"{result.issues_fixed} fixed",
+    ]
+    if result.connections_discovered > 0:
+        parts.append(f"{result.connections_discovered} new link(s)")
+    if result.raw_security_removed > 0:
+        parts.append(f"{result.raw_security_removed} raw file(s) removed")
+    return ", ".join(parts)
+
+
+async def run_wiki_maintain_job(
+    *,
+    llm: BaseChatModel | None,
+    agent_id: str | None = None,
+    mode: MaintainMode = MaintainMode.STRUCTURAL,
+) -> WikiMaintainRunResult:
+    mode_literal = "structural" if mode == MaintainMode.STRUCTURAL else "full"
+
+    if llm is None:
+        skipped = WikiMaintainRunResult(
+            skipped=True,
+            skipped_reason=_NO_LLM_REASON,
+            mode=mode_literal,
+            summary_text="[SILENT]",
+        )
+        async with get_session() as db:
+            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
+        return skipped
+
+    from app.services.wiki.asset_index_service import run_wiki_asset_index
+    from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
+    from app.services.wiki.vault_service import get_wiki_archiver
+
+    archiver = get_wiki_archiver(llm, agent_id=agent_id)
+    queue_stats = archiver._queue.get_stats()
+    processing = queue_stats.get("processing", 0)
+    if isinstance(processing, int) and processing > 0:
+        skipped = WikiMaintainRunResult(
+            skipped=True,
+            skipped_reason=_COMPILE_BUSY_REASON,
+            mode=mode_literal,
+            summary_text="[SILENT]",
+        )
+        async with get_session() as db:
+            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
+        return skipped
+
+    try:
+        lint_result = await archiver._linter.lint_and_maintain(mode=mode)
+        await run_wiki_asset_index(archiver)
+        await after_wiki_vault_mutation(archiver, "maintain")
+
+        result = WikiMaintainRunResult(
+            mode=mode_literal,
+            issues_found=lint_result.issues_found,
+            issues_fixed=lint_result.issues_fixed,
+            connections_discovered=lint_result.connections_discovered,
+            duration_ms=lint_result.duration_ms,
+            raw_security_removed=lint_result.raw_security_removed,
+            raw_security_removed_paths=list(lint_result.raw_security_removed_paths),
+        )
+        result.summary_text = _build_summary_text(result=result)
+        async with get_session() as db:
+            await save_wiki_maintain_state(db, state_from_run_result(result), agent_id=agent_id)
+        return result
+    except Exception as exc:
+        logger.error("Wiki maintain job failed for agent %s: %s", agent_id, exc)
+        failed = WikiMaintainRunResult(
+            skipped=True,
+            skipped_reason=str(exc),
+            mode=mode_literal,
+            summary_text=f"Wiki maintain failed: {exc}",
+        )
+        async with get_session() as db:
+            await save_wiki_maintain_state(db, state_from_run_result(failed), agent_id=agent_id)
+        raise

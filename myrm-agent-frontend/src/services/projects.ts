@@ -13,6 +13,7 @@ export interface Project {
   color: string;
   sortOrder: number;
   workspacePath?: string;
+  defaultAgentId?: string | null;
   goalSummary: string;
   createdAt: string | null;
   updatedAt: string | null;
@@ -34,7 +35,7 @@ export const createProject = async (name: string, color?: string): Promise<Proje
 
 export const updateProject = async (
   id: string,
-  updates: { name?: string; color?: string; workspace_path?: string },
+  updates: { name?: string; color?: string; workspace_path?: string; default_agent_id?: string | null },
 ): Promise<Project> => {
   const data = (await apiRequest(`/projects/${id}`, {
     method: 'PUT',

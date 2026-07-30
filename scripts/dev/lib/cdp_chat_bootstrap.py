@@ -15,6 +15,7 @@ from cdp_chat_support import (
     chat_id_from_path,
     e2e_api_base_inject_js,
     e2e_api_base_persist_source,
+    e2e_runtime_bootstrap_apply_js,
     get_e2e_ui_url,
     shpoib_parallel_shell_timeout_sec,
     shpoib_shell_wait_slice_cap,
@@ -237,6 +238,14 @@ class CdpChatBootstrap(CdpChatTransport):
         if not self._e2e_api_base_bound:
             await self.cdp("Page.addScriptToEvaluateOnNewDocument", {"source": source})
             self._e2e_api_base_bound = True
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js is not None:
+            await self.evaluate(
+                bootstrap_js,
+                await_promise=True,
+                recv_timeout=60.0,
+            )
+            return
         await self.evaluate(
             e2e_api_base_inject_js(),
             await_promise=False,

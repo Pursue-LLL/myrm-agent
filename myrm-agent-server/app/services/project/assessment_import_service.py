@@ -1,7 +1,7 @@
 """
-[INPUT] ArtifactVault, Artifact ORM, MilestoneService, KanbanService
+[INPUT] ArtifactVault, Artifact ORM, AssessmentImportLedger ORM, MilestoneService, KanbanService
 [OUTPUT] AssessmentImportService: artifact -> milestone/kanban import orchestration
-[POS] 项目评估导入服务。将评估类 Markdown 工件解析为里程碑和看板任务，并输出导入回执。
+[POS] 项目评估导入服务。将评估类 Markdown 工件解析为里程碑和看板任务，基于不可变导入台账执行幂等拦截并输出回执。
 """
 
 from __future__ import annotations
@@ -17,10 +17,12 @@ from myrm_agent_harness.toolkits.kanban.types import (
     TaskPriority,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.database.connection import get_session
 from app.database.models.artifact import Artifact, ArtifactVersion
+from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.project import Project
 from app.platform_utils.workspace_root import get_workspace_root
 from app.services.kanban import KanbanService
@@ -32,10 +34,32 @@ _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 _INLINE_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
 _INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _MULTISPACE_RE = re.compile(r"\s+")
+_IMPORT_BOARD_DESCRIPTION_PREFIX = "Imported from artifact "
+_TEXT_TOKEN_RE = re.compile(r"[A-Za-z0-9\u4e00-\u9fff]")
 
 _DEFAULT_MAX_MILESTONES = 8
 _DEFAULT_MAX_TASKS_PER_MILESTONE = 25
 logger = logging.getLogger(__name__)
+ERROR_ARTIFACT_VERSION_ALREADY_IMPORTED = "Artifact version already imported for this project"
+ERROR_NO_ACTIONABLE_TASKS = "Artifact markdown has checklist items but none are actionable tasks"
+ERROR_NO_IMPORTABLE_TASKS = "Artifact markdown does not contain importable task list items"
+_NON_ACTIONABLE_PREFIXES: tuple[str, ...] = (
+    "note",
+    "notes",
+    "summary",
+    "context",
+    "background",
+    "risk",
+    "risks",
+    "assumption",
+    "assumptions",
+    "说明",
+    "背景",
+    "风险",
+    "假设",
+    "总结",
+    "备注",
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -85,17 +109,36 @@ def _extract_sections(content: str) -> list[tuple[int, str, list[str]]]:
     return sections
 
 
-def _extract_tasks(lines: list[str], max_tasks: int) -> list[str]:
+def _is_actionable_task(text: str) -> bool:
+    normalized = text.strip()
+    if len(normalized) < 4:
+        return False
+    if normalized.startswith(("http://", "https://")):
+        return False
+    lower = normalized.lower().lstrip("-*# ").strip()
+    for prefix in _NON_ACTIONABLE_PREFIXES:
+        if lower == prefix or lower.startswith(f"{prefix}:") or lower.startswith(f"{prefix}："):
+            return False
+    if _TEXT_TOKEN_RE.search(normalized) is None:
+        return False
+    return True
+
+
+def _extract_tasks(lines: list[str], max_tasks: int) -> tuple[list[str], bool]:
     tasks: list[str] = []
     seen: set[str] = set()
+    had_list_items = False
     for line in lines:
         match = _LIST_ITEM_RE.match(line)
         if not match:
             continue
+        had_list_items = True
         task_text = _clean_inline_markdown(match.group(1))
         if not task_text:
             continue
         clipped = _clip(task_text, 500)
+        if not _is_actionable_task(clipped):
+            continue
         lower = clipped.lower()
         if lower in seen:
             continue
@@ -103,7 +146,7 @@ def _extract_tasks(lines: list[str], max_tasks: int) -> list[str]:
         tasks.append(clipped)
         if len(tasks) >= max_tasks:
             break
-    return tasks
+    return tasks, had_list_items
 
 
 def _extract_description(lines: list[str]) -> str:
@@ -138,11 +181,13 @@ def parse_assessment_markdown(
 
     sections = _extract_sections(content)
     parsed: list[ParsedMilestone] = []
+    had_list_items_anywhere = False
 
     for level, title, lines in sections:
         if level > 3:
             continue
-        tasks = _extract_tasks(lines, max_tasks=max_tasks_per_milestone)
+        tasks, had_list_items = _extract_tasks(lines, max_tasks=max_tasks_per_milestone)
+        had_list_items_anywhere = had_list_items_anywhere or had_list_items
         if not tasks:
             continue
         milestone_title = _clip(title or fallback_title, 500)
@@ -154,9 +199,14 @@ def parse_assessment_markdown(
     if parsed:
         return parsed
 
-    doc_tasks = _extract_tasks(content.splitlines(), max_tasks=max_tasks_per_milestone)
+    doc_tasks, had_doc_list_items = _extract_tasks(
+        content.splitlines(),
+        max_tasks=max_tasks_per_milestone,
+    )
     if not doc_tasks:
-        raise ValueError("Artifact markdown does not contain importable task list items")
+        if had_list_items_anywhere or had_doc_list_items:
+            raise ValueError(ERROR_NO_ACTIONABLE_TASKS)
+        raise ValueError(ERROR_NO_IMPORTABLE_TASKS)
 
     default_title = _clip(fallback_title or "Assessment Import", 500)
     return [ParsedMilestone(title=default_title, description="", tasks=doc_tasks)]
@@ -204,6 +254,67 @@ async def _assert_project_exists(project_id: str) -> None:
             raise FileNotFoundError("Project not found")
 
 
+def _build_import_board_description(artifact_id: str) -> str:
+    return f"{_IMPORT_BOARD_DESCRIPTION_PREFIX}{artifact_id}"
+
+
+async def _reserve_import_slot(
+    project_id: str,
+    *,
+    artifact_id: str,
+    artifact_version_id: str,
+    source_chat_id: str | None,
+) -> int:
+    async with get_session() as db:
+        ledger = AssessmentImportLedger(
+            project_id=project_id,
+            artifact_id=artifact_id,
+            artifact_version_id=artifact_version_id,
+            source_chat_id=source_chat_id,
+            status="reserved",
+        )
+        db.add(ledger)
+        try:
+            await db.commit()
+        except IntegrityError as exc:
+            await db.rollback()
+            stmt = select(AssessmentImportLedger.id).where(
+                AssessmentImportLedger.project_id == project_id,
+                AssessmentImportLedger.artifact_version_id == artifact_version_id,
+            )
+            exists = (await db.execute(stmt)).scalar_one_or_none()
+            if exists is not None:
+                raise ValueError(ERROR_ARTIFACT_VERSION_ALREADY_IMPORTED) from exc
+            raise
+        await db.refresh(ledger)
+        return int(ledger.id)
+
+
+async def _finalize_import_slot(
+    import_id: int,
+    *,
+    total_milestones: int,
+    total_tasks: int,
+) -> None:
+    async with get_session() as db:
+        slot = await db.get(AssessmentImportLedger, import_id)
+        if slot is None:
+            return
+        slot.status = "completed"
+        slot.total_milestones = total_milestones
+        slot.total_tasks = total_tasks
+        await db.commit()
+
+
+async def _release_import_slot(import_id: int) -> None:
+    async with get_session() as db:
+        slot = await db.get(AssessmentImportLedger, import_id)
+        if slot is None:
+            return
+        await db.delete(slot)
+        await db.commit()
+
+
 def _build_board_name(milestone_title: str, index: int, total: int) -> str:
     if total <= 1:
         return _clip(milestone_title, 255)
@@ -238,6 +349,12 @@ class AssessmentImportService:
         imported_at = datetime.now(UTC).isoformat()
         created_board_ids: list[str] = []
         created_milestone_ids: list[str] = []
+        import_id = await _reserve_import_slot(
+            project_id,
+            artifact_id=artifact.id,
+            artifact_version_id=latest_version.id,
+            source_chat_id=effective_source_chat_id,
+        )
 
         try:
             for index, parsed in enumerate(parsed_milestones, start=1):
@@ -252,7 +369,7 @@ class AssessmentImportService:
 
                 board = await kanban_service.create_board(
                     name=_build_board_name(parsed.title, index, len(parsed_milestones)),
-                    description=f"Imported from artifact {artifact.id}",
+                    description=_build_import_board_description(artifact.id),
                     project_id=project_id,
                     milestone_id=milestone_id,
                 )
@@ -301,9 +418,19 @@ class AssessmentImportService:
                     await MilestoneService.delete_milestone(milestone_id)
                 except Exception as cleanup_error:
                     logger.warning("Failed to rollback imported milestone %s: %s", milestone_id, cleanup_error)
+            try:
+                await _release_import_slot(import_id)
+            except Exception as cleanup_error:
+                logger.warning("Failed to rollback import slot %s: %s", import_id, cleanup_error)
             raise
 
+        await _finalize_import_slot(
+            import_id,
+            total_milestones=len(imported_rows),
+            total_tasks=total_tasks,
+        )
         return {
+            "import_id": import_id,
             "project_id": project_id,
             "artifact_id": artifact.id,
             "artifact_version_id": latest_version.id,

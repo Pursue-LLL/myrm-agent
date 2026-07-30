@@ -283,9 +283,12 @@ def seed_agent_vault_from_default(target_agent_id: str) -> WikiVaultSeedResult:
         )
 
     from myrm_agent_harness.toolkits.wiki import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.schema_writer import write_schema_markdown
 
     target_path.mkdir(parents=True, exist_ok=True)
-    WikiStructure(target_path).ensure_structure()
+    structure = WikiStructure(target_path)
+    structure.ensure_structure()
+    write_schema_markdown(structure)
     files_copied = _merge_tree_copy(source_path, target_path)
     if files_copied:
         logger.info(

@@ -97,6 +97,10 @@ MUX_RESPONSIVE_PROBE_BASE_SEC: Final[float] = 8.0
 MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC: Final[float] = 3.0
 MUX_RESPONSIVE_PROBE_MAX_SEC: Final[float] = 45.0
 MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
+# R170: bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
+PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
+PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
+PROVIDER_READINESS_GATE_MAX_SEC: Final[float] = 180.0
 # R107: align mux session admission with upstream cold-attach cap (SSOT).
 MUX_MAX_CONCURRENT_SESSIONS: Final[int] = MUX_COLD_ATTACH_SLOTS
 E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 300
@@ -321,6 +325,27 @@ def mux_responsive_probe_timeout_sec(*, active_leases: int | None = None) -> flo
         return MUX_RESPONSIVE_PROBE_BASE_SEC
     scaled = MUX_RESPONSIVE_PROBE_BASE_SEC + leases * MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC
     return min(MUX_RESPONSIVE_PROBE_MAX_SEC, scaled)
+
+
+def provider_readiness_gate_wait_sec(*, active_leases: int | None = None) -> float:
+    """Bootstrap provider readiness poll budget (cdp bootstrap gate SSOT).
+
+    Solo 60s; under parallel wave load min(180, 60+leases×15)s — aligns
+    ``run_desktop_approval_chrome_e2e`` entry probe and avoids
+    ``config_load_timeout`` flakes when shared :8080 is busy.
+    """
+    leases = (
+        active_leases
+        if active_leases is not None
+        else _parallel_chrome_e2e_pressure()
+    )
+    if leases <= 0:
+        return PROVIDER_READINESS_GATE_BASE_SEC
+    scaled = (
+        PROVIDER_READINESS_GATE_BASE_SEC
+        + leases * PROVIDER_READINESS_GATE_LEASE_SCALE_SEC
+    )
+    return min(PROVIDER_READINESS_GATE_MAX_SEC, scaled)
 
 
 def attach_ui_liveness_probe_timeout_sec() -> float:

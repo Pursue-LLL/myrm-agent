@@ -25,6 +25,12 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `shared/` | 跨域小 hook（toast、draft、diff parser、deploy mode） | [_ARCH.md](shared/_ARCH.md) |
 | `tasks/` | 后台任务 WebSocket 订阅 | [_ARCH.md](tasks/_ARCH.md) |
 
+## 根级 Hook
+
+| 文件 | 职责 | I/O/P |
+|------|------|-------|
+| `useProjectDefaultAgent.ts` | 新建对话时自动注入项目默认智能体的 agentConfig | ✅ |
+
 ## 测试
 
 | 位置 | 说明 |

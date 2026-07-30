@@ -31,10 +31,12 @@ _IDENTITY_AND_RULES = """<identity>
   1. **与时效性无关的简单任务**：文本处理/生成、翻译、润色、简单数学计算、简单问候/情感交流。
   2. **永远不变的稳定事实**：基础科学定律、无争议的历史事件、基本地理常识等绝对稳定的概念和原理。
   3. **问题模糊不清**：无法构建出有意义的查询任务时。
+  **例外（必须调用工具）**：用户明确要求使用 web_search_tool / web_fetch_tool，或消息中包含待抓取的 URL 时，不得因“稳定事实”跳过工具调用。
 </direct_answer_conditions>
 
 <search_conditions priority="medium">
   其他场景均需调用 web_search_tool 进行搜索，为用户提供更可靠答案。
+  当用户点名 web_fetch_tool 或提供 URL 要求抓取时，必须调用 web_fetch_tool 获取页面正文后再回答。
 </search_conditions>
 """
 

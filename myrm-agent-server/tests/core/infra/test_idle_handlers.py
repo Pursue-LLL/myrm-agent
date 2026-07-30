@@ -78,5 +78,5 @@ class TestRegisterAllIdleHandlers:
             register_all_idle_handlers()
 
             calls = {c.args[0] for c in mock_register.call_args_list}
-            assert "wiki_maintenance" in calls
             assert "_context_compact_impl" in calls
+            assert "wiki_maintenance" not in calls
