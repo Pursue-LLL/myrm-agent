@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
@@ -9,6 +9,7 @@ import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
+import { claimStatusClass, claimStatusLabel, formatClaimConfidence, shouldShowClaimConfidence } from '@/lib/wiki/claimStatusDisplay';
 
 interface WikiConceptDetailPanelProps {
   selectedConcept: Concept | null;
@@ -33,32 +34,6 @@ interface WikiConceptDetailPanelProps {
 }
 
 const EDIT_TABS: WikiEditTab[] = ['truth', 'timeline', 'metadata', 'advanced'];
-
-function claimStatusClass(status: string): string {
-  switch (status) {
-    case 'supported':
-      return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
-    case 'contested':
-      return 'bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/20';
-    case 'unsupported':
-      return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20';
-    default:
-      return 'bg-muted/40 text-muted-foreground border-border/60';
-  }
-}
-
-function claimStatusLabel(status: string, labels: Record<string, string>): string {
-  switch (status) {
-    case 'supported':
-      return labels.supported;
-    case 'contested':
-      return labels.contested;
-    case 'unsupported':
-      return labels.unsupported;
-    default:
-      return labels.unknown;
-  }
-}
 
 function tabLabel(tab: WikiEditTab, labels: Record<WikiEditTab, string>): string {
   return labels[tab];
@@ -86,6 +61,7 @@ export function WikiConceptDetailPanel({
   onEditAliasesChange,
 }: WikiConceptDetailPanelProps) {
   const t = useTranslations('settings.wiki.concepts');
+  const locale = useLocale();
   const claims = selectedConcept?.claims ?? [];
   const claimStatusLabels = {
     supported: t('claimStatusSupported'),
@@ -253,6 +229,11 @@ export function WikiConceptDetailPanel({
                             >
                               {claimStatusLabel(claim.status, claimStatusLabels)}
                             </span>
+                            {shouldShowClaimConfidence(claim.confidence) && (
+                              <span className="text-[10px] leading-4 px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-800 dark:text-sky-200 border-sky-500/20">
+                                {formatClaimConfidence(claim.confidence, locale)}
+                              </span>
+                            )}
                           </div>
                           {claim.evidence.length > 0 && (
                             <ul className="space-y-1 text-xs text-muted-foreground">

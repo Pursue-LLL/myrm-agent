@@ -13,7 +13,6 @@ Service-layer stream orchestration. **Session mutex (`ChatSessionReservation`) b
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -44,12 +43,12 @@ from app.services.agent.params import (
 )
 from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.steering_registry import SteeringRegistry
-from app.services.agent.stream_session.consensus_stream_setup import (
-    resolve_consensus_stream_models,
-)
 from app.services.agent.stream_session.chat_history_bootstrap import (
     persist_user_message_and_load_history,
     stream_text_content,
+)
+from app.services.agent.stream_session.consensus_stream_setup import (
+    resolve_consensus_stream_models,
 )
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,
@@ -86,7 +85,6 @@ _SEARCH_AGENT_IDS: frozenset[str] = frozenset(
 
 # Gateway hygiene limit: ~120K tokens (rough character-to-token ratio) to prevent OOM
 _GATEWAY_MAX_INPUT_CHARS: int = 360_000
-_MEMORY_BRIEF_TIMEOUT_SECONDS: float = 0.25
 
 
 async def run_agent_stream(
@@ -264,6 +262,15 @@ async def run_agent_stream(
                 },
             )
 
+        if request.action_mode == "fast" and params.search_service_cfg is None:
+            await _record_terminal_failure_if_needed("server_error")
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": "Search service not configured. Fast search requires a configured search service."
+                },
+            )
+
         cancel_token = CancellationToken(request_id=request.message_id)
         CancellationRegistry.register(cancel_token)
 
@@ -352,35 +359,23 @@ async def run_agent_stream(
             logger.warning(f"Failed to load user locale for extra_context: {e}")
 
         if request.resume_value is None:
-            try:
-                from app.services.agent.stream_session.memory_brief import (
-                    build_memory_brief_snapshot,
-                )
+            from app.services.agent.execution_cache.prewarm.coordinator import (
+                get_turn_prewarm_coordinator,
+            )
 
-                brief_bundle = await asyncio.wait_for(
-                    build_memory_brief_snapshot(params),
-                    timeout=_MEMORY_BRIEF_TIMEOUT_SECONDS,
-                )
-                if brief_bundle is not None:
-                    preview, snapshot = brief_bundle
-                    extra_context["memory_brief_preview"] = preview
-                    extra_context["memory_brief_snapshot"] = snapshot
-                    extra_context["memory_brief_status"] = {"state": "ready"}
-            except asyncio.TimeoutError:
-                extra_context["memory_brief_status"] = {
-                    "state": "skipped",
-                    "reason": "timeout",
-                }
-                logger.info(
-                    "Memory brief preflight timeout (>%.0fms), skip preview.",
-                    _MEMORY_BRIEF_TIMEOUT_SECONDS * 1000,
-                )
-            except Exception as exc:
-                extra_context["memory_brief_status"] = {
-                    "state": "skipped",
-                    "reason": "error",
-                }
-                logger.warning("Memory brief preflight skipped: %s", exc)
+            join_result = await get_turn_prewarm_coordinator().join_for_turn(
+                params,
+                action_mode=request.action_mode or "agent",
+            )
+            if join_result.preview is not None:
+                extra_context["memory_brief_preview"] = join_result.preview
+            if join_result.snapshot is not None:
+                extra_context["memory_brief_snapshot"] = join_result.snapshot
+            extra_context["memory_brief_status"] = join_result.brief_status
+            extra_context["turn_prewarm_hit"] = join_result.prewarm_hit
+            if join_result.prewarm_ms is not None:
+                extra_context["turn_prewarm_ms"] = join_result.prewarm_ms
+            extra_context["turn_prewarm_still_warming"] = join_result.still_warming
 
         is_long_running_task = request.action_mode in (
             "deep_research",

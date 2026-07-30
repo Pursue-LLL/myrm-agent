@@ -30,11 +30,13 @@ from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
     observe_memory_brief_status_payload,
 )
+from app.services.agent.stream_session.lanes.wiki_knowledge_lane import create_wiki_knowledge_lane_stream
 from app.services.agent.stream_session.stream_lane_factory import (
     create_consensus_stream,
     create_deep_research_stream,
     create_fast_lane_stream,
 )
+from app.services.wiki.wiki_query_intent import should_use_wiki_knowledge_lane
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.workflow_escalation import should_suggest_workflow_for_session
 from app.services.agent.streaming import ai_agent_service_stream
@@ -230,9 +232,16 @@ async def iter_agent_stream_chunks(
         and session.request.resume_value is None
         and session.request.action_mode == "fast"
         and not session.request.ephemeral_subagents
+        and not session.params.enable_web_search
     ):
         logger.info(f"🚀 Fast Lane activated for message_id={session.params.message_id}")
         stream = create_fast_lane_stream(session.params, session.cancel_token)
+    elif should_use_wiki_knowledge_lane(session):
+        logger.info(
+            "Wiki Knowledge Lane activated for message_id=%s",
+            session.params.message_id,
+        )
+        stream = create_wiki_knowledge_lane_stream(session.params, session.cancel_token)
     else:
         if (
             session.request.resume_value is None
@@ -414,6 +423,12 @@ async def iter_agent_stream_chunks(
 
                     _inject_wu_consumed(chunk)
                     _inject_message_end_memory_insights(chunk=chunk, session=session)
+                    if isinstance(session.extra_context, dict):
+                        if "turn_prewarm_hit" in session.extra_context:
+                            chunk["turn_prewarm_hit"] = session.extra_context["turn_prewarm_hit"]
+                        prewarm_ms = session.extra_context.get("turn_prewarm_ms")
+                        if isinstance(prewarm_ms, int):
+                            chunk["turn_prewarm_ms"] = prewarm_ms
 
                     if session.request.chat_id:
                         from app.services.agent.goal_registry import (

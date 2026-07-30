@@ -106,13 +106,20 @@ export interface BoardSummary {
 
 // ==================== Board API ====================
 
-export async function listBoards(): Promise<{ items: KanbanBoard[]; total: number }> {
-  return apiRequest('/kanban/boards');
+export async function listBoards(opts?: { projectId?: string | null }): Promise<{ items: KanbanBoard[]; total: number }> {
+  const projectId = opts?.projectId?.trim();
+  if (!projectId) {
+    return apiRequest('/kanban/boards');
+  }
+  const params = new URLSearchParams({ project_id: projectId });
+  return apiRequest(`/kanban/boards?${params.toString()}`);
 }
 
 export async function createBoard(data: {
   name: string;
   description?: string;
+  project_id?: string;
+  milestone_id?: string;
   max_concurrent_tasks?: number;
   default_workdir?: string;
 }): Promise<KanbanBoard> {

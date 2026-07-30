@@ -72,6 +72,7 @@ import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 import { SkillActivationChips } from '../message-box/SkillActivationChips';
+import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 
 const KEYTERM_PATTERN =
   /(?:[A-Z][a-z]+(?:[A-Z][a-z]+)+|[A-Z]{2,}[a-z]*|[a-zA-Z][\w.-]{2,}(?:\.[\w]+)+|[\u4e00-\u9fff]{2,4}(?:[\u4e00-\u9fff]+)?)/g;
@@ -137,6 +138,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   );
   const isComposerClarifyMode = pendingClarification !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
+  const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
 
   React.useEffect(() => {
     if (!projectsLoaded) {
@@ -404,7 +406,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
           {/* 动态工作记忆面板 (Active Working Memory) */}
           <ActiveWorkingMemoryPanel />
 
-          <div className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative">
+          <div
+            className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative"
+            data-chat-composer
+          >
             {/* 输入历史弹窗 */}
             <InputHistoryPopup
               popup={inputHistory.popup}
@@ -441,6 +446,20 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               ref={inputRef}
               data-chat-input
               value={inputMessage}
+              onFocus={() => {
+                if (shouldPrewarm) {
+                  void triggerPrewarm();
+                }
+              }}
+              onBlur={() => {
+                window.setTimeout(() => {
+                  const active = document.activeElement;
+                  if (active instanceof HTMLElement && active.closest('[data-chat-composer]')) {
+                    return;
+                  }
+                  void cancelPrewarm();
+                }, 120);
+              }}
               onChange={(e) => {
                 handleInputChange(e);
                 updateCursorPosition();

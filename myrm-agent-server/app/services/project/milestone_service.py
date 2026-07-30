@@ -12,6 +12,8 @@ from uuid import uuid4
 
 from sqlalchemy import func, select, update
 
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
 from app.database.connection import get_session
 from app.database.models.kanban import KanbanBoardModel, KanbanTaskModel
 from app.database.models.milestone import Milestone
@@ -166,7 +168,7 @@ class MilestoneService:
             done_stmt = (
                 select(func.count(KanbanTaskModel.id))
                 .where(KanbanTaskModel.board_id.in_(board_ids))
-                .where(KanbanTaskModel.status == "done")
+                .where(KanbanTaskModel.status == TaskStatus.COMPLETED.value)
             )
             done_result = await db.execute(done_stmt)
             done = done_result.scalar_one()

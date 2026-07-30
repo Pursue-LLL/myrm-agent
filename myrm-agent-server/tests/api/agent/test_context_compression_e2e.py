@@ -61,7 +61,7 @@ _FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
 
 _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (
     """
-请用 bash 执行以下命令并报告结果：
+请依次执行以下 bash 命令（每次只执行一条命令，禁止在同一行使用分号或 && 连接）：
 1. echo "hello world"
 2. ls {missing_path}
 3. echo "done"

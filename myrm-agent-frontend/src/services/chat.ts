@@ -576,6 +576,53 @@ export const cancelActiveChatAgent = async (chatId: string): Promise<{ cancelled
   });
 };
 
+export type ChatTurnPrewarmRequest = {
+  agentId?: string | null;
+  actionMode?: string;
+  incognitoMode?: boolean;
+};
+
+export const startChatTurnPrewarm = async (
+  chatId: string,
+  request: ChatTurnPrewarmRequest,
+): Promise<{ started: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+  const body = {
+    agent_id: request.agentId ?? null,
+    action_mode: request.actionMode ?? 'agent',
+    incognito_mode: request.incognitoMode ?? false,
+  };
+  if (isMobileRemoteSurface()) {
+    return mobileRemotePost<{ started: boolean; chat_id: string }>(
+      `/api/v1/agents/chats/${chatId}/prewarm`,
+      body,
+    );
+  }
+  return apiRequest(`/agents/chats/${chatId}/prewarm`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    silent: true,
+  });
+};
+
+export const cancelChatTurnPrewarm = async (
+  chatId: string,
+  agentId?: string | null,
+): Promise<{ cancelled: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileApiRequest } = await import('@/lib/mobileRemote');
+  const query = agentId ? `?agent_id=${encodeURIComponent(agentId)}` : '';
+  if (isMobileRemoteSurface()) {
+    return mobileApiRequest<{ cancelled: boolean; chat_id: string }>(
+      `/api/v1/agents/chats/${chatId}/prewarm${query}`,
+      { method: 'DELETE' },
+    );
+  }
+  return apiRequest(`/agents/chats/${chatId}/prewarm${query}`, {
+    method: 'DELETE',
+    silent: true,
+  });
+};
+
 /**
  * 获取后续建议（搜索模式和 Agent 模式通用）
  *
@@ -708,14 +755,55 @@ export interface CompactResult {
   tokens_saved: number;
   reason: string | null;
   focus_topic?: string;
+  backup_path?: string | null;
 }
+
+export const getContextPins = async (chatId: string): Promise<{ files: string[] }> => {
+  const response = (await apiRequest(`/chats/${chatId}/context/pins`, { silent: true })) as {
+    files: string[];
+  };
+  return { files: response.files ?? [] };
+};
 
 export const compactChat = async (chatId: string, focusTopic?: string): Promise<CompactResult> => {
   const body = focusTopic ? JSON.stringify({ focus_topic: focusTopic }) : undefined;
   return (await apiRequest(`/chats/${chatId}/compact`, {
     method: 'POST',
-    ...(body ? { body } : {}),
+    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
   })) as CompactResult;
+};
+
+export interface ContextBranchRecord {
+  branch_id: string;
+  label: string;
+  snapshot_path: string;
+  created_at: string;
+}
+
+export const listContextBranches = async (chatId: string): Promise<ContextBranchRecord[]> => {
+  const response = (await apiRequest(`/chats/${chatId}/context/branches`, { silent: true })) as {
+    branches: ContextBranchRecord[];
+  };
+  return response.branches ?? [];
+};
+
+export const createContextBranch = async (
+  chatId: string,
+  payload: { snapshot_path: string; label?: string },
+): Promise<ContextBranchRecord> => {
+  return (await apiRequest(`/chats/${chatId}/context/branches`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  })) as ContextBranchRecord;
+};
+
+export const setContextPins = async (chatId: string, files: string[]): Promise<{ files: string[] }> => {
+  return (await apiRequest(`/chats/${chatId}/context/pins`, {
+    method: 'PUT',
+    body: JSON.stringify({ files }),
+    headers: { 'Content-Type': 'application/json' },
+  })) as { files: string[] };
 };
 
 export const focusFlushChat = async (chatId: string): Promise<{ cleared: boolean }> => {

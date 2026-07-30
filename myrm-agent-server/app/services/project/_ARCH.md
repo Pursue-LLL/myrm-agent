@@ -9,6 +9,7 @@
 | project_service.py    | 核心服务 | 项目 CRUD + 会话归属移动（单个/批量）        | ✅    |
 | workspace_path_resolve.py | 路径校验 | Project workspace_path 规范化与安全校验       | ✅    |
 | milestone_service.py  | 核心服务 | 里程碑 CRUD + 进度统计 + 路线图摘要生成       | ✅    |
+| assessment_import_service.py | 核心服务 | 评估工件导入：artifact markdown → 里程碑 + 项目作用域看板 + 任务回执 | ✅ |
 | orchestrator.py       | 并发控制 | 项目级并发调度器，确保同一项目下的多 Agent 回合制执行 | ✅    |
 | __init__.py           | 模块入口 | 导出 ProjectService, MilestoneService        | ✅    |
 

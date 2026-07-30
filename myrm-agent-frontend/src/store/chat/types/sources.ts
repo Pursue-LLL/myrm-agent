@@ -1,10 +1,12 @@
 /**
  * [OUTPUT]
  * Source, MCPCallRecord, CitedMemoryReference, FileMutationFailure, resolveSourceClickUrl.
- * 
+ *
  * [POS]
  * 消息引用来源与 citation 契约。
  */
+
+import type { WikiClaimStatus } from '@/lib/wiki/claimStatusDisplay';
 
 // 外部引用来源类型
 export type SourceType = 'web_search' | 'web_fetch' | 'mcp' | 'conversation_history' | 'knowledge';
@@ -43,6 +45,9 @@ export interface Source {
   evidence_path?: string;
   line_range?: string;
   snapshot_status?: WikiEvidenceSnapshotStatus;
+  claim_status?: WikiClaimStatus;
+  claim_confidence?: number;
+  claim_text?: string;
   resource_uri?: string;
   superseded_from_uri?: string;
   hit_kind?: 'concept' | 'asset';

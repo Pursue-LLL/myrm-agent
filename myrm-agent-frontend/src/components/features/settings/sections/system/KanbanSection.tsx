@@ -10,10 +10,12 @@ import { writeKanbanLastBoardId, readKanbanLastBoardId } from '@/lib/kanban/kanb
 import KanbanBoardView from '@/components/features/kanban/KanbanBoardView';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { registerSettingsSubviewBack } from '@/components/features/settings/settingsSubviewBack';
+import { useProjectStore } from '@/store/useProjectStore';
 
 export default function KanbanSection() {
   const t = useTranslations('kanban');
   const searchParams = useSearchParams();
+  const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
   const sourceChatParam = searchParams.get('source_chat')?.trim() || undefined;
   const boardIdParam = searchParams.get('board_id')?.trim() || undefined;
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
@@ -21,8 +23,8 @@ export default function KanbanSection() {
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
   const selectBoard = useCallback((board: KanbanBoard | null) => {
     setSelectedBoard(board);
-    writeKanbanLastBoardId(board?.board_id ?? null);
-  }, []);
+    writeKanbanLastBoardId(board?.board_id ?? null, activeProjectId);
+  }, [activeProjectId]);
   const [showCreate, setShowCreate] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDesc, setNewBoardDesc] = useState('');
@@ -37,14 +39,14 @@ export default function KanbanSection() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      const result = await listBoards();
+      const result = await listBoards({ projectId: activeProjectId });
       setBoards(result.items);
     } catch {
       toast.error(t('fetchBoardsError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [activeProjectId, t]);
 
   useEffect(() => {
     fetchBoards();
@@ -67,8 +69,10 @@ export default function KanbanSection() {
         return;
       }
       const lastId = readKanbanLastBoardId();
-      if (lastId) {
-        const match = boards.find((b) => b.board_id === lastId);
+      const scopedLastId = readKanbanLastBoardId(activeProjectId);
+      const lastBoardId = scopedLastId ?? lastId;
+      if (lastBoardId) {
+        const match = boards.find((b) => b.board_id === lastBoardId);
         if (match) {
           selectBoard(match);
           return;
@@ -76,12 +80,12 @@ export default function KanbanSection() {
       }
     }
 
-    const lastId = readKanbanLastBoardId();
+    const lastId = readKanbanLastBoardId(activeProjectId);
     if (!lastId) return;
     const match = boards.find((b) => b.board_id === lastId);
     if (match) selectBoard(match);
-    else writeKanbanLastBoardId(null);
-  }, [loading, boards, selectedBoard, boardIdParam, sourceChatParam, selectBoard]);
+    else writeKanbanLastBoardId(null, activeProjectId);
+  }, [loading, boards, selectedBoard, boardIdParam, sourceChatParam, selectBoard, activeProjectId]);
 
   useEffect(() => {
     if (!selectedBoard) {
@@ -102,30 +106,31 @@ export default function KanbanSection() {
       await createBoard({
         name: createdName,
         description: newBoardDesc.trim(),
+        ...(activeProjectId ? { project_id: activeProjectId } : {}),
         ...(newBoardWorkdir.trim() ? { default_workdir: newBoardWorkdir.trim() } : {}),
       });
       setNewBoardName('');
       setNewBoardDesc('');
       setNewBoardWorkdir('');
       setShowCreate(false);
-      const refreshed = await listBoards();
+      const refreshed = await listBoards({ projectId: activeProjectId });
       const createdBoard = refreshed.items.find((b) => b.name === createdName);
       if (createdBoard) {
-        writeKanbanLastBoardId(createdBoard.board_id);
+        writeKanbanLastBoardId(createdBoard.board_id, activeProjectId);
       }
       await fetchBoards();
       toast.success(t('boardCreated'));
     } catch {
       toast.error(t('createBoardError'));
     }
-  }, [newBoardName, newBoardDesc, newBoardWorkdir, fetchBoards, t]);
+  }, [newBoardName, newBoardDesc, newBoardWorkdir, activeProjectId, fetchBoards, t]);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deletingBoard) return;
     try {
       await deleteBoard(deletingBoard.board_id);
-      if (readKanbanLastBoardId() === deletingBoard.board_id) {
-        writeKanbanLastBoardId(null);
+      if (readKanbanLastBoardId(activeProjectId) === deletingBoard.board_id) {
+        writeKanbanLastBoardId(null, activeProjectId);
       }
       await fetchBoards();
       if (selectedBoard?.board_id === deletingBoard.board_id) {
@@ -135,7 +140,7 @@ export default function KanbanSection() {
     } catch {
       toast.error(t('deleteBoardError'));
     }
-  }, [deletingBoard, fetchBoards, selectedBoard, selectBoard, t]);
+  }, [deletingBoard, fetchBoards, selectedBoard, selectBoard, activeProjectId, t]);
 
   const startDelete = useCallback(async (board: KanbanBoard) => {
     setDeletingBoard(board);

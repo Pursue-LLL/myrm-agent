@@ -123,6 +123,20 @@ def reap_abandoned_leases(
     return changed
 
 
+def expire_active_lease_by_id(
+    state: OrchestratorState,
+    lease_id: str,
+) -> bool:
+    """Watchdog-only: expire an active lease without owner agent_id check."""
+    changed = False
+    for lease in state["leases"]:
+        if lease["leaseId"] != lease_id or lease["status"] != "active":
+            continue
+        lease["status"] = "expired"
+        changed = True
+    return changed
+
+
 def reap_expired_leases(
     state: OrchestratorState,
     now: datetime | None = None,
@@ -177,6 +191,29 @@ def heal_open_wave_runtime_id(
     if not parallel_chrome_e2e_runtime_heal_allowed(state):
         return False
 
+    wave_id = wave["waveId"]
+    wave["runtimeId"] = current_runtime_id
+    for lease in active_leases(state):
+        if lease.get("waveId") == wave_id:
+            lease["runtimeId"] = current_runtime_id
+    return True
+
+
+def heal_open_wave_runtime_id_for_acquire(
+    state: OrchestratorState,
+    current_runtime_id: str,
+    holder: str,
+) -> bool:
+    """Heal drift on acquire — including first formal chrome E2E lease (no peers yet)."""
+    if heal_open_wave_runtime_id(state, current_runtime_id):
+        return True
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
+        return False
+    if not formal_chrome_e2e_runtime_heal_agent(holder):
+        return False
     wave_id = wave["waveId"]
     wave["runtimeId"] = current_runtime_id
     for lease in active_leases(state):
@@ -242,9 +279,7 @@ def close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
     if wave is None or wave["status"] != "open":
         return False
     wave_leases = [
-        lease
-        for lease in state["leases"]
-        if lease.get("waveId") == wave["waveId"]
+        lease for lease in state["leases"] if lease.get("waveId") == wave["waveId"]
     ]
     if not wave_leases or any(lease["status"] == "active" for lease in wave_leases):
         return False

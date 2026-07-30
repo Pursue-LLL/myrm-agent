@@ -85,11 +85,18 @@ LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC: Final[float] = 15.0
 
 DEFAULT_XDIST_WORKERS: Final[int] = 2
 STRESS_XDIST_WORKERS: Final[int] = 4
-DEFAULT_BOOTSTRAP_SLOTS: Final[int] = 2
+# R158: align bootstrap with mux cold attach — delete silent bootstrap_cap=2 bottleneck.
+DEFAULT_BOOTSTRAP_SLOTS: Final[int] = 3
 MUX_COLD_ATTACH_SLOTS: Final[int] = 3
+WAVE_EXPENSIVE_SESSION_SLOTS: Final[int] = MUX_COLD_ATTACH_SLOTS
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000)
+# mux tools/list probe budget during attach/bootstrap (align chrome-e2e-preflight.sh).
+MUX_RESPONSIVE_PROBE_BASE_SEC: Final[float] = 8.0
+MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC: Final[float] = 3.0
+MUX_RESPONSIVE_PROBE_MAX_SEC: Final[float] = 45.0
+MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
 # R107: align mux session admission with upstream cold-attach cap (SSOT).
 MUX_MAX_CONCURRENT_SESSIONS: Final[int] = MUX_COLD_ATTACH_SLOTS
 E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 300
@@ -125,6 +132,8 @@ SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 # Holder / progress stale detection while queueing on shared_hot stream.
 STALL_PROGRESS_SEC: Final[int] = 90
+# Watchdog: expire heartbeat-stale leases (display stale remains STALL_PROGRESS_SEC).
+E2E_STALE_HEARTBEAT_REAP_SEC: Final[int] = 45
 
 
 def shpoib_parallel_stall_progress_sec() -> float:
@@ -297,6 +306,23 @@ def _parallel_chrome_e2e_pressure() -> int:
     return max(0, pressure)
 
 
+def mux_responsive_probe_timeout_sec(*, active_leases: int | None = None) -> float:
+    """tools/list probe budget for mux stamp validation (preflight + test.sh SSOT).
+
+    Solo 8s; under parallel wave load min(45, 8+leases×3)s — matches
+    chrome-e2e-preflight.sh ``_mux_probe_timeout_sec``.
+    """
+    leases = (
+        active_leases
+        if active_leases is not None
+        else _wave_active_lease_count_for_mux()
+    )
+    if leases <= 0:
+        return MUX_RESPONSIVE_PROBE_BASE_SEC
+    scaled = MUX_RESPONSIVE_PROBE_BASE_SEC + leases * MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC
+    return min(MUX_RESPONSIVE_PROBE_MAX_SEC, scaled)
+
+
 def attach_ui_liveness_probe_timeout_sec() -> float:
     """Short :3000 probe for LISTEN-but-hung / post-heal streak (R150).
 
@@ -352,27 +378,94 @@ def attach_ui_probe_timeout_sec() -> float:
     return min(25.0, 8.0 + pressure * 2.0)
 
 
+def _parallel_signoff_pressure_peers() -> int:
+    """Peak parallel chrome_e2e pressure for signoff wall scaling (R164-G2)."""
+    pressure = _wave_active_lease_count_for_mux()
+    raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
+    if raw.isdigit():
+        pressure = max(pressure, int(raw))
+    try:
+        from transport_supervisor import parallel_mux_peer_count
+
+        pressure = max(pressure, parallel_mux_peer_count())
+    except ImportError:
+        pass
+    return max(0, pressure)
+
+
+def _scaled_parallel_admit_wait_sec(*, solo_base: int) -> int:
+    """Parallel ADMIT/mux wait: min(900, solo_base + peers×45)."""
+    pressure = _parallel_signoff_pressure_peers()
+    if pressure <= 0:
+        return solo_base
+    scaled = solo_base + pressure * MUX_ADMISSION_WAIT_LEASE_SEC
+    return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
+
+
 def admit_wall_clock_sec() -> int:
-    """ADMIT-phase hung-reap / queue SSOT (900 dev · 300 signoff)."""
+    """ADMIT-phase hung-reap / queue SSOT (900 dev · 300 signoff solo).
+
+    Signoff under parallel wave load scales like mux ADMIT (R164) so stack recovery /
+    deferred mux are not killed at 300s while peers≥2.
+    """
     if is_e2e_signoff_runtime():
+        if _parallel_signoff_pressure_peers() >= 2:
+            return _scaled_parallel_admit_wait_sec(
+                solo_base=E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+            )
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
 def mux_admission_wait_sec() -> int:
-    """Mux session ADMIT queue; dev scales under parallel wave load (R123/BUG-DG-022)."""
+    """Mux session ADMIT queue; scales under parallel wave load (R123/BUG-DG-022).
+
+    Signoff solo keeps 300s fail-fast ADMIT; under parallel wave load signoff deferred
+    mux (SHPOIB conftest) uses the same min(900, 300+leases×45) scale as dev — fixed
+    SAL signoff RED at mux 3/3 + 300s hard cap while peers≥12 (BUG-DG-2026-07-30-023).
+    """
     override = os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", "").strip()
     if override.isdigit() and int(override) > 0:
         return int(override)
+    pressure = _parallel_signoff_pressure_peers()
+    if pressure > 0:
+        solo_base = (
+            E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+            if is_e2e_signoff_runtime()
+            else E2E_MUX_ADMISSION_WAIT_SEC
+        )
+        return _scaled_parallel_admit_wait_sec(solo_base=solo_base)
     if is_e2e_signoff_runtime():
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
-    active_leases = _wave_active_lease_count_for_mux()
-    if active_leases > 0:
-        scaled = (
-            E2E_MUX_ADMISSION_WAIT_SEC + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
-        )
-        return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
     return E2E_ADMISSION_WALL_CLOCK_SEC
+
+
+def signoff_read_shpoib_body_wall_sec() -> int:
+    """Signoff READ SHPOIB BODY wall; scales under parallel turbopack/mux (R164)."""
+    base = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    if not is_e2e_signoff_runtime():
+        return base
+    shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    if not (shpoib and lane == "READ"):
+        return base
+    active_leases = _parallel_signoff_pressure_peers()
+    if active_leases >= 2:
+        scaled = base + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
+        return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
+    return base
+
+
+def shpoib_rebind_location_wait_cap_sec() -> float:
+    """SHPOIB navigate location settle; signoff scales under parallel :3000 compile."""
+    if not is_e2e_signoff_runtime():
+        return 45.0
+    base = float(SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC)
+    active_leases = _wave_active_lease_count_for_mux()
+    if active_leases >= 2:
+        scaled = base + active_leases * 20.0
+        return min(float(SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC), scaled)
+    return base
 
 
 def shared_ui_hydrate_wait_sec() -> int:
@@ -567,6 +660,13 @@ def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
     return LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 
 
+def boot_mux_body_transport_gate_required() -> bool:
+    """True when conftest/bootstrap performs deferred mux admission (R163/R164)."""
+    if resolve_e2e_wall_profile() == "signoff":
+        return False
+    return os.environ.get("MYRM_E2E_MUX_ADMISSION_DEFERRED", "").strip() == "1"
+
+
 def chrome_e2e_pytest_safe_queue_buffer_sec(
     lane: str,
     joined_argv: str,
@@ -575,7 +675,7 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
 ) -> int:
     """Queue/admission wait excluded from R58 body wall clock but counted by run_pytest_safe."""
     if resolve_e2e_wall_profile() == "signoff":
-        return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+        return admit_wall_clock_sec()
     resolved_shpoib = (
         shpoib
         if shpoib is not None
@@ -583,7 +683,17 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     )
     if resolved_shpoib:
         return E2E_ADMISSION_WALL_CLOCK_SEC
-    if lane.strip().upper() != "LIVE_AGENT":
+    normalized_lane = lane.strip().upper()
+    if normalized_lane == "READ":
+        try:
+            from e2e_wave_capacity import capacity_snapshot
+
+            if capacity_snapshot().get("saturated"):
+                return mux_admission_wait_sec()
+        except ImportError:
+            pass
+        return 0
+    if normalized_lane != "LIVE_AGENT":
         return 0
     buffer = E2E_UNIFIED_WAIT_SEC
     if not chrome_e2e_skips_shared_stream_lock(lane=lane, shpoib=resolved_shpoib):
@@ -680,12 +790,7 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
     normalized_lane = lane.strip().upper()
     if shpoib and normalized_lane in {"LIVE_AGENT", "READ"}:
-        try:
-            from transport_supervisor import live_agent_pytest_wall_cap_sec
-
-            return max(floor, live_agent_pytest_wall_cap_sec(pessimistic_peers=True))
-        except ImportError:
-            return max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+        return max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
     return floor
 
 

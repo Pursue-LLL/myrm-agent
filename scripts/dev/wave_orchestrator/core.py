@@ -29,11 +29,15 @@ from wave_orchestrator.lease_state import (
     active_leases,
     close_wave_after_last_expired_lease as _close_wave_after_last_expired_lease,
     default_agent_id,
+    expire_active_lease_by_id,
     find_active_lease as _find_active_lease,
+    heal_open_wave_runtime_id,
+    heal_open_wave_runtime_id_for_acquire,
     iso_timestamp as _iso,
     reap_abandoned_leases,
     reap_expired_leases as reaper,
     reap_runtime_drift,
+    restore_drifted_formal_e2e_wave,
     utc_now as _utc_now,
 )
 from wave_orchestrator.lanes import lane_conflict_reason
@@ -195,6 +199,23 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     return result
 
 
+def expire_lease_watchdog(lease_id: str, *, paths: WavePaths | None = None) -> bool:
+    """Expire one active lease (stale heartbeat watchdog; no owner agent_id check)."""
+    resolved = paths or resolve_wave_paths()
+
+    def _edit(state: OrchestratorState) -> tuple[dict[str, object], bool]:
+        changed = expire_active_lease_by_id(state, lease_id)
+        if changed and reaper(state, cleanup=False):
+            changed = True
+        return {"leaseId": lease_id, "expired": changed}, changed
+
+    result = run_locked(resolved.state_file, _edit)
+    if bool(result.get("expired")):
+        _cleanup_expired_leases(paths=resolved)
+        return True
+    return False
+
+
 def open_wave(
     *,
     paths: WavePaths | None = None,
@@ -327,9 +348,15 @@ def acquire_lease(
         if wave is None or wave["status"] != "open":
             raise RuntimeError("LEASE_DENIED: no open wave")
         if current_runtime != wave["runtimeId"]:
-            raise RuntimeError(
-                f"LEASE_DENIED: RUNTIME_DRIFT expected={wave['runtimeId']} current={current_runtime}"
-            )
+            if not heal_open_wave_runtime_id_for_acquire(
+                state, current_runtime, holder
+            ) and not (
+                wave.get("status") == "drifted"
+                and restore_drifted_formal_e2e_wave(state, current_runtime)
+            ):
+                raise RuntimeError(
+                    f"LEASE_DENIED: RUNTIME_DRIFT expected={wave['runtimeId']} current={current_runtime}"
+                )
         if parent_id:
             parent = _find_active_lease(state, parent_id)
             if parent["agentId"] != holder:

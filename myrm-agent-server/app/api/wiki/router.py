@@ -35,6 +35,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.wiki.core.types import WikiRetrievalTrace
 from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
     WikiCognitiveMapService,
     WikiMapEvent,
@@ -102,6 +103,7 @@ class WikiSourceSnippet(BaseModel):
     evidence_path: str = ""
     line_range: str = ""
     claim_status: str = ""
+    claim_confidence: float = 0.0
     snapshot_status: str = ""
     resource_uri: str = ""
     superseded_from_uri: str = ""
@@ -143,10 +145,32 @@ class WikiStaleSummaryResponse(BaseModel):
     stale_files: list[WikiStaleFileItem] = Field(default_factory=list)
 
 
+class WikiRetrievalTraceIndexHit(BaseModel):
+    link_name: str
+    summary: str
+    score: float
+    page_type: str = ""
+
+
+class WikiRetrievalSeedTraceItem(BaseModel):
+    concept_name: str
+    score: float
+    source: str
+
+
+class WikiRetrievalTraceResponse(BaseModel):
+    index_hits: list[WikiRetrievalTraceIndexHit] = Field(default_factory=list)
+    seeds: list[WikiRetrievalSeedTraceItem] = Field(default_factory=list)
+    sidecar_directories: list[str] = Field(default_factory=list)
+    selected_concepts: list[str] = Field(default_factory=list)
+
+
 class WikiQueryResponse(BaseModel):
     answer: str
     related_articles: list[str] = Field(default_factory=list)
     source_snippets: list[WikiSourceSnippet] = Field(default_factory=list)
+    confidence_score: float = 0.0
+    retrieval_trace: WikiRetrievalTraceResponse | None = None
 
 
 class WikiCompileResponse(BaseModel):
@@ -448,6 +472,67 @@ def _editor_sections_to_response(content: str) -> WikiEditorSectionsResponse:
     )
 
 
+def _citation_sources_to_snippets(sources: list[dict[str, object]]) -> list[WikiSourceSnippet]:
+    """Map harness citation SSOT dicts to REST response models."""
+    snippets: list[WikiSourceSnippet] = []
+    for entry in sources:
+        snippets.append(
+            WikiSourceSnippet(
+                path=str(entry.get("path", "")),
+                name=str(entry.get("filename", "")),
+                snippet=str(entry.get("snippet", "")),
+                section=str(entry.get("section", "")),
+                level=str(entry.get("level", "L2")),
+                claim_id=str(entry.get("claim_id", "")),
+                claim_text=str(entry.get("claim_text", "")),
+                evidence_path=str(entry.get("evidence_path", "")),
+                line_range=str(entry.get("line_range", "")),
+                claim_status=str(entry.get("claim_status", "")),
+                claim_confidence=float(entry.get("claim_confidence", 0.0) or 0.0),
+                snapshot_status=str(entry.get("snapshot_status", "")),
+                resource_uri=str(entry.get("resource_uri", "")),
+                superseded_from_uri=str(entry.get("superseded_from_uri", "")),
+                hit_kind=str(entry.get("hit_kind", "concept")),
+                asset_filename=str(entry.get("asset_filename", "")),
+            )
+        )
+    return snippets
+
+
+def _retrieval_trace_to_response(
+    trace: WikiRetrievalTrace | None,
+) -> WikiRetrievalTraceResponse | None:
+    if trace is None:
+        return None
+    index_hits = [
+        WikiRetrievalTraceIndexHit(
+            link_name=hit.link_name,
+            summary=hit.summary,
+            score=hit.score,
+            page_type=hit.page_type,
+        )
+        for hit in trace.index_hits
+    ]
+    seeds = [
+        WikiRetrievalSeedTraceItem(
+            concept_name=seed.concept_name,
+            score=seed.score,
+            source=seed.source,
+        )
+        for seed in trace.seeds
+    ]
+    sidecar_directories = list(trace.sidecar_directories)
+    selected_concepts = list(trace.selected_concepts)
+    if not index_hits and not seeds and not sidecar_directories and not selected_concepts:
+        return None
+    return WikiRetrievalTraceResponse(
+        index_hits=index_hits,
+        seeds=seeds,
+        sidecar_directories=sidecar_directories,
+        selected_concepts=selected_concepts,
+    )
+
+
 # --- Core RAG & Compilation Endpoints ---
 
 
@@ -455,47 +540,26 @@ def _editor_sections_to_response(content: str) -> WikiEditorSectionsResponse:
 async def query_wiki(
     request: WikiQueryRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiQueryResponse:
     try:
-        result = await archiver.query_wiki(request.question, query_mode=request.mode)
-        from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
-            build_evidence_resource_uri,
-            lookup_raw_supersede_uri,
-        )
+        from app.services.wiki.knowledge_query_service import execute_wiki_knowledge_query
 
-        source_snippets = []
-        for snippet in result.source_snippets:
-            resource_uri = build_evidence_resource_uri(
-                snippet.evidence_path or snippet.article_path,
-                snippet.evidence_content_sha256,
-                structure=archiver._structure,
-            )
-            superseded_from_uri = ""
-            if snippet.evidence_snapshot_status == "stale" and snippet.evidence_path:
-                superseded_from_uri = lookup_raw_supersede_uri(archiver._structure, snippet.evidence_path)
-            source_snippets.append(
-            WikiSourceSnippet(
-                path=snippet.article_path,
-                name=snippet.article_name,
-                snippet=snippet.snippet,
-                section=snippet.section,
-                level=snippet.level,
-                claim_id=snippet.claim_id,
-                claim_text=snippet.claim_text,
-                evidence_path=snippet.evidence_path,
-                line_range=snippet.line_range,
-                claim_status=snippet.claim_status,
-                snapshot_status=snippet.evidence_snapshot_status,
-                resource_uri=resource_uri,
-                superseded_from_uri=superseded_from_uri,
-                hit_kind=snippet.hit_kind,
-                asset_filename=snippet.asset_filename,
-            )
-            )
+        query_result = await execute_wiki_knowledge_query(
+            agent_id=agent_id,
+            question=request.question,
+            query_mode=request.mode,
+            archiver=archiver,
+        )
+        source_snippets = _citation_sources_to_snippets(query_result.sources)
         return WikiQueryResponse(
-            answer=result.answer,
-            related_articles=result.related_articles,
+            answer=query_result.answer,
+            related_articles=query_result.related_articles,
             source_snippets=source_snippets,
+            confidence_score=query_result.confidence_score,
+            retrieval_trace=_retrieval_trace_to_response(
+                query_result.retrieval_result.retrieval_trace,
+            ),
         )
     except Exception as e:
         logger.error(f"Wiki query failed: {e}")

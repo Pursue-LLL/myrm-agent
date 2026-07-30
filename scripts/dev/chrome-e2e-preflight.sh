@@ -93,6 +93,7 @@ ok() {
 }
 
 _maybe_seed_providers() {
+  MYRM_E2E_MODEL_SEED_FAILED=0
   if [[ -f "${SERVER_DIR}/.env.test" ]]; then
     set -a
     # shellcheck disable=SC1091
@@ -106,6 +107,7 @@ _maybe_seed_providers() {
       if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
         echo "${seed_out}"
         ok "model seed"
+        MYRM_E2E_MODEL_SEED_FAILED=0
         return 0
       fi
       if [[ "${attempt}" -lt "${max_attempts}" ]]; then
@@ -114,9 +116,11 @@ _maybe_seed_providers() {
       fi
     done
     echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
-    return 0
+    MYRM_E2E_MODEL_SEED_FAILED=1
+    return 1
   fi
   echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+  return 0
 }
 
 _parallel_attach_active_leases() {
@@ -311,6 +315,17 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       _heal_mux_under_parallel_attach_load || true
       continue
     fi
+    if [[ "${E2E_SIGNOFF:-}" == "1" ]] \
+      && [[ "${require_ready}" == "--require-signoff-stream-ready" ]] \
+      && [[ "${health}" == *"wsStampMatch=false"* ]] \
+      && [[ "${mux_heal_during_wait}" -lt 2 ]] \
+      && _mux_upstream_ready; then
+      mux_heal_during_wait=$((mux_heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: signoff ws restamp during attach wait ${mux_heal_during_wait}/2 (R173)" >&2
+      _stamp_mux_ws_url || true
+      _stamp_mux_daemon_ws_url || true
+      continue
+    fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: $(_attach_wait_label) ${waited}/${wait_sec}s (leases=${active_leases})" >&2
     fi
@@ -353,11 +368,71 @@ _heal_dead_shared_ui_port() {
   _heal_shared_ui_if_stale || true
 }
 
+_shared_stack_endpoints_ok() {
+  local shared_ui="${E2E_UI_BASE:-${UI_BASE:-http://127.0.0.1:3000}}"
+  curl -sf --max-time 10 "${shared_ui}/" >/dev/null \
+    && curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null
+}
+
+_shared_stack_recovery_required() {
+  local min_leases="${MYRM_E2E_SHARED_STACK_GATE_MIN_LEASES:-4}"
+  local active_leases
+  active_leases="$(_parallel_attach_active_leases)"
+  [[ "${active_leases}" -ge "${min_leases}" ]] || return 1
+  [[ "${MYRM_E2E_MODEL_SEED_FAILED:-0}" == "1" ]] && return 0
+  ! _shared_stack_endpoints_ok
+}
+
+_wait_shared_stack_healthy_before_ready() {
+  _shared_stack_recovery_required || return 0
+  local wait_sec poll_sec waited=0 wait_started=$SECONDS
+  local active_leases ui_heal_during_wait=0 ui_heal_cap=2
+  active_leases="$(_parallel_attach_active_leases)"
+  wait_sec="$(_attach_parallel_wait_sec)"
+  poll_sec="${MYRM_CHROME_E2E_SHARED_UI_POLL_SEC:-2}"
+  [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    ui_heal_cap=$((2 + active_leases / 3))
+    if [[ "${ui_heal_cap}" -gt 6 ]]; then
+      ui_heal_cap=6
+    fi
+  fi
+  echo "CHROME_E2E_WAIT: shared stack recovery gate (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0})" >&2
+  while true; do
+    waited=$((SECONDS - wait_started))
+    if _shared_stack_endpoints_ok; then
+      if [[ "${MYRM_E2E_MODEL_SEED_FAILED:-0}" != "1" ]]; then
+        ok "shared stack healthy before READY"
+        return 0
+      fi
+      _maybe_seed_providers || true
+      if [[ "${MYRM_E2E_MODEL_SEED_FAILED:-0}" != "1" ]]; then
+        ok "shared stack healthy before READY (model seed recovered)"
+        return 0
+      fi
+    fi
+    if [[ "${waited}" -ge "${wait_sec}" ]]; then
+      fail "shared stack not healthy within ${wait_sec}s (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0}) — do not stop other pytest; retry ADMIT or ./myrm ui-heal when idle"
+    fi
+    if [[ "${waited}" -ge 30 && $((waited % 30)) -eq 0 ]]; then
+      echo "E2E_SHARED_STACK_RECOVERY_WAIT: shared :3000/:8080 or model seed not ready ${waited}/${wait_sec}s (leases=${active_leases}; do not stop other pytest)" >&2
+      if [[ "${ui_heal_during_wait}" -lt "${ui_heal_cap}" ]]; then
+        ui_heal_during_wait=$((ui_heal_during_wait + 1))
+        _heal_shared_ui_if_stale || true
+      fi
+    fi
+    _admit_poll_touch "E2E_SHARED_STACK_RECOVERY_WAIT"
+    _admit_poll_budget_or_fail "E2E_SHARED_STACK_RECOVERY_WAIT" || return $?
+    sleep "${poll_sec}"
+  done
+}
+
 _private_backend_attach_path() {
   local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
   ok "private backend attach deferred (SHPOIB bootstrap will bind private pool)"
   _wait_shared_ui_reachable "${shared_ui}"
-  _maybe_seed_providers
+  _maybe_seed_providers || true
+  _wait_shared_stack_healthy_before_ready || return $?
   myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
   ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
   local mux_pid_file="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}/daemon.pid"
@@ -437,7 +512,8 @@ ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
 
 # 1b. Shared-stack attach is read-only; private-backend pools seed into E2E_API_BASE.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
-  _maybe_seed_providers
+  _maybe_seed_providers || true
+  _wait_shared_stack_healthy_before_ready || exit $?
 fi
 
 # 1c. API-only private backend (cron policy LIVE): no Chrome/CDP/mux required.
@@ -456,16 +532,42 @@ fi
 
 # 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
 [[ -f "${ENSURE_CHROME}" ]] || fail "Missing ${ENSURE_CHROME}"
+
+_ensure_one_transport_cell_chrome() {
+  local port="$1"
+  local data_dir ensure_one_out=""
+  data_dir="$("${PREFLIGHT_PY}" -c "
+import os, sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_transport_cell import resolve_chrome_data_dir_for_port
+print(resolve_chrome_data_dir_for_port(int('${port}')))
+")"
+  export MYRM_CHROME_E2E_PORT="${port}"
+  export MYRM_CHROME_E2E_DATA_DIR="${data_dir}"
+  export CHROME_DATA_DIR="${data_dir}"
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable on port ${port} — first Agent must run: ./myrm ready --chrome"
+    ensure_one_out="MYRM_CHROME_E2E_ATTACH: existing CDP port=${port}"
+  elif ! ensure_one_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
+    echo "${ensure_one_out}" >&2
+    fail "Myrm E2E Chrome failed to start on port ${port} — see MYRM_CHROME_E2E_FAIL above"
+  fi
+  echo "${ensure_one_out}"
+  ok "Myrm E2E Chrome port=${port} profile=${data_dir}"
+}
+
 ensure_out=""
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-  myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — first Agent must run: ./myrm ready --chrome"
-  ensure_out="MYRM_CHROME_E2E_ATTACH: existing CDP port=${MYRM_CHROME_E2E_PORT}"
-elif ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
-  echo "${ensure_out}" >&2
-  fail "Myrm E2E Chrome failed to start — see MYRM_CHROME_E2E_FAIL above"
+  _ensure_one_transport_cell_chrome "${MYRM_CHROME_E2E_PORT:-9333}"
+else
+  transport_ports="$("${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_transport_cell.py" ensure-ports 2>/dev/null || echo "${MYRM_CHROME_E2E_PORT:-9333}")"
+  while IFS= read -r transport_port; do
+    [[ -n "${transport_port}" ]] || continue
+    cell_out="$(_ensure_one_transport_cell_chrome "${transport_port}")"
+    ensure_out="${ensure_out}${cell_out}"$'\n'
+  done <<<"${transport_ports}"
 fi
 echo "${ensure_out}"
-ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
 CHROME_E2E_CLI_EARLY="${SCRIPT_DIR}/chrome-e2e/cli.sh"
 if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
   bash "${CHROME_E2E_CLI_EARLY}" ensure-surface >/dev/null 2>&1 || true

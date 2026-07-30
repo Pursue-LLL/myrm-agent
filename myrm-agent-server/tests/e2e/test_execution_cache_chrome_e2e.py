@@ -18,6 +18,7 @@ from cdp_chat_ui import (  # noqa: E402
     chat_id_from_path,
     chat_user_message_count,
     count_execution_cache_in_log,
+    count_turn_prewarm_in_log,
     snapshot_backend_log_offset,
     wait_e2e_provider_ready,
 )
@@ -130,6 +131,11 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         log_offset = await run_chat_flow(McpChatSession(client, page))
     finally:
         await asyncio.to_thread(client.close)
+
+    prewarm_requests = count_turn_prewarm_in_log(since_offset=log_offset)
+    assert (
+        prewarm_requests >= 1
+    ), f"expected Turn prewarm requested >=1 in backend log (got {prewarm_requests})"
 
     created, reused = count_execution_cache_in_log(since_offset=log_offset)
     assert (

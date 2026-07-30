@@ -23,6 +23,9 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.api.kanban.router import router as kanban_router
+from app.database.connection import get_session
+from app.database.models.milestone import Milestone
+from app.database.models.project import Project
 from app.services.kanban import KanbanService
 
 
@@ -75,6 +78,32 @@ def _create_task(
     return resp.json()
 
 
+def _seed_project_scope(
+    *,
+    project_id: str,
+    project_name: str,
+    milestone_id: str | None = None,
+    milestone_title: str = "Milestone",
+) -> None:
+    async def _seed() -> None:
+        async with get_session() as db:
+            db.add(Project(id=project_id, name=project_name))
+            await db.commit()
+            if milestone_id is not None:
+                db.add(
+                    Milestone(
+                        id=milestone_id,
+                        project_id=project_id,
+                        title=milestone_title,
+                        description="",
+                        status="active",
+                    )
+                )
+                await db.commit()
+
+    asyncio.run(_seed())
+
+
 # ===========================================================================
 # Board CRUD
 # ===========================================================================
@@ -95,6 +124,54 @@ class TestBoardApi:
         resp = client.get("/api/v1/kanban/boards")
         assert resp.status_code == 200
         assert resp.json()["total"] >= 2
+
+    def test_create_board_with_project_and_milestone_scope(self, client: TestClient) -> None:
+        suffix = hex(time.time_ns())[-8:]
+        project_id = f"proj_scope_alpha_{suffix}"
+        milestone_id = f"mile_scope_alpha_{suffix}"
+        _seed_project_scope(
+            project_id=project_id,
+            project_name="Scope Alpha",
+            milestone_id=milestone_id,
+            milestone_title="Phase Alpha",
+        )
+        resp = client.post(
+            "/api/v1/kanban/boards",
+            json={
+                "name": "Scoped Board",
+                "project_id": project_id,
+                "milestone_id": milestone_id,
+            },
+        )
+        assert resp.status_code == 201
+        board_id = resp.json()["board_id"]
+
+        filtered = client.get("/api/v1/kanban/boards", params={"project_id": project_id})
+        assert filtered.status_code == 200
+        assert any(item["board_id"] == board_id for item in filtered.json()["items"])
+
+    def test_create_board_rejects_mismatched_milestone_scope(self, client: TestClient) -> None:
+        suffix = hex(time.time_ns())[-8:]
+        project_a_id = f"proj_scope_a_{suffix}"
+        project_b_id = f"proj_scope_b_{suffix}"
+        milestone_id = f"mile_scope_a_{suffix}"
+        _seed_project_scope(
+            project_id=project_a_id,
+            project_name="Project A",
+            milestone_id=milestone_id,
+            milestone_title="Phase A",
+        )
+        _seed_project_scope(project_id=project_b_id, project_name="Project B")
+        resp = client.post(
+            "/api/v1/kanban/boards",
+            json={
+                "name": "Invalid Scoped Board",
+                "project_id": project_b_id,
+                "milestone_id": milestone_id,
+            },
+        )
+        assert resp.status_code == 422
+        assert "does not belong to project" in resp.json()["detail"]
 
     def test_delete_board(self, client: TestClient) -> None:
         board = _create_board(client)

@@ -26,9 +26,14 @@ from app.api.kanban.schemas import (
 
 
 @router.get("/boards", response_model=BoardListResponse)
-async def list_boards() -> BoardListResponse:
+async def list_boards(
+    project_id: str | None = Query(
+        None,
+        description="Optional project scope filter. When set, returns only boards bound to that project.",
+    ),
+) -> BoardListResponse:
     svc = get_kanban_service()
-    boards = await svc.list_boards()
+    boards = await svc.list_boards(project_id=project_id)
     return BoardListResponse(
         items=[_board_to_response(b) for b in boards],
         total=len(boards),
@@ -40,20 +45,25 @@ async def create_board(body: BoardCreate) -> BoardResponse:
     from myrm_agent_harness.toolkits.kanban.types import BoardSettings
 
     svc = get_kanban_service()
-    board = await svc.create_board(
-        name=body.name,
-        description=body.description,
-        settings=BoardSettings(
-            max_concurrent_tasks=body.max_concurrent_tasks,
-            heartbeat_interval_seconds=body.heartbeat_interval_seconds,
-            zombie_timeout_seconds=body.zombie_timeout_seconds,
-            max_retries_per_task=body.max_retries_per_task,
-            auto_block_after_consecutive_failures=body.auto_block_after_consecutive_failures,
-            specify_max_tokens=body.specify_max_tokens,
-            auto_specify_on_create=body.auto_specify_on_create,
-            default_workdir=body.default_workdir,
-        ),
-    )
+    try:
+        board = await svc.create_board(
+            name=body.name,
+            description=body.description,
+            settings=BoardSettings(
+                max_concurrent_tasks=body.max_concurrent_tasks,
+                heartbeat_interval_seconds=body.heartbeat_interval_seconds,
+                zombie_timeout_seconds=body.zombie_timeout_seconds,
+                max_retries_per_task=body.max_retries_per_task,
+                auto_block_after_consecutive_failures=body.auto_block_after_consecutive_failures,
+                specify_max_tokens=body.specify_max_tokens,
+                auto_specify_on_create=body.auto_specify_on_create,
+                default_workdir=body.default_workdir,
+            ),
+            project_id=body.project_id,
+            milestone_id=body.milestone_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _board_to_response(board)
 
 

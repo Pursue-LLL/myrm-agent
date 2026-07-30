@@ -10,6 +10,7 @@
  * useChatStore 状态与操作方法契约。
  */
 
+import type { ContextBranchRecord } from '@/services/chat';
 import type { ActionMode, AgentConfig, SearchDepth, SelectedModels } from './sessionConfig';
 import type { ArchiveRestoreAction } from './archiveRestore';
 import type { BuiltinToolId } from './builtinTools';
@@ -19,6 +20,7 @@ import type {
   MentionReference,
   MentionReferenceType,
   Message,
+  LastCompactionMeta,
   PaginationInfo,
 } from './messages';
 import type { PendingGapRetry } from './pendingGapRetry';
@@ -42,6 +44,10 @@ export interface ChatState {
   messages: Message[];
   compactedSummary: string | null;
   compactedBeforeId: string | null;
+  contextBranches: ContextBranchRecord[];
+  contextPinnedFiles: string[];
+  lastCompactionMeta: LastCompactionMeta | null;
+  compactionRefreshNonce: number;
   workspaceDir: string | null;
   sessionSkillOverrides: string[] | null;
 
@@ -151,7 +157,13 @@ export interface ChatState {
   setChatId: (id: string | undefined) => void;
   setNewChatCreated: (created: boolean) => void;
   setMessages: (messages: Message[]) => void;
+  refreshCompactionState: (
+    chatId: string,
+    meta?: { tokensSaved: number; snapshotPath?: string },
+  ) => Promise<void>;
   setCompactedSummary: (summary: string | null) => void;
+  setContextBranches: (branches: ContextBranchRecord[]) => void;
+  setContextPinnedFiles: (files: string[]) => void;
   setCompactedBeforeId: (id: string | null) => void;
   setWorkspaceDir: (dir: string | null) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;

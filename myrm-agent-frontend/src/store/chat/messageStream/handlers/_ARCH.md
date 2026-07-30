@@ -15,7 +15,7 @@
 | `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批；ERROR/CANCEL 后 `scheduleFlushPendingGapRetry` | ✅ |
 | `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、CLARIFICATION_REQUIRED（unwrap `{type,form}`；`source=deep_research` 或 `actionMode=deep_research` → `isResumeMode=false`）、进度项合并 | ✅ |
 | `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | ✅ |
-| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast | ✅ |
+| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 `turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
 | `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（`setLoading(false)` + pet `approval_waiting`；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
@@ -28,13 +28,14 @@
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |
-| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
+| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
 | `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast；`migration_readiness_critical|warning` → issue-aware settings CTA toast | ✅ |
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 web_search config gap CTA、loading 延迟重发） | ✅ |
 | `__tests__/completionEvents.pendingGapRetry.test.ts` | 测试 | MESSAGE_END 后 flush pending gap | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
+| `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
 
 ## 依赖
 

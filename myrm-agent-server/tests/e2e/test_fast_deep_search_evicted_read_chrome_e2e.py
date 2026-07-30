@@ -27,11 +27,14 @@ from cdp_chat_support import (  # noqa: E402
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
-from e2e_orchestrator import touch_wall_progress  # noqa: E402
+from e2e_orchestrator import (  # noqa: E402
+    assert_phase_budget,
+    remaining_wall_sec,
+    touch_wall_progress,
+)
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
+from tests.support.chrome_mcp_e2e import http_json, open_mcp_page  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
@@ -90,6 +93,7 @@ def _prep_fast_search_js(search_depth: str) -> str:
 
 def _kickoff_fast_search_js(prompt: str) -> str:
     return f"""(async () => {{
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
@@ -98,7 +102,7 @@ def _kickoff_fast_search_js(prompt: str) -> str:
     waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
-  return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null }};
+  return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null, streamRequestMessageId: bridge.debugProviderState?.()?.streamRequestMessageId ?? null }};
 }})()"""
 
 
@@ -290,10 +294,18 @@ def _expected_fast_e2e_model(api_base: str) -> dict[str, str]:
 
 
 def _api_deep_search_progress(chat_id: str, api_base: str) -> dict[str, object]:
-    try:
-        messages = fetch_chat_messages(chat_id, api_url=api_base)
-    except OSError:
-        return {"ready": False, "err": "api-io", "source": "api"}
+    messages: list[dict[str, object]] | None = None
+    last_io: OSError | None = None
+    for attempt in range(3):
+        try:
+            messages = fetch_chat_messages(chat_id, api_url=api_base)
+            break
+        except OSError as exc:
+            last_io = exc
+            if attempt + 1 < 3:
+                time.sleep(1.5 * (attempt + 1))
+    if messages is None:
+        return {"ready": False, "err": "api-io", "source": "api", "detail": str(last_io or "")[:120]}
     if not messages:
         return {"ready": False, "err": "no-messages", "source": "api"}
     user_count = sum(1 for m in messages if m.get("role") == "user")
@@ -363,22 +375,28 @@ async def _poll_fast_search_progress(
 ) -> tuple[dict[str, object], dict[str, object]]:
     """UI-first progress; on Chrome/MCP flake fall back to private API messages."""
     ui_last: dict[str, object] = {"ready": False, "source": "ui"}
+    touch_wall_progress(current_node="fast_search_poll_ui_eval")
     try:
-        raw = await chat.evaluate(
-            _VERIFY_FAST_SEARCH_PROGRESS_JS,
-            await_promise=False,
-            recv_timeout=45.0,
+        raw = await asyncio.wait_for(
+            chat.evaluate(
+                _VERIFY_FAST_SEARCH_PROGRESS_JS,
+                await_promise=False,
+                recv_timeout=45.0,
+            ),
+            timeout=50.0,
         )
         ui_last = raw if isinstance(raw, dict) else {"value": raw, "source": "ui"}
         ui_last.setdefault("source", "ui")
-    except RuntimeError as exc:
+    except (RuntimeError, TimeoutError, asyncio.TimeoutError) as exc:
         ui_last = {
             "ready": False,
             "source": "ui",
             "err": "ui-eval-failed",
-            "transient": _ui_eval_is_transient(exc),
+            "transient": isinstance(exc, RuntimeError)
+            and _ui_eval_is_transient(exc),
             "detail": str(exc)[:240],
         }
+    touch_wall_progress(current_node="fast_search_poll_api_probe")
     api_last = _api_deep_search_progress(chat_id, api_base)
     return ui_last, api_last
 
@@ -396,36 +414,28 @@ def _merge_fast_search_progress(
     return ui_last
 
 
-async def _open_e2e_page_with_runtime_retry(
-    client: ChromeMcpClient,
-    base_url: str,
-    api_base: str,
-) -> object:
-    """Open CDP page with SHPOIB runtime binding; retry transient fetch failures."""
-    last_exc: RuntimeError | None = None
-    for attempt in range(4):
-        if attempt > 0:
-            wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
-            await asyncio.sleep(2.0 * attempt)
-        try:
-            return await asyncio.to_thread(
-                client.new_page, base_url, timeout_ms=120_000
-            )
-        except RuntimeError as exc:
-            message = str(exc)
-            if "E2E_RUNTIME_BINDING_FAILED" not in message:
-                raise
-            last_exc = exc
-    assert last_exc is not None
-    raise last_exc
-
-
 _TRANSIENT_KICKOFF_ERRORS = (
     "send-kickoff-no-progress",
     "send-message-settled-without-progress",
     "send-turn-observe-timeout",
     "session-reset-during-submit",
 )
+
+
+async def _soft_reset_fast_search_turn(chat: McpChatSession, base_url: str) -> None:
+    """In-page stream reset — avoid click_new_chat/MUX during kickoff retries."""
+    await chat.evaluate(
+        """(() => {
+          window.__MYRM_E2E_DIRECT_SSE__ = true;
+          const bridge = window.__MYRM_E2E_CHAT__;
+          bridge?.abortActiveStream?.();
+          bridge?.releaseActiveStreamForApiResume?.();
+          return { ok: true };
+        })()""",
+        await_promise=False,
+        recv_timeout=15.0,
+    )
+    await chat.ensure_chat_surface(base_url)
 
 
 async def _kickoff_fast_search_with_retries(
@@ -439,17 +449,26 @@ async def _kickoff_fast_search_with_retries(
 ) -> tuple[dict[str, object], dict[str, object]]:
     kickoff: dict[str, object] | None = None
     for kickoff_attempt in range(max_attempts):
-        kickoff = await chat.evaluate(
-            kickoff_js, await_promise=True, recv_timeout=120.0
-        )
+        try:
+            kickoff = await chat.evaluate(
+                kickoff_js, await_promise=True, recv_timeout=120.0
+            )
+        except RuntimeError as exc:
+            if kickoff_attempt + 1 < max_attempts and "MUX_RECLAIM_STALL" in str(exc):
+                touch_wall_progress(current_node="fast_search_kickoff_mux_retry")
+                await _soft_reset_fast_search_turn(chat, BASE_URL)
+                await asyncio.sleep(2.0 * (kickoff_attempt + 1))
+                continue
+            raise
         if isinstance(kickoff, dict) and kickoff.get("ok") is True:
             return prep, kickoff
-        transient_kickoff = isinstance(kickoff, dict) and str(
-            kickoff.get("err") or ""
-        ) in _TRANSIENT_KICKOFF_ERRORS
+        transient_kickoff = (
+            isinstance(kickoff, dict)
+            and str(kickoff.get("err") or "") in _TRANSIENT_KICKOFF_ERRORS
+        )
         if kickoff_attempt + 1 < max_attempts and transient_kickoff:
-            await chat.click_new_chat()
-            await chat.ensure_chat_surface(BASE_URL)
+            touch_wall_progress(current_node="fast_search_kickoff_soft_retry")
+            await _soft_reset_fast_search_turn(chat, BASE_URL)
             _ensure_private_search_configured(api_base)
             _ensure_private_providers_configured(api_base)
             raw_prep = await chat.evaluate(
@@ -462,6 +481,84 @@ async def _kickoff_fast_search_with_retries(
         break
     assert isinstance(kickoff, dict) and kickoff.get("ok") is True, kickoff
     return prep, kickoff
+
+
+_UI_STREAM_REQUEST_MESSAGE_ID_JS = """(() => {
+  const id = window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+})()"""
+
+
+async def _resolve_stream_request_message_id(
+    chat: McpChatSession,
+    *,
+    cached: str = "",
+) -> str:
+    """Agent-stream requestMessageId for retryStreamWithSameMessageId (UI SSOT)."""
+    normalized = cached.strip()
+    if normalized:
+        return normalized
+    try:
+        raw = await chat.evaluate(
+            _UI_STREAM_REQUEST_MESSAGE_ID_JS,
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+    except RuntimeError:
+        return ""
+    return raw.strip() if isinstance(raw, str) and raw.strip() else ""
+
+
+async def _recover_stalled_fast_search_turn(
+    chat: McpChatSession,
+    *,
+    chat_id: str,
+    api_base: str,
+    prompt: str,
+    prep_js: str,
+    kickoff_js: str,
+    prep: dict[str, object],
+    search_depth: str,
+    stream_request_message_id: str = "",
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Resume same message_id stream before creating a duplicate user turn."""
+    message_id = await _resolve_stream_request_message_id(
+        chat, cached=stream_request_message_id
+    )
+    if message_id:
+        touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry")
+        retry_js = f"""(async () => {{
+          window.__MYRM_E2E_DIRECT_SSE__ = true;
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.retryStreamWithSameMessageId) {{
+            return {{ ok: false, err: 'no-retryStreamWithSameMessageId' }};
+          }}
+          bridge?.releaseActiveStreamForApiResume?.();
+          return await bridge.retryStreamWithSameMessageId(
+            {json.dumps(prompt)},
+            {json.dumps(message_id)},
+          );
+        }})()"""
+        retry = await chat.evaluate(retry_js, await_promise=True, recv_timeout=120.0)
+        if (
+            isinstance(retry, dict)
+            and retry.get("ok") is True
+            and retry.get("busy") is not True
+        ):
+            return prep, {
+                "ok": True,
+                "chatId": chat_id,
+                "mode": "stream-retry",
+                "retry": retry,
+            }
+    touch_wall_progress(current_node=f"fast_{search_depth}_stall_kickoff_retry")
+    return await _kickoff_fast_search_with_retries(
+        chat,
+        api_base=api_base,
+        prep_js=prep_js,
+        kickoff_js=kickoff_js,
+        prep=prep,
+    )
 
 
 async def _run_fast_evicted_read_live_e2e(
@@ -492,17 +589,38 @@ async def _run_fast_evicted_read_live_e2e(
     prep_js = _prep_fast_search_js(search_depth)
     kickoff_js = _kickoff_fast_search_js(prompt)
 
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
-    model_used = "unknown"
-    try:
-        page = await _open_e2e_page_with_runtime_retry(client, BASE_URL, api_base)
-        chat = McpChatSession(client, page)
-        await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+    async def _run_flow(chat: McpChatSession) -> None:
+        model_used = "unknown"
+        for bootstrap_attempt in range(3):
+            try:
+                await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+                break
+            except TimeoutError as exc:
+                msg = str(exc)
+                retriable = "MUX_RECLAIM_STALL" in msg or "Chat shell not ready" in msg
+                if not retriable or bootstrap_attempt + 1 >= 3:
+                    raise
+                touch_wall_progress(current_node="fast_search_bootstrap_mux_retry")
+                await asyncio.sleep(3.0 * (bootstrap_attempt + 1))
 
         await chat.dismiss_modals()
-        await chat.click_new_chat()
-        await chat.ensure_chat_surface(BASE_URL)
+        for new_chat_attempt in range(3):
+            try:
+                await chat.click_new_chat()
+                await chat.ensure_chat_surface(BASE_URL)
+                break
+            except (TimeoutError, RuntimeError) as exc:
+                msg = str(exc)
+                retriable = (
+                    "E2E_SHARED_UI_SESSION_BRIDGE" in msg
+                    or "bridge-ready-timeout" in msg
+                    or "Chat shell not ready" in msg
+                    or "pinLiteModelForE2e" in msg
+                )
+                if not retriable or new_chat_attempt + 1 >= 3:
+                    raise
+                touch_wall_progress(current_node="fast_search_new_chat_bridge_retry")
+                await asyncio.sleep(3.0 * (new_chat_attempt + 1))
 
         prep: dict[str, object] | None = None
         for prep_attempt in range(3):
@@ -555,6 +673,10 @@ async def _run_fast_evicted_read_live_e2e(
             kickoff_js=kickoff_js,
             prep=prep,
         )
+        stream_request_message_id = await _resolve_stream_request_message_id(chat)
+        kickoff_stream_id = str(kickoff.get("streamRequestMessageId") or "").strip()
+        if kickoff_stream_id:
+            stream_request_message_id = kickoff_stream_id
         post_send_mode = await chat.evaluate(
             """(() => ({
               actionMode: window.__MYRM_E2E_CHAT__?.getActionMode?.() ?? null,
@@ -573,16 +695,36 @@ async def _run_fast_evicted_read_live_e2e(
         assert chat_id, kickoff
         e2e_resource_ledger.register("chat", chat_id)
 
-        deadline = time.monotonic() + 420.0
+        kickoff_verify_deadline = time.monotonic() + 45.0
+        kickoff_api_ok = False
+        while time.monotonic() < kickoff_verify_deadline:
+            touch_wall_progress(current_node=f"fast_{search_depth}_kickoff_api_verify")
+            probe = _api_deep_search_progress(chat_id, api_base)
+            user_count = int(probe.get("userCount") or 0)
+            if user_count >= 1 or probe.get("err") != "no-messages":
+                kickoff_api_ok = True
+                break
+            await asyncio.sleep(2.0)
+        assert kickoff_api_ok, (
+            f"Fast {search_depth} kickoff did not persist user turn on {api_base}; "
+            f"kickoff={json.dumps(kickoff, ensure_ascii=False)}; "
+            f"lastSubmit={post_send_mode.get('lastSubmit')!r}"
+        )
+
+        poll_budget_sec = min(300.0, max(120.0, remaining_wall_sec() - 90.0))
+        deadline = time.monotonic() + poll_budget_sec
         last: dict[str, object] = {}
         api_last: dict[str, object] = {"ready": False, "source": "api"}
-        stall_retry_used = False
+        stall_retry_count = 0
+        max_stall_retries = 2
         turn_started = time.monotonic()
+        stream_request_message_id = await _resolve_stream_request_message_id(
+            chat, cached=stream_request_message_id
+        )
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            touch_wall_progress(
-                current_node=f"fast_{search_depth}_search_poll"
-            )
+            assert_phase_budget(f"fast_{search_depth}_search_poll")
+            touch_wall_progress(current_node=f"fast_{search_depth}_search_poll")
             ui_last, api_last = await _poll_fast_search_progress(
                 chat, chat_id, api_base
             )
@@ -590,41 +732,65 @@ async def _run_fast_evicted_read_live_e2e(
                 last = _merge_fast_search_progress(ui_last, api_last)
                 break
             last = _merge_fast_search_progress(ui_last, api_last)
+            if ui_last.get("isStreaming") is True and not stream_request_message_id:
+                stream_request_message_id = await _resolve_stream_request_message_id(chat)
             api_err = str(api_last.get("err") or "")
+            elapsed_turn = time.monotonic() - turn_started
+            tool_names = last.get("toolNames")
+            no_tool_progress = not last.get("hasWebFetch") and not (
+                isinstance(tool_names, list) and any(str(t).strip() for t in tool_names)
+            )
+            user_count = int(api_last.get("userCount") or 0)
+            ui_streaming = ui_last.get("isStreaming") is True
+            api_stalled = api_err in ("no-assistant", "no-messages") and user_count >= 1
             stalled = (
-                not stall_retry_used
-                and time.monotonic() - turn_started >= 90.0
-                and api_err in ("no-assistant", "no-messages")
-                and ui_last.get("isStreaming") is True
+                stall_retry_count < max_stall_retries
+                and elapsed_turn >= 90.0
+                and no_tool_progress
+                and (ui_streaming or api_stalled)
             )
             if stalled:
-                stall_retry_used = True
-                await chat.evaluate(
-                    """(() => {
-                      const bridge = window.__MYRM_E2E_CHAT__;
-                      bridge?.abortActiveStream?.();
-                      bridge?.releaseActiveStreamForApiResume?.();
-                      return { ok: true };
-                    })()""",
-                    await_promise=False,
-                    recv_timeout=15.0,
+                stall_retry_count += 1
+                touch_wall_progress(current_node=f"fast_{search_depth}_stall_recovery")
+                stream_request_message_id = await _resolve_stream_request_message_id(
+                    chat, cached=stream_request_message_id
                 )
-                await asyncio.sleep(2.0)
-                touch_wall_progress(
-                    current_node=f"fast_{search_depth}_stall_recovery"
-                )
-                prep, kickoff = await _kickoff_fast_search_with_retries(
+                prep, kickoff = await _recover_stalled_fast_search_turn(
                     chat,
+                    chat_id=chat_id,
                     api_base=api_base,
+                    prompt=prompt,
                     prep_js=prep_js,
                     kickoff_js=kickoff_js,
                     prep=prep,
+                    search_depth=search_depth,
+                    stream_request_message_id=stream_request_message_id,
                 )
-                chat_id = str(kickoff.get("chatId") or "").strip()
-                assert chat_id, kickoff
+                stream_request_message_id = await _resolve_stream_request_message_id(
+                    chat, cached=stream_request_message_id
+                )
+                new_chat_id = str(kickoff.get("chatId") or chat_id).strip()
+                assert new_chat_id, kickoff
+                chat_id = new_chat_id
                 turn_started = time.monotonic()
                 continue
-            await asyncio.sleep(2.0)
+            if (
+                elapsed_turn >= 240.0
+                and no_tool_progress
+                and stall_retry_count >= max_stall_retries
+            ):
+                pytest.fail(
+                    f"Fast {search_depth} search stalled without web_fetch after {elapsed_turn:.0f}s; "
+                    f"model={model_used}; stall_retries={stall_retry_count}; "
+                    f"state={json.dumps(last, ensure_ascii=False)}; "
+                    f"api={json.dumps(api_last, ensure_ascii=False)}"
+                )
+            if remaining_wall_sec() < 45.0:
+                break
+            for _ in range(2):
+                heartbeat_e2e_lease()
+                touch_wall_progress(current_node=f"fast_{search_depth}_search_poll_wait")
+                await asyncio.sleep(1.0)
 
         assert last.get("ready") is True, (
             f"Fast {search_depth} search did not finish with web_fetch + file_read after spill; "
@@ -667,11 +833,19 @@ async def _run_fast_evicted_read_live_e2e(
             assert "web_fetch_tool" in api_tools, api_tools
             if any(isinstance(s, dict) and s.get("evicted_file_ref") for s in steps):
                 assert "file_read_tool" in api_tools, api_tools
-    finally:
-        try:
-            await asyncio.to_thread(client.close)
-        except Exception:
-            pass
+
+    def _run_live_in_open_page() -> None:
+        with open_mcp_page(
+            BASE_URL, timeout_ms=120_000, request_timeout_sec=180.0
+        ) as (_client, page):
+            chat = McpChatSession(_client, page)
+
+            async def _inner() -> None:
+                await _run_flow(chat)
+
+            asyncio.run(_inner())
+
+    await asyncio.to_thread(_run_live_in_open_page)
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)

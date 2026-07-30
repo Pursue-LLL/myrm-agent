@@ -635,7 +635,7 @@ def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) ->
         return_value=QueryResult(
             question="Budget?",
             answer="Budget fact",
-            related_articles=["Budget"],
+            related_articles=[],
             source_snippets=[
                 SourceSnippet(
                     article_path=str(structure.get_concept_file_path("Budget")),
@@ -670,4 +670,7 @@ def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) ->
     snippets = response.json()["source_snippets"]
     assert len(snippets) == 1
     assert snippets[0]["snapshot_status"] == "stale"
+    assert snippets[0]["claim_status"] == "supported"
     assert snippets[0]["evidence_path"] == "raw/source.md"
+    assert snippets[0]["resource_uri"] == f"raw/source.md@sha256:{pinned}"
+    assert snippets[0]["resource_uri"] != f"raw/{structure.get_concept_file_path('Budget')}".lower()

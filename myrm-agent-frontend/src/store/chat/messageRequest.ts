@@ -46,6 +46,7 @@ import {
   consumeStream,
 } from './streamConsumer';
 import useToolApprovalStore from '../useToolApprovalStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
@@ -89,6 +90,21 @@ function shouldUseMultiplexedAgentStream(): boolean {
     return true;
   }
   return true;
+}
+
+function resolveKanbanProjectScope(
+  migrationBoundProjectId: string | null | undefined,
+): string | null {
+  const migrationScope = migrationBoundProjectId?.trim();
+  if (migrationScope) {
+    return migrationScope;
+  }
+  const activeFilter = useProjectStore.getState().activeFilter;
+  if (typeof activeFilter !== 'string') {
+    return null;
+  }
+  const trimmed = activeFilter.trim();
+  return trimmed || null;
 }
 
 export interface ChatActionsState {
@@ -567,11 +583,12 @@ export const createMessageRequest = async (
   const reasoningDisplayMode =
     configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
 
-  const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools);
+  const migrationBoundProjectId = peekMigrationBoundProjectId();
+  const kanbanProjectScope = resolveKanbanProjectScope(migrationBoundProjectId);
+  const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools, kanbanProjectScope);
   const migrationReadinessAnchor = effectiveAgentId
     ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId)
     : null;
-  const migrationBoundProjectId = peekMigrationBoundProjectId();
 
   const requestBody = {
     query,
@@ -855,7 +872,9 @@ export const sendMessage = async (
   }
 
   if (state.actionMode === 'agent' && state.currentBuiltinTools.includes('kanban')) {
-    const kanbanBlockReason = await resolveKanbanSendBlockReason(state.currentBuiltinTools);
+    const migrationBoundProjectId = peekMigrationBoundProjectId();
+    const kanbanProjectScope = resolveKanbanProjectScope(migrationBoundProjectId);
+    const kanbanBlockReason = await resolveKanbanSendBlockReason(state.currentBuiltinTools, kanbanProjectScope);
     if (kanbanBlockReason) {
       showI18nToast('chat.sendBlocked.title', undefined, {
         descriptionKey:

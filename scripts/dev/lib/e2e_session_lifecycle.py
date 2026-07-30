@@ -85,13 +85,30 @@ def resolve_budget_policy() -> BudgetPolicy:
     bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "dev":
         try:
-            from transport_supervisor import bootstrap_wall_cap_sec
+            from transport_supervisor import (
+                bootstrap_wall_cap_sec,
+                mux_upstream_wait_cap,
+            )
 
             bootstrap_sec = bootstrap_wall_cap_sec()
+            # R163: deferred mux admission runs inside pytest bootstrap.
+            from dev_gate_contract import boot_mux_body_transport_gate_required
+
+            if boot_mux_body_transport_gate_required():
+                bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
+                bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
+            elif (
+                os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
+                or os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+            ) and lane == "LIVE_AGENT":
+                bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
+                bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
         except ImportError:
             bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "signoff":
-        body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        from dev_gate_contract import signoff_read_shpoib_body_wall_sec
+
+        body_sec = signoff_read_shpoib_body_wall_sec()
         bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
         batch_body_raw = os.environ.get("MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "").strip()
         if batch_body_raw.isdigit():
@@ -109,9 +126,11 @@ def resolve_budget_policy() -> BudgetPolicy:
             )
         except ImportError:
             pass
+        from dev_gate_contract import admit_wall_clock_sec
+
         return BudgetPolicy(
             profile=profile,
-            admit_sec=E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
+            admit_sec=admit_wall_clock_sec(),
             bootstrap_sec=bootstrap_sec,
             body_sec=body_sec,
             teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,

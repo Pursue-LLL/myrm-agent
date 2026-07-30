@@ -1,4 +1,15 @@
-"""Local-only allowed_tools recovery Chrome E2E seed routes."""
+"""Local-only allowed_tools recovery Chrome E2E seed routes.
+
+[INPUT]
+- app.config.deploy_mode::is_local_mode (POS: gate local-only access)
+- app.services.agent.agent_service::AgentService (POS: resolve default agent)
+- app.services.chat.chat_service::ChatService (POS: seed chat + messages)
+
+[OUTPUT]
+- router: POST /test/seed-allowed-tools-recovery-fixture (POS: E2E seed endpoint)
+
+[POSITION] app.api.chats — Chrome E2E test fixture for allowed_tools recovery UI.
+"""
 
 from __future__ import annotations
 

@@ -12,6 +12,9 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
 });
 const mockGetSessionAnalytics = vi.hoisted(() => vi.fn());
 const mockCompactChat = vi.hoisted(() => vi.fn());
+const mockGetContextPins = vi.hoisted(() => vi.fn());
+const mockSetContextPins = vi.hoisted(() => vi.fn());
+const mockRefreshCompactionState = vi.hoisted(() => vi.fn());
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translate,
@@ -23,6 +26,8 @@ vi.mock('@/services/statistics', () => ({
 
 vi.mock('@/services/chat', () => ({
   compactChat: mockCompactChat,
+  getContextPins: mockGetContextPins,
+  setContextPins: mockSetContextPins,
 }));
 
 vi.mock('@/hooks/ui/useMediaQuery', () => ({
@@ -58,16 +63,26 @@ const mockChatState = vi.hoisted(() => ({
     };
   }>,
   chatId: 'test-chat-123',
+  contextPinnedFiles: [] as string[],
   setActiveSessionAnalyticsId: vi.fn(),
+  setContextPinnedFiles: vi.fn(),
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selectorOrShallow: unknown) => {
-    if (typeof selectorOrShallow === 'function') {
-      return (selectorOrShallow as (state: typeof mockChatState) => unknown)(mockChatState);
-    }
-    return mockChatState;
-  },
+  default: Object.assign(
+    (selectorOrShallow: unknown) => {
+      if (typeof selectorOrShallow === 'function') {
+        return (selectorOrShallow as (state: typeof mockChatState) => unknown)(mockChatState);
+      }
+      return mockChatState;
+    },
+    {
+      getState: () => ({
+        ...mockChatState,
+        refreshCompactionState: mockRefreshCompactionState,
+      }),
+    },
+  ),
 }));
 
 vi.mock('zustand/react/shallow', () => ({
@@ -193,6 +208,9 @@ describe('ContextUsageIndicator', () => {
       },
     ];
     mockGetSessionAnalytics.mockResolvedValue({ context_health: mockHealthy });
+    mockGetContextPins.mockResolvedValue({ files: [] });
+    mockSetContextPins.mockResolvedValue({ files: [] });
+    mockRefreshCompactionState.mockResolvedValue(undefined);
   });
 
   describe('rendering conditions', () => {
@@ -434,14 +452,44 @@ describe('ContextUsageIndicator', () => {
         expect(screen.getByText('compressContext')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('compressContext'));
+      await user.click(screen.getByRole('button', { name: 'compressContext' }));
 
       await waitFor(() => {
-        expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123');
+        expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123', undefined);
       });
 
       await waitFor(() => {
         expect(screen.getByText(/compressSuccess/)).toBeInTheDocument();
+      });
+    });
+
+    it('passes focus topic to compactChat when focus hint is filled', async () => {
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 50000,
+            max_context_tokens: 128000,
+            usage_percent: 39,
+            health_status: 'healthy' as const,
+          },
+        },
+      ];
+      mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 12000 });
+
+      const user = userEvent.setup();
+      render(<ContextUsageIndicator />);
+
+      await user.click(screen.getByRole('status'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('focusHintPlaceholder')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByPlaceholderText('focusHintPlaceholder'), 'auth module');
+      await user.click(screen.getByRole('button', { name: 'compressContext' }));
+
+      await waitFor(() => {
+        expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123', 'auth module');
       });
     });
 

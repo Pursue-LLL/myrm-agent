@@ -315,6 +315,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       try {
         const agent = await getAgent(agentIdFromUrl);
         if (agent) {
+          const currentChatId = useChatStore.getState().chatId;
+          if (id && currentChatId && currentChatId !== id) {
+            return;
+          }
           const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
           await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
           const skillStore = useSkillStore.getState();
@@ -365,7 +369,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     };
 
     applyAgentConfig();
-  }, [agentIdFromUrl, setActionMode, setAgentConfig, router, marketSkills, localSkills, mcpConfigs, t]);
+  }, [agentIdFromUrl, id, setActionMode, setAgentConfig, router, mcpConfigs, t]);
 
   const handleInspectorInstruction = useCallback(
     (instruction: string, refId: string | null) => {

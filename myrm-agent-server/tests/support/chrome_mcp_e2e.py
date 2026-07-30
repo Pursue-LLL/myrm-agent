@@ -36,9 +36,9 @@ from dev_gate_contract import (
     SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC,
     SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC,
     SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
-    SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
     is_e2e_signoff_runtime,
+    shpoib_rebind_location_wait_cap_sec,
 )  # noqa: E402
 from e2e_orchestrator import touch_wall_progress  # noqa: E402
 from e2e_shared_ui_hydrate import (  # noqa: E402
@@ -492,7 +492,11 @@ def _blocking_progress_loop(
         new_page_timeout_ms=_OPEN_PAGE_NEW_PAGE_TIMEOUT_MS,
     )
     stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
-    if _parallel_open_page_peer_count() >= 2:
+    if is_e2e_signoff_runtime():
+        # Signoff open_mcp_page may legitimately run up to SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC
+        # under parallel mux — do not SIGINT before transport budget is exhausted.
+        stall_cap = min(open_page_total_budget + 30.0, _open_page_body_fraction_cap_sec())
+    elif _parallel_open_page_peer_count() >= 2:
         stall_cap = min(
             transport_stall_cap_sec(),
             _open_page_body_fraction_cap_sec(),
@@ -532,9 +536,14 @@ def _blocking_progress_loop(
 def _open_page_body_fraction_cap_sec() -> float:
     """R143: open_mcp_page must not consume more than 35% of LIVE BODY wall."""
     try:
-        from transport_supervisor import live_agent_body_wall_cap_sec
+        if is_e2e_signoff_runtime():
+            from dev_gate_contract import signoff_read_shpoib_body_wall_sec
 
-        body_cap = float(live_agent_body_wall_cap_sec())
+            body_cap = float(signoff_read_shpoib_body_wall_sec())
+        else:
+            from transport_supervisor import live_agent_body_wall_cap_sec
+
+            body_cap = float(live_agent_body_wall_cap_sec())
     except ImportError:
         body_cap = 600.0
     base = max(
@@ -554,9 +563,7 @@ def _open_page_layout_wait_sec() -> float:
 
 
 def _shpoib_rebind_location_wait_cap() -> float:
-    if is_e2e_signoff_runtime():
-        return float(SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC)
-    return 45.0
+    return shpoib_rebind_location_wait_cap_sec()
 
 
 def _open_page_attempt_count() -> int:
@@ -707,13 +714,27 @@ def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
 def _wait_mux_cold_attach_drain(*, budget_sec: float) -> None:
     """Wait until no other mux cold-attach ops hold registry slots (post-timeout heal)."""
     deadline = time.monotonic() + budget_sec
+    started = time.monotonic()
     last: dict[str, object] = {}
+    last_emit = started
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
         touch_wall_progress(current_node="open_mcp_page_mux_drain")
         last = read_mux_cold_attach_status()
         if int(last.get("active") or 0) == 0:
             return
+        now = time.monotonic()
+        if now - last_emit >= 30.0:
+            elapsed = int(now - started)
+            print(
+                "E2E_MUX_PRE_BODY_BACKPRESSURE: "
+                f"mux cold attach active={last.get('active')!r} "
+                f"elapsed={elapsed}s budget={int(budget_sec)}s "
+                "(BOOT drain wait; do not stop other pytest)",
+                file=sys.stderr,
+                flush=True,
+            )
+            last_emit = now
         time.sleep(2.0)
     raise RuntimeError(
         f"MUX cold attach drain timeout after {budget_sec:.0f}s: active={last.get('active')!r}"
@@ -799,15 +820,8 @@ def open_mcp_page(
 
             probe_budget = float(mux_upstream_wait_cap())
             wait_mux_hand_probe_allowed(budget_sec=probe_budget)
-            # R154: drain mux cold-attach slots before BODY transport pass (not mid-retry).
-            try:
-                _wait_mux_cold_attach_drain(budget_sec=min(60.0, probe_budget))
-            except RuntimeError as drain_exc:
-                if parallel_transport:
-                    raise RuntimeError(
-                        f"E2E_MUX_PRE_BODY_BACKPRESSURE: {drain_exc}"
-                    ) from drain_exc
-                raise
+            # R154: drain mux cold-attach slots before BODY transport pass (v3.1 §10 WAIT).
+            _wait_mux_cold_attach_drain(budget_sec=probe_budget)
     transport_session_started = time.monotonic()
     total_deadline = transport_session_started + open_page_total_budget_sec
     wall_deadline = transport_session_started + open_page_wall_budget_sec

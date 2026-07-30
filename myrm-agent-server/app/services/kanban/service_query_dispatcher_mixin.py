@@ -87,8 +87,8 @@ class KanbanReadMixin(KanbanServiceCore):
     async def get_board(self, board_id: str) -> KanbanBoard | None:
         return await run_get_board(self._store, board_id)
 
-    async def list_boards(self) -> list[KanbanBoard]:
-        return await run_list_boards(self._store)
+    async def list_boards(self, *, project_id: str | None = None) -> list[KanbanBoard]:
+        return await run_list_boards(self._store, project_id=project_id)
 
     async def get_task(self, task_id: str) -> KanbanTask | None:
         return await run_get_task(self._store, task_id)

@@ -19,6 +19,7 @@ from cdp_chat_support import (
     chat_user_message_count,
     fetch_chat_messages,
     get_e2e_api_url,
+    shpoib_parallel_shell_timeout_sec,
     wait_e2e_backend_ready,
     wait_e2e_provider_ready,
 )  # noqa: E402
@@ -154,6 +155,7 @@ async def _wait_db_ui_status(
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
@@ -183,6 +185,23 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
+            sample = str(last.get("sample") or "")
+            if "无法连接到服务器" in sample or "Unable to connect" in sample:
+                await chat.ensure_e2e_api_base_binding()
+                await chat.evaluate(
+                    "(() => { location.reload(); return { reloaded: true }; })()",
+                    await_promise=False,
+                    recv_timeout=30.0,
+                )
+                await asyncio.sleep(3.0)
+                await chat.ensure_e2e_api_base_binding()
+                try:
+                    await chat.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
+                except TimeoutError:
+                    pass
+                if chat_id:
+                    await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=60.0)
+                continue
             if last.get("onChat") is not True and chat_id:
                 await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=60.0)
             await asyncio.sleep(1.0)
@@ -247,9 +266,8 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         assert (
             chat_id
         ), f"Expected chat id after stream start: started={started}; send={render_send}"
-        await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
-        await chat.ensure_chat_surface(BASE_URL)
-
+        await chat.ensure_e2e_api_base_binding()
+        # Stay on the post-send page (inline_card SSOT); explicit navigate often drops SHPOIB binding.
         await _wait_js(
             chat,
             chat_id,
@@ -262,7 +280,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             chat_id,
             api_base,
             "E2E_UPDATE_INITIAL",
-            timeout_sec=120.0,
+            timeout_sec=300.0,
         )
         assert turn1_db_status == "E2E_UPDATE_INITIAL"
 
@@ -329,7 +347,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             chat_id,
             api_base,
             "E2E_UPDATE_FINAL",
-            timeout_sec=120.0,
+            timeout_sec=300.0,
         )
 
         reload_probe = await chat.evaluate(
@@ -368,19 +386,32 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
     await asyncio.to_thread(client.start)
     try:
         page: McpPage | None = None
-        try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
-        except TimeoutError:
-            await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+        def _new_page_with_retry() -> McpPage:
+            last_exc: BaseException | None = None
+            for attempt in range(3):
+                try:
+                    opened = client.new_page(BASE_URL, timeout_ms=120_000)
+                    if opened is not None:
+                        return opened
+                except (TimeoutError, RuntimeError) as exc:
+                    last_exc = exc
+                    message = str(exc)
+                    retriable = isinstance(exc, TimeoutError) or any(
+                        token in message
+                        for token in ("Target closed", "No page found", "timed out")
+                    )
+                    if not retriable or attempt + 1 >= 3:
+                        raise
+                if attempt + 1 < 3:
+                    time.sleep(2.0 * (attempt + 1))
+            raise RuntimeError(f"new_page exhausted retries: {last_exc}")
+
+        page = await asyncio.to_thread(_new_page_with_retry)
         if page is None:
             raise RuntimeError("new_page returned no page")
         chat = McpChatSession(client, page)
-        await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+        bootstrap_timeout = shpoib_parallel_shell_timeout_sec(240.0)
+        await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
         chat_id = await _run_flow(chat)
         assert chat_id
     finally:

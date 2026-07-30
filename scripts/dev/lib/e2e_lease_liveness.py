@@ -8,6 +8,7 @@
 [OUTPUT]
 - load_wave_snapshot(), wave_lease_counts(), build_lease_liveness()
 - format_lease_liveness_human() → E2E_LEASE_LIVENESS lines
+- WaveLeaseCounts.effective_* root-lease cap semantics (excludes parentLeaseId children)
 
 [POS]
 Single wave state read for cap headroom + liveness; replaces duplicate subprocess counts.
@@ -25,12 +26,27 @@ from dev_gate_contract import STALL_PROGRESS_SEC
 LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
 
 
+def _lease_parent_id(item: dict[str, object]) -> str | None:
+    parent = item.get("parentLeaseId")
+    if isinstance(parent, str) and parent.strip():
+        return parent.strip()
+    return None
+
+
+def _lease_is_root(item: dict[str, object]) -> bool:
+    return _lease_parent_id(item) is None
+
+
 @dataclass(frozen=True, slots=True)
 class WaveLeaseCounts:
     total: int
     live_agent_shpoib: int
     live_agent_shared_hot: int
     read_page: int
+    effective_total: int
+    effective_live_agent_shpoib: int
+    effective_live_agent_shared_hot: int
+    effective_read_page: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,29 +87,51 @@ def wave_lease_counts(snapshot: dict[str, object]) -> WaveLeaseCounts:
     raw_leases = snapshot.get("activeLeases")
     if not isinstance(raw_leases, list):
         return WaveLeaseCounts(
-            total=0, live_agent_shpoib=0, live_agent_shared_hot=0, read_page=0
+            total=0,
+            live_agent_shpoib=0,
+            live_agent_shared_hot=0,
+            read_page=0,
+            effective_total=0,
+            effective_live_agent_shpoib=0,
+            effective_live_agent_shared_hot=0,
+            effective_read_page=0,
         )
     live_shpoib = 0
     live_shared_hot = 0
     read_page = 0
+    eff_shpoib = 0
+    eff_shared_hot = 0
+    eff_read_page = 0
     for item in raw_leases:
         if not isinstance(item, dict):
             continue
+        is_root = _lease_is_root(item)
         lane = str(item.get("lane", ""))
         if lane == "LIVE_AGENT":
             bucket = _live_agent_bucket(str(item.get("namespace", "")))
             if bucket == "shared_hot":
                 live_shared_hot += 1
+                if is_root:
+                    eff_shared_hot += 1
             else:
                 live_shpoib += 1
+                if is_root:
+                    eff_shpoib += 1
         elif lane == "READ":
             read_page += 1
+            if is_root:
+                eff_read_page += 1
     total = live_shpoib + live_shared_hot + read_page
+    effective_total = eff_shpoib + eff_shared_hot + eff_read_page
     return WaveLeaseCounts(
         total=total,
         live_agent_shpoib=live_shpoib,
         live_agent_shared_hot=live_shared_hot,
         read_page=read_page,
+        effective_total=effective_total,
+        effective_live_agent_shpoib=eff_shpoib,
+        effective_live_agent_shared_hot=eff_shared_hot,
+        effective_read_page=eff_read_page,
     )
 
 

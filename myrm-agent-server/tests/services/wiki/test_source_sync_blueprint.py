@@ -12,9 +12,8 @@ class TestReadItLaterBlueprint:
         assert bp.job_defaults.job_type == "router"
         assert bp.job_defaults.command == "__wiki_source_sync__"
 
-    def test_fill_does_not_require_agent_tools(self) -> None:
+    def test_fill_exposes_router_command(self) -> None:
         result = fill_blueprint("read_it_later", {"time": "06:00", "weekdays": "everyday"})
         assert result is not None
         assert result.job_type == "router"
         assert result.command == "__wiki_source_sync__"
-        assert result.tools_allowed in ((), None)

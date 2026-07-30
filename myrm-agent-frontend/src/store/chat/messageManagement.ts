@@ -17,7 +17,7 @@
 import crypto from 'crypto';
 import { Message, ChatHistoryItem, type ActionMode, type ChatState } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
-import { getChatDetail, getMessages, generateChatTitle, updateChatTitle } from '@/services/chat';
+import { getChatDetail, getMessages, generateChatTitle, updateChatTitle, getContextPins, listContextBranches } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
@@ -110,6 +110,7 @@ export const loadMessages = async (
         }
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
+        state.lastCompactionMeta = null;
         state.workspaceDir = chatData.chat.workspace_dir;
         state.sessionSkillOverrides = chatData.chat.session_loaded_skill_names;
         state.incognitoMode = chatData.chat.is_incognito || false;
@@ -129,6 +130,34 @@ export const loadMessages = async (
         useChatStore.getState().setSandboxMode(true);
       }
     }).catch(() => {});
+
+    void getContextPins(chatId)
+      .then(({ files }) => {
+        if (useChatStore.getState().chatId === chatId) {
+          useChatStore.getState().setContextPinnedFiles(files);
+        }
+      })
+      .catch(() => {
+        if (useChatStore.getState().chatId === chatId) {
+          useChatStore.getState().setContextPinnedFiles([]);
+        }
+      });
+
+    if (chatData.chat.compacted_summary) {
+      void listContextBranches(chatId)
+        .then((branches) => {
+          if (useChatStore.getState().chatId === chatId) {
+            useChatStore.getState().setContextBranches(branches);
+          }
+        })
+        .catch(() => {
+          if (useChatStore.getState().chatId === chatId) {
+            useChatStore.getState().setContextBranches([]);
+          }
+        });
+    } else {
+      useChatStore.getState().setContextBranches([]);
+    }
   } catch (error) {
     console.error('Failed to load chat messages:', error, chatId);
 
@@ -254,6 +283,9 @@ export const initializeChat = (
       state.messageAppeared = false;
       state.compactedSummary = null;
       state.compactedBeforeId = null;
+      state.contextBranches = [];
+      state.contextPinnedFiles = [];
+      state.lastCompactionMeta = null;
       state.workspaceDir = null;
       state.incognitoMode = false;
       state.sandboxMode = false;
@@ -308,6 +340,9 @@ export const initializeChat = (
         draft.messageAppeared = false;
         draft.compactedSummary = null;
         draft.compactedBeforeId = null;
+        draft.contextBranches = [];
+        draft.contextPinnedFiles = [];
+        draft.lastCompactionMeta = null;
         draft.workspaceDir = null;
         draft.incognitoMode = false;
         draft.sandboxMode = false;

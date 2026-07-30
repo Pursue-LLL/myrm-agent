@@ -14,6 +14,7 @@
 | `HandoffDialog.tsx` | 组件 | 会话 Handoff 到其他 Agent/设备的确认对话框 | ✅ |
 | `MobileDragButton.tsx` | 辅助 | 移动端侧栏拖拽排序手柄 | ✅ |
 | `ProjectBar.tsx` | 核心 | 项目切换与创建顶栏；右键「设置工作目录」打开 `ProjectWorkspaceMount` | ✅ |
+| `ProjectMilestonePanel.tsx` | 核心 | 当前项目里程碑面板：增删改完成 + 评估工件导入（artifact id）与导入回执提示 | ✅ |
 | `Sidebar.tsx` | 核心 | 侧栏根容器：宽度响应式、折叠态与键盘导航 | ✅ |
 | `UserMenu.tsx` | 组件 | 用户菜单（Settings、批量优化 `userMenu.batchOptimization`→`/batch-optimization`、Brain Console 等） | ✅ |
 | `constants.ts` | 辅助 | 侧栏布局与 DnD 常量 | ✅ |

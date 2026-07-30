@@ -58,6 +58,7 @@ def build_compression_intent(
     *,
     query: object,
     chat_history: Sequence[BaseMessage] | None,
+    chat_id: str | None = None,
 ) -> dict[str, object] | None:
     """Build a normalized compression intent payload from business-layer inputs."""
     current_query_text = _extract_query_text(query)
@@ -74,16 +75,35 @@ def build_compression_intent(
     )
     failed_tool_call_ids = _extract_failed_tool_call_ids(chat_history or [])
     user_goal_hint = _build_goal_hint(current_query_text, recent_human_texts)
+    pinned_files = _load_pinned_files(chat_id)
 
-    if not focus_files and not focus_modules and not failed_tool_call_ids and not user_goal_hint:
+    if (
+        not focus_files
+        and not focus_modules
+        and not failed_tool_call_ids
+        and not user_goal_hint
+        and not pinned_files
+    ):
         return None
 
     return {
         "focus_files": focus_files,
         "focus_modules": focus_modules,
+        "pinned_files": pinned_files,
         "failed_tool_call_ids": failed_tool_call_ids,
         "user_goal_hint": user_goal_hint,
     }
+
+
+def _load_pinned_files(chat_id: str | None) -> list[str]:
+    if not chat_id:
+        return []
+    try:
+        from myrm_agent_harness.runtime.context.session_context_pins import read_pinned_files
+
+        return read_pinned_files(chat_id)
+    except Exception:
+        return []
 
 
 def _extract_query_text(query: object) -> str:

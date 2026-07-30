@@ -78,12 +78,17 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         name: str,
         description: str = "",
         settings: BoardSettings | None = None,
+        *,
+        project_id: str | None = None,
+        milestone_id: str | None = None,
     ) -> KanbanBoard:
         return await run_create_board(
             self._store,
             name,
             description,
             settings,
+            project_id=project_id,
+            milestone_id=milestone_id,
             runner=self._runner,
             start_dispatcher=self.start_dispatcher,
         )

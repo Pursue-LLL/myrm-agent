@@ -367,6 +367,9 @@ def _acquire_deferred_mux_admission() -> str:
         lane=lane,
         owner_pid=os.getpid(),
     )
+    from e2e_wave_capacity import release_from_env
+
+    release_from_env()
     return token
 
 
@@ -447,6 +450,7 @@ def _chrome_e2e_item_runtime(
     if os.environ.get("MYRM_E2E_MUX_ADMISSION_DEFERRED", "").strip() == "1":
         mux_token = _acquire_deferred_mux_admission()
         os.environ["MYRM_E2E_MUX_ADMISSION_TOKEN"] = mux_token
+        os.environ["MYRM_E2E_BOOT_MUX_GATE_OK"] = "1"
         run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
         print(f"E2E_MUX_ADMISSION_OK: run={run_id} deferred=1", flush=True)
     try:
@@ -561,6 +565,9 @@ def _require_live_e2e_lease(
             )
 
             prime_search_policy_env(request.node)
+            lib = _e2e_dev_lib_path()
+            if str(lib) not in sys.path:
+                sys.path.insert(0, str(lib))
             from e2e_session_lifecycle import complete_bootstrap_phase
 
             complete_bootstrap_phase(phase_label=request.node.name)

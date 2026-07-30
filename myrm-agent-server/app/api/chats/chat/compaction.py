@@ -95,3 +95,89 @@ async def get_chat_archive(
         raise
     except Exception as e:
         raise internal_error(operation="Get chat archive", exception=e) from e
+
+
+class PinFilesRequest(BaseModel):
+    files: list[str] = Field(default_factory=list)
+
+
+class PinFileRequest(BaseModel):
+    file_path: str = Field(min_length=1, max_length=1024)
+
+
+class ContextBranchRequest(BaseModel):
+    snapshot_path: str = Field(min_length=1, max_length=2048)
+    label: str = Field(default="", max_length=120)
+
+
+@router.get("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
+async def get_context_pins(chat_id: str) -> JSONResponse:
+    from myrm_agent_harness.runtime.context.session_context_pins import read_pinned_files
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+    return success_response(data={"files": read_pinned_files(chat_id)})
+
+
+@router.put("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
+async def set_context_pins(chat_id: str, body: PinFilesRequest) -> JSONResponse:
+    from myrm_agent_harness.runtime.context.session_context_pins import write_pinned_files
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+    record = write_pinned_files(chat_id, body.files)
+    return success_response(data={"files": list(record.files), "updated_at": record.updated_at})
+
+
+@router.post("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
+async def add_context_pin(chat_id: str, body: PinFileRequest) -> JSONResponse:
+    from myrm_agent_harness.runtime.context.session_context_pins import add_pinned_file
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+    record = add_pinned_file(chat_id, body.file_path)
+    return success_response(data={"files": list(record.files), "updated_at": record.updated_at})
+
+
+@router.get("/{chat_id}/context/branches", response_model=StandardSuccessResponse)
+async def list_context_branches(chat_id: str) -> JSONResponse:
+    from myrm_agent_harness.runtime.context.context_branches import list_context_branches as list_branches
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+    branches = [
+        {
+            "branch_id": item.branch_id,
+            "label": item.label,
+            "snapshot_path": item.snapshot_path,
+            "created_at": item.created_at,
+        }
+        for item in list_branches(chat_id)
+    ]
+    return success_response(data={"branches": branches})
+
+
+@router.post("/{chat_id}/context/branches", response_model=StandardSuccessResponse)
+async def create_context_branch(chat_id: str, body: ContextBranchRequest) -> JSONResponse:
+    from myrm_agent_harness.runtime.context.context_branches import append_context_branch
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+    record = append_context_branch(
+        chat_id,
+        snapshot_path=body.snapshot_path,
+        label=body.label,
+    )
+    return success_response(
+        data={
+            "branch_id": record.branch_id,
+            "label": record.label,
+            "snapshot_path": record.snapshot_path,
+            "created_at": record.created_at,
+        }
+    )

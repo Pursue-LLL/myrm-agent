@@ -13,6 +13,18 @@ from pydantic import BaseModel, Field
 class BoardCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str = ""
+    project_id: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Optional project scope for this board.",
+    )
+    milestone_id: str | None = Field(
+        None,
+        min_length=1,
+        max_length=32,
+        description="Optional milestone scope for this board.",
+    )
     max_concurrent_tasks: int = Field(3, ge=1, le=50)
     heartbeat_interval_seconds: int = Field(30, ge=10, le=600)
     zombie_timeout_seconds: int = Field(120, ge=30, le=1800)

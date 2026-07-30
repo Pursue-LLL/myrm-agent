@@ -26,6 +26,11 @@ export interface McpAppView {
   toolName?: string;
 }
 
+export interface LastCompactionMeta {
+  tokensSaved: number;
+  snapshotPath?: string;
+}
+
 export type Message = {
   messageId: string;
   chatId: string;
@@ -57,6 +62,9 @@ export type Message = {
     aggregator_model: string;
     elapsed_seconds: number;
   };
+  executionLane?: string;
+  wikiConfidenceScore?: number;
+  wikiSourceCount?: number;
   consensusRefs?: Array<{
     model: string;
     success: boolean;

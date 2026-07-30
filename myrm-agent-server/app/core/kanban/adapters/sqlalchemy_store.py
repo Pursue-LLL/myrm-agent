@@ -115,9 +115,11 @@ class SqlAlchemyKanbanStore:
             m = await session.get(KanbanBoardModel, board_id)
             return board_to_domain(m) if m else None
 
-    async def list_boards(self) -> list[KanbanBoard]:
+    async def list_boards(self, project_id: str | None = None) -> list[KanbanBoard]:
         async with get_session() as session:
             stmt = select(KanbanBoardModel).order_by(KanbanBoardModel.created_at.desc())
+            if project_id is not None:
+                stmt = stmt.where(KanbanBoardModel.project_id == project_id)
             result = await session.execute(stmt)
             return [board_to_domain(m) for m in result.scalars().all()]
 
@@ -134,6 +136,21 @@ class SqlAlchemyKanbanStore:
             await session.commit()
             await session.refresh(m)
             return board_to_domain(m)
+
+    async def set_board_scope(
+        self,
+        board_id: str,
+        *,
+        project_id: str | None,
+        milestone_id: str | None,
+    ) -> None:
+        async with get_session() as session:
+            board = await session.get(KanbanBoardModel, board_id)
+            if board is None:
+                raise ValueError(f"Board {board_id} not found")
+            board.project_id = project_id
+            board.milestone_id = milestone_id
+            await session.commit()
 
     async def delete_board(self, board_id: str) -> bool:
         async with get_session() as session:

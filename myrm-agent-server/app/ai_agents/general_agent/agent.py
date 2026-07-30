@@ -411,6 +411,7 @@ class GeneralAgent(ToolSetupMixin):
         compression_intent = build_compression_intent(
             query=query,
             chat_history=history_messages,
+            chat_id=self.chat_id,
         )
         if compression_intent is not None:
             context["compression_intent"] = compression_intent

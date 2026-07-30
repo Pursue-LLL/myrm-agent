@@ -8,8 +8,10 @@ import { create } from 'zustand';
 
 import type { Milestone } from '@/services/milestones';
 import {
+  type AssessmentImportReceipt,
   getMilestones,
   createMilestone,
+  importAssessmentArtifact,
   updateMilestone as apiUpdateMilestone,
   deleteMilestone as apiDeleteMilestone,
 } from '@/services/milestones';
@@ -26,6 +28,15 @@ interface MilestoneActions {
   updateMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; acceptance_criteria?: string; status?: string }) => Promise<void>;
   removeMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   completeMilestone: (projectId: string, milestoneId: string) => Promise<void>;
+  importAssessment: (
+    projectId: string,
+    payload: {
+      artifact_id: string;
+      source_chat_id?: string;
+      max_milestones?: number;
+      max_tasks_per_milestone?: number;
+    },
+  ) => Promise<AssessmentImportReceipt>;
   reset: () => void;
 }
 
@@ -73,6 +84,13 @@ export const useMilestoneStore = create<MilestoneState & MilestoneActions>()((se
     set((s) => ({
       milestones: s.milestones.map((m) => (m.id === milestoneId ? milestone : m)),
     }));
+  },
+
+  importAssessment: async (projectId, payload) => {
+    const receipt = await importAssessmentArtifact(projectId, payload);
+    const milestones = await getMilestones(projectId);
+    set({ milestones, currentProjectId: projectId });
+    return receipt;
   },
 
   reset: () => set({ milestones: [], loading: false, currentProjectId: null }),

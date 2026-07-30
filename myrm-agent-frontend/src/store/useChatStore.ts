@@ -92,6 +92,10 @@ const useChatStore = create<ChatState>()(
       messages: [],
       compactedSummary: null,
       compactedBeforeId: null,
+      contextBranches: [],
+      contextPinnedFiles: [],
+      lastCompactionMeta: null,
+      compactionRefreshNonce: 0,
       workspaceDir: null,
       sessionSkillOverrides: null,
 
@@ -186,12 +190,42 @@ const useChatStore = create<ChatState>()(
 
       // 设置方法
       setChatId: (id) => {
-        set({ chatId: id });
+        set({ chatId: id, lastCompactionMeta: null, compactionRefreshNonce: 0, contextBranches: [], contextPinnedFiles: [] });
         useQuoteStore.getState().clearQuote();
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),
       setMessages: (messages) => set({ messages }),
+      refreshCompactionState: async (chatId, meta) => {
+        const { getChatDetail, listContextBranches, getContextPins } = await import('@/services/chat');
+        const detail = await getChatDetail(chatId, true);
+        const [branchesResult, pinsResult] = await Promise.allSettled([
+          listContextBranches(chatId),
+          getContextPins(chatId),
+        ]);
+        set((state) => {
+          if (state.chatId !== chatId) {
+            return;
+          }
+          state.compactedSummary = detail.chat.compacted_summary;
+          state.compactedBeforeId = detail.chat.compacted_before_id;
+          if (branchesResult.status === 'fulfilled') {
+            state.contextBranches = branchesResult.value;
+          }
+          if (pinsResult.status === 'fulfilled') {
+            state.contextPinnedFiles = pinsResult.value.files;
+          }
+          if (meta && meta.tokensSaved > 0) {
+            state.lastCompactionMeta = {
+              tokensSaved: meta.tokensSaved,
+              snapshotPath: meta.snapshotPath,
+            };
+          }
+          state.compactionRefreshNonce += 1;
+        });
+      },
       setCompactedSummary: (summary) => set({ compactedSummary: summary }),
+      setContextBranches: (branches) => set({ contextBranches: branches }),
+      setContextPinnedFiles: (files) => set({ contextPinnedFiles: files }),
       setCompactedBeforeId: (id) => set({ compactedBeforeId: id }),
       setWorkspaceDir: (dir) => set({ workspaceDir: dir }),
       setChatHistoryItems: (items) => set({ chatHistoryItems: items }),
@@ -495,6 +529,8 @@ const useChatStore = create<ChatState>()(
           mentionReferences: [],
           compactedSummary: null,
           compactedBeforeId: null,
+          contextBranches: [],
+          contextPinnedFiles: [],
           sessionSkillOverrides: null,
           regenerateSiblingGroupId: undefined,
           regenerateInstruction: undefined,

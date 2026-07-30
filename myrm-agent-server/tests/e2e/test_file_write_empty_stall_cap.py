@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+import live_turn_wait  # noqa: E402
+
 from tests.e2e import test_file_write_empty_chrome_e2e as mod
 
 
@@ -11,17 +13,21 @@ def test_live_empty_write_post_send_stall_cap_scales_with_peers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 0)
+    monkeypatch.setattr(live_turn_wait, "parallel_live_agent_peer_count", lambda: 0)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 90.0
     assert mod._live_empty_write_post_steer_idle_cap_sec() == 90.0
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 4)
+    monkeypatch.setattr(live_turn_wait, "parallel_live_agent_peer_count", lambda: 4)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 130.0
     assert mod._live_empty_write_post_steer_idle_cap_sec() == 130.0
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 3)
+    monkeypatch.setattr(live_turn_wait, "parallel_live_agent_peer_count", lambda: 3)
     assert mod._live_empty_write_post_steer_idle_cap_sec() == 130.0
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 8)
+    monkeypatch.setattr(live_turn_wait, "parallel_live_agent_peer_count", lambda: 8)
     assert mod._live_empty_write_post_send_stall_cap_sec() == 150.0
     assert mod._live_empty_write_post_steer_idle_cap_sec() == 150.0
     assert mod._live_bridge_ready_timeout_sec() == 150.0

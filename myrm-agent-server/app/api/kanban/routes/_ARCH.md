@@ -25,22 +25,22 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 ### `boards.py`
 
-| 方法 | 路径 |
-|------|------|
-| GET/POST | `/boards` |
-| GET/PATCH/DELETE | `/boards/{board_id}` |
-| GET | `/boards/{board_id}/summary` |
-| GET | `/boards/{board_id}/events` |
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET/POST | `/boards` | GET 支持 `project_id` 过滤；POST 支持可选 `project_id` / `milestone_id` 作用域绑定（含一致性校验） |
+| GET/PATCH/DELETE | `/boards/{board_id}` | - |
+| GET | `/boards/{board_id}/summary` | - |
+| GET | `/boards/{board_id}/events` | - |
 
 ### `tasks.py`
 
-| 方法 | 路径 |
-|------|------|
+| 方法 | 路径 | 说明 |
+|------|------|------|
 | GET/POST | `/boards/{board_id}/tasks` | GET 支持 `status_filter`、`agent_id`、`source_chat_id` query；POST body 可选 `metadata`（如 `source_chat_id`） |
-| GET/PATCH/DELETE | `/tasks/{task_id}` |
-| POST | `/tasks/{task_id}/move` |
-| POST | `/tasks/{task_id}/promote` |
-| POST | `/tasks/{task_id}/reclaim` |
+| GET/PATCH/DELETE | `/tasks/{task_id}` | - |
+| POST | `/tasks/{task_id}/move` | - |
+| POST | `/tasks/{task_id}/promote` | - |
+| POST | `/tasks/{task_id}/reclaim` | - |
 
 ### `bulk.py`
 

@@ -28,7 +28,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { getSessionAnalytics } from '@/services/statistics';
-import { compactChat } from '@/services/chat';
+import { compactChat, getContextPins, setContextPins } from '@/services/chat';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';
 
 const STATUS_DOT_COLORS: Record<HealthStatus, string> = {
@@ -78,10 +78,72 @@ interface MiniPanelContentProps {
 
 function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails, onRefreshHealth }: MiniPanelContentProps) {
   const t = useTranslations('chat.contextUsage.strategy');
+  const contextPinnedFiles = useChatStore((state) => state.contextPinnedFiles);
+  const setContextPinnedFiles = useChatStore((state) => state.setContextPinnedFiles);
   const [compacting, setCompacting] = useState(false);
   const [compactResult, setCompactResult] = useState<string | null>(null);
   const [compactError, setCompactError] = useState<string | null>(null);
   const [forking, setForking] = useState(false);
+  const [focusTopic, setFocusTopic] = useState('');
+  const [pinnedFiles, setPinnedFiles] = useState<string[]>(contextPinnedFiles);
+  const [pinInput, setPinInput] = useState('');
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const [pinsSaving, setPinsSaving] = useState(false);
+
+  useEffect(() => {
+    setPinnedFiles(contextPinnedFiles);
+  }, [contextPinnedFiles]);
+
+  const loadPins = useCallback(async (): Promise<string[]> => {
+    if (!chatId) return [];
+    setPinsLoading(true);
+    try {
+      const { files } = await getContextPins(chatId);
+      if (useChatStore.getState().chatId !== chatId) {
+        return [];
+      }
+      setContextPinnedFiles(files);
+      setPinnedFiles(files);
+      return files;
+    } catch {
+      if (useChatStore.getState().chatId === chatId) {
+        setContextPinnedFiles([]);
+        setPinnedFiles([]);
+      }
+      return [];
+    } finally {
+      if (useChatStore.getState().chatId === chatId) {
+        setPinsLoading(false);
+      }
+    }
+  }, [chatId, setContextPinnedFiles]);
+
+  useEffect(() => {
+    if (!chatId || contextPinnedFiles.length > 0) {
+      return undefined;
+    }
+    let cancelled = false;
+    const pollPins = async () => {
+      for (let round = 1; round <= 6 && !cancelled; round += 1) {
+        const files = await loadPins();
+        if (cancelled || useChatStore.getState().chatId !== chatId) {
+          return;
+        }
+        if (files.length > 0 || useChatStore.getState().contextPinnedFiles.length > 0) {
+          return;
+        }
+        if (round < 6) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 3000);
+          });
+        }
+      }
+    };
+    void pollPins();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, contextPinnedFiles.length, loadPins]);
 
   const canCompress = !!chatId && usagePercent >= 30 && !compacting;
 
@@ -91,9 +153,13 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
     setCompactResult(null);
     setCompactError(null);
     try {
-      const result = await compactChat(chatId);
+      const result = await compactChat(chatId, focusTopic.trim() || undefined);
       if (result.compacted) {
         setCompactResult(t('compressSuccess', { tokens: formatTokens(result.tokens_saved) }));
+        await useChatStore.getState().refreshCompactionState(chatId, {
+          tokensSaved: result.tokens_saved,
+          snapshotPath: result.backup_path ?? undefined,
+        });
         onRefreshHealth();
       } else {
         setCompactResult(t('compressNotNeeded'));
@@ -103,7 +169,44 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
     } finally {
       setCompacting(false);
     }
-  }, [chatId, compacting, t, onRefreshHealth]);
+  }, [chatId, compacting, focusTopic, t, onRefreshHealth]);
+
+  const handleAddPin = useCallback(async () => {
+    const normalized = pinInput.trim();
+    if (!chatId || !normalized || pinsSaving) return;
+    setPinsSaving(true);
+    try {
+      const nextFiles = [...pinnedFiles.filter((item) => item !== normalized), normalized];
+      const { files } = await setContextPins(chatId, nextFiles);
+      setContextPinnedFiles(files);
+      setPinnedFiles(files);
+      setPinInput('');
+    } catch (err) {
+      console.error('[ContextUsagePins] failed to add pin', err);
+    } finally {
+      setPinsSaving(false);
+    }
+  }, [chatId, pinInput, pinnedFiles, pinsSaving]);
+
+  const handleRemovePin = useCallback(
+    async (filePath: string) => {
+      if (!chatId || pinsSaving) return;
+      setPinsSaving(true);
+      try {
+        const { files } = await setContextPins(
+          chatId,
+          pinnedFiles.filter((item) => item !== filePath),
+        );
+        setContextPinnedFiles(files);
+        setPinnedFiles(files);
+      } catch (err) {
+        console.error('[ContextUsagePins] failed to remove pin', err);
+      } finally {
+        setPinsSaving(false);
+      }
+    },
+    [chatId, pinnedFiles, pinsSaving, setContextPinnedFiles],
+  );
 
   const canFork = !!chatId && usagePercent >= 75 && !forking;
 
@@ -136,7 +239,10 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-2 p-3 min-w-[220px] animate-pulse">
+      <div
+        data-testid="context-usage-panel"
+        className="flex flex-col gap-2 p-3 min-w-[220px] animate-pulse"
+      >
         <div className="h-4 bg-muted rounded w-24" />
         <div className="h-3 bg-muted rounded w-full" />
         <div className="h-3 bg-muted rounded w-3/4" />
@@ -144,74 +250,131 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
     );
   }
 
-  if (!health) {
-    return <div className="p-3 text-xs text-muted-foreground">{t('noData')}</div>;
-  }
-
-  const { compaction, pruning, cache } = health;
+  const compaction = health?.compaction;
+  const pruning = health?.pruning;
+  const cache = health?.cache;
 
   return (
-    <div className="flex flex-col gap-2.5 p-3 min-w-[220px]">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-foreground">{t('title')}</span>
-        <span
-          className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-            health.status === 'critical'
-              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-              : health.status === 'warning'
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                : health.status === 'healthy'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-muted text-muted-foreground'
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_COLORS[health.status]}`} />
-          {t(`status.${health.status}`)}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1.5 text-[11px]">
-        {compaction.active && (
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t('compaction')}</span>
-            <span className="tabular-nums text-foreground">
-              {compaction.count > 0
-                ? t('compactionSaved', { count: compaction.count, tokens: formatTokens(compaction.tokens_saved) })
-                : t('compactionIdle')}
+    <div data-testid="context-usage-panel" className="flex flex-col gap-2.5 p-3 min-w-[220px]">
+      {health ? (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">{t('title')}</span>
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                health.status === 'critical'
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                  : health.status === 'warning'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    : health.status === 'healthy'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_COLORS[health.status]}`} />
+              {t(`status.${health.status}`)}
             </span>
           </div>
-        )}
 
-        {pruning.active && (
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t('pruning')}</span>
-            <span className="tabular-nums text-foreground">
-              {pruning.archived > 0 ? t('pruningArchived', { count: pruning.archived }) : t('pruningIdle')}
-            </span>
+          <div className="flex flex-col gap-1.5 text-[11px]">
+            {compaction?.active && (
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>{t('compaction')}</span>
+                <span className="tabular-nums text-foreground">
+                  {compaction.count > 0
+                    ? t('compactionSaved', { count: compaction.count, tokens: formatTokens(compaction.tokens_saved) })
+                    : t('compactionIdle')}
+                </span>
+              </div>
+            )}
+
+            {pruning?.active && (
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>{t('pruning')}</span>
+                <span className="tabular-nums text-foreground">
+                  {pruning.archived > 0 ? t('pruningArchived', { count: pruning.archived }) : t('pruningIdle')}
+                </span>
+              </div>
+            )}
+
+            {cache?.active && (
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>{t('cache')}</span>
+                <span className="tabular-nums text-foreground">
+                  {t('cacheHitRate', { rate: (cache.cache_hit_rate * 100).toFixed(0) })}
+                </span>
+              </div>
+            )}
+
+            {!compaction?.active && !pruning?.active && !cache?.active && (
+              <span className="text-muted-foreground">{t('allInactive')}</span>
+            )}
           </div>
-        )}
 
-        {cache.active && (
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t('cache')}</span>
-            <span className="tabular-nums text-foreground">
-              {t('cacheHitRate', { rate: (cache.cache_hit_rate * 100).toFixed(0) })}
-            </span>
-          </div>
-        )}
-
-        {!compaction.active && !pruning.active && !cache.active && (
-          <span className="text-muted-foreground">{t('allInactive')}</span>
-        )}
-      </div>
-
-      {pruning.archive_restore_blocked_count > 0 && (
-        <div className="mt-1 pt-1.5 border-t border-border/50 text-[10px] text-rose-600 dark:text-rose-400">
-          {t('restoreBlocked', { count: pruning.archive_restore_blocked_count })}
-        </div>
+          {(pruning?.archive_restore_blocked_count ?? 0) > 0 && (
+            <div className="mt-1 pt-1.5 border-t border-border/50 text-[10px] text-rose-600 dark:text-rose-400">
+              {t('restoreBlocked', { count: pruning.archive_restore_blocked_count })}
+            </div>
+          )}
+        </>
+      ) : (
+        <span className="text-xs text-muted-foreground">{t('noData')}</span>
       )}
 
       <div className="mt-1 pt-1.5 border-t border-border/50 flex flex-col gap-1.5">
+        <span className="text-[10px] font-medium text-muted-foreground">{t('pinnedFiles')}</span>
+        {pinsLoading ? (
+          <span className="text-[10px] text-muted-foreground">{t('pinsLoading')}</span>
+        ) : pinnedFiles.length === 0 ? (
+          <span className="text-[10px] text-muted-foreground">{t('pinsEmpty')}</span>
+        ) : (
+          <ul className="flex flex-col gap-1 max-h-24 overflow-y-auto">
+            {pinnedFiles.map((filePath) => (
+              <li
+                key={filePath}
+                data-testid="context-pin-item"
+                data-pin-path={filePath}
+                className="flex items-center gap-1 text-[10px]"
+              >
+                <span className="flex-1 truncate text-foreground/80" title={filePath}>
+                  {filePath}
+                </span>
+                <button
+                  type="button"
+                  disabled={pinsSaving}
+                  onClick={() => void handleRemovePin(filePath)}
+                  className="shrink-0 text-muted-foreground hover:text-rose-500 transition-colors"
+                >
+                  {t('removePin')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex gap-1">
+          <input
+            type="text"
+            value={pinInput}
+            onChange={(event) => setPinInput(event.target.value)}
+            placeholder={t('pinPlaceholder')}
+            className="flex-1 text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-background"
+          />
+          <button
+            type="button"
+            disabled={!chatId || !pinInput.trim() || pinsSaving}
+            onClick={() => void handleAddPin()}
+            className="text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-muted hover:bg-muted/80 disabled:opacity-50"
+          >
+            {t('addPin')}
+          </button>
+        </div>
+        <input
+          type="text"
+          value={focusTopic}
+          onChange={(event) => setFocusTopic(event.target.value)}
+          placeholder={t('focusHintPlaceholder')}
+          className="w-full text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-background"
+        />
         <button
           type="button"
           disabled={!canCompress}
@@ -265,6 +428,7 @@ export default function ContextUsageIndicator() {
   const showContextUsage = useConfigStore((state) => state.showContextUsage);
   const messages = useChatStore(useShallow((state) => state.messages));
   const chatId = useChatStore(useShallow((state) => state.chatId ?? null));
+  const compactionRefreshNonce = useChatStore((state) => state.compactionRefreshNonce);
   const setActiveSessionAnalyticsId = useChatStore((state) => state.setActiveSessionAnalyticsId);
 
   const contextBudget = useMemo(() => {
@@ -289,6 +453,10 @@ export default function ContextUsageIndicator() {
   useEffect(() => {
     if (panelOpen && chatId) fetchHealth();
   }, [panelOpen, chatId, fetchHealth]);
+
+  useEffect(() => {
+    if (compactionRefreshNonce > 0 && chatId) fetchHealth();
+  }, [compactionRefreshNonce, chatId, fetchHealth]);
 
   const { percentage, displayUsage } = useMemo(() => {
     if (!contextBudget) return { percentage: 0, displayUsage: '0 / 0' };
@@ -330,6 +498,7 @@ export default function ContextUsageIndicator() {
 
   const ringElement = (
     <div
+      data-testid="context-usage-indicator"
       className="relative inline-flex items-center justify-center cursor-pointer select-none p-1"
       role="status"
       aria-label={t('title')}

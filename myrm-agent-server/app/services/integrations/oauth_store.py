@@ -35,12 +35,35 @@ GOOGLE_WORKSPACE_WRITE_SCOPE_MARKERS: tuple[str, ...] = (
     "https://www.googleapis.com/auth/calendar.events",
 )
 
+GOOGLE_DRIVE_READ_SCOPE_MARKER = "https://www.googleapis.com/auth/drive.readonly"
+
 
 def google_workspace_write_enabled(scope: object) -> bool:
     """Return True when stored scope string includes all Google Workspace write scopes."""
     if not isinstance(scope, str) or not scope.strip():
         return False
     return all(marker in scope for marker in GOOGLE_WORKSPACE_WRITE_SCOPE_MARKERS)
+
+
+def google_drive_read_enabled(scope: object) -> bool:
+    """Return True when stored scope string includes Google Drive readonly access."""
+    if not isinstance(scope, str) or not scope.strip():
+        return False
+    return GOOGLE_DRIVE_READ_SCOPE_MARKER in scope
+
+
+async def google_workspace_drive_read_enabled(db: AsyncSession) -> bool:
+    """Return True when Google Workspace OAuth token includes Drive readonly scope."""
+    from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
+
+    row = await load_oauth_credentials_row(db)
+    if not row:
+        return False
+    credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
+    cred_val = credentials.get(GOOGLE_WORKSPACE_ISSUER)
+    if not isinstance(cred_val, dict) or not cred_val.get("token"):
+        return False
+    return google_drive_read_enabled(cred_val.get("scope"))
 
 
 def decrypt_oauth_credentials(

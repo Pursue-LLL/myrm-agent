@@ -226,13 +226,16 @@ myrm_agent_harness.observability.tracing
 myrm_agent_harness.runtime.checkpointing.factory
 myrm_agent_harness.runtime.context.archive_restore_action
 myrm_agent_harness.runtime.context.cleanup_task
+myrm_agent_harness.runtime.context.context_branches
 myrm_agent_harness.runtime.context.file_access_tracker
 myrm_agent_harness.runtime.context.offload
+myrm_agent_harness.runtime.context.session_context_pins
 myrm_agent_harness.runtime.events
 myrm_agent_harness.runtime.events.bus
 myrm_agent_harness.runtime.events.idle_events
 myrm_agent_harness.runtime.events.skill_events
 myrm_agent_harness.runtime.events.system_events
+myrm_agent_harness.runtime.execution_paths
 myrm_agent_harness.runtime.lazy_deps
 myrm_agent_harness.runtime.maintenance
 myrm_agent_harness.runtime.maintenance.protocols
@@ -420,6 +423,7 @@ myrm_agent_harness.toolkits.wiki.core.frontmatter_contract
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.core.section_contract
 myrm_agent_harness.toolkits.wiki.core.structure
+myrm_agent_harness.toolkits.wiki.core.types
 myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint
 myrm_agent_harness.toolkits.wiki.maintenance.stale_summary
 myrm_agent_harness.toolkits.wiki.pipeline.apply
@@ -431,6 +435,7 @@ myrm_agent_harness.toolkits.wiki.portability.vault_archive
 myrm_agent_harness.toolkits.wiki.portability.vault_git
 myrm_agent_harness.toolkits.wiki.retrieval.asset_index
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
+myrm_agent_harness.toolkits.wiki.retrieval.source_citations
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils
 myrm_agent_harness.utils.coercion

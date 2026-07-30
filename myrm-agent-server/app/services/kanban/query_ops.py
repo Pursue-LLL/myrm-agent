@@ -33,8 +33,12 @@ async def get_board(store: SqlAlchemyKanbanStore, board_id: str) -> KanbanBoard 
     return await store.get_board(board_id)
 
 
-async def list_boards(store: SqlAlchemyKanbanStore) -> list[KanbanBoard]:
-    return await store.list_boards()
+async def list_boards(
+    store: SqlAlchemyKanbanStore,
+    *,
+    project_id: str | None = None,
+) -> list[KanbanBoard]:
+    return await store.list_boards(project_id=project_id)
 
 
 async def get_task(store: SqlAlchemyKanbanStore, task_id: str) -> KanbanTask | None:

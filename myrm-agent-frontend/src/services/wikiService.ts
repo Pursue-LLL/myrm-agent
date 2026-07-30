@@ -41,6 +41,7 @@ export interface WikiSourceSnippet {
   evidence_path?: string;
   line_range?: string;
   claim_status?: string;
+  claim_confidence?: number;
   snapshot_status?: 'verified' | 'stale' | 'missing';
   resource_uri?: string;
   superseded_from_uri?: string;
@@ -92,10 +93,32 @@ export function buildWikiQueryRequestBody(
   return { question, mode };
 }
 
+export interface WikiRetrievalTraceIndexHit {
+  link_name: string;
+  summary: string;
+  score: number;
+  page_type?: string;
+}
+
+export interface WikiRetrievalSeedTraceItem {
+  concept_name: string;
+  score: number;
+  source: string;
+}
+
+export interface WikiRetrievalTrace {
+  index_hits: WikiRetrievalTraceIndexHit[];
+  seeds: WikiRetrievalSeedTraceItem[];
+  sidecar_directories: string[];
+  selected_concepts: string[];
+}
+
 export interface WikiQueryResponse {
   answer: string;
   related_articles: string[];
   source_snippets: WikiSourceSnippet[];
+  confidence_score?: number;
+  retrieval_trace?: WikiRetrievalTrace | null;
 }
 
 export interface CompileRunStatus {

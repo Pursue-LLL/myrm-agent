@@ -48,7 +48,7 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 | `LIVE_AGENT` | API E2E / 真实模型流 | `./myrm test` 默认双路真实并行；环境变量可显式调到 4 |
 | `STACK_WRITE` | reset/restart | 全局独占 |
 
-`./myrm test -m chrome_e2e` 使用 `wave-e2e-lease.sh acquire`（lane 由 monorepo `scripts/dev/resolve_e2e_session_lane.py` 解析为 READ 或 LIVE_AGENT）；页面 READ lease 通过 `parentLeaseId` 显式归属 LIVE_AGENT Session。trap 释放父 lease 时只级联本 Session 子 lease/page，不会遗留零 lease 的 stack pin，也不会关闭或清理仍有并行 lease 的 Wave。正式入口（monorepo `scripts/dev/test.sh`）默认 `MYRM_LIVE_AGENT_MAX_CONCURRENT=4`；mux session cap **6**（`e2e_mux_admission.py`）。昂贵 private Backend bootstrap 独立限制为同时最多 **2** 路。
+`./myrm test -m chrome_e2e` 使用 `wave-e2e-lease.sh acquire`（lane 由 monorepo `scripts/dev/resolve_e2e_session_lane.py` 解析为 READ 或 LIVE_AGENT）；页面 READ lease 通过 `parentLeaseId` 显式归属 LIVE_AGENT Session。trap 释放父 lease 时只级联本 Session 子 lease/page，不会遗留零 lease 的 stack pin，也不会关闭或清理仍有并行 lease 的 Wave。正式入口（monorepo `scripts/dev/test.sh`）默认 `MYRM_LIVE_AGENT_MAX_CONCURRENT=4`；mux **session** cap **6**（`e2e_mux_admission.py` · `MUX_MAX_CONCURRENT_SESSIONS`）；mux **cold attach** cap **3**（`mux_upstream_admission.py` · `MUX_COLD_ATTACH_SLOTS`）。昂贵 private Backend bootstrap 独立限制为同时最多 **2** 路。
 
 **Resource Ledger**：`RESOURCE_WRITE` 或 `GLOBAL_WRITE` 租约创建 chat 等业务资源后，须 `./myrm wave ledger register <leaseId> chat <chatId>`；`lease release` / TTL 过期自动 HTTP 清理（`resource_cleanup.py` → `DELETE /api/v1/chats/...`）。
 

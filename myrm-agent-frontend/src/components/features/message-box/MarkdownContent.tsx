@@ -120,6 +120,9 @@ const MarkdownContent = React.memo(
       snippet: string;
       level?: WikiSourceLevel;
       snapshotStatus?: Source['snapshot_status'];
+      claimStatus?: Source['claim_status'];
+      claimConfidence?: Source['claim_confidence'];
+      claimText?: Source['claim_text'];
       resourceUri?: string;
       supersededFromUri?: string;
       thumbnailUrl?: string | null;
@@ -135,6 +138,9 @@ const MarkdownContent = React.memo(
         thumbnailUrl?: string | null,
         resourceUri?: string,
         supersededFromUri?: string,
+        claimStatus?: Source['claim_status'],
+        claimConfidence?: Source['claim_confidence'],
+        claimText?: Source['claim_text'],
       ) => {
         setDrawerState({
           open: true,
@@ -146,6 +152,9 @@ const MarkdownContent = React.memo(
           thumbnailUrl,
           resourceUri,
           supersededFromUri,
+          claimStatus,
+          claimConfidence,
+          claimText,
         });
       },
       [],
@@ -357,6 +366,9 @@ const MarkdownContent = React.memo(
                       assetThumbnailUrl,
                       source.resource_uri,
                       source.superseded_from_uri,
+                      source.claim_status,
+                      source.claim_confidence,
+                      source.claim_text,
                     )
                   }
                 >
@@ -414,6 +426,9 @@ const MarkdownContent = React.memo(
           snippet={drawerState.snippet}
           level={drawerState.level}
           snapshotStatus={drawerState.snapshotStatus}
+          claimStatus={drawerState.claimStatus}
+          claimConfidence={drawerState.claimConfidence}
+          claimText={drawerState.claimText}
           resourceUri={drawerState.resourceUri}
           supersededFromUri={drawerState.supersededFromUri}
           thumbnailUrl={drawerState.thumbnailUrl}

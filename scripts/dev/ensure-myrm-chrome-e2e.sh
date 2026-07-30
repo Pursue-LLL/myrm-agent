@@ -36,6 +36,12 @@ if myrm_chrome_e2e_cdp_healthy && myrm_chrome_e2e_process_owns_port; then
 fi
 
 if lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+  # R174: CDP /json/version is SSOT — lsof listener pid can race under parallel attach.
+  if myrm_chrome_e2e_cdp_healthy; then
+    chrome_e2e_surface_ensure
+    ok "already running port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+    exit 0
+  fi
   if ! myrm_chrome_e2e_process_owns_port; then
     fail "Port ${MYRM_CHROME_E2E_PORT} is in use by a non-Myrm Chrome — free the port or set MYRM_CHROME_E2E_PORT"
   fi

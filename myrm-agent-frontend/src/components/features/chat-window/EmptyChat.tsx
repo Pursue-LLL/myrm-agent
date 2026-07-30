@@ -8,10 +8,12 @@ import SamplePrompts from './SamplePrompts';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
+import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
+  useChatTurnPrewarm({ autoOnMount: true });
 
   const title = t('researchBegins');
 

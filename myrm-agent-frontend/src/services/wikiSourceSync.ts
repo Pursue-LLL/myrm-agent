@@ -4,6 +4,8 @@ import { buildWikiApiPath } from '@/services/wikiService';
 export interface WikiSourceSyncConfig {
   gmail_enabled: boolean;
   gmail_label: string;
+  gdrive_enabled: boolean;
+  gdrive_folder_id: string;
   rss_feeds: string[];
   auto_compile: boolean;
   max_items_per_run: number;
@@ -30,6 +32,7 @@ export interface WikiSourceSyncState {
 export interface WikiSourceSyncStatus {
   config: WikiSourceSyncConfig;
   google_connected: boolean;
+  google_drive_authorized: boolean;
   state: WikiSourceSyncState;
 }
 

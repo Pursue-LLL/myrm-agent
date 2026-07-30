@@ -29,6 +29,22 @@ E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"
 SearchPolicy = Literal["empty", "hydrate_private"]
 DEFAULT_SEARCH_POLICY: SearchPolicy = "hydrate_private"
 _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
+_PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
+_SERIAL_BRIDGE_READY_CAP_SEC = 60.0
+
+
+def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
+    """Parallel SHPOIB hydrate queue can defer React mount beyond 60s."""
+    from dev_gate_contract import shared_ui_hydrate_wait_sec
+    from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+    if parallel_shared_ui_hydrate_queue_enabled():
+        parallel_cap = min(
+            _PARALLEL_BRIDGE_READY_CAP_SEC, float(shared_ui_hydrate_wait_sec())
+        )
+        return min(parallel_cap, timeout_sec)
+    return min(_SERIAL_BRIDGE_READY_CAP_SEC, timeout_sec)
+
 
 RESET_GLOBALS_JS = """(() => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
@@ -347,7 +363,7 @@ async def apply_shared_ui_session_contract(
 
     resolved_api = _normalize_api_url(api_url or get_e2e_api_url())
 
-    bridge_timeout = min(60.0, timeout_sec)
+    bridge_timeout = _resolve_bridge_ready_timeout_sec(timeout_sec)
     if deadline is not None:
         bridge_timeout = min(bridge_timeout, max(0.0, deadline - time.monotonic()))
     if bridge_timeout <= 0:

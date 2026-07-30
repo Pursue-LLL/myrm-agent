@@ -175,6 +175,29 @@ async def generate_cancellable_stream(
             session.collector.feed_event(surface_gap_event)
             yield SSEEnvelope.from_any(surface_gap_event).to_sse_chunk()
 
+    if session.request.resume_value is None and isinstance(session.extra_context, dict):
+        still_warming = bool(session.extra_context.get("turn_prewarm_still_warming"))
+        brief_status = session.extra_context.get("memory_brief_status")
+        if still_warming:
+            agent_warm_event: dict[str, object] = {
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "turn_prewarm_agent",
+                "status": "waiting",
+            }
+            session.collector.feed_event(agent_warm_event)
+            yield SSEEnvelope.from_any(agent_warm_event).to_sse_chunk()
+
+        if isinstance(brief_status, dict) and brief_status.get("reason") == "brief_pending":
+            brief_warm_event: dict[str, object] = {
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "turn_prewarm_memory",
+                "status": "waiting",
+            }
+            session.collector.feed_event(brief_warm_event)
+            yield SSEEnvelope.from_any(brief_warm_event).to_sse_chunk()
+
     await session.monitor.start()
 
     if isinstance(session.params.query, list) and session.request.resume_value is None:

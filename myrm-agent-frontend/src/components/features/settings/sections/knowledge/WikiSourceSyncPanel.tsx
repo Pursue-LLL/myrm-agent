@@ -70,6 +70,8 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
         {
           gmail_enabled: status.config.gmail_enabled,
           gmail_label: status.config.gmail_label,
+          gdrive_enabled: status.config.gdrive_enabled,
+          gdrive_folder_id: status.config.gdrive_folder_id,
           rss_feeds: feeds,
           auto_compile: status.config.auto_compile,
           max_items_per_run: status.config.max_items_per_run,
@@ -118,6 +120,10 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
     syncState.last_errors[0] ??
     (syncState.total_failed > 0 ? t('syncIssueGeneric') : null);
 
+  const needsGoogleReconnect = !status.google_connected;
+  const needsDriveReconnect =
+    status.config.gdrive_enabled && status.google_connected && !status.google_drive_authorized;
+
   return (
     <Card className="border-border/60 bg-card/50">
       <CardHeader className="pb-3">
@@ -138,6 +144,9 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
         )}
         {syncIssue ? (
           <p className="text-xs text-destructive/90">{t('syncIssue', { detail: syncIssue })}</p>
+        ) : null}
+        {needsDriveReconnect ? (
+          <p className="text-xs text-destructive/90">{t('googleDriveReconnectHint')}</p>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -172,6 +181,46 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
                 setStatus((prev) =>
                   prev
                     ? { ...prev, config: { ...prev.config, gmail_label: event.target.value } }
+                    : prev,
+                )
+              }
+            />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="wiki-gdrive-enabled">{t('gdriveLabel')}</Label>
+            <p className="text-xs text-muted-foreground">
+              {status.google_connected ? t('googleConnected') : t('googleDisconnected')}
+            </p>
+          </div>
+          <Switch
+            id="wiki-gdrive-enabled"
+            checked={status.config.gdrive_enabled}
+            disabled={!status.google_connected}
+            onCheckedChange={(checked) =>
+              setStatus((prev) =>
+                prev
+                  ? { ...prev, config: { ...prev.config, gdrive_enabled: checked } }
+                  : prev,
+              )
+            }
+          />
+        </div>
+
+        {status.config.gdrive_enabled && (
+          <div className="space-y-2">
+            <Label htmlFor="wiki-gdrive-folder">{t('gdriveFolderLabel')}</Label>
+            <p className="text-xs text-muted-foreground">{t('gdriveFolderHint')}</p>
+            <Input
+              id="wiki-gdrive-folder"
+              value={status.config.gdrive_folder_id}
+              placeholder={t('gdriveFolderPlaceholder')}
+              onChange={(event) =>
+                setStatus((prev) =>
+                  prev
+                    ? { ...prev, config: { ...prev.config, gdrive_folder_id: event.target.value } }
                     : prev,
                 )
               }
@@ -225,9 +274,9 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
           <Button type="button" size="sm" disabled={syncing} onClick={() => void handleSync()}>
             {syncing ? t('syncing') : t('syncNow')}
           </Button>
-          {onGoToIntegrations && !status.google_connected && (
+          {onGoToIntegrations && (needsGoogleReconnect || needsDriveReconnect) && (
             <Button type="button" variant="outline" size="sm" onClick={onGoToIntegrations}>
-              {t('connectGoogle')}
+              {needsDriveReconnect ? t('reconnectGoogleDrive') : t('connectGoogle')}
             </Button>
           )}
         </div>

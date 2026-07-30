@@ -58,12 +58,16 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
     surface,
     snapshotStatus,
     resourceUri,
+    claimStatus,
+    claimText,
   }: {
     open: boolean;
     level?: string;
     surface?: string;
     snapshotStatus?: string;
     resourceUri?: string;
+    claimStatus?: string;
+    claimText?: string;
   }) => (
     <div
       data-testid="kb-drawer"
@@ -72,6 +76,8 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
       data-surface={surface ?? ''}
       data-snapshot-status={snapshotStatus ?? ''}
       data-resource-uri={resourceUri ?? ''}
+      data-claim-status={claimStatus ?? ''}
+      data-claim-text={claimText ?? ''}
     />
   ),
 }));
@@ -149,5 +155,64 @@ describe('MarkdownContent wiki evidence flow', () => {
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-snapshot-status')).toBe('stale');
     expect(drawer.getAttribute('data-resource-uri')).toBe('raw/budget.md@sha256:deadbeef');
+  });
+
+  it('opens kb drawer with claim_status for contested claim evidence', () => {
+    const sources: Source[] = [
+      {
+        index: 1,
+        type: 'knowledge',
+        kb_name: 'LLM-Wiki',
+        filename: 'budget',
+        section: 'Claim',
+        snippet: 'Disputed budget line',
+        level: 'L2',
+        claim_status: 'contested',
+        snapshot_status: 'verified',
+      },
+    ];
+
+    render(
+      <MarkdownContent
+        content="Answer with evidence <citation data-source-index='0' data-num='1' />"
+        sources={sources}
+        messageId="msg-contested"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('1'));
+
+    const drawer = screen.getByTestId('kb-drawer');
+    expect(drawer.getAttribute('data-open')).toBe('1');
+    expect(drawer.getAttribute('data-claim-status')).toBe('contested');
+  });
+
+  it('opens kb drawer with claim_text when structured claim differs from excerpt', () => {
+    const sources: Source[] = [
+      {
+        index: 1,
+        type: 'knowledge',
+        kb_name: 'LLM-Wiki',
+        filename: 'budget',
+        section: 'Claim',
+        snippet: 'line two\nline three',
+        claim_text: 'Budget fact',
+        level: 'L2',
+      },
+    ];
+
+    render(
+      <MarkdownContent
+        content="Answer with evidence <citation data-source-index='0' data-num='1' />"
+        sources={sources}
+        messageId="msg-claim-text"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('1'));
+
+    const drawer = screen.getByTestId('kb-drawer');
+    expect(drawer.getAttribute('data-open')).toBe('1');
+    expect(drawer.getAttribute('data-claim-text')).toBe('Budget fact');
   });
 });

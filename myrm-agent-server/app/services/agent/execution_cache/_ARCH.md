@@ -18,8 +18,9 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `fingerprint.py` | 核心 | `compute_execution_fingerprint`（MCP/skill version/harness epoch） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
+| `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |
 
-测试：`tests/services/agent/execution_cache/`（registry 单测 + stream_pipeline 集成测 2msg1build）。Chrome WebUI E2E：`tests/e2e/test_execution_cache_chrome_e2e.py`（`scripts/dev/lib/cdp_chat_ui.py` + CDP `json/new` 新 tab；前置 `./myrm ready --chrome` + backend log 断言 cache）。
+测试：`tests/services/agent/execution_cache/`（registry + prewarm coordinator）· `tests/api/agent/test_prewarm_api.py` · Chrome E2E `tests/e2e/test_execution_cache_chrome_e2e.py`（prewarm log + 2msg1build）。
 
 ---
 

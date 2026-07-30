@@ -220,8 +220,10 @@ class McpChatSession(CdpChatSession):
             return
         try:
             await self.evaluate(inject_js, await_promise=False, recv_timeout=15.0)
-        except RuntimeError:
-            pass
+        except RuntimeError as exc:
+            if is_target_closed_error(exc) or is_page_ownership_error(exc):
+                raise
+            _LOGGER.warning("E2E_API_BASE_INJECT_WARN: %s", str(exc)[:200])
 
     async def _heal_reclaimed_page(self) -> None:
         async def _try_reclaim() -> McpPage:

@@ -42,6 +42,7 @@ class VerifyBackendSeedResult:
     runtime_id: str
     api_base: str
     detail: str
+    owner_token: str = ""
 
 
 def _ensure_scripts_dev_importable(monorepo: Path) -> Path:
@@ -86,6 +87,7 @@ def _count_active_backend_only() -> int:
     from isolated_runtime_registry import (  # noqa: PLC0415
         ACTIVE_PHASES,
         owner_is_active,
+        process_is_alive,
         read_registry,
     )
 
@@ -101,6 +103,9 @@ def _count_active_backend_only() -> int:
         if not record.get("backendOnly"):
             continue
         if record["phase"] not in ACTIVE_PHASES:
+            continue
+        owner_pid = int(record.get("ownerPid") or 0)
+        if not process_is_alive(owner_pid):
             continue
         if owner_is_active(record):
             count += 1
@@ -303,6 +308,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             runtime_id=runtime_id,
             api_base=api_base,
             detail=str(exc),
+            owner_token=owner_token,
         )
 
     return VerifyBackendSeedResult(
@@ -310,4 +316,5 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         runtime_id=runtime_id,
         api_base=api_base.rstrip("/"),
         detail="seeded backend-only runtime for verify-api",
+        owner_token=owner_token,
     )

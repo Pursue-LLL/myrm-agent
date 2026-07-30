@@ -11,7 +11,7 @@ source_fingerprint matches the workspace fingerprint. Fail-closed when no match.
 
 [OUTPUT]
 - resolve_e2e_api_context / resolve_verify_api_base
-- CLI: context-json, verify-api (proxy curl; optional --ensure-backend seed)
+- CLI: context-json, context-human, launch-check, verify-api (proxy curl; optional --ensure-backend seed)
 
 [POS]
 Agent-facing SSOT for API verification — eliminates stale :8080 / stale private pool false results.
@@ -583,18 +583,26 @@ def _cap_headroom_fields(
             ),
             live_agent_shared_hot=0,
             read_page=0,
+            effective_total=int(getattr(lease_counts, "total", lease_counts)),
+            effective_live_agent_shpoib=int(
+                getattr(lease_counts, "live_agent_shpoib", lease_counts)
+            ),
+            effective_live_agent_shared_hot=0,
+            effective_read_page=0,
         )
     )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", MUX_COLD_ATTACH_SLOTS))
     queue_expected, queue_reasons = _compute_queue_state(
-        live_agent_shpoib_count=counts.live_agent_shpoib,
+        live_agent_shpoib_count=counts.effective_live_agent_shpoib,
         mux_fields=mux_fields,
         parallel_snapshot=parallel_snapshot,
     )
     return {
         "waveLeasesActive": counts.total,
+        "waveLeasesEffective": counts.effective_total,
         "liveAgentShpoibLeases": counts.live_agent_shpoib,
+        "liveAgentShpoibLeasesEffective": counts.effective_live_agent_shpoib,
         "liveAgentSharedHotLeases": counts.live_agent_shared_hot,
         "readPageLeases": counts.read_page,
         "shpoibMaxConcurrent": LIVE_SHPOIB_MAX_CONCURRENT,
@@ -629,9 +637,12 @@ def _format_cap_headroom_human(
         reason_note = f" queue_reasons={','.join(str(item) for item in reasons)}"
     return (
         "E2E_CAP_HEADROOM: "
-        f"live_agent_shpoib={headroom['liveAgentShpoibLeases']}/{headroom['shpoibMaxConcurrent']} "
+        f"live_agent_shpoib={headroom['liveAgentShpoibLeasesEffective']}/"
+        f"{headroom['shpoibMaxConcurrent']} "
+        f"(raw_shpoib={headroom['liveAgentShpoibLeases']}) "
         f"read_page_leases={headroom['readPageLeases']} "
-        f"wave_leases_total={headroom['waveLeasesActive']} "
+        f"wave_leases_effective={headroom['waveLeasesEffective']} "
+        f"wave_leases_raw={headroom['waveLeasesActive']} "
         f"shared_hot_max={headroom['sharedHotMaxConcurrent']} "
         f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
         f"active_tests={active_test_count} queue_expected={queue}{reason_note} "
@@ -737,6 +748,21 @@ def _compute_next_action(
     return "READY"
 
 
+def _compute_stack_reuse(ctx: E2eApiContext, *, next_action: str) -> str:
+    """Machine-readable stack reuse hint for Agent (browser-mcp §1b SSOT)."""
+    if next_action == "SHPOIB_OR_VERIFY_API":
+        return "verify_api"
+    if ctx.epoch_match:
+        return "attach"
+    if ctx.active_leases > 0:
+        return "defer_parallel"
+    if next_action == "RESTART_WHEN_IDLE":
+        return "restart_when_idle"
+    if ctx.blocked:
+        return "verify_api"
+    return "restart_when_idle"
+
+
 def _format_agent_decision_human(
     *,
     ctx: E2eApiContext,
@@ -757,6 +783,7 @@ def _format_agent_decision_human(
     )
     lines = [
         f"NEXT_ACTION={next_action}",
+        f"E2E_STACK_REUSE={_compute_stack_reuse(ctx, next_action=next_action)}",
         f"AGENT_NEVER_SAY={AGENT_NEVER_SAY}",
     ]
     batch_rows = [row for row in active_tests if row.get("batch_mode") is True]
@@ -893,9 +920,13 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
     try:
-        from e2e_stale_lease_reap import maybe_reap_hung_chrome_e2e_pytest
+        from e2e_stale_lease_reap import (
+            maybe_reap_excess_wave_leases,
+            maybe_reap_stale_heartbeat_leases,
+        )
 
-        maybe_reap_hung_chrome_e2e_pytest()
+        maybe_reap_stale_heartbeat_leases()
+        maybe_reap_excess_wave_leases()
     except ImportError:
         pass
     from e2e_lease_liveness import (  # noqa: PLC0415
@@ -914,7 +945,8 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         "E2E_VERIFY_API="
         f"{ctx.verify_api_base} "
         f"(shared={ctx.shared_api_base} drift_pending={drift_note} "
-        f"epoch_match={match_note} wave_leases_total={ctx.active_leases} source={ctx.source} "
+        f"epoch_match={match_note} wave_leases_total={ctx.active_leases} "
+        f"wave_leases_effective={counts.effective_total} source={ctx.source} "
         f"blocked={'yes' if ctx.blocked else 'no'})\n"
     )
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
@@ -941,6 +973,24 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"saturated={'yes' if mux_fields['muxColdAttachSaturated'] else 'no'} "
         f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
     )
+    try:
+        from e2e_wave_capacity import capacity_snapshot
+
+        wave_cap = capacity_snapshot()
+        wave_active = int(wave_cap.get("activeWeight", 0))
+        wave_max = int(wave_cap.get("maxSlots", 0))
+        wave_sat = "yes" if wave_cap.get("saturated") else "no"
+        wave_wait = sum(
+            1
+            for item in active_tests
+            if str(item.get("current_node", "")) == "E2E_WAVE_CAPACITY_WAIT"
+        )
+        sys.stdout.write(
+            f"E2E_WAVE_CAPACITY={wave_active}/{wave_max} saturated={wave_sat} "
+            f"wave_capacity_wait_count={wave_wait}\n"
+        )
+    except ImportError:
+        pass
     sys.stdout.write(
         _format_cap_headroom_human(
             lease_counts=counts,
@@ -1065,6 +1115,14 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
     return proc.returncode
 
 
+def _cmd_launch_check(_args: argparse.Namespace) -> int:
+    from e2e_launch_gate import assert_chrome_e2e_launch_allowed  # noqa: PLC0415
+
+    assert_chrome_e2e_launch_allowed()
+    sys.stdout.write("E2E_LAUNCH_OK\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1074,6 +1132,9 @@ def main(argv: list[str] | None = None) -> int:
 
     ctx_human = sub.add_parser("context-human")
     ctx_human.set_defaults(handler=_cmd_context_human)
+
+    launch_check = sub.add_parser("launch-check")
+    launch_check.set_defaults(handler=_cmd_launch_check)
 
     verify = sub.add_parser("verify-api")
     verify.add_argument("method", choices=("GET", "POST", "PUT", "PATCH", "DELETE"))

@@ -1,8 +1,5 @@
 """Stream Pipeline for GeneralAgent.
 
-This module extracts the complex process_stream logic from GeneralAgent,
-keeping the facade class clean.
-
 [INPUT]
 - app.core.utils.delivery_provenance::resolve_general_agent_pipeline_labels, apply_delivery_banner (POS: Human ingress banner + structured log labels keyed by channel_name.)
 - app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware::reset_answer_tool_convergence (POS: 工具约束中间件的收敛状态重置)
@@ -177,8 +174,35 @@ async def execute_stream_pipeline(
                     )
                     return capture_built_unit(agent_wrapper, skill_agent)
 
-                unit = await execution_cache.acquire(scope_key, fingerprint, build_unit)
+                from app.services.agent.execution_cache.prewarm.coordinator import (
+                    get_turn_prewarm_coordinator,
+                )
+
+                unit = await get_turn_prewarm_coordinator().coalesced_acquire(
+                    scope_key,
+                    fingerprint,
+                    build_unit,
+                )
                 apply_built_unit(agent_wrapper, unit)
+                if isinstance(extra_context, dict):
+                    if extra_context.get("turn_prewarm_still_warming"):
+                        yield {
+                            "type": "status",
+                            "messageId": message_id,
+                            "step_key": "turn_prewarm_agent_clear",
+                            "status": "success",
+                        }
+                    brief_status = extra_context.get("memory_brief_status")
+                    if (
+                        isinstance(brief_status, dict)
+                        and brief_status.get("reason") == "brief_pending"
+                    ):
+                        yield {
+                            "type": "status",
+                            "messageId": message_id,
+                            "step_key": "turn_prewarm_memory_clear",
+                            "status": "success",
+                        }
             else:
                 agent_wrapper.agent = await build_general_agent(
                     agent_wrapper,
@@ -353,16 +377,11 @@ async def execute_stream_pipeline(
                         await mark_thread_failed(agent_wrapper._current_thread_id)
                     raise
                 finally:
-                    try:
-                        session_id_var.reset(token)
-                    except ValueError:
-                        pass
-
-                    try:
-                        resolved_skill_versions_var.reset(version_token)
-                    except ValueError:
-                        pass
-
+                    for _var, _tok in ((session_id_var, token), (resolved_skill_versions_var, version_token)):
+                        try:
+                            _var.reset(_tok)
+                        except ValueError:
+                            pass
                     if (
                         task_completed
                         and agent_wrapper._checkpoint_helper

@@ -7327,6 +7327,12 @@
     "media_rejected_recovery": "模型拒绝媒体输入 — 已移除并重试",
     "allowed_tools_rejected_recovery": "网关已自动调整工具策略并重试",
     "transient_retry": "服务暂时不可用，正在重试...",
+    "turn_prewarm_agent": "正在准备 Agent 执行上下文",
+    "turn_prewarm_agent_clear": "Agent 已就绪",
+    "turn_prewarm_memory": "正在加载记忆简报",
+    "turn_prewarm_memory_clear": "记忆初始化完成",
+    "wiki_knowledge_lane": "正在查询 Wiki 知识库",
+    "wiki_knowledge_lane_clear": "Wiki 答案已就绪",
     "consensus_active": "多模型共识推理进行中",
     "consensus_reference_done": "参考模型已完成",
     "workflow_init": "正在初始化动态工作流",
@@ -13446,7 +13452,14 @@
   "milestone": {
     "title": "里程碑",
     "add": "添加里程碑",
-    "addPlaceholder": "里程碑标题"
+    "addPlaceholder": "里程碑标题",
+    "importAction": "导入评估工件",
+    "importing": "导入中...",
+    "importPlaceholder": "工件 ID",
+    "importArtifactRequired": "请输入工件 ID",
+    "importSuccess": "已导入 {milestones} 个里程碑和 {tasks} 个任务",
+    "importFailed": "导入评估工件失败",
+    "importReceipt": "最近一次导入：{milestones} 个里程碑 / {tasks} 个任务"
   },
   "cliAgent": {
     "modeAgent": "AI 智能体",

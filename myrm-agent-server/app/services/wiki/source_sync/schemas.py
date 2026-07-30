@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 class WikiSourceSyncConfig(BaseModel):
     gmail_enabled: bool = False
     gmail_label: str = Field(default="ReadLater", max_length=128)
+    gdrive_enabled: bool = False
+    gdrive_folder_id: str = Field(default="root", max_length=256)
     rss_feeds: list[str] = Field(default_factory=list, max_length=32)
     auto_compile: bool = True
     max_items_per_run: int = Field(default=10, ge=1, le=50)

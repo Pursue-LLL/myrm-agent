@@ -867,9 +867,16 @@ def file_write_tool_call_count(
     *,
     api_url: str | None = None,
     tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> int:
     count = 0
-    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+    for msg in fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    ):
         if not isinstance(msg, dict):
             continue
         tool_calls = msg.get("tool_calls")
@@ -889,10 +896,19 @@ def file_write_tool_invoked_in_messages(
     *,
     api_url: str | None = None,
     tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> bool:
     """SSOT: real tool invoke from assistant/tool messages — never user prompt text."""
     return (
-        file_write_tool_call_count(chat_id, api_url=api_url, tool_name=tool_name) >= 1
+        file_write_tool_call_count(
+            chat_id,
+            api_url=api_url,
+            tool_name=tool_name,
+            timeout_sec=timeout_sec,
+            max_attempts=max_attempts,
+        )
+        >= 1
     )
 
 
@@ -902,12 +918,23 @@ def empty_write_failure_in_messages(
     api_url: str | None = None,
     tool_name: str = FILE_WRITE_TOOL_E2E_NAME,
     empty_error: str = EMPTY_FILE_WRITE_ERROR,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> tuple[bool, bool]:
     tool_invoked = file_write_tool_invoked_in_messages(
-        chat_id, api_url=api_url, tool_name=tool_name
+        chat_id,
+        api_url=api_url,
+        tool_name=tool_name,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
     )
     has_mutation_failure = False
-    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+    for msg in fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    ):
         if not isinstance(msg, dict):
             continue
         role = str(msg.get("role") or "")
@@ -2328,3 +2355,15 @@ def count_execution_cache_in_log(*, since_offset: int) -> tuple[int, int]:
     created = text.count("execution_cache_created")
     reused = text.count("execution_cache_reuse")
     return created, reused
+
+
+def count_turn_prewarm_in_log(*, since_offset: int) -> int:
+    """Count ``Turn prewarm requested`` log lines (EmptyChat / focus proactive warm)."""
+    path = backend_log_path()
+    if not path.is_file():
+        return 0
+    with path.open("rb") as handle:
+        handle.seek(since_offset)
+        chunk = handle.read()
+    text = chunk.decode("utf-8", errors="replace")
+    return text.count("Turn prewarm requested")

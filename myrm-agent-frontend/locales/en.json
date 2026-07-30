@@ -7327,6 +7327,12 @@
     "media_rejected_recovery": "Model rejected media — removed and retrying",
     "allowed_tools_rejected_recovery": "Gateway adjusted tool policy and retried",
     "transient_retry": "Service temporarily unavailable, retrying...",
+    "turn_prewarm_agent": "Preparing agent execution context",
+    "turn_prewarm_agent_clear": "Agent ready",
+    "turn_prewarm_memory": "Loading memory brief",
+    "turn_prewarm_memory_clear": "Memory initialization complete",
+    "wiki_knowledge_lane": "Querying wiki knowledge base",
+    "wiki_knowledge_lane_clear": "Wiki answer ready",
     "consensus_active": "Multi-model consensus in progress",
     "consensus_reference_done": "Reference model completed",
     "workflow_init": "Initializing Dynamic Workflow",
@@ -13887,7 +13893,14 @@
   "milestone": {
     "title": "Milestones",
     "add": "Add milestone",
-    "addPlaceholder": "Milestone title"
+    "addPlaceholder": "Milestone title",
+    "importAction": "Import assessment artifact",
+    "importing": "Importing...",
+    "importPlaceholder": "Artifact ID",
+    "importArtifactRequired": "Artifact ID is required",
+    "importSuccess": "Imported {milestones} milestones and {tasks} tasks",
+    "importFailed": "Failed to import assessment artifact",
+    "importReceipt": "Last import: {milestones} milestones / {tasks} tasks"
   },
   "cliAgent": {
     "modeAgent": "AI Agent",

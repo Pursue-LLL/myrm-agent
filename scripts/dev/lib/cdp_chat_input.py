@@ -182,9 +182,7 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def _heal_empty_chat_shell_for_bridge(self) -> None:
         """Re-navigate when CDP page lost chat shell (blank / no input / no bridge)."""
-        ui_base = (
-            getattr(self, "_base_url", None) or get_e2e_ui_url()
-        ).rstrip("/")
+        ui_base = (getattr(self, "_base_url", None) or get_e2e_ui_url()).rstrip("/")
         await self._shared_ui_burst(
             "navigate",
             self.cdp(
@@ -203,6 +201,13 @@ class CdpChatInput(CdpChatBootstrap):
         probe: object = None
         while time.monotonic() < deadline:
             polls += 1
+            if polls % 5 == 0:
+                try:
+                    from e2e_session_lifecycle import touch_wall_progress
+
+                    touch_wall_progress(current_node="ensure_react_e2e_bridge")
+                except ImportError:
+                    pass
             await self.dismiss_modals()
             await self.ensure_e2e_api_base_binding()
             # Never install DOM fallback here — E2E_BRIDGE_INSTALL_JS would overwrite

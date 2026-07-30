@@ -686,8 +686,14 @@ class ChromeMcpClient:
                 if isinstance(last_observed, dict)
                 else str(last_observed)
             )
-            transient = "Failed to fetch" in error_text or "fetch" in error_text.lower()
-            if attempt + 1 < max_binding_attempts and transient and api_base:
+            fetch_transient = (
+                "Failed to fetch" in error_text or "fetch" in error_text.lower()
+            )
+            page_transient = "Target closed" in error_text or "No page found" in error_text
+            if attempt + 1 < max_binding_attempts and page_transient:
+                time.sleep(4.0 * (attempt + 1))
+                continue
+            if attempt + 1 < max_binding_attempts and fetch_transient and api_base:
                 wait_e2e_provider_ready(
                     api_url=api_base, timeout_sec=bootstrap_timeout_sec
                 )
@@ -1071,6 +1077,11 @@ class ChromeMcpClient:
                     target_url = (resolved.url or "http://127.0.0.1:3000").strip()
                     self.navigate(resolved, target_url, timeout_ms=60_000)
                     resolved = self._resolve_page(page)
+                    continue
+                if reload_attempt < 2 and (
+                    "Target closed" in message or "No page found" in message
+                ):
+                    resolved = self.reclaim_owned_page(resolved)
                     continue
                 raise
         raise RuntimeError("Chrome MCP evaluate exhausted reload attempts")

@@ -7,10 +7,17 @@ status transitions, progress calculation, and roadmap summary through the HTTP l
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import httpx
 import pytest
 from httpx import ASGITransport
+from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
+from app.database.connection import get_session
+from app.database.models.artifact import Artifact, ArtifactVersion
+from app.database.models.kanban import KanbanBoardModel, KanbanTaskModel
+from app.platform_utils.workspace_root import get_workspace_root
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="projects")
@@ -34,6 +41,38 @@ async def _create_project(client: httpx.AsyncClient, name: str = "Test Project")
     assert resp.status_code == 200, f"Got {resp.status_code}: {resp.text}"
     data = resp.json()
     return data["data"]["project"]
+
+
+async def _seed_artifact_with_markdown(markdown: str, *, chat_id: str | None = None) -> str:
+    artifact_id = str(uuid4())
+    version_id = str(uuid4())
+    object_id = uuid4().hex
+    vault = ArtifactVault(get_workspace_root())
+    object_path = vault.get_object_path(object_id)
+    object_path.parent.mkdir(parents=True, exist_ok=True)
+    object_path.write_text(markdown, encoding="utf-8")
+
+    async with get_session() as db:
+        db.add(
+            Artifact(
+                id=artifact_id,
+                name="Assessment Artifact",
+                chat_id=chat_id,
+                description="",
+                is_deleted=False,
+            )
+        )
+        db.add(
+            ArtifactVersion(
+                id=version_id,
+                artifact_id=artifact_id,
+                vault_uri=f"vault://{object_id}",
+                sha256_hash="0" * 64,
+                commit_message="seed",
+            )
+        )
+        await db.commit()
+    return artifact_id
 
 
 class TestMilestoneCRUD:
@@ -104,6 +143,55 @@ class TestMilestoneCRUD:
         assert len(roadmap["activeMilestones"]) == 2
 
     @pytest.mark.asyncio
+    async def test_milestone_progress_counts_completed_status(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Progress Status Test")
+        create_resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones",
+            json={"title": "Execution Phase"},
+        )
+        milestone = create_resp.json()["data"]["milestone"]
+
+        board_id = "boardms001"
+        async with get_session() as db:
+            db.add(
+                KanbanBoardModel(
+                    id=board_id,
+                    name="Project Board",
+                    description="",
+                    project_id=project["id"],
+                    milestone_id=milestone["id"],
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id="taskms001",
+                    board_id=board_id,
+                    title="Completed task",
+                    description="",
+                    status="completed",
+                    priority="normal",
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id="taskms002",
+                    board_id=board_id,
+                    title="Pending task",
+                    description="",
+                    status="ready",
+                    priority="normal",
+                )
+            )
+            await db.commit()
+
+        resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/{milestone['id']}/progress")
+        assert resp.status_code == 200
+        progress = resp.json()["data"]["progress"]
+        assert progress["totalTasks"] == 2
+        assert progress["completedTasks"] == 1
+        assert progress["progress"] == 50.0
+
+    @pytest.mark.asyncio
     async def test_invalid_status_returns_error(self, async_client: httpx.AsyncClient) -> None:
         project = await _create_project(async_client, "Validation Test")
         create_resp = await async_client.post(f"{PREFIX}/{project['id']}/milestones", json={"title": "Test"})
@@ -126,3 +214,52 @@ class TestMilestoneCRUD:
         updated = resp.json()["data"]["project"]
         assert updated["description"] == "Competitive analysis project"
         assert updated["goalSummary"] == "Collecting Q3 data"
+
+    @pytest.mark.asyncio
+    async def test_import_assessment_artifact_creates_milestones_and_tasks(
+        self,
+        async_client: httpx.AsyncClient,
+    ) -> None:
+        project = await _create_project(async_client, "Import Assessment Test")
+        artifact_id = await _seed_artifact_with_markdown(
+            """
+## Milestone Alpha
+Phase one execution scope.
+- [ ] Define architecture baseline
+- [ ] Implement API adapter
+
+## Milestone Beta
+Phase two execution scope.
+- [ ] Add frontend integration
+""",
+            chat_id="chat-import-seed",
+        )
+
+        resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones/import-assessment",
+            json={"artifact_id": artifact_id},
+        )
+        assert resp.status_code == 200
+        receipt = resp.json()["data"]["receipt"]
+        assert receipt["total_milestones"] == 2
+        assert receipt["total_tasks"] == 3
+        imported = receipt["imported_milestones"]
+        assert len(imported) == 2
+
+        for row in imported:
+            progress_resp = await async_client.get(
+                f"{PREFIX}/{project['id']}/milestones/{row['milestone_id']}/progress"
+            )
+            assert progress_resp.status_code == 200
+            progress = progress_resp.json()["data"]["progress"]
+            assert progress["totalTasks"] == row["task_count"]
+            assert progress["completedTasks"] == 0
+
+    @pytest.mark.asyncio
+    async def test_import_assessment_artifact_missing_returns_404(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Missing Artifact Test")
+        resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones/import-assessment",
+            json={"artifact_id": "nonexistent-artifact"},
+        )
+        assert resp.status_code == 404

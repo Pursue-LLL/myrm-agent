@@ -12,11 +12,11 @@
 | `ClarificationInput.tsx` | 组件 | 结构化澄清表单（多题/多选/开放题）；选项提交 `option.id`，展示 `label`；resume 与 legacy clarify API 双路径 | ✅ |
 | `ConsensusMetaDisplay.tsx` | 组件 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
-| `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/Fork 新话题一键操作） | ✅ |
+| `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/focus/Pin CRUD/Fork 新话题） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（定时任务触发/结果摘要） | ✅ |
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
-| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer，并传递分层来源 level（L0/L1/L2）+ claim `snapshot_status` 三态 + wiki asset `hit_kind/asset_filename` 缩略图 + `contextKey(chat:<messageId>)` 用于证据语义展示与复问口径隔离。 | ✅ |
+| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer，并传递分层来源 level（L0/L1/L2）+ claim `snapshot_status` 三态 + `claim_status` + `claim_confidence` + `claim_text` + wiki asset `hit_kind/asset_filename` 缩略图 + `contextKey(chat:<messageId>)` 用于证据语义展示与复问口径隔离。 | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 统一依据 Sheet（记忆引用 + web/mcp/历史会话来源） | ✅ |
 | `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏（发送前 Memory Brief + 结束后 budget/citation + brief 降级可见提示）；`brief` 缺失时根据 `injection` 状态与 `not_applied` 原因映射可执行文案（已注入/未注入/工具模式/系统回退），并显式展示 `source=preflight/runtime_fallback` 语义；移动端额外渲染非 hover 的说明文案，避免触屏端诊断信息不可达 | ✅ |
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
@@ -24,7 +24,7 @@
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存/统一依据按钮 | ✅ |
 | `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支；`ReasoningBlock` 遵循全局 `reasoningDisplayMode`（off/collapsed/inline）控制显示形态；当用户对含 KB 证据的回答执行 Regenerate 或 Undo 时上报 `quality_outcome_negative` 质量锚点事件。 | ✅ |
 | `MessageBoxLoading.tsx` | 辅助 | 流式生成中 assistant 气泡 loading 态 | ✅ |
-| `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section + 分层来源标签（L0/L1/L2）+ compile snapshot 三态（verified/stale/missing）+ wiki asset 缩略图与分段渲染；按 `surface(chat/settings)` + `contextKey` 记录证据展开与核验停留时长埋点。 | ✅ |
+| `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section + 分层来源标签（L0/L1/L2）+ compile snapshot 三态（verified/stale/missing）+ claim `claim_status` badge（仅 contested/unsupported）+ structured claim 与 evidence excerpt 分区 + wiki asset 缩略图与分段渲染；按 `surface(chat/settings)` + `contextKey` 记录证据展开与核验停留时长埋点。 | ✅ |
 | `MessageToc.tsx` | 组件 | 长 assistant 消息目录导航（heading anchor） | ✅ |
 | `QuoteToolbar.tsx` | 组件 | 文本选中引用工具条（Quote 回复） | ✅ |
 | `Suggestions.tsx` | 组件 | 回合结束 follow-up 建议 chips | ✅ |

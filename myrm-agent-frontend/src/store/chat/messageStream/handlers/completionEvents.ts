@@ -113,6 +113,18 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
           if (data.consensus_meta) {
             state.messages[messageIndex].consensusMeta = data.consensus_meta;
           }
+
+          if (typeof data.execution_lane === 'string' && data.execution_lane) {
+            state.messages[messageIndex].executionLane = data.execution_lane;
+          }
+
+          if (typeof data.wiki_confidence_score === 'number') {
+            state.messages[messageIndex].wikiConfidenceScore = data.wiki_confidence_score;
+          }
+
+          if (typeof data.wiki_source_count === 'number') {
+            state.messages[messageIndex].wikiSourceCount = data.wiki_source_count;
+          }
         }
 
         state.loading = false;

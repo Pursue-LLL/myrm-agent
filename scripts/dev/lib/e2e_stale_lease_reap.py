@@ -8,6 +8,7 @@
 [OUTPUT]
 - maybe_reap_excess_wave_leases: run wave reap when leases exceed live tests + slack
 - maybe_reap_hung_chrome_e2e_pytest: SIGINT hung BODY tests + wave reap (body≥600 hard wall · progress_stale≥90 when body<600 · E2E_NODE_STUCK on transport nodes)
+- maybe_reap_stale_heartbeat_leases: expire hb-stale leases (dead owner · no linked pytest · linked without healthy BODY)
 
 [POS]
 Admission queue relief — stale/hung leases inflate cap pressure under parallel chrome_e2e.
@@ -46,27 +47,31 @@ def _process_has_signoff_env(pid: int) -> bool:
 
 
 def _admit_wall_cap_for_pid(pid: int) -> float:
-    """ADMIT hung-reap cap: signoff child 300s · dev chrome_e2e 900s (R149)."""
-    if _process_has_signoff_env(pid):
-        from dev_gate_contract import E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC  # noqa: PLC0415
+    """ADMIT hung-reap cap aligned with admit_wall_clock_sec SSOT."""
+    import os
 
-        return float(E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC)
     from dev_gate_contract import admit_wall_clock_sec  # noqa: PLC0415
 
+    if _process_has_signoff_env(pid):
+        prior = os.environ.get("E2E_SIGNOFF")
+        os.environ["E2E_SIGNOFF"] = "1"
+        try:
+            return float(admit_wall_clock_sec())
+        finally:
+            if prior is None:
+                os.environ.pop("E2E_SIGNOFF", None)
+            else:
+                os.environ["E2E_SIGNOFF"] = prior
     return float(admit_wall_clock_sec())
 
 
 def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
     signoff = _process_has_signoff_env(row.pid)
-    if signoff:
-        # Signoff: only ADMIT stall below; defer BODY/bootstrap to signoff budgets.
-        pass
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
 
     stall_cap = shpoib_parallel_stall_progress_sec()
-    from transport_supervisor import live_agent_pytest_wall_cap_sec  # noqa: PLC0415
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         phase_elapsed_from_snapshot,
@@ -89,7 +94,22 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
                     "(E2E_ADMIT_STALL)"
                 )
             return None
+        if phase == "body":
+            body_elapsed_hard = body_elapsed_from_snapshot(snapshot)
+            if body_elapsed_hard is not None:
+                from dev_gate_contract import (  # noqa: PLC0415
+                    E2E_BODY_WALL_EXCEEDED_TOKEN,
+                    LIVE_AGENT_BODY_WALL_CLOCK_SEC,
+                )
+
+                body_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
+                if body_elapsed_hard >= body_cap:
+                    return (
+                        f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
+                        f"body_elapsed={int(body_elapsed_hard)}s>={int(body_cap)}s"
+                    )
         if signoff:
+            # Signoff: defer bootstrap/progress_stale only — BODY 600s hard wall above (R161).
             return None
         if phase == "bootstrap":
             from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
@@ -138,10 +158,12 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             return f"progress_stale={int(stale)}s>={int(stall_cap)}s"
         # R141: healthy body/bootstrap snapshot must not fall through to process_elapsed.
         return None
-    if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec(pessimistic_peers=True)):
+    from dev_gate_contract import LIVE_AGENT_PYTEST_WALL_CAP_SEC  # noqa: PLC0415
+
+    if row.elapsed_sec >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
         return (
             f"process_elapsed={int(row.elapsed_sec)}s>="
-            f"{live_agent_pytest_wall_cap_sec(pessimistic_peers=True)}s"
+            f"{LIVE_AGENT_PYTEST_WALL_CAP_SEC}s"
         )
     return None
 
@@ -172,8 +194,8 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
     return None
 
 
-def _healthy_body_sessions_active(*, skip_pid: int | None = None) -> bool:
-    """True when a peer has healthy BODY snapshot — defer wave reap after hung SIGINT."""
+def _session_row_is_healthy_body(row: LiveE2ESessionRow) -> bool:
+    """True when session has fresh BODY progress (peer defer guard)."""
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
@@ -182,25 +204,76 @@ def _healthy_body_sessions_active(*, skip_pid: int | None = None) -> bool:
     )
     from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
 
+    if row.phase != "body":
+        return False
+    snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
+    if snapshot is None:
+        return False
+    body_elapsed = body_elapsed_from_snapshot(snapshot)
+    if body_elapsed is None or body_elapsed >= 600.0:
+        return False
+    if node_stuck_reason_from_snapshot(snapshot) is not None:
+        return False
+    stale = progress_stale_sec(snapshot)
     stall_cap = shpoib_parallel_stall_progress_sec()
+    if stale is not None and stale >= stall_cap:
+        return False
+    return True
+
+
+def _linked_pytest_has_healthy_body(linked_pytest: str) -> bool:
+    for row in list_live_e2e_sessions():
+        if row.test_id != linked_pytest:
+            continue
+        return _session_row_is_healthy_body(row)
+    return False
+
+
+def _healthy_body_sessions_active(*, skip_pid: int | None = None) -> bool:
+    """True when a peer has healthy BODY snapshot — defer wave reap after hung SIGINT."""
     for row in list_live_e2e_sessions():
         if skip_pid is not None and row.pid == skip_pid:
             continue
-        if row.phase != "body":
-            continue
-        snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
-        if snapshot is None:
-            continue
-        body_elapsed = body_elapsed_from_snapshot(snapshot)
-        if body_elapsed is None or body_elapsed >= 600.0:
-            continue
-        if node_stuck_reason_from_snapshot(snapshot) is not None:
-            continue
-        stale = progress_stale_sec(snapshot)
-        if stale is not None and stale >= stall_cap:
-            continue
-        return True
+        if _session_row_is_healthy_body(row):
+            return True
     return False
+
+
+def maybe_reap_stale_heartbeat_leases() -> bool:
+    """Expire heartbeat-stale leases with no linked pytest or dead owner."""
+    from dev_gate_contract import E2E_STALE_HEARTBEAT_REAP_SEC  # noqa: PLC0415
+    from e2e_lease_liveness import build_lease_liveness, load_wave_snapshot  # noqa: PLC0415
+
+    active_tests = [
+        {"pid": row.pid, "test_id": row.test_id} for row in list_live_e2e_sessions()
+    ]
+    rows = build_lease_liveness(load_wave_snapshot(), active_tests=active_tests)
+    reaped = False
+    dev_dir = _monorepo_root() / "myrm-agent" / "scripts" / "dev"
+    if str(dev_dir) not in sys.path:
+        sys.path.insert(0, str(dev_dir))
+    from wave_orchestrator.core import expire_lease_watchdog  # noqa: PLC0415
+
+    for row in rows:
+        if not row.lease_id:
+            continue
+        hb_age = row.heartbeat_age_sec
+        if hb_age is None or hb_age < E2E_STALE_HEARTBEAT_REAP_SEC:
+            continue
+        if row.owner_alive and row.linked_pytest is not None:
+            if _linked_pytest_has_healthy_body(row.linked_pytest):
+                continue
+        print(
+            f"E2E_STALE_HEARTBEAT_REAP: lease={row.lease_id[:8]} "
+            f"hb_age={hb_age}s owner_alive={'yes' if row.owner_alive else 'no'} "
+            f"linked_pytest={row.linked_pytest or 'none'} "
+            "(do not stop other pytest)",
+            file=sys.stderr,
+            flush=True,
+        )
+        if expire_lease_watchdog(row.lease_id):
+            reaped = True
+    return reaped
 
 
 def _process_alive(pid: int) -> bool:
@@ -256,8 +329,12 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
             file=sys.stderr,
             flush=True,
         )
-        admit_stall = "E2E_ADMIT_STALL" in reason
-        if not _terminate_hung_pytest(row.pid, admit_stall=admit_stall):
+        from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+
+        force_kill = (
+            "E2E_ADMIT_STALL" in reason or E2E_BODY_WALL_EXCEEDED_TOKEN in reason
+        )
+        if not _terminate_hung_pytest(row.pid, admit_stall=force_kill):
             continue
         reaped = True
         time.sleep(0.5)
@@ -287,16 +364,18 @@ def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
         pass
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
-    from stack_mutation_policy import wave_active_lease_count
+    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
 
-    active_leases = wave_active_lease_count(root)
+    counts = wave_lease_counts(load_wave_snapshot())
+    active_leases = counts.effective_total
     active_tests = len(list_live_e2e_sessions())
     threshold = active_tests + max(0, int(slack))
     if active_leases <= threshold:
         return False
     wave_bin = root / "myrm-agent" / "scripts" / "dev" / "wave.sh"
     print(
-        f"E2E_STALE_LEASE_REAP: wave_leases={active_leases} "
+        f"E2E_STALE_LEASE_REAP: wave_leases_effective={active_leases} "
+        f"wave_leases_raw={counts.total} "
         f"active_tests={active_tests} threshold={threshold} "
         "(do not stop other pytest)",
         file=sys.stderr,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
 import { FileText, PencilSimple, FloppyDisk, X, ClockCounterClockwise, BookmarkSimple } from '@phosphor-icons/react';
@@ -67,12 +67,15 @@ function formatBookmarkTime(iso: string): string {
 
 export const CompactedSummaryView = () => {
   const t = useTranslations('chat.compactedSummary');
-  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta } = useChatStore(
+  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta, contextBranches, setContextBranches } =
+    useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
       compactedSummary: state.compactedSummary,
       setCompactedSummary: state.setCompactedSummary,
       lastCompactionMeta: state.lastCompactionMeta,
+      contextBranches: state.contextBranches,
+      setContextBranches: state.setContextBranches,
     })),
   );
 
@@ -84,41 +87,70 @@ export const CompactedSummaryView = () => {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archiveMessages, setArchiveMessages] = useState<Message[]>([]);
   const [isLoadingArchive, setIsLoadingArchive] = useState(false);
-  const [bookmarks, setBookmarks] = useState<ContextBranchRecord[]>([]);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
 
-  const loadBookmarks = useCallback(async () => {
+  const bookmarks = useMemo(
+    () => contextBranches.slice(-MAX_BOOKMARKS_DISPLAY).reverse(),
+    [contextBranches],
+  );
+
+  const loadBookmarks = useCallback(async (): Promise<ContextBranchRecord[]> => {
     const requestChatId = chatId;
     if (!requestChatId) {
-      setBookmarks([]);
-      return;
+      setContextBranches([]);
+      return [];
     }
     setBookmarksLoading(true);
     try {
       const branches = await listContextBranches(requestChatId);
       if (useChatStore.getState().chatId !== requestChatId) {
-        return;
+        return [];
       }
-      setBookmarks(branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse());
+      const next = branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse();
+      setContextBranches(branches);
+      return next;
     } catch (err) {
       console.error('[CompactedSummaryView] failed to load bookmarks', err);
       if (useChatStore.getState().chatId === requestChatId) {
-        setBookmarks([]);
+        setContextBranches([]);
       }
+      return [];
     } finally {
       if (useChatStore.getState().chatId === requestChatId) {
         setBookmarksLoading(false);
       }
     }
-  }, [chatId]);
+  }, [chatId, setContextBranches]);
 
   useEffect(() => {
-    if (compactedSummary && chatId) {
-      void loadBookmarks();
-      return;
+    if (!compactedSummary || !chatId || contextBranches.length > 0) {
+      return undefined;
     }
-    setBookmarks([]);
-  }, [compactedSummary, chatId, loadBookmarks]);
+
+    let cancelled = false;
+    const pollBookmarks = async () => {
+      const maxRounds = 12;
+      for (let round = 1; round <= maxRounds && !cancelled; round += 1) {
+        const loaded = await loadBookmarks();
+        if (cancelled || useChatStore.getState().chatId !== chatId) {
+          return;
+        }
+        if (loaded.length > 0 || useChatStore.getState().contextBranches.length > 0) {
+          return;
+        }
+        if (round < maxRounds) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 5000);
+          });
+        }
+      }
+    };
+
+    void pollBookmarks();
+    return () => {
+      cancelled = true;
+    };
+  }, [compactedSummary, chatId, contextBranches.length, loadBookmarks]);
 
   if (!compactedSummary) return null;
 
@@ -193,7 +225,10 @@ export const CompactedSummaryView = () => {
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      <div className="w-full relative group rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm transition-all hover:border-primary/40">
+      <div
+        data-testid="compacted-summary-view"
+        className="w-full relative group rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm transition-all hover:border-primary/40"
+      >
         <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
             <FileText size={16} weight="duotone" />
@@ -273,7 +308,11 @@ export const CompactedSummaryView = () => {
           </div>
         )}
 
-        <div className="mt-3 pt-3 border-t border-border/50 flex flex-col gap-1.5">
+        <div
+          data-testid="compacted-summary-bookmarks"
+          data-bookmarks-state={bookmarksLoading ? 'loading' : bookmarks.length === 0 ? 'empty' : 'ready'}
+          className="mt-3 pt-3 border-t border-border/50 flex flex-col gap-1.5"
+        >
           <span className="text-[10px] font-medium text-muted-foreground">{t('bookmarksTitle')}</span>
           {bookmarksLoading ? (
             <span className="text-[10px] text-muted-foreground">{t('bookmarksLoading')}</span>
@@ -286,6 +325,7 @@ export const CompactedSummaryView = () => {
                 return (
                   <li
                     key={bookmark.branch_id}
+                    data-testid="compacted-summary-bookmark-item"
                     className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 text-[10px] text-foreground/80 min-w-0"
                     title={bookmark.snapshot_path}
                   >

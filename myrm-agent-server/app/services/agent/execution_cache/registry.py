@@ -101,6 +101,14 @@ class ChatAgentExecutionCache:
             logger.warning("execution_cache_created scope=%s", scope_key)
             return unit
 
+    async def is_warm(self, scope_key: str, config_fingerprint: str) -> bool:
+        async with self._lock:
+            entry = self._entries.get(scope_key)
+            return (
+                entry is not None
+                and entry.config_fingerprint == config_fingerprint
+            )
+
     async def release(self, scope_key: str) -> None:
         async with self._lock:
             entry = self._entries.get(scope_key)

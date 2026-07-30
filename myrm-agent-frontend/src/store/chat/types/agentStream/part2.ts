@@ -146,6 +146,9 @@ export interface MessageEndStreamEvent extends BaseAgentEvent {
     aggregator_model: string;
     elapsed_seconds: number;
   };
+  execution_lane?: string;
+  wiki_confidence_score?: number;
+  wiki_source_count?: number;
 }
 
 export interface ReasoningStreamEvent extends BaseAgentEvent {

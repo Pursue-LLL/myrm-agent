@@ -12,31 +12,33 @@ import {
   shouldShowKanbanBoardPicker,
   writeKanbanLastBoardId,
 } from '@/lib/kanban/kanbanChatBoard';
+import { useProjectStore } from '@/store/useProjectStore';
 
 interface KanbanConfigSectionProps {
   tPanel: (key: string) => string;
 }
 
 export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
+  const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(() => readKanbanLastBoardId());
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(() => readKanbanLastBoardId(activeProjectId));
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const result = await listBoards();
+        const result = await listBoards({ projectId: activeProjectId });
         if (cancelled) return;
         const items = result.items;
         setBoards(items);
-        const resolved = resolveKanbanChatBoardId(items);
+        const resolved = resolveKanbanChatBoardId(items, activeProjectId);
         if (resolved) {
-          writeKanbanLastBoardId(resolved);
+          writeKanbanLastBoardId(resolved, activeProjectId);
           setSelectedBoardId(resolved);
         } else {
-          setSelectedBoardId(readKanbanLastBoardId());
+          setSelectedBoardId(readKanbanLastBoardId(activeProjectId));
         }
       } catch {
         if (!cancelled) {
@@ -51,7 +53,7 @@ export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeProjectId]);
 
   if (loading) {
     return (
@@ -79,9 +81,9 @@ export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
     );
   }
 
-  const showPicker = shouldShowKanbanBoardPicker(boards);
+  const showPicker = shouldShowKanbanBoardPicker(boards, activeProjectId);
   const activeBoard =
-    boards.find((b) => b.board_id === (selectedBoardId ?? resolveKanbanChatBoardId(boards))) ?? boards[0]!;
+    boards.find((b) => b.board_id === (selectedBoardId ?? resolveKanbanChatBoardId(boards, activeProjectId))) ?? boards[0]!;
 
   return (
     <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border/50">
@@ -96,7 +98,7 @@ export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
             value={selectedBoardId ?? undefined}
             onValueChange={(value) => {
               setSelectedBoardId(value);
-              writeKanbanLastBoardId(value);
+              writeKanbanLastBoardId(value, activeProjectId);
             }}
           >
             <SelectTrigger className="w-full bg-background">

@@ -945,6 +945,18 @@ async def convert_to_general_agent_params(
             if request.search_depth in ("normal", "deep")
             else "normal"
         )
+        # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
+        # bypass stale config-cache reads so web_search_tool mounts on the same turn.
+        if search_cfg is None:
+            from app.core.channel_bridge.config_loader import (
+                invalidate_user_configs_cache,
+                load_user_configs as reload_user_configs,
+            )
+
+            invalidate_user_configs_cache()
+            refreshed_configs = await reload_user_configs()
+            if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
+                search_cfg = refreshed_configs.search_cfg
         # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
         # not browser — deep workflow is web_search → web_fetch → answer self-review.
         fast_builtin: list[str] = ["answer_tool"]
@@ -953,7 +965,12 @@ async def convert_to_general_agent_params(
             resolve_builtin_tool_flags(fast_builtin, allow_answer_tool=True),
         )
         prompt_mode = "search"
-        search_available = True
+        search_available = search_cfg is not None
+        if not search_available:
+            logger.warning(
+                "Fast search requested without resolved search_service_cfg; chat_id=%s",
+                request.chat_id,
+            )
         user_instructions = request.user_instructions
         agent_skill_ids = []
         agent_skill_configs = None

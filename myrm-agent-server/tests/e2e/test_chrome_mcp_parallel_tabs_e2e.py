@@ -58,10 +58,16 @@ def _read_browser_globals(
         raise AssertionError(f"Expected browser global state object, got {raw!r}")
     databases = raw.get("databases")
     service_workers = raw.get("serviceWorkers")
-    if not isinstance(databases, list) or not all(isinstance(item, str) for item in databases):
+    if not isinstance(databases, list) or not all(
+        isinstance(item, str) for item in databases
+    ):
         raise AssertionError(f"Expected IndexedDB name list, got {databases!r}")
-    if not isinstance(service_workers, list) or not all(isinstance(item, str) for item in service_workers):
-        raise AssertionError(f"Expected Service Worker scope list, got {service_workers!r}")
+    if not isinstance(service_workers, list) or not all(
+        isinstance(item, str) for item in service_workers
+    ):
+        raise AssertionError(
+            f"Expected Service Worker scope list, got {service_workers!r}"
+        )
     local_storage = raw.get("localStorage")
     cookie = raw.get("cookie")
     if local_storage is not None and not isinstance(local_storage, str):
@@ -105,7 +111,14 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
                 time.sleep(3.0 * (attempt + 1))
         if page is None:
             raise RuntimeError(f"new_page failed after retries: {last_error}")
-        deadline = time.monotonic() + 60.0
+        layout_wait_sec = 120.0
+        try:
+            from dev_gate_contract import SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC
+
+            layout_wait_sec = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
+        except ImportError:
+            pass
+        deadline = time.monotonic() + layout_wait_sec
         raw: object = None
         while time.monotonic() < deadline:
             raw = client.evaluate(
@@ -118,15 +131,25 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
                 })""",
                 timeout_sec=5.0,
             )
-            if isinstance(raw, dict) and raw.get("hasLayout") is True and raw.get("hasInput") is True:
+            if (
+                isinstance(raw, dict)
+                and raw.get("hasLayout") is True
+                and raw.get("hasInput") is True
+            ):
                 break
             time.sleep(0.25)
         if not isinstance(raw, dict):
             raise AssertionError(f"Expected DOM probe object, got {raw!r}")
+        if not raw.get("hasLayout") or not raw.get("hasInput"):
+            raise AssertionError(
+                f"Chat shell not ready for parallel tab probe: {raw!r}"
+            )
         try:
-            barrier.wait(timeout=120.0)
+            barrier.wait(timeout=layout_wait_sec)
         except threading.BrokenBarrierError as exc:
-            raise AssertionError("Parallel tab barrier broken — a worker failed before rendezvous") from exc
+            raise AssertionError(
+                "Parallel tab barrier broken — a worker failed before rendezvous"
+            ) from exc
         return {
             "page_id": page.page_id,
             "target_id": page.target_id,
@@ -146,7 +169,7 @@ def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
         futures = []
         for _ in range(3):
             futures.append(pool.submit(_open_probe_and_hold, barrier))
-            time.sleep(1.5)
+            time.sleep(2.5)
         results = [future.result() for future in futures]
 
     assert len(results) == 3
@@ -216,7 +239,10 @@ def test_isolated_browser_contexts_do_not_share_global_state() -> None:
             }
             while time.monotonic() < deadline:
                 seeded_globals = _read_browser_globals(client_a, page_a, marker)
-                if database in seeded_globals["databases"] and service_worker_scope in seeded_globals["serviceWorkers"]:
+                if (
+                    database in seeded_globals["databases"]
+                    and service_worker_scope in seeded_globals["serviceWorkers"]
+                ):
                     break
                 time.sleep(0.25)
             isolated = _read_browser_globals(client_b, page_b, marker)

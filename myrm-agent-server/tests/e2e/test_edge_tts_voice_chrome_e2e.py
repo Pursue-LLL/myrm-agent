@@ -487,9 +487,8 @@ def _voice_e2e_progress_loop(*, current_node: str) -> Iterator[None]:
 
 
 def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, object]:
-    """Open home via mux then navigate to voice settings (matches #7 / chrome_page pattern)."""
+    """Warm voice route then open it directly (skip home→navigate under parallel mux)."""
     voice_url = _voice_settings_url()
-    ui_root = f"{get_e2e_ui_url()}/"
     warm_ui_route("/settings/channels?sub=voice", timeout_sec=60.0)
     last_exc: BaseException | None = None
     for outer in range(2):
@@ -497,7 +496,7 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
             heartbeat_e2e_lease()
             touch_e2e_wall_progress(current_node=progress_node)
             try:
-                with open_mcp_page(ui_root, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS) as (
+                with open_mcp_page(voice_url, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS) as (
                     client,
                     page,
                 ):
@@ -508,10 +507,8 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
                     client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
                     heartbeat_e2e_lease()
                     write_e2e_session_snapshot(
-                        current_node="voice_settings_navigate", phase="body"
+                        current_node="voice_settings_wait_panel", phase="body"
                     )
-                    client.navigate(page, voice_url, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS)
-                    heartbeat_e2e_lease()
                     wait_for_state(
                         client,
                         page,
@@ -519,9 +516,6 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
                           ready: !!document.querySelector('[data-testid="app-layout"]'),
                         }))()""",
                         timeout_sec=90.0,
-                    )
-                    write_e2e_session_snapshot(
-                        current_node="voice_settings_wait_panel", phase="body"
                     )
                     return wait_for_state(client, page, _VOICE_PROBE_JS, timeout_sec=90.0)
             except (RuntimeError, TimeoutError) as exc:

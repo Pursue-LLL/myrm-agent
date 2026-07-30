@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { Check, Plus, Target, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, Plus, Target, Trash2, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useToast } from '@/hooks/shared/useToast';
 import { useMilestoneStore } from '@/store/useMilestoneStore';
@@ -17,13 +17,16 @@ import { useTranslations } from 'next-intl';
 
 export default function ProjectMilestonePanel() {
   const t = useTranslations();
-  const { error: toastError } = useToast();
+  const { error: toastError, success: toastSuccess } = useToast();
   const { activeFilter, projects } = useProjectStore();
-  const { milestones, loading, fetchMilestones, addMilestone, completeMilestone, removeMilestone } =
+  const { milestones, loading, fetchMilestones, addMilestone, completeMilestone, removeMilestone, importAssessment } =
     useMilestoneStore();
   const [expanded, setExpanded] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [importArtifactId, setImportArtifactId] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [lastImportSummary, setLastImportSummary] = useState<{ milestones: number; tasks: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeProject = typeof activeFilter === 'string' ? projects.find((p) => p.id === activeFilter) : null;
@@ -77,6 +80,31 @@ export default function ProjectMilestonePanel() {
     },
     [activeProject, removeMilestone, toastError, t],
   );
+
+  const handleImportAssessment = useCallback(async () => {
+    if (!activeProject) return;
+    const artifactId = importArtifactId.trim();
+    if (!artifactId) {
+      toastError(t('milestone.importArtifactRequired'));
+      return;
+    }
+    setImporting(true);
+    try {
+      const receipt = await importAssessment(activeProject.id, { artifact_id: artifactId });
+      setImportArtifactId('');
+      setLastImportSummary({ milestones: receipt.total_milestones, tasks: receipt.total_tasks });
+      toastSuccess(
+        t('milestone.importSuccess', {
+          milestones: receipt.total_milestones,
+          tasks: receipt.total_tasks,
+        }),
+      );
+    } catch {
+      toastError(t('milestone.importFailed'));
+    } finally {
+      setImporting(false);
+    }
+  }, [activeProject, importArtifactId, importAssessment, toastError, toastSuccess, t]);
 
   if (!activeProject) return null;
 
@@ -140,6 +168,39 @@ export default function ProjectMilestonePanel() {
               <span>{t('milestone.add')}</span>
             </button>
           )}
+
+          <div className="pt-1 border-t border-border/20 space-y-1">
+            <input
+              value={importArtifactId}
+              onChange={(event) => setImportArtifactId(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleImportAssessment();
+                }
+              }}
+              placeholder={t('milestone.importPlaceholder')}
+              className="w-full h-5 px-1.5 text-[9px] rounded border border-border/40 bg-transparent outline-none placeholder:text-muted-foreground/40"
+            />
+            <button
+              onClick={() => {
+                void handleImportAssessment();
+              }}
+              disabled={importing}
+              className="flex items-center gap-1 text-[9px] text-muted-foreground/70 hover:text-foreground disabled:opacity-50 transition-colors"
+            >
+              {importing ? <Loader2 size={8} className="animate-spin" /> : <Plus size={8} />}
+              <span>{importing ? t('milestone.importing') : t('milestone.importAction')}</span>
+            </button>
+            {lastImportSummary && (
+              <div className="text-[9px] text-muted-foreground/60">
+                {t('milestone.importReceipt', {
+                  milestones: lastImportSummary.milestones,
+                  tasks: lastImportSummary.tasks,
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

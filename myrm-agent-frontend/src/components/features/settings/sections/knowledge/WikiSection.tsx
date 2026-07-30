@@ -21,11 +21,13 @@ import {
   type ImportResultResponse,
   type ObsidianImportResultResponse,
   type WikiImportConflictOptions,
+  type WikiRetrievalTrace,
   type WikiSourceLevel,
   type WikiSourceSnippet,
   type WikiStaleSummary,
   type TreeNode,
 } from '@/services/wikiService';
+import { formatClaimConfidence } from '@/lib/wiki/claimStatusDisplay';
 import { recordEvidenceSurface, recordWikiQueryAttempt, recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
 import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
 import { listAgents, type AgentListItem } from '@/services/agent';
@@ -116,6 +118,8 @@ export function WikiSection() {
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
   const [sourceSnippets, setSourceSnippets] = useState<WikiSourceSnippet[]>([]);
+  const [queryConfidence, setQueryConfidence] = useState<number | null>(null);
+  const [retrievalTrace, setRetrievalTrace] = useState<WikiRetrievalTrace | null>(null);
   const [snippetDrawerState, setSnippetDrawerState] = useState<{
     open: boolean;
     title: string;
@@ -123,6 +127,9 @@ export function WikiSection() {
     snippet: string;
     level?: WikiSourceLevel;
     snapshotStatus?: WikiSourceSnippet['snapshot_status'];
+    claimStatus?: WikiSourceSnippet['claim_status'];
+    claimConfidence?: WikiSourceSnippet['claim_confidence'];
+    claimText?: WikiSourceSnippet['claim_text'];
     resourceUri?: string;
     supersededFromUri?: string;
     thumbnailUrl?: string | null;
@@ -547,6 +554,8 @@ export function WikiSection() {
     setAnswer('');
     setRelatedArticles([]);
     setSourceSnippets([]);
+    setQueryConfidence(null);
+    setRetrievalTrace(null);
 
     try {
       const data = await wikiService.queryWiki(query, queryMode, agentScopeId);
@@ -554,6 +563,8 @@ export function WikiSection() {
       setAnswer(data.answer);
       setRelatedArticles(data.related_articles || []);
       setSourceSnippets(data.source_snippets || []);
+      setQueryConfidence(typeof data.confidence_score === 'number' ? data.confidence_score : null);
+      setRetrievalTrace(data.retrieval_trace ?? null);
       recordWikiQuerySubmitted('settings', evidenceContextKey);
       recordEvidenceSurface('settings', data.source_snippets?.length ?? 0, evidenceContextKey);
       toast.success(t('success.queryComplete'));
@@ -1019,8 +1030,63 @@ export function WikiSection() {
 
               {answer && (
                 <div className="space-y-2">
+                  {queryConfidence !== null && (
+                    <div className="text-xs text-muted-foreground">
+                      {t('query.confidenceScore', {
+                        value: formatClaimConfidence(queryConfidence, locale),
+                      })}
+                    </div>
+                  )}
                   <div className="text-sm font-medium">{t('query.answer')}</div>
                   <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap">{answer}</div>
+
+                  {retrievalTrace &&
+                    (retrievalTrace.index_hits.length > 0 ||
+                      retrievalTrace.seeds.length > 0 ||
+                      retrievalTrace.sidecar_directories.length > 0 ||
+                      retrievalTrace.selected_concepts.length > 0) && (
+                      <div className="mt-4 space-y-2 rounded-lg border border-border/60 bg-card/40 p-3">
+                        <div className="text-sm font-medium">{t('query.retrievalTraceTitle')}</div>
+                        {retrievalTrace.index_hits.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground">{t('query.retrievalTraceIndex')}</div>
+                            {retrievalTrace.index_hits.map((hit) => (
+                              <div key={hit.link_name} className="text-xs text-muted-foreground">
+                                [[{hit.link_name}]] — {hit.summary}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {retrievalTrace.sidecar_directories.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground">{t('query.retrievalTraceSidecar')}</div>
+                            <div className="text-xs text-muted-foreground font-mono break-all">
+                              {retrievalTrace.sidecar_directories.join(' · ')}
+                            </div>
+                          </div>
+                        )}
+                        {retrievalTrace.seeds.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground">{t('query.retrievalTraceSeeds')}</div>
+                            <div className="space-y-1">
+                              {retrievalTrace.seeds.slice(0, 6).map((seed) => (
+                                <div key={`${seed.source}-${seed.concept_name}`} className="text-xs text-muted-foreground font-mono break-all">
+                                  {seed.concept_name} ({seed.source})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {retrievalTrace.selected_concepts.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground">{t('query.retrievalTraceConcepts')}</div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {retrievalTrace.selected_concepts.join(' · ')}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                   {sourceSnippets.length > 0 && (
                     <div className="mt-4 space-y-2">
@@ -1054,6 +1120,9 @@ export function WikiSection() {
                                   snippet: snippet.snippet,
                                   level,
                                   snapshotStatus: snippet.snapshot_status,
+                                  claimStatus: snippet.claim_status,
+                                  claimConfidence: snippet.claim_confidence,
+                                  claimText: snippet.claim_text,
                                   resourceUri: snippet.resource_uri,
                                   supersededFromUri: snippet.superseded_from_uri,
                                   thumbnailUrl,
@@ -1138,6 +1207,9 @@ export function WikiSection() {
             snippet={snippetDrawerState.snippet}
             level={snippetDrawerState.level}
             snapshotStatus={snippetDrawerState.snapshotStatus}
+            claimStatus={snippetDrawerState.claimStatus}
+            claimConfidence={snippetDrawerState.claimConfidence}
+            claimText={snippetDrawerState.claimText}
             resourceUri={snippetDrawerState.resourceUri}
             supersededFromUri={snippetDrawerState.supersededFromUri}
             thumbnailUrl={snippetDrawerState.thumbnailUrl}

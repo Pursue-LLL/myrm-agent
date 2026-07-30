@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
+from app.services.project.assessment_import_service import AssessmentImportService
 from app.services.project.milestone_service import MILESTONE_STATUSES, MilestoneService
 
 router = APIRouter()
@@ -29,6 +30,13 @@ class MilestoneUpdateRequest(BaseModel):
     description: str | None = Field(None, max_length=5000, description="里程碑描述")
     acceptance_criteria: str | None = Field(None, max_length=5000, description="验收标准")
     status: str | None = Field(None, description="状态: active/completed/archived")
+
+
+class AssessmentImportRequest(BaseModel):
+    artifact_id: str = Field(..., min_length=1, description="Source artifact id")
+    source_chat_id: str | None = Field(None, min_length=1, description="Optional source chat id for task metadata")
+    max_milestones: int = Field(8, ge=1, le=20, description="Max milestones parsed from artifact")
+    max_tasks_per_milestone: int = Field(25, ge=1, le=100, description="Max imported tasks per milestone")
 
 
 @router.get("/{project_id}/milestones", response_model=StandardSuccessResponse)
@@ -145,3 +153,28 @@ async def get_project_roadmap(project_id: str) -> JSONResponse:
         raise
     except Exception as e:
         raise internal_error(operation="Get project roadmap", exception=e) from e
+
+
+@router.post("/{project_id}/milestones/import-assessment", response_model=StandardSuccessResponse)
+async def import_assessment(project_id: str, req: AssessmentImportRequest) -> JSONResponse:
+    """Import assessment artifact into project milestones and kanban tasks."""
+    try:
+        receipt = await AssessmentImportService.import_from_artifact(
+            project_id,
+            artifact_id=req.artifact_id,
+            source_chat_id=req.source_chat_id,
+            max_milestones=req.max_milestones,
+            max_tasks_per_milestone=req.max_tasks_per_milestone,
+        )
+        return success_response(data={"receipt": receipt})
+    except FileNotFoundError as exc:
+        detail = str(exc).lower()
+        if "project" in detail:
+            raise not_found_error("Project") from exc
+        raise not_found_error("Artifact") from exc
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise internal_error(operation="Import assessment artifact", exception=exc) from exc

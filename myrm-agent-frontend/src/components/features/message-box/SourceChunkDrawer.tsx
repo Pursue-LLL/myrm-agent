@@ -1,18 +1,32 @@
 /**
  * SourceChunkDrawer — KB 引用原文片段 Drawer
  *
+ * [INPUT]
+ * lib/wiki/claimStatusDisplay.ts (POS: Wiki claim 状态展示纯函数)
+ * services/wikiEvidenceMetrics.ts (POS: 证据展开/停留埋点)
+ *
  * [POS]
- * 当用户点击 KB 类型的 citation 标记时，以右侧 Sheet 展示原文 snippet。
- * 以分段渲染展示原文片段与分层标签（L0/L1/L2），使用户能快速验证 AI 引用来源的可信度。
+ * 当用户点击 KB citation 时，以右侧 Sheet 展示原文 snippet、分层标签（L0/L1/L2）、
+ * snapshot 三态与 claim_status badge（仅 contested/unsupported），以及 structured claim / evidence excerpt 分区。
  */
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { WikiSourceLevel } from '@/store/chat/types';
 import { recordSnippetClose, recordSnippetOpen, type WikiEvidenceSurface } from '@/services/wikiEvidenceMetrics';
+import {
+  claimStatusClass,
+  claimStatusLabel,
+  formatClaimConfidence,
+  shouldShowClaimConfidence,
+  shouldShowClaimStatusBadge,
+  type WikiClaimStatus,
+  type WikiClaimStatusLabels,
+} from '@/lib/wiki/claimStatusDisplay';
+import { cn } from '@/lib/utils/classnameUtils';
 
 interface SourceChunkDrawerProps {
   open: boolean;
@@ -22,6 +36,9 @@ interface SourceChunkDrawerProps {
   snippet: string;
   level?: WikiSourceLevel;
   snapshotStatus?: 'verified' | 'stale' | 'missing';
+  claimStatus?: WikiClaimStatus;
+  claimConfidence?: number;
+  claimText?: string;
   resourceUri?: string;
   supersededFromUri?: string;
   thumbnailUrl?: string | null;
@@ -42,9 +59,17 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, resourceUri, supersededFromUri, thumbnailUrl, surface = 'chat', contextKey }) => {
+  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, claimStatus, claimConfidence, claimText, resourceUri, supersededFromUri, thumbnailUrl, surface = 'chat', contextKey }) => {
     const t = useTranslations('MessageSources');
     const tWiki = useTranslations('settings.wiki');
+    const tWikiConcepts = useTranslations('settings.wiki.concepts');
+    const locale = useLocale();
+    const claimStatusLabels: WikiClaimStatusLabels = {
+      supported: tWikiConcepts('claimStatusSupported'),
+      contested: tWikiConcepts('claimStatusContested'),
+      unsupported: tWikiConcepts('claimStatusUnsupported'),
+      unknown: tWikiConcepts('claimStatusUnknown'),
+    };
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
     const openStartedAtRef = useRef<number | null>(null);
     const wasOpenRef = useRef(false);
@@ -82,6 +107,16 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
       return '';
     }, [level, t]);
 
+    const showStructuredClaim = useMemo(() => {
+      const normalizedClaim = claimText?.trim();
+      if (!normalizedClaim) {
+        return false;
+      }
+      return normalizedClaim !== snippet.trim();
+    }, [claimText, snippet]);
+
+    const excerptLabel = showStructuredClaim ? tWiki('evidenceExcerpt') : t('source_excerpt');
+
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" hideCloseButton className="w-full sm:max-w-md flex flex-col p-0">
@@ -93,11 +128,28 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
                 </div>
                 <div className="min-w-0">
                   <SheetTitle className="text-base truncate">{title}</SheetTitle>
-                  <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mt-0.5 min-w-0">
                     {section && <p className="text-xs text-muted-foreground truncate">§ {section}</p>}
                     {levelLabel && (
-                      <span className="text-[10px] leading-4 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <span className="shrink-0 text-[10px] leading-4 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                         {levelLabel}
+                      </span>
+                    )}
+                    {shouldShowClaimStatusBadge(claimStatus) && (
+                      <span
+                        className={cn(
+                          'shrink-0 text-[10px] leading-4 px-1.5 py-0.5 rounded-full border',
+                          claimStatusClass(claimStatus),
+                        )}
+                      >
+                        {claimStatusLabel(claimStatus, claimStatusLabels)}
+                      </span>
+                    )}
+                    {shouldShowClaimConfidence(claimConfidence) && (
+                      <span className="shrink-0 text-[10px] leading-4 px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-800 dark:text-sky-200 border-sky-500/20">
+                        {tWiki('evidenceClaimConfidence', {
+                          value: formatClaimConfidence(claimConfidence!, locale),
+                        })}
                       </span>
                     )}
                   </div>
@@ -113,9 +165,17 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
+            {showStructuredClaim && claimText ? (
+              <div className="mb-4">
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  {tWiki('evidenceStructuredClaim')}
+                </div>
+                <p className="text-sm text-foreground/90 leading-relaxed">{claimText}</p>
+              </div>
+            ) : null}
             <div className="flex items-center gap-1.5 mb-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t('source_excerpt')}
+                {excerptLabel}
               </span>
             </div>
 

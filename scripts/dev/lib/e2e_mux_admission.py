@@ -34,10 +34,23 @@ def _default_mux_admission_wait_sec() -> int:
 
 
 def _resolve_mux_admission_wait_sec() -> int:
+    from dev_gate_contract import (
+        E2E_MUX_ADMISSION_WAIT_SEC,
+        E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
+    )
+
     raw = os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", "").strip()
+    computed = _default_mux_admission_wait_sec()
     if raw.isdigit() and int(raw) > 0:
-        return int(raw)
-    return _default_mux_admission_wait_sec()
+        pinned = int(raw)
+        # R164: bootstrap may export 300 before parallel wave is visible; never cap below SSOT.
+        if (
+            pinned in {E2E_MUX_ADMISSION_WAIT_SEC, E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC}
+            and computed > pinned
+        ):
+            return computed
+        return pinned
+    return computed
 
 
 def _resolve_mux_admission_poll_sec() -> int:
@@ -275,6 +288,16 @@ def _mux_registry_session_holders() -> list[tuple[str, int, str]]:
             if isinstance(owner_pid, int) and isinstance(lane, str):
                 holders.append((session_id, owner_pid, lane))
         return holders
+
+
+def _parallel_mux_peer_count() -> int:
+    try:
+        from mux_load import snapshot_mux_load
+
+        load = snapshot_mux_load(force=True)
+        return max(0, int(load.wave_leases), int(load.mux_contexts))
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        return 0
 
 
 def acquire_with_wait(

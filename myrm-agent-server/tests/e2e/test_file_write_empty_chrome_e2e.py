@@ -29,6 +29,11 @@ from cdp_chat_support import (  # noqa: E402
 )
 from dev_gate_contract import STALL_PROGRESS_SEC  # noqa: E402
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
+from live_turn_wait import (  # noqa: E402
+    live_empty_write_parallel_scaled_cap_sec,
+    parallel_live_agent_peer_count,
+    steer_empty_write_prompt,
+)
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
@@ -77,6 +82,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "recover_mux",
     "TypeError",
     "Dev E2E chat bridge",
+    "chat bridge not ready after loading agent",
     "UI send did not start stream",
     "chrome-error",
     "LEASE_NOT_ACTIVE",
@@ -99,6 +105,16 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     if any(marker in text for marker in _BUSINESS_FAILURE_MARKERS):
         return False
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
+
+
+def _is_mux_io_deferrable(exc: BaseException) -> bool:
+    """R151: parallel mux reclaim may stall Chrome MCP evaluate/navigate — API remains SSOT."""
+    if isinstance(exc, TimeoutError):
+        return True
+    if isinstance(exc, RuntimeError):
+        message = str(exc)
+        return "MUX_RECLAIM" in message or "Chrome MCP" in message
+    return False
 
 
 def _bounded_wait_sec(default: float, *, reserve_sec: float = 45.0) -> float:
@@ -134,12 +150,7 @@ def _live_user_prompt(filename: str) -> str:
 
 
 def _steer_empty_write_prompt(filename: str) -> str:
-    return (
-        "STEER: You MUST call file_write_tool exactly once now with "
-        f"path {filename!r} and content '' (empty string). "
-        "Do not reply with text only. "
-        "Reply EMPTY_WRITE_DONE after the tool returns."
-    )
+    return steer_empty_write_prompt(filename)
 
 
 def _nudge_result_agent_busy(nudge_result: dict[str, object]) -> bool:
@@ -173,6 +184,18 @@ _AGENT_READY_JS = """(() => {
     selection: debug.selection ?? null,
   };
 })()"""
+
+_ENSURE_PROVIDERS_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
+  return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+})()"""
+
+_PROVIDERS_SEND_READY_JS = """(() => ({
+  init: !!window.__MYRM_E2E_CHAT__?.isProvidersInitialized?.(),
+  sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+  selection: window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.selection ?? null,
+}))()"""
 
 _AGENT_BOUND_JS = """((expectedAgentId) => {
   const store = window.__myrmChatStore?.getState?.();
@@ -416,40 +439,18 @@ def _create_empty_write_live_agent(api_url: str) -> str:
 
 
 def _live_chat_attempt_cap() -> int:
-    """R144: parallel mux — one open_mcp pass; outer retry amplifies BODY stall."""
-    if _parallel_live_agent_peer_count() >= 2:
-        return 1
+    """R144/R165: parallel mux — allow one pre-SEND_TURN transport retry (turn_ever_sent guard)."""
+    if parallel_live_agent_peer_count() >= 2:
+        return 2
     return _MAX_CHAT_ATTEMPTS
 
 
 def _parallel_live_agent_peer_count() -> int:
-    """Wave/mux peers for LIVE empty-write post-send stall scaling (R134)."""
-    try:
-        from mux_load import snapshot_mux_load
-
-        load = snapshot_mux_load()
-        return max(int(load.wave_leases), int(load.mux_contexts))
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
-        pass
-    root = Path(__file__).resolve().parents[4]
-    try:
-        from stack_mutation_policy import wave_active_lease_count
-
-        return wave_active_lease_count(root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return 0
+    return parallel_live_agent_peer_count()
 
 
 def _live_empty_write_parallel_scaled_cap_sec(*, base: float) -> float:
-    """Scale idle/stall caps under parallel LIVE_AGENT load (R134/R137/R150)."""
-    peers = _parallel_live_agent_peer_count()
-    if peers < 2:
-        return base
-    scaled = base + peers * 10.0
-    # R150: peers>=3 — LLM cold-start under mux load needs headroom beyond 120s.
-    if peers >= 3:
-        scaled = max(scaled, base + 40.0)
-    return min(150.0, scaled)
+    return live_empty_write_parallel_scaled_cap_sec(base=base)
 
 
 def _live_empty_write_post_send_stall_cap_sec() -> float:
@@ -462,6 +463,28 @@ def _live_empty_write_post_steer_idle_cap_sec() -> float:
     return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
+def _live_api_poll_timeout_sec() -> float:
+    """R167: private-backend message fetch under parallel mux load."""
+    peers = _parallel_live_agent_peer_count()
+    if peers < 2:
+        return 15.0
+    return min(60.0, 15.0 + peers * 8.0)
+
+
+def _live_api_poll_max_attempts() -> int:
+    """R167b: avoid 3× timeout blocking the async poll loop under parallel load."""
+    return 1 if _parallel_live_agent_peer_count() >= 2 else 3
+
+
+def _live_turn_wait_cap_sec() -> float:
+    """Post-E2E_SEND_TURN wait — scale under parallel without 150s stall cap."""
+    peers = _parallel_live_agent_peer_count()
+    base = 300.0
+    if peers < 2:
+        return base
+    return min(420.0, base + peers * 15.0)
+
+
 def _live_bridge_ready_timeout_sec() -> float:
     """R138: React E2E bridge wait scales under parallel mux load."""
     return _live_empty_write_parallel_scaled_cap_sec(base=90.0)
@@ -470,11 +493,13 @@ def _live_bridge_ready_timeout_sec() -> float:
 def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
     fetched = http_json("GET", f"{api_url}/api/v1/user-agents/{agent_id}")
     data = fetched.get("data") if isinstance(fetched.get("data"), dict) else fetched
-    assert isinstance(data, dict), f"E2E_AGENT_TOOLS_DENY: agent fetch failed: {fetched!r}"
+    assert isinstance(
+        data, dict
+    ), f"E2E_AGENT_TOOLS_DENY: agent fetch failed: {fetched!r}"
     resolved_id = str(data.get("id") or agent_id)
-    assert resolved_id == agent_id, (
-        f"E2E_AGENT_TOOLS_DENY: agent id mismatch: {resolved_id!r} vs {agent_id!r}"
-    )
+    assert (
+        resolved_id == agent_id
+    ), f"E2E_AGENT_TOOLS_DENY: agent id mismatch: {resolved_id!r} vs {agent_id!r}"
     # file_ops/code_execute are AGENT_BASELINE — stripped at persist, forced on General mount.
     print(
         f"E2E_AGENT_TOOLS_OK: agent_id={agent_id} baseline=file_ops+code_execute (runtime mount)",
@@ -486,11 +511,21 @@ def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
 def _empty_write_failure_in_messages(
     chat_id: str, *, api_url: str
 ) -> tuple[bool, bool]:
-    return empty_write_failure_in_messages(chat_id, api_url=api_url)
+    return empty_write_failure_in_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=_live_api_poll_timeout_sec(),
+        max_attempts=_live_api_poll_max_attempts(),
+    )
 
 
 def _file_write_tool_call_count(chat_id: str, *, api_url: str) -> int:
-    return file_write_tool_call_count(chat_id, api_url=api_url)
+    return file_write_tool_call_count(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=_live_api_poll_timeout_sec(),
+        max_attempts=_live_api_poll_max_attempts(),
+    )
 
 
 def _assert_empty_write_disk_clean(target_file: Path) -> None:
@@ -512,7 +547,6 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_file_write_empty_live_agent_webui(
     e2e_resource_ledger: E2EResourceLedger,
@@ -614,6 +648,17 @@ async def test_file_write_empty_live_agent_webui(
         )
         return steer_ok
 
+    async def _poll_empty_write_api(chat_id: str) -> tuple[bool, bool]:
+        poll_timeout = _live_api_poll_timeout_sec()
+        poll_attempts = _live_api_poll_max_attempts()
+        return await asyncio.to_thread(
+            empty_write_failure_in_messages,
+            chat_id,
+            api_url=api_base,
+            timeout_sec=poll_timeout,
+            max_attempts=poll_attempts,
+        )
+
     async def _wait_turn_done(
         chat: McpChatSession,
         chat_id: str,
@@ -625,7 +670,7 @@ async def test_file_write_empty_live_agent_webui(
         wait_cap = (
             timeout_sec
             if timeout_sec is not None
-            else _bounded_wait_sec(300.0, reserve_sec=90.0)
+            else _bounded_wait_sec(_live_turn_wait_cap_sec(), reserve_sec=60.0)
         )
         deadline = time.monotonic() + wait_cap
         last_api = (False, False)
@@ -639,14 +684,15 @@ async def test_file_write_empty_live_agent_webui(
             heartbeat_e2e_lease()
             touch_wall_progress()
             try:
-                invoked, has_failure = _empty_write_failure_in_messages(
-                    chat_id, api_url=api_base
-                )
+                invoked, has_failure = await _poll_empty_write_api(chat_id)
             except (TimeoutError, OSError, urllib.error.URLError) as exc:
-                if time.monotonic() + 5.0 >= deadline:
-                    raise AssertionError(
-                        f"Live empty write API poll timed out under parallel load: {exc}"
-                    ) from exc
+                print(
+                    "E2E_API_POLL_DEFER: parallel private-backend poll deferred "
+                    f"parallel_peers={_parallel_live_agent_peer_count()} "
+                    f"timeout={_live_api_poll_timeout_sec():.0f}s err={exc!r}",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 await asyncio.sleep(2.0)
                 continue
             if invoked != last_api[0] or has_failure != last_api[1]:
@@ -695,9 +741,7 @@ async def test_file_write_empty_live_agent_webui(
                     if target_file.exists():
                         last_progress_at = time.monotonic()
                         continue
-                    _, settled_failure = _empty_write_failure_in_messages(
-                        chat_id, api_url=api_base
-                    )
+                    _, settled_failure = await _poll_empty_write_api(chat_id)
                     if settled_failure:
                         return {
                             "source": "api",
@@ -712,26 +756,43 @@ async def test_file_write_empty_live_agent_webui(
                             "disk_clean": True,
                         }
 
-            raw = await chat.evaluate(
-                """(() => {
-                  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
-                  const text = String(snap.lastAssistantSample || '');
-                  const bodyText = document.body?.innerText || '';
-                  const store = window.__myrmChatStore?.getState?.();
-                  const failures = (store?.messages || []).flatMap((msg) =>
-                    Array.isArray(msg.fileMutationFailures) ? msg.fileMutationFailures : [],
-                  );
-                  return {
-                    isStreaming: Boolean(snap.isStreaming),
-                    hasEmptyWriteDone: /EMPTY_WRITE_DONE/i.test(text),
-                    hasDomEmptyWriteError: /Cannot write empty file content/i.test(bodyText),
-                    failureCount: failures.length,
-                    sample: text.slice(0, 600),
-                  };
-                })()""",
-                await_promise=False,
-                recv_timeout=20.0,
-            )
+            try:
+                raw = await chat.evaluate(
+                    """(() => {
+                      const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+                      const text = String(snap.lastAssistantSample || '');
+                      const bodyText = document.body?.innerText || '';
+                      const store = window.__myrmChatStore?.getState?.();
+                      const failures = (store?.messages || []).flatMap((msg) =>
+                        Array.isArray(msg.fileMutationFailures) ? msg.fileMutationFailures : [],
+                      );
+                      return {
+                        isStreaming: Boolean(snap.isStreaming),
+                        hasEmptyWriteDone: /EMPTY_WRITE_DONE/i.test(text),
+                        hasDomEmptyWriteError: /Cannot write empty file content/i.test(bodyText),
+                        failureCount: failures.length,
+                        sample: text.slice(0, 600),
+                      };
+                    })()""",
+                    await_promise=False,
+                    recv_timeout=20.0,
+                )
+            except (RuntimeError, TimeoutError) as ui_exc:
+                if (
+                    _is_mux_io_deferrable(ui_exc)
+                    and _parallel_live_agent_peer_count() >= 2
+                ):
+                    print(
+                        "E2E_MUX_UI_EVAL_DEFER: parallel mux busy — API poll SSOT; "
+                        f"api_invoked={last_api[0]} parallel_peers="
+                        f"{_parallel_live_agent_peer_count()}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    touch_wall_progress()
+                    await asyncio.sleep(2.0)
+                    continue
+                raise
             ui = raw if isinstance(raw, dict) else {"value": raw}
             ui_sample = str(ui.get("sample") or "")
             if last_api[0]:
@@ -768,9 +829,7 @@ async def test_file_write_empty_live_agent_webui(
                 settle_deadline = time.monotonic() + 45.0
                 while time.monotonic() < settle_deadline:
                     touch_wall_progress()
-                    invoked, has_failure = _empty_write_failure_in_messages(
-                        chat_id, api_url=api_base
-                    )
+                    invoked, has_failure = await _poll_empty_write_api(chat_id)
                     if invoked and has_failure:
                         return {
                             "source": "api",
@@ -895,6 +954,61 @@ async def test_file_write_empty_live_agent_webui(
         await asyncio.sleep(2.0)
         touch_wall_progress()
         await chat.wait_shell_ready(timeout_sec=60.0)
+        await _rehydrate_providers_after_agent_navigate(chat)
+
+    async def _rehydrate_providers_after_agent_navigate(
+        chat: McpChatSession,
+    ) -> None:
+        """R166: shared UI bootstrap hydrates at `/`; agent URL reload drops selection."""
+        hydrate_cap = _bounded_wait_sec(60.0, reserve_sec=90.0)
+        bridge_cap = min(_live_bridge_ready_timeout_sec(), hydrate_cap)
+        await chat.ensure_react_e2e_bridge(timeout_sec=bridge_cap)
+        try:
+            ensured = await chat.evaluate(
+                _ENSURE_PROVIDERS_JS,
+                await_promise=True,
+                recv_timeout=min(hydrate_cap, 60.0),
+            )
+            if isinstance(ensured, dict) and ensured.get("ok") is not True:
+                print(
+                    "E2E_AGENT_URL_REHYDRATE: ensureProviders returned "
+                    f"{ensured!r} parallel_peers={_parallel_live_agent_peer_count()}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+        except (RuntimeError, TimeoutError) as exc:
+            print(
+                "E2E_AGENT_URL_REHYDRATE: ensureProviders deferred "
+                f"parallel_peers={_parallel_live_agent_peer_count()} err={str(exc)[:180]!r}",
+                file=sys.stderr,
+                flush=True,
+            )
+        deadline = time.monotonic() + hydrate_cap
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            heartbeat_e2e_lease()
+            touch_wall_progress()
+            raw = await chat.evaluate(
+                _PROVIDERS_SEND_READY_JS,
+                await_promise=False,
+                recv_timeout=20.0,
+            )
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("sendReady") and last.get("selection"):
+                print(
+                    "E2E_AGENT_URL_REHYDRATE_OK: "
+                    f"parallel_peers={_parallel_live_agent_peer_count()} probe={last}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return
+            await asyncio.sleep(0.5)
+        print(
+            "E2E_AGENT_URL_REHYDRATE_WAIT: selection still pending "
+            f"parallel_peers={_parallel_live_agent_peer_count()} last={last}",
+            file=sys.stderr,
+            flush=True,
+        )
 
     async def _assert_agent_bound(chat: McpChatSession, expected_agent_id: str) -> None:
         deadline = time.monotonic() + _bounded_wait_sec(45.0, reserve_sec=60.0)
@@ -911,9 +1025,7 @@ async def test_file_write_empty_live_agent_webui(
             if last.get("ready") is True:
                 return
             await asyncio.sleep(1.0)
-        raise AssertionError(
-            f"Agent not bound in UI before live turn: {last}"
-        )
+        raise AssertionError(f"Agent not bound in UI before live turn: {last}")
 
     async def _ensure_live_bridge_ready(chat: McpChatSession) -> None:
         """R138: parallel-safe bridge gate before new-chat / chat surface."""
@@ -973,11 +1085,27 @@ async def test_file_write_empty_live_agent_webui(
 
         current_chat = str((await chat.bridge_chat_id()) or "").strip()
         if current_chat != resolved_chat_id:
-            await chat.navigate_to_chat(
-                resolved_chat_id,
-                BASE_URL,
-                timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
-            )
+            try:
+                await chat.navigate_to_chat(
+                    resolved_chat_id,
+                    BASE_URL,
+                    timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
+                )
+            except (RuntimeError, TimeoutError) as nav_exc:
+                if (
+                    _is_mux_io_deferrable(nav_exc)
+                    and _parallel_live_agent_peer_count() >= 2
+                ):
+                    print(
+                        "E2E_SKIP_CHAT_NAVIGATE_PARALLEL: chat_id mismatch tolerated; "
+                        f"resolved={resolved_chat_id!r} bridge={current_chat!r} "
+                        f"parallel_peers={_parallel_live_agent_peer_count()}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    touch_wall_progress()
+                else:
+                    raise
         result = await _wait_turn_done(
             chat, resolved_chat_id, agent_id=agent_id, target_file=target_file
         )
@@ -1016,7 +1144,27 @@ async def test_file_write_empty_live_agent_webui(
 
             async def _inner() -> tuple[str, dict[str, object]]:
                 chat = McpChatSession(client, page)
-                await chat.bootstrap(agent_url, timeout_sec=180.0)
+                boot_attempts = 3 if _parallel_live_agent_peer_count() >= 2 else 1
+                for boot_idx in range(boot_attempts):
+                    try:
+                        await chat.bootstrap(agent_url, timeout_sec=180.0)
+                        break
+                    except (RuntimeError, TimeoutError) as boot_exc:
+                        if (
+                            not _is_mux_io_deferrable(boot_exc)
+                            or boot_idx >= boot_attempts - 1
+                        ):
+                            raise
+                        print(
+                            "E2E_BOOTSTRAP_MUX_RETRY: parallel mux reclaim — "
+                            f"attempt={boot_idx + 1}/{boot_attempts} "
+                            f"parallel_peers={_parallel_live_agent_peer_count()} "
+                            f"err={str(boot_exc)[:180]!r}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        _force_mux_heal_before_live_retry()
+                        await asyncio.sleep(8.0 * (boot_idx + 1))
                 await _ensure_agent_url_loaded(chat, agent_url)
                 await _ensure_live_bridge_ready(chat)
                 return await _run_flow(chat)

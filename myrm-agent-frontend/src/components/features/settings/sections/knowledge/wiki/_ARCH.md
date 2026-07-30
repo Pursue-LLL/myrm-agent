@@ -10,7 +10,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | ------------------------------- | ---- | --------------------------------------------------------- | ----- |
 | useWikiConceptsList.ts          | Core | 词条树状态 + **apply 窄写** 保存编排；`if_match` 来自 `content_hash`；save/delete 后 `onVaultMutated` 刷新 Overview stats | ✅    |
 | WikiConceptTree.tsx             | UI   | react-arborist 管理树；`ingest_status` amber 点标示关联源过期 | ✅    |
-| WikiConceptDetailPanel.tsx      | UI   | 预览 + **四标签编辑** + 结构化 claims 展示                | ✅    |
+| WikiConceptDetailPanel.tsx      | UI   | 预览 + **四标签编辑** + 结构化 claims 展示（`lib/wiki/claimStatusDisplay` badge） | ✅    |
 | WikiRawSourceTree.tsx           | UI   | Overview raw 目录树；三色 ingest 点；Settings 侧 forget raw（reason dialog） | ✅    |
 | WikiFolderSelectTree.tsx        | UI   | 仅文件夹的选择树（Create/SaveToWiki 复用）                | ✅    |
 | WikiImportConflictDialog.tsx    | UI   | Batch import raw 冲突：保留现有 vs 填写 reason 后 supersede | ✅    |
@@ -25,6 +25,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 - `hooks/ui/useMediaQuery.ts` (POS: 响应式断点检测)
 - `hooks/settings/useSettingsSubTabUrl.ts` (POS: Settings 子 Tab URL 同步守卫)
 - `components/features/message-box/MarkdownContent.tsx` (POS: Markdown 渲染)
+- `lib/wiki/claimStatusDisplay.ts` (POS: Wiki claim 状态展示纯函数)
 
 ## API Surface
 

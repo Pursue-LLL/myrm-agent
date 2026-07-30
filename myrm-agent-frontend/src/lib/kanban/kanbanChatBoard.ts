@@ -15,50 +15,64 @@ import type { KanbanBoard } from '@/services/kanban';
 /** SSOT key — shared with Settings KanbanSection. */
 export const KANBAN_LAST_BOARD_ID_KEY = 'kanban_last_board_id';
 
-export function readKanbanLastBoardId(): string | null {
+function normalizeKanbanProjectScope(projectId: string | null | undefined): string | null {
+  const trimmed = projectId?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function resolveKanbanStorageKey(projectId: string | null | undefined): string {
+  const scope = normalizeKanbanProjectScope(projectId);
+  if (!scope) return KANBAN_LAST_BOARD_ID_KEY;
+  return `${KANBAN_LAST_BOARD_ID_KEY}:${scope}`;
+}
+
+export function readKanbanLastBoardId(projectId?: string | null): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(KANBAN_LAST_BOARD_ID_KEY);
-    const trimmed = raw?.trim();
-    return trimmed || null;
+    const scopedKey = resolveKanbanStorageKey(projectId);
+    const scopedValue = localStorage.getItem(scopedKey)?.trim();
+    if (scopedValue) return scopedValue;
+    return null;
   } catch {
     return null;
   }
 }
 
-export function writeKanbanLastBoardId(boardId: string | null): void {
+export function writeKanbanLastBoardId(boardId: string | null, projectId?: string | null): void {
   if (typeof window === 'undefined') return;
   try {
+    const key = resolveKanbanStorageKey(projectId);
     if (boardId?.trim()) {
-      localStorage.setItem(KANBAN_LAST_BOARD_ID_KEY, boardId.trim());
+      localStorage.setItem(key, boardId.trim());
     } else {
-      localStorage.removeItem(KANBAN_LAST_BOARD_ID_KEY);
+      localStorage.removeItem(key);
     }
   } catch {
     /* private mode / quota */
   }
 }
 
-export function resolveKanbanChatBoardId(boards: KanbanBoard[]): string | null {
+export function resolveKanbanChatBoardId(boards: KanbanBoard[], projectId?: string | null): string | null {
   if (boards.length === 0) return null;
   if (boards.length === 1) return boards[0]!.board_id;
 
-  const saved = readKanbanLastBoardId();
+  const saved = readKanbanLastBoardId(projectId);
   if (saved && boards.some((b) => b.board_id === saved)) {
     return saved;
   }
   return null;
 }
 
-export function shouldShowKanbanBoardPicker(boards: KanbanBoard[]): boolean {
-  return boards.length > 1 && resolveKanbanChatBoardId(boards) === null;
+export function shouldShowKanbanBoardPicker(boards: KanbanBoard[], projectId?: string | null): boolean {
+  return boards.length > 1 && resolveKanbanChatBoardId(boards, projectId) === null;
 }
 
 export function resolveKanbanDefaultBoardIdForRequest(
   enabledBuiltinTools: readonly string[],
+  projectId?: string | null,
 ): string | undefined {
   if (!enabledBuiltinTools.includes('kanban')) return undefined;
-  const id = readKanbanLastBoardId();
+  const id = readKanbanLastBoardId(projectId);
   return id ?? undefined;
 }
 
@@ -76,28 +90,30 @@ export type KanbanSendBlockReason = 'no_boards' | 'need_board';
 /** Sync guard reason from a board list (same rules as KanbanConfigSection picker). */
 export function resolveKanbanSendBlockReasonFromBoards(
   boards: KanbanBoard[],
+  projectId?: string | null,
 ): KanbanSendBlockReason | null {
   if (boards.length === 0) return 'no_boards';
 
-  const saved = readKanbanLastBoardId();
+  const saved = readKanbanLastBoardId(projectId);
   if (saved && !boards.some((b) => b.board_id === saved)) {
-    writeKanbanLastBoardId(null);
+    writeKanbanLastBoardId(null, projectId);
   }
 
-  if (shouldShowKanbanBoardPicker(boards)) return 'need_board';
+  if (shouldShowKanbanBoardPicker(boards, projectId)) return 'need_board';
   return null;
 }
 
 /** Block send when kanban is on but no target board can be resolved for the request. */
 export async function resolveKanbanSendBlockReason(
   enabledBuiltinTools: readonly string[],
+  projectId?: string | null,
 ): Promise<KanbanSendBlockReason | null> {
   if (!enabledBuiltinTools.includes('kanban')) return null;
 
   try {
     const { listBoards } = await import('@/services/kanban');
-    const { items } = await listBoards();
-    return resolveKanbanSendBlockReasonFromBoards(items);
+    const { items } = await listBoards({ projectId: normalizeKanbanProjectScope(projectId) });
+    return resolveKanbanSendBlockReasonFromBoards(items, projectId);
   } catch {
     return null;
   }

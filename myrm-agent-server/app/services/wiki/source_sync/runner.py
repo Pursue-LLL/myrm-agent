@@ -1,12 +1,13 @@
 """Orchestrate wiki source sync runs.
 
 [INPUT]
-- app.services.wiki.source_sync.config_store (POS: wikiSourceSync UserConfig persistence)
+- app.services.wiki.source_sync.config_store (POS: per-agent wikiSourceSync UserConfig persistence)
+- app.services.wiki.source_sync.state_store (POS: per-agent wikiSourceSyncState last-run observability)
 - app.services.wiki.vault_resolver (POS: agent wiki vault path SSOT)
 - myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
 
 [OUTPUT]
-- run_wiki_source_sync: Gmail/RSS/mirror orchestration + optional compile enqueue + ingest SSE + persist sync state
+- run_wiki_source_sync: Gmail/GDrive/RSS/mirror orchestration + optional compile enqueue + ingest SSE + persist scoped sync state
 
 [POS]
 Server SSOT for deterministic external-source pull into wiki raw/. Pull paths are zero-LLM;
@@ -22,6 +23,7 @@ from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.database.connection import get_session
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
+from app.services.wiki.source_sync.gdrive import sync_gdrive_folder_to_wiki
 from app.services.wiki.source_sync.gmail import sync_gmail_label_to_wiki
 from app.services.wiki.source_sync.integration_mirror import mirror_integration_sync_results_to_wiki
 from app.services.wiki.source_sync.rss import sync_rss_feeds_to_wiki
@@ -40,7 +42,7 @@ async def run_wiki_source_sync(
     sync_gmail_rss: bool = True,
 ) -> WikiSourceSyncRunSummary:
     async with get_session() as db:
-        effective_config = config or await load_wiki_source_sync_config(db)
+        effective_config = config or await load_wiki_source_sync_config(db, agent_id=agent_id)
 
     structure = WikiStructure(resolve_wiki_vault_path(agent_id))
     compiler_enqueue: object | None = None
@@ -80,6 +82,16 @@ async def run_wiki_source_sync(
         )
         run.results.append(rss_result)
 
+    if sync_gmail_rss and effective_config.gdrive_enabled:
+        gdrive_result = await sync_gdrive_folder_to_wiki(
+            structure,
+            folder_id=effective_config.gdrive_folder_id,
+            max_items=max_items,
+            auto_compile=auto_compile,
+            compiler_enqueue=compiler_enqueue,
+        )
+        run.results.append(gdrive_result)
+
     if effective_config.mirror_integrations_to_wiki and integration_sync_results and llm is not None:
         from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
 
@@ -116,7 +128,7 @@ async def run_wiki_source_sync(
         )
 
         async with get_session() as db:
-            await save_wiki_source_sync_state(db, state_from_run_summary(run))
+            await save_wiki_source_sync_state(db, state_from_run_summary(run), agent_id=agent_id)
     except Exception as exc:
         logger.warning("Failed to persist wiki source sync state: %s", exc)
 

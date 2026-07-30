@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { getConfigSyncManager, type ExternalAgentConfig } from '@/services/config';
 import useChatStore from '@/store/useChatStore';
+import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import { IconBrain } from '@/components/features/icons/PremiumIcons';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
@@ -76,6 +77,14 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
     t,
     tIndicator,
   } = useAgentConfigPanel();
+
+  const { triggerPrewarm } = useChatTurnPrewarm();
+
+  useEffect(() => {
+    if (actionMode === 'agent' && agentConfig?.agentId) {
+      void triggerPrewarm();
+    }
+  }, [actionMode, agentConfig?.agentId, triggerPrewarm]);
 
   // 仅在智能代理模式下显示
   if (actionMode !== 'agent') {

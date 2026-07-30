@@ -17,6 +17,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import UserConfig
+from app.services.wiki.source_sync.agent_scope import normalize_agent_scope
 from app.services.wiki.source_sync.schemas import (
     WikiSourceSyncRunSummary,
     WikiSourceSyncSourceState,
@@ -33,9 +35,30 @@ from app.services.wiki.source_sync.schemas import (
 logger = logging.getLogger(__name__)
 
 STATE_KEY = "wikiSourceSyncState"
+_AGENTS_FIELD = "agents"
 
 
-async def load_wiki_source_sync_state(db: AsyncSession) -> WikiSourceSyncState:
+def _parse_agents_state_map(raw: object) -> dict[str, dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return {}
+    agents = raw.get(_AGENTS_FIELD)
+    if isinstance(agents, dict):
+        return {str(key): value for key, value in agents.items() if isinstance(value, dict)}
+    if any(key in raw for key in ("last_sync_at", "sources", "total_published")):
+        return {normalize_agent_scope(None): dict(raw)}
+    return {}
+
+
+def _serialize_agents_state_map(agents: dict[str, WikiSourceSyncState]) -> dict[str, object]:
+    return {_AGENTS_FIELD: {scope: state.model_dump(mode="json") for scope, state in agents.items()}}
+
+
+async def load_wiki_source_sync_state(
+    db: AsyncSession,
+    *,
+    agent_id: str | None = None,
+) -> WikiSourceSyncState:
+    scope = normalize_agent_scope(agent_id)
     row = (
         await db.execute(select(UserConfig).where(UserConfig.config_key == STATE_KEY))
     ).scalars().first()
@@ -50,18 +73,46 @@ async def load_wiki_source_sync_state(db: AsyncSession) -> WikiSourceSyncState:
             return WikiSourceSyncState()
     if not isinstance(raw, dict):
         return WikiSourceSyncState()
+    agents = _parse_agents_state_map(raw)
+    scoped = agents.get(scope)
+    if scoped is None:
+        return WikiSourceSyncState()
     try:
-        return WikiSourceSyncState.model_validate(raw)
+        return WikiSourceSyncState.model_validate(scoped)
     except ValidationError as exc:
-        logger.warning("Invalid wikiSourceSyncState schema: %s", exc)
+        logger.warning("Invalid wikiSourceSyncState schema for scope %s: %s", scope, exc)
         return WikiSourceSyncState()
 
 
-async def save_wiki_source_sync_state(db: AsyncSession, state: WikiSourceSyncState) -> WikiSourceSyncState:
-    payload = state.model_dump(mode="json")
+async def save_wiki_source_sync_state(
+    db: AsyncSession,
+    state: WikiSourceSyncState,
+    *,
+    agent_id: str | None = None,
+) -> WikiSourceSyncState:
+    scope = normalize_agent_scope(agent_id)
     row = (
         await db.execute(select(UserConfig).where(UserConfig.config_key == STATE_KEY))
     ).scalars().first()
+
+    agents: dict[str, WikiSourceSyncState] = {}
+    if row is not None:
+        raw = row.config_value
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except json.JSONDecodeError:
+                raw = {}
+        if isinstance(raw, dict):
+            for key, value in _parse_agents_state_map(raw).items():
+                try:
+                    agents[key] = WikiSourceSyncState.model_validate(value)
+                except ValidationError:
+                    continue
+
+    agents[scope] = state
+    payload = _serialize_agents_state_map(agents)
+
     if row:
         row.config_value = payload
         row.is_encrypted = False

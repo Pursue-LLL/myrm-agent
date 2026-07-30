@@ -227,6 +227,11 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
 async def _phase_1a_sequential() -> None:
     """Phase 1a: Sequential critical tasks (DB + dependent tasks)."""
+    from app.config.settings import settings
+    from app.platform_utils.persistent_root import configure_persistent_root_for_local_dev
+
+    configure_persistent_root_for_local_dev(settings.database.state_dir)
+
     try:
         await init_database()
         logger.info("[Startup] Database initialized")
