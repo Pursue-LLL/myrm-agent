@@ -330,8 +330,10 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
         "MYRM_SUPERVISOR_BYPASS": "1",
         "MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC": "600",
     }
-    max_attempts = 1 if active_leases > 0 else 3
-    backoff_schedule = (0,) if max_attempts == 1 else (0, 5, 10)
+    # Parallel attach: SHC leader + backend-only ensure already defer wave mutations;
+    # transient :8080 flap under peer load needs the same 3-attempt backoff as idle.
+    max_attempts = 3
+    backoff_schedule = (0, 5, 10)
     for attempt, backoff_sec in enumerate(backoff_schedule, start=1):
         if backoff_sec > 0:
             time.sleep(backoff_sec)
