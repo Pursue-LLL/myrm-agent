@@ -103,6 +103,8 @@ class WikiSourceSnippet(BaseModel):
     line_range: str = ""
     claim_status: str = ""
     snapshot_status: str = ""
+    resource_uri: str = ""
+    superseded_from_uri: str = ""
     hit_kind: str = "concept"
     asset_filename: str = ""
 
@@ -118,6 +120,8 @@ class WikiClaimEvidenceItem(BaseModel):
     content_sha256: str = ""
     updated_at: str = ""
     snapshot_status: str = "missing"
+    resource_uri: str = ""
+    superseded_from_uri: str = ""
 
 
 class WikiClaimItem(BaseModel):
@@ -381,12 +385,44 @@ def _claims_to_response_items(
     structure: "WikiStructure | None" = None,
 ) -> list[WikiClaimItem]:
     from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
+        build_evidence_resource_uri,
+        lookup_raw_supersede_uri,
         parse_claims_from_content,
         resolve_evidence_snapshot_status,
     )
 
     items: list[WikiClaimItem] = []
     for claim in parse_claims_from_content(content):
+        evidence_items: list[WikiClaimEvidenceItem] = []
+        for evidence in claim.evidence:
+            snapshot_status = resolve_evidence_snapshot_status(
+                evidence.path,
+                evidence.content_sha256,
+                structure,
+            )
+            superseded_from_uri = ""
+            if snapshot_status == "stale":
+                superseded_from_uri = lookup_raw_supersede_uri(structure, evidence.path)
+            evidence_items.append(
+                WikiClaimEvidenceItem(
+                    kind=evidence.kind,
+                    source_id=evidence.source_id,
+                    path=evidence.path,
+                    lines=evidence.lines,
+                    weight=evidence.weight,
+                    confidence=evidence.confidence,
+                    note=evidence.note,
+                    content_sha256=evidence.content_sha256,
+                    updated_at=evidence.updated_at,
+                    snapshot_status=snapshot_status,
+                    resource_uri=build_evidence_resource_uri(
+                        evidence.path,
+                        evidence.content_sha256,
+                        structure=structure,
+                    ),
+                    superseded_from_uri=superseded_from_uri,
+                )
+            )
         items.append(
             WikiClaimItem(
                 id=claim.id,
@@ -394,25 +430,7 @@ def _claims_to_response_items(
                 status=claim.status,
                 confidence=claim.confidence,
                 updated_at=claim.updated_at,
-                evidence=[
-                    WikiClaimEvidenceItem(
-                        kind=evidence.kind,
-                        source_id=evidence.source_id,
-                        path=evidence.path,
-                        lines=evidence.lines,
-                        weight=evidence.weight,
-                        confidence=evidence.confidence,
-                        note=evidence.note,
-                        content_sha256=evidence.content_sha256,
-                        updated_at=evidence.updated_at,
-                        snapshot_status=resolve_evidence_snapshot_status(
-                            evidence.path,
-                            evidence.content_sha256,
-                            structure,
-                        ),
-                    )
-                    for evidence in claim.evidence
-                ],
+                evidence=evidence_items,
             )
         )
     return items
@@ -440,7 +458,22 @@ async def query_wiki(
 ) -> WikiQueryResponse:
     try:
         result = await archiver.query_wiki(request.question, query_mode=request.mode)
-        source_snippets = [
+        from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
+            build_evidence_resource_uri,
+            lookup_raw_supersede_uri,
+        )
+
+        source_snippets = []
+        for snippet in result.source_snippets:
+            resource_uri = build_evidence_resource_uri(
+                snippet.evidence_path or snippet.article_path,
+                snippet.evidence_content_sha256,
+                structure=archiver._structure,
+            )
+            superseded_from_uri = ""
+            if snippet.evidence_snapshot_status == "stale" and snippet.evidence_path:
+                superseded_from_uri = lookup_raw_supersede_uri(archiver._structure, snippet.evidence_path)
+            source_snippets.append(
             WikiSourceSnippet(
                 path=snippet.article_path,
                 name=snippet.article_name,
@@ -453,11 +486,12 @@ async def query_wiki(
                 line_range=snippet.line_range,
                 claim_status=snippet.claim_status,
                 snapshot_status=snippet.evidence_snapshot_status,
+                resource_uri=resource_uri,
+                superseded_from_uri=superseded_from_uri,
                 hit_kind=snippet.hit_kind,
                 asset_filename=snippet.asset_filename,
             )
-            for snippet in result.source_snippets
-        ]
+            )
         return WikiQueryResponse(
             answer=result.answer,
             related_articles=result.related_articles,

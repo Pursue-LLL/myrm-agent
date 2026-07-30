@@ -790,11 +790,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 ),
             )
             query_wiki = None
+            wiki_structure = None
             conversation_provider = None
             if search_policy.allow_wiki and self._lite_llm is not None:
                 from app.services.wiki.vault_service import get_wiki_archiver
 
                 lite_llm = self._lite_llm
+                wiki_structure = get_wiki_archiver(
+                    lite_llm, manager, agent_id=self.agent_id
+                )._structure
 
                 async def _query_wiki(question: str):
                     archiver = get_wiki_archiver(
@@ -816,6 +820,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             search_backends = MemorySearchBackends(
                 query_wiki=query_wiki,
                 wiki_agent_id=self.agent_id,
+                wiki_structure=wiki_structure,
                 conversation_provider=conversation_provider,
             )
             memory_tools = create_memory_tools(

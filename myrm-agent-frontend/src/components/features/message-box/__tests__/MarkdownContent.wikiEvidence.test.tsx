@@ -57,11 +57,13 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
     level,
     surface,
     snapshotStatus,
+    resourceUri,
   }: {
     open: boolean;
     level?: string;
     surface?: string;
     snapshotStatus?: string;
+    resourceUri?: string;
   }) => (
     <div
       data-testid="kb-drawer"
@@ -69,6 +71,7 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
       data-level={level ?? ''}
       data-surface={surface ?? ''}
       data-snapshot-status={snapshotStatus ?? ''}
+      data-resource-uri={resourceUri ?? ''}
     />
   ),
 }));
@@ -127,6 +130,7 @@ describe('MarkdownContent wiki evidence flow', () => {
         snippet: 'Budget fact',
         level: 'L2',
         snapshot_status: 'stale',
+        resource_uri: 'raw/budget.md@sha256:deadbeef',
         source_key: 'kb:LLM-Wiki:/concepts/budget.md:claim:claim.budget:evidence:raw/source.md:1-3',
       },
     ];
@@ -144,5 +148,6 @@ describe('MarkdownContent wiki evidence flow', () => {
     const drawer = screen.getByTestId('kb-drawer');
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-snapshot-status')).toBe('stale');
+    expect(drawer.getAttribute('data-resource-uri')).toBe('raw/budget.md@sha256:deadbeef');
   });
 });

@@ -18,6 +18,7 @@ export interface OrgInfo {
 export interface OrgMember {
   user_id: string;
   role: string;
+  idp_groups: string[] | null;
   joined_at: number;
 }
 
@@ -122,6 +123,7 @@ export interface OrgMCPServer {
   command: string | null;
   args: string[] | null;
   headers_configured: boolean;
+  acl_groups: string[] | null;
   description: string;
   enabled: boolean;
   created_by: string;
@@ -141,6 +143,7 @@ export interface CreateOrgMCPServerInput {
   description?: string;
   headers?: Record<string, string>;
   tunnel_id?: string;
+  acl_groups?: string[];
 }
 
 export interface UpdateOrgMCPServerInput {
@@ -151,6 +154,7 @@ export interface UpdateOrgMCPServerInput {
   headers?: Record<string, string>;
   enabled?: boolean;
   tunnel_id?: string;
+  acl_groups?: string[];
 }
 
 // ── Tunnel Management ──────────────────────────────────────────────

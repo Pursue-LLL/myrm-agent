@@ -185,15 +185,24 @@ async def handle_google_workspace_oauth_callback(
 
         skill_auto_enabled, skill_was_user_disabled = await _maybe_enable_google_workspace_skill()
 
+        try:
+            from app.services.wiki.source_sync.defaults import maybe_enable_wiki_gmail_on_google_connect
+
+            wiki_gmail_enabled = await maybe_enable_wiki_gmail_on_google_connect(respect_existing_config=True)
+        except Exception as exc:
+            wiki_gmail_enabled = False
+            logger.warning("Failed to enable wiki Gmail sync after Google OAuth: %s", exc)
+
         _successful_auth[state] = time.time()
         _successful_auth_meta[state] = {
             "skill_auto_enabled": skill_auto_enabled,
             "skill_was_user_disabled": skill_was_user_disabled,
         }
         logger.info(
-            "Google Workspace OAuth completed for user '%s' (skill_auto_enabled=%s)",
+            "Google Workspace OAuth completed for user '%s' (skill_auto_enabled=%s, wiki_gmail_enabled=%s)",
             user_id or "(unknown)",
             skill_auto_enabled,
+            wiki_gmail_enabled,
         )
         return HTMLResponse(content=flow.SUCCESS_HTML)
 

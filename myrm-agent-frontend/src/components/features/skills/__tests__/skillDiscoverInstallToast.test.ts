@@ -45,4 +45,38 @@ describe('resolveSkillInstallToastMessage', () => {
       titleParams: { name: SKILL },
     });
   });
+
+  it('returns already-enabled toast when catalog was already enabled', () => {
+    const response: SkillInstallToastResponse = {
+      mounted: true,
+      mount_already_present: true,
+    };
+
+    expect(resolveSkillInstallToastMessage(SKILL, response)).toEqual({
+      titleKey: 'installedAlreadyEnabled',
+      titleParams: { name: SKILL },
+    });
+  });
+
+  it('returns destructive toast when catalog enable fails', () => {
+    const response: SkillInstallToastResponse = {
+      mounted: false,
+      mount_error: 'Catalog enable rejected',
+    };
+
+    expect(resolveSkillInstallToastMessage(SKILL, response)).toEqual({
+      titleKey: 'installedEnableFailed',
+      titleParams: { name: SKILL },
+      descriptionText: 'Catalog enable rejected',
+      variant: 'destructive',
+    });
+  });
+
+  it('returns plain installed toast when mount did not run', () => {
+    const response: SkillInstallToastResponse = {};
+
+    expect(resolveSkillInstallToastMessage(SKILL, response)).toEqual({
+      titleKey: 'installed',
+    });
+  });
 });

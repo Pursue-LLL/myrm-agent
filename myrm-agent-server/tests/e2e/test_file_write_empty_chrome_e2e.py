@@ -133,6 +133,15 @@ def _live_user_prompt(filename: str) -> str:
     )
 
 
+def _steer_empty_write_prompt(filename: str) -> str:
+    return (
+        "STEER: You MUST call file_write_tool exactly once now with "
+        f"path {filename!r} and content '' (empty string). "
+        "Do not reply with text only. "
+        "Reply EMPTY_WRITE_DONE after the tool returns."
+    )
+
+
 def _nudge_result_agent_busy(nudge_result: dict[str, object]) -> bool:
     err = nudge_result.get("error")
     if isinstance(err, dict):
@@ -432,11 +441,15 @@ def _parallel_live_agent_peer_count() -> int:
 
 
 def _live_empty_write_parallel_scaled_cap_sec(*, base: float) -> float:
-    """Scale idle/stall caps under parallel LIVE_AGENT load (R134/R137)."""
+    """Scale idle/stall caps under parallel LIVE_AGENT load (R134/R137/R150)."""
     peers = _parallel_live_agent_peer_count()
     if peers < 2:
         return base
-    return min(150.0, base + peers * 10.0)
+    scaled = base + peers * 10.0
+    # R150: peers>=3 — LLM cold-start under mux load needs headroom beyond 120s.
+    if peers >= 3:
+        scaled = max(scaled, base + 40.0)
+    return min(150.0, scaled)
 
 
 def _live_empty_write_post_send_stall_cap_sec() -> float:
@@ -555,7 +568,9 @@ async def test_file_write_empty_live_agent_webui(
         )
         return pinned_model
 
-    async def _api_nudge_turn(resolved_chat_id: str, agent_id: str, filename: str) -> None:
+    async def _api_nudge_turn(
+        resolved_chat_id: str, agent_id: str, filename: str
+    ) -> str:
         nudge_prompt = _live_user_prompt(filename)
         nudge_result = await asyncio.to_thread(
             nudge_agent_stream_turn,
@@ -567,7 +582,7 @@ async def test_file_write_empty_live_agent_webui(
         )
         touch_wall_progress()
         if nudge_result.get("ok") is True:
-            return
+            return "ok"
         if _nudge_result_agent_busy(nudge_result):
             print(
                 "E2E_NUDGE_DEFER_AGENT_BUSY: in-flight UI stream owns session; "
@@ -575,11 +590,29 @@ async def test_file_write_empty_live_agent_webui(
                 file=sys.stderr,
                 flush=True,
             )
-            return
+            return "deferred"
         raise AssertionError(
             f"Live empty write API nudge failed: {nudge_result}; "
             f"filename={filename!r}"
         )
+
+    async def _steer_empty_write_turn(chat_id: str, filename: str) -> bool:
+        """R150: REST steer on in-flight turn — works when UI nudge gets AgentBusyError."""
+        steer_result = await asyncio.to_thread(
+            steer_chat_message,
+            chat_id,
+            _steer_empty_write_prompt(filename),
+            api_url=api_base,
+        )
+        touch_wall_progress()
+        steer_ok = steer_result.get("ok") is True
+        print(
+            f"E2E_STEER_EMPTY_WRITE: ok={steer_ok} "
+            f"parallel_peers={_parallel_live_agent_peer_count()}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return steer_ok
 
     async def _wait_turn_done(
         chat: McpChatSession,
@@ -762,36 +795,30 @@ async def test_file_write_empty_live_agent_webui(
                 nudge_filename = (
                     target_file.name if target_file is not None else "output.txt"
                 )
-                if idle_sec >= 30.0 and ui_nudge_attempts < 2:
-                    if ui.get("isStreaming") is True and not steer_attempted:
+                if idle_sec >= 30.0 and not last_api[0]:
+                    # R150: steer before UI nudge — in-flight stream rejects nudge (409)
+                    # even when turnSnapshot.isStreaming is false under parallel MUX load.
+                    if not steer_attempted:
                         steer_attempted = True
-                        steer_prompt = (
-                            "STEER: You MUST call file_write_tool exactly once now with "
-                            f"path {nudge_filename!r} and content '' (empty string). "
-                            "Do not reply with text only. "
-                            "Reply EMPTY_WRITE_DONE after the tool returns."
+                        steer_ok = await _steer_empty_write_turn(
+                            chat_id, nudge_filename
                         )
-                        steer_result = steer_chat_message(
-                            chat_id, steer_prompt, api_url=api_base
-                        )
-                        touch_wall_progress()
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
-                        if steer_result.get("ok") is not True:
+                        if steer_ok:
+                            await asyncio.sleep(1.5)
+                            continue
+                    if ui_nudge_attempts < 2:
+                        nudge_outcome = await _api_nudge_turn(
+                            chat_id, agent_id, nudge_filename
+                        )
+                        not_invoked_since = time.monotonic()
+                        last_progress_at = not_invoked_since
+                        if nudge_outcome == "ok":
                             ui_nudge_attempts += 1
-                            await _api_nudge_turn(chat_id, agent_id, nudge_filename)
-                            not_invoked_since = time.monotonic()
-                            last_progress_at = not_invoked_since
-                    elif ui.get("isStreaming") is not True:
-                        ui_nudge_attempts += 1
-                        await _api_nudge_turn(chat_id, agent_id, nudge_filename)
-                        not_invoked_since = time.monotonic()
-                        last_progress_at = not_invoked_since
-                    elif steer_attempted and idle_sec >= 45.0:
-                        ui_nudge_attempts += 1
-                        await _api_nudge_turn(chat_id, agent_id, nudge_filename)
-                        not_invoked_since = time.monotonic()
-                        last_progress_at = not_invoked_since
+                        elif nudge_outcome == "deferred":
+                            # Steer already attempted; wait for in-flight turn progress.
+                            pass
                 elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
                     raise AssertionError(
                         "Live empty write: LLM idle without file_write_tool; "

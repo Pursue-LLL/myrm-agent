@@ -1,4 +1,16 @@
-"""Migrate legacy agent-type read-it-later cron jobs to wiki source sync router jobs."""
+"""Migrate legacy agent-type read-it-later cron jobs to wiki source sync router jobs.
+
+[INPUT]
+- app.core.cron.adapters.setup::get_cron_manager (POS: Cron job CRUD)
+- app.core.cron.blueprints::fill_blueprint (POS: read_it_later blueprint SSOT)
+- app.core.cron.adapters.wiki_source_sync_runner::WIKI_SOURCE_SYNC_COMMAND (POS: router command id)
+
+[OUTPUT]
+- is_stale_read_it_later_job / migrate_stale_read_it_later_jobs
+
+[POS]
+Startup and Second Brain status hygiene: rewrite dead agent-type read-it-later jobs to zero-LLM router sync.
+"""
 
 from __future__ import annotations
 

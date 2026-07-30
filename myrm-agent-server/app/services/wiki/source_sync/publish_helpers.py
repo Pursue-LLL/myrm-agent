@@ -1,4 +1,14 @@
-"""Shared publish_raw helpers for wiki source sync."""
+"""Shared publish_raw helpers for wiki source sync.
+
+[INPUT]
+- myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
+
+[OUTPUT]
+- publish_source_markdown / build_frontmatter / sanitize_path_segment helpers
+
+[POS]
+Shared zero-LLM publish helpers for Gmail/RSS/integration mirror ingest paths.
+"""
 
 from __future__ import annotations
 

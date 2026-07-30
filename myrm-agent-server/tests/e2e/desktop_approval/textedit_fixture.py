@@ -252,27 +252,39 @@ def hide_textedit_fixture() -> None:
     )
 
 
+def _textedit_osascript_timeout_sec(*, activate: bool = False) -> float:
+    signoff = os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+    if activate:
+        return 25.0 if signoff else 15.0
+    return 20.0 if signoff else 10.0
+
+
 def activate_textedit_foreground() -> None:
     """Bring TextEdit to the foreground so macOS AX snapshot returns @drefs."""
     if platform.system() != "Darwin":
         return
-    subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "TextEdit" to activate',
-            "-e",
-            'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
-            "-e",
-            "set miniaturized of w to false",
-            "-e",
-            "end repeat",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    try:
+        subprocess.run(
+            [
+                "osascript",
+                "-e",
+                'tell application "TextEdit" to activate',
+                "-e",
+                'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
+                "-e",
+                "set miniaturized of w to false",
+                "-e",
+                "end repeat",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_textedit_osascript_timeout_sec(activate=True),
+        )
+    except subprocess.TimeoutExpired:
+        progress(
+            "textedit activate osascript timeout — continue preflight retries"
+        )
 
 
 def activate_chrome_foreground() -> None:
@@ -292,17 +304,23 @@ def textedit_is_frontmost() -> bool:
     """True when TextEdit is the frontmost app (AX snapshot targets foreground window)."""
     if platform.system() != "Darwin":
         return False
-    proc = subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "System Events" to return name of first application process whose frontmost is true',
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        proc = subprocess.run(
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to return name of first application process whose frontmost is true',
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_textedit_osascript_timeout_sec(),
+        )
+    except subprocess.TimeoutExpired:
+        progress(
+            "textedit is_frontmost osascript timeout — treating as not frontmost"
+        )
+        return False
     return proc.returncode == 0 and proc.stdout.strip() == "TextEdit"
 
 

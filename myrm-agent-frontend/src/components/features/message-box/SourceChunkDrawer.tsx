@@ -22,6 +22,8 @@ interface SourceChunkDrawerProps {
   snippet: string;
   level?: WikiSourceLevel;
   snapshotStatus?: 'verified' | 'stale' | 'missing';
+  resourceUri?: string;
+  supersededFromUri?: string;
   thumbnailUrl?: string | null;
   surface?: WikiEvidenceSurface;
   contextKey?: string;
@@ -40,7 +42,7 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, thumbnailUrl, surface = 'chat', contextKey }) => {
+  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, resourceUri, supersededFromUri, thumbnailUrl, surface = 'chat', contextKey }) => {
     const t = useTranslations('MessageSources');
     const tWiki = useTranslations('settings.wiki');
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
@@ -142,6 +144,14 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
                 {tWiki('evidenceSnapshotStale')}
               </p>
             )}
+            {resourceUri ? (
+              <p className="text-[11px] text-muted-foreground mt-2 font-mono break-all">{tWiki('evidenceResourceUri', { uri: resourceUri })}</p>
+            ) : null}
+            {supersededFromUri ? (
+              <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90 mt-1 font-mono break-all">
+                {tWiki('evidenceSupersededFrom', { uri: supersededFromUri })}
+              </p>
+            ) : null}
             {snapshotStatus === 'missing' && (
               <p className="text-[11px] text-muted-foreground mt-3">{tWiki('evidenceSnapshotMissing')}</p>
             )}

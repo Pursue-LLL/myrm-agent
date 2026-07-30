@@ -177,8 +177,8 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_endpoint_errors
-print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
+from runtime_identity import attach_wait_errors
+print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
 ")"
     [[ -z "${errors}" ]] && return 0
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
@@ -188,7 +188,8 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       fi
       return 1
     fi
-    if [[ "${errors}" == *"api=unreachable"* ]] \
+    if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
+      && [[ "${errors}" == *"api=unreachable"* ]] \
       && [[ "${waited}" -ge "${api_heal_next_at}" ]] \
       && [[ "${heal_during_wait}" -lt 2 ]] \
       && [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
@@ -401,38 +402,18 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_endpoint_errors
-print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
+from runtime_identity import attach_wait_errors
+print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
 ")"
   if [[ -n "${attach_errors}" ]]; then
-    if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
-      # SHPOIB private pools: shared :8080 may flap under parallel chrome_e2e; UI wait happens below.
-      private_attach_errors=""
-      part=""
-      IFS=','
-      for part in ${attach_errors}; do
-        part="${part#"${part%%[![:space:]]*}"}"
-        part="${part%"${part##*[![:space:]]}"}"
-        [[ "${part}" == api=* ]] && continue
-        if [[ -n "${private_attach_errors}" ]]; then
-          private_attach_errors+=", ${part}"
-        else
-          private_attach_errors="${part}"
-        fi
-      done
-      IFS=$' \t\n'
-      attach_errors="${private_attach_errors}"
-    fi
-    if [[ -n "${attach_errors}" ]]; then
-      if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
-        attach_msg="$("${PREFLIGHT_PY}" -c "
+    if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
+      attach_msg="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from runtime_identity import format_attach_endpoint_failure
 print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
 ")"
-        fail "${attach_msg} — first Agent must run: ./myrm ready --chrome"
-      fi
+      fail "${attach_msg} — first Agent must run: ./myrm ready --chrome"
     fi
   fi
 elif [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && "${MYRM_MUX_FORCE_ATTACH_RESTART:-}" != "1" ]] \

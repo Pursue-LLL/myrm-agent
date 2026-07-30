@@ -2,11 +2,12 @@
 
 [INPUT]
 - app.services.wiki.source_sync.config_store (POS: wikiSourceSync UserConfig persistence)
+- app.services.wiki.source_sync.state_store (POS: wikiSourceSyncState last-run observability)
 - app.services.wiki.source_sync.runner (POS: sync orchestration SSOT)
 - app.api.dependencies::get_optional_llm_for_user (POS: compile-capable LLM)
 
 [OUTPUT]
-- GET/PUT /sources/config · POST /sources/sync
+- GET/PUT /sources/config · POST /sources/sync（config 含 `state.last_sync_at`）
 
 [POS]
 REST layer for Settings Wiki external source configuration and manual sync triggers.

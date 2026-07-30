@@ -298,6 +298,7 @@ myrm_agent_harness.toolkits.cron.engine.scheduler
 myrm_agent_harness.toolkits.cron.heartbeat
 myrm_agent_harness.toolkits.cron.manager
 myrm_agent_harness.toolkits.cron.protocols
+myrm_agent_harness.toolkits.cron.runners
 myrm_agent_harness.toolkits.cron.situation
 myrm_agent_harness.toolkits.cron.triggers
 myrm_agent_harness.toolkits.cron.types
@@ -414,6 +415,7 @@ myrm_agent_harness.toolkits.web_search.web_searcher
 myrm_agent_harness.toolkits.wiki
 myrm_agent_harness.toolkits.wiki.core.canonical_registry
 myrm_agent_harness.toolkits.wiki.core.claims_contract
+myrm_agent_harness.toolkits.wiki.core.config
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.core.section_contract
@@ -424,6 +426,9 @@ myrm_agent_harness.toolkits.wiki.pipeline.apply
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map
 myrm_agent_harness.toolkits.wiki.pipeline.publication
 myrm_agent_harness.toolkits.wiki.pipeline.raw_gate
+myrm_agent_harness.toolkits.wiki.portability
+myrm_agent_harness.toolkits.wiki.portability.vault_archive
+myrm_agent_harness.toolkits.wiki.portability.vault_git
 myrm_agent_harness.toolkits.wiki.retrieval.asset_index
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
 myrm_agent_harness.utils

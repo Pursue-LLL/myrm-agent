@@ -6,7 +6,7 @@
 - myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
 
 [OUTPUT]
-- run_wiki_source_sync: Gmail/RSS/mirror orchestration + optional compile enqueue + ingest SSE
+- run_wiki_source_sync: Gmail/RSS/mirror orchestration + optional compile enqueue + ingest SSE + persist sync state
 
 [POS]
 Server SSOT for deterministic external-source pull into wiki raw/. Pull paths are zero-LLM;

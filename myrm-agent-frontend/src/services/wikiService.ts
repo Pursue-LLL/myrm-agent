@@ -42,6 +42,8 @@ export interface WikiSourceSnippet {
   line_range?: string;
   claim_status?: string;
   snapshot_status?: 'verified' | 'stale' | 'missing';
+  resource_uri?: string;
+  superseded_from_uri?: string;
   hit_kind?: 'concept' | 'asset';
   asset_filename?: string;
 }
@@ -57,6 +59,8 @@ export interface WikiClaimEvidence {
   content_sha256?: string;
   updated_at?: string;
   snapshot_status?: 'verified' | 'stale' | 'missing';
+  resource_uri?: string;
+  superseded_from_uri?: string;
 }
 
 export interface WikiClaim {

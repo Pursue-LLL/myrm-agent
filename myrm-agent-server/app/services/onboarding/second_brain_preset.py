@@ -146,21 +146,9 @@ async def _run_read_it_later_hygiene() -> None:
 
 
 async def _maybe_enable_wiki_gmail_source() -> None:
-    from app.database.connection import get_session
-    from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
-    from app.services.integrations.oauth_store import is_oauth_issuer_connected
-    from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config, save_wiki_source_sync_config
+    from app.services.wiki.source_sync.defaults import maybe_enable_wiki_gmail_on_google_connect
 
-    async with get_session() as db:
-        if not await is_oauth_issuer_connected(db, GOOGLE_WORKSPACE_ISSUER):
-            return
-        config = await load_wiki_source_sync_config(db)
-        if config.gmail_enabled:
-            return
-        await save_wiki_source_sync_config(
-            db,
-            config.model_copy(update={"gmail_enabled": True, "gmail_label": "ReadLater"}),
-        )
+    await maybe_enable_wiki_gmail_on_google_connect(respect_existing_config=False)
 
 
 def _apply_success_message(*, locale: str, vault_files_seeded: int) -> str:

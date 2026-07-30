@@ -43,6 +43,8 @@ export interface Source {
   evidence_path?: string;
   line_range?: string;
   snapshot_status?: WikiEvidenceSnapshotStatus;
+  resource_uri?: string;
+  superseded_from_uri?: string;
   hit_kind?: 'concept' | 'asset';
   asset_filename?: string;
   // conversation_history 字段

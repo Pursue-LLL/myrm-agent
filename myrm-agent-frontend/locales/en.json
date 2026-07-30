@@ -2051,10 +2051,10 @@
     },
     "wiki": {
       "title": "LLM-Wiki Knowledge Base",
-      "description": "AI-maintained structured knowledge base that grows with your conversations",
+      "description": "AI-maintained structured knowledge base that grows with your conversations. Wiki holds articles and reference docs; Memory holds short personal facts and preferences—use each for what it is best at.",
       "secondBrain": {
         "title": "Second Brain Quick Start",
-        "description": "One click to set up a knowledge agent with wiki, memory, daily read-it-later ingestion, and a 7:00 AM vault delta digest.",
+        "description": "One click to set up a knowledge agent with wiki, memory, daily read-it-later ingestion, and a 7:00 AM vault delta digest. Wiki stores long-form knowledge; Memory stores compact facts about you (preferences, rules, profile).",
         "loading": "Loading setup status…",
         "loadFailed": "Could not load Second Brain setup status",
         "applyFailed": "Could not apply Second Brain preset",
@@ -2074,7 +2074,7 @@
       },
       "sources": {
         "title": "External sources",
-        "description": "Pull Gmail labels and RSS feeds into your knowledge base on a schedule (zero AI cost for sync).",
+        "description": "Pull Gmail labels and RSS feeds into your knowledge base on a schedule (zero AI cost for sync). Long articles and notes belong in Wiki; short personal facts belong in Memory.",
         "gmailLabel": "Gmail read-later",
         "gmailTagLabel": "Gmail label",
         "googleConnected": "Google connected",
@@ -2096,7 +2096,9 @@
         "connectGoogle": "Connect Google",
         "lastSync": "Last sync: {time}",
         "lastSyncNever": "Not synced yet",
-        "lastSyncSummary": "+{published} new · {skipped} skipped · {failed} failed"
+        "lastSyncSummary": "+{published} new · {skipped} skipped · {failed} failed",
+        "syncIssue": "Last sync issue: {detail}",
+        "syncIssueGeneric": "Some sources failed to sync"
       },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",
@@ -2379,6 +2381,8 @@
         "evidenceSnapshotVerified": "Source snapshot verified at compile",
         "evidenceSnapshotStale": "Source file changed since compile snapshot",
         "evidenceSnapshotMissing": "No compile snapshot for this source",
+        "evidenceResourceUri": "Source version: {uri}",
+        "evidenceSupersededFrom": "Previous import version: {uri}",
         "rawSourcesTitle": "Raw source ingest status",
         "rawSourcesEmpty": "No raw source files yet",
         "rawForgetTitle": "Remove raw source",
@@ -3561,6 +3565,10 @@
       "mcpTunnelSelect": "Select Tunnel",
       "mcpTunnelSelectPlaceholder": "Choose a registered tunnel...",
       "mcpTunnelNone": "No tunnels registered. Create a tunnel first.",
+      "mcpAclGroups": "Restrict to Groups (optional)",
+      "mcpAclGroupsPlaceholder": "engineering, finance, security",
+      "mcpAclGroupsHint": "Comma-separated IdP group names. Leave empty to make visible to all members.",
+      "mcpAclGroupsBadge": "{count, plural, one {# group} other {# groups}}",
       "tunnelTitle": "Private Tunnels",
       "tunnelDescription": "Connect cloud sandboxes to on-premise MCP servers via secure outbound tunnels. No inbound firewall rules needed.",
       "tunnelAdd": "Register Tunnel",

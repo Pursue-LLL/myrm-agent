@@ -115,6 +115,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return base_sec
     active_leases = 0
+    parallel_tests = 0
     try:
         from stack_mutation_policy import wave_active_lease_count
 
@@ -122,10 +123,17 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
         active_leases = wave_active_lease_count(monorepo_root)
     except Exception:
         active_leases = 0
+    try:
+        from transport_supervisor import parallel_active_test_count
+
+        parallel_tests = parallel_active_test_count()
+    except Exception:
+        parallel_tests = 0
+    load = max(active_leases, parallel_tests)
     # Signoff always applies a parallel headroom floor (Run#11 showed 50s/35s base under load).
     floor = max(base_sec, 90.0 if base_sec >= 45.0 else 70.0)
-    scaled = floor + active_leases * 10.0
-    return min(scaled, 150.0)
+    scaled = floor + load * 10.0
+    return min(scaled, 180.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:

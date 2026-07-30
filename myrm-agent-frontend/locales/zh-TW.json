@@ -2223,6 +2223,8 @@
         "evidenceSnapshotVerified": "編譯時已校驗來源快照",
         "evidenceSnapshotStale": "源檔案自編譯快照後有變更",
         "evidenceSnapshotMissing": "此來源尚無編譯快照",
+        "evidenceResourceUri": "來源版本：{uri}",
+        "evidenceSupersededFrom": "上一版匯入：{uri}",
         "rawSourcesTitle": "原始素材入庫狀態",
         "rawSourcesEmpty": "尚無原始素材檔案",
         "rawIngestClean": "已與上次編譯同步",

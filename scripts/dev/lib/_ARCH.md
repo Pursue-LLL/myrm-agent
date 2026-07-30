@@ -34,7 +34,7 @@
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
 | `e2e_runtime_cell.py` | Unix | **R73-F** E2E Runtime Cell：per-slot `MYRM_E2E_CELL_ID` · per-cell UI hydrate flock · `runtime_cell_snapshot()` |
 | `e2e_shared_ui_hydrate.py` | Unix | SHPOIB 并行 navigate/reload burst flock（R36 窄化锁；queue ≤900s）；**R73-F** 有 cell 时走 `e2e_runtime_cell.cell_ui_hydrate_slot` |
-| `e2e_shared_ui_session.py` | Unix | chrome_e2e Shared UI Session Contract（marker `e2e_search_policy` · RESET/BIND/BRIDGE/SEARCH 四阶段 · bootstrap + `click_new_chat` hook；**R55** empty 两态契约；**R67** 各步 `assert_phase_budget` + bridge `asyncio.wait_for` fail-fast） |
+| `e2e_shared_ui_session.py` | Unix | chrome_e2e Shared UI Session Contract（marker `e2e_search_policy` · RESET/BIND/BRIDGE/SEARCH 四阶段 · bootstrap + `click_new_chat` hook；**R55** empty 两态契约；**R67** 各步 `assert_phase_budget` + bridge `asyncio.wait_for` fail-fast；**R158** 最终 probe fail → `ensure_react_e2e_bridge` 最多 3 次 re-hydrate + empty policy re-block） |
 | `e2e_pytest_dedupe.py` | Unix | chrome_e2e 文件级 dedupe；stale wall = `LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC`（1110s dev LIVE floor · SHPOIB cap 810s）；`E2E_PYTEST_DEDUPE_DENIED` |
 | `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=3、`MUX_UPSTREAM_WAIT`）；`read_mux_cold_attach_status()` 供 `e2e-context` 暴露 `muxColdAttachSaturated`；`chrome_mcp_client.new_page` 包装 |
 | `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |

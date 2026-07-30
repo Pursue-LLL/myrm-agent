@@ -12,6 +12,7 @@ interface OrgMcpServerFormFieldsProps {
   description: string;
   authHeader: string;
   tunnelId: string;
+  aclGroups: string;
   headersConfigured?: boolean;
   tunnels?: { id: string; name: string; status: string }[];
   onNameChange: (value: string) => void;
@@ -20,6 +21,7 @@ interface OrgMcpServerFormFieldsProps {
   onDescriptionChange: (value: string) => void;
   onAuthHeaderChange: (value: string) => void;
   onTunnelIdChange: (value: string) => void;
+  onAclGroupsChange: (value: string) => void;
   t: (key: string) => string;
   namePlaceholder?: string;
 }
@@ -31,6 +33,7 @@ export function OrgMcpServerFormFields({
   description,
   authHeader,
   tunnelId,
+  aclGroups,
   headersConfigured = false,
   tunnels = [],
   onNameChange,
@@ -39,6 +42,7 @@ export function OrgMcpServerFormFields({
   onDescriptionChange,
   onAuthHeaderChange,
   onTunnelIdChange,
+  onAclGroupsChange,
   t,
   namePlaceholder,
 }: OrgMcpServerFormFieldsProps) {
@@ -118,6 +122,15 @@ export function OrgMcpServerFormFields({
           onChange={(e) => onDescriptionChange(e.target.value)}
           placeholder={t('mcpServerDescriptionPlaceholder')}
         />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('mcpAclGroups')}</Label>
+        <Input
+          value={aclGroups}
+          onChange={(e) => onAclGroupsChange(e.target.value)}
+          placeholder={t('mcpAclGroupsPlaceholder')}
+        />
+        <p className="text-xs text-muted-foreground">{t('mcpAclGroupsHint')}</p>
       </div>
       <p className="text-xs text-muted-foreground">{t('mcpSleepingHint')}</p>
     </div>

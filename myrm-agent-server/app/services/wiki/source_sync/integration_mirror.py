@@ -1,4 +1,14 @@
-"""Mirror Integration Memory new items into wiki raw."""
+"""Mirror Integration Memory new items into wiki raw.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory.integration.types::IntegrationSyncResult (POS: integration pull results)
+
+[OUTPUT]
+- mirror_integration_sync_results_to_wiki: publish integration items to wiki raw/
+
+[POS]
+Bridge integration memory sync output into wiki raw ingest pipeline.
+"""
 
 from __future__ import annotations
 

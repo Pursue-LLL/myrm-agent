@@ -1,4 +1,15 @@
-"""Gmail label → wiki raw sync (Google Workspace OAuth)."""
+"""Gmail label → wiki raw sync (Google Workspace OAuth).
+
+[INPUT]
+- app.services.agent.oauth_refresher (POS: Google OAuth token refresh)
+- app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
+
+[OUTPUT]
+- sync_gmail_label_to_wiki: pull labeled Gmail threads into wiki raw/
+
+[POS]
+Deterministic Gmail ingest path for wiki source sync; zero LLM.
+"""
 
 from __future__ import annotations
 

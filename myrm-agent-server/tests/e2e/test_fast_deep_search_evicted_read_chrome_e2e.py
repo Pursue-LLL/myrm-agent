@@ -9,6 +9,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
+import urllib.error
 from urllib.parse import urlparse
 
 import pytest
@@ -27,6 +28,7 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from e2e_orchestrator import touch_wall_progress  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
@@ -135,6 +137,33 @@ def _search_configs_from_value(value: dict[str, object]) -> list[dict[str, objec
     return [item for item in configs if isinstance(item, dict)]
 
 
+def _try_fetch_shared_config(config_key: str) -> dict[str, object] | None:
+    """Read shared hot config when :8080 is reachable; None during parallel stack heal."""
+    try:
+        value = fetch_config_value(config_key, api_url=shared_hot_e2e_api_base())
+    except (OSError, urllib.error.URLError, TimeoutError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _fetch_config_resilient(
+    config_key: str, api_url: str, *, attempts: int = 5
+) -> dict[str, object]:
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            value = fetch_config_value(config_key, api_url=api_url)
+            return value if isinstance(value, dict) else {}
+        except (OSError, urllib.error.URLError, TimeoutError) as exc:
+            last_exc = exc
+            if attempt + 1 >= attempts:
+                raise
+            time.sleep(2.0 * (attempt + 1))
+    if last_exc is not None:
+        raise last_exc
+    return {}
+
+
 def _minimal_e2e_search_services() -> dict[str, object]:
     """Minimal searchServices for SHPOIB when shared :8080 has no configs."""
     search_service = resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily"
@@ -177,11 +206,11 @@ def _wait_search_services_persisted(
 
 def _ensure_private_search_configured(api_base: str) -> None:
     """SHPOIB private pools start empty; mirror shared :8080 or seed minimal search."""
-    private = fetch_config_value("searchServices", api_url=api_base)
+    private = _fetch_config_resilient("searchServices", api_base)
     if _search_configs_from_value(private):
         return
-    shared = fetch_config_value("searchServices", api_url=shared_hot_e2e_api_base())
-    if _search_configs_from_value(shared):
+    shared = _try_fetch_shared_config("searchServices")
+    if shared and _search_configs_from_value(shared):
         put_config_value("searchServices", shared, api_url=api_base)
     else:
         put_config_value(
@@ -192,8 +221,8 @@ def _ensure_private_search_configured(api_base: str) -> None:
 
 def _ensure_private_providers_configured(api_base: str) -> None:
     """Mirror shared providers + pin fastModeModel to lite primary for fast-mode E2E."""
-    shared = fetch_config_value("providers", api_url=shared_hot_e2e_api_base())
-    if not isinstance(shared, dict):
+    shared = _try_fetch_shared_config("providers")
+    if not shared:
         return
     lite_primary = (
         shared.get("defaultModelConfig", {}).get("liteModel", {}).get("primary")
@@ -391,6 +420,50 @@ async def _open_e2e_page_with_runtime_retry(
     raise last_exc
 
 
+_TRANSIENT_KICKOFF_ERRORS = (
+    "send-kickoff-no-progress",
+    "send-message-settled-without-progress",
+    "send-turn-observe-timeout",
+    "session-reset-during-submit",
+)
+
+
+async def _kickoff_fast_search_with_retries(
+    chat: McpChatSession,
+    *,
+    api_base: str,
+    prep_js: str,
+    kickoff_js: str,
+    prep: dict[str, object],
+    max_attempts: int = 3,
+) -> tuple[dict[str, object], dict[str, object]]:
+    kickoff: dict[str, object] | None = None
+    for kickoff_attempt in range(max_attempts):
+        kickoff = await chat.evaluate(
+            kickoff_js, await_promise=True, recv_timeout=120.0
+        )
+        if isinstance(kickoff, dict) and kickoff.get("ok") is True:
+            return prep, kickoff
+        transient_kickoff = isinstance(kickoff, dict) and str(
+            kickoff.get("err") or ""
+        ) in _TRANSIENT_KICKOFF_ERRORS
+        if kickoff_attempt + 1 < max_attempts and transient_kickoff:
+            await chat.click_new_chat()
+            await chat.ensure_chat_surface(BASE_URL)
+            _ensure_private_search_configured(api_base)
+            _ensure_private_providers_configured(api_base)
+            raw_prep = await chat.evaluate(
+                prep_js, await_promise=True, recv_timeout=90.0
+            )
+            if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                prep = raw_prep
+            await asyncio.sleep(2.0 * (kickoff_attempt + 1))
+            continue
+        break
+    assert isinstance(kickoff, dict) and kickoff.get("ok") is True, kickoff
+    return prep, kickoff
+
+
 async def _run_fast_evicted_read_live_e2e(
     e2e_resource_ledger: E2EResourceLedger,
     *,
@@ -475,35 +548,13 @@ async def _run_fast_evicted_read_live_e2e(
             f"{workspace_ready!r}; api={api_base}"
         )
 
-        kickoff: dict[str, object] | None = None
-        for kickoff_attempt in range(3):
-            kickoff = await chat.evaluate(
-                kickoff_js, await_promise=True, recv_timeout=120.0
-            )
-            if isinstance(kickoff, dict) and kickoff.get("ok") is True:
-                break
-            transient_kickoff = isinstance(kickoff, dict) and str(
-                kickoff.get("err") or ""
-            ) in (
-                "send-kickoff-no-progress",
-                "send-message-settled-without-progress",
-                "send-turn-observe-timeout",
-                "session-reset-during-submit",
-            )
-            if kickoff_attempt + 1 < 3 and transient_kickoff:
-                await chat.click_new_chat()
-                await chat.ensure_chat_surface(BASE_URL)
-                _ensure_private_search_configured(api_base)
-                _ensure_private_providers_configured(api_base)
-                raw_prep = await chat.evaluate(
-                    prep_js, await_promise=True, recv_timeout=90.0
-                )
-                if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
-                    prep = raw_prep
-                await asyncio.sleep(2.0 * (kickoff_attempt + 1))
-                continue
-            break
-        assert isinstance(kickoff, dict) and kickoff.get("ok") is True, kickoff
+        prep, kickoff = await _kickoff_fast_search_with_retries(
+            chat,
+            api_base=api_base,
+            prep_js=prep_js,
+            kickoff_js=kickoff_js,
+            prep=prep,
+        )
         post_send_mode = await chat.evaluate(
             """(() => ({
               actionMode: window.__MYRM_E2E_CHAT__?.getActionMode?.() ?? null,
@@ -529,6 +580,9 @@ async def _run_fast_evicted_read_live_e2e(
         turn_started = time.monotonic()
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            touch_wall_progress(
+                current_node=f"fast_{search_depth}_search_poll"
+            )
             ui_last, api_last = await _poll_fast_search_progress(
                 chat, chat_id, api_base
             )
@@ -556,13 +610,17 @@ async def _run_fast_evicted_read_live_e2e(
                     recv_timeout=15.0,
                 )
                 await asyncio.sleep(2.0)
-                kickoff = await chat.evaluate(
-                    kickoff_js, await_promise=True, recv_timeout=120.0
+                touch_wall_progress(
+                    current_node=f"fast_{search_depth}_stall_recovery"
                 )
-                assert (
-                    isinstance(kickoff, dict) and kickoff.get("ok") is True
-                ), f"fast {search_depth} stall recovery kickoff failed: {kickoff!r}"
-                chat_id = str(kickoff.get("chatId") or chat_id).strip()
+                prep, kickoff = await _kickoff_fast_search_with_retries(
+                    chat,
+                    api_base=api_base,
+                    prep_js=prep_js,
+                    kickoff_js=kickoff_js,
+                    prep=prep,
+                )
+                chat_id = str(kickoff.get("chatId") or "").strip()
                 assert chat_id, kickoff
                 turn_started = time.monotonic()
                 continue

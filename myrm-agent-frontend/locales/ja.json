@@ -2229,6 +2229,8 @@
         "evidenceSnapshotVerified": "コンパイル時にソーススナップショットを検証済み",
         "evidenceSnapshotStale": "コンパイル快照以降にソースファイルが変更されました",
         "evidenceSnapshotMissing": "このソースにはコンパイル快照がありません",
+        "evidenceResourceUri": "ソース版：{uri}",
+        "evidenceSupersededFrom": "前回インポート版：{uri}",
         "rawSourcesTitle": "Rawソース取り込み状態",
         "rawSourcesEmpty": "Rawソースファイルはまだありません",
         "rawIngestClean": "前回コンパイルと同期済み",

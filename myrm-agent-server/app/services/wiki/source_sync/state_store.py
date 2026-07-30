@@ -1,10 +1,22 @@
-"""Persist wiki source sync run state for UI observability."""
+"""Persist wiki source sync run state for UI observability.
+
+[INPUT]
+- app.services.wiki.source_sync.schemas (POS: WikiSourceSyncState / run summary DTOs)
+- app.database.models::UserConfig (POS: UserConfig key-value persistence)
+
+[OUTPUT]
+- load_wiki_source_sync_state / save_wiki_source_sync_state / state_from_run_summary
+
+[POS]
+UserConfig `wikiSourceSyncState` SSOT for last sync timestamp, per-source counts, and errors.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
 import uuid
+from datetime import UTC, datetime
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -12,7 +24,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import UserConfig
-from app.services.wiki.source_sync.schemas import WikiSourceSyncRunSummary, WikiSourceSyncState
+from app.services.wiki.source_sync.schemas import (
+    WikiSourceSyncRunSummary,
+    WikiSourceSyncSourceState,
+    WikiSourceSyncState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +80,6 @@ async def save_wiki_source_sync_state(db: AsyncSession, state: WikiSourceSyncSta
 
 
 def state_from_run_summary(summary: WikiSourceSyncRunSummary) -> WikiSourceSyncState:
-    from datetime import UTC, datetime
-
-    from app.services.wiki.source_sync.schemas import WikiSourceSyncSourceState
-
     errors: list[str] = []
     sources: list[WikiSourceSyncSourceState] = []
     for item in summary.results:

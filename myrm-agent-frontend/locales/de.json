@@ -1530,6 +1530,8 @@
         "evidenceSnapshotVerified": "Source snapshot verified at compile",
         "evidenceSnapshotStale": "Source file changed since compile snapshot",
         "evidenceSnapshotMissing": "No compile snapshot for this source",
+        "evidenceResourceUri": "Source version: {uri}",
+        "evidenceSupersededFrom": "Previous import version: {uri}",
         "rawSourcesTitle": "Raw source ingest status",
         "rawSourcesEmpty": "No raw source files yet",
         "rawIngestClean": "Synced with last compile",

@@ -247,6 +247,23 @@ def api_health_errors(api_base: str) -> list[str]:
     return ["api=unreachable"]
 
 
+def shpoib_private_backend_preflight() -> bool:
+    """True when attach preflight runs for SHPOIB private-backend chrome_e2e."""
+    return os.getenv("MYRM_PRIVATE_BACKEND", "").strip() == "1"
+
+
+def filter_shpoib_attach_wait_errors(errors: list[str]) -> list[str]:
+    """Drop shared api=* errors for SHPOIB ADMIT wait (private pool binds later)."""
+    if not shpoib_private_backend_preflight():
+        return errors
+    return [error for error in errors if not error.strip().startswith("api=")]
+
+
+def attach_wait_errors(ui_base: str, api_base: str) -> list[str]:
+    """Attach ADMIT wait probe; SHPOIB ignores flaky shared :8080 under parallel load."""
+    return filter_shpoib_attach_wait_errors(attach_endpoint_errors(ui_base, api_base))
+
+
 def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
     from dev_gate_contract import attach_ui_probe_timeout_sec

@@ -1,4 +1,14 @@
-"""Persist wiki source sync settings in UserConfig."""
+"""Persist wiki source sync settings in UserConfig.
+
+[INPUT]
+- app.database.models::UserConfig (POS: per-user config persistence)
+
+[OUTPUT]
+- load/save/exists helpers for wikiSourceSync UserConfig key
+
+[POS]
+Server SSOT for wiki source sync UserConfig read/write.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +27,13 @@ from app.services.wiki.source_sync.schemas import WikiSourceSyncConfig
 logger = logging.getLogger(__name__)
 
 CONFIG_KEY = "wikiSourceSync"
+
+
+async def wiki_source_sync_config_exists(db: AsyncSession) -> bool:
+    row = (
+        await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))
+    ).scalars().first()
+    return row is not None
 
 
 async def load_wiki_source_sync_config(db: AsyncSession) -> WikiSourceSyncConfig:

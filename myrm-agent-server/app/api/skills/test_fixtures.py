@@ -1,4 +1,11 @@
-"""Local-only HTTP fixtures for skill catalog Chrome E2E tests."""
+"""Local-only HTTP fixtures for skill catalog Chrome E2E tests.
+
+[OUTPUT]
+- ensure_prebuilt_catalog: local/test route to seed prebuilt skills for Chrome E2E
+
+[POS]
+Dev-only skills catalog fixture router; gated by is_local_mode().
+"""
 
 from __future__ import annotations
 

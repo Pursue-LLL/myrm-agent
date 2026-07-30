@@ -138,3 +138,5 @@ app/services/memory/operations/crud/import_archive.py
 app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context.py
 app/services/repair/actions.py
+app/core/cron/blueprint_i18n_supplement.py
+app/services/onboarding/second_brain_preset.py

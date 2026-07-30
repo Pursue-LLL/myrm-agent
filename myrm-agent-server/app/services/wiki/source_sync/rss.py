@@ -1,4 +1,14 @@
-"""RSS/Atom feed → wiki raw sync."""
+"""RSS/Atom feed → wiki raw sync.
+
+[INPUT]
+- app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
+
+[OUTPUT]
+- sync_rss_feeds_to_wiki: pull RSS/Atom entries into wiki raw/
+
+[POS]
+Deterministic RSS ingest path for wiki source sync; zero LLM.
+"""
 
 from __future__ import annotations
 

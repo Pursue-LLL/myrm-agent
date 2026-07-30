@@ -123,6 +123,8 @@ export function WikiSection() {
     snippet: string;
     level?: WikiSourceLevel;
     snapshotStatus?: WikiSourceSnippet['snapshot_status'];
+    resourceUri?: string;
+    supersededFromUri?: string;
     thumbnailUrl?: string | null;
   }>({ open: false, title: '', snippet: '' });
   const [stats, setStats] = useState<WikiStats | null>(null);
@@ -1052,6 +1054,8 @@ export function WikiSection() {
                                   snippet: snippet.snippet,
                                   level,
                                   snapshotStatus: snippet.snapshot_status,
+                                  resourceUri: snippet.resource_uri,
+                                  supersededFromUri: snippet.superseded_from_uri,
                                   thumbnailUrl,
                                 })
                               }
@@ -1134,6 +1138,8 @@ export function WikiSection() {
             snippet={snippetDrawerState.snippet}
             level={snippetDrawerState.level}
             snapshotStatus={snippetDrawerState.snapshotStatus}
+            resourceUri={snippetDrawerState.resourceUri}
+            supersededFromUri={snippetDrawerState.supersededFromUri}
             thumbnailUrl={snippetDrawerState.thumbnailUrl}
             surface="settings"
             contextKey={evidenceContextKey}

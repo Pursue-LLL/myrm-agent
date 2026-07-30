@@ -1,4 +1,11 @@
-"""Pydantic models for wiki source sync configuration and run results."""
+"""Pydantic models for wiki source sync configuration and run results.
+
+[OUTPUT]
+- WikiSourceSyncConfig / WikiSourceSyncResult / WikiSourceSyncRunSummary schemas
+
+[POS]
+Typed contracts for wiki source sync config persistence and run telemetry.
+"""
 
 from __future__ import annotations
 

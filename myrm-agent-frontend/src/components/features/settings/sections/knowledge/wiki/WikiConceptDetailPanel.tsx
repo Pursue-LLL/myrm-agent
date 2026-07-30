@@ -279,6 +279,16 @@ export function WikiConceptDetailPanel({
                                       {t('evidenceSnapshotMissing')}
                                     </div>
                                   )}
+                                  {evidence.resource_uri ? (
+                                    <div className="text-[11px] text-muted-foreground font-mono break-all">
+                                      {t('evidenceResourceUri', { uri: evidence.resource_uri })}
+                                    </div>
+                                  ) : null}
+                                  {evidence.superseded_from_uri ? (
+                                    <div className="text-[11px] text-amber-700/90 dark:text-amber-300/90 font-mono break-all">
+                                      {t('evidenceSupersededFrom', { uri: evidence.superseded_from_uri })}
+                                    </div>
+                                  ) : null}
                                 </li>
                               ))}
                             </ul>

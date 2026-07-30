@@ -13,6 +13,7 @@ import {
   getWikiSourceSyncStatus,
   syncWikiSources,
   updateWikiSourceSyncConfig,
+  type WikiSourceSyncState,
   type WikiSourceSyncStatus,
 } from '@/services/wikiSourceSync';
 import { useWikiAgentScope } from './WikiAgentScopeContext';
@@ -20,6 +21,15 @@ import { useWikiAgentScope } from './WikiAgentScopeContext';
 interface WikiSourceSyncPanelProps {
   onGoToIntegrations?: () => void;
 }
+
+const EMPTY_SYNC_STATE: WikiSourceSyncState = {
+  last_sync_at: null,
+  last_errors: [],
+  sources: [],
+  total_published: 0,
+  total_skipped: 0,
+  total_failed: 0,
+};
 
 export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSyncPanelProps) {
   const t = useTranslations('settings.wiki.sources');
@@ -82,6 +92,8 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
       const summary = await syncWikiSources(agentScopeId);
       if (summary.total_published > 0) {
         toast.success(t('syncSuccess', { count: summary.total_published }));
+      } else if (summary.total_failed > 0) {
+        toast.error(t('syncError'));
       } else {
         toast.message(t('syncEmpty'));
       }
@@ -101,24 +113,32 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
     return null;
   }
 
+  const syncState = status.state ?? EMPTY_SYNC_STATE;
+  const syncIssue =
+    syncState.last_errors[0] ??
+    (syncState.total_failed > 0 ? t('syncIssueGeneric') : null);
+
   return (
     <Card className="border-border/60 bg-card/50">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{t('title')}</CardTitle>
         <CardDescription>{t('description')}</CardDescription>
-        {status.state.last_sync_at ? (
+        {syncState.last_sync_at ? (
           <p className="text-xs text-muted-foreground">
-            {t('lastSync', { time: new Date(status.state.last_sync_at).toLocaleString() })}
+            {t('lastSync', { time: new Date(syncState.last_sync_at).toLocaleString() })}
             {' · '}
             {t('lastSyncSummary', {
-              published: status.state.total_published,
-              skipped: status.state.total_skipped,
-              failed: status.state.total_failed,
+              published: syncState.total_published,
+              skipped: syncState.total_skipped,
+              failed: syncState.total_failed,
             })}
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">{t('lastSyncNever')}</p>
         )}
+        {syncIssue ? (
+          <p className="text-xs text-destructive/90">{t('syncIssue', { detail: syncIssue })}</p>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-3">

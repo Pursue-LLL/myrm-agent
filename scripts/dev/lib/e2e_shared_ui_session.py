@@ -5,7 +5,7 @@ cdp_chat_support::ensure_e2e_search_cleared_in_browser (POS: E2E API/chat 消息
 cdp_chat_support::get_e2e_api_url (POS: E2E API/chat 消息 SSOT)
 
 [OUTPUT]
-apply_shared_ui_session_contract: 四阶段 UI 会话隔离（RESET → BIND → BRIDGE → SEARCH）
+apply_shared_ui_session_contract: 四阶段 UI 会话隔离（RESET → BIND → BRIDGE → SEARCH）+ 最终 probe 失败时 CDP re-hydrate（最多 3 次）
 prime_search_policy_env / resolve_search_policy_from_item: pytest marker → env SSOT
 RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS: empty 策略专用 RESET 变体（保留 __MYRM_E2E_BLOCK_SEARCH_SYNC__）
 
@@ -81,6 +81,8 @@ BRIDGE_READY_PROBE_JS = """(() => ({
   blockSearchSync: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__),
   phase: 'BRIDGE_READY',
 }))()"""
+
+BRIDGE_PROBE_MAX_REHYDRATE = 3
 
 
 def _normalize_api_url(api_url: str) -> str:
@@ -174,6 +176,118 @@ def current_search_policy() -> SearchPolicy | None:
 
 def _session_error(token: str, detail: object) -> RuntimeError:
     return RuntimeError(f"{token}: {detail}")
+
+
+async def _evaluate_bridge_probe(chat: SharedUiSessionChat) -> dict[str, object]:
+    probe_raw = await chat.evaluate(
+        BRIDGE_READY_PROBE_JS,
+        await_promise=False,
+        recv_timeout=15.0,
+    )
+    return probe_raw if isinstance(probe_raw, dict) else {"value": probe_raw}
+
+
+def _bridge_probe_ready(probe: dict[str, object], *, policy: SearchPolicy) -> bool:
+    if probe.get("hasSendChatMessage") is not True:
+        return False
+    if policy == "empty" and probe.get("blockSearchSync") is not True:
+        return False
+    return True
+
+
+async def _apply_empty_search_block(chat: SharedUiSessionChat) -> None:
+    block_raw = await chat.evaluate(
+        SET_EMPTY_SEARCH_BLOCK_JS,
+        await_promise=False,
+        recv_timeout=15.0,
+    )
+    if not isinstance(block_raw, dict) or block_raw.get("ok") is not True:
+        raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", block_raw)
+
+
+async def _ensure_bridge_probe_ready(
+    chat: SharedUiSessionChat,
+    *,
+    policy: SearchPolicy,
+    timeout_sec: float,
+    deadline: float | None,
+) -> dict[str, object]:
+    """Final bridge probe with CDP re-hydrate retries after SEARCH_POLICY side effects."""
+    from e2e_session_lifecycle import assert_phase_budget
+
+    ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
+    last_probe: dict[str, object] = {}
+
+    for rehydrate_pass in range(BRIDGE_PROBE_MAX_REHYDRATE + 1):
+        last_probe = await _evaluate_bridge_probe(chat)
+        if _bridge_probe_ready(last_probe, policy=policy):
+            return last_probe
+
+        if not callable(ensure_bridge) or rehydrate_pass >= BRIDGE_PROBE_MAX_REHYDRATE:
+            break
+
+        attempt = rehydrate_pass + 1
+        print(
+            "E2E_SHARED_UI_SESSION_BRIDGE_REHYDRATE: "
+            f"attempt={attempt}/{BRIDGE_PROBE_MAX_REHYDRATE} probe={last_probe}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+        rehydrate_timeout = min(45.0, timeout_sec)
+        if deadline is not None:
+            rehydrate_timeout = min(
+                rehydrate_timeout, max(0.0, deadline - time.monotonic())
+            )
+        if rehydrate_timeout <= 0:
+            raise _session_error(
+                "E2E_SHARED_UI_SESSION",
+                "budget exhausted before BRIDGE rehydrate",
+            )
+
+        assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_BRIDGE_REHYDRATE")
+        except ImportError:
+            pass
+
+        await chat.ensure_e2e_api_base_binding()
+        try:
+            await asyncio.wait_for(
+                ensure_bridge(timeout_sec=rehydrate_timeout),
+                timeout=rehydrate_timeout + 5.0,
+            )
+        except TimeoutError as exc:
+            if rehydrate_pass >= BRIDGE_PROBE_MAX_REHYDRATE - 1:
+                raise _session_error(
+                    "E2E_SHARED_UI_SESSION_BRIDGE",
+                    {
+                        "err": "bridge-rehydrate-timeout",
+                        "probe": last_probe,
+                        "attempt": attempt,
+                    },
+                ) from exc
+            await asyncio.sleep(min(2.0 * attempt, 6.0))
+            continue
+
+        if policy == "empty":
+            await _apply_empty_search_block(chat)
+
+        await asyncio.sleep(0.5)
+
+    if (
+        policy == "empty"
+        and last_probe.get("hasSendChatMessage") is True
+        and last_probe.get("blockSearchSync") is not True
+    ):
+        await _apply_empty_search_block(chat)
+        last_probe = await _evaluate_bridge_probe(chat)
+        if _bridge_probe_ready(last_probe, policy=policy):
+            return last_probe
+
+    raise _session_error("E2E_SHARED_UI_SESSION_BRIDGE", last_probe)
 
 
 async def apply_shared_ui_session_contract(
@@ -361,20 +475,12 @@ async def apply_shared_ui_session_contract(
         if search_result.get("ok") is not True:
             raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", search_result)
 
-    probe_raw = await chat.evaluate(
-        BRIDGE_READY_PROBE_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+    probe = await _ensure_bridge_probe_ready(
+        chat,
+        policy=policy,
+        timeout_sec=timeout_sec,
+        deadline=deadline,
     )
-    probe = probe_raw if isinstance(probe_raw, dict) else {"value": probe_raw}
-    if probe.get("hasSendChatMessage") is not True:
-        raise _session_error("E2E_SHARED_UI_SESSION_BRIDGE", probe)
-
-    if policy == "empty" and probe.get("blockSearchSync") is not True:
-        raise _session_error(
-            "E2E_SHARED_UI_SESSION_BRIDGE",
-            {"err": "empty-policy-requires-block-flag", "probe": probe},
-        )
 
     return {
         "ok": True,

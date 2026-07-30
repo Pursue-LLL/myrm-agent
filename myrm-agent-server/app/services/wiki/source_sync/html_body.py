@@ -1,4 +1,14 @@
-"""HTML email body → Markdown (shared with channel email provider)."""
+"""HTML email body → Markdown for wiki source sync.
+
+[INPUT]
+- myrm_agent_harness.toolkits.web_fetch.html_to_markdown::HTML2Markdown (POS: HTML→Markdown converter)
+
+[OUTPUT]
+- html_body_to_markdown: normalize Gmail HTML bodies before raw publish
+
+[POS]
+Shared HTML conversion helper for wiki Gmail ingest. Uses the same converter params as email channel.
+"""
 
 from __future__ import annotations
 

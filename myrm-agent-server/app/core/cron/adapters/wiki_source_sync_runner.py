@@ -1,4 +1,14 @@
-"""Wiki source sync cron runner — zero-LLM router jobs."""
+"""Wiki source sync cron runner — zero-LLM router jobs.
+
+[INPUT]
+- app.services.wiki.source_sync.runner::run_wiki_source_sync (POS: wiki pull orchestration)
+
+[OUTPUT]
+- WikiSourceSyncJobRunner: cron adapter for __wiki_source_sync__ router command
+
+[POS]
+Cron adapter bridging harness RouterJobRunner to deterministic wiki source sync.
+"""
 
 from __future__ import annotations
 

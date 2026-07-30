@@ -28,6 +28,25 @@ def test_preflight_textedit_foreground_soft_fail_returns_false(
     )
 
 
+def test_textedit_is_frontmost_osascript_timeout_returns_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+
+    def _run(
+        args: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: float,
+    ) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(args, timeout)
+
+    monkeypatch.setattr(textedit_fixture.subprocess, "run", _run)
+    assert textedit_fixture.textedit_is_frontmost() is False
+
+
 def test_ensure_textedit_ax_ready_restarts_then_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

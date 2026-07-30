@@ -152,6 +152,7 @@ def _rebind_subagent_memory_search_tool(
     allow_sessions: bool,
     allow_wiki: bool,
     query_wiki: Callable[[str], Awaitable[str]] | None,
+    wiki_structure: WikiStructure | None = None,
 ) -> None:
     """Replace inherited memory_search_tool with subagent-scoped policy/backends."""
     from myrm_agent_harness.toolkits import create_memory_tools
@@ -160,6 +161,7 @@ def _rebind_subagent_memory_search_tool(
         MemorySearchBackends,
         MemorySearchPolicy,
     )
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     if not isinstance(memory_manager, MemoryManager):
         return
@@ -180,8 +182,11 @@ def _rebind_subagent_memory_search_tool(
         allow_wiki=allow_wiki, allow_sessions=allow_sessions
     )
     wiki_query = query_wiki if allow_wiki and callable(query_wiki) else None
+    resolved_structure = wiki_structure if isinstance(wiki_structure, WikiStructure) else None
     search_backends = MemorySearchBackends(
         query_wiki=wiki_query,
+        wiki_agent_id=agent_id,
+        wiki_structure=resolved_structure,
         conversation_provider=conversation_provider,
     )
     rebuilt = create_memory_tools(
@@ -218,11 +223,19 @@ def _apply_subagent_memory_search_rebind(
     if memory_manager is None or "memory" not in enabled_builtin:
         return
     allow_sessions, allow_wiki = _parent_memory_search_flags(parent_agent)
-    wiki_query = (
-        _build_subagent_wiki_query(parent_agent, memory_manager, agent_id=agent_id)
-        if allow_wiki
-        else None
-    )
+    wiki_query = None
+    wiki_structure = None
+    if allow_wiki:
+        wiki_query = _build_subagent_wiki_query(
+            parent_agent, memory_manager, agent_id=agent_id
+        )
+        lite_llm = getattr(parent_agent, "_lite_llm", None)
+        if lite_llm is not None:
+            from app.services.wiki.vault_service import get_wiki_archiver
+
+            wiki_structure = get_wiki_archiver(
+                lite_llm, memory_manager, agent_id=agent_id
+            )._structure
     _rebind_subagent_memory_search_tool(
         tools,
         memory_manager=memory_manager,
@@ -231,6 +244,7 @@ def _apply_subagent_memory_search_rebind(
         allow_sessions=allow_sessions,
         allow_wiki=allow_wiki,
         query_wiki=wiki_query,
+        wiki_structure=wiki_structure,
     )
 
 

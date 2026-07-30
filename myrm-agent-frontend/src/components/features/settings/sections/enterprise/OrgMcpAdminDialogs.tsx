@@ -21,6 +21,7 @@ interface OrgMcpCreateDialogProps {
   description: string;
   authHeader: string;
   tunnelId: string;
+  aclGroups: string;
   tunnels?: { id: string; name: string; status: string }[];
   onOpenChange: (open: boolean) => void;
   onNameChange: (value: string) => void;
@@ -29,6 +30,7 @@ interface OrgMcpCreateDialogProps {
   onDescriptionChange: (value: string) => void;
   onAuthHeaderChange: (value: string) => void;
   onTunnelIdChange: (value: string) => void;
+  onAclGroupsChange: (value: string) => void;
   onConfirm: () => void;
   t: (key: string) => string;
 }
@@ -42,6 +44,7 @@ export function OrgMcpCreateDialog({
   description,
   authHeader,
   tunnelId,
+  aclGroups,
   tunnels = [],
   onOpenChange,
   onNameChange,
@@ -50,6 +53,7 @@ export function OrgMcpCreateDialog({
   onDescriptionChange,
   onAuthHeaderChange,
   onTunnelIdChange,
+  onAclGroupsChange,
   onConfirm,
   t,
 }: OrgMcpCreateDialogProps) {
@@ -70,6 +74,7 @@ export function OrgMcpCreateDialog({
           description={description}
           authHeader={authHeader}
           tunnelId={tunnelId}
+          aclGroups={aclGroups}
           tunnels={tunnels}
           onNameChange={onNameChange}
           onTypeChange={onTypeChange}
@@ -77,6 +82,7 @@ export function OrgMcpCreateDialog({
           onDescriptionChange={onDescriptionChange}
           onAuthHeaderChange={onAuthHeaderChange}
           onTunnelIdChange={onTunnelIdChange}
+          onAclGroupsChange={onAclGroupsChange}
           t={t}
           namePlaceholder="company-crm"
         />
@@ -102,6 +108,7 @@ interface OrgMcpEditDialogProps {
   description: string;
   authHeader: string;
   tunnelId: string;
+  aclGroups: string;
   tunnels?: { id: string; name: string; status: string }[];
   onClose: () => void;
   onNameChange: (value: string) => void;
@@ -110,6 +117,7 @@ interface OrgMcpEditDialogProps {
   onDescriptionChange: (value: string) => void;
   onAuthHeaderChange: (value: string) => void;
   onTunnelIdChange: (value: string) => void;
+  onAclGroupsChange: (value: string) => void;
   onConfirm: () => void;
   t: (key: string) => string;
 }
@@ -123,6 +131,7 @@ export function OrgMcpEditDialog({
   description,
   authHeader,
   tunnelId,
+  aclGroups,
   tunnels = [],
   onClose,
   onNameChange,
@@ -131,6 +140,7 @@ export function OrgMcpEditDialog({
   onDescriptionChange,
   onAuthHeaderChange,
   onTunnelIdChange,
+  onAclGroupsChange,
   onConfirm,
   t,
 }: OrgMcpEditDialogProps) {
@@ -151,6 +161,7 @@ export function OrgMcpEditDialog({
           description={description}
           authHeader={authHeader}
           tunnelId={tunnelId}
+          aclGroups={aclGroups}
           tunnels={tunnels}
           headersConfigured={editTarget?.headers_configured}
           onNameChange={onNameChange}
@@ -159,6 +170,7 @@ export function OrgMcpEditDialog({
           onDescriptionChange={onDescriptionChange}
           onAuthHeaderChange={onAuthHeaderChange}
           onTunnelIdChange={onTunnelIdChange}
+          onAclGroupsChange={onAclGroupsChange}
           t={t}
         />
         <DialogFooter>

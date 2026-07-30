@@ -120,6 +120,8 @@ const MarkdownContent = React.memo(
       snippet: string;
       level?: WikiSourceLevel;
       snapshotStatus?: Source['snapshot_status'];
+      resourceUri?: string;
+      supersededFromUri?: string;
       thumbnailUrl?: string | null;
     }>({ open: false, title: '', snippet: '' });
 
@@ -131,8 +133,20 @@ const MarkdownContent = React.memo(
         level?: WikiSourceLevel,
         snapshotStatus?: Source['snapshot_status'],
         thumbnailUrl?: string | null,
+        resourceUri?: string,
+        supersededFromUri?: string,
       ) => {
-        setDrawerState({ open: true, title, section, snippet, level, snapshotStatus, thumbnailUrl });
+        setDrawerState({
+          open: true,
+          title,
+          section,
+          snippet,
+          level,
+          snapshotStatus,
+          thumbnailUrl,
+          resourceUri,
+          supersededFromUri,
+        });
       },
       [],
     );
@@ -341,6 +355,8 @@ const MarkdownContent = React.memo(
                       normalizeWikiLevel(source.level),
                       source.snapshot_status,
                       assetThumbnailUrl,
+                      source.resource_uri,
+                      source.superseded_from_uri,
                     )
                   }
                 >
@@ -398,6 +414,8 @@ const MarkdownContent = React.memo(
           snippet={drawerState.snippet}
           level={drawerState.level}
           snapshotStatus={drawerState.snapshotStatus}
+          resourceUri={drawerState.resourceUri}
+          supersededFromUri={drawerState.supersededFromUri}
           thumbnailUrl={drawerState.thumbnailUrl}
           surface="chat"
           contextKey={`chat:${_messageId}`}
