@@ -268,6 +268,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     if wall == "admit":
         if elapsed_f < _admit_wall_cap_for_pid(row.pid):
             return None
+    if wall == "body":
+        if elapsed_f < _body_wall_cap_for_pid(row.pid):
+            return None
     if _process_has_signoff_env(row.pid):
         if wall == "bootstrap":
             from dev_gate_contract import signoff_effective_bootstrap_wall_sec  # noqa: PLC0415
