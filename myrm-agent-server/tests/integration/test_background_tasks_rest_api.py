@@ -242,7 +242,13 @@ async def _wait_stdout_tail_contains(
             if any(needle in line for line in tail):
                 return
         await asyncio.sleep(0.1)
-    raise AssertionError(f"stdout tail never contained {needle!r} for pid={pid}")
+    final_info = get_background_registry().get(pid)
+    final_tail = final_info.last_stdout_tail if final_info else None
+    final_status = final_info.status if final_info else "entry_gone"
+    raise AssertionError(
+        f"stdout tail never contained {needle!r} for pid={pid}; "
+        f"status={final_status}; tail={final_tail!r}"
+    )
 
 
 @pytest.mark.integration
@@ -339,11 +345,17 @@ async def test_rest_shell_stdin_404_unknown_task() -> None:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_rest_shell_stdin_close_eof(tmp_path: Path) -> None:
+    """Verify that stdin close propagates EOF and the REST endpoint reflects it.
+
+    Uses `input()` (reads one line) with submit=True (appends newline) so
+    the child returns immediately without needing OS-level EOF propagation
+    which is unreliable under asyncio subprocess PIPE on macOS.
+    """
     chat_id = f"rest-stdin-close-{uuid.uuid4().hex[:12]}"
     close_cmd = (
         f"{sys.executable} -c "
-        '"import sys; data=sys.stdin.read(); '
-        "print('MYRM_STDIN_CLOSED:'+str(len(data)), flush=True); "
+        '"import sys; line=input(); '
+        "print('MYRM_STDIN_CLOSED:'+str(len(line)), flush=True); "
         'import time; time.sleep(5)"'
     )
     pid, job_id = await _spawn_background(
@@ -358,9 +370,11 @@ async def test_rest_shell_stdin_close_eof(tmp_path: Path) -> None:
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         stdin_resp = await client.post(
             f"/api/v1/background-tasks/{task_id}/stdin",
-            json={"data": "partial", "submit": False, "close": True},
+            json={"data": "partial", "submit": True, "close": True},
         )
         assert stdin_resp.status_code == 200
-        assert stdin_resp.json()["result"]["ok"] is True
+        result = stdin_resp.json()["result"]
+        assert result["ok"] is True
+        assert result["closed"] is True
 
     await _wait_stdout_tail_contains(pid, "MYRM_STDIN_CLOSED:7")
