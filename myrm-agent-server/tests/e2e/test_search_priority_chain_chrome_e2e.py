@@ -19,12 +19,14 @@ from cdp_chat_support import (  # noqa: E402
     put_config_value,
     wait_e2e_provider_ready,
 )
+
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_ui_url,
     open_mcp_page,
     wait_for_state,
     warm_ui_route,
+    _warm_ui_parallel_wait_sec,
 )
 
 _PRIORITY_CHAIN_PAYLOAD = {
@@ -113,9 +115,9 @@ def test_search_priority_chain_persists_via_omni_config_api() -> None:
             put_config_value("searchServices", backup, api_url=api_base)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(600)
 def test_search_priority_chain_settings_ui_shows_priorities() -> None:
     """Chrome READ: settings/search renders Priority 1 + Priority 2 after API seed."""
     api_base = get_e2e_api_url()
@@ -138,7 +140,7 @@ def test_search_priority_chain_settings_ui_shows_priorities() -> None:
                 client,
                 page,
                 _SETTINGS_PRIORITY_VISIBLE_JS,
-                timeout_sec=60.0,
+                timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
             assert visible.get("ready") is True, json.dumps(visible, ensure_ascii=False)
             assert visible.get("fetchErrorVisible") is not True, visible
