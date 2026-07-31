@@ -14,6 +14,7 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
+    _warm_ui_parallel_wait_sec,
 )
 
 _SKILL_ID = "systematic-debugging"
@@ -153,7 +154,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(420)
+@pytest.mark.timeout(600)
 def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None:
     """Slash skill pick shows chip; composer hides `[use]`; wire preview includes skill prefix."""
     api_url = get_e2e_api_url()
@@ -167,7 +168,12 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
     warm_ui_route(agent_chat_path)
 
     with open_mcp_page(f"{ui_url}{agent_chat_path}") as (client, page):
-        wait_for_state(client, page, _COMPOSER_READY_JS, timeout_sec=120.0)
+        wait_for_state(
+            client,
+            page,
+            _COMPOSER_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
 
         input_el = client.evaluate(
             page,
@@ -182,12 +188,22 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
         assert isinstance(input_el, dict) and input_el.get("ok") is True
 
         client.type_text(page, f"/{_SLASH_QUERY}")
-        wait_for_state(client, page, _SKILL_PALETTE_ITEM_READY_JS, timeout_sec=60.0)
+        wait_for_state(
+            client,
+            page,
+            _SKILL_PALETTE_ITEM_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+        )
 
         clicked = client.evaluate(page, _CLICK_SKILL_PALETTE_ITEM_JS, timeout_sec=15.0)
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
-        state = wait_for_state(client, page, _CHIP_COMPOSER_STATE_JS, timeout_sec=30.0)
+        state = wait_for_state(
+            client,
+            page,
+            _CHIP_COMPOSER_STATE_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+        )
         assert state.get("hasChips") is True, state
         assert state.get("inputHasUsePrefix") is False, state
         assert _SKILL_ID in (state.get("pendingSkillNames") or []), state
@@ -215,7 +231,7 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(420)
+@pytest.mark.timeout(600)
 def test_transcript_hides_skill_wire_prefix_and_shows_chip() -> None:
     """Persisted `[use skill]` user messages render chips + stripped user text in transcript."""
     api_url = get_e2e_api_url()
@@ -228,8 +244,18 @@ def test_transcript_hides_skill_wire_prefix_and_shows_chip() -> None:
     warm_ui_route(ui_path)
 
     with open_mcp_page(f"{ui_url}{ui_path}") as (client, page):
-        wait_for_state(client, page, _TRANSCRIPT_MESSAGES_READY_JS, timeout_sec=120.0)
-        state = wait_for_state(client, page, _TRANSCRIPT_CHIP_STATE_JS, timeout_sec=90.0)
+        wait_for_state(
+            client,
+            page,
+            _TRANSCRIPT_MESSAGES_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
+        state = wait_for_state(
+            client,
+            page,
+            _TRANSCRIPT_CHIP_STATE_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
         assert state.get("hasChips") is True, state
         assert state.get("hasRawUsePrefix") is False, state
         assert user_text in str(state.get("userVisibleText") or ""), state
