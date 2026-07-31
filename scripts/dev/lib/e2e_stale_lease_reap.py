@@ -271,12 +271,17 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     if wall == "body":
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None
-    if _process_has_signoff_env(row.pid):
-        if wall == "bootstrap":
+    if wall == "bootstrap":
+        if _process_has_signoff_env(row.pid):
             from dev_gate_contract import signoff_effective_bootstrap_wall_sec  # noqa: PLC0415
 
-            if elapsed_f < signoff_effective_bootstrap_wall_sec():
-                return None
+            bootstrap_cap = signoff_effective_bootstrap_wall_sec()
+        else:
+            from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
+
+            bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
+        if elapsed_f < bootstrap_cap:
+            return None
     if current_node and is_transport_stall_node(current_node):
         stall_cap = float(resolve_transport_stall_cap_sec(current_node=current_node))
         if elapsed_f >= stall_cap:
