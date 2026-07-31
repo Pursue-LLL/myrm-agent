@@ -96,10 +96,7 @@ export function WikiQueuePanel({
         toast.error(t('loadFailed'));
       }
     } finally {
-      if (loadRequestRef.current !== requestId) {
-        return;
-      }
-      if (!options?.silent) {
+      if (loadRequestRef.current === requestId && !options?.silent) {
         setIsLoading(false);
       }
     }

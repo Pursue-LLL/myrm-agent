@@ -66,7 +66,7 @@ _SKILL_HISTORY_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_evolution_delta_badge_renders_in_history_panel() -> None:
@@ -113,7 +113,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
     with open_mcp_page(f"{ui_url}/settings?tab=skills", timeout_ms=30_000) as (client, page):
         time.sleep(3)
         # Switch to "Installed" tab inside the SkillsSection (the inner tab, not the outer)
-        tab_result = client.evaluate(page, _CLICK_INSTALLED_TAB_JS, timeout_sec=10.0)
+        client.evaluate(page, _CLICK_INSTALLED_TAB_JS, timeout_sec=10.0)
         time.sleep(2)
 
         # Wait for the history panel to appear
@@ -149,7 +149,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
         assert state.get("recordCount", 0) >= 0, "Panel should render even with no records"
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_evolution_events_in_trend_chart_api() -> None:

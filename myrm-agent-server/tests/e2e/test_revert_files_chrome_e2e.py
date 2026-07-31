@@ -203,7 +203,7 @@ def _seed_revert_fixture(api_url: str, *, variant: str = "modify") -> dict[str, 
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_revert_files_undo_diff_confirm_flow() -> None:
@@ -349,7 +349,7 @@ _CLICK_UNDO_AND_WAIT_NON_REVERTIBLE_TOAST_JS = f"""(() => {{
 }})()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_revert_files_large_skip_shows_non_revertible_toast() -> None:
@@ -400,7 +400,7 @@ def test_revert_files_large_skip_shows_non_revertible_toast() -> None:
         )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
@@ -461,7 +461,7 @@ def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
         )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_revert_files_undo_works_after_page_reload() -> None:
@@ -638,7 +638,7 @@ _CLICK_SESSION_REVERT_FLOW_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_revert_session_button_restores_all_session_files() -> None:

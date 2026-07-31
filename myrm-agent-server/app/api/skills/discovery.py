@@ -47,12 +47,12 @@ from app.api.skills.discovery_schemas import (
     UpdateCheckResponse,
 )
 from app.core.skills.discovery_adopt import complete_discovery_adoption
+from app.core.skills.discovery_autoupdate import get_update_checker
 from app.core.skills.discovery_mount import (
     SkillMountResult,
     maybe_mount_after_install,
     resolve_mount_skill_id,
 )
-from app.core.skills.discovery_autoupdate import get_update_checker
 from app.core.skills.market_service import SkillMarketService, market_service
 
 logger = logging.getLogger(__name__)

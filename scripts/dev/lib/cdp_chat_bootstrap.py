@@ -98,6 +98,16 @@ def _bootstrap_shell_heal_polls(poll: int) -> bool:
     return poll in {1, 8, 20, 35, 50, 65}
 
 
+def _bootstrap_shell_heal_wall_cap_sec(parallel_active: int) -> float:
+    """R179: fail-fast shell heal under parallel mux so soak mux_retry can recover."""
+    load = max(0, int(parallel_active))
+    if load >= 4:
+        return 75.0
+    if load >= 2:
+        return 90.0
+    return 120.0
+
+
 class CdpChatBootstrap(CdpChatTransport):
     _e2e_api_base_bound: bool = False
     _bootstrap_started_monotonic: float | None = None
@@ -240,10 +250,25 @@ class CdpChatBootstrap(CdpChatTransport):
             self._e2e_api_base_bound = True
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
         if bootstrap_js is not None:
-            await self.evaluate(
+            if getattr(self, "_e2e_runtime_bootstrapped", False):
+                await self.evaluate(
+                    e2e_api_base_inject_js(),
+                    await_promise=False,
+                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                )
+                return
+            result = await self.evaluate(
                 bootstrap_js,
                 await_promise=True,
                 recv_timeout=60.0,
+            )
+            if isinstance(result, dict) and result.get("ok") is True:
+                self._e2e_runtime_bootstrapped = True
+                return
+            await self.evaluate(
+                e2e_api_base_inject_js(),
+                await_promise=False,
+                recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
             )
             return
         await self.evaluate(
@@ -338,6 +363,13 @@ class CdpChatBootstrap(CdpChatTransport):
         deadline: float,
     ) -> dict[str, object]:
         bridge_timeout = max(0.0, deadline - time.monotonic())
+        if bridge_timeout <= 0.0:
+            from e2e_session_lifecycle import current_phase, remaining_wall_sec
+
+            remaining = remaining_wall_sec()
+            if current_phase() == "bootstrap" and remaining > 20.0:
+                deadline = time.monotonic() + min(90.0, remaining - 5.0)
+                bridge_timeout = max(0.0, deadline - time.monotonic())
         if bridge_timeout > 0:
             await self.ensure_dev_bridge(timeout_sec=min(bridge_timeout, 90.0))
             hydrate_timeout = max(0.0, deadline - time.monotonic())
@@ -806,14 +838,36 @@ class CdpChatBootstrap(CdpChatTransport):
                         active = parallel_active_test_count()
                     except ImportError:
                         active = 1
+                    heal_cap = _bootstrap_shell_heal_wall_cap_sec(active)
                     print(
                         "E2E_BOOTSTRAP_SHELL_HEAL: "
                         f"poll={polls} path={last.get('path')!r} "
-                        f"parallel_active={active}",
+                        f"parallel_active={active} wall_cap={heal_cap:.0f}s",
                         file=sys.stderr,
                         flush=True,
                     )
-                    await heal()
+                    click_new = getattr(self, "click_new_chat", None)
+                    if active >= 3 and callable(click_new):
+                        try:
+                            await asyncio.wait_for(
+                                click_new(timeout_sec=min(60.0, heal_cap - 5.0)),
+                                timeout=heal_cap,
+                            )
+                            continue
+                        except TimeoutError as exc:
+                            raise TimeoutError(
+                                "E2E_BOOTSTRAP_SHELL_HEAL wall-timeout "
+                                f"after {heal_cap:.0f}s parallel_active={active} "
+                                "strategy=click_new_chat"
+                            ) from exc
+                    try:
+                        await asyncio.wait_for(heal(), timeout=heal_cap)
+                    except TimeoutError as exc:
+                        raise TimeoutError(
+                            "E2E_BOOTSTRAP_SHELL_HEAL wall-timeout "
+                            f"after {heal_cap:.0f}s parallel_active={active} "
+                            "strategy=navigate_heal"
+                        ) from exc
                     continue
             await asyncio.sleep(0.5)
         raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s: {last}")
@@ -1085,10 +1139,16 @@ class CdpChatBootstrap(CdpChatTransport):
             await asyncio.sleep(0.5)
         raise RuntimeError(f"Chat surface not ready (path={last.get('path')}): {last}")
 
-    async def _after_new_chat_reset(self, *, deadline: float | None = None) -> None:
+    async def _after_new_chat_reset(
+        self,
+        *,
+        deadline: float | None = None,
+        skip_shared_ui_contract: bool = False,
+    ) -> None:
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
         await self.ensure_e2e_api_base_binding()
-        await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
+        if not skip_shared_ui_contract:
+            await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError("Chat surface provider reset budget exhausted")
         recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
@@ -1137,6 +1197,7 @@ class CdpChatBootstrap(CdpChatTransport):
         self,
         *,
         timeout_sec: float | None = None,
+        skip_shared_ui_contract: bool = False,
     ) -> dict[str, object]:
         reset_js = """
 (() => {
@@ -1176,7 +1237,10 @@ class CdpChatBootstrap(CdpChatTransport):
                     else {"ok": False, "probeError": result}
                 )
                 if last.get("ok"):
-                    await self._after_new_chat_reset(deadline=deadline)
+                    await self._after_new_chat_reset(
+                        deadline=deadline,
+                        skip_shared_ui_contract=skip_shared_ui_contract,
+                    )
                     await asyncio.sleep(0.5)
                     return last
             except TimeoutError as exc:

@@ -33,7 +33,8 @@ import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
-import type { ActionMode, AgentConfig, BuiltinToolId, GoalStatusPayload } from '@/store/chat/types';
+import type { ActionMode, AgentConfig, BuiltinToolId, GoalStatusPayload, ToolSnapshotItem } from '@/store/chat/types';
+import useToolsSnapshotStore from '@/store/useToolsSnapshotStore';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
@@ -1177,6 +1178,9 @@ export default function E2EChatBridge() {
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
+      setToolsSnapshotForE2e: (tools: ToolSnapshotItem[]) => {
+        useToolsSnapshotStore.getState().setTools(tools);
+      },
       pinLiteModelForE2e: async (opts?: { preserveActionMode?: boolean }) => {
         const preserveActionMode = shouldPreserveE2eActionMode(
           useChatStore.getState().actionMode,
@@ -1626,6 +1630,38 @@ export default function E2EChatBridge() {
           storeMessageId: storeMessageId ?? null,
           resumeStarted,
         };
+      },
+      forkFirstContextBranchBookmark: async () => {
+        const chatId = useChatStore.getState().chatId;
+        if (!chatId) {
+          return { ok: false as const, reason: 'no-chat-id' };
+        }
+        if (useChatStore.getState().loading) {
+          return { ok: false as const, reason: 'streaming-blocked' };
+        }
+        const { forkContextBranch, listContextBranches } = await import('@/services/chat');
+        const branches = await listContextBranches(chatId);
+        const bookmark = branches[0];
+        if (!bookmark?.branch_id) {
+          return { ok: false as const, reason: 'no-bookmark', branchCount: branches.length };
+        }
+        try {
+          const label = bookmark.label?.trim() || bookmark.snapshot_path.split(/[/\\]/).pop() || 'Snapshot branch';
+          const result = await forkContextBranch(chatId, bookmark.branch_id, label);
+          if (!result.new_chat_id) {
+            return { ok: false as const, reason: 'missing-new-chat-id' };
+          }
+          useWorkspaceStore.getState().addPane(result.new_chat_id);
+          const target = `/${result.new_chat_id}`;
+          window.location.assign(target);
+          return { ok: true as const, newChatId: result.new_chat_id, parentChatId: chatId };
+        } catch (error) {
+          return {
+            ok: false as const,
+            reason: 'fork-failed',
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
       },
     } as NonNullable<Window['__MYRM_E2E_CHAT__']>;
 

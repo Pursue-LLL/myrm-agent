@@ -12,6 +12,9 @@ import SkeletonLoader from './renderers/SkeletonLoader';
 import NoPreview from './renderers/NoPreview';
 import { HtmlPreview, ImagePreview, VideoPreview, SvgPreview, AudioPreview, type PickedElement } from './renderers/MediaPreview';
 
+const noopAsync = async () => {};
+const noop = () => {};
+
 const rendererLoading = (
   <div className="h-full w-full flex items-center justify-center">
     <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
@@ -77,6 +80,11 @@ const DiffPreviewDynamic = dynamic(() => import('./renderers/DiffPreview'), {
   loading: () => rendererLoading,
 });
 
+const SpreadsheetEditorDynamic = dynamic(() => import('./renderers/SpreadsheetEditor'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
 interface ArtifactRendererProps {
   artifact: Artifact;
   content: string;
@@ -90,10 +98,14 @@ interface ArtifactRendererProps {
   versions?: ArtifactVersion[];
   /** 当前查看的版本索引（Diff 模式使用，-1 表示最新） */
   viewingVersionIndex?: number;
+  /** Edit 模式保存回调（导出 Blob） */
+  onEditSave?: (blob: Blob) => Promise<void>;
+  /** Edit 模式脏状态回调 */
+  onEditDirty?: (dirty: boolean) => void;
 }
 
 /** 内部渲染器 */
-const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId, versions, viewingVersionIndex }) => {
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId, versions, viewingVersionIndex, onEditSave, onEditDirty }) => {
   const t = useTranslations('artifacts');
 
   if (loading) {
@@ -151,6 +163,16 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
 
   // 表格/电子表格预览
   if (isSpreadsheet) {
+    if (displayMode === ArtifactDisplayMode.Edit && preview_url && /\.(xlsx|xls)$/i.test(filename)) {
+      return (
+        <SpreadsheetEditorDynamic
+          previewUrl={preview_url}
+          filename={filename}
+          onSave={onEditSave ?? noopAsync}
+          onDirty={onEditDirty ?? noop}
+        />
+      );
+    }
     if (displayMode === ArtifactDisplayMode.Code && content) {
       return <CodePreview content={content} language="csv" artifactId={artifact.id} />;
     }

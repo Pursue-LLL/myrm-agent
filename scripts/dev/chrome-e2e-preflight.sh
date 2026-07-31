@@ -93,6 +93,11 @@ ok() {
 }
 
 _maybe_seed_providers() {
+  if [[ "${MYRM_E2E_MODEL_SEED_DONE:-0}" == "1" ]] && _shared_stack_endpoints_ok; then
+    echo "CHROME_E2E_WARN: skip redundant model seed (R215; stack healthy)" >&2
+    MYRM_E2E_MODEL_SEED_FAILED=0
+    return 0
+  fi
   MYRM_E2E_MODEL_SEED_FAILED=0
   if [[ -f "${SERVER_DIR}/.env.test" ]]; then
     set -a
@@ -101,13 +106,61 @@ _maybe_seed_providers() {
     set +a
   fi
   if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
-    local attempt max_attempts=5 seed_out=""
+    local attempt max_attempts=5 seed_out="" seed_lock parallel_leases flock_wait_sec=120
     max_attempts="${MYRM_E2E_MODEL_SEED_RETRIES:-5}"
+    seed_lock="${STATE_DIR}/chrome-e2e-model-seed.lock"
+    parallel_leases="$(_parallel_attach_active_leases)"
+    export MYRM_E2E_PARALLEL_ACTIVE_LEASES="${parallel_leases}"
+    if [[ "${parallel_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
+      flock_wait_sec="${MYRM_E2E_MODEL_SEED_FLOCK_WAIT_SEC:-8}"
+      max_attempts="${MYRM_E2E_MODEL_SEED_PARALLEL_RETRIES:-2}"
+    fi
     for attempt in $(seq 1 "${max_attempts}"); do
-      if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+      _admit_poll_touch "CHROME_E2E_MODEL_SEED"
+      if seed_out="$(
+        python3 - "${seed_lock}" "${flock_wait_sec}" "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" <<'PY'
+import fcntl
+import os
+import subprocess
+import sys
+import time
+
+lock_file = sys.argv[1]
+wait_sec = float(sys.argv[2])
+seed_script = sys.argv[3]
+fd = os.open(lock_file, os.O_RDWR | os.O_CREAT, 0o644)
+deadline = time.monotonic() + wait_sec
+acquired = False
+try:
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            break
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                sys.exit(1)
+            time.sleep(0.25)
+    proc = subprocess.run(
+        ["bun", seed_script],
+        capture_output=True,
+        text=True,
+    )
+    if proc.stdout:
+        sys.stdout.write(proc.stdout)
+    if proc.stderr:
+        sys.stderr.write(proc.stderr)
+    sys.exit(proc.returncode)
+finally:
+    if acquired:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    os.close(fd)
+PY
+      )"; then
         echo "${seed_out}"
         ok "model seed"
         MYRM_E2E_MODEL_SEED_FAILED=0
+        MYRM_E2E_MODEL_SEED_DONE=1
         return 0
       fi
       if [[ "${attempt}" -lt "${max_attempts}" ]]; then
@@ -115,6 +168,12 @@ _maybe_seed_providers() {
         sleep 2
       fi
     done
+    if [[ "${parallel_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
+      echo "CHROME_E2E_WARN: model seed non-fatal under parallel load (R214; shared stack healthy)" >&2
+      MYRM_E2E_MODEL_SEED_FAILED=0
+      MYRM_E2E_MODEL_SEED_DONE=1
+      return 0
+    fi
     echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
     MYRM_E2E_MODEL_SEED_FAILED=1
     return 1
@@ -142,12 +201,16 @@ print(len(list_live_e2e_sessions()))
 _bootstrap_attach_begin() {
   local active_leases="${1:-0}"
   [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
-  "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline begin --active-leases "${active_leases}" >/dev/null
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline begin --active-leases "${active_leases}" >/dev/null
 }
 
 _bootstrap_attach_remaining_sec() {
   local remaining
-  remaining="$("${PREFLIGHT_PY}" -m e2e_bootstrap_deadline remaining 2>/dev/null || echo 0)"
+  remaining="$(
+    PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+      "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline remaining 2>/dev/null || echo 0
+  )"
   [[ "${remaining}" =~ ^[0-9]+$ ]] || remaining=0
   echo "${remaining}"
 }
@@ -407,7 +470,7 @@ _shared_stack_recovery_required() {
   local active_leases
   active_leases="$(_parallel_attach_active_leases)"
   [[ "${active_leases}" -ge "${min_leases}" ]] || return 1
-  [[ "${MYRM_E2E_MODEL_SEED_FAILED:-0}" == "1" ]] && return 0
+  [[ "${MYRM_E2E_MODEL_SEED_FAILED:-0}" == "1" ]] && ! _shared_stack_endpoints_ok && return 0
   ! _shared_stack_endpoints_ok
 }
 
@@ -438,6 +501,10 @@ _wait_shared_stack_healthy_before_ready() {
         ok "shared stack healthy before READY (model seed recovered)"
         return 0
       fi
+      # R214: idempotent seed may time out under parallel load while :3000/:8080 stay healthy.
+      MYRM_E2E_MODEL_SEED_FAILED=0
+      ok "shared stack healthy before READY (endpoints ok; parallel seed timeout non-fatal)"
+      return 0
     fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       fail "shared stack not healthy within ${wait_sec}s (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0}) — do not stop other pytest; retry ADMIT or ./myrm ui-heal when idle"

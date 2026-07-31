@@ -78,7 +78,7 @@ class _ChatCrudMixin(_ChatServiceBase):
         """
         from app.services.chat.effective_workspace import resolve_effective_chat_workspace
 
-        chat = await ChatService.get_chat_metadata(chat_id)
+        chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
         if chat is None:
             return None
         try:

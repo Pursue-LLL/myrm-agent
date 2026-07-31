@@ -11,8 +11,10 @@ from pathlib import Path
 
 _DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
-_ATTACH_FLOCK_WAIT_SEC = 300.0
-_ATTACH_SUBPROCESS_TIMEOUT_SEC = 600.0
+_ATTACH_FLOCK_WAIT_SEC = 120.0
+_ATTACH_SUBPROCESS_TIMEOUT_SEC = 180.0
+_ATTACH_LEADER_STALE_SEC = 120.0
+_ATTACH_FRONTEND_ENSURE_WAIT_SEC = 120.0
 
 
 def _state_dir() -> Path:
@@ -35,6 +37,65 @@ def _flock_path() -> Path:
 
 def _attach_heal_flock_path() -> Path:
     return _state_dir() / "attach-frontend-heal.flock"
+
+
+def _attach_heal_leader_meta_path() -> Path:
+    return _state_dir() / "attach-frontend-heal.leader.json"
+
+
+def _write_attach_leader_meta(owner_pid: int) -> None:
+    import json
+
+    payload = {"pid": owner_pid, "started_at": time.time()}
+    _attach_heal_leader_meta_path().write_text(
+        json.dumps(payload, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+
+def _clear_attach_leader_meta() -> None:
+    meta = _attach_heal_leader_meta_path()
+    if meta.is_file():
+        meta.unlink()
+
+
+def _read_attach_leader_meta() -> tuple[int | None, float | None]:
+    import json
+
+    meta = _attach_heal_leader_meta_path()
+    if not meta.is_file():
+        return None, None
+    try:
+        payload = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None, None
+    pid_raw = payload.get("pid")
+    started_raw = payload.get("started_at")
+    pid = int(pid_raw) if isinstance(pid_raw, int) or str(pid_raw).isdigit() else None
+    started = float(started_raw) if started_raw is not None else None
+    return pid, started
+
+
+def _leader_process_alive(pid: int | None) -> bool:
+    if pid is None or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def attach_heal_leader_stale(*, stale_sec: float = _ATTACH_LEADER_STALE_SEC) -> bool:
+    """True when meta points to a dead pid or a leader running longer than stale_sec."""
+    pid, started = _read_attach_leader_meta()
+    if pid is None:
+        return False
+    if not _leader_process_alive(pid):
+        return True
+    if started is None:
+        return False
+    return (time.time() - started) > stale_sec
 
 
 def _ui_heal_global_flock_path() -> Path:
@@ -150,24 +211,39 @@ def heal_shared_frontend_attach(
     flock_file.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(flock_file), os.O_RDWR | os.O_CREAT, 0o644)
     acquired = False
-    deadline = time.monotonic() + flock_wait_sec
+    wait_started = time.monotonic()
+    deadline = wait_started + flock_wait_sec
     try:
         while True:
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 acquired = True
+                _write_attach_leader_meta(os.getpid())
                 break
             except BlockingIOError:
                 if _shared_ui_probe_ok():
                     return "follower_ok"
+                leader_pid, _leader_started = _read_attach_leader_meta()
+                leader_alive = _leader_process_alive(leader_pid)
+                elapsed = time.monotonic() - wait_started
+                if attach_heal_leader_stale():
+                    print(
+                        "CHROME_E2E_HEAL_LEADER_STALE: attach frontend heal leader "
+                        f"pid={leader_pid or 'unknown'} elapsed={elapsed:.0f}s — retry flock",
+                        file=sys.stderr,
+                    )
                 if time.monotonic() >= deadline:
                     print(
-                        "CHROME_E2E_HEAL_DEFER_TIMEOUT: attach frontend heal flock busy",
+                        "CHROME_E2E_HEAL_DEFER_TIMEOUT: attach frontend heal flock busy "
+                        f"elapsed={elapsed:.0f}s leader_pid={leader_pid or 'unknown'} "
+                        f"leader_alive={'yes' if leader_alive else 'no'}",
                         file=sys.stderr,
                     )
                     return "follower_timeout"
                 print(
-                    "CHROME_E2E_HEAL_DEFER: attach frontend heal flock busy — wait for leader",
+                    "CHROME_E2E_HEAL_DEFER: attach frontend heal flock busy — wait for leader "
+                    f"elapsed={elapsed:.0f}s leader_pid={leader_pid or 'unknown'} "
+                    f"leader_alive={'yes' if leader_alive else 'no'}",
                     file=sys.stderr,
                 )
                 time.sleep(poll_sec)
@@ -183,7 +259,8 @@ def heal_shared_frontend_attach(
                     "MYRM_E2E_ATTACH_FRONTEND_HEAL": "1",
                     "MYRM_FRONTEND_ENSURE_INNER": "1",
                     "MYRM_STACK_FRONTEND_WAIT_SEC": os.environ.get(
-                        "MYRM_STACK_FRONTEND_WAIT_SEC", "360"
+                        "MYRM_STACK_FRONTEND_WAIT_SEC",
+                        str(int(_ATTACH_FRONTEND_ENSURE_WAIT_SEC)),
                     ),
                 },
                 capture_output=True,
@@ -204,6 +281,7 @@ def heal_shared_frontend_attach(
         return "leader_ok"
     finally:
         if acquired:
+            _clear_attach_leader_meta()
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 

@@ -22,16 +22,12 @@ from cdp_chat_support import (  # noqa: E402
 from e2e_live_flows.browser_takeover_live_flow import (  # noqa: E402
     run_browser_takeover_live_flow,
 )
-from e2e_live_flows.browser_takeover_live_gate import (  # noqa: E402
-    BANNER_ASSERT_JS as _BANNER_ASSERT_JS,
-)
 from e2e_live_flows.browser_takeover_live_runner import (  # noqa: E402
     run_browser_takeover_live_session,
 )
 
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 from tests.support.e2e_runtime_guard import E2EResourceLedger
-
 
 _BRIDGE_READY_JS = """(() => ({
   ready:
@@ -154,7 +150,7 @@ _SNAPSHOT_IDLE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None:
     ui_url = get_e2e_ui_url()
@@ -198,7 +194,7 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
         assert snapshot.get("pending") is False
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 def test_extension_takeover_skip_dismisses_banner() -> None:
     ui_url = get_e2e_ui_url()
@@ -235,7 +231,7 @@ def test_extension_takeover_skip_dismisses_banner() -> None:
         assert snapshot.get("pending") is False
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
     ui_url = get_e2e_ui_url()
@@ -258,7 +254,7 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
         ), f"Expected no action buttons during auto-detect: {banner}"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.chrome_e2e_browser_takeover_live
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

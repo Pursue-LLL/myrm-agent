@@ -99,6 +99,17 @@ class TruncateResult(NamedTuple):
     deleted_count: int
 
 
+class RewindResult(NamedTuple):
+    """rewind_to_message operation result."""
+
+    success: bool
+    deleted_count: int
+    composer_text: str
+    message_index: int
+    goal_paused: bool
+    error: str | None = None
+
+
 class ChannelHistoryEntry(NamedTuple):
     """Channel 历史消息条目，携带 created_at 用于确定性时间戳注入。"""
 

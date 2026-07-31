@@ -3,18 +3,21 @@
 [INPUT]
 - app.database.connection::get_session (POS: Database session)
 - app.database.models.artifact::Artifact (POS: Artifact models)
+- myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object reader for candidate probing)
+- app.services.project.assessment_import_service::parse_assessment_markdown (POS: Assessment import parser SSOT)
 
 [OUTPUT]
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` for bounded candidate queries and exposes publication state via `publications[]`.
+Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` and `project_id` filters for bounded, project-scoped candidate queries, optional `assessment_import_candidate` semantic probe metadata, and exposes publication state via `publications[]`.
 """
 
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,18 +26,115 @@ from sqlalchemy.orm import selectinload
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from app.database.models.artifact_publication import ArtifactPublication
+from app.database.models.chat import Chat
+from app.platform_utils.workspace_root import get_workspace_root
 from app.services.hosting.publication_store import list_publications, list_publications_for_artifacts, publication_to_dict
 from app.services.hosting.targets import list_hosting_targets
+from app.services.project.assessment_import_service import (
+    ERROR_NO_ACTIONABLE_TASKS,
+    ERROR_NO_IMPORTABLE_TASKS,
+    parse_assessment_markdown,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_ASSESSMENT_CANDIDATE_STATUS_IMPORTABLE = "importable"
+_ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE = "not_importable"
+_ASSESSMENT_CANDIDATE_STATUS_UNKNOWN = "unknown"
+_ASSESSMENT_CANDIDATE_REASON_NO_ACTIONABLE_TASKS = "no_actionable_tasks"
+_ASSESSMENT_CANDIDATE_REASON_NO_IMPORTABLE_TASKS = "no_importable_tasks"
+_ASSESSMENT_CANDIDATE_REASON_MISSING_ARTIFACT_VERSION = "missing_artifact_version"
+_ASSESSMENT_CANDIDATE_REASON_ARTIFACT_CONTENT_NOT_FOUND = "artifact_content_not_found"
+_ASSESSMENT_CANDIDATE_REASON_PROBE_FAILED = "probe_failed"
+
+
+def _latest_version(artifact: Artifact) -> ArtifactVersion | None:
+    if not artifact.versions:
+        return None
+    return max(artifact.versions, key=lambda v: v.created_at)
+
+
+def _probe_assessment_import_candidate(
+    artifact: Artifact,
+    *,
+    vault: ArtifactVault,
+) -> dict[str, str | None]:
+    latest_version = _latest_version(artifact)
+    if latest_version is None:
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_MISSING_ARTIFACT_VERSION,
+        }
+
+    vault_uri = latest_version.vault_uri
+    object_id = vault_uri[len("vault://"):] if vault_uri.startswith("vault://") else vault_uri
+    object_path = vault.get_object_path(object_id)
+    if not object_path.exists():
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_ARTIFACT_CONTENT_NOT_FOUND,
+        }
+
+    try:
+        content = object_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_NO_IMPORTABLE_TASKS,
+        }
+    except OSError as exc:
+        logger.warning("Failed to read artifact candidate content %s: %s", artifact.id, exc)
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_PROBE_FAILED,
+        }
+
+    if not content.strip():
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_NO_IMPORTABLE_TASKS,
+        }
+
+    try:
+        parse_assessment_markdown(
+            content,
+            fallback_title=artifact.name or artifact.id,
+            max_milestones=1,
+            max_tasks_per_milestone=3,
+        )
+        return {"status": _ASSESSMENT_CANDIDATE_STATUS_IMPORTABLE, "reason": None}
+    except ValueError as exc:
+        detail = str(exc).strip()
+        if detail == ERROR_NO_ACTIONABLE_TASKS:
+            return {
+                "status": _ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE,
+                "reason": _ASSESSMENT_CANDIDATE_REASON_NO_ACTIONABLE_TASKS,
+            }
+        if detail == ERROR_NO_IMPORTABLE_TASKS:
+            return {
+                "status": _ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE,
+                "reason": _ASSESSMENT_CANDIDATE_REASON_NO_IMPORTABLE_TASKS,
+            }
+        logger.warning("Unexpected assessment candidate probe failure %s: %s", artifact.id, detail)
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_PROBE_FAILED,
+        }
+    except Exception as exc:
+        logger.warning("Assessment candidate probe crashed for artifact %s: %s", artifact.id, exc)
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
+            "reason": _ASSESSMENT_CANDIDATE_REASON_PROBE_FAILED,
+        }
 
 
 def _artifact_summary(
     artifact: Artifact,
     publications: list[ArtifactPublication],
     target_names: dict[str, str],
+    assessment_import_candidate: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "id": artifact.id,
@@ -47,15 +147,19 @@ def _artifact_summary(
             for row in publications
         ],
     }
-    if artifact.versions:
-        latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
+    latest = _latest_version(artifact)
+    if latest:
         summary["latest_version_id"] = latest.id
+    if assessment_import_candidate is not None:
+        summary["assessment_import_candidate"] = assessment_import_candidate
     return summary
 
 
 @router.get("")
 async def list_artifacts(
     limit: int | None = Query(default=None, ge=1, le=500),
+    project_id: str | None = Query(default=None, min_length=1),
+    assessment_import_candidate: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List all artifacts (soft-deleted ones are excluded)."""
@@ -65,6 +169,8 @@ async def list_artifacts(
         .where(Artifact.is_deleted.is_(False))
         .order_by(Artifact.updated_at.desc())
     )
+    if project_id is not None:
+        stmt = stmt.join(Chat, Chat.id == Artifact.chat_id).where(Chat.project_id == project_id)
     if limit is not None:
         stmt = stmt.limit(limit)
     result = await db.execute(stmt)
@@ -72,10 +178,21 @@ async def list_artifacts(
     artifact_ids = [artifact.id for artifact in artifacts]
     publication_map = await list_publications_for_artifacts(db, artifact_ids)
     target_names = {target.id: target.name for target in await list_hosting_targets(db)}
+    assessment_import_candidate_map: dict[str, dict[str, str | None]] = {}
+    if assessment_import_candidate:
+        candidate_vault = ArtifactVault(str(get_workspace_root()))
+        assessment_import_candidate_map = {
+            artifact.id: _probe_assessment_import_candidate(artifact, vault=candidate_vault) for artifact in artifacts
+        }
 
     return {
         "artifacts": [
-            _artifact_summary(artifact, publication_map.get(artifact.id, []), target_names)
+            _artifact_summary(
+                artifact,
+                publication_map.get(artifact.id, []),
+                target_names,
+                assessment_import_candidate_map.get(artifact.id),
+            )
             for artifact in artifacts
         ]
     }

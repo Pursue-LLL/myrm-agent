@@ -119,7 +119,7 @@ def _discover_has_hermes() -> bool:
     )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:

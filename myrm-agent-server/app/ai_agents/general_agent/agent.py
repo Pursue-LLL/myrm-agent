@@ -75,6 +75,7 @@ class GeneralAgent(ToolSetupMixin):
         safety_fallback_model_cfg: ModelConfig | None = None,
         fallback_lite_model_cfg: ModelConfig | None = None,
         vision_fallback_model_cfg: ModelConfig | None = None,
+        vision_fallback_model_cfgs: list[ModelConfig] | None = None,
         memory_require_confirmation: bool = False,
         enable_memory_auto_extraction: bool = True,
         enable_conversation_search: bool = False,
@@ -170,6 +171,7 @@ class GeneralAgent(ToolSetupMixin):
         self.lite_model_cfg = lite_model_cfg
         self.fallback_lite_model_cfg = fallback_lite_model_cfg
         self.vision_fallback_model_cfg = vision_fallback_model_cfg
+        self.vision_fallback_model_cfgs = vision_fallback_model_cfgs
         self.mcp_config = mcp_config
         self.search_service_cfg = search_service_cfg
         self.user_instructions = user_instructions
@@ -400,8 +402,14 @@ class GeneralAgent(ToolSetupMixin):
             context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
 
         context["supports_vision"] = self.model_cfg.supports_vision
+        if self.vision_fallback_model_cfgs:
+            context["vision_fallback_model_cfgs"] = self.vision_fallback_model_cfgs
         if self.vision_fallback_model_cfg:
             context["vision_fallback_model_cfg"] = self.vision_fallback_model_cfg
+
+        from app.core.utils.media_file_reader import read_uploaded_media_file_content
+
+        context["file_content_reader"] = read_uploaded_media_file_content
 
         history_messages: Sequence[BaseMessage] | None = None
         if chat_history is not None and len(chat_history) > 0:

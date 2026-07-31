@@ -16,7 +16,7 @@ import uuid
 
 from fastapi.responses import StreamingResponse
 
-from app.schemas.streaming import SSEEnvelope, SSE_RESPONSE_HEADERS
+from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
 
 
 def agent_busy_streaming_response(message_id: str | None) -> StreamingResponse:

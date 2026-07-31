@@ -132,6 +132,16 @@ type ReachabilityApiResponse = Partial<ReachabilityResult> & {
   data?: ReachabilityResult;
 };
 
+export interface VisionHealthResult {
+  configured: boolean;
+  healthy: boolean;
+  latency_ms?: number | null;
+  error?: string | null;
+  model?: string | null;
+  resolved_model?: string | null;
+  base_url?: string | null;
+}
+
 /**
  * Lightweight reachability check using 1-token probe.
  * Faster and cheaper than validateLLM — ideal for local model (Ollama) setup.
@@ -611,5 +621,11 @@ export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRe
   return apiRequest<MCPRegistryServerDetail>(`/integrations/mcp/registry/detail/${encodedName}`, {
     method: 'GET',
     silent: true,
+  });
+};
+
+export const checkVisionFallbackHealth = async (): Promise<VisionHealthResult> => {
+  return apiRequest<VisionHealthResult>('/config/vision-health', {
+    method: 'POST',
   });
 };

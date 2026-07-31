@@ -262,7 +262,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 为了彻底解决大模型在面临海量工具时的“幻觉率上升”问题，系统实现了跨三层的架构级收束机制，将“配置大而全”的陷阱转变为**“动作空间越小，决策准确率越高”**的实战理念：
 
 - **Harness 层的协议与算力下沉**：不使用粗糙的“Token计数”来评估认知负载。原生内嵌了 `ActionSpaceProfiler` 协议，动态解析所有传入 Agent 的工具 JSON Schema（参数数、嵌套层级），科学地计算出 `ActionSpaceComplexityScore` (ASCS)，作为评估该 Agent 是否容易出现幻觉的标准基准。
-- **Harness 层的前缀缓存硬核保护**：动态外部工具（特别是不可控的 MCP 工具库）绝不能污染高频前缀。通过 `tool_layers.py` 严格的层级分发，所有 MCP 和第三方不稳定的技能被强行分配到 `ToolLayer.EXTENDED`（Tools 数组尾部）。CORE 层 file/bash 工具与 frozen System Prompt 构成稳定前缀（API 序列化顺序：`Tools → System → Messages`），使 Prefix Cache 在 EXTENDED 工具增减时仍命中 CORE+System 段。
+- **Harness 层的前缀缓存硬核保护**：动态外部工具（特别是不可控的 MCP 工具库）绝不能污染高频前缀。通过 `tool_layers.py` 严格的层级分发，所有 MCP 和 server vendor 集成被分配到 `ToolLayer.EXTERNAL`（Tools 数组尾部）。CORE 层 file/bash 工具与 frozen System Prompt 构成稳定前缀（API 序列化顺序：`Tools → System → Messages`），使 Prefix Cache 在 EXTERNAL 工具增减时仍命中 harness 段。
 - **Tool loading dual-track**：General（Web 非 fast、Channel/IM）CORE file/bash 始终加载；Search/Fast 仅 Web `action_mode=fast` 无 file/bash。详见 `app/services/agent/_ARCH.md` 与 harness `tool_management/_ARCH.md`。
 - **Server 工具可见性**：运行时由 harness `attenuator`（执行层）与 `SkillAttenuationMiddleware`（`tool_choice.allowed_tools` 模型层）约束；Server `app/tasks/` 不含闲置工具驱逐后台任务。
 

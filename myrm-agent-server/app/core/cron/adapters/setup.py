@@ -36,9 +36,9 @@ from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 from app.core.cron.adapters.situation_sections import build_situation_report_builder
-from app.core.cron.adapters.wiki_router_job_runner import WikiRouterJobRunner
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
 from app.core.cron.adapters.sqlalchemy_trigger_provider import SqlAlchemyTriggerProvider
+from app.core.cron.adapters.wiki_router_job_runner import WikiRouterJobRunner
 
 logger = logging.getLogger(__name__)
 

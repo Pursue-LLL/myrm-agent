@@ -226,7 +226,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   );
 
   const mcpCount = editor.selectedMcpNames.length;
-  const skillCount = editor.selectedSkillIds.length + editor.mountedSkillIds.length;
+  const skillCount = editor.selectedSkillIds.length;
 
   if (editor.isInitialized && !editor.user) {
     return (
@@ -445,7 +445,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         enabledSkills={editor.enabledSkills}
         enabledMcps={editor.enabledMcps}
         selectedSkillIds={editor.selectedSkillIds}
-        mountedSkillIds={editor.mountedSkillIds}
+        skillConfigs={editor.skillConfigs}
         selectedMcpNames={editor.selectedMcpNames}
         mcpToolSelections={editor.mcpToolSelections}
         systemPrompt={editor.systemPrompt}

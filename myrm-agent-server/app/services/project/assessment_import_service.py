@@ -1,7 +1,7 @@
 """
 [INPUT] ArtifactVault, Artifact ORM, AssessmentImportLedger ORM, MilestoneService, KanbanService
 [OUTPUT] AssessmentImportService: artifact -> milestone/kanban import orchestration
-[POS] 项目评估导入服务。将评估类 Markdown 工件解析为里程碑和看板任务，基于不可变导入台账执行幂等拦截并输出回执。
+[POS] 项目评估导入服务。将评估类 Markdown 工件解析为里程碑和看板任务，基于不可变导入台账执行幂等拦截并输出回执；在任务 metadata 写入 `assessment_import.import_id` 供导入后价值统计关联。
 """
 
 from __future__ import annotations
@@ -379,6 +379,7 @@ class AssessmentImportService:
                 for task_title in parsed.tasks:
                     metadata_patch: dict[str, object] = {
                         "assessment_import": {
+                            "import_id": import_id,
                             "artifact_id": artifact.id,
                             "artifact_version_id": latest_version.id,
                             "project_id": project_id,

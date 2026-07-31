@@ -9,6 +9,7 @@ from .core import router as core_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
 from .messages import router as messages_router
+from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
 from .share import router as share_router
 from .title import router as title_router
@@ -24,6 +25,7 @@ router.include_router(messages_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)
+router.include_router(rewind_router)
 router.include_router(compaction_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)

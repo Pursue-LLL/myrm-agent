@@ -33,6 +33,9 @@ import ChannelIcon from '@/components/features/settings/sections/integration/cha
 import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintInlineFill from './BlueprintInlineFill';
 import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
+import type { CronJob } from '@/services/cron.types';
+import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
+import { CronJobAuditPanel } from './CronJobAuditPanel';
 
 type JobType = 'agent' | 'shell' | 'router' | 'reminder';
 type UIJobMode = 'agent' | 'shell' | 'script' | 'reminder';
@@ -83,6 +86,7 @@ export default function CronJobCreateDialog({
   const [createMode, setCreateMode] = useState<'template' | 'custom'>('template');
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<Array<{ type: string; description: string }>>([]);
+  const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -134,6 +138,7 @@ export default function CronJobCreateDialog({
     setCreateMode('template');
     setSelectedBlueprint(null);
     setAcceptanceCriteria([]);
+    setCreatedJob(null);
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -233,10 +238,14 @@ export default function CronJobCreateDialog({
         }));
       }
 
-      await createJob(payload);
-      toast.success(t('createSuccess'));
-      reset();
-      onOpenChange(false);
+      const job = await createJob(payload);
+      try {
+        const auditJob = await prepareJobForSettingsAudit(job);
+        setCreatedJob(auditJob);
+        toast.success(t('createSuccess'));
+      } catch {
+        toast.error(t('auditPauseFail'));
+      }
     } catch {
       toast.error(t('actionFail'));
     } finally {
@@ -279,6 +288,29 @@ export default function CronJobCreateDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {createdJob ? (
+          <div className="space-y-4 pt-2">
+            <CronJobAuditPanel
+              jobId={createdJob.id}
+              initialJob={createdJob}
+              enforceSettingsGate
+              onJobChange={setCreatedJob}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                disabled={!canDismissSettingsAuditFlow(createdJob)}
+                title={!canDismissSettingsAuditFlow(createdJob) ? t('auditDoneHint') : undefined}
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+              >
+                {t('auditDone')}
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-4 pt-2">
           {/* Mode Toggle */}
           <div className="flex gap-1 border-b pb-0">
@@ -319,7 +351,9 @@ export default function CronJobCreateDialog({
             <BlueprintInlineFill
               blueprint={selectedBlueprint}
               onBack={() => setSelectedBlueprint(null)}
-              onCreated={() => { reset(); onOpenChange(false); }}
+              onCreated={(job) => {
+                setCreatedJob(job);
+              }}
             />
           )}
 
@@ -710,6 +744,7 @@ export default function CronJobCreateDialog({
           </div>
           </>)}
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -20,9 +20,9 @@ from tests.e2e.desktop_approval.constants import (
     E2E_NUDGE_PROMPT,
     E2E_SNAPSHOT_RESEED_PROMPT,
     E2E_VISION_CORRECT_PROMPT,
-    GATE_INTERACT_HANDOFF_SEC,
     GATE_IDLE_FAIL_FAST_SEC,
     GATE_IDLE_NUDGE_SEC,
+    GATE_INTERACT_HANDOFF_SEC,
     GATE_PENDING_GRACE_SEC,
     GATE_SNAPSHOT_LOOP_FAIL_SEC,
     GATE_STREAM_NUDGE_SEC,
@@ -82,6 +82,58 @@ _PENDING_API_FAIL_ABORT_STREAK = 20
 _FAST_API_TIMEOUT_SEC = 4.0
 _FAST_API_MAX_ATTEMPTS = 1
 _FAST_API_WALL_TIMEOUT_SEC = _FAST_API_TIMEOUT_SEC + 1.0
+_SIGNOFF_FAST_API_TIMEOUT_SEC = 12.0
+_SIGNOFF_FAST_API_MAX_ATTEMPTS = 2
+_SIGNOFF_FAST_API_WALL_TIMEOUT_SEC = _SIGNOFF_FAST_API_TIMEOUT_SEC + 3.0
+_SIGNOFF_PROGRESS_API_TIMEOUT_STREAK = 1
+_SIGNOFF_PROGRESS_API_TIMEOUT_TOTAL = 3
+
+
+def _signoff_profile_active() -> bool:
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+
+
+def _fast_api_timeout_sec() -> float:
+    if _signoff_profile_active():
+        base = _SIGNOFF_FAST_API_TIMEOUT_SEC
+        if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
+            try:
+                from cdp_chat_support import e2e_parallel_config_api_timeout_sec
+
+                return e2e_parallel_config_api_timeout_sec(base)
+            except ImportError:
+                return base
+        return base
+    return _FAST_API_TIMEOUT_SEC
+
+
+def _fast_api_max_attempts() -> int:
+    if _signoff_profile_active():
+        return _SIGNOFF_FAST_API_MAX_ATTEMPTS
+    return _FAST_API_MAX_ATTEMPTS
+
+
+def _fast_api_wall_timeout_sec() -> float:
+    if _signoff_profile_active():
+        base = _SIGNOFF_FAST_API_WALL_TIMEOUT_SEC
+        if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
+            try:
+                from cdp_chat_support import signoff_parallel_desktop_progress_api_wall_sec
+
+                return signoff_parallel_desktop_progress_api_wall_sec(base)
+            except ImportError:
+                return base + 12.0
+        return base
+    return _FAST_API_WALL_TIMEOUT_SEC
+
+
+def _progress_api_timeout_seed_thresholds() -> tuple[int, int]:
+    if _signoff_profile_active():
+        return (
+            _SIGNOFF_PROGRESS_API_TIMEOUT_STREAK,
+            _SIGNOFF_PROGRESS_API_TIMEOUT_TOTAL,
+        )
+    return 6, 12
 _STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
 _MAX_SYNTHETIC_DREF_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_SYNTHETIC_DREF_FALLBACKS"
 _MAX_PENDING_SEED_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_PENDING_SEED_FALLBACKS"
@@ -242,10 +294,10 @@ async def _server_pending_count_fast() -> int:
         value = await asyncio.wait_for(
             asyncio.to_thread(
                 server_pending_approval_count,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
+                timeout_sec=_fast_api_timeout_sec(),
+                max_attempts=_fast_api_max_attempts(),
             ),
-            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+            timeout=_fast_api_wall_timeout_sec(),
         )
     except asyncio.TimeoutError:
         return -1
@@ -263,14 +315,14 @@ async def _desktop_tool_progress_api_fast(chat_id: str) -> dict[str, object]:
             asyncio.to_thread(
                 fetch_desktop_tool_progress_from_api,
                 normalized,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
+                timeout_sec=_fast_api_timeout_sec(),
+                max_attempts=_fast_api_max_attempts(),
             ),
-            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+            timeout=_fast_api_wall_timeout_sec(),
         )
     except asyncio.TimeoutError:
         progress(
-            f"desktop progress API wall-timeout>{_FAST_API_WALL_TIMEOUT_SEC:.0f}s "
+            f"desktop progress API wall-timeout>{_fast_api_wall_timeout_sec():.0f}s "
             f"chat_id={normalized[:8]}..."
         )
         return {
@@ -291,10 +343,10 @@ async def _chat_user_message_count_fast(chat_id: str) -> int:
             asyncio.to_thread(
                 chat_user_message_count,
                 normalized,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
+                timeout_sec=_fast_api_timeout_sec(),
+                max_attempts=_fast_api_max_attempts(),
             ),
-            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+            timeout=_fast_api_wall_timeout_sec(),
         )
     except asyncio.TimeoutError:
         return 0
@@ -571,8 +623,8 @@ async def _fetch_first_desktop_dref(
             api_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_api,
                 normalized_chat_id,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
+                timeout_sec=_fast_api_timeout_sec(),
+                max_attempts=_fast_api_max_attempts(),
             )
             if api_dref:
                 progress(
@@ -1398,14 +1450,11 @@ async def _wait_desktop_tool_activity_failfast(
     idle_seed_attempted = False
     progress_api_timeout_streak = 0
     progress_api_timeout_total = 0
+    streak_threshold, total_threshold = _progress_api_timeout_seed_thresholds()
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        if wall_started_at is not None:
-            assert_desktop_e2e_wall_clock(
-                wall_started_at, phase="wait_desktop_tool_activity"
-            )
         heartbeat_e2e_lease()
         if api_only and poll % 5 == 0:
             await asyncio.to_thread(activate_textedit_foreground)
@@ -1428,9 +1477,11 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if progress_api_timeout_streak >= 6 or progress_api_timeout_total >= 12:
+        if progress_api_timeout_streak >= streak_threshold or progress_api_timeout_total >= total_threshold:
             threshold_reason = (
-                "streak>=6" if progress_api_timeout_streak >= 6 else "total>=12"
+                f"streak>={streak_threshold}"
+                if progress_api_timeout_streak >= streak_threshold
+                else f"total>={total_threshold}"
             )
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
@@ -1464,6 +1515,10 @@ async def _wait_desktop_tool_activity_failfast(
                 "syntheticPendingFallback": True,
                 "pendingSource": "synthetic-fallback",
             }
+        if wall_started_at is not None:
+            assert_desktop_e2e_wall_clock(
+                wall_started_at, phase="wait_desktop_tool_activity"
+            )
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
             return {

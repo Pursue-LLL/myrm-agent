@@ -10,10 +10,12 @@ existing `skill_manage_tool` tool.
 
 [OUTPUT]
 - ChannelLearnCommandHandler: LearnCommandHandler protocol implementation
+- parse_learn_slash_args / rewrite_learn_query_if_needed: raw `/learn` detection and SSOT prompt rewrite (WebUI + channel)
+- apply_learn_skill_manage_permission_overlay: per-turn skill_manage ASK elevation for learn authoring
+- learn_authoring_prompt_text / is_learn_skill_authoring_prompt: force_skill_manage gate helpers
 
 [POS]
-Business-layer handler for /learn. Rewrites the inbound message content
-with a learn prompt and returns it for agent execution via SessionGate.
+Business-layer /learn SSOT. Builds the learn authoring prompt, rewrites raw WebUI slash input before agent execution, and aligns skill_manage permissions for this turn only.
 """
 
 from __future__ import annotations
@@ -34,9 +36,16 @@ Follow the skill-authoring standards exactly:
 
 Frontmatter (YAML between --- delimiters):
 - name: lowercase-hyphenated, <=64 chars, no spaces.
-- description: ONE sentence, <=60 characters. State the capability, not the \
-implementation. No marketing words.
+- description: ONE sentence, **<=60 characters**, ends with a period. State the \
+capability, not the implementation. No marketing words (powerful, comprehensive, \
+seamless, advanced, robust). Do NOT repeat the skill name. After writing, COUNT \
+characters; if over 60, shorten before saving.
+    Good (<=60): `Search arXiv papers by keyword, author, or ID.`
+    Bad (123 chars): `A comprehensive skill that lets the agent search arXiv for \
+academic papers using keywords, authors, and categories.`
 - version: 0.1.0
+- platforms: optional list when the skill is platform-specific; omit when universal.
+- Do NOT author hub/router/meta skills that only delegate to other skills.
 
 Body section order (omit a section only if it genuinely has no content):
 1. "# <Human Title>" — 2-3 sentence intro: what it does, what it does NOT do.
@@ -48,6 +57,17 @@ Body section order (omit a section only if it genuinely has no content):
 7. "## Pitfalls" — known limits, things that look broken but aren't.
 8. "## Verification" — a single command/check that proves the skill worked.
 
+Myrm-tool framing (this is what makes it a skill, not shell docs):
+- Frame running scripts/commands as "invoke through `bash_code_execute_tool`".
+- Reference Myrm tools by name in backticks: `file_read_tool`, `file_write_tool`, \
+`file_edit_tool`, `grep_tool`, `glob_tool`, `web_search_tool`, `web_fetch_tool`, \
+`bash_code_execute_tool`, `skill_manage_tool`, `delegate_task_tool`.
+- Do NOT name shell utilities the agent already has wrapped: say `file_read_tool` \
+not cat/head/tail, `grep_tool`/`glob_tool` not grep/rg/find/ls, `web_fetch_tool` \
+not curl-to-scrape, `file_write_tool` not echo>file or heredocs.
+- Third-party CLIs (ffmpeg, gh, an SDK) are fine inside a script file, but the \
+prose still frames them as "invoke through `bash_code_execute_tool`".
+
 Quality bar:
 - Prefer exact commands, URLs, function signatures that appear VERBATIM in the \
 source. NEVER invent flags, paths, or APIs you didn't see.
@@ -57,6 +77,52 @@ action="write_file"), referenced from SKILL.md by relative path — not inlined.
 
 
 LEARN_PROMPT_PREFIX = "[/learn]"
+_LEARN_SLASH_COMMAND = "learn"
+_DEFAULT_LEARN_ARGS = (
+    "the workflow we just went through in this conversation — "
+    "review the steps taken and distill them into a reusable skill"
+)
+
+
+def _extract_text_from_query(query: object) -> str | None:
+    if isinstance(query, str):
+        return query
+    if isinstance(query, list):
+        parts: list[str] = []
+        for block in query:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+        joined = "\n".join(parts)
+        return joined if joined.strip() else None
+    return None
+
+
+def parse_learn_slash_args(query: object) -> str | None:
+    """Return /learn trailing args when *query* is a raw slash message; else None."""
+    text = _extract_text_from_query(query)
+    if text is None:
+        return None
+    stripped = text.strip()
+    if not stripped.startswith("/"):
+        return None
+    body = stripped[1:]
+    if not body:
+        return ""
+    space_idx = body.find(" ")
+    cmd_name = body[:space_idx].lower() if space_idx > 0 else body.lower()
+    if cmd_name != _LEARN_SLASH_COMMAND:
+        return None
+    return body[space_idx + 1 :].strip() if space_idx > 0 else ""
+
+
+def rewrite_learn_query_if_needed(query: object) -> object:
+    """Rewrite raw WebUI/Chat ``/learn`` messages to the channel learn prompt SSOT."""
+    if learn_authoring_prompt_text(query) is not None:
+        return query
+    args = parse_learn_slash_args(query)
+    if args is None:
+        return query
+    return _build_learn_prompt(args)
 
 
 def is_learn_skill_authoring_prompt(content: str) -> bool:
@@ -115,7 +181,8 @@ def _detect_input_type(user_args: str) -> _InputType:
 
 def _build_learn_prompt(user_args: str) -> str:
     """Build the agent prompt for an open-ended /learn request."""
-    input_type = _detect_input_type(user_args)
+    args = user_args.strip() or _DEFAULT_LEARN_ARGS
+    input_type = _detect_input_type(args)
 
     if input_type == "url":
         gather_hint = (
@@ -141,7 +208,11 @@ def _build_learn_prompt(user_args: str) -> str:
     return (
         "[/learn] The user wants you to learn a reusable skill from the "
         "source(s) described below, and save it.\n\n"
-        f"WHAT TO LEARN FROM:\n{user_args}\n\n"
+        f"WHAT TO LEARN FROM:\n{args}\n\n"
+        "The request may mix SOURCES (paths, URLs, pasted notes, \"what we just "
+        "did\") and REQUIREMENTS (focus, scope, naming). Treat every part as "
+        "load-bearing — prose after a URL or path is authoring guidance, not "
+        "incidental. Never gather the first source and ignore the rest.\n\n"
         f"INPUT TYPE: {input_type}\n"
         f"{gather_hint}\n\n"
         "INSTRUCTIONS:\n"
@@ -165,12 +236,5 @@ class ChannelLearnCommandHandler:
         msg: InboundMessage,
         user_args: str,
     ) -> InboundMessage | None:
-        args = user_args.strip()
-        if not args:
-            args = (
-                "the workflow we just went through in this conversation — "
-                "review the steps taken and distill them into a reusable skill"
-            )
-
-        content = _build_learn_prompt(args)
+        content = _build_learn_prompt(user_args.strip())
         return dataclasses.replace(msg, content=content)

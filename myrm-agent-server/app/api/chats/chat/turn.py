@@ -10,6 +10,7 @@ from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
+from app.services.chat.session_continuity_service import ContinuitySyncError
 
 router = APIRouter()
 
@@ -158,6 +159,8 @@ async def truncate_after_message(
         )
     except HTTPException:
         raise
+    except ContinuitySyncError as exc:
+        raise internal_error(operation="Truncate after message", exception=exc) from exc
     except Exception as e:
         raise internal_error(operation="Truncate after message", exception=e) from e
 

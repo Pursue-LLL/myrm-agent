@@ -7,7 +7,6 @@ import json
 import os
 import sys
 import time
-import uuid
 from pathlib import Path
 
 import pytest
@@ -674,7 +673,7 @@ async def _run_migration_readiness_gap_e2e(
             await asyncio.to_thread(client.close)
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -691,7 +690,7 @@ async def test_migration_readiness_gap_chrome_e2e_mcp_warning(
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -708,7 +707,7 @@ async def test_migration_readiness_gap_chrome_e2e_provider_critical(
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio

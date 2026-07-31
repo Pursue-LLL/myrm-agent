@@ -3,7 +3,7 @@
 /**
  * [INPUT] @/store/useMilestoneStore, @/store/useProjectStore, ./assessmentImportError::resolveAssessmentImportErrorMessage
  * [OUTPUT] ProjectMilestonePanel: 项目里程碑管理面板
- * [POS] 在侧边栏显示当前项目的里程碑列表，支持创建、完成、删除与评估工件导入（最近候选一键导入 + 手输兜底）。
+ * [POS] 在侧边栏显示当前项目的里程碑列表，支持创建、完成、删除与评估工件导入（最近候选一键导入 + 手输兜底），并展示导入后价值锚点。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,12 +12,20 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useToast } from '@/hooks/shared/useToast';
 import { useMilestoneStore } from '@/store/useMilestoneStore';
 import { useProjectStore } from '@/store/useProjectStore';
-import { resolveAssessmentImportErrorMessage } from './assessmentImportError';
+import { resolveAssessmentImportErrorMessage, resolveAssessmentImportFailureReason } from './assessmentImportError';
 import {
   listAssessmentImportArtifactCandidates,
   type AssessmentImportArtifactCandidate,
   type Milestone,
 } from '@/services/milestones';
+import {
+  getAssessmentImportValueSummary,
+  recordAssessmentImportAttempted,
+  recordAssessmentImportFailed,
+  recordAssessmentImportSucceeded,
+  type AssessmentImportMetricTrigger,
+  type AssessmentImportValueSummary,
+} from '@/services/assessmentImportMetrics';
 import { useTranslations } from 'next-intl';
 
 export default function ProjectMilestonePanel() {
@@ -36,8 +44,11 @@ export default function ProjectMilestonePanel() {
   const [artifactCandidatesLoaded, setArtifactCandidatesLoaded] = useState(false);
   const [artifactCandidatesLoading, setArtifactCandidatesLoading] = useState(false);
   const [artifactCandidatesLoadFailed, setArtifactCandidatesLoadFailed] = useState(false);
+  const [importValueSummary, setImportValueSummary] = useState<AssessmentImportValueSummary | null>(null);
+  const [importValueSummaryLoading, setImportValueSummaryLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const candidateRequestIdRef = useRef(0);
+  const valueSummaryRequestIdRef = useRef(0);
 
   const activeProject = typeof activeFilter === 'string' ? projects.find((p) => p.id === activeFilter) : null;
 
@@ -57,6 +68,8 @@ export default function ProjectMilestonePanel() {
     setArtifactCandidatesLoaded(false);
     setArtifactCandidatesLoading(false);
     setArtifactCandidatesLoadFailed(false);
+    setImportValueSummary(null);
+    setImportValueSummaryLoading(false);
   }, [activeProject?.id]);
 
   const handleAddSubmit = useCallback(async () => {
@@ -108,7 +121,7 @@ export default function ProjectMilestonePanel() {
     setArtifactCandidatesLoading(true);
     setArtifactCandidatesLoadFailed(false);
     try {
-      const candidates = await listAssessmentImportArtifactCandidates(12);
+      const candidates = await listAssessmentImportArtifactCandidates(12, projectId);
       if (candidateRequestIdRef.current !== requestId) {
         return;
       }
@@ -129,6 +142,37 @@ export default function ProjectMilestonePanel() {
     }
   }, [activeProject?.id, artifactCandidatesLoading]);
 
+  const loadImportValueSummary = useCallback(async (
+    projectId: string,
+    options?: { force?: boolean },
+  ) => {
+    if (importValueSummaryLoading && !options?.force) {
+      return;
+    }
+    const requestId = valueSummaryRequestIdRef.current + 1;
+    valueSummaryRequestIdRef.current = requestId;
+    setImportValueSummaryLoading(true);
+    try {
+      const summary = await getAssessmentImportValueSummary(30, projectId);
+      if (valueSummaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      if (activeProject?.id !== projectId) {
+        return;
+      }
+      setImportValueSummary(summary);
+    } catch {
+      if (valueSummaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      setImportValueSummary(null);
+    } finally {
+      if (valueSummaryRequestIdRef.current === requestId) {
+        setImportValueSummaryLoading(false);
+      }
+    }
+  }, [activeProject?.id, importValueSummaryLoading]);
+
   useEffect(() => {
     if (!expanded || !activeProject || artifactCandidatesLoaded || artifactCandidatesLoading) {
       return;
@@ -142,19 +186,40 @@ export default function ProjectMilestonePanel() {
     loadArtifactCandidates,
   ]);
 
-  const executeImportAssessment = useCallback(async (rawArtifactId: string) => {
+  useEffect(() => {
+    if (!expanded || !activeProject || importValueSummaryLoading || importValueSummary !== null) {
+      return;
+    }
+    void loadImportValueSummary(activeProject.id);
+  }, [
+    expanded,
+    activeProject,
+    importValueSummaryLoading,
+    importValueSummary,
+    loadImportValueSummary,
+  ]);
+
+  const executeImportAssessment = useCallback(async (
+    rawArtifactId: string,
+    trigger: AssessmentImportMetricTrigger,
+  ) => {
     if (!activeProject) return;
     const artifactId = rawArtifactId.trim();
     if (!artifactId) {
       toastError(t('milestone.importArtifactRequired'));
       return;
     }
+    const metricContextKey = activeProject.id;
+    recordAssessmentImportAttempted(trigger, { contextKey: metricContextKey });
     setImportArtifactId(artifactId);
     setImporting(true);
     try {
       const receipt = await importAssessment(activeProject.id, { artifact_id: artifactId });
+      recordAssessmentImportSucceeded(trigger, { contextKey: metricContextKey });
       setImportArtifactId('');
       setLastImportSummary({ milestones: receipt.total_milestones, tasks: receipt.total_tasks });
+      setArtifactCandidatesLoaded(false);
+      void loadImportValueSummary(activeProject.id, { force: true });
       toastSuccess(
         t('milestone.importSuccess', {
           milestones: receipt.total_milestones,
@@ -162,14 +227,17 @@ export default function ProjectMilestonePanel() {
         }),
       );
     } catch (error) {
+      recordAssessmentImportFailed(trigger, resolveAssessmentImportFailureReason(error), {
+        contextKey: metricContextKey,
+      });
       toastError(resolveAssessmentImportErrorMessage(error, t));
     } finally {
       setImporting(false);
     }
-  }, [activeProject, importAssessment, toastError, toastSuccess, t]);
+  }, [activeProject, importAssessment, loadImportValueSummary, toastError, toastSuccess, t]);
 
   const handleImportAssessment = useCallback(async () => {
-    await executeImportAssessment(importArtifactId);
+    await executeImportAssessment(importArtifactId, 'manual_input');
   }, [executeImportAssessment, importArtifactId]);
 
   const filteredArtifactCandidates = useMemo(() => {
@@ -256,24 +324,24 @@ export default function ProjectMilestonePanel() {
                 }
               }}
               placeholder={t('milestone.importPlaceholder')}
-              className="w-full h-5 px-1.5 text-[9px] rounded border border-border/40 bg-transparent outline-none placeholder:text-muted-foreground/40"
+              className="w-full h-6 sm:h-5 px-2 sm:px-1.5 text-[11px] sm:text-[10px] rounded border border-border/40 bg-transparent outline-none placeholder:text-muted-foreground/40"
             />
             <button
               onClick={() => {
                 void handleImportAssessment();
               }}
               disabled={importing}
-              className="flex items-center gap-1 text-[9px] text-muted-foreground/70 hover:text-foreground disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1 text-[11px] sm:text-[10px] text-muted-foreground/70 hover:text-foreground disabled:opacity-50 transition-colors"
             >
               {importing ? <Loader2 size={8} className="animate-spin" /> : <Plus size={8} />}
               <span>{importing ? t('milestone.importing') : t('milestone.importAction')}</span>
             </button>
             <div className="space-y-0.5">
-              <div className="text-[9px] text-muted-foreground/55">{t('milestone.importRecentLabel')}</div>
+              <div className="text-[11px] sm:text-[10px] text-muted-foreground/55">{t('milestone.importRecentLabel')}</div>
               {artifactCandidatesLoading ? (
-                <div className="text-[9px] text-muted-foreground/45">{t('common.loading')}</div>
+                <div className="text-[11px] sm:text-[10px] text-muted-foreground/45">{t('common.loading')}</div>
               ) : artifactCandidatesLoadFailed ? (
-                <div className="flex items-center gap-1 text-[9px] text-muted-foreground/45">
+                <div className="flex items-center gap-1 text-[11px] sm:text-[10px] text-muted-foreground/45">
                   <span>{t('milestone.importRecentLoadFailed')}</span>
                   <button
                     onClick={() => {
@@ -289,33 +357,52 @@ export default function ProjectMilestonePanel() {
                   </button>
                 </div>
               ) : filteredArtifactCandidates.length > 0 ? (
-                <div className="max-h-20 space-y-0.5 overflow-y-auto pr-0.5">
+                <div className="max-h-24 sm:max-h-20 space-y-0.5 overflow-y-auto pr-0.5">
                   {filteredArtifactCandidates.map((candidate) => (
                     <button
                       key={candidate.id}
                       onClick={() => {
-                        void executeImportAssessment(candidate.id);
+                        void executeImportAssessment(candidate.id, 'recent_candidate');
                       }}
-                      disabled={importing}
-                      className="w-full rounded border border-border/30 px-1.5 py-1 text-left text-[9px] text-muted-foreground/75 hover:border-primary/40 hover:text-foreground disabled:opacity-50 transition-colors"
+                      disabled={importing || !candidate.importable}
+                      className={cn(
+                        'w-full rounded border px-2 sm:px-1.5 py-1 text-left text-[11px] sm:text-[10px] transition-colors',
+                        candidate.importable
+                          ? 'border-border/30 text-muted-foreground/75 hover:border-primary/40 hover:text-foreground disabled:opacity-50'
+                          : 'border-border/20 text-muted-foreground/40 opacity-50 cursor-not-allowed',
+                      )}
                     >
                       <div className="truncate">{candidate.name}</div>
-                      <div className="truncate text-[8px] text-muted-foreground/45">{candidate.id}</div>
+                      <div className="truncate text-[10px] sm:text-[9px] text-muted-foreground/45">{candidate.id}</div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="text-[9px] text-muted-foreground/45">{t('milestone.importRecentEmpty')}</div>
+                <div className="text-[11px] sm:text-[10px] text-muted-foreground/45">{t('milestone.importRecentEmpty')}</div>
               )}
             </div>
             {lastImportSummary && (
-              <div className="text-[9px] text-muted-foreground/60">
+              <div className="text-[11px] sm:text-[10px] text-muted-foreground/60">
                 {t('milestone.importReceipt', {
                   milestones: lastImportSummary.milestones,
                   tasks: lastImportSummary.tasks,
                 })}
               </div>
             )}
+            {importValueSummaryLoading ? (
+              <div className="text-[11px] sm:text-[10px] text-muted-foreground/50">{t('common.loading')}</div>
+            ) : importValueSummary ? (
+              <div className="text-[11px] sm:text-[10px] text-muted-foreground/60">
+                {importValueSummary.imported_tasks_total > 0
+                  ? t('milestone.importValueHint', {
+                      days: importValueSummary.days,
+                      completed: importValueSummary.completed_tasks_total,
+                      total: importValueSummary.imported_tasks_total,
+                      rate: Math.round(importValueSummary.task_completion_rate * 100),
+                    })
+                  : t('milestone.importValueEmpty', { days: importValueSummary.days })}
+              </div>
+            ) : null}
           </div>
         </div>
       )}

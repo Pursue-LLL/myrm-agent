@@ -522,8 +522,10 @@ class AgentJobRunner:
             from app.core.channel_bridge.config_parsers import (
                 extract_fallback_model_configs,
                 extract_retrieval_models,
+                resolve_vision_fallback_chain_for_agent,
             )
             from app.core.channel_bridge.model_resolver import (
+                enrich_model_capabilities,
                 enrich_model_context_window,
                 resolve_model_config,
             )
@@ -636,7 +638,12 @@ class AgentJobRunner:
                 user_cfgs.providers_dict,
                 model_override=model_override,
             )
+            model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
             model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
+            vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+                user_cfgs.providers_dict,
+                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+            )
 
             memory_shared_context_ids: list[str] = []
             try:
@@ -671,6 +678,8 @@ class AgentJobRunner:
                 model_cfg=model_cfg,
                 fallback_model_cfg=fallback_model_cfg,
                 fallback_lite_model_cfg=fallback_lite_model_cfg,
+                vision_fallback_model_cfg=vision_fallback_model_cfg,
+                vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
                 search_service_cfg=user_cfgs.search_cfg,
                 chat_id=job.chat_id,
                 agent_id=job.agent_id,

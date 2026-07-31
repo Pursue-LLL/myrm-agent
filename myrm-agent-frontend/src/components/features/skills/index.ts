@@ -7,6 +7,7 @@ export { default as SkillList } from './SkillList';
 export { default as SkillEmptyState } from './SkillEmptyState';
 export { default as LocalPathsConfig } from './LocalPathsConfig';
 export { default as SkillDraftReviewPanel } from './SkillDraftReviewPanel';
+export { default as SkillsLearnPanel } from './SkillsLearnPanel';
 export { default as SkillGrowthCaseCard } from './SkillGrowthCaseCard';
 export { default as SkillHistoryPanel } from './SkillHistoryPanel';
 export { default as SkillSyncIndicator } from './SkillSyncIndicator';

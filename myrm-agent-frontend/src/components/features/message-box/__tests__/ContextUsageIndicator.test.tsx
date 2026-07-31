@@ -64,8 +64,11 @@ const mockChatState = vi.hoisted(() => ({
   }>,
   chatId: 'test-chat-123',
   contextPinnedFiles: [] as string[],
+  contextBranchesLoadError: null as string | null,
+  contextPinnedFilesLoadError: null as string | null,
   setActiveSessionAnalyticsId: vi.fn(),
   setContextPinnedFiles: vi.fn(),
+  setContextPinnedFilesLoadError: vi.fn(),
 }));
 
 vi.mock('@/store/useChatStore', () => ({

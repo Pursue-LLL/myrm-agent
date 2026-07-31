@@ -269,7 +269,7 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
     ), f"SAL must not write agent.skill_ids; got {skill_ids!r}"
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:
@@ -345,7 +345,7 @@ def _restore_registry_url(api_url: str, prior_registry_url: str) -> None:
     )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_discover_cn_mirror_select_save_via_ui() -> None:
@@ -381,7 +381,7 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
         _restore_registry_url(api_url, prior_registry_url)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_discover_custom_mirror_url_save_via_ui() -> None:

@@ -46,6 +46,8 @@ export interface ChatState {
   compactedBeforeId: string | null;
   contextBranches: ContextBranchRecord[];
   contextPinnedFiles: string[];
+  contextBranchesLoadError: string | null;
+  contextPinnedFilesLoadError: string | null;
   lastCompactionMeta: LastCompactionMeta | null;
   compactionRefreshNonce: number;
   workspaceDir: string | null;
@@ -164,6 +166,8 @@ export interface ChatState {
   setCompactedSummary: (summary: string | null) => void;
   setContextBranches: (branches: ContextBranchRecord[]) => void;
   setContextPinnedFiles: (files: string[]) => void;
+  setContextBranchesLoadError: (error: string | null) => void;
+  setContextPinnedFilesLoadError: (error: string | null) => void;
   setCompactedBeforeId: (id: string | null) => void;
   setWorkspaceDir: (dir: string | null) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;

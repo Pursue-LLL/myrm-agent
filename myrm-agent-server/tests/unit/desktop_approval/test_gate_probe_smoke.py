@@ -7,8 +7,8 @@ import asyncio
 import pytest
 
 from tests.e2e.desktop_approval.gate_probe import (
-    _DesktopFallbackBudget,
     _build_fallback_budget,
+    _DesktopFallbackBudget,
     _ensure_nudge_chat_surface_guarded,
     _record_pending_seed_fallback,
     _record_synthetic_dref_fallback,

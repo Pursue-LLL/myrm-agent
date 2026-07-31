@@ -150,6 +150,7 @@ interface SubMenuItem {
 const subMenuItems: Partial<Record<SettingsTab, SubMenuItem[]>> = {
   models: [{ id: 'default', labelKey: 'defaultModel' }],
   skills: [
+    { id: 'compounding', labelKey: 'compoundingPlaybook' },
     { id: 'pending', labelKey: 'evolutionPending' },
     { id: 'rejections', labelKey: 'evolutionRejection' },
   ],

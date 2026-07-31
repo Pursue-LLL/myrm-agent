@@ -69,7 +69,7 @@ _SUMMARY_BOOKMARKS_JS = f"""(() => {{
   );
   const labels = items.map((el) => (el.textContent || '').trim());
   const hasDomBookmark = labels.some((label) => label.includes(bookmarkNeedle));
-  const hasBookmark = hasDomBookmark || hasStoreBookmark;
+  const hasBookmark = hasDomBookmark;
   const bookmarksSection = document.querySelector('[data-testid="compacted-summary-bookmarks"]');
   const bookmarksState = bookmarksSection?.getAttribute('data-bookmarks-state') ?? 'missing';
   return {{
@@ -111,7 +111,7 @@ _PINS_PANEL_JS = f"""(() => {{
   const paths = items.map((el) => el.getAttribute('data-pin-path') || '');
   const hasStorePin = storePins.some((path) => String(path).includes(pinNeedle));
   const hasDomPin = paths.some((path) => path.includes(pinNeedle));
-  const hasPin = hasStorePin || hasDomPin;
+  const hasPin = hasDomPin;
   return {{
     ready: Boolean(panel) && hasPin,
     hasPanel: Boolean(panel),
@@ -134,9 +134,99 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+_CLOSE_CONTEXT_USAGE_PANEL_JS = """(() => {
+  const panel = document.querySelector('[data-testid="context-usage-panel"]');
+  if (!panel) {
+    return { ok: true, closed: false, reason: 'no-panel' };
+  }
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  const stillOpen = document.querySelector('[data-testid="context-usage-panel"]');
+  return { ok: true, closed: !stillOpen };
+})()"""
+
+
+_FORK_BOOKMARK_CLICK_JS = """(async () => {
+  let clickedBtn = null;
+  for (let attempt = 0; attempt < 48; attempt += 1) {
+    const store = window.__myrmChatStore?.getState?.();
+    if (store?.loading) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      continue;
+    }
+    const btn = document.querySelector('[data-testid="compacted-summary-bookmark-fork"]');
+    if (!btn || btn.disabled) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      continue;
+    }
+    if (!clickedBtn) {
+      btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+      btn.focus();
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      clickedBtn = btn;
+    }
+    const diag = window.__MYRM_CONTEXT_BRANCH_FORK_DIAG__;
+    if (diag?.phase === 'start' || diag?.phase === 'api-ok' || diag?.phase === 'navigate') {
+      return { ok: true, diag, label: (clickedBtn.textContent || '').trim(), attempts: attempt + 1 };
+    }
+    if (diag?.phase === 'api-error' || diag?.phase === 'blocked-loading') {
+      return { ok: false, reason: diag.phase, diag, attempts: attempt + 1 };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return {
+    ok: false,
+    reason: clickedBtn ? 'fork-click-not-acknowledged' : 'no-fork-button',
+    diag: window.__MYRM_CONTEXT_BRANCH_FORK_DIAG__ ?? null,
+    label: clickedBtn ? (clickedBtn.textContent || '').trim() : '',
+  };
+})()"""
+
+
+_FORK_BOOKMARK_READY_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const loading = Boolean(store?.loading);
+  const btn = document.querySelector('[data-testid="compacted-summary-bookmark-fork"]');
+  return {
+    ready: !loading && Boolean(btn) && !btn.disabled,
+    loading,
+    hasButton: Boolean(btn),
+    disabled: Boolean(btn?.disabled),
+  };
+})()"""
+
+
+def _fork_navigated_js(parent_chat_id: str) -> str:
+    return f"""(() => {{
+  const parentChatId = {json.dumps(parent_chat_id)};
+  const path = window.location.pathname.replace(/^\\//, '');
+  const store = window.__myrmChatStore?.getState?.();
+  const activeChatId = String(store?.chatId || '');
+  const msgCount = Array.isArray(store?.messages) ? store.messages.length : 0;
+  const ws = window.__myrmWorkspaceStore?.getState?.();
+  const panes = Array.isArray(ws?.panes) ? ws.panes : [];
+  const paneChatIds = panes.map((pane) => String(pane?.chatId || ''));
+  const forkDiag = window.__MYRM_CONTEXT_BRANCH_FORK_DIAG__ ?? null;
+  return {{
+    ready:
+      path !== parentChatId
+      && path.length > 0
+      && activeChatId === path
+      && msgCount > 0,
+    path,
+    parentChatId,
+    activeChatId,
+    paneChatIds,
+    msgCount,
+    forkDiag,
+  }};
+}})()"""
+
+
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(720)
 def test_context_retention_summary_bookmarks_and_pins_render() -> None:
     """Seeded compacted summary, snapshot bookmarks, and pinned files render in real Chrome."""
     api_url = get_e2e_api_url()
@@ -167,3 +257,17 @@ def test_context_retention_summary_bookmarks_and_pins_render() -> None:
 
         pin_state = wait_for_state(client, page, _PINS_PANEL_JS, timeout_sec=45.0)
         assert pin_state.get("ready") is True, pin_state
+
+        client.evaluate(page, _CLOSE_CONTEXT_USAGE_PANEL_JS, timeout_sec=15.0)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+
+        fork_clicked = client.evaluate(page, _FORK_BOOKMARK_CLICK_JS, timeout_sec=45.0)
+        assert isinstance(fork_clicked, dict) and fork_clicked.get("ok") is True, fork_clicked
+
+        fork_state = wait_for_state(
+            client,
+            page,
+            _fork_navigated_js(chat_id),
+            timeout_sec=120.0,
+        )
+        assert fork_state.get("ready") is True, fork_state

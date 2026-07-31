@@ -60,6 +60,14 @@ export interface AssessmentImportArtifactCandidate {
   name: string;
   updated_at: string;
   latest_version_id: string | null;
+  importable: boolean;
+}
+
+type AssessmentImportCandidateStatus = 'importable' | 'not_importable' | 'unknown';
+
+interface AssessmentImportCandidateProbe {
+  status?: AssessmentImportCandidateStatus;
+  reason?: string | null;
 }
 
 interface ArtifactListItem {
@@ -67,6 +75,7 @@ interface ArtifactListItem {
   name?: string;
   updated_at?: string;
   latest_version_id?: string;
+  assessment_import_candidate?: AssessmentImportCandidateProbe;
 }
 
 function parseTimestamp(value: string): number {
@@ -78,8 +87,16 @@ export function normalizeAssessmentImportArtifactCandidates(
   artifacts: ArtifactListItem[],
   limit = 8,
 ): AssessmentImportArtifactCandidate[] {
+  interface InternalCandidate {
+    id: string;
+    name: string;
+    updated_at: string;
+    latest_version_id: string | null;
+    candidate_status: AssessmentImportCandidateStatus;
+  }
+
   const cappedLimit = Math.max(1, limit);
-  const normalized: AssessmentImportArtifactCandidate[] = [];
+  const normalized: InternalCandidate[] = [];
   for (const artifact of artifacts) {
     const id = typeof artifact.id === 'string' ? artifact.id.trim() : '';
     if (!id) {
@@ -89,15 +106,24 @@ export function normalizeAssessmentImportArtifactCandidates(
     const updatedAtValue = typeof artifact.updated_at === 'string' ? artifact.updated_at.trim() : '';
     const latestVersionValue =
       typeof artifact.latest_version_id === 'string' ? artifact.latest_version_id.trim() : '';
+    const status = artifact.assessment_import_candidate?.status;
+    const candidateStatus: AssessmentImportCandidateStatus =
+      status === 'importable' || status === 'not_importable' || status === 'unknown' ? status : 'unknown';
     normalized.push({
       id,
       name: nameValue || id,
       updated_at: updatedAtValue,
       latest_version_id: latestVersionValue || null,
+      candidate_status: candidateStatus,
     });
   }
   normalized.sort((left, right) => parseTimestamp(right.updated_at) - parseTimestamp(left.updated_at));
-  return normalized.slice(0, cappedLimit);
+  const importableCandidates = normalized.filter((c) => c.candidate_status === 'importable');
+  const shortlisted = importableCandidates.length > 0 ? importableCandidates : normalized;
+  return shortlisted.slice(0, cappedLimit).map(({ candidate_status, ...rest }) => ({
+    ...rest,
+    importable: candidate_status === 'importable',
+  }));
 }
 
 export const getMilestones = async (projectId: string, includeArchived = false): Promise<Milestone[]> => {
@@ -166,9 +192,16 @@ export const importAssessmentArtifact = async (
 
 export const listAssessmentImportArtifactCandidates = async (
   limit = 8,
+  projectId?: string,
 ): Promise<AssessmentImportArtifactCandidate[]> => {
   const cappedLimit = Math.min(Math.max(1, limit), 500);
-  const data = (await apiRequest(`/files/artifacts?limit=${cappedLimit}`)) as {
+  const query = new URLSearchParams({ limit: String(cappedLimit) });
+  query.set('assessment_import_candidate', 'true');
+  const normalizedProjectId = projectId?.trim();
+  if (normalizedProjectId) {
+    query.set('project_id', normalizedProjectId);
+  }
+  const data = (await apiRequest(`/files/artifacts?${query.toString()}`)) as {
     artifacts?: ArtifactListItem[];
   };
   return normalizeAssessmentImportArtifactCandidates(data.artifacts ?? [], limit);

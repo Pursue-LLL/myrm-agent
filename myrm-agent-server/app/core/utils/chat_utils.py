@@ -288,11 +288,45 @@ def _compress_base64_image(b64_data: str) -> str | None:
 # =============================================================================
 
 
+async def preprocess_inbound_multimodal_query(
+    query: str | list[dict[str, object]],
+    *,
+    model_cfg: object | None = None,
+    vision_fallback_model_cfg: object | None = None,
+    vision_fallback_model_cfgs: object | None = None,
+    meta: dict[str, object] | None = None,
+) -> str | list[dict[str, object]]:
+    """Apply vision fallback preprocessing for non-Web inbound multimodal queries."""
+    if not isinstance(query, list):
+        return query
+
+    has_images = any(
+        isinstance(item, dict) and item.get("type") == "image_url" for item in query
+    )
+    if not has_images:
+        return query
+
+    supports_vision = getattr(model_cfg, "supports_vision", False) if model_cfg else True
+    if supports_vision or (
+        vision_fallback_model_cfg is None and vision_fallback_model_cfgs is None
+    ):
+        return query
+
+    return await _process_human_content(
+        query,
+        meta=meta or {},
+        model_cfg=model_cfg,
+        vision_fallback_model_cfg=vision_fallback_model_cfg,
+        vision_fallback_model_cfgs=vision_fallback_model_cfgs,
+    )
+
+
 async def _process_human_content(
     content: ContentItem,
     meta: dict[str, object] = None,
     model_cfg: object | None = None,
     vision_fallback_model_cfg: object | None = None,
+    vision_fallback_model_cfgs: object | None = None,
 ) -> str | list[str | dict[str, object]]:
     """处理人类消息内容，支持文本和图片，使用 asyncio.gather 并发提升多图处理性能"""
     if meta is None:
@@ -307,9 +341,25 @@ async def _process_human_content(
         for item in content:
             if isinstance(item, dict):
                 if item.get("type") == "image_url":
-                    tasks.append(_process_image_item(item, meta, model_cfg, vision_fallback_model_cfg))
+                    tasks.append(
+                        _process_image_item(
+                            item,
+                            meta,
+                            model_cfg,
+                            vision_fallback_model_cfg,
+                            vision_fallback_model_cfgs,
+                        )
+                    )
                 elif item.get("type") == "video_url":
-                    tasks.append(_process_video_item(item, meta, model_cfg, vision_fallback_model_cfg))
+                    tasks.append(
+                        _process_video_item(
+                            item,
+                            meta,
+                            model_cfg,
+                            vision_fallback_model_cfg,
+                            vision_fallback_model_cfgs,
+                        )
+                    )
                 elif item.get("type") == "text":
 
                     async def _return_item(i=item):
@@ -373,6 +423,7 @@ async def _process_image_item(
     meta: dict[str, object] = None,
     model_cfg: object | None = None,
     vision_fallback_model_cfg: object | None = None,
+    vision_fallback_model_cfgs: object | None = None,
 ) -> dict[str, object]:
     """处理图片项目，转换本地 URL 为 base64 格式。
 
@@ -459,15 +510,20 @@ async def _process_image_item(
         else:
             return item
 
-        if not supports_vision and vision_fallback_model_cfg:
-            from myrm_agent_harness.api import LLMConfig
+        if not supports_vision and (
+            vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None
+        ):
             from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
-                VisionFallbackEngine,
+                create_vision_fallback_engine,
             )
 
             try:
-                fallback_config = LLMConfig.model_validate(vision_fallback_model_cfg, from_attributes=True)
-                engine = VisionFallbackEngine(fallback_config)
+                engine = create_vision_fallback_engine(
+                    vision_fallback_model_cfg,
+                    vision_fallback_model_cfgs,
+                )
+                if engine is None:
+                    raise ValueError("Vision fallback engine is not configured")
 
                 # 标记该 meta 经历了图像分析，用于外部清除状态
                 meta["_analyzed_image"] = True
@@ -530,6 +586,7 @@ async def _process_video_item(
     meta: dict[str, object] = None,
     model_cfg: object | None = None,
     vision_fallback_model_cfg: object | None = None,
+    vision_fallback_model_cfgs: object | None = None,
 ) -> dict[str, object]:
     """Process a video content item.
 
@@ -555,7 +612,9 @@ async def _process_video_item(
 
         video_hash = hashlib.md5(video_url.encode("utf-8")).hexdigest()
 
-        if not supports_video and vision_fallback_model_cfg:
+        if not supports_video and (
+            vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None
+        ):
             extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
             video_cache = extra_data.get("video_cache", {})
             if video_hash in video_cache:
@@ -569,15 +628,20 @@ async def _process_video_item(
                 "_mime_type": mime,
             }
 
-        if vision_fallback_model_cfg:
-            from myrm_agent_harness.api import LLMConfig
+        if vision_fallback_model_cfg or vision_fallback_model_cfgs:
+            from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+                resolve_vision_fallback_llm_configs,
+            )
             from myrm_agent_harness.toolkits.llms.vision.video_analysis_engine import (
                 VideoAnalysisEngine,
             )
 
             try:
-                fallback_config = LLMConfig.model_validate(vision_fallback_model_cfg, from_attributes=True)
-                engine = VideoAnalysisEngine(fallback_config)
+                fallback_configs = resolve_vision_fallback_llm_configs(
+                    vision_fallback_model_cfg,
+                    vision_fallback_model_cfgs,
+                )
+                engine = VideoAnalysisEngine(fallback_configs)
 
                 meta["_analyzed_video"] = True
 

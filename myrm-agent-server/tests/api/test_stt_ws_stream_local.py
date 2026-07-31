@@ -9,8 +9,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.core.features import _reset_for_testing
 
-from app.channels.types import VoiceConfig
 from app.api.stt import ws_stream
+from app.channels.types import VoiceConfig
 from tests.support.feature_flags import seed_voice_interaction_flags
 
 

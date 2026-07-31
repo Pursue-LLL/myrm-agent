@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -37,7 +36,6 @@ async def _collect_stream_text(
     headers: dict[str, str] | None = None,
     max_chunks: int | None = None,
 ) -> tuple[list[str], str]:
-    collected: list[str] = []
     raw = ""
     async with client.stream(
         "POST",

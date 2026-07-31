@@ -5,9 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.services.wiki.knowledge_query_service import execute_wiki_knowledge_query
-from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 
 @pytest.mark.asyncio

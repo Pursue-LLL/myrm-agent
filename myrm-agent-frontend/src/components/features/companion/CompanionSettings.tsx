@@ -107,24 +107,16 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
     setHatOverride,
     setSpriteEnabled,
     setSpriteConfig,
+    saveConfigToServer,
   } = useCompanionStore();
 
   const [tab, setTab] = useState<SettingsTab>('settings');
-  const [sheetUrlInput, setSheetUrlInput] = useState(spriteConfig?.sheetUrl ?? '');
 
-  const handleApplySheet = useCallback(() => {
-    const url = sheetUrlInput.trim();
-    if (url) {
-      setSpriteConfig({ sheetUrl: url });
-      setSpriteEnabled(true);
-    }
-  }, [sheetUrlInput, setSpriteConfig, setSpriteEnabled]);
-
-  const handleClearSheet = useCallback(() => {
+  const handleClearPet = useCallback(() => {
     setSpriteConfig(null);
     setSpriteEnabled(false);
-    setSheetUrlInput('');
-  }, [setSpriteConfig, setSpriteEnabled]);
+    void saveConfigToServer();
+  }, [setSpriteConfig, setSpriteEnabled, saveConfigToServer]);
 
   const bones = useMemo(() => {
     if (!user?.id) return null;
@@ -258,43 +250,33 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
                 <Switch
                   checked={spriteEnabled}
                   onCheckedChange={setSpriteEnabled}
-                  disabled={!enabled || !spriteConfig?.sheetUrl}
+                  disabled={!enabled || !spriteConfig?.petSlug}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label>{t('sprite.sheetUrl')}</Label>
-                <div className="flex gap-1.5">
-                  <Input
-                    value={sheetUrlInput}
-                    onChange={(e) => setSheetUrlInput(e.target.value)}
-                    placeholder={t('sprite.sheetUrlPlaceholder')}
-                    disabled={!enabled}
-                    className="text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplySheet}
-                    disabled={!enabled || !sheetUrlInput.trim()}
-                    className={cn(
-                      'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                      'bg-primary text-primary-foreground hover:bg-primary/90',
-                      (!enabled || !sheetUrlInput.trim()) && 'opacity-50 cursor-not-allowed',
-                    )}
-                  >
-                    {t('sprite.apply')}
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">{t('sprite.codexHint')}</p>
-                {spriteConfig?.sheetUrl && (
-                  <button
-                    type="button"
-                    onClick={handleClearSheet}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    {t('sprite.clear')}
-                  </button>
+                <Label>{t('sprite.activePet')}</Label>
+                {spriteConfig?.petSlug ? (
+                  <div className="flex items-center justify-between rounded-md border border-border px-2.5 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {spriteConfig.displayName ?? spriteConfig.petSlug}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">{spriteConfig.petSlug}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearPet}
+                      disabled={!enabled}
+                      className="shrink-0 text-xs text-destructive hover:underline disabled:opacity-50"
+                    >
+                      {t('sprite.clear')}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t('sprite.activePetEmpty')}</p>
                 )}
+                <p className="text-[10px] text-muted-foreground">{t('sprite.galleryHint')}</p>
               </div>
             </div>
           </div>

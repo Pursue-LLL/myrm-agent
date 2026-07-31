@@ -26,7 +26,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 清理 | ✅ |
 | `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化、memory_search_tool 引用证据与 retrieval trace 分步事件写入记忆操作账本 + 用量同步 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
-| `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/重新生成、兄弟消息切换、LLM 标题生成 | ✅ |
+| `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换、LLM 标题生成；突变后 checkpoint sync | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
 | `ui_artifact_patch.py` | ✅ 核心 | 跨轮次 `update_ui_data_tool`：`data_update` 深合并到宿主 assistant 消息的 `uiArtifacts` 并写回 DB | ✅ |
@@ -34,7 +34,9 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；组合会话级 FTS5 索引、统一可见性策略、预计算摘要、semantic evidence hydration 与可选语义记忆结果。 | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，并在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填、重建、增量追加、排除/恢复、删除、健康检查和管理列表。 | ✅ |
-| `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint 克隆 + Fork 关系追踪 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint） | ✅ |
+| `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 DB→LangGraph checkpoint fail-closed 对齐；rewind 成功后 pause active Goal | ✅ |
+| `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint 克隆 + commit 后 DB→checkpoint sync + Fork 关系追踪 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint） | ✅ |
+| `context_branch_fork.py` | ✅ 核心 | 从 volume snapshot bookmark 读取 jsonl 并 fork 新 chat（无 compaction 状态，对齐 GUI checkpoint branch） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建与验证 | ✅ |
 | `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |

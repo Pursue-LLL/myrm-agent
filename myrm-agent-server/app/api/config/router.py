@@ -753,6 +753,92 @@ async def start_local_searxng_endpoint() -> dict[str, object]:
     return await start_local_searxng_and_wait()
 
 
+_TINY_VISION_HEALTH_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+class VisionHealthResult(BaseModel):
+    """Result of a vision fallback chain health probe."""
+
+    configured: bool = Field(..., description="Whether visionFallbackModel is configured")
+    healthy: bool = Field(..., description="Whether the vision model successfully analyzed a test image")
+    latency_ms: int | None = Field(default=None, description="Vision probe latency in milliseconds")
+    error: str | None = Field(default=None, description="Error message when unhealthy")
+    model: str | None = Field(default=None, description="Configured primary LiteLLM model id")
+    resolved_model: str | None = Field(
+        default=None,
+        description="LiteLLM model id that actually succeeded during the probe",
+    )
+    base_url: str | None = Field(default=None, description="Resolved API base URL when unhealthy")
+
+
+@router.post("/vision-health", response_model=VisionHealthResult)
+async def vision_health_check() -> VisionHealthResult:
+    """Probe the configured vision fallback chain with a tiny test image."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import (
+        build_vision_fallback_engine_from_providers,
+        extract_vision_fallback_model_config,
+    )
+
+    user_cfgs = await load_user_configs()
+    model_cfg = extract_vision_fallback_model_config(user_cfgs.providers_dict)
+    if model_cfg is None:
+        return VisionHealthResult(
+            configured=False,
+            healthy=False,
+            error="Vision fallback model is not configured",
+        )
+
+    try:
+        engine = build_vision_fallback_engine_from_providers(user_cfgs.providers_dict)
+        if engine is None:
+            return VisionHealthResult(
+                configured=False,
+                healthy=False,
+                error="Vision fallback model is not configured",
+            )
+        from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+            VISION_ANALYSIS_FAILED_PREFIX,
+        )
+
+        start = time.monotonic()
+        probe_result = await engine.describe_image_b64(
+            _TINY_VISION_HEALTH_PNG_B64,
+            "image/png",
+            prompt="Health check",
+        )
+        latency_ms = int((time.monotonic() - start) * 1000)
+        resolved_model = engine.last_success_model or model_cfg.model
+        if probe_result.startswith(VISION_ANALYSIS_FAILED_PREFIX):
+            return VisionHealthResult(
+                configured=True,
+                healthy=False,
+                latency_ms=latency_ms,
+                error=probe_result,
+                model=model_cfg.model,
+                resolved_model=resolved_model if resolved_model != model_cfg.model else None,
+                base_url=model_cfg.base_url,
+            )
+        return VisionHealthResult(
+            configured=True,
+            healthy=True,
+            latency_ms=latency_ms,
+            model=model_cfg.model,
+            resolved_model=resolved_model if resolved_model != model_cfg.model else None,
+        )
+    except Exception as exc:
+        logger.warning("Vision fallback health check failed: %s", exc)
+        return VisionHealthResult(
+            configured=True,
+            healthy=False,
+            error=str(exc),
+            model=model_cfg.model,
+            base_url=model_cfg.base_url,
+        )
+
+
 @router.get("/onboarding/probe-local")
 async def probe_local_models_endpoint() -> dict[str, object]:
     """Probe local model services and search backends for zero-config setup.

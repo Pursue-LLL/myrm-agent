@@ -1,3 +1,4 @@
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from app.ai_agents.general_agent.compression_intent import build_compression_intent
@@ -88,6 +89,95 @@ def test_build_compression_intent_returns_none_for_generic_signal_only() -> None
     )
 
     assert intent is None
+
+
+def test_build_compression_intent_includes_pinned_files_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_read_pinned_files(chat_id: str) -> list[str]:
+        assert chat_id == "chat-with-pins"
+        return ["src/context/retention.py"]
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.runtime.context.session_context_pins.read_pinned_files",
+        _fake_read_pinned_files,
+    )
+
+    intent = build_compression_intent(
+        query="继续",
+        chat_history=[],
+        chat_id="chat-with-pins",
+    )
+
+    assert intent == {
+        "focus_files": [],
+        "focus_modules": [],
+        "failed_tool_call_ids": [],
+        "user_goal_hint": "",
+        "pinned_files": ["src/context/retention.py"],
+    }
+
+
+def test_build_compression_intent_swallows_pinned_file_load_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _raise(_chat_id: str) -> list[str]:
+        raise RuntimeError("pin store unavailable")
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.runtime.context.session_context_pins.read_pinned_files",
+        _raise,
+    )
+
+    intent = build_compression_intent(
+        query="修复 app/services/agent/agent_service.py",
+        chat_history=[],
+        chat_id="chat-pin-error",
+    )
+
+    assert intent is not None
+    assert "pinned_files" not in intent
+    assert intent["focus_files"] == ["app/services/agent/agent_service.py"]
+
+
+def test_build_compression_intent_ignores_non_query_shapes_and_url_paths() -> None:
+    intent = build_compression_intent(
+        query=123,
+        chat_history=[
+            HumanMessage(
+                content=[
+                    {"type": "text", "text": "prior work on app/core/agent.py"},
+                    "app/core/agent.py",
+                ],
+            ),
+        ],
+    )
+
+    assert intent == {
+        "focus_files": ["app/core/agent.py"],
+        "focus_modules": [],
+        "failed_tool_call_ids": [],
+        "user_goal_hint": "prior work on app/core/agent.py app/core/agent.py",
+    }
+
+
+def test_build_compression_intent_collects_error_prefixed_tool_failures() -> None:
+    intent = build_compression_intent(
+        query="继续",
+        chat_history=[
+            HumanMessage(content="排查失败"),
+            ToolMessage(content="[ERROR] tool exploded", tool_call_id="call_err", name="bash"),
+            ToolMessage(content="[ERROR] duplicate", tool_call_id="call_err", name="bash"),
+            ToolMessage(content="still running", tool_call_id="call_ok", name="bash"),
+        ],
+    )
+
+    assert intent == {
+        "focus_files": [],
+        "focus_modules": [],
+        "failed_tool_call_ids": ["call_err"],
+        "user_goal_hint": "排查失败",
+    }
 
 
 def test_build_compression_intent_handles_command_object() -> None:

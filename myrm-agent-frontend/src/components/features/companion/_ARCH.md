@@ -7,7 +7,7 @@
 1. **SVG/Emoji 层**（默认）：基于 CompanionIcons 的 15 物种 + 9 帽子 SVG 渲染，随智能体切换联动，嵌入输入框旁。
 2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持原生透明置顶窗口。
 
-状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage，sprite 配置同步至服务端（跨设备同步）。
+状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage，sprite 配置（`petSlug` + SHA256）同步至服务端；精灵图二进制由服务端 `GET /companion/pets/{slug}/spritesheet` 本地提供。
 
 ## 文件清单
 
@@ -20,7 +20,11 @@
 | `CompanionWidget.tsx`   | 核心 | 主容器组件（InfoCard、SnackButton、HoverCard、Observer、情绪计算编排）          |
 | `CompanionBubble.tsx`   | 辅助 | 气泡对话框组件（思考/观察者反应/完成提示）                                      |
 | `CompanionSettings.tsx` | 辅助 | 伴侣设置面板（Tab 切换：设置/图鉴，名称/物种/帽子/主题/精灵图自定义）           |
-| `PetGallery.tsx`        | 辅助 | Petdex 社区宠物图鉴画廊（manifest 获取、搜索过滤、渐进加载、IntersectionObserver 懒缩略图） |
+| `PetGallery.tsx`        | 辅助 | Petdex 图鉴编排：GET 已安装行 + spriteConfig 同步 + generation 守卫 refetch + manifest fail-open |
+| `InstalledPetRow.tsx`   | 辅助 | Volume 已安装宠物 chip 行（本地 spritesheet，点击切换；触屏可见菜单移除） |
+| `PetGalleryThumb.tsx`   | 辅助 | IntersectionObserver 懒加载 canvas 缩略图 |
+| `petGalleryManifest.ts` | 辅助 | petdex.dev manifest 获取与 session 缓存 |
+| `PetPalette.tsx`        | 辅助 | 会话内宠物面板（`/pet` slash 打开；Dialog/Sheet + 当前宠物 + 图鉴嵌入） |
 | `CompanionXpBar.tsx`    | 辅助 | XP 进度条组件                                                                   |
 
 ## sprite/ — 精灵图渲染子模块
@@ -31,13 +35,16 @@
 | `PetStateMachine.ts`  | 核心 | 事件→动画行映射状态机（transient/sticky/release 模式，心跳超时→idle）            |
 | `petStateMapping.ts`  | 核心 | 动态行序映射（Codex/Legacy 标准 + STATE\_ALIASES 别名解析 → resolveAnimRow()）  |
 | `SpriteRenderer.tsx`  | 核心 | SpriteEngine 的 React 封装（Canvas 生命周期、加载态降级占位、行数检测回调）     |
-| `PetOverlay.tsx`      | 核心 | 可拖拽悬浮容器（右键菜单、尺寸调节、位置记忆、SSE 事件监听、动态行序映射注入） |
+| `PetOverlay.tsx`      | 核心 | 可拖拽悬浮容器；由 `ChatWindowSatellites` 在 `companion_mode` 开启时 mount |
 | `tauriPetBridge.ts`   | 辅助 | Tauri IPC 桥接（show/hide/setRow，非 Tauri 环境静默 no-op）                     |
 
 ## 模块依赖
 
 - `@/store/useCompanionStore` — 全局状态管理（持久化 + 会话态 + 精灵图配置）
 - `@/store/useAuthStore` — 用户 ID（用于确定性生成种子）
+- `@/services/companion/petSpritesheet` — 本地 spritesheet URL 解析（见 [../../../services/companion/_ARCH.md](../../../services/companion/_ARCH.md)）
+- `@/services/companion/petInstall` — Petdex install API（Gallery + slash）
+- `@/services/companion/petSlashCommand` — `/pet` slash 执行
 - `@/store/useChatStore` — 消息流（Observer 反应触发、loading 状态驱动精灵动画）
 - `@/store/chat/goals/useGoalStore` — 目标状态（情绪/庆祝触发）
 - `next-intl` — i18n（companion.\* 键命名空间）

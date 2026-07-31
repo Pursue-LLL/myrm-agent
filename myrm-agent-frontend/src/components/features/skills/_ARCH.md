@@ -24,13 +24,16 @@
 | `skillDiscoverInstallToast.ts` | 辅助 | Discover install API 响应 → 单条 toast 文案解析（含 partial-failure 合并） | ✅ |
 | `__tests__/skillDiscoverInstallToast.test.ts` | 测试 | toast 解析三分支回归（append 成功/失败/普通 enable） | ✅ |
 | `SkillRegistryMirrorPanel.tsx` | 组件 | ClawHub registry 镜像（国际/CN/自定义 URL）+ strict probe 拦截 | ✅ |
-| `SkillDraftReviewPanel.tsx` | 组件 | AI 生成技能草稿审阅面板 | ✅ |
+| `SkillDraftReviewPanel.tsx` | 组件 | AI 生成技能草稿审阅面板；采纳 skill 后展示 `[use name]` 与 command binding 引导 | ✅ |
+| `SkillsLearnPanel.tsx` | 组件 | Settings→Installed：三字段 + 五场景 chip → raw `/learn` → server SSOT rewrite | ✅ |
+| `__tests__/SkillDraftReviewPanel.invokeGuide.test.tsx` | 测试 | 末条 draft 采纳后 invoke 引导仍可见 | ✅ |
+| `SkillsLearnPanel.tsx` | 组件 | Settings→Installed：三字段 + 五场景 chip → raw `/learn` → server SSOT rewrite | ✅ |
 | `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |
 | `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包 | ✅ |
 | `SkillFilters.tsx` | 辅助 | 技能列表过滤（类别/信任/来源） | ✅ |
 | `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：列表 summary + 展开/修订时 lazy 拉 detail；Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝 | ✅ |
 | `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |
-| `SkillInstanceManager.tsx` | 组件 | 多实例技能版本并存管理 | ✅ |
+| `SkillInstanceManager.tsx` | 组件 | 多实例 CRUD；实例绑定在 Agent 配置 → Skills 中选择 | ✅ |
 | `SkillList.tsx` | 核心 | 技能网格/列表主视图 | ✅ |
 | `SkillPermissionApprovalDialog.tsx` | 组件 | 技能运行时权限请求审批 | ✅ |
 | `SkillPermissionUsageDashboard.tsx` | 组件 | 技能权限使用统计仪表盘 | ✅ |

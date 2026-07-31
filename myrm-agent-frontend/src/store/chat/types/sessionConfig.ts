@@ -11,6 +11,7 @@
  */
 
 import type { RoutingConfig, SingleModelSelection } from '@/store/config/providerTypes';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import type { BuiltinToolId } from './builtinTools';
 
 // 操作模式类型
@@ -33,7 +34,7 @@ export interface ModelSelection {
 // 智能体配置
 export interface AgentConfig {
   selectedSkillIds: string[];
-  skillConfigs?: Record<string, { is_core?: boolean }>;
+  skillConfigs?: AgentSkillConfigMap;
   selectedMcpNames: string[];
   systemPrompt: string;
   useGlobalInstruction: boolean;

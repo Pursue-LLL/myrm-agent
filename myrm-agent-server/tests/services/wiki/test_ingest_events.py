@@ -182,6 +182,8 @@ async def test_publish_wiki_ingest_snapshot_sets_stats_refresh_required() -> Non
     mock_queue.get_compile_run.return_value = CompileRunSnapshot(state="running")
     mock_archiver._queue = mock_queue
     mock_archiver._structure = MagicMock()
+    mock_archiver._pending_mgr = MagicMock()
+    mock_archiver._pending_mgr.count_synthesis_pending.return_value = 0
 
     with (
         patch("app.services.wiki.ingest_events.wiki_ingest_event_bus", bus),

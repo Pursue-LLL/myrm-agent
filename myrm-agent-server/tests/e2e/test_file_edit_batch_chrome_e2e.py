@@ -173,7 +173,7 @@ def _assert_batch_file_content(file_path: Path) -> None:
     assert "line_b" in content
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_edit_batch_read_ui_diff_card() -> None:
@@ -206,7 +206,7 @@ def test_file_edit_batch_read_ui_diff_card() -> None:
         assert "--- edit 1 ---" in diff_head or "-line_a" in diff_head
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

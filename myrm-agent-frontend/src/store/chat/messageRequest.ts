@@ -69,11 +69,8 @@ import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilienc
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
 import {
-  clearMigrationReadinessAnchor,
-  consumeMigrationBoundProjectId,
   consumeMigrationReadinessAnchorForAgent,
   peekMigrationBoundProjectId,
-  readMigrationReadinessAnchor,
 } from '@/lib/migrationChatHandoff';
 import type { ChatState } from './types';
 
@@ -445,7 +442,7 @@ export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | n
 
 export const getVisionFallbackModelSelection = (): ModelSelection | null => {
   const { defaultModelConfig } = useProviderStore.getState();
-  return resolveSelectionToModelSelection(defaultModelConfig?.visionFallbackModel);
+  return resolveSelectionToModelSelection(defaultModelConfig?.visionFallbackModel?.primary);
 };
 
 /**

@@ -357,9 +357,9 @@ function resolveAcceptLanguageHeader(): string | undefined {
  */
 export const apiRequest = async <T = unknown>(
   endpoint: string,
-  options: RequestInit & { silent?: boolean } = {},
+  options: RequestInit & { silent?: boolean; timeout?: number } = {},
 ): Promise<T> => {
-  const { silent, ...fetchOptions } = options;
+  const { silent, timeout, ...fetchOptions } = options;
 
   // 保存请求上下文用于重试
   lastRequestContext = { endpoint, options: fetchOptions };
@@ -385,10 +385,14 @@ export const apiRequest = async <T = unknown>(
       headers['Accept-Language'] = acceptLanguage;
     }
 
-    const response = await fetchWithTimeout(endpoint, {
-      ...fetchOptions,
-      headers,
-    });
+    const response = await fetchWithTimeout(
+      endpoint,
+      {
+        ...fetchOptions,
+        headers,
+      },
+      timeout ?? 30000,
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

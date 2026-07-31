@@ -63,6 +63,8 @@ export enum ArtifactDisplayMode {
   Code = 'code',
   /** 版本对比模式 */
   Diff = 'diff',
+  /** 编辑模式（Spreadsheet Live Editor） */
+  Edit = 'edit',
 }
 
 /** 错误类型枚举 */

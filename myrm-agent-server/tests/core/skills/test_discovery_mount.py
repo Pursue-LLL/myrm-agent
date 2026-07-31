@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 from app.core.skills.discovery_mount import (
     DEFAULT_MOUNT_AGENT_ID,
@@ -13,7 +14,6 @@ from app.core.skills.discovery_mount import (
     maybe_mount_after_install,
     resolve_mount_skill_id,
 )
-from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 
 def test_resolve_mount_skill_id_from_local_path(tmp_path: Path) -> None:

@@ -94,12 +94,13 @@ class SkillMarketService:
     async def ensure_clawhub_registry(self) -> None:
         if self._clawhub_registry_applied:
             return
+        from myrm_agent_harness.agent.skills.market.sources.clawhub_registry import (
+            migrate_legacy_registry_url,
+        )
+
         from app.core.skills.clawhub_registry import (
             apply_clawhub_registry_url,
             normalize_clawhub_registry_url,
-        )
-        from myrm_agent_harness.agent.skills.market.sources.clawhub_registry import (
-            migrate_legacy_registry_url,
         )
         from app.core.skills.store.service import skills_service
 

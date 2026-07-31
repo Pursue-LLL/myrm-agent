@@ -26,6 +26,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_mcp_configs,
     extract_retrieval_models,
     extract_user_instructions,
+    extract_vision_fallback_model_config,
 )
 from app.services.agent.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
@@ -109,6 +110,7 @@ async def prepare_channel_execution(
     mcp_configs = extract_mcp_configs(configs.mcp_dict)
     lite_model_cfg = extract_lite_model_config(configs.providers_dict)
     fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+    vision_fallback_model_cfg = extract_vision_fallback_model_config(configs.providers_dict)
     user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
     agent_skill_ids: list[str] = []
@@ -175,6 +177,7 @@ async def prepare_channel_execution(
         lite_model_cfg=lite_model_cfg,
         fallback_model_cfg=fallback_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
+        vision_fallback_model_cfg=vision_fallback_model_cfg,
         user_instructions=user_instructions,
         chat_id=session_ctx.chat_id,
         session_key=session_ctx.session_key,
@@ -191,6 +194,8 @@ async def prepare_channel_execution(
 
     if agent_outcome.early_reply is not None:
         return PrepareChannelExecutionResult(pre_events=(*pre_events, agent_outcome.early_reply))
+
+    pre_events.extend(agent_outcome.pre_events)
 
     agent_result = agent_outcome.result
     if agent_result is None:

@@ -16,7 +16,6 @@ from __future__ import annotations
 import shutil
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
 
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure

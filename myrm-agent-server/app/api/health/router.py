@@ -501,8 +501,10 @@ async def test_browser_proxy_connection() -> dict[str, object]:
     try:
         start = _time.perf_counter()
         async with httpx.AsyncClient(
-            proxy=proxy_url, timeout=10.0, verify=False
-        ) as client:  # noqa: S501
+            proxy=proxy_url,
+            timeout=10.0,
+            verify=False,  # noqa: S501
+        ) as client:
             resp = await client.get("https://httpbin.org/ip")
             latency_ms = round((_time.perf_counter() - start) * 1000)
             if resp.status_code == 200:

@@ -41,6 +41,7 @@ from tests.api.agent.utils import (  # noqa: E402
     get_lite_model_selection,
 )
 from tests.support.chrome_mcp_e2e import (
+    _require_e2e_cdp_ready,  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -51,7 +52,6 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.chrome_mcp_e2e import _require_e2e_cdp_ready  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -105,6 +105,16 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     if any(marker in text for marker in _BUSINESS_FAILURE_MARKERS):
         return False
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
+
+
+def _normalize_live_transport_exc(exc: BaseException) -> BaseException:
+    """R170: parallel open_mcp stall tripwire sends SIGINT — outer retry must heal mux."""
+    if isinstance(exc, KeyboardInterrupt) and _parallel_live_agent_peer_count() >= 2:
+        return RuntimeError(
+            "MUX_RECLAIM: open_mcp_page_blocking stall tripwire (SIGINT); "
+            "recover mux and retry"
+        )
+    return exc
 
 
 def _is_mux_io_deferrable(exc: BaseException) -> bool:
@@ -291,7 +301,7 @@ def _seed_file_mutation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_shows_mutation_warning_banner() -> None:
@@ -364,7 +374,7 @@ def test_file_write_empty_shows_mutation_warning_banner() -> None:
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_mutation_banner_survives_page_reload() -> None:
@@ -556,7 +566,7 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -698,7 +708,12 @@ async def test_file_write_empty_live_agent_webui(
             touch_wall_progress()
             try:
                 invoked, has_failure = await _poll_empty_write_api(chat_id)
-            except (TimeoutError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            except (
+                TimeoutError,
+                OSError,
+                urllib.error.URLError,
+                urllib.error.HTTPError,
+            ) as exc:
                 print(
                     "E2E_API_POLL_DEFER: parallel private-backend poll deferred "
                     f"parallel_peers={_parallel_live_agent_peer_count()} "
@@ -1194,7 +1209,8 @@ async def test_file_write_empty_live_agent_webui(
             assert chat_id
             assert result.get("invoked") is True or "banner" in result
             break
-        except (AssertionError, RuntimeError, TimeoutError) as exc:
+        except (AssertionError, RuntimeError, TimeoutError, KeyboardInterrupt) as exc:
+            exc = _normalize_live_transport_exc(exc)
             last_error = str(exc)
             if turn_ever_sent:
                 print(
@@ -1215,6 +1231,14 @@ async def test_file_write_empty_live_agent_webui(
                     f"reserve {body_reserve:.0f}s remaining={remaining_wall_sec():.0f}s; "
                     f"parallel_peers={_parallel_live_agent_peer_count()} err={last_error[:200]!r}"
                 ) from exc
+            print(
+                "E2E_OPEN_MCP_STALL_RETRY: parallel mux stall — heal and retry "
+                f"attempt={attempt + 1}/{_live_chat_attempt_cap()} "
+                f"parallel_peers={_parallel_live_agent_peer_count()} "
+                f"err={last_error[:200]!r}",
+                file=sys.stderr,
+                flush=True,
+            )
             _force_mux_heal_before_live_retry()
             await asyncio.sleep(8.0)
     else:

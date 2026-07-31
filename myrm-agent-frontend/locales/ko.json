@@ -5145,6 +5145,12 @@
       "searchPlaceholder": "Search tools...",
       "noResults": "No matching tools",
       "parameters": "Parameters",
+      "layers": {
+        "core": "Core",
+        "common": "Common",
+        "extended": "Extended",
+        "external": "External"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "Conversation search",
@@ -5203,6 +5209,7 @@
     "extractToSkill": {
       "title": "스킬로 추출",
       "learnContext": "다음 메시지에서 재사용 가능한 스킬을 추출하세요:",
+      "started": "스킬 추출이 시작되었습니다 — 초안이 준비되면 알려드립니다",
       "success": "스킬 추출이 시작되었습니다",
       "error": "스킬 추출 실패",
       "sent": "제출됨",
@@ -7311,6 +7318,7 @@
     "preview": "Preview",
     "download": "Download",
     "code": "Code",
+    "edit": "편집",
     "close": "Close",
     "copyCode": "Copy Code",
     "copied": "Copied",
@@ -7336,10 +7344,25 @@
       "presentation": "Presentation",
       "word_document": "Word Document"
     },
+    "spreadsheet": {
+      "search": "검색...",
+      "rows": "행",
+      "of": "/",
+      "copy": "복사",
+      "export": "내보내기",
+      "copyAll": "전체 클립보드에 복사",
+      "exportCsv": "CSV로 내보내기",
+      "noData": "표시할 데이터가 없습니다",
+      "loadError": "로드 실패",
+      "saveChanges": "변경사항 저장",
+      "truncated": "전체 {total}행 중 처음 {count}행 표시"
+    },
+    "saving": "저장 중...",
+    "saved": "저장됨",
     "noPreview": "Preview not available for this file type",
     "downloadHint": "Click download to save the file",
     "diffTruncatedNotice": "이 Diff 미리보기는 설정된 최대 길이로 잘렸습니다. 한도를 초과하는 줄은 표시되지 않습니다.",
-    "retry": "Retry",
+    "retry": "다시 시도",
     "pdfLoadError": "Failed to load PDF",
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
@@ -10203,7 +10226,8 @@
       "loading": "펫을 불러오는 중...",
       "error": "펫 도감을 불러오지 못했습니다",
       "searchPlaceholder": "펫 검색...",
-      "count": "{count}마리의 펫"
+      "count": "{count}마리의 펫",
+      "installError": "펫 설치에 실패했습니다"
     },
     "sprite": {
       "contextTitle": "펫 스프라이트",
@@ -10212,11 +10236,10 @@
       "hide": "펫 숨기기",
       "enableLabel": "스프라이트 오버레이",
       "enableDesc": "화면에 애니메이션 펫 스프라이트 표시",
-      "sheetUrl": "스프라이트 시트 URL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "적용",
-      "clear": "초기화",
-      "codexHint": "Codex 표준 8×9 (1536×1872px) 스프라이트 시트 지원"
+      "activePet": "활성 펫",
+      "activePetEmpty": "설치된 펫 없음 — 도감에서 선택하세요",
+      "galleryHint": "「펫 도감」 탭에서 펫을 설치하세요",
+      "clear": "초기화"
     }
   },
   "messageActions": {

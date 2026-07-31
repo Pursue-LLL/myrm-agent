@@ -4,7 +4,9 @@
  * @/store/useChatStore::useChatStore (POS: Chat conversation state store)
  * @/lib/deploy-mode::isTauriRuntime (POS: Deployment mode detector)
  * @/services/background-tasks::listBackgroundTasks (POS: merged shell + agent tasks)
+ * @/services/mediaTasks::listActiveMediaTasks (POS: active image/video task list)
  * @/services/backgroundTasksRefresh::subscribeBackgroundTasksChanged
+ * @/services/taskEventStream::subscribeTaskUpdateEvents (POS: multiplexed task SSE fan-out)
  * @/services/statistics::getUsageStatistics (POS: Global usage analytics API)
  * @/services/budget::getBudgetStatus (POS: Budget status API)
  *
@@ -25,10 +27,13 @@ import { useTranslations } from 'next-intl';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import useChatStore from '@/store/useChatStore';
 import { listBackgroundTasks } from '@/services/background-tasks';
+import { listActiveMediaTasks } from '@/services/mediaTasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
+import { subscribeTaskUpdateEvents } from '@/services/taskEventStream';
 import { useLivenessState } from '@/hooks/shell/useLivenessState';
 import { getUsageStatistics } from '@/services/statistics';
 import { getBudgetStatus } from '@/services/budget';
+import { sendTauriNativeNotification } from '@/services/tauriNativeNotification';
 
 import type { LivenessState } from '@/hooks/shell/useLivenessState';
 
@@ -65,8 +70,9 @@ export function useTrayStatus() {
 
   const refreshBgRunningCount = useCallback(async () => {
     try {
-      const result = await listBackgroundTasks();
-      setBgRunningCount(result.tasks.filter((task) => task.status === 'running').length);
+      const [result, mediaTasks] = await Promise.all([listBackgroundTasks(), listActiveMediaTasks()]);
+      const backgroundRunning = result.tasks.filter((task) => task.status === 'running').length;
+      setBgRunningCount(backgroundRunning + mediaTasks.length);
     } catch {
       // Non-critical — tray falls back to idle when fetch fails
     }
@@ -88,9 +94,25 @@ export function useTrayStatus() {
       return;
     }
     void refreshBgRunningCount();
-    return subscribeBackgroundTasksChanged(() => {
+    let nextSnapshotSyncAtMs = 0;
+    const requestSnapshotSync = () => {
+      const now = Date.now();
+      if (now < nextSnapshotSyncAtMs) {
+        return;
+      }
+      nextSnapshotSyncAtMs = now + 1000;
+      void refreshBgRunningCount();
+    };
+    const unsubscribeBackground = subscribeBackgroundTasksChanged(() => {
       void refreshBgRunningCount();
     });
+    const unsubscribeTasks = subscribeTaskUpdateEvents(() => {
+      requestSnapshotSync();
+    });
+    return () => {
+      unsubscribeBackground();
+      unsubscribeTasks();
+    };
   }, [refreshBgRunningCount]);
 
   // Refresh usage when liveness transitions from busy→idle (task just completed)
@@ -107,17 +129,8 @@ export function useTrayStatus() {
       try {
         const status = await getBudgetStatus();
         if (!status.enabled) return;
-        const { sendNotification, isPermissionGranted, requestPermission } = await import(
-          '@tauri-apps/plugin-notification'
-        );
-        let granted = await isPermissionGranted();
-        if (!granted) {
-          const perm = await requestPermission();
-          granted = perm === 'granted';
-        }
-        if (!granted) return;
         const pct = Math.round(status.usage_pct * 100);
-        sendNotification({
+        await sendTauriNativeNotification({
           title: t('budgetAlertTitle'),
           body: t('budgetAlertBody', { pct, remaining: status.remaining_usd.toFixed(2) }),
         });

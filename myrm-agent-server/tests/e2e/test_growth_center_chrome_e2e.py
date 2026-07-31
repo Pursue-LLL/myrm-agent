@@ -51,7 +51,7 @@ _GROWTH_DASHBOARD_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:

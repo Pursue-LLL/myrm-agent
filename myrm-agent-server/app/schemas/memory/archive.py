@@ -30,7 +30,6 @@ from pydantic import BaseModel, Field
 
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
 
-
 MemoryImportReadinessIssueParam = str | int | float | bool
 
 

@@ -15,6 +15,7 @@ def _resolve_xai_oauth_api_key() -> str | None:
     """Resolve xAI API key from session OAuth credentials (SuperGrok token reuse)."""
     try:
         from myrm_agent_harness.agent.security import user_credentials_ctx
+
         from app.services.agent.session_credential_assembler import XAI_ISSUER
 
         for cred in user_credentials_ctx.get():

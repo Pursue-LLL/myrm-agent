@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectAgentConfigChanges, type OriginalAgentSnapshot } from '../configChanges';
+import { detectAgentConfigChanges, areSkillConfigsEqual, type OriginalAgentSnapshot } from '../configChanges';
 import type { BuiltinToolId } from '@/store/chat/types';
 
 const DEFAULT_BUILTIN_TOOLS: BuiltinToolId[] = ['bash', 'computer'];
@@ -7,6 +7,7 @@ const DEFAULT_BUILTIN_TOOLS: BuiltinToolId[] = ['bash', 'computer'];
 const makeSnapshot = (overrides?: Partial<OriginalAgentSnapshot>): OriginalAgentSnapshot => ({
   agentId: 'agent-1',
   selectedSkillIds: ['skill-a'],
+  skillConfigs: { 'skill-a': { is_core: true, instance_name: null } },
   selectedMcpNames: ['mcp-x'],
   systemPrompt: 'hello',
   autoRestoreDomains: ['example.com'],
@@ -21,6 +22,7 @@ const makeSnapshot = (overrides?: Partial<OriginalAgentSnapshot>): OriginalAgent
 const makeCurrent = (overrides?: Record<string, unknown>) => ({
   agentId: 'agent-1',
   selectedSkillIds: ['skill-a'],
+  skillConfigs: { 'skill-a': { is_core: true, instance_name: null } },
   selectedMcpNames: ['mcp-x'],
   systemPrompt: 'hello',
   autoRestoreDomains: ['example.com'],
@@ -131,6 +133,20 @@ describe('detectAgentConfigChanges', () => {
     expect(detectAgentConfigChanges(makeSnapshot(), current, DEFAULT_BUILTIN_TOOLS)).toBe(true);
   });
 
+  it('detects skill instance binding change', () => {
+    const current = makeCurrent({
+      skillConfigs: { 'skill-a': { is_core: true, instance_name: 'work' } },
+    });
+    expect(detectAgentConfigChanges(makeSnapshot(), current, DEFAULT_BUILTIN_TOOLS)).toBe(true);
+  });
+
+  it('detects skill core flag change', () => {
+    const current = makeCurrent({
+      skillConfigs: { 'skill-a': { is_core: false, instance_name: null } },
+    });
+    expect(detectAgentConfigChanges(makeSnapshot(), current, DEFAULT_BUILTIN_TOOLS)).toBe(true);
+  });
+
   it('detects MCP change', () => {
     const current = makeCurrent({ selectedMcpNames: ['mcp-y'] });
     expect(detectAgentConfigChanges(makeSnapshot(), current, DEFAULT_BUILTIN_TOOLS)).toBe(true);
@@ -173,5 +189,43 @@ describe('detectAgentConfigChanges', () => {
     const original = makeSnapshot({ selectedSkillIds: ['a', 'b'] });
     const current = makeCurrent({ selectedSkillIds: ['b', 'a'] });
     expect(detectAgentConfigChanges(original, current, DEFAULT_BUILTIN_TOOLS)).toBe(false);
+  });
+});
+
+describe('areSkillConfigsEqual', () => {
+  it('treats null instance_name same as missing field', () => {
+    expect(
+      areSkillConfigsEqual(
+        { 'skill-a': { is_core: true, instance_name: null } },
+        { 'skill-a': { is_core: true } },
+      ),
+    ).toBe(true);
+  });
+
+  it('detects instance_name change', () => {
+    expect(
+      areSkillConfigsEqual(
+        { 'skill-a': { is_core: true, instance_name: null } },
+        { 'skill-a': { is_core: true, instance_name: 'work' } },
+      ),
+    ).toBe(false);
+  });
+
+  it('detects is_core change', () => {
+    expect(
+      areSkillConfigsEqual(
+        { 'skill-a': { is_core: true, instance_name: null } },
+        { 'skill-a': { is_core: false, instance_name: null } },
+      ),
+    ).toBe(false);
+  });
+
+  it('ignores key order', () => {
+    expect(
+      areSkillConfigsEqual(
+        { a: { is_core: true, instance_name: null }, b: { is_core: false, instance_name: 'x' } },
+        { b: { is_core: false, instance_name: 'x' }, a: { is_core: true, instance_name: null } },
+      ),
+    ).toBe(true);
   });
 });

@@ -33,7 +33,6 @@ _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 from dev_gate_contract import (  # noqa: E402
-    LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     chrome_e2e_pytest_timeout_floor,
 )
 
@@ -43,6 +42,9 @@ _TESTS_ROOT = Path(__file__).resolve().parent
 _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
 _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
+_CHROME_PROFILE_FIELDS = frozenset(
+    {"execution_mode", "access_scope", "workload"}
+)
 
 
 def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) -> bool:
@@ -153,8 +155,8 @@ def _chrome_e2e_timeout_failure(item: pytest.Item, rep: pytest.TestReport) -> bo
     return "timeout" in longrepr or "timed out" in longrepr
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(
+@pytest.hookimpl(specname="pytest_runtest_makereport", hookwrapper=True)
+def pytest_runtest_makereport_signoff(
     item: pytest.Item, call: pytest.CallInfo[None]
 ) -> Iterator[None]:
     """Release DB/MCP hygiene when a formal chrome_e2e item hits pytest-timeout."""
@@ -187,9 +189,9 @@ def _chrome_e2e_marker_joined_argv(item: pytest.Item) -> str:
     parts: list[str] = []
     for marker in item.iter_markers():
         if marker.name == "chrome_e2e":
-            lane = marker.kwargs.get("lane")
-            if lane:
-                parts.append(f"lane={lane}")
+            workload = str(marker.kwargs.get("workload", "")).strip().upper()
+            if workload:
+                parts.append(f"workload={workload}")
         elif marker.name == "chrome_e2e_signoff_batch":
             parts.append(marker.name)
             body_sec = marker.kwargs.get("body_sec")
@@ -204,8 +206,52 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     marker = item.get_closest_marker("chrome_e2e")
     if marker is None:
         return None
-    lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
+    profile = _chrome_e2e_profile(item)
+    if profile is None:
+        return None
+    _execution_mode, _access_scope, workload = profile
+    lane = "READ" if workload == "STANDARD" else "LIVE_AGENT"
     return chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
+
+
+def _chrome_e2e_profile(
+    item: pytest.Item,
+) -> tuple[str, str, str] | None:
+    marker = item.get_closest_marker("chrome_e2e")
+    if marker is None:
+        return None
+    fields = frozenset(marker.kwargs)
+    missing = sorted(_CHROME_PROFILE_FIELDS - fields)
+    unknown = sorted(fields - _CHROME_PROFILE_FIELDS)
+    if missing or unknown:
+        raise pytest.UsageError(
+            "CHROME_E2E_PROFILE_INVALID: "
+            f"node={item.nodeid} missing={','.join(missing) or '-'} "
+            f"unknown={','.join(unknown) or '-'}"
+        )
+    execution_mode = str(marker.kwargs["execution_mode"]).strip().upper()
+    access_scope = str(marker.kwargs["access_scope"]).strip().upper()
+    workload = str(marker.kwargs["workload"]).strip().upper()
+    if execution_mode not in {"SHARED", "PRIVATE"}:
+        raise pytest.UsageError(
+            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} "
+            f"execution_mode={execution_mode!r}"
+        )
+    if access_scope not in {"READ", "NAMESPACE_WRITE", "GLOBAL_WRITE"}:
+        raise pytest.UsageError(
+            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} "
+            f"access_scope={access_scope!r}"
+        )
+    if workload not in {"STANDARD", "LIVE", "DESKTOP"}:
+        raise pytest.UsageError(
+            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} workload={workload!r}"
+        )
+    if execution_mode == "SHARED" and access_scope == "GLOBAL_WRITE":
+        raise pytest.UsageError(
+            f"CHROME_E2E_PROFILE_UNSAFE: node={item.nodeid} "
+            "SHARED+GLOBAL_WRITE is forbidden"
+        )
+    return execution_mode, access_scope, workload
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
@@ -228,6 +274,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         ):
             item.add_marker(pytest.mark.performance)
         if item.get_closest_marker("chrome_e2e") is not None:
+            _chrome_e2e_profile(item)
             _apply_chrome_e2e_lane_timeout(item)
 
 
@@ -345,68 +392,20 @@ def _e2e_dev_lib_path() -> Path:
     return _SERVER_ROOT.parents[1] / "scripts" / "dev" / "lib"
 
 
-def _desktop_approval_forces_shared_hot(nodeid: str) -> bool:
-    return "tests/e2e/test_desktop_control_approval_chrome_e2e.py" in nodeid
-
-
-def _acquire_deferred_mux_admission() -> str:
-    lib = _e2e_dev_lib_path()
-    if str(lib) not in sys.path:
-        sys.path.insert(0, str(lib))
-    from e2e_mux_admission import acquire_with_wait
-
-    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
-    lane = os.environ.get("MYRM_E2E_LANE", "").strip()
-    if not run_id or lane not in {"READ", "LIVE_AGENT"}:
-        raise RuntimeError(
-            "E2E_MUX_DEFERRED_INVALID: MYRM_E2E_RUN_ID and MYRM_E2E_LANE required"
-        )
-    token, _reason = acquire_with_wait(
-        session_id=run_id,
-        run_id=run_id,
-        lane=lane,
-        owner_pid=os.getpid(),
-    )
-    from e2e_wave_capacity import release_from_env
-
-    release_from_env()
-    return token
-
-
-def _release_deferred_mux_admission(token: str) -> None:
-    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
-    if not run_id or not token.strip():
-        return
-    lib = _e2e_dev_lib_path()
-    if str(lib) not in sys.path:
-        sys.path.insert(0, str(lib))
-    from e2e_mux_admission import release
-
-    release(session_id=run_id, owner_token=token)
-
-
 @pytest.fixture(autouse=True)
 def _chrome_e2e_item_runtime(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[object | None]:
-    """Give each formal Chrome item its own private Backend when private_backend=True.
-
-    READ lane may use private Backend for write-heavy UI tests (e.g. Kanban POST/seed)
-    while keeping READ mux lease — see resolve_e2e_session_lane.py.
-    """
-    marker = request.node.get_closest_marker("chrome_e2e")
-    lane = str(marker.kwargs.get("lane", "")).strip().upper() if marker else ""
-    if marker is not None and lane not in {"READ", "LIVE_AGENT"}:
-        raise RuntimeError("CHROME_E2E_MARKER_INVALID: lane must be READ or LIVE_AGENT")
-    private_backend = (
-        marker is not None and marker.kwargs.get("private_backend", True) is not False
-    )
-    if _desktop_approval_forces_shared_hot(request.node.nodeid):
-        private_backend = False
+    """Give every PRIVATE Chrome item an isolated per-item Backend."""
+    profile = _chrome_e2e_profile(request.node)
+    if profile is None:
+        yield None
+        return
+    execution_mode, _access_scope, workload = profile
+    private_runtime = execution_mode == "PRIVATE"
     if (
-        marker is None
-        or not private_backend
+        not private_runtime
         or os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
         or os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1"
     ):
@@ -432,7 +431,7 @@ def _chrome_e2e_item_runtime(
     )
     from chrome_e2e_runtime import start_chrome_e2e_runtime
 
-    runtime_lane = lane if lane in {"READ", "LIVE_AGENT"} else "LIVE_AGENT"
+    runtime_lane = "READ" if workload == "STANDARD" else "LIVE_AGENT"
     runtime = start_chrome_e2e_runtime(
         request.node.nodeid,
         backend_only=True,
@@ -446,19 +445,9 @@ def _chrome_e2e_item_runtime(
         f"api={runtime.api_base} ui={runtime.environment.get('E2E_UI_BASE', '')} "
         f"startup={runtime.startup_seconds:.2f}s"
     )
-    mux_token: str | None = None
-    if os.environ.get("MYRM_E2E_MUX_ADMISSION_DEFERRED", "").strip() == "1":
-        mux_token = _acquire_deferred_mux_admission()
-        os.environ["MYRM_E2E_MUX_ADMISSION_TOKEN"] = mux_token
-        os.environ["MYRM_E2E_BOOT_MUX_GATE_OK"] = "1"
-        run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
-        print(f"E2E_MUX_ADMISSION_OK: run={run_id} deferred=1", flush=True)
     try:
         yield runtime
     finally:
-        if mux_token:
-            _release_deferred_mux_admission(mux_token)
-            os.environ.pop("MYRM_E2E_MUX_ADMISSION_TOKEN", None)
         try:
             runtime.close()
         except RuntimeError as exc:
@@ -472,6 +461,12 @@ def _require_live_e2e_lease(
 ) -> Iterator[None]:
     """Fail live E2E before side effects when Wave ownership is missing or drifts."""
     if not _is_formal_chrome_e2e(request):
+        yield
+        return
+    if (
+        os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1"
+        and os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
+    ):
         yield
         return
     from tests.support.e2e_runtime_guard import (
@@ -504,9 +499,6 @@ def _require_live_e2e_lease(
             skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
                 chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip()
                 == "1",
-                shared_hot=os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1",
-                stream_lock_held=os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip()
-                == "1",
                 api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
                 or os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1",
             )
@@ -534,31 +526,7 @@ def _require_live_e2e_lease(
         begin_signoff_trace(nodeid=request.node.nodeid)
         namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
         os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
-        from tests.support.e2e_runtime_guard import live_agent_stream_lock
-
-        marker = request.node.get_closest_marker("chrome_e2e")
-        private_backend = (
-            marker is not None
-            and marker.kwargs.get("private_backend", True) is not False
-        )
-        if _desktop_approval_forces_shared_hot(request.node.nodeid):
-            private_backend = False
-        # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
-        shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
-        from dev_gate_contract import chrome_e2e_skips_shared_stream_lock
-
-        skip_stream_lock = chrome_e2e_skips_shared_stream_lock(
-            lane=lease.lane, shpoib=shpoib_session
-        ) or (private_backend and _chrome_e2e_item_runtime is not None)
-        stream_guard = (
-            live_agent_stream_lock()
-            if lease.lane == "LIVE_AGENT"
-            and not skip_stream_lock
-            and os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() != "1"
-            and os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() != "1"
-            else nullcontext()
-        )
-        with stream_guard:
+        with nullcontext():
             from e2e_shared_ui_session import (
                 E2E_SEARCH_POLICY_ENV,
                 prime_search_policy_env,
@@ -568,12 +536,12 @@ def _require_live_e2e_lease(
             lib = _e2e_dev_lib_path()
             if str(lib) not in sys.path:
                 sys.path.insert(0, str(lib))
-            from e2e_session_lifecycle import complete_bootstrap_phase
+            from e2e_session_lifecycle import begin_bootstrap_phase
 
-            complete_bootstrap_phase(phase_label=request.node.name)
+            begin_bootstrap_phase(phase_label="page_open_pending")
             write_session_snapshot(
                 current_node=request.node.nodeid,
-                phase="body",
+                phase="bootstrap",
             )
             try:
                 with e2e_lease_heartbeat_loop():

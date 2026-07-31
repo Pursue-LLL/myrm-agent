@@ -22,7 +22,7 @@ from app.database.repositories.chat_repo import SiblingDetail
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
-from .chat_helpers import RegenerateResult, RetryResult, TruncateResult, UndoResult
+from .chat_helpers import RegenerateResult, RetryResult, RewindResult, TruncateResult, UndoResult
 
 if TYPE_CHECKING:
     from app.database.dto import _TitleModelConfig
@@ -48,6 +48,12 @@ class _ChatTurnMixin(_ChatServiceBase):
         await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"last_message": new_last})
 
     @staticmethod
+    async def _sync_checkpoint_after_mutation(chat_id: str) -> None:
+        from app.services.chat.session_continuity_service import sync_chat_checkpoint_from_db
+
+        await sync_chat_checkpoint_from_db(chat_id)
+
+    @staticmethod
     async def retry_last_turn(chat_id: str, user_id: str | None = None) -> RetryResult:
         async with UnitOfWork() as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
@@ -59,10 +65,13 @@ class _ChatTurnMixin(_ChatServiceBase):
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
                 chat_id, last_user, include_anchor=False,
             )
-            return RetryResult(
+            result = RetryResult(
                 success=True, query=last_user.content,
                 deleted_count=len(deleted_ids), deleted_message_ids=deleted_ids,
             )
+        if result.success:
+            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        return result
 
     @staticmethod
     async def regenerate_last_turn(chat_id: str) -> RegenerateResult:
@@ -107,10 +116,13 @@ class _ChatTurnMixin(_ChatServiceBase):
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
-            return UndoResult(
+            result = UndoResult(
                 success=True, deleted_count=len(deleted_ids),
                 deleted_message_ids=deleted_ids,
             )
+        if result.success and result.deleted_count > 0:
+            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        return result
 
     @staticmethod
     async def truncate_after_message(chat_id: str, message_id: str) -> TruncateResult:
@@ -131,7 +143,95 @@ class _ChatTurnMixin(_ChatServiceBase):
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
-            return TruncateResult(success=True, deleted_count=len(deleted_ids))
+            result = TruncateResult(success=True, deleted_count=len(deleted_ids))
+        if result.success and result.deleted_count > 0:
+            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        return result
+
+    @staticmethod
+    async def rewind_to_message(chat_id: str, message_id: str) -> RewindResult:
+        """Rewind conversation to before a user message and return composer seed text."""
+        from myrm_agent_harness.utils.text_sanitizer import extract_and_strip_think_blocks
+
+        from app.services.chat.session_continuity_service import (
+            SessionBusyError,
+            assert_session_available_for_continuity,
+            pause_active_goal_for_rewind,
+        )
+
+        try:
+            assert_session_available_for_continuity(chat_id)
+        except SessionBusyError:
+            return RewindResult(
+                success=False,
+                deleted_count=0,
+                composer_text="",
+                message_index=-1,
+                goal_paused=False,
+                error="SESSION_BUSY",
+            )
+
+        async with UnitOfWork() as uow:
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+            if not chat:
+                return RewindResult(
+                    success=False,
+                    deleted_count=0,
+                    composer_text="",
+                    message_index=-1,
+                    goal_paused=False,
+                    error="CHAT_NOT_FOUND",
+                )
+            msg = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
+            if not msg:
+                return RewindResult(
+                    success=False,
+                    deleted_count=0,
+                    composer_text="",
+                    message_index=-1,
+                    goal_paused=False,
+                    error="MESSAGE_NOT_FOUND",
+                )
+            if msg.role != "user":
+                return RewindResult(
+                    success=False,
+                    deleted_count=0,
+                    composer_text="",
+                    message_index=-1,
+                    goal_paused=False,
+                    error="REWIND_USER_ONLY",
+                )
+
+            all_messages = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
+            message_index = next((idx for idx, item in enumerate(all_messages) if item.id == message_id), -1)
+            clean_content, _ = extract_and_strip_think_blocks(msg.content)
+            composer_text = clean_content.strip()
+
+            deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
+                chat_id, msg, include_anchor=True,
+            )
+            if deleted_ids:
+                await _ChatTurnMixin._refresh_last_message(uow, chat_id)
+
+        if not deleted_ids:
+            return RewindResult(
+                success=False,
+                deleted_count=0,
+                composer_text=composer_text,
+                message_index=message_index,
+                goal_paused=False,
+                error="NOTHING_TO_REWIND",
+            )
+
+        await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        goal_paused = await pause_active_goal_for_rewind(chat_id)
+        return RewindResult(
+            success=True,
+            deleted_count=len(deleted_ids),
+            composer_text=composer_text,
+            message_index=message_index,
+            goal_paused=goal_paused,
+        )
 
     @staticmethod
     async def generate_chat_title(

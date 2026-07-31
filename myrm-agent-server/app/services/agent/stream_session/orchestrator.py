@@ -317,14 +317,17 @@ async def run_agent_stream(
 
                     from myrm_agent_harness.agent.goals.types import CheckpointMode
 
+                    goal_objective = text_content.strip() or "User requested goal"
+                    resolved_ui_summary = ui_summary.strip() if ui_summary else goal_objective[:120]
+
                     await goal_provider.create_goal(
                         session_id=request.chat_id,
-                        objective="User requested goal",
+                        objective=goal_objective,
                         budget=budget,
                         acceptance_criteria=acceptance_criteria,
                         constraints=constraints,
                         protected_paths=protected_paths,
-                        ui_summary=ui_summary,
+                        ui_summary=resolved_ui_summary,
                         checkpoint_mode=cast(CheckpointMode, checkpoint_mode),
                     )
                 else:

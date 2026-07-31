@@ -127,7 +127,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   const initConfig = useConfigStore((state) => state.initConfig);
   const mcpConfigs = useConfigStore((state) => state.mcpConfigs);
-  const { marketSkills, localSkills } = useSkillStore();
 
   useEffect(() => {
     if (!id || !restoreArgFromUrl || !isMessagesLoaded) {

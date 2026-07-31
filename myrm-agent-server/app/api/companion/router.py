@@ -1,23 +1,27 @@
-"""Companion API — Observer reactions and evolution status.
+"""Companion API — Observer reactions, evolution status, and Petdex pet installs.
 
 [INPUT]
 app.api.dependencies::get_deploy_identity (POS: 全局依赖注入)
 app.core.channel_bridge.config_loader (POS: 用户模型配置加载)
 app.database.connection::get_db (POS: 数据库会话工厂)
 app.database.models::Chat, Message (POS: 数据库 ORM 模型)
+app.services.companion.pet_store (POS: on-disk Petdex install store)
 
 [OUTPUT]
-router: FastAPI APIRouter with POST /react and GET /evolution-status
+router: FastAPI APIRouter with companion endpoints
 
 [POS]
-Companion API 端点。Observer 生成宠物反应，Evolution 查询用户活跃度指标和进化资格。
+Companion API 端点。Observer 生成宠物反应，Evolution 查询用户活跃度指标和进化资格，
+Petdex 安装工件持久化在 MYRM_DATA_DIR/companion/pets/。
 """
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -212,8 +216,9 @@ async def get_evolution_status(
 
 
 class SpriteConfigValue(BaseModel):
-    sheet_url: str
-    name: str | None = None
+    pet_slug: str
+    content_sha256: str | None = None
+    display_name: str | None = None
 
 
 class CompanionConfigValue(BaseModel):
@@ -234,6 +239,116 @@ class CompanionConfigSetRequest(BaseModel):
     device_id: str = "default_device"
 
 
+class PetInstallRequest(BaseModel):
+    slug: str = Field(..., min_length=1, max_length=120)
+    force: bool = False
+
+
+class InstalledPetResponse(BaseModel):
+    slug: str
+    display_name: str
+    content_sha256: str
+
+
+class InstalledPetListResponse(BaseModel):
+    pets: list[InstalledPetResponse]
+
+
+def _sprite_from_raw(raw: object) -> SpriteConfigValue | None:
+    if not isinstance(raw, dict):
+        return None
+    pet_slug = raw.get("pet_slug")
+    if isinstance(pet_slug, str) and pet_slug.strip():
+        sha = raw.get("content_sha256")
+        display_name = raw.get("display_name")
+        return SpriteConfigValue(
+            pet_slug=pet_slug.strip(),
+            content_sha256=sha if isinstance(sha, str) and sha else None,
+            display_name=display_name if isinstance(display_name, str) and display_name else None,
+        )
+    return None
+
+
+def _companion_value_from_record(val: dict[str, object]) -> CompanionConfigValue:
+    sprite_raw = val.get("sprite")
+    return CompanionConfigValue(
+        name=val.get("name") if isinstance(val.get("name"), str) else None,
+        species=val.get("species") if isinstance(val.get("species"), str) else None,
+        hat=val.get("hat") if isinstance(val.get("hat"), str) else None,
+        palette_theme=val.get("palette_theme") if isinstance(val.get("palette_theme"), str) else None,
+        sprite=_sprite_from_raw(sprite_raw),
+    )
+
+
+async def _persist_sprite_selection(
+    *,
+    pet_slug: str,
+    content_sha256: str,
+    display_name: str | None,
+    device_id: str = "default_device",
+) -> CompanionConfigResponse:
+    from app.services.config.service import config_service
+
+    record = await config_service.get("companion_config")
+    base: dict[str, object] = dict(record.value) if record and isinstance(record.value, dict) else {}
+    base["sprite"] = {
+        "pet_slug": pet_slug,
+        "content_sha256": content_sha256,
+        "display_name": display_name,
+    }
+    saved = await config_service.set(
+        config_key="companion_config",
+        value=base,
+        device_id=device_id,
+    )
+    return CompanionConfigResponse(
+        value=_companion_value_from_record(saved.value),
+        version=saved.version,
+    )
+
+
+def _normalize_pet_slug(slug: str) -> str:
+    segment = Path(str(slug).strip()).name
+    if segment in ("", ".", ".."):
+        return ""
+    return segment
+
+
+async def _clear_sprite_selection_if_matches(
+    pet_slug: str,
+    *,
+    device_id: str = "default_device",
+) -> None:
+    """Clear persisted sprite when uninstalling the active pet slug."""
+    from app.services.config.service import config_service
+
+    normalized = _normalize_pet_slug(pet_slug)
+    if not normalized:
+        return
+
+    record = await config_service.get("companion_config")
+    if not record or not isinstance(record.value, dict):
+        return
+
+    sprite_raw = record.value.get("sprite")
+    if not isinstance(sprite_raw, dict):
+        return
+
+    config_slug = sprite_raw.get("pet_slug")
+    if not isinstance(config_slug, str):
+        return
+    if _normalize_pet_slug(config_slug) != normalized:
+        return
+
+    base = dict(record.value)
+    base["sprite"] = None
+    await config_service.set(
+        config_key="companion_config",
+        value=base,
+        device_id=device_id,
+    )
+
+
 @router.get("/config", response_model=CompanionConfigResponse)
 async def get_companion_config() -> CompanionConfigResponse:
     """Get the persisted companion customization config."""
@@ -243,17 +358,37 @@ async def get_companion_config() -> CompanionConfigResponse:
     if not record:
         return CompanionConfigResponse(value=CompanionConfigValue())
 
-    val = record.value
+    val = record.value if isinstance(record.value, dict) else {}
     sprite_raw = val.get("sprite")
-    sprite_val = SpriteConfigValue(**sprite_raw) if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") else None
+    if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") and not sprite_raw.get("pet_slug"):
+        legacy_slug = sprite_raw.get("name")
+        if isinstance(legacy_slug, str) and legacy_slug.strip():
+            try:
+                from app.services.companion.pet_store import PetStoreError, install_pet
+
+                installed = await install_pet(legacy_slug.strip())
+                migrated = await _persist_sprite_selection(
+                    pet_slug=installed.slug,
+                    content_sha256=installed.content_sha256,
+                    display_name=installed.display_name,
+                )
+                return migrated
+            except PetStoreError as exc:
+                logger.warning("Legacy companion sprite migration failed: %s", exc)
+                cleaned = dict(val)
+                cleaned["sprite"] = None
+                saved = await config_service.set(
+                    config_key="companion_config",
+                    value=cleaned,
+                    device_id="default_device",
+                )
+                return CompanionConfigResponse(
+                    value=_companion_value_from_record(saved.value),
+                    version=saved.version,
+                )
+
     return CompanionConfigResponse(
-        value=CompanionConfigValue(
-            name=val.get("name"),
-            species=val.get("species"),
-            hat=val.get("hat"),
-            palette_theme=val.get("palette_theme"),
-            sprite=sprite_val,
-        ),
+        value=_companion_value_from_record(val),
         version=record.version,
     )
 
@@ -265,27 +400,89 @@ async def set_companion_config(
     """Set and persist the companion customization config."""
     from app.services.config.service import config_service
 
+    sprite_dict: dict[str, object] | None = None
+    if req.value.sprite is not None:
+        sprite_dict = {
+            "pet_slug": req.value.sprite.pet_slug,
+            "content_sha256": req.value.sprite.content_sha256,
+            "display_name": req.value.sprite.display_name,
+        }
+
     value_dict: dict[str, object] = {
         "name": req.value.name,
         "species": req.value.species,
         "hat": req.value.hat,
         "palette_theme": req.value.palette_theme,
-        "sprite": req.value.sprite.model_dump() if req.value.sprite else None,
+        "sprite": sprite_dict,
     }
     record = await config_service.set(
         config_key="companion_config",
         value=value_dict,
         device_id=req.device_id,
     )
-    sprite_raw = record.value.get("sprite")
-    sprite_val = SpriteConfigValue(**sprite_raw) if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") else None
     return CompanionConfigResponse(
-        value=CompanionConfigValue(
-            name=record.value.get("name"),
-            species=record.value.get("species"),
-            hat=record.value.get("hat"),
-            palette_theme=record.value.get("palette_theme"),
-            sprite=sprite_val,
-        ),
+        value=_companion_value_from_record(record.value),
         version=record.version,
+    )
+
+
+@router.get("/pets", response_model=InstalledPetListResponse)
+async def list_installed_pets() -> InstalledPetListResponse:
+    from app.services.companion.pet_store import list_installed_pets
+
+    pets = [
+        InstalledPetResponse(
+            slug=pet.slug,
+            display_name=pet.display_name,
+            content_sha256=pet.content_sha256,
+        )
+        for pet in list_installed_pets()
+    ]
+    return InstalledPetListResponse(pets=pets)
+
+
+@router.post("/pets/install", response_model=InstalledPetResponse)
+async def install_companion_pet(req: PetInstallRequest) -> InstalledPetResponse:
+    from app.services.companion.pet_store import PetStoreError, install_pet
+
+    try:
+        installed = await install_pet(req.slug, force=req.force)
+    except PetStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await _persist_sprite_selection(
+        pet_slug=installed.slug,
+        content_sha256=installed.content_sha256,
+        display_name=installed.display_name,
+    )
+    return InstalledPetResponse(
+        slug=installed.slug,
+        display_name=installed.display_name,
+        content_sha256=installed.content_sha256,
+    )
+
+
+@router.delete("/pets/{slug}")
+async def uninstall_companion_pet(slug: str) -> dict[str, bool]:
+    from app.services.companion.pet_store import uninstall_pet
+
+    removed = uninstall_pet(slug)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Pet not installed")
+    await _clear_sprite_selection_if_matches(slug)
+    return {"removed": True}
+
+
+@router.get("/pets/{slug}/spritesheet")
+async def get_companion_pet_spritesheet(slug: str) -> FileResponse:
+    from app.services.companion.pet_store import load_pet, spritesheet_media_type
+
+    pet = load_pet(slug)
+    if pet is None or not pet.exists:
+        raise HTTPException(status_code=404, detail="Pet spritesheet not found")
+    return FileResponse(
+        path=pet.spritesheet,
+        media_type=spritesheet_media_type(pet.spritesheet),
+        filename=pet.spritesheet.name,
+        headers={"Cache-Control": "public, max-age=86400, immutable"},
     )

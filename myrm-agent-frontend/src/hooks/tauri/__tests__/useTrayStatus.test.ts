@@ -58,6 +58,18 @@ vi.mock('@/services/background-tasks', () => ({
   listBackgroundTasks: () => mockListBackgroundTasks(),
 }));
 
+const mockListActiveMediaTasks = vi.fn(async () => [] as Array<{ task_id: string }>);
+
+vi.mock('@/services/mediaTasks', () => ({
+  listActiveMediaTasks: () => mockListActiveMediaTasks(),
+}));
+
+const mockSubscribeTaskEvents = vi.fn((_listener: () => void) => () => undefined);
+
+vi.mock('@/services/taskEventStream', () => ({
+  subscribeTaskUpdateEvents: (listener: () => void) => mockSubscribeTaskEvents(listener),
+}));
+
 const mockSubscribe = vi.fn((listener: () => void) => {
   listener();
   return () => undefined;
@@ -100,6 +112,8 @@ describe('useTrayStatus', () => {
     mockLoading = false;
     mockLivenessState = 'idle';
     mockBgTasks = [];
+    mockListActiveMediaTasks.mockReset();
+    mockListActiveMediaTasks.mockResolvedValue([]);
     mockInvoke.mockReset();
     mockSetProgressBar.mockReset().mockResolvedValue(undefined);
     mockRequestUserAttention.mockReset().mockResolvedValue(undefined);
@@ -193,6 +207,32 @@ describe('useTrayStatus', () => {
       });
     });
     expect(mockSetProgressBar).toHaveBeenCalledWith({ status: 2 });
+  });
+
+  it('includes active media tasks in tray background count', async () => {
+    mockIsTauri = true;
+    mockLivenessState = 'idle';
+    mockBgTasks = [{ status: 'running' }];
+    mockListActiveMediaTasks.mockResolvedValue([
+      {
+        task_id: 'img-1',
+        task_type: 'image_generate',
+        status: 'running',
+        payload: {},
+        priority: 5,
+        progress: 10,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:01Z',
+      },
+    ]);
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
+        status: 'idle',
+        tooltip: 'bg:2',
+      });
+    });
   });
 
   it('requests attention on background job finish when window is hidden', async () => {

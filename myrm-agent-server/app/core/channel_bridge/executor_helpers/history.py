@@ -31,7 +31,6 @@ async def _sync_chat_workspace_from_topic(
     chat: "ChatDTO",
     topic_context: TopicContext | None,
 ) -> "ChatDTO":
-    from app.database.dto import ChatDTO
     from app.core.channel_bridge.executor_helpers.topic_workspace_sync import (
         sync_channel_chat_workspace,
     )

@@ -34,6 +34,7 @@ import MarkdownImage from '../markdown-render-tools/MarkdownImage';
 import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
+import ResponsiveTable from '../markdown-render-tools/ResponsiveTable';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Source, WikiSourceLevel } from '@/store/chat/types';
 import { buildWikiAssetUrl } from '@/services/wikiService';
@@ -319,6 +320,9 @@ const MarkdownContent = React.memo(
           return <a href={href}>{children}</a>;
         },
         img: ({ src, alt }: { src?: string; alt?: string }) => <MarkdownImage src={src} alt={alt} />,
+        table: ({ children }: { children?: React.ReactNode }) => (
+          <ResponsiveTable isStreaming={isStreaming}>{children}</ResponsiveTable>
+        ),
         citation: (props: CitationProps) => {
           const url = props['data-url'];
           const num = props['data-num'];
@@ -405,8 +409,6 @@ const MarkdownContent = React.memo(
       <div
         className={cn(
           'prose prose-h1:mb-3 prose-h2:mb-2 prose-h2:mt-6 prose-h2:font-[800] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:font-[600] dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 font-[400]',
-          'prose-table:table-auto prose-table:border-collapse prose-th:border prose-th:border-gray-300 prose-th:px-6 prose-th:py-3 prose-th:bg-[#f3f3ee] prose-th:font-semibold prose-th:text-center prose-th:align-middle prose-td:border prose-td:border-gray-300 prose-td:px-6 prose-td:py-3 prose-td:text-center prose-td:align-middle',
-          'dark:prose-th:border-gray-600 dark:prose-th:bg-gray-800 dark:prose-td:border-gray-600 prose-table:overflow-hidden',
           'max-w-none break-words text-black dark:text-white',
           'prose-math:text-inherit',
           'prose-pre:rounded-md prose-pre:bg-transparent prose-pre:p-0 prose-pre:text-gray-500 dark:prose-pre:text-gray-100',

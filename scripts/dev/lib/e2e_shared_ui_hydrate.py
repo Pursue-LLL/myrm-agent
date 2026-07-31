@@ -62,6 +62,14 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
         return True
     if os.environ.get("MYRM_PRIVATE_BACKEND", "").strip() == "1":
         return False
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        try:
+            from transport_supervisor import parallel_active_test_count
+
+            if parallel_active_test_count() >= 2:
+                return True
+        except ImportError:
+            pass
     root = _monorepo_root()
     if root is None:
         return False

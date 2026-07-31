@@ -9,8 +9,9 @@ Settings「AI Tools」分组：MCP、技能与工具质量仪表盘 Section。
 | 文件 | 职责 |
 |------|------|
 | `MCPSection.tsx` | MCP 服务器配置 |
-| `SkillsSection.tsx` | 技能列表与管理 |
-| `UnifiedSkillsSection.tsx` | 统一技能视图容器 |
+| `SkillsSection.tsx` | 技能列表与管理；Installed 挂载 `SkillsLearnPanel` + DraftReview |
+| `UnifiedSkillsSection.tsx` | 统一技能视图容器（inventory / compounding / pending / rejections） |
+| `CompoundingChecklistSection.tsx` | MSC 复利四行 checklist + SkillsLearnPanel 入口 |
 | `ToolStabilitySection.tsx` | 工具稳定性统计 |
 | `ToolQualitySection.tsx` | 工具质量概览 |
 | `SkillQualitySection.tsx` | 技能质量详情 |

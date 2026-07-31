@@ -76,6 +76,14 @@ def _cfg_str_or_none(cfg: dict[str, object], key: str) -> str | None:
     return None
 
 
+def _cfg_privacy_filter(cfg: dict[str, object], key: str) -> str:
+    """Read privacy filter mode; invalid values fall back to ``off``."""
+    value = cfg.get(key, "off")
+    if isinstance(value, str) and value in ("off", "display", "full"):
+        return value
+    return "off"
+
+
 async def create_dynamic_workflow_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",
@@ -540,6 +548,7 @@ async def create_consensus_stream(
         reference_max_tokens=_cfg_int_or_none(cfg, "reference_max_tokens"),
         reference_reasoning_effort=_cfg_str_or_none(cfg, "reference_reasoning_effort"),
         aggregator_reasoning_effort=_cfg_str_or_none(cfg, "aggregator_reasoning_effort"),
+        privacy_filter=_cfg_privacy_filter(cfg, "privacy_filter"),
     )
 
     engine = ConsensusEngine(

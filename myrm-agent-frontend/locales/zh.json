@@ -170,7 +170,23 @@
       "forkSuccess": "对话分支创建成功",
       "forkFailed": "分支创建失败",
       "forkStreamingBlocked": "Agent 回复中，无法创建分支",
-      "forkEmpty": "当前对话无消息，无法分支"
+      "forkEmpty": "当前对话无消息，无法分支",
+      "goal": "为当前对话设定或管理长任务目标",
+      "goalUsage": "用法：/goal <目标> | status | pause | resume | clear",
+      "goalSet": "已启用目标模式 — 编辑目标后发送即可开始",
+      "goalStatus": "目标状态：{status}",
+      "goalNoActive": "当前对话没有活动目标",
+      "goalPaused": "目标已暂停",
+      "goalResumed": "目标已恢复",
+      "goalCleared": "目标已清除",
+      "goalActionFailed": "目标命令执行失败",
+      "pet": "打开宠物图鉴或管理精灵覆盖层",
+      "petDisabled": "伴侣模式未启用 — 请在设置中开启",
+      "petOverlayEnabled": "宠物精灵覆盖层已显示",
+      "petOverlayDisabled": "宠物精灵覆盖层已隐藏",
+      "petInstalled": "已安装宠物：{name}",
+      "petInstallFailed": "安装宠物失败",
+      "petNoActive": "尚未安装宠物 — 正在打开宠物面板"
     }
   },
   "settings": {
@@ -258,6 +274,7 @@
       "search": "搜索服务",
       "mcp": "MCP",
       "skills": "技能管理",
+      "compoundingPlaybook": "复利闭环",
       "skillQuality": "技能质量",
       "toolStability": "工具稳定性",
       "toolQuality": "运行质量",
@@ -1537,6 +1554,24 @@
       "liteModelContextWindowWarning": "轻量模型的上下文窗口小于主模型，长对话时摘要可能因上下文超限而质量下降。建议选择上下文窗口不低于主模型的轻量模型。",
       "visionFallbackModel": "视觉降级模型",
       "visionFallbackModelDescription": "当主模型不支持视觉能力时，将自动调用此模型进行图像转文本分析。建议配置如 gpt-4o-mini 等廉价多模态模型",
+      "visionFallbackModelFallbackDescription": "当主视觉模型遇到计费、限流或过载等问题时，自动尝试此备用模型，再回退到支持视觉的主 Agent 模型。",
+      "selectVisionFallbackModel": "选择视觉备用模型",
+      "visionHealthTest": "测试视觉链路",
+      "visionHealthChecking": "测试中…",
+      "visionHealthOk": "视觉链路正常（{latency} ms）",
+      "visionHealthOkHint": "仅验证 API 连通性，不代表复杂图片分析能力。",
+      "visionHealthResolvedModel": "配置的主视觉模型 {configured} 不可用，探活由 {resolved} 成功完成。",
+      "visionHealthFailed": "视觉链路失败：{error}",
+      "visionHealthFailedModel": "模型：{model}",
+      "visionHealthFailedEndpoint": "接口地址：{endpoint}",
+      "visionHealthNotConfigured": "请先配置视觉降级模型",
+      "visionHealthUnknown": "未知错误",
+      "visionHealthNetworkError": "网络请求失败",
+      "visionRecommendHint": "当前主模型无法读图。可一键从已启用的 Provider 中选用视觉模型。",
+      "visionRecommendPreview": "推荐：{provider} / {model}",
+      "visionRecommendButton": "使用此模型",
+      "visionRecommendApplied": "已设置视觉降级模型为 {provider} / {model}",
+      "visionRecommendNone": "已启用的 Provider 中没有支持视觉的模型",
       "primaryModel": "主模型",
       "fallbackSlot": "备用",
       "fallbackModel": "备用模型",
@@ -3116,10 +3151,85 @@
         "noDrafts": "暂无待审核草稿",
         "approveSuccess": "草稿已采纳",
         "approveFailed": "采纳失败",
+        "approveAction": "采纳草稿",
         "rejectSuccess": "草稿已拒绝",
         "rejectFailed": "拒绝失败",
+        "rejectAction": "拒绝草稿",
         "materializedSkill": "技能「{name}」已创建并启用",
-        "materializedMemory": "记忆已写入知识库"
+        "materializedMemory": "记忆已写入知识库",
+        "invokeGuideTitle": "在对话中调用此技能",
+        "invokeGuideDescription": "将下方前缀粘贴到任意消息中，或在智能体设置里绑定 slash 命令。",
+        "invokeGuideCopy": "复制前缀",
+        "invokeGuideCopied": "调用前缀已复制",
+        "invokeGuideCopyFailed": "复制失败",
+        "invokeGuideCommandHint": "如需可复用 slash 命令，请前往",
+        "invokeGuideCommandLink": "智能体设置"
+      },
+      "compounding": {
+        "tab": "复利闭环",
+        "title": "记忆 · 技能 · 定时任务闭环",
+        "subtitle": "把记忆、技能与定时任务串成复利工作流 — GUI 版 MSC Playbook。",
+        "loading": "加载清单中…",
+        "loadFailed": "加载复利状态失败",
+        "refresh": "刷新",
+        "progress": "完成度",
+        "progressValue": "{ready} / {total} 已就绪",
+        "countLabel": "检测到：{count}",
+        "open": "前往配置",
+        "learnHint": "第二步 — 用 learn 向导沉淀可复用技能：",
+        "items": {
+          "memory": {
+            "title": "记忆基线",
+            "description": "已有 Profile、语义或 Claim 记忆，Agent 可复用上下文。"
+          },
+          "skills": {
+            "title": "可复用技能",
+            "description": "至少绑定或启用一项技能，支撑 repeatable 工作流。"
+          },
+          "cron": {
+            "title": "定时自动化",
+            "description": "已创建 Cron 任务，无需每次手动对话触发。"
+          },
+          "verify": {
+            "title": "验收规则",
+            "description": "至少一项 Cron 任务配置了 acceptance criteria，用于运行后自动验收。"
+          }
+        }
+      },
+      "learn": {
+        "panelTitle": "学习技能",
+        "description": "指定目录、URL 或流程说明，智能体会在对话中收集素材并生成待审核草稿。",
+        "directoryLabel": "本地文件或目录",
+        "directoryPlaceholder": "~/projects/some-sdk（通过 file_read_tool / grep_tool 读取）",
+        "urlLabel": "URL",
+        "urlPlaceholder": "https://docs.example.com/api（通过 web_fetch_tool 抓取）",
+        "textLabel": "流程说明或自由文本",
+        "textPlaceholder": "例如：报销流程——打开门户、新建报销单、上传发票、提交",
+        "cancel": "取消",
+        "submit": "开始学习",
+        "noActiveChat": "请先打开一个对话——学习会以对话轮次执行",
+        "scenarios": {
+          "sdk": {
+            "label": "SDK / API",
+            "text": "从这个 SDK 提取可复用的客户端/API 流程，重点关注鉴权、分页与错误处理。"
+          },
+          "deploy": {
+            "label": "刚完成的部署",
+            "text": "回顾我们刚才完成的部署步骤，提炼为可复用的部署技能。"
+          },
+          "debug": {
+            "label": "Debug 路径",
+            "text": "我们排查并修复此问题时使用的调试与故障定位路径。"
+          },
+          "writing": {
+            "label": "写作目录",
+            "text": "从这个目录提炼我的写作风格、语气规则与结构模板。"
+          },
+          "release": {
+            "label": "发布 SOP",
+            "text": "我们的发布/上线 SOP——版本检查清单、验证步骤与回滚流程。"
+          }
+        }
       },
       "local": {
         "title": "本地技能路径",
@@ -3153,6 +3263,7 @@
       "instances": {
         "title": "实例管理",
         "description": "管理 {skill} 的配置实例",
+        "agentBindHint": "在智能体设置 → 技能 中为每个智能体选择要使用的实例。",
         "createInstance": "新建实例",
         "loading": "加载中...",
         "noInstances": "暂无实例，创建一个开始使用。",
@@ -5347,7 +5458,19 @@
     "maxParallelFissionPlaceholder": "默认 3",
     "consensusTitle": "多模型共识推理 (MoA)",
     "consensusDesc": "启用 Mixture-of-Agents：并行查询多个模型并综合生成精炼答案",
-    "consensusRefTemp": "参考模型温度",
+    "moaOverlayTitle": "Agent 环顾问叠加",
+    "moaOverlayDesc": "在工具环每轮主模型调用前，由轻量参考模型提供顾问视角（与独立 Consensus 对话模式分离）",
+    "moaOverlayFanout": "Fan-out 策略",
+    "moaOverlayFanoutUserTurn": "每用户轮一次",
+    "moaOverlayFanoutPerIteration": "每次模型调用",
+    "moaOverlayFanoutEveryN": "每 N 次模型调用",
+    "moaOverlayEveryN": "N（间隔）",
+    "moaOverlayPrivacy": "顾问隐私过滤",
+    "moaOverlayPrivacyOff": "关闭",
+    "moaOverlayPrivacyDisplay": "仅展示脱敏",
+    "moaOverlayPrivacyFull": "完整脱敏（展示 + 注入）",
+    "moaOverlayNoModels": "未选择参考模型 — 叠加层将被跳过（不会回退主模型）",
+    "consensusPrivacy": "参考模型隐私过滤",
     "consensusAggTemp": "聚合模型温度",
     "consensusMinSuccessful": "最少成功数",
     "consensusTimeout": "总超时 (秒)",
@@ -5359,6 +5482,9 @@
     "consensusAggModel": "聚合模型",
     "consensusAggModelDesc": "综合所有参考回复。未设置时使用主模型。",
     "consensusNoModels": "未选择参考模型 — 将回退至主模型",
+    "consensusPrivacyOff": "关闭",
+    "consensusPrivacyDisplay": "仅展示脱敏",
+    "consensusPrivacyFull": "完整脱敏（展示 + 聚合输入）",
     "consensusUsingPrimary": "使用主模型",
     "consensusRefReasoning": "参考模型推理强度",
     "consensusRefReasoningHint": "降低推理强度可节省推理模型 (o3, R1) 的思考令牌费用",
@@ -5748,6 +5874,20 @@
         "smartPruneSuccess": "Curator 清扫完成 — {stale} 个标记为 stale，{archived} 个已归档",
         "smartPruneFailed": "Curator 清扫失败"
       },
+      "skillsZone": {
+        "coreTitle": "核心常驻技能",
+        "coreHint": "完整注入，极速响应",
+        "peripheralTitle": "外围技能",
+        "peripheralHint": "按需加载，极低负担",
+        "availableTitle": "可选技能"
+      },
+      "skillInstance": {
+        "label": "实例",
+        "placeholder": "选择实例",
+        "auto": "自动",
+        "staleWarning": "绑定的实例「{name}」已不存在。",
+        "staleClear": "清除绑定"
+      },
       "browserSource": {
         "label": "浏览器来源",
         "description": "选择该智能体执行网页任务时如何获取浏览器实例。",
@@ -6099,6 +6239,7 @@
     "extractToSkill": {
       "title": "提炼为技能",
       "learnContext": "请基于以下消息内容提炼一个可复用的技能：",
+      "started": "已开始提炼技能 — 草案就绪后会通知你",
       "success": "已发起技能提炼",
       "error": "技能提炼失败",
       "sent": "已提交",
@@ -6121,6 +6262,22 @@
       "parentLinkWithIndex": "来自父对话的分支（从消息 #{index}）",
       "unknownError": "发生未知错误",
       "streamingBlocked": "Agent 回复中，无法创建分支"
+    },
+    "rewind": {
+      "title": "回退到这里",
+      "description": "将对话回退到此消息之前，并把原文放入输入框。",
+      "sideEffectNotice": "对话上下文会回退。文件、记忆和工具副作用不会被撤销。",
+      "cancel": "取消",
+      "confirm": "回退",
+      "rewinding": "回退中...",
+      "success": "对话已回退",
+      "successDescription": "可在输入框中编辑消息后发送。",
+      "goalPausedNotice": "活动目标已为此回退自动暂停。",
+      "failed": "回退失败",
+      "buttonLabel": "回退到这里",
+      "buttonTitle": "将对话回退到此消息",
+      "streamingBlocked": "Agent 工作中，暂不可回退",
+      "unknownError": "发生未知错误"
     },
     "deleteChat": {
       "title": "删除会话",
@@ -6337,6 +6494,13 @@
       "action": "前往设置",
       "enableAction": "一键启用免费搜索"
     },
+    "visionNotConfigured": {
+      "imageTitle": "当前配置无法读图",
+      "imageDescription": "请在设置中配置视觉降级模型，以便在纯文本主模型下分析图片。",
+      "videoTitle": "当前配置无法读视频",
+      "videoDescription": "请在设置中配置视觉降级模型以分析视频。",
+      "action": "前往设置"
+    },
     "modelNotConfigured": {
       "title": "模型未配置",
       "description": "没有可用的 LLM 模型，请先在设置中配置模型服务商并添加有效的 API Key。",
@@ -6477,7 +6641,9 @@
         "addPin": "固定",
         "removePin": "移除",
         "pinsEmpty": "暂无固定文件",
-        "pinsLoading": "加载中…"
+        "pinsLoading": "加载中…",
+        "pinsLoadError": "固定文件加载失败",
+        "pinsRetry": "重试"
       }
     },
     "compactedSummary": {
@@ -6494,6 +6660,12 @@
       "bookmarksTitle": "已保存的快照书签",
       "bookmarksLoading": "加载书签中…",
       "bookmarksEmpty": "暂无快照书签",
+      "bookmarksLoadError": "书签加载失败",
+      "bookmarksRetry": "重试",
+      "bookmarkFork": "开新会话继续",
+      "bookmarkForking": "正在打开…",
+      "bookmarkForkSuccess": "已在新会话中打开快照",
+      "bookmarkForkFailed": "无法从快照开新会话",
       "archiveTitle": "归档消息",
       "archiveEmpty": "暂无归档消息",
       "roleUser": "你",
@@ -6698,6 +6870,12 @@
       "searchPlaceholder": "搜索工具...",
       "noResults": "没有匹配的工具",
       "parameters": "参数",
+      "layers": {
+        "core": "核心",
+        "common": "通用",
+        "extended": "扩展",
+        "external": "外部集成"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "历史会话搜索",
@@ -7350,6 +7528,8 @@
     "wiki_knowledge_lane_clear": "Wiki 答案已就绪",
     "consensus_active": "多模型共识推理进行中",
     "consensus_reference_done": "参考模型已完成",
+    "moa_overlay_active": "顾问叠加 fan-out 进行中",
+    "moa_ref_done": "顾问参考模型已完成",
     "workflow_init": "正在初始化动态工作流",
     "workflow_planning": "正在生成编排方案",
     "workflow_execution": "正在执行工作流任务",
@@ -8958,6 +9138,7 @@
     "preview": "预览",
     "download": "下载",
     "code": "代码",
+    "edit": "编辑",
     "close": "关闭",
     "copyCode": "复制代码",
     "copied": "已复制",
@@ -8993,6 +9174,7 @@
       "exportCsv": "导出为 CSV",
       "noData": "无数据可显示",
       "loadError": "加载失败",
+      "saveChanges": "保存修改",
       "truncated": "显示前 {count} 行，共 {total} 行"
     },
     "saving": "保存中...",
@@ -10054,6 +10236,7 @@
     "createSessionSelectChat": "选择要绑定的对话...",
     "acceptanceCriteria": "验收标准",
     "acceptanceCriteriaHint": "可选 — 定义可量化的成功标准，用于自动验证任务结果",
+    "acceptanceCriteriaUpdated": "验收标准已更新",
     "criterionSemantic": "语义",
     "criterionShell": "命令",
     "criterionSemanticPlaceholder": "例如：输出必须包含摘要部分",
@@ -10070,6 +10253,34 @@
     "schedule": "周期",
     "success": "成功",
     "openDashboard": "管理任务",
+    "auditDone": "完成",
+    "auditDoneHint": "请先确认并恢复任务后再关闭",
+    "auditPauseFail": "任务已创建，但未能暂停以供审查，请稍后在任务详情中确认",
+    "audit": {
+      "title": "创建前审计",
+      "subtitle": "在定时长期运行前，确认这项自动化到底会做什么。",
+      "subtitleAck": "查看这项自动化会做什么，阅读后点确认即可。",
+      "loading": "加载审计详情…",
+      "loadFailed": "无法加载任务详情",
+      "confirmed": "已确认",
+      "pendingConfirm": "待确认",
+      "confirm": "确认无误",
+      "confirmAndResume": "确认并恢复运行",
+      "openSettings": "在设置中打开",
+      "pauseTask": "暂停任务",
+      "pauseSuccess": "任务已暂停",
+      "pauseFail": "暂停任务失败",
+      "resumeFail": "恢复任务失败",
+      "pausedHint": "任务将保持暂停，直到您确认并恢复运行。",
+      "fields": {
+        "taskName": "任务名称",
+        "scheduleTz": "执行时间与时区",
+        "skillsInvoked": "调用的技能/工具",
+        "inputSources": "输入来源",
+        "outputDestinations": "输出去向",
+        "failureRecords": "失败记录"
+      }
+    },
     "triggersLabel": "触发器",
     "triggersDesc": "配置定时执行之外的事件驱动触发器",
     "triggerWebhookLabel": "Webhook 触发器",
@@ -11574,6 +11785,8 @@
     "hideChanges": "收起变更",
     "memoryUpdate": "记忆更新",
     "noContent": "无内容可预览",
+    "mcpElicitationTitle": "MCP 服务确认",
+    "mcpElicitationServer": "服务",
     "payloadData": "审批数据",
     "commentsOptional": "备注（可选）",
     "addCommentPlaceholder": "请输入备注，帮助 AI 理解你的决定...",
@@ -12034,7 +12247,14 @@
       "loading": "加载宠物中...",
       "error": "加载宠物图鉴失败",
       "searchPlaceholder": "搜索宠物...",
-      "count": "{count} 只宠物"
+      "count": "{count} 只宠物",
+      "installError": "安装宠物失败",
+      "installedTitle": "已安装",
+      "manifestOffline": "图鉴暂不可用，下方已安装的宠物仍可切换。",
+      "uninstall": "移除",
+      "uninstallConfirm": "确定要从本机移除此宠物吗？之后可从图鉴重新安装。",
+      "uninstallError": "移除宠物失败",
+      "cancel": "取消"
     },
     "sprite": {
       "contextTitle": "宠物精灵",
@@ -12043,11 +12263,14 @@
       "hide": "隐藏宠物",
       "enableLabel": "精灵覆盖",
       "enableDesc": "在屏幕上显示动画宠物精灵",
-      "sheetUrl": "精灵图URL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "应用",
-      "clear": "清除",
-      "codexHint": "支持 Codex 标准 8×9 (1536×1872px) 精灵图"
+      "activePet": "当前宠物",
+      "activePetEmpty": "未安装宠物 — 请在图鉴中选择",
+      "galleryHint": "在「图鉴」标签页安装宠物",
+      "clear": "清除"
+    },
+    "palette": {
+      "title": "宠物面板",
+      "hint": "在聊天中输入 /pet 可随时打开。在下方选择宠物即可安装并切换。"
     }
   },
   "messageActions": {
@@ -12985,7 +13208,26 @@
     "trayTooltipBackground": "{count} 个后台任务运行中",
     "trayTooltipUsage": "今日: {usage}",
     "budgetAlertTitle": "预算提醒",
-    "budgetAlertBody": "已使用 {pct}%，剩余 ${remaining}"
+    "budgetAlertBody": "已使用 {pct}%，剩余 ${remaining}",
+    "media": {
+      "section": "媒体生成",
+      "imageGenerate": "图像",
+      "videoGenerate": "视频",
+      "pending": "等待中",
+      "queued": "排队中",
+      "running": "生成中",
+      "succeeded": "已完成",
+      "failed": "失败",
+      "recentSection": "近期",
+      "showRecent": "展开",
+      "hideRecent": "收起",
+      "cancel": "取消",
+      "navigate": "前往会话",
+      "untitledPrompt": "未命名生成任务",
+      "completedTitle": "{type}已完成",
+      "failedTitle": "{type}失败",
+      "unknownError": "未知错误"
+    }
   },
   "taskCard": {
     "failedTitle": "任务失败",
@@ -12997,7 +13239,10 @@
     "alternateLabel": "备用 {index}",
     "providerLabel": "提供商",
     "modelLabel": "模型",
-    "latencyLabel": "延迟"
+    "latencyLabel": "延迟",
+    "backgroundHint": "你可以离开此会话——完成后我们会通知你。",
+    "queued": "排队中...",
+    "generatingProgress": "生成中... {percent}%"
   },
   "boot": {
     "title": "MyrmAgent",
@@ -13486,9 +13731,12 @@
     "importNoActionable": "工件清单中没有可执行任务",
     "importNoTasks": "该工件中没有可导入的清单任务",
     "importArtifactNotFound": "未找到工件",
+    "importProjectNotFound": "未找到项目",
     "importRecentLabel": "最近工件（点击即可导入）",
     "importRecentEmpty": "暂无可用的最近工件",
-    "importRecentLoadFailed": "加载最近工件失败"
+    "importRecentLoadFailed": "加载最近工件失败",
+    "importValueHint": "近 {days} 天：导入任务完成 {completed}/{total}（{rate}%）",
+    "importValueEmpty": "近 {days} 天：暂无导入任务"
   },
   "cliAgent": {
     "modeAgent": "AI 智能体",
@@ -14007,5 +14255,11 @@
     "algorithm": "算法",
     "fingerprint": "指纹",
     "sessionId": "会话"
+  },
+  "MarkdownTable": {
+    "switchToTable": "切换为表格视图",
+    "switchToCard": "切换为卡片视图",
+    "tableView": "表格",
+    "cardView": "卡片"
   }
 }

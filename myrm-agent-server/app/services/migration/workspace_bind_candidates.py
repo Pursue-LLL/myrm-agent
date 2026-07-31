@@ -137,7 +137,7 @@ def _fingerprint_directory(directory: Path) -> _DirectoryFingerprint:
     has_obsidian = (directory / ".obsidian").is_dir()
     md_count = 0
     try:
-        for dirpath, dirnames, filenames in os.walk(directory):
+        for _dirpath, dirnames, filenames in os.walk(directory):
             dirnames[:] = [name for name in dirnames if not name.startswith(".")]
             for filename in filenames:
                 if filename.lower().endswith(".md"):

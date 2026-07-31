@@ -91,7 +91,6 @@ def test_official_document_assistant_i18n_en(client: TestClient):
 
 def test_official_document_assistant_instantiate_missing_skill(client: TestClient):
     """Instantiation fails gracefully when required skill is not in the system."""
-    from app.services.agent.template_utils import SkillEnablementError
 
     with patch(
         "app.api.agents.templates._ensure_skills_enabled",

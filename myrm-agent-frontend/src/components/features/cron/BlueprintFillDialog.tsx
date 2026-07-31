@@ -18,6 +18,9 @@ import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ApiError } from '@/lib/api';
+import type { CronJob } from '@/services/cron.types';
+import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
+import { CronJobAuditPanel } from './CronJobAuditPanel';
 
 const WEEKDAY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '1', labelKey: 'blueprint.dayMon' },
@@ -48,6 +51,14 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
   const [deliveryChannel, setDeliveryChannel] = useState<string>('chat');
   const [deliveryTarget, setDeliveryTarget] = useState('');
   const [connectedChannels, setConnectedChannels] = useState<string[]>([]);
+  const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
+
+  const resetForm = useCallback(() => {
+    setValues({});
+    setDeliveryChannel('chat');
+    setDeliveryTarget('');
+    setCreatedJob(null);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -83,12 +94,14 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
         locale,
         delivery,
       );
-      await createJob(payload);
-      toast.success(t('createSuccess'));
-      setValues({});
-      setDeliveryChannel('chat');
-      setDeliveryTarget('');
-      onOpenChange(false);
+      const job = await createJob(payload);
+      try {
+        const auditJob = await prepareJobForSettingsAudit(job);
+        setCreatedJob(auditJob);
+        toast.success(t('createSuccess'));
+      } catch {
+        toast.error(t('auditPauseFail'));
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : t('actionFail');
       toast.error(message);
@@ -107,7 +120,13 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setValues({}); setDeliveryChannel('chat'); setDeliveryTarget(''); } onOpenChange(v); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) resetForm();
+        onOpenChange(v);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -116,6 +135,29 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
           </DialogTitle>
         </DialogHeader>
 
+        {createdJob ? (
+          <div className="space-y-4 pt-2">
+            <CronJobAuditPanel
+              jobId={createdJob.id}
+              initialJob={createdJob}
+              enforceSettingsGate
+              onJobChange={setCreatedJob}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                disabled={!canDismissSettingsAuditFlow(createdJob)}
+                title={!canDismissSettingsAuditFlow(createdJob) ? t('auditDoneHint') : undefined}
+                onClick={() => {
+                  resetForm();
+                  onOpenChange(false);
+                }}
+              >
+                {t('auditDone')}
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-4 pt-2">
           <p className="text-xs text-muted-foreground">{displayDesc}</p>
 
@@ -218,7 +260,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={() => { setValues({}); setDeliveryChannel('chat'); setDeliveryTarget(''); onOpenChange(false); }} disabled={saving}>
+            <Button variant="ghost" size="sm" onClick={() => { resetForm(); onOpenChange(false); }} disabled={saving}>
               {t('cancel')}
             </Button>
             <Button size="sm" onClick={handleSubmit} disabled={saving} className="gap-1.5">
@@ -227,6 +269,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
             </Button>
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

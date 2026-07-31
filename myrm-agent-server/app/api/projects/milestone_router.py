@@ -1,7 +1,7 @@
 """
 [INPUT] services.project.milestone_service::MilestoneService
-[OUTPUT] Milestone CRUD REST API
-[POS] 里程碑管理 API 路由。提供里程碑增删改查、进度查询和路线图摘要端点。
+[OUTPUT] Milestone CRUD REST API + assessment import endpoint
+[POS] 里程碑管理 API 路由。提供里程碑增删改查、进度查询、路线图摘要，以及评估工件导入与结构化错误语义返回。
 """
 
 from __future__ import annotations

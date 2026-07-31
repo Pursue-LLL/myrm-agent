@@ -396,7 +396,7 @@ class TestBuildMultimodalRealExtraction:
 
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
-        mock_fs.get_file_content = AsyncMock(return_value=pdf_bytes)
+        mock_fs.get_content = AsyncMock(return_value=pdf_bytes)
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": True}
@@ -436,7 +436,7 @@ class TestBuildMultimodalRealExtraction:
 
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
-        mock_fs.get_file_content = AsyncMock(return_value=docx_bytes)
+        mock_fs.get_content = AsyncMock(return_value=docx_bytes)
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": True}
@@ -466,7 +466,7 @@ class TestBuildMultimodalRealExtraction:
         mock_file = MagicMock(content_type="application/pdf", filename="empty.pdf")
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
-        mock_fs.get_file_content = AsyncMock(return_value=_MINIMAL_PDF)
+        mock_fs.get_content = AsyncMock(return_value=_MINIMAL_PDF)
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": True}
@@ -494,7 +494,7 @@ class TestBuildMultimodalRealExtraction:
         mock_file = MagicMock(content_type="application/pdf", filename="report.pdf")
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
-        mock_fs.get_file_content = AsyncMock(return_value=_minimal_pdf_bytes())
+        mock_fs.get_content = AsyncMock(return_value=_minimal_pdf_bytes())
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": False}

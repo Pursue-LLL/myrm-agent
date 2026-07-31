@@ -196,14 +196,22 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.CITATION_MAP) {
     const payload = data.data as { sources?: H.Source[]; audit?: { total_markers: number; valid: number; unresolved: number } };
     const citationSources = payload?.sources;
-    if (Array.isArray(citationSources) && citationSources.length > 0) {
-      actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) return;
+    const auditData = payload?.audit;
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex === -1) return;
+      if (Array.isArray(citationSources) && citationSources.length > 0) {
         const existingSources = state.messages[messageIndex].sources || [];
         state.messages[messageIndex].sources = H.mergeMessageSources(existingSources, citationSources);
-      });
-    }
+      }
+      if (auditData && auditData.total_markers > 0) {
+        state.messages[messageIndex].citationAudit = {
+          totalMarkers: auditData.total_markers,
+          valid: auditData.valid,
+          unresolved: auditData.unresolved,
+        };
+      }
+    });
   }
 
   if (data.type === H.AgentEventType.APPROVAL_REQUIRED) {

@@ -119,11 +119,12 @@ def _mux_socket_path() -> Path:
 
 
 def _owned_mux_socket_pids(socket_path: Path) -> set[int]:
-    if not socket_path.is_socket():
+    normalized = Path(os.path.normpath(str(socket_path)))
+    if not normalized.is_socket():
         return set()
     try:
         proc = subprocess.run(
-            ["lsof", "-t", "--", str(socket_path)],
+            ["lsof", "-t", "--", str(normalized)],
             capture_output=True,
             text=True,
             check=False,

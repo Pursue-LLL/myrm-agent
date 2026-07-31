@@ -13,6 +13,8 @@ from app.core.channel_bridge.learn_handler import (
     ChannelLearnCommandHandler,
     _build_learn_prompt,
     _detect_input_type,
+    parse_learn_slash_args,
+    rewrite_learn_query_if_needed,
 )
 
 
@@ -132,6 +134,38 @@ class TestBuildLearnPrompt:
         assert "`search_files`" not in prompt
         assert "`skill_manage`" not in prompt or "skill_manage_tool" in prompt
 
+    def test_hardline_description_char_count_instruction(self) -> None:
+        prompt = _build_learn_prompt("anything")
+        assert "<=60 characters" in prompt
+        assert "COUNT" in prompt
+        assert "Good (<=60)" in prompt
+        assert "comprehensive" in prompt
+
+    def test_hardline_myrm_tool_framing_block(self) -> None:
+        prompt = _build_learn_prompt("anything")
+        assert "Myrm-tool framing" in prompt
+        assert "`bash_code_execute_tool`" in prompt
+        assert "`file_read_tool`" in prompt
+        assert "not cat/head/tail" in prompt
+        assert "not curl-to-scrape" in prompt
+        assert "`delegate_task_tool`" in prompt
+
+    def test_hardline_platforms_and_no_hub_skills(self) -> None:
+        prompt = _build_learn_prompt("anything")
+        assert "platforms:" in prompt
+        assert "hub/router/meta skills" in prompt
+
+    def test_url_with_trailing_requirements_preserved(self) -> None:
+        user_input = (
+            "https://docs.stripe.com/webhooks "
+            "focus on signature verification only — skip Connect events"
+        )
+        prompt = _build_learn_prompt(user_input)
+        assert user_input in prompt
+        assert "SOURCES" in prompt
+        assert "REQUIREMENTS" in prompt
+        assert "Never gather the first source and ignore the rest" in prompt
+
     # ── Edge cases ──
 
     def test_user_input_preserved_verbatim(self) -> None:
@@ -163,6 +197,55 @@ class TestBuildLearnPrompt:
         prompt = _build_learn_prompt(long_url)
         assert long_url in prompt
         assert "INPUT TYPE: url" in prompt
+
+
+class TestParseLearnSlashArgs:
+    def test_raw_learn_with_args(self) -> None:
+        assert parse_learn_slash_args("/learn https://example.com notes") == (
+            "https://example.com notes"
+        )
+
+    def test_raw_learn_without_args(self) -> None:
+        assert parse_learn_slash_args("/learn") == ""
+
+    def test_non_learn_slash_returns_none(self) -> None:
+        assert parse_learn_slash_args("/compact") is None
+
+    def test_plain_text_returns_none(self) -> None:
+        assert parse_learn_slash_args("learn from this chat") is None
+
+    def test_multimodal_text_block(self) -> None:
+        query: list[dict[str, str]] = [
+            {"type": "text", "text": "/learn ./scripts/deploy.sh"},
+        ]
+        assert parse_learn_slash_args(query) == "./scripts/deploy.sh"
+
+
+class TestRewriteLearnQueryIfNeeded:
+    def test_rewrites_raw_webui_learn(self) -> None:
+        raw = "/learn the workflow we just did"
+        rewritten = rewrite_learn_query_if_needed(raw)
+        assert isinstance(rewritten, str)
+        assert rewritten.startswith("[/learn]")
+        assert "skill_manage_tool" in rewritten
+        assert "the workflow we just did" in rewritten
+
+    def test_idempotent_on_already_rewritten_prompt(self) -> None:
+        prompt = _build_learn_prompt("https://example.com")
+        assert rewrite_learn_query_if_needed(prompt) == prompt
+
+    def test_noop_for_regular_chat(self) -> None:
+        query = "Summarize this document"
+        assert rewrite_learn_query_if_needed(query) == query
+
+    def test_rewrites_multimodal_raw_learn(self) -> None:
+        query: list[dict[str, str]] = [
+            {"type": "text", "text": "/learn https://example.com focus on auth"},
+        ]
+        rewritten = rewrite_learn_query_if_needed(query)
+        assert isinstance(rewritten, str)
+        assert "focus on auth" in rewritten
+        assert "skill_manage_tool" in rewritten
 
 
 class TestChannelLearnCommandHandler:

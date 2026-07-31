@@ -139,7 +139,7 @@ export const loadMessages = async (
       })
       .catch(() => {
         if (useChatStore.getState().chatId === chatId) {
-          useChatStore.getState().setContextPinnedFiles([]);
+          useChatStore.getState().setContextPinnedFilesLoadError('load_failed');
         }
       });
 
@@ -152,11 +152,12 @@ export const loadMessages = async (
         })
         .catch(() => {
           if (useChatStore.getState().chatId === chatId) {
-            useChatStore.getState().setContextBranches([]);
+            useChatStore.getState().setContextBranchesLoadError('load_failed');
           }
         });
     } else {
       useChatStore.getState().setContextBranches([]);
+      useChatStore.getState().setContextBranchesLoadError(null);
     }
   } catch (error) {
     console.error('Failed to load chat messages:', error, chatId);
@@ -285,6 +286,8 @@ export const initializeChat = (
       state.compactedBeforeId = null;
       state.contextBranches = [];
       state.contextPinnedFiles = [];
+      state.contextBranchesLoadError = null;
+      state.contextPinnedFilesLoadError = null;
       state.lastCompactionMeta = null;
       state.workspaceDir = null;
       state.incognitoMode = false;
@@ -342,6 +345,8 @@ export const initializeChat = (
         draft.compactedBeforeId = null;
         draft.contextBranches = [];
         draft.contextPinnedFiles = [];
+        draft.contextBranchesLoadError = null;
+        draft.contextPinnedFilesLoadError = null;
         draft.lastCompactionMeta = null;
         draft.workspaceDir = null;
         draft.incognitoMode = false;

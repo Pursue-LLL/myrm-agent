@@ -9,6 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import useChatStore from '@/store/useChatStore';
 import { useCommandStore } from '@/store/useCommandStore';
 import { useSkillStore } from '@/store/skill';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import type { SlashItem, SlashAction } from '@/types/command';
 
 export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
@@ -20,6 +21,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     })),
   );
   const { getAllItems, searchItems, recordUsage } = useCommandStore();
+  const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
   const { marketSkills, localSkills, fetchMarketSkills, fetchLocalSkills } = useSkillStore(
     useShallow((state) => ({
       marketSkills: state.marketSkills,
@@ -121,8 +123,10 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
             s.description.toLowerCase().includes(lowerQuery),
         );
 
-    return [...baseItems, ...matchingSkills];
-  }, [shouldShow, query, getAllItems, searchItems, skillActions]);
+    return [...baseItems, ...matchingSkills].filter(
+      (item) => item.id !== 'builtin:pet' || isCompanionEnabled,
+    );
+  }, [shouldShow, query, getAllItems, searchItems, skillActions, isCompanionEnabled]);
 
   // 执行命令
   const executeCommand = useCallback(

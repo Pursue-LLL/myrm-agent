@@ -16,6 +16,7 @@ import {
   LeftToRightBlockQuoteIcon,
   SquareArrowMoveRightDownIcon,
   GitCompareIcon,
+  PencilEdit01Icon,
 } from 'hugeicons-react';
 import type { PortalLayoutMode } from '@/store/useArtifactPortalStore';
 import { Button } from '@/components/primitives/button';
@@ -56,10 +57,13 @@ interface PortalHeaderProps {
   onSwitchVersion: (index: number) => void;
   /** 回滚版本 */
   onRollbackVersion: (index: number) => void;
+  /** 是否为可编辑的电子表格类型 */
+  isEditableSpreadsheet?: boolean;
   labels: {
     preview: string;
     code: string;
     diff?: string;
+    edit?: string;
     copied: string;
     copyCode: string;
     openInNewTab: string;
@@ -84,6 +88,7 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
   canPreviewContent,
   isHtml,
   isImage,
+  isEditableSpreadsheet,
   pickerMode,
   portalMode,
   versions,
@@ -184,6 +189,20 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
               >
                 <GitCompareIcon className="w-3.5 h-3.5" />
                 {labels.diff ?? 'Diff'}
+              </button>
+            )}
+            {isEditableSpreadsheet && (
+              <button
+                onClick={() => onSetDisplayMode(ArtifactDisplayMode.Edit)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap',
+                  displayMode === ArtifactDisplayMode.Edit
+                    ? 'bg-background text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <PencilEdit01Icon className="w-3.5 h-3.5" />
+                {labels.edit ?? 'Edit'}
               </button>
             )}
           </div>

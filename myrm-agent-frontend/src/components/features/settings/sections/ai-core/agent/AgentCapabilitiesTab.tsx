@@ -17,6 +17,7 @@ import {
   ParallelFissionSection,
   AdvancedEngineParamsSection,
   ConsensusSection,
+  MoaOverlaySection,
   SessionPolicySection,
   DeliveryAssuranceSection,
   BusyInputModeSection,
@@ -95,6 +96,7 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       <ParallelFissionSection editor={editor} t={t} />
       <AdvancedEngineParamsSection editor={editor} t={t} />
       <ConsensusSection editor={editor} t={t} />
+      <MoaOverlaySection editor={editor} t={t} />
 
       <AgentBrowserConfigSection
         browserSource={editor.browserSource}

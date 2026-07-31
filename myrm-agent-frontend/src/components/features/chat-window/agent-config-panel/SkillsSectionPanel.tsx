@@ -1,29 +1,26 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Skill } from '@/store/skill/types';
-import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 import { AddMoreButton } from './AgentConfigSelectableCard';
 
 import {
   NoiseGauge,
   CoreSkillsZone,
   PeripheralSkillsZone,
-  MountedSkillsZone,
   AvailableSkillsZone,
 } from './SkillsSectionPanelParts';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 export interface SkillsSectionPanelProps {
   enabledSkills: Skill[];
   agentId?: string;
   localSkillIds: string[];
   setLocalSkillIds: React.Dispatch<React.SetStateAction<string[]>>;
-  localMountedSkillIds: string[];
-  setLocalMountedSkillIds: React.Dispatch<React.SetStateAction<string[]>>;
-  localSkillConfigs: Record<string, { is_core?: boolean }>;
-  setLocalSkillConfigs: React.Dispatch<React.SetStateAction<Record<string, { is_core?: boolean }>>>;
+  localSkillConfigs: AgentSkillConfigMap;
+  setLocalSkillConfigs: React.Dispatch<React.SetStateAction<AgentSkillConfigMap>>;
   noiseData: {
     isNoiseHigh: boolean;
     isNoiseCritical: boolean;
@@ -44,8 +41,6 @@ export const SkillsSectionPanel = ({
   agentId,
   localSkillIds,
   setLocalSkillIds,
-  localMountedSkillIds,
-  setLocalMountedSkillIds,
   localSkillConfigs,
   setLocalSkillConfigs,
   noiseData,
@@ -57,7 +52,44 @@ export const SkillsSectionPanel = ({
   tPanel,
 }: SkillsSectionPanelProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [instancesBySkillName, setInstancesBySkillName] = useState<Record<string, string[]>>({});
   const { isNoiseHigh, isNoiseCritical, noiseLevel, coreSkillsTokenCost, maxCoreTokens } = noiseData;
+
+  useEffect(() => {
+    let cancelled = false;
+    const selected = (enabledSkills || []).filter((s) => localSkillIds.includes(s.id));
+    if (selected.length === 0) {
+      setInstancesBySkillName({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const load = async () => {
+      const entries = await Promise.all(
+        selected.map(async (skill) => {
+          try {
+            const response = await fetch(`/api/v1/skills/${encodeURIComponent(skill.name)}/instances`);
+            if (!response.ok) {
+              return [skill.name, []] as const;
+            }
+            const data = (await response.json()) as { instances?: string[] };
+            return [skill.name, Array.isArray(data.instances) ? data.instances : []] as const;
+          } catch {
+            return [skill.name, []] as const;
+          }
+        }),
+      );
+      if (!cancelled) {
+        setInstancesBySkillName(Object.fromEntries(entries));
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabledSkills, localSkillIds]);
 
   const filteredSkills = (enabledSkills || []).filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -65,17 +97,6 @@ export const SkillsSectionPanel = ({
     (skill: Skill) => !skill.scope_agent_id || skill.scope_agent_id === agentId,
     [agentId],
   );
-  const isOtherSkill = useCallback(
-    (skill: Skill) => !!(skill.scope_agent_id && skill.scope_agent_id !== agentId),
-    [agentId],
-  );
-
-  const mountedOwnerIds = useMemo(() => {
-    return (enabledSkills || [])
-      .filter((s) => (localMountedSkillIds || []).includes(s.id) && s.scope_agent_id)
-      .map((s) => s.scope_agent_id as string);
-  }, [enabledSkills, localMountedSkillIds]);
-  const agentNameMap = useAgentNameMap(mountedOwnerIds || []);
 
   const toggleSkill = (id: string) => {
     setLocalSkillIds((prev) => {
@@ -91,15 +112,21 @@ export const SkillsSectionPanel = ({
     });
   };
 
-  const toggleMountedSkill = (id: string) => {
-    setLocalMountedSkillIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
   const toggleSkillCore = (id: string) => {
     setLocalSkillConfigs((configs) => {
       const currentIsCore = configs[id]?.is_core ?? true;
       return { ...configs, [id]: { ...configs[id], is_core: !currentIsCore } };
     });
+  };
+
+  const handleInstanceChange = (skillId: string, instanceName: string | null) => {
+    setLocalSkillConfigs((configs) => ({
+      ...configs,
+      [skillId]: {
+        ...configs[skillId],
+        instance_name: instanceName,
+      },
+    }));
   };
 
   if (enabledSkills.length === 0) {
@@ -145,6 +172,9 @@ export const SkillsSectionPanel = ({
           isOwnSkill={isOwnSkill}
           toggleSkill={toggleSkill}
           toggleSkillCore={toggleSkillCore}
+          onInstanceChange={handleInstanceChange}
+          instancesBySkillName={instancesBySkillName}
+          tPanel={tPanel}
         />
         <PeripheralSkillsZone
           filteredSkills={filteredSkills}
@@ -153,23 +183,16 @@ export const SkillsSectionPanel = ({
           isOwnSkill={isOwnSkill}
           toggleSkill={toggleSkill}
           toggleSkillCore={toggleSkillCore}
-        />
-        <MountedSkillsZone
-          filteredSkills={filteredSkills}
-          localMountedSkillIds={localMountedSkillIds}
-          isOtherSkill={isOtherSkill}
-          agentNameMap={agentNameMap}
-          toggleMountedSkill={toggleMountedSkill}
+          onInstanceChange={handleInstanceChange}
+          instancesBySkillName={instancesBySkillName}
+          tPanel={tPanel}
         />
         <AvailableSkillsZone
           filteredSkills={filteredSkills}
           localSkillIds={localSkillIds}
-          localMountedSkillIds={localMountedSkillIds}
           isOwnSkill={isOwnSkill}
-          isOtherSkill={isOtherSkill}
-          agentNameMap={agentNameMap}
           toggleSkill={toggleSkill}
-          toggleMountedSkill={toggleMountedSkill}
+          tPanel={tPanel}
         />
       </div>
 
@@ -177,4 +200,3 @@ export const SkillsSectionPanel = ({
     </div>
   );
 };
-

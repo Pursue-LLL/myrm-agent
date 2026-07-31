@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import subprocess
@@ -14,24 +13,17 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypedDict, cast
+from typing import TypedDict, cast
 
 _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
 from e2e_lease_heartbeat import heartbeat_e2e_lease
-from e2e_resource_ledger import E2EResourceLedger, ResourceKind, register_e2e_resource
-
-from tests.support.e2e_parallel_snapshot import (
-    clear_e2e_lock_holder,
-    current_pytest_node_label,
-    format_lock_holder,
-    read_e2e_lock_holder,
-    write_e2e_lock_holder,
-)
+from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
+E2EResourceLedger = _E2EResourceLedger
 
 
 class _LeasePayload(TypedDict):
@@ -138,6 +130,14 @@ def _stack_fingerprint_runtime_id() -> str:
     return os.environ.get("MYRM_E2E_STACK_FP", "").strip()
 
 
+def _private_backend_runtime_pinned() -> bool:
+    """SHPOIB private backend pins MYRM_E2E_STACK_FP; ignore shared-hot drift under parallel E2E."""
+    return (
+        os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1"
+        and bool(_stack_fingerprint_runtime_id())
+    )
+
+
 def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
     """Allow in-place wave heal for ./myrm test chrome_e2e parent sessions."""
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
@@ -165,6 +165,26 @@ def _shared_hot_stack_runtime_id() -> str:
     return _read_shared_hot_stack_runtime_id()
 
 
+def _read_open_wave_runtime_id(state_path: Path) -> str:
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    wave = payload.get("wave") if isinstance(payload, dict) else None
+    if not isinstance(wave, dict) or wave.get("status") != "open":
+        return ""
+    return str(wave.get("runtimeId", "")).strip()
+
+
+def _runtime_drift_setup_attempts() -> int:
+    raw = os.environ.get("MYRM_E2E_RUNTIME_DRIFT_SETUP_RETRIES", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return 5
+    return 3
+
+
 def _attempt_runtime_drift_heal(state_path: Path, lease_id: str) -> str | None:
     """In-place heal wave + active leases when shared-hot runtime drifts during live E2E."""
     if not _runtime_drift_heal_allowed():
@@ -186,15 +206,58 @@ def _attempt_runtime_drift_heal(state_path: Path, lease_id: str) -> str | None:
     if lease is None:
         return None
     healed = str(lease.get("runtimeId", "")).strip()
+    wave_runtime = _read_open_wave_runtime_id(state_path)
+    if wave_runtime:
+        healed = wave_runtime
     if not healed:
         return None
     os.environ["MYRM_E2E_STACK_FP"] = healed
     return healed
 
 
+def _assert_runtime_matches_lease_or_heal(
+    *,
+    state_path: Path,
+    lease_id: str,
+    expected: str,
+    runtime_id_reader: Callable[[], str],
+) -> str:
+    """Retry wave reap when mux-queue delay causes runtime drift before pytest body."""
+    resolved = expected.strip()
+    current = runtime_id_reader().strip()
+    if not _runtime_drift_heal_allowed():
+        if not resolved or current != resolved:
+            raise RuntimeError(
+                f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}"
+            )
+        return resolved
+    attempts = _runtime_drift_setup_attempts()
+    for drift_attempt in range(attempts):
+        current = runtime_id_reader().strip()
+        if resolved and current == resolved:
+            return resolved
+        healed = _attempt_runtime_drift_heal(state_path, lease_id)
+        if healed:
+            resolved = healed
+        wave_runtime = _read_open_wave_runtime_id(state_path)
+        if wave_runtime:
+            resolved = wave_runtime
+        current = runtime_id_reader().strip()
+        if resolved and current == resolved:
+            return resolved
+        if drift_attempt + 1 < attempts:
+            time.sleep(2.0)
+    current = runtime_id_reader().strip()
+    raise RuntimeError(
+        f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}"
+    )
+
+
 def _runtime_id_reader() -> str:
     if _isolated_e2e_mode():
         return _stack_scoped_runtime_id()
+    if _private_backend_runtime_pinned():
+        return _stack_fingerprint_runtime_id()
     if _uses_shared_hot_runtime_probe():
         return _shared_hot_stack_runtime_id()
     stack_fp = _stack_fingerprint_runtime_id()
@@ -275,7 +338,11 @@ def require_e2e_runtime_lease(
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is expired")
     expected = lease.get("runtimeId", "").strip()
     wave_runtime = str(wave.get("runtimeId", "")).strip()
-    if _uses_shared_hot_runtime_probe() and wave_runtime:
+    if (
+        _uses_shared_hot_runtime_probe()
+        and wave_runtime
+        and not _private_backend_runtime_pinned()
+    ):
         expected = wave_runtime
     if wave.get("runtimeId") != expected:
         raise RuntimeError(
@@ -293,16 +360,12 @@ def require_e2e_runtime_lease(
             lane=expected_lane,
             isolated=True,
         )
-    current = runtime_id_reader().strip()
-    if not expected or current != expected:
-        healed = _attempt_runtime_drift_heal(state_path, lease_id)
-        if healed:
-            expected = healed
-            current = runtime_id_reader().strip()
-        if not expected or current != expected:
-            raise RuntimeError(
-                f"RUNTIME_DRIFT: E2E lease expected={expected or '<missing>'} current={current or '<missing>'}"
-            )
+    expected = _assert_runtime_matches_lease_or_heal(
+        state_path=state_path,
+        lease_id=lease_id,
+        expected=expected,
+        runtime_id_reader=runtime_id_reader,
+    )
     return E2ERuntimeLease(lease_id=lease_id, runtime_id=expected, lane=expected_lane)
 
 
@@ -319,7 +382,7 @@ def assert_e2e_runtime_unchanged(
         return
     current = runtime_id_reader().strip()
     expected_runtime = lease.runtime_id.strip()
-    if _uses_shared_hot_runtime_probe():
+    if _uses_shared_hot_runtime_probe() and not _private_backend_runtime_pinned():
         expected_runtime = _shared_hot_stack_runtime_id().strip() or expected_runtime
     if current != expected_runtime:
         healed = _attempt_runtime_drift_heal(_wave_state_path(), lease.lease_id)
@@ -348,13 +411,19 @@ def assert_chrome_attach_health() -> None:
     if poll_sec <= 0:
         poll_sec = 2
 
+    require_ready = (
+        "--require-signoff-stream-ready"
+        if os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        else "--require-attach-ready"
+    )
+
     cmd = [
         sys.executable,
         str(script),
         "--auto-probe",
         "--auto-hot",
         "--attach-mode",
-        "--require-attach-ready",
+        require_ready,
         "--ui",
         ui_base,
         "--api",
@@ -384,66 +453,3 @@ def assert_chrome_attach_health() -> None:
             time.sleep(sleep_for)
     raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
 
-
-_LIVE_AGENT_STREAM_LOCK_PATH = (
-    Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-live-agent-stream.lock"
-)
-_LIVE_AGENT_STREAM_WAIT_SEC = float(
-    os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "300")
-)
-
-
-@contextmanager
-def live_agent_stream_lock() -> Iterator[None]:
-    """Serialize shared-hot :8080 agent-stream turns across parallel LIVE chrome_e2e."""
-    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
-    if lane != "LIVE_AGENT":
-        yield
-        return
-    _LIVE_AGENT_STREAM_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(_LIVE_AGENT_STREAM_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
-    deadline = time.monotonic() + _LIVE_AGENT_STREAM_WAIT_SEC
-    acquired = False
-    last_log = 0.0
-    holder_label = current_pytest_node_label("live_agent_stream")
-    while time.monotonic() < deadline:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            acquired = True
-            break
-        except BlockingIOError:
-            now = time.monotonic()
-            if now - last_log >= 30.0:
-                holder = read_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
-                print(
-                    "LIVE_AGENT_STREAM_WAIT: shared :8080 agent-stream busy; "
-                    f"queueing (max {_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s) "
-                    f"holder={format_lock_holder(holder)}",
-                    flush=True,
-                )
-                last_log = now
-            time.sleep(1.0)
-    if not acquired:
-        os.close(fd)
-        holder = read_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
-        raise RuntimeError(
-            "LIVE_AGENT_STREAM_WAIT_TIMEOUT: shared :8080 agent-stream lock busy "
-            f"(lock={_LIVE_AGENT_STREAM_LOCK_PATH}, wait={_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s, "
-            f"holder={format_lock_holder(holder)}). "
-            "Do not kill other pytest — wait for FIFO queue."
-        )
-    write_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH, holder_label)
-    print(
-        "LIVE_AGENT_STREAM_ACQUIRED: " f"pid={os.getpid()} test={holder_label}",
-        flush=True,
-    )
-    try:
-        yield
-    finally:
-        clear_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
-        print(
-            "LIVE_AGENT_STREAM_RELEASED: " f"pid={os.getpid()} test={holder_label}",
-            flush=True,
-        )

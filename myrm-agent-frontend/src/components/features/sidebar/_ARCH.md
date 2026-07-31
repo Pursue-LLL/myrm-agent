@@ -15,8 +15,8 @@
 | `MobileDragButton.tsx` | 辅助 | 移动端侧栏拖拽排序手柄 | ✅ |
 | `ProjectBar.tsx` | 核心 | 项目切换与创建顶栏；右键菜单：重命名、颜色、工作目录、默认智能体 | ✅ |
 | `ProjectDefaultAgentDialog.tsx` | 组件 | 项目默认智能体选择弹窗，供 ProjectBar 右键菜单调用 | ✅ |
-| `ProjectMilestonePanel.tsx` | 核心 | 当前项目里程碑面板：增删改完成 + 评估工件导入（最近工件候选一键导入 + 手动 artifact id 兜底）、导入回执提示与后端语义化错误提示；优先基于 `import_reason` 结构化错误字段映射（并保留文案兜底） | ✅ |
-| `assessmentImportError.ts` | 辅助 | 评估导入错误解析核心：将后端 `import_reason`（及兜底文案）映射到 i18n key | ✅ |
+| `ProjectMilestonePanel.tsx` | 核心 | 当前项目里程碑面板：增删改完成 + 评估工件导入（按 `project_id` 过滤并优先展示可导入语义候选的一键导入 + 手动 artifact id 兜底）、导入回执提示与后端语义化错误提示；优先基于 `import_reason` 结构化错误字段映射（并保留文案兜底），并上报导入漏斗埋点（attempt/success/fail_reason）；面板内展示近 30 天导入后任务完成价值锚点。 | ✅ |
+| `assessmentImportError.ts` | 辅助 | 评估导入错误解析核心：解析后端 `import_reason`（及兜底文案）映射到 i18n key，并输出机器可读 `failure_reason` 供漏斗埋点复用 | ✅ |
 | `Sidebar.tsx` | 核心 | 侧栏根容器：宽度响应式、折叠态与键盘导航 | ✅ |
 | `UserMenu.tsx` | 组件 | 用户菜单（Settings、批量优化 `userMenu.batchOptimization`→`/batch-optimization`、Brain Console 等） | ✅ |
 | `constants.ts` | 辅助 | 侧栏布局与 DnD 常量 | ✅ |

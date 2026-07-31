@@ -88,6 +88,7 @@ Design notes:
 | `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval） | ✅ |
 | `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
+| `skill_instance_resolver.py` | ✅ 核心 | Agent profile `skill_configs.instance_name` → runtime `default_skill_instances` map（singleton / `default` / explicit）；`resolve_runtime_skill_instance_bindings` 为 factory SSOT；`validate_agent_skill_config_instances` + `serialize_agent_skill_configs` 在 Agent create/update 时校验并序列化 instance 绑定（400 / JSON persist）；`factory.py` 消费 | ✅ |
 
 ---
 
@@ -113,7 +114,9 @@ Design notes:
 业务层统一管理以下关键字段，并保证它们可以跨入口稳定读写：
 
 - `agent_type`（`individual` | `team`，团队型 Agent 运行时自动注入 Leader Operating Protocol + 成员名册）
+- `skill_configs`（per-skill `is_core` + optional `instance_name` for multi-instance skills；save 时 server 校验 instance 存在）
 - `skill_ids`
+- `mounted_skill_ids`（legacy DB column；Agent execution runtime 与产品 UI 不读；skill evolution CoW 仍通过 `evolution_review_disk_content.py` 维护）
 - `mcp_ids`
 - `mcp_tool_selections`（per-MCP-server 工具白名单 `{server_name: [tool_name, ...]}`，由前端智能体编辑器管理，注入 `MCPConfig.tool_include` 实现工具级最小权限）
 - `enabled_builtin_tools`

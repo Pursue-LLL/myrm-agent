@@ -105,6 +105,63 @@ async def test_process_image_cache_hit_skips_engine() -> None:
 
 
 @pytest.mark.asyncio
+async def test_preprocess_inbound_multimodal_query_passthrough_string() -> None:
+    from app.core.utils.chat_utils import preprocess_inbound_multimodal_query
+
+    result = await preprocess_inbound_multimodal_query(
+        "hello",
+        model_cfg=_text_only_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result == "hello"
+
+
+@pytest.mark.asyncio
+async def test_preprocess_inbound_multimodal_query_skips_without_fallback() -> None:
+    from app.core.utils.chat_utils import preprocess_inbound_multimodal_query
+
+    query = [
+        {"type": "text", "text": "look"},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{_TINY_PNG_B64}"}},
+    ]
+    result = await preprocess_inbound_multimodal_query(
+        query,
+        model_cfg=_text_only_model(),
+        vision_fallback_model_cfg=None,
+    )
+    assert result is query
+
+
+@pytest.mark.asyncio
+async def test_preprocess_inbound_multimodal_query_delegates_to_process_human_content() -> None:
+    from app.core.utils.chat_utils import preprocess_inbound_multimodal_query
+
+    query = [
+        {"type": "text", "text": "look"},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{_TINY_PNG_B64}"}},
+    ]
+    processed = [{"type": "text", "text": "[Image Analysis]:\ndone"}]
+
+    with patch(
+        "app.core.utils.chat_utils._process_human_content",
+        new_callable=AsyncMock,
+        return_value=processed,
+    ) as mock_process:
+        result = await preprocess_inbound_multimodal_query(
+            query,
+            model_cfg=_text_only_model(),
+            vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+            meta={"chat_id": "c1"},
+        )
+
+    assert result == processed
+    mock_process.assert_awaited_once()
+    call_kwargs = mock_process.await_args.kwargs
+    assert call_kwargs["meta"] == {"chat_id": "c1"}
+    assert call_kwargs["vision_fallback_model_cfg"].model == "vl"
+
+
+@pytest.mark.asyncio
 async def test_process_video_emits_analyzing_and_uses_engine() -> None:
     item = {"type": "video_url", "video_url": {"url": "https://example.com/v.mp4"}}
     fallback_cfg = SimpleNamespace(model="MiniMax-VL", api_key="k", base_url="https://example.com")

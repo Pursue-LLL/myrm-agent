@@ -59,6 +59,19 @@ _FORCE_CHAT_BRIDGE_TIMEOUT_SEC = 35.0
 _T = TypeVar("_T")
 
 
+def _signoff_mux_attach_restart(reason: str) -> None:
+    """Scoped mux attach restart during signoff force-chat heal (R178)."""
+    import sys
+    from pathlib import Path
+
+    lib_dir = Path(__file__).resolve().parents[4] / "scripts" / "dev" / "lib"
+    if str(lib_dir) not in sys.path:
+        sys.path.insert(0, str(lib_dir))
+    from mux_attach_force_restart import force_mux_attach_restart_scoped
+
+    force_mux_attach_restart_scoped(reason=reason)
+
+
 async def _await_with_wall_timeout(
     awaitable: Awaitable[_T], *, timeout_sec: float, label: str
 ) -> _T:
@@ -66,6 +79,30 @@ async def _await_with_wall_timeout(
         return await asyncio.wait_for(awaitable, timeout=timeout_sec)
     except asyncio.TimeoutError as exc:
         raise RuntimeError(f"{label} wall-timeout after {timeout_sec:.0f}s") from exc
+
+
+def _wait_mux_transport_turn_sync(*, current_node: str) -> None:
+    """R201 POO Phase 3: queue before desktop force-chat mux operations under parallel load."""
+    import sys
+    from pathlib import Path
+
+    lib_dir = Path(__file__).resolve().parents[4] / "scripts" / "dev" / "lib"
+    if str(lib_dir) not in sys.path:
+        sys.path.insert(0, str(lib_dir))
+    from e2e_mux_transport_queue import (  # noqa: PLC0415
+        _FORCE_CHAT_SHELL_BLOCKING_NODE,
+        wait_mux_transport_turn,
+    )
+    from transport_supervisor import mux_upstream_wait_cap  # noqa: PLC0415
+
+    from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
+
+    if _parallel_open_page_peer_count() < 2:
+        return
+    wait_mux_transport_turn(
+        budget_sec=float(mux_upstream_wait_cap()),
+        current_node=current_node or _FORCE_CHAT_SHELL_BLOCKING_NODE,
+    )
 
 
 async def _probe_chat_route(chat: McpChatSession, target: str) -> dict[str, object]:
@@ -664,6 +701,10 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
         heartbeat_e2e_lease()
         progress(f"force chat shell ({label}) attempt {attempt}/{attempts}")
         try:
+            await asyncio.to_thread(
+                _wait_mux_transport_turn_sync,
+                current_node="force_chat_shell_blocking",
+            )
             await _await_with_wall_timeout(
                 chat._navigate_to_chat_home(timeout_ms=90_000),
                 timeout_sec=navigate_timeout,
@@ -684,6 +725,12 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
             if attempt >= attempts:
                 raise
             progress(f"force chat shell retry after: {exc}")
+            if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+                progress("signoff mux scoped restart before force chat shell recover")
+                await asyncio.to_thread(
+                    _signoff_mux_attach_restart,
+                    "signoff desktop force chat shell retry",
+                )
             try:
                 await asyncio.to_thread(chat._client.recover_mux_transport)
             except (RuntimeError, TimeoutError, OSError) as recover_exc:

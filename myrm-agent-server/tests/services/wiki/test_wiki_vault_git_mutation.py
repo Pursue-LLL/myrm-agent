@@ -7,11 +7,11 @@ import subprocess
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.portability.vault_git import maybe_commit_vault_git_snapshot
+
+from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git not available")
 
@@ -48,10 +48,9 @@ async def test_after_wiki_vault_mutation_commits_apply_changes(tmp_path) -> None
 
 def test_apply_endpoint_triggers_vault_mutation_hook() -> None:
     from fastapi.testclient import TestClient
+    from myrm_agent_harness.toolkits.wiki.pipeline.apply.types import WikiApplyOp, WikiApplyResult
 
     from tests.support.minimal_app import build_minimal_app
-
-    from myrm_agent_harness.toolkits.wiki.pipeline.apply.types import WikiApplyOp, WikiApplyResult
 
     app = build_minimal_app(preset="wiki")
     client = TestClient(app)

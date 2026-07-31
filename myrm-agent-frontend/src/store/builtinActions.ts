@@ -233,7 +233,28 @@ export function buildBuiltinActions(): SlashAction[] {
       argsHint: '<URL|path|description>',
       type: 'action',
       execute: async (inputValue: string) => {
-        return { success: true, newInputValue: inputValue || '/learn' };
+        const { submitLearnMessage } = await import('@/lib/skills/submitLearnMessage');
+        const result = await submitLearnMessage({ input: inputValue });
+        if (!result.ok) {
+          if (result.reason === 'no_chat') {
+            showI18nToast('chat.sendBlocked.title', undefined, {
+              descriptionKey: 'chat.sendBlocked.noChatDescription',
+              type: 'warning',
+            });
+            return { success: false, error: 'No active chat' };
+          }
+          if (result.reason === 'busy') {
+            showI18nToast('chat.extractToSkill.busy', undefined, { type: 'warning' });
+            return { success: false, error: 'Chat is busy' };
+          }
+          if (result.reason === 'empty') {
+            return { success: true, newInputValue: '/learn' };
+          }
+          showI18nToast('chat.extractToSkill.error', undefined, { type: 'error' });
+          return { success: false, error: 'Learn failed' };
+        }
+        showI18nToast('chat.extractToSkill.started', undefined, { type: 'info' });
+        return { success: true, newInputValue: '' };
       },
     },
     {
@@ -284,6 +305,95 @@ export function buildBuiltinActions(): SlashAction[] {
           showI18nToast('commands.builtin.forkFailed', undefined, { type: 'error' });
           return { success: false, error: 'Fork failed' };
         }
+      },
+    },
+    {
+      id: 'builtin:goal',
+      name: 'goal',
+      description: 'commands.builtin.goal',
+      argsHint: '<objective> | status | pause | resume | clear',
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { fetchWithTimeout } = await import('@/lib/api');
+        const { chatId, loading, setIsGoalMode, setInputMessage } = useChatStore.getState();
+
+        if (!chatId) {
+          showI18nToast('commands.builtin.noActiveChat', undefined, { type: 'info' });
+          return { success: false, error: 'No active chat' };
+        }
+
+        const args = inputValue.replace(/^\/goal\s*/i, '').trim();
+        if (!args) {
+          showI18nToast('commands.builtin.goalUsage', undefined, { type: 'info' });
+          return { success: false, error: 'Missing goal arguments' };
+        }
+
+        const firstToken = args.split(/\s+/)[0]?.toLowerCase() ?? '';
+        const goalSubcommands = new Set(['status', 'pause', 'resume', 'clear', 'cancel']);
+
+        const postGoalAction = async (action: string) => {
+          await fetchWithTimeout(`/goals/${chatId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+          });
+        };
+
+        try {
+          if (goalSubcommands.has(firstToken)) {
+            if (firstToken === 'status') {
+              const res = await fetchWithTimeout(`/goals/${chatId}/status`);
+              const data = (await res.json()) as { goal?: { status?: string } | null };
+              if (!data.goal?.status) {
+                showI18nToast('commands.builtin.goalNoActive', undefined, { type: 'info' });
+              } else {
+                showI18nToast('commands.builtin.goalStatus', { status: data.goal.status }, { type: 'info' });
+              }
+              return { success: true, newInputValue: '' };
+            }
+            if (firstToken === 'pause') {
+              await postGoalAction('pause');
+              showI18nToast('commands.builtin.goalPaused', undefined, { type: 'success' });
+              return { success: true, newInputValue: '' };
+            }
+            if (firstToken === 'resume') {
+              await postGoalAction('resume');
+              showI18nToast('commands.builtin.goalResumed', undefined, { type: 'success' });
+              return { success: true, newInputValue: '' };
+            }
+            if (firstToken === 'clear' || firstToken === 'cancel') {
+              await postGoalAction('cancel');
+              showI18nToast('commands.builtin.goalCleared', undefined, { type: 'success' });
+              return { success: true, newInputValue: '' };
+            }
+          }
+
+          if (loading) {
+            showI18nToast('chat.fork.streamingBlocked', undefined, { type: 'warning' });
+            return { success: false, error: 'Cannot set goal while streaming' };
+          }
+
+          setIsGoalMode(true);
+          setInputMessage(args);
+          showI18nToast('commands.builtin.goalSet', undefined, { type: 'info' });
+          return { success: true, newInputValue: '' };
+        } catch {
+          showI18nToast('commands.builtin.goalActionFailed', undefined, { type: 'error' });
+          return { success: false, error: 'Goal command failed' };
+        }
+      },
+    },
+    {
+      id: 'builtin:pet',
+      name: 'pet',
+      description: 'commands.builtin.pet',
+      argsHint: '[toggle | list | <slug>]',
+      aliases: ['pets'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { executePetSlashCommand } = await import('@/services/companion/petSlashCommand');
+        return executePetSlashCommand(inputValue);
       },
     },
   ];

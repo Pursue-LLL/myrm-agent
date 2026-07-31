@@ -279,3 +279,159 @@ class TestExtractSessionPolicy:
         raw = {"sessionPolicy": {"mode": "daily"}}
         policy = extract_session_policy(raw)
         assert policy.notify_on_reset is True
+
+
+class TestExtractVisionFallbackModelConfig:
+    def test_returns_none_for_empty_providers(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_config
+
+        assert extract_vision_fallback_model_config(None) is None
+        assert extract_vision_fallback_model_config({}) is None
+
+    def test_resolves_vision_fallback_from_default_model_config(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_config
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-vision",
+                    "enabledModels": ["gpt-4o-mini"],
+                }
+            ],
+            "defaultModelConfig": {
+                "visionFallbackModel": {
+                    "providerId": "openai",
+                    "model": "gpt-4o-mini",
+                }
+            },
+        }
+        cfg = extract_vision_fallback_model_config(providers_dict)
+        assert cfg is not None
+        assert cfg.model == "openai/gpt-4o-mini"
+        assert cfg.api_key == "sk-vision"
+
+    def test_returns_none_when_provider_disabled(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_config
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": False,
+                    "apiKeys": [{"key": "sk-vision", "isActive": True}],
+                }
+            ],
+            "defaultModelConfig": {
+                "visionFallbackModel": {
+                    "providerId": "openai",
+                    "model": "gpt-4o-mini",
+                }
+            },
+        }
+        assert extract_vision_fallback_model_config(providers_dict) is None
+
+
+class TestExtractVisionFallbackModelConfigs:
+    def test_builds_chain_with_main_agent_when_vision_capable(self) -> None:
+        from app.core.channel_bridge.config_parsers import (
+            build_vision_fallback_config_chain,
+            extract_vision_fallback_model_configs,
+        )
+        from app.core.types import ModelConfig
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-vision",
+                    "enabledModels": ["gpt-4o-mini", "gpt-4o"],
+                }
+            ],
+            "defaultModelConfig": {
+                "visionFallbackModel": {
+                    "providerId": "openai",
+                    "model": "gpt-4o-mini",
+                },
+                "baseModel": {
+                    "primary": {"providerId": "openai", "model": "gpt-4o"},
+                },
+            },
+        }
+
+        chain = extract_vision_fallback_model_configs(providers_dict)
+        assert len(chain) == 2
+        assert chain[0].model == "openai/gpt-4o-mini"
+        assert chain[1].model == "openai/gpt-4o"
+
+        main_cfg = ModelConfig(
+            model="openai/gpt-4o",
+            api_key="sk-main",
+            supports_vision=True,
+        )
+        custom_chain = build_vision_fallback_config_chain(
+            providers_dict,
+            primary_override=chain[0],
+            main_model_cfg=main_cfg,
+        )
+        assert len(custom_chain) == 2
+        assert custom_chain[-1].api_key == "sk-main"
+
+    def test_builds_chain_with_model_slot_fallback(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_configs
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-vision",
+                    "enabledModels": ["gpt-4o-mini", "gpt-4o"],
+                }
+            ],
+            "defaultModelConfig": {
+                "visionFallbackModel": {
+                    "primary": {"providerId": "openai", "model": "gpt-4o-mini"},
+                    "fallback": {"providerId": "openai", "model": "gpt-4o"},
+                },
+            },
+        }
+
+        chain = extract_vision_fallback_model_configs(providers_dict)
+        assert len(chain) == 2
+        assert chain[0].model == "openai/gpt-4o-mini"
+        assert chain[1].model == "openai/gpt-4o"
+
+    def test_build_vision_fallback_engine_from_providers(self) -> None:
+        from app.core.channel_bridge.config_parsers import build_vision_fallback_engine_from_providers
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-vision",
+                    "enabledModels": ["gpt-4o-mini"],
+                }
+            ],
+            "defaultModelConfig": {
+                "visionFallbackModel": {
+                    "primary": {"providerId": "openai", "model": "gpt-4o-mini"},
+                },
+            },
+        }
+
+        engine = build_vision_fallback_engine_from_providers(providers_dict)
+        assert engine is not None
+        assert len(engine.fallback_configs) == 1
+        assert engine.fallback_configs[0].model == "openai/gpt-4o-mini"

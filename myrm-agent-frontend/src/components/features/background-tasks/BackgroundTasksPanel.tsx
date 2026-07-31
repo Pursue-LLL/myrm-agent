@@ -16,9 +16,13 @@ import {
   evictedFilenameFromVaultRef,
   type BackgroundTask,
 } from '@/services/background-tasks';
+import { cancelMediaTask } from '@/services/mediaTasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
+import { useGlobalMediaTaskNotifications } from '@/hooks/tasks/useGlobalMediaTaskNotifications';
+import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
 import { BackgroundTaskRow } from './BackgroundTaskRow';
+import { MediaTaskRow } from './MediaTaskRow';
 import {
   type ActiveGoal,
   IDLE_STOP_THRESHOLD,
@@ -42,10 +46,13 @@ interface BackgroundTasksPanelProps {
 export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelProps) {
   const t = useTranslations('backgroundTasks');
   const router = useRouter();
+  useGlobalMediaTaskNotifications();
+  const { mediaTasks, recentTerminalMediaTasks, refetchMediaTasks } = useMediaBackgroundTasks();
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
   const [registryEphemeral, setRegistryEphemeral] = useState(false);
   const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [recentMediaExpanded, setRecentMediaExpanded] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
   const [steerInput, setSteerInput] = useState('');
   const [shellInputTaskId, setShellInputTaskId] = useState<string | null>(null);
@@ -81,28 +88,32 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     idleCountRef.current = 0;
     fetchTasks();
     fetchActiveGoals();
+    void refetchMediaTasks();
     const interval = setInterval(() => {
       fetchTasks();
       fetchActiveGoals();
+      void refetchMediaTasks();
     }, POLL_FAST_MS);
     return () => clearInterval(interval);
-  }, [isOpen, fetchTasks, fetchActiveGoals]);
+  }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
 
   useEffect(() => {
     if (isOpen) return;
 
     fetchTasks();
     fetchActiveGoals();
+    void refetchMediaTasks();
 
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       if (idleCountRef.current >= IDLE_STOP_THRESHOLD) return;
       fetchTasks();
       fetchActiveGoals();
+      void refetchMediaTasks();
     }, POLL_SLOW_MS);
 
     return () => clearInterval(interval);
-  }, [isOpen, fetchTasks, fetchActiveGoals]);
+  }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
 
   useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
 
@@ -135,6 +146,16 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       await cancelBackgroundTask(taskId);
       toast.success(t('cancelSuccess'));
       fetchTasks();
+    } catch {
+      toast.error(t('cancelFailed'));
+    }
+  };
+
+  const handleCancelMediaTask = async (taskId: string) => {
+    try {
+      await cancelMediaTask(taskId);
+      toast.success(t('cancelSuccess'));
+      void refetchMediaTasks();
     } catch {
       toast.error(t('cancelFailed'));
     }
@@ -204,7 +225,13 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const runningCount = tasks.filter((task) => task.status === 'running').length;
-  const totalBadge = runningCount + activeGoals.length;
+  const activeMediaCount = mediaTasks.length;
+  const totalBadge = runningCount + activeGoals.length + activeMediaCount;
+  const hasPanelContent =
+    tasks.length > 0 ||
+    activeGoals.length > 0 ||
+    mediaTasks.length > 0 ||
+    recentTerminalMediaTasks.length > 0;
 
   return (
     <>
@@ -245,10 +272,58 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
             onGoalAction={handleGoalAction}
           />
 
-          {tasks.length === 0 && activeGoals.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
-          ) : (
+          {hasPanelContent ? (
             <>
+              {mediaTasks.length > 0 && (
+                <div className="border-b border-border/30">
+                  <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                    {t('media.section')} ({mediaTasks.length})
+                  </div>
+                  <div className="divide-y divide-border/20">
+                    {mediaTasks.map((task) => (
+                      <MediaTaskRow
+                        key={task.task_id}
+                        task={task}
+                        variant="active"
+                        onCancel={handleCancelMediaTask}
+                        onNavigateChat={handleNavigateChat}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recentTerminalMediaTasks.length > 0 && (
+                <div className="border-b border-border/30">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:bg-muted/20"
+                    onClick={() => setRecentMediaExpanded((expanded) => !expanded)}
+                    aria-expanded={recentMediaExpanded}
+                    data-testid="media-recent-toggle"
+                  >
+                    <span>
+                      {t('media.recentSection')} ({recentTerminalMediaTasks.length})
+                    </span>
+                    <span className="normal-case tracking-normal text-muted-foreground">
+                      {recentMediaExpanded ? t('media.hideRecent') : t('media.showRecent')}
+                    </span>
+                  </button>
+                  {recentMediaExpanded && (
+                    <div className="divide-y divide-border/20">
+                      {recentTerminalMediaTasks.map((task) => (
+                        <MediaTaskRow
+                          key={task.task_id}
+                          task={task}
+                          variant="terminal"
+                          onNavigateChat={handleNavigateChat}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {shellTasks.length > 0 && (
                 <div className="border-b border-border/30">
                   <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
@@ -314,6 +389,8 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                 </div>
               )}
             </>
+          ) : (
+            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
           )}
         </div>
       </PopoverContent>

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from app.services.webui.og_metadata import _parse_og_tags, OgMetadata
+from app.services.webui.og_metadata import _parse_og_tags
 
 
 class TestParseOgTags:

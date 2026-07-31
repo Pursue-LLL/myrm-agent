@@ -63,8 +63,65 @@ describe('milestones import artifact candidates', () => {
         name: 'artifact-valid',
         updated_at: '2026-07-28T10:00:00Z',
         latest_version_id: null,
+        importable: false,
       },
     ]);
+  });
+
+  it('prioritizes importable candidates when probe status is present', () => {
+    const normalized = normalizeAssessmentImportArtifactCandidates(
+      [
+        {
+          id: 'artifact-unknown-newer',
+          name: 'Unknown',
+          updated_at: '2026-07-29T10:00:00Z',
+          latest_version_id: 'v2',
+          assessment_import_candidate: { status: 'unknown' },
+        },
+        {
+          id: 'artifact-importable',
+          name: 'Importable',
+          updated_at: '2026-07-28T10:00:00Z',
+          latest_version_id: 'v1',
+          assessment_import_candidate: { status: 'importable' },
+        },
+      ],
+      8,
+    );
+
+    expect(normalized).toEqual([
+      {
+        id: 'artifact-importable',
+        name: 'Importable',
+        updated_at: '2026-07-28T10:00:00Z',
+        latest_version_id: 'v1',
+        importable: true,
+      },
+    ]);
+  });
+
+  it('falls back to recency sorting when no candidate is importable', () => {
+    const normalized = normalizeAssessmentImportArtifactCandidates(
+      [
+        {
+          id: 'artifact-older',
+          name: 'Older',
+          updated_at: '2026-07-28T10:00:00Z',
+          latest_version_id: 'v1',
+          assessment_import_candidate: { status: 'not_importable' },
+        },
+        {
+          id: 'artifact-latest',
+          name: 'Latest',
+          updated_at: '2026-07-29T10:00:00Z',
+          latest_version_id: 'v2',
+          assessment_import_candidate: { status: 'unknown' },
+        },
+      ],
+      8,
+    );
+
+    expect(normalized.map((item) => item.id)).toEqual(['artifact-latest', 'artifact-older']);
   });
 
   it('loads candidates from files artifacts endpoint', async () => {
@@ -81,13 +138,14 @@ describe('milestones import artifact candidates', () => {
 
     const candidates = await listAssessmentImportArtifactCandidates(8);
 
-    expect(apiRequestMock).toHaveBeenCalledWith('/files/artifacts?limit=8');
+    expect(apiRequestMock).toHaveBeenCalledWith('/files/artifacts?limit=8&assessment_import_candidate=true');
     expect(candidates).toEqual([
       {
         id: 'artifact-a',
         name: 'Artifact A',
         updated_at: '2026-07-28T10:00:00Z',
         latest_version_id: 'version-a',
+        importable: false,
       },
     ]);
   });
@@ -97,6 +155,16 @@ describe('milestones import artifact candidates', () => {
 
     await listAssessmentImportArtifactCandidates(9999);
 
-    expect(apiRequestMock).toHaveBeenCalledWith('/files/artifacts?limit=500');
+    expect(apiRequestMock).toHaveBeenCalledWith('/files/artifacts?limit=500&assessment_import_candidate=true');
+  });
+
+  it('adds project filter query when project id is provided', async () => {
+    apiRequestMock.mockResolvedValueOnce({ artifacts: [] });
+
+    await listAssessmentImportArtifactCandidates(8, 'project-123');
+
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/files/artifacts?limit=8&assessment_import_candidate=true&project_id=project-123',
+    );
   });
 });

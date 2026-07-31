@@ -19,13 +19,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from langchain_core.language_models import BaseChatModel
+from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.wiki import MemoryToWikiArchiver
 from app.services.wiki.ingest_events import normalize_agent_scope_key, wiki_ingest_event_bus
-from myrm_agent_harness.toolkits.memory import MemoryManager
 
 
 async def get_wiki_archiver_for_ingest_stream(

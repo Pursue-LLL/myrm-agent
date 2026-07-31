@@ -276,6 +276,21 @@ class ConversationForkManager:
             await db.commit()
             logger.debug("Fork created successfully: %s (parent=%s)", new_chat_id, parent_chat_id)
 
+            from app.services.chat.session_continuity_service import (
+                ContinuitySyncError,
+                sync_chat_checkpoint_from_db,
+            )
+
+            try:
+                await sync_chat_checkpoint_from_db(new_chat_id)
+            except ContinuitySyncError as exc:
+                logger.error(
+                    "Fork checkpoint sync failed for child chat %s (parent=%s): %s",
+                    new_chat_id,
+                    parent_chat_id,
+                    exc,
+                )
+
             return ForkCreateResult(
                 success=True,
                 new_chat_id=new_chat_id,

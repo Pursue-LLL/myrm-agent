@@ -42,6 +42,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound 不得定义同名方法 |
 | `test_openai_compat_agent_api_boundary.py` | `/v1` 仅 Agent API：`openai_compat/` 文件白名单 + 禁止 LLM gateway 模块（passthrough/ProxySettings/combo 等）复活 |
+| `test_kanban_attachment_storage_ssot.py` | Kanban 附件字节读取必须使用 `files_service.get_content`，禁止误用 `get_file_content(file_id)` |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` grandfather 超标模块列表 |
 

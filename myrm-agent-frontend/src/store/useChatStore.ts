@@ -94,6 +94,8 @@ const useChatStore = create<ChatState>()(
       compactedBeforeId: null,
       contextBranches: [],
       contextPinnedFiles: [],
+      contextBranchesLoadError: null,
+      contextPinnedFilesLoadError: null,
       lastCompactionMeta: null,
       compactionRefreshNonce: 0,
       workspaceDir: null,
@@ -190,15 +192,15 @@ const useChatStore = create<ChatState>()(
 
       // 设置方法
       setChatId: (id) => {
-        set({ chatId: id, lastCompactionMeta: null, compactionRefreshNonce: 0, contextBranches: [], contextPinnedFiles: [] });
+        set({ chatId: id, lastCompactionMeta: null, compactionRefreshNonce: 0, contextBranches: [], contextPinnedFiles: [], contextBranchesLoadError: null, contextPinnedFilesLoadError: null });
         useQuoteStore.getState().clearQuote();
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),
       setMessages: (messages) => set({ messages }),
       refreshCompactionState: async (chatId, meta) => {
         const { getChatDetail, listContextBranches, getContextPins } = await import('@/services/chat');
-        const detail = await getChatDetail(chatId, true);
-        const [branchesResult, pinsResult] = await Promise.allSettled([
+        const [detailResult, branchesResult, pinsResult] = await Promise.allSettled([
+          getChatDetail(chatId, true),
           listContextBranches(chatId),
           getContextPins(chatId),
         ]);
@@ -206,13 +208,21 @@ const useChatStore = create<ChatState>()(
           if (state.chatId !== chatId) {
             return;
           }
-          state.compactedSummary = detail.chat.compacted_summary;
-          state.compactedBeforeId = detail.chat.compacted_before_id;
+          if (detailResult.status === 'fulfilled') {
+            state.compactedSummary = detailResult.value.chat.compacted_summary;
+            state.compactedBeforeId = detailResult.value.chat.compacted_before_id;
+          }
           if (branchesResult.status === 'fulfilled') {
             state.contextBranches = branchesResult.value;
+            state.contextBranchesLoadError = null;
+          } else {
+            state.contextBranchesLoadError = 'load_failed';
           }
           if (pinsResult.status === 'fulfilled') {
             state.contextPinnedFiles = pinsResult.value.files;
+            state.contextPinnedFilesLoadError = null;
+          } else {
+            state.contextPinnedFilesLoadError = 'load_failed';
           }
           if (meta && meta.tokensSaved > 0) {
             state.lastCompactionMeta = {
@@ -224,8 +234,10 @@ const useChatStore = create<ChatState>()(
         });
       },
       setCompactedSummary: (summary) => set({ compactedSummary: summary }),
-      setContextBranches: (branches) => set({ contextBranches: branches }),
-      setContextPinnedFiles: (files) => set({ contextPinnedFiles: files }),
+      setContextBranches: (branches) => set({ contextBranches: branches, contextBranchesLoadError: null }),
+      setContextPinnedFiles: (files) => set({ contextPinnedFiles: files, contextPinnedFilesLoadError: null }),
+      setContextBranchesLoadError: (error) => set({ contextBranchesLoadError: error }),
+      setContextPinnedFilesLoadError: (error) => set({ contextPinnedFilesLoadError: error }),
       setCompactedBeforeId: (id) => set({ compactedBeforeId: id }),
       setWorkspaceDir: (dir) => set({ workspaceDir: dir }),
       setChatHistoryItems: (items) => set({ chatHistoryItems: items }),
@@ -531,6 +543,8 @@ const useChatStore = create<ChatState>()(
           compactedBeforeId: null,
           contextBranches: [],
           contextPinnedFiles: [],
+          contextBranchesLoadError: null,
+          contextPinnedFilesLoadError: null,
           sessionSkillOverrides: null,
           regenerateSiblingGroupId: undefined,
           regenerateInstruction: undefined,

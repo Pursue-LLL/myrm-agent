@@ -33,10 +33,9 @@ type WsHandler = {
   onclose: ((event: { code: number }) => void) | null;
 };
 
-let wsHandler: WsHandler | null = null;
-
 class MockWebSocket {
   static OPEN = 1;
+  static lastInstance: WsHandler | null = null;
   readyState = MockWebSocket.OPEN;
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
@@ -44,7 +43,7 @@ class MockWebSocket {
   onclose: ((event: { code: number }) => void) | null = null;
 
   constructor(_url: string) {
-    wsHandler = this;
+    MockWebSocket.lastInstance = this;
     queueMicrotask(() => this.onopen?.());
   }
 
@@ -79,7 +78,7 @@ function mockAudioStream(): MediaStream {
 describe('useSpeechInput local STT unavailable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    wsHandler = null;
+    MockWebSocket.lastInstance = null;
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('MediaRecorder', MockMediaRecorder as unknown as typeof MediaRecorder);
     Object.defineProperty(globalThis.navigator, 'mediaDevices', {
@@ -110,7 +109,7 @@ describe('useSpeechInput local STT unavailable', () => {
     });
 
     await act(async () => {
-      wsHandler?.onmessage?.({
+      MockWebSocket.lastInstance?.onmessage?.({
         data: JSON.stringify({
           type: 'error',
           message: 'Install local-stt (uv sync --extra local-stt)',

@@ -87,6 +87,7 @@ class ConfigSyncManager {
   private conflictResolver: ConfigConflictResolver | null = null;
   private _status: SyncStatus = 'idle';
   private _isInitialized = false;
+  private _initializingPromise: Promise<Map<ConfigKey, ConfigRecord>> | null = null;
   private onlineHandlerRegistered = false;
 
   constructor() {
@@ -123,7 +124,19 @@ class ConfigSyncManager {
     if (this._isInitialized) {
       return this.cache;
     }
+    if (this._initializingPromise) {
+      return this._initializingPromise;
+    }
 
+    this._initializingPromise = this._doInitialize();
+    try {
+      return await this._initializingPromise;
+    } finally {
+      this._initializingPromise = null;
+    }
+  }
+
+  private async _doInitialize(): Promise<Map<ConfigKey, ConfigRecord>> {
     this._status = 'loading';
 
     try {
@@ -183,9 +196,10 @@ class ConfigSyncManager {
 
       return this.cache;
     } catch (error) {
-      console.warn('[ConfigSync] Initialization failed:', error);
-      this._status = 'error';
-      throw error;
+      console.warn('[ConfigSync] Initialization failed, entering offline mode for retry:', error);
+      this._status = 'offline';
+      this.registerOnlineHandler();
+      return this.cache;
     }
   }
 

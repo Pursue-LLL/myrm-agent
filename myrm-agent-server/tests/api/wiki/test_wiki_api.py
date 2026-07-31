@@ -472,10 +472,11 @@ def test_wiki_tree_ingest_status_tracked_modified(client: TestClient, tmp_path: 
     """Concept tree should mark nodes whose sources changed after last compile."""
     import json
     from unittest.mock import MagicMock
-    from tests.support.minimal_app import build_minimal_app
+
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     from app.api.wiki.router import _get_wiki_archiver
-    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from tests.support.minimal_app import build_minimal_app
 
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()
@@ -522,10 +523,11 @@ def test_wiki_raw_tree_ingest_status(client: TestClient, tmp_path: Path) -> None
     """Raw tree should expose tri-state ingest annotations."""
     import json
     from unittest.mock import MagicMock
-    from tests.support.minimal_app import build_minimal_app
+
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     from app.api.wiki.router import _get_wiki_archiver
-    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from tests.support.minimal_app import build_minimal_app
 
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()
@@ -559,10 +561,11 @@ def test_wiki_concept_snapshot_status_stale(client: TestClient, tmp_path: Path) 
     """Concept claims should report stale snapshot when raw source changes."""
     import hashlib
     from unittest.mock import MagicMock
-    from tests.support.minimal_app import build_minimal_app
+
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     from app.api.wiki.router import _get_wiki_archiver
-    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from tests.support.minimal_app import build_minimal_app
 
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()
@@ -615,11 +618,12 @@ def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) ->
     """Query source snippets should report stale snapshot when raw source changes."""
     import hashlib
     from unittest.mock import AsyncMock, MagicMock
-    from tests.support.minimal_app import build_minimal_app
 
-    from app.api.wiki.router import _get_wiki_archiver
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
     from myrm_agent_harness.toolkits.wiki.core.types import QueryResult, SourceSnippet
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
 
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()

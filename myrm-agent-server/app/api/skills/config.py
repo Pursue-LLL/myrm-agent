@@ -18,16 +18,16 @@ from app.api.skills.schemas import (
     UserSkillConfigResponse,
     skill_to_response,
 )
-from app.core.skills.config_version import (
-    bump_skill_config_version,
-    get_skill_config_version,
-)
 from app.core.skills.clawhub_registry import (
     apply_clawhub_registry_url,
     get_registry_presets,
 )
-from app.core.skills.oauth_availability import apply_integration_oauth_availability
+from app.core.skills.config_version import (
+    bump_skill_config_version,
+    get_skill_config_version,
+)
 from app.core.skills.models import UserSkillConfig
+from app.core.skills.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
 from app.database.connection import get_db
 

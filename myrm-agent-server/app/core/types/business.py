@@ -221,6 +221,11 @@ class MCPServerConfig(BaseModel):
         exclude=True,
         description="Callback to persist oversized MCP tool outputs (business layer injects)",
     )
+    elicitation_handler: object | None = Field(
+        default=None,
+        exclude=True,
+        description="Async callback for MCP elicitation (MRTR user confirmation, business layer injects)",
+    )
 
     @field_validator("url", mode="before")
     @classmethod

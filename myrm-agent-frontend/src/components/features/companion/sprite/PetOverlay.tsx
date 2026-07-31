@@ -10,9 +10,9 @@
  * - PetOverlay: Draggable floating sprite overlay with context menu
  *
  * [POS]
- * Top-level pet overlay container rendered in ChatWindow. In Web/SaaS mode,
- * renders an in-browser draggable canvas overlay. In Tauri desktop mode,
- * delegates to the native transparent always-on-top window via tauriPetBridge.
+ * Top-level pet overlay container mounted from ChatWindowSatellites when companion_mode
+ * is enabled. In Web/SaaS mode, renders an in-browser draggable canvas overlay. In Tauri
+ * desktop mode, delegates to the native transparent always-on-top window via tauriPetBridge.
  * Integrates PetStateMachine for SSE-driven animation state transitions.
  */
 'use client';
@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
+import { resolveCompanionSpritesheetUrl } from '@/services/companion/petSpritesheet';
 import useCompanionStore from '@/store/useCompanionStore';
 import { useLivenessState } from '@/hooks/shell/useLivenessState';
 
@@ -102,6 +103,7 @@ const PetOverlay = memo(function PetOverlay() {
   const spriteConfig = useCompanionStore((s) => s.spriteConfig);
   const spriteEnabled = useCompanionStore((s) => s.spriteEnabled);
   const setSpriteEnabled = useCompanionStore((s) => s.setSpriteEnabled);
+  const sheetUrl = resolveCompanionSpritesheetUrl(spriteConfig);
   const liveness = useLivenessState();
   const loading = liveness.state === 'busy' || liveness.state === 'draining';
 
@@ -282,11 +284,11 @@ const PetOverlay = memo(function PetOverlay() {
 
   // Tauri: manage native overlay window lifecycle
   useEffect(() => {
-    if (!isTauri || !spriteEnabled || !spriteConfig?.sheetUrl) return;
+    if (!isTauri || !spriteEnabled || !sheetUrl) return;
 
-    showPetOverlay(spriteConfig.sheetUrl, petSize, resolvedRow);
+    showPetOverlay(sheetUrl, petSize, resolvedRow);
     return () => { hidePetOverlay(); };
-  }, [isTauri, spriteEnabled, spriteConfig?.sheetUrl, petSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isTauri, spriteEnabled, sheetUrl, petSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tauri: sync animation row changes to native overlay
   useEffect(() => {
@@ -294,7 +296,7 @@ const PetOverlay = memo(function PetOverlay() {
     setPetOverlayRow(resolvedRow);
   }, [isTauri, spriteEnabled, resolvedRow]);
 
-  if (!spriteEnabled || !spriteConfig?.sheetUrl) return null;
+  if (!spriteEnabled || !sheetUrl) return null;
 
   // In Tauri mode, the native overlay handles rendering; skip in-browser overlay
   if (isTauri) return null;
@@ -321,10 +323,9 @@ const PetOverlay = memo(function PetOverlay() {
         onContextMenu={handleContextMenu}
       >
         <SpriteRenderer
-          sheetUrl={spriteConfig.sheetUrl}
+          sheetUrl={sheetUrl}
           row={resolvedRow}
           size={petSize}
-          meta={spriteConfig.meta}
           onLoadStateChange={handleSpriteLoadState}
           onSheetRowsDetected={handleSheetRowsDetected}
         />

@@ -46,8 +46,15 @@ GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
 # Signoff may queue behind parallel SHPOIB; allow extra slack without exceeding 600s leg.
 def _resolve_desktop_e2e_wall_clock_fail_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        # One attempt budget; runner may retry once within pytest --timeout=600.
-        return 280.0
+        base = 280.0
+        if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
+            try:
+                from cdp_chat_support import signoff_parallel_desktop_wall_clock_fail_sec
+
+                return signoff_parallel_desktop_wall_clock_fail_sec(base)
+            except ImportError:
+                return base
+        return base
     return 200.0
 
 

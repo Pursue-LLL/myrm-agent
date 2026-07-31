@@ -4,8 +4,8 @@ import { buildBuiltinActions } from '@/store/builtinActions';
 describe('buildBuiltinActions', () => {
   const actions = buildBuiltinActions();
 
-  it('returns 9 builtin actions', () => {
-    expect(actions).toHaveLength(9);
+  it('returns 11 builtin actions', () => {
+    expect(actions).toHaveLength(11);
   });
 
   it('all actions have required fields', () => {
@@ -47,6 +47,10 @@ describe('buildBuiltinActions', () => {
 
     const fork = actions.find((a) => a.name === 'fork')!;
     expect(fork.aliases).toEqual(['branch']);
+
+    const pet = actions.find((a) => a.name === 'pet')!;
+    expect(pet.argsHint).toBe('[toggle | list | <slug>]');
+    expect(pet.aliases).toEqual(['pets']);
   });
 
   it('focus action has no argsHint (no arguments)', () => {
@@ -67,7 +71,7 @@ describe('buildBuiltinActions', () => {
   it('expected action names exist', () => {
     const names = actions.map((a) => a.name);
     expect(names).toEqual(expect.arrayContaining([
-      'compact', 'focus', 'yolo', 'freeze', 'new', 'stop', 'model', 'learn', 'fork',
+      'compact', 'focus', 'yolo', 'freeze', 'new', 'stop', 'model', 'learn', 'fork', 'goal', 'pet',
     ]));
   });
 });

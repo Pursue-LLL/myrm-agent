@@ -47,6 +47,15 @@ vi.mock('@/store/useProviderStore', () => ({
   },
 }));
 
+const mockShowVisionToast = vi.hoisted(() => vi.fn());
+vi.mock('@/store/config/visionConfigGap', () => ({
+  showVisionNotConfiguredToast: mockShowVisionToast,
+}));
+vi.mock('@/store/config/visionCapability', () => ({
+  hasConfiguredVisionCapability: vi.fn(() => false),
+  hasVisionFallbackForVideo: vi.fn(() => false),
+}));
+
 import { useInputFileUpload } from '../useInputFileUpload';
 
 type UploadParams = Parameters<typeof useInputFileUpload>[0];
@@ -244,7 +253,7 @@ describe('useInputFileUpload', () => {
         await result.current.handlePaste(event);
       });
 
-      expect(mockToast.warning).toHaveBeenCalledWith('modelNotSupportVision');
+      expect(mockShowVisionToast).toHaveBeenCalledWith('image');
     });
 
     it('should reject oversized files when pasted', async () => {

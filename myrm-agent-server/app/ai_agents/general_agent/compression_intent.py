@@ -86,13 +86,15 @@ def build_compression_intent(
     ):
         return None
 
-    return {
+    payload: dict[str, object] = {
         "focus_files": focus_files,
         "focus_modules": focus_modules,
-        "pinned_files": pinned_files,
         "failed_tool_call_ids": failed_tool_call_ids,
         "user_goal_hint": user_goal_hint,
     }
+    if pinned_files:
+        payload["pinned_files"] = pinned_files
+    return payload
 
 
 def _load_pinned_files(chat_id: str | None) -> list[str]:

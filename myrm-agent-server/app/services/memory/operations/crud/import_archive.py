@@ -39,7 +39,6 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmResponse,
     MemoryImportDryRunRequest,
     MemoryImportDryRunResponse,
-    WorkspaceBindCandidate,
     MemoryImportReadiness,
     MemoryImportReadinessRecheckRequest,
     MemoryImportReadinessRecheckResponse,
@@ -50,6 +49,7 @@ from app.schemas.memory.archive import (
     MemoryImportRollbackResponse,
     MigrationLanePreviewItem,
     TokenEconomicsComparison,
+    WorkspaceBindCandidate,
 )
 from app.schemas.memory.crud import (
     MEMORY_EXPORT_VERSION,

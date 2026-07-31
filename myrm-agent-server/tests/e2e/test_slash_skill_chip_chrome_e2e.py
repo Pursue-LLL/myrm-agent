@@ -150,7 +150,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(420)
@@ -212,7 +212,7 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
         assert "analyze this bug" in wire
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(420)

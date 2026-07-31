@@ -63,6 +63,17 @@ function migrateRouting(cfg: RoutingConfig | null): RoutingConfig | null {
   };
 }
 
+function migrateVisionFallbackModel(
+  value: SingleModelSelection | ModelSlot | null | undefined,
+): ModelSlot | null {
+  if (!value) return null;
+  if (typeof value === 'object' && ('primary' in value || 'fallback' in value)) {
+    return migrateModelSlot(value as ModelSlot);
+  }
+  const primary = migrateSelection(value as SingleModelSelection);
+  return primary ? { primary, fallback: null } : null;
+}
+
 export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultModelConfig {
   return {
     ...config,
@@ -70,7 +81,7 @@ export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultMo
     liteModel: migrateModelSlot(config.liteModel),
     fastModeModel: config.fastModeModel ? migrateModelSlot(config.fastModeModel) : null,
     routingConfig: migrateRouting(config.routingConfig),
-    visionFallbackModel: migrateSelection(config.visionFallbackModel ?? null),
+    visionFallbackModel: migrateVisionFallbackModel(config.visionFallbackModel),
   };
 }
 

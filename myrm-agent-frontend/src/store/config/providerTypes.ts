@@ -473,7 +473,7 @@ export interface DefaultModelConfig {
   liteModel: ModelSlot;
   fastModeModel: ModelSlot | null;
   routingConfig: RoutingConfig | null;
-  visionFallbackModel?: SingleModelSelection | null;
+  visionFallbackModel?: ModelSlot | null;
 }
 
 // 初始化默认提供商配置

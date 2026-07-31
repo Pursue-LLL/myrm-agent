@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from typing import TYPE_CHECKING
 
 from app.channels.types import SessionPolicy, SessionResetMode, TTSMode
@@ -16,6 +15,8 @@ Extract typed configs from frontend dict structures.
 
 [OUTPUT]
 - extract_* functions: parse frontend config to typed objects
+- build_vision_fallback_config_chain / resolve_vision_fallback_chain_for_agent: ordered vision auxiliary provider chain
+- build_vision_fallback_engine_from_providers: build harness VisionFallbackEngine from WebUI settings
 - extract_web_tts_config: Web read-aloud TTS config (ignores channel ttsMode gate)
 - session_policy_from_agent_dict: build SessionPolicy from per-agent metadata dict
 - is_search_user_configured: check if user explicitly configured a search service (vs default fallback)
@@ -26,6 +27,7 @@ Extract typed configs from frontend dict structures.
 """
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
@@ -227,6 +229,242 @@ def extract_lite_model_config(
         ModelConfig(model=full_model, api_key=api_key, base_url=api_url),
         providers_dict,
     )
+
+
+def _model_config_identity(cfg: "ModelConfig") -> tuple[str, str | None]:
+    return (cfg.model, cfg.base_url)
+
+
+def _append_unique_model_config(
+    configs: list["ModelConfig"],
+    seen: set[tuple[str, str | None]],
+    cfg: "ModelConfig | None",
+) -> None:
+    if cfg is None:
+        return
+    key = _model_config_identity(cfg)
+    if key in seen:
+        return
+    seen.add(key)
+    configs.append(cfg)
+
+
+def _resolve_vision_fallback_primary_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Resolve visionFallbackModel primary selection to ModelConfig."""
+    from app.core.types import ModelConfig
+
+    if not providers_dict:
+        return None
+
+    default_model_cfg = providers_dict.get("defaultModelConfig")
+    if not isinstance(default_model_cfg, dict):
+        return None
+
+    vision_slot = default_model_cfg.get("visionFallbackModel")
+    if not isinstance(vision_slot, dict):
+        return None
+
+    if "providerId" in vision_slot and "primary" not in vision_slot:
+        selection: object = vision_slot
+    else:
+        selection = vision_slot.get("primary") or vision_slot.get("selection")
+    if not isinstance(selection, dict):
+        return None
+
+    provider_id = str(selection.get("providerId", ""))
+    model = str(selection.get("model", ""))
+    if not provider_id or not model:
+        return None
+
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return None
+
+    provider = next(
+        (
+            p
+            for p in providers
+            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+        ),
+        None,
+    )
+    if not provider:
+        return None
+
+    api_key = _extract_active_key(provider)
+    if not api_key:
+        return None
+
+    ptype = str(provider.get("providerType", "")) or None
+    full_model = _to_litellm_model(provider_id, model, ptype)
+    api_url = str(provider.get("apiUrl", "")) or None
+
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+
+    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
+    cfg = enrich_model_capabilities(
+        cfg,
+        providers_dict,
+        selection_supports_vision=True,
+    )
+    return enrich_model_context_window(cfg, providers_dict)
+
+
+def _resolve_base_primary_model_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Resolve defaultModelConfig.baseModel.primary without raising."""
+    from app.core.types import ModelConfig
+
+    if not providers_dict:
+        return None
+
+    default_model_cfg = providers_dict.get("defaultModelConfig")
+    if not isinstance(default_model_cfg, dict):
+        return None
+
+    base_model = default_model_cfg.get("baseModel")
+    if not isinstance(base_model, dict):
+        return None
+
+    selection = base_model.get("primary") or base_model.get("selection")
+    if not isinstance(selection, dict):
+        return None
+
+    provider_id = str(selection.get("providerId", ""))
+    model = str(selection.get("model", ""))
+    if not provider_id or not model:
+        return None
+
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return None
+
+    provider = next(
+        (
+            p
+            for p in providers
+            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+        ),
+        None,
+    )
+    if not provider:
+        return None
+
+    api_key = _extract_active_key(provider)
+    if not api_key:
+        return None
+
+    ptype = str(provider.get("providerType", "")) or None
+    full_model = _to_litellm_model(provider_id, model, ptype)
+    api_url = str(provider.get("apiUrl", "")) or None
+
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+
+    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
+    cfg = enrich_model_capabilities(cfg, providers_dict)
+    return enrich_model_context_window(cfg, providers_dict)
+
+
+def build_vision_fallback_config_chain(
+    providers_dict: dict[str, object] | None,
+    *,
+    primary_override: "ModelConfig | None" = None,
+    main_model_cfg: "ModelConfig | None" = None,
+) -> list["ModelConfig"]:
+    """Build ordered vision auxiliary provider chain.
+
+    Order: primary vision fallback → vision slot fallback → vision-capable main agent model.
+    """
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+
+    configs: list[ModelConfig] = []
+    seen: set[tuple[str, str | None]] = set()
+
+    primary = primary_override or _resolve_vision_fallback_primary_config(providers_dict)
+    _append_unique_model_config(configs, seen, primary)
+
+    if providers_dict:
+        default_model_cfg = providers_dict.get("defaultModelConfig")
+        providers = providers_dict.get("providers")
+        if isinstance(default_model_cfg, dict) and isinstance(providers, list):
+            vision_slot = default_model_cfg.get("visionFallbackModel")
+            slot_fallback = _resolve_slot_fallback(vision_slot, providers)
+            if slot_fallback is not None:
+                slot_fallback = enrich_model_capabilities(
+                    slot_fallback,
+                    providers_dict,
+                    selection_supports_vision=True,
+                )
+                slot_fallback = enrich_model_context_window(slot_fallback, providers_dict)
+                _append_unique_model_config(configs, seen, slot_fallback)
+
+    main_candidate = main_model_cfg or _resolve_base_primary_model_config(providers_dict)
+    if main_candidate is not None and main_candidate.supports_vision:
+        _append_unique_model_config(configs, seen, main_candidate)
+
+    return configs
+
+
+def resolve_vision_fallback_chain_for_agent(
+    providers_dict: dict[str, object] | None,
+    *,
+    primary_override: "ModelConfig | None" = None,
+    main_model_cfg: "ModelConfig | None" = None,
+) -> tuple["ModelConfig | None", list["ModelConfig"] | None]:
+    """Resolve primary cfg and ordered chain for agent runtime injection."""
+    cfgs = build_vision_fallback_config_chain(
+        providers_dict,
+        primary_override=primary_override,
+        main_model_cfg=main_model_cfg,
+    )
+    if not cfgs:
+        return None, None
+    primary = primary_override or cfgs[0]
+    return primary, cfgs
+
+
+def build_vision_fallback_engine_from_providers(
+    providers_dict: dict[str, object] | None,
+    *,
+    main_model_cfg: "ModelConfig | None" = None,
+) -> "VisionFallbackEngine | None":
+    """Build VisionFallbackEngine with ordered provider chain from WebUI settings."""
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import create_vision_fallback_engine
+
+    primary, cfgs = resolve_vision_fallback_chain_for_agent(
+        providers_dict,
+        main_model_cfg=main_model_cfg,
+    )
+    if not cfgs:
+        return None
+    return create_vision_fallback_engine(primary, cfgs)
+
+
+def extract_vision_fallback_model_configs(
+    providers_dict: dict[str, object] | None,
+) -> list["ModelConfig"]:
+    """Extract ordered vision auxiliary provider chain from WebUI settings."""
+    return build_vision_fallback_config_chain(providers_dict)
+
+
+def extract_vision_fallback_model_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Extract the primary auxiliary vision model from defaultModelConfig.visionFallbackModel."""
+    configs = extract_vision_fallback_model_configs(providers_dict)
+    return configs[0] if configs else None
 
 
 def extract_user_instructions(

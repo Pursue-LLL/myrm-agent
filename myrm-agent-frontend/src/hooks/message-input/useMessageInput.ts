@@ -579,6 +579,15 @@ export const useMessageInput = () => {
       return;
     }
 
+    if (trimmedLower === '/pet' || trimmedLower.startsWith('/pet ')) {
+      const { executePetSlashCommand } = await import('@/services/companion/petSlashCommand');
+      const result = await executePetSlashCommand(inputMessage.trim());
+      if (result.newInputValue !== undefined) {
+        setInputMessage(result.newInputValue);
+      }
+      return;
+    }
+
     const validateResult = await _validateAndPrepare();
     if (!validateResult) {
       return;

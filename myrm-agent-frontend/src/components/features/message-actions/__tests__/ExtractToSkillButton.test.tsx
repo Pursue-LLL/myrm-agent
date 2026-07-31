@@ -6,6 +6,7 @@ const mockSendMessage = vi.fn();
 const mockGetState = vi.fn();
 const mockToast = vi.hoisted(() => ({
   success: vi.fn(),
+  info: vi.fn(),
   error: vi.fn(),
   warning: vi.fn(),
 }));
@@ -75,7 +76,7 @@ describe('ExtractToSkillButton', () => {
     const sentArg = mockSendMessage.mock.calls[0][0] as string;
     expect(sentArg).toContain('/learn');
     expect(sentArg).toContain('This is a useful coding pattern for error handling.');
-    expect(mockToast.success).toHaveBeenCalledWith('extractToSkill.success');
+    expect(mockToast.info).toHaveBeenCalledWith('extractToSkill.started');
   });
 
   it('shows warning toast when Agent is busy (loading=true)', async () => {
@@ -150,7 +151,7 @@ describe('ExtractToSkillButton', () => {
 
     const sentArg = mockSendMessage.mock.calls[0][0] as string;
     expect(sentArg).toContain(longContent);
-    expect(mockToast.success).toHaveBeenCalled();
+    expect(mockToast.info).toHaveBeenCalledWith('extractToSkill.started');
   });
 
   it('handles message with special characters and newlines', async () => {
@@ -179,7 +180,7 @@ describe('ExtractToSkillButton', () => {
 
     resolve!();
     await waitFor(() => {
-      expect(mockToast.success).toHaveBeenCalled();
+      expect(mockToast.info).toHaveBeenCalledWith('extractToSkill.started');
     });
   });
 

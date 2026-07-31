@@ -7,7 +7,7 @@ from app.core.integrations.search_catalog.registry import SearchProviderCatalogR
 from app.core.utils.errors import external_service_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
-from app.services.integrations.search_verify import verify_search_config_live, invalidate_search_verify_cache
+from app.services.integrations.search_verify import invalidate_search_verify_cache, verify_search_config_live
 
 router = APIRouter()
 

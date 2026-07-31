@@ -554,7 +554,7 @@ def _clear_allowlist_before_live(_chrome_e2e_item_runtime: object | None) -> Non
     _clear_allowlist_on_api(api_base)
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.asyncio
 async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(
     e2e_resource_ledger: E2EResourceLedger,

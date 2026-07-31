@@ -2,7 +2,6 @@
 
 [INPUT]
 - cdp_chat_support::wait_e2e_provider_ready (POS: live E2E API readiness probe)
-- chrome_mcp_client::ChromeMcpClient (POS: synchronous Chrome MCP mux client)
 - mcp_chat_ui::McpChatSession (POS: chat UI automation over MCP)
 - tests.e2e.desktop_approval.* (POS: desktop approval E2E helper modules)
 
@@ -17,6 +16,7 @@ Top-level Chrome E2E entry for desktop trust flows; owns MCP client lifecycle an
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Awaitable
 
 import pytest
@@ -27,14 +27,12 @@ from cdp_chat_support import (
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
-from chrome_mcp_client import ChromeMcpClient
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
 from tests.e2e.desktop_approval.infra_retry import (
     heal_chrome_attach_before_reopen,
     is_retriable_page_transport,
-    open_mcp_chat_page,
     should_abort_desktop_e2e_retries,
 )
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
@@ -43,6 +41,7 @@ from tests.e2e.desktop_approval.trust_api import (
     desktop_accessibility_granted,
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
+from tests.support.chrome_mcp_e2e import OpenMcpPageSession, open_mcp_page_async
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 
@@ -171,12 +170,36 @@ async def run_desktop_approval_chrome_e2e(
             f"(api={get_e2e_api_url()}): {last_error}"
         )
 
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    progress("start chrome MCP client")
-    await asyncio.to_thread(client.start)
+    async def _open_chat_page() -> OpenMcpPageSession:
+        request_timeout_sec = 180.0
+        if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+            from dev_gate_contract import signoff_open_mcp_budgets
+
+            from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
+
+            budgets = signoff_open_mcp_budgets(
+                parallel_peers=_parallel_open_page_peer_count(),
+            )
+            request_timeout_sec = min(180.0, budgets.total_budget_sec + 30.0)
+        progress("open chat page (open_mcp_page SSOT)")
+        return await open_mcp_page_async(
+            BASE_URL.rstrip("/"),
+            timeout_ms=90_000,
+            request_timeout_sec=request_timeout_sec,
+        )
+
+    page_session = await _open_chat_page()
     try:
-        page = await open_mcp_chat_page(client)
-        chat = McpChatSession(client, page)
+        try:
+            chat = McpChatSession(page_session.client, page_session.page)
+        except (TimeoutError, RuntimeError) as open_exc:
+            if not is_retriable_page_transport(open_exc):
+                raise
+            progress(f"reopen chat page after open exhaustion: {open_exc}")
+            await page_session.aclose()
+            await heal_chrome_attach_before_reopen()
+            page_session = await _open_chat_page()
+            chat = McpChatSession(page_session.client, page_session.page)
         progress("run approval flow")
         try:
             await run_flow(chat)
@@ -187,14 +210,15 @@ async def run_desktop_approval_chrome_e2e(
                 f"attach heal + mux recover + reopen after page transport error: {exc}"
             )
             await heal_chrome_attach_before_reopen()
-            await asyncio.to_thread(client.recover_mux_transport)
+            await asyncio.to_thread(page_session.client.recover_mux_transport)
             await asyncio.sleep(2.0)
-            page = await open_mcp_chat_page(client)
-            chat = McpChatSession(client, page)
+            await page_session.aclose()
+            page_session = await _open_chat_page()
+            chat = McpChatSession(page_session.client, page_session.page)
             await run_flow(chat)
     finally:
         try:
-            client.close()
+            await page_session.aclose()
         except BaseException as exc:
             if not should_abort_desktop_e2e_retries(exc):
                 raise

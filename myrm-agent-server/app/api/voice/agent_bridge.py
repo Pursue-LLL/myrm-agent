@@ -202,9 +202,11 @@ class VoiceAgentBridge:
             extract_mcp_configs,
             extract_retrieval_models,
             extract_user_instructions,
+            resolve_vision_fallback_chain_for_agent,
             verify_search_service_available,
         )
         from app.core.channel_bridge.model_resolver import (
+            enrich_model_capabilities,
             enrich_model_context_window,
             resolve_model_config,
         )
@@ -224,14 +226,26 @@ class VoiceAgentBridge:
             agent_model_cfg = resolve_model_config(
                 configs.providers_dict, model_override=profile.model
             )
+            agent_model_cfg = enrich_model_capabilities(
+                agent_model_cfg, configs.providers_dict
+            )
             agent_model_cfg = enrich_model_context_window(
                 agent_model_cfg, configs.providers_dict
             )
         else:
-            agent_model_cfg = configs.model_cfg
+            agent_model_cfg = enrich_model_capabilities(
+                configs.model_cfg, configs.providers_dict
+            )
+            agent_model_cfg = enrich_model_context_window(
+                agent_model_cfg, configs.providers_dict
+            )
 
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
             configs.providers_dict
+        )
+        vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+            configs.providers_dict,
+            main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
@@ -303,6 +317,8 @@ class VoiceAgentBridge:
             fallback_model_cfg=fallback_model_cfg,
             lite_model_cfg=lite_model_cfg,
             fallback_lite_model_cfg=fallback_lite_model_cfg,
+            vision_fallback_model_cfg=vision_fallback_model_cfg,
+            vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
             search_service_cfg=configs.search_cfg,
             mcp_cfg=mcp_configs or None,
             user_instructions=voice_instructions,

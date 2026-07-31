@@ -30,13 +30,13 @@ from datetime import UTC, datetime
 import yaml
 from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType, Schedule, ScheduleKind, SessionTarget
 
-from app.services.agent.template_utils import PREBUILT_AGENTS_DIR, ensure_skills_enabled, resolve_i18n
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
 from app.core.cron.adapters.setup import get_cron_manager
 from app.core.cron.blueprints import fill_blueprint
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.agent_service import AgentService
+from app.services.agent.template_utils import PREBUILT_AGENTS_DIR, ensure_skills_enabled, resolve_i18n
 from app.services.config.service import config_service
 from app.services.onboarding.schemas import (
     ChecklistItem,

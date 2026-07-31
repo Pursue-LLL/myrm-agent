@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Search, Timer, RefreshCw, Plus, Sparkles } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/primitives/skeleton';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { toast } from 'sonner';
 import useCronStore from '@/store/useCronStore';
+import { getCronJob } from '@/services/cron';
 import type { CronJob } from '@/services/cron';
 import { computeStats, filterJobs, type StatusFilter } from './cron-utils';
 import CronStatsBar from './CronStatsBar';
@@ -62,6 +63,7 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   const t = useTranslations('cron');
   const searchParams = useSearchParams();
   const chatIdFilter = searchParams.get('chat_id')?.trim() || undefined;
+  const jobIdFilter = searchParams.get('job')?.trim() || undefined;
   const { jobs, loading, fetchJobs, deleteJob } = useCronStore();
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [query, setQuery] = useState('');
@@ -69,10 +71,38 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
+  const openedJobRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchJobs(true, chatIdFilter);
   }, [fetchJobs, chatIdFilter]);
+
+  useEffect(() => {
+    openedJobRef.current = null;
+  }, [jobIdFilter]);
+
+  useEffect(() => {
+    if (!jobIdFilter || loading) return;
+    if (openedJobRef.current === jobIdFilter) return;
+    const matched = jobs.find((entry) => entry.id === jobIdFilter);
+    if (matched) {
+      openedJobRef.current = jobIdFilter;
+      onSelectJob(matched);
+      return;
+    }
+    let cancelled = false;
+    void getCronJob(jobIdFilter)
+      .then((job) => {
+        if (!cancelled) {
+          openedJobRef.current = jobIdFilter;
+          onSelectJob(job);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [jobIdFilter, jobs, loading, onSelectJob]);
 
   const stats = useMemo(() => computeStats(jobs), [jobs]);
   const filtered = useMemo(() => filterJobs(jobs, filter, query), [jobs, filter, query]);

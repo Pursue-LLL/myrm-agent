@@ -7,10 +7,11 @@ from .agent import Agent, AgentProfileSnapshot, AgentSecret
 from .agent_event import AgentEvent, AgentTurn
 from .agent_history import AgentProfileHistory
 from .api_key import APIKey
-from .assessment_import import AssessmentImportLedger
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .artifact_publication import ArtifactPublication
+from .assessment_import import AssessmentImportLedger
+from .assessment_import_metric import AssessmentImportMetricEvent
 from .base import Base
 from .channel import ChannelPairingModel
 from .chat import Chat, ConversationFork, InterruptedTurnMarker, Message, OfflineDurableTask
@@ -77,6 +78,7 @@ __all__ = [
     "Base",
     # Assessment Import
     "AssessmentImportLedger",
+    "AssessmentImportMetricEvent",
     # API Key
     "APIKey",
     # Chat

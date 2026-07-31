@@ -29,6 +29,13 @@ import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalP
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/primitives/hover-card';
 import MediaGenerationSection from '../system/MediaGenerationSection';
+import { checkVisionFallbackHealth, type VisionHealthResult } from '@/services/llm-config';
+import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
+import {
+  findRecommendedVisionFallbackSelection,
+  shouldOfferVisionFallbackRecommendation,
+} from '@/store/config/visionCapability';
+import { toast } from 'sonner';
 
 const DefaultModelSection = memo(() => {
   const t = useTranslations('settings.defaultModel');
@@ -52,7 +59,9 @@ const DefaultModelSection = memo(() => {
     setRoutingReasoningModel,
     setRoutingReasoningModelFallback,
     setVisionFallbackModel,
+    setVisionFallbackModelFallback,
     getEnabledModels,
+    getModelInfo,
   } = useProviderStore(
     useShallow((state) => ({
       providers: state.providers,
@@ -72,7 +81,9 @@ const DefaultModelSection = memo(() => {
       setRoutingReasoningModel: state.setRoutingReasoningModel,
       setRoutingReasoningModelFallback: state.setRoutingReasoningModelFallback,
       setVisionFallbackModel: state.setVisionFallbackModel,
+      setVisionFallbackModelFallback: state.setVisionFallbackModelFallback,
       getEnabledModels: state.getEnabledModels,
+      getModelInfo: state.getModelInfo,
     })),
   );
 
@@ -117,6 +128,26 @@ const DefaultModelSection = memo(() => {
   );
 
   const [reindexing, setReindexing] = useState(false);
+  const [visionHealthState, setVisionHealthState] = useState<'idle' | 'checking' | 'done'>('idle');
+  const [visionHealthResult, setVisionHealthResult] = useState<VisionHealthResult | null>(null);
+
+  const handleVisionHealthCheck = useCallback(async () => {
+    setVisionHealthState('checking');
+    setVisionHealthResult(null);
+    try {
+      const result = await checkVisionFallbackHealth();
+      setVisionHealthResult(result);
+    } catch {
+      setVisionHealthResult({
+        configured: false,
+        healthy: false,
+        error: t('visionHealthNetworkError'),
+      });
+    } finally {
+      setVisionHealthState('done');
+    }
+  }, [t]);
+
   const handleReindex = async () => {
     setReindexing(true);
     try {
@@ -179,8 +210,11 @@ const DefaultModelSection = memo(() => {
       if (!isSelectionValid(rc.reasoningModel.primary)) setRoutingReasoningModel(null);
       if (!isSelectionValid(rc.reasoningModel.fallback)) setRoutingReasoningModelFallback(null);
     }
-    if (!isSelectionValid(defaultModelConfig.visionFallbackModel ?? null)) {
+    if (!isSelectionValid(defaultModelConfig.visionFallbackModel?.primary ?? null)) {
       setVisionFallbackModel(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.visionFallbackModel?.fallback ?? null)) {
+      setVisionFallbackModelFallback(null);
     }
 
     hasCleanedModelsRef.current = true;
@@ -196,6 +230,8 @@ const DefaultModelSection = memo(() => {
     setRoutingLightModelFallback,
     setRoutingReasoningModel,
     setRoutingReasoningModelFallback,
+    setVisionFallbackModel,
+    setVisionFallbackModelFallback,
   ]);
 
   const handleBaseModelChange = useCallback(
@@ -232,6 +268,51 @@ const DefaultModelSection = memo(() => {
     },
     [setVisionFallbackModel],
   );
+
+  const handleVisionFallbackModelFallbackChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setVisionFallbackModelFallback(selection);
+    },
+    [setVisionFallbackModelFallback],
+  );
+
+  const baseModelPrimary = defaultModelConfig.baseModel?.primary ?? null;
+  const recommendedVisionSelection = shouldOfferVisionFallbackRecommendation(defaultModelConfig, getModelInfo)
+    ? findRecommendedVisionFallbackSelection(enabledModels, getModelInfo, baseModelPrimary)
+    : null;
+  const recommendedVisionProviderName = recommendedVisionSelection
+    ? enabledModels.find(
+        (entry) =>
+          entry.providerId === recommendedVisionSelection.providerId &&
+          entry.model === recommendedVisionSelection.model,
+      )?.providerName ?? recommendedVisionSelection.providerId
+    : null;
+
+  const handleRecommendVisionFallback = useCallback(async () => {
+    if (!recommendedVisionSelection) {
+      toast.error(t('visionRecommendNone'));
+      return;
+    }
+    setVisionFallbackModel(recommendedVisionSelection);
+    toast.success(
+      t('visionRecommendApplied', {
+        provider: recommendedVisionProviderName ?? recommendedVisionSelection.providerId,
+        model: recommendedVisionSelection.model,
+      }),
+    );
+    try {
+      await getConfigSyncManager().forceSync();
+    } catch {
+      // Health probe reads server config; continue even if sync fails so user sees probe result.
+    }
+    await handleVisionHealthCheck();
+  }, [
+    handleVisionHealthCheck,
+    recommendedVisionProviderName,
+    recommendedVisionSelection,
+    setVisionFallbackModel,
+    t,
+  ]);
 
   const isRoutingEnabled = defaultModelConfig.routingConfig?.enabled ?? true;
   const handleRoutingToggle = useCallback(() => {
@@ -394,23 +475,123 @@ const DefaultModelSection = memo(() => {
               <span className="text-sm font-medium text-foreground">{t('visionFallbackModel')}</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">{t('visionFallbackModelDescription')}</p>
+            {recommendedVisionSelection && recommendedVisionProviderName && (
+              <div className="mb-4 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-3 dark:border-purple-400/20 dark:bg-purple-400/5">
+                <p className="text-xs text-muted-foreground mb-1">{t('visionRecommendHint')}</p>
+                <p className="mb-3 break-all text-xs font-medium text-foreground">
+                  {t('visionRecommendPreview', {
+                    provider: recommendedVisionProviderName,
+                    model: recommendedVisionSelection.model,
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRecommendVisionFallback}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-background/80 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent sm:w-auto"
+                >
+                  {t('visionRecommendButton')}
+                </button>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <button
+                type="button"
+                onClick={handleVisionHealthCheck}
+                disabled={visionHealthState === 'checking'}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+              >
+                <IconRefresh
+                  className={`h-3.5 w-3.5 ${visionHealthState === 'checking' ? 'animate-spin' : ''}`}
+                />
+                {visionHealthState === 'checking' ? t('visionHealthChecking') : t('visionHealthTest')}
+              </button>
+              {visionHealthState === 'done' && visionHealthResult && (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span
+                    className={`text-xs ${
+                      visionHealthResult.healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                    }`}
+                  >
+                    {visionHealthResult.healthy
+                      ? t('visionHealthOk', { latency: visionHealthResult.latency_ms ?? 0 })
+                      : visionHealthResult.configured
+                        ? t('visionHealthFailed', { error: visionHealthResult.error ?? t('visionHealthUnknown') })
+                        : t('visionHealthNotConfigured')}
+                  </span>
+                  {!visionHealthResult.healthy && visionHealthResult.configured && visionHealthResult.model && (
+                    <span className="text-[11px] text-muted-foreground break-all">
+                      {t('visionHealthFailedModel', { model: visionHealthResult.model })}
+                    </span>
+                  )}
+                  {!visionHealthResult.healthy &&
+                    visionHealthResult.configured &&
+                    visionHealthResult.base_url && (
+                      <span className="text-[11px] text-muted-foreground break-all">
+                        {t('visionHealthFailedEndpoint', { endpoint: visionHealthResult.base_url })}
+                      </span>
+                    )}
+                  {visionHealthResult.healthy && (
+                    <>
+                      <span className="text-[11px] text-muted-foreground">{t('visionHealthOkHint')}</span>
+                      {visionHealthResult.resolved_model &&
+                        visionHealthResult.model &&
+                        visionHealthResult.resolved_model !== visionHealthResult.model && (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 break-all">
+                            {t('visionHealthResolvedModel', {
+                              configured: visionHealthResult.model,
+                              resolved: visionHealthResult.resolved_model,
+                            })}
+                          </span>
+                        )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectModel')}
-                  value={defaultModelConfig.visionFallbackModel ?? null}
+                  value={defaultModelConfig.visionFallbackModel?.primary ?? null}
                   onChange={handleVisionFallbackModelChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.visionFallbackModel && (
+              {defaultModelConfig.visionFallbackModel?.primary && (
                 <button
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.visionFallbackModel!.providerId,
-                      defaultModelConfig.visionFallbackModel!.model,
+                      defaultModelConfig.visionFallbackModel!.primary!.providerId,
+                      defaultModelConfig.visionFallbackModel!.primary!.model,
+                    )
+                  }
+                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                  title={t('configureModel')}
+                >
+                  <IconSliders className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 mb-4">{t('visionFallbackModelFallbackDescription')}</p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <EnabledModelSelect
+                  label={t('selectVisionFallbackModel')}
+                  value={defaultModelConfig.visionFallbackModel?.fallback ?? null}
+                  onChange={handleVisionFallbackModelFallbackChange}
+                  enabledModels={enabledModels}
+                  providers={providers}
+                  isModelRestricted={isModelRestricted}
+                />
+              </div>
+              {defaultModelConfig.visionFallbackModel?.fallback && (
+                <button
+                  onClick={() =>
+                    openModelConfig(
+                      defaultModelConfig.visionFallbackModel!.fallback!.providerId,
+                      defaultModelConfig.visionFallbackModel!.fallback!.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"

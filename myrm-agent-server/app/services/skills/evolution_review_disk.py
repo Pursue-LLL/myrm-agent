@@ -183,8 +183,8 @@ async def apply_content_shadow(payload: EvolutionApprovalPayload) -> None:
 
 async def _fetch_before_quality_score(skill_id: str) -> float | None:
     """Retrieve the latest quality score before evolution is applied."""
-    from app.database.connection import get_session
     from app.adapters.skill_optimization.quality_repo import QualityRepository
+    from app.database.connection import get_session
 
     try:
         async with get_session() as db:

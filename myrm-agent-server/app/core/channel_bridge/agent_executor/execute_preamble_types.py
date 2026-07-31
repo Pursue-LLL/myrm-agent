@@ -78,6 +78,7 @@ class ChannelAgentBuildResult:
 class ChannelAgentBuildOutcome:
     result: ChannelAgentBuildResult | None = None
     early_reply: OutboundMessage | None = None
+    pre_events: tuple[ProgressUpdate, ...] = ()
 
     def __post_init__(self) -> None:
         has_result = self.result is not None

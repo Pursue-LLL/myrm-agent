@@ -444,6 +444,10 @@ async def create_agent(
 
         if isinstance(e, ExternalCliBackendUnavailableError):
             raise validation_error(str(e)) from e
+        from app.services.agent.skill_instance_resolver import SkillConfigValidationError
+
+        if isinstance(e, SkillConfigValidationError):
+            raise validation_error(str(e)) from e
         raise internal_error(operation="Create agent", exception=e) from e
 
 
@@ -484,6 +488,10 @@ async def update_agent(
         )
 
         if isinstance(e, ExternalCliBackendUnavailableError):
+            raise validation_error(str(e)) from e
+        from app.services.agent.skill_instance_resolver import SkillConfigValidationError
+
+        if isinstance(e, SkillConfigValidationError):
             raise validation_error(str(e)) from e
         raise internal_error(operation="Update agent", exception=e) from e
 

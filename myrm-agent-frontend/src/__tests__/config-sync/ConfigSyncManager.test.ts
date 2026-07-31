@@ -114,6 +114,20 @@ describe('ConfigSyncManager', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
+    it('getAll 失败后应进入 offline 并通过 platformReadiness 自动重试', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 502, statusText: 'Bad Gateway' })
+        .mockResolvedValueOnce({ ok: false, status: 502, statusText: 'Bad Gateway' })
+        .mockResolvedValueOnce({ ok: false, status: 502, statusText: 'Bad Gateway' });
+
+      const result = await manager.initialize();
+
+      expect(manager.status).toBe('offline');
+      expect(manager.isInitialized).toBe(false);
+      expect(result.size).toBe(0);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
     it('sync 收到 Next 代理 500 时应进入 offline 而非 error', async () => {
       vi.useFakeTimers();
 

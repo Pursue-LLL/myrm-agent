@@ -112,6 +112,16 @@ async def resolve_approval(
         await _handle_outbound_draft_resolution(record, normalized_decision)
         return ApprovalRecordResponse.from_orm(record)
 
+    if record.action_type == "mcp_elicitation":
+        from app.services.agent.backends.mcp_elicitation_handler import (
+            resolve_pending_elicitation,
+        )
+
+        resolved = resolve_pending_elicitation(approval_id, normalized_decision)
+        if not resolved:
+            logger.warning("MCP elicitation %s not found in pending map (may have timed out)", approval_id)
+        return ApprovalRecordResponse.from_orm(record)
+
     # If it's a LangGraph interrupt, we must resume the agent!
     if record.thread_id:
         try:

@@ -7,10 +7,21 @@
 const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'chrome-e2e';
 
+function resolveSeedTimeoutMs() {
+  const raw = process.env.MYRM_E2E_MODEL_SEED_TIMEOUT_MS?.trim();
+  if (raw && /^\d+$/.test(raw)) {
+    return Number(raw);
+  }
+  const leasesRaw = process.env.MYRM_E2E_PARALLEL_ACTIVE_LEASES?.trim();
+  const leases =
+    leasesRaw && /^\d+$/.test(leasesRaw) ? Number(leasesRaw) : 0;
+  return Math.min(60_000, 15_000 + Math.min(leases, 6) * 5_000);
+}
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${apiBase}${path}`, {
     ...options,
-    signal: options.signal ?? AbortSignal.timeout(15_000),
+    signal: options.signal ?? AbortSignal.timeout(resolveSeedTimeoutMs()),
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers ?? {}),

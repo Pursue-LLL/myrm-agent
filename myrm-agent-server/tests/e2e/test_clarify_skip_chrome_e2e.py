@@ -229,7 +229,7 @@ def _is_resume_retryable_transient_error(result: dict[str, object]) -> bool:
     return False
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_clarify_skip_button_resumes_agent_in_real_chat(

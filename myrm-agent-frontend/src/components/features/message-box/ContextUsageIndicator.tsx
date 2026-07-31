@@ -79,20 +79,17 @@ interface MiniPanelContentProps {
 function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails, onRefreshHealth }: MiniPanelContentProps) {
   const t = useTranslations('chat.contextUsage.strategy');
   const contextPinnedFiles = useChatStore((state) => state.contextPinnedFiles);
+  const contextPinnedFilesLoadError = useChatStore((state) => state.contextPinnedFilesLoadError);
   const setContextPinnedFiles = useChatStore((state) => state.setContextPinnedFiles);
+  const setContextPinnedFilesLoadError = useChatStore((state) => state.setContextPinnedFilesLoadError);
   const [compacting, setCompacting] = useState(false);
   const [compactResult, setCompactResult] = useState<string | null>(null);
   const [compactError, setCompactError] = useState<string | null>(null);
   const [forking, setForking] = useState(false);
   const [focusTopic, setFocusTopic] = useState('');
-  const [pinnedFiles, setPinnedFiles] = useState<string[]>(contextPinnedFiles);
   const [pinInput, setPinInput] = useState('');
   const [pinsLoading, setPinsLoading] = useState(false);
   const [pinsSaving, setPinsSaving] = useState(false);
-
-  useEffect(() => {
-    setPinnedFiles(contextPinnedFiles);
-  }, [contextPinnedFiles]);
 
   const loadPins = useCallback(async (): Promise<string[]> => {
     if (!chatId) return [];
@@ -103,12 +100,11 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
         return [];
       }
       setContextPinnedFiles(files);
-      setPinnedFiles(files);
+      setContextPinnedFilesLoadError(null);
       return files;
     } catch {
       if (useChatStore.getState().chatId === chatId) {
-        setContextPinnedFiles([]);
-        setPinnedFiles([]);
+        setContextPinnedFilesLoadError('load_failed');
       }
       return [];
     } finally {
@@ -116,34 +112,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
         setPinsLoading(false);
       }
     }
-  }, [chatId, setContextPinnedFiles]);
-
-  useEffect(() => {
-    if (!chatId || contextPinnedFiles.length > 0) {
-      return undefined;
-    }
-    let cancelled = false;
-    const pollPins = async () => {
-      for (let round = 1; round <= 6 && !cancelled; round += 1) {
-        const files = await loadPins();
-        if (cancelled || useChatStore.getState().chatId !== chatId) {
-          return;
-        }
-        if (files.length > 0 || useChatStore.getState().contextPinnedFiles.length > 0) {
-          return;
-        }
-        if (round < 6) {
-          await new Promise((resolve) => {
-            window.setTimeout(resolve, 3000);
-          });
-        }
-      }
-    };
-    void pollPins();
-    return () => {
-      cancelled = true;
-    };
-  }, [chatId, contextPinnedFiles.length, loadPins]);
+  }, [chatId, setContextPinnedFiles, setContextPinnedFilesLoadError]);
 
   const canCompress = !!chatId && usagePercent >= 30 && !compacting;
 
@@ -176,17 +145,16 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
     if (!chatId || !normalized || pinsSaving) return;
     setPinsSaving(true);
     try {
-      const nextFiles = [...pinnedFiles.filter((item) => item !== normalized), normalized];
+      const nextFiles = [...contextPinnedFiles.filter((item) => item !== normalized), normalized];
       const { files } = await setContextPins(chatId, nextFiles);
       setContextPinnedFiles(files);
-      setPinnedFiles(files);
       setPinInput('');
     } catch (err) {
       console.error('[ContextUsagePins] failed to add pin', err);
     } finally {
       setPinsSaving(false);
     }
-  }, [chatId, pinInput, pinnedFiles, pinsSaving]);
+  }, [chatId, pinInput, contextPinnedFiles, pinsSaving, setContextPinnedFiles]);
 
   const handleRemovePin = useCallback(
     async (filePath: string) => {
@@ -195,17 +163,16 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
       try {
         const { files } = await setContextPins(
           chatId,
-          pinnedFiles.filter((item) => item !== filePath),
+          contextPinnedFiles.filter((item) => item !== filePath),
         );
         setContextPinnedFiles(files);
-        setPinnedFiles(files);
       } catch (err) {
         console.error('[ContextUsagePins] failed to remove pin', err);
       } finally {
         setPinsSaving(false);
       }
     },
-    [chatId, pinnedFiles, pinsSaving, setContextPinnedFiles],
+    [chatId, contextPinnedFiles, pinsSaving, setContextPinnedFiles],
   );
 
   const canFork = !!chatId && usagePercent >= 75 && !forking;
@@ -325,11 +292,22 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
         <span className="text-[10px] font-medium text-muted-foreground">{t('pinnedFiles')}</span>
         {pinsLoading ? (
           <span className="text-[10px] text-muted-foreground">{t('pinsLoading')}</span>
-        ) : pinnedFiles.length === 0 ? (
+        ) : contextPinnedFilesLoadError ? (
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-rose-600 dark:text-rose-400">{t('pinsLoadError')}</span>
+            <button
+              type="button"
+              onClick={() => void loadPins()}
+              className="text-primary hover:text-primary/80 transition-colors"
+            >
+              {t('pinsRetry')}
+            </button>
+          </div>
+        ) : contextPinnedFiles.length === 0 ? (
           <span className="text-[10px] text-muted-foreground">{t('pinsEmpty')}</span>
         ) : (
           <ul className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-            {pinnedFiles.map((filePath) => (
+            {contextPinnedFiles.map((filePath) => (
               <li
                 key={filePath}
                 data-testid="context-pin-item"

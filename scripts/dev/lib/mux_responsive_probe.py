@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import socket
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,12 @@ from pathlib import Path
 from dev_gate_contract import LEGACY_MUX_REQUEST_TIMEOUT_MS
 
 MUX_UPSTREAM_TIMEOUT_EFFECTIVE_STAMP = "upstream-request-timeout-ms-effective"
+
+
+def _normalize_socket_path(socket_path: str) -> str:
+    if not socket_path:
+        return socket_path
+    return str(Path(socket_path))
 
 
 def _read_stamp(path: Path) -> str | None:
@@ -45,6 +52,41 @@ def _process_alive(pid: int) -> bool:
     except OSError:
         return False
     return True
+
+
+def _owned_mux_socket_pids(socket_path: str) -> set[int]:
+    normalized = _normalize_socket_path(socket_path)
+    if not normalized or not os.path.exists(normalized):
+        return set()
+    try:
+        proc = subprocess.run(
+            ["lsof", "-t", "--", normalized],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return set()
+    pids: set[int] = set()
+    for line in proc.stdout.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        try:
+            pid = int(text)
+        except ValueError:
+            continue
+        if _process_alive(pid):
+            pids.add(pid)
+    return pids
+
+
+def _mux_daemon_alive(*, state_dir: Path, socket_path: str) -> bool:
+    pid = _read_daemon_pid(state_dir)
+    if pid is not None and _process_alive(pid):
+        return True
+    return bool(_owned_mux_socket_pids(socket_path))
 
 
 def _stamp_value_ms(raw: str | None) -> int | None:
@@ -130,17 +172,17 @@ def mux_timeout_effective(
         or daemon_stamp_ms in LEGACY_MUX_REQUEST_TIMEOUT_MS
     ):
         return False
-    pid = _read_daemon_pid(state_dir)
-    if pid is None or not _process_alive(pid):
+    if not _mux_daemon_alive(state_dir=state_dir, socket_path=socket_path):
         return False
     if not _effective_upstream_timeout_aligned(
         state_dir=state_dir, expected_ms=expected_ms
     ):
         return False
-    if not socket_path or not os.path.exists(socket_path):
+    normalized_socket = _normalize_socket_path(socket_path)
+    if not normalized_socket or not os.path.exists(normalized_socket):
         return False
     bounded_probe_sec = max(0.5, min(probe_timeout_sec, 60.0))
-    return _mux_tools_list_probe(socket_path, timeout_sec=bounded_probe_sec)
+    return _mux_tools_list_probe(normalized_socket, timeout_sec=bounded_probe_sec)
 
 
 def main() -> int:

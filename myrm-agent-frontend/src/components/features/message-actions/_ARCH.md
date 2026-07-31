@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `Copy.tsx` | 组件 | 复制消息 Markdown/纯文本 | ✅ |
-| `ExtractToSkillButton.tsx` | 组件 | 一键提炼 assistant 消息为可复用技能（通过 /learn 命令触发技能进化管线） | ✅ |
+| `ExtractToSkillButton.tsx` | 组件 | 一键提炼 assistant 消息为可复用技能（发 raw `/learn`，由 server `rewrite_learn_query_if_needed` 接 SSOT）；Honest UX：`toast.info(started)` 表示已提交而非假成功 | ✅ |
 | `ExportMenu.tsx` | 组件 | 导出单条/会话为 Markdown/PDF 等 | ✅ |
 | `MemoryFeedback.tsx` | 组件 | 记忆召回质量 thumbs up/down 反馈 | ✅ |
 | `ReadAloud.tsx` | 组件 | TTS 朗读 assistant 消息（browser 默认本地 SpeechSynthesis；API 模式走 `/tts`，受 `voice_interaction` feature gate 隐藏） | ✅ |

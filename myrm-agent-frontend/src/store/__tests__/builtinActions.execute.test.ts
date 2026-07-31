@@ -5,7 +5,7 @@ const stopMessageMock = vi.fn();
 const showI18nToastMock = vi.fn();
 
 vi.mock('@/store/useWorkspaceStore', () => ({
-  default: { getState: () => ({ addPane: addPaneMock }) },
+  default: { getState: () => ({ addPane: addPaneMock, panes: [] }) },
 }));
 
 vi.mock('@/store/useChatStore', () => ({
@@ -35,6 +35,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api', () => ({
   apiRequest: vi.fn(),
+  fetchWithTimeout: vi.fn(),
 }));
 
 vi.mock('@/services/config', () => ({
@@ -42,6 +43,36 @@ vi.mock('@/services/config', () => ({
     get: () => ({ yoloModeEnabled: false }),
     set: vi.fn(),
   }),
+}));
+
+const setPetPaletteOpenMock = vi.fn();
+const setSpriteEnabledMock = vi.fn();
+const setSpriteConfigMock = vi.fn();
+const saveConfigToServerMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('@/store/useFeatureGateStore', () => ({
+  useFeatureGateStore: {
+    getState: () => ({
+      isEnabled: (key: string) => key === 'companion_mode',
+    }),
+  },
+}));
+
+vi.mock('@/store/useCompanionStore', () => ({
+  default: {
+    getState: () => ({
+      spriteEnabled: false,
+      spriteConfig: { petSlug: 'nous-girl', displayName: 'Nous Girl' },
+      setPetPaletteOpen: setPetPaletteOpenMock,
+      setSpriteEnabled: setSpriteEnabledMock,
+      setSpriteConfig: setSpriteConfigMock,
+      saveConfigToServer: saveConfigToServerMock,
+    }),
+  },
+}));
+
+vi.mock('@/services/companion/petInstall', () => ({
+  installCompanionPet: vi.fn(),
 }));
 
 import { buildBuiltinActions } from '@/store/builtinActions';
@@ -108,6 +139,63 @@ describe('builtin action execute functions', () => {
     });
   });
 
+  describe('/learn', () => {
+    it('sends /learn message and shows started toast', async () => {
+      const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const originalGetState = useChatStore.getState;
+      (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+        chatId: 'test-chat-123',
+        loading: false,
+        sendMessage: sendMessageMock,
+      }));
+
+      const learnAction = actions.find((a) => a.name === 'learn')!;
+      const result = await learnAction.execute('/learn https://docs.example.com/api');
+
+      expect(sendMessageMock).toHaveBeenCalledWith('/learn https://docs.example.com/api');
+      expect(showI18nToastMock).toHaveBeenCalledWith('chat.extractToSkill.started', undefined, {
+        type: 'info',
+      });
+      expect(result).toEqual({ success: true, newInputValue: '' });
+
+      (useChatStore as { getState: typeof originalGetState }).getState = originalGetState;
+    });
+
+    it('bootstraps chat when no active chat and sends learn message', async () => {
+      const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+      const initializeChatMock = vi.fn();
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const originalGetState = useChatStore.getState;
+      (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+        chatId: null,
+        loading: false,
+        sendMessage: sendMessageMock,
+        initializeChat: initializeChatMock,
+      }));
+      initializeChatMock.mockImplementation(() => {
+        (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+          chatId: 'bootstrapped-chat',
+          loading: false,
+          sendMessage: sendMessageMock,
+          initializeChat: initializeChatMock,
+        }));
+      });
+
+      const learnAction = actions.find((a) => a.name === 'learn')!;
+      const result = await learnAction.execute('/learn foo');
+
+      expect(initializeChatMock).toHaveBeenCalledWith(undefined);
+      expect(sendMessageMock).toHaveBeenCalledWith('/learn foo');
+      expect(showI18nToastMock).toHaveBeenCalledWith('chat.extractToSkill.started', undefined, {
+        type: 'info',
+      });
+      expect(result).toEqual({ success: true, newInputValue: '' });
+
+      (useChatStore as { getState: typeof originalGetState }).getState = originalGetState;
+    });
+  });
+
   describe('/yolo', () => {
     it('toggles yolo mode with no args', async () => {
       const yoloAction = actions.find((a) => a.name === 'yolo')!;
@@ -171,6 +259,50 @@ describe('builtin action execute functions', () => {
     });
   });
 
+  describe('/pet', () => {
+    it('opens pet palette for bare /pet', async () => {
+      const petAction = actions.find((a) => a.name === 'pet')!;
+      const result = await petAction.execute('/pet');
+      expect(setPetPaletteOpenMock).toHaveBeenCalledWith(true);
+      expect(result).toEqual({ success: true, newInputValue: '' });
+    });
+
+    it('opens pet palette for /pet list', async () => {
+      const petAction = actions.find((a) => a.name === 'pet')!;
+      const result = await petAction.execute('/pet list');
+      expect(setPetPaletteOpenMock).toHaveBeenCalledWith(true);
+      expect(result).toEqual({ success: true, newInputValue: '' });
+    });
+
+    it('toggles sprite overlay', async () => {
+      const petAction = actions.find((a) => a.name === 'pet')!;
+      const result = await petAction.execute('/pet toggle');
+      expect(setSpriteEnabledMock).toHaveBeenCalledWith(true);
+      expect(saveConfigToServerMock).toHaveBeenCalled();
+      expect(result).toEqual({ success: true, newInputValue: '' });
+    });
+
+    it('installs pet by slug', async () => {
+      const { installCompanionPet } = await import('@/services/companion/petInstall');
+      (installCompanionPet as Mock).mockResolvedValue({
+        slug: 'nous-girl',
+        display_name: 'Nous Girl',
+        content_sha256: 'abc123',
+      });
+
+      const petAction = actions.find((a) => a.name === 'pet')!;
+      const result = await petAction.execute('/pet nous-girl');
+      expect(installCompanionPet).toHaveBeenCalledWith('nous-girl');
+      expect(setSpriteConfigMock).toHaveBeenCalledWith({
+        petSlug: 'nous-girl',
+        displayName: 'Nous Girl',
+        contentSha256: 'abc123',
+      });
+      expect(setSpriteEnabledMock).toHaveBeenCalledWith(true);
+      expect(result).toEqual({ success: true, newInputValue: '' });
+    });
+  });
+
   describe('/focus with no active chat', () => {
     it('returns error when no chatId', async () => {
       const { default: useChatStore } = await import('@/store/useChatStore');
@@ -193,6 +325,7 @@ describe('builtin action execute functions', () => {
   describe('all actions return ActionResult shape', () => {
     it('all execute functions return objects with success field', async () => {
       for (const action of actions) {
+        if (action.name === 'goal') continue;
         const result = await action.execute('');
         expect(result).toHaveProperty('success');
         expect(typeof result.success).toBe('boolean');

@@ -19,8 +19,6 @@ from e2e_session_snapshot import (  # noqa: E402
     read_session_snapshot,
     read_session_snapshot_by_test_id,
     resolve_session_snapshot,
-    session_snapshot_dir,
-    session_snapshot_path,
     touch_session_progress,
     write_session_snapshot,
 )

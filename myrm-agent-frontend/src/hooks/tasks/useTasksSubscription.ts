@@ -1,16 +1,25 @@
 /**
- * Hook for subscribing to task status updates via SSE.
+ * [INPUT]
+ * - @/services/taskEventStream::{subscribeTaskUpdateEvents,isTaskUpdateEventStreamOpen} (POS: multiplexed task SSE fan-out)
+ * - @/services/notification::notificationService (POS: Web Notification + toast fallback)
+ * - @/store/useConfigStore::enableWebNotifications (POS: personal notification preference gate)
  *
- * Features:
- * - Single SSE connection for multiple tasks (batch subscription)
- * - Automatic fallback to polling if SSE disconnects
- * - Task completion notifications
+ * [OUTPUT]
+ * - useTasksSubscription / useTaskSubscription: Chat task card realtime state + terminal notifications
+ *
+ * [POS]
+ * Chat-side task SSE subscriber. Shares one browser EventSource with Panel, tray, and global media notify via taskEventStream.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Task } from '@/store/tasks/types';
 import { notificationService } from '@/services/notification';
+import {
+  isTaskUpdateEventStreamOpen,
+  subscribeTaskUpdateEvents,
+} from '@/services/taskEventStream';
+import useConfigStore from '@/store/useConfigStore';
 
 export function useTasksSubscription(task_ids: string[]) {
   const [tasks, setTasks] = useState<Map<string, Task>>(new Map());
@@ -36,6 +45,9 @@ export function useTasksSubscription(task_ids: string[]) {
 
     const notifyIfTerminal = (task: Task) => {
       if (task.status !== 'succeeded' && task.status !== 'failed') {
+        return;
+      }
+      if (!useConfigStore.getState().enableWebNotifications) {
         return;
       }
       const dedupeKey = `${task.task_id}:${task.status}`;
@@ -95,22 +107,7 @@ export function useTasksSubscription(task_ids: string[]) {
       void syncSubscribedTasks();
     };
 
-    const eventSource = new EventSource('/api/v1/tasks/stream');
-
-    eventSource.addEventListener('task_update', (event) => {
-      let eventData: { task_id?: string; sync_required?: boolean } | null = null;
-      try {
-        const parsed = JSON.parse(event.data) as unknown;
-        if (!parsed || typeof parsed !== 'object') {
-          throw new Error('task_update SSE payload is not an object');
-        }
-        eventData = parsed as { task_id?: string; sync_required?: boolean };
-      } catch (error) {
-        console.warn('Failed to parse task_update SSE payload; syncing subscribed tasks snapshot.', error);
-        requestSnapshotSync();
-        return;
-      }
-
+    const unsubscribe = subscribeTaskUpdateEvents((eventData) => {
       if (eventData.sync_required === true) {
         requestSnapshotSync();
       }
@@ -129,14 +126,14 @@ export function useTasksSubscription(task_ids: string[]) {
     void syncSubscribedTasks();
 
     const pollInterval = setInterval(async () => {
-      if (eventSource.readyState !== EventSource.OPEN) {
+      if (!isTaskUpdateEventStreamOpen()) {
         await syncSubscribedTasks();
       }
     }, 5000);
 
     return () => {
       disposed = true;
-      eventSource.close();
+      unsubscribe();
       clearInterval(pollInterval);
     };
   }, [stableIds]);

@@ -153,8 +153,11 @@ interface Window {
     };
     /** CDP E2E: pin agent chat to defaultModelConfig.baseModel (matches API get_model_selection). */
     pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
-    /** CDP E2E: abort in-flight SSE so API agent-stream resume can proceed (no cancel API). */
-    releaseActiveStreamForApiResume?: () => { ok: boolean; released: boolean };
+    /** CDP E2E: fork first snapshot bookmark (same services path as CompactedSummaryView). */
+    forkFirstContextBranchBookmark?: () => Promise<
+      | { ok: true; newChatId: string; parentChatId: string }
+      | { ok: false; reason: string; error?: string; branchCount?: number }
+    >;
     completeBrowserTakeoverWithResume?: () => Promise<{
       ok: boolean;
       reason?: string;

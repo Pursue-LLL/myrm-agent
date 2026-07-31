@@ -20,6 +20,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Task API module. | ✅ |
 | `router.py` | 路由 | Task management API routes. | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /tasks/test/seed-media-fixture`；`mode=failed` / `succeeded` / `running`） | ✅ |
 
 ## Key Dependencies
 

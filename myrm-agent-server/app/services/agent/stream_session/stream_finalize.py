@@ -37,6 +37,7 @@ from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
     ClarificationTimeoutHolder,
 )
+from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
     classify_turn_capability_failure_reason,
@@ -44,7 +45,6 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     record_turn_capability_send_completed,
     record_turn_capability_send_failed,
 )
-from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
 )

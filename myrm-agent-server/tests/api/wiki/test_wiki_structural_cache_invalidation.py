@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.wiki.pipeline.apply.types import WikiApplyOp, WikiApplyResult
 
 from app.core.security.auth.identity import LOCAL_USER_ID
-from myrm_agent_harness.toolkits.wiki.pipeline.apply.types import WikiApplyOp, WikiApplyResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,9 +113,8 @@ def test_apply_invalidates_structural_cache(client: TestClient) -> None:
 
 
 def test_delete_concept_invalidates_structural_cache() -> None:
-    from tests.support.minimal_app import build_minimal_app
-
     from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
 
     app = build_minimal_app(preset="wiki")
     mock_archiver = MagicMock()
@@ -143,9 +142,8 @@ def test_delete_concept_invalidates_structural_cache() -> None:
 
 
 def test_pending_approve_invalidates_structural_cache() -> None:
-    from tests.support.minimal_app import build_minimal_app
-
     from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
 
     app = build_minimal_app(preset="wiki")
     mock_archiver = MagicMock()
@@ -172,9 +170,8 @@ def test_pending_approve_invalidates_structural_cache() -> None:
 
 
 def test_delete_folder_invalidates_structural_cache() -> None:
-    from tests.support.minimal_app import build_minimal_app
-
     from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
 
     app = build_minimal_app(preset="wiki")
     mock_archiver = MagicMock()
@@ -199,10 +196,10 @@ def test_delete_folder_invalidates_structural_cache() -> None:
 
 
 def test_move_invalidates_structural_cache(tmp_path) -> None:
-    from tests.support.minimal_app import build_minimal_app
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     from app.api.wiki.router import _get_wiki_archiver
-    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from tests.support.minimal_app import build_minimal_app
 
     structure = WikiStructure(tmp_path / "vault")
     structure.ensure_structure()

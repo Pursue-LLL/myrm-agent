@@ -16,6 +16,7 @@ from app.api.files import (
     evicted,
     hosting_api,
     local_actions,
+    organize,
     pdf_extract,
     revert,
     storage,
@@ -23,7 +24,6 @@ from app.api.files import (
     upload,
     vault_api,
     workspace_ops,
-    organize,
 )
 
 logger = logging.getLogger(__name__)

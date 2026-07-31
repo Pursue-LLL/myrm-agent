@@ -34,12 +34,17 @@ _AUTOMATION_CMD_MARKERS: tuple[str, ...] = (
 
 
 def _list_process_rows() -> list[tuple[int, int, str]]:
-    result = subprocess.run(
-        ["ps", "-axo", "pid=,ppid=,command="],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,command="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
     rows: list[tuple[int, int, str]] = []
     for line in result.stdout.splitlines():
         line = line.strip()
@@ -48,8 +53,11 @@ def _list_process_rows() -> list[tuple[int, int, str]]:
         parts = line.split(None, 2)
         if len(parts) < 2:
             continue
-        pid = int(parts[0])
-        ppid = int(parts[1])
+        try:
+            pid = int(parts[0])
+            ppid = int(parts[1])
+        except ValueError:
+            continue
         command = parts[2] if len(parts) > 2 else ""
         rows.append((pid, ppid, command))
     return rows

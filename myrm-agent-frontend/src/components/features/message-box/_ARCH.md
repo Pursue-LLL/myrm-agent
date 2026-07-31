@@ -13,7 +13,7 @@
 | `ConsensusMetaDisplay.tsx` | 组件 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/focus/Pin CRUD/Fork 新话题） | ✅ |
-| `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（定时任务触发/结果摘要） | ✅ |
+| `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（创建/更新摘要 + 内嵌 CronJobAuditPanel） | ✅ |
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer，并传递分层来源 level（L0/L1/L2）+ claim `snapshot_status` 三态 + `claim_status` + `claim_confidence` + `claim_text` + wiki asset `hit_kind/asset_filename` 缩略图 + `contextKey(chat:<messageId>)` 用于证据语义展示与复问口径隔离。 | ✅ |
@@ -33,7 +33,7 @@
 | `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑） | ✅ |
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
-| `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑、重发 | ✅ |
+| `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑重发、Rewind、Fork；移动端动作常显 | ✅ |
 | `WaterDropCostView.tsx` | 组件 | 消息内缓存节省 banner：cache hit ≥ 5% 时显示水滴图标 + 命中率 + 新 token 数 + 节省金额 | ✅ |
 | `progress-steps/` | 目录 | Agent 进度步骤渲染与子 renderers | [_ARCH.md](progress-steps/_ARCH.md) |
 

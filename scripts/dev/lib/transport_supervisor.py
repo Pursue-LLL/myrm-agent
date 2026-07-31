@@ -36,15 +36,13 @@ MUX_BOOTSTRAP_WALL_BASE_SEC: float = 180.0
 MUX_BOOTSTRAP_WALL_MAX_SEC: float = 420.0
 MUX_BOOTSTRAP_WALL_PER_PEER_SEC: float = 45.0
 LIVE_AGENT_BODY_WALL_BASE_SEC: float = 600.0
-LIVE_AGENT_BODY_WALL_MAX_SEC: float = 900.0
-LIVE_AGENT_BODY_WALL_PER_PEER_SEC: float = 45.0
-MUX_RECOVERY_LOCK_WAIT_SEC: float = 180.0
+MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
 MUX_TRANSPORT_EXHAUSTED_TOKEN: str = "E2E_MUX_TRANSPORT_EXHAUSTED"
 MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
 
-_GLOBAL_RECOVERY_LOCK = threading.RLock()
+_GLOBAL_RECOVERY_LOCK = threading.Lock()
 _session_recovery_spent: dict[str, float] = {}
 _session_lock = threading.Lock()
 
@@ -67,10 +65,10 @@ def _mux_peer_count(*, pessimistic: bool = False) -> int:
         return peers
     from dev_gate_contract import (  # noqa: PLC0415
         DEFAULT_BOOTSTRAP_SLOTS,
-        MUX_MAX_CONCURRENT_SESSIONS,
+        SHARED_BROWSER_WORKERS,
     )
 
-    floor = MUX_MAX_CONCURRENT_SESSIONS + DEFAULT_BOOTSTRAP_SLOTS + 1
+    floor = SHARED_BROWSER_WORKERS + DEFAULT_BOOTSTRAP_SLOTS + 1
     return max(peers, floor)
 
 
@@ -78,11 +76,20 @@ def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
     """Scale mux recovery budget under parallel wave/mux peers (R100)."""
     peers = _mux_peer_count(pessimistic=pessimistic)
     if peers <= 3:
-        return MUX_SESSION_RECOVERY_BUDGET_SEC
-    scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
-        (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
-    )
-    return min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
+        scaled = MUX_SESSION_RECOVERY_BUDGET_SEC
+    else:
+        scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
+            (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
+        )
+    cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
+    if (
+        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes")
+    ):
+        # Desktop leg soak runs under parallel chrome_e2e; force-chat-shell recover
+        # can consume the default 120–300s budget before approval BODY starts.
+        cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC + 180.0, cap + 180.0)
+    return cap
 
 
 def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
@@ -91,7 +98,13 @@ def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
     if peers <= 3:
         return int(MUX_UPSTREAM_WAIT_BASE_SEC)
     scaled = MUX_UPSTREAM_WAIT_BASE_SEC + ((peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC)
-    return int(min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled))
+    cap = min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled)
+    if (
+        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes")
+    ):
+        cap = min(MUX_UPSTREAM_WAIT_MAX_SEC + 120.0, cap + 120.0)
+    return int(cap)
 
 
 def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
@@ -106,14 +119,9 @@ def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 
 def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
-    """Scale LIVE_AGENT BODY wall under parallel wave/mux peers (R123)."""
-    peers = _mux_peer_count(pessimistic=pessimistic)
-    if peers <= 3:
-        return int(LIVE_AGENT_BODY_WALL_BASE_SEC)
-    scaled = LIVE_AGENT_BODY_WALL_BASE_SEC + (
-        (peers - 3) * LIVE_AGENT_BODY_WALL_PER_PEER_SEC
-    )
-    return int(min(LIVE_AGENT_BODY_WALL_MAX_SEC, scaled))
+    """Return the invariant LIVE_AGENT BODY hard wall."""
+    del pessimistic
+    return int(LIVE_AGENT_BODY_WALL_BASE_SEC)
 
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
@@ -129,9 +137,15 @@ def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
     )
 
 
+def _signoff_recovery_budget_pessimistic() -> bool:
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+
+
 def recovery_budget_remaining() -> float:
     key = session_key()
-    cap = session_recovery_budget_cap()
+    cap = session_recovery_budget_cap(
+        pessimistic=_signoff_recovery_budget_pessimistic()
+    )
     with _session_lock:
         spent = _session_recovery_spent.get(key, 0.0)
     return max(0.0, cap - spent)
@@ -200,8 +214,13 @@ def assert_mux_daemons_single(*, phase: str) -> None:
     from runtime_probe import mux_owned_daemon_count  # noqa: PLC0415
 
     count = mux_owned_daemon_count()
-    if phase == "restart_cold_shim" and count == 0:
-        # Parallel cold-shim restart may begin after teardown (muxDaemons=0).
+    if count == 0 and phase in (
+        "restart_cold_shim",
+        "force_mux_attach_restart",
+        "new_page",
+        "recover_mux_transport",
+    ):
+        # R190/R213: parallel abandon may teardown all mux daemons — recover paths respawn.
         return
     if count != 1:
         raise RuntimeError(
@@ -213,12 +232,19 @@ def assert_mux_daemons_single(*, phase: str) -> None:
 def _reserve_recovery_budget(*, phase: str) -> float:
     remaining = recovery_budget_remaining()
     if remaining <= 0.0:
-        cap = session_recovery_budget_cap()
+        cap = session_recovery_budget_cap(
+            pessimistic=_signoff_recovery_budget_pessimistic()
+        )
         raise RuntimeError(
             f"{MUX_TRANSPORT_EXHAUSTED_TOKEN}: session recovery budget "
             f"{int(cap)}s exhausted at phase={phase}"
         )
-    return min(remaining, float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC))
+    reclaim_cap = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
+    if _signoff_recovery_budget_pessimistic():
+        from dev_gate_contract import mux_page_reclaim_hard_timeout_sec  # noqa: PLC0415
+
+        reclaim_cap = float(mux_page_reclaim_hard_timeout_sec())
+    return min(remaining, reclaim_cap)
 
 
 def _record_recovery_elapsed(elapsed_sec: float) -> None:

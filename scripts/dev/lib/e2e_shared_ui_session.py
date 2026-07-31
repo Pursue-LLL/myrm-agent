@@ -30,7 +30,14 @@ SearchPolicy = Literal["empty", "hydrate_private"]
 DEFAULT_SEARCH_POLICY: SearchPolicy = "hydrate_private"
 _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 _PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
+_SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC = 240.0
 _SERIAL_BRIDGE_READY_CAP_SEC = 60.0
+
+
+def _parallel_bridge_ready_cap_sec() -> float:
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC
+    return _PARALLEL_BRIDGE_READY_CAP_SEC
 
 
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
@@ -40,7 +47,7 @@ def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
 
     if parallel_shared_ui_hydrate_queue_enabled():
         parallel_cap = min(
-            _PARALLEL_BRIDGE_READY_CAP_SEC, float(shared_ui_hydrate_wait_sec())
+            _parallel_bridge_ready_cap_sec(), float(shared_ui_hydrate_wait_sec())
         )
         return min(parallel_cap, timeout_sec)
     return min(_SERIAL_BRIDGE_READY_CAP_SEC, timeout_sec)
@@ -324,8 +331,10 @@ async def apply_shared_ui_session_contract(
     if deadline is not None and time.monotonic() >= deadline:
         from e2e_session_lifecycle import current_phase, remaining_wall_sec
 
-        if current_phase() == "bootstrap" and remaining_wall_sec() > 45.0:
-            deadline = time.monotonic() + min(90.0, remaining_wall_sec() - 10.0)
+        remaining = remaining_wall_sec()
+        extend_floor = 20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
+        if current_phase() == "bootstrap" and remaining > extend_floor:
+            deadline = time.monotonic() + min(90.0, remaining - 10.0)
         else:
             raise _session_error(
                 "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"

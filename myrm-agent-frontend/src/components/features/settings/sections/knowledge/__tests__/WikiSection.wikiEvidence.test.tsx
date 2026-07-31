@@ -22,12 +22,17 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: {
+  toast: Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
-  },
+    promise: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    custom: vi.fn(),
+    message: vi.fn(),
+  }),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -91,6 +96,10 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
       data-surface={surface ?? ''}
     />
   ),
+}));
+
+vi.mock('../SecondBrainSetupCard', () => ({
+  default: () => <div data-testid="second-brain-setup-card" />,
 }));
 
 vi.mock('../WikiConceptsList', () => ({

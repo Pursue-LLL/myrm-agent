@@ -17,7 +17,8 @@
 | `multimodalBuilder.ts` | 附件→multimodal 消息构建（PDF/图片/视频/摄像头/文本），视觉内容始终发送由后端 VisionFallback 路由 |
 | `messageManagement.ts` | 会话初始化（LRU 优先 + pane 流式 merge）、silent refresh 保留 session config、`LoadMessagesOptions`；hydrate 时 `normalizeHydratedClarification` 恢复 pending clarify，并将历史 `metadata.reasoning_content` 回填到 `message.reasoning` 保证回放一致性 |
 | `clarificationState.ts` | pending clarify 选择器（倒序扫描 assistant，跳过无 pending 的较新消息）+ DB hydrate 归一化（`answered`/`isResumeMode`） |
-| `chatNavigationSnapshotCache.ts` | 侧边栏 LRU snapshot（20 条，跳过 incognito）；含 agentConfig/actionMode/selectedModels/contextBranches/contextPinnedFiles |
+| `chatNavigationSnapshotCache.ts` | 侧边栏 LRU snapshot（20 条，跳过 incognito）；含 agentConfig/actionMode/selectedModels/contextBranches/contextPinnedFiles 及 load error 态 |
+| `useChatStore.ts`（根 store） | `refreshCompactionState`：压缩 SSE 后并行 refresh summary/branches/pins（`Promise.allSettled`，detail 失败不阻断 metadata） |
 | `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
 | `__tests__/` | 请求组装、SSE schema、stream consumer 异常恢复与 handler reducer 回归测试 |
 | `goals/` | Goal 队列与 Plan 步骤 store | [_ARCH.md](goals/_ARCH.md) |

@@ -20,7 +20,6 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
-
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConsolidationStats
 from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
     RawConflictPolicy,

@@ -322,7 +322,6 @@ async def test_fresh_marker_survives_prune(session_factory, test_chat):
 @pytest.mark.asyncio
 async def test_write_marker_function_creates_and_replaces(session_factory, test_chat):
     """_write_interrupted_turn_marker should create a new marker and replace existing one."""
-    from unittest.mock import MagicMock
 
     from app.services.agent.stream_session.orchestrator import _write_interrupted_turn_marker
 

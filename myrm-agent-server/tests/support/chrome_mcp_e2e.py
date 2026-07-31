@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sys
@@ -10,7 +11,8 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
@@ -32,10 +34,6 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import (
     MUX_RECLAIM_STALL_TOKEN,
     SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC,
-    SIGNOFF_OPEN_PAGE_PARALLEL_TOTAL_CAP_SEC,
-    SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC,
-    SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC,
-    SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
     is_e2e_signoff_runtime,
     shpoib_rebind_location_wait_cap_sec,
@@ -64,6 +62,8 @@ __all__ = [
     "get_e2e_ui_url",
     "http_json",
     "open_mcp_page",
+    "open_mcp_page_async",
+    "OpenMcpPageSession",
     "prepare_e2e_ui_session",
     "reload_mcp_page",
     "wait_for_state",
@@ -472,14 +472,12 @@ def _blocking_progress_loop(
     import os
     import signal
 
+    from dev_gate_contract import signoff_open_page_transport_stall_cap_sec
     from e2e_stall_guard import assert_transport_node_not_stuck, transport_stall_cap_sec
 
+    del transport_session_started
     stop = threading.Event()
-    node_started = (
-        transport_session_started
-        if transport_session_started is not None
-        else time.monotonic()
-    )
+    node_started = time.monotonic()
     last_transport_emit = node_started
     (
         _client_timeout,
@@ -491,16 +489,41 @@ def _blocking_progress_loop(
         _OPEN_PAGE_REQUEST_TIMEOUT_SEC,
         new_page_timeout_ms=_OPEN_PAGE_NEW_PAGE_TIMEOUT_MS,
     )
-    stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
     if is_e2e_signoff_runtime():
-        # Signoff open_mcp_page may legitimately run up to SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC
-        # under parallel mux — do not SIGINT before transport budget is exhausted.
-        stall_cap = min(open_page_total_budget + 30.0, _open_page_body_fraction_cap_sec())
-    elif _parallel_open_page_peer_count() >= 2:
-        stall_cap = min(
-            transport_stall_cap_sec(),
-            _open_page_body_fraction_cap_sec(),
-        )
+        # R181: do not min() against per-attempt transport budget — signoff stall cap
+        # already scales with MYRM_E2E_SIGNOFF_BATCH_BODY_SEC (R179/R180).
+        stall_cap = signoff_open_page_transport_stall_cap_sec()
+    else:
+        stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
+        if _parallel_open_page_peer_count() >= 2:
+            # R170: mux queue may block longer than NODE_STUCK peer cap — use body
+            # fraction budget so parallel LIVE can reach outer transport retry.
+            stall_cap = max(
+                transport_stall_cap_sec(),
+                _open_page_body_fraction_cap_sec(),
+            )
+    try:
+        from e2e_session_lifecycle import current_phase
+
+        if current_phase() == "bootstrap":
+            if is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase():
+                from dev_gate_contract import signoff_bootstrap_transport_stall_cap_sec
+
+                # R220/R222: dev PRIVATE SHPOIB bootstrap — align stall with mux queue headroom.
+                stall_cap = max(
+                    stall_cap,
+                    signoff_bootstrap_transport_stall_cap_sec(
+                        parallel_peers=_parallel_open_page_peer_count(),
+                        page_timeout_ms=min(_OPEN_PAGE_NEW_PAGE_TIMEOUT_MS, 90_000),
+                    ),
+                )
+            else:
+                from transport_supervisor import bootstrap_wall_cap_sec
+
+                bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
+                stall_cap = min(stall_cap, bootstrap_cap)
+    except ImportError:
+        pass
 
     def _loop() -> None:
         nonlocal last_transport_emit
@@ -514,7 +537,7 @@ def _blocking_progress_loop(
             except RuntimeError:
                 # Stall tripwire must interrupt the main thread blocked in MCP I/O.
                 os.kill(os.getpid(), signal.SIGINT)
-                return
+                continue
             heartbeat_e2e_lease()
             touch_wall_progress(current_node=current_node)
             now = time.monotonic()
@@ -537,9 +560,9 @@ def _open_page_body_fraction_cap_sec() -> float:
     """R143: open_mcp_page must not consume more than 35% of LIVE BODY wall."""
     try:
         if is_e2e_signoff_runtime():
-            from dev_gate_contract import signoff_read_shpoib_body_wall_sec
+            from dev_gate_contract import signoff_effective_body_wall_sec
 
-            body_cap = float(signoff_read_shpoib_body_wall_sec())
+            body_cap = float(signoff_effective_body_wall_sec())
         else:
             from transport_supervisor import live_agent_body_wall_cap_sec
 
@@ -566,11 +589,75 @@ def _shpoib_rebind_location_wait_cap() -> float:
     return shpoib_rebind_location_wait_cap_sec()
 
 
+def _open_page_parallel_retry_allowed() -> bool:
+    """Signoff and dev PRIVATE SHPOIB bootstrap share mux-heal retry under parallel peers."""
+    return is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase()
+
+
 def _open_page_attempt_count() -> int:
     """R152 TPMc: parallel mux — single outer pass; no retry that resets session clock."""
-    if _parallel_open_page_peer_count() >= 2:
+    peers = _parallel_open_page_peer_count()
+    if _open_page_parallel_retry_allowed():
+        # R171/R223: heavy mux — fewer attempts, more wall per attempt beats 3× short stalls.
+        if peers >= 4:
+            return 2
+        if peers >= 3:
+            return 3
+        return 2
+    if peers >= 2:
         return 1
     return _OPEN_PAGE_ATTEMPTS
+
+
+def _restart_open_page_mux_budget(
+    *,
+    open_page_wall_budget_sec: float,
+    open_page_total_budget_sec: float,
+) -> tuple[float, float, float]:
+    """Reset open_mcp_page clocks after mux restart for signoff retry."""
+    heartbeat_e2e_lease()
+    touch_wall_progress(current_node="open_mcp_page_mux_retry")
+    _force_mux_attach_restart_after_new_page_timeout()
+    try:
+        ChromeMcpClient().recover_mux_transport()
+    except RuntimeError:
+        pass
+    cdp_budget = 15.0 if is_e2e_signoff_runtime() else 30.0
+    _require_e2e_cdp_ready(budget_sec=cdp_budget)
+    time.sleep(2.0 if is_e2e_signoff_runtime() else 5.0)
+    try:
+        drain_budget = _mux_cold_attach_drain_budget_sec()
+        _wait_mux_cold_attach_drain(budget_sec=drain_budget)
+    except RuntimeError:
+        pass
+    transport_session_started = time.monotonic()
+    return (
+        transport_session_started,
+        transport_session_started + open_page_wall_budget_sec,
+        transport_session_started + open_page_total_budget_sec,
+    )
+
+
+def _mux_transport_wait_budget_sec() -> float:
+    """Mux queue wait — pessimistic under signoff bootstrap parallel (R219)."""
+    try:
+        from dev_gate_contract import signoff_mux_transport_wait_budget_sec
+
+        return signoff_mux_transport_wait_budget_sec()
+    except ImportError:
+        from transport_supervisor import mux_upstream_wait_cap
+
+        return float(mux_upstream_wait_cap())
+
+
+def _dev_private_shpoib_bootstrap_phase() -> bool:
+    try:
+        from dev_gate_contract import private_shpoib_runtime_active
+        from e2e_session_lifecycle import current_phase
+
+        return current_phase() == "bootstrap" and private_shpoib_runtime_active()
+    except ImportError:
+        return False
 
 
 def _open_page_parallel_budgets(
@@ -583,19 +670,57 @@ def _open_page_parallel_budgets(
     del peers
     capped_ms = min(new_page_timeout_ms, _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS)
     signoff = is_e2e_signoff_runtime()
-    wall_budget = (
-        float(SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC)
-        if signoff
-        else _OPEN_PAGE_WALL_BUDGET_SEC
-    )
-    total_budget = (
-        float(SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC)
-        if signoff
-        else _OPEN_PAGE_TOTAL_BUDGET_SEC
-    )
-    wall_cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC) if signoff else 300.0
-    total_cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_TOTAL_CAP_SEC) if signoff else 480.0
     parallel_peers = _parallel_open_page_peer_count()
+    if signoff:
+        from dev_gate_contract import (
+            signoff_bootstrap_open_mcp_budgets,
+            signoff_open_mcp_budgets,
+        )
+
+        bootstrap_phase = False
+        try:
+            from e2e_session_lifecycle import current_phase
+
+            bootstrap_phase = current_phase() == "bootstrap"
+        except ImportError:
+            bootstrap_phase = False
+        if bootstrap_phase:
+            budgets = signoff_bootstrap_open_mcp_budgets(parallel_peers=parallel_peers)
+        else:
+            budgets = signoff_open_mcp_budgets(parallel_peers=parallel_peers)
+        wall_budget = budgets.wall_budget_sec
+        total_budget = budgets.total_budget_sec
+        attempts = budgets.attempt_count
+        if parallel_peers >= 2 and not bootstrap_phase:
+            body_frac_cap = _open_page_body_fraction_cap_sec()
+            total_budget = min(total_budget, body_frac_cap)
+            wall_budget = min(
+                wall_budget,
+                body_frac_cap * _OPEN_PAGE_BODY_FRACTION_WALL_RATIO,
+            )
+        return (
+            min(request_timeout_sec, _OPEN_PAGE_REQUEST_TIMEOUT_SEC),
+            capped_ms,
+            wall_budget,
+            total_budget,
+            attempts,
+        )
+    if _dev_private_shpoib_bootstrap_phase():
+        from dev_gate_contract import signoff_bootstrap_open_mcp_budgets
+
+        budgets = signoff_bootstrap_open_mcp_budgets(parallel_peers=parallel_peers)
+        return (
+            min(request_timeout_sec, _OPEN_PAGE_REQUEST_TIMEOUT_SEC),
+            capped_ms,
+            budgets.wall_budget_sec,
+            budgets.total_budget_sec,
+            budgets.attempt_count,
+        )
+    wall_budget = _OPEN_PAGE_WALL_BUDGET_SEC
+    total_budget = _OPEN_PAGE_TOTAL_BUDGET_SEC
+    wall_cap = 300.0
+    total_cap = 480.0
+    attempts = _open_page_attempt_count()
     if parallel_peers >= 2:
         wall_budget = min(wall_budget + parallel_peers * 18.0, wall_cap)
         total_budget = min(total_budget + parallel_peers * 30.0, total_cap)
@@ -610,7 +735,7 @@ def _open_page_parallel_budgets(
         capped_ms,
         wall_budget,
         total_budget,
-        _open_page_attempt_count(),
+        attempts,
     )
 
 
@@ -620,7 +745,12 @@ def _parallel_open_page_peer_count() -> int:
         from mux_load import snapshot_mux_load
 
         load = snapshot_mux_load()
-        return max(int(load.wave_leases), int(load.mux_contexts))
+        mux = int(load.mux_contexts)
+        wave = int(load.wave_leases)
+        if is_e2e_signoff_runtime():
+            # R184: parent signoff runner leaves stale wave leases — mux contexts is ground truth.
+            return mux if mux > 0 else wave
+        return max(wave, mux)
     except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         pass
     monorepo_root = Path(__file__).resolve().parents[4]
@@ -634,6 +764,8 @@ def _parallel_open_page_peer_count() -> int:
 
 def _should_skip_attach_preflight_restart() -> bool:
     """R122-B8: full attach-restart preflight waits UI under parallel — use shim recover."""
+    if is_e2e_signoff_runtime():
+        return False
     return _parallel_open_page_peer_count() >= 2
 
 
@@ -659,6 +791,125 @@ def _force_mux_attach_restart_after_new_page_timeout() -> None:
     from mux_attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="open_mcp_page new_page timeout")
+
+
+def _signoff_mux_drain_budget_sec() -> float:
+    """Peers-scaled mux drain budget; signoff bootstrap uses remaining wall (Phase3-C)."""
+    budget = _mux_cold_attach_drain_budget_sec()
+    if not is_e2e_signoff_runtime():
+        return budget
+    peers = _parallel_open_page_peer_count()
+    if peers >= 1:
+        try:
+            from dev_gate_contract import signoff_open_mcp_budgets
+
+            budget = max(
+                budget,
+                signoff_open_mcp_budgets(parallel_peers=peers).wall_budget_sec,
+            )
+        except ImportError:
+            pass
+    try:
+        from e2e_session_lifecycle import current_phase, remaining_wall_sec
+
+        if current_phase() == "bootstrap" and peers < 1:
+            remaining = remaining_wall_sec()
+            if remaining > 0:
+                budget = min(max(budget, 45.0), remaining)
+    except (ImportError, RuntimeError, TypeError, ValueError):
+        pass
+    return budget
+
+
+def _signoff_wait_mux_before_new_page(*, budget_sec: float | None = None) -> None:
+    """Signoff pre-new_page mux gate — cold-attach drain SSOT (aligned with desktop R193)."""
+    from mux_upstream_admission import wait_mux_hand_probe_allowed
+
+    wait_budget = float(
+        budget_sec if budget_sec is not None else _signoff_mux_drain_budget_sec()
+    )
+    wait_mux_hand_probe_allowed(budget_sec=wait_budget)
+    _wait_mux_cold_attach_drain(budget_sec=wait_budget)
+
+
+def _signoff_threaded_new_page(
+    client: ChromeMcpClient,
+    url: str,
+    *,
+    timeout_ms: int,
+    join_timeout_sec: float,
+) -> McpPage:
+    """Run new_page off the main thread so stall tripwire can abandon without SIGINT."""
+    outcome: list[McpPage | BaseException] = []
+
+    def _worker() -> None:
+        try:
+            outcome.append(client.new_page(url, timeout_ms=timeout_ms))
+        except BaseException as exc:
+            outcome.append(exc)
+
+    worker = threading.Thread(
+        target=_worker,
+        name="signoff-new-page",
+        daemon=True,
+    )
+    worker.start()
+    worker.join(timeout=join_timeout_sec)
+    if worker.is_alive():
+        try:
+            client.abandon_inflight_requests(cdp_drift=True)
+        except RuntimeError:
+            pass
+        _force_mux_attach_restart_after_new_page_timeout()
+        from dev_gate_contract import E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN
+
+        print(
+            f"{E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN}: "
+            f"join={join_timeout_sec:.0f}s url={url}",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise TimeoutError(
+            f"Chrome MCP new_page thread join timed out after {join_timeout_sec:.0f}s"
+        )
+    if not outcome:
+        raise RuntimeError("Chrome MCP new_page worker exited without result")
+    result = outcome[0]
+    if isinstance(result, BaseException):
+        raise result
+    return result
+
+
+def _open_page_new_page(
+    client: ChromeMcpClient,
+    url: str,
+    *,
+    timeout_ms: int,
+    attempt_wall_deadline: float,
+) -> McpPage:
+    if is_e2e_signoff_runtime():
+        from dev_gate_contract import (
+            signoff_new_page_join_timeout_sec,
+            signoff_open_mcp_budgets,
+        )
+
+        signoff_open_mcp_budgets(
+            parallel_peers=_parallel_open_page_peer_count(),
+        )
+        _signoff_wait_mux_before_new_page(
+            budget_sec=_signoff_mux_drain_budget_sec(),
+        )
+        join_timeout_sec = signoff_new_page_join_timeout_sec(
+            page_timeout_ms=timeout_ms,
+            parallel_peers=_parallel_open_page_peer_count(),
+        )
+        return _signoff_threaded_new_page(
+            client,
+            url,
+            timeout_ms=timeout_ms,
+            join_timeout_sec=join_timeout_sec,
+        )
+    return client.new_page(url, timeout_ms=timeout_ms)
 
 
 def _open_page_cdp_probe_budget_sec() -> float:
@@ -711,6 +962,14 @@ def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
     raise RuntimeError(f"CDP endpoint not ready after {wait_budget:.0f}s on :{port}")
 
 
+def _mux_cold_attach_drain_budget_sec() -> float:
+    from dev_gate_contract import parallel_mux_cold_attach_drain_sec
+
+    return parallel_mux_cold_attach_drain_sec(
+        parallel_peers=_parallel_open_page_peer_count(),
+    )
+
+
 def _wait_mux_cold_attach_drain(*, budget_sec: float) -> None:
     """Wait until no other mux cold-attach ops hold registry slots (post-timeout heal)."""
     deadline = time.monotonic() + budget_sec
@@ -748,6 +1007,7 @@ def _retryable_open_page_error(exc: BaseException) -> bool:
         or "mux cold attach saturated" in message
         or "no page found" in message
         or "response timed out" in message
+        or "thread join timed out" in message
         or "wall budget exhausted" in message
         or "transport closed" in message
         or "transport dead" in message
@@ -787,6 +1047,39 @@ def _sync_open_page_tool_wall(
     client.set_tool_wall_deadline(now + min(remaining, slice_sec))
 
 
+def _refresh_signoff_open_nav_tool_wall(
+    client: ChromeMcpClient,
+    *,
+    wall_deadline: float,
+    total_deadline: float,
+) -> None:
+    """R213: refresh tool wall after mux/new_page gate consumed attempt-local remaining."""
+    if not is_e2e_signoff_runtime():
+        return
+    from dev_gate_contract import signoff_open_mcp_budgets
+
+    now = time.monotonic()
+    peers = _parallel_open_page_peer_count()
+    budgets = signoff_open_mcp_budgets(parallel_peers=peers)
+    attempt_remaining = min(
+        max(0.0, wall_deadline - now),
+        max(0.0, total_deadline - now),
+    )
+    bootstrap_remaining = attempt_remaining
+    try:
+        from e2e_session_lifecycle import current_phase, remaining_wall_sec
+
+        if current_phase() == "bootstrap":
+            bootstrap_remaining = max(attempt_remaining, remaining_wall_sec())
+    except ImportError:
+        pass
+    nav_floor = min(float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.6)
+    if peers >= 2:
+        nav_floor = max(nav_floor, 90.0 + peers * 12.0)
+    budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
+    client.set_tool_wall_deadline(now + budget)
+
+
 @contextmanager
 def open_mcp_page(
     url: str,
@@ -796,6 +1089,8 @@ def open_mcp_page(
 ) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     shpoib_active = e2e_runtime_binding() is not None
     resolved_timeout_ms = timeout_ms if timeout_ms is not None else 90_000
+    if is_e2e_signoff_runtime():
+        resolved_timeout_ms = min(resolved_timeout_ms, 90_000)
     new_page_timeout_ms = min(resolved_timeout_ms, _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS)
     (
         client_timeout_sec,
@@ -813,8 +1108,14 @@ def open_mcp_page(
     boot_mux_gate_ok = os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
     if _parallel_open_page_peer_count() >= 2:
         if boot_mux_gate_ok:
-            # R155: BOOT gate already waited — short BODY sanity only.
-            wait_mux_hand_probe_allowed(budget_sec=15.0)
+            probe_budget = (
+                _signoff_mux_drain_budget_sec()
+                if is_e2e_signoff_runtime()
+                else 15.0
+            )
+            wait_mux_hand_probe_allowed(budget_sec=min(probe_budget, 45.0))
+            if is_e2e_signoff_runtime():
+                _wait_mux_cold_attach_drain(budget_sec=probe_budget)
         else:
             from transport_supervisor import mux_upstream_wait_cap
 
@@ -827,17 +1128,69 @@ def open_mcp_page(
     wall_deadline = transport_session_started + open_page_wall_budget_sec
     last_exc: BaseException | None = None
     mux_restarted = False
+    if is_e2e_signoff_runtime():
+        _force_mux_attach_restart_after_new_page_timeout()
+        try:
+            ChromeMcpClient(
+                request_timeout_sec=client_timeout_sec
+            ).recover_mux_transport()
+        except RuntimeError:
+            pass
+        try:
+            _signoff_wait_mux_before_new_page()
+        except RuntimeError:
+            pass
+        time.sleep(2.0)
     for attempt in range(open_page_attempts):
+        if is_e2e_signoff_runtime() and attempt > 0:
+            _force_mux_attach_restart_after_new_page_timeout()
+            transport_session_started, wall_deadline, total_deadline = (
+                _restart_open_page_mux_budget(
+                    open_page_wall_budget_sec=open_page_wall_budget_sec,
+                    open_page_total_budget_sec=open_page_total_budget_sec,
+                )
+            )
+            mux_restarted = False
+            touch_wall_progress(current_node="open_mcp_page_signoff_retry")
+            try:
+                _signoff_wait_mux_before_new_page(
+                    budget_sec=max(30.0, _signoff_mux_drain_budget_sec() * 0.5)
+                )
+            except RuntimeError:
+                pass
+            time.sleep(2.0)
         if time.monotonic() >= total_deadline:
+            signoff_budget_retry = (
+                is_e2e_signoff_runtime()
+                and attempt < open_page_attempts - 1
+                and _open_page_allow_mux_budget_extension()
+            )
+            if signoff_budget_retry:
+                if last_exc is None:
+                    last_exc = RuntimeError(
+                        f"{MUX_RECLAIM_STALL_TOKEN}: open_mcp_page total budget "
+                        f"{open_page_total_budget_sec:.0f}s exhausted on attempt {attempt + 1}"
+                    )
+                transport_session_started, wall_deadline, total_deadline = (
+                    _restart_open_page_mux_budget(
+                        open_page_wall_budget_sec=open_page_wall_budget_sec,
+                        open_page_total_budget_sec=open_page_total_budget_sec,
+                    )
+                )
+                mux_restarted = False
+                continue
             if (
                 _open_page_allow_mux_budget_extension()
                 and not mux_restarted
                 and last_exc is not None
             ):
-                _force_mux_attach_restart_after_new_page_timeout()
+                transport_session_started, wall_deadline, total_deadline = (
+                    _restart_open_page_mux_budget(
+                        open_page_wall_budget_sec=open_page_wall_budget_sec,
+                        open_page_total_budget_sec=open_page_total_budget_sec,
+                    )
+                )
                 mux_restarted = True
-                total_deadline = time.monotonic() + open_page_total_budget_sec
-                wall_deadline = time.monotonic() + open_page_wall_budget_sec
                 continue
             raise RuntimeError(
                 f"open_mcp_page total budget {open_page_total_budget_sec:.0f}s exhausted "
@@ -857,6 +1210,13 @@ def open_mcp_page(
                 continue
         heartbeat_e2e_lease()
         touch_wall_progress(current_node="open_mcp_page_attempt")
+        if _parallel_open_page_peer_count() >= 2:
+            from e2e_mux_transport_queue import wait_mux_transport_turn
+
+            wait_mux_transport_turn(budget_sec=_mux_transport_wait_budget_sec())
+        attempt_mono = time.monotonic()
+        attempt_wall_deadline = attempt_mono + open_page_wall_budget_sec
+        attempt_total_deadline = attempt_mono + open_page_total_budget_sec
         client = ChromeMcpClient(request_timeout_sec=client_timeout_sec)
         try:
             with _blocking_progress_loop(
@@ -866,14 +1226,24 @@ def open_mcp_page(
                 heartbeat_e2e_lease()
                 touch_wall_progress(current_node="open_mcp_page_blocking")
                 _require_e2e_cdp_ready()
-                wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                total_deadline = time.monotonic() + open_page_total_budget_sec
+                wall_deadline = attempt_wall_deadline
+                total_deadline = attempt_total_deadline
                 client.start()
-                open_steps = 4 if shpoib_active else 2
-                if shpoib_active:
+                # R184: signoff SHPOIB — client.new_page injects runtime binding; skip duplicate blank→nav.
+                if is_e2e_signoff_runtime():
+                    shpoib_blank_nav = False
+                else:
+                    shpoib_blank_nav = (
+                        shpoib_active and _parallel_open_page_peer_count() < 2
+                    )
+                open_steps = 4 if shpoib_blank_nav else 2
+                if shpoib_blank_nav:
                     client.set_tool_wall_deadline(None)
-                    page = client.new_page(
-                        "about:blank", timeout_ms=new_page_timeout_ms
+                    page = _open_page_new_page(
+                        client,
+                        "about:blank",
+                        timeout_ms=new_page_timeout_ms,
+                        attempt_wall_deadline=attempt_wall_deadline,
                     )
                     ensure_desktop_viewport(client, page)
                     open_steps -= 1
@@ -908,7 +1278,12 @@ def open_mcp_page(
                     _reapply_shpoib_runtime_after_reload(client, page, target_url=url)
                     open_steps -= 1
                 else:
-                    page = client.new_page(url, timeout_ms=new_page_timeout_ms)
+                    page = _open_page_new_page(
+                        client,
+                        url,
+                        timeout_ms=new_page_timeout_ms,
+                        attempt_wall_deadline=attempt_wall_deadline,
+                    )
                     ensure_desktop_viewport(client, page)
                     open_steps -= 1
                 open_steps -= 1
@@ -918,6 +1293,14 @@ def open_mcp_page(
                     total_deadline=total_deadline,
                     steps_remaining=max(1, open_steps),
                 )
+                _refresh_signoff_open_nav_tool_wall(
+                    client,
+                    wall_deadline=wall_deadline,
+                    total_deadline=total_deadline,
+                )
+                if _parallel_open_page_peer_count() >= 2 and not is_e2e_signoff_runtime():
+                    # R171: layout poll must not inherit sliced evaluate wall under mux queue.
+                    client.set_tool_wall_deadline(None)
                 wait_for_state(
                     client,
                     page,
@@ -927,11 +1310,60 @@ def open_mcp_page(
                     timeout_sec=_open_page_layout_wait_sec(),
                 )
                 client.set_tool_wall_deadline(None)
+            from e2e_session_lifecycle import current_phase, seal_page_open_body_budget
+
+            if current_phase() == "bootstrap":
+                seal_page_open_body_budget(phase_label="open_mcp_page")
             try:
                 yield client, page
             finally:
                 client.close()
             return
+        except KeyboardInterrupt:
+            last_exc = RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: open_mcp_page transport stall tripwire"
+            )
+            try:
+                client.abandon_inflight_requests(cdp_drift=True)
+            except RuntimeError:
+                pass
+            try:
+                client.close()
+            except RuntimeError:
+                pass
+            if attempt >= open_page_attempts - 1:
+                raise last_exc from None
+            if is_e2e_signoff_runtime() and attempt + 1 < open_page_attempts:
+                transport_session_started, wall_deadline, total_deadline = (
+                    _restart_open_page_mux_budget(
+                        open_page_wall_budget_sec=open_page_wall_budget_sec,
+                        open_page_total_budget_sec=open_page_total_budget_sec,
+                    )
+                )
+                mux_restarted = False
+                touch_wall_progress(current_node="open_mcp_page_mux_retry")
+            elif _open_page_allow_mux_budget_extension():
+                if not mux_restarted:
+                    _force_mux_attach_restart_after_new_page_timeout()
+                    mux_restarted = True
+                try:
+                    ChromeMcpClient(
+                        request_timeout_sec=client_timeout_sec
+                    ).recover_mux_transport()
+                except RuntimeError:
+                    pass
+                _require_e2e_cdp_ready(budget_sec=30.0)
+                wall_deadline = time.monotonic() + open_page_wall_budget_sec
+                total_deadline = time.monotonic() + open_page_total_budget_sec
+                time.sleep(5.0)
+                try:
+                    _wait_mux_cold_attach_drain(
+                        budget_sec=_mux_cold_attach_drain_budget_sec()
+                    )
+                except RuntimeError:
+                    pass
+            time.sleep(3.0 * (attempt + 1))
+            continue
         except (RuntimeError, TimeoutError) as exc:
             last_exc = exc
             exc_message = str(exc).lower()
@@ -949,6 +1381,8 @@ def open_mcp_page(
                 pass
             if (
                 isinstance(exc, TimeoutError)
+                or MUX_RECLAIM_STALL_TOKEN.lower() in exc_message
+                or "not owned by this shim" in exc_message
                 or "response timed out" in exc_message
                 or "wall budget exhausted" in exc_message
                 or "connection reset" in exc_message
@@ -957,8 +1391,16 @@ def open_mcp_page(
                 or "cdp/mux endpoint not ready" in exc_message
                 or "cdp endpoint not ready" in exc_message
             ):
-                if _open_page_allow_mux_budget_extension():
-                    if not mux_restarted:
+                if _open_page_allow_mux_budget_extension() or _open_page_parallel_retry_allowed():
+                    if not mux_restarted and _open_page_parallel_retry_allowed():
+                        transport_session_started, wall_deadline, total_deadline = (
+                            _restart_open_page_mux_budget(
+                                open_page_wall_budget_sec=open_page_wall_budget_sec,
+                                open_page_total_budget_sec=open_page_total_budget_sec,
+                            )
+                        )
+                        mux_restarted = True
+                    elif not mux_restarted:
                         _force_mux_attach_restart_after_new_page_timeout()
                         mux_restarted = True
                     try:
@@ -972,7 +1414,9 @@ def open_mcp_page(
                     total_deadline = time.monotonic() + open_page_total_budget_sec
                     time.sleep(5.0)
                     try:
-                        _wait_mux_cold_attach_drain(budget_sec=45.0)
+                        _wait_mux_cold_attach_drain(
+                            budget_sec=_mux_cold_attach_drain_budget_sec()
+                        )
                     except RuntimeError:
                         pass
                 else:
@@ -982,12 +1426,57 @@ def open_mcp_page(
                         ).recover_mux_transport()
                     except RuntimeError:
                         pass
-            if parallel_transport:
+            if parallel_transport and not (
+                _open_page_parallel_retry_allowed()
+                and _retryable_open_page_error(exc)
+                and attempt < open_page_attempts - 1
+            ):
                 raise
             if attempt >= open_page_attempts - 1 or not _retryable_open_page_error(exc):
                 raise
+            if _open_page_parallel_retry_allowed() and attempt + 1 < open_page_attempts:
+                transport_session_started, wall_deadline, total_deadline = (
+                    _restart_open_page_mux_budget(
+                        open_page_wall_budget_sec=open_page_wall_budget_sec,
+                        open_page_total_budget_sec=open_page_total_budget_sec,
+                    )
+                )
+                mux_restarted = False
             time.sleep(3.0 * (attempt + 1))
+            continue
     raise last_exc or RuntimeError("open_mcp_page failed without exception")
+
+
+@dataclass(slots=True)
+class OpenMcpPageSession:
+    """Async handle for ``open_mcp_page`` — caller must ``await aclose()`` (Phase3-D)."""
+
+    _cm: AbstractContextManager[tuple[ChromeMcpClient, McpPage]]
+    client: ChromeMcpClient
+    page: McpPage
+
+    async def aclose(self) -> None:
+        await asyncio.to_thread(self._cm.__exit__, None, None, None)
+
+
+async def open_mcp_page_async(
+    url: str,
+    *,
+    timeout_ms: int | None = None,
+    request_timeout_sec: float = 180.0,
+) -> OpenMcpPageSession:
+    """Open owned MCP page via TPMc SSOT without blocking the asyncio event loop."""
+
+    def _open_sync() -> OpenMcpPageSession:
+        cm = open_mcp_page(
+            url,
+            timeout_ms=timeout_ms,
+            request_timeout_sec=request_timeout_sec,
+        )
+        client, page = cm.__enter__()
+        return OpenMcpPageSession(_cm=cm, client=client, page=page)
+
+    return await asyncio.to_thread(_open_sync)
 
 
 def _coerce_evaluate_result(raw: object) -> dict[str, object]:

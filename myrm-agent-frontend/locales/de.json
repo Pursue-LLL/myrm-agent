@@ -5145,6 +5145,12 @@
       "searchPlaceholder": "Search tools...",
       "noResults": "No matching tools",
       "parameters": "Parameters",
+      "layers": {
+        "core": "Core",
+        "common": "Common",
+        "extended": "Extended",
+        "external": "External"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "Conversation search",
@@ -5203,6 +5209,7 @@
     "extractToSkill": {
       "title": "Als Skill extrahieren",
       "learnContext": "Bitte extrahieren Sie einen wiederverwendbaren Skill aus der folgenden Nachricht:",
+      "started": "Skill-Extraktion gestartet — Sie werden benachrichtigt, sobald ein Entwurf bereit ist",
       "success": "Skill-Extraktion gestartet",
       "error": "Skill-Extraktion fehlgeschlagen",
       "sent": "Eingereicht",
@@ -7311,6 +7318,7 @@
     "preview": "Preview",
     "download": "Download",
     "code": "Code",
+    "edit": "Bearbeiten",
     "close": "Close",
     "copyCode": "Copy Code",
     "copied": "Copied",
@@ -7336,10 +7344,25 @@
       "presentation": "Presentation",
       "word_document": "Word Document"
     },
+    "spreadsheet": {
+      "search": "Suchen...",
+      "rows": "Zeilen",
+      "of": "von",
+      "copy": "Kopieren",
+      "export": "Exportieren",
+      "copyAll": "Alles in die Zwischenablage kopieren",
+      "exportCsv": "Als CSV exportieren",
+      "noData": "Keine Daten vorhanden",
+      "loadError": "Laden fehlgeschlagen",
+      "saveChanges": "Änderungen speichern",
+      "truncated": "Zeige erste {count} von {total} Zeilen"
+    },
+    "saving": "Speichern...",
+    "saved": "Gespeichert",
     "noPreview": "Preview not available for this file type",
     "downloadHint": "Click download to save the file",
     "diffTruncatedNotice": "Diese Diff-Vorschau wurde auf die konfigurierte Maximallänge gekürzt. Zeilen über dem Limit werden nicht angezeigt.",
-    "retry": "Retry",
+    "retry": "Wiederholen",
     "pdfLoadError": "Failed to load PDF",
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
@@ -10203,7 +10226,8 @@
       "loading": "Haustiere werden geladen...",
       "error": "Haustier-Galerie konnte nicht geladen werden",
       "searchPlaceholder": "Haustiere suchen...",
-      "count": "{count} Haustiere"
+      "count": "{count} Haustiere",
+      "installError": "Haustier konnte nicht installiert werden"
     },
     "sprite": {
       "contextTitle": "Haustier-Sprite",
@@ -10212,11 +10236,10 @@
       "hide": "Haustier ausblenden",
       "enableLabel": "Sprite-Overlay",
       "enableDesc": "Animiertes Haustier-Sprite auf dem Bildschirm anzeigen",
-      "sheetUrl": "Spritesheet-URL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "Anwenden",
-      "clear": "Löschen",
-      "codexHint": "Unterstützt Codex-Standard 8×9 (1536×1872px) Spritesheets"
+      "activePet": "Aktives Haustier",
+      "activePetEmpty": "Kein Haustier installiert — wähle eines in der Galerie",
+      "galleryHint": "Haustiere im Tab „Haustier-Galerie“ installieren",
+      "clear": "Löschen"
     }
   },
   "messageActions": {

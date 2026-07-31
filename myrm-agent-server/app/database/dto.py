@@ -401,6 +401,14 @@ class SkillConfig(BaseModel):
     is_core: bool = Field(
         False, description="Whether this skill is a core skill (always injected)"
     )
+    instance_name: str | None = Field(
+        None,
+        description=(
+            "Bound SkillInstance name for this agent (multi-instance skills). "
+            "When unset, singleton or 'default' instance is auto-selected."
+        ),
+        max_length=64,
+    )
 
 
 class CommandBindingConfig(BaseModel):

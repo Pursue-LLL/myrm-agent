@@ -10,7 +10,6 @@ import { toast } from '@/hooks/shared/useToast';
 import SettingsSection from '../SettingsSection';
 import {
   buildRelayCapabilityRows,
-  listMissingRelayCapabilities,
   resolveRelayCapabilityStatusKind,
 } from './extensionRelayCapabilityCore';
 import { cn } from '@/lib/utils';
@@ -68,10 +67,6 @@ const ExtensionBridgeSection = memo(() => {
   const missingRelayCapabilityLabels = useMemo(
     () => relayCapabilityRows.filter((cap) => !cap.available).map((cap) => cap.label),
     [relayCapabilityRows],
-  );
-  const missingRelayCapabilities = useMemo(
-    () => listMissingRelayCapabilities(status.capabilities),
-    [status.capabilities],
   );
   const relayCapabilityStatus = useMemo(() => {
     const statusKind = resolveRelayCapabilityStatusKind(

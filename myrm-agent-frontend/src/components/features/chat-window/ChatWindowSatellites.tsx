@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import DesktopControlApprovalOverlay from '@/components/features/desktop-inspector/DesktopControlApprovalOverlay';
 import SubagentDashboard from './SubagentDashboard';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 const VisualDesktopToggle = dynamic(
   () =>
@@ -82,6 +83,8 @@ const SubagentPromptButton = dynamic(() => import('./SubagentPromptButton'), { s
 
 const PetOverlay = dynamic(() => import('../companion/sprite/PetOverlay'), { ssr: false });
 
+const PetPalette = dynamic(() => import('../companion/PetPalette'), { ssr: false });
+
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;
@@ -93,6 +96,8 @@ export default function ChatWindowSatellites({
   onInspectorInstruction,
   onDesktopInspectorInstruction,
 }: ChatWindowSatellitesProps) {
+  const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
+
   return (
     <>
       <DesktopControlApprovalOverlay />
@@ -112,7 +117,12 @@ export default function ChatWindowSatellites({
       ) : null}
       <SubagentPromptButton />
       <SubagentDashboard chatId={chatId} />
-      <PetOverlay />
+      {isCompanionEnabled ? (
+        <>
+          <PetOverlay />
+          <PetPalette />
+        </>
+      ) : null}
     </>
   );
 }

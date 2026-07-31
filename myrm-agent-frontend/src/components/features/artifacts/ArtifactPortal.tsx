@@ -39,6 +39,7 @@ import { formatBytes, getDownloadFilename } from './artifactUtils';
 import { getStorageUrl } from '@/lib/api';
 import useChatStore from '@/store/useChatStore';
 import { MOBILE_BREAKPOINT, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
+import { uploadFiles } from '@/services/file';
 
 // 拆分的子组件
 import PortalHeader from './portal/PortalHeader';
@@ -317,11 +318,41 @@ const ArtifactPortal: React.FC = () => {
     }
   }, [error, t]);
 
+  const handleEditSave = useCallback(async (blob: Blob) => {
+    if (!currentArtifact) return;
+    const file = new File([blob], currentArtifact.filename, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const result = await uploadFiles([file]);
+    if (result.files.length === 0) {
+      throw new Error('Upload returned empty response');
+    }
+    const uploaded = result.files[0];
+    useArtifactPortalStore.getState().updateCurrentArtifact({
+      preview_url: uploaded.fileUrl,
+      download_url: uploaded.fileUrl,
+    });
+    useArtifactPortalStore.getState().createVersion('Edited in browser');
+  }, [currentArtifact]);
+
+  const handleEditDirty = useCallback((dirty: boolean) => {
+    if (!currentArtifact) return;
+    if (dirty) {
+      useArtifactPortalStore.getState().markAsDirty(currentArtifact.id, '__spreadsheet_edit__');
+    } else {
+      useArtifactPortalStore.getState().clearDirtyState(currentArtifact.id);
+    }
+  }, [currentArtifact]);
+
   if (!isOpen || !currentArtifact) return null;
 
   const canPreviewContent = ['code', 'document', 'svg', 'mermaid', 'html'].includes(currentArtifact.type);
   const isHtml = currentArtifact.type === 'html';
   const isImage = currentArtifact.type === 'image';
+  const isEditableSpreadsheet =
+    (currentArtifact.type === 'spreadsheet' ||
+      /\.(xlsx|xls)$/i.test(currentArtifact.filename)) &&
+    !!currentArtifact.preview_url;
   const effectiveFullscreen = isFullscreen || isMobile;
 
   // 提取 lineRange (从 UI 状态中提取，而不是 Artifact 领域模型)
@@ -444,6 +475,7 @@ const ArtifactPortal: React.FC = () => {
           canPreviewContent={canPreviewContent}
           isHtml={isHtml}
           isImage={isImage}
+          isEditableSpreadsheet={isEditableSpreadsheet}
           pickerMode={pickerMode}
           portalMode={portalMode}
           versions={versions}
@@ -465,6 +497,7 @@ const ArtifactPortal: React.FC = () => {
             preview: t('preview'),
             code: t('code'),
             diff: t('diff.label'),
+            edit: t('edit'),
             copied: t('copied'),
             copyCode: t('copyCode'),
             openInNewTab: t('openInNewTab'),
@@ -525,6 +558,8 @@ const ArtifactPortal: React.FC = () => {
                 chatId={chatId}
                 versions={versions}
                 viewingVersionIndex={viewingVersionIndex}
+                onEditSave={handleEditSave}
+                onEditDirty={handleEditDirty}
               />
 
               {/* 行号滚动逻辑 */}

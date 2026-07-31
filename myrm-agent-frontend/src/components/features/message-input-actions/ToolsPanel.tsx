@@ -40,6 +40,19 @@ function sourceBadgeVariant(source: string): 'default' | 'secondary' | 'outline'
   return 'outline';
 }
 
+function layerLabel(layer: string, t: ReturnType<typeof useTranslations>): string {
+  const normalized = layer.trim().toLowerCase();
+  const known = ["core", "common", "extended", "external"] as const;
+  if ((known as readonly string[]).includes(normalized)) {
+    return t(`layers.${normalized}` as "layers.core");
+  }
+  if (/^[1-4]$/.test(layer)) {
+    const legacy = ["core", "common", "extended", "external"][Number(layer) - 1];
+    return t(`layers.${legacy}` as "layers.core");
+  }
+  return layer;
+}
+
 function ToolItem({ tool }: { tool: ToolSnapshotItem }) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('chat.toolsPanel');
@@ -65,7 +78,7 @@ function ToolItem({ tool }: { tool: ToolSnapshotItem }) {
         )}
         <span className="text-sm font-medium truncate flex-1">{displayName}</span>
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
-          {tool.layer}
+          {layerLabel(tool.layer, t)}
         </Badge>
       </button>
       {expanded && (
@@ -165,6 +178,7 @@ const ToolsPanel = () => {
             <PopoverTrigger asChild>
               <button
                 type="button"
+                data-testid="tools-panel-trigger"
                 className={cn(
                   'p-1.5 rounded-full transition-all duration-200',
                   open
@@ -182,7 +196,12 @@ const ToolsPanel = () => {
         </Tooltip>
       </TooltipProvider>
 
-      <PopoverContent side="top" align="start" className="w-80 sm:w-96 p-0 max-h-[60vh] flex flex-col">
+      <PopoverContent
+        data-testid="tools-panel-content"
+        side="top"
+        align="start"
+        className="w-80 sm:w-96 p-0 max-h-[60vh] flex flex-col"
+      >
         {/* Header */}
         <div className="px-3 py-2 border-b border-border flex items-center justify-between">
           <span className="text-sm font-medium">

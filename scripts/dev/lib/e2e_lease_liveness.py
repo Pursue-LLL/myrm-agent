@@ -19,8 +19,6 @@ from __future__ import annotations
 import subprocess
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Any
-
 from dev_gate_contract import STALL_PROGRESS_SEC
 
 LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
@@ -73,7 +71,34 @@ def load_wave_snapshot() -> dict[str, object]:
         sys.path.insert(0, dev_text)
     from wave_orchestrator.core import wave_status  # noqa: PLC0415
 
-    return wave_status()
+    try:
+        return wave_status()
+    except PermissionError:
+        from wave_orchestrator.lease_state import active_leases  # noqa: PLC0415
+        from wave_orchestrator.paths import resolve_wave_paths  # noqa: PLC0415
+        from wave_orchestrator.stack_pin import read_stack_pin  # noqa: PLC0415
+        from wave_orchestrator.store import load_state  # noqa: PLC0415
+
+        paths = resolve_wave_paths()
+        state = load_state(paths.state_file)
+        active = active_leases(state)
+        try:
+            stack_pin = read_stack_pin(paths=paths)
+        except PermissionError:
+            stack_pin = None
+        return {
+            "wave": state["wave"],
+            "activeLeaseCount": len(active),
+            "activeLeases": active,
+            "leaseHistoryCount": len(state["leases"]),
+            "activeResourceCount": sum(
+                item.get("status") == "active"
+                for item in state.get("resources", [])
+            ),
+            "resourceHistoryCount": len(state.get("resources", [])),
+            "stackPin": stack_pin,
+            "readOnlyFallback": True,
+        }
 
 
 def _live_agent_bucket(namespace: str) -> str:
@@ -102,10 +127,15 @@ def wave_lease_counts(snapshot: dict[str, object]) -> WaveLeaseCounts:
     eff_shpoib = 0
     eff_shared_hot = 0
     eff_read_page = 0
+    total = 0
+    effective_total = 0
     for item in raw_leases:
         if not isinstance(item, dict):
             continue
         is_root = _lease_is_root(item)
+        total += 1
+        if is_root:
+            effective_total += 1
         lane = str(item.get("lane", ""))
         if lane == "LIVE_AGENT":
             bucket = _live_agent_bucket(str(item.get("namespace", "")))
@@ -121,8 +151,6 @@ def wave_lease_counts(snapshot: dict[str, object]) -> WaveLeaseCounts:
             read_page += 1
             if is_root:
                 eff_read_page += 1
-    total = live_shpoib + live_shared_hot + read_page
-    effective_total = eff_shpoib + eff_shared_hot + eff_read_page
     return WaveLeaseCounts(
         total=total,
         live_agent_shpoib=live_shpoib,
@@ -158,12 +186,15 @@ def _pytest_owner_index(active_tests: list[dict[str, object]]) -> dict[int, str]
     ]
     if not pids:
         return {}
-    proc = subprocess.run(
-        ["ps", "-eo", "pid=,ppid="],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["ps", "-eo", "pid=,ppid="],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return {}
     if proc.returncode != 0:
         return {}
     pid_set = set(pids)
@@ -287,5 +318,5 @@ def format_lease_liveness_human(rows: list[LeaseLivenessRow]) -> list[str]:
     return lines
 
 
-def lease_liveness_to_dict(rows: list[LeaseLivenessRow]) -> list[dict[str, Any]]:
+def lease_liveness_to_dict(rows: list[LeaseLivenessRow]) -> list[dict[str, object]]:
     return [asdict(row) for row in rows]

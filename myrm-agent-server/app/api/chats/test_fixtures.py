@@ -41,10 +41,10 @@ from app.services.kanban import KanbanService
 from .test_fixtures_allowed_tools_recovery import (
     router as allowed_tools_recovery_fixture_router,
 )
+from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_context_retention import (
     router as context_retention_fixture_router,
 )
-from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_evicted import router as evicted_fixture_router
 from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
 from .test_fixtures_file_mutation import router as file_mutation_fixture_router

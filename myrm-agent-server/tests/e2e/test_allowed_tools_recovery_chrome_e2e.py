@@ -16,6 +16,7 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (
+    _require_e2e_cdp_ready,  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -25,7 +26,6 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.chrome_mcp_e2e import _require_e2e_cdp_ready  # noqa: E402
 
 _MAX_ATTEMPTS = 3
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
@@ -228,7 +228,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
         )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_allowed_tools_recovery_progress_step_and_trust_badge_render() -> None:

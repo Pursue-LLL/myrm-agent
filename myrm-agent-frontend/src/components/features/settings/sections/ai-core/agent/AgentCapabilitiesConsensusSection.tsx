@@ -14,6 +14,12 @@ type SectionProps = {
   t: ReturnType<typeof useTranslations>;
 };
 
+const PRIVACY_OPTIONS = [
+  { value: 'off', labelKey: 'consensusPrivacyOff' },
+  { value: 'display', labelKey: 'consensusPrivacyDisplay' },
+  { value: 'full', labelKey: 'consensusPrivacyFull' },
+] as const;
+
 export function ConsensusSection({ editor, t }: SectionProps) {
   const ep = editor.engineParams ?? {};
   const consensus = (ep.consensus as Record<string, unknown>) ?? {};
@@ -45,6 +51,7 @@ export function ConsensusSection({ editor, t }: SectionProps) {
               aggregator_reasoning_effort: consensus.aggregator_reasoning_effort ?? null,
               reference_model_selections: consensus.reference_model_selections ?? [],
               aggregator_model_selection: consensus.aggregator_model_selection ?? null,
+              privacy_filter: consensus.privacy_filter ?? 'off',
             } : { ...consensus, enabled: false });
           }}
         />
@@ -108,13 +115,31 @@ export function ConsensusSection({ editor, t }: SectionProps) {
                 }} className="w-full mt-1" />
             </div>
           </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t('agent.consensusPrivacy')}</label>
+            <Select
+              value={(consensus.privacy_filter as string) || 'off'}
+              onValueChange={(v) => setConsensus({ privacy_filter: v })}
+            >
+              <SelectTrigger className="w-full mt-1 h-9 rounded-lg text-xs sm:max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIVACY_OPTIONS.map(({ value, labelKey }) => (
+                  <SelectItem key={value} value={value}>
+                    {t(`agent.${labelKey}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export function ConsensusRefModels({ consensus, setConsensus, t }: { consensus: Record<string, unknown>; setConsensus: (p: Record<string, unknown>) => void; t: ReturnType<typeof useTranslations> }) {
+export function ConsensusRefModels({ consensus, setConsensus, t, noModelsKey = 'consensusNoModels' }: { consensus: Record<string, unknown>; setConsensus: (p: Record<string, unknown>) => void; t: ReturnType<typeof useTranslations>; noModelsKey?: string }) {
   const refs = (consensus.reference_model_selections as Array<{ providerId: string; model: string }>) ?? [];
   return (
     <div>
@@ -144,7 +169,7 @@ export function ConsensusRefModels({ consensus, setConsensus, t }: { consensus: 
           }}
         />
       </div>
-      {refs.length === 0 && <p className="text-[10px] text-amber-500/80 mt-1.5">{t('agent.consensusNoModels')}</p>}
+      {refs.length === 0 && <p className="text-[10px] text-amber-500/80 mt-1.5">{t(`agent.${noModelsKey}`)}</p>}
     </div>
   );
 }

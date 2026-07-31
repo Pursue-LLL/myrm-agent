@@ -1,10 +1,12 @@
 'use client';
 
-import { Wand2, Bot, Link2, Layers, Sparkles, AlertTriangle, Info, Plus, Loader2 } from 'lucide-react';
+import { Wand2, Sparkles, AlertTriangle, Info, Plus, Loader2, Wrench } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Skill } from '@/store/skill/types';
 import { SelectableCard } from './AgentConfigSelectableCard';
+import { AgentSkillInstanceSelect } from './AgentSkillInstanceSelect';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 
 export function NoiseGauge({
@@ -95,10 +97,13 @@ export function NoiseGauge({
 interface SkillZoneProps {
   filteredSkills: Skill[];
   localSkillIds: string[];
-  localSkillConfigs: Record<string, { is_core?: boolean }>;
+  localSkillConfigs: AgentSkillConfigMap;
   isOwnSkill: (s: Skill) => boolean;
   toggleSkill: (id: string) => void;
   toggleSkillCore: (id: string) => void;
+  onInstanceChange: (skillId: string, instanceName: string | null) => void;
+  instancesBySkillName: Record<string, string[]>;
+  tPanel: (key: string) => string;
 }
 
 export function SkillCard({
@@ -106,6 +111,9 @@ export function SkillCard({
   isCore,
   toggleSkill,
   toggleSkillCore,
+  onInstanceChange,
+  instanceName,
+  instanceNames,
   icon,
   colorClass,
   rightElement,
@@ -114,10 +122,50 @@ export function SkillCard({
   isCore?: boolean;
   toggleSkill: (id: string) => void;
   toggleSkillCore?: (id: string) => void;
+  onInstanceChange?: (instanceName: string | null) => void;
+  instanceName?: string | null;
+  instanceNames?: string[];
   icon: React.ReactNode;
   colorClass: string;
   rightElement?: React.ReactNode;
 }) {
+  const instancePicker =
+    onInstanceChange != null ? (
+      <AgentSkillInstanceSelect
+        skillName={skill.name}
+        value={instanceName ?? null}
+        onChange={onInstanceChange}
+        instances={instanceNames}
+      />
+    ) : null;
+
+  const coreToggle =
+    toggleSkillCore != null ? (
+      <div
+        className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-lg border border-border/50 no-card-click"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleSkillCore(skill.id);
+        }}
+      >
+        <span className={cn('text-[10px] font-medium', isCore ? 'text-blue-500' : 'text-muted-foreground')}>
+          {isCore ? 'Core' : 'Peripheral'}
+        </span>
+        <Switch
+          checked={isCore ?? false}
+          onCheckedChange={() => toggleSkillCore(skill.id)}
+          className="scale-75 data-[state=checked]:bg-blue-500"
+        />
+      </div>
+    ) : null;
+
+  const combinedRight = rightElement ?? (
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      {instancePicker}
+      {coreToggle}
+    </div>
+  );
+
   return (
     <SelectableCard
       key={skill.id}
@@ -128,32 +176,22 @@ export function SkillCard({
       onCheckedChange={() => toggleSkill(skill.id)}
       icon={icon}
       colorClass={colorClass}
-      rightElement={
-        rightElement ??
-        (toggleSkillCore ? (
-          <div
-            className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-lg border border-border/50 no-card-click"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSkillCore(skill.id);
-            }}
-          >
-            <span className={cn('text-[10px] font-medium', isCore ? 'text-blue-500' : 'text-muted-foreground')}>
-              {isCore ? '核心 (Core)' : '外围 (Peripheral)'}
-            </span>
-            <Switch
-              checked={isCore ?? false}
-              onCheckedChange={() => toggleSkillCore(skill.id)}
-              className="scale-75 data-[state=checked]:bg-blue-500"
-            />
-          </div>
-        ) : undefined)
-      }
+      rightElement={combinedRight}
     />
   );
 }
 
-export function CoreSkillsZone({ filteredSkills, localSkillIds, localSkillConfigs, isOwnSkill, toggleSkill, toggleSkillCore }: SkillZoneProps) {
+export function CoreSkillsZone({
+  filteredSkills,
+  localSkillIds,
+  localSkillConfigs,
+  isOwnSkill,
+  toggleSkill,
+  toggleSkillCore,
+  onInstanceChange,
+  instancesBySkillName,
+  tPanel,
+}: SkillZoneProps) {
   const coreSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && (localSkillConfigs[s.id]?.is_core ?? true),
   );
@@ -163,9 +201,9 @@ export function CoreSkillsZone({ filteredSkills, localSkillIds, localSkillConfig
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1 mb-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 opacity-70" /> 核心常驻区 (Core)
+          <Sparkles className="w-3.5 h-3.5 opacity-70" /> {tPanel('skillsZone.coreTitle')}
         </h4>
-        <span className="text-[10px] text-muted-foreground">完整注入，极速响应</span>
+        <span className="text-[10px] text-muted-foreground">{tPanel('skillsZone.coreHint')}</span>
       </div>
       {coreSkills.map((skill) => (
         <SkillCard
@@ -174,6 +212,9 @@ export function CoreSkillsZone({ filteredSkills, localSkillIds, localSkillConfig
           isCore={true}
           toggleSkill={toggleSkill}
           toggleSkillCore={toggleSkillCore}
+          onInstanceChange={(instanceName) => onInstanceChange(skill.id, instanceName)}
+          instanceName={localSkillConfigs[skill.id]?.instance_name ?? null}
+          instanceNames={instancesBySkillName[skill.name]}
           icon={<Wand2 size={14} />}
           colorClass="text-blue-500"
         />
@@ -182,7 +223,17 @@ export function CoreSkillsZone({ filteredSkills, localSkillIds, localSkillConfig
   );
 }
 
-export function PeripheralSkillsZone({ filteredSkills, localSkillIds, localSkillConfigs, isOwnSkill, toggleSkill, toggleSkillCore }: SkillZoneProps) {
+export function PeripheralSkillsZone({
+  filteredSkills,
+  localSkillIds,
+  localSkillConfigs,
+  isOwnSkill,
+  toggleSkill,
+  toggleSkillCore,
+  onInstanceChange,
+  instancesBySkillName,
+  tPanel,
+}: SkillZoneProps) {
   const peripheralSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && !(localSkillConfigs[s.id]?.is_core ?? true),
   );
@@ -192,9 +243,9 @@ export function PeripheralSkillsZone({ filteredSkills, localSkillIds, localSkill
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1 mb-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <span>🧰</span> 外围工具箱 (Peripheral)
+          <Wrench className="w-3.5 h-3.5 opacity-70" /> {tPanel('skillsZone.peripheralTitle')}
         </h4>
-        <span className="text-[10px] text-muted-foreground">按需加载，极低负担</span>
+        <span className="text-[10px] text-muted-foreground">{tPanel('skillsZone.peripheralHint')}</span>
       </div>
       {peripheralSkills.map((skill) => (
         <SkillCard
@@ -203,6 +254,9 @@ export function PeripheralSkillsZone({ filteredSkills, localSkillIds, localSkill
           isCore={false}
           toggleSkill={toggleSkill}
           toggleSkillCore={toggleSkillCore}
+          onInstanceChange={(instanceName) => onInstanceChange(skill.id, instanceName)}
+          instanceName={localSkillConfigs[skill.id]?.instance_name ?? null}
+          instanceNames={instancesBySkillName[skill.name]}
           icon={<Wand2 size={14} />}
           colorClass="text-blue-500"
         />
@@ -211,124 +265,41 @@ export function PeripheralSkillsZone({ filteredSkills, localSkillIds, localSkill
   );
 }
 
-export function MountedSkillsZone({
-  filteredSkills,
-  localMountedSkillIds,
-  isOtherSkill,
-  agentNameMap,
-  toggleMountedSkill,
-}: {
-  filteredSkills: Skill[];
-  localMountedSkillIds: string[];
-  isOtherSkill: (s: Skill) => boolean;
-  agentNameMap: Map<string, string | undefined>;
-  toggleMountedSkill: (id: string) => void;
-}) {
-  const mounted = filteredSkills.filter((s) => isOtherSkill(s) && localMountedSkillIds.includes(s.id));
-  if (mounted.length === 0) return null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between px-1 mb-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Link2 className="w-3.5 h-3.5" /> 挂载技能 (Mounted)
-        </h4>
-        <span className="text-[10px] text-muted-foreground">来自其他智能体的跨域共享能力</span>
-      </div>
-      {mounted.map((skill) => {
-        const ownerName = skill.scope_agent_id ? agentNameMap.get(skill.scope_agent_id) : undefined;
-        return (
-          <SelectableCard
-            key={skill.id}
-            id={`skill-mounted-${skill.id}`}
-            label={skill.name}
-            description={skill.description}
-            checked={true}
-            onCheckedChange={() => toggleMountedSkill(skill.id)}
-            icon={<Layers size={14} />}
-            colorClass="text-purple-500"
-            rightElement={
-              <div className="flex items-center gap-2">
-                {ownerName && (
-                  <div className="px-2 py-1 bg-purple-500/10 rounded-lg border border-purple-500/20 flex items-center gap-1">
-                    <Bot className="w-3 h-3 text-purple-500" />
-                    <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">{ownerName}</span>
-                  </div>
-                )}
-                <div className="px-2 py-1 bg-background/50 rounded-lg border border-border/50">
-                  <span className="text-[10px] font-medium text-purple-500">挂载中</span>
-                </div>
-              </div>
-            }
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 export function AvailableSkillsZone({
   filteredSkills,
   localSkillIds,
-  localMountedSkillIds,
   isOwnSkill,
-  isOtherSkill,
-  agentNameMap,
   toggleSkill,
-  toggleMountedSkill,
+  tPanel,
 }: {
   filteredSkills: Skill[];
   localSkillIds: string[];
-  localMountedSkillIds: string[];
   isOwnSkill: (s: Skill) => boolean;
-  isOtherSkill: (s: Skill) => boolean;
-  agentNameMap: Map<string, string | undefined>;
   toggleSkill: (id: string) => void;
-  toggleMountedSkill: (id: string) => void;
+  tPanel: (key: string) => string;
 }) {
-  const available = filteredSkills.filter((s) =>
-    isOwnSkill(s) ? !localSkillIds.includes(s.id) : !localMountedSkillIds.includes(s.id),
-  );
+  const available = filteredSkills.filter((s) => isOwnSkill(s) && !localSkillIds.includes(s.id));
   if (available.length === 0) return null;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1 mb-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> 可选技能
+          <Plus className="w-3.5 h-3.5" /> {tPanel('skillsZone.availableTitle')}
         </h4>
       </div>
-      {available.map((skill) => {
-        const isMountable = isOtherSkill(skill);
-        const ownerName = isMountable && skill.scope_agent_id ? agentNameMap.get(skill.scope_agent_id) : undefined;
-        return (
-          <SelectableCard
-            key={skill.id}
-            id={`skill-${skill.id}`}
-            label={skill.name}
-            description={skill.description}
-            checked={false}
-            onCheckedChange={() => (isMountable ? toggleMountedSkill(skill.id) : toggleSkill(skill.id))}
-            icon={isMountable ? <Layers size={14} /> : <Wand2 size={14} />}
-            colorClass={isMountable ? 'text-purple-500' : 'text-blue-500'}
-            rightElement={
-              isMountable ? (
-                <div className="flex items-center gap-2">
-                  {ownerName && (
-                    <div className="px-2 py-1 bg-purple-500/10 rounded-lg border border-purple-500/20 flex items-center gap-1">
-                      <Bot className="w-3 h-3 text-purple-500" />
-                      <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">{ownerName}</span>
-                    </div>
-                  )}
-                  <div className="px-2 py-1 bg-muted/50 rounded-lg border border-border/50">
-                    <span className="text-[10px] font-medium text-muted-foreground">可挂载</span>
-                  </div>
-                </div>
-              ) : undefined
-            }
-          />
-        );
-      })}
+      {available.map((skill) => (
+        <SelectableCard
+          key={skill.id}
+          id={`skill-${skill.id}`}
+          label={skill.name}
+          description={skill.description}
+          checked={false}
+          onCheckedChange={() => toggleSkill(skill.id)}
+          icon={<Wand2 size={14} />}
+          colorClass="text-blue-500"
+        />
+      ))}
     </div>
   );
 }

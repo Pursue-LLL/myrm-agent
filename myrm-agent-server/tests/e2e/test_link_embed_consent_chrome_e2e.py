@@ -75,7 +75,7 @@ def _embed_mode_probe(mode: str) -> str:
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 @pytest.mark.parametrize("embed_mode", ["ask", "always", "off"])

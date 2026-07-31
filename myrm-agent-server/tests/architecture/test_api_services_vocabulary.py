@@ -33,6 +33,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "channels",
         "checkpoint",
         "companion",
+        "compounding_playbook",
         "config",
         "connect",
         "context",

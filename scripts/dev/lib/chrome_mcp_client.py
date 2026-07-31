@@ -245,6 +245,49 @@ _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
 
 
+class _TrackedRLock:
+    """Reentrant request lock with portable ownership state for orphan recovery."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._state_lock = threading.Lock()
+        self._owner_thread_id: int | None = None
+        self._depth = 0
+
+    def acquire(self, blocking: bool = True, timeout: float = -1.0) -> bool:
+        if not blocking:
+            acquired = self._lock.acquire(blocking=False)
+        elif timeout < 0:
+            acquired = self._lock.acquire()
+        else:
+            acquired = self._lock.acquire(timeout=timeout)
+        if not acquired:
+            return False
+        thread_id = threading.get_ident()
+        with self._state_lock:
+            if self._owner_thread_id is None:
+                self._owner_thread_id = thread_id
+            elif self._owner_thread_id != thread_id:
+                self._lock.release()
+                raise RuntimeError("request lock ownership state is inconsistent")
+            self._depth += 1
+        return True
+
+    def release(self) -> None:
+        thread_id = threading.get_ident()
+        with self._state_lock:
+            if self._owner_thread_id != thread_id or self._depth < 1:
+                raise RuntimeError("cannot release an unowned request lock")
+            self._depth -= 1
+            if self._depth == 0:
+                self._owner_thread_id = None
+        self._lock.release()
+
+    def locked(self) -> bool:
+        with self._state_lock:
+            return self._depth > 0
+
+
 def _parallel_request_lock_cap_sec() -> float:
     try:
         from dev_gate_contract import is_e2e_signoff_runtime
@@ -260,9 +303,7 @@ def _resolve_request_lock_acquire_sec() -> float:
     """Scale per-session mux request lock wait with parallel E2E load (R76).
 
     ``transport_supervisor.recovery_lock_wait_sec`` scales on active pytest count;
-    ``_parallel_mux_peer_count`` scales on concurrent mux sessions (Run#20:
-    active_tests=1 but peers=5 → 35s wait was insufficient). Stream lock holder
-    (shared_hot desktop) uses full parallel cap — sole authorized shared_hot consumer.
+    ``_parallel_mux_peer_count`` scales on concurrent mux sessions.
     """
     scaled = _REQUEST_LOCK_ACQUIRE_SEC
     try:
@@ -275,8 +316,6 @@ def _resolve_request_lock_acquire_sec() -> float:
     if peer_count > 1:
         peer_scaled = _REQUEST_LOCK_ACQUIRE_SEC + (peer_count - 1) * 15.0
         scaled = max(scaled, peer_scaled)
-    if os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() == "1":
-        return _parallel_request_lock_cap_sec()
     return min(
         max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
         _parallel_request_lock_cap_sec(),
@@ -361,7 +400,7 @@ class ChromeMcpClient:
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
         self._request_generation = self._initial_mux_generation()
-        self._request_lock = threading.RLock()
+        self._request_lock = _TrackedRLock()
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
         self._pages: dict[int, McpPage] = {}
@@ -369,6 +408,10 @@ class ChromeMcpClient:
         self._page_lease_heartbeat = PageLeaseHeartbeat(
             self._heartbeat_lease,
             interval_sec=_PAGE_LEASE_HEARTBEAT_INTERVAL_SEC,
+        )
+        self._browser_context_id = (
+            os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+            or f"myrm-{os.getpid()}-{uuid.uuid4().hex}"
         )
         self._agent_id = (
             os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
@@ -386,11 +429,7 @@ class ChromeMcpClient:
         self._cold_shim_recover_streak = 0
 
     def _request_lock_is_held(self) -> bool:
-        acquired = self._request_lock.acquire(blocking=False)
-        if acquired:
-            self._request_lock.release()
-            return False
-        return True
+        return self._request_lock.locked()
 
     @staticmethod
     def _initial_mux_generation() -> int:
@@ -435,10 +474,24 @@ class ChromeMcpClient:
 
     def _acquire_request_lock(
         self, *, timeout_sec: float | None = None
-    ) -> threading.Lock:
+    ) -> _TrackedRLock:
         max_wait_sec = _resolve_request_lock_acquire_sec()
         wait_sec = float(timeout_sec) if timeout_sec is not None else max_wait_sec
-        wait_sec = max(0.1, min(wait_sec, max_wait_sec))
+        if timeout_sec is not None:
+            wait_sec = min(max_wait_sec, max(0.01, wait_sec))
+        else:
+            wait_sec = max(0.1, min(wait_sec, max_wait_sec))
+        # R184: open-page budget must cap mux lock wait — orphan to_thread otherwise
+        # holds the lock past asyncio wall timeout under parallel signoff load.
+        if self._tool_wall_deadline is not None:
+            wall_remaining = self.remaining_tool_wall_sec()
+            if wall_remaining is not None and wall_remaining <= 0:
+                raise TimeoutError(
+                    "Chrome MCP request lock wall budget exhausted "
+                    f"(cap={wait_sec:.1f}s)"
+                )
+            if wall_remaining is not None:
+                wait_sec = min(wait_sec, wall_remaining)
         lock = self._request_lock
         if not lock.acquire(timeout=wait_sec):
             raise RuntimeError(
@@ -446,7 +499,7 @@ class ChromeMcpClient:
             )
         return lock
 
-    def _release_request_lock(self, lock: threading.Lock | None = None) -> None:
+    def _release_request_lock(self, lock: _TrackedRLock | None = None) -> None:
         target = lock if lock is not None else self._request_lock
         try:
             target.release()
@@ -496,6 +549,17 @@ class ChromeMcpClient:
             resolve_transport_recovery_mode,
         )
 
+        try:
+            from dev_gate_contract import is_e2e_signoff_runtime
+
+            if (
+                is_e2e_signoff_runtime()
+                and not self._pages
+                and not self._disconnected_pages
+            ):
+                return TransportRecoveryMode.SOLO_FULL
+        except ImportError:
+            pass
         return resolve_transport_recovery_mode(
             parallel_peers=_parallel_mux_peer_count(),
             shim_alive=_shim_process_alive(self),
@@ -504,6 +568,12 @@ class ChromeMcpClient:
     def set_tool_wall_deadline(self, deadline: float | None) -> None:
         """Hard monotonic deadline for in-flight tool retries (open_mcp_page budget)."""
         self._tool_wall_deadline = deadline
+
+    def remaining_tool_wall_sec(self) -> float | None:
+        """Monotonic seconds left on open-page tool wall, or None when unset (R184)."""
+        if self._tool_wall_deadline is None:
+            return None
+        return max(0.0, self._tool_wall_deadline - time.monotonic())
 
     def _open_page_budget_active(self) -> bool:
         return self._tool_wall_deadline is not None
@@ -689,7 +759,9 @@ class ChromeMcpClient:
             fetch_transient = (
                 "Failed to fetch" in error_text or "fetch" in error_text.lower()
             )
-            page_transient = "Target closed" in error_text or "No page found" in error_text
+            page_transient = (
+                "Target closed" in error_text or "No page found" in error_text
+            )
             if attempt + 1 < max_binding_attempts and page_transient:
                 time.sleep(4.0 * (attempt + 1))
                 continue
@@ -724,7 +796,11 @@ class ChromeMcpClient:
                 resolved_timeout_ms = min(
                     resolved_timeout_ms, max(5_000, int(remaining_sec * 1000))
                 )
-        context_id = isolated_context.strip() if isolated_context is not None else None
+        context_id = (
+            isolated_context.strip()
+            if isolated_context is not None
+            else self._browser_context_id
+        )
         if isolated_context is not None and not context_id:
             raise ValueError("isolated_context must not be empty")
         lease_id = self._acquire_page_lease()
@@ -748,7 +824,7 @@ class ChromeMcpClient:
                     "url": initial_url,
                     "timeout": resolved_timeout_ms,
                 }
-                if context_id is not None:
+                if isolated_context is not None:
                     arguments["isolatedContext"] = context_id
                 page_id: int
                 target_id: str
@@ -834,6 +910,7 @@ class ChromeMcpClient:
                     self._bind_page_lease(page)
                 self._pages[page_id] = page
                 self._disconnected_pages.pop(page_id, None)
+                self._publish_dev_gate_ownership()
                 self._cold_shim_recover_streak = 0
                 self._page_lease_heartbeat.track(lease_id)
                 if runtime_binding is not None:
@@ -903,6 +980,7 @@ class ChromeMcpClient:
                 errors.append(f"http_close: targetId={page.target_id.strip()} failed")
         self._pages.pop(page.page_id, None)
         self._disconnected_pages.pop(page.page_id, None)
+        self._publish_dev_gate_ownership()
         try:
             self._release_page_lease(page, unbind=not errors)
         except (RuntimeError, TimeoutError) as exc:
@@ -914,6 +992,35 @@ class ChromeMcpClient:
             _LOGGER.warning(message)
             return
         raise RuntimeError(message)
+
+    def _publish_dev_gate_ownership(self) -> None:
+        """Best-effort mirror of physical browser ownership into the coordinator."""
+        session_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+        owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
+        if not session_id or not owner_token:
+            return
+        try:
+            from dev_gate_cli import send
+
+            send(
+                {
+                    "operation": "ownership",
+                    "session_id": session_id,
+                    "owner_token": owner_token,
+                    "ownership": {
+                        "browser_context_id": self._browser_context_id,
+                        "page_ids": [
+                            str(page_id) for page_id in sorted(self._pages)
+                        ],
+                        "lease_id": self._parent_lease_id,
+                        "runtime_id": os.environ.get(
+                            "MYRM_E2E_RUNTIME_ID", ""
+                        ).strip(),
+                    },
+                }
+            )
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            _LOGGER.warning("DEV_GATE_OWNERSHIP_PUBLISH_WARN: %s", exc)
 
     def _resolve_page(self, page: McpPage) -> McpPage:
         tracked = self._pages.get(page.page_id)
@@ -1113,15 +1220,22 @@ class ChromeMcpClient:
                 ),
             )
 
-        try:
-            _navigate_resolved(resolved)
-        except RuntimeError as exc:
-            if _is_page_ownership_error(str(exc)):
-                resolved = self.reclaim_owned_page(resolved)
+        for ownership_attempt in range(3):
+            try:
                 _navigate_resolved(resolved)
-            elif "timeout" not in str(exc).lower():
-                raise
-            else:
+                return
+            except RuntimeError as exc:
+                if _is_page_ownership_error(str(exc)):
+                    if getattr(self, "_reclaim_in_progress", False):
+                        time.sleep(0.3)
+                        resolved = self._resolve_page(page)
+                        continue
+                    if ownership_attempt >= 2:
+                        raise
+                    resolved = self.reclaim_owned_page(resolved)
+                    continue
+                if "timeout" not in str(exc).lower():
+                    raise
                 probe = self.evaluate(
                     resolved,
                     "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
@@ -1133,18 +1247,23 @@ class ChromeMcpClient:
                 body_length = probe.get("bodyLength")
                 if href != url or not isinstance(body_length, int) or body_length <= 0:
                     raise exc
-        except TimeoutError as exc:
-            probe = self.evaluate(
-                resolved,
-                "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
-                timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
-            )
-            if not isinstance(probe, dict):
-                raise exc
-            href = probe.get("href")
-            body_length = probe.get("bodyLength")
-            if href != url or not isinstance(body_length, int) or body_length <= 0:
-                raise exc
+                return
+            except TimeoutError as exc:
+                probe = self.evaluate(
+                    resolved,
+                    "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
+                    timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+                )
+                if not isinstance(probe, dict):
+                    raise exc
+                href = probe.get("href")
+                body_length = probe.get("bodyLength")
+                if href != url or not isinstance(body_length, int) or body_length <= 0:
+                    raise exc
+                return
+        raise RuntimeError(
+            f"{MUX_RECLAIM_STALL_TOKEN}: navigate exhausted ownership retries"
+        )
 
     def reload(self, page: McpPage, *, timeout_ms: int = 15_000) -> None:
         resolved = self._resolve_page(page)
@@ -1402,7 +1521,11 @@ class ChromeMcpClient:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "myrm-pytest-mcp", "version": "1.0"},
+                    "clientInfo": {
+                        "name": "myrm-pytest-mcp",
+                        "version": "1.0",
+                        "sessionId": self._browser_context_id,
+                    },
                 },
                 timeout_sec=self._resolve_tool_timeout_sec(None),
             )
@@ -1693,6 +1816,11 @@ class ChromeMcpClient:
         """R69-C: page-level reclaim when global shim teardown would harm peer sessions."""
         if not saved_pages:
             return
+        if getattr(self, "_reclaim_in_progress", False):
+            _LOGGER.warning(
+                "RECOVER_MUX_PARALLEL_RECLAIM: skip nested reclaim during active recovery"
+            )
+            return
         peer_count = _parallel_mux_peer_count()
         for old_page_id, old_page in saved_pages.items():
             remaining = _remaining_reclaim_sec(reclaim_deadline)
@@ -1769,7 +1897,7 @@ class ChromeMcpClient:
             self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
-        self._request_lock = threading.RLock()
+        self._request_lock = _TrackedRLock()
 
     def reset_after_orphan(self) -> None:
         """Single orphan recovery entry: invalidate in-flight mux I/O and restart transport."""
@@ -1784,10 +1912,9 @@ class ChromeMcpClient:
 
     def recover_mux_transport(self) -> None:
         """Restart MCP shim after mux timeout or transport drift (E2E orchestrator hook)."""
-        if not self._request_lock.acquire(blocking=False):
+        if self._request_lock_is_held():
             self.reset_after_orphan()
             return
-        self._request_lock.release()
         self._recover_mux_transport()
 
     def call_tool(

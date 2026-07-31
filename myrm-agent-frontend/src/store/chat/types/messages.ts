@@ -43,6 +43,7 @@ export type Message = {
   isCompactedSummaryView?: boolean;
   suggestions?: string[];
   sources?: Source[]; // 外部引用来源
+  citationAudit?: { totalMarkers: number; valid: number; unresolved: number };
   progressSteps?: ProgressItem[];
   searchItems?: string[];
   readingItems?: string[];
@@ -70,7 +71,9 @@ export type Message = {
     success: boolean;
     elapsed: number;
     content?: string;
+    source?: 'moa_overlay' | 'consensus';
   }>;
+  consensusRefsExpected?: number;
   modelName?: string; // 最后使用的模型名称
   routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
   modelTier?: 'weak' | 'medium';

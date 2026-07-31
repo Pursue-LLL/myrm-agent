@@ -19,6 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from myrm_agent_harness.toolkits.tasks import Task, TaskFilters, TaskStatus, TaskStore
 
+from app.api.tasks.deps import get_task_store
+
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.tasks.events import task_event_bus
 
@@ -49,13 +51,6 @@ def _raise_task_api_error(
         "recoverable": recoverable,
     }
     raise HTTPException(status_code=status_code, detail=detail)
-
-
-async def get_task_store() -> TaskStore:
-    """Get task store instance."""
-    from app.lifecycle.task_worker import get_task_store as get_store
-
-    return get_store()
 
 
 def _parse_task_ids(ids: str | None) -> list[str] | None:
@@ -239,6 +234,11 @@ async def retry_task(
     )
 
     return {"message": "Task queued for retry", "task_id": task_id}
+
+
+from app.api.tasks.test_fixtures import router as tasks_test_fixtures_router
+
+router.include_router(tasks_test_fixtures_router)
 
 
 __all__ = ["router"]

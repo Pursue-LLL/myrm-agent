@@ -11,14 +11,12 @@ from unittest.mock import MagicMock
 
 from fastapi import Query
 from fastapi.testclient import TestClient
-
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 
 def _override_archiver_app(mock_archiver: MagicMock):
-    from tests.support.minimal_app import build_minimal_app
-
     from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
 
     app = build_minimal_app(preset="wiki")
 
@@ -59,7 +57,7 @@ def test_wiki_portability_export_zip_contains_manifest_and_concepts(tmp_path: Pa
         assert "wiki/log.md" in names
 
         manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
-        assert manifest["version"] == 1
+        assert manifest["version"] == 2
         assert manifest["concepts_count"] >= 1
 
 

@@ -31,6 +31,7 @@ from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
 from app.api.companion.router import router as companion_router
+from app.api.compounding_playbook import router as compounding_playbook_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
@@ -237,6 +238,7 @@ api_router.include_router(remote_access_router, prefix="/remote-access", tags=["
 api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
 api_router.include_router(api_keys_router)
 api_router.include_router(companion_router, prefix="/companion", tags=["companion"])
+api_router.include_router(compounding_playbook_router, tags=["compounding-playbook"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 

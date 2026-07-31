@@ -2,12 +2,14 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
 - StreamAccumulator: Accumulates streaming chunks and handles multimodal attachments.
+- build_multimodal_query: Assembles text or multimodal query from task attachments.
 
 [POS]
-Stream processing: accumulate LLM output chunks, detect and persist image/file attachments.
+Stream processing: accumulate LLM output chunks, detect and persist image/file attachments; build Kanban agent query with PDF/Office text extraction.
 """
 
 from __future__ import annotations
@@ -121,7 +123,7 @@ async def _extract_pdf_text(file_id: str) -> str:
         from app.core.storage import files_service
         from app.services.files.content_extraction import extract_pdf_text_from_bytes
 
-        content = await files_service.get_file_content(file_id)
+        content = await files_service.get_content(file_id)
         if not content:
             return ""
         return await extract_pdf_text_from_bytes(content)
@@ -135,7 +137,7 @@ async def _extract_document_text(file_id: str) -> str:
         from app.core.storage import files_service
         from app.services.files.content_extraction import extract_document_text_from_bytes
 
-        content = await files_service.get_file_content(file_id)
+        content = await files_service.get_content(file_id)
         if not content:
             return ""
 

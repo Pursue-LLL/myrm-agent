@@ -37,14 +37,20 @@ async def test_companion_config_flow(companion_app) -> None:
         assert data["value"]["species"] is None
         assert data["value"]["hat"] is None
         assert data["value"]["palette_theme"] is None
+        assert data["value"]["sprite"] is None
 
-        # 2. SET config with custom values
+        # 2. SET config with pet slug sprite selection
         set_payload = {
             "value": {
                 "name": "Ferris",
                 "species": "Crab",
                 "hat": "Cowboy Hat",
                 "palette_theme": "Laserwave",
+                "sprite": {
+                    "pet_slug": "nous-girl",
+                    "content_sha256": "deadbeef",
+                    "display_name": "Nous Girl",
+                },
             },
             "deviceId": "test_device_1",
         }
@@ -55,6 +61,9 @@ async def test_companion_config_flow(companion_app) -> None:
         assert data["value"]["species"] == "Crab"
         assert data["value"]["hat"] == "Cowboy Hat"
         assert data["value"]["palette_theme"] == "Laserwave"
+        assert data["value"]["sprite"]["pet_slug"] == "nous-girl"
+        assert data["value"]["sprite"]["content_sha256"] == "deadbeef"
+        assert data["value"]["sprite"]["display_name"] == "Nous Girl"
         assert data["version"] is not None
 
         # 3. GET config again to check persistence
@@ -65,3 +74,5 @@ async def test_companion_config_flow(companion_app) -> None:
         assert data["value"]["species"] == "Crab"
         assert data["value"]["hat"] == "Cowboy Hat"
         assert data["value"]["palette_theme"] == "Laserwave"
+        assert data["value"]["sprite"]["pet_slug"] == "nous-girl"
+        assert data["value"]["sprite"]["display_name"] == "Nous Girl"

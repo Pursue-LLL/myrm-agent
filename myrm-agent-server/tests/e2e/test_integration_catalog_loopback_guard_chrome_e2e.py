@@ -139,7 +139,7 @@ def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
     return False
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_loopback_guard_end_to_end() -> None:
@@ -317,7 +317,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
         raise AssertionError(f"failed to open MCP page after retries: {last_open_error}")
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> None:
@@ -476,7 +476,7 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
             raise AssertionError(f"failed to open MCP page after retries: {last_open_error}")
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end() -> None:
@@ -638,7 +638,7 @@ def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end(
                 raise AssertionError(f"failed to open MCP page after retries: {last_open_error}")
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_tls_verification_failed_end_to_end() -> None:

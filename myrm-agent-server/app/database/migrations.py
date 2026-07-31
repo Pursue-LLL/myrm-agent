@@ -853,6 +853,26 @@ INDEX_STATEMENTS = [
         ON expert_summon_metric_events(surface, created_at)""",
     """CREATE INDEX IF NOT EXISTS ix_expert_summon_metrics_context_created_at
         ON expert_summon_metric_events(context_key, created_at)""",
+    # Assessment import funnel observability
+    """CREATE TABLE IF NOT EXISTS assessment_import_metric_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type VARCHAR(40) NOT NULL,
+        surface VARCHAR(40) NOT NULL,
+        trigger VARCHAR(32) NOT NULL,
+        context_key VARCHAR(128),
+        failure_reason VARCHAR(80),
+        count INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_created_at ON assessment_import_metric_events(created_at)",
+    """CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_event_type_created_at
+        ON assessment_import_metric_events(event_type, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_surface_created_at
+        ON assessment_import_metric_events(surface, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_trigger_created_at
+        ON assessment_import_metric_events(trigger, created_at)""",
+    """CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_context_created_at
+        ON assessment_import_metric_events(context_key, created_at)""",
     "ALTER TABLE projects ADD COLUMN default_agent_id VARCHAR(255) REFERENCES agents(id) ON DELETE SET NULL",
 ]
 

@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.tool_management::register_tool_layer (POS: Tool layer
   priority registry API.)
 - myrm_agent_harness.agent.tool_management::ToolLayer (POS: Tool layer enum
-  CORE=1, COMMON=2, EXTENDED=3.)
+  CORE=1, COMMON=2, EXTENDED=3, EXTERNAL=4.)
 
 [OUTPUT]
 - register_server_tools(): Idempotent registration of every server-specific
@@ -23,13 +23,13 @@ from myrm_agent_harness.agent.sub_agents.delegation_policy import (
 from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_layer
 
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
-    # EXTENDED: opt-in business tools that depend on server-specific SDKs/APIs.
-    "x_search_tool": ToolLayer.EXTENDED,
-    "channel_notify_tool": ToolLayer.EXTENDED,
-    "image_tool": ToolLayer.EXTENDED,
-    "video_tool": ToolLayer.EXTENDED,
-    "tts_generate": ToolLayer.EXTENDED,
-    "artifact_publish": ToolLayer.EXTENDED,
+    # EXTERNAL: opt-in business tools that depend on server-specific SDKs/APIs.
+    "x_search_tool": ToolLayer.EXTERNAL,
+    "channel_notify_tool": ToolLayer.EXTERNAL,
+    "image_tool": ToolLayer.EXTERNAL,
+    "video_tool": ToolLayer.EXTERNAL,
+    "tts_generate": ToolLayer.EXTERNAL,
+    "artifact_publish": ToolLayer.EXTERNAL,
 }
 
 

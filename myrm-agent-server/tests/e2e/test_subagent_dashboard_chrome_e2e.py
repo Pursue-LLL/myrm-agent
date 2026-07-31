@@ -159,7 +159,7 @@ def running_subagent(
                 process.wait(timeout=5)
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_lists_and_cancels_running_task(
@@ -388,7 +388,7 @@ def _open_subagent_dashboard(
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
@@ -442,7 +442,7 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
         assert pause_cycle.get("ready") is True, f"Delegation pause toggle failed: {pause_cycle}"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_shows_running_token_and_model(

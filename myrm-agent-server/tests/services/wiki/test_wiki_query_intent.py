@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from typing import cast
 
 import pytest
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.core.types import ModelConfig
 from app.services.agent.params.models import AgentRequest
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.wiki.wiki_query_intent import matches_wiki_query_intent, should_use_wiki_knowledge_lane
-from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 
 @dataclass

@@ -26,7 +26,10 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         return None
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return None
-    from e2e_readiness import launch_denial_line, resolve_chrome_e2e_readiness  # noqa: PLC0415
+    from e2e_readiness import (
+        launch_denial_line,
+        resolve_chrome_e2e_readiness,
+    )  # noqa: PLC0415
 
     verdict = resolve_chrome_e2e_readiness()
     return launch_denial_line(verdict)

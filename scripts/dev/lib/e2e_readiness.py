@@ -63,7 +63,9 @@ def _status_for_next_action(next_action: str, *, ctx_blocked: bool) -> Readiness
     return "READY"
 
 
-def _token_for_verdict(*, status: ReadinessStatus, next_action: str, ctx: E2eApiContext) -> str:
+def _token_for_verdict(
+    *, status: ReadinessStatus, next_action: str, ctx: E2eApiContext
+) -> str:
     if status == "READY":
         return "READY"
     if status == "FAIL":
@@ -83,7 +85,9 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
         blocked_reason = ctx.blocked_reason.strip() or "verification plane blocked"
         return f"{blocked_reason}; NEXT_ACTION={next_action}"
     if next_action == "QUEUE":
-        return "PRIVATE ADMIT queue expected; launch may defer — do not stop other pytest"
+        return (
+            "PRIVATE ADMIT queue expected; launch may defer — do not stop other pytest"
+        )
     if next_action == "ADMIT_STACK_HEAL_WAIT":
         return "shared stack heal in ADMIT — wait for peer recovery"
     if next_action == "RESTART_WHEN_IDLE":
@@ -96,16 +100,21 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
 
 
 def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
-    if ctx.blocked:
-        return False
     if next_action == "FAIL_FAST":
         return False
-    if next_action not in _LAUNCH_ALLOWED_ACTIONS:
+    if next_action in _LAUNCH_ALLOWED_ACTIONS:
+        return True
+    # R219-D: blocked epoch + parallel peers must enter ADMIT/queue in test.sh — not hard deny.
+    if next_action == "ADMIT_STACK_HEAL_WAIT":
+        return True
+    if ctx.blocked:
         return False
-    return True
+    return False
 
 
-def _ready_chrome_full(*, next_action: str, ctx: E2eApiContext, mux_fields: dict[str, object]) -> bool:
+def _ready_chrome_full(
+    *, next_action: str, ctx: E2eApiContext, mux_fields: dict[str, object]
+) -> bool:
     if ctx.blocked or not ctx.epoch_match:
         return False
     if next_action in ("FAIL_FAST", "SHPOIB_OR_VERIFY_API", "RESTART_WHEN_IDLE"):
@@ -152,8 +161,32 @@ def evaluate_chrome_e2e_readiness(
     )
 
 
-def resolve_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict:
-    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+def _auto_reap_before_readiness() -> bool:
+    """Reap stale/hung/excess wave state before readiness; never kill healthy peers."""
+    reaped = False
+    try:
+        from e2e_stale_lease_reap import (
+            maybe_reap_excess_wave_leases,
+            maybe_reap_hung_chrome_e2e_pytest,
+            maybe_reap_stale_heartbeat_leases,
+        )
+
+        if maybe_reap_stale_heartbeat_leases():
+            reaped = True
+        if maybe_reap_hung_chrome_e2e_pytest():
+            reaped = True
+        if maybe_reap_excess_wave_leases():
+            reaped = True
+    except (ImportError, OSError, PermissionError):
+        return False
+    return reaped
+
+
+def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
+    from e2e_lease_liveness import (
+        load_wave_snapshot,
+        wave_lease_counts,
+    )  # noqa: PLC0415
 
     ctx = resolve_e2e_api_context()
     mux_fields = _mux_context_fields()
@@ -178,6 +211,14 @@ def resolve_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict:
         active_tests=active_tests,
         mux_fields=mux_fields,
     )
+
+
+def resolve_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict:
+    _auto_reap_before_readiness()
+    verdict = _build_readiness_verdict()
+    if verdict.next_action == "FAIL_FAST" and _auto_reap_before_readiness():
+        verdict = _build_readiness_verdict()
+    return verdict
 
 
 def format_shell_tokens(verdict: ChromeE2eReadinessVerdict) -> str:

@@ -15,9 +15,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
+import myrm_agent_harness.runtime.execution_paths as execution_paths
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.runtime.context.context_branches import append_context_branch
 from myrm_agent_harness.runtime.context.session_context_pins import write_pinned_files
@@ -34,7 +37,28 @@ _SUMMARY_TEXT = (
 )
 _PIN_FILE = "src/context/retention.py"
 _BRANCH_LABEL = "Before compaction E2E"
-_SNAPSHOT_PATH = ".context/snap-e2e-retention.jsonl"
+
+
+def _write_seed_snapshot(chat_id: str) -> str:
+    rel_path = f".context/{chat_id}/snapshots/e2e-pre-compact.jsonl"
+    abs_path = (
+        Path(execution_paths.PERSISTENT_ROOT)
+        / ".context"
+        / chat_id
+        / "snapshots"
+        / "e2e-pre-compact.jsonl"
+    )
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        json.dumps({"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False),
+        json.dumps({"type": "human", "content": "Context retention E2E fixture question"}, ensure_ascii=False),
+        json.dumps(
+            {"type": "ai", "content": "Context retention E2E fixture answer with context budget metadata."},
+            ensure_ascii=False,
+        ),
+    ]
+    abs_path.write_text("\n".join(lines), encoding="utf-8")
+    return rel_path
 
 
 def _build_assistant_extra_data() -> dict[str, object]:
@@ -69,12 +93,14 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
     agent_id = agent.id
 
     chat_id = f"e2econtextret{uuid4().hex[:8]}"
+    seed_workspace = str(Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention")
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=chat_id,
             title="Context retention Chrome E2E",
             agent_id=agent_id,
             messages=[],
+            workspace_dir=seed_workspace,
         ),
     )
 
@@ -107,9 +133,10 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
     )
 
     write_pinned_files(chat_id, [_PIN_FILE])
+    snapshot_path = _write_seed_snapshot(chat_id)
     append_context_branch(
         chat_id,
-        snapshot_path=_SNAPSHOT_PATH,
+        snapshot_path=snapshot_path,
         label=_BRANCH_LABEL,
     )
 
@@ -119,6 +146,6 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
         "summary_text": _SUMMARY_TEXT,
         "pinned_files": [_PIN_FILE],
         "bookmark_label": _BRANCH_LABEL,
-        "snapshot_path": _SNAPSHOT_PATH,
+        "snapshot_path": snapshot_path,
         "ui_path": f"/{chat_id}",
     }

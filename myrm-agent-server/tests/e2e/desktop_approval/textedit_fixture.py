@@ -35,6 +35,27 @@ def _strict_fallback_mode_enabled() -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
+def _signoff_or_desktop_soak_fast_path() -> bool:
+    """Signoff/soak runs under parallel chrome_e2e — skip slow graceful TextEdit quit."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return True
+    return os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1"
+
+
+_FOCUS_STEALER_APPS: tuple[str, ...] = ("WeChat",)
+
+
+def _hide_known_focus_stealers() -> None:
+    if platform.system() != "Darwin":
+        return
+    for app_name in _FOCUS_STEALER_APPS:
+        _run_command_no_raise(
+            ["osascript", "-e", f'tell application "{app_name}" to hide'],
+            timeout=5,
+            label=f"hide {app_name}",
+        )
+
+
 def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
     if (
         _textedit_ax_degraded_scope_key
@@ -212,13 +233,21 @@ def restart_textedit_fixture_process() -> None:
     """Hard-restart TextEdit when AX snapshots remain empty."""
     if platform.system() != "Darwin":
         return
+    if _signoff_or_desktop_soak_fast_path():
+        progress("textedit fast restart (signoff/soak — skip graceful quit)")
+        _force_kill_textedit_process(include_sigkill=True)
+        time.sleep(0.4)
+        prepare_textedit_fixture()
+        time.sleep(0.8)
+        return
+    quit_timeout = 10
     quit_proc = _run_command_no_raise(
         ["osascript", "-e", 'tell application "TextEdit" to quit'],
-        timeout=10,
+        timeout=quit_timeout,
         label="textedit quit",
     )
     if quit_proc is None:
-        progress("textedit quit timed out after 10s; force-kill fallback")
+        progress(f"textedit quit timed out after {quit_timeout}s; force-kill fallback")
         _force_kill_textedit_process(include_sigkill=True)
     elif quit_proc.returncode != 0:
         progress(
@@ -263,6 +292,8 @@ def activate_textedit_foreground() -> None:
     """Bring TextEdit to the foreground so macOS AX snapshot returns @drefs."""
     if platform.system() != "Darwin":
         return
+    if _signoff_or_desktop_soak_fast_path():
+        _hide_known_focus_stealers()
     try:
         subprocess.run(
             [

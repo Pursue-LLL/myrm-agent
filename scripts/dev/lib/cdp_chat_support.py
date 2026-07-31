@@ -1628,6 +1628,7 @@ def _pin_hitl_on_api(api_url: str, *, request_timeout_sec: float = 15.0) -> None
 
 
 _HITL_PIN_BACKOFF_SEC = 1.5
+_BROWSER_HITL_PIN_BACKOFF_SEC = 2.0
 
 
 def _hitl_pin_retry_policy() -> tuple[int, float]:
@@ -1885,13 +1886,38 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
 })()"""
 
 
+def _browser_hitl_pin_transient_failure(observed: dict[str, object]) -> bool:
+    results = observed.get("results")
+    if not isinstance(results, list):
+        err = str(observed.get("err", ""))
+        return err.startswith("put-5") or "500" in err
+    for row in results:
+        if not isinstance(row, dict):
+            continue
+        err = str(row.get("err", ""))
+        if err.startswith("put-5") or err.startswith("fetch-5"):
+            return True
+    return False
+
+
 async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
     """PUT HITL securityConfig on the bound private API and clear ConfigSync drift."""
-    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
-    raw = await chat.evaluate(PUT_E2E_HITL_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
-    observed = raw if isinstance(raw, dict) else {"value": raw}
-    if observed.get("ok") is not True:
-        raise RuntimeError(f"Browser HITL pin failed: {observed}")
+    max_attempts, _request_timeout_sec = _hitl_pin_retry_policy()
+    last_observed: dict[str, object] | None = None
+    for attempt in range(1, max_attempts + 1):
+        await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
+        raw = await chat.evaluate(PUT_E2E_HITL_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
+        observed = raw if isinstance(raw, dict) else {"value": raw}
+        if observed.get("ok") is True:
+            return
+        last_observed = observed
+        if (
+            not _browser_hitl_pin_transient_failure(observed)
+            or attempt >= max_attempts
+        ):
+            break
+        await asyncio.sleep(_BROWSER_HITL_PIN_BACKOFF_SEC * attempt)
+    raise RuntimeError(f"Browser HITL pin failed: {last_observed}")
 
 
 def clear_search_services_ssot(*, api_url: str | None = None) -> None:

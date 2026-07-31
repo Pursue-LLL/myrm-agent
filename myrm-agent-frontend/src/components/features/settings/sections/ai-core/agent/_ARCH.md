@@ -11,7 +11,8 @@
 | `AgentBasicInfoTab.tsx` | 名称、描述、头像等基础信息 |
 | `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口 |
 | `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/路由覆盖/迭代/工作区/引擎参数） |
-| `AgentCapabilitiesConsensusSection.tsx` | 多模型共识配置区段 |
+| `AgentCapabilitiesConsensusSection.tsx` | 多模型共识配置区段（含 `privacy_filter`） |
+| `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型） |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |
 | `AgentInstinctInboxTab.tsx` | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API |
 | `AgentSecretsTab.tsx` | Agent 级密钥；`listAgentSecrets` 经 service normalize 为 key 名列表；失败 toast 展示后端 detail |

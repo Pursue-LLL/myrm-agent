@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { Button } from '@/components/primitives/button';
 import { Skill } from '@/store/skill/types';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import { MCPServiceConfig } from '@/store/config/types';
 import { type BuiltinToolId } from '@/store/chat/types';
 import { type AgentThemeColor } from '@/components/features/message-box/progress-steps/toolIcons';
@@ -33,7 +34,7 @@ type EphemeralSubagentConfig = {
 };
 
 const EMPTY_AUTO_RESTORE_DOMAINS: string[] = [];
-const EMPTY_SKILL_CONFIGS: Record<string, { is_core?: boolean }> = {};
+const EMPTY_SKILL_CONFIGS: AgentSkillConfigMap = {};
 const EMPTY_EPHEMERAL_SUBAGENTS: Record<string, EphemeralSubagentConfig> = {};
 
 const MCPToolSelector = dynamic(() => import('./MCPToolSelector'), { ssr: false });
@@ -48,8 +49,7 @@ interface AgentConfigEditDialogProps {
   enabledSkills: Skill[];
   enabledMcps: MCPServiceConfig[];
   selectedSkillIds: string[];
-  mountedSkillIds?: string[];
-  skillConfigs?: Record<string, { is_core?: boolean }>;
+  skillConfigs?: AgentSkillConfigMap;
   selectedMcpNames: string[];
   mcpToolSelections?: Record<string, string[]>;
   systemPrompt: string;
@@ -66,8 +66,7 @@ interface AgentConfigEditDialogProps {
   onRefreshSkills?: () => Promise<void>;
   onSave: (data: {
     selectedSkillIds?: string[];
-    mountedSkillIds?: string[];
-    skillConfigs?: Record<string, { is_core?: boolean }>;
+    skillConfigs?: AgentSkillConfigMap;
     selectedMcpNames?: string[];
     mcpToolSelections?: Record<string, string[]>;
     systemPrompt?: string;
@@ -90,7 +89,6 @@ const AgentConfigEditDialog = ({
   enabledSkills,
   enabledMcps,
   selectedSkillIds: initialSkillIds,
-  mountedSkillIds: initialMountedSkillIds,
   skillConfigs: initialSkillConfigs = EMPTY_SKILL_CONFIGS,
   selectedMcpNames: initialMcpNames,
   mcpToolSelections: initialMcpToolSelections,
@@ -126,8 +124,7 @@ const AgentConfigEditDialog = ({
 
   /* ─── local state ─── */
   const [localSkillIds, setLocalSkillIds] = useState<string[]>(initialSkillIds || []);
-  const [localMountedSkillIds, setLocalMountedSkillIds] = useState<string[]>(initialMountedSkillIds || []);
-  const [localSkillConfigs, setLocalSkillConfigs] = useState<Record<string, { is_core?: boolean }>>(initialSkillConfigs || {});
+  const [localSkillConfigs, setLocalSkillConfigs] = useState<AgentSkillConfigMap>(initialSkillConfigs || {});
   const [localMcpNames, setLocalMcpNames] = useState<string[]>(initialMcpNames || []);
   const [localMcpToolSelections, setLocalMcpToolSelections] = useState<Record<string, string[]>>(initialMcpToolSelections || {});
   const [localPrompt, setLocalPrompt] = useState(initialPrompt || '');
@@ -167,7 +164,6 @@ const AgentConfigEditDialog = ({
   useEffect(() => {
     if (open) {
       setLocalSkillIds(initialSkillIds || []);
-      setLocalMountedSkillIds(initialMountedSkillIds || []);
       setLocalSkillConfigs(initialSkillConfigs || {});
       setLocalMcpNames(initialMcpNames || []);
       setLocalPrompt(initialPrompt || '');
@@ -181,7 +177,7 @@ const AgentConfigEditDialog = ({
       setExternalCliBackendReady(null);
     }
   }, [
-    open, initialSkillIds, initialMountedSkillIds, initialSkillConfigs,
+    open, initialSkillIds, initialSkillConfigs,
     initialMcpNames, initialPrompt, initialUseGlobalInstruction,
     initialAutoRestoreDomains, initialBuiltinTools, initialEphemeralSubagents,
   ]);
@@ -328,7 +324,7 @@ const AgentConfigEditDialog = ({
     }
     switch (type) {
       case 'skills':
-        onSave({ selectedSkillIds: localSkillIds, mountedSkillIds: localMountedSkillIds, skillConfigs: localSkillConfigs });
+        onSave({ selectedSkillIds: localSkillIds, skillConfigs: localSkillConfigs });
         break;
       case 'mcp':
         onSave({ selectedMcpNames: localMcpNames, mcpToolSelections: Object.keys(localMcpToolSelections).length > 0 ? localMcpToolSelections : undefined });
@@ -384,8 +380,6 @@ const AgentConfigEditDialog = ({
             agentId={agentId}
             localSkillIds={localSkillIds}
             setLocalSkillIds={setLocalSkillIds}
-            localMountedSkillIds={localMountedSkillIds}
-            setLocalMountedSkillIds={setLocalMountedSkillIds}
             localSkillConfigs={localSkillConfigs}
             setLocalSkillConfigs={setLocalSkillConfigs}
             noiseData={{ isNoiseHigh, isNoiseCritical, noiseLevel, coreSkillsTokenCost: actionSpaceScore, maxCoreTokens: maxSafeScore }}

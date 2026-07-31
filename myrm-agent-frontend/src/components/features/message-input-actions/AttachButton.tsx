@@ -9,6 +9,11 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import { selectFiles, toStoreFile, getFileService } from '@/services/file-service';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
+import {
+  hasConfiguredVisionCapability,
+  hasVisionFallbackForVideo,
+} from '@/store/config/visionCapability';
+import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB — aligned with backend VideoAnalysisEngine limit
@@ -25,7 +30,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
    * PDFs are always allowed — backend extracts text or renders images as needed.
    * Videos are allowed when the model supports video natively or a vision fallback is configured.
    */
-  const checkModelCapability = (fileNames: string[]): string | null => {
+  const checkModelCapability = (fileNames: string[]): 'image' | 'video' | null => {
     const { defaultModelConfig, getModelInfo } = useProviderStore.getState();
     const selection = defaultModelConfig?.baseModel?.primary;
     if (!selection) return null;
@@ -34,17 +39,14 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
     const hasImages = fileNames.some((n) => isImageFile(getFileExtension(n)));
     const hasVideos = fileNames.some((n) => isVideoFile(getFileExtension(n)));
 
-    const fallbackSelection = defaultModelConfig?.visionFallbackModel;
-    const fallbackModelInfo = fallbackSelection
-      ? getModelInfo(fallbackSelection.providerId, fallbackSelection.model)
-      : null;
-    const hasVisionFallback = fallbackModelInfo?.supports_vision;
+    const hasVisionCapability = hasConfiguredVisionCapability(defaultModelConfig, getModelInfo);
+    const hasVisionFallback = hasVisionFallbackForVideo(defaultModelConfig, getModelInfo);
 
-    if (hasImages && !modelInfo?.supports_vision && !hasVisionFallback) {
-      return 'warnModelNotSupportVision';
+    if (hasImages && !modelInfo?.supports_vision && !hasVisionCapability) {
+      return 'image';
     }
     if (hasVideos && !modelInfo?.supports_video_input && !hasVisionFallback) {
-      return 'warnModelNotSupportVideo';
+      return 'video';
     }
     return null;
   };
@@ -62,7 +64,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
 
       const capWarn = checkModelCapability(selectedFiles.map((f) => f.fileName));
       if (capWarn) {
-        toast({ title: t(capWarn), duration: 5000 });
+        showVisionNotConfiguredToast(capWarn);
       }
 
       const existingFileNames = files.map((file) => file.fileName);
@@ -108,7 +110,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
 
     const capWarn = checkModelCapability(selectedFiles.map((f) => f.name));
     if (capWarn) {
-      toast({ title: t(capWarn), duration: 5000 });
+      showVisionNotConfiguredToast(capWarn);
     }
 
     const oversizedVideo = selectedFiles.find((f) => isVideoFile(getFileExtension(f.name)) && f.size > MAX_VIDEO_BYTES);

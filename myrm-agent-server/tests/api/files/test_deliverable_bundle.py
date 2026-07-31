@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.agent.goal_registry import ServerGoalManager
 
-
 # ══════════════════════════════════════════════════════════════════════════════
 # §1: _collect_session_deliverables
 # ══════════════════════════════════════════════════════════════════════════════

@@ -12,3 +12,4 @@ Agent Profile/Secret 持久化后端。上级文档：[../../_ARCH.md](../../_AR
 | `mcp_oauth_store.py` | 核心 | MCP OAuth token 加密持久化 | ✅ |
 | `mcp_secret_auth.py` | 核心 | MCP secret-aware 认证 Provider | ✅ |
 | `secret_backend.py` | 核心 | Database-backed `AgentSecretBackend` | ✅ |
+| `mcp_elicitation_handler.py` | 核心 | MCP Elicitation (MRTR) → ApprovalRegistry 桥接。`build_mcp_elicitation_handler` 工厂返回符合 harness 协议的 async handler，通过 `ApprovalRegistry` 创建审批记录并推送 SSE 事件到前端，`asyncio.Event` 挂起等待用户决策；`resolve_pending_elicitation` 由 approval resolve API 调用以唤醒挂起的 handler。 | ✅ |

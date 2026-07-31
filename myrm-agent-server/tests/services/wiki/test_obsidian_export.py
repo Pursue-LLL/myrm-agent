@@ -6,7 +6,6 @@ import json
 import zipfile
 
 import pytest
-
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 from app.services.wiki.obsidian_export import build_obsidian_graph_json, build_obsidian_vault_zip

@@ -58,7 +58,7 @@ _INLINE_UI_READY_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

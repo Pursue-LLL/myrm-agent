@@ -118,7 +118,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 def test_planning_builtin_card_visible_and_togglable_in_chrome_ui() -> None:
     """Planning opt-in card is visible in Built-in Tools dialog and can be enabled."""

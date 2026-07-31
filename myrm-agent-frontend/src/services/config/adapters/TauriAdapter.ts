@@ -145,8 +145,8 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
           return new Map();
         }
         if (this.isBackendUnavailableStatus(response.status)) {
-          console.warn('[TauriAdapter] Backend not available, returning empty configs');
-          return new Map();
+          console.warn('[TauriAdapter] Backend not available, will retry via ConfigSyncManager');
+          throw new ConfigSyncError('Backend not available');
         }
         throw new ConfigSyncError(`Failed to get all configs: ${response.statusText}`);
       }
@@ -161,8 +161,8 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       return result;
     } catch (error) {
       if (this.isBackendTransportError(error)) {
-        console.warn('[TauriAdapter] Backend not available, returning empty configs');
-        return new Map();
+        console.warn('[TauriAdapter] Backend not available, will retry via ConfigSyncManager');
+        throw new ConfigSyncError('Backend not available');
       }
       throw error;
     }

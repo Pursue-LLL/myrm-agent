@@ -288,6 +288,16 @@ def shared_api_http_ok() -> bool:
         return False
 
 
+def _poll_shared_api_ok(*, max_wait_sec: float, interval_sec: float = 2.0) -> bool:
+    """Post-ensure grace — backend bind can lag ensure exit under parallel load."""
+    deadline = time.monotonic() + max_wait_sec
+    while time.monotonic() < deadline:
+        if shared_api_http_ok():
+            return True
+        time.sleep(interval_sec)
+    return shared_api_http_ok()
+
+
 @contextmanager
 def backend_heal_file_lock(lock_file: Path, wait_sec: float) -> Iterator[None]:
     """fcntl.flock SSOT — macOS lacks GNU flock(1)."""
@@ -330,11 +340,12 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
         "MYRM_SUPERVISOR_BYPASS": "1",
         "MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC": "600",
     }
-    # Parallel attach: SHC leader + backend-only ensure already defer wave mutations;
-    # transient :8080 flap under peer load needs the same 3-attempt backoff as idle.
-    max_attempts = 3
-    backoff_schedule = (0, 5, 10)
-    for attempt, backoff_sec in enumerate(backoff_schedule, start=1):
+    # Parallel attach: more attempts + post-ensure api poll — transient :8080 flap under peers.
+    parallel_busy = active_leases > 0
+    max_attempts = 5 if parallel_busy else 3
+    backoff_schedule = (0, 8, 15, 25, 40) if parallel_busy else (0, 5, 10)
+    api_poll_sec = 15.0 if parallel_busy else 8.0
+    for attempt, backoff_sec in enumerate(backoff_schedule[:max_attempts], start=1):
         if backoff_sec > 0:
             time.sleep(backoff_sec)
         print(
@@ -348,7 +359,7 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
             root=monorepo_root,
             env=env,
         )
-        if proc.returncode == 0 and shared_api_http_ok():
+        if proc.returncode == 0 and _poll_shared_api_ok(max_wait_sec=api_poll_sec):
             print(
                 "CHROME_E2E_ATTACH_HEAL: shared api restored after crash heal "
                 f"(attempt {attempt})",

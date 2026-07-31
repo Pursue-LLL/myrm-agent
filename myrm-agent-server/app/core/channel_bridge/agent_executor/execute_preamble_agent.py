@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfi
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.channels.i18n import get_text
-from app.channels.types import InboundMessage
+from app.channels.types import InboundMessage, ProgressUpdate
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import MCPServerConfig
@@ -55,6 +55,7 @@ async def build_channel_execution_agent(
     lite_model_cfg: ModelConfig | None,
     fallback_model_cfg: ModelConfig | None,
     fallback_lite_model_cfg: ModelConfig | None,
+    vision_fallback_model_cfg: ModelConfig | None,
     user_instructions: str,
     chat_id: str,
     session_key: str,
@@ -113,6 +114,32 @@ async def build_channel_execution_agent(
     else:
         agent_model_cfg = configs.model_cfg
 
+    from app.core.channel_bridge.config_parsers import resolve_vision_fallback_chain_for_agent
+
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+        configs.providers_dict,
+        primary_override=vision_fallback_model_cfg,
+        main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
+    )
+
+    pre_events: tuple[ProgressUpdate, ...] = ()
+    if not is_resume and isinstance(query, list):
+        supports_vision = getattr(agent_model_cfg, "supports_vision", False)
+        if not supports_vision and vision_fallback_model_cfg is not None:
+            pre_events = (ProgressUpdate(label=get_text(msg, "analyzing_image")),)
+            from app.core.utils.chat_utils import preprocess_inbound_multimodal_query
+
+            query = await preprocess_inbound_multimodal_query(
+                query,
+                model_cfg=agent_model_cfg,
+                vision_fallback_model_cfg=vision_fallback_model_cfg,
+                vision_fallback_model_cfgs=vision_fallback_model_cfgs,
+                meta={
+                    "message_id": msg.message_id,
+                    "chat_id": chat_id,
+                },
+            )
+
     working_mcp_configs = mcp_configs
     if working_mcp_configs and resolved_profile:
         from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
@@ -151,11 +178,11 @@ async def build_channel_execution_agent(
     set_current_chat_id(chat_id)
     set_current_agent_id(resolved_agent_id or "default")
 
+    from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.core.channel_bridge.learn_handler import (
         apply_learn_skill_manage_permission_overlay,
         is_learn_skill_authoring_prompt,
     )
-    from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
     agent_security_raw = (
@@ -170,6 +197,8 @@ async def build_channel_execution_agent(
         fallback_model_cfg=fallback_model_cfg,
         lite_model_cfg=lite_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
+        vision_fallback_model_cfg=vision_fallback_model_cfg,
+        vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
         search_service_cfg=configs.search_cfg,
         mcp_cfg=working_mcp_configs or None,
         user_instructions=user_instructions,
@@ -263,4 +292,5 @@ async def build_channel_execution_agent(
             query_input=query_input,
             params=params,
         ),
+        pre_events=pre_events,
     )

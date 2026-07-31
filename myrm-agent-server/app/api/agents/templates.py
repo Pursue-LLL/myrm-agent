@@ -37,6 +37,8 @@ from app.services.agent.template_utils import (
     PREBUILT_AGENTS_DIR,
     SkillEnablementError,
     resolve_i18n,
+)
+from app.services.agent.template_utils import (
     ensure_skills_enabled as _ensure_skills_enabled_svc,
 )
 from app.services.features.product_surface import is_hidden_prebuilt_template

@@ -56,20 +56,20 @@ describe('TauriConfigAdapter backend unavailable', () => {
     expect(markLocalBackendUnreachable).toHaveBeenCalledTimes(1);
   });
 
-  it('getAll returns empty map on HTTP 502', async () => {
+  it('getAll throws on HTTP 502 to enable ConfigSyncManager retry', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: false,
       status: 502,
       statusText: 'Bad Gateway',
     } as Response);
 
-    await expect(adapter.getAll()).resolves.toEqual(new Map());
+    await expect(adapter.getAll()).rejects.toThrow('Backend not available');
   });
 
-  it('getAll returns empty map when localFetch times out (AbortError)', async () => {
+  it('getAll throws when localFetch times out (AbortError) to enable retry', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
 
-    await expect(adapter.getAll()).resolves.toEqual(new Map());
+    await expect(adapter.getAll()).rejects.toThrow('Backend not available');
     expect(markLocalBackendUnreachable).toHaveBeenCalledTimes(1);
   });
 });

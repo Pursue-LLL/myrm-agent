@@ -11,13 +11,13 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
-from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
-    HermesBatchParser,
-)
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionType,
     SkillLineage,
     SkillRecord,
+)
+from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
+    HermesBatchParser,
 )
 from myrm_agent_harness.backends.skills.scanning.archive_security import (
     ArchiveSecurityViolation,

@@ -10,9 +10,11 @@ app/api/batch_optimization/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
 app/api/chats/chat/core.py
+app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/schemas.py
 app/api/events/permissions.py
+app/api/files/artifact_api.py
 app/api/files/browse.py
 app/api/files/workspace_ops.py
 app/api/goals/router.py
@@ -24,6 +26,7 @@ app/api/skills/discovery.py
 app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
+app/api/statistics/assessment_import.py
 app/api/statistics/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
@@ -85,6 +88,7 @@ app/core/channel_bridge/setup.py
 app/core/channel_bridge/topic_config.py
 app/core/cron/adapters/agent_runner.py
 app/core/cron/adapters/sqlalchemy_store.py
+app/core/cron/blueprint_i18n_supplement.py
 app/core/cron/blueprints.py
 app/core/eval/service.py
 app/core/infra/frontend_launcher.py
@@ -125,8 +129,10 @@ app/services/agent/streaming_support/stream_collector.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/compact_service.py
+app/services/chat/conversation_fork_manager.py
 app/services/chat/conversation_search_service.py
 app/services/extension/bridge.py
+app/services/kanban/task_runner.py
 app/services/memory/archive_restore.py
 app/services/memory/archive_restore_executor.py
 app/services/memory/backup_remote.py
@@ -137,7 +143,6 @@ app/services/memory/import_sessions.py
 app/services/memory/operations/crud/import_archive.py
 app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context.py
-app/services/repair/actions.py
-app/core/cron/blueprint_i18n_supplement.py
 app/services/onboarding/second_brain_preset.py
 app/services/project/assessment_import_service.py
+app/services/repair/actions.py

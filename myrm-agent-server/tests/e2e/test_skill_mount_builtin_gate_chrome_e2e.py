@@ -117,7 +117,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> None:
     """skill_market / skill_manage cards visible; default OFF; skill_market toggles ON."""

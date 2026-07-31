@@ -66,6 +66,10 @@ export async function createCronJob(data: CreateCronJobRequest): Promise<CronJob
   });
 }
 
+export async function getCronJob(id: string): Promise<CronJob> {
+  return apiRequest(`/cron/${id}`);
+}
+
 export async function updateCronJob(id: string, data: UpdateCronJobRequest): Promise<CronJob> {
   return apiRequest(`/cron/${id}`, {
     method: 'PATCH',

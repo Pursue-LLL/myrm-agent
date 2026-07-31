@@ -75,7 +75,7 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new=AsyncMock(),
-        ) as get_agent,
+        ),
         patch(
             "app.services.agent.agent_service.AgentService.update_agent",
             new=AsyncMock(),

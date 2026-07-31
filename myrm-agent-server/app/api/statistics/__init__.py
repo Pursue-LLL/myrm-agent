@@ -9,6 +9,7 @@
 - app.api.statistics.daily_wrap (POS: AI-generated daily wrap summary routes)
 - app.api.statistics.turn_capability (POS: one-turn capability observability routes)
 - app.api.statistics.expert_summon (POS: expert summon funnel observability routes)
+- app.api.statistics.assessment_import (POS: assessment import funnel observability routes)
 
 [OUTPUT]
 - build_statistics_router: compose statistics routers on explicit application startup.
@@ -24,6 +25,7 @@ from fastapi import APIRouter
 def build_statistics_router() -> APIRouter:
     """Build the statistics API router without import-time submodule side effects."""
     from app.api.statistics.agent_usage import router as agent_usage_router
+    from app.api.statistics.assessment_import import router as assessment_import_router
     from app.api.statistics.daily_journal import router as daily_journal_router
     from app.api.statistics.daily_wrap import router as daily_wrap_router
     from app.api.statistics.expert_summon import router as expert_summon_router
@@ -41,6 +43,7 @@ def build_statistics_router() -> APIRouter:
     statistics_router.include_router(expert_summon_router)
     statistics_router.include_router(turn_capability_router)
     statistics_router.include_router(wiki_evidence_router)
+    statistics_router.include_router(assessment_import_router)
     return statistics_router
 
 

@@ -71,11 +71,22 @@ def resolve_lifecycle_profile() -> LifecycleProfile:
     return "signoff" if is_e2e_signoff_runtime() else "dev"
 
 
+def _private_shpoib_bootstrap_lane(lane: str) -> bool:
+    """R220: NAMESPACE_WRITE → RESOURCE_WRITE lease still runs SHPOIB private backend."""
+    from dev_gate_contract import private_shpoib_runtime_active
+
+    if not private_shpoib_runtime_active():
+        return False
+    return lane in {"LIVE_AGENT", "RESOURCE_WRITE"}
+
+
 def resolve_budget_policy() -> BudgetPolicy:
     profile = resolve_lifecycle_profile()
     lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
     body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-    if profile == "dev" and lane == "LIVE_AGENT":
+    if profile == "dev" and (
+        lane == "LIVE_AGENT" or _private_shpoib_bootstrap_lane(lane)
+    ):
         try:
             from transport_supervisor import live_agent_body_wall_cap_sec
 
@@ -91,41 +102,23 @@ def resolve_budget_policy() -> BudgetPolicy:
             )
 
             bootstrap_sec = bootstrap_wall_cap_sec()
-            # R163: deferred mux admission runs inside pytest bootstrap.
             from dev_gate_contract import boot_mux_body_transport_gate_required
 
             if boot_mux_body_transport_gate_required():
                 bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
                 bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
-            elif (
-                os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
-                or os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
-            ) and lane == "LIVE_AGENT":
+            elif _private_shpoib_bootstrap_lane(lane):
                 bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
                 bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
         except ImportError:
             bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "signoff":
-        from dev_gate_contract import signoff_read_shpoib_body_wall_sec
+        from dev_gate_contract import signoff_effective_body_wall_sec
 
-        body_sec = signoff_read_shpoib_body_wall_sec()
-        bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
-        batch_body_raw = os.environ.get("MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "").strip()
-        if batch_body_raw.isdigit():
-            body_sec = max(body_sec, int(batch_body_raw))
-        batch_bootstrap_raw = os.environ.get(
-            "MYRM_E2E_SIGNOFF_BATCH_BOOTSTRAP_SEC", ""
-        ).strip()
-        if batch_bootstrap_raw.isdigit():
-            bootstrap_sec = max(bootstrap_sec, int(batch_bootstrap_raw))
-        try:
-            from transport_supervisor import bootstrap_wall_cap_sec
+        body_sec = signoff_effective_body_wall_sec()
+        from dev_gate_contract import signoff_effective_bootstrap_wall_sec
 
-            bootstrap_sec = max(
-                bootstrap_sec, bootstrap_wall_cap_sec(pessimistic=False)
-            )
-        except ImportError:
-            pass
+        bootstrap_sec = int(signoff_effective_bootstrap_wall_sec())
         from dev_gate_contract import admit_wall_clock_sec
 
         return BudgetPolicy(
@@ -216,6 +209,20 @@ def assert_body_progress_not_stale(phase_label: str) -> None:
 def assert_phase_budget(phase_label: str) -> None:
     assert_body_progress_not_stale(phase_label)
     wall_cap = phase_cap_sec()
+    if phase_label == "E2E_SHARED_STACK_RECOVERY_WAIT":
+        try:
+            from dev_gate_contract import (
+                is_e2e_signoff_runtime,
+                signoff_stack_recovery_admit_budget_sec,
+            )
+
+            if is_e2e_signoff_runtime():
+                wall_cap = max(
+                    wall_cap,
+                    signoff_stack_recovery_admit_budget_sec(),
+                )
+        except ImportError:
+            pass
     elapsed = elapsed_wall_sec()
     phase = current_phase()
     if elapsed >= float(wall_cap):
@@ -290,13 +297,46 @@ def _reset_phase_mux_recovery_budget(*, phase_label: str) -> None:
 
 
 def begin_bootstrap_phase(*, phase_label: str = "bootstrap") -> None:
-    """Enter bootstrap phase with a fresh wall clock (even if body already started)."""
+    """Enter bootstrap phase with a fresh wall clock (even if body already started).
+
+    R215: when BODY is already active (mux heal CDP re-bootstrap), keep BODY wall
+    budget — do not downgrade to bootstrap cap.
+    """
+    if current_phase() == "body":
+        _begin_body_cdp_rebootstrap(phase_label=phase_label)
+        return
     transition_to_phase("bootstrap", label=phase_label)
     _reset_phase_mux_recovery_budget(phase_label=phase_label)
 
 
+def _begin_body_cdp_rebootstrap(*, phase_label: str) -> None:
+    touch_wall_progress(current_node=phase_label)
+    _reset_phase_mux_recovery_budget(phase_label=phase_label)
+    print(
+        f"E2E_BODY_CDP_REBOOTSTRAP: phase={phase_label} "
+        f"body_remaining={int(remaining_wall_sec())}s",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
     """Re-enter body phase with a fresh wall clock after cdp bootstrap finishes."""
+    if current_phase() == "body":
+        touch_wall_progress(current_node=phase_label)
+        try:
+            from e2e_session_snapshot import touch_session_progress
+
+            touch_session_progress()
+        except ImportError:
+            pass
+        print(
+            f"E2E_BODY_CDP_REBOOTSTRAP_DONE: phase={phase_label} "
+            f"body_remaining={int(remaining_wall_sec())}s",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
     begin_body_wall_budget(phase_label=phase_label)
 
 
@@ -314,6 +354,16 @@ def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
         file=sys.stderr,
         flush=True,
     )
+
+
+def seal_page_open_body_budget(*, phase_label: str = "page_open_seal") -> None:
+    """PageOpenSeal — start BODY wall only after owned page is ready (Phase3-B)."""
+    print(
+        f"E2E_PAGE_OPEN_SEAL: phase={phase_label}",
+        file=sys.stderr,
+        flush=True,
+    )
+    begin_body_wall_budget(phase_label=phase_label)
 
 
 def begin_teardown_phase(*, phase_label: str = "teardown") -> None:
@@ -360,8 +410,12 @@ def provider_readiness_gate_sync() -> None:
     )
 
     bootstrap_cap = float(phase_cap_sec("bootstrap"))
+    if current_phase() == "body":
+        wall_cap = remaining_wall_sec()
+    else:
+        wall_cap = bootstrap_cap
     scaled_wait = provider_readiness_gate_wait_sec()
-    wait_budget = max(5.0, min(scaled_wait, bootstrap_cap))
+    wait_budget = max(5.0, min(scaled_wait, wall_cap))
     if scaled_wait > PROVIDER_READINESS_GATE_BASE_SEC:
         print(
             f"E2E_PROVIDER_READINESS_GATE_WAIT: budget={wait_budget:.0f}s "

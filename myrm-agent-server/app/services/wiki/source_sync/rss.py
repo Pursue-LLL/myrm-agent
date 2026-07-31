@@ -19,10 +19,11 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 import httpx
+from defusedxml import ElementTree as DefusedElementTree
+from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.services.wiki.source_sync.publish_helpers import build_frontmatter, publish_source_markdown, sanitize_path_segment
 from app.services.wiki.source_sync.schemas import WikiSourceSyncResult
-from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ async def _fetch_feed_entries(url: str, *, limit: int) -> list[_FeedEntry]:
         resp.raise_for_status()
         text = resp.text
 
-    root = ET.fromstring(text)
+    root = DefusedElementTree.fromstring(text)
     entries: list[_FeedEntry] = []
 
     for item in root.iter():

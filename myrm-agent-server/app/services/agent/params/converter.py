@@ -25,7 +25,7 @@ from fastapi import Request
 from app.ai_agents import GeneralAgentParams
 from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cfg
 from app.core.channel_bridge.config_parsers import verify_search_service_available
-from app.core.types import ChatHistoryReq, MCPServerConfig
+from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.database.dto import PersonalityStyleLiteral
 from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -207,6 +207,12 @@ async def convert_to_general_agent_params(
             logger.warning(
                 "Failed to resolve vision fallback model, proceeding without it"
             )
+    if vision_fallback_model_cfg is None:
+        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_config
+
+        vision_fallback_model_cfg = extract_vision_fallback_model_config(providers_dict)
+
+    vision_fallback_model_cfgs: list[ModelConfig] | None = None
 
     model_cfg, selected_source = select_tool_capable_model_cfg(
         model_cfg,
@@ -754,6 +760,14 @@ async def convert_to_general_agent_params(
             vision_fallback_model_cfg, providers_dict
         )
 
+    from app.core.channel_bridge.config_parsers import resolve_vision_fallback_chain_for_agent
+
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+        providers_dict,
+        primary_override=vision_fallback_model_cfg,
+        main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+    )
+
     jit_subagents = request.ephemeral_subagents
     session_loaded_skill_names: list[str] | None = None
     chat_workspace_dir: str | None = None
@@ -918,7 +932,10 @@ async def convert_to_general_agent_params(
 
     from app.core.channel_bridge.learn_handler import (
         apply_learn_skill_manage_permission_overlay,
+        rewrite_learn_query_if_needed,
     )
+
+    final_query = rewrite_learn_query_if_needed(final_query)
 
     security_config_dict = apply_learn_skill_manage_permission_overlay(
         security_config_dict,
@@ -950,6 +967,8 @@ async def convert_to_general_agent_params(
         if search_cfg is None:
             from app.core.channel_bridge.config_loader import (
                 invalidate_user_configs_cache,
+            )
+            from app.core.channel_bridge.config_loader import (
                 load_user_configs as reload_user_configs,
             )
 
@@ -1010,6 +1029,7 @@ async def convert_to_general_agent_params(
         lite_model_cfg=lite_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
         vision_fallback_model_cfg=vision_fallback_model_cfg,
+        vision_fallback_model_cfgs=vision_fallback_model_cfgs,
         search_service_cfg=search_cfg,
         mcp_cfg=mcp_configs,
         user_instructions=user_instructions,

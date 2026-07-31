@@ -83,7 +83,6 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
   const t = useTranslations('settings.skills.instances');
 
   const [instances, setInstances] = useState<string[]>([]);
-  const [defaultInstance, setDefaultInstance] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -95,35 +94,6 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
   const [envOverrides, setEnvOverrides] = useState<Record<string, string>>({});
   const [configOverrides, setConfigOverrides] = useState<Record<string, unknown>>({});
   const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
-
-  // Load default instance from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(`skill-default-instance-${skillName}`);
-    if (stored) {
-      setDefaultInstance(stored);
-    }
-  }, [skillName]);
-
-  // Set default instance
-  const handleSetDefault = useCallback(
-    (instanceName: string) => {
-      localStorage.setItem(`skill-default-instance-${skillName}`, instanceName);
-      setDefaultInstance(instanceName);
-
-      // Emit custom event for Agent layer to reload config
-      window.dispatchEvent(
-        new CustomEvent('skill-instance-changed', {
-          detail: { skillName, instanceName },
-        }),
-      );
-
-      toast({
-        title: t('defaultSet'),
-        description: t('defaultSetDescription', { name: instanceName }),
-      });
-    },
-    [skillName, t],
-  );
 
   // Fetch skill schema (once on mount)
   useEffect(() => {
@@ -347,6 +317,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
         <div>
           <h3 className="text-lg font-medium">{t('title')}</h3>
           <p className="text-sm text-muted-foreground">{t('description', { skill: skillName })}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('agentBindHint')}</p>
         </div>
         <Button
           onClick={() => {
@@ -375,34 +346,16 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
               className={cn(
                 'flex items-center justify-between p-3 rounded-lg border',
                 'hover:bg-accent/50 transition-colors',
-                defaultInstance === name && 'border-primary bg-primary/5',
               )}
             >
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{name}</span>
-                {defaultInstance === name ? (
-                  <Badge variant="default" className="text-xs">
-                    {t('default')}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs">
-                    {t('instance')}
-                  </Badge>
-                )}
+                <Badge variant="outline" className="text-xs">
+                  {t('instance')}
+                </Badge>
               </div>
               <div className="flex gap-2">
-                {defaultInstance !== name && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSetDefault(name)}
-                    disabled={loading}
-                    title={t('setAsDefault')}
-                  >
-                    {t('setDefault')}
-                  </Button>
-                )}
                 <Button variant="ghost" size="sm" onClick={() => handleEditClick(name)} disabled={loading}>
                   <Edit className="h-4 w-4" />
                 </Button>

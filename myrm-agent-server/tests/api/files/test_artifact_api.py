@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.database.models.artifact_publication import ArtifactPublication
+from app.database.models.chat import Chat
+from app.database.models.project import Project
 from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID
 
 
@@ -109,6 +111,91 @@ async def test_list_artifacts_supports_limit_query(client: TestClient, db_sessio
     assert response.status_code == 200
     data = response.json()
     assert len(data["artifacts"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_artifacts_supports_project_filter_query(client: TestClient, db_session: AsyncSession):
+    db_session.add(Project(id="proj-alpha", name="Alpha"))
+    db_session.add(Project(id="proj-beta", name="Beta"))
+    db_session.add(Chat(id="chat-alpha", project_id="proj-alpha"))
+    db_session.add(Chat(id="chat-beta", project_id="proj-beta"))
+    db_session.add(Artifact(id="art-alpha", name="Alpha Artifact", chat_id="chat-alpha"))
+    db_session.add(Artifact(id="art-beta", name="Beta Artifact", chat_id="chat-beta"))
+    db_session.add(Artifact(id="art-global", name="Global Artifact"))
+    await db_session.commit()
+
+    response = client.get("/api/v1/files/artifacts?project_id=proj-alpha")
+    assert response.status_code == 200
+    data = response.json()
+    listed_ids = {item["id"] for item in data["artifacts"]}
+    assert listed_ids == {"art-alpha"}
+
+
+@pytest.mark.asyncio
+async def test_list_artifacts_returns_assessment_import_candidate_probe(
+    client: TestClient,
+    db_session: AsyncSession,
+    tmp_path,
+):
+    from unittest.mock import patch
+
+    vault_dir = tmp_path / ".agent" / "vault" / "objects"
+    vault_dir.mkdir(parents=True, exist_ok=True)
+    (vault_dir / "obj-importable").write_text("# Milestone\n- [ ] Ship rollout", encoding="utf-8")
+    (vault_dir / "obj-non-importable").write_text("Narrative summary only.", encoding="utf-8")
+    (vault_dir / "obj-no-actionable").write_text("# Notes\n- notes: keep context only", encoding="utf-8")
+
+    db_session.add(Project(id="proj-probe", name="Probe"))
+    db_session.add(Chat(id="chat-probe", project_id="proj-probe"))
+    db_session.add(Artifact(id="art-importable", name="Importable", chat_id="chat-probe"))
+    db_session.add(Artifact(id="art-non-importable", name="Narrative", chat_id="chat-probe"))
+    db_session.add(Artifact(id="art-no-actionable", name="No Actionable", chat_id="chat-probe"))
+    db_session.add(
+        ArtifactVersion(
+            id="ver-importable",
+            artifact_id="art-importable",
+            vault_uri="vault://obj-importable",
+            sha256_hash="sha-importable",
+        )
+    )
+    db_session.add(
+        ArtifactVersion(
+            id="ver-non-importable",
+            artifact_id="art-non-importable",
+            vault_uri="vault://obj-non-importable",
+            sha256_hash="sha-non-importable",
+        )
+    )
+    db_session.add(
+        ArtifactVersion(
+            id="ver-no-actionable",
+            artifact_id="art-no-actionable",
+            vault_uri="vault://obj-no-actionable",
+            sha256_hash="sha-no-actionable",
+        )
+    )
+    await db_session.commit()
+
+    with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
+        response = client.get(
+            "/api/v1/files/artifacts?project_id=proj-probe&assessment_import_candidate=true"
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    by_id = {item["id"]: item for item in data["artifacts"]}
+    assert by_id["art-importable"]["assessment_import_candidate"] == {
+        "status": "importable",
+        "reason": None,
+    }
+    assert by_id["art-non-importable"]["assessment_import_candidate"] == {
+        "status": "not_importable",
+        "reason": "no_importable_tasks",
+    }
+    assert by_id["art-no-actionable"]["assessment_import_candidate"] == {
+        "status": "not_importable",
+        "reason": "no_actionable_tasks",
+    }
 
 
 @pytest.mark.asyncio

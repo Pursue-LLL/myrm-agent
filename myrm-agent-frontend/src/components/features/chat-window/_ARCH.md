@@ -13,15 +13,17 @@
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |
 | `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo） | ✅ |
+| `ChatWindowSatellites.tsx` | 核心 | 聊天窗口卫星组件：Browser/Desktop Inspector、PetOverlay/PetPalette（`companion_mode` gate）、SubagentDashboard 等 | ✅ |
 | `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
-| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + archive + 快照书签 save/list（`listContextBranches`） | ✅ |
+| `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + archive + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog） | ✅ |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
 | `ConversationJumpBar.tsx` | 组件 | 消息跳转条；Goal 侧栏 xl+ 时 `xl:right-[340px]` 避让 | ✅ |
 | `DeleteChat.tsx` | 组件 | 删除当前会话按钮与确认流程 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：SamplePrompts + Companion + MessageInput + NoProviderBanner | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models` | ✅ |
-| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar + MessageInput 桌面工具栏） | ✅ |
+| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
+| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：副作用说明 + POST /rewind + composer 种子回填 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | Agent liveness 三态胶囊（busy/idle/degraded） | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |

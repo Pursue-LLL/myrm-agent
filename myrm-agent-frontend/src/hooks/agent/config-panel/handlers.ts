@@ -5,6 +5,7 @@
  */
 
 import { AgentConfig, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 /**
  * 保存配置处理器
@@ -17,7 +18,7 @@ export const createSaveConfigHandler = (
 ) => {
   return (data: {
     selectedSkillIds?: string[];
-    skillConfigs?: Record<string, { is_core?: boolean }>;
+    skillConfigs?: AgentSkillConfigMap;
     selectedMcpNames?: string[];
     mcpToolSelections?: Record<string, string[]>;
     systemPrompt?: string;

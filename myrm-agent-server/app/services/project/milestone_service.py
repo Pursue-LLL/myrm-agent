@@ -10,9 +10,8 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import func, select, update
-
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+from sqlalchemy import func, select, update
 
 from app.database.connection import get_session
 from app.database.models.kanban import KanbanBoardModel, KanbanTaskModel

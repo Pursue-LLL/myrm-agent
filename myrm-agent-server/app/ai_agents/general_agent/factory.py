@@ -57,16 +57,13 @@ async def build_general_agent(
         widget_capability_middleware,
     )
     from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt
-    from app.core.skills.loader import create_skill_backend
     from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+    from app.core.skills.loader import create_skill_backend
+    from app.core.utils.media_file_reader import read_uploaded_media_file_content
 
     from .agent_middlewares.citation_rules_middleware import citation_rules_middleware
     from .agent_middlewares.signoff_clarify_contract_middleware import (
         build_signoff_clarify_contract_middleware,
-    )
-    from .signoff_clarify_contract_core import (
-        signoff_clarify_contract_enabled,
-        signoff_clarify_pool_active,
     )
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
@@ -85,6 +82,8 @@ async def build_general_agent(
     from .llm_factory import create_agent_llms, select_tool_capable_model_cfg
     from .signoff_clarify_contract_core import (
         build_signoff_clarify_deterministic_model,
+        signoff_clarify_contract_enabled,
+        signoff_clarify_pool_active,
     )
 
     signoff_contract_active = signoff_clarify_contract_enabled(
@@ -490,8 +489,22 @@ async def build_general_agent(
             cache_ttl_prune_config=resolve_cache_ttl_prune_policy(
                 agent_wrapper.model_cfg.model
             ).config,
+            file_content_reader=read_uploaded_media_file_content,
         ),
     ]
+
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    moa_middleware = await build_moa_overlay_middleware(
+        agent_wrapper.engine_params,
+        unattended=bool(getattr(agent_wrapper, "unattended_mode", False)),
+        action_mode=str(getattr(agent_wrapper, "action_mode", "agent") or "agent"),
+    )
+    if moa_middleware is not None:
+        middlewares_list.append(moa_middleware)
+        logger.info("MoA advisor overlay middleware mounted (chat_id=%s)", effective_chat_id)
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
@@ -697,13 +710,25 @@ async def build_general_agent(
     state_manager = None
     default_skill_instances: dict[str, str] = {}
     try:
+        from app.services.agent.skill_instance_resolver import (
+            resolve_runtime_skill_instance_bindings,
+        )
+
         state_manager = get_state_manager()
-        if skill_backend:
+        if skill_backend and state_manager:
             all_skills = await skill_backend.list_skills()
+            skill_id_to_name: dict[str, str] = {}
             for skill in all_skills:
-                instances = state_manager.list_instances(skill.name)
-                if len(instances) == 1:
-                    default_skill_instances[skill.name] = instances[0]
+                skill_id_to_name[skill.name] = skill.name
+                if skill.storage_skill_id:
+                    skill_id_to_name[skill.storage_skill_id] = skill.name
+
+            default_skill_instances = resolve_runtime_skill_instance_bindings(
+                runtime_skill_ids=runtime_skill_ids or [],
+                skill_configs=agent_wrapper.skill_configs,
+                skill_id_to_name=skill_id_to_name,
+                state_manager=state_manager,
+            )
     except Exception as e:
         logger.warning(f"Failed to initialize SkillStateManager for agent: {e}")
 
@@ -724,6 +749,20 @@ async def build_general_agent(
         vault_handler = build_mcp_vault_handler(workspace_root)
         agent_wrapper.mcp_config = [
             cfg.model_copy(update={"oversized_result_handler": vault_handler})
+            for cfg in agent_wrapper.mcp_config
+        ]
+
+    if agent_wrapper.mcp_config:
+        from app.services.agent.backends.mcp_elicitation_handler import (
+            build_mcp_elicitation_handler,
+        )
+
+        elicitation_handler = build_mcp_elicitation_handler(
+            agent_id=agent_wrapper.agent_id,
+            chat_id=effective_chat_id,
+        )
+        agent_wrapper.mcp_config = [
+            cfg.model_copy(update={"elicitation_handler": elicitation_handler})
             for cfg in agent_wrapper.mcp_config
         ]
 

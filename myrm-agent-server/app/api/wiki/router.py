@@ -29,7 +29,7 @@ import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -46,6 +46,9 @@ from pydantic import BaseModel, Field
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.services.wiki import MemoryToWikiArchiver
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 logger = logging.getLogger(__name__)
 
@@ -646,8 +649,9 @@ async def maintain_wiki(
     ] = "structural",
 ) -> WikiMaintenanceResponse:
     try:
-        from app.services.wiki.maintain_runner import run_wiki_maintain_job
         from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
+
+        from app.services.wiki.maintain_runner import run_wiki_maintain_job
 
         maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
         result = await run_wiki_maintain_job(
@@ -1666,12 +1670,10 @@ async def _publish_import_raw(
     on_conflict: Literal["skip", "supersede"],
     supersede_reason: str,
 ):
-    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
         RawConflictPolicy,
         RawGateError,
         RawPublishRequest,
-        RawPublishResult,
         publish_raw,
     )
 
@@ -2228,8 +2230,9 @@ async def export_wiki_vault(
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to export")] = None,
 ) -> StreamingResponse:
     """Export the full wiki vault as an Obsidian-ready ZIP (raw + wiki + graph preset)."""
-    from app.services.wiki.vault_export import build_wiki_export_zip
     from myrm_agent_harness.toolkits.wiki.portability.vault_archive import iter_vault_files
+
+    from app.services.wiki.vault_export import build_wiki_export_zip
 
     structure = archiver._structure
     if not iter_vault_files(structure):
@@ -2252,8 +2255,8 @@ async def export_wiki_vault(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-from app.api.wiki.ingest_stream import register_ingest_stream_routes
-from app.api.wiki.sources import router as wiki_sources_router
+from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
+from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402
 
 register_ingest_stream_routes(router)
 router.include_router(wiki_sources_router)

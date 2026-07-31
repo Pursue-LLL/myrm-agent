@@ -181,3 +181,41 @@ async def create_context_branch(chat_id: str, body: ContextBranchRequest) -> JSO
             "created_at": record.created_at,
         }
     )
+
+
+class BranchForkRequest(BaseModel):
+    new_title: str = Field(default="", max_length=255)
+
+
+@router.post("/{chat_id}/context/branches/{branch_id}/fork", response_model=StandardSuccessResponse)
+async def fork_context_branch(
+    chat_id: str,
+    branch_id: str,
+    body: BranchForkRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Fork a new chat from a snapshot bookmark (pre-compaction conversation restore)."""
+    from app.services.chat.context_branch_fork import ContextBranchForkService
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise not_found_error("Chat session")
+
+    new_title = body.new_title.strip() if body and body.new_title else None
+    result = await ContextBranchForkService.fork_from_branch(
+        db,
+        chat_id,
+        branch_id,
+        new_title=new_title,
+    )
+    if not result.success or result.new_chat_id is None:
+        raise validation_error(result.error or "Failed to fork from snapshot bookmark")
+
+    return success_response(
+        data={
+            "new_chat_id": result.new_chat_id,
+            "parent_chat_id": result.parent_chat_id,
+            "branch_id": result.branch_id,
+            "message_count": result.message_count,
+        }
+    )

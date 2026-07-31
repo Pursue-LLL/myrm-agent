@@ -32,6 +32,10 @@ import {
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { useAgentResources } from './useAgentResources';
+import { areSkillConfigsEqual } from './config-panel/configChanges';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
+
+const EMPTY_SKILL_CONFIGS: AgentSkillConfigMap = {};
 
 function arraysEqual(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
@@ -87,7 +91,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
   // 能力配置
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
-  const [mountedSkillIds, setMountedSkillIds] = useState<string[]>([]);
+  const [skillConfigs, setSkillConfigs] = useState<AgentSkillConfigMap>(EMPTY_SKILL_CONFIGS);
   const [selectedMcpNames, setSelectedMcpNames] = useState<string[]>([]);
   const [mcpToolSelections, setMcpToolSelections] = useState<Record<string, string[]>>({});
   const [useGlobalInstruction, setUseGlobalInstruction] = useState(true);
@@ -151,7 +155,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const { enabledSkills, selectedSkillDetails, selectedMcpDetails, enabledMcps } = useAgentResources(
     selectedSkillIds,
     selectedMcpNames,
-    mountedSkillIds,
   );
 
   const [originalData, setOriginalData] = useState({
@@ -160,7 +163,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     systemPrompt: '',
     selectedGradient: 0,
     selectedSkillIds: [] as string[],
-    mountedSkillIds: [] as string[],
+    skillConfigs: EMPTY_SKILL_CONFIGS,
     selectedMcpNames: [] as string[],
     autoRestoreDomains: [] as string[],
     browserSource: undefined as string | undefined,
@@ -204,7 +207,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       systemPrompt !== originalData.systemPrompt ||
       selectedGradient !== originalData.selectedGradient ||
       !arraysEqual(selectedSkillIds, originalData.selectedSkillIds) ||
-      !arraysEqual(mountedSkillIds, originalData.mountedSkillIds) ||
+      !areSkillConfigsEqual(skillConfigs, originalData.skillConfigs) ||
       !arraysEqual(selectedMcpNames, originalData.selectedMcpNames) ||
       !arraysEqual(autoRestoreDomains, originalData.autoRestoreDomains) ||
       browserSource !== originalData.browserSource ||
@@ -234,7 +237,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     systemPrompt,
     selectedGradient,
     selectedSkillIds,
-    mountedSkillIds,
+    skillConfigs,
     selectedMcpNames,
     autoRestoreDomains,
     browserSource,
@@ -299,7 +302,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setSelectedGradient(gradientIndex);
 
       setSelectedSkillIds(data.skill_ids || []);
-      setMountedSkillIds(data.mounted_skill_ids || []);
+      setSkillConfigs(data.skill_configs || EMPTY_SKILL_CONFIGS);
       setSelectedMcpNames(data.mcp_ids || []);
       setMcpToolSelections(data.mcp_tool_selections || {});
       setAutoRestoreDomains(data.auto_restore_domains || []);
@@ -331,7 +334,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         systemPrompt: data.system_prompt || '',
         selectedGradient: gradientIndex,
         selectedSkillIds: data.skill_ids || [],
-        mountedSkillIds: data.mounted_skill_ids || [],
+        skillConfigs: data.skill_configs || EMPTY_SKILL_CONFIGS,
         selectedMcpNames: data.mcp_ids || [],
         autoRestoreDomains: data.auto_restore_domains || [],
         browserSource: data.browser_source ?? undefined,
@@ -426,7 +429,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           mcp_ids: selectedMcpNames,
           mcp_tool_selections: Object.keys(mcpToolSelections).length > 0 ? mcpToolSelections : undefined,
           skill_ids: selectedSkillIds,
-          mounted_skill_ids: mountedSkillIds,
+          skill_configs: skillConfigs,
           enabled_builtin_tools: enabledBuiltinTools,
           auto_restore_domains: autoRestoreDomains,
           browser_source: browserSource || null,
@@ -463,7 +466,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           mcp_ids: selectedMcpNames,
           mcp_tool_selections: Object.keys(mcpToolSelections).length > 0 ? mcpToolSelections : undefined,
           skill_ids: selectedSkillIds,
-          mounted_skill_ids: mountedSkillIds,
+          skill_configs: skillConfigs,
           enabled_builtin_tools: enabledBuiltinTools,
           auto_restore_domains: autoRestoreDomains,
           browser_source: browserSource || null,
@@ -503,7 +506,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           systemPrompt: systemPrompt.trim() || '',
           selectedGradient,
           selectedSkillIds: [...selectedSkillIds],
-          mountedSkillIds: [...mountedSkillIds],
+          skillConfigs: { ...skillConfigs },
           selectedMcpNames: [...selectedMcpNames],
           autoRestoreDomains: [...autoRestoreDomains],
           browserSource,
@@ -557,7 +560,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     systemPrompt,
     selectedGradient,
     selectedSkillIds,
-    mountedSkillIds,
+    skillConfigs,
     selectedMcpNames,
     enabledBuiltinTools,
     autoRestoreDomains,
@@ -613,7 +616,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const handleConfigChange = useCallback(
     (data: {
       selectedSkillIds?: string[];
-      mountedSkillIds?: string[];
+      skillConfigs?: AgentSkillConfigMap;
       selectedMcpNames?: string[];
       mcpToolSelections?: Record<string, string[]>;
       systemPrompt?: string;
@@ -625,7 +628,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       sessionRecording?: string;
     }) => {
       if (data.selectedSkillIds !== undefined) setSelectedSkillIds(data.selectedSkillIds);
-      if (data.mountedSkillIds !== undefined) setMountedSkillIds(data.mountedSkillIds);
+      if (data.skillConfigs !== undefined) setSkillConfigs(data.skillConfigs);
       if (data.selectedMcpNames !== undefined) setSelectedMcpNames(data.selectedMcpNames);
       if (data.mcpToolSelections !== undefined) setMcpToolSelections(data.mcpToolSelections);
       if (data.systemPrompt !== undefined) setSystemPrompt(data.systemPrompt);
@@ -658,7 +661,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     setSelectedGradient,
     // 能力
     selectedSkillIds,
-    mountedSkillIds,
+    skillConfigs,
     selectedMcpNames,
     mcpToolSelections,
     autoRestoreDomains,

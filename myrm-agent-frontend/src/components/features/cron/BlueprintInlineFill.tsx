@@ -17,11 +17,13 @@ import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ApiError } from '@/lib/api';
+import type { CronJob } from '@/services/cron.types';
+import { prepareJobForSettingsAudit } from '@/lib/cron/cronCreateAuditGate';
 
 interface BlueprintInlineFillProps {
   blueprint: CronBlueprint;
   onBack: () => void;
-  onCreated: () => void;
+  onCreated: (job: CronJob) => void;
 }
 
 const TOGGLE_CLS = 'gap-1.5 text-xs h-8 px-3 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
@@ -73,9 +75,14 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
         locale,
         delivery,
       );
-      await createJob(payload);
-      toast.success(t('createSuccess'));
-      onCreated();
+      const job = await createJob(payload);
+      try {
+        const auditJob = await prepareJobForSettingsAudit(job);
+        onCreated(auditJob);
+        toast.success(t('createSuccess'));
+      } catch {
+        toast.error(t('auditPauseFail'));
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : t('actionFail');
       toast.error(message);

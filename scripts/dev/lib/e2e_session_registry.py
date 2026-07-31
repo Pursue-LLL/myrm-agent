@@ -131,12 +131,15 @@ def _list_test_sh_admit_fallback(
     covered_test_ids: set[str],
 ) -> tuple[LiveE2ESessionRow, ...]:
     """Fallback for ADMIT test.sh before sidecar write (R144-B — ps enrich only)."""
-    proc = subprocess.run(
-        ["ps", "-eo", "pid=,stat=,etime=,command="],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["ps", "-eo", "pid=,stat=,etime=,command="],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return ()
     if proc.returncode != 0:
         return ()
     rows: list[LiveE2ESessionRow] = []

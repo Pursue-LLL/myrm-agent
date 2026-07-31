@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import useChatStore from '@/store/useChatStore';
+import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useShallow } from 'zustand/react/shallow';
 import { FileText, PencilSimple, FloppyDisk, X, ClockCounterClockwise, BookmarkSimple } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import {
   createContextBranch,
+  forkContextBranch,
   getChatArchive,
   listContextBranches,
   updateCompactionSummary,
@@ -19,6 +22,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { showI18nToast } from '@/services/i18nToastService';
+import { resolveE2eApiBase } from '@/lib/deploy-mode';
 
 const markdownLinkComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -65,9 +69,27 @@ function formatBookmarkTime(iso: string): string {
   return format(date, 'yyyy-MM-dd HH:mm');
 }
 
+type ContextBranchForkDiag = {
+  phase: string;
+  at: number;
+  chatId?: string;
+  branchId?: string;
+  newChatId?: string;
+  error?: string;
+};
+
+function reportContextBranchForkDiag(diag: ContextBranchForkDiag): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  (window as Window & { __MYRM_CONTEXT_BRANCH_FORK_DIAG__?: ContextBranchForkDiag }).__MYRM_CONTEXT_BRANCH_FORK_DIAG__ =
+    diag;
+}
+
 export const CompactedSummaryView = () => {
+  const router = useRouter();
   const t = useTranslations('chat.compactedSummary');
-  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta, contextBranches, setContextBranches } =
+  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta, contextBranches, setContextBranches, contextBranchesLoadError, setContextBranchesLoadError } =
     useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
@@ -76,6 +98,8 @@ export const CompactedSummaryView = () => {
       lastCompactionMeta: state.lastCompactionMeta,
       contextBranches: state.contextBranches,
       setContextBranches: state.setContextBranches,
+      contextBranchesLoadError: state.contextBranchesLoadError,
+      setContextBranchesLoadError: state.setContextBranchesLoadError,
     })),
   );
 
@@ -83,11 +107,13 @@ export const CompactedSummaryView = () => {
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBookmark, setIsSavingBookmark] = useState(false);
+  const [forkingBranchId, setForkingBranchId] = useState<string | null>(null);
 
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [archiveMessages, setArchiveMessages] = useState<Message[]>([]);
   const [isLoadingArchive, setIsLoadingArchive] = useState(false);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
+  const summaryViewRef = useRef<HTMLDivElement>(null);
 
   const bookmarks = useMemo(
     () => contextBranches.slice(-MAX_BOOKMARKS_DISPLAY).reverse(),
@@ -98,6 +124,7 @@ export const CompactedSummaryView = () => {
     const requestChatId = chatId;
     if (!requestChatId) {
       setContextBranches([]);
+      setContextBranchesLoadError(null);
       return [];
     }
     setBookmarksLoading(true);
@@ -106,13 +133,13 @@ export const CompactedSummaryView = () => {
       if (useChatStore.getState().chatId !== requestChatId) {
         return [];
       }
-      const next = branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse();
       setContextBranches(branches);
-      return next;
+      setContextBranchesLoadError(null);
+      return branches.slice(-MAX_BOOKMARKS_DISPLAY).reverse();
     } catch (err) {
       console.error('[CompactedSummaryView] failed to load bookmarks', err);
       if (useChatStore.getState().chatId === requestChatId) {
-        setContextBranches([]);
+        setContextBranchesLoadError('load_failed');
       }
       return [];
     } finally {
@@ -120,37 +147,7 @@ export const CompactedSummaryView = () => {
         setBookmarksLoading(false);
       }
     }
-  }, [chatId, setContextBranches]);
-
-  useEffect(() => {
-    if (!compactedSummary || !chatId || contextBranches.length > 0) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    const pollBookmarks = async () => {
-      const maxRounds = 12;
-      for (let round = 1; round <= maxRounds && !cancelled; round += 1) {
-        const loaded = await loadBookmarks();
-        if (cancelled || useChatStore.getState().chatId !== chatId) {
-          return;
-        }
-        if (loaded.length > 0 || useChatStore.getState().contextBranches.length > 0) {
-          return;
-        }
-        if (round < maxRounds) {
-          await new Promise((resolve) => {
-            window.setTimeout(resolve, 5000);
-          });
-        }
-      }
-    };
-
-    void pollBookmarks();
-    return () => {
-      cancelled = true;
-    };
-  }, [compactedSummary, chatId, contextBranches.length, loadBookmarks]);
+  }, [chatId, setContextBranches, setContextBranchesLoadError]);
 
   if (!compactedSummary) return null;
 
@@ -208,6 +205,100 @@ export const CompactedSummaryView = () => {
     }
   };
 
+  const navigateToForkedChat = (newChatId: string) => {
+    const target = `/${newChatId}`;
+    router.push(target);
+    // SHPOIB Chrome E2E: soft navigation can lag behind CDP pathname probes; hard nav is SSOT there.
+    if (typeof window !== 'undefined' && resolveE2eApiBase()) {
+      window.location.assign(target);
+    }
+  };
+
+  const handleForkFromBookmark = useCallback(async (bookmark: ContextBranchRecord) => {
+    if (!chatId || forkingBranchId) return;
+    if (useChatStore.getState().loading) {
+      reportContextBranchForkDiag({
+        phase: 'blocked-loading',
+        at: Date.now(),
+        chatId,
+        branchId: bookmark.branch_id,
+      });
+      showI18nToast('chat.fork.streamingBlocked', undefined, { type: 'error' });
+      return;
+    }
+    setForkingBranchId(bookmark.branch_id);
+    reportContextBranchForkDiag({
+      phase: 'start',
+      at: Date.now(),
+      chatId,
+      branchId: bookmark.branch_id,
+    });
+    try {
+      const result = await forkContextBranch(chatId, bookmark.branch_id, bookmarkDisplayLabel(bookmark));
+      if (!result.new_chat_id) {
+        throw new Error('Fork response missing new_chat_id');
+      }
+      reportContextBranchForkDiag({
+        phase: 'api-ok',
+        at: Date.now(),
+        chatId,
+        branchId: bookmark.branch_id,
+        newChatId: result.new_chat_id,
+      });
+      useWorkspaceStore.getState().addPane(result.new_chat_id);
+      navigateToForkedChat(result.new_chat_id);
+      reportContextBranchForkDiag({
+        phase: 'navigate',
+        at: Date.now(),
+        chatId,
+        branchId: bookmark.branch_id,
+        newChatId: result.new_chat_id,
+      });
+      showI18nToast('chat.compactedSummary.bookmarkForkSuccess', undefined, { type: 'success' });
+    } catch (err) {
+      reportContextBranchForkDiag({
+        phase: 'api-error',
+        at: Date.now(),
+        chatId,
+        branchId: bookmark.branch_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      console.error('[CompactedSummaryView] failed to fork from bookmark', err);
+      showI18nToast('chat.compactedSummary.bookmarkForkFailed', undefined, { type: 'error' });
+    } finally {
+      setForkingBranchId(null);
+    }
+  }, [chatId, forkingBranchId, router]);
+
+  useEffect(() => {
+    const root = summaryViewRef.current;
+    if (!root) {
+      return undefined;
+    }
+    const onNativeClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const forkBtn = target.closest('[data-testid="compacted-summary-bookmark-fork"]');
+      if (!forkBtn || forkBtn.hasAttribute('disabled')) {
+        return;
+      }
+      const branchId = forkBtn.getAttribute('data-branch-id');
+      if (!branchId) {
+        return;
+      }
+      const bookmark = bookmarks.find((item) => item.branch_id === branchId);
+      if (!bookmark) {
+        return;
+      }
+      event.preventDefault();
+      void handleForkFromBookmark(bookmark);
+    };
+    root.addEventListener('click', onNativeClick);
+    return () => root.removeEventListener('click', onNativeClick);
+  }, [bookmarks, handleForkFromBookmark]);
+
   return (
     <div className="w-full flex flex-col items-center my-6 max-w-5xl mx-auto px-4 md:px-0">
       <div className="flex items-center w-full my-4 opacity-50">
@@ -226,6 +317,7 @@ export const CompactedSummaryView = () => {
       </div>
 
       <div
+        ref={summaryViewRef}
         data-testid="compacted-summary-view"
         className="w-full relative group rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm transition-all hover:border-primary/40"
       >
@@ -310,18 +402,38 @@ export const CompactedSummaryView = () => {
 
         <div
           data-testid="compacted-summary-bookmarks"
-          data-bookmarks-state={bookmarksLoading ? 'loading' : bookmarks.length === 0 ? 'empty' : 'ready'}
+          data-bookmarks-state={
+            bookmarksLoading
+              ? 'loading'
+              : contextBranchesLoadError
+                ? 'error'
+                : bookmarks.length === 0
+                  ? 'empty'
+                  : 'ready'
+          }
           className="mt-3 pt-3 border-t border-border/50 flex flex-col gap-1.5"
         >
           <span className="text-[10px] font-medium text-muted-foreground">{t('bookmarksTitle')}</span>
           {bookmarksLoading ? (
             <span className="text-[10px] text-muted-foreground">{t('bookmarksLoading')}</span>
+          ) : contextBranchesLoadError ? (
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-rose-600 dark:text-rose-400">{t('bookmarksLoadError')}</span>
+              <button
+                type="button"
+                onClick={() => void loadBookmarks()}
+                className="text-primary hover:text-primary/80 transition-colors"
+              >
+                {t('bookmarksRetry')}
+              </button>
+            </div>
           ) : bookmarks.length === 0 ? (
             <span className="text-[10px] text-muted-foreground">{t('bookmarksEmpty')}</span>
           ) : (
             <ul className="flex flex-col gap-1 max-h-28 overflow-y-auto">
               {bookmarks.map((bookmark) => {
                 const bookmarkTime = formatBookmarkTime(bookmark.created_at);
+                const isForking = forkingBranchId === bookmark.branch_id;
                 return (
                   <li
                     key={bookmark.branch_id}
@@ -333,9 +445,20 @@ export const CompactedSummaryView = () => {
                       <BookmarkSimple size={10} weight="duotone" className="shrink-0 text-primary/70" />
                       <span className="truncate">{bookmarkDisplayLabel(bookmark)}</span>
                     </div>
-                    {bookmarkTime ? (
-                      <span className="shrink-0 tabular-nums text-muted-foreground sm:ml-auto">{bookmarkTime}</span>
-                    ) : null}
+                    <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+                      {bookmarkTime ? (
+                        <span className="tabular-nums text-muted-foreground">{bookmarkTime}</span>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-testid="compacted-summary-bookmark-fork"
+                        data-branch-id={bookmark.branch_id}
+                        disabled={isForking}
+                        className="text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                      >
+                        {isForking ? t('bookmarkForking') : t('bookmarkFork')}
+                      </button>
+                    </div>
                   </li>
                 );
               })}

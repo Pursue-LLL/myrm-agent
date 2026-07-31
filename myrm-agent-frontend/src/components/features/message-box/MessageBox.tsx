@@ -548,10 +548,13 @@ const MessageBox = ({
       <UserMessage
         content={message.content}
         messageId={message.messageId}
+        chatId={chatId}
+        messageIndex={messageIndex}
         isFirst={messageIndex === 0}
         createdAt={message.createdAt}
         isEditing={editingMessageId === message.messageId}
         isLoading={loading}
+        continuityBlocked={loading}
         onEdit={handleEdit}
         onEditSubmit={handleEditSubmit}
         onCancelEdit={handleCancelEdit}
@@ -599,6 +602,7 @@ const MessageBox = ({
           <ConsensusThinkingPanel
             refs={message.consensusRefs}
             isStreaming={isLast && loading && !message.content}
+            totalExpected={message.consensusRefsExpected}
           />
         )}
 

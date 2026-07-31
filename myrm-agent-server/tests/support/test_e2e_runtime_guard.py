@@ -25,7 +25,26 @@ def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     heartbeat_e2e_lease()
 
 
-def test_heartbeat_loop_reaps_other_hung_pytest(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_heartbeat_swallows_wave_subprocess_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+
+    import e2e_lease_heartbeat as heartbeat_module
+
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-timeout")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "agent-timeout")
+
+    def _timeout_run(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd=["wave.sh"], timeout=30)
+
+    monkeypatch.setattr(heartbeat_module.subprocess, "run", _timeout_run)
+    heartbeat_e2e_lease()
+
+
+def test_heartbeat_loop_reaps_other_hung_pytest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import time
 
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
@@ -60,6 +79,23 @@ def test_assert_chrome_attach_health_passes_on_ready_probe(
     assert_chrome_attach_health()
     assert captured
     assert "--require-attach-ready" in captured[0]
+
+
+def test_assert_chrome_attach_health_signoff_uses_stream_ready_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[list[str]] = []
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> object:
+        captured.append(list(cmd))
+        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _fake_run)
+    assert_chrome_attach_health()
+    assert captured
+    assert "--require-signoff-stream-ready" in captured[0]
+    assert "--require-attach-ready" not in captured[0]
 
 
 def test_assert_chrome_attach_health_raises_when_probe_fails(
@@ -316,6 +352,26 @@ def test_shared_hot_stack_fp_pins_runtime_for_shpoib(
 
     lease = require_e2e_runtime_lease()
     assert lease.runtime_id == "shared-hot-runtime"
+    assert_e2e_runtime_unchanged(lease)
+
+
+def test_private_backend_ignores_shared_hot_runtime_drift_under_parallel_e2e(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, runtime_id="private-runtime-b219")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "private-runtime-b219")
+    monkeypatch.setenv("MYRM_E2E_PRIVATE_BACKEND", "1")
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
+        lambda: "parallel-runtime-73fc",
+    )
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "private-runtime-b219"
     assert_e2e_runtime_unchanged(lease)
 
 

@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from pathlib import Path
-
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 
 from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids

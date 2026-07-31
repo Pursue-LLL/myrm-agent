@@ -160,7 +160,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
         }
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
@@ -181,7 +181,7 @@ def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
         assert item["has_input"] is True
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_isolated_browser_contexts_do_not_share_global_state() -> None:

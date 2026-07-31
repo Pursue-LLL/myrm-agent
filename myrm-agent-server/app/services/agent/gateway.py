@@ -411,6 +411,10 @@ class AgentGateway:
         self._active_sessions.discard(session_id)
         self._session_info.pop(session_id, None)
 
+    def is_session_active(self, session_id: str) -> bool:
+        """Return True when an agent execution is in-flight for the session."""
+        return session_id in self._active_sessions
+
     def _resolve_effective_timeout(
         self, *, goal_active: bool, fission_active: bool
     ) -> float:

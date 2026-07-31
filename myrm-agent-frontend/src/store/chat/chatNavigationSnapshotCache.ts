@@ -24,6 +24,8 @@ export function extractNavigationSnapshot(state: ChatState): Partial<ChatState> 
     compactedBeforeId: state.compactedBeforeId,
     contextBranches: state.contextBranches,
     contextPinnedFiles: state.contextPinnedFiles,
+    contextBranchesLoadError: state.contextBranchesLoadError,
+    contextPinnedFilesLoadError: state.contextPinnedFilesLoadError,
     workspaceDir: state.workspaceDir,
     incognitoMode: state.incognitoMode,
     sandboxMode: state.sandboxMode,

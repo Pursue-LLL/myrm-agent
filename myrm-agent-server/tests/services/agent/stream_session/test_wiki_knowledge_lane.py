@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from typing import cast
 
 import pytest
+from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.core.types import ModelConfig
 from app.services.agent.stream_session.lanes.wiki_knowledge_lane import create_wiki_knowledge_lane_stream
 from app.services.wiki.knowledge_query_service import WikiKnowledgeQueryResult
-from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 
 @dataclass

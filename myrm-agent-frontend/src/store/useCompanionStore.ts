@@ -6,7 +6,7 @@
  * evolvedRarity, evolvedStats, evolvedAt, snacksRemaining, lastSnackReset.
  *
  * Session-scoped fields (not persisted): currentReaction, lastPetAt, observerCount,
- * lastObserverTrigger, mascotStatus, mood, lastInteractionAt.
+ * lastObserverTrigger, mascotStatus, mood, lastInteractionAt, petPaletteOpen.
  */
 
 import { create } from 'zustand';
@@ -15,13 +15,9 @@ import { persist } from 'zustand/middleware';
 import type { CompanionStats, Hat, Mood, Rarity, Species } from '@/components/features/companion/companionGenerator';
 import { getObserverLimits } from '@/components/features/companion/companionGenerator';
 
-import type { SpritesheetMeta } from '@/components/features/companion/sprite/SpriteEngine';
+import type { CompanionSpriteConfig } from '@/services/companion/petSpritesheet';
 
-export interface SpriteConfig {
-  sheetUrl: string;
-  meta?: Partial<SpritesheetMeta>;
-  name?: string;
-}
+export type SpriteConfig = CompanionSpriteConfig;
 
 const OBSERVER_DEBOUNCE_MS = 3000;
 const MAX_DAILY_SNACKS = 3;
@@ -33,6 +29,28 @@ function getLocalDateKey(): string {
 
 export function getEffectiveSnacks(snacksRemaining: number, lastSnackReset: string | null): number {
   return lastSnackReset === getLocalDateKey() ? snacksRemaining : MAX_DAILY_SNACKS;
+}
+
+export function sanitizePersistedSpriteState(
+  spriteConfig: unknown,
+  spriteEnabled: boolean,
+): { spriteConfig: SpriteConfig | null; spriteEnabled: boolean } {
+  if (!spriteConfig || typeof spriteConfig !== 'object') {
+    return { spriteConfig: null, spriteEnabled: false };
+  }
+  const record = spriteConfig as Record<string, unknown>;
+  const petSlug = record.petSlug;
+  if (typeof petSlug !== 'string' || !petSlug.trim()) {
+    return { spriteConfig: null, spriteEnabled: false };
+  }
+  return {
+    spriteConfig: {
+      petSlug: petSlug.trim(),
+      displayName: typeof record.displayName === 'string' ? record.displayName : undefined,
+      contentSha256: typeof record.contentSha256 === 'string' ? record.contentSha256 : undefined,
+    },
+    spriteEnabled: spriteEnabled && petSlug.trim().length > 0,
+  };
 }
 
 interface CompanionState {
@@ -73,6 +91,9 @@ interface CompanionState {
   // Sprite overlay state
   spriteEnabled: boolean;
   spriteConfig: SpriteConfig | null;
+
+  // Session-scoped UI (not persisted)
+  petPaletteOpen: boolean;
 }
 
 interface CompanionActions {
@@ -104,6 +125,7 @@ interface CompanionActions {
 
   setSpriteEnabled: (enabled: boolean) => void;
   setSpriteConfig: (config: SpriteConfig | null) => void;
+  setPetPaletteOpen: (open: boolean) => void;
 }
 
 type CompanionStore = CompanionState & CompanionActions;
@@ -143,6 +165,7 @@ const useCompanionStore = create<CompanionStore>()(
 
       spriteEnabled: false,
       spriteConfig: null,
+      petPaletteOpen: false,
 
       setEnabled: (enabled) => set({ enabled }),
       setMuted: (muted) => set({ muted }),
@@ -237,7 +260,11 @@ const useCompanionStore = create<CompanionStore>()(
               species: Species | null;
               hat: Hat | null;
               palette_theme: string | null;
-              sprite: { sheet_url: string; name?: string | null } | null;
+              sprite: {
+                pet_slug?: string | null;
+                content_sha256?: string | null;
+                display_name?: string | null;
+              } | null;
             };
           }>('/companion/config');
           if (data && data.value) {
@@ -248,12 +275,16 @@ const useCompanionStore = create<CompanionStore>()(
                 data.value.hat === null ? null : data.value.hat === undefined ? undefined : (data.value.hat as Hat),
               paletteThemeOverride: data.value.palette_theme,
             };
-            if (data.value.sprite?.sheet_url) {
+            const slug = data.value.sprite?.pet_slug;
+            if (slug) {
               patch.spriteConfig = {
-                sheetUrl: data.value.sprite.sheet_url,
-                name: data.value.sprite.name ?? undefined,
+                petSlug: slug,
+                contentSha256: data.value.sprite?.content_sha256 ?? undefined,
+                displayName: data.value.sprite?.display_name ?? undefined,
               };
               patch.spriteEnabled = true;
+            } else {
+              patch.spriteConfig = null;
             }
             set(patch);
           }
@@ -264,6 +295,7 @@ const useCompanionStore = create<CompanionStore>()(
 
       setSpriteEnabled: (spriteEnabled) => set({ spriteEnabled }),
       setSpriteConfig: (spriteConfig) => set({ spriteConfig }),
+      setPetPaletteOpen: (petPaletteOpen) => set({ petPaletteOpen }),
 
       saveConfigToServer: async () => {
         try {
@@ -278,7 +310,11 @@ const useCompanionStore = create<CompanionStore>()(
                 hat: state.hatOverride,
                 palette_theme: state.paletteThemeOverride,
                 sprite: state.spriteConfig
-                  ? { sheet_url: state.spriteConfig.sheetUrl, name: state.spriteConfig.name ?? null }
+                  ? {
+                      pet_slug: state.spriteConfig.petSlug,
+                      content_sha256: state.spriteConfig.contentSha256 ?? null,
+                      display_name: state.spriteConfig.displayName ?? null,
+                    }
                   : null,
               },
               deviceId: 'default_device',
@@ -309,6 +345,12 @@ const useCompanionStore = create<CompanionStore>()(
         spriteEnabled: state.spriteEnabled,
         spriteConfig: state.spriteConfig,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const sanitized = sanitizePersistedSpriteState(state.spriteConfig, state.spriteEnabled);
+        state.spriteConfig = sanitized.spriteConfig;
+        state.spriteEnabled = sanitized.spriteEnabled;
+      },
     },
   ),
 );

@@ -6,14 +6,14 @@ import os
 from unittest.mock import patch
 
 import pytest
-
-from app.core.skills.clawhub_registry import apply_clawhub_registry_url
 from myrm_agent_harness.agent.skills.market.sources.clawhub_registry import (
     CLAWHUB_DEFAULT_URL,
     CLAWHUB_REGISTRY_ENV,
     CLAWHUB_URL_ENV,
     resolve_registry_base_url,
 )
+
+from app.core.skills.clawhub_registry import apply_clawhub_registry_url
 
 
 @pytest.fixture(autouse=True)

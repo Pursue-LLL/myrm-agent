@@ -448,6 +448,7 @@ def _resolve_xai_stt_api_key(config: VoiceConfig) -> str:
         return config.stt_api_key
     try:
         from myrm_agent_harness.agent.security import user_credentials_ctx
+
         from app.services.agent.session_credential_assembler import XAI_ISSUER
 
         for cred in user_credentials_ctx.get():

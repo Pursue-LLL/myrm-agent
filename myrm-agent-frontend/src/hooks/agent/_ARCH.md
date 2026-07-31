@@ -5,7 +5,7 @@
 | 文件 | 职责 |
 |------|------|
 | `useAgentConfigPanel.ts` | AgentConfigPanel 业务编排 |
-| `useAgentEditor.ts` | Agent 编辑表单 |
+| `useAgentEditor.ts` | Settings Agent 编辑：load/save `skill_configs`（含 `instance_name`）、`hasChanges` 与 Chat 面板对齐 |
 | `useAgentGallery.ts` | Agent gallery |
 | `usePresetAgent.ts` | 预设智能体 |
 | `useAgentResources.ts` | 资源选择解析 |

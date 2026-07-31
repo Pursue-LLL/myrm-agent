@@ -170,7 +170,23 @@
       "forkSuccess": "Conversation forked successfully",
       "forkFailed": "Failed to fork conversation",
       "forkStreamingBlocked": "Cannot fork while the agent is responding",
-      "forkEmpty": "No messages to fork from"
+      "forkEmpty": "No messages to fork from",
+      "goal": "Set or manage a long-running goal for this conversation",
+      "goalUsage": "Usage: /goal <objective> | status | pause | resume | clear",
+      "goalSet": "Goal mode enabled — edit the objective and send to start",
+      "goalStatus": "Goal status: {status}",
+      "goalNoActive": "No active goal in this conversation",
+      "goalPaused": "Goal paused",
+      "goalResumed": "Goal resumed",
+      "goalCleared": "Goal cleared",
+      "goalActionFailed": "Goal command failed",
+      "pet": "Open pet gallery or manage sprite overlay",
+      "petDisabled": "Companion mode is disabled — enable it in Settings",
+      "petOverlayEnabled": "Pet sprite overlay enabled",
+      "petOverlayDisabled": "Pet sprite overlay hidden",
+      "petInstalled": "Installed pet: {name}",
+      "petInstallFailed": "Failed to install pet",
+      "petNoActive": "No pet installed — opening pet palette"
     }
   },
   "settings": {
@@ -258,6 +274,7 @@
       "search": "Search Service",
       "mcp": "MCP",
       "skills": "Skills",
+      "compoundingPlaybook": "Compounding Loop",
       "skillQuality": "Skill Quality",
       "toolStability": "Tool Stability",
       "toolQuality": "Execution Quality",
@@ -1537,6 +1554,24 @@
       "liteModelContextWindowWarning": "The lightweight model has a smaller context window than the primary model. During long conversations, summarization quality may degrade due to context overflow. Consider choosing a lightweight model with a context window no smaller than the primary model.",
       "visionFallbackModel": "Vision Fallback Model",
       "visionFallbackModelDescription": "Automatically converts images to text when the primary model lacks vision support. Recommended: cheap multimodal models like gpt-4o-mini.",
+      "visionFallbackModelFallbackDescription": "When the primary vision model hits billing, rate limits, or overload, automatically tries this backup before falling back to a vision-capable main agent model.",
+      "selectVisionFallbackModel": "Select Vision Backup Model",
+      "visionHealthTest": "Test vision chain",
+      "visionHealthChecking": "Testing…",
+      "visionHealthOk": "Vision chain OK ({latency} ms)",
+      "visionHealthOkHint": "Connectivity check only — does not guarantee complex image analysis.",
+      "visionHealthResolvedModel": "Configured primary {configured} is unavailable; probe succeeded via {resolved}.",
+      "visionHealthFailed": "Vision chain failed: {error}",
+      "visionHealthFailedModel": "Model: {model}",
+      "visionHealthFailedEndpoint": "API address: {endpoint}",
+      "visionHealthNotConfigured": "Configure a vision fallback model first",
+      "visionHealthUnknown": "Unknown error",
+      "visionHealthNetworkError": "Network request failed",
+      "visionRecommendHint": "Your primary model cannot read images. Pick a vision model from your enabled providers with one click.",
+      "visionRecommendPreview": "Suggested: {provider} / {model}",
+      "visionRecommendButton": "Use this model",
+      "visionRecommendApplied": "Vision fallback set to {provider} / {model}",
+      "visionRecommendNone": "No vision-capable model found among enabled providers",
       "primaryModel": "Primary",
       "fallbackSlot": "Fallback",
       "fallbackModel": "Fallback Model",
@@ -3116,10 +3151,85 @@
         "noDrafts": "No pending drafts",
         "approveSuccess": "Draft approved",
         "approveFailed": "Approve failed",
+        "approveAction": "Approve draft",
         "rejectSuccess": "Draft rejected",
         "rejectFailed": "Reject failed",
+        "rejectAction": "Reject draft",
         "materializedSkill": "Skill \"{name}\" created and enabled",
-        "materializedMemory": "Memory added to knowledge base"
+        "materializedMemory": "Memory added to knowledge base",
+        "invokeGuideTitle": "Invoke this skill in chat",
+        "invokeGuideDescription": "Paste the prefix below into any message, or bind a slash command in Agent settings.",
+        "invokeGuideCopy": "Copy prefix",
+        "invokeGuideCopied": "Invoke prefix copied",
+        "invokeGuideCopyFailed": "Failed to copy",
+        "invokeGuideCommandHint": "For a reusable slash shortcut, add a command binding in",
+        "invokeGuideCommandLink": "Agent settings"
+      },
+      "compounding": {
+        "tab": "Compounding",
+        "title": "Memory · Skill · Cron Loop",
+        "subtitle": "Connect memory, skills, and scheduled tasks into a compounding workflow — the GUI-first MSC playbook.",
+        "loading": "Loading checklist…",
+        "loadFailed": "Failed to load compounding status",
+        "refresh": "Refresh",
+        "progress": "Progress",
+        "progressValue": "{ready} / {total} ready",
+        "countLabel": "Detected: {count}",
+        "open": "Open",
+        "learnHint": "Step 2 — teach a reusable skill with the learn wizard:",
+        "items": {
+          "memory": {
+            "title": "Memory baseline",
+            "description": "Profile, semantic, or claim memories exist so the agent can reuse context."
+          },
+          "skills": {
+            "title": "Reusable skills",
+            "description": "At least one skill is bound or active for repeatable workflows."
+          },
+          "cron": {
+            "title": "Scheduled automation",
+            "description": "Cron jobs run recurring work without manual chat turns."
+          },
+          "verify": {
+            "title": "Acceptance rules",
+            "description": "At least one cron job defines acceptance criteria for automated post-run checks."
+          }
+        }
+      },
+      "learn": {
+        "panelTitle": "Learn a Skill",
+        "description": "Point the agent at a directory, URL, or workflow notes. It gathers sources in chat and saves a draft for review.",
+        "directoryLabel": "Local file or directory",
+        "directoryPlaceholder": "~/projects/some-sdk (read with file_read_tool / grep_tool)",
+        "urlLabel": "URL",
+        "urlPlaceholder": "https://docs.example.com/api (fetched with web_fetch_tool)",
+        "textLabel": "Workflow notes or description",
+        "textPlaceholder": "e.g. how I file an expense report: open the portal, attach receipt, submit",
+        "cancel": "Cancel",
+        "submit": "Learn it",
+        "noActiveChat": "Open a chat first — learn runs as a conversation turn",
+        "scenarios": {
+          "sdk": {
+            "label": "SDK / API",
+            "text": "Extract reusable client/API procedures from this SDK; focus on auth, pagination, and error handling."
+          },
+          "deploy": {
+            "label": "Recent deploy",
+            "text": "How we just completed the deployment — review the steps in this conversation and distill them into a reusable skill."
+          },
+          "debug": {
+            "label": "Debug path",
+            "text": "The debugging and troubleshooting path we used to diagnose and fix this issue."
+          },
+          "writing": {
+            "label": "Writing guide",
+            "text": "Distill my writing style, tone rules, and structure templates from this directory."
+          },
+          "release": {
+            "label": "Release SOP",
+            "text": "Our release/publish SOP — versioning checklist, verification steps, and rollback procedure."
+          }
+        }
       },
       "local": {
         "title": "Local Skill Paths",
@@ -3153,6 +3263,7 @@
       "instances": {
         "title": "Instance Manager",
         "description": "Manage instances for {skill}",
+        "agentBindHint": "Choose which instance this agent uses in Agent settings → Skills.",
         "createInstance": "New Instance",
         "loading": "Loading...",
         "noInstances": "No instances yet. Create one to get started.",
@@ -5344,7 +5455,19 @@
     "maxParallelFissionPlaceholder": "Default 3",
     "consensusTitle": "Multi-Model Consensus (MoA)",
     "consensusDesc": "Enable Mixture-of-Agents: queries multiple models in parallel and synthesizes a refined answer",
-    "consensusRefTemp": "Reference Temperature",
+    "moaOverlayTitle": "Agent-Loop Advisor Overlay",
+    "moaOverlayDesc": "Lightweight reference models advise the acting agent before each tool loop iteration — distinct from standalone Consensus chat mode",
+    "moaOverlayFanout": "Fan-out Policy",
+    "moaOverlayFanoutUserTurn": "Once per user turn",
+    "moaOverlayFanoutPerIteration": "Every model call",
+    "moaOverlayFanoutEveryN": "Every N model calls",
+    "moaOverlayEveryN": "N (interval)",
+    "moaOverlayPrivacy": "Advisor Privacy Filter",
+    "moaOverlayPrivacyOff": "Off",
+    "moaOverlayPrivacyDisplay": "Display only (UI redaction)",
+    "moaOverlayPrivacyFull": "Full (UI + prompt redaction)",
+    "moaOverlayNoModels": "No reference models selected — overlay will be skipped (no fallback)",
+    "consensusPrivacy": "Reference Privacy Filter",
     "consensusAggTemp": "Aggregator Temperature",
     "consensusMinSuccessful": "Min Successful",
     "consensusTimeout": "Total Timeout (s)",
@@ -5356,6 +5479,9 @@
     "consensusAggModel": "Aggregator Model",
     "consensusAggModelDesc": "Synthesizes all reference responses. Uses primary model if unset.",
     "consensusNoModels": "No reference models selected — will fallback to primary model",
+    "consensusPrivacyOff": "Off",
+    "consensusPrivacyDisplay": "Display only (UI redaction)",
+    "consensusPrivacyFull": "Full (UI + aggregator input redaction)",
     "consensusUsingPrimary": "Using primary model",
     "consensusRefReasoning": "Reference Reasoning Effort",
     "consensusRefReasoningHint": "Lower effort saves thinking-token cost on reasoning models (o3, R1)",
@@ -5748,6 +5874,20 @@
         "smartPruneSuccess": "Curator sweep complete — {stale} marked stale, {archived} archived",
         "smartPruneFailed": "Curator sweep failed"
       },
+      "skillsZone": {
+        "coreTitle": "Core skills",
+        "coreHint": "Fully injected for fast response",
+        "peripheralTitle": "Peripheral skills",
+        "peripheralHint": "Loaded on demand, minimal overhead",
+        "availableTitle": "Available skills"
+      },
+      "skillInstance": {
+        "label": "Instance",
+        "placeholder": "Select instance",
+        "auto": "Auto",
+        "staleWarning": "Bound instance \"{name}\" no longer exists.",
+        "staleClear": "Clear binding"
+      },
       "browserSource": {
         "label": "Browser Source",
         "description": "Choose how this agent acquires browser instances for web tasks.",
@@ -6099,6 +6239,7 @@
     "extractToSkill": {
       "title": "Extract as Skill",
       "learnContext": "Please extract a reusable skill from the following message:",
+      "started": "Skill extraction started — you'll be notified when a draft is ready",
       "success": "Skill extraction initiated",
       "error": "Failed to extract skill",
       "sent": "Submitted",
@@ -6121,6 +6262,22 @@
       "parentLinkWithIndex": "Forked from parent conversation (from message #{index})",
       "unknownError": "Unknown error occurred",
       "streamingBlocked": "Cannot fork while the agent is responding"
+    },
+    "rewind": {
+      "title": "Rewind to here",
+      "description": "Move the conversation back to before this message and put its text in the composer.",
+      "sideEffectNotice": "Chat context will rewind. Files, memory, and tool side effects are not reverted.",
+      "cancel": "Cancel",
+      "confirm": "Rewind",
+      "rewinding": "Rewinding...",
+      "success": "Conversation rewound",
+      "successDescription": "Edit the message in the composer, then send when ready.",
+      "goalPausedNotice": "Active goal was paused for this rewind.",
+      "failed": "Rewind failed",
+      "buttonLabel": "Rewind to here",
+      "buttonTitle": "Rewind conversation to here",
+      "streamingBlocked": "Rewind is unavailable while the agent is working",
+      "unknownError": "Unknown error occurred"
     },
     "deleteChat": {
       "title": "Delete Conversation",
@@ -6338,6 +6495,13 @@
       "action": "Go to Settings",
       "enableAction": "Enable free search"
     },
+    "visionNotConfigured": {
+      "imageTitle": "Images need a vision model",
+      "imageDescription": "Configure a vision fallback model in Settings to analyze images with a text-only primary model.",
+      "videoTitle": "Videos need a vision model",
+      "videoDescription": "Configure a vision fallback model in Settings to analyze videos.",
+      "action": "Go to Settings"
+    },
     "modelNotConfigured": {
       "title": "Model Not Configured",
       "description": "No LLM model is available. Please configure a model provider with a valid API key first.",
@@ -6478,7 +6642,9 @@
         "addPin": "Pin",
         "removePin": "Remove",
         "pinsEmpty": "No pinned files",
-        "pinsLoading": "Loading pins…"
+        "pinsLoading": "Loading pins…",
+        "pinsLoadError": "Could not load pinned files",
+        "pinsRetry": "Retry"
       }
     },
     "compactedSummary": {
@@ -6495,6 +6661,12 @@
       "bookmarksTitle": "Saved snapshot bookmarks",
       "bookmarksLoading": "Loading bookmarks…",
       "bookmarksEmpty": "No snapshot bookmarks yet",
+      "bookmarksLoadError": "Could not load bookmarks",
+      "bookmarksRetry": "Retry",
+      "bookmarkFork": "Open in new chat",
+      "bookmarkForking": "Opening…",
+      "bookmarkForkSuccess": "Opened snapshot in a new chat",
+      "bookmarkForkFailed": "Could not open snapshot in a new chat",
       "archiveTitle": "Archived messages",
       "archiveEmpty": "No archived messages found",
       "roleUser": "You",
@@ -6699,6 +6871,12 @@
       "searchPlaceholder": "Search tools...",
       "noResults": "No matching tools",
       "parameters": "Parameters",
+      "layers": {
+        "core": "Core",
+        "common": "Common",
+        "extended": "Extended",
+        "external": "External"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "Conversation search",
@@ -7350,6 +7528,8 @@
     "wiki_knowledge_lane_clear": "Wiki answer ready",
     "consensus_active": "Multi-model consensus in progress",
     "consensus_reference_done": "Reference model completed",
+    "moa_overlay_active": "Advisor overlay fan-out in progress",
+    "moa_ref_done": "Advisor reference completed",
     "workflow_init": "Initializing Dynamic Workflow",
     "workflow_planning": "Generating orchestration plan",
     "workflow_execution": "Executing workflow tasks",
@@ -8958,6 +9138,7 @@
     "preview": "Preview",
     "download": "Download",
     "code": "Code",
+    "edit": "Edit",
     "close": "Close",
     "copyCode": "Copy Code",
     "copied": "Copied",
@@ -8993,6 +9174,7 @@
       "exportCsv": "Export as CSV",
       "noData": "No data to display",
       "loadError": "Failed to load",
+      "saveChanges": "Save Changes",
       "truncated": "Showing first {count} of {total} rows"
     },
     "saving": "Saving...",
@@ -10054,6 +10236,7 @@
     "createSessionSelectChat": "Select a conversation to bind...",
     "acceptanceCriteria": "Acceptance Criteria",
     "acceptanceCriteriaHint": "Optional — define measurable success criteria for automated verification",
+    "acceptanceCriteriaUpdated": "Acceptance criteria updated",
     "criterionSemantic": "Semantic",
     "criterionShell": "Shell",
     "criterionSemanticPlaceholder": "e.g. Output must contain a summary section",
@@ -10070,6 +10253,34 @@
     "schedule": "Schedule",
     "success": "Success",
     "openDashboard": "Manage Tasks",
+    "auditDone": "Done",
+    "auditDoneHint": "Confirm and resume the task before closing",
+    "auditPauseFail": "Task created but could not be paused for review. Confirm from the job detail later.",
+    "audit": {
+      "title": "Pre-flight audit",
+      "subtitle": "Confirm what this automation will do before it runs on a schedule.",
+      "subtitleAck": "Review what this automation will do. Confirm when you have read it.",
+      "loading": "Loading audit details…",
+      "loadFailed": "Could not load task details",
+      "confirmed": "Reviewed",
+      "pendingConfirm": "Review required",
+      "confirm": "Looks correct",
+      "confirmAndResume": "Confirm and resume",
+      "openSettings": "Open in Settings",
+      "pauseTask": "Pause task",
+      "pauseSuccess": "Task paused",
+      "pauseFail": "Failed to pause task",
+      "resumeFail": "Failed to resume task",
+      "pausedHint": "This task stays paused until you confirm and resume.",
+      "fields": {
+        "taskName": "Task name",
+        "scheduleTz": "Schedule & timezone",
+        "skillsInvoked": "Skills / tools",
+        "inputSources": "Input sources",
+        "outputDestinations": "Output destinations",
+        "failureRecords": "Failure trail"
+      }
+    },
     "triggersLabel": "Triggers",
     "triggersDesc": "Configure event-driven triggers in addition to scheduled execution",
     "triggerWebhookLabel": "Webhook Triggers",
@@ -11578,6 +11789,8 @@
     "hideChanges": "Hide changes",
     "memoryUpdate": "Memory Update",
     "noContent": "No content to preview",
+    "mcpElicitationTitle": "MCP Server Confirmation",
+    "mcpElicitationServer": "Server",
     "payloadData": "Payload Data",
     "commentsOptional": "Comments (optional)",
     "addCommentPlaceholder": "Add a comment for this approval...",
@@ -12034,7 +12247,14 @@
       "loading": "Loading pets...",
       "error": "Failed to load pet gallery",
       "searchPlaceholder": "Search pets...",
-      "count": "{count} pets"
+      "count": "{count} pets",
+      "installError": "Failed to install pet",
+      "installedTitle": "Installed",
+      "manifestOffline": "Catalog unavailable right now. Installed pets below still work.",
+      "uninstall": "Remove",
+      "uninstallConfirm": "Remove this pet from your device? You can install it again from the catalog.",
+      "uninstallError": "Failed to remove pet",
+      "cancel": "Cancel"
     },
     "sprite": {
       "contextTitle": "Pet Sprite",
@@ -12043,11 +12263,14 @@
       "hide": "Hide Pet",
       "enableLabel": "Sprite Overlay",
       "enableDesc": "Show an animated pet sprite on screen",
-      "sheetUrl": "Spritesheet URL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "Apply",
-      "clear": "Clear",
-      "codexHint": "Supports Codex standard 8×9 (1536×1872px) spritesheets"
+      "activePet": "Active Pet",
+      "activePetEmpty": "No pet installed — pick one from Pet Gallery",
+      "galleryHint": "Install pets from the Pet Gallery tab",
+      "clear": "Clear"
+    },
+    "palette": {
+      "title": "Pet Palette",
+      "hint": "Type /pet in chat anytime. Pick a pet below to install and switch."
     }
   },
   "messageActions": {
@@ -13014,7 +13237,26 @@
     "trayTooltipBackground": "{count} background task(s) running",
     "trayTooltipUsage": "Today: {usage}",
     "budgetAlertTitle": "Budget Alert",
-    "budgetAlertBody": "Usage reached {pct}% — ${remaining} remaining"
+    "budgetAlertBody": "Usage reached {pct}% — ${remaining} remaining",
+    "media": {
+      "section": "Media generation",
+      "imageGenerate": "Image",
+      "videoGenerate": "Video",
+      "pending": "Pending",
+      "queued": "Queued",
+      "running": "Generating",
+      "succeeded": "Completed",
+      "failed": "Failed",
+      "recentSection": "Recent",
+      "showRecent": "Show",
+      "hideRecent": "Hide",
+      "cancel": "Cancel",
+      "navigate": "Go to chat",
+      "untitledPrompt": "Untitled generation",
+      "completedTitle": "{type} completed",
+      "failedTitle": "{type} failed",
+      "unknownError": "Unknown error"
+    }
   },
   "taskCard": {
     "failedTitle": "Task Failed",
@@ -13026,7 +13268,10 @@
     "alternateLabel": "Alternate {index}",
     "providerLabel": "Provider",
     "modelLabel": "Model",
-    "latencyLabel": "Latency"
+    "latencyLabel": "Latency",
+    "backgroundHint": "You can leave this chat — we'll notify you when it's done.",
+    "queued": "Queued...",
+    "generatingProgress": "Generating... {percent}%"
   },
   "boot": {
     "title": "MyrmAgent",
@@ -13927,9 +14172,12 @@
     "importNoActionable": "No actionable tasks were found in the artifact checklist",
     "importNoTasks": "No importable checklist items were found in this artifact",
     "importArtifactNotFound": "Artifact not found",
+    "importProjectNotFound": "Project not found",
     "importRecentLabel": "Recent artifacts (click to import)",
     "importRecentEmpty": "No recent artifacts available",
-    "importRecentLoadFailed": "Unable to load recent artifacts"
+    "importRecentLoadFailed": "Unable to load recent artifacts",
+    "importValueHint": "Last {days} days: imported task completion {completed}/{total} ({rate}%)",
+    "importValueEmpty": "Last {days} days: no imported tasks yet"
   },
   "cliAgent": {
     "modeAgent": "AI Agent",
@@ -14007,5 +14255,11 @@
     "algorithm": "Algorithm",
     "fingerprint": "Fingerprint",
     "sessionId": "Session"
+  },
+  "MarkdownTable": {
+    "switchToTable": "Switch to table view",
+    "switchToCard": "Switch to card view",
+    "tableView": "Table",
+    "cardView": "Card"
   }
 }

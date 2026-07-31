@@ -20,6 +20,7 @@ class _FakeIdentity:
     auth_source: str = "loopback"
     loopback: bool = True
     client_ip: str = "127.0.0.1"
+    admission_path: str | None = "loopback"
 
 
 @pytest.fixture(autouse=True)

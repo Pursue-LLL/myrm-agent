@@ -39,6 +39,8 @@ const PROGRESS_STEP_KEYS = new Set([
   'wiki_knowledge_lane_clear',
   'consensus_active',
   'consensus_reference_done',
+  'moa_overlay_active',
+  'moa_ref_done',
   'workflow_init',
   'workflow_planning',
   'workflow_execution',
@@ -96,7 +98,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                 ? `(${data.attempt}/15)`
                 : stepKey === 'consensus_active' && data.data?.reference_models
                   ? `(${(data.data.reference_models as string[]).join(', ')})`
-                  : stepKey === 'consensus_reference_done' && data.data?.model
+                  : stepKey === 'moa_overlay_active' && data.data?.reference_models
+                    ? `(${(data.data.reference_models as string[]).join(', ')})`
+                    : stepKey === 'consensus_reference_done' && data.data?.model
                     ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
                     : (stepKey === 'workflow_init' ||
                           stepKey === 'workflow_planning' ||
@@ -208,6 +212,15 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       } else {
         state.messages[messageIndex].progressSteps!.push(progressStep);
       }
+      if (
+        (stepKey === 'consensus_active' || stepKey === 'moa_overlay_active') &&
+        data.data?.reference_models
+      ) {
+        const models = data.data.reference_models as string[];
+        if (models.length > 0) {
+          state.messages[messageIndex].consensusRefsExpected = models.length;
+        }
+      }
       if (stepKey === 'consensus_reference_done' && data.data) {
         const rd = data.data as Record<string, unknown>;
         if (!state.messages[messageIndex].consensusRefs) {
@@ -218,6 +231,19 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
           success: Boolean(rd.success),
           elapsed: typeof rd.elapsed === 'number' ? rd.elapsed : 0,
           content: typeof rd.content === 'string' ? rd.content : undefined,
+        });
+      }
+      if (stepKey === 'moa_ref_done' && data.data) {
+        const rd = data.data as Record<string, unknown>;
+        if (!state.messages[messageIndex].consensusRefs) {
+          state.messages[messageIndex].consensusRefs = [];
+        }
+        state.messages[messageIndex].consensusRefs!.push({
+          model: String(rd.model ?? ''),
+          success: Boolean(rd.success),
+          elapsed: typeof rd.elapsed === 'number' ? rd.elapsed : 0,
+          content: typeof rd.content === 'string' ? rd.content : undefined,
+          source: 'moa_overlay',
         });
       }
       if (isMediaAnalysis) {

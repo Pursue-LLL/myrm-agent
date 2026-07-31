@@ -28,7 +28,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from pytest import FixtureRequest
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -36,6 +35,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _force_mux_attach_restart_after_new_page_timeout,
     open_mcp_page,
@@ -124,9 +124,9 @@ _LAYOUT_PROBE_JS = """(() => ({
 
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - loopback only
         url, data=data, method=method
-    )  # noqa: S310 - loopback only
+    )
     if data is not None:
         req.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - loopback only
@@ -317,32 +317,31 @@ def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]
     try:
         yield
     finally:
-        if not _server_reachable():
-            return
-        try:
-            _http_json(
-                "PUT",
-                f"{get_e2e_api_url()}/api/v1/config/voice",
-                {"deviceId": "web", "value": voice},
-            )
-            _http_json(
-                "PUT",
-                f"{get_e2e_api_url()}/api/v1/config/personalSettings",
-                {"deviceId": "web", "value": personal},
-            )
-            if feature_overridden:
+        if _server_reachable():
+            try:
                 _http_json(
-                    "POST",
-                    f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
-                    {"enabled": feature_enabled},
+                    "PUT",
+                    f"{get_e2e_api_url()}/api/v1/config/voice",
+                    {"deviceId": "web", "value": voice},
                 )
-            else:
                 _http_json(
-                    "POST",
-                    f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
+                    "PUT",
+                    f"{get_e2e_api_url()}/api/v1/config/personalSettings",
+                    {"deviceId": "web", "value": personal},
                 )
-        except BaseException:
-            pass
+                if feature_overridden:
+                    _http_json(
+                        "POST",
+                        f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
+                        {"enabled": feature_enabled},
+                    )
+                else:
+                    _http_json(
+                        "POST",
+                        f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
+                    )
+            except BaseException:
+                pass
 
 
 @pytest.fixture
@@ -569,7 +568,7 @@ async def _probe_read_aloud_fetch(
     return last
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_voice_settings_no_edge_banner_when_available(
@@ -610,7 +609,7 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
@@ -654,7 +653,7 @@ async def test_read_aloud_edge_api_from_browser_context(
     assert int(result.get("bytes", 0)) > 0, result
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 @pytest.mark.asyncio
@@ -716,7 +715,7 @@ def test_live_stt_status_reflects_local_install() -> None:
         assert status["available"] is True
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 @pytest.mark.asyncio

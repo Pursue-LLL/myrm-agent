@@ -36,7 +36,6 @@ from app.services.agent.stream_session.stream_lane_factory import (
     create_deep_research_stream,
     create_fast_lane_stream,
 )
-from app.services.wiki.wiki_query_intent import should_use_wiki_knowledge_lane
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.workflow_escalation import should_suggest_workflow_for_session
 from app.services.agent.streaming import ai_agent_service_stream
@@ -46,6 +45,7 @@ from app.services.agent.streaming_support.sse_helpers import (
     extract_clarification_required,
     is_compression_exhausted,
 )
+from app.services.wiki.wiki_query_intent import should_use_wiki_knowledge_lane
 
 logger = logging.getLogger(__name__)
 _CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")

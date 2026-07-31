@@ -7,7 +7,7 @@ Tauri 桌面端集成：runtime invoke、tray、全局快捷键桥接、应用�
 | 文件 | 职责 |
 |------|------|
 | `useTauri.ts` | Tauri runtime 检测与 `invoke` 封装 |
-| `useTrayStatus.ts` | Tray 图标/tooltip/任务栏进度（消费 `useLivenessState`） |
+| `useTrayStatus.ts` | Tray 图标/tooltip/任务栏进度；合并 shell/agent + **media** 活跃任务计数；budget 离屏 notify；shell 完成 dock bounce |
 | `useTrayEvents.ts` | Tray 菜单事件路由 |
 | `useInlineInputListener.ts` | 全局 Inline Input 快捷键 → FlowPad |
 | `useAppshotListener.ts` | Appshot 快捷键事件桥接 |
@@ -16,7 +16,9 @@ Tauri 桌面端集成：runtime invoke、tray、全局快捷键桥接、应用�
 
 ## 依赖
 
-- `@/hooks/shell/useLivenessState` — 跨域 liveness SSOT（全部署模式）
+- `@/services/mediaTasks::listActiveMediaTasks` — media 后台任务计数
+- `@/services/taskEventStream::subscribeTaskUpdateEvents` — media 任务 SSE 刷新 tray
+- `@/hooks/tasks/useGlobalMediaTaskNotifications` — media 完成 notify；Tauri 权限拒时 `requestUserAttention`
 - `@/lib/deploy-mode::isTauriRuntime` — 非 Tauri 环境 no-op
 - 消费者：`components/layout/AppLayout.tsx`、`app-shell/*`、`settings/sections/system/LockedUseCard.tsx`
 

@@ -24,6 +24,9 @@ import useCronStore from '@/store/useCronStore';
 import type { CronJob } from '@/services/cron';
 import { computeRunStats, formatDuration, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import CronRunItem from './CronRunItem';
+import { CronJobAuditPanel } from './CronJobAuditPanel';
+import { AcceptanceCriteriaEditor } from './CronAcceptanceCriteriaEditor';
+import { needsSettingsAuditGate } from '@/lib/cron/cronCreateAuditGate';
 import { DeliveryEditor, FailureDeliveryEditor } from './CronDeliveryEditors';
 import { IncrementalMonitorEditor } from './CronMonitorEditors';
 import {
@@ -161,6 +164,18 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
           {runsTotal > 0 ? `${runsTotal} ${t('runHistory')}` : t('runHistory')}
         </span>
       </div>
+
+      <CronJobAuditPanel
+        jobId={job.id}
+        initialJob={job}
+        compact
+        enforceSettingsGate={needsSettingsAuditGate(job)}
+        onJobChange={onJobUpdated}
+      />
+
+      {job.job_type === 'agent' && (
+        <AcceptanceCriteriaEditor job={job} onUpdated={handleEditorUpdated} />
+      )}
 
       <Tabs value={runsStatusFilter ?? 'all'} onValueChange={(v) => handleFilterChange(v === 'all' ? null : v)}>
         <TabsList className="h-8">

@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import {
   normalizeAgentSecretKeyNames,
   parseUserAgentFetchErrorMessage,
@@ -104,7 +105,7 @@ export interface Agent {
   mcp_tool_selections?: Record<string, string[]>;
   skill_ids?: string[];
   mounted_skill_ids?: string[];
-  skill_configs?: Record<string, { is_core?: boolean }> | null;
+  skill_configs?: AgentSkillConfigMap | null;
   enabled_builtin_tools?: string[] | null;
   browser_source?: string | null;
   dialog_policy?: string | null;
@@ -161,7 +162,7 @@ export interface AgentCreate {
   mcp_tool_selections?: Record<string, string[]>;
   skill_ids?: string[];
   mounted_skill_ids?: string[];
-  skill_configs?: Record<string, { is_core?: boolean }> | null;
+  skill_configs?: AgentSkillConfigMap | null;
   enabled_builtin_tools?: string[];
   browser_source?: string | null;
   dialog_policy?: string | null;
@@ -198,7 +199,7 @@ export interface AgentUpdate {
   mcp_tool_selections?: Record<string, string[]>;
   skill_ids?: string[];
   mounted_skill_ids?: string[];
-  skill_configs?: Record<string, { is_core?: boolean }> | null;
+  skill_configs?: AgentSkillConfigMap | null;
   enabled_builtin_tools?: string[];
   browser_source?: string | null;
   dialog_policy?: string | null;

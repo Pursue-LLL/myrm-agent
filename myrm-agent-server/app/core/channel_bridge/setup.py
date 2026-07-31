@@ -301,45 +301,20 @@ async def _load_sticker_vision_service() -> object | None:
     Returns None if vision fallback model is not configured.
     """
     try:
+        from app.channels.media.sticker_vision import StickerVisionService
         from app.core.channel_bridge.config_loader import _load_single_config
-        from app.core.channel_bridge.model_resolver import resolve_model_config
-
-        default_model_dict = await _load_single_config("default_model")
-        if not default_model_dict:
-            return None
-
-        vision_cfg = default_model_dict.get("visionFallbackModel")
-        if not vision_cfg or not isinstance(vision_cfg, dict):
-            return None
-
-        provider_id = vision_cfg.get("providerId", "")
-        model_name = vision_cfg.get("model", "")
-        if not provider_id or not model_name:
-            return None
+        from app.core.channel_bridge.config_parsers import build_vision_fallback_engine_from_providers
 
         providers_dict_raw = await _load_single_config("providers")
-        providers_dict = providers_dict_raw if isinstance(providers_dict_raw, dict) else {}
+        if not isinstance(providers_dict_raw, dict):
+            return None
 
-        litellm_model = f"{provider_id}/{model_name}"
-        model_cfg = resolve_model_config(providers_dict, model_override=litellm_model)
+        engine = build_vision_fallback_engine_from_providers(providers_dict_raw)
+        if engine is None:
+            return None
 
-        from myrm_agent_harness.api import LLMConfig
-        from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
-            VisionFallbackEngine,
-        )
-
-        from app.channels.media.sticker_vision import (
-            StickerVisionService,
-        )
-
-        llm_config = LLMConfig(
-            model=model_cfg.model,
-            api_key=model_cfg.api_key,
-            base_url=model_cfg.base_url,
-        )
-        engine = VisionFallbackEngine(llm_config)
         svc = StickerVisionService(engine)
-        logger.info("Sticker vision enabled: model=%s", model_cfg.model)
+        logger.info("Sticker vision enabled with ordered vision fallback chain")
         return svc
     except Exception:
         logger.warning("Failed to load sticker vision service, stickers will use emoji only")

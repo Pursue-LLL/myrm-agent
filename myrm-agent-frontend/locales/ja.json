@@ -5769,6 +5769,7 @@
     "extractToSkill": {
       "title": "スキルとして抽出",
       "learnContext": "以下のメッセージから再利用可能性なスキルを抽出してください：",
+      "started": "スキル抽出を開始しました — 草案の準備ができ次第お知らせします",
       "success": "スキル抽出を開始しました",
       "error": "スキル抽出に失敗しました",
       "sent": "送信済み",
@@ -6339,6 +6340,12 @@
       "searchPlaceholder": "検索ツール...",
       "noResults": "ない匹配のツール",
       "parameters": "パラメータ",
+      "layers": {
+        "core": "コア",
+        "common": "共通",
+        "extended": "拡張",
+        "external": "外部連携"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "履歴セッション検索",
@@ -8516,6 +8523,7 @@
     "preview": "プレビュー",
     "download": "ダウンロード",
     "code": "代码",
+    "edit": "編集",
     "close": "閉じる",
     "copyCode": "コピー代码",
     "copied": "済みコピー",
@@ -8551,6 +8559,7 @@
       "exportCsv": "エクスポート为 CSV",
       "noData": "なしデータ可表示",
       "loadError": "読み込みに失敗しました",
+      "saveChanges": "変更を保存",
       "truncated": "表示前 {count} 行，共 {total} 行"
     },
     "saving": "保存中...",
@@ -11520,7 +11529,8 @@
       "loading": "ペットを読み込み中...",
       "error": "ペット図鑑の読み込みに失敗しました",
       "searchPlaceholder": "ペットを検索...",
-      "count": "{count} 匹のペット"
+      "count": "{count} 匹のペット",
+      "installError": "ペットのインストールに失敗しました"
     },
     "sprite": {
       "contextTitle": "ペットスプライト",
@@ -11529,11 +11539,10 @@
       "hide": "ペットを隠す",
       "enableLabel": "スプライトオーバーレイ",
       "enableDesc": "アニメーションペットスプライトを画面に表示",
-      "sheetUrl": "スプライトシートURL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "適用",
-      "clear": "クリア",
-      "codexHint": "Codex標準 8×9 (1536×1872px) スプライトシート対応"
+      "activePet": "アクティブなペット",
+      "activePetEmpty": "ペット未インストール — 図鑑から選択してください",
+      "galleryHint": "「ペット図鑑」タブでペットをインストール",
+      "clear": "クリア"
     }
   },
   "messageActions": {

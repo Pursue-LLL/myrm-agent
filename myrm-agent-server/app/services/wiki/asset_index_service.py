@@ -2,9 +2,9 @@
 
 [INPUT]
 myrm_agent_harness.toolkits.wiki.retrieval.asset_index::WikiAssetIndexer, AssetIndexResult
-myrm_agent_harness.toolkits.llms.vision.fallback_engine::VisionFallbackEngine
+myrm_agent_harness.toolkits.llms.vision.fallback_engine::VisionFallbackEngine (POS: 视觉能力降级服务)
+app.core.channel_bridge.config_parsers::build_vision_fallback_engine_from_providers (POS: 有序视觉辅助链 SSOT)
 app.core.channel_bridge.config_loader::_load_single_config
-app.core.channel_bridge.model_resolver::resolve_model_config
 
 [OUTPUT]
 - build_wiki_asset_caption_provider(): AssetCaptionProvider | None
@@ -13,8 +13,8 @@ app.core.channel_bridge.model_resolver::resolve_model_config
 - wiki_asset_index_enabled(): bool
 
 [POS]
-Server business layer for Obsidian wiki/assets retrieval. Resolves user visionFallbackModel
-and drives harness WikiAssetIndexer without coupling harness to product config stores.
+Server business layer for Obsidian wiki/assets retrieval. Builds ordered vision fallback engine
+from user defaultModelConfig and drives harness WikiAssetIndexer without coupling harness to product config stores.
 """
 
 from __future__ import annotations
@@ -25,11 +25,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.api import LLMConfig
-from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
 from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import AssetIndexResult
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
     from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import AssetCaptionProvider
 
     from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
@@ -46,7 +45,7 @@ class _LocalFileExecutor:
 
 
 class _VisionAssetCaptionProvider:
-    def __init__(self, engine: VisionFallbackEngine) -> None:
+    def __init__(self, engine: "VisionFallbackEngine") -> None:
         self._engine = engine
         self._executor = _LocalFileExecutor()
 
@@ -54,39 +53,22 @@ class _VisionAssetCaptionProvider:
         return await self._engine.describe_local_image(str(path), self._executor)
 
 
-async def _resolve_vision_llm_config() -> LLMConfig | None:
+async def _resolve_vision_engine() -> "VisionFallbackEngine | None":
     from app.core.channel_bridge.config_loader import _load_single_config
-    from app.core.channel_bridge.model_resolver import resolve_model_config
-
-    default_model_dict = await _load_single_config("default_model")
-    if not default_model_dict or not isinstance(default_model_dict, dict):
-        return None
-
-    vision_cfg = default_model_dict.get("visionFallbackModel")
-    if not vision_cfg or not isinstance(vision_cfg, dict):
-        return None
-
-    provider_id = str(vision_cfg.get("providerId", "")).strip()
-    model_name = str(vision_cfg.get("model", "")).strip()
-    if not provider_id or not model_name:
-        return None
+    from app.core.channel_bridge.config_parsers import build_vision_fallback_engine_from_providers
 
     providers_dict_raw = await _load_single_config("providers")
-    providers_dict = providers_dict_raw if isinstance(providers_dict_raw, dict) else {}
-    litellm_model = f"{provider_id}/{model_name}"
-    model_cfg = resolve_model_config(providers_dict, model_override=litellm_model)
-    return LLMConfig(
-        model=model_cfg.model,
-        api_key=model_cfg.api_key,
-        base_url=model_cfg.base_url,
-    )
-
-
-async def build_wiki_asset_caption_provider() -> AssetCaptionProvider | None:
-    llm_config = await _resolve_vision_llm_config()
-    if llm_config is None:
+    if not isinstance(providers_dict_raw, dict):
         return None
-    return _VisionAssetCaptionProvider(VisionFallbackEngine(llm_config))
+
+    return build_vision_fallback_engine_from_providers(providers_dict_raw)
+
+
+async def build_wiki_asset_caption_provider() -> "AssetCaptionProvider | None":
+    engine = await _resolve_vision_engine()
+    if engine is None:
+        return None
+    return _VisionAssetCaptionProvider(engine)
 
 
 async def wiki_asset_index_enabled() -> bool:

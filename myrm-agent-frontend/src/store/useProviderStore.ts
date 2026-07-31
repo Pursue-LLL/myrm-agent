@@ -85,6 +85,7 @@ interface ProviderState {
   setRoutingReasoningModel: (selection: SingleModelSelection | null) => void;
   setRoutingReasoningModelFallback: (selection: SingleModelSelection | null) => void;
   setVisionFallbackModel: (selection: SingleModelSelection | null) => void;
+  setVisionFallbackModelFallback: (selection: SingleModelSelection | null) => void;
 
   // 自定义模型信息操作
   getModelInfo: (providerId: string, model: string) => CustomModelInfo | undefined;
@@ -268,10 +269,20 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         liteModel: { ...defaultModelConfig.liteModel, fallback: null },
       };
     }
-    if (defaultModelConfig.visionFallbackModel?.providerId === id) {
+    if (defaultModelConfig.visionFallbackModel?.primary?.providerId === id) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        visionFallbackModel: null,
+        visionFallbackModel: defaultModelConfig.visionFallbackModel
+          ? { ...defaultModelConfig.visionFallbackModel, primary: null }
+          : null,
+      };
+    }
+    if (defaultModelConfig.visionFallbackModel?.fallback?.providerId === id) {
+      defaultModelConfig = {
+        ...defaultModelConfig,
+        visionFallbackModel: defaultModelConfig.visionFallbackModel
+          ? { ...defaultModelConfig.visionFallbackModel, fallback: null }
+          : null,
       };
     }
 
@@ -304,8 +315,15 @@ const useProviderStore = create<ProviderState>((set, get) => ({
       if (newConfig.liteModel.fallback?.providerId === id) {
         newConfig.liteModel = { ...newConfig.liteModel, fallback: null };
       }
-      if (newConfig.visionFallbackModel?.providerId === id) {
-        newConfig.visionFallbackModel = null;
+      if (newConfig.visionFallbackModel?.primary?.providerId === id) {
+        newConfig.visionFallbackModel = newConfig.visionFallbackModel
+          ? { ...newConfig.visionFallbackModel, primary: null }
+          : null;
+      }
+      if (newConfig.visionFallbackModel?.fallback?.providerId === id) {
+        newConfig.visionFallbackModel = newConfig.visionFallbackModel
+          ? { ...newConfig.visionFallbackModel, fallback: null }
+          : null;
       }
       defaultModelConfig = newConfig;
     }
@@ -563,9 +581,35 @@ const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   setVisionFallbackModel: (selection) => {
-    const config = {
-      ...get().defaultModelConfig,
-      visionFallbackModel: selection,
+    const current = get().defaultModelConfig;
+    const config: DefaultModelConfig = {
+      ...current,
+      visionFallbackModel: selection
+        ? {
+            primary: selection,
+            fallback: current.visionFallbackModel?.fallback ?? null,
+          }
+        : current.visionFallbackModel?.fallback
+          ? { primary: null, fallback: current.visionFallbackModel.fallback }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setVisionFallbackModelFallback: (selection) => {
+    const current = get().defaultModelConfig;
+    const existing = current.visionFallbackModel;
+    const config: DefaultModelConfig = {
+      ...current,
+      visionFallbackModel:
+        selection || existing?.primary
+          ? {
+              primary: existing?.primary ?? null,
+              fallback: selection,
+            }
+          : null,
     };
     const { providers, customModelInfo } = get();
     syncToManager(providers, config, customModelInfo);
@@ -624,10 +668,20 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         liteModel: { ...defaultModelConfig.liteModel, fallback: null },
       };
     }
-    if (isMatch(defaultModelConfig.visionFallbackModel)) {
+    if (isMatch(defaultModelConfig.visionFallbackModel?.primary)) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        visionFallbackModel: null,
+        visionFallbackModel: defaultModelConfig.visionFallbackModel
+          ? { ...defaultModelConfig.visionFallbackModel, primary: null }
+          : null,
+      };
+    }
+    if (isMatch(defaultModelConfig.visionFallbackModel?.fallback)) {
+      defaultModelConfig = {
+        ...defaultModelConfig,
+        visionFallbackModel: defaultModelConfig.visionFallbackModel
+          ? { ...defaultModelConfig.visionFallbackModel, fallback: null }
+          : null,
       };
     }
     if (defaultModelConfig.routingConfig) {

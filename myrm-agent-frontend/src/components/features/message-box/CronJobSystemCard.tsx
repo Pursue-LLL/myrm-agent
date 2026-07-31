@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Timer, CheckCircle2, Clock, Cpu, Calendar, Settings2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { useTranslations } from 'next-intl';
+import { CronJobAuditPanel } from '@/components/features/cron/CronJobAuditPanel';
 
 export interface CronJobResult {
   status: string;
@@ -57,6 +58,10 @@ export const CronJobSystemCard = memo<{ result: CronJobResult }>(({ result }) =>
             <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{result.model.split('/').pop()}</span>
           </InfoRow>
         )}
+      </div>
+
+      <div className="px-4 pb-3">
+        <CronJobAuditPanel jobId={result.job_id} compact showManualPause acknowledgmentOnly />
       </div>
 
       <div className="border-t bg-muted/20 px-4 py-2.5 flex items-center justify-end">

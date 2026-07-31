@@ -6,11 +6,12 @@
  */
 
 import type { BuiltinToolId } from '@/store/chat/types';
+import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 export interface OriginalAgentSnapshot {
   agentId: string;
   selectedSkillIds: string[];
-  skillConfigs?: Record<string, { is_core?: boolean }>;
+  skillConfigs?: AgentSkillConfigMap;
   selectedMcpNames: string[];
   systemPrompt: string;
   autoRestoreDomains: string[];
@@ -21,9 +22,39 @@ export interface OriginalAgentSnapshot {
   safetyFallbackModelSelection?: { providerId: string; model: string } | null;
 }
 
+export function normalizeSkillConfigs(configs: AgentSkillConfigMap | undefined): AgentSkillConfigMap {
+  if (!configs) return {};
+  const normalized: AgentSkillConfigMap = {};
+  for (const [skillId, cfg] of Object.entries(configs)) {
+    normalized[skillId] = {
+      is_core: cfg?.is_core ?? false,
+      instance_name: cfg?.instance_name ?? null,
+    };
+  }
+  return normalized;
+}
+
+export function areSkillConfigsEqual(
+  left: AgentSkillConfigMap | undefined,
+  right: AgentSkillConfigMap | undefined,
+): boolean {
+  const normalizedLeft = normalizeSkillConfigs(left);
+  const normalizedRight = normalizeSkillConfigs(right);
+  const leftKeys = Object.keys(normalizedLeft).sort();
+  const rightKeys = Object.keys(normalizedRight).sort();
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key, index) => {
+    if (key !== rightKeys[index]) return false;
+    const a = normalizedLeft[key];
+    const b = normalizedRight[key];
+    return a.is_core === b.is_core && (a.instance_name ?? null) === (b.instance_name ?? null);
+  });
+}
+
 interface CurrentAgentState {
   agentId?: string;
   selectedSkillIds: string[];
+  skillConfigs?: AgentSkillConfigMap;
   selectedMcpNames: string[];
   systemPrompt: string;
   autoRestoreDomains?: string[];
@@ -49,6 +80,8 @@ export function detectAgentConfigChanges(
 
   const arraysEqual = (a: string[], b: string[]) =>
     a.length === b.length && a.every((v) => b.includes(v));
+
+  const skillConfigsChanged = !areSkillConfigsEqual(original.skillConfigs, current.skillConfigs);
 
   const skillsChanged = !arraysEqual(
     original.selectedSkillIds ?? [],
@@ -93,6 +126,7 @@ export function detectAgentConfigChanges(
 
   return (
     skillsChanged ||
+    skillConfigsChanged ||
     mcpsChanged ||
     promptChanged ||
     autoRestoreDomainsChanged ||

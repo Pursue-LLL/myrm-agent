@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from app.services.agent.stream_session.stream_lane_factory import (
     _cfg_int_or_none,
+    _cfg_privacy_filter,
     _cfg_str_or_none,
     _inject_wu_consumed,
 )
@@ -106,3 +107,13 @@ class TestInjectWuConsumed:
         chunk: dict[str, object] = {"type": "message_end"}
         _inject_wu_consumed(chunk)
         assert "wu_consumed" not in chunk
+
+
+class TestCfgPrivacyFilter:
+    def test_valid_modes(self):
+        assert _cfg_privacy_filter({"privacy_filter": "display"}, "privacy_filter") == "display"
+        assert _cfg_privacy_filter({"privacy_filter": "full"}, "privacy_filter") == "full"
+
+    def test_invalid_falls_back_to_off(self):
+        assert _cfg_privacy_filter({"privacy_filter": "bogus"}, "privacy_filter") == "off"
+        assert _cfg_privacy_filter({}, "privacy_filter") == "off"

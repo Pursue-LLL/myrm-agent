@@ -35,6 +35,7 @@
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + config snapshot restore + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
+| `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：创建临时 Agent（`engineParams.moa_overlay`）、agent-stream 断言 `moa_overlay_active` + `moa_ref_done` → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |

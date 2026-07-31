@@ -5791,6 +5791,7 @@
     "extractToSkill": {
       "title": "提煉為技能",
       "learnContext": "請基於以下訊息內容提煉一個可複用的技能：",
+      "started": "已開始提煉技能 — 草案就緒後會通知你",
       "success": "已發起技能提煉",
       "error": "技能提煉失敗",
       "sent": "已提交",
@@ -6169,7 +6170,9 @@
         "addPin": "固定",
         "removePin": "移除",
         "pinsEmpty": "暫無固定檔案",
-        "pinsLoading": "載入中…"
+        "pinsLoading": "載入中…",
+        "pinsLoadError": "固定檔案載入失敗",
+        "pinsRetry": "重試"
       }
     },
     "compactedSummary": {
@@ -6186,6 +6189,12 @@
       "bookmarksTitle": "已儲存的快照書籤",
       "bookmarksLoading": "載入書籤中…",
       "bookmarksEmpty": "暫無快照書籤",
+      "bookmarksLoadError": "書籤載入失敗",
+      "bookmarksRetry": "重試",
+      "bookmarkFork": "開新對話繼續",
+      "bookmarkForking": "正在開啟…",
+      "bookmarkForkSuccess": "已在新對話中開啟快照",
+      "bookmarkForkFailed": "無法從快照開新對話",
       "archiveTitle": "歸檔訊息",
       "archiveEmpty": "暫無歸檔訊息",
       "roleUser": "你",
@@ -6385,6 +6394,12 @@
       "searchPlaceholder": "搜尋工具...",
       "noResults": "沒有匹配的工具",
       "parameters": "引數",
+      "layers": {
+        "core": "核心",
+        "common": "通用",
+        "extended": "擴展",
+        "external": "外部整合"
+      },
       "knownTools": {
         "conversationSearch": {
           "name": "歷史會話搜尋",
@@ -8563,6 +8578,7 @@
     "preview": "預覽",
     "download": "下載",
     "code": "程式碼",
+    "edit": "編輯",
     "close": "關閉",
     "copyCode": "複製程式碼",
     "copied": "已複製",
@@ -8598,6 +8614,7 @@
       "exportCsv": "匯出為 CSV",
       "noData": "無資料可顯示",
       "loadError": "載入失敗",
+      "saveChanges": "儲存修改",
       "truncated": "顯示前 {count} 行，共 {total} 行"
     },
     "saving": "儲存中...",
@@ -11560,7 +11577,8 @@
       "loading": "載入寵物中...",
       "error": "載入寵物圖鑑失敗",
       "searchPlaceholder": "搜尋寵物...",
-      "count": "{count} 只寵物"
+      "count": "{count} 只寵物",
+      "installError": "安裝寵物失敗"
     },
     "sprite": {
       "contextTitle": "寵物精靈",
@@ -11569,11 +11587,10 @@
       "hide": "隱藏寵物",
       "enableLabel": "精靈覆蓋",
       "enableDesc": "在螢幕上顯示動畫寵物精靈",
-      "sheetUrl": "精靈圖URL",
-      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
-      "apply": "應用",
-      "clear": "清除",
-      "codexHint": "支援 Codex 標準 8×9 (1536×1872px) 精靈圖"
+      "activePet": "目前寵物",
+      "activePetEmpty": "未安裝寵物 — 請在圖鑑中選擇",
+      "galleryHint": "在「寵物圖鑑」標籤頁安裝寵物",
+      "clear": "清除"
     }
   },
   "messageActions": {

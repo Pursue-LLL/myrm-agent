@@ -67,7 +67,7 @@ ThreadStore（线程生命周期管理）
 
 - **启动**：`app/server/lifespan.py::optimized_lifespan` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
 - **关闭**：调用 harness 返回的 cleanup 回调清理连接资源
-- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据，避免孤儿 checkpoint 持续占用存储。调用点：永久删除（`chat_crud._cleanup_checkpointer`）、清空回收站、焦点刷新、fork 回滚、Resume 失败恢复
+- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.sync_chat_checkpoint_from_db` 对齐 DB 与 checkpoint。调用点：永久删除（`chat_crud._cleanup_checkpointer`）、清空回收站、焦点刷新、fork 回滚、Resume 失败恢复
 - **错误处理**：sqlite 模式 `create_checkpointer()` fail-fast（启动失败）；`get_checkpointer()` 未注入时 **RuntimeError**
 - **恢复容错**：如果历史 checkpoint 因序列化类签名变更等原因无法反序列化，增量 checkpointer 会记录警告并按“无历史状态”重新启动，避免单条坏数据阻断整个流式请求
 

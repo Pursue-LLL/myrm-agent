@@ -38,10 +38,10 @@ def _make_mock_manager(memories_by_type: dict[MemoryType, list[object]]) -> Asyn
     manager.has_vector = True
     manager.has_relational = True
 
-    async def mock_count(mem_type: MemoryType) -> int:
+    async def mock_count(mem_type: MemoryType, *, tag_filter: str | None = None) -> int:
         return len(memories_by_type.get(mem_type, []))
 
-    async def mock_list(mem_type: MemoryType, *, limit: int = 10000, offset: int = 0) -> list[object]:
+    async def mock_list(mem_type: MemoryType, *, limit: int = 10000, offset: int = 0, **kwargs: object) -> list[object]:
         return memories_by_type.get(mem_type, [])
 
     manager.count_memories.side_effect = mock_count

@@ -43,6 +43,7 @@ import {
   SkillDraftReviewPanel,
   SkillHistoryPanel,
   SkillSyncIndicator,
+  SkillsLearnPanel,
 } from '@/components/features/skills';
 import { EvolutionStrategyConfig } from '@/components/features/skills/EvolutionStrategyConfig';
 import CuratorSettingsPanel from '@/components/features/skills/CuratorSettingsPanel';
@@ -566,6 +567,9 @@ const SkillsSection = memo(() => {
           <TabsContent value="installed" className="mt-0 space-y-4">
             {/* Skill Sync Status */}
             {isLoggedIn && <SkillSyncIndicator />}
+
+            {/* Learn wizard — compose raw /learn for server SSOT rewrite */}
+            {isLoggedIn && <SkillsLearnPanel className="mb-4" />}
 
             {/* Skill Draft Review Panel */}
             {isLoggedIn && <SkillDraftReviewPanel className="mb-4" />}

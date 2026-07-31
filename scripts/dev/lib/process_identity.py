@@ -36,24 +36,27 @@ class ProcessOwnershipError(RuntimeError):
 
 
 def _capture_ps_line(pid: int) -> str | None:
-    result = subprocess.run(
-        [
-            "ps",
-            "-p",
-            str(pid),
-            "-o",
-            "pgid=",
-            "-o",
-            "stat=",
-            "-o",
-            "lstart=",
-            "-o",
-            "command=",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "ps",
+                "-p",
+                str(pid),
+                "-o",
+                "pgid=",
+                "-o",
+                "stat=",
+                "-o",
+                "lstart=",
+                "-o",
+                "command=",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
     if result.returncode != 0 or not result.stdout.strip():
         return None
     return result.stdout.strip()
@@ -90,12 +93,15 @@ def capture_process(pid: int, *, role: str, runtime_id: str) -> ProcessIdentity 
 
 
 def _read_parent_pid(pid: int) -> int:
-    result = subprocess.run(
-        ["ps", "-p", str(pid), "-o", "ppid="],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "ppid="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(f"PROCESS_PARENT_READ_FAILED: pid={pid}") from exc
     raw = result.stdout.strip()
     if result.returncode != 0 or not raw.isdigit():
         raise RuntimeError(f"PROCESS_PARENT_READ_FAILED: pid={pid}")
@@ -183,12 +189,15 @@ def verify_identity(identity: ProcessIdentity) -> bool:
 
 
 def _descendant_pids(root_pid: int) -> list[int]:
-    result = subprocess.run(
-        ["ps", "-axo", "pid=", "-o", "ppid="],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=", "-o", "ppid="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
     if result.returncode != 0:
         return []
     children: dict[int, list[int]] = {}

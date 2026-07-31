@@ -17,6 +17,11 @@ import { uploadFiles } from '@/services/file';
 import { toast } from '@/lib/utils/toast';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
+import {
+  hasConfiguredVisionCapability,
+  hasVisionFallbackForVideo,
+} from '@/store/config/visionCapability';
+import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 
@@ -121,14 +126,13 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         const selection = defaultModelConfig?.baseModel?.primary;
         if (selection) {
           const modelInfo = getModelInfo(selection.providerId, selection.model);
-          const fallback = defaultModelConfig?.visionFallbackModel;
-          const fallbackInfo = fallback ? getModelInfo(fallback.providerId, fallback.model) : null;
-          const hasVision = modelInfo?.supports_vision || fallbackInfo?.supports_vision;
+          const hasVision = modelInfo?.supports_vision || hasConfiguredVisionCapability(defaultModelConfig, getModelInfo);
+          const hasVideoFallback = hasVisionFallbackForVideo(defaultModelConfig, getModelInfo);
           if (hasImages && !hasVision) {
-            toast.warning(tFiles('modelNotSupportVision'));
+            showVisionNotConfiguredToast('image');
           }
-          if (hasVideos && !modelInfo?.supports_video_input && !fallbackInfo?.supports_vision) {
-            toast.warning(tFiles('modelNotSupportVideo'));
+          if (hasVideos && !modelInfo?.supports_video_input && !hasVideoFallback) {
+            showVisionNotConfiguredToast('video');
           }
         }
       }

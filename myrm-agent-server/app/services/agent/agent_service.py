@@ -230,6 +230,14 @@ class AgentService:
 
         await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
 
+        from app.services.agent.skill_instance_resolver import (
+            serialize_agent_skill_configs,
+            validate_agent_skill_config_instances,
+        )
+
+        await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+        serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
+
         agent_id = str(uuid.uuid4())
 
         metadata: dict[str, object] = {
@@ -267,7 +275,7 @@ class AgentService:
             model=(agent_data.model_selection.model if agent_data.model_selection else None),
             max_iterations=agent_data.max_iterations,
             skills=agent_data.skill_ids,
-            skill_configs=agent_data.skill_configs,
+            skill_configs=serialized_skill_configs,
             tools_allowed=agent_data.enabled_builtin_tools,
             system_prompt=agent_data.system_prompt,
             memory_policy=_memory_policy_from_request(agent_data.memory_policy),
@@ -298,6 +306,17 @@ class AgentService:
 
             await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
 
+        if agent_data.skill_configs is not None:
+            from app.services.agent.skill_instance_resolver import (
+                serialize_agent_skill_configs,
+                validate_agent_skill_config_instances,
+            )
+
+            await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+            serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
+        else:
+            serialized_skill_configs = None
+
         snapshot_saved = True
         subagent_binding_changed = False
         async with UnitOfWork() as uow:
@@ -317,8 +336,8 @@ class AgentService:
                 updates["model_selection"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
             if agent_data.skill_ids is not None:
                 updates["skills"] = agent_data.skill_ids
-            if agent_data.skill_configs is not None:
-                updates["skill_configs"] = agent_data.skill_configs
+            if serialized_skill_configs is not None:
+                updates["skill_configs"] = serialized_skill_configs
             if agent_data.enabled_builtin_tools is not None:
                 updates["tools_allowed"] = agent_data.enabled_builtin_tools
             if agent_data.is_built_in is not None and not existing.built_in:

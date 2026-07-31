@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { resetTaskUpdateEventStreamForTests } from '@/services/taskEventStream';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, string>) => {
@@ -13,6 +14,13 @@ vi.mock('next-intl', () => ({
 const mockNotify = vi.fn();
 vi.mock('@/services/notification', () => ({
   notificationService: { notify: (...args: unknown[]) => mockNotify(...args) },
+}));
+
+let mockEnableWebNotifications = true;
+vi.mock('@/store/useConfigStore', () => ({
+  default: {
+    getState: () => ({ enableWebNotifications: mockEnableWebNotifications }),
+  },
 }));
 
 type TaskStatus = 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
@@ -94,7 +102,9 @@ describe('useTasksSubscription', () => {
 
   beforeEach(() => {
     MockEventSource.reset();
+    resetTaskUpdateEventStreamForTests();
     mockNotify.mockClear();
+    mockEnableWebNotifications = true;
     vi.useFakeTimers();
     taskById.clear();
     pollTasks = [];
@@ -166,6 +176,22 @@ describe('useTasksSubscription', () => {
     });
 
     expect(mockNotify).toHaveBeenCalledWith('image_generate completed', { body: undefined });
+  });
+
+  it('does not notify when enableWebNotifications is disabled', async () => {
+    mockEnableWebNotifications = false;
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    taskById.set('task-2b', createTask('task-2b', 'succeeded', { progress: 100 }));
+    renderHook(() => useTasksSubscription(['task-2b']));
+
+    await act(async () => {
+      MockEventSource.instances[0].emit('task_update', { task_id: 'task-2b' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('sends localized notification on task failure with error message', async () => {
@@ -343,7 +369,7 @@ describe('useTasksSubscription', () => {
     expect(MockEventSource.instances).toHaveLength(0);
   });
 
-  it('closes EventSource on unmount', async () => {
+  it('closes shared EventSource on unmount when last subscriber leaves', async () => {
     const { useTasksSubscription } = await import('../useTasksSubscription');
 
     const { unmount } = renderHook(() => useTasksSubscription(['task-6']));
@@ -352,6 +378,15 @@ describe('useTasksSubscription', () => {
     unmount();
 
     expect(source.close).toHaveBeenCalled();
+  });
+
+  it('reuses shared EventSource across multiple hook instances', async () => {
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    renderHook(() => useTasksSubscription(['task-a']));
+    renderHook(() => useTasksSubscription(['task-b']));
+
+    expect(MockEventSource.instances).toHaveLength(1);
   });
 
   it('useTaskSubscription returns single task', async () => {

@@ -33,7 +33,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 E2E_PROMPT = "只回复 OK"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

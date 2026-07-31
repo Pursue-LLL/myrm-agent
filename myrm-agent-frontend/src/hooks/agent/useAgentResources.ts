@@ -16,7 +16,6 @@ export interface AgentResources {
 export function useAgentResources(
   selectedSkillIds: string[],
   selectedMcpNames: string[],
-  mountedSkillIds: string[] = [],
 ): AgentResources {
   const { user, isInitialized } = useAuthStore();
 
@@ -50,8 +49,8 @@ export function useAgentResources(
 
   const selectedSkillDetails = useMemo(() => {
     const allSkills = [...marketSkills, ...localSkills];
-    return allSkills.filter((skill) => selectedSkillIds.includes(skill.id) || mountedSkillIds.includes(skill.id));
-  }, [selectedSkillIds, mountedSkillIds, marketSkills, localSkills]);
+    return allSkills.filter((skill) => selectedSkillIds.includes(skill.id));
+  }, [selectedSkillIds, marketSkills, localSkills]);
 
   const selectedMcpDetails = useMemo(
     () => mcpConfigs.filter((mcp) => selectedMcpNames.includes(mcp.name)),

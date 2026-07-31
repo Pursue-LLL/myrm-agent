@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download } from 'lucide-react';
+import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download, Undo2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/classnameUtils';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
@@ -13,14 +13,19 @@ import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { formatMessageTimestamp } from '@/lib/utils/timeUtils';
 import { ImageLightbox } from '../message-input-actions/ImageLightbox';
+import { ForkButton } from '../chat-window/ForkButton';
+import { RewindDialog } from '../chat-window/RewindDialog';
 
 interface UserMessageProps {
   content: string;
   messageId: string;
+  chatId?: string;
+  messageIndex?: number;
   isFirst: boolean;
   createdAt?: Date;
   isEditing?: boolean;
   isLoading?: boolean;
+  continuityBlocked?: boolean;
   onEdit?: () => void;
   onEditSubmit?: (newContent: string) => void;
   onCancelEdit?: () => void;
@@ -131,10 +136,13 @@ const UserMessage = React.memo(
   ({
     content,
     messageId,
+    chatId,
+    messageIndex,
     isFirst,
     createdAt,
     isEditing,
     isLoading,
+    continuityBlocked = false,
     onEdit,
     onEditSubmit,
     onCancelEdit,
@@ -145,6 +153,7 @@ const UserMessage = React.memo(
     const [copied, setCopied] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [editText, setEditText] = useState('');
+    const [rewindOpen, setRewindOpen] = useState(false);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(contentRef);
@@ -215,7 +224,8 @@ const UserMessage = React.memo(
     const imageFiles = useMemo(() => files?.filter((f) => isImageFile(f.fileExtension)) || [], [files]);
 
     return localizeReactNode(
-      <div className={cn('w-full group', isFirst ? 'pt-16' : 'pt-8', 'break-words')}>
+      <>
+        <div className={cn('w-full group', isFirst ? 'pt-16' : 'pt-8', 'break-words')}>
         <div ref={contentRef} data-message-id={messageId} className="flex items-start gap-3">
           {isEditing ? (
             <div className="flex-1 lg:w-9/12">
@@ -291,7 +301,7 @@ const UserMessage = React.memo(
                 })}
               </h2>
 
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+              <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
                 {timestamp && (
                   <span className="text-xs text-muted-foreground/60 mr-1 select-none" title={timestamp.title}>
                     {timestamp.label}
@@ -307,11 +317,29 @@ const UserMessage = React.memo(
                 {onEdit && (
                   <button
                     onClick={onEdit}
-                    className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
-                    title="编辑 / Edit"
+                    disabled={continuityBlocked}
+                    className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
+                    title={t('message.edit')}
                   >
                     <Pencil size={16} />
                   </button>
+                )}
+                {chatId && messageIndex !== undefined && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setRewindOpen(true)}
+                      disabled={continuityBlocked}
+                      className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
+                      title={continuityBlocked ? t('rewind.streamingBlocked') : t('rewind.buttonTitle')}
+                      aria-label={t('rewind.buttonLabel')}
+                    >
+                      <Undo2 size={16} />
+                    </button>
+                    {!continuityBlocked && (
+                      <ForkButton chatId={chatId} messageIndex={messageIndex} />
+                    )}
+                  </>
                 )}
               </div>
             </>
@@ -360,7 +388,17 @@ const UserMessage = React.memo(
             layoutIdPrefix={`${messageId}-`}
           />
         )}
-      </div>,
+        </div>
+        {chatId && messageIndex !== undefined && (
+          <RewindDialog
+            open={rewindOpen}
+            onOpenChange={setRewindOpen}
+            chatId={chatId}
+            messageId={messageId}
+            messageIndex={messageIndex}
+          />
+        )}
+      </>,
       locale,
     );
   },

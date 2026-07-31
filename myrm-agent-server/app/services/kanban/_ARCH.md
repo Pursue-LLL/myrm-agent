@@ -26,7 +26,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery | ❌ |
 | `task_runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；`kanban_tool_mode=worker` + `kanban_current_task_id` → worker 6 工具 bind | ✅ |
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径 + HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
-| `task_runner_stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query | ❌ |
+| `task_runner_stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |
 | `task_runner_worktree.py` | ✅ 核心 | Git worktree 隔离 | ❌ |
 | `task_runner_profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
 | `diagnostics.py` | ✅ 核心 | 诊断引擎工厂、摘要 | ✅ |

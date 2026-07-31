@@ -78,6 +78,7 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: False)
     calls: list[tuple[str, ...]] = []
     prepared: list[bool] = []
 
@@ -104,6 +105,30 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
 
     assert calls[0] == ("osascript", "-e", 'tell application "TextEdit" to quit')
     assert ("pkill", "-x", "TextEdit") in calls
+    assert prepared == [True]
+
+
+def test_restart_textedit_fixture_process_signoff_skips_graceful_quit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: True)
+    kill_calls: list[bool] = []
+    prepared: list[bool] = []
+
+    monkeypatch.setattr(
+        textedit_fixture,
+        "_force_kill_textedit_process",
+        lambda **_: kill_calls.append(True),
+    )
+    monkeypatch.setattr(
+        textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True)
+    )
+    monkeypatch.setattr(textedit_fixture.time, "sleep", lambda _: None)
+
+    textedit_fixture.restart_textedit_fixture_process()
+
+    assert kill_calls == [True]
     assert prepared == [True]
 
 
@@ -165,7 +190,7 @@ async def test_ensure_textedit_fixture_ready_passes_when_marker_and_ax_ready(
     monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
 
     await textedit_fixture.ensure_textedit_fixture_ready(attempts=2)
-    assert ax_calls == [2]
+    assert ax_calls == [4]
 
 
 @pytest.mark.asyncio
@@ -255,7 +280,7 @@ async def test_ensure_textedit_fixture_ready_clears_degraded_state_on_scope_chan
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "case_b (call)")
 
     await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)
-    assert ax_calls == [2]
+    assert ax_calls == [4]
 
 
 @pytest.mark.asyncio

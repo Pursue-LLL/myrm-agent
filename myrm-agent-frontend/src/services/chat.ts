@@ -798,6 +798,26 @@ export const createContextBranch = async (
   })) as ContextBranchRecord;
 };
 
+export interface BranchForkResult {
+  new_chat_id: string;
+  parent_chat_id: string;
+  branch_id: string;
+  message_count: number;
+}
+
+export const forkContextBranch = async (
+  chatId: string,
+  branchId: string,
+  newTitle?: string,
+): Promise<BranchForkResult> => {
+  const body = newTitle ? JSON.stringify({ new_title: newTitle }) : undefined;
+  return (await apiRequest(`/chats/${chatId}/context/branches/${branchId}/fork`, {
+    method: 'POST',
+    timeout: 120000,
+    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
+  })) as BranchForkResult;
+};
+
 export const setContextPins = async (chatId: string, files: string[]): Promise<{ files: string[] }> => {
   return (await apiRequest(`/chats/${chatId}/context/pins`, {
     method: 'PUT',
@@ -875,6 +895,14 @@ export interface TruncateResult {
   deleted_count: number;
 }
 
+export interface RewindResult {
+  success: boolean;
+  deleted_count: number;
+  composer_text: string;
+  message_index: number;
+  goal_paused: boolean;
+}
+
 /**
  * Truncate: delete a message and everything after it.
  * Used by edit-resend to sync backend before re-sending the edited message.
@@ -884,6 +912,19 @@ export const truncateAfterMessage = async (chatId: string, messageId: string): P
     method: 'POST',
     body: JSON.stringify({ message_id: messageId }),
   })) as TruncateResult;
+};
+
+/**
+ * Rewind conversation to before a user message and seed the composer.
+ */
+export const rewindToMessage = async (
+  chatId: string,
+  messageId: string,
+): Promise<{ data: RewindResult } & RewindResult> => {
+  return (await apiRequest(`/chats/${chatId}/rewind`, {
+    method: 'POST',
+    body: JSON.stringify({ message_id: messageId }),
+  })) as { data: RewindResult } & RewindResult;
 };
 
 /**

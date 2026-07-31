@@ -18,7 +18,7 @@
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
 | `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
-| `milestones.ts` | `/projects/*/milestones` CRUD、progress/roadmap、`import-assessment` 导入回执（含 `import_id`）；并复用 `/files/artifacts?limit=N` 拉取最近工件候选供里程碑导入入口；导入失败时可从标准错误结构 `error.details[field=import_reason]` 读取机器可读原因 |
+| `milestones.ts` | `/projects/*/milestones` CRUD、progress/roadmap、`import-assessment` 导入回执（含 `import_id`）；并复用 `/files/artifacts?limit=N&project_id=...&assessment_import_candidate=true` 拉取当前项目最近工件候选供里程碑导入入口，优先返回后端语义探测为 `importable` 的候选（无命中时回退时间排序）；导入失败时可从标准错误结构 `error.details[field=import_reason]` 读取机器可读原因 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `archiveSecurityErrorCore.ts` | 批量导入 `archive_security.*` 错误码解析与 i18n key 映射纯函数，供技能导入 UI 稳定消费 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
@@ -32,6 +32,9 @@
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |
 | `background-tasks.ts` | `GET/POST /background-tasks/*`：Panel 列表、cancel、steer、**shell stdin**（`sendShellBackgroundStdin` → `POST …/stdin`） |
+| `mediaTasks.ts` | `GET/POST /api/v1/tasks/*`：Panel 媒体分区（活跃 + 近期 terminal image/video list/cancel/fetch） |
+| `taskEventStream.ts` | 共享 `/api/v1/tasks/stream` SSE 多播（Chat 任务卡 + Panel 媒体 + Tray + 完成通知复用单连接） |
+| `tauriNativeNotification.ts` | Tauri 桌面原生通知 helper（media 完成 + budget 告警复用） |
 | `backgroundTasksRefresh.ts` | Panel/tray 即时刷新：`notifyBackgroundTasksChanged` + `notifyBackgroundTasksChangedForShellJobFinish`（global SSE finish） |
 | `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |
 | `artifact*.ts` | 工件相关 REST |
@@ -47,6 +50,7 @@
 | `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/query attempt+success/负向结果事件（按 `context_key` 隔离复问口径，query 事件携带 `turn_distance`；离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome + query success rate）。 |
 | `turnCapabilityMetrics.ts` | `/statistics/turn-capability/*` 客户端：记录单轮 Skill/MCP 能力覆写的提交/生效/noop/排队/完成/失败/busy 重排队事件（含 selected/effective 能力规模与 `failure_reason` 枚举：`network_error/archive_restore_invalid/abort/server_error/unknown_error`）；支持离线丢样按 source 分桶聚合回补 `dropped_report`，并查询 apply/noop/queue/completion/failure 率聚合。 |
 | `expertSummonMetrics.ts` | `/statistics/expert-summon/*` 客户端：记录专家召唤漏斗事件（surface/search/attempt/success/fail/route apply/first send/dropped），并按 surface 聚合离线丢样回补；支持查询召唤成功率、路由应用率、首条发送转化率等口径。 |
+| `assessmentImportMetrics.ts` | `/statistics/assessment-import/*` 客户端：记录评估导入漏斗事件（import_attempted/import_succeeded/import_failed/dropped，维度含 trigger=manual_input/recent_candidate 与 failure_reason），并按 trigger 聚合离线丢样回补；支持查询导入成功率、失败率、recent-candidate 入口占比与失败原因分布；支持读取导入后价值锚点 `value-summary`（任务完成率/里程碑完成率/激活率）。 |
 | `templateDiscovery.ts` | 模板发现层共享纯函数：检索标准化、命中过滤、模板类别归一化（TemplateMarket 与 FlowPad 复用，避免口径漂移）。 |
 | `templateSummon.ts` | 模板召唤共享执行层：统一实例化 + 观测事件写入（attempt/success/fail），收敛 TemplateMarket 与 FlowPad 的重复逻辑。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
