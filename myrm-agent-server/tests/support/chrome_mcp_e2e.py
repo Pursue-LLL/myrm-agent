@@ -157,13 +157,17 @@ def http_json(
 
 
 def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
-    """Extend warm budget when wave leases contend for shared Next compile (R120)."""
+    """Extend warm budget when wave leases or parallel chrome_e2e peers contend for shared UI."""
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
         from dev_gate_contract import shared_ui_hydrate_wait_sec
         from stack_mutation_policy import wave_active_lease_count
+        from transport_supervisor import parallel_active_test_count
 
-        active = wave_active_lease_count(monorepo_root)
+        active = max(
+            wave_active_lease_count(monorepo_root),
+            parallel_active_test_count(),
+        )
         if active > 0:
             cap = float(shared_ui_hydrate_wait_sec())
             return min(base_wait_sec + active * 45.0, cap)
@@ -1109,9 +1113,7 @@ def open_mcp_page(
     if _parallel_open_page_peer_count() >= 2:
         if boot_mux_gate_ok:
             probe_budget = (
-                _signoff_mux_drain_budget_sec()
-                if is_e2e_signoff_runtime()
-                else 15.0
+                _signoff_mux_drain_budget_sec() if is_e2e_signoff_runtime() else 15.0
             )
             wait_mux_hand_probe_allowed(budget_sec=min(probe_budget, 45.0))
             if is_e2e_signoff_runtime():
@@ -1298,7 +1300,10 @@ def open_mcp_page(
                     wall_deadline=wall_deadline,
                     total_deadline=total_deadline,
                 )
-                if _parallel_open_page_peer_count() >= 2 and not is_e2e_signoff_runtime():
+                if (
+                    _parallel_open_page_peer_count() >= 2
+                    and not is_e2e_signoff_runtime()
+                ):
                     # R171: layout poll must not inherit sliced evaluate wall under mux queue.
                     client.set_tool_wall_deadline(None)
                 wait_for_state(
@@ -1391,7 +1396,10 @@ def open_mcp_page(
                 or "cdp/mux endpoint not ready" in exc_message
                 or "cdp endpoint not ready" in exc_message
             ):
-                if _open_page_allow_mux_budget_extension() or _open_page_parallel_retry_allowed():
+                if (
+                    _open_page_allow_mux_budget_extension()
+                    or _open_page_parallel_retry_allowed()
+                ):
                     if not mux_restarted and _open_page_parallel_retry_allowed():
                         transport_session_started, wall_deadline, total_deadline = (
                             _restart_open_page_mux_budget(

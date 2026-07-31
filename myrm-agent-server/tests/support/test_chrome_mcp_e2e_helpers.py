@@ -437,6 +437,32 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
     assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(180.0) == 360.0
 
 
+def test_warm_ui_parallel_wait_sec_uses_parallel_active_test_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakePolicy:
+        @staticmethod
+        def wave_active_lease_count(_root: Path) -> int:
+            return 2
+
+    class _FakeTransport:
+        @staticmethod
+        def parallel_active_test_count() -> int:
+            return 8
+
+    class _FakeContract:
+        @staticmethod
+        def shared_ui_hydrate_wait_sec() -> int:
+            return 900
+
+    monkeypatch.setitem(sys.modules, "stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "dev_gate_contract", _FakeContract())  # type: ignore[arg-type]
+    from tests.support import chrome_mcp_e2e
+
+    assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(120.0) == 480.0
+
+
 def test_open_page_attempt_count_is_one_under_parallel_peers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
