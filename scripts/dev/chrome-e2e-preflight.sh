@@ -145,7 +145,8 @@ _wait_attach_endpoints_under_parallel_load() {
   local active_leases wait_sec poll_sec waited errors heal_during_wait=0 ui_heal_during_wait=0
   active_leases="$(_parallel_attach_active_leases)"
   # R150: never fast-fail ui=unreachable when attach errors exist — wave lease count can lag registry under parallel ADMIT.
-  if [[ "${active_leases}" -le 0 ]]; then
+  # R200-C: signoff with true zero peers uses solo attach wait (no synthetic lease=1 → 660s ADMIT burn).
+  if [[ "${active_leases}" -le 0 && "${E2E_SIGNOFF:-}" != "1" ]]; then
     active_leases=1
     echo "CHROME_E2E_ATTACH: registry peer count=0 — minimum parallel ADMIT attach wait (R150)" >&2
   fi
@@ -296,6 +297,7 @@ from runtime_identity import attach_endpoint_errors
 print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
+      && [[ "${active_leases}" -le 0 ]] \
       && [[ "${waited}" -ge 30 ]] \
       && [[ $((waited % 30)) -eq 0 ]] \
       && [[ "${ui_heal_during_wait}" -lt 2 ]]; then
@@ -311,6 +313,18 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       && [[ "${mux_heal_during_wait}" -lt 2 ]]; then
       mux_heal_during_wait=$((mux_heal_during_wait + 1))
       echo "CHROME_E2E_ATTACH_HEAL: mux heal during shared_hot wait ${mux_heal_during_wait}/2 (R142)" >&2
+      _heal_mux_request_timeout_drift || true
+      _heal_mux_under_parallel_attach_load || true
+      continue
+    fi
+    if [[ "${E2E_SIGNOFF:-}" == "1" ]] \
+      && [[ "${require_ready}" == "--require-signoff-stream-ready" ]] \
+      && [[ "${waited}" -ge 45 ]] \
+      && [[ "${mux_heal_during_wait}" -lt 2 ]] \
+      && [[ "${health}" == *"shellHot=false"* || "${health}" == *"clientHot=false"* ]]; then
+      mux_heal_during_wait=$((mux_heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: signoff SHC attach-heal during stream wait ${mux_heal_during_wait}/2 (R200-C)" >&2
+      PYTHONUNBUFFERED=1 python3 "${SCRIPT_DIR}/lib/signoff_stack_heal.py" attach-heal >/dev/null 2>&1 || true
       _heal_mux_request_timeout_drift || true
       _heal_mux_under_parallel_attach_load || true
       continue
@@ -470,8 +484,26 @@ if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; 
   exit 0
 fi
 
+_preflight_readiness_gate() {
+  if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" || "${E2E_SIGNOFF:-}" == "1" ]]; then
+    return 0
+  fi
+  local py_out rc=0
+  py_out="$(
+    PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+      "${PREFLIGHT_PY}" -m e2e_readiness emit 2>&1
+  )" || rc=$?
+  echo "${py_out}" >&2
+  if [[ "${rc}" -eq 2 ]]; then
+    fail "cluster readiness FAIL — run ./myrm e2e-context; do not stop other pytest"
+  fi
+}
+
+_preflight_readiness_gate
+
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" ]]; then
+# R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" && "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" != "1" ]]; then
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
@@ -525,22 +557,22 @@ if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; 
   exit 0
 fi
 
-# 2. Legacy second Chrome / debug launchers
-if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
+# 2. Legacy second Chrome / debug launchers (attach reuses :9333 SSOT — skip under parallel E2E)
+if [[ "${MYRM_CHROME_E2E_ATTACH:-}" != "1" ]] && pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
   fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm ready --chrome (Myrm E2E profile on :9333)"
 fi
 
 # 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
 [[ -f "${ENSURE_CHROME}" ]] || fail "Missing ${ENSURE_CHROME}"
 
-_ensure_one_transport_cell_chrome() {
+_ensure_browser_pool_chrome() {
   local port="$1"
   local data_dir ensure_one_out=""
   data_dir="$("${PREFLIGHT_PY}" -c "
 import os, sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_transport_cell import resolve_chrome_data_dir_for_port
-print(resolve_chrome_data_dir_for_port(int('${port}')))
+from e2e_browser_pool import resolve_chrome_data_dir
+print(resolve_chrome_data_dir())
 ")"
   export MYRM_CHROME_E2E_PORT="${port}"
   export MYRM_CHROME_E2E_DATA_DIR="${data_dir}"
@@ -557,16 +589,7 @@ print(resolve_chrome_data_dir_for_port(int('${port}')))
 }
 
 ensure_out=""
-if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-  _ensure_one_transport_cell_chrome "${MYRM_CHROME_E2E_PORT:-9333}"
-else
-  transport_ports="$("${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_transport_cell.py" ensure-ports 2>/dev/null || echo "${MYRM_CHROME_E2E_PORT:-9333}")"
-  while IFS= read -r transport_port; do
-    [[ -n "${transport_port}" ]] || continue
-    cell_out="$(_ensure_one_transport_cell_chrome "${transport_port}")"
-    ensure_out="${ensure_out}${cell_out}"$'\n'
-  done <<<"${transport_ports}"
-fi
+ensure_out="$(_ensure_browser_pool_chrome "${MYRM_CHROME_E2E_PORT:-9333}")"
 echo "${ensure_out}"
 CHROME_E2E_CLI_EARLY="${SCRIPT_DIR}/chrome-e2e/cli.sh"
 if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then

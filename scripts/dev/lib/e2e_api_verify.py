@@ -25,6 +25,7 @@ import os
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -47,6 +48,10 @@ HEALTH_PROBE_TIMEOUT_SEC: Final[float] = 2.0
 PORT_SCAN_PROBE_TIMEOUT_SEC: Final[float] = 0.5
 AGENT_NEVER_SAY: Final[str] = (
     "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|停止并行测试|kill wave"
+)
+_CURL_STATUS_MARKER: Final[str] = "\n__MYRM_HTTP_STATUS__:"
+_LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset(
+    {"127.0.0.1", "localhost", "::1"}
 )
 
 
@@ -149,8 +154,44 @@ def _api_health_ok(
                 if 200 <= resp.status < 300:
                     return True
         except (urllib.error.URLError, TimeoutError, OSError):
-            continue
+            if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
+                return True
     return False
+
+
+def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
+    """Read a loopback URL when the Agent sandbox denies Python socket access."""
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or parsed.hostname not in _LOOPBACK_HOSTS:
+        return None
+    bounded_timeout = max(0.1, timeout_sec)
+    try:
+        proc = subprocess.run(
+            [
+                "curl",
+                "--silent",
+                "--show-error",
+                "--max-time",
+                f"{bounded_timeout:g}",
+                "--write-out",
+                f"{_CURL_STATUS_MARKER}%{{http_code}}",
+                url,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=bounded_timeout + 1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    body, marker, status_raw = proc.stdout.rpartition(_CURL_STATUS_MARKER)
+    if proc.returncode != 0 or marker != _CURL_STATUS_MARKER:
+        return None
+    try:
+        status = int(status_raw.strip())
+    except ValueError:
+        return None
+    return body if 200 <= status < 300 else None
 
 
 def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
@@ -167,7 +208,16 @@ def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
         json.JSONDecodeError,
         ValueError,
     ):
-        return None, ""
+        payload_text = _curl_loopback_get(
+            url,
+            timeout_sec=HEALTH_PROBE_TIMEOUT_SEC,
+        )
+        if payload_text is None:
+            return None, ""
+        try:
+            payload = json.loads(payload_text)
+        except (json.JSONDecodeError, ValueError):
+            return None, ""
     if not isinstance(payload, dict):
         return None, ""
     stack_epoch = payload.get("stack_epoch")
@@ -475,14 +525,26 @@ def _candidate_to_dict(candidate: BackendCandidate) -> dict[str, object]:
 
 
 def _mux_context_fields() -> dict[str, object]:
+    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
     from mux_upstream_admission import read_mux_cold_attach_status  # noqa: PLC0415
 
-    mux = read_mux_cold_attach_status()
+    snapshot_available = True
+    try:
+        mux = read_mux_cold_attach_status()
+    except (OSError, PermissionError):
+        snapshot_available = False
+        mux = {
+            "active": 0,
+            "maxSlots": MUX_COLD_ATTACH_SLOTS,
+            "saturated": False,
+            "handProbeAllowed": True,
+        }
     return {
         "muxColdAttachActive": mux["active"],
         "muxColdAttachMax": mux["maxSlots"],
         "muxColdAttachSaturated": mux["saturated"],
         "muxHandProbeAllowed": mux["handProbeAllowed"],
+        "muxSnapshotAvailable": snapshot_available,
     }
 
 
@@ -526,36 +588,26 @@ def _load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
             sys.path.remove(support_text)
 
 
-def _lock_holder_active(
-    parallel_snapshot: dict[str, object] | None,
-    key: str,
-) -> bool:
-    if parallel_snapshot is None:
-        return False
-    holder = parallel_snapshot.get(key)
-    if not isinstance(holder, dict):
-        return False
-    pid = holder.get("pid")
-    return isinstance(pid, int) and pid > 0
-
-
 def _compute_queue_state(
     *,
     live_agent_shpoib_count: int,
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None,
 ) -> tuple[bool, list[str]]:
-    from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT  # noqa: PLC0415
+    del live_agent_shpoib_count, mux_fields, parallel_snapshot
+    from dev_gate_status import dev_gate_status  # noqa: PLC0415
 
+    status = dev_gate_status()
     reasons: list[str] = []
-    if bool(mux_fields.get("muxColdAttachSaturated", False)):
-        reasons.append("mux_cold_attach")
-    if live_agent_shpoib_count >= LIVE_SHPOIB_MAX_CONCURRENT:
-        reasons.append("wave_cap")
-    if _lock_holder_active(parallel_snapshot, "agent_stream_lock"):
-        reasons.append("shared_hot_stream_lock")
-    if _lock_holder_active(parallel_snapshot, "desktop_approval_lock"):
-        reasons.append("desktop_approval_lock")
+    if int(status["private_waiting"]) > 0:
+        reasons.append("private_credit_queue")
+    try:
+        from e2e_mux_transport_queue import transport_queue_snapshot  # noqa: PLC0415
+
+        if transport_queue_snapshot().blocked:
+            reasons.append("mux_transport_queue")
+    except ImportError:
+        pass
     return len(reasons) > 0, reasons
 
 
@@ -566,11 +618,8 @@ def _cap_headroom_fields(
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from dev_gate_contract import (  # noqa: PLC0415
-        LIVE_SHARED_HOT_MAX_CONCURRENT,
-        LIVE_SHPOIB_MAX_CONCURRENT,
-        MUX_COLD_ATTACH_SLOTS,
-    )
+    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
     from e2e_lease_liveness import WaveLeaseCounts  # noqa: PLC0415
 
     counts = (
@@ -598,19 +647,20 @@ def _cap_headroom_fields(
         mux_fields=mux_fields,
         parallel_snapshot=parallel_snapshot,
     )
+    dev_gate = dev_gate_status()
     return {
         "waveLeasesActive": counts.total,
         "waveLeasesEffective": counts.effective_total,
-        "liveAgentShpoibLeases": counts.live_agent_shpoib,
-        "liveAgentShpoibLeasesEffective": counts.effective_live_agent_shpoib,
-        "liveAgentSharedHotLeases": counts.live_agent_shared_hot,
-        "readPageLeases": counts.read_page,
-        "shpoibMaxConcurrent": LIVE_SHPOIB_MAX_CONCURRENT,
-        "sharedHotMaxConcurrent": LIVE_SHARED_HOT_MAX_CONCURRENT,
         "muxColdAttachRemaining": max(0, mux_max - mux_active),
         "activeTestCount": active_test_count,
         "parallelQueueExpected": queue_expected,
         "queueReasons": queue_reasons,
+        "sharedUnlimited": True,
+        "sharedActive": int(dev_gate["shared_active"]),
+        "privateActive": int(dev_gate["private_active"]),
+        "privateWaiting": int(dev_gate["private_waiting"]),
+        "privateActiveCredits": int(dev_gate["private_active_credits"]),
+        "privateCapacityCredits": int(dev_gate["private_capacity_credits"]),
     }
 
 
@@ -637,13 +687,10 @@ def _format_cap_headroom_human(
         reason_note = f" queue_reasons={','.join(str(item) for item in reasons)}"
     return (
         "E2E_CAP_HEADROOM: "
-        f"live_agent_shpoib={headroom['liveAgentShpoibLeasesEffective']}/"
-        f"{headroom['shpoibMaxConcurrent']} "
-        f"(raw_shpoib={headroom['liveAgentShpoibLeases']}) "
-        f"read_page_leases={headroom['readPageLeases']} "
-        f"wave_leases_effective={headroom['waveLeasesEffective']} "
-        f"wave_leases_raw={headroom['waveLeasesActive']} "
-        f"shared_hot_max={headroom['sharedHotMaxConcurrent']} "
+        f"shared=unlimited active={headroom['sharedActive']} "
+        f"private={headroom['privateActiveCredits']}/"
+        f"{headroom['privateCapacityCredits']} "
+        f"private_waiting={headroom['privateWaiting']} "
         f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
         f"active_tests={active_test_count} queue_expected={queue}{reason_note} "
         "(do not stop other pytest)"
@@ -665,7 +712,6 @@ def _format_queue_human(
     )
     if not headroom["parallelQueueExpected"]:
         return None
-    shpoib_max = int(headroom["shpoibMaxConcurrent"])
     reasons = headroom.get("queueReasons", [])
     reason_str = (
         ",".join(str(item) for item in reasons)
@@ -675,14 +721,13 @@ def _format_queue_human(
     return (
         "E2E_QUEUE_HUMAN: "
         f"reason={reason_str} "
-        f"(live_agent_shpoib={headroom['liveAgentShpoibLeases']}/{shpoib_max} "
-        f"read_page_leases={headroom['readPageLeases']} "
-        f"wave_leases_total={headroom['waveLeasesActive']} "
-        f"active_tests={active_test_count}). "
-        "New ./myrm test runs AUTO-QUEUE in ADMIT (≤900s). "
+        f"(private={headroom['privateActiveCredits']}/"
+        f"{headroom['privateCapacityCredits']} "
+        f"waiting={headroom['privateWaiting']} active_tests={active_test_count}). "
+        "Only PRIVATE runtime creation queues in ADMIT (≤900s); "
+        "SHARED logical sessions are unlimited. "
         "NEVER stop/kill other pytest. "
-        "Progress on stderr: E2E capacity [E2E_LEASE_WAIT] / "
-        "E2E_SHPOIB_BOOTSTRAP_PROGRESS every 30s. "
+        "Progress on stderr: E2E_PRIVATE_ADMIT_WAIT every 30s. "
         "Do NOT pipe './myrm test' to tail|head — hides progress."
     )
 
@@ -718,17 +763,29 @@ def _compute_next_action(
                     return "FAIL_FAST"
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
-            if float(body_elapsed) >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC):
+            try:
+                from transport_supervisor import live_agent_body_wall_cap_sec
+
+                body_wall_cap = float(live_agent_body_wall_cap_sec())
+            except ImportError:
+                body_wall_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
+            if float(body_elapsed) >= body_wall_cap:
                 return "FAIL_FAST"
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
-        if (
-            isinstance(current_node, str)
-            and isinstance(node_elapsed, (int, float))
-            and is_transport_stall_node(current_node)
-            and float(node_elapsed) >= float(NODE_STUCK_FAIL_FAST_SEC)
-        ):
-            return "FAIL_FAST"
+        if isinstance(current_node, str) and isinstance(node_elapsed, (int, float)):
+            if is_transport_stall_node(current_node):
+                from dev_gate_contract import (
+                    resolve_transport_stall_cap_sec,
+                )  # noqa: PLC0415
+
+                node_stuck_cap = resolve_transport_stall_cap_sec(
+                    current_node=current_node
+                )
+                if float(node_elapsed) >= float(node_stuck_cap):
+                    return "FAIL_FAST"
+            elif float(node_elapsed) >= float(NODE_STUCK_FAIL_FAST_SEC):
+                return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         if isinstance(process_elapsed, (int, float)):
             if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
@@ -743,6 +800,8 @@ def _compute_next_action(
         return "QUEUE"
     if ctx.drift_pending and ctx.active_leases == 0:
         return "RESTART_WHEN_IDLE"
+    if ctx.blocked:
+        return "SHPOIB_OR_VERIFY_API"
     if active_tests:
         return "PARALLEL_OK"
     return "READY"
@@ -781,9 +840,21 @@ def _format_agent_decision_human(
         active_tests=active_tests,
         mux_fields=mux_fields,
     )
+    from e2e_readiness import evaluate_chrome_e2e_readiness  # noqa: PLC0415
+
+    readiness = evaluate_chrome_e2e_readiness(
+        ctx,
+        headroom=headroom,
+        active_tests=active_tests,
+        mux_fields=mux_fields,
+    )
     lines = [
-        f"NEXT_ACTION={next_action}",
-        f"E2E_STACK_REUSE={_compute_stack_reuse(ctx, next_action=next_action)}",
+        f"NEXT_ACTION={readiness.next_action}",
+        f"MYRM_READINESS_STATUS={readiness.status}",
+        f"MYRM_READINESS_TOKEN={readiness.token}",
+        f"E2E_LAUNCH_ALLOWED={'yes' if readiness.launch_allowed else 'no'}",
+        f"E2E_READY_CHROME_FULL={'yes' if readiness.ready_chrome_full else 'no'}",
+        f"E2E_STACK_REUSE={_compute_stack_reuse(ctx, next_action=readiness.next_action)}",
         f"AGENT_NEVER_SAY={AGENT_NEVER_SAY}",
     ]
     batch_rows = [row for row in active_tests if row.get("batch_mode") is True]
@@ -855,6 +926,9 @@ def _context_to_dict(
     payload["parallelSnapshot"] = resolved_parallel
     payload["capHeadroom"] = headroom
     payload["leaseLiveness"] = lease_liveness_to_dict(liveness_rows)
+    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+
+    payload["devGate"] = dev_gate_status()
     try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
@@ -927,7 +1001,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
 
         maybe_reap_stale_heartbeat_leases()
         maybe_reap_excess_wave_leases()
-    except ImportError:
+    except (ImportError, OSError, PermissionError):
         pass
     from e2e_lease_liveness import (  # noqa: PLC0415
         build_lease_liveness,
@@ -974,21 +1048,9 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
     )
     try:
-        from e2e_wave_capacity import capacity_snapshot
+        from e2e_mux_transport_queue import format_transport_queue_human  # noqa: PLC0415
 
-        wave_cap = capacity_snapshot()
-        wave_active = int(wave_cap.get("activeWeight", 0))
-        wave_max = int(wave_cap.get("maxSlots", 0))
-        wave_sat = "yes" if wave_cap.get("saturated") else "no"
-        wave_wait = sum(
-            1
-            for item in active_tests
-            if str(item.get("current_node", "")) == "E2E_WAVE_CAPACITY_WAIT"
-        )
-        sys.stdout.write(
-            f"E2E_WAVE_CAPACITY={wave_active}/{wave_max} saturated={wave_sat} "
-            f"wave_capacity_wait_count={wave_wait}\n"
-        )
+        sys.stdout.write(f"{format_transport_queue_human()}\n")
     except ImportError:
         pass
     sys.stdout.write(
@@ -1116,11 +1178,9 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
 
 
 def _cmd_launch_check(_args: argparse.Namespace) -> int:
-    from e2e_launch_gate import assert_chrome_e2e_launch_allowed  # noqa: PLC0415
+    from e2e_readiness import _cmd_check  # noqa: PLC0415
 
-    assert_chrome_e2e_launch_allowed()
-    sys.stdout.write("E2E_LAUNCH_OK\n")
-    return 0
+    return int(_cmd_check(_args))
 
 
 def main(argv: list[str] | None = None) -> int:
