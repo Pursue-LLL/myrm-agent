@@ -139,6 +139,19 @@ print(len(list_live_e2e_sessions()))
   echo "${active_leases}"
 }
 
+_bootstrap_attach_begin() {
+  local active_leases="${1:-0}"
+  [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
+  "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline begin --active-leases "${active_leases}" >/dev/null
+}
+
+_bootstrap_attach_remaining_sec() {
+  local remaining
+  remaining="$("${PREFLIGHT_PY}" -m e2e_bootstrap_deadline remaining 2>/dev/null || echo 0)"
+  [[ "${remaining}" =~ ^[0-9]+$ ]] || remaining=0
+  echo "${remaining}"
+}
+
 _wait_attach_endpoints_under_parallel_load() {
   local initial_errors="$1"
   [[ -n "${initial_errors}" ]] || return 0
@@ -151,7 +164,10 @@ _wait_attach_endpoints_under_parallel_load() {
     echo "CHROME_E2E_ATTACH: registry peer count=0 — minimum parallel ADMIT attach wait (R150)" >&2
   fi
 
-  wait_sec="$(_attach_parallel_wait_sec)"
+  _bootstrap_attach_begin "${active_leases}"
+  local bootstrap_budget
+  bootstrap_budget="$(_bootstrap_attach_remaining_sec)"
+  wait_sec="${bootstrap_budget}"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   local wait_started=$SECONDS
@@ -186,7 +202,8 @@ from runtime_identity import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
 ")"
     [[ -z "${errors}" ]] && return 0
-    if [[ "${waited}" -ge "${wait_sec}" ]]; then
+    wait_sec="$(_bootstrap_attach_remaining_sec)"
+    if [[ "${wait_sec}" -le 0 ]]; then
       printf '%s\n' "${errors}" >&2
       if [[ "${errors}" == *"ui=half_dead"* ]]; then
         echo "E2E_ATTACH_UI_HALF_DEAD_QUEUE: attach ADMIT waited ${wait_sec}s — shared UI still half_dead; leases=${active_leases} (do not stop other pytest; pending heal when idle)" >&2
@@ -225,7 +242,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
       continue
     fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
-      echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}/${wait_sec}s" >&2
+      echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}s remaining=${wait_sec}s (monotonic BOOTSTRAP)" >&2
     fi
     _admit_poll_touch "CHROME_E2E_ATTACH_ENDPOINT_WAIT"
     _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_ENDPOINT_WAIT" || return $?
@@ -257,24 +274,24 @@ _attach_fast_path() {
   local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
   local wait_sec poll_sec active_leases errors require_ready
   require_ready="$(_attach_health_require_args)"
-  wait_sec="$(_attach_parallel_wait_sec)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
-  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+  active_leases="$(_parallel_attach_active_leases)"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  _bootstrap_attach_begin "${active_leases}"
+  wait_sec="$(_bootstrap_attach_remaining_sec)"
   if [[ "${require_ready}" == "--require-read-attach-ready" ]]; then
-    local read_base="${MYRM_CHROME_E2E_READ_ATTACH_WAIT_SEC:-120}"
-    [[ "${read_base}" =~ ^[0-9]+$ ]] || read_base=120
-    if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
-      wait_sec=$((read_base + active_leases * 15))
-      if [[ "${wait_sec}" -gt 240 ]]; then
-        wait_sec=240
-      fi
-    else
-      wait_sec="${read_base}"
-    fi
-    echo "CHROME_E2E_ATTACH: READ lane stack-core attach (no clientHot gate; wait≤${wait_sec}s)" >&2
+    echo "CHROME_E2E_ATTACH: READ lane stack-core attach uses monotonic BOOTSTRAP remaining=${wait_sec}s (no independent 150s gate)" >&2
   fi
+  if [[ "${wait_sec}" -le 0 ]]; then
+    fail "BOOTSTRAP attach budget exhausted before stack-core gate — do not stop other pytest; run ./myrm e2e-context"
+  fi
+  local wait_started=$SECONDS
   while true; do
+    wait_sec="$(_bootstrap_attach_remaining_sec)"
+    if [[ "${wait_sec}" -le 0 ]]; then
+      echo "${health}" >&2
+      fail "parallel attach health snapshot did not recover within monotonic BOOTSTRAP budget — wait for shared hot recovery; do not stop other pytest; solo warmup: ./myrm ready --chrome"
+    fi
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
       --auto-probe \
       --auto-hot \
@@ -285,10 +302,6 @@ _attach_fast_path() {
       echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
       echo "${health}"
       return 0
-    fi
-    if [[ "${waited}" -ge "${wait_sec}" ]]; then
-      echo "${health}" >&2
-      fail "parallel attach health snapshot did not recover within ${wait_sec}s — wait for shared hot recovery or stream-lock holder client_hot; do not stop other pytest; solo warmup: ./myrm ready --chrome"
     fi
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
@@ -340,13 +353,14 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       _stamp_mux_daemon_ws_url || true
       continue
     fi
+    wait_sec="$(_bootstrap_attach_remaining_sec)"
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
-      echo "CHROME_E2E_WAIT: $(_attach_wait_label) ${waited}/${wait_sec}s (leases=${active_leases})" >&2
+      echo "CHROME_E2E_WAIT: $(_attach_wait_label) ${waited}s remaining=${wait_sec}s (leases=${active_leases}; monotonic BOOTSTRAP)" >&2
     fi
     _admit_poll_touch "CHROME_E2E_ATTACH_SHARED_HOT_WAIT"
     _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_SHARED_HOT_WAIT" || return $?
     sleep "${poll_sec}"
-    waited=$((waited + poll_sec))
+    waited=$((SECONDS - wait_started))
   done
 }
 
@@ -504,6 +518,7 @@ _preflight_readiness_gate
 # 1. Dev servers (Next.js cold compile can exceed 3s)
 # R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" && "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" != "1" ]]; then
+  _bootstrap_attach_begin "$(_parallel_attach_active_leases)"
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
