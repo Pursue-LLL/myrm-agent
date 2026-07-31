@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -30,7 +31,9 @@ _HOME_SHELL_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_phase_c_shared_read_home_shell_smoke() -> None:
@@ -45,8 +48,7 @@ def test_phase_c_shared_read_home_shell_smoke() -> None:
             client,
             page,
             _HOME_SHELL_STATE,
-            timeout_sec=120.0,
-            poll_sec=2.0,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
         assert state.get("ready") is True, state
         assert state.get("hasComposer") is True, state
