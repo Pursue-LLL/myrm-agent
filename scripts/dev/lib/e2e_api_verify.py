@@ -827,10 +827,7 @@ def _compute_next_action(
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
-        NODE_STUCK_FAIL_FAST_SEC,
     )
-    from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
-
     admit_active = 0
     for row in active_tests:
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
@@ -856,17 +853,11 @@ def _compute_next_action(
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
         if isinstance(current_node, str) and isinstance(node_elapsed, (int, float)):
-            if is_transport_stall_node(current_node):
-                from dev_gate_contract import (
-                    resolve_transport_stall_cap_sec,
-                )  # noqa: PLC0415
+            from e2e_stall_guard import (  # noqa: PLC0415
+                parallel_active_test_node_stuck_fail_fast,
+            )
 
-                node_stuck_cap = resolve_transport_stall_cap_sec(
-                    current_node=current_node
-                )
-                if float(node_elapsed) >= float(node_stuck_cap):
-                    return "FAIL_FAST"
-            elif float(node_elapsed) >= float(NODE_STUCK_FAIL_FAST_SEC):
+            if parallel_active_test_node_stuck_fail_fast(row):
                 return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         if isinstance(process_elapsed, (int, float)):
