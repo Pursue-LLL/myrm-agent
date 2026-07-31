@@ -84,20 +84,13 @@ def cancel_e2e_chat_agent_via_api(chat_id: str, *, api_url: str | None = None) -
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """Shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000.
 
-    R73-A: cap at bootstrap wall (180s dev) — never 420s outer deadline that
+    R73-A: cap at bootstrap wall — never 420s outer deadline that
     defeats SHELL_PROBE_STALL_FAIL_FAST_SEC skeleton fail-fast.
+    R220: signoff parallel uses pessimistic bootstrap cap (not 180s mux-undercount).
     """
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         return timeout_sec
-    try:
-        from transport_supervisor import bootstrap_wall_cap_sec
-
-        bootstrap_cap = float(bootstrap_wall_cap_sec())
-    except ImportError:
-        from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
-
-        bootstrap_cap = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
-    base_floor = max(timeout_sec, 120.0)
+    signoff = os.environ.get("E2E_SIGNOFF", "").strip() == "1"
     active_leases = 0
     try:
         from stack_mutation_policy import wave_active_lease_count
@@ -106,6 +99,16 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
         active_leases = wave_active_lease_count(monorepo_root)
     except Exception:
         active_leases = 0
+    pessimistic = signoff and active_leases >= 2
+    try:
+        from transport_supervisor import bootstrap_wall_cap_sec
+
+        bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=pessimistic))
+    except ImportError:
+        from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+
+        bootstrap_cap = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
+    base_floor = max(timeout_sec, 120.0)
     scaled = max(base_floor, 120.0 + active_leases * 15.0)
     return min(scaled, bootstrap_cap)
 
@@ -114,6 +117,47 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     """Extend desktop signoff force-chat wall timeouts under parallel wave load."""
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return base_sec
+    active_leases = 0
+    parallel_tests = 0
+    mux_peers = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import (
+            parallel_active_test_count,
+            parallel_mux_peer_count,
+        )
+
+        parallel_tests = parallel_active_test_count()
+        mux_peers = parallel_mux_peer_count()
+    except Exception:
+        parallel_tests = 0
+        mux_peers = 0
+    load = max(active_leases, parallel_tests, mux_peers)
+    # Signoff always applies a parallel headroom floor (Run#11 showed 50s/35s base under load).
+    floor = max(base_sec, 90.0 if base_sec >= 45.0 else 70.0)
+    scaled = floor + load * 12.0
+    cap = 420.0
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        try:
+            from dev_gate_contract import SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC
+
+            cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC)
+        except ImportError:
+            cap = 420.0
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
+        scaled += 60.0
+        cap = max(cap, 480.0)
+    return min(scaled, cap)
+
+
+def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
+    """Scale omni-config API timeouts under parallel chrome_e2e load (Phase C ramp SSOT)."""
     active_leases = 0
     parallel_tests = 0
     try:
@@ -130,10 +174,77 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     except Exception:
         parallel_tests = 0
     load = max(active_leases, parallel_tests)
-    # Signoff always applies a parallel headroom floor (Run#11 showed 50s/35s base under load).
-    floor = max(base_sec, 90.0 if base_sec >= 45.0 else 70.0)
+    if load <= 0:
+        return base_sec
+    floor = max(base_sec, 15.0)
     scaled = floor + load * 10.0
-    return min(scaled, 180.0)
+    return min(scaled, 120.0)
+
+
+def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> float:
+    """Extend desktop approval per-attempt wall under parallel desktop soak (R211/R213)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
+        return base_sec
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
+        return base_sec
+    active_leases = 0
+    parallel_tests = 0
+    mux_peers = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import (
+            parallel_active_test_count,
+            parallel_mux_peer_count,
+        )
+
+        parallel_tests = parallel_active_test_count()
+        mux_peers = parallel_mux_peer_count()
+    except Exception:
+        parallel_tests = 0
+        mux_peers = 0
+    load = max(active_leases, parallel_tests, mux_peers)
+    floor = max(base_sec, 280.0)
+    scaled = floor + load * 35.0
+    return min(scaled, 600.0)
+
+
+def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> float:
+    """Extend desktop progress API poll wall under parallel desktop soak (R212)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
+        return base_sec
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
+        return base_sec
+    active_leases = 0
+    parallel_tests = 0
+    mux_peers = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import (
+            parallel_active_test_count,
+            parallel_mux_peer_count,
+        )
+
+        parallel_tests = parallel_active_test_count()
+        mux_peers = parallel_mux_peer_count()
+    except Exception:
+        parallel_tests = 0
+        mux_peers = 0
+    load = max(active_leases, parallel_tests, mux_peers)
+    floor = max(base_sec, 15.0)
+    scaled = floor + load * 4.0
+    return min(scaled, 45.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
@@ -361,6 +472,32 @@ def e2e_api_base_inject_js(api_base: str | None = None) -> str:
 }})()"""
 
 
+E2E_API_BINDING_PROBE_JS = """
+(() => ({
+  apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+  runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
+  directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+}))()
+""".strip()
+
+
+def require_e2e_api_binding_probe(
+    probe: object,
+    expected_api_base: str,
+) -> dict[str, object]:
+    """Fail closed when WebUI document is not bound to the expected SHPOIB private API."""
+    if not isinstance(probe, dict):
+        raise AssertionError(f"E2E API binding probe invalid: {probe!r}")
+    expected = expected_api_base.rstrip("/")
+    actual = str(probe.get("apiBase") or "").rstrip("/")
+    if actual != expected:
+        raise AssertionError(
+            f"E2E API binding mismatch: expected {expected!r}, got {actual!r}; "
+            f"probe={probe!r}"
+        )
+    return probe
+
+
 PREPARE_AUTOMATION_SEND_JS = """
 (() => {
   window.__MYRM_E2E_CHAT__?.prepareAutomationSend?.();
@@ -420,6 +557,7 @@ def wait_e2e_provider_ready(
 ) -> bool:
     """Poll private-pool health + provider readiness (SHPOIB bootstrap race)."""
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    timeout_sec = e2e_parallel_config_api_timeout_sec(timeout_sec)
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         health_ok = False
@@ -1022,7 +1160,12 @@ def nudge_agent_stream_turn(
     )
     error = result.get("error")
     if isinstance(error, dict):
-        return {"ok": False, "mode": "agentStreamNudge", "error": error, "events": result.get("events")}
+        return {
+            "ok": False,
+            "mode": "agentStreamNudge",
+            "error": error,
+            "events": result.get("events"),
+        }
     return {"ok": True, "mode": "agentStreamNudge", "events": result.get("events", [])}
 
 
@@ -1265,7 +1408,21 @@ def _config_http_json(
 def fetch_config_value(
     config_key: str, *, api_url: str | None = None
 ) -> dict[str, object]:
-    payload = _config_http_json("GET", f"/api/v1/config/{config_key}", api_url=api_url)
+    base_timeout = 15.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 10.0
+    timeout_sec = e2e_parallel_config_api_timeout_sec(base_timeout)
+    attempts = _E2E_API_REQUEST_ATTEMPTS
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        # R221: mux gen bump / parallel SHPOIB may transiently stall config GET.
+        attempts = max(attempts, 6)
+    elif timeout_sec > base_timeout:
+        attempts = max(attempts, 5)
+    payload = _config_http_json(
+        "GET",
+        f"/api/v1/config/{config_key}",
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        max_attempts=attempts,
+    )
     value = payload.get("value")
     return value if isinstance(value, dict) else {}
 
@@ -1409,9 +1566,21 @@ def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _pin_hitl_on_api(api_url: str) -> None:
-    current = fetch_config_value("securityConfig", api_url=api_url)
-    put_config_value("securityConfig", _hitl_security_payload(current), api_url=api_url)
+def _pin_hitl_on_api(api_url: str, *, request_timeout_sec: float = 15.0) -> None:
+    current_payload = _config_http_json(
+        "GET",
+        "/api/v1/config/securityConfig",
+        api_url=api_url,
+        timeout_sec=request_timeout_sec,
+        max_attempts=5,
+    )
+    current_value = current_payload.get("value")
+    current = current_value if isinstance(current_value, dict) else {}
+    put_config_value(
+        "securityConfig",
+        _hitl_security_payload(current),
+        api_url=api_url,
+    )
     reset_url = (
         f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
     )
@@ -1423,7 +1592,9 @@ def _pin_hitl_on_api(api_url: str) -> None:
     )
     _validate_loopback_http_url(reset_url)
     try:
-        with _e2e_api_urlopen(reset_req, timeout_sec=15.0) as reset_resp:
+        with _e2e_api_urlopen(
+            reset_req, timeout_sec=request_timeout_sec, max_attempts=5
+        ) as reset_resp:
             if reset_resp.status != 200:
                 body = reset_resp.read(500)
                 raise RuntimeError(
@@ -1432,7 +1603,15 @@ def _pin_hitl_on_api(api_url: str) -> None:
     except urllib.error.HTTPError as exc:
         if exc.code != 404:
             raise
-    persisted = fetch_config_value("securityConfig", api_url=api_url)
+    persisted_payload = _config_http_json(
+        "GET",
+        "/api/v1/config/securityConfig",
+        api_url=api_url,
+        timeout_sec=request_timeout_sec,
+        max_attempts=5,
+    )
+    persisted_value = persisted_payload.get("value")
+    persisted = persisted_value if isinstance(persisted_value, dict) else {}
     if persisted.get("yoloModeEnabled") or persisted.get("yolo_mode_enabled"):
         raise RuntimeError(
             f"Failed to disable YOLO securityConfig on {api_url}: {persisted}"
@@ -1448,26 +1627,41 @@ def _pin_hitl_on_api(api_url: str) -> None:
         )
 
 
-_HITL_PIN_MAX_ATTEMPTS = 3
 _HITL_PIN_BACKOFF_SEC = 1.5
+
+
+def _hitl_pin_retry_policy() -> tuple[int, float]:
+    try:
+        from dev_gate_contract import (
+            signoff_hitl_pin_max_attempts,
+            signoff_hitl_pin_request_timeout_sec,
+        )
+
+        return (
+            signoff_hitl_pin_max_attempts(),
+            signoff_hitl_pin_request_timeout_sec(),
+        )
+    except ImportError:
+        return 3, 15.0
 
 
 def _pin_hitl_on_api_with_retry(api_url: str) -> None:
     """Retry transient loopback timeouts while pinning HITL mode."""
+    max_attempts, request_timeout_sec = _hitl_pin_retry_policy()
     last_error: OSError | None = None
-    for attempt in range(1, _HITL_PIN_MAX_ATTEMPTS + 1):
+    for attempt in range(1, max_attempts + 1):
         try:
-            _pin_hitl_on_api(api_url)
+            _pin_hitl_on_api(api_url, request_timeout_sec=request_timeout_sec)
             return
         except OSError as exc:
             last_error = exc
-            if attempt >= _HITL_PIN_MAX_ATTEMPTS:
+            if attempt >= max_attempts:
                 break
             time.sleep(_HITL_PIN_BACKOFF_SEC * attempt)
     if last_error is not None:
         raise RuntimeError(
             f"Failed to pin HITL securityConfig on {api_url} after "
-            f"{_HITL_PIN_MAX_ATTEMPTS} attempts: {last_error}"
+            f"{max_attempts} attempts: {last_error}"
         ) from last_error
 
 
