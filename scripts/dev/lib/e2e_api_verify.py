@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,13 +47,13 @@ PRIVATE_PORT_SCAN_END: Final[int] = 18120
 HEALTH_PATHS: Final[tuple[str, ...]] = ("/api/v1/health", "/health")
 HEALTH_PROBE_TIMEOUT_SEC: Final[float] = 2.0
 PORT_SCAN_PROBE_TIMEOUT_SEC: Final[float] = 0.5
+DEFAULT_CONTEXT_PROBE_WALL_SEC: Final[float] = 15.0
+_CONTEXT_PROBE_STARTED_MONO: float | None = None
 AGENT_NEVER_SAY: Final[str] = (
     "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|停止并行测试|kill wave"
 )
 _CURL_STATUS_MARKER: Final[str] = "\n__MYRM_HTTP_STATUS__:"
-_LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset(
-    {"127.0.0.1", "localhost", "::1"}
-)
+_LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,9 +144,50 @@ def _read_stored_epoch(state_dir: Path) -> tuple[int | None, str]:
     return epoch, stored_fp.strip()
 
 
+def _context_probe_wall_sec() -> float:
+    raw = os.environ.get("E2E_CONTEXT_PROBE_WALL_SEC", "").strip()
+    if not raw:
+        return DEFAULT_CONTEXT_PROBE_WALL_SEC
+    try:
+        parsed = float(raw)
+    except ValueError:
+        return DEFAULT_CONTEXT_PROBE_WALL_SEC
+    return parsed if parsed > 0 else 0.0
+
+
+def _begin_context_probe_wall() -> None:
+    global _CONTEXT_PROBE_STARTED_MONO
+    wall = _context_probe_wall_sec()
+    _CONTEXT_PROBE_STARTED_MONO = time.monotonic() if wall > 0 else None
+
+
+def _reset_context_probe_wall() -> None:
+    global _CONTEXT_PROBE_STARTED_MONO
+    _CONTEXT_PROBE_STARTED_MONO = None
+
+
+def _probe_wall_remaining_sec() -> float | None:
+    if _CONTEXT_PROBE_STARTED_MONO is None:
+        return None
+    elapsed = time.monotonic() - _CONTEXT_PROBE_STARTED_MONO
+    return max(0.0, _context_probe_wall_sec() - elapsed)
+
+
+def _bounded_probe_timeout(requested_sec: float) -> float:
+    remaining = _probe_wall_remaining_sec()
+    if remaining is None:
+        return requested_sec
+    if remaining <= 0:
+        return 0.0
+    return min(requested_sec, remaining)
+
+
 def _api_health_ok(
     api_base: str, timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC
 ) -> bool:
+    timeout_sec = _bounded_probe_timeout(timeout_sec)
+    if timeout_sec <= 0:
+        return False
     base = api_base.rstrip("/")
     for path in HEALTH_PATHS:
         url = f"{base}{path}"
@@ -197,9 +239,9 @@ def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
 def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(
+        with urllib.request.urlopen(  # noqa: S310
             url, timeout=HEALTH_PROBE_TIMEOUT_SEC
-        ) as resp:  # noqa: S310
+        ) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except (
         urllib.error.URLError,
@@ -288,14 +330,35 @@ def _enumerate_registry_candidates() -> list[tuple[str, int, str, str]]:
 def _enumerate_port_scan_candidates(
     known_ports: set[int],
 ) -> list[tuple[str, int, str, str]]:
+    remaining = _probe_wall_remaining_sec()
+    if remaining is not None and remaining <= 0:
+        return []
     found: list[tuple[str, int, str, str]] = []
     for port in range(PRIVATE_PORT_SCAN_START, PRIVATE_PORT_SCAN_END + 1):
         if port in known_ports:
             continue
+        if _probe_wall_remaining_sec() is not None and _probe_wall_remaining_sec() <= 0:
+            break
         api_base = f"http://127.0.0.1:{port}"
         if _api_health_ok(api_base, timeout_sec=PORT_SCAN_PROBE_TIMEOUT_SEC):
             found.append((api_base, port, "", "port_scan"))
     return found
+
+
+def _should_skip_port_scan_under_parallel_block(
+    candidates: list[BackendCandidate],
+) -> bool:
+    """Port scan cannot mint workspace epoch under active leases — avoid 41× probe burn."""
+    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+
+    if wave_lease_counts(load_wave_snapshot()).total <= 0:
+        return False
+    if any(item.epoch_match and item.health_ok for item in candidates):
+        return False
+    shared = next((item for item in candidates if item.source == "shared"), None)
+    if shared is None:
+        return True
+    return not shared.epoch_match
 
 
 def _build_candidates_from_specs(
@@ -338,6 +401,9 @@ def enumerate_backend_candidates(*, workspace_fp: str) -> list[BackendCandidate]
 
     candidates = _build_candidates_from_specs(specs, workspace_fp=workspace_fp)
     if any(item.epoch_match and item.health_ok for item in candidates):
+        return candidates
+
+    if _should_skip_port_scan_under_parallel_block(candidates):
         return candidates
 
     known_ports = {port for _, port, _, _ in specs}
@@ -455,6 +521,23 @@ def _build_context_from_resolution(
 
 
 def resolve_e2e_api_context(
+    *,
+    monorepo: Path | None = None,
+    state_dir: Path | None = None,
+    retry_after_apply: bool = True,
+) -> E2eApiContext:
+    _begin_context_probe_wall()
+    try:
+        return _resolve_e2e_api_context_impl(
+            monorepo=monorepo,
+            state_dir=state_dir,
+            retry_after_apply=retry_after_apply,
+        )
+    finally:
+        _reset_context_probe_wall()
+
+
+def _resolve_e2e_api_context_impl(
     *,
     monorepo: Path | None = None,
     state_dir: Path | None = None,
@@ -618,8 +701,8 @@ def _cap_headroom_fields(
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from dev_gate_status import dev_gate_status  # noqa: PLC0415
     from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
+    from dev_gate_status import dev_gate_status  # noqa: PLC0415
     from e2e_lease_liveness import WaveLeaseCounts  # noqa: PLC0415
 
     counts = (
@@ -741,7 +824,6 @@ def _compute_next_action(
 ) -> str:
     from dev_gate_contract import (  # noqa: PLC0415
         E2E_ADMISSION_WALL_CLOCK_SEC,
-        E2E_BODY_WALL_EXCEEDED_TOKEN,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
@@ -832,13 +914,6 @@ def _format_agent_decision_human(
     from dev_gate_contract import (  # noqa: PLC0415
         E2E_BODY_WALL_EXCEEDED_TOKEN,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
-    )
-
-    next_action = _compute_next_action(
-        ctx,
-        headroom=headroom,
-        active_tests=active_tests,
-        mux_fields=mux_fields,
     )
     from e2e_readiness import evaluate_chrome_e2e_readiness  # noqa: PLC0415
 
@@ -1048,7 +1123,9 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
     )
     try:
-        from e2e_mux_transport_queue import format_transport_queue_human  # noqa: PLC0415
+        from e2e_mux_transport_queue import (
+            format_transport_queue_human,
+        )  # noqa: PLC0415
 
         sys.stdout.write(f"{format_transport_queue_human()}\n")
     except ImportError:
