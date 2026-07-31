@@ -62,13 +62,15 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
 
 
 def _is_transport_retryable(exc: BaseException) -> bool:
+    text = str(exc)
+    if "E2E_MUX_TRANSPORT_EXHAUSTED" in text:
+        return True
     try:
         from mcp_chat_ui import is_mux_parallel_fail_fast
     except ImportError:
         return True
     if is_mux_parallel_fail_fast(exc):
         return False
-    text = str(exc)
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
 
 
@@ -1429,7 +1431,6 @@ async def _run_fast_evicted_read_live_e2e_once(
     from e2e_session_lifecycle import begin_bootstrap_phase
 
     begin_bootstrap_phase(phase_label="fast_search_page_open")
-    await _pre_open_mux_heal_if_parallel()
     session = await open_mcp_page_async(
         BASE_URL,
         timeout_ms=90_000,

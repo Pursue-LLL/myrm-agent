@@ -406,16 +406,17 @@ def provider_readiness_gate_sync() -> None:
     )
     from dev_gate_contract import (  # noqa: PLC0415
         PROVIDER_READINESS_GATE_BASE_SEC,
+        provider_readiness_gate_effective_budget_sec,
         provider_readiness_gate_wait_sec,
     )
 
     bootstrap_cap = float(phase_cap_sec("bootstrap"))
-    if current_phase() == "body":
-        wall_cap = remaining_wall_sec()
-    else:
-        wall_cap = bootstrap_cap
     scaled_wait = provider_readiness_gate_wait_sec()
-    wait_budget = max(5.0, min(scaled_wait, wall_cap))
+    wait_budget = provider_readiness_gate_effective_budget_sec(
+        phase=current_phase(),
+        remaining_wall_sec=remaining_wall_sec(),
+        bootstrap_cap=bootstrap_cap,
+    )
     if scaled_wait > PROVIDER_READINESS_GATE_BASE_SEC:
         print(
             f"E2E_PROVIDER_READINESS_GATE_WAIT: budget={wait_budget:.0f}s "

@@ -112,8 +112,8 @@ PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
 PROVIDER_READINESS_GATE_MAX_SEC: Final[float] = 180.0
 # R214: desktop leg soak — shared :8080 config_load_timeout under parallel chrome_e2e.
-PROVIDER_READINESS_GATE_DESKTOP_SOAK_LEASE_SCALE_SEC: Final[float] = 30.0
-PROVIDER_READINESS_GATE_DESKTOP_SOAK_MAX_SEC: Final[float] = 420.0
+PROVIDER_READINESS_GATE_DESKTOP_SOAK_LEASE_SCALE_SEC: Final[float] = 40.0
+PROVIDER_READINESS_GATE_DESKTOP_SOAK_MAX_SEC: Final[float] = 480.0
 # Physical work is bounded; logical shared sessions are deliberately unlimited.
 # R123/BUG-DG-022: mux ADMIT wait scales with active wave leases (align attach scaling).
 MUX_ADMISSION_WAIT_LEASE_SEC: Final[int] = 45
@@ -314,6 +314,14 @@ def is_e2e_signoff_clarify_api_runtime() -> bool:
     )
 
 
+def is_desktop_soak_signoff_runtime() -> bool:
+    """True when M3 desktop leg soak runs under signoff (parallel chrome_e2e)."""
+    return (
+        is_e2e_signoff_runtime()
+        and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY
+    )
+
+
 def signoff_clarify_backend_ready_wait_sec() -> int:
     """SHPOIB provider_ready poll cap for signoff clarify API leg."""
     if is_e2e_signoff_clarify_api_runtime():
@@ -459,6 +467,25 @@ def provider_readiness_gate_wait_sec(*, active_leases: int | None = None) -> flo
             max(base_result, desktop_scaled),
         )
     return base_result
+
+
+def provider_readiness_gate_effective_budget_sec(
+    *,
+    phase: str,
+    remaining_wall_sec: float,
+    bootstrap_cap: float,
+) -> float:
+    """Resolve provider gate wait budget (R217 desktop soak wall-starve fix).
+
+    Under parallel chrome_e2e, open_mcp_page consumes bootstrap/body wall before
+    cdp_bootstrap provider polling. Desktop soak must not clamp gate wait below
+    ``provider_readiness_gate_wait_sec`` SSOT.
+    """
+    scaled = provider_readiness_gate_wait_sec()
+    wall_cap = remaining_wall_sec if phase == "body" else bootstrap_cap
+    if is_desktop_soak_signoff_runtime():
+        wall_cap = max(wall_cap, scaled)
+    return max(5.0, min(scaled, wall_cap))
 
 
 def signoff_hitl_pin_max_attempts(*, active_leases: int | None = None) -> int:

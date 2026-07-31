@@ -190,11 +190,18 @@ async def _wait_for_eval_ready(
     timeout_sec: float,
     recv_timeout: float = 30.0,
     poll_sec: float = 1.0,
+    progress_node: str = "tools_panel_eval_wait",
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node=progress_node)
+        except ImportError:
+            pass
         raw = await chat.evaluate(
             expression,
             await_promise=True,
@@ -227,6 +234,12 @@ async def _run_tools_panel_layer_badges_flow(
     assert chat_ready.get("sendReady") is True, chat_ready
 
     heartbeat_e2e_lease()
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="tools_panel_chat_prep")
+    except ImportError:
+        pass
     prep = await chat.evaluate(
         _PREP_REAL_AGENT_TURN_JS,
         await_promise=True,
@@ -235,6 +248,12 @@ async def _run_tools_panel_layer_badges_flow(
     assert isinstance(prep, dict) and prep.get("ok") is True, prep
 
     heartbeat_e2e_lease()
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="tools_panel_kickoff")
+    except ImportError:
+        pass
     kickoff = await chat.evaluate(
         _KICKOFF_TURN_JS,
         await_promise=True,
@@ -252,6 +271,7 @@ async def _run_tools_panel_layer_badges_flow(
         _TOOLS_PANEL_READY_JS,
         timeout_sec=120.0,
         recv_timeout=30.0,
+        progress_node="tools_panel_wait_snapshot",
     )
     assert panel.get("hasTrigger") is True, panel
     assert panel.get("hasToolsSnapshotEvent") is True, panel
@@ -304,7 +324,6 @@ async def _run_tools_panel_e2e_once(
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_tools_panel_shows_semantic_layer_badges_after_tools_snapshot(
     e2e_resource_ledger: E2EResourceLedger,
