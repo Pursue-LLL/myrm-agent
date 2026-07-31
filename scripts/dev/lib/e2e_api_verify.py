@@ -860,7 +860,11 @@ def _compute_next_action(
             if parallel_active_test_node_stuck_fail_fast(row):
                 return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
-        if isinstance(process_elapsed, (int, float)):
+        wall_phase = str(row.get("wall_phase") or "").strip().lower()
+        if isinstance(process_elapsed, (int, float)) and wall_phase not in (
+            "bootstrap",
+            "admit",
+        ):
             if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
                 return "FAIL_FAST"
     if headroom.get("parallelQueueExpected") is True:
