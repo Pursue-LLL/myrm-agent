@@ -278,29 +278,16 @@ def _parallel_cold_attach_headroom(peers: int) -> int:
 
 
 def wait_mux_hand_probe_allowed(*, budget_sec: float | None = None) -> None:
-    """Wait until mux accepts cold attach; refresh session progress for hung-reap (R113)."""
+    """Wait for mux operation credit via Browser Orchestrator (P0-B SSOT)."""
+    from browser_orchestrator import wait_for_operation_credit
     from transport_supervisor import mux_upstream_wait_cap
 
     wait_budget = float(
         budget_sec if budget_sec is not None else mux_upstream_wait_cap()
     )
-    deadline = time.monotonic() + max(5.0, wait_budget)
-    last: MuxColdAttachStatus | dict[str, object] = {}
-    while time.monotonic() < deadline:
-        prune_stale()
-        last = read_mux_cold_attach_status()
-        if last.get("handProbeAllowed") is True:
-            return
-        try:
-            from e2e_session_snapshot import touch_session_progress
-
-            touch_session_progress()
-        except ImportError:
-            pass
-        time.sleep(2.0)
-    raise RuntimeError(
-        f"MUX cold attach saturated after {wait_budget:.0f}s: "
-        f"active={last.get('active')!r} maxSlots={last.get('maxSlots')!r}"
+    wait_for_operation_credit(
+        budget_sec=wait_budget,
+        current_node="mux_hand_probe_wait",
     )
 
 
