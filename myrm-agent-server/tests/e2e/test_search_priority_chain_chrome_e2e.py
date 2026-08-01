@@ -24,7 +24,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_ui_url,
     open_mcp_page,
-    wait_for_state,
     warm_ui_route,
     _warm_ui_parallel_wait_sec,
 )
@@ -89,7 +88,10 @@ def _assert_provider_chain_from_api(api_base: str) -> None:
         for item in configs
         if isinstance(item, dict) and item.get("enabled") is True and "priority" in item
     )
-    assert priorities[:2] == [1, 2], f"expected enabled priorities 1,2 got {priorities!r}; stored={stored!r}"
+    assert priorities[:2] == [
+        1,
+        2,
+    ], f"expected enabled priorities 1,2 got {priorities!r}; stored={stored!r}"
 
     active = extract_active_search_config(stored)
     assert active is not None
@@ -97,6 +99,67 @@ def _assert_provider_chain_from_api(api_base: str) -> None:
     assert len(active.provider_chain) == 2
     assert active.provider_chain[0].search_service == "tavily"
     assert active.provider_chain[1].search_service == "perplexity"
+
+
+def _ensure_priority_chain_seeded(api_base: str) -> None:
+    """Re-apply priority payload when parallel peers restore shared searchServices."""
+    try:
+        _assert_provider_chain_from_api(api_base)
+    except AssertionError:
+        put_config_value("searchServices", _PRIORITY_CHAIN_PAYLOAD, api_url=api_base)
+        _assert_provider_chain_from_api(api_base)
+
+
+def _wait_settings_priority_visible(
+    client: object,
+    page: object,
+    *,
+    api_base: str,
+    settings_url: str,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """Poll UI readiness; re-seed + soft refresh under parallel SHARED config churn."""
+    from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    reseed_sec = 5.0
+    refresh_sec = 25.0
+    next_reseed = time.monotonic()
+    next_refresh = time.monotonic()
+    while time.monotonic() < deadline:
+        now = time.monotonic()
+        if now >= next_reseed:
+            _ensure_priority_chain_seeded(api_base)
+            next_reseed = now + reseed_sec
+        if now >= next_refresh and last and last.get("ready") is not True:
+            dismiss_blocking_modals(client, page)
+            client.navigate(page, settings_url, timeout_ms=90_000)
+            dismiss_blocking_modals(client, page)
+            next_refresh = now + refresh_sec
+        remaining = max(0.0, deadline - time.monotonic())
+        touch_wall_progress(current_node="wait_for_state")
+        raw = client.evaluate(
+            page,
+            _SETTINGS_PRIORITY_VISIBLE_JS,
+            timeout_sec=max(5.0, min(30.0, remaining)),
+        )
+        if isinstance(raw, dict):
+            last = raw
+        elif isinstance(raw, str) and raw.strip().startswith("{"):
+            try:
+                parsed = json.loads(raw)
+                last = parsed if isinstance(parsed, dict) else {"value": raw}
+            except json.JSONDecodeError:
+                last = {"value": raw}
+        else:
+            last = {"value": raw}
+        if last.get("ready") is True:
+            return last
+        time.sleep(0.25)
+    raise AssertionError(
+        f"Browser state did not become ready: {json.dumps(last, ensure_ascii=False)}"
+    )
 
 
 @pytest.mark.integration
@@ -115,7 +178,9 @@ def test_search_priority_chain_persists_via_omni_config_api() -> None:
             put_config_value("searchServices", backup, api_url=api_base)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_search_priority_chain_settings_ui_shows_priorities() -> None:
@@ -136,10 +201,11 @@ def test_search_priority_chain_settings_ui_shows_priorities() -> None:
             dismiss_blocking_modals(client, page)
             client.navigate(page, settings_url, timeout_ms=90_000)
             dismiss_blocking_modals(client, page)
-            visible = wait_for_state(
+            visible = _wait_settings_priority_visible(
                 client,
                 page,
-                _SETTINGS_PRIORITY_VISIBLE_JS,
+                api_base=api_base,
+                settings_url=settings_url,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
             assert visible.get("ready") is True, json.dumps(visible, ensure_ascii=False)

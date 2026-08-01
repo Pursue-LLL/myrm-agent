@@ -143,7 +143,9 @@ def http_json(
         request.add_header("Content-Type", "application/json")
     try:
         response = _e2e_api_urlopen(
-            request, timeout_sec=30.0
+            request,
+            timeout_sec=_http_json_parallel_timeout_sec(30.0),
+            max_attempts=_http_json_parallel_max_attempts(),
         )  # noqa: S310 - loopback only
         with response as http_response:
             raw = http_response.read()
@@ -154,6 +156,43 @@ def http_json(
     if status not in expected_statuses:
         raise RuntimeError(f"HTTP {method} {url} returned {status}: {raw[:500]!r}")
     return json.loads(raw) if raw else {}
+
+
+def _http_json_parallel_timeout_sec(base_timeout_sec: float = 30.0) -> float:
+    """Extend loopback API timeout when parallel chrome_e2e peers load shared :8080."""
+    monorepo_root = Path(__file__).resolve().parents[4]
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+        from transport_supervisor import parallel_active_test_count
+
+        active = max(
+            wave_active_lease_count(monorepo_root),
+            parallel_active_test_count(),
+        )
+        if active > 0:
+            return min(base_timeout_sec + active * 10.0, 120.0)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return base_timeout_sec
+
+
+def _http_json_parallel_max_attempts() -> int:
+    monorepo_root = Path(__file__).resolve().parents[4]
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+        from transport_supervisor import parallel_active_test_count
+
+        active = max(
+            wave_active_lease_count(monorepo_root),
+            parallel_active_test_count(),
+        )
+        if active >= 6:
+            return 6
+        if active >= 3:
+            return 5
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return 3
 
 
 def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
