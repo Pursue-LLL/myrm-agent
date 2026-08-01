@@ -30,7 +30,7 @@ def test_heartbeat_swallows_wave_subprocess_timeout(
 ) -> None:
     import subprocess
 
-    import e2e_lease_heartbeat as heartbeat_module
+    import e2e_unified_heartbeat as unified_module
 
     monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-timeout")
     monkeypatch.setenv("MYRM_E2E_AGENT_ID", "agent-timeout")
@@ -38,7 +38,7 @@ def test_heartbeat_swallows_wave_subprocess_timeout(
     def _timeout_run(*_args: object, **_kwargs: object) -> None:
         raise subprocess.TimeoutExpired(cmd=["wave.sh"], timeout=30)
 
-    monkeypatch.setattr(heartbeat_module.subprocess, "run", _timeout_run)
+    monkeypatch.setattr(unified_module.subprocess, "run", _timeout_run)
     heartbeat_e2e_lease()
 
 
@@ -51,17 +51,43 @@ def test_heartbeat_loop_extends_lease_without_peer_reaper(
 
     heartbeat_calls: list[int] = []
 
-    def _fake_heartbeat() -> None:
+    def _fake_heartbeat(**kwargs: object) -> None:
         heartbeat_calls.append(1)
 
-    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-unit-heartbeat")
+    monkeypatch.delenv("MYRM_E2E_SESSION_HEARTBEAT_PID", raising=False)
     monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        "tests.support.e2e_runtime_guard.heartbeat_once",
         _fake_heartbeat,
     )
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.12)
     assert len(heartbeat_calls) >= 2
+
+
+def test_heartbeat_loop_skips_thread_when_shell_loop_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import threading
+    import time
+
+    from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
+
+    heartbeat_calls: list[int] = []
+
+    def _fake_heartbeat(**kwargs: object) -> None:
+        heartbeat_calls.append(1)
+
+    monkeypatch.setenv("MYRM_E2E_SESSION_HEARTBEAT_PID", str(os.getpid()))
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.heartbeat_once",
+        _fake_heartbeat,
+    )
+    before = threading.active_count()
+    with e2e_lease_heartbeat_loop(interval_sec=0.05):
+        time.sleep(0.08)
+    after = threading.active_count()
+    assert heartbeat_calls == 2
+    assert after == before
 
 
 def test_assert_chrome_attach_health_passes_on_ready_probe(

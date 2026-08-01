@@ -57,13 +57,20 @@ def e2e_lease_heartbeat_loop(
     *, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC
 ) -> Iterator[None]:
     """Background heartbeat for long-running live E2E tests."""
+    from e2e_unified_heartbeat import heartbeat_once, pytest_should_spawn_heartbeat_loop
+
+    heartbeat_once()
+    if not pytest_should_spawn_heartbeat_loop():
+        yield
+        heartbeat_once()
+        return
+
     stop = threading.Event()
 
     def _loop() -> None:
         while not stop.wait(interval_sec):
-            heartbeat_e2e_lease()
+            heartbeat_once()
 
-    heartbeat_e2e_lease()
     worker = threading.Thread(target=_loop, name="e2e-lease-heartbeat", daemon=True)
     worker.start()
     try:
