@@ -46,7 +46,10 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _MAX_TRANSPORT_ATTEMPTS = 3
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
+    "MUX cold attach",
     "MUX_RECLAIM_STALL",
+    "MUX_CONTEXT_RESET",
+    "RECOVER_MUX_COLD_SHIM",
     "MUX_TRANSPORT",
     "E2E_MUX_TRANSPORT",
     "open_mcp_page",
@@ -59,6 +62,27 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "reset_after_orphan",
     "KeyboardInterrupt",
 )
+
+
+def _fast_search_poll_profile(search_depth: str) -> dict[str, float | int]:
+    """Depth-aware poll/stall budgets — deep M3 turns need longer before first tool."""
+    if search_depth == "deep":
+        return {
+            "poll_budget_max_sec": 660.0,
+            "stall_first_sec": 90.0,
+            "stall_long_sec": 150.0,
+            "max_stall_retries": 6,
+            "no_web_fetch_fail_sec": 420.0,
+            "stall_recovery_poll_extension_sec": 240.0,
+        }
+    return {
+        "poll_budget_max_sec": 420.0,
+        "stall_first_sec": 30.0,
+        "stall_long_sec": 90.0,
+        "max_stall_retries": 4,
+        "no_web_fetch_fail_sec": 240.0,
+        "stall_recovery_poll_extension_sec": 120.0,
+    }
 
 
 def _is_transport_retryable(exc: BaseException) -> bool:
@@ -89,6 +113,7 @@ async def _pre_open_mux_heal_if_parallel() -> None:
 
     if await asyncio.to_thread(_parallel_open_page_peer_count) >= 2:
         await _force_mux_heal_before_retry()
+
 
 _DEEP_SEARCH_PROMPT = (
     "Deep search E2E: Who created the Python programming language? "
@@ -176,6 +201,43 @@ def _kickoff_fast_search_js(prompt: str) -> str:
     preserveActionMode: true,
   }});
   return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null, streamRequestMessageId: bridge.debugProviderState?.()?.streamRequestMessageId ?? null }};
+}})()"""
+
+
+def _kickoff_fast_search_with_prep_js(search_depth: str, prompt: str) -> str:
+    """Single MUX evaluate: light prep + send (R242 — skip separate PREP under parallel load)."""
+    depth_json = json.dumps(search_depth)
+    return f"""(async () => {{
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
+  bridge.abortActiveStream?.();
+  bridge.releaseActiveStreamForApiResume?.();
+  bridge.setActionMode?.('fast');
+  bridge.setSearchDepth?.({depth_json});
+  const debug = bridge.debugProviderState?.() ?? {{}};
+  const prep = {{
+    ok: bridge.getActionMode?.() === 'fast' && bridge.getSearchDepth?.() === {depth_json},
+    actionMode: bridge.getActionMode?.(),
+    searchDepth: bridge.getSearchDepth?.(),
+    model: debug.selection?.model ?? debug.agentModelSelection?.model ?? null,
+    providerId: debug.selection?.providerId ?? null,
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
+  }};
+  if (!prep.ok) return {{ ok: false, err: 'prep-failed', prep }};
+  const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
+  const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
+    baselineUserCount: usersBefore,
+    waitForStreamCompletion: false,
+    preserveActionMode: true,
+  }});
+  return {{
+    ...result,
+    prep,
+    usersBefore,
+    chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null,
+    streamRequestMessageId: bridge.debugProviderState?.()?.streamRequestMessageId ?? null,
+  }};
 }})()"""
 
 
@@ -451,8 +513,20 @@ async def _poll_fast_search_progress(
     chat_id: str,
     api_base: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    """UI-first progress; on Chrome/MCP flake fall back to private API messages."""
+    """UI-first progress; under parallel MUX load prefer API to avoid orphan reset chain."""
+    touch_wall_progress(current_node="fast_search_poll_api_probe")
+    api_last = _api_deep_search_progress(chat_id, api_base)
     ui_last: dict[str, object] = {"ready": False, "source": "ui"}
+    from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
+
+    if await asyncio.to_thread(_parallel_open_page_peer_count) >= 2:
+        ui_last = {
+            "ready": False,
+            "source": "ui",
+            "err": "api-only-poll",
+            "parallel_mux": True,
+        }
+        return ui_last, api_last
     touch_wall_progress(current_node="fast_search_poll_ui_eval")
     try:
         raw = await asyncio.wait_for(
@@ -473,8 +547,6 @@ async def _poll_fast_search_progress(
             "transient": isinstance(exc, RuntimeError) and _ui_eval_is_transient(exc),
             "detail": str(exc)[:240],
         }
-    touch_wall_progress(current_node="fast_search_poll_api_probe")
-    api_last = _api_deep_search_progress(chat_id, api_base)
     return ui_last, api_last
 
 
@@ -486,7 +558,15 @@ def _merge_fast_search_progress(
         return ui_last
     if api_last.get("ready") is True:
         return api_last
-    if ui_last.get("err") in ("ui-eval-failed", "no-progress-snapshot"):
+    if ui_last.get("err") in (
+        "ui-eval-failed",
+        "no-progress-snapshot",
+        "api-only-poll",
+    ):
+        if api_last.get("hasWebFetch") is True or api_last.get("done") is True:
+            return api_last
+        return api_last if api_last.get("err") != "no-messages" else ui_last
+    if api_last.get("hasWebFetch") is True and not ui_last.get("hasWebFetch"):
         return api_last
     return ui_last
 
@@ -724,15 +804,22 @@ async def _kickoff_fast_search_with_retries(
     kickoff: dict[str, object] | None = None
     for kickoff_attempt in range(max_attempts):
         try:
-            kickoff = await chat.evaluate(
-                kickoff_js, await_promise=True, recv_timeout=120.0
+            from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
+
+            kickoff_timeout = min(signoff_parallel_force_chat_timeout_sec(120.0), 180.0)
+            kickoff = await asyncio.wait_for(
+                _evaluate_js_sync(chat, kickoff_js, timeout_sec=kickoff_timeout),
+                timeout=kickoff_timeout + 10.0,
             )
-        except RuntimeError as exc:
+        except (TimeoutError, asyncio.TimeoutError, RuntimeError) as exc:
             exc_msg = str(exc)
             mux_transient = (
-                "MUX_RECLAIM_STALL" in exc_msg
+                isinstance(exc, (TimeoutError, asyncio.TimeoutError))
+                or "MUX_RECLAIM_STALL" in exc_msg
                 or "MUX_EVALUATE_ORPHAN" in exc_msg
                 or "orphan" in exc_msg.lower()
+                or "transport unavailable" in exc_msg.lower()
+                or "MUX cold attach" in exc_msg
             )
             if kickoff_attempt + 1 < max_attempts and mux_transient:
                 touch_wall_progress(current_node="fast_search_kickoff_mux_retry")
@@ -758,6 +845,9 @@ async def _kickoff_fast_search_with_retries(
                 continue
             raise
         if isinstance(kickoff, dict) and kickoff.get("ok") is True:
+            kickoff_prep = kickoff.get("prep")
+            if isinstance(kickoff_prep, dict) and kickoff_prep.get("ok") is True:
+                prep = kickoff_prep
             return prep, kickoff
         transient_kickoff = (
             isinstance(kickoff, dict)
@@ -929,6 +1019,70 @@ async def _recover_stalled_fast_search_turn(
     )
 
 
+async def _resume_orphaned_stream_after_web_fetch(
+    chat: McpChatSession,
+    *,
+    chat_id: str,
+    api_base: str,
+    prompt: str,
+    prep_js: str,
+    prep: dict[str, object],
+    search_depth: str,
+    stream_request_message_id: str = "",
+) -> tuple[dict[str, object], dict[str, object] | None]:
+    """Resume same message_id after web_fetch when UI tools exist but assistant never persisted."""
+    message_id = await _resolve_stream_request_message_id(
+        chat, cached=stream_request_message_id
+    )
+    if not message_id:
+        return prep, None
+    touch_wall_progress(current_node=f"fast_{search_depth}_web_fetch_stream_resume")
+    retry_js = f"""(async () => {{
+      window.__MYRM_E2E_DIRECT_SSE__ = true;
+      const bridge = window.__MYRM_E2E_CHAT__;
+      if (!bridge?.retryStreamWithSameMessageId) {{
+        return {{ ok: false, err: 'no-retryStreamWithSameMessageId' }};
+      }}
+      bridge?.releaseActiveStreamForApiResume?.();
+      return await bridge.retryStreamWithSameMessageId(
+        {json.dumps(prompt)},
+        {json.dumps(message_id)},
+      );
+    }})()"""
+    try:
+        retry = await chat.evaluate(retry_js, await_promise=True, recv_timeout=120.0)
+    except (RuntimeError, TimeoutError, asyncio.TimeoutError) as exc:
+        exc_msg = str(exc)
+        if (
+            "MUX" in exc_msg
+            or "orphan" in exc_msg.lower()
+            or isinstance(exc, (TimeoutError, asyncio.TimeoutError))
+        ):
+            touch_wall_progress(
+                current_node=f"fast_{search_depth}_web_fetch_stream_resume_mux_heal"
+            )
+            prep = await _heal_fast_search_bridge_after_mux_loss(
+                chat,
+                api_base=api_base,
+                chat_id=chat_id,
+                prep_js=prep_js,
+            )
+            return prep, {"ok": False, "err": "mux-evaluate-orphan"}
+        raise
+    if (
+        isinstance(retry, dict)
+        and retry.get("ok") is True
+        and retry.get("busy") is not True
+    ):
+        return prep, {
+            "ok": True,
+            "chatId": chat_id,
+            "mode": "web-fetch-stream-resume",
+            "retry": retry,
+        }
+    return prep, retry if isinstance(retry, dict) else None
+
+
 async def _progress_heartbeat(*, stop: asyncio.Event, current_node: str) -> None:
     """Keep hung-reap node progress fresh while blocking CDP/mux operations."""
     while not stop.is_set():
@@ -940,20 +1094,25 @@ async def _progress_heartbeat(*, stop: asyncio.Event, current_node: str) -> None
             continue
 
 
-async def _evaluate_prep_sync(
+async def _evaluate_js_sync(
     chat: McpChatSession,
-    prep_js: str,
+    js: str,
     *,
     timeout_sec: float,
 ) -> object:
-    """Sync CDP evaluate for light prep — avoids async orphan reset 120s chain."""
+    """Sync CDP evaluate — bypass async orphan reset chain under parallel MUX."""
 
     def _run() -> object:
         client = chat._client
         page = chat._page
-        return client.evaluate(page, prep_js, timeout_sec=timeout_sec)
+        deadline = time.monotonic() + max(5.0, timeout_sec)
+        client.set_tool_wall_deadline(deadline)
+        try:
+            return client.evaluate(page, js, timeout_sec=timeout_sec)
+        finally:
+            client.set_tool_wall_deadline(None)
 
-    return await asyncio.to_thread(_run)
+    return await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_sec + 5.0)
 
 
 async def _wait_mux_before_blocking_cdp(*, current_node: str) -> None:
@@ -962,11 +1121,11 @@ async def _wait_mux_before_blocking_cdp(*, current_node: str) -> None:
 
     if await asyncio.to_thread(_parallel_open_page_peer_count) < 2:
         return
+    from browser_orchestrator import wait_for_operation_credit
     from dev_gate_contract import signoff_mux_transport_wait_budget_sec
-    from e2e_mux_transport_queue import wait_mux_transport_turn
 
     await asyncio.to_thread(
-        wait_mux_transport_turn,
+        wait_for_operation_credit,
         budget_sec=signoff_mux_transport_wait_budget_sec(),
         current_node=current_node,
     )
@@ -1005,7 +1164,10 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
                         await_promise=False,
                         recv_timeout=15.0,
                     )
-                    if not isinstance(reset_raw, dict) or reset_raw.get("ok") is not True:
+                    if (
+                        not isinstance(reset_raw, dict)
+                        or reset_raw.get("ok") is not True
+                    ):
                         raise RuntimeError(f"in-page reset failed: {reset_raw!r}")
                     await asyncio.sleep(0.5)
                     await chat.ensure_e2e_api_base_binding()
@@ -1021,9 +1183,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
                 )
 
                 def _provider_gate_sync() -> None:
-                    if not wait_e2e_provider_ready(
-                        api_url=api_base, timeout_sec=90.0
-                    ):
+                    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=90.0):
                         raise RuntimeError(
                             f"SHPOIB provider not ready before hydrate on {api_base}"
                         )
@@ -1075,10 +1235,9 @@ async def _assert_e2e_api_binding(chat: McpChatSession, api_base: str) -> None:
         touch_wall_progress(current_node="fast_search_api_binding")
         try:
             await chat.ensure_e2e_api_base_binding()
-            raw = await chat.evaluate(
-                E2E_API_BINDING_PROBE_JS,
-                await_promise=False,
-                recv_timeout=15.0,
+            raw = await asyncio.wait_for(
+                _evaluate_js_sync(chat, E2E_API_BINDING_PROBE_JS, timeout_sec=15.0),
+                timeout=20.0,
             )
             require_e2e_api_binding_probe(raw, api_base)
             return
@@ -1115,7 +1274,6 @@ async def _run_fast_evicted_read_live_e2e_once(
     api_base = get_e2e_api_url()
     expected_api_origin = urlparse(api_base).netloc
     prep_js = _prep_fast_search_light_js(search_depth)
-    prep_js_full = _prep_fast_search_js(search_depth)
     kickoff_js = _kickoff_fast_search_js(prompt)
 
     async def _run_flow(chat: McpChatSession) -> None:
@@ -1129,92 +1287,32 @@ async def _run_fast_evicted_read_live_e2e_once(
                 "(mux heal race — do not stop other pytest)"
             )
 
-        prep: dict[str, object] | None = None
-        prep_stop = asyncio.Event()
-        prep_heartbeat = asyncio.create_task(
-            _progress_heartbeat(stop=prep_stop, current_node="fast_search_prep")
+        await asyncio.to_thread(_ensure_private_search_configured, api_base)
+        await asyncio.to_thread(_ensure_private_providers_configured, api_base)
+        expected_fast = _expected_fast_e2e_model(api_base)
+
+        import sys
+
+        await _wait_mux_before_blocking_cdp(current_node="fast_search_prep")
+        print(
+            "E2E_FAST_SEARCH_PREP: phase=sync_light",
+            file=sys.stderr,
+            flush=True,
         )
-        try:
-            for prep_attempt in range(3):
-                await asyncio.to_thread(_ensure_private_search_configured, api_base)
-                await asyncio.to_thread(_ensure_private_providers_configured, api_base)
-                await _wait_mux_before_blocking_cdp(current_node="fast_search_prep")
-                touch_wall_progress(current_node="fast_search_prep")
-                import sys
-
-                print(
-                    f"E2E_FAST_SEARCH_PREP: phase=evaluate attempt={prep_attempt + 1}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
-
-                prep_timeout = signoff_parallel_force_chat_timeout_sec(90.0)
-                try:
-                    await chat.dismiss_modals()
-                except RuntimeError as exc:
-                    if "MUX_RECLAIM_STALL" not in str(exc) and "new_page failed" not in str(
-                        exc
-                    ):
-                        raise
-                try:
-                    raw_prep = await asyncio.wait_for(
-                        _evaluate_prep_sync(
-                            chat,
-                            prep_js,
-                            timeout_sec=min(prep_timeout, 25.0),
-                        ),
-                        timeout=min(prep_timeout, 30.0),
-                    )
-                except (TimeoutError, RuntimeError) as prep_exc:
-                    prep_msg = str(prep_exc)
-                    if prep_attempt + 1 >= 3 or not any(
-                        token in prep_msg
-                        for token in (
-                            "MUX_RECLAIM_STALL",
-                            "MUX_EVALUATE_ORPHAN",
-                            "reset_after_orphan",
-                            "transport unavailable",
-                        )
-                    ):
-                        raise
-                    touch_wall_progress(current_node="fast_search_prep_mux_retry")
-                    try:
-                        client = getattr(chat, "_client", None)
-                        if client is not None:
-                            await asyncio.to_thread(client.recover_mux_transport)
-                    except RuntimeError:
-                        pass
-                    await asyncio.sleep(2.0 * (prep_attempt + 1))
-                    continue
-                if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
-                    prep = raw_prep
-                    break
-                if prep_attempt + 1 >= 2:
-                    await _wait_mux_before_blocking_cdp(
-                        current_node="fast_search_prep_full"
-                    )
-                    raw_prep = await chat.evaluate(
-                        prep_js_full, await_promise=True, recv_timeout=prep_timeout
-                    )
-                    if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
-                        prep = raw_prep
-                        break
-                if prep_attempt + 1 < 3:
-                    await asyncio.sleep(2.0 * (prep_attempt + 1))
-        finally:
-            prep_stop.set()
-            prep_heartbeat.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await prep_heartbeat
-        assert isinstance(prep, dict) and prep.get("ok") is True, prep
+        raw_prep = await asyncio.wait_for(
+            _evaluate_js_sync(chat, prep_js, timeout_sec=20.0),
+            timeout=25.0,
+        )
+        prep = (
+            raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": raw_prep}
+        )
+        assert prep.get("ok") is True, prep
         assert prep.get("actionMode") == "fast", prep
         assert prep.get("searchDepth") == search_depth, prep
         injected_api = str(prep.get("apiBase") or "")
         assert (
             expected_api_origin in injected_api
         ), f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
-        expected_fast = _expected_fast_e2e_model(api_base)
         prep_model = str(prep.get("model") or "")
         prep_provider = str(prep.get("providerId") or "")
         model_used = prep_model or prep_provider or "unknown"
@@ -1227,10 +1325,10 @@ async def _run_fast_evicted_read_live_e2e_once(
             f"got {prep_provider!r}; prep={prep}"
         )
 
-        workspace_ready = await chat.evaluate(
-            WAIT_WORKSPACE_STREAM_JS,
-            await_promise=True,
-            recv_timeout=60.0,
+        await _wait_mux_before_blocking_cdp(current_node="fast_search_workspace")
+        workspace_ready = await asyncio.wait_for(
+            _evaluate_js_sync(chat, WAIT_WORKSPACE_STREAM_JS, timeout_sec=45.0),
+            timeout=50.0,
         )
         assert (
             isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
@@ -1240,6 +1338,16 @@ async def _run_fast_evicted_read_live_e2e_once(
         )
         await _assert_e2e_api_binding(chat, api_base)
 
+        if search_depth == "deep":
+            from e2e_session_lifecycle import begin_body_wall_budget
+
+            begin_body_wall_budget(phase_label="fast_deep_search_kickoff_send")
+
+        print(
+            "E2E_FAST_SEARCH_PREP: phase=kickoff_send",
+            file=sys.stderr,
+            flush=True,
+        )
         prep, kickoff = await _kickoff_fast_search_with_retries(
             chat,
             api_base=api_base,
@@ -1289,12 +1397,25 @@ async def _run_fast_evicted_read_live_e2e_once(
             f"userCount={kickoff_user_count}"
         )
 
-        poll_budget_sec = min(300.0, max(120.0, remaining_wall_sec() - 90.0))
+        poll_profile = _fast_search_poll_profile(search_depth)
+        poll_budget_sec = min(
+            float(poll_profile["poll_budget_max_sec"]),
+            max(180.0, remaining_wall_sec() - 60.0),
+        )
         deadline = time.monotonic() + poll_budget_sec
         last: dict[str, object] = {}
         api_last: dict[str, object] = {"ready": False, "source": "api"}
         stall_retry_count = 0
-        max_stall_retries = 2
+        max_stall_retries = int(poll_profile["max_stall_retries"])
+        stall_first_sec = float(poll_profile["stall_first_sec"])
+        stall_long_sec = float(poll_profile["stall_long_sec"])
+        no_web_fetch_fail_sec = float(poll_profile["no_web_fetch_fail_sec"])
+        stall_recovery_poll_extension_sec = float(
+            poll_profile["stall_recovery_poll_extension_sec"]
+        )
+        web_fetch_resume_count = 0
+        max_web_fetch_resume = 3
+        web_fetch_seen_at: float | None = None
         turn_started = time.monotonic()
         stream_request_message_id = await _resolve_stream_request_message_id(
             chat, cached=stream_request_message_id
@@ -1310,6 +1431,18 @@ async def _run_fast_evicted_read_live_e2e_once(
                 last = _merge_fast_search_progress(ui_last, api_last)
                 break
             last = _merge_fast_search_progress(ui_last, api_last)
+            if last.get("hasWebFetch") is True and not last.get("ready"):
+                import sys
+
+                if web_fetch_seen_at is None:
+                    web_fetch_seen_at = time.monotonic()
+                print(
+                    "E2E_FAST_SEARCH_PROGRESS: hasWebFetch=1 "
+                    f"done={last.get('done')} streaming={ui_last.get('isStreaming')} "
+                    f"elapsed={time.monotonic() - turn_started:.0f}s",
+                    file=sys.stderr,
+                    flush=True,
+                )
             if ui_last.get("isStreaming") is True and not stream_request_message_id:
                 stream_request_message_id = await _resolve_stream_request_message_id(
                     chat
@@ -1327,36 +1460,102 @@ async def _run_fast_evicted_read_live_e2e_once(
                 kickoff_ok and api_err == "no-messages" and user_count < 1
             )
             api_stalled = (
-                api_err in ("no-assistant", "no-messages") and user_count >= 1
+                api_err in ("no-assistant", "no-messages", "api-io") and user_count >= 1
             ) or empty_kickoff_api
-            stalled = (
-                stall_retry_count < max_stall_retries
-                and no_tool_progress
-                and (
-                    (
-                        elapsed_turn >= 90.0
-                        and (ui_streaming or api_stalled)
-                    )
-                    or (empty_kickoff_api and elapsed_turn >= 15.0)
-                )
+            web_fetch_orphan = (
+                web_fetch_resume_count < max_web_fetch_resume
+                and last.get("hasWebFetch") is True
+                and not last.get("ready")
+                and not ui_streaming
+                and user_count >= 1
+                and api_err in ("no-assistant", "api-io")
+                and web_fetch_seen_at is not None
+                and time.monotonic() - web_fetch_seen_at >= 25.0
             )
-            if stalled:
-                stall_retry_count += 1
-                touch_wall_progress(current_node=f"fast_{search_depth}_stall_recovery")
+            if web_fetch_orphan:
+                import sys
+
+                print(
+                    "E2E_FAST_SEARCH_WEB_FETCH_RESUME: "
+                    f"retry={web_fetch_resume_count + 1} api_err={api_err!r} "
+                    f"since_web_fetch={time.monotonic() - web_fetch_seen_at:.0f}s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                web_fetch_resume_count += 1
+                touch_wall_progress(
+                    current_node=f"fast_{search_depth}_web_fetch_stream_resume"
+                )
                 stream_request_message_id = await _resolve_stream_request_message_id(
                     chat, cached=stream_request_message_id
                 )
-                prep, kickoff = await _recover_stalled_fast_search_turn(
+                prep, resume = await _resume_orphaned_stream_after_web_fetch(
                     chat,
                     chat_id=chat_id,
                     api_base=api_base,
                     prompt=prompt,
                     prep_js=prep_js,
-                    kickoff_js=kickoff_js,
                     prep=prep,
                     search_depth=search_depth,
                     stream_request_message_id=stream_request_message_id,
                 )
+                if isinstance(resume, dict) and resume.get("ok") is True:
+                    stream_request_message_id = (
+                        await _resolve_stream_request_message_id(
+                            chat, cached=stream_request_message_id
+                        )
+                    )
+                    web_fetch_seen_at = time.monotonic()
+                    deadline = max(
+                        deadline,
+                        time.monotonic() + stall_recovery_poll_extension_sec,
+                    )
+                    continue
+            stalled = (
+                stall_retry_count < max_stall_retries
+                and no_tool_progress
+                and (
+                    (
+                        elapsed_turn >= stall_first_sec
+                        and api_stalled
+                        and user_count >= 1
+                    )
+                    or (
+                        elapsed_turn >= stall_long_sec and (ui_streaming or api_stalled)
+                    )
+                    or (empty_kickoff_api and elapsed_turn >= 15.0)
+                )
+            )
+            if stalled:
+                import sys
+
+                print(
+                    f"E2E_FAST_SEARCH_STALL: retry={stall_retry_count + 1} "
+                    f"elapsed={elapsed_turn:.0f}s api_err={api_err!r} userCount={user_count}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                stall_retry_count += 1
+                touch_wall_progress(current_node=f"fast_{search_depth}_stall_recovery")
+                stream_request_message_id = await _resolve_stream_request_message_id(
+                    chat, cached=stream_request_message_id
+                )
+                try:
+                    prep, kickoff = await _recover_stalled_fast_search_turn(
+                        chat,
+                        chat_id=chat_id,
+                        api_base=api_base,
+                        prompt=prompt,
+                        prep_js=prep_js,
+                        kickoff_js=kickoff_js,
+                        prep=prep,
+                        search_depth=search_depth,
+                        stream_request_message_id=stream_request_message_id,
+                    )
+                except (TimeoutError, asyncio.TimeoutError) as exc:
+                    raise RuntimeError(
+                        f"MUX cold attach stall recovery kickoff timeout: {exc}"
+                    ) from exc
                 stream_request_message_id = await _resolve_stream_request_message_id(
                     chat, cached=stream_request_message_id
                 )
@@ -1364,9 +1563,13 @@ async def _run_fast_evicted_read_live_e2e_once(
                 assert new_chat_id, kickoff
                 chat_id = new_chat_id
                 turn_started = time.monotonic()
+                deadline = max(
+                    deadline,
+                    time.monotonic() + stall_recovery_poll_extension_sec,
+                )
                 continue
             if (
-                elapsed_turn >= 240.0
+                elapsed_turn >= no_web_fetch_fail_sec
                 and no_tool_progress
                 and stall_retry_count >= max_stall_retries
             ):
@@ -1376,7 +1579,23 @@ async def _run_fast_evicted_read_live_e2e_once(
                     f"state={json.dumps(last, ensure_ascii=False)}; "
                     f"api={json.dumps(api_last, ensure_ascii=False)}"
                 )
-            if remaining_wall_sec() < 45.0:
+            if remaining_wall_sec() < 15.0:
+                wall_grace = (
+                    user_count >= 1
+                    and not last.get("ready")
+                    and (
+                        last.get("hasWebFetch") is True
+                        or stall_retry_count > 0
+                    )
+                    and elapsed_turn < float(poll_profile["poll_budget_max_sec"])
+                )
+                if wall_grace:
+                    touch_wall_progress(
+                        current_node=f"fast_{search_depth}_wall_grace_poll"
+                    )
+                    heartbeat_e2e_lease()
+                    await asyncio.sleep(2.0)
+                    continue
                 break
             for _ in range(2):
                 heartbeat_e2e_lease()
@@ -1486,7 +1705,9 @@ async def _run_fast_evicted_read_live_e2e(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(1140)
@@ -1502,7 +1723,9 @@ async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(1140)

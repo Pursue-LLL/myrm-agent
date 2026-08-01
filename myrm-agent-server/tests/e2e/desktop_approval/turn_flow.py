@@ -18,6 +18,8 @@ from cdp_chat_support import (
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
+    signoff_parallel_desktop_mux_step_timeout_sec,
+    signoff_parallel_desktop_turn_done_timeout_sec,
     signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
 )
@@ -89,17 +91,15 @@ def _wait_mux_transport_turn_sync(*, current_node: str) -> None:
     lib_dir = Path(__file__).resolve().parents[4] / "scripts" / "dev" / "lib"
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    from e2e_mux_transport_queue import (  # noqa: PLC0415
-        _FORCE_CHAT_SHELL_BLOCKING_NODE,
-        wait_mux_transport_turn,
-    )
+    from browser_orchestrator import wait_for_operation_credit  # noqa: PLC0415
+    from e2e_mux_transport_queue import _FORCE_CHAT_SHELL_BLOCKING_NODE  # noqa: PLC0415
     from transport_supervisor import mux_upstream_wait_cap  # noqa: PLC0415
 
     from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
 
     if _parallel_open_page_peer_count() < 2:
         return
-    wait_mux_transport_turn(
+    wait_for_operation_credit(
         budget_sec=float(mux_upstream_wait_cap()),
         current_node=current_node or _FORCE_CHAT_SHELL_BLOCKING_NODE,
     )
@@ -143,6 +143,12 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     probe = await _probe_chat_route(chat, target)
     if probe.get("onTarget"):
         return
+    navigate_timeout = signoff_parallel_force_chat_timeout_sec(
+        _CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC
+    )
+    route_timeout = signoff_parallel_force_chat_timeout_sec(
+        _CHAT_ROUTE_BRIDGE_TIMEOUT_SEC
+    )
     progress(f"restore chat route chat_id={chat_id}")
     await _await_with_wall_timeout(
         asyncio.to_thread(
@@ -151,17 +157,17 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
             target,
             timeout_ms=120_000,
         ),
-        timeout_sec=_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC,
+        timeout_sec=navigate_timeout,
         label="restore chat route navigate",
     )
     await _await_with_wall_timeout(
-        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
-        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        chat.ensure_react_e2e_bridge(timeout_sec=route_timeout),
+        timeout_sec=route_timeout,
         label="restore chat route bridge",
     )
     await _await_with_wall_timeout(
-        chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
-        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        chat.ensure_chat_surface(BASE_URL, timeout_sec=route_timeout),
+        timeout_sec=route_timeout,
         label="restore chat route surface",
     )
     post_probe = await _probe_chat_route(chat, target)
@@ -178,12 +184,12 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
             target,
             timeout_ms=120_000,
         ),
-        timeout_sec=_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC,
+        timeout_sec=navigate_timeout,
         label="force chat route navigate",
     )
     await _await_with_wall_timeout(
-        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
-        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        chat.ensure_react_e2e_bridge(timeout_sec=route_timeout),
+        timeout_sec=route_timeout,
         label="force chat route bridge",
     )
     final_probe = await _probe_chat_route(chat, target)
@@ -387,11 +393,13 @@ async def complete_turn_after_approval(
     if chat_id_hint:
         await _ensure_chat_route(chat, chat_id_hint)
     progress("wait assistant DONE")
+    turn_done_timeout = signoff_parallel_desktop_turn_done_timeout_sec(180.0)
+    recover_timeout = signoff_parallel_desktop_turn_done_timeout_sec(60.0)
     after_turn = await wait_stream_done_with_marker(
         chat,
         chat_id_hint=chat_id_hint,
         marker="DONE",
-        timeout_sec=180.0,
+        timeout_sec=turn_done_timeout,
     )
     if (
         not after_turn.get("matched")
@@ -408,7 +416,7 @@ async def complete_turn_after_approval(
             chat,
             chat_id_hint=chat_id_hint,
             marker="DONE",
-            timeout_sec=60.0,
+            timeout_sec=recover_timeout,
         )
         if recovered_turn.get("matched"):
             after_turn = recovered_turn
@@ -711,12 +719,14 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
                 label="force chat shell navigate",
             )
             await _await_with_wall_timeout(
-                chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True),
+                chat.wait_shell_ready(
+                    timeout_sec=shell_ready_timeout, require_bridge=True
+                ),
                 timeout_sec=shell_ready_timeout,
                 label="force chat shell ready",
             )
             await _await_with_wall_timeout(
-                chat.ensure_react_e2e_bridge(timeout_sec=45.0),
+                chat.ensure_react_e2e_bridge(timeout_sec=bridge_timeout),
                 timeout_sec=bridge_timeout,
                 label="force chat shell bridge",
             )
@@ -748,13 +758,16 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     wall_started_at = _approval_attempt_wall_clock_start()
     await _force_chat_shell(chat, label="pre-attempt")
     progress("new chat + ensure surface")
-    reset_result = await chat.click_new_chat(timeout_sec=75.0)
+    new_chat_timeout = signoff_parallel_desktop_mux_step_timeout_sec(75.0)
+    reset_result = await chat.click_new_chat(timeout_sec=new_chat_timeout)
     progress(f"new chat reset result: {reset_result}")
     await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     # R78: new_chat leaves Chrome frontmost; seed TextEdit AX before strict probe.
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        await asyncio.to_thread(preflight_textedit_foreground, attempts=8, fail_hard=False)
+        await asyncio.to_thread(
+            preflight_textedit_foreground, attempts=8, fail_hard=False
+        )
     signoff_mode = os.environ.get("E2E_SIGNOFF", "").strip() == "1"
     await ensure_textedit_fixture_ready(attempts=8 if signoff_mode else 5)
 
@@ -908,6 +921,29 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         interact_seen_hint=last_tool.endswith("desktop_interact_tool"),
         chat_id=chat_id or None,
     )
+
+    pending_source = str(tool_activity.get("pendingSource") or "")
+    if pending_source == "seeded-fallback" and not last_tool.startswith("desktop_"):
+        progress(
+            "seeded pending fallback approval — resend agent prompt "
+            "after approval click (no prior agent turn)"
+        )
+        await asyncio.to_thread(activate_chrome)
+        bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+        await chat.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
+        resend = await chat.fast_desktop_agent_submit(
+            E2E_PROMPT,
+            E2E_PROMPT,
+            chat_id_hint=chat_id or None,
+        )
+        progress(f"post-seeded-approval resend: {resend.get('submit', resend)}")
+        started = resend.get("started")
+        submit = resend.get("submit")
+        if isinstance(started, dict):
+            chat_id = str(started.get("chatId") or chat_id or "").strip()
+        if isinstance(submit, dict):
+            chat_id = str(submit.get("chatId") or chat_id or "").strip()
+        await asyncio.to_thread(preflight_textedit_foreground)
 
     chat_id_hint = (
         chat_id
