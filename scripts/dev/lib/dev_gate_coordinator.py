@@ -223,6 +223,9 @@ class CoordinatorService:
             released_lease_id=_optional_text(receipt_raw, "released_lease_id"),
             released_runtime_id=_optional_text(receipt_raw, "released_runtime_id"),
             ledger_cleaned=receipt_raw.get("ledger_cleaned") is True,
+            sealed=receipt_raw.get("sealed") is True,
+            requested_at=float(receipt_raw.get("requested_at", 0.0)),
+            observed_at=float(receipt_raw.get("observed_at", 0.0)),
             completed_at=float(receipt_raw.get("completed_at", time.time())),
         )
         record = self.store.record_cleanup(

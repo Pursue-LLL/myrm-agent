@@ -192,6 +192,8 @@ def _simple_operation(args: argparse.Namespace) -> int:
     elif args.command == "heartbeat":
         payload["current_node"] = args.current_node
     elif args.command == "cleanup":
+        from cleanup_observed_seal import observe_cleanup_seal
+
         snapshot = send(
             {
                 "operation": "snapshot",
@@ -200,26 +202,29 @@ def _simple_operation(args: argparse.Namespace) -> int:
         )
         session = snapshot.get("session")
         ownership = session.get("ownership") if isinstance(session, dict) else None
-        owned_pages = (
-            ownership.get("page_ids", [])
-            if isinstance(ownership, dict)
-            else []
-        )
-        if not isinstance(owned_pages, list):
-            owned_pages = []
-        owned_context = (
-            ownership.get("browser_context_id", "")
-            if isinstance(ownership, dict)
-            else ""
+        owned_pages: list[str] = []
+        owned_context = ""
+        if isinstance(ownership, dict):
+            pages_raw = ownership.get("page_ids", [])
+            if isinstance(pages_raw, list):
+                owned_pages = [page_id for page_id in pages_raw if isinstance(page_id, str)]
+            owned_context = str(ownership.get("browser_context_id", ""))
+        requested_at = time.time()
+        released_lease = args.released_lease_id.strip()
+        ledger_cleaned, sealed = observe_cleanup_seal(
+            released_lease_id=released_lease,
+            owned_page_ids=tuple(owned_pages),
+            owned_context_id=owned_context,
         )
         payload["receipt"] = {
-            "closed_page_ids": [
-                page_id for page_id in owned_pages if isinstance(page_id, str)
-            ],
-            "closed_context_id": args.closed_context_id or str(owned_context),
-            "released_lease_id": args.released_lease_id,
+            "closed_page_ids": [],
+            "closed_context_id": args.closed_context_id,
+            "released_lease_id": released_lease,
             "released_runtime_id": args.released_runtime_id,
-            "ledger_cleaned": True,
+            "ledger_cleaned": ledger_cleaned,
+            "sealed": sealed,
+            "requested_at": requested_at,
+            "observed_at": time.time() if sealed else 0.0,
             "completed_at": time.time(),
         }
     elif args.command == "finish":

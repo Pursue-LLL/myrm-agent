@@ -342,6 +342,9 @@ class DevGateStore:
                             "released_lease_id": receipt.released_lease_id,
                             "released_runtime_id": receipt.released_runtime_id,
                             "ledger_cleaned": receipt.ledger_cleaned,
+                            "sealed": receipt.sealed,
+                            "requested_at": receipt.requested_at,
+                            "observed_at": receipt.observed_at,
                             "completed_at": receipt.completed_at,
                         },
                         separators=(",", ":"),
@@ -459,7 +462,10 @@ class DevGateStore:
                     "closed_context_id": str(row["browser_context_id"]),
                     "released_lease_id": str(row["lease_id"]),
                     "released_runtime_id": str(row["runtime_id"]),
-                    "ledger_cleaned": True,
+                    "ledger_cleaned": False,
+                    "sealed": False,
+                    "requested_at": reaped_at,
+                    "observed_at": 0.0,
                     "completed_at": reaped_at,
                 }
                 connection.execute(
@@ -561,6 +567,9 @@ class DevGateStore:
                 released_lease_id=str(cleanup.get("released_lease_id", "")),
                 released_runtime_id=str(cleanup.get("released_runtime_id", "")),
                 ledger_cleaned=cleanup.get("ledger_cleaned") is True,
+                sealed=cleanup.get("sealed") is True,
+                requested_at=float(cleanup.get("requested_at", 0.0)),
+                observed_at=float(cleanup.get("observed_at", 0.0)),
                 completed_at=float(cleanup.get("completed_at", 0.0)),
             ),
         )

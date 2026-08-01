@@ -100,6 +100,9 @@ class CleanupReceipt:
     released_lease_id: str = ""
     released_runtime_id: str = ""
     ledger_cleaned: bool = False
+    sealed: bool = False
+    requested_at: float = 0.0
+    observed_at: float = 0.0
     completed_at: float = 0.0
 
 
