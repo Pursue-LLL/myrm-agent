@@ -1039,6 +1039,12 @@ def _context_to_dict(
             "next_action": "OBSERVABILITY_UNKNOWN",
         }
     try:
+        from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
+
+        payload["browserPool"] = browser_identity_snapshot()
+    except ImportError:
+        payload["browserPool"] = {"canonical": False, "next_action": "OBSERVABILITY_UNKNOWN"}
+    try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
         lifecycle = orchestrator_snapshot()
@@ -1132,6 +1138,18 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             f"status={auth_status['status']} "
             f"next_action={auth_status['next_action']} "
             f"runtime_fp={auth_status['runtimeFingerprint']}\n"
+        )
+    except ImportError:
+        pass
+    try:
+        from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
+
+        browser_identity = browser_identity_snapshot()
+        sys.stdout.write(
+            "E2E_BROWSER_IDENTITY="
+            f"canonical={'yes' if browser_identity['canonical'] else 'no'} "
+            f"port={browser_identity['chromePort']} "
+            f"profile={browser_identity['chromeDataDir']}\n"
         )
     except ImportError:
         pass
