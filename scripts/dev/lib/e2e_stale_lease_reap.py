@@ -27,6 +27,11 @@ from e2e_live_chrome_pytest_scan import LiveChromeE2ERow
 from e2e_session_registry import LiveE2ESessionRow, list_live_e2e_sessions
 
 
+def _coordinator_reap_authorized() -> bool:
+    """P0-A: peer SIGINT/reap is coordinator-only; status/readiness paths must not call reapers."""
+    return os.environ.get("MYRM_DEV_GATE_COORDINATOR_REAP", "").strip() == "1"
+
+
 def _monorepo_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
@@ -182,7 +187,9 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
                 return node_stuck
         if phase == "bootstrap":
             if signoff:
-                from dev_gate_contract import signoff_effective_bootstrap_wall_sec  # noqa: PLC0415
+                from dev_gate_contract import (
+                    signoff_effective_bootstrap_wall_sec,
+                )  # noqa: PLC0415
 
                 bootstrap_cap = signoff_effective_bootstrap_wall_sec()
             else:
@@ -273,7 +280,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             return None
     if wall == "bootstrap":
         if _process_has_signoff_env(row.pid):
-            from dev_gate_contract import signoff_effective_bootstrap_wall_sec  # noqa: PLC0415
+            from dev_gate_contract import (
+                signoff_effective_bootstrap_wall_sec,
+            )  # noqa: PLC0415
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
         else:
@@ -316,7 +325,9 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
     wall = str(row.wall_phase or row.phase or "").strip().lower()
     if wall == "bootstrap":
         if _process_has_signoff_env(row.pid):
-            from dev_gate_contract import signoff_effective_bootstrap_wall_sec  # noqa: PLC0415
+            from dev_gate_contract import (
+                signoff_effective_bootstrap_wall_sec,
+            )  # noqa: PLC0415
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
         else:
@@ -391,6 +402,8 @@ def _healthy_body_sessions_active(*, skip_pid: int | None = None) -> bool:
 
 def maybe_reap_stale_heartbeat_leases() -> bool:
     """Expire heartbeat-stale leases with no linked pytest or dead owner."""
+    if not _coordinator_reap_authorized():
+        return False
     from dev_gate_contract import E2E_STALE_HEARTBEAT_REAP_SEC  # noqa: PLC0415
     from e2e_lease_liveness import (
         build_lease_liveness,
@@ -560,6 +573,8 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
 
 def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
     """SIGINT pytest processes exceeding BODY budget or progress stall; then wave reap."""
+    if not _coordinator_reap_authorized():
+        return False
     _reload_stall_guard_ssot()
     reaped = False
     for row in list_live_e2e_sessions():
@@ -623,6 +638,8 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
 
 def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
     """Return True when an extra wave reap was triggered."""
+    if not _coordinator_reap_authorized():
+        return False
     maybe_reap_hung_chrome_e2e_pytest()
     try:
         from e2e_session_snapshot import prune_stale_session_snapshots

@@ -29,7 +29,6 @@ def dev_gate_status() -> dict[str, object]:
         store = DevGateStore(database)
     except (OSError, PermissionError):
         return unavailable
-    reaped = store.reap_abandoned()
     sessions = store.list_active()
     controller = PrivateResourceController(
         store,
@@ -54,5 +53,5 @@ def dev_gate_status() -> dict[str, object]:
         "private_active_credits": int(private.get("active_credits", 0)),
         "private_capacity_credits": int(private.get("capacity_credits", 0)),
         "sessions": [record.to_dict() for record in sessions],
-        "reaped_session_ids": list(reaped),
+        "reaped_session_ids": [],
     }

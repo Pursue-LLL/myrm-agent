@@ -234,6 +234,37 @@ def _simple_operation(args: argparse.Namespace) -> int:
     return 0
 
 
+def _coordinator_reap(_args: argparse.Namespace) -> int:
+    """P0-A: sole entry for hung/stale pytest SIGINT and store deadline reap."""
+    os.environ["MYRM_DEV_GATE_COORDINATOR_REAP"] = "1"
+    from e2e_stale_lease_reap import (  # noqa: PLC0415
+        maybe_reap_excess_wave_leases,
+        maybe_reap_hung_chrome_e2e_pytest,
+        maybe_reap_stale_heartbeat_leases,
+    )
+
+    store_reaped = send({"operation": "reap"})
+    reaped_ids = store_reaped.get("reaped_session_ids", [])
+    stale = maybe_reap_stale_heartbeat_leases()
+    hung = maybe_reap_hung_chrome_e2e_pytest()
+    excess = maybe_reap_excess_wave_leases()
+    print(
+        json.dumps(
+            {
+                "reaped_session_ids": reaped_ids
+                if isinstance(reaped_ids, list)
+                else list(reaped_ids),
+                "stale_heartbeat_reaped": stale,
+                "hung_reaped": hung,
+                "excess_wave_reaped": excess,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -261,6 +292,9 @@ def _parser() -> argparse.ArgumentParser:
     private_admit.add_argument("--session-id", required=True)
     private_admit.add_argument("--owner-token", required=True)
     private_admit.set_defaults(handler=_private_admit)
+
+    reap = commands.add_parser("reap")
+    reap.set_defaults(handler=_coordinator_reap)
 
     for command in (
         "transition",
