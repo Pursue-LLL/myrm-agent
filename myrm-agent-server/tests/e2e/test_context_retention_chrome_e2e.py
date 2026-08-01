@@ -226,7 +226,7 @@ def _fork_navigated_js(parent_chat_id: str) -> str:
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(720)
+@pytest.mark.timeout(600)
 def test_context_retention_summary_bookmarks_and_pins_render() -> None:
     """Seeded compacted summary, snapshot bookmarks, and pinned files render in real Chrome."""
     api_url = get_e2e_api_url()

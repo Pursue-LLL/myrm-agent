@@ -1583,10 +1583,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                 wall_grace = (
                     user_count >= 1
                     and not last.get("ready")
-                    and (
-                        last.get("hasWebFetch") is True
-                        or stall_retry_count > 0
-                    )
+                    and (last.get("hasWebFetch") is True or stall_retry_count > 0)
                     and elapsed_turn < float(poll_profile["poll_budget_max_sec"])
                 )
                 if wall_grace:
@@ -1710,7 +1707,7 @@ async def _run_fast_evicted_read_live_e2e(
 )
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
-@pytest.mark.timeout(1140)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
     e2e_resource_ledger: E2EResourceLedger,
@@ -1728,7 +1725,7 @@ async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
 )
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
-@pytest.mark.timeout(1140)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_fast_normal_search_web_fetch_spill_uses_file_read_in_real_ui(
     e2e_resource_ledger: E2EResourceLedger,

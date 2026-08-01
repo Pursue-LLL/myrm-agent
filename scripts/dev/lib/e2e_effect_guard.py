@@ -37,12 +37,22 @@ def assert_http_effect_allowed(*, method: str, url: str) -> None:
         return
     path = _normalized_path(url)
     if scope == "READ" and is_global_mutation_path(path):
-        raise RuntimeError(
-            f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}"
-        )
+        raise RuntimeError(f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}")
     if scope == "NAMESPACE_WRITE" and is_global_mutation_path(path):
         namespace = os.environ.get("MYRM_E2E_NAMESPACE", "").strip()
         if namespace and namespace not in path:
             raise RuntimeError(
                 f"E2E_EFFECT_GUARD: NAMESPACE_WRITE forbids global {verb} {path}"
             )
+
+
+def guarded_httpx_request(
+    client: object,
+    method: str,
+    url: str,
+    **kwargs: object,
+) -> object:
+    """Effect-guarded httpx.Client.request wrapper for formal chrome_e2e."""
+    assert_http_effect_allowed(method=method, url=url)
+    request = getattr(client, "request")
+    return request(method, url, **kwargs)

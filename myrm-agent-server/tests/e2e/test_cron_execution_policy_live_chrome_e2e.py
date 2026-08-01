@@ -51,7 +51,16 @@ _CRON_PROMPT = (
 
 
 def _cron_api(client: httpx.Client, api_base: str, method: str, path: str, **kwargs: object) -> dict[str, object]:
-    response = client.request(method, f"{api_base}/api/v1/cron{path}", **kwargs)
+    import sys
+    from pathlib import Path
+
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from e2e_effect_guard import guarded_httpx_request
+
+    url = f"{api_base}/api/v1/cron{path}"
+    response = guarded_httpx_request(client, method, url, **kwargs)
     response.raise_for_status()
     body = response.json()
     if not isinstance(body, dict):
