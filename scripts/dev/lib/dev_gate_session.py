@@ -108,6 +108,8 @@ class SessionRecord:
     session_id: str
     owner_pid: int
     owner_token: str
+    owner_process_start: str
+    owner_boot_id: str
     test_node_id: str
     policy: SessionPolicy
     state: SessionState

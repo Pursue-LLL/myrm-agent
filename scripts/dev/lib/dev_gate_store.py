@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     owner_pid INTEGER NOT NULL,
     owner_token TEXT NOT NULL,
+    owner_process_start TEXT NOT NULL DEFAULT '',
+    owner_boot_id TEXT NOT NULL DEFAULT '',
     test_node_id TEXT NOT NULL,
     execution_mode TEXT NOT NULL,
     access_scope TEXT NOT NULL,
@@ -62,6 +64,11 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_session_idx ON events(session_id, event_id);
 """
 
+_MIGRATIONS: tuple[str, ...] = (
+    "ALTER TABLE sessions ADD COLUMN owner_process_start TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE sessions ADD COLUMN owner_boot_id TEXT NOT NULL DEFAULT ''",
+)
+
 
 def default_store_path() -> Path:
     override = os.environ.get("MYRM_DEV_GATE_DB", "").strip()
@@ -88,6 +95,11 @@ class DevGateStore:
     def _initialize(self) -> None:
         with self._connect() as connection:
             connection.executescript(_SCHEMA)
+            for statement in _MIGRATIONS:
+                try:
+                    connection.execute(statement)
+                except sqlite3.OperationalError:
+                    pass
         self.path.chmod(0o600)
 
     @staticmethod
@@ -123,6 +135,8 @@ class DevGateStore:
         session_id: str,
         owner_pid: int,
         owner_token: str,
+        owner_process_start: str = "",
+        owner_boot_id: str = "",
         test_node_id: str,
         policy: SessionPolicy,
         hard_deadline: float,
@@ -143,6 +157,8 @@ class DevGateStore:
                 if (
                     record.owner_pid != owner_pid
                     or record.owner_token != owner_token
+                    or record.owner_process_start != owner_process_start
+                    or record.owner_boot_id != owner_boot_id
                     or record.test_node_id != test_node_id
                     or record.policy != policy
                 ):
@@ -151,7 +167,7 @@ class DevGateStore:
             connection.execute(
                 """
                 INSERT INTO sessions VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 0, '',
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 0, '',
                     '', '[]', '', '', '', '', '{}'
                 )
                 """,
@@ -159,6 +175,8 @@ class DevGateStore:
                     session_id,
                     owner_pid,
                     owner_token,
+                    owner_process_start,
+                    owner_boot_id,
                     test_node_id,
                     policy.execution_mode.value,
                     policy.access_scope.value,
@@ -429,13 +447,11 @@ class DevGateStore:
             ).fetchall()
             for row in rows:
                 owner_pid = int(row["owner_pid"])
-                try:
-                    os.kill(owner_pid, 0)
+                owner_start = str(row["owner_process_start"])
+                from owner_identity import owner_process_matches
+
+                if owner_process_matches(pid=owner_pid, expected_start=owner_start):
                     continue
-                except PermissionError:
-                    continue
-                except ProcessLookupError:
-                    pass
                 session_id = str(row["session_id"])
                 version = int(row["version"]) + 1
                 cleanup = {
@@ -510,6 +526,8 @@ class DevGateStore:
             session_id=str(row["session_id"]),
             owner_pid=int(row["owner_pid"]),
             owner_token=str(row["owner_token"]),
+            owner_process_start=str(row["owner_process_start"]),
+            owner_boot_id=str(row["owner_boot_id"]),
             test_node_id=str(row["test_node_id"]),
             policy=SessionPolicy(
                 execution_mode=ExecutionMode(str(row["execution_mode"])),

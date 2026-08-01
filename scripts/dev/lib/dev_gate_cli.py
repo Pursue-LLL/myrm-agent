@@ -124,6 +124,8 @@ def _submit(args: argparse.Namespace) -> int:
             "session_id": args.session_id,
             "owner_pid": args.owner_pid,
             "owner_token": owner_token,
+            "owner_process_start": args.owner_process_start,
+            "owner_boot_id": args.owner_boot_id,
             "test_node_id": args.test_node_id,
             "hard_deadline": time.time() + args.hard_timeout_sec,
             "policy": {
@@ -234,6 +236,8 @@ def _parser() -> argparse.ArgumentParser:
     submit.add_argument("--session-id", required=True)
     submit.add_argument("--owner-pid", required=True, type=int)
     submit.add_argument("--owner-token", default="")
+    submit.add_argument("--owner-process-start", default="")
+    submit.add_argument("--owner-boot-id", default="")
     submit.add_argument("--test-node-id", required=True)
     submit.add_argument("--execution-mode", choices=("SHARED", "PRIVATE"), required=True)
     submit.add_argument(

@@ -51,8 +51,10 @@ class ChromeE2eReadinessVerdict:
 
 
 def _status_for_next_action(next_action: str, *, ctx_blocked: bool) -> ReadinessStatus:
-    if next_action == "FAIL_FAST":
+    if next_action in ("FAIL_FAST",):
         return "FAIL"
+    if next_action == "OBSERVABILITY_UNKNOWN":
+        return "WAIT"
     if ctx_blocked or next_action in (
         "SHPOIB_OR_VERIFY_API",
         "ADMIT_STACK_HEAL_WAIT",
@@ -75,7 +77,22 @@ def _token_for_verdict(
     return f"WAIT:{next_action}"
 
 
+def _observability_unknown(
+    mux_fields: dict[str, object],
+    parallel_snapshot: dict[str, object],
+) -> bool:
+    if mux_fields.get("muxSnapshotAvailable") is False:
+        return True
+    snapshot_error = parallel_snapshot.get("snapshot_error")
+    return isinstance(snapshot_error, str) and bool(snapshot_error.strip())
+
+
 def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
+    if next_action == "OBSERVABILITY_UNKNOWN":
+        return (
+            "cluster observability incomplete (muxSnapshot or parallel snapshot unavailable); "
+            "do not infer idle from active_test_count=0"
+        )
     if next_action == "FAIL_FAST":
         return (
             "cluster has hung chrome_e2e peer — run ./myrm e2e-context; "
@@ -132,12 +149,30 @@ def evaluate_chrome_e2e_readiness(
     headroom: dict[str, object],
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
+    parallel_snapshot: dict[str, object] | None = None,
 ) -> ChromeE2eReadinessVerdict:
+    snapshot = parallel_snapshot if parallel_snapshot is not None else {}
+    if _observability_unknown(mux_fields, snapshot):
+        return ChromeE2eReadinessVerdict(
+            status="WAIT",
+            token="WAIT:OBSERVABILITY_UNKNOWN",
+            reason=_reason_for_verdict(
+                next_action="OBSERVABILITY_UNKNOWN",
+                ctx=ctx,
+            ),
+            next_action="OBSERVABILITY_UNKNOWN",
+            launch_allowed=False,
+            attach_allowed=True,
+            ready_chrome_full=False,
+            blocked=ctx.blocked,
+            epoch_match=ctx.epoch_match,
+        )
     next_action = _compute_next_action(
         ctx,
         headroom=headroom,
         active_tests=active_tests,
         mux_fields=mux_fields,
+        parallel_snapshot=snapshot,
     )
     if ctx.blocked and next_action in ("READY", "PARALLEL_OK"):
         next_action = "SHPOIB_OR_VERIFY_API"
@@ -189,6 +224,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         headroom=headroom,
         active_tests=active_tests,
         mux_fields=mux_fields,
+        parallel_snapshot=parallel_snapshot,
     )
 
 

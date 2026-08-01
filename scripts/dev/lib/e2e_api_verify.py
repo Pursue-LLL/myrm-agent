@@ -824,6 +824,7 @@ def _compute_next_action(
     headroom: dict[str, object],
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
+    parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
     from dev_gate_contract import (  # noqa: PLC0415
         E2E_ADMISSION_WALL_CLOCK_SEC,
@@ -879,7 +880,11 @@ def _compute_next_action(
         return "SHPOIB_OR_VERIFY_API"
     if mux_fields.get("muxColdAttachSaturated") is True:
         return "QUEUE"
-    if ctx.drift_pending and ctx.active_leases == 0:
+    snapshot = parallel_snapshot if parallel_snapshot is not None else {}
+    snapshot_unavailable = isinstance(snapshot.get("snapshot_error"), str) and bool(
+        str(snapshot.get("snapshot_error")).strip()
+    )
+    if ctx.drift_pending and ctx.active_leases == 0 and not snapshot_unavailable:
         return "RESTART_WHEN_IDLE"
     if ctx.blocked:
         return "SHPOIB_OR_VERIFY_API"

@@ -163,6 +163,8 @@ class CoordinatorService:
             session_id=_required_text(request, "session_id"),
             owner_pid=_required_int(request, "owner_pid"),
             owner_token=_required_text(request, "owner_token"),
+            owner_process_start=_optional_text(request, "owner_process_start"),
+            owner_boot_id=_optional_text(request, "owner_boot_id"),
             test_node_id=_required_text(request, "test_node_id"),
             policy=policy,
             hard_deadline=float(request.get("hard_deadline", time.time() + 600.0)),
