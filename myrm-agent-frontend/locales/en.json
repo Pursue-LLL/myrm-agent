@@ -12930,6 +12930,7 @@
     "tabs": {
       "cases": "Case Editor (JSONL)",
       "report": "Eval Report",
+      "matrix": "Matrix Comparison",
       "history": "History Trends (A/B Test)",
       "diff": "Diff View"
     },
@@ -12944,6 +12945,7 @@
     "createDatasetPrompt": "Enter new dataset name (letters, numbers, underscores):",
     "loading": "Loading...",
     "fetchCasesFailed": "Failed to fetch eval cases",
+    "loadReportFailed": "Failed to load report",
     "saveCasesSuccess": "Eval cases saved successfully",
     "saveFailed": "Save failed",
     "saveFirst": "Please save unsaved changes first",
@@ -12985,6 +12987,8 @@
       "envTools": "Tools",
       "envDataset": "Dataset",
       "envPrompt": "Prompt FP",
+      "envProfile": "Profile",
+      "envBenchmark": "Benchmark",
       "status": "Status",
       "messageSnippet": "Message Snippet",
       "tokenUsage": "Token Usage",
@@ -13000,6 +13004,7 @@
     "history": {
       "passRateTrend": "Pass Rate History Trend (Pass Rate %)",
       "time": "Time",
+      "profile": "Profile",
       "passRateLabel": "Pass Rate",
       "historyRecords": "History Eval Records",
       "noHistory": "No history data. Run multiple evaluations first."
@@ -13008,7 +13013,34 @@
     "saveFromChatFailed": "Failed to save eval case",
     "saveFromChatTitle": "Save as Eval Lab case",
     "cancel": "Cancel",
-    "create": "Create"
+    "create": "Create",
+    "matrixMode": "Matrix",
+    "runMatrix": "Matrix Eval",
+    "matrixEvalStarted": "Matrix evaluation started",
+    "matrix": {
+      "running": "Matrix eval in progress",
+      "profileProgress": "Profiles",
+      "caseProgress": "Cases",
+      "noReport": "No matrix report yet. Select 2+ profiles and run.",
+      "totalCases": "Total Cases",
+      "stableRate": "Stable Rate",
+      "regressionCount": "Regressions",
+      "totalTime": "Total Time",
+      "profile": "Profile",
+      "passRate": "Pass Rate",
+      "passed": "Passed",
+      "failed": "Failed",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "time": "Time",
+      "matrixDetail": "Case × Profile Matrix",
+      "case": "Case",
+      "legend": {
+        "stable": "Stable",
+        "regression": "Regression",
+        "allFailed": "All Failed"
+      }
+    }
   },
   "vault": {
     "title": "Unlock Security Vault",

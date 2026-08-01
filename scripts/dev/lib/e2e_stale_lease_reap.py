@@ -68,12 +68,12 @@ def _process_env_value(pid: int, key: str) -> str | None:
 
 
 def _with_process_signoff_budget_env(pid: int):
-    """Temporarily mirror signoff + batch BODY env from target pytest for SSOT caps."""
+    """Temporarily mirror signoff + desktop soak BODY env from target pytest for SSOT caps."""
     from contextlib import contextmanager
 
     @contextmanager
     def _ctx():
-        keys = ("E2E_SIGNOFF", "MYRM_E2E_SIGNOFF_BATCH_BODY_SEC")
+        keys = ("E2E_SIGNOFF", "MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "MYRM_E2E_DESKTOP_SOAK")
         prior = {key: os.environ.get(key) for key in keys}
         try:
             if _process_has_signoff_env(pid):
@@ -81,6 +81,9 @@ def _with_process_signoff_budget_env(pid: int):
                 batch_body = _process_env_value(pid, "MYRM_E2E_SIGNOFF_BATCH_BODY_SEC")
                 if batch_body:
                     os.environ["MYRM_E2E_SIGNOFF_BATCH_BODY_SEC"] = batch_body
+                desktop_soak = _process_env_value(pid, "MYRM_E2E_DESKTOP_SOAK")
+                if desktop_soak:
+                    os.environ["MYRM_E2E_DESKTOP_SOAK"] = desktop_soak
             yield
         finally:
             for key, value in prior.items():
@@ -534,7 +537,8 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
     from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
-        return False
+        # R250: hung-reap must not SIGINT desktop soak at legacy 600s BODY cap.
+        return True
     if reason.startswith("E2E_NODE_STUCK"):
         return True
     if reason.startswith("progress_stale="):

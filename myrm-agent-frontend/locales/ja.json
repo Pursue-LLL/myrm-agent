@@ -12198,6 +12198,7 @@
     "createDatasetPrompt": "新規しいデータセット名を入力 (英字、数字、アンダースコア):",
     "loading": "読み込み中...",
     "fetchCasesFailed": "評価ケースの取に失敗",
+    "loadReportFailed": "レポートの読み込みに失敗しました",
     "saveCasesSuccess": "評価ケースの保存に成功",
     "saveFailed": "保存に失敗",
     "saveFirst": "未保存の変更を先に保存してください",
@@ -12238,6 +12239,8 @@
       "envTools": "ツール",
       "envDataset": "データセット",
       "envPrompt": "プロンプトFP",
+      "envProfile": "エージェント",
+      "envBenchmark": "ベンチマーク",
       "status": "ステータス",
       "messageSnippet": "メッセージ抜粋",
       "tokenUsage": "Token消費",
@@ -12253,6 +12256,7 @@
     "history": {
       "passRateTrend": "合格率履歴トレンド (Pass Rate %)",
       "time": "時間",
+      "profile": "エージェント",
       "passRateLabel": "合格率",
       "historyRecords": "履歴評価記録",
       "noHistory": "履歴データがありません。複数回の評価を実行してください。"

@@ -12901,6 +12901,7 @@
     "tabs": {
       "cases": "用例编辑器 (JSONL)",
       "report": "评测报告",
+      "matrix": "矩阵对比",
       "history": "历史趋势 (A/B Test)",
       "diff": "对比视图 (Diff)"
     },
@@ -12915,6 +12916,7 @@
     "createDatasetPrompt": "请输入新数据集名称 (支持英文字母、数字、下划线):",
     "loading": "加载中...",
     "fetchCasesFailed": "获取评测用例失败",
+    "loadReportFailed": "加载报告失败",
     "saveCasesSuccess": "评测用例保存成功",
     "saveFailed": "保存失败",
     "saveFirst": "请先保存未保存的更改",
@@ -12956,6 +12958,8 @@
       "envTools": "工具集",
       "envDataset": "数据集",
       "envPrompt": "提示词指纹",
+      "envProfile": "智能体",
+      "envBenchmark": "基准模式",
       "status": "状态",
       "messageSnippet": "消息片段",
       "tokenUsage": "Token消耗",
@@ -12971,6 +12975,7 @@
     "history": {
       "passRateTrend": "通过率历史趋势 (Pass Rate %)",
       "time": "时间",
+      "profile": "智能体",
       "passRateLabel": "通过率",
       "historyRecords": "历史评测记录",
       "noHistory": "暂无历史数据，请先运行多次评测"
@@ -12979,7 +12984,34 @@
     "saveFromChatFailed": "保存评测用例失败",
     "saveFromChatTitle": "一键保存为评测实验室用例",
     "cancel": "取消",
-    "create": "创建"
+    "create": "创建",
+    "matrixMode": "矩阵对比",
+    "runMatrix": "矩阵评测",
+    "matrixEvalStarted": "矩阵评测已启动",
+    "matrix": {
+      "running": "矩阵评测进行中",
+      "profileProgress": "配置进度",
+      "caseProgress": "用例进度",
+      "noReport": "暂无矩阵报告。选择 2 个以上配置后运行。",
+      "totalCases": "总用例数",
+      "stableRate": "稳定率",
+      "regressionCount": "回归数",
+      "totalTime": "总耗时",
+      "profile": "配置",
+      "passRate": "通过率",
+      "passed": "通过",
+      "failed": "失败",
+      "tokens": "Token",
+      "cost": "成本",
+      "time": "耗时",
+      "matrixDetail": "用例 × 配置矩阵",
+      "case": "用例",
+      "legend": {
+        "stable": "稳定",
+        "regression": "回归风险",
+        "allFailed": "全部失败"
+      }
+    }
   },
   "vault": {
     "title": "解锁安全金库",

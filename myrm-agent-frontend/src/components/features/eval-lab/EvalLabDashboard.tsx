@@ -11,9 +11,8 @@ import {
   AlertCircle,
   Eye,
   Plus,
-  ChevronDown,
-  ChevronRight,
-  BookOpen,
+  Grid3X3,
+  Loader2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
@@ -28,77 +27,8 @@ import {
   XAxis,
   YAxis,
 } from '@/components/features/app-shell/lazy-recharts';
-
-const ASSERTION_KEYS = [
-  'expected_tools',
-  'contains',
-  'not_contains',
-  'regex',
-  'json_valid',
-  'json_schema',
-  'custom_python',
-  'llm_judge',
-  'llm_judge_threshold',
-  'llm_judge_prompt',
-  'sandbox',
-] as const;
-
-const ASSERTION_EXAMPLES: Record<string, string> = {
-  expected_tools: '"expected_tools": ["web_search"]',
-  contains: '"state_assertions": [{"type": "contains", "expected": "hello"}]',
-  not_contains: '"state_assertions": [{"type": "not_contains", "expected": "error"}]',
-  regex: '"state_assertions": [{"type": "regex", "expected": "\\\\d{4}-\\\\d{2}-\\\\d{2}"}]',
-  json_valid: '"state_assertions": [{"type": "json_valid", "expected": ""}]',
-  json_schema: '"state_assertions": [{"type": "json_schema", "expected": "{\\"required\\": [\\"name\\", \\"age\\"]}"}]',
-  custom_python: '"state_assertions": [{"type": "custom_python", "expected": "len(output) < 2000"}]',
-  llm_judge: '"semantic_assertions": [{"type": "llm_judge", "expected": "polite and professional"}]',
-  llm_judge_threshold:
-    '"semantic_assertions": [{"type": "llm_judge", "expected": "covers safety tips", "threshold": 0.7}]',
-  llm_judge_prompt:
-    '"semantic_assertions": [{"type": "llm_judge", "expected": "accuracy", "judge_prompt": "Judge if {output} meets {criteria}, reply PASS or FAIL: reason"}]',
-  sandbox: '"sandbox_assertions": [{"type": "file_exists", "target": "output.txt"}]',
-};
-
-function CaseFormatReference({ t }: { t: (key: string) => string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border-b bg-muted/10 text-xs">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        <BookOpen className="w-3.5 h-3.5" />
-        <span>{t('caseFormatRef')}</span>
-      </button>
-      {open && (
-        <div className="px-4 pb-3 space-y-1.5 max-h-[200px] overflow-y-auto">
-          <p className="text-muted-foreground mb-2">
-            {t('caseFormatDesc')} <code className="bg-muted px-1 rounded">{`{"message": "your question"}`}</code>
-          </p>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-muted-foreground border-b">
-                <th className="text-left py-1 pr-3 font-medium w-[140px]">{t('assertionType')}</th>
-                <th className="text-left py-1 pr-3 font-medium w-[160px]">{t('assertionDesc')}</th>
-                <th className="text-left py-1 font-medium">{t('assertionExample')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ASSERTION_KEYS.map((key) => (
-                <tr key={key} className="border-b border-border/30">
-                  <td className="py-1 pr-3 text-primary font-mono">{key}</td>
-                  <td className="py-1 pr-3 text-muted-foreground">{t(`assertions.${key}`)}</td>
-                  <td className="py-1 font-mono text-foreground/80 break-all">{ASSERTION_EXAMPLES[key]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
+import MatrixResultView, { type MatrixReportData } from './MatrixResultView';
+import CaseFormatReference from './CaseFormatReference';
 
 export default function EvalLabDashboard() {
   const t = useTranslations('evalLab');
@@ -113,13 +43,19 @@ export default function EvalLabDashboard() {
   const [activeTab, setActiveTab] = useState('cases');
   const [diffView, setDiffView] = useState<{ expected: string; actual: string } | null>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [datasets, setDatasets] = useState<any[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>('default');
   const [benchmarkMode, setBenchmarkMode] = useState(false);
+  const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newDatasetName, setNewDatasetName] = useState('new_dataset');
   const createInputRef = useRef<HTMLInputElement>(null);
+  const [matrixReport, setMatrixReport] = useState<MatrixReportData | null>(null);
+  const [matrixRunning, setMatrixRunning] = useState(false);
+  const [matrixProgress, setMatrixProgress] = useState({ current_profile: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0 });
+
+  const isMatrixMode = selectedProfileIds.length >= 2;
 
   const fetchDatasets = useCallback(async () => {
     try {
@@ -204,8 +140,20 @@ export default function EvalLabDashboard() {
     }
   }, []);
 
+  const fetchMatrixReport = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/eval/matrix/reports/latest');
+      const data = await res.json();
+      if (data.status === 'success' && data.report) {
+        setMatrixReport(data.report as MatrixReportData);
+      }
+    } catch (e) {
+      console.error('Failed to fetch matrix report:', e);
+    }
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory()]).finally(() =>
+    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport()]).finally(() =>
       setLoading(false),
     );
   }, []);
@@ -230,6 +178,7 @@ export default function EvalLabDashboard() {
           }
 
           if (!data.is_running) {
+            if (data.error) { toast.error(data.error); }
             eventSource?.close();
             fetchReport();
             fetchHistory();
@@ -260,6 +209,43 @@ export default function EvalLabDashboard() {
     };
   }, [running, fetchReport]);
 
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    if (matrixRunning) {
+      eventSource = new EventSource('/api/v1/eval/matrix/stream');
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setMatrixRunning(!!data.is_running);
+          setMatrixProgress({
+            current_profile: data.current_profile || '',
+            profile_progress: data.profile_progress || 0,
+            profile_total: data.profile_total || 0,
+            case_completed: data.case_completed || 0,
+            case_total: data.case_total || 0,
+          });
+          if (!data.is_running) {
+            if (data.error) { toast.error(data.error); }
+            eventSource?.close();
+            fetchMatrixReport();
+          }
+        } catch (e) {
+          console.error('Matrix SSE parse error', e);
+        }
+      };
+      eventSource.addEventListener('close', () => {
+        eventSource?.close();
+        setMatrixRunning(false);
+        fetchMatrixReport();
+      });
+      eventSource.onerror = () => {
+        eventSource?.close();
+        setMatrixRunning(false);
+      };
+    }
+    return () => { eventSource?.close(); };
+  }, [matrixRunning]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -282,35 +268,59 @@ export default function EvalLabDashboard() {
   };
 
   const handleRun = async () => {
-    if (running) return;
+    if (running || matrixRunning) return;
     if (cases !== casesDraft) {
       toast.error(t('saveFirst'));
       return;
     }
-    try {
-      const res = await fetch('/api/v1/eval/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile_id: selectedProfileId || null,
-          dataset_id: selectedDatasetId,
-          benchmark_mode: benchmarkMode,
-        }),
-      });
-      const data = await res.json();
-      if (data.status === 'started' || data.status === 'already_running') {
-        setRunning(true);
-        toast.success(t('evalStarted'));
-        setActiveTab('report');
+
+    if (isMatrixMode) {
+      try {
+        const res = await fetch('/api/v1/eval/matrix/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profile_ids: selectedProfileIds,
+            dataset_id: selectedDatasetId,
+            benchmark_mode: benchmarkMode,
+          }),
+        });
+        const data = await res.json();
+        if (data.status === 'started' || data.status === 'already_running') {
+          setMatrixRunning(true);
+          toast.success(t('matrixEvalStarted'));
+          setActiveTab('matrix');
+        }
+      } catch {
+        toast.error(t('evalStartFailed'));
       }
-    } catch {
-      toast.error(t('evalStartFailed'));
+    } else {
+      try {
+        const res = await fetch('/api/v1/eval/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profile_id: selectedProfileIds[0] || null,
+            dataset_id: selectedDatasetId,
+            benchmark_mode: benchmarkMode,
+          }),
+        });
+        const data = await res.json();
+        if (data.status === 'started' || data.status === 'already_running') {
+          setRunning(true);
+          toast.success(t('evalStarted'));
+          setActiveTab('report');
+        }
+      } catch {
+        toast.error(t('evalStartFailed'));
+      }
     }
   };
 
   const handleAbort = async () => {
     try {
-      const res = await fetch('/api/v1/eval/abort', { method: 'POST' });
+      const endpoint = matrixRunning ? '/api/v1/eval/matrix/abort' : '/api/v1/eval/abort';
+      const res = await fetch(endpoint, { method: 'POST' });
       if (res.ok) {
         toast.success(t('abortSent'));
       }
@@ -361,6 +371,7 @@ export default function EvalLabDashboard() {
             <TabsList>
               <TabsTrigger value="cases">{t('tabs.cases')}</TabsTrigger>
               <TabsTrigger value="report">{t('tabs.report')}</TabsTrigger>
+              {(matrixReport || matrixRunning) && <TabsTrigger value="matrix">{t('tabs.matrix')}</TabsTrigger>}
               <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
               {diffView && <TabsTrigger value="diff">{t('tabs.diff')}</TabsTrigger>}
             </TabsList>
@@ -412,26 +423,43 @@ export default function EvalLabDashboard() {
             </button>
           </div>
 
-          <select
-            value={selectedProfileId}
-            onChange={(e) => setSelectedProfileId(e.target.value)}
-            className="px-2 py-1.5 text-sm rounded-full border bg-background"
-            disabled={running}
-          >
-            <option value="">{t('defaultConfig')}</option>
-            {profiles.map((p) => (
-              <option key={p.agent_id} value={p.agent_id}>
-                {p.name || p.agent_id}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1 flex-wrap max-w-[400px]">
+            {profiles.map((p) => {
+              const isSelected = selectedProfileIds.includes(p.agent_id);
+              return (
+                <button
+                  key={p.agent_id}
+                  onClick={() => {
+                    if (running || matrixRunning) return;
+                    setSelectedProfileIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== p.agent_id) : [...prev, p.agent_id],
+                    );
+                  }}
+                  disabled={running || matrixRunning}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                  } disabled:opacity-50`}
+                >
+                  {p.name || p.agent_id.slice(0, 8)}
+                </button>
+              );
+            })}
+            {isMatrixMode && (
+              <span className="flex items-center gap-1 text-xs text-primary font-medium ml-1">
+                <Grid3X3 className="w-3 h-3" />
+                {t('matrixMode')}
+              </span>
+            )}
+          </div>
 
           <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
             <input
               type="checkbox"
               checked={benchmarkMode}
               onChange={(e) => setBenchmarkMode(e.target.checked)}
-              disabled={running}
+              disabled={running || matrixRunning}
               className="rounded border-border text-primary focus:ring-primary"
             />
             {t('benchmarkMode')}
@@ -439,14 +467,14 @@ export default function EvalLabDashboard() {
 
           <button
             onClick={handleRun}
-            disabled={running}
+            disabled={running || matrixRunning}
             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:bg-gray-400"
           >
             <Play className="w-4 h-4" />
-            {running ? t('running') : t('run')}
+            {running || matrixRunning ? t('running') : isMatrixMode ? t('runMatrix') : t('run')}
           </button>
 
-          {running && (
+          {(running || matrixRunning) && (
             <button
               onClick={handleAbort}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600 text-white rounded-full hover:bg-red-700"
@@ -547,6 +575,16 @@ export default function EvalLabDashboard() {
                           {report.manifest.prompt_fingerprint?.slice(0, 12)}...
                         </p>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envProfile')}</span>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.profile_id || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envBenchmark')}</span>
+                        <p className="font-mono text-xs mt-0.5">
+                          {report.manifest.benchmark_mode ? 'ON' : 'OFF'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -621,6 +659,39 @@ export default function EvalLabDashboard() {
             )}
           </TabsContent>
 
+          <TabsContent value="matrix" className="h-full p-6 overflow-y-auto">
+            {matrixRunning ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+                <p>
+                  {t('matrix.running')} — {matrixProgress.current_profile || '...'}
+                </p>
+                <p className="text-sm">
+                  {t('matrix.profileProgress')}: {matrixProgress.profile_progress}/{matrixProgress.profile_total} |{' '}
+                  {t('matrix.caseProgress')}: {matrixProgress.case_completed}/{matrixProgress.case_total}
+                </p>
+                <div className="w-64 h-2 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{
+                      width: `${matrixProgress.case_total > 0 ? (matrixProgress.case_completed / matrixProgress.case_total) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : matrixReport ? (
+              <MatrixResultView
+                report={matrixReport}
+                profileNames={Object.fromEntries(profiles.map((p) => [p.agent_id, p.name || p.agent_id.slice(0, 8)]))}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                <Grid3X3 className="w-12 h-12 opacity-20" />
+                <p>{t('matrix.noReport')}</p>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="history" className="h-full p-6 overflow-y-auto">
             {history.length > 0 ? (
               <div className="space-y-6 max-w-4xl mx-auto">
@@ -652,11 +723,13 @@ export default function EvalLabDashboard() {
 
                 <div className="space-y-3">
                   <h3 className="text-lg font-medium">{t('history.historyRecords')}</h3>
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm text-left">
+                  <div className="border rounded-lg overflow-x-auto">
+                    <table className="w-full text-sm text-left min-w-[700px]">
                       <thead className="bg-muted/50 border-b">
                         <tr>
                           <th className="px-4 py-3 font-medium">{t('history.time')}</th>
+                          <th className="px-4 py-3 font-medium">{t('history.profile')}</th>
+                          <th className="px-4 py-3 font-medium">{t('report.envModel')}</th>
                           <th className="px-4 py-3 font-medium">{t('report.totalCases')}</th>
                           <th className="px-4 py-3 font-medium">{t('report.passRate')}</th>
                           <th className="px-4 py-3 font-medium">{t('report.avgTime')}</th>
@@ -669,9 +742,45 @@ export default function EvalLabDashboard() {
                           .reverse()
                           .map((h: any, i: number) => {
                             const rate = h.total > 0 ? Math.round((h.passed / h.total) * 100) : 0;
+                            const m = h.manifest;
                             return (
-                              <tr key={i} className="bg-card hover:bg-muted/20 transition-colors">
-                                <td className="px-4 py-3">{new Date(h.timestamp * 1000).toLocaleString()}</td>
+                              <tr
+                                key={i}
+                                className={`bg-card hover:bg-muted/20 transition-colors cursor-pointer ${loadingReport === h.filename ? 'opacity-60' : ''}`}
+                                onClick={async () => {
+                                  if (!h.filename || loadingReport) return;
+                                  setLoadingReport(h.filename);
+                                  try {
+                                    const res = await fetch(`/api/v1/eval/reports/${h.filename}`);
+                                    const data = await res.json();
+                                    if (data.status === 'success' && data.summary) {
+                                      setReport(data.summary);
+                                      setActiveTab('report');
+                                    }
+                                  } catch {
+                                    toast.error(t('loadReportFailed'));
+                                  } finally {
+                                    setLoadingReport(null);
+                                  }
+                                }}
+                              >
+                                <td className="px-4 py-3 flex items-center gap-2">
+                                  {loadingReport === h.filename && (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                                  )}
+                                  {new Date(h.timestamp * 1000).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="font-mono text-xs">{m?.profile_id || '-'}</span>
+                                  {m?.benchmark_mode && (
+                                    <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+                                      BM
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-xs">
+                                  {m ? `${m.model_provider}/${m.model_id}` : '-'}
+                                </td>
                                 <td className="px-4 py-3">{h.total}</td>
                                 <td
                                   className={`px-4 py-3 font-medium ${rate >= 80 ? 'text-green-500' : 'text-amber-500'}`}

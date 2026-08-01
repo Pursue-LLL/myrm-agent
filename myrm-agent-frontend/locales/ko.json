@@ -10584,6 +10584,7 @@
     "createDatasetPrompt": "새 데이터셋 이름 입력 (영문, 숫자, 밑줄):",
     "loading": "로딩 중...",
     "fetchCasesFailed": "평가 케이스 가져오기 실패",
+    "loadReportFailed": "보고서를 불러오지 못했습니다",
     "saveCasesSuccess": "평가 케이스 저장 성공",
     "saveFailed": "저장 실패",
     "saveFirst": "저장되지 않은 변경사항을 먼저 저장하세요",
@@ -10627,11 +10628,14 @@
       "multiTurn": "<멀티턴>",
       "viewDiff": "차이 보기",
       "noReport": "평가 보고서가 없습니다. \"평가 실행\"을 클릭하세요.",
-      "evalRunning": "평가 작업 실행 중, 잠시 기다려 주세요"
+      "evalRunning": "평가 작업 실행 중, 잠시 기다려 주세요",
+      "envProfile": "에이전트",
+      "envBenchmark": "벤치마크"
     },
     "history": {
       "passRateTrend": "통과율 히스토리 트렌드 (Pass Rate %)",
       "time": "시간",
+      "profile": "에이전트",
       "passRateLabel": "통과율",
       "historyRecords": "평가 히스토리",
       "noHistory": "히스토리 데이터 없음. 여러 번 평가를 실행하세요."

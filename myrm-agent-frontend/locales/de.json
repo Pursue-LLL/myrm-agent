@@ -10584,6 +10584,7 @@
     "createDatasetPrompt": "Neuen Datensatznamen eingeben (Buchstaben, Zahlen, Unterstriche):",
     "loading": "Wird geladen...",
     "fetchCasesFailed": "Evaluierungsfälle konnten nicht abgerufen werden",
+    "loadReportFailed": "Bericht konnte nicht geladen werden",
     "saveCasesSuccess": "Evaluierungsfälle erfolgreich gespeichert",
     "saveFailed": "Speichern fehlgeschlagen",
     "saveFirst": "Bitte speichern Sie zuerst ungespeicherte Änderungen",
@@ -10627,11 +10628,14 @@
       "multiTurn": "<Multi-Turn>",
       "viewDiff": "Diff anzeigen",
       "noReport": "Kein Evaluierungsbericht vorhanden. Klicken Sie auf \"Evaluierung starten\".",
-      "evalRunning": "Evaluierungsaufgabe läuft, bitte warten"
+      "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
+      "envProfile": "Agent",
+      "envBenchmark": "Benchmark"
     },
     "history": {
       "passRateTrend": "Bestehensquote Verlaufstrend (Pass Rate %)",
       "time": "Zeit",
+      "profile": "Agent",
       "passRateLabel": "Bestehensquote",
       "historyRecords": "Evaluierungsverlauf",
       "noHistory": "Keine Verlaufsdaten. Führen Sie zuerst mehrere Evaluierungen durch."

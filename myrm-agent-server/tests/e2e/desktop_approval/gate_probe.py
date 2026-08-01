@@ -49,6 +49,17 @@ from tests.e2e.desktop_approval.trust_api import (
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
+def _desktop_tool_activity_tick() -> None:
+    """R249: lease + BODY wall progress during desktop tool-activity poll."""
+    heartbeat_e2e_lease()
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="wait_desktop_tool_activity")
+    except ImportError:
+        pass
+
+
 def _desktop_gate_satisfied(
     *,
     last_tool: str,
@@ -1487,7 +1498,7 @@ async def _wait_desktop_tool_activity_failfast(
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        _desktop_tool_activity_tick()
         if api_only and poll % 5 == 0:
             await asyncio.to_thread(activate_textedit_foreground)
         probe = await probe_desktop_tool_progress(

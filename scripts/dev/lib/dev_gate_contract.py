@@ -685,6 +685,33 @@ def signoff_effective_body_wall_sec() -> int:
     return signoff_read_shpoib_body_wall_sec()
 
 
+DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC: Final[int] = 60
+
+
+def dev_gate_submit_hard_timeout_sec() -> int:
+    """Coordinator hard_deadline offset from session submit (R249).
+
+    Legacy bootstrap used a flat 900s cap while desktop soak BODY floor is 1200s
+    (R247/R248). Submit deadline must cover ADMIT + bootstrap + effective BODY.
+    """
+    if is_desktop_soak_signoff_runtime():
+        body = signoff_effective_body_wall_sec()
+        return (
+            admit_wall_clock_sec()
+            + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+            + body
+            + E2E_TEARDOWN_WALL_CLOCK_SEC
+            + DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC
+        )
+    if is_e2e_signoff_runtime():
+        return (
+            admit_wall_clock_sec()
+            + SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
+            + DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC
+        )
+    return E2E_ADMISSION_WALL_CLOCK_SEC
+
+
 def parallel_mux_cold_attach_drain_sec(*, parallel_peers: int | None = None) -> float:
     """Peers-scaled mux cold-attach drain budget (open_mcp_page + infra_retry SSOT).
 
