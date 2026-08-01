@@ -399,7 +399,17 @@ const MarkdownContent = React.memo(
           const description = source?.summary || source?.snippet;
           const linkUrl = url && url !== '' ? url : '#';
 
-          return <LinkPopover url={linkUrl} title={title} description={description} label={num} />;
+          return (
+            <LinkPopover
+              url={linkUrl}
+              title={title}
+              description={description}
+              label={num}
+              siteName={source?.site_name}
+              authority={source?.authority_description}
+              date={source?.date}
+            />
+          );
         },
       }),
       [sources, isStreaming, openKbDrawer, tSources],

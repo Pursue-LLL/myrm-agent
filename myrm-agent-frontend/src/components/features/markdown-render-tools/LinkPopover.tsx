@@ -8,6 +8,24 @@ import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 
+export function formatRelativeDate(dateStr: string, t: (key: string, values?: Record<string, number>) => string): string {
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return dateStr;
+  const now = Date.now();
+  const diffMs = now - parsed.getTime();
+  if (diffMs < 0) return dateStr;
+  const diffDays = Math.floor(diffMs / 86_400_000);
+  if (diffDays === 0) return t('relativeDate.today');
+  if (diffDays === 1) return t('relativeDate.yesterday');
+  if (diffDays < 7) return t('relativeDate.daysAgo', { count: diffDays });
+  if (diffDays < 30) return t('relativeDate.weeksAgo', { count: Math.floor(diffDays / 7) });
+  if (diffDays < 365) return t('relativeDate.monthsAgo', { count: Math.floor(diffDays / 30) });
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, '0');
+  const d = String(parsed.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 interface LinkPopoverProps {
   url: string;
   title?: string;
@@ -15,10 +33,13 @@ interface LinkPopoverProps {
   label?: string;
   className?: string;
   children?: React.ReactNode;
+  siteName?: string;
+  authority?: string;
+  date?: string;
 }
 
 const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
-  ({ url, title, description, label, className, children }) => {
+  ({ url, title, description, label, className, children, siteName, authority, date }) => {
     const t = useTranslations('common');
     const [isTouch, setIsTouch] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +100,21 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
             <div className="w-4 h-4 flex-shrink-0 rounded overflow-hidden bg-white border border-border/30 inline-block">
               <img src={faviconUrl} width={16} height={16} alt="favicon" className="object-contain" loading="lazy" />
             </div>
-            <span className="truncate font-medium text-xs text-muted-foreground">{domain}</span>
+            <span className="truncate font-medium text-xs text-muted-foreground">{siteName || domain}</span>
+            {authority && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none whitespace-nowrap ${
+                  authority === '官方'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : authority === '媒体'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                }`}
+              >
+                {authority}
+              </span>
+            )}
+            {date && <span className="text-[10px] text-muted-foreground/70 whitespace-nowrap">{formatRelativeDate(date, t)}</span>}
           </div>
         )}
 

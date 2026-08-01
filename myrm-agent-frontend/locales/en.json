@@ -6166,6 +6166,13 @@
     "clickToVisitLink": "Click to visit",
     "agentBrowse": "Agent browse",
     "agentBrowsePrompt": "Please open and analyze this link in the browser: {url}",
+    "relativeDate": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{count}d ago",
+      "weeksAgo": "{count}w ago",
+      "monthsAgo": "{count}mo ago"
+    },
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",

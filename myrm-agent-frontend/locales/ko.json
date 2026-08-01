@@ -4738,6 +4738,13 @@
     "clickToVisitLink": "Click to visit",
     "agentBrowse": "Agent 브라우징",
     "agentBrowsePrompt": "브라우저에서 이 링크를 열고 분석해 주세요: {url}",
+    "relativeDate": {
+      "today": "오늘",
+      "yesterday": "어제",
+      "daysAgo": "{count}일 전",
+      "weeksAgo": "{count}주 전",
+      "monthsAgo": "{count}개월 전"
+    },
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",

@@ -31,6 +31,9 @@ export interface Source {
   snippet?: string; // 摘要（仅 web_search）
   summary?: string; // 长摘要（会话历史等结构化来源）
   score?: number; // 相关度
+  site_name?: string; // 来源站点名（如 "GitHub", "维基百科"）
+  authority_description?: string; // 权威标识（如 "官方", "媒体"）
+  date?: string; // 发布或更新日期
   // mcp 技能字段
   skill_name?: string; // 技能名称
   calls?: MCPCallRecord[]; // MCP 调用记录列表
@@ -40,7 +43,6 @@ export interface Source {
   section?: string;
   level?: WikiSourceLevel;
   path?: string;
-  source_key?: string;
   claim_id?: string;
   evidence_path?: string;
   line_range?: string;

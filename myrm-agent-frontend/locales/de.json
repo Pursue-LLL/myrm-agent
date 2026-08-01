@@ -4738,6 +4738,13 @@
     "clickToVisitLink": "Click to visit",
     "agentBrowse": "Agent-Browsing",
     "agentBrowsePrompt": "Bitte öffne und analysiere diesen Link im Browser: {url}",
+    "relativeDate": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "daysAgo": "vor {count} T.",
+      "weeksAgo": "vor {count} W.",
+      "monthsAgo": "vor {count} M."
+    },
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
