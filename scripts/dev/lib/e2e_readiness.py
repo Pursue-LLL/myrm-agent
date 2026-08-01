@@ -161,27 +161,6 @@ def evaluate_chrome_e2e_readiness(
     )
 
 
-def _auto_reap_before_readiness() -> bool:
-    """Reap stale/hung/excess wave state before readiness; never kill healthy peers."""
-    reaped = False
-    try:
-        from e2e_stale_lease_reap import (
-            maybe_reap_excess_wave_leases,
-            maybe_reap_hung_chrome_e2e_pytest,
-            maybe_reap_stale_heartbeat_leases,
-        )
-
-        if maybe_reap_stale_heartbeat_leases():
-            reaped = True
-        if maybe_reap_hung_chrome_e2e_pytest():
-            reaped = True
-        if maybe_reap_excess_wave_leases():
-            reaped = True
-    except (ImportError, OSError, PermissionError):
-        return False
-    return reaped
-
-
 def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
     from e2e_lease_liveness import (
         load_wave_snapshot,
@@ -214,11 +193,8 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
 
 
 def resolve_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict:
-    _auto_reap_before_readiness()
-    verdict = _build_readiness_verdict()
-    if verdict.next_action == "FAIL_FAST" and _auto_reap_before_readiness():
-        verdict = _build_readiness_verdict()
-    return verdict
+    """Read-only readiness verdict — must not kill/reap/prune/restart peers (P0-A)."""
+    return _build_readiness_verdict()
 
 
 def format_shell_tokens(verdict: ChromeE2eReadinessVerdict) -> str:

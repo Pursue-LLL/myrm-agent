@@ -349,7 +349,10 @@ def _should_skip_port_scan_under_parallel_block(
     candidates: list[BackendCandidate],
 ) -> bool:
     """Port scan cannot mint workspace epoch under active leases — avoid 41× probe burn."""
-    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+    from e2e_lease_liveness import (
+        load_wave_snapshot,
+        wave_lease_counts,
+    )  # noqa: PLC0415
 
     if wave_lease_counts(load_wave_snapshot()).total <= 0:
         return False
@@ -828,6 +831,7 @@ def _compute_next_action(
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     )
+
     admit_active = 0
     for row in active_tests:
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
@@ -1063,16 +1067,6 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
-    try:
-        from e2e_stale_lease_reap import (
-            maybe_reap_excess_wave_leases,
-            maybe_reap_stale_heartbeat_leases,
-        )
-
-        maybe_reap_stale_heartbeat_leases()
-        maybe_reap_excess_wave_leases()
-    except (ImportError, OSError, PermissionError):
-        pass
     from e2e_lease_liveness import (  # noqa: PLC0415
         build_lease_liveness,
         format_lease_liveness_human,
