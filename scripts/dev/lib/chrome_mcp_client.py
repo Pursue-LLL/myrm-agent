@@ -1731,9 +1731,10 @@ class ChromeMcpClient:
                     }
                     if old_page.context_id is not None:
                         arguments["isolatedContext"] = old_page.context_id
-                    result = self._call_tool_direct(
-                        "new_page", arguments, timeout_sec=min(65.0, remaining)
-                    )
+                    with browser_operation_credit_slot():
+                        result = self._call_tool_direct(
+                            "new_page", arguments, timeout_sec=min(65.0, remaining)
+                        )
                     page_id, target_id = parse_new_page(result)
                     new_page_id = page_id
                     self._call_tool_direct(
