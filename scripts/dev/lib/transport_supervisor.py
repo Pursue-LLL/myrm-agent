@@ -10,6 +10,9 @@
 [POS]
 Dev Gate transport layer — global recovery mutex, per-session cumulative recover
 budget, runtime muxDaemons==1 fail-closed before new_page/recover.
+
+P0-B: mux cold-attach / new_page must acquire operation credits via
+browser_orchestrator.browser_operation_credit_slot (enforced by static tests).
 """
 
 from __future__ import annotations
@@ -82,10 +85,9 @@ def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
             (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
         )
     cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
-    if (
-        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-        and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes")
-    ):
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
+        "MYRM_E2E_DESKTOP_SOAK", ""
+    ).strip() in ("1", "true", "yes"):
         # Desktop leg soak runs under parallel chrome_e2e; force-chat-shell recover
         # can consume the default 120–300s budget before approval BODY starts.
         cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC + 180.0, cap + 180.0)
@@ -99,10 +101,9 @@ def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
         return int(MUX_UPSTREAM_WAIT_BASE_SEC)
     scaled = MUX_UPSTREAM_WAIT_BASE_SEC + ((peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC)
     cap = min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled)
-    if (
-        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-        and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes")
-    ):
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
+        "MYRM_E2E_DESKTOP_SOAK", ""
+    ).strip() in ("1", "true", "yes"):
         cap = min(MUX_UPSTREAM_WAIT_MAX_SEC + 120.0, cap + 120.0)
     return int(cap)
 
@@ -207,7 +208,20 @@ def parallel_mux_peer_count() -> int:
 def recovery_lock_wait_sec() -> float:
     active = parallel_mux_peer_count()
     scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
-    return min(MUX_RECOVERY_LOCK_WAIT_SEC, scaled)
+    cap = MUX_RECOVERY_LOCK_WAIT_SEC
+    try:
+        from dev_gate_contract import (  # noqa: PLC0415
+            _parallel_signoff_pressure_peers,
+            is_e2e_signoff_runtime,
+        )
+
+        if is_e2e_signoff_runtime():
+            pressure = max(active, _parallel_signoff_pressure_peers())
+            scaled = MUX_RECOVERY_LOCK_BASE_SEC + pressure * 35.0
+            cap = 300.0  # R229/R230: v155-v156 post-SEND_TURN attach under mux_peers≥7
+    except ImportError:
+        pass
+    return min(cap, scaled)
 
 
 def assert_mux_daemons_single(*, phase: str) -> None:
