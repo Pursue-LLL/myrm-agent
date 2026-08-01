@@ -248,12 +248,22 @@ def _simple_operation(args: argparse.Namespace) -> int:
             owned_page_ids=tuple(owned_pages),
             owned_context_id=owned_context,
         )
+        from cleanup_observed_seal import (
+            collect_cdp_target_ids,
+            lease_bound_target_ids,
+            physical_targets_absent,
+        )
+
+        physical_released = physical_targets_absent(lease_id=released_lease)
+        cdp_after = collect_cdp_target_ids()
         payload["receipt"] = {
-            "closed_page_ids": [],
+            "closed_page_ids": list(lease_bound_target_ids(released_lease)),
             "closed_context_id": args.closed_context_id,
             "released_lease_id": released_lease,
             "released_runtime_id": args.released_runtime_id,
             "ledger_cleaned": ledger_cleaned,
+            "physical_released": physical_released,
+            "cdp_target_ids_after": sorted(cdp_after) if cdp_after is not None else [],
             "sealed": sealed,
             "requested_at": requested_at,
             "observed_at": time.time() if sealed else 0.0,

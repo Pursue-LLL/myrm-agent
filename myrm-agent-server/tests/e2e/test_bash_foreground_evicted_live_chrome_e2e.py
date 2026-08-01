@@ -33,6 +33,7 @@ from cdp_chat_support import (  # noqa: E402
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_ui_url,
+    guarded_httpx_request,
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
@@ -120,7 +121,9 @@ def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
             "yolo_mode_enabled_at": time.time(),
         },
     }
-    resp = client.post(f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0)
+    resp = guarded_httpx_request(
+        client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0
+    )
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
@@ -488,7 +491,9 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     for attempt in range(_MAX_STREAM_ATTEMPTS):
         try:
             with httpx.Client() as client:
-                chat_resp = client.post(
+                chat_resp = guarded_httpx_request(
+                    client,
+                    "POST",
                     f"{api_base}/api/v1/chats/",
                     json={"chat_id": chat_id},
                     timeout=30.0,
@@ -496,7 +501,9 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
                 chat_resp.raise_for_status()
                 agent_id = _create_foreground_bash_agent(client, api_base)
                 ensure_e2e_hitl_mode(api_url=api_base)
-                reset_resp = client.post(
+                reset_resp = guarded_httpx_request(
+                    client,
+                    "POST",
                     f"{api_base}/api/v1/security/allowlist/test/reset-hitl-runtime",
                     timeout=30.0,
                 )

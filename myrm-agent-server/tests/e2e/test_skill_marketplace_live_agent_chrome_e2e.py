@@ -32,6 +32,7 @@ from cdp_chat_support import (  # noqa: E402
 )
 from e2e_orchestrator import touch_wall_progress  # noqa: E402
 
+from tests.support.chrome_mcp_e2e import guarded_httpx_request  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 _MARKETPLACE_TOOL = "skill_market_tool"
@@ -70,7 +71,9 @@ def _create_marketplace_agent(client: httpx.Client, api_url: str) -> str:
         "skill_ids": [],
         "enabled_builtin_tools": ["web_search", "memory", "skill_market"],
     }
-    resp = client.post(f"{api_url}/api/v1/user-agents", json=payload, timeout=60.0)
+    resp = guarded_httpx_request(
+        client, "POST", f"{api_url}/api/v1/user-agents", json=payload, timeout=60.0
+    )
     resp.raise_for_status()
     body = resp.json()
     agent_id = (
@@ -243,7 +246,9 @@ def test_live_agent_skill_marketplace_search_in_real_ui(
         touch_wall_progress(current_node="skill_market_live_attempt")
         try:
             with httpx.Client() as client:
-                chat_resp = client.post(
+                chat_resp = guarded_httpx_request(
+                    client,
+                    "POST",
                     f"{api_base}/api/v1/chats/",
                     json={"chat_id": chat_id},
                     timeout=30.0,

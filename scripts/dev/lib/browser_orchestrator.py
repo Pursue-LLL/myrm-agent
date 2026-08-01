@@ -58,12 +58,30 @@ def _infer_health(*, mux_available: bool, in_flight: int) -> BrowserPlaneHealth:
     return BrowserPlaneHealth.READY
 
 
+def _operation_credits_in_flight(*, mux_contexts: int) -> tuple[int, int]:
+    """Return (capped_in_flight, raw_in_flight) from credit registry or mux contexts."""
+    try:
+        from mux_upstream_admission import list_active_upstream_operations
+
+        raw = len(list_active_upstream_operations())
+        if raw > 0:
+            return min(raw, MAX_OPERATION_CREDITS), raw
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        pass
+    if mux_contexts <= 0:
+        return 0, 0
+    raw = mux_contexts
+    return min(raw, MAX_OPERATION_CREDITS), raw
+
+
 def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
     mux_available, contexts, wave_leases = _mux_probe()
-    in_flight = min(contexts, MAX_OPERATION_CREDITS) if mux_available else 0
+    in_flight, raw_in_flight = _operation_credits_in_flight(
+        mux_contexts=contexts if mux_available else 0
+    )
     health = _infer_health(
         mux_available=mux_available,
-        in_flight=contexts if mux_available else 0,
+        in_flight=raw_in_flight,
     )
     return BrowserOrchestratorSnapshot(
         health=health.value,

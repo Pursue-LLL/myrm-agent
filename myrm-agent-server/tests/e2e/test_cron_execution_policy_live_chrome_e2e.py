@@ -153,8 +153,18 @@ def _trigger_and_wait(client: httpx.Client, api_base: str, job_id: str) -> dict[
 
 
 def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) -> None:
+    import sys
+    from pathlib import Path
+
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from e2e_effect_guard import guarded_httpx_request
+
     try:
-        client.delete(f"{api_base}/api/v1/cron/{job_id}", timeout=30.0)
+        guarded_httpx_request(
+            client, "DELETE", f"{api_base}/api/v1/cron/{job_id}", timeout=30.0
+        )
     except httpx.HTTPError:
         pass
 

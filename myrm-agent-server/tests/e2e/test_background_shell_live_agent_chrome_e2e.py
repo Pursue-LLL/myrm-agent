@@ -31,7 +31,7 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 
-from tests.support.chrome_mcp_e2e import http_json
+from tests.support.chrome_mcp_e2e import guarded_httpx_request, http_json
 
 _STREAM_TRANSPORT_ERRORS = (
     httpx.RemoteProtocolError,
@@ -76,7 +76,9 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
             "yolo_mode_enabled_at": time.time(),
         },
     }
-    resp = client.post(f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0)
+    resp = guarded_httpx_request(
+        client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0
+    )
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
@@ -373,7 +375,9 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
             chat_id = f"e2e-bgshell-{uuid.uuid4().hex[:10]}"
             try:
                 with httpx.Client() as client:
-                    chat_resp = client.post(
+                    chat_resp = guarded_httpx_request(
+                        client,
+                        "POST",
                         f"{api_base}/api/v1/chats/",
                         json={"chat_id": chat_id},
                         timeout=30.0,
@@ -381,7 +385,9 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
                     chat_resp.raise_for_status()
                     agent_id = _create_background_agent(client, api_base)
                     ensure_e2e_hitl_mode(api_url=api_base)
-                    reset_resp = client.post(
+                    reset_resp = guarded_httpx_request(
+                        client,
+                        "POST",
                         f"{api_base}/api/v1/security/allowlist/test/reset-hitl-runtime",
                         timeout=30.0,
                     )
