@@ -101,8 +101,7 @@ def ensure_coordinator(
         disabled_path.touch(mode=0o600, exist_ok=True)
         return None
     raise RuntimeError(
-        f"DEV_GATE_COORDINATOR_START_TIMEOUT: socket={socket_target} "
-        f"log={log_path}"
+        f"DEV_GATE_COORDINATOR_START_TIMEOUT: socket={socket_target} " f"log={log_path}"
     )
 
 
@@ -238,7 +237,9 @@ def _simple_operation(args: argparse.Namespace) -> int:
         if isinstance(ownership, dict):
             pages_raw = ownership.get("page_ids", [])
             if isinstance(pages_raw, list):
-                owned_pages = [page_id for page_id in pages_raw if isinstance(page_id, str)]
+                owned_pages = [
+                    page_id for page_id in pages_raw if isinstance(page_id, str)
+                ]
             owned_context = str(ownership.get("browser_context_id", ""))
         requested_at = time.time()
         released_lease = args.released_lease_id.strip()
@@ -261,7 +262,17 @@ def _simple_operation(args: argparse.Namespace) -> int:
     elif args.command == "finish":
         payload["succeeded"] = args.succeeded
         payload["failure_token"] = args.failure_token
-    print(json.dumps(send(payload), separators=(",", ":"), sort_keys=True))
+    response = send(payload)
+    print(json.dumps(response, separators=(",", ":"), sort_keys=True))
+    if args.command == "cleanup":
+        if os.environ.get("MYRM_E2E_RELAX_DEV_GATE_TERMINAL", "").strip() == "1":
+            return 0
+        session = response.get("session")
+        cleanup = session.get("cleanup") if isinstance(session, dict) else None
+        if isinstance(cleanup, dict) and cleanup.get("sealed") is True:
+            return 0
+        print("E2E_DEV_GATE_CLEANUP_UNSEALED: observed seal missing", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -282,9 +293,9 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
     print(
         json.dumps(
             {
-                "reaped_session_ids": reaped_ids
-                if isinstance(reaped_ids, list)
-                else list(reaped_ids),
+                "reaped_session_ids": (
+                    reaped_ids if isinstance(reaped_ids, list) else list(reaped_ids)
+                ),
                 "stale_heartbeat_reaped": stale,
                 "hung_reaped": hung,
                 "excess_wave_reaped": excess,
@@ -306,13 +317,17 @@ def _parser() -> argparse.ArgumentParser:
     submit.add_argument("--owner-process-start", default="")
     submit.add_argument("--owner-boot-id", default="")
     submit.add_argument("--test-node-id", required=True)
-    submit.add_argument("--execution-mode", choices=("SHARED", "PRIVATE"), required=True)
+    submit.add_argument(
+        "--execution-mode", choices=("SHARED", "PRIVATE"), required=True
+    )
     submit.add_argument(
         "--access-scope",
         choices=("READ", "NAMESPACE_WRITE", "GLOBAL_WRITE"),
         required=True,
     )
-    submit.add_argument("--workload", choices=("STANDARD", "LIVE", "DESKTOP"), required=True)
+    submit.add_argument(
+        "--workload", choices=("STANDARD", "LIVE", "DESKTOP"), required=True
+    )
     submit.add_argument("--namespace", default="")
     submit.add_argument("--priority", type=int, default=0)
     submit.add_argument("--private-credits", type=int, default=1)

@@ -102,9 +102,8 @@ def _stack_fingerprint_runtime_id() -> str:
 
 def _private_backend_runtime_pinned() -> bool:
     """SHPOIB private backend pins MYRM_E2E_STACK_FP; ignore shared-hot drift under parallel E2E."""
-    return (
-        os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1"
-        and bool(_stack_fingerprint_runtime_id())
+    return os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1" and bool(
+        _stack_fingerprint_runtime_id()
     )
 
 
@@ -155,9 +154,27 @@ def _runtime_drift_setup_attempts() -> int:
     return 3
 
 
+def _global_wave_reap_allowed() -> bool:
+    """P0-A: pytest body must not invoke global wave reap under parallel peers."""
+    raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_LEASES", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return False
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo = Path(__file__).resolve().parents[4]
+        return wave_active_lease_count(monorepo) <= 1
+    except (ImportError, OSError, TypeError, ValueError):
+        return True
+
+
 def _attempt_runtime_drift_heal(state_path: Path, lease_id: str) -> str | None:
     """In-place heal wave + active leases when shared-hot runtime drifts during live E2E."""
     if not _runtime_drift_heal_allowed():
+        return None
+    if not _global_wave_reap_allowed():
         return None
     result = subprocess.run(
         ["bash", str(_wave_script()), "reap"],
@@ -422,4 +439,3 @@ def assert_chrome_attach_health() -> None:
         if sleep_for > 0:
             time.sleep(sleep_for)
     raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
-

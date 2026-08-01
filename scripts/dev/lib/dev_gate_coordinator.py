@@ -89,9 +89,11 @@ class CoordinatorService:
         )
         self.desktop_controller = DesktopSeatController(
             store,
-            capacity_seats=desktop_capacity
-            if desktop_capacity is not None
-            else desktop_seat_capacity(),
+            capacity_seats=(
+                desktop_capacity
+                if desktop_capacity is not None
+                else desktop_seat_capacity()
+            ),
         )
 
     def handle(self, request: dict[str, object]) -> dict[str, object]:
@@ -228,9 +230,7 @@ class CoordinatorService:
         ):
             raise ValueError("ownership.page_ids must be a string list")
         ownership = SessionOwnership(
-            browser_context_id=_optional_text(
-                ownership_raw, "browser_context_id"
-            ),
+            browser_context_id=_optional_text(ownership_raw, "browser_context_id"),
             page_ids=tuple(cast(list[str], page_ids_raw)),
             lease_id=_optional_text(ownership_raw, "lease_id"),
             runtime_id=_optional_text(ownership_raw, "runtime_id"),
@@ -321,8 +321,7 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 "detail": str(exc),
             }
         connection.sendall(
-            json.dumps(response, separators=(",", ":"), sort_keys=True).encode()
-            + b"\n"
+            json.dumps(response, separators=(",", ":"), sort_keys=True).encode() + b"\n"
         )
 
 
@@ -357,9 +356,7 @@ def request(
                     raw.extend(chunk)
                     if b"\n" in chunk:
                         break
-            response: object = json.loads(
-                bytes(raw).split(b"\n", 1)[0].decode("utf-8")
-            )
+            response: object = json.loads(bytes(raw).split(b"\n", 1)[0].decode("utf-8"))
             if not isinstance(response, dict):
                 raise RuntimeError("coordinator returned a non-object response")
             if response.get("ok") is not True:
@@ -412,10 +409,12 @@ class _BackgroundReaper:
                 self._service.handle({"operation": "reap"})
                 from e2e_stale_lease_reap import (  # noqa: PLC0415
                     maybe_reap_excess_wave_leases,
+                    maybe_reap_hung_chrome_e2e_pytest,
                     maybe_reap_stale_heartbeat_leases,
                 )
 
                 maybe_reap_stale_heartbeat_leases()
+                maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_excess_wave_leases()
             except Exception:
                 pass
