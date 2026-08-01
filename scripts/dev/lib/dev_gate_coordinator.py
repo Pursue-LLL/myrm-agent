@@ -86,7 +86,9 @@ class CoordinatorService:
     def handle(self, request: dict[str, object]) -> dict[str, object]:
         operation = _required_text(request, "operation")
         if operation == "reap":
-            return {"reaped_session_ids": list(self.store.reap_abandoned())}
+            reaped = list(self.store.reap_abandoned())
+            reaped.extend(self.store.reap_expired_deadlines())
+            return {"reaped_session_ids": reaped}
         if operation == "submit":
             return self._submit(request)
         if operation == "transition":
