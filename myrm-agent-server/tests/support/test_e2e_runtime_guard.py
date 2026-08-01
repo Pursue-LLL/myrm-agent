@@ -42,28 +42,26 @@ def test_heartbeat_swallows_wave_subprocess_timeout(
     heartbeat_e2e_lease()
 
 
-def test_heartbeat_loop_reaps_other_hung_pytest(
+def test_heartbeat_loop_extends_lease_without_peer_reaper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import time
 
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
 
-    reaped: list[int | None] = []
+    heartbeat_calls: list[int] = []
 
-    def _fake_reap(*, skip_pid: int | None = None) -> bool:
-        reaped.append(skip_pid)
-        return False
+    def _fake_heartbeat() -> None:
+        heartbeat_calls.append(1)
 
     monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-unit-heartbeat")
     monkeypatch.setattr(
-        "e2e_stale_lease_reap.maybe_reap_hung_chrome_e2e_pytest",
-        _fake_reap,
+        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        _fake_heartbeat,
     )
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.12)
-    assert reaped
-    assert all(pid == os.getpid() for pid in reaped)
+    assert len(heartbeat_calls) >= 2
 
 
 def test_assert_chrome_attach_health_passes_on_ready_probe(
@@ -116,26 +114,27 @@ def test_assert_chrome_attach_health_raises_when_probe_fails(
         assert_chrome_attach_health()
 
 
-def test_reap_chrome_e2e_session_hygiene_runs_wave_and_prune(
+def test_reap_chrome_e2e_session_hygiene_is_heartbeat_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[list[str]] = []
+    heartbeat_calls = 0
 
-    def _fake_run(cmd: list[str], **kwargs: object) -> object:
-        calls.append(list(cmd))
-        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+    def _fake_heartbeat() -> None:
+        nonlocal heartbeat_calls
+        heartbeat_calls += 1
 
-    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _fake_run)
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
-        lambda: None,
+        _fake_heartbeat,
     )
     monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard._wave_script",
-        lambda: Path("/tmp/wave.sh"),
+        "tests.support.e2e_runtime_guard.subprocess.run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("subprocess.run must not be called")
+        ),
     )
     reap_chrome_e2e_session_hygiene()
-    assert ["bash", "/tmp/wave.sh", "reap"] in calls
+    assert heartbeat_calls == 1
 
 
 def test_register_e2e_resource_rejects_empty_ref() -> None:

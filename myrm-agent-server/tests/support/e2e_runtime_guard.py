@@ -48,32 +48,8 @@ def _wave_script() -> Path:
 
 
 def reap_chrome_e2e_session_hygiene() -> None:
-    """Extend parent lease and reap stale page leases between formal chrome_e2e items."""
+    """Extend parent lease heartbeat only — no global wave/tab/peer reaper (P0-B)."""
     heartbeat_e2e_lease()
-    try:
-        from e2e_session_snapshot import prune_stale_session_snapshots
-
-        prune_stale_session_snapshots()
-    except ImportError:
-        pass
-    wave_script = _wave_script()
-    subprocess.run(
-        ["bash", str(wave_script), "reap"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    dev_scripts = Path(__file__).resolve().parents[3] / "scripts" / "dev"
-    prune_script = dev_scripts / "prune-myrm-chrome-e2e-blank-tabs.sh"
-    if prune_script.is_file():
-        subprocess.run(
-            ["bash", str(prune_script)],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
 
 
 @contextmanager
@@ -86,12 +62,6 @@ def e2e_lease_heartbeat_loop(
     def _loop() -> None:
         while not stop.wait(interval_sec):
             heartbeat_e2e_lease()
-            try:
-                from e2e_stale_lease_reap import maybe_reap_hung_chrome_e2e_pytest
-
-                maybe_reap_hung_chrome_e2e_pytest(skip_pid=os.getpid())
-            except ImportError:
-                pass
 
     heartbeat_e2e_lease()
     worker = threading.Thread(target=_loop, name="e2e-lease-heartbeat", daemon=True)

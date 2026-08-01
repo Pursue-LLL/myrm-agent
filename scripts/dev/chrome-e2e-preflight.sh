@@ -868,22 +868,28 @@ _mux_attach_timeout_restart_allowed() {
   _mux_upstream_ready && _mux_ws_stamp_matches
 }
 
+_mux_parallel_load_blocks_global_restart() {
+  local contexts active_leases
+  contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
+  if [[ "${contexts}" =~ ^[0-9]+$ && "${contexts}" -gt 0 ]]; then
+    return 0
+  fi
+  active_leases="$(_mux_parallel_active_leases)"
+  [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]
+}
+
 _mux_restart_allowed() {
   [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || return 1
-  local contexts
-  contexts="$(_mux_context_count 2>/dev/null)" || return 1
+  _mux_parallel_load_blocks_global_restart && return 1
   if [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]]; then
-    [[ "${contexts}" == "0" ]] || return 0
+    return 0
   fi
-  [[ "${contexts}" == "0" ]] || return 1
   bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
 }
 
 _mux_timeout_restart_allowed() {
   [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]] || return 1
-  local contexts
-  contexts="$(_mux_context_count 2>/dev/null)" || return 1
-  [[ "${contexts}" == "0" ]] || return 1
+  _mux_parallel_load_blocks_global_restart && return 1
   bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
 }
 
@@ -1062,6 +1068,9 @@ _heal_mux_request_timeout_drift() {
     _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
   elif _mux_upstream_ready && _mux_ws_stamp_matches; then
     fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon probe failed; attach restart not allowed"
+  elif _mux_parallel_load_blocks_global_restart; then
+    echo "CHROME_E2E_WARN: mux heal restart blocked — parallel contexts or wave leases active" >&2
+    return 0
   else
     _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
   fi
