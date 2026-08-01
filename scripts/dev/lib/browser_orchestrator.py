@@ -14,6 +14,15 @@ from typing import TypedDict
 MAX_OPERATION_CREDITS = 4
 
 
+def _effective_operation_credit_cap() -> int:
+    try:
+        from host_resource_governor import effective_browser_operation_credits
+
+        return effective_browser_operation_credits()
+    except ImportError:
+        return MAX_OPERATION_CREDITS
+
+
 class BrowserPlaneHealth(StrEnum):
     READY = "READY"
     DEGRADED = "DEGRADED"
@@ -76,6 +85,7 @@ def _operation_credits_in_flight(*, mux_contexts: int) -> tuple[int, int]:
 
 def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
     mux_available, contexts, wave_leases = _mux_probe()
+    credit_cap = _effective_operation_credit_cap()
     in_flight, raw_in_flight = _operation_credits_in_flight(
         mux_contexts=contexts if mux_available else 0
     )
@@ -85,9 +95,9 @@ def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
     )
     return BrowserOrchestratorSnapshot(
         health=health.value,
-        operation_credits_max=MAX_OPERATION_CREDITS,
+        operation_credits_max=credit_cap,
         operation_credits_in_flight=in_flight,
-        operation_credits_available=max(0, MAX_OPERATION_CREDITS - in_flight),
+        operation_credits_available=max(0, credit_cap - in_flight),
         mux_snapshot_available=mux_available,
         mux_contexts=contexts,
         wave_leases=wave_leases,

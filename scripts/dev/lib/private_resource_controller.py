@@ -41,7 +41,7 @@ class PrivateAdmission:
 
 
 def private_capacity_credits() -> int:
-    """Return a machine-aware cap that protects CPU and memory from oversubscription."""
+    """Return Host Governor effective cap (same pressure snapshot as browser dispatch)."""
     override = os.environ.get("MYRM_PRIVATE_CAPACITY_CREDITS", "").strip()
     if override:
         capacity = int(override)
@@ -51,15 +51,22 @@ def private_capacity_credits() -> int:
                 f"1 and {PRIVATE_CAPACITY_MAX}"
             )
         return capacity
-    cpu_count = os.cpu_count() or 1
-    cpu_capacity = max(1, cpu_count // 2)
-    memory_capacity = PRIVATE_CAPACITY_MAX
     try:
-        available_bytes = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-        memory_capacity = max(1, int(available_bytes // (2 * 1024**3)))
-    except (OSError, ValueError):
-        pass
-    return min(PRIVATE_CAPACITY_MAX, cpu_capacity, memory_capacity)
+        from host_resource_governor import effective_private_capacity_credits
+
+        return min(PRIVATE_CAPACITY_MAX, effective_private_capacity_credits())
+    except ImportError:
+        cpu_count = os.cpu_count() or 1
+        cpu_capacity = max(1, cpu_count // 2)
+        memory_capacity = PRIVATE_CAPACITY_MAX
+        try:
+            available_bytes = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf(
+                "SC_PAGE_SIZE"
+            )
+            memory_capacity = max(1, int(available_bytes // (2 * 1024**3)))
+        except (OSError, ValueError):
+            pass
+        return min(PRIVATE_CAPACITY_MAX, cpu_capacity, memory_capacity)
 
 
 class PrivateResourceController:

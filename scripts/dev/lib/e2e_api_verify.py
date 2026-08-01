@@ -1045,6 +1045,12 @@ def _context_to_dict(
     except ImportError:
         payload["browserPool"] = {"canonical": False, "next_action": "OBSERVABILITY_UNKNOWN"}
     try:
+        from host_resource_governor import host_resource_governor_snapshot  # noqa: PLC0415
+
+        payload["hostGovernor"] = host_resource_governor_snapshot()
+    except ImportError:
+        payload["hostGovernor"] = {"enabled": False, "effective_browser_slots": 4}
+    try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
         lifecycle = orchestrator_snapshot()
@@ -1150,6 +1156,20 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             f"canonical={'yes' if browser_identity['canonical'] else 'no'} "
             f"port={browser_identity['chromePort']} "
             f"profile={browser_identity['chromeDataDir']}\n"
+        )
+    except ImportError:
+        pass
+    try:
+        from host_resource_governor import host_resource_governor_snapshot  # noqa: PLC0415
+
+        gov = host_resource_governor_snapshot()
+        sys.stdout.write(
+            "E2E_HOST_GOVERNOR="
+            f"effective={gov.get('effective_browser_slots', '?')}/"
+            f"{gov.get('max_browser_slots', 4)} "
+            f"load_1m={gov.get('load_avg_1m', 0):.2f} "
+            f"memory={gov.get('memory_pressure', 'unknown')} "
+            f"enabled={'yes' if gov.get('enabled') else 'no'}\n"
         )
     except ImportError:
         pass

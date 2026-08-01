@@ -163,13 +163,18 @@ def _registry_key(operation_id: str) -> str:
 
 
 def effective_max_slots() -> int:
-    """P0-B: cold-attach slots are browser operation credits (orchestrator SSOT)."""
+    """P0-B/P1: cold-attach slots follow Host Resource Governor effective cap."""
     try:
-        from browser_orchestrator import MAX_OPERATION_CREDITS
+        from host_resource_governor import effective_browser_operation_credits
 
-        cap = MAX_OPERATION_CREDITS
+        cap = effective_browser_operation_credits()
     except ImportError:
-        cap = DEFAULT_MAX_SLOTS
+        try:
+            from browser_orchestrator import MAX_OPERATION_CREDITS
+
+            cap = MAX_OPERATION_CREDITS
+        except ImportError:
+            cap = DEFAULT_MAX_SLOTS
     raw = os.environ.get("MYRM_MUX_COLD_ATTACH_SLOTS", "").strip()
     if raw:
         try:
