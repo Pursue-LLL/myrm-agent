@@ -43,10 +43,6 @@ class E2ERuntimeLease:
     isolated: bool = False
 
 
-def _wave_script() -> Path:
-    return Path(__file__).resolve().parents[3] / "scripts/dev/wave.sh"
-
-
 def reap_chrome_e2e_session_hygiene() -> None:
     """Extend parent lease heartbeat only — no global wave/tab/peer reaper (P0-B)."""
     heartbeat_e2e_lease()
@@ -162,35 +158,22 @@ def _runtime_drift_setup_attempts() -> int:
 
 
 def _global_wave_reap_allowed() -> bool:
-    """P0-A: pytest body must not invoke global wave reap under parallel peers."""
-    raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_LEASES", "").strip()
-    if raw.isdigit() and int(raw) > 0:
-        return False
-    try:
-        from pathlib import Path
+    """P0-A: pytest body must NEVER invoke global wave reap — Coordinator-only.
 
-        from stack_mutation_policy import wave_active_lease_count
-
-        monorepo = Path(__file__).resolve().parents[4]
-        return wave_active_lease_count(monorepo) <= 1
-    except (ImportError, OSError, TypeError, ValueError):
-        return True
+    Always returns False. Wave reap is exclusively triggered by the Coordinator
+    via `dev-gate coordinator-reap`, never from within a test process. This
+    prevents peer session destruction under parallel execution.
+    """
+    return False
 
 
 def _attempt_runtime_drift_heal(state_path: Path, lease_id: str) -> str | None:
-    """In-place heal wave + active leases when shared-hot runtime drifts during live E2E."""
+    """Read-only drift detection — reap is Coordinator-only (P0-A).
+
+    Re-reads wave state to detect if Coordinator has already healed the drift.
+    Never triggers subprocess reap from within the test process.
+    """
     if not _runtime_drift_heal_allowed():
-        return None
-    if not _global_wave_reap_allowed():
-        return None
-    result = subprocess.run(
-        ["bash", str(_wave_script()), "reap"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    if result.returncode != 0:
         return None
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -216,7 +199,7 @@ def _assert_runtime_matches_lease_or_heal(
     expected: str,
     runtime_id_reader: Callable[[], str],
 ) -> str:
-    """Retry wave reap when mux-queue delay causes runtime drift before pytest body."""
+    """Wait for Coordinator-driven drift heal; fail fast if unresolved (P0-A)."""
     resolved = expected.strip()
     current = runtime_id_reader().strip()
     if not _runtime_drift_heal_allowed():

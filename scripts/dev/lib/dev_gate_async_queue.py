@@ -80,6 +80,8 @@ class DevGateAsyncWriter:
         timeout_sec: float = 10.0,
     ) -> dict[str, object]:
         operation = request.get("operation")
+        if isinstance(operation, str) and operation in _WRITE_OPERATIONS:
+            timeout_sec = max(timeout_sec, 30.0)
         if not isinstance(operation, str) or operation not in _WRITE_OPERATIONS:
             return self._service.handle(request)
         future: concurrent.futures.Future[dict[str, object]] = (
@@ -100,6 +102,9 @@ class DevGateAsyncWriter:
                     return
                 result = self._service.handle(item.request)
                 item.future.set_result(result)
+                from dev_gate_event_hub import notify_write_result  # noqa: PLC0415
+
+                notify_write_result(item.request, result)
             except Exception as exc:  # noqa: BLE001 — propagate to waiter
                 if item is not None:
                     item.future.set_exception(exc)

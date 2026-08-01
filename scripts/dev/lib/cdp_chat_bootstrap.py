@@ -23,6 +23,22 @@ from cdp_chat_support import (
 from cdp_chat_transport import CdpChatTransport
 
 _SHELL_PROBE_RECV_TIMEOUT_SEC = 15.0
+
+
+def _signoff_bridge_hydrate_cap_sec() -> float:
+    """R225: scale bridge/shared-ui hydrate slice under parallel signoff (v149 @9 leases)."""
+    cap = 90.0
+    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
+        return cap
+    try:
+        from dev_gate_contract import _parallel_signoff_pressure_peers
+
+        peers = _parallel_signoff_pressure_peers()
+        if peers >= 2:
+            return min(180.0, 90.0 + peers * 10.0)
+    except ImportError:
+        pass
+    return cap
 _SHELL_PROBE_PROGRESS_INTERVAL_SEC = 30.0
 _SHELL_PROBE_POLL_HARD_TIMEOUT_SEC = 75.0
 
@@ -142,7 +158,7 @@ class CdpChatBootstrap(CdpChatTransport):
         """Fail-fast when UI stays skeleton/blank without progress (R73-A)."""
         from dev_gate_contract import (
             E2E_SHELL_SKELETON_STALL_TOKEN,
-            SHELL_PROBE_STALL_FAIL_FAST_SEC,
+            shell_probe_stall_fail_fast_effective_sec,
         )
 
         skeleton = bool(probe.get("skeleton"))
@@ -156,7 +172,7 @@ class CdpChatBootstrap(CdpChatTransport):
             self._shell_skeleton_since = now
         skeleton_elapsed = now - self._shell_skeleton_since
         session_elapsed = now - self._ensure_shell_session_started()
-        cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        cap = shell_probe_stall_fail_fast_effective_sec()
         if skeleton_elapsed >= cap or session_elapsed >= cap:
             raise RuntimeError(
                 f"{E2E_SHELL_SKELETON_STALL_TOKEN}: phase={phase} "
@@ -368,17 +384,19 @@ class CdpChatBootstrap(CdpChatTransport):
 
             remaining = remaining_wall_sec()
             if current_phase() == "bootstrap" and remaining > 20.0:
-                deadline = time.monotonic() + min(90.0, remaining - 5.0)
+                bridge_cap = _signoff_bridge_hydrate_cap_sec()
+                deadline = time.monotonic() + min(bridge_cap, remaining - 5.0)
                 bridge_timeout = max(0.0, deadline - time.monotonic())
         if bridge_timeout > 0:
-            await self.ensure_dev_bridge(timeout_sec=min(bridge_timeout, 90.0))
+            hydrate_cap = _signoff_bridge_hydrate_cap_sec()
+            await self.ensure_dev_bridge(timeout_sec=min(bridge_timeout, hydrate_cap))
             hydrate_timeout = max(0.0, deadline - time.monotonic())
             if hydrate_timeout > 0:
                 await self._wait_react_hydration(timeout_sec=hydrate_timeout)
             provider_timeout = max(0.0, deadline - time.monotonic())
             if provider_timeout > 0:
                 await self._wait_providers_hydrated(
-                    timeout_sec=min(provider_timeout, 60.0)
+                    timeout_sec=min(provider_timeout, hydrate_cap)
                 )
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if isinstance(probe, dict):
@@ -400,7 +418,7 @@ class CdpChatBootstrap(CdpChatTransport):
 
         await maybe_apply_shared_ui_session_contract(
             self,
-            timeout_sec=90.0,
+            timeout_sec=_signoff_bridge_hydrate_cap_sec(),
             deadline=deadline,
         )
 

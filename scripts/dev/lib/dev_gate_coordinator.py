@@ -18,7 +18,11 @@ from desktop_seat_controller import (
     DesktopSeatController,
     desktop_seat_capacity,
 )
-from dev_gate_async_queue import DevGateAsyncWriter, async_queue_enabled, max_async_queue_depth
+from dev_gate_async_queue import (
+    DevGateAsyncWriter,
+    async_queue_enabled,
+    max_async_queue_depth,
+)
 from dev_gate_session import (
     AccessScope,
     CleanupReceipt,
@@ -176,24 +180,52 @@ class CoordinatorService:
             if not isinstance(event_types_raw, list) or not all(
                 isinstance(item, str) and item.strip() for item in event_types_raw
             ):
-                raise ValueError("wait_event.event_types must be a non-empty string list")
+                raise ValueError(
+                    "wait_event.event_types must be a non-empty string list"
+                )
             after_raw = request.get("after_event_id")
             after_event_id = int(after_raw) if isinstance(after_raw, int) else 0
             budget_raw = request.get("budget_sec")
-            budget_sec = float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
+            budget_sec = (
+                float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
+            )
             from dev_gate_event_wait import (
                 SessionEventTimeoutError,
                 wait_for_session_event,
             )
+            from dev_gate_event_hub import (
+                coordinator_event_hub,
+                wait_for_session_event_subscribed,
+            )
+
+            hub = coordinator_event_hub()
+            wait_fn = wait_for_session_event_subscribed
+            if os.environ.get("MYRM_DEV_GATE_EVENT_SUBSCRIBE", "1").strip().lower() in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }:
+                wait_fn = wait_for_session_event  # type: ignore[assignment]
 
             try:
-                event = wait_for_session_event(
-                    self.store,
-                    session_id=_required_text(request, "session_id"),
-                    event_types=frozenset(str(item) for item in event_types_raw),
-                    after_event_id=after_event_id,
-                    budget_sec=budget_sec,
-                )
+                if wait_fn is wait_for_session_event_subscribed:
+                    event = wait_for_session_event_subscribed(
+                        self.store,
+                        hub,
+                        session_id=_required_text(request, "session_id"),
+                        event_types=frozenset(str(item) for item in event_types_raw),
+                        after_event_id=after_event_id,
+                        budget_sec=budget_sec,
+                    )
+                else:
+                    event = wait_for_session_event(
+                        self.store,
+                        session_id=_required_text(request, "session_id"),
+                        event_types=frozenset(str(item) for item in event_types_raw),
+                        after_event_id=after_event_id,
+                        budget_sec=budget_sec,
+                    )
             except SessionEventTimeoutError:
                 return {"event": None, "timed_out": True}
             return {"event": event, "timed_out": False}
@@ -226,6 +258,33 @@ class CoordinatorService:
             return {
                 "sessions": [record.to_dict() for record in self.store.list_active()],
             }
+        if operation == "export_signoff_artifact":
+            output_raw = request.get("output_path")
+            if not isinstance(output_raw, str) or not output_raw.strip():
+                raise ValueError("export_signoff_artifact.output_path is required")
+            session_limit_raw = request.get("session_limit")
+            event_limit_raw = request.get("event_limit")
+            session_limit = (
+                int(session_limit_raw) if isinstance(session_limit_raw, int) else 200
+            )
+            event_limit = (
+                int(event_limit_raw) if isinstance(event_limit_raw, int) else 2000
+            )
+            from dev_gate_signoff_export import export_signoff_artifact  # noqa: PLC0415
+
+            return export_signoff_artifact(
+                self.store,
+                Path(output_raw.strip()),
+                session_limit=session_limit,
+                event_limit=event_limit,
+            )
+        if operation == "verify_signoff_artifact":
+            path_raw = request.get("output_path")
+            if not isinstance(path_raw, str) or not path_raw.strip():
+                raise ValueError("verify_signoff_artifact.output_path is required")
+            from dev_gate_signoff_export import verify_signoff_artifact  # noqa: PLC0415
+
+            return verify_signoff_artifact(Path(path_raw.strip()))
         raise ValueError(f"unsupported operation: {operation}")
 
     def _submit(self, request: dict[str, object]) -> dict[str, object]:
@@ -389,7 +448,13 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 body = server._async_writer.dispatch(payload)
             else:
                 body = server.service.handle(payload)
-            if payload.get("operation") == "snapshot" and server._async_writer is not None:
+                from dev_gate_event_hub import notify_write_result  # noqa: PLC0415
+
+                notify_write_result(payload, body)
+            if (
+                payload.get("operation") == "snapshot"
+                and server._async_writer is not None
+            ):
                 body = {
                     **body,
                     "asyncQueueDepth": server._async_writer.queue_depth,
@@ -510,7 +575,7 @@ def _terminate_deadline_reaped(
 
 
 class _BackgroundReaper:
-    """P0-A: coordinator-owned periodic store + hung/stale lease reap."""
+    """P0-A: coordinator-owned periodic store reap + stale wave leases (no peer SIGINT)."""
 
     def __init__(self, service: CoordinatorService) -> None:
         self._service = service
@@ -548,15 +613,32 @@ class _BackgroundReaper:
                 )
                 from e2e_stale_lease_reap import (  # noqa: PLC0415
                     maybe_reap_excess_wave_leases,
-                    maybe_reap_hung_chrome_e2e_pytest,
                     maybe_reap_stale_heartbeat_leases,
                 )
 
                 maybe_reap_stale_heartbeat_leases()
-                maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_excess_wave_leases()
+                self._maybe_apply_pending_drift()
             except Exception:
                 pass
+
+    def _maybe_apply_pending_drift(self) -> None:
+        """P0-A: drift apply moved here from readiness observation path."""
+        try:
+            from stack_mutation_policy import (  # noqa: PLC0415
+                apply_pending_drift_if_idle,
+                pending_drift_exists,
+            )
+
+            root = Path(__file__).resolve().parents[4]
+            from stack_mutation_policy import _default_state_dir  # noqa: PLC0415
+
+            state_dir = _default_state_dir()
+            if not pending_drift_exists(state_dir):
+                return
+            apply_pending_drift_if_idle(monorepo_root=root, state_dir=state_dir)
+        except Exception:
+            pass
 
 
 def serve(socket_path: Path, database_path: Path) -> None:

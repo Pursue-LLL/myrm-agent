@@ -50,14 +50,14 @@ def _count_cdp_targets(cdp_port: int) -> int:
     if not isinstance(payload, list):
         return -1
     return sum(
-        1
-        for item in payload
-        if isinstance(item, dict) and item.get("type") == "page"
+        1 for item in payload if isinstance(item, dict) and item.get("type") == "page"
     )
 
 
 def _count_wave_bound_leases() -> int:
-    state_dir = Path(os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev"))
+    state_dir = Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+    )
     state_file = state_dir / "wave-orchestrator.json"
     try:
         payload = json.loads(state_file.read_text(encoding="utf-8"))
@@ -108,13 +108,19 @@ def _list_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
         return []
     if not isinstance(payload, list):
         return []
-    return [item for item in payload if isinstance(item, dict) and item.get("type") == "page"]
+    return [
+        item
+        for item in payload
+        if isinstance(item, dict) and item.get("type") == "page"
+    ]
 
 
 def _protected_target_ids() -> set[str] | None:
     """Return protected target ids, or None when ledgers are unreadable (fail-closed)."""
     protected: set[str] = set()
-    state_dir = Path(os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev"))
+    state_dir = Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+    )
     state_file = state_dir / "wave-orchestrator.json"
     wave_readable = True
     try:
@@ -156,7 +162,9 @@ def _is_blankish_url(url: object) -> bool:
     return normalized in {"about:blank", "chrome://newtab/", "chrome://newtab"}
 
 
-def prune_orphan_cdp_pages(*, cdp_port: int | None = None, threshold: int = 20) -> tuple[int, int]:
+def prune_orphan_cdp_pages(
+    *, cdp_port: int | None = None, threshold: int = 20
+) -> tuple[int, int]:
     """Close self-owned unbound blank tabs only; fail-closed when protection set unknown."""
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR_PRUNE", "").strip() != "1":
         return 0, 0
@@ -221,7 +229,9 @@ def main() -> int:
     parser.add_argument("--cdp-port", type=int, default=_chrome_port())
     args = parser.parse_args()
     if args.prune_orphans:
-        closed, failed = prune_orphan_cdp_pages(cdp_port=args.cdp_port, threshold=args.threshold)
+        closed, failed = prune_orphan_cdp_pages(
+            cdp_port=args.cdp_port, threshold=args.threshold
+        )
         print(f"MYRM_CHROME_ORPHAN_PRUNE_OK: closed={closed} failed={failed}")
         return 0 if failed == 0 else 1
     if not args.report:

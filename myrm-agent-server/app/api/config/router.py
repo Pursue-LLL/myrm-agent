@@ -46,7 +46,26 @@ from app.services.config.service import VersionConflictError, config_service
 
 logger = logging.getLogger(__name__)
 
-_READINESS_DB_TIMEOUT_SEC = 2.5
+_READINESS_DB_TIMEOUT_DEFAULT_SEC = 2.5
+_READINESS_DB_TIMEOUT_DEV_SEC = 15.0
+
+
+def _readiness_db_timeout_sec() -> float:
+    """Parallel E2E sqlite contention — 2.5s causes perpetual config_load_timeout."""
+    import os
+
+    override = os.environ.get("MYRM_READINESS_DB_TIMEOUT_SEC", "").strip()
+    if override:
+        try:
+            return max(_READINESS_DB_TIMEOUT_DEFAULT_SEC, float(override))
+        except ValueError:
+            pass
+    from app.server.runtime_dev_info import get_runtime_dev_info
+
+    if get_runtime_dev_info()["dev_mode"] == "split_dev":
+        return _READINESS_DB_TIMEOUT_DEV_SEC
+    return _READINESS_DB_TIMEOUT_DEFAULT_SEC
+
 
 router = APIRouter()
 
@@ -184,7 +203,9 @@ def _normalize_webhook_url(raw: str | None) -> str:
 
 def _assert_webhook_url_valid(raw: str) -> None:
     if raw and not raw.startswith("https://"):
-        raise HTTPException(status_code=422, detail="Telegram webhook URL must start with https://")
+        raise HTTPException(
+            status_code=422, detail="Telegram webhook URL must start with https://"
+        )
 
 
 def _build_telegram_credentials(
@@ -206,7 +227,10 @@ def _build_telegram_credentials(
     merged["autoTopic"] = bool(auto_topic) if isinstance(auto_topic, bool) else True
 
     notifications_mode = merged.get("notificationsMode")
-    if isinstance(notifications_mode, str) and notifications_mode in {"important", "all"}:
+    if isinstance(notifications_mode, str) and notifications_mode in {
+        "important",
+        "all",
+    }:
         merged["notificationsMode"] = notifications_mode
     else:
         merged["notificationsMode"] = "important"
@@ -214,14 +238,22 @@ def _build_telegram_credentials(
     return merged
 
 
-def _build_channels_config_with_open_telegram_dm(previous: dict[str, object] | None) -> dict[str, object]:
+def _build_channels_config_with_open_telegram_dm(
+    previous: dict[str, object] | None,
+) -> dict[str, object]:
     cfg = deepcopy(previous) if previous is not None else {}
     channels_raw = cfg.get("channels")
-    channels_map: dict[str, object] = {str(k): v for k, v in channels_raw.items()} if isinstance(channels_raw, dict) else {}
+    channels_map: dict[str, object] = (
+        {str(k): v for k, v in channels_raw.items()}
+        if isinstance(channels_raw, dict)
+        else {}
+    )
 
     telegram_raw = channels_map.get("telegram")
     telegram_cfg: dict[str, object] = (
-        {str(k): v for k, v in telegram_raw.items()} if isinstance(telegram_raw, dict) else {}
+        {str(k): v for k, v in telegram_raw.items()}
+        if isinstance(telegram_raw, dict)
+        else {}
     )
     telegram_cfg["dmPolicy"] = "open"
     channels_map["telegram"] = telegram_cfg
@@ -279,20 +311,30 @@ async def _resolve_or_create_telegram_agent(
             existing_bindable = _pick_first_channel_bindable_agent(name_matches)
             if existing_bindable is not None:
                 existing_id = str(existing_bindable.id)
-                existing_name = str(getattr(existing_bindable, "display_name", "") or normalized_name)
+                existing_name = str(
+                    getattr(existing_bindable, "display_name", "") or normalized_name
+                )
                 return existing_id, existing_name, None
 
             create_name = normalized_name
             if name_matches:
                 create_name = f"{normalized_name} (General)"
-                general_name_matches = await AgentService.get_agents_by_name(create_name)
-                existing_general = _pick_first_channel_bindable_agent(general_name_matches)
+                general_name_matches = await AgentService.get_agents_by_name(
+                    create_name
+                )
+                existing_general = _pick_first_channel_bindable_agent(
+                    general_name_matches
+                )
                 if existing_general is not None:
                     existing_id = str(existing_general.id)
-                    existing_name = str(getattr(existing_general, "display_name", "") or create_name)
+                    existing_name = str(
+                        getattr(existing_general, "display_name", "") or create_name
+                    )
                     return existing_id, existing_name, None
 
-            default_description = "Personal Telegram assistant created by onboarding wizard."
+            default_description = (
+                "Personal Telegram assistant created by onboarding wizard."
+            )
             default_system_prompt = (
                 "You are a practical personal assistant running on Telegram. "
                 "Keep replies concise, actionable, and privacy-aware."
@@ -339,7 +381,9 @@ async def _wait_for_telegram_channel_state(
     return connected, status
 
 
-async def _restore_config_snapshot(config_key: str, value: dict[str, object] | None) -> None:
+async def _restore_config_snapshot(
+    config_key: str, value: dict[str, object] | None
+) -> None:
     if value is None:
         await config_service.delete(config_key)
     else:
@@ -372,7 +416,9 @@ async def _rollback_telegram_onboarding(
         rollback_errors.append(f"channels restore failed: {exc}")
 
     try:
-        await _restore_config_snapshot("telegramCredentials", snapshot.telegram_credentials)
+        await _restore_config_snapshot(
+            "telegramCredentials", snapshot.telegram_credentials
+        )
         invalidate_user_configs_cache()
         invalidate_ingress_requirement_cache()
         await _try_hot_register_channel("telegramCredentials")
@@ -394,7 +440,9 @@ async def _rollback_telegram_onboarding(
         )
 
 
-def _validate_config_value(config_key: str, value: dict[str, object], *, operation: str) -> dict[str, object]:
+def _validate_config_value(
+    config_key: str, value: dict[str, object], *, operation: str
+) -> dict[str, object]:
     model_class = OMNI_CONFIG_MODELS.get(config_key)
     if not model_class:
         return value
@@ -402,15 +450,22 @@ def _validate_config_value(config_key: str, value: dict[str, object], *, operati
     if config_key == "searchServices" and isinstance(value, dict):
         raw_configs = value.get("searchServiceConfigs")
         if isinstance(raw_configs, list):
-            from app.core.integrations.search_catalog.migration import migrate_search_service_configs
+            from app.core.integrations.search_catalog.migration import (
+                migrate_search_service_configs,
+            )
 
             dict_rows = [row for row in raw_configs if isinstance(row, dict)]
-            value = {**value, "searchServiceConfigs": migrate_search_service_configs(dict_rows)}
+            value = {
+                **value,
+                "searchServiceConfigs": migrate_search_service_configs(dict_rows),
+            }
 
     try:
         validated_data = model_class.model_validate(value)
     except Exception as exc:
-        logger.warning("Omni-Config %s validation failed for %s: %s", operation, config_key, exc)
+        logger.warning(
+            "Omni-Config %s validation failed for %s: %s", operation, config_key, exc
+        )
         raise HTTPException(
             status_code=422,
             detail=f"Configuration validation failed: {str(exc)}",
@@ -437,7 +492,9 @@ async def get_config_schema(key: str) -> dict[str, object]:
 @router.get("", response_model=AllConfigsResponse)
 async def get_all_configs(
     sensitive: bool | None = Query(None, description="过滤敏感/非敏感配置"),
-    keys: str | None = Query(None, description="按需加载，逗号分隔的配置键，如 providers,chatSettings"),
+    keys: str | None = Query(
+        None, description="按需加载，逗号分隔的配置键，如 providers,chatSettings"
+    ),
 ) -> AllConfigsResponse:
     """获取配置
 
@@ -454,7 +511,9 @@ async def get_all_configs(
             key_list = [k.strip() for k in keys.split(",") if k.strip()]
             invalid = [k for k in key_list if k not in _VALID_CONFIG_KEYS]
             if invalid:
-                raise HTTPException(status_code=400, detail=f"Invalid config keys: {invalid}")
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid config keys: {invalid}"
+                )
 
         all_configs = await config_service.get_all(keys=key_list)
 
@@ -492,19 +551,22 @@ async def get_config_readiness() -> dict[str, object]:
     }
     """
     from app.core.channel_bridge.config_loader import load_user_configs
-    from app.core.channel_bridge.config_readiness import ProviderConfigChecker, SearchConfigChecker
+    from app.core.channel_bridge.config_readiness import (
+        ProviderConfigChecker,
+        SearchConfigChecker,
+    )
     from app.database.connection import get_session
     from app.services.config.onboarding import check_onboarding_status
 
     try:
         user_configs = await asyncio.wait_for(
             load_user_configs(),
-            timeout=_READINESS_DB_TIMEOUT_SEC,
+            timeout=_readiness_db_timeout_sec(),
         )
     except TimeoutError:
         logger.warning(
             "Readiness config load timed out after %.1fs; returning degraded snapshot",
-            _READINESS_DB_TIMEOUT_SEC,
+            _readiness_db_timeout_sec(),
         )
         return {
             "provider": {
@@ -542,7 +604,9 @@ async def get_config_readiness() -> dict[str, object]:
 
     search_checker = SearchConfigChecker()
     if user_configs.search_is_user_configured:
-        search_result = search_checker.check({"searchServiceConfigs": [{"enabled": True}]})
+        search_result = search_checker.check(
+            {"searchServiceConfigs": [{"enabled": True}]}
+        )
     else:
         search_result = search_checker.check(None)
 
@@ -556,12 +620,12 @@ async def get_config_readiness() -> dict[str, object]:
 
         onboarding_completed = await asyncio.wait_for(
             _load_onboarding_completed(),
-            timeout=_READINESS_DB_TIMEOUT_SEC,
+            timeout=_readiness_db_timeout_sec(),
         )
     except TimeoutError:
         logger.warning(
             "Readiness onboarding check timed out after %.1fs; assuming completed to avoid shell stall",
-            _READINESS_DB_TIMEOUT_SEC,
+            _readiness_db_timeout_sec(),
         )
         onboarding_completed = True
         degraded = True
@@ -609,7 +673,9 @@ async def get_onboarding_recommendations() -> dict[str, object]:
 @router.get("/onboarding/second-brain/status")
 async def get_second_brain_onboarding_status(request: Request) -> dict[str, object]:
     """Return Second Brain preset checklist (agent, cron, vault, provider)."""
-    from app.services.onboarding.second_brain_preset import get_second_brain_preset_status
+    from app.services.onboarding.second_brain_preset import (
+        get_second_brain_preset_status,
+    )
 
     accept_lang = request.headers.get("Accept-Language", "en")
     status = await get_second_brain_preset_status(accept_language=accept_lang)
@@ -636,7 +702,9 @@ async def apply_second_brain_onboarding(request: Request) -> dict[str, object]:
             raise HTTPException(status_code=500, detail=exc.message) from exc
         except Exception as exc:
             logger.exception("Failed to apply Second Brain preset")
-            raise HTTPException(status_code=500, detail="Failed to apply Second Brain preset") from exc
+            raise HTTPException(
+                status_code=500, detail="Failed to apply Second Brain preset"
+            ) from exc
         finally:
             _release_second_brain_cross_process_lock(cross_process_lock)
     return result.model_dump()
@@ -661,7 +729,9 @@ async def apply_telegram_assistant_onboarding(
     try:
         bot_username = await _verify_telegram_token(bot_token)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Telegram token verification failed: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Telegram token verification failed: {exc}"
+        ) from exc
 
     previous_telegram, previous_channels, previous_topics = await asyncio.gather(
         config_service.get("telegramCredentials"),
@@ -669,16 +739,24 @@ async def apply_telegram_assistant_onboarding(
         config_service.get("telegramTopics"),
     )
     snapshot = _TelegramOnboardingSnapshot(
-        telegram_credentials=deepcopy(previous_telegram.value) if previous_telegram else None,
-        channels_config=deepcopy(previous_channels.value) if previous_channels else None,
+        telegram_credentials=(
+            deepcopy(previous_telegram.value) if previous_telegram else None
+        ),
+        channels_config=(
+            deepcopy(previous_channels.value) if previous_channels else None
+        ),
         telegram_topics=deepcopy(previous_topics.value) if previous_topics else None,
     )
 
     created_agent_id: str | None = None
     try:
-        agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
+        agent_id, agent_name, created_agent_id = (
+            await _resolve_or_create_telegram_agent(body)
+        )
 
-        telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body)
+        telegram_credentials = _build_telegram_credentials(
+            snapshot.telegram_credentials, body
+        )
         await config_service.set(
             config_key="telegramCredentials",
             value=telegram_credentials,
@@ -688,7 +766,9 @@ async def apply_telegram_assistant_onboarding(
         invalidate_ingress_requirement_cache()
         await _try_hot_register_channel("telegramCredentials")
 
-        channels_cfg = _build_channels_config_with_open_telegram_dm(snapshot.channels_config)
+        channels_cfg = _build_channels_config_with_open_telegram_dm(
+            snapshot.channels_config
+        )
         await config_service.set(
             config_key="channels",
             value=channels_cfg,
@@ -718,7 +798,9 @@ async def apply_telegram_assistant_onboarding(
     except Exception as exc:
         logger.exception("Failed to apply Telegram onboarding package")
         await _rollback_telegram_onboarding(snapshot, created_agent_id)
-        raise HTTPException(status_code=500, detail="Failed to apply Telegram onboarding package") from exc
+        raise HTTPException(
+            status_code=500, detail="Failed to apply Telegram onboarding package"
+        ) from exc
 
     return TelegramAssistantOnboardingResponse(
         success=True,
@@ -753,24 +835,32 @@ async def start_local_searxng_endpoint() -> dict[str, object]:
     return await start_local_searxng_and_wait()
 
 
-_TINY_VISION_HEALTH_PNG_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-)
+_TINY_VISION_HEALTH_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 
 class VisionHealthResult(BaseModel):
     """Result of a vision fallback chain health probe."""
 
-    configured: bool = Field(..., description="Whether visionFallbackModel is configured")
-    healthy: bool = Field(..., description="Whether the vision model successfully analyzed a test image")
-    latency_ms: int | None = Field(default=None, description="Vision probe latency in milliseconds")
+    configured: bool = Field(
+        ..., description="Whether visionFallbackModel is configured"
+    )
+    healthy: bool = Field(
+        ..., description="Whether the vision model successfully analyzed a test image"
+    )
+    latency_ms: int | None = Field(
+        default=None, description="Vision probe latency in milliseconds"
+    )
     error: str | None = Field(default=None, description="Error message when unhealthy")
-    model: str | None = Field(default=None, description="Configured primary LiteLLM model id")
+    model: str | None = Field(
+        default=None, description="Configured primary LiteLLM model id"
+    )
     resolved_model: str | None = Field(
         default=None,
         description="LiteLLM model id that actually succeeded during the probe",
     )
-    base_url: str | None = Field(default=None, description="Resolved API base URL when unhealthy")
+    base_url: str | None = Field(
+        default=None, description="Resolved API base URL when unhealthy"
+    )
 
 
 @router.post("/vision-health", response_model=VisionHealthResult)
@@ -818,7 +908,9 @@ async def vision_health_check() -> VisionHealthResult:
                 latency_ms=latency_ms,
                 error=probe_result,
                 model=model_cfg.model,
-                resolved_model=resolved_model if resolved_model != model_cfg.model else None,
+                resolved_model=(
+                    resolved_model if resolved_model != model_cfg.model else None
+                ),
                 base_url=model_cfg.base_url,
             )
         return VisionHealthResult(
@@ -826,7 +918,9 @@ async def vision_health_check() -> VisionHealthResult:
             healthy=True,
             latency_ms=latency_ms,
             model=model_cfg.model,
-            resolved_model=resolved_model if resolved_model != model_cfg.model else None,
+            resolved_model=(
+                resolved_model if resolved_model != model_cfg.model else None
+            ),
         )
     except Exception as exc:
         logger.warning("Vision fallback health check failed: %s", exc)
@@ -866,7 +960,14 @@ async def probe_local_models_endpoint() -> dict[str, object]:
                 recommended_model = result.models[0].name
                 break
 
-    searxng_hit = next((s for s in search_results if s.get("provider") == "searxng" and s.get("available")), None)
+    searxng_hit = next(
+        (
+            s
+            for s in search_results
+            if s.get("provider") == "searxng" and s.get("available")
+        ),
+        None,
+    )
 
     return {
         "results": [r.model_dump() for r in results],
@@ -874,7 +975,11 @@ async def probe_local_models_endpoint() -> dict[str, object]:
         "recommended_model": recommended_model,
         "search": search_results,
         "search_has_available": searxng_hit is not None,
-        "recommended_searxng_url": (str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()),
+        "recommended_searxng_url": (
+            str(searxng_hit.get("base_url"))
+            if searxng_hit
+            else get_default_searxng_api_base()
+        ),
     }
 
 
@@ -915,7 +1020,9 @@ async def set_config(
     如果提供了 expectedVersion 且与服务端版本不匹配，返回 409 冲突。
     """
     try:
-        request.value = _validate_config_value(config_key, request.value, operation="set")
+        request.value = _validate_config_value(
+            config_key, request.value, operation="set"
+        )
 
         record = await config_service.set(
             config_key=config_key,
@@ -928,9 +1035,13 @@ async def set_config(
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
-                from app.core.skills.x_live_search_skill_enable import maybe_enable_x_live_search_skill
+                from app.core.skills.x_live_search_skill_enable import (
+                    maybe_enable_x_live_search_skill,
+                )
 
-                providers_value = request.value if isinstance(request.value, dict) else None
+                providers_value = (
+                    request.value if isinstance(request.value, dict) else None
+                )
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
                 logger.warning("x-live-search skill auto-enable skipped: %s", exc)
@@ -964,7 +1075,9 @@ async def set_config(
 
 
 @router.get("/{config_key}/history")
-async def get_config_history(config_key: str, limit: int = Query(50, ge=1, le=100)) -> list[dict[str, object]]:
+async def get_config_history(
+    config_key: str, limit: int = Query(50, ge=1, le=100)
+) -> list[dict[str, object]]:
     """获取配置历史记录 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
@@ -973,11 +1086,15 @@ async def get_config_history(config_key: str, limit: int = Query(50, ge=1, le=10
         return await config_service.get_history(config_key, limit=limit)
     except Exception as e:
         logger.error(f"Failed to get history for config '{config_key}': {e}")
-        raise HTTPException(status_code=500, detail="Failed to get config history") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get config history"
+        ) from e
 
 
 @router.post("/{config_key}/rollback/{version}", response_model=ConfigRecord)
-async def rollback_config(config_key: str, version: str, device_id: str = Query(..., description="设备ID")) -> ConfigRecord:
+async def rollback_config(
+    config_key: str, version: str, device_id: str = Query(..., description="设备ID")
+) -> ConfigRecord:
     """回滚配置到指定版本 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
@@ -993,14 +1110,21 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
         from app.services.config.service import _decrypt_audit_log_value
 
         async with get_session() as session:
-            stmt = select(ConfigAuditLog).where(ConfigAuditLog.config_key == config_key, ConfigAuditLog.version == version)
+            stmt = select(ConfigAuditLog).where(
+                ConfigAuditLog.config_key == config_key,
+                ConfigAuditLog.version == version,
+            )
             result = await session.execute(stmt)
             log = result.scalar_one_or_none()
 
             if not log:
-                raise HTTPException(status_code=404, detail=f"Audit log for version {version} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Audit log for version {version} not found"
+                )
 
-            new_value = _decrypt_audit_log_value(config_key, cast(dict[str, object], log.new_value))
+            new_value = _decrypt_audit_log_value(
+                config_key, cast(dict[str, object], log.new_value)
+            )
             if new_value is None:
                 new_value = {}
 
@@ -1021,12 +1145,16 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
-                from app.core.skills.x_live_search_skill_enable import maybe_enable_x_live_search_skill
+                from app.core.skills.x_live_search_skill_enable import (
+                    maybe_enable_x_live_search_skill,
+                )
 
                 providers_value = new_value if isinstance(new_value, dict) else None
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
-                logger.warning("x-live-search skill auto-enable skipped on rollback: %s", exc)
+                logger.warning(
+                    "x-live-search skill auto-enable skipped on rollback: %s", exc
+                )
         if config_key == "searchServices":
             invalidate_search_health_cache()
 
@@ -1034,7 +1162,9 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to rollback config '{config_key}' to version {version}: {e}")
+        logger.error(
+            f"Failed to rollback config '{config_key}' to version {version}: {e}"
+        )
         raise HTTPException(status_code=500, detail="Failed to rollback config") from e
 
 
@@ -1046,7 +1176,9 @@ async def delete_config(
     try:
         deleted = await config_service.delete(config_key)
         if not deleted:
-            raise HTTPException(status_code=404, detail=f"Config '{config_key}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Config '{config_key}' not found"
+            )
         invalidate_user_configs_cache()
         invalidate_search_health_cache()
         invalidate_ingress_requirement_cache()
@@ -1083,7 +1215,9 @@ async def sync_configs(
                     operation="sync",
                 )
             except HTTPException as exc:
-                validation_errors.append({"key": change.key, "message": str(exc.detail)})
+                validation_errors.append(
+                    {"key": change.key, "message": str(exc.detail)}
+                )
                 continue
             changes.append(change.model_copy(update={"value": validated_value}))
 
@@ -1105,17 +1239,23 @@ async def sync_configs(
             invalidate_search_health_cache()
             invalidate_ingress_requirement_cache()
             if "channels" in result.new_versions:
-                from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
+                from app.core.channel_bridge.channel_policy import (
+                    SqlChannelPolicyProvider,
+                )
                 from app.core.channel_bridge.setup import refresh_reaction_policy
 
                 SqlChannelPolicyProvider._invalidate_cache()
                 await refresh_reaction_policy()
             if "browserCloudProvider" in result.new_versions:
-                browser_change = next((c for c in changes if c.key == "browserCloudProvider"), None)
+                browser_change = next(
+                    (c for c in changes if c.key == "browserCloudProvider"), None
+                )
                 if browser_change:
                     await _hot_reload_cloud_browser(browser_change.value)
             if "browserProxy" in result.new_versions:
-                proxy_change = next((c for c in changes if c.key == "browserProxy"), None)
+                proxy_change = next(
+                    (c for c in changes if c.key == "browserProxy"), None
+                )
                 if proxy_change:
                     await _hot_reload_browser_proxy(proxy_change.value)
         return result
@@ -1219,7 +1359,10 @@ async def _try_hot_register_channel(config_key: str) -> None:
 
         from app.channels.core.credentials import resolve_credentials
         from app.channels.providers.registry import get_channel_class_safe
-        from app.core.channel_bridge.credential_spec import is_channel_enabled, load_from_db
+        from app.core.channel_bridge.credential_spec import (
+            is_channel_enabled,
+            load_from_db,
+        )
 
         cls = get_channel_class_safe(channel_name)
         if cls is None or cls.credential_spec is None:
@@ -1240,7 +1383,11 @@ async def _try_hot_register_channel(config_key: str) -> None:
         await channel_gateway.add_channel(instance)
         logger.info("Channel '%s' hot-registered after credential save", channel_name)
     except Exception:
-        logger.debug("Hot-register channel '%s' failed (non-critical)", channel_name, exc_info=True)
+        logger.debug(
+            "Hot-register channel '%s' failed (non-critical)",
+            channel_name,
+            exc_info=True,
+        )
 
 
 async def _hot_reload_cloud_browser(value: dict[str, object]) -> None:
@@ -1254,7 +1401,9 @@ async def _hot_reload_cloud_browser(value: dict[str, object]) -> None:
         pool = get_configured_browser_pool()
         await pool.update_remote_endpoint(endpoint)
     except Exception:
-        logger.debug("Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True)
+        logger.debug(
+            "Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True
+        )
 
 
 async def _hot_reload_browser_proxy(value: dict[str, object]) -> None:

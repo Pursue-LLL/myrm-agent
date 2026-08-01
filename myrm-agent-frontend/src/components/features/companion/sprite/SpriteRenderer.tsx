@@ -23,6 +23,8 @@ interface SpriteRendererProps {
   onLoadStateChange?: (state: SpriteLoadState) => void;
   /** Called with detected grid rows after sheet loads (for dynamic row mapping). */
   onSheetRowsDetected?: (rows: number) => void;
+  /** Called when the canvas element mounts (alpha hit-testing in popped-out window). */
+  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 /**
@@ -46,10 +48,19 @@ export default function SpriteRenderer({
   className,
   onLoadStateChange,
   onSheetRowsDetected,
+  onCanvasRef,
 }: SpriteRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SpriteEngine | null>(null);
   const [loadState, setLoadState] = useState<SpriteLoadState>('idle');
+
+  const setCanvasRef = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      onCanvasRef?.(node);
+    },
+    [onCanvasRef],
+  );
 
   const handleLoadStateChange = useCallback(
     (state: SpriteLoadState) => {
@@ -59,7 +70,6 @@ export default function SpriteRenderer({
     [onLoadStateChange],
   );
 
-  // Init engine on mount
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -111,7 +121,7 @@ export default function SpriteRenderer({
       style={{ width: size, height: size }}
     >
       <canvas
-        ref={canvasRef}
+        ref={setCanvasRef}
         width={cellW}
         height={cellH}
         className={cn(

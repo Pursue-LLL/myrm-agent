@@ -3,6 +3,7 @@ use tauri::ipc::Invoke;
 
 const MAIN_WEBVIEW_LABEL: &str = "main";
 const SESSION_WEBVIEW_PREFIX: &str = "session-";
+const PET_SURFACE_WEBVIEW_LABEL: &str = "pet-surface";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandRisk {
@@ -105,9 +106,12 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "cycle_permission_mode"
             | "show_visual_approval_overlay"
             | "hide_visual_approval_overlay"
-            | "show_pet_overlay"
-            | "hide_pet_overlay"
-            | "pet_overlay_set_row"
+            | "show_pet_surface"
+            | "hide_pet_surface"
+            | "pet_surface_set_ignore_cursor"
+            | "pet_surface_set_focusable"
+            | "pet_surface_focus_main_window"
+            | "pet_surface_toggle_main_window"
             | "open_session_window"
             | "close_session_window"
             | "set_tray_status"
@@ -169,6 +173,10 @@ fn is_session_webview_label(label: &str) -> bool {
     label.starts_with(SESSION_WEBVIEW_PREFIX)
 }
 
+fn is_pet_surface_webview_label(label: &str) -> bool {
+    label == PET_SURFACE_WEBVIEW_LABEL
+}
+
 pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), DeniedInvoke> {
     let Some(policy) = policy_for_command(command) else {
         return Err(DeniedInvoke {
@@ -184,7 +192,9 @@ pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), Denie
     let is_main = is_main_webview_label(webview_label);
     let is_session = is_session_webview_label(webview_label);
 
-    if !is_main && !is_session {
+    let is_pet_surface = is_pet_surface_webview_label(webview_label);
+
+    if !is_main && !is_session && !is_pet_surface {
         return Err(DeniedInvoke {
             command: command.to_string(),
             webview_label: webview_label.to_string(),
@@ -201,6 +211,25 @@ pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), Denie
             webview_label: webview_label.to_string(),
             reason_code: "main_only_command",
             reason: "IPC command is restricted to main webview".to_string(),
+            risk: policy.risk,
+            deny_mode: policy.deny_mode,
+        });
+    }
+
+    if is_pet_surface
+        && !matches!(
+            command,
+            "pet_surface_set_ignore_cursor"
+                | "pet_surface_set_focusable"
+                | "pet_surface_focus_main_window"
+                | "pet_surface_toggle_main_window"
+        )
+    {
+        return Err(DeniedInvoke {
+            command: command.to_string(),
+            webview_label: webview_label.to_string(),
+            reason_code: "pet_surface_command_scope",
+            reason: "IPC command is not allowed from pet surface webview".to_string(),
             risk: policy.risk,
             deny_mode: policy.deny_mode,
         });

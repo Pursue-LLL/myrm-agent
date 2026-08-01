@@ -12266,7 +12266,25 @@
       "activePet": "Active Pet",
       "activePetEmpty": "No pet installed — pick one from Pet Gallery",
       "galleryHint": "Install pets from the Pet Gallery tab",
-      "clear": "Clear"
+      "clear": "Clear",
+      "popOut": "Pop Out to Desktop",
+      "popIn": "Pop Back In",
+      "composerPlaceholder": "Message…",
+      "composerSend": "Send",
+      "mailOpen": "Open chat",
+      "bubble": {
+        "run0": "On it…",
+        "run1": "Working…",
+        "run2": "Crunching…",
+        "review0": "Checking…",
+        "review1": "Reviewing…",
+        "review2": "Looking over this…",
+        "failed0": "Hit a snag",
+        "failed1": "Something broke",
+        "wait0": "Need you",
+        "wait1": "Waiting on you",
+        "wait2": "Your turn"
+      }
     },
     "palette": {
       "title": "Pet Palette",

@@ -423,6 +423,13 @@ class CdpChatTurn(CdpChatSubmit):
                         timeout_sec=90.0,
                     )
                     continue
+            attach_recv_timeout = 60.0
+            try:
+                from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
+
+                attach_recv_timeout = signoff_parallel_force_chat_timeout_sec(120.0)
+            except ImportError:
+                pass
             try:
                 result = await self.evaluate(
                     f"""(() => {{
@@ -433,7 +440,7 @@ class CdpChatTurn(CdpChatSubmit):
                       return Promise.resolve(bridge.attachToChat({payload})).then(() => ({{ ok: true }}));
                     }})()""",
                     await_promise=True,
-                    recv_timeout=60.0,
+                    recv_timeout=attach_recv_timeout,
                 )
             except RuntimeError as exc:
                 message = str(exc)
@@ -469,7 +476,10 @@ class CdpChatTurn(CdpChatSubmit):
         )
         if baseline_user_msgs_hint is None and chat_id:
             baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
-        await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+        from cdp_chat_support import signoff_parallel_desktop_mux_step_timeout_sec
+
+        bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(60.0)
+        await self.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
         if chat_id:
             await self._attach_chat_session(chat_id)
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)

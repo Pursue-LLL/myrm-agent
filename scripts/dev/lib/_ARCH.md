@@ -14,7 +14,7 @@
 | `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；每 session 稳定 isolated context；page/lease 精确所有权同步到协调器；有界 transport 恢复与 exact-target 清理 |
 | `transport_recovery_core.py` | Unix | **R79 TRSM SSOT**：`solo_full` / `parallel_page_reclaim` / `parallel_local_respawn`；`DEV_GATE_CHROME_MCP_ROADMAP.md` §55 |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用；**R72-FINAL** `cdp_chat_submit.send_chat_message_atomic` 仅 `submitAndObserveTurn` fail-closed（无 legacy `submit()` pyramid）；`cdp_chat_turn.send_message` 强制 `sendTurnSealed`；**R50** `ensure_chat_surface` SHPOIB 缩放 + `_hydrate_chat_home_surface` + `ensure_react_e2e_bridge` fallback；**R67** `cdp_chat_bootstrap.bootstrap` 结束 `complete_bootstrap_phase()` 重置 BODY 墙钟；`cdp_chat_input._heal_empty_chat_shell_for_bridge` 走 `_shared_ui_burst`；`cdp_chat_input.ensure_react_e2e_bridge` 拒绝 DOM fallback，blank shell 时 heal 重导航；`cdp_chat_bootstrap._wait_providers_hydrated` 的 API readiness probe 走 `to_thread + wait_for` 非阻塞守门；computer_use/builtin-tools 须 React bridge |
-| `dev_gate_contract.py` | Unix | Dev Gate 超时、错误分类与物理浏览器池 SSOT；共享逻辑 session 不设 cap，默认物理 worker=4，BODY=600s |
+| `dev_gate_contract.py` | Unix | Dev Gate 超时、错误分类与物理浏览器池 SSOT；**S2** `LIVE_SHPOIB_MAX_CONCURRENT=4` 为 cap 根，派生 bootstrap/mux/private credits；共享逻辑 session 不设 cap，BODY=600s |
 | `dev_gate_session.py` | Unix | `ExecutionMode` / `AccessScope` / `Workload`、状态机、所有权和 cleanup receipt |
 | `dev_gate_store.py` | Unix | SQLite WAL/CAS session registry + event journal + dead-owner reaper |
 | `dev_gate_coordinator.py` / `dev_gate_cli.py` | Unix | Unix socket 协调器与自动启动客户端；受限环境回退同一 SQLite 事务路径 |
@@ -23,7 +23,9 @@
 | `e2e_browser_pool.py` | Unix | 单一专用 Chrome(:9333) + 默认 4 个 mux 物理 worker 环境 SSOT |
 | `e2e_stall_guard.py` | Unix | **R96-B6** Semantic Stall SSOT：`is_transport_stall_node` · `node_stuck_reason_from_snapshot` · `assert_transport_node_not_stuck`；hung reap + open_mcp_page + e2e-context 共用 |
 | `e2e_session_snapshot.py` | Unix | per-pid session snapshot；**R96-B6** `nodeStartedMonotonic`（同 `currentNode` 不重置）· `body_elapsed` / `progress_stale` / `node_elapsed` |
-| `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap：**R62** body≥600 · **R195** signoff friend immunity（`lockdir/pid` · `E2E_HUNG_REAP_SKIP_SIGNOFF_FRIEND`） |
+| `e2e_session_registry.py` | Unix | 统一 E2E session registry — ADMIT through BODY (R144 SSOT)；`list_live_e2e_sessions()` 去重 session 列表；P0-A: coordinator 活跃时禁用 ps fallback |
+| `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap：**R62** body≥600 · **R195** signoff friend immunity（`lockdir/pid` · `E2E_HUNG_REAP_SKIP_SIGNOFF_FRIEND`）；P0-A: `_coordinator_reap_authorized()` 环境变量守卫确保 Coordinator-only reaping |
+| `cleanup_observed_seal.py` | Unix | P0-A observed cleanup seal：验证 lease released + CDP targets physically absent + ownership cleared；`observe_cleanup_seal()` 返回 `(ledger_cleaned, sealed)` |
 | `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`get_e2e_api_url/get_e2e_ui_url` 与 `_e2e_api_urlopen` 强制 loopback HTTP allowlist（127.0.0.1/localhost/::1/0.0.0.0）并对 config/messages 短重试 · **`wait_e2e_provider_ready`** 每轮重检 health + readiness（SHPOIB batch 场景间 wait）· **`E2E_API_BINDING_PROBE_JS` / `require_e2e_api_binding_probe`**（WebUI `__MYRM_E2E_API_BASE__` 与 private SHPOIB 对齐 SSOT）· **`chat_user_message_count`** kickoff 硬锚 · **`start_clarify_turn_via_api`**（signoff clarify API stream fallback）· **`_collect_agent_stream_events`** SSE 采集 SSOT |
 | `e2e_resource_ledger.py` | Unix | **R98** E2E runtime resource ledger SSOT；`E2EResourceLedger` · wave `ledger register`；SHPOIB ephemeral 跳过 register |
 | `infra_browser_registry.py` | Unix | client warmup 短生命周期 target 归属 ledger；`wave reap` 与 preflight prune 回收死亡 owner 的 exact targetId |

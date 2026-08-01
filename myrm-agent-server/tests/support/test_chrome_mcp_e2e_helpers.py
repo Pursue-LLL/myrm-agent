@@ -505,7 +505,9 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
         "dev_gate_contract._parallel_signoff_pressure_peers",
         lambda: 0,
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
+    monkeypatch.setattr(
+        chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None
+    )
     client = MagicMock()
     chrome_mcp_e2e._open_page_new_page(
         client,
@@ -536,7 +538,9 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
         "dev_gate_contract._parallel_signoff_pressure_peers",
         lambda: 3,
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
+    monkeypatch.setattr(
+        chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None
+    )
     client = MagicMock()
     chrome_mcp_e2e._open_page_new_page(
         client,
@@ -591,4 +595,3 @@ def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
         lambda: 45.0,
     )
     assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() >= 69.0
-

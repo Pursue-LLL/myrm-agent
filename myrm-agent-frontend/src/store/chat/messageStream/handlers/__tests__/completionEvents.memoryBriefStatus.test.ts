@@ -38,6 +38,7 @@ vi.mock('../handlerDeps', () => ({
     getState: vi.fn(() => ({ unmarkProcessing: vi.fn() })),
   },
   playCompletionSound: vi.fn(() => false),
+  dispatchPetSurfaceAwayCompletion: vi.fn(),
 }));
 
 import { completionEvents } from '../completionEvents';

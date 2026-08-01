@@ -103,6 +103,7 @@ _PROGRESS_STEPS_LIVE_JS = """(() => {
   return { ready: false, count: msgs.length };
 })()"""
 
+
 def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
     payload = {
         "name": f"Bash FG Evict {uuid.uuid4().hex[:6]}",
@@ -250,10 +251,15 @@ def _bash_spill_diagnostics(messages: list[dict[str, object]]) -> str:
                     if not isinstance(item, dict):
                         continue
                     command = command or str(item.get("code") or item.get("text") or "")
-                    stdout = stdout or str(item.get("stdout") or item.get("output") or "")
+                    stdout = stdout or str(
+                        item.get("stdout") or item.get("output") or ""
+                    )
                     status = status or str(item.get("status") or "")
             content = str(msg.get("content") or "")
-            truncated = "LARGE OUTPUT TRUNCATED" in stdout or "LARGE OUTPUT TRUNCATED" in content
+            truncated = (
+                "LARGE OUTPUT TRUNCATED" in stdout
+                or "LARGE OUTPUT TRUNCATED" in content
+            )
             return (
                 f"command={command!r} status={status!r} truncated_preview={truncated} "
                 f"stdout_sample={stdout[:200]!r} content_sample={content[:200]!r}"
@@ -382,9 +388,7 @@ def _wait_evicted_progress_via_api(
     )
 
 
-def _persisted_bash_step_snapshot(
-    api_base: str, chat_id: str
-) -> dict[str, object]:
+def _persisted_bash_step_snapshot(api_base: str, chat_id: str) -> dict[str, object]:
     for msg in fetch_chat_messages(chat_id, api_url=api_base):
         if msg.get("role") != "assistant":
             continue
@@ -420,7 +424,9 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
     assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
     clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
-    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
+    assert (
+        isinstance(clear_result, dict) and clear_result.get("ready") is True
+    ), clear_result
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
     if clicked.get("clicked") is not True:
@@ -474,7 +480,9 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.timeout(600)
 def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     """Live LLM: API stream spill SSOT + Chrome Drawer on same chat."""

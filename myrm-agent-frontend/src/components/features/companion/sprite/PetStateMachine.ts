@@ -1,41 +1,41 @@
 /**
- * PetStateMachine — maps agent SSE events to spritesheet animation rows.
+ * PetStateMachine — maps agent SSE events to Codex/Hermes-aligned pet animation states.
  *
  * [INPUT]
  * - None (standalone state machine, receives events via ingest() calls)
  *
  * [OUTPUT]
  * - PetStateMachine: Event-driven state machine with transient/sticky/release modes
- * - AnimRow: Enum of animation row indices (IDLE, RUNNING, THINKING, etc.)
+ * - PetState: Seven-state enum aligned with Petdex/Hermes (idle/run/review/jump/wave/failed/waiting)
  * - stepKeyToPetEvent: SSE step_key → PetEvent mapping function
  *
  * [POS]
- * State machine that translates agent SSE status events into spritesheet animation rows.
+ * State machine that translates agent SSE status events into pet animation states.
  * Uses transient/sticky/release event modes with heartbeat timeout for idle fallback.
+ * Blocked-on-user (approval/clarify) is driven via setBlockedOnUser() from store SSOT in PetOverlay.
  */
 
-export enum AnimRow {
+/** Codex/Hermes-aligned animation states (not raw spritesheet row indices). */
+export enum PetState {
   IDLE = 0,
   RUNNING = 1,
-  SLEEPING = 2,
-  CODING = 3,
-  THINKING = 4,
-  CELEBRATING = 5,
-  FAILED = 6,
-  REVIEWING = 7,
-  WAVING = 8,
+  REVIEWING = 2,
+  JUMP = 3,
+  WAVE = 4,
+  FAILED = 5,
+  WAITING = 6,
 }
 
 export type EventMode = 'transient' | 'sticky' | 'release';
 
 export interface PetEvent {
-  row: AnimRow;
+  state: PetState;
   mode: EventMode;
   ttlMs?: number;
 }
 
 export interface PetStateMachineOptions {
-  onChange: (row: AnimRow) => void;
+  onChange: (state: PetState) => void;
   heartbeatTimeoutMs?: number;
   tickIntervalMs?: number;
 }
@@ -43,68 +43,59 @@ export interface PetStateMachineOptions {
 const DEFAULT_HEARTBEAT_TIMEOUT_MS = 15_000;
 const DEFAULT_TICK_INTERVAL_MS = 250;
 
-const TRANSIENT_DEFAULT_TTL: Record<AnimRow, number> = {
-  [AnimRow.IDLE]: 0,
-  [AnimRow.RUNNING]: 2000,
-  [AnimRow.SLEEPING]: 0,
-  [AnimRow.CODING]: 3000,
-  [AnimRow.THINKING]: 2500,
-  [AnimRow.CELEBRATING]: 2000,
-  [AnimRow.FAILED]: 2500,
-  [AnimRow.REVIEWING]: 2000,
-  [AnimRow.WAVING]: 1500,
+const TRANSIENT_DEFAULT_TTL: Record<PetState, number> = {
+  [PetState.IDLE]: 0,
+  [PetState.RUNNING]: 2000,
+  [PetState.REVIEWING]: 2500,
+  [PetState.JUMP]: 2000,
+  [PetState.WAVE]: 1500,
+  [PetState.FAILED]: 2500,
+  [PetState.WAITING]: 0,
 };
 
 /**
  * Maps SSE step_key values to PetEvent configs.
- * This is the authoritative mapping between agent status events and pet animations.
+ * Approval/clarify waiting is NOT mapped here — use setBlockedOnUser() instead.
  */
 export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
   switch (stepKey) {
     case 'workflow_init':
     case 'workflow_planning':
-      return { row: AnimRow.THINKING, mode: 'sticky' };
+    case 'consensus_active':
+      return { state: PetState.REVIEWING, mode: 'sticky' };
 
     case 'workflow_execution':
     case 'workflow_stage':
-      return { row: AnimRow.RUNNING, mode: 'sticky' };
+      return { state: PetState.RUNNING, mode: 'sticky' };
 
     case 'context_compaction':
     case 'context_truncation':
     case 'context_pruned':
     case 'memory_archived':
-      return { row: AnimRow.REVIEWING, mode: 'transient', ttlMs: 2000 };
+    case 'correction_learned':
+      return { state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 };
 
     case 'model_failover':
     case 'safety_fallback_active':
     case 'transient_retry':
-      return { row: AnimRow.FAILED, mode: 'transient', ttlMs: 2500 };
+      return { state: PetState.FAILED, mode: 'transient', ttlMs: 2500 };
 
     case 'thinking_budget_exhausted':
     case 'text_continuation_exhausted':
-      return { row: AnimRow.FAILED, mode: 'transient', ttlMs: 2000 };
+      return { state: PetState.FAILED, mode: 'transient', ttlMs: 2000 };
 
     case 'analyzing_image':
     case 'analyzing_video':
-      return { row: AnimRow.REVIEWING, mode: 'sticky' };
-
-    case 'consensus_active':
-      return { row: AnimRow.THINKING, mode: 'sticky' };
+      return { state: PetState.REVIEWING, mode: 'sticky' };
 
     case 'consensus_reference_done':
-      return { row: AnimRow.CELEBRATING, mode: 'transient', ttlMs: 1500 };
+      return { state: PetState.JUMP, mode: 'transient', ttlMs: 1500 };
 
     case 'loop_guard_warn':
-      return { row: AnimRow.REVIEWING, mode: 'transient', ttlMs: 2000 };
+      return { state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 };
 
     case 'loop_guard_break':
-      return { row: AnimRow.FAILED, mode: 'transient', ttlMs: 3000 };
-
-    case 'approval_waiting':
-      return { row: AnimRow.WAVING, mode: 'sticky' };
-
-    case 'approval_released':
-      return { row: AnimRow.IDLE, mode: 'release' };
+      return { state: PetState.FAILED, mode: 'transient', ttlMs: 3000 };
 
     default:
       return null;
@@ -112,12 +103,13 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
 }
 
 export class PetStateMachine {
-  private onChange: (row: AnimRow) => void;
+  private onChange: (state: PetState) => void;
   private heartbeatTimeoutMs: number;
 
-  private currentRow: AnimRow = AnimRow.IDLE;
-  private stickyRow: AnimRow | null = null;
+  private currentState: PetState = PetState.IDLE;
+  private stickyState: PetState | null = null;
   private transientUntil: number | null = null;
+  private blockedOnUser = false;
   private lastHeartbeat: number = Date.now();
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private destroyed = false;
@@ -138,20 +130,30 @@ export class PetStateMachine {
 
     switch (event.mode) {
       case 'transient': {
-        const ttl = event.ttlMs ?? TRANSIENT_DEFAULT_TTL[event.row] ?? 2000;
+        const ttl = event.ttlMs ?? TRANSIENT_DEFAULT_TTL[event.state] ?? 2000;
         this.transientUntil = Date.now() + ttl;
-        this.setRow(event.row);
+        this.setState(event.state);
         break;
       }
       case 'sticky':
-        this.stickyRow = event.row;
+        this.stickyState = event.state;
         this.transientUntil = null;
-        this.setRow(event.row);
+        this.setState(event.state);
         break;
       case 'release':
-        this.stickyRow = null;
+        this.stickyState = null;
         break;
     }
+  }
+
+  /**
+   * User-blocked signal (approval/clarify/desktop/browser).
+   * Sourced from existing frontend stores — not SSE step_key dispatches.
+   */
+  setBlockedOnUser(blocked: boolean) {
+    if (this.blockedOnUser === blocked) return;
+    this.blockedOnUser = blocked;
+    this.tick();
   }
 
   /** Send a heartbeat to prevent idle timeout. */
@@ -162,23 +164,27 @@ export class PetStateMachine {
   /** Signal that the agent is loading (streaming in progress). */
   setLoading(loading: boolean) {
     if (loading) {
-      this.ingest({ row: AnimRow.THINKING, mode: 'sticky' });
+      this.ingest({ state: PetState.REVIEWING, mode: 'sticky' });
       this.heartbeat();
-    } else {
-      this.ingest({ row: AnimRow.CELEBRATING, mode: 'transient', ttlMs: 1500 });
-      this.stickyRow = null;
+      return;
+    }
+
+    if (!this.blockedOnUser) {
+      this.ingest({ state: PetState.WAVE, mode: 'transient', ttlMs: 1500 });
+      this.stickyState = null;
     }
   }
 
   /** Force transition to idle. */
   reset() {
-    this.stickyRow = null;
+    this.stickyState = null;
     this.transientUntil = null;
-    this.setRow(AnimRow.IDLE);
+    this.blockedOnUser = false;
+    this.setState(PetState.IDLE);
   }
 
-  getCurrentRow(): AnimRow {
-    return this.currentRow;
+  getCurrentState(): PetState {
+    return this.currentState;
   }
 
   destroy() {
@@ -192,26 +198,28 @@ export class PetStateMachine {
   private tick() {
     if (this.destroyed) return;
 
-    // Transient still playing? Hold.
+    if (this.blockedOnUser) {
+      this.setState(PetState.WAITING);
+      return;
+    }
+
     if (this.transientUntil !== null) {
       if (Date.now() < this.transientUntil) return;
       this.transientUntil = null;
     }
 
-    // Heartbeat timeout → force idle
     if (Date.now() - this.lastHeartbeat > this.heartbeatTimeoutMs) {
-      this.stickyRow = null;
-      this.setRow(AnimRow.IDLE);
+      this.stickyState = null;
+      this.setState(PetState.IDLE);
       return;
     }
 
-    // Default: sticky if set, else idle
-    this.setRow(this.stickyRow ?? AnimRow.IDLE);
+    this.setState(this.stickyState ?? PetState.IDLE);
   }
 
-  private setRow(row: AnimRow) {
-    if (row === this.currentRow) return;
-    this.currentRow = row;
-    this.onChange(row);
+  private setState(state: PetState) {
+    if (state === this.currentState) return;
+    this.currentState = state;
+    this.onChange(state);
   }
 }

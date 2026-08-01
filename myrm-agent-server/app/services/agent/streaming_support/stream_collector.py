@@ -318,6 +318,7 @@ class StreamContentCollector:
     def __init__(
         self, sibling_group_id: str | None = None, chat_id: str | None = None
     ) -> None:
+        self._message_id: str | None = None
         self._content_parts: list[str] = []
         self._reasoning_parts: list[str] = []
         self._reasoning_char_count = 0
@@ -362,6 +363,11 @@ class StreamContentCollector:
     def has_pending_hitl_replay(self) -> bool:
         """True when attach subscribers may still need interrupt replay."""
         return bool(self._pending_interrupt_events)
+
+    @property
+    def message_id(self) -> str | None:
+        """The messageId of the assistant message being collected."""
+        return self._message_id
 
     def cleanup(self) -> None:
         """Remove from active collectors registry."""
@@ -488,6 +494,11 @@ class StreamContentCollector:
         if isinstance(event_type, str) and event_type in _INTERRUPT_REPLAY_TYPES:
             self._pending_interrupt_events.append(event)
         data = event.get("data")
+
+        if self._message_id is None:
+            raw_mid = event.get("messageId")
+            if isinstance(raw_mid, str) and raw_mid:
+                self._message_id = raw_mid
 
         if event_type == "message" and data:
             self._content_parts.append(str(data))

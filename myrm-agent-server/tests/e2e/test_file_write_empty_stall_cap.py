@@ -27,9 +27,9 @@ def test_live_empty_write_post_send_stall_cap_scales_with_peers(
 
     monkeypatch.setattr(mod, "_parallel_live_agent_peer_count", lambda: 8)
     monkeypatch.setattr(live_turn_wait, "parallel_live_agent_peer_count", lambda: 8)
-    assert mod._live_empty_write_post_send_stall_cap_sec() == 150.0
-    assert mod._live_empty_write_post_steer_idle_cap_sec() == 150.0
-    assert mod._live_bridge_ready_timeout_sec() == 150.0
+    assert mod._live_empty_write_post_send_stall_cap_sec() == 210.0
+    assert mod._live_empty_write_post_steer_idle_cap_sec() == 210.0
+    assert mod._live_bridge_ready_timeout_sec() == 210.0
 
 
 def test_transport_retryable_rejects_business_failures() -> None:

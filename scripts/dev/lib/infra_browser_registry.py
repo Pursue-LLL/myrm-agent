@@ -74,9 +74,9 @@ def _read(path: Path) -> list[InfraBrowserTarget]:
                 {
                     "targetId": target_id,
                     "ownerPid": owner_pid,
-                    "ownerProcessStart": process_start
-                    if isinstance(process_start, str)
-                    else "",
+                    "ownerProcessStart": (
+                        process_start if isinstance(process_start, str) else ""
+                    ),
                     "url": url if isinstance(url, str) else "",
                 }
             )
@@ -88,11 +88,15 @@ def _write(path: Path, records: list[InfraBrowserTarget]) -> None:
         path.unlink(missing_ok=True)
         return
     temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(records, separators=(",", ":")) + "\n", encoding="utf-8")
+    temporary.write_text(
+        json.dumps(records, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
     os.replace(temporary, path)
 
 
-def register_infra_target(target_id: str, url: str, *, owner_pid: int | None = None) -> None:
+def register_infra_target(
+    target_id: str, url: str, *, owner_pid: int | None = None
+) -> None:
     target = target_id.strip()
     if not target:
         raise ValueError("target_id is required")

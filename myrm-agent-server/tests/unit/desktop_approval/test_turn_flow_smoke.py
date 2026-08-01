@@ -157,3 +157,58 @@ async def test_complete_turn_after_approval_recovers_on_empty_snapshot(
     )
     assert chat_id == "chat-1"
     assert routed == ["chat-1", "chat-1"]
+
+
+def test_turn_flow_seeded_resend_api_kickoff_ssot() -> None:
+    text = open(turn_flow.__file__, encoding="utf-8").read()
+    assert "_kickoff_desktop_turn_via_api_sync" in text
+    assert "R232 mux-bypass" in text
+    assert "R233 api-primary DONE wait" in text
+    assert "api_primary_done=seeded_api_kickoff" in text
+    seeded_block = text.split("seeded pending fallback approval", maxsplit=1)[1]
+    seeded_block = seeded_block.split("if not kickoff_ok:")[0]
+    assert "await chat.ensure_react_e2e_bridge" not in seeded_block.split(
+        "API kickoff miss",
+        maxsplit=1,
+    )[0]
+
+
+@pytest.mark.asyncio
+async def test_complete_turn_after_approval_api_primary_skips_cdp_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    routed: list[str] = []
+    waited: list[str] = []
+
+    async def _ensure_route(*args: object) -> None:
+        routed.append(str(args[1]))
+
+    def _wait_api_done(
+        chat_id: str,
+        *,
+        api_url: str | None = None,
+        timeout_sec: float = 120.0,
+        fetch_timeout_sec: float = 15.0,
+        progress_interval_sec: float = 30.0,
+        on_tick: object | None = None,
+    ) -> bool:
+        _ = api_url
+        _ = timeout_sec
+        _ = fetch_timeout_sec
+        _ = progress_interval_sec
+        _ = on_tick
+        waited.append(chat_id)
+        return True
+
+    monkeypatch.setattr(turn_flow, "_ensure_chat_route", _ensure_route)
+    monkeypatch.setattr(turn_flow, "wait_chat_messages_done", _wait_api_done)
+    monkeypatch.setattr(turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1)
+    chat = object()
+    chat_id = await complete_turn_after_approval(  # type: ignore[arg-type]
+        chat,
+        chat_id_hint="chat-seeded",
+        api_primary_done=True,
+    )
+    assert chat_id == "chat-seeded"
+    assert waited == ["chat-seeded"]
+    assert routed == []

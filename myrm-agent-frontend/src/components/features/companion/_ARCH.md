@@ -5,7 +5,7 @@
 纯前端宠物伴侣系统，提供两层视觉渲染：
 
 1. **SVG/Emoji 层**（默认）：基于 CompanionIcons 的 15 物种 + 9 帽子 SVG 渲染，随智能体切换联动，嵌入输入框旁。
-2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持原生透明置顶窗口。
+2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持嵌入层 + 透明置顶外置窗（`/pet-overlay`，PSUA）。
 
 状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage，sprite 配置（`petSlug` + SHA256）同步至服务端；精灵图二进制由服务端 `GET /companion/pets/{slug}/spritesheet` 本地提供。
 
@@ -32,11 +32,15 @@
 | 文件                  | 地位 | 职责                                                                            |
 | --------------------- | ---- | ------------------------------------------------------------------------------- |
 | `SpriteEngine.ts`     | 核心 | Canvas 2D 精灵图渲染引擎（Codex 标准 8×9 atlas，rAF 驱动，缺帧降级）           |
-| `PetStateMachine.ts`  | 核心 | 事件→动画行映射状态机（transient/sticky/release 模式，心跳超时→idle）            |
-| `petStateMapping.ts`  | 核心 | 动态行序映射（Codex/Legacy 标准 + STATE\_ALIASES 别名解析 → resolveAnimRow()）  |
+| `PetStateMachine.ts`  | 核心 | Hermes 7 态状态机（transient/sticky/release + setBlockedOnUser） |
+| `deriveBlockedOnUser.ts` | 核心 | 聚合 HITL store → blocked-on-user SSOT |
+| `petStateMapping.ts`  | 核心 | Codex/Legacy 行序 → resolvePetSheetRow() |
 | `SpriteRenderer.tsx`  | 核心 | SpriteEngine 的 React 封装（Canvas 生命周期、加载态降级占位、行数检测回调）     |
-| `PetOverlay.tsx`      | 核心 | 可拖拽悬浮容器；由 `ChatWindowSatellites` 在 `companion_mode` 开启时 mount |
-| `tauriPetBridge.ts`   | 辅助 | Tauri IPC 桥接（show/hide/setRow，非 Tauri 环境静默 no-op）                     |
+| `PetOverlay.tsx`      | 核心 | 可拖拽悬浮容器；Tauri 嵌入 + 外置双模；`ChatWindowSatellites` mount |
+| `PetOverlayWindowApp.tsx` | 核心 | Tauri 外置傀儡窗 UI |
+| `usePetSurfaceHost.ts` | 核心 | 外置窗 IPC 生命周期 |
+| `petSurfaceBridge.ts` | 辅助 | Tauri IPC + event 桥（show/hide/ignore/focus + state sync） |
+| `petSurfaceStorage.ts` / `petSurfaceTypes.ts` | 辅助 | 外置模式与 bounds 持久化 + IPC 类型 |
 
 ## 模块依赖
 

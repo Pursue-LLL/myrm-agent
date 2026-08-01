@@ -1,6 +1,7 @@
 //! Session detach window — opens a chat session in a focused standalone window.
 //!
-//! Uses the same WebviewWindowBuilder pattern as `pet_overlay.rs` but loads the
+//! Session window — spawns a secondary WebviewWindow for multi-session CLI agents.
+//! Uses the same WebviewWindowBuilder pattern as `pet_surface.rs` but loads the
 //! frontend in focused mode (no sidebar, session-only view).
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};

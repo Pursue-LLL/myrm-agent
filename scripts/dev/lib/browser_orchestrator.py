@@ -36,6 +36,8 @@ class BrowserOrchestratorSnapshot(TypedDict, total=False):
     operation_credits_max: int
     operation_credits_in_flight: int
     operation_credits_available: int
+    credit_registry: str
+    governor_bound: bool
     mux_snapshot_available: bool
     mux_contexts: int
     wave_leases: int
@@ -98,6 +100,8 @@ def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
         operation_credits_max=credit_cap,
         operation_credits_in_flight=in_flight,
         operation_credits_available=max(0, credit_cap - in_flight),
+        credit_registry="mux_upstream_admission",
+        governor_bound=True,
         mux_snapshot_available=mux_available,
         mux_contexts=contexts,
         wave_leases=wave_leases,

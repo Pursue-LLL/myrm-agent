@@ -6,6 +6,7 @@ mcp_protocol (POS: JSON-RPC 解析与 tool 响应提取)
 mcp_page_lease_heartbeat (POS: page lease 心跳管理)
 cdp_chat_support (POS: E2E API/chat 消息 SSOT)
 dev_gate_contract (POS: Dev Gate v2 合约常量 SSOT)
+dev_gate_cli (POS: Unix socket 协调器自动启动客户端)
 mux_load (POS: mux context / wave lease 负载探针)
 mux_upstream_admission (POS: mux cold attach 准入)
 
@@ -82,6 +83,20 @@ def _is_new_page_cdp_drift_message(message: str) -> bool:
         "could not connect to chrome" in lowered
         or "unexpected server response: 404" in lowered
     )
+
+
+def _is_retryable_new_page_parse_exc(
+    exc: BaseException,
+    new_page_result: dict[str, object] | None,
+) -> bool:
+    """R229: CDP 404 drift must enter new_page inner retry, not instant re-raise."""
+    if isinstance(exc, TimeoutError):
+        return True
+    if not isinstance(exc, RuntimeError):
+        return False
+    if is_retryable_incomplete_new_page_error(exc, new_page_result):
+        return True
+    return _is_new_page_cdp_drift_message(str(exc))
 
 
 def _new_page_tool_max_attempts(*, open_page_budget_active: bool) -> int:
@@ -606,6 +621,19 @@ class ChromeMcpClient:
             return min(timeout_sec, adaptive)
         return max(timeout_sec, adaptive)
 
+    def _page_tool_timeout_sec(self, page_timeout_ms: int) -> float:
+        """Align navigate/new_page tool timeout with page timeout under open-page budget (R228)."""
+        page_sec = page_timeout_ms / 1000.0 + 5.0
+        if self._open_page_budget_active():
+            return self._resolve_tool_timeout_sec(
+                page_sec,
+                page_timeout_ms=page_timeout_ms,
+            )
+        return self._resolve_tool_timeout_sec(
+            min(page_sec, self._request_timeout_sec),
+            page_timeout_ms=page_timeout_ms,
+        )
+
     def __enter__(self) -> ChromeMcpClient:
         self.start()
         return self
@@ -845,20 +873,14 @@ class ChromeMcpClient:
                         new_page_result = self.call_tool(
                             "new_page",
                             arguments,
-                            timeout_sec=self._resolve_tool_timeout_sec(
-                                min(
-                                    resolved_timeout_ms / 1000 + 5,
-                                    self._request_timeout_sec,
-                                ),
-                                page_timeout_ms=resolved_timeout_ms,
+                            timeout_sec=self._page_tool_timeout_sec(
+                                resolved_timeout_ms
                             ),
                         )
                         page_id, target_id = parse_new_page(new_page_result)
                         break
                     except (RuntimeError, TimeoutError) as exc:
-                        if isinstance(
-                            exc, RuntimeError
-                        ) and not is_retryable_incomplete_new_page_error(
+                        if not _is_retryable_new_page_parse_exc(
                             exc, new_page_result
                         ):
                             raise
@@ -879,7 +901,12 @@ class ChromeMcpClient:
                                 mux_attach_restarted = True
                             except ImportError:
                                 pass
-                        self._recover_mux_transport()
+                        if isinstance(
+                            exc, RuntimeError
+                        ) and _is_new_page_cdp_drift_message(str(exc)):
+                            _recover_new_page_chrome_drift(self)
+                        else:
+                            self._recover_mux_transport()
                         time.sleep(
                             _tool_retry_backoff_sec(
                                 "new_page", parse_attempt, transient=True
@@ -914,7 +941,22 @@ class ChromeMcpClient:
                     self._bind_page_lease(page)
                 self._pages[page_id] = page
                 self._disconnected_pages.pop(page_id, None)
-                self._publish_dev_gate_ownership()
+                if not self._atomic_register_page(page_id):
+                    self._pages.pop(page_id, None)
+                    try:
+                        self.call_tool(
+                            "close_page",
+                            {"pageId": page_id},
+                            timeout_sec=_CLEANUP_TIMEOUT_SEC,
+                        )
+                    except (RuntimeError, TimeoutError):
+                        _http_close_exact_target(page.target_id)
+                    self._release_lease(lease_id, close_wave_if_idle=False)
+                    raise RuntimeError(
+                        "E2E_OWNERSHIP_REGISTER_FAILED: "
+                        f"page={page_id} target={page.target_id} "
+                        "compensating deletion executed"
+                    )
                 self._cold_shim_recover_streak = 0
                 self._page_lease_heartbeat.track(lease_id)
                 if runtime_binding is not None:
@@ -982,23 +1024,28 @@ class ChromeMcpClient:
                 errors = [item for item in errors if not item.startswith("close_page:")]
             else:
                 errors.append(f"http_close: targetId={page.target_id.strip()} failed")
-        self._pages.pop(page.page_id, None)
-        self._disconnected_pages.pop(page.page_id, None)
-        self._publish_dev_gate_ownership()
+        physically_closed = mcp_closed or not errors
+        if physically_closed:
+            self._pages.pop(page.page_id, None)
+            self._disconnected_pages.pop(page.page_id, None)
+            self._publish_dev_gate_ownership()
         try:
-            self._release_page_lease(page, unbind=not errors)
+            self._release_page_lease(page, unbind=physically_closed)
         except (RuntimeError, TimeoutError) as exc:
             errors.append(f"release lease: {exc}")
         if not errors:
             return
         message = "Chrome MCP page cleanup failed: " + "; ".join(errors)
         if ignore_errors or all(_is_benign_cleanup_error(part) for part in errors):
+            if not physically_closed:
+                self._pages.pop(page.page_id, None)
+                self._disconnected_pages.pop(page.page_id, None)
             _LOGGER.warning(message)
             return
         raise RuntimeError(message)
 
     def _publish_dev_gate_ownership(self) -> None:
-        """Best-effort mirror of physical browser ownership into the coordinator."""
+        """Sync full browser ownership snapshot to coordinator (non-atomic fallback)."""
         session_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
         owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
         if not session_id or not owner_token:
@@ -1021,6 +1068,35 @@ class ChromeMcpClient:
             )
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             _LOGGER.warning("DEV_GATE_OWNERSHIP_PUBLISH_WARN: %s", exc)
+
+    def _atomic_register_page(self, page_id: int) -> bool:
+        """Atomically register a new page via CAS; returns False on conflict/failure."""
+        session_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+        owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
+        if not session_id or not owner_token:
+            return True
+        try:
+            from dev_gate_cli import send
+
+            snapshot = send({"operation": "snapshot", "session_id": session_id})
+            session = snapshot.get("session")
+            version = session.get("version") if isinstance(session, dict) else None
+            if not isinstance(version, int):
+                self._publish_dev_gate_ownership()
+                return True
+            send(
+                {
+                    "operation": "ownership",
+                    "session_id": session_id,
+                    "owner_token": owner_token,
+                    "merge_page_id": str(page_id),
+                    "expected_version": version,
+                }
+            )
+            return True
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            _LOGGER.warning("DEV_GATE_ATOMIC_REGISTER_FAILED: %s", exc)
+            return False
 
     def _resolve_page(self, page: McpPage) -> McpPage:
         tracked = self._pages.get(page.page_id)
@@ -1214,10 +1290,7 @@ class ChromeMcpClient:
                     "url": url,
                     "timeout": resolved_timeout_ms,
                 },
-                timeout_sec=self._resolve_tool_timeout_sec(
-                    min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
-                    page_timeout_ms=resolved_timeout_ms,
-                ),
+                timeout_sec=self._page_tool_timeout_sec(resolved_timeout_ms),
             )
 
         for ownership_attempt in range(3):

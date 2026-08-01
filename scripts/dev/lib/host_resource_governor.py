@@ -285,7 +285,9 @@ def reset_governor_for_tests(*, slots: int = MAX_BROWSER_SLOTS) -> None:
         _state.transition_log.clear()
 
 
-def host_resource_governor_snapshot(*, now: float | None = None) -> HostGovernorSnapshot:
+def host_resource_governor_snapshot(
+    *, now: float | None = None
+) -> HostGovernorSnapshot:
     captured_at = time.time() if now is None else now
     snapshot = collect_host_pressure_snapshot(now=captured_at)
     effective = tick_governor(now=captured_at)

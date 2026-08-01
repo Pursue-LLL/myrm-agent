@@ -682,13 +682,16 @@ PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
 if [[ -f "${PRUNE_SCRIPT}" ]]; then
   export MYRM_CHROME_E2E_PORT
   _preflight_blank_tab_prune_allowed() {
+    # P0-A: safe-side-down — block prune unless we can positively confirm zero peers
+    [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && return 1
     local contexts active_leases
     contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
-    active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo 0)"
-    if [[ "${contexts}" =~ ^[0-9]+$ && "${contexts}" -gt 0 ]]; then
-      return 1
-    fi
-    [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] && return 1
+    active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo unknown)"
+    # If detection failed (non-numeric), refuse prune to protect peers
+    [[ ! "${contexts}" =~ ^[0-9]+$ ]] && return 1
+    [[ ! "${active_leases}" =~ ^[0-9]+$ ]] && return 1
+    [[ "${contexts}" -gt 0 ]] && return 1
+    [[ "${active_leases}" -gt 0 ]] && return 1
     return 0
   }
   if _preflight_blank_tab_prune_allowed; then
@@ -699,7 +702,7 @@ if [[ -f "${PRUNE_SCRIPT}" ]]; then
       echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
     fi
   else
-    echo "CHROME_E2E_WARN: blank-tab prune skipped — parallel mux contexts or wave leases active" >&2
+    echo "CHROME_E2E_WARN: blank-tab prune skipped — attach mode or parallel mux contexts/wave leases active" >&2
   fi
 fi
 
@@ -884,13 +887,15 @@ _mux_attach_timeout_restart_allowed() {
 }
 
 _mux_parallel_load_blocks_global_restart() {
+  # P0-A: fail-closed — if detection fails (non-numeric), block restart to protect peers
   local contexts active_leases
   contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
-  if [[ "${contexts}" =~ ^[0-9]+$ && "${contexts}" -gt 0 ]]; then
-    return 0
-  fi
-  active_leases="$(_mux_parallel_active_leases)"
-  [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]
+  [[ ! "${contexts}" =~ ^[0-9]+$ ]] && return 0
+  [[ "${contexts}" -gt 0 ]] && return 0
+  active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo unknown)"
+  [[ ! "${active_leases}" =~ ^[0-9]+$ ]] && return 0
+  [[ "${active_leases}" -gt 0 ]] && return 0
+  return 1
 }
 
 _mux_restart_allowed() {

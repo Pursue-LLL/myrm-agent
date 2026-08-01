@@ -121,7 +121,7 @@ async def test_iter_stream_injects_ttft_into_message_end(monkeypatch) -> None:
             ephemeral_subagents=None,
             chat_id=None,
         ),
-        params=SimpleNamespace(message_id="msg-e2e-ttft", query="hi"),
+        params=SimpleNamespace(message_id="msg-e2e-ttft", query="hi", enable_web_search=False),
         cancel_token=SimpleNamespace(
             is_cancelled=False,
             cancel_reason=None,
@@ -176,6 +176,7 @@ async def test_iter_stream_hides_reasoning_chunks_when_mode_off(monkeypatch) -> 
             message_id="msg-reasoning-hidden",
             query="hi",
             reasoning_display_mode="off",
+            enable_web_search=False,
         ),
         cancel_token=SimpleNamespace(
             is_cancelled=False,

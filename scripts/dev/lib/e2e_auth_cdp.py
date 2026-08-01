@@ -107,7 +107,9 @@ async def _hydrate_and_probe_async(
 
     deadline = time.monotonic() + 30.0
     msg_id = 0
-    async with websockets.connect(ws_url, open_timeout=10, max_size=4 * 1024 * 1024) as ws:
+    async with websockets.connect(
+        ws_url, open_timeout=10, max_size=4 * 1024 * 1024
+    ) as ws:
         msg_id += 1
         created = await _cdp_call(
             ws,
@@ -134,7 +136,9 @@ async def _hydrate_and_probe_async(
         if not session_id:
             return False
 
-        async def session_call(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        async def session_call(
+            method: str, params: dict[str, object] | None = None
+        ) -> dict[str, object]:
             nonlocal msg_id
             msg_id += 1
             envelope = {
@@ -165,7 +169,9 @@ async def _hydrate_and_probe_async(
                 continue
             await session_call("Network.setCookie", cookie)
 
-        normalized_probe = probe_path if probe_path.startswith("/") else f"/{probe_path}"
+        normalized_probe = (
+            probe_path if probe_path.startswith("/") else f"/{probe_path}"
+        )
         probe_url = origin.rstrip("/") + normalized_probe
         await session_call("Runtime.enable")
         probe_js = (

@@ -33,13 +33,17 @@ export async function companionEvents(ctx: StreamCtx): Promise<StreamTurn | null
   if (data.type === 'catchup_snapshot') {
     const snap = data.data;
     actions.setMessages((state) => {
-      const msgIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      let msgIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (msgIndex === -1) {
+        msgIndex = state.messages.findLastIndex((m) => m.role === 'assistant');
+      }
       if (msgIndex !== -1) {
         const msg = state.messages[msgIndex];
         msg.content = snap.content || '';
         msg.thinkingItems = snap.reasoning ? [snap.reasoning] : [];
         msg.progressSteps = snap.progress_steps || [];
         msg.sources = snap.sources || [];
+        msg.uiArtifacts = snap.ui_artifacts || [];
       }
     });
     return done(ctx);

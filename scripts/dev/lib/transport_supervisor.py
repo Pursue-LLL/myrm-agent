@@ -17,10 +17,12 @@ browser_orchestrator.browser_operation_credit_slot (enforced by static tests).
 
 from __future__ import annotations
 
+import fcntl
 import os
 import threading
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Iterator
 
 from dev_gate_contract import (
@@ -39,6 +41,8 @@ MUX_BOOTSTRAP_WALL_BASE_SEC: float = 180.0
 MUX_BOOTSTRAP_WALL_MAX_SEC: float = 420.0
 MUX_BOOTSTRAP_WALL_PER_PEER_SEC: float = 45.0
 LIVE_AGENT_BODY_WALL_BASE_SEC: float = 600.0
+LIVE_AGENT_BODY_WALL_MAX_SEC: float = 900.0
+LIVE_AGENT_BODY_WALL_PER_PEER_SEC: float = 30.0
 MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
@@ -46,6 +50,9 @@ MUX_TRANSPORT_EXHAUSTED_TOKEN: str = "E2E_MUX_TRANSPORT_EXHAUSTED"
 MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
 
 _GLOBAL_RECOVERY_LOCK = threading.Lock()
+_CROSS_PROCESS_RECOVERY_LOCK_PATH = (
+    Path.home() / ".local/state/myrm-dev-gate/mux-recovery.lock"
+)
 _session_recovery_spent: dict[str, float] = {}
 _session_lock = threading.Lock()
 
@@ -78,11 +85,11 @@ def _mux_peer_count(*, pessimistic: bool = False) -> int:
 def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
     """Scale mux recovery budget under parallel wave/mux peers (R100)."""
     peers = _mux_peer_count(pessimistic=pessimistic)
-    if peers <= 3:
+    if peers <= 1:
         scaled = MUX_SESSION_RECOVERY_BUDGET_SEC
     else:
         scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
-            (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
+            (peers - 1) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
         )
     cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
@@ -120,9 +127,13 @@ def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 
 def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
-    """Return the invariant LIVE_AGENT BODY hard wall."""
-    del pessimistic
-    return int(LIVE_AGENT_BODY_WALL_BASE_SEC)
+    """LIVE_AGENT BODY hard wall; scales under parallel mux load (R171)."""
+    peers = _mux_peer_count(pessimistic=pessimistic)
+    base = int(LIVE_AGENT_BODY_WALL_BASE_SEC)
+    if peers < 2:
+        return base
+    scaled = base + peers * LIVE_AGENT_BODY_WALL_PER_PEER_SEC
+    return int(min(LIVE_AGENT_BODY_WALL_MAX_SEC, scaled))
 
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
@@ -277,20 +288,42 @@ def mux_recovery_scope(*, phase: str) -> Iterator[float]:
     assert_mux_daemons_single(phase=phase)
     allowed_sec = _reserve_recovery_budget(phase=phase)
     lock_wait_sec = recovery_lock_wait_sec()
-    acquired = _GLOBAL_RECOVERY_LOCK.acquire(timeout=lock_wait_sec)
-    if not acquired:
-        raise RuntimeError(
-            f"{MUX_RECLAIM_STALL_TOKEN}: mux recovery lock timeout after "
-            f"{lock_wait_sec:.0f}s active_tests={parallel_active_test_count()} "
-            f"mux_peers={parallel_mux_peer_count()} "
-            f"phase={phase}"
-        )
-    recovery_started = time.monotonic()
+    _CROSS_PROCESS_RECOVERY_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock_handle = _CROSS_PROCESS_RECOVERY_LOCK_PATH.open("a+", encoding="utf-8")
+    cross_acquired = False
+    deadline = time.monotonic() + lock_wait_sec
     try:
-        yield allowed_sec
+        while time.monotonic() < deadline:
+            try:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                cross_acquired = True
+                break
+            except BlockingIOError:
+                time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        if not cross_acquired:
+            raise RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: mux cross-process recovery lock timeout "
+                f"after {lock_wait_sec:.0f}s active_tests={parallel_active_test_count()} "
+                f"mux_peers={parallel_mux_peer_count()} phase={phase}"
+            )
+        thread_acquired = _GLOBAL_RECOVERY_LOCK.acquire(timeout=lock_wait_sec)
+        if not thread_acquired:
+            raise RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: mux recovery lock timeout after "
+                f"{lock_wait_sec:.0f}s active_tests={parallel_active_test_count()} "
+                f"mux_peers={parallel_mux_peer_count()} "
+                f"phase={phase}"
+            )
+        recovery_started = time.monotonic()
+        try:
+            yield allowed_sec
+        finally:
+            _record_recovery_elapsed(time.monotonic() - recovery_started)
+            _GLOBAL_RECOVERY_LOCK.release()
     finally:
-        _record_recovery_elapsed(time.monotonic() - recovery_started)
-        _GLOBAL_RECOVERY_LOCK.release()
+        if cross_acquired:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        lock_handle.close()
 
 
 def reset_session_recovery_budget(for_key: str | None = None) -> None:

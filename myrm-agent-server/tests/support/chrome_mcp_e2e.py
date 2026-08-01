@@ -56,6 +56,7 @@ __all__ = [
     "ensure_desktop_viewport",
     "get_e2e_api_url",
     "get_e2e_ui_url",
+    "guarded_httpx_request",
     "http_json",
     "open_mcp_page",
     "open_mcp_page_async",
@@ -111,12 +112,29 @@ def dismiss_blocking_modals(client: ChromeMcpClient, page: McpPage) -> None:
 
 
 def prepare_e2e_ui_session(api_url: str) -> None:
-    """Mark onboarding complete so PageLayout does not overlay the chat during E2E."""
+    """Mark onboarding complete so PageLayout does not overlay the chat during E2E.
+
+    READ-scoped tests must not mutate global config; they rely on dismiss_blocking_modals
+    localStorage boot flags instead (P0-C effect guard).
+    """
+    from e2e_effect_guard import current_access_scope
+
+    if current_access_scope() == "READ":
+        return
     http_json(
         "POST",
         f"{api_url}/api/v1/config/onboarding/complete",
         expected_statuses=frozenset({200, 201}),
     )
+
+
+def guarded_httpx_request(
+    client: object, method: str, url: str, **kwargs: object
+) -> object:
+    """Effect-guarded httpx request for formal chrome_e2e live agent paths."""
+    from e2e_effect_guard import guarded_httpx_request as _guard
+
+    return _guard(client, method, url, **kwargs)
 
 
 def http_json(
@@ -867,23 +885,48 @@ def _signoff_threaded_new_page(
         daemon=True,
     )
     worker.start()
-    worker.join(timeout=join_timeout_sec)
+    from dev_gate_contract import (
+        E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN,
+        signoff_new_page_join_stall_abandon_sec,
+    )
+
+    stall_abandon_sec = signoff_new_page_join_stall_abandon_sec(
+        join_timeout_sec=join_timeout_sec,
+    )
+    join_deadline = time.monotonic() + join_timeout_sec
+    stall_deadline = time.monotonic() + stall_abandon_sec
+    poll_sec = 5.0
+    while worker.is_alive():
+        now = time.monotonic()
+        if now >= join_deadline or now >= stall_deadline:
+            break
+        worker.join(
+            timeout=min(poll_sec, join_deadline - now, stall_deadline - now)
+        )
     if worker.is_alive():
         try:
             client.abandon_inflight_requests(cdp_drift=True)
         except RuntimeError:
             pass
         _force_mux_attach_restart_after_new_page_timeout()
-        from dev_gate_contract import E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN
-
-        print(
-            f"{E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN}: "
-            f"join={join_timeout_sec:.0f}s url={url}",
-            file=sys.stderr,
-            flush=True,
-        )
+        elapsed = min(join_timeout_sec, stall_abandon_sec)
+        if time.monotonic() >= stall_deadline and time.monotonic() < join_deadline:
+            elapsed = stall_abandon_sec
+            print(
+                f"E2E_SIGNOFF_NEW_PAGE_JOIN_STALL: "
+                f"stall_abandon={stall_abandon_sec:.0f}s join_cap={join_timeout_sec:.0f}s url={url}",
+                file=sys.stderr,
+                flush=True,
+            )
+        else:
+            print(
+                f"{E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN}: "
+                f"join={join_timeout_sec:.0f}s url={url}",
+                file=sys.stderr,
+                flush=True,
+            )
         raise TimeoutError(
-            f"Chrome MCP new_page thread join timed out after {join_timeout_sec:.0f}s"
+            f"Chrome MCP new_page thread join timed out after {elapsed:.0f}s"
         )
     if not outcome:
         raise RuntimeError("Chrome MCP new_page worker exited without result")
@@ -1001,6 +1044,7 @@ def _retryable_open_page_error(exc: BaseException) -> bool:
         or "no page found" in message
         or "response timed out" in message
         or "thread join timed out" in message
+        or "e2e_signoff_new_page_join_stall" in message
         or "wall budget exhausted" in message
         or "transport closed" in message
         or "transport dead" in message

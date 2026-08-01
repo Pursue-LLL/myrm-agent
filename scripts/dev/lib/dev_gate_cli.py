@@ -373,6 +373,30 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _export_signoff_artifact(args: argparse.Namespace) -> int:
+    response = send(
+        {
+            "operation": "export_signoff_artifact",
+            "output_path": args.output_path,
+            "session_limit": args.session_limit,
+            "event_limit": args.event_limit,
+        }
+    )
+    print(json.dumps(response, separators=(",", ":"), sort_keys=True))
+    return 0
+
+
+def _verify_signoff_artifact(args: argparse.Namespace) -> int:
+    response = send(
+        {
+            "operation": "verify_signoff_artifact",
+            "output_path": args.output_path,
+        }
+    )
+    print(json.dumps(response, separators=(",", ":"), sort_keys=True))
+    return 0 if response.get("valid") is True else 1
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -412,6 +436,16 @@ def _parser() -> argparse.ArgumentParser:
 
     reap = commands.add_parser("reap")
     reap.set_defaults(handler=_coordinator_reap)
+
+    export_signoff = commands.add_parser("export_signoff_artifact")
+    export_signoff.add_argument("--output-path", required=True)
+    export_signoff.add_argument("--session-limit", type=int, default=200)
+    export_signoff.add_argument("--event-limit", type=int, default=2000)
+    export_signoff.set_defaults(handler=_export_signoff_artifact)
+
+    verify_signoff = commands.add_parser("verify_signoff_artifact")
+    verify_signoff.add_argument("--output-path", required=True)
+    verify_signoff.set_defaults(handler=_verify_signoff_artifact)
 
     for command in (
         "transition",

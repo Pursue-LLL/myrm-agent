@@ -51,7 +51,7 @@ async def attach_to_chat(
             # 1. Yield the full snapshot first
             from app.schemas.streaming import SSEEnvelope
 
-            yield SSEEnvelope(type="catchup_snapshot", data=snapshot).to_sse_chunk()
+            yield SSEEnvelope(type="catchup_snapshot", data=snapshot, message_id=collector.message_id).to_sse_chunk()
 
             # 2. Yield real-time events
             while True:

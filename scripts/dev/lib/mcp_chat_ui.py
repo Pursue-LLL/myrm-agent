@@ -128,14 +128,33 @@ class McpChatSession(CdpChatSession):
             from dev_gate_contract import mux_reset_after_orphan_timeout_sec
 
             orphan_timeout = mux_reset_after_orphan_timeout_sec()
+            reset_future = loop.run_in_executor(
+                self._client.mux_reset_executor(),
+                self._client.reset_after_orphan,
+            )
+            reset_task = asyncio.ensure_future(reset_future)
+            deadline = time.monotonic() + orphan_timeout
             try:
-                await asyncio.wait_for(
-                    loop.run_in_executor(
-                        self._client.mux_reset_executor(),
-                        self._client.reset_after_orphan,
-                    ),
-                    timeout=orphan_timeout,
-                )
+                while not reset_task.done():
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        reset_task.cancel()
+                        self._client.discard_mux_reset_executor()
+                        raise TimeoutError()
+                    try:
+                        from e2e_session_lifecycle import touch_wall_progress
+
+                        touch_wall_progress(current_node="mux_reset_after_orphan")
+                    except ImportError:
+                        pass
+                    try:
+                        from e2e_lease_heartbeat import heartbeat_e2e_lease
+
+                        heartbeat_e2e_lease()
+                    except ImportError:
+                        pass
+                    await asyncio.wait({reset_task}, timeout=min(5.0, remaining))
+                await reset_task
             except TimeoutError as exc:
                 self._client.discard_mux_reset_executor()
                 raise RuntimeError(

@@ -85,7 +85,10 @@ def lease_runtime_matches_shared_hot(*, lease_id: str) -> tuple[bool, str]:
     for item in payload.get("leases") or []:
         if not isinstance(item, dict):
             continue
-        if item.get("leaseId") == normalized_lease_id and item.get("status") == "active":
+        if (
+            item.get("leaseId") == normalized_lease_id
+            and item.get("status") == "active"
+        ):
             lease_runtime_id = str(item.get("runtimeId", "")).strip()
             break
 
@@ -98,7 +101,9 @@ def lease_runtime_matches_shared_hot(*, lease_id: str) -> tuple[bool, str]:
     return True, live_runtime_id
 
 
-def _sync_lease_runtime_once(*, lease_id: str, live_runtime_id: str) -> tuple[bool, str]:
+def _sync_lease_runtime_once(
+    *, lease_id: str, live_runtime_id: str
+) -> tuple[bool, str]:
     normalized_lease_id = lease_id.strip()
     state_path = resolve_wave_state_file()
     _ensure_wave_orchestrator_path()
@@ -145,7 +150,10 @@ def _sync_lease_runtime_once(*, lease_id: str, live_runtime_id: str) -> tuple[bo
             changed = True
         else:
             wave = state.get("wave")
-            if isinstance(wave, dict) and str(wave.get("runtimeId", "")).strip() == live_runtime_id:
+            if (
+                isinstance(wave, dict)
+                and str(wave.get("runtimeId", "")).strip() == live_runtime_id
+            ):
                 lease["runtimeId"] = live_runtime_id
                 changed = True
 

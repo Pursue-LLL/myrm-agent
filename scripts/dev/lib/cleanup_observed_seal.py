@@ -1,4 +1,16 @@
-"""Observed cleanup seal for Dev Gate coordinator sessions (P0-A)."""
+"""Observed cleanup seal for Dev Gate coordinator sessions.
+
+[INPUT]
+wave_state_paths (POS: wave-orchestrator.json 路径 SSOT)
+browser_tab_hygiene (POS: CDP tab 计数报告)
+
+[OUTPUT]
+observe_cleanup_seal(): (ledger_cleaned, sealed) — 验证 lease release + CDP targets absent + ownership cleared
+
+[POS]
+物理资源签收层。cleanup 只有经 CDP targets absent + lease released 实证才返回 sealed=True，
+阻止 synthetic receipt 产生假绿。
+"""
 
 from __future__ import annotations
 
@@ -97,9 +109,5 @@ def observe_cleanup_seal(
     ledger_cleaned = lease_released(released_lease_id)
     ownership_cleared = not owned_page_ids and not owned_context_id.strip()
     physical_released = physical_targets_absent(lease_id=released_lease_id)
-    sealed = (
-        ledger_cleaned
-        and ownership_cleared
-        and physical_released is True
-    )
+    sealed = ledger_cleaned and ownership_cleared and physical_released is True
     return ledger_cleaned, sealed

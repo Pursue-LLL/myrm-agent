@@ -224,7 +224,9 @@ def _fork_navigated_js(parent_chat_id: str) -> str:
 }})()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_context_retention_summary_bookmarks_and_pins_render() -> None:
@@ -262,7 +264,9 @@ def test_context_retention_summary_bookmarks_and_pins_render() -> None:
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
         fork_clicked = client.evaluate(page, _FORK_BOOKMARK_CLICK_JS, timeout_sec=45.0)
-        assert isinstance(fork_clicked, dict) and fork_clicked.get("ok") is True, fork_clicked
+        assert (
+            isinstance(fork_clicked, dict) and fork_clicked.get("ok") is True
+        ), fork_clicked
 
         fork_state = wait_for_state(
             client,

@@ -16,6 +16,7 @@ vi.mock('@/services/notification', () => ({
 
 vi.mock('@/lib/utils/completionSound', () => ({
   playCompletionSound: vi.fn(() => false),
+  dispatchPetSurfaceAwayCompletion: vi.fn(),
 }));
 
 vi.mock('@/services/chat', () => ({
@@ -40,6 +41,7 @@ vi.mock('../handlerDeps', () => ({
     getState: vi.fn(() => ({ unmarkProcessing: vi.fn() })),
   },
   playCompletionSound: vi.fn(() => false),
+  dispatchPetSurfaceAwayCompletion: vi.fn(),
 }));
 
 import { completionEvents } from '../completionEvents';

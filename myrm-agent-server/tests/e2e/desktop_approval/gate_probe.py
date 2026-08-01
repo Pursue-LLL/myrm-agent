@@ -118,7 +118,9 @@ def _fast_api_wall_timeout_sec() -> float:
         base = _SIGNOFF_FAST_API_WALL_TIMEOUT_SEC
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import signoff_parallel_desktop_progress_api_wall_sec
+                from cdp_chat_support import (
+                    signoff_parallel_desktop_progress_api_wall_sec,
+                )
 
                 return signoff_parallel_desktop_progress_api_wall_sec(base)
             except ImportError:
@@ -134,12 +136,27 @@ def _progress_api_timeout_seed_thresholds() -> tuple[int, int]:
             _SIGNOFF_PROGRESS_API_TIMEOUT_TOTAL,
         )
     return 6, 12
+
+
 _STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
 _MAX_SYNTHETIC_DREF_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_SYNTHETIC_DREF_FALLBACKS"
 _MAX_PENDING_SEED_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_PENDING_SEED_FALLBACKS"
 _DEFAULT_MAX_SYNTHETIC_DREF_FALLBACKS = 2
 _DEFAULT_MAX_PENDING_SEED_FALLBACKS = 3
 _NUDGE_CHAT_SURFACE_TIMEOUT_SEC = 75.0
+
+
+def _desktop_soak_mux_step_timeout_sec(base_sec: float) -> float:
+    try:
+        from cdp_chat_support import signoff_parallel_desktop_mux_step_timeout_sec
+
+        return signoff_parallel_desktop_mux_step_timeout_sec(base_sec)
+    except ImportError:
+        return base_sec
+
+
+def _desktop_soak_nudge_consume_timeout_sec() -> float:
+    return _desktop_soak_mux_step_timeout_sec(GATE_STREAM_NUDGE_SEC)
 
 
 @dataclass(slots=True)
@@ -717,26 +734,32 @@ async def _ensure_nudge_chat_surface(
     # SEARCH_POLICY and can spend most of the wall budget on repeated API clears.
     await chat.ensure_e2e_api_base_binding()
     chat._reset_shell_layout_wait_clock()
-    await chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
-    await chat.ensure_react_e2e_bridge(timeout_sec=45.0)
+    shell_timeout = _desktop_soak_mux_step_timeout_sec(45.0)
+    await chat.wait_shell_ready(timeout_sec=shell_timeout, require_bridge=True)
+    await chat.ensure_react_e2e_bridge(timeout_sec=shell_timeout)
 
 
 async def _ensure_nudge_chat_surface_guarded(
     chat: McpChatSession,
     *,
     chat_id: str = "",
-    timeout_sec: float = _NUDGE_CHAT_SURFACE_TIMEOUT_SEC,
+    timeout_sec: float | None = None,
 ) -> bool:
+    effective_timeout = (
+        timeout_sec
+        if timeout_sec is not None
+        else _desktop_soak_mux_step_timeout_sec(_NUDGE_CHAT_SURFACE_TIMEOUT_SEC)
+    )
     try:
         await asyncio.wait_for(
             _ensure_nudge_chat_surface(chat, chat_id=chat_id),
-            timeout=timeout_sec,
+            timeout=effective_timeout,
         )
         return True
     except asyncio.TimeoutError:
         progress(
             "nudge chat surface bootstrap timed out "
-            f"after {timeout_sec:.0f}s chat_id={chat_id.strip() or '-'}"
+            f"after {effective_timeout:.0f}s chat_id={chat_id.strip() or '-'}"
         )
         return False
     except (RuntimeError, TimeoutError, OSError) as exc:
@@ -780,12 +803,17 @@ async def _wait_nudge_consumed(
     *,
     baseline_user_msgs: int,
     baseline_step_count: int,
-    timeout_sec: float = 45.0,
+    timeout_sec: float | None = None,
 ) -> bool:
+    effective_timeout = (
+        timeout_sec
+        if timeout_sec is not None
+        else _desktop_soak_nudge_consume_timeout_sec()
+    )
     normalized = chat_id.strip()
     if not normalized:
         return False
-    deadline = asyncio.get_event_loop().time() + timeout_sec
+    deadline = asyncio.get_event_loop().time() + effective_timeout
     poll = 0
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
@@ -815,7 +843,7 @@ async def _wait_nudge_consumed(
             )
             return True
         await asyncio.sleep(1.0)
-    progress(f"nudge consume wait timed out after {timeout_sec:.0f}s")
+    progress(f"nudge consume wait timed out after {effective_timeout:.0f}s")
     return False
 
 
@@ -840,7 +868,7 @@ async def _send_interact_nudge(
         surface_ready = await _ensure_nudge_chat_surface_guarded(
             chat,
             chat_id=normalized_chat_id,
-            timeout_sec=45.0,
+            timeout_sec=_desktop_soak_mux_step_timeout_sec(45.0),
         )
         if not surface_ready:
             progress("dref prefetch surface repair skipped (non-fatal)")
@@ -1477,7 +1505,10 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if progress_api_timeout_streak >= streak_threshold or progress_api_timeout_total >= total_threshold:
+        if (
+            progress_api_timeout_streak >= streak_threshold
+            or progress_api_timeout_total >= total_threshold
+        ):
             threshold_reason = (
                 f"streak>={streak_threshold}"
                 if progress_api_timeout_streak >= streak_threshold

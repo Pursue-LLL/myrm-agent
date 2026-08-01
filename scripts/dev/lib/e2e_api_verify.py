@@ -35,7 +35,6 @@ from typing import Final
 from runtime_identity import _backend_source_fingerprint
 from stack_mutation_policy import (
     _default_state_dir,
-    apply_pending_drift_if_idle,
     decide_drift_heal,
     pending_drift_exists,
     read_pending_drift,
@@ -544,7 +543,7 @@ def _resolve_e2e_api_context_impl(
     *,
     monorepo: Path | None = None,
     state_dir: Path | None = None,
-    retry_after_apply: bool = True,
+    retry_after_apply: bool = True,  # noqa: ARG001 — kept for caller compat; drift apply moved to Coordinator
 ) -> E2eApiContext:
     root = (monorepo or monorepo_root()).resolve()
     resolved_state = state_dir or _default_state_dir()
@@ -559,9 +558,8 @@ def _resolve_e2e_api_context_impl(
     lease_counts = wave_lease_counts(wave_snapshot)
     active_leases = lease_counts.total
 
-    if pending_drift_exists(resolved_state) and active_leases == 0:
-        apply_pending_drift_if_idle(monorepo_root=root, state_dir=resolved_state)
-
+    # P0-A: drift apply removed from observation path — Coordinator daemon owns mutation.
+    # Here we only read drift state for context reporting.
     drift_pending = pending_drift_exists(resolved_state)
     drift_action = decide_drift_heal(
         active_leases=active_leases,
@@ -570,19 +568,6 @@ def _resolve_e2e_api_context_impl(
 
     candidates = enumerate_backend_candidates(workspace_fp=workspace_fp)
     verify = _select_verify_candidate(candidates, active_leases=active_leases)
-
-    if verify is None and retry_after_apply and active_leases == 0 and drift_pending:
-        apply_result = apply_pending_drift_if_idle(
-            monorepo_root=root, state_dir=resolved_state
-        )
-        if apply_result.action == "applied":
-            drift_pending = pending_drift_exists(resolved_state)
-            drift_action = decide_drift_heal(
-                active_leases=active_leases,
-                drift_pending=drift_pending,
-            ).value
-            candidates = enumerate_backend_candidates(workspace_fp=workspace_fp)
-            verify = _select_verify_candidate(candidates, active_leases=active_leases)
 
     pending = read_pending_drift(resolved_state)
     if pending is not None and drift_pending:
@@ -658,20 +643,35 @@ def _load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
             snapshot
         )
     except Exception as exc:
-        fallback = {
+        fallback: dict[str, object] = {
             "agent_stream_lock": None,
             "desktop_approval_lock": None,
             "active_tests": [],
-            "active_test_count": 0,
+            "active_test_count": "UNKNOWN",
             "snapshot_error": str(exc),
+            "snapshot_unavailable": True,
         }
         return fallback, [
-            "E2E_PARALLEL_ACTIVE: unavailable",
+            "E2E_PARALLEL_ACTIVE: UNAVAILABLE (fail-closed: treat as non-zero)",
             f"E2E_PARALLEL_SNAPSHOT_ERROR={exc}",
         ]
     finally:
         if inserted:
             sys.path.remove(support_text)
+
+
+def _safe_active_test_count(snapshot: dict[str, object]) -> int:
+    """Extract active_test_count; fail-closed returns 1 when UNKNOWN/invalid.
+
+    P0-A: snapshot unavailable must never report 0 (which would trigger
+    restart/heal while parallel sessions are actually running).
+    """
+    raw = snapshot.get("active_test_count", 0)
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str) and raw.isdigit():
+        return int(raw)
+    return 1
 
 
 def _compute_queue_state(
@@ -747,6 +747,10 @@ def _cap_headroom_fields(
         "privateWaiting": int(dev_gate["private_waiting"]),
         "privateActiveCredits": int(dev_gate["private_active_credits"]),
         "privateCapacityCredits": int(dev_gate["private_capacity_credits"]),
+        "privateAvailableCredits": int(dev_gate.get("private_available_credits", 0)),
+        "privateCreditIdleReason": str(
+            dev_gate.get("private_credit_idle_reason", "unknown")
+        ),
     }
 
 
@@ -776,6 +780,8 @@ def _format_cap_headroom_human(
         f"shared=unlimited active={headroom['sharedActive']} "
         f"private={headroom['privateActiveCredits']}/"
         f"{headroom['privateCapacityCredits']} "
+        f"private_available={headroom['privateAvailableCredits']} "
+        f"private_idle={headroom['privateCreditIdleReason']} "
         f"private_waiting={headroom['privateWaiting']} "
         f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
         f"active_tests={active_test_count} queue_expected={queue}{reason_note} "
@@ -995,7 +1001,7 @@ def _context_to_dict(
     headroom = _cap_headroom_fields(
         lease_counts=counts,
         mux_fields=resolved_mux,
-        active_test_count=int(resolved_parallel.get("active_test_count", 0)),
+        active_test_count=_safe_active_test_count(resolved_parallel),
         parallel_snapshot=resolved_parallel,
     )
     payload = asdict(ctx)
@@ -1043,9 +1049,14 @@ def _context_to_dict(
 
         payload["browserPool"] = browser_identity_snapshot()
     except ImportError:
-        payload["browserPool"] = {"canonical": False, "next_action": "OBSERVABILITY_UNKNOWN"}
+        payload["browserPool"] = {
+            "canonical": False,
+            "next_action": "OBSERVABILITY_UNKNOWN",
+        }
     try:
-        from host_resource_governor import host_resource_governor_snapshot  # noqa: PLC0415
+        from host_resource_governor import (
+            host_resource_governor_snapshot,
+        )  # noqa: PLC0415
 
         payload["hostGovernor"] = host_resource_governor_snapshot()
     except ImportError:
@@ -1065,7 +1076,7 @@ def _context_to_dict(
             "MUX_COLD_ATTACH_SATURATED: do not hand new_page/navigate; "
             "use verify-api or ./myrm test -m chrome_e2e (auto queue ≤900s)."
         )
-    active_count = int(resolved_parallel.get("active_test_count", 0))
+    active_count = _safe_active_test_count(resolved_parallel)
     if active_count > 0:
         payload["agent_rule"] = (
             f"{payload['agent_rule']} "
@@ -1138,7 +1149,9 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     try:
         from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
 
-        auth_status = auth_template_status(workspace_fingerprint=ctx.workspace_fingerprint)
+        auth_status = auth_template_status(
+            workspace_fingerprint=ctx.workspace_fingerprint
+        )
         sys.stdout.write(
             "E2E_AUTH_TEMPLATE="
             f"status={auth_status['status']} "
@@ -1160,7 +1173,9 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     except ImportError:
         pass
     try:
-        from host_resource_governor import host_resource_governor_snapshot  # noqa: PLC0415
+        from host_resource_governor import (
+            host_resource_governor_snapshot,
+        )  # noqa: PLC0415
 
         gov = host_resource_governor_snapshot()
         sys.stdout.write(
@@ -1183,7 +1198,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _load_parallel_runtime_snapshot()
-    active_test_count = int(parallel_snapshot.get("active_test_count", 0))
+    active_test_count = _safe_active_test_count(parallel_snapshot)
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (
         [item for item in active_tests_raw if isinstance(item, dict)]

@@ -16,6 +16,7 @@ def _pytest_fail(message: str) -> None:
 
     pytest.fail(message)
 
+
 _TEXTEDIT_AX_DEGRADED_TTL_SEC = 300.0
 _STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
 _textedit_ax_degraded_until_monotonic = 0.0
@@ -63,9 +64,7 @@ def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
     ):
         _clear_textedit_ax_degraded()
         return False, "", 0
-    remaining = int(
-        max(0.0, _textedit_ax_degraded_until_monotonic - time.monotonic())
-    )
+    remaining = int(max(0.0, _textedit_ax_degraded_until_monotonic - time.monotonic()))
     return remaining > 0, _textedit_ax_degraded_detail, remaining
 
 
@@ -313,9 +312,7 @@ def activate_textedit_foreground() -> None:
             timeout=_textedit_osascript_timeout_sec(activate=True),
         )
     except subprocess.TimeoutExpired:
-        progress(
-            "textedit activate osascript timeout — continue preflight retries"
-        )
+        progress("textedit activate osascript timeout — continue preflight retries")
 
 
 def activate_chrome_foreground() -> None:
@@ -348,9 +345,7 @@ def textedit_is_frontmost() -> bool:
             timeout=_textedit_osascript_timeout_sec(),
         )
     except subprocess.TimeoutExpired:
-        progress(
-            "textedit is_frontmost osascript timeout — treating as not frontmost"
-        )
+        progress("textedit is_frontmost osascript timeout — treating as not frontmost")
         return False
     return proc.returncode == 0 and proc.stdout.strip() == "TextEdit"
 
@@ -458,10 +453,7 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
             f"reason={last_detail}"
         )
         if attempt < attempts:
-            if (
-                os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-                and attempt <= 4
-            ):
+            if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and attempt <= 4:
                 await asyncio.to_thread(activate_textedit_foreground)
                 await asyncio.sleep(1.5)
             else:

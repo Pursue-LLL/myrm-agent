@@ -78,7 +78,9 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: False)
+    monkeypatch.setattr(
+        textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: False
+    )
     calls: list[tuple[str, ...]] = []
     prepared: list[bool] = []
 
@@ -112,7 +114,9 @@ def test_restart_textedit_fixture_process_signoff_skips_graceful_quit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: True)
+    monkeypatch.setattr(
+        textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: True
+    )
     kill_calls: list[bool] = []
     prepared: list[bool] = []
 

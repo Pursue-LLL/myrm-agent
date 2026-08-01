@@ -80,6 +80,23 @@ def assert_auth_template_ready_for_isolated_context(
     )
 
 
+def _resolve_template_cookies(template: dict[str, object]) -> list[dict[str, object]]:
+    cookies_ref = template.get("cookiesRef")
+    if isinstance(cookies_ref, str) and cookies_ref.strip():
+        try:
+            from e2e_auth_keychain import load_auth_cookie_blob  # noqa: PLC0415
+
+            loaded = load_auth_cookie_blob(cookies_ref)
+            if loaded is not None:
+                return loaded
+        except ImportError:
+            pass
+    cookies_raw = template.get("cookies", [])
+    if isinstance(cookies_raw, list):
+        return [item for item in cookies_raw if isinstance(item, dict)]
+    return []
+
+
 def hydrate_auth_template_for_context(
     *,
     context_id: str,
@@ -96,8 +113,8 @@ def hydrate_auth_template_for_context(
     template = _load_template()
     if template is None:
         return False
-    cookies_raw = template.get("cookies", [])
-    if not isinstance(cookies_raw, list) or not cookies_raw:
+    cookies_raw = _resolve_template_cookies(template)
+    if not cookies_raw:
         return True
     origin = str(template.get("origin", "")).strip()
     if not origin:
@@ -137,9 +154,10 @@ def _setup_lock_path() -> Path:
 
 
 def runtime_fingerprint(*, workspace_fingerprint: str = "") -> str:
-    workspace = workspace_fingerprint.strip() or os.environ.get(
-        "MYRM_WORKSPACE_FINGERPRINT", ""
-    ).strip()
+    workspace = (
+        workspace_fingerprint.strip()
+        or os.environ.get("MYRM_WORKSPACE_FINGERPRINT", "").strip()
+    )
     payload = (
         f"port={resolve_chrome_port()}|data={resolve_chrome_data_dir()}|ws={workspace}"
     )
@@ -287,7 +305,19 @@ def seal_auth_template(
         "probePath": probe_path.strip() or "/",
     }
     if cookies:
-        record["cookies"] = cookies
+        try:
+            from e2e_auth_keychain import (  # noqa: PLC0415
+                keychain_storage_enabled,
+                store_auth_cookie_blob,
+            )
+        except ImportError:
+            record["cookies"] = cookies
+        else:
+            blob_ref = store_auth_cookie_blob(template_fp, cookies)
+            record["cookiesRef"] = blob_ref
+            record["cookiesEncrypted"] = keychain_storage_enabled()
+            if not keychain_storage_enabled():
+                record["cookies"] = cookies
     path = _template_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".json.tmp")

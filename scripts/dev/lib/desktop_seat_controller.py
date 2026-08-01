@@ -88,9 +88,7 @@ class DesktopSeatController:
         if record is None or record.owner_token != owner_token:
             raise PermissionError(f"desktop seat owner mismatch: {session_id}")
         if record.policy.workload is not Workload.DESKTOP:
-            raise ValueError(
-                f"desktop seat requires DESKTOP workload: {session_id}"
-            )
+            raise ValueError(f"desktop seat requires DESKTOP workload: {session_id}")
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._release_terminal_sessions(connection, admitted_at)
@@ -184,9 +182,7 @@ class DesktopSeatController:
             "waiting": [
                 {
                     "session_id": str(row["session_id"]),
-                    "waited_sec": max(
-                        0.0, captured_at - float(row["enqueued_at"])
-                    ),
+                    "waited_sec": max(0.0, captured_at - float(row["enqueued_at"])),
                 }
                 for row in waiting
             ],
@@ -228,9 +224,7 @@ class DesktopSeatController:
             raise KeyError(f"desktop seat queue row missing: {session_id}")
         return row
 
-    def _queue_position(
-        self, connection: sqlite3.Connection, session_id: str
-    ) -> int:
+    def _queue_position(self, connection: sqlite3.Connection, session_id: str) -> int:
         rows = connection.execute(
             """
             SELECT session_id FROM desktop_seat_admission

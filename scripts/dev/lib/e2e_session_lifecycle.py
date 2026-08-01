@@ -427,6 +427,9 @@ def provider_readiness_gate_sync() -> None:
     if wait_e2e_provider_ready(timeout_sec=wait_budget):
         return
     snapshot = fetch_provider_readiness_snapshot()
+    provider = snapshot.get("provider")
+    if isinstance(provider, dict) and bool(provider.get("is_ready")):
+        return
     raise RuntimeError(
         "E2E_PROVIDER_READINESS_GATE_FAIL: "
         f"provider not ready within {int(wait_budget)}s: {snapshot}"

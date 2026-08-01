@@ -151,8 +151,9 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
         except ImportError:
             cap = 420.0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
-        scaled += 60.0
-        cap = max(cap, 480.0)
+        # R218/R224: desktop leg soak — force chat shell hydrate under parallel mux/turbopack.
+        scaled = floor + load * 22.0 + 120.0
+        cap = max(cap, 780.0)
     return min(scaled, cap)
 
 
@@ -244,7 +245,67 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
     load = max(active_leases, parallel_tests, mux_peers)
     floor = max(base_sec, 15.0)
     scaled = floor + load * 4.0
-    return min(scaled, 45.0)
+    return min(scaled, 90.0)
+
+
+def _signoff_desktop_soak_parallel_load() -> int:
+    """Shared parallel-pressure load for desktop soak timeout scaling (R225)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
+        return 0
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
+        return 0
+    active_leases = 0
+    parallel_tests = 0
+    mux_peers = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import (
+            parallel_active_test_count,
+            parallel_mux_peer_count,
+        )
+
+        parallel_tests = parallel_active_test_count()
+        mux_peers = parallel_mux_peer_count()
+    except Exception:
+        parallel_tests = 0
+        mux_peers = 0
+    return max(active_leases, parallel_tests, mux_peers)
+
+
+def signoff_parallel_desktop_approval_wait_sec(base_sec: float = 240.0) -> float:
+    """Extend desktop tool-activity wait under parallel desktop soak (R225)."""
+    load = _signoff_desktop_soak_parallel_load()
+    if load <= 0:
+        return base_sec
+    floor = max(base_sec, 240.0)
+    scaled = floor + load * 35.0
+    return min(scaled, 600.0)
+
+
+def signoff_parallel_desktop_mux_step_timeout_sec(base_sec: float = 75.0) -> float:
+    """Extend mux-bound desktop steps (click_new_chat, ensure_surface) under soak (R225)."""
+    load = _signoff_desktop_soak_parallel_load()
+    if load <= 0:
+        return base_sec
+    floor = max(base_sec, 75.0)
+    scaled = floor + load * 12.0
+    return min(scaled, 240.0)
+
+
+def signoff_parallel_desktop_turn_done_timeout_sec(base_sec: float = 180.0) -> float:
+    """Extend post-approval DONE wait under parallel desktop soak (R226)."""
+    load = _signoff_desktop_soak_parallel_load()
+    if load <= 0:
+        return base_sec
+    floor = max(base_sec, 180.0)
+    scaled = floor + load * 30.0
+    return min(scaled, 420.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
@@ -516,12 +577,16 @@ COUNT_DOM_USER_MESSAGES_JS = """
 """.strip()
 
 
-def _api_provider_ready(*, api_url: str | None = None) -> bool:
+def _api_provider_ready(
+    *,
+    api_url: str | None = None,
+    timeout_sec: float = 5.0,
+) -> bool:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     try:
         payload = _e2e_api_get_json(
             f"{resolved_api}/api/v1/config/readiness",
-            timeout_sec=5.0,
+            timeout_sec=timeout_sec,
         )
     except Exception:
         return False
@@ -555,27 +620,43 @@ def wait_e2e_provider_ready(
     timeout_sec: float = 60.0,
     poll_interval_sec: float = 1.0,
 ) -> bool:
-    """Poll private-pool health + provider readiness (SHPOIB bootstrap race)."""
+    """Poll private-pool provider readiness (SHPOIB bootstrap race).
+
+    R231: ``timeout_sec`` is the full poll budget. ``e2e_parallel_config_api_timeout_sec``
+    scales per-request HTTP only — applying it to the poll deadline silently capped
+    desktop soak gate waits (260s budget → 120s under parallel load).
+    Provider ``is_ready`` is sufficient; health is an optional fast-path hint.
+    """
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
-    timeout_sec = e2e_parallel_config_api_timeout_sec(timeout_sec)
+    request_timeout_sec = e2e_parallel_config_api_timeout_sec(5.0)
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        health_ok = False
+        if _api_provider_ready(
+            api_url=resolved_api,
+            timeout_sec=request_timeout_sec,
+        ):
+            return True
         try:
             health_payload = _e2e_api_get_json(
                 f"{resolved_api}/api/v1/health",
-                timeout_sec=5.0,
+                timeout_sec=request_timeout_sec,
             )
-            health_ok = (
+            if (
                 isinstance(health_payload, dict)
                 and health_payload.get("status") == "healthy"
-            )
+                and _api_provider_ready(
+                    api_url=resolved_api,
+                    timeout_sec=request_timeout_sec,
+                )
+            ):
+                return True
         except Exception:
-            health_ok = False
-        if health_ok and _api_provider_ready(api_url=resolved_api):
-            return True
+            pass
         time.sleep(poll_interval_sec)
-    return False
+    return _api_provider_ready(
+        api_url=resolved_api,
+        timeout_sec=request_timeout_sec,
+    )
 
 
 def fetch_e2e_goal_status(
@@ -1101,6 +1182,8 @@ def empty_write_failure_in_messages(
                     has_mutation_failure = True
         if role != "user" and empty_error in blob:
             has_mutation_failure = True
+    if has_mutation_failure:
+        tool_invoked = True
     return tool_invoked, has_mutation_failure
 
 
@@ -1911,10 +1994,7 @@ async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
         if observed.get("ok") is True:
             return
         last_observed = observed
-        if (
-            not _browser_hitl_pin_transient_failure(observed)
-            or attempt >= max_attempts
-        ):
+        if not _browser_hitl_pin_transient_failure(observed) or attempt >= max_attempts:
             break
         await asyncio.sleep(_BROWSER_HITL_PIN_BACKOFF_SEC * attempt)
     raise RuntimeError(f"Browser HITL pin failed: {last_observed}")

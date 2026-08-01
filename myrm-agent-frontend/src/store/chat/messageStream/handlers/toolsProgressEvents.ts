@@ -268,11 +268,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     });
     actions.setLoading(false);
-    // Override the CELEBRATING animation from setLoading(false) with approval waiting.
-    // setTimeout ensures this runs after React processes the loading state change.
-    if (typeof window !== 'undefined') {
-      setTimeout(() => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })), 0);
-    }
     return done(ctx);
   }
 
@@ -322,9 +317,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       });
     }
 
-    if (typeof window !== 'undefined') {
-      setTimeout(() => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })), 0);
-    }
     return done(ctx);
   }
 
@@ -403,9 +395,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const allRequests = H.useToolApprovalStore.getState().queue;
     notifyIdleApproval(allRequests.slice(-actionRequests.length));
 
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } }));
-    }
     return done(ctx);
   }
 
@@ -413,9 +402,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
     const remaining = H.useToolApprovalStore.getState().queue;
     if (remaining.length === 0) clearAllNotifications();
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_released' } }));
-    }
     return done(ctx);
   }
 
@@ -437,7 +423,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('pet-status-event', {
-            detail: { step_key: 'correction_learned', message: summaries.join('; ') },
+            detail: { step_key: 'correction_learned' },
           }),
         );
       }

@@ -7,13 +7,14 @@ import sqlite3
 import time
 from dataclasses import dataclass
 
+from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT
 from dev_gate_session import SessionState
 from dev_gate_store import DevGateStore
 
 PRIVATE_ADMIT_TIMEOUT_SEC = 900.0
 PRIVATE_QUEUE_PROGRESS_SEC = 30.0
 PRIVATE_AGING_INTERVAL_SEC = 60.0
-PRIVATE_CAPACITY_MAX = 4
+PRIVATE_CAPACITY_MAX = LIVE_SHPOIB_MAX_CONCURRENT  # S2: single cap source
 
 _QUEUE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS private_admission (
@@ -62,9 +63,7 @@ def private_capacity_credits() -> int:
         cpu_capacity = max(1, cpu_count // 2)
         memory_capacity = PRIVATE_CAPACITY_MAX
         try:
-            available_bytes = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf(
-                "SC_PAGE_SIZE"
-            )
+            available_bytes = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
             memory_capacity = max(1, int(available_bytes // (2 * 1024**3)))
         except (OSError, ValueError):
             pass
@@ -99,9 +98,7 @@ class PrivateResourceController:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._release_terminal_sessions(connection, admitted_at)
-            session = self._owned_private_session(
-                connection, session_id, owner_token
-            )
+            session = self._owned_private_session(connection, session_id, owner_token)
             connection.execute(
                 """
                 INSERT INTO private_admission(
@@ -217,9 +214,7 @@ class PrivateResourceController:
                     "session_id": str(row["session_id"]),
                     "credits": int(row["credits"]),
                     "priority": int(row["priority"]),
-                    "waited_sec": max(
-                        0.0, captured_at - float(row["enqueued_at"])
-                    ),
+                    "waited_sec": max(0.0, captured_at - float(row["enqueued_at"])),
                 }
                 for row in waiting
             ],
@@ -283,7 +278,9 @@ class PrivateResourceController:
         if str(row["owner_token"]) != owner_token:
             raise PermissionError(f"session owner mismatch: {session_id}")
         if str(row["execution_mode"]) != "PRIVATE":
-            raise ValueError(f"shared session cannot enter private admission: {session_id}")
+            raise ValueError(
+                f"shared session cannot enter private admission: {session_id}"
+            )
         if str(row["state"]) not in {
             SessionState.PRIVATE_ADMIT.value,
             SessionState.PREPARING.value,
@@ -347,13 +344,15 @@ class PrivateResourceController:
                 """,
                 (now, session_id),
             )
+            new_hard_deadline = now + 600.0
             connection.execute(
                 """
                 UPDATE sessions SET state='PREPARING', version=?,
-                    phase_started_at=?, last_progress_at=?
+                    phase_started_at=?, last_progress_at=?,
+                    hard_deadline=?
                 WHERE session_id=?
                 """,
-                (version, now, now, session_id),
+                (version, now, now, new_hard_deadline, session_id),
             )
             connection.execute(
                 """

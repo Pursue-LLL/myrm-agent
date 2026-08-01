@@ -12,7 +12,9 @@ from tests.e2e.desktop_approval.constants import (
 )
 
 
-def test_wall_clock_fail_fast_triggers_after_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wall_clock_fail_fast_triggers_after_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         "tests.e2e.desktop_approval.constants._resolve_desktop_e2e_wall_clock_fail_sec",
         lambda: 0.05,
@@ -35,7 +37,9 @@ def test_signoff_wall_clock_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     assert mod._resolve_desktop_e2e_wall_clock_fail_sec() == 280.0
 
 
-def test_signoff_desktop_soak_wall_clock_scales(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_signoff_desktop_soak_wall_clock_scales(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("E2E_SIGNOFF", "1")
     monkeypatch.setenv("MYRM_E2E_DESKTOP_SOAK", "1")
     from unittest.mock import patch

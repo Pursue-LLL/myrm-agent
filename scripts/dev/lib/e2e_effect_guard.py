@@ -11,6 +11,13 @@ _GLOBAL_MUTATION_PREFIXES: tuple[str, ...] = (
     "/api/v1/admin/",
 )
 
+# Formal chrome_e2e bootstrap helpers (prepare_e2e_ui_session) — idempotent UI gate, not tenant config.
+_NAMESPACE_WRITE_BOOTSTRAP_PATHS: frozenset[str] = frozenset(
+    {
+        "/api/v1/config/onboarding/complete",
+    }
+)
+
 
 def current_access_scope() -> str:
     return os.environ.get("MYRM_E2E_ACCESS_SCOPE", "READ").strip().upper()
@@ -39,6 +46,8 @@ def assert_http_effect_allowed(*, method: str, url: str) -> None:
     if scope == "READ" and is_global_mutation_path(path):
         raise RuntimeError(f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}")
     if scope == "NAMESPACE_WRITE" and is_global_mutation_path(path):
+        if path in _NAMESPACE_WRITE_BOOTSTRAP_PATHS:
+            return
         namespace = os.environ.get("MYRM_E2E_NAMESPACE", "").strip()
         if namespace and namespace not in path:
             raise RuntimeError(

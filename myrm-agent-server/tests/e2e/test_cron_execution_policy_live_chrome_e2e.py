@@ -50,7 +50,9 @@ _CRON_PROMPT = (
 )
 
 
-def _cron_api(client: httpx.Client, api_base: str, method: str, path: str, **kwargs: object) -> dict[str, object]:
+def _cron_api(
+    client: httpx.Client, api_base: str, method: str, path: str, **kwargs: object
+) -> dict[str, object]:
     import sys
     from pathlib import Path
 
@@ -64,7 +66,9 @@ def _cron_api(client: httpx.Client, api_base: str, method: str, path: str, **kwa
     response.raise_for_status()
     body = response.json()
     if not isinstance(body, dict):
-        raise AssertionError(f"Expected JSON object from cron API, got {type(body).__name__}")
+        raise AssertionError(
+            f"Expected JSON object from cron API, got {type(body).__name__}"
+        )
     return body
 
 
@@ -120,7 +124,9 @@ def _wait_scheduler_ready(client: httpx.Client, api_base: str) -> None:
     raise AssertionError(f"Cron scheduler not ready on {api_base}: {last!r}")
 
 
-def _trigger_and_wait(client: httpx.Client, api_base: str, job_id: str) -> dict[str, object]:
+def _trigger_and_wait(
+    client: httpx.Client, api_base: str, job_id: str
+) -> dict[str, object]:
     _wait_scheduler_ready(client, api_base)
     _cron_api(client, api_base, "POST", f"/{job_id}/resume")
     triggered = _cron_api(client, api_base, "POST", f"/{job_id}/trigger")
@@ -169,11 +175,15 @@ def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) ->
         pass
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.timeout(600)
 def test_live_cron_webonly_policy_progress_steps() -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail("Provider config not ready — seed default model before LIVE cron E2E")
+        pytest.fail(
+            "Provider config not ready — seed default model before LIVE cron E2E"
+        )
 
     api_base = get_e2e_api_url()
     job_id = ""
@@ -186,15 +196,17 @@ def test_live_cron_webonly_policy_progress_steps() -> None:
             output = run.get("output")
             tool_names = _tool_names_from_run(run)
 
-            assert status in _SUCCESS_RUN_STATUSES, (
-                f"Expected cron ok, got status={status!r} error={error!r} output={output!r}"
-            )
+            assert (
+                status in _SUCCESS_RUN_STATUSES
+            ), f"Expected cron ok, got status={status!r} error={error!r} output={output!r}"
             forbidden = [name for name in tool_names if name in _FORBIDDEN_TOOL_NAMES]
-            assert not forbidden, f"Forbidden tools in progressSteps: {forbidden}; all={tool_names}"
+            assert (
+                not forbidden
+            ), f"Forbidden tools in progressSteps: {forbidden}; all={tool_names}"
             output_text = output if isinstance(output, str) else ""
-            assert "WEBONLY_OK" in output_text.upper(), (
-                f"Expected WEBONLY_OK in output, got {output!r} metadata={run.get('metadata')!r}"
-            )
+            assert (
+                "WEBONLY_OK" in output_text.upper()
+            ), f"Expected WEBONLY_OK in output, got {output!r} metadata={run.get('metadata')!r}"
         finally:
             if job_id:
                 _delete_job_best_effort(client, api_base, job_id)

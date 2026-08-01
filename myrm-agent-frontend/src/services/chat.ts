@@ -289,8 +289,12 @@ export const uploadToWorkspace = async (
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        const res = JSON.parse(xhr.responseText);
-        resolve(res.data);
+        try {
+          const res = JSON.parse(xhr.responseText);
+          resolve(res.data);
+        } catch {
+          reject(new Error('Invalid server response'));
+        }
       } else {
         reject(new Error(xhr.responseText || `Upload failed: ${xhr.status}`));
       }

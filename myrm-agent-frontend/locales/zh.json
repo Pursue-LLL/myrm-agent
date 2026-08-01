@@ -12266,7 +12266,25 @@
       "activePet": "当前宠物",
       "activePetEmpty": "未安装宠物 — 请在图鉴中选择",
       "galleryHint": "在「图鉴」标签页安装宠物",
-      "clear": "清除"
+      "clear": "清除",
+      "popOut": "弹出到桌面",
+      "popIn": "收回窗口内",
+      "composerPlaceholder": "输入消息…",
+      "composerSend": "发送",
+      "mailOpen": "打开对话",
+      "bubble": {
+        "run0": "处理中…",
+        "run1": "正在干活…",
+        "run2": "运算中…",
+        "review0": "检查中…",
+        "review1": "审阅中…",
+        "review2": "仔细看看…",
+        "failed0": "遇到问题了",
+        "failed1": "出了点状况",
+        "wait0": "需要你",
+        "wait1": "等你确认",
+        "wait2": "轮到你了"
+      }
     },
     "palette": {
       "title": "宠物面板",

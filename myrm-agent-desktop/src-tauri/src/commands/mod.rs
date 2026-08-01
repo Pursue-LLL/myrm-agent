@@ -11,7 +11,7 @@
 
 pub mod agent;
 pub mod config;
-pub mod pet_overlay;
+pub mod pet_surface;
 pub mod power;
 pub mod recovery;
 pub mod screen_lock;

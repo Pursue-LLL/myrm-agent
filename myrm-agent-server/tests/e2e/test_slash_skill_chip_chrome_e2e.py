@@ -28,7 +28,10 @@ def _ensure_skill_enabled(api_url: str, skill_id: str) -> None:
             f"{api_url}/api/v1/skills/test/ensure-prebuilt-catalog",
             expected_statuses=frozenset({200, 201, 404}),
         )
-        if isinstance(catalog, dict) and catalog.get("contains_systematic_debugging") is not True:
+        if (
+            isinstance(catalog, dict)
+            and catalog.get("contains_systematic_debugging") is not True
+        ):
             # Slash palette can fall back to agent-bound skill ids when catalog is empty.
             pass
     except RuntimeError:
@@ -144,14 +147,18 @@ _TRANSCRIPT_CHIP_STATE_JS = """(() => {
 
 
 def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-skill-chip-transcript-fixture")
+    seeded = http_json(
+        "POST", f"{api_url}/api/v1/chats/test/seed-skill-chip-transcript-fixture"
+    )
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     assert chat_id.startswith("e2eskillchip")
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -228,7 +235,9 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
         assert "analyze this bug" in wire
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

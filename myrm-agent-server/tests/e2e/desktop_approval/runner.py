@@ -25,6 +25,7 @@ from cdp_chat_support import (
     ensure_e2e_hitl_mode_in_browser,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
+    signoff_parallel_desktop_mux_step_timeout_sec,
     wait_e2e_provider_ready,
 )
 from mcp_chat_ui import McpChatSession
@@ -117,8 +118,19 @@ async def run_desktop_approval_chrome_e2e(
                 if attempt >= attempts:
                     break
                 progress(f"retry after: {last_error}")
+                if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+                    from tests.e2e.desktop_approval.turn_flow import (
+                        _signoff_mux_attach_restart,
+                    )
+
+                    progress("signoff mux scoped restart before allow-once retry")
+                    await asyncio.to_thread(
+                        _signoff_mux_attach_restart,
+                        "signoff desktop allow-once internal retry",
+                    )
                 try:
                     progress("retry reset: lightweight chat reset (no page reopen)")
+                    mux_step_timeout = signoff_parallel_desktop_mux_step_timeout_sec(75.0)
                     await _retry_reset_step(
                         "recover_mux_transport",
                         asyncio.to_thread(chat._client.recover_mux_transport),
@@ -130,27 +142,27 @@ async def run_desktop_approval_chrome_e2e(
                     await _retry_reset_step(
                         "ensure_chat_surface/pre",
                         chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
-                        timeout_sec=75.0,
+                        timeout_sec=mux_step_timeout,
                     )
                     await _retry_reset_step(
                         "ensure_react_e2e_bridge/pre",
                         chat.ensure_react_e2e_bridge(timeout_sec=90.0),
-                        timeout_sec=75.0,
+                        timeout_sec=mux_step_timeout,
                     )
                     await _retry_reset_step(
                         "click_new_chat",
-                        chat.click_new_chat(timeout_sec=75.0),
-                        timeout_sec=75.0,
+                        chat.click_new_chat(timeout_sec=mux_step_timeout),
+                        timeout_sec=mux_step_timeout,
                     )
                     await _retry_reset_step(
                         "ensure_chat_surface/post",
                         chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
-                        timeout_sec=75.0,
+                        timeout_sec=mux_step_timeout,
                     )
                     await _retry_reset_step(
                         "ensure_react_e2e_bridge/post",
                         chat.ensure_react_e2e_bridge(timeout_sec=90.0),
-                        timeout_sec=75.0,
+                        timeout_sec=mux_step_timeout,
                     )
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):

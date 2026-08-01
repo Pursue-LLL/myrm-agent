@@ -38,6 +38,7 @@ export { default as useToolsSnapshotStore } from '@/store/useToolsSnapshotStore'
 export { default as useChatStore } from '@/store/useChatStore';
 export { default as useConfigStore } from '@/store/useConfigStore';
 export { playCompletionSound } from '@/lib/utils/completionSound';
+export { dispatchPetSurfaceAwayCompletion } from '@/components/features/companion/sprite/petSurfaceAwayCompletion';
 export type { ProgressFileItem } from '../types';
 export {
   getContextOverflowMessage,

@@ -9,6 +9,7 @@ import platform
 import subprocess
 import time
 import urllib.error
+import uuid
 from typing import Awaitable, TypeVar
 
 import pytest
@@ -21,6 +22,7 @@ from cdp_chat_support import (
     signoff_parallel_desktop_mux_step_timeout_sec,
     signoff_parallel_desktop_turn_done_timeout_sec,
     signoff_parallel_force_chat_timeout_sec,
+    wait_chat_messages_done,
     wait_e2e_provider_ready,
 )
 from mcp_chat_ui import McpChatSession
@@ -28,6 +30,7 @@ from mcp_chat_ui import McpChatSession
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_CLICK_DEADLINE_SEC,
     BASE_URL,
+    E2E_NUDGE_PROMPT,
     E2E_PROMPT,
     progress,
 )
@@ -211,6 +214,89 @@ async def resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str
     return chat_id_from_path(str(path) if path else "")
 
 
+def _kickoff_desktop_turn_via_api_sync(
+    chat_id: str,
+    *,
+    query: str,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """R232: POST agent-stream to start turn without MUX CDP bridge (seeded resend SSOT)."""
+    from cdp_chat_support import _collect_agent_stream_events
+    from tests.api.agent.utils import get_model_selection
+
+    normalized = chat_id.strip()
+    if not normalized:
+        return {"events": [], "error": {"error_type": "MissingChatId"}}
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": normalized,
+        "query": query,
+        "modelSelection": get_model_selection(),
+        "actionMode": "agent",
+        "enableMemory": False,
+        "agentConfig": {"enabledBuiltinTools": ["computer_use"]},
+    }
+    return _collect_agent_stream_events(
+        payload,
+        api_url=get_e2e_api_url(),
+        timeout_sec=timeout_sec,
+    )
+
+
+async def _wait_seeded_resend_turn_kickoff(
+    chat: McpChatSession,
+    *,
+    chat_id: str,
+    timeout_sec: float,
+) -> bool:
+    """R227: nativeClick resend after seeded approval may not start agent turn under mux load."""
+    normalized = chat_id.strip()
+    deadline = asyncio.get_event_loop().time() + timeout_sec
+    poll = 0
+    nudged = False
+    while asyncio.get_event_loop().time() < deadline:
+        poll += 1
+        heartbeat_e2e_lease()
+        if normalized:
+            try:
+                api_count = await asyncio.to_thread(
+                    chat_user_message_count,
+                    normalized,
+                    api_url=get_e2e_api_url(),
+                )
+                if api_count >= 1:
+                    progress(
+                        f"seeded resend kickoff: API userCount={api_count} poll=#{poll}"
+                    )
+                    return True
+            except urllib.error.HTTPError:
+                pass
+        try:
+            probe = await chat.evaluate(
+                "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
+                await_promise=False,
+            )
+        except (TimeoutError, RuntimeError, OSError) as exc:
+            if poll == 1 or poll % 5 == 0:
+                progress(f"seeded resend kickoff probe skipped (non-fatal): {exc}")
+            await asyncio.sleep(2.0)
+            continue
+        if isinstance(probe, dict):
+            user_count = int(probe.get("userCount") or 0)
+            if user_count >= 1 or bool(probe.get("isStreaming")):
+                progress(
+                    f"seeded resend kickoff: UI userCount={user_count} "
+                    f"streaming={probe.get('isStreaming')} poll=#{poll}"
+                )
+                return True
+        if not nudged and poll >= 8:
+            nudged = True
+            progress("seeded resend kickoff slow — bridge send_message nudge")
+            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
+        await asyncio.sleep(2.0)
+    return False
+
+
 async def wait_stream_done_with_marker(
     chat: McpChatSession,
     *,
@@ -225,8 +311,9 @@ async def wait_stream_done_with_marker(
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
-        probe = await chat.evaluate(
-            f"""(() => {{
+        try:
+            probe = await chat.evaluate(
+                f"""(() => {{
               const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {{}};
               const sample = String(snap.lastAssistantSample ?? '');
               const marker = {marker!r};
@@ -239,8 +326,15 @@ async def wait_stream_done_with_marker(
                 lastAssistantSample: sample,
               }};
             }})()""",
-            await_promise=False,
-        )
+                await_promise=False,
+            )
+        except (TimeoutError, RuntimeError, OSError) as exc:
+            if poll == 1 or poll % 5 == 0:
+                progress(
+                    f"poll DONE marker #{poll} evaluate skipped (non-fatal): {exc}"
+                )
+            await asyncio.sleep(2.0)
+            continue
         if isinstance(probe, dict):
             last = probe
             if poll == 1 or poll % 5 == 0:
@@ -389,11 +483,31 @@ async def complete_turn_after_approval(
     chat: McpChatSession,
     *,
     chat_id_hint: str | None,
+    api_primary_done: bool = False,
 ) -> str:
+    turn_done_timeout = signoff_parallel_desktop_turn_done_timeout_sec(180.0)
+    if api_primary_done and chat_id_hint:
+        progress("R233 api-primary DONE wait (seeded mux-bypass)")
+        api_done = await asyncio.to_thread(
+            wait_chat_messages_done,
+            chat_id_hint,
+            api_url=get_e2e_api_url(),
+            timeout_sec=turn_done_timeout,
+            fetch_timeout_sec=30.0,
+            progress_interval_sec=20.0,
+            on_tick=heartbeat_e2e_lease,
+        )
+        if api_done:
+            progress(
+                f"approval verified via R233 api-primary DONE chat_id={chat_id_hint}"
+            )
+            assert chat_user_message_count(chat_id_hint) >= 1, chat_id_hint
+            progress(f"done chat_id={chat_id_hint}")
+            return chat_id_hint
+        progress("R233 api-primary DONE miss — fall back to CDP turn wait")
     if chat_id_hint:
         await _ensure_chat_route(chat, chat_id_hint)
     progress("wait assistant DONE")
-    turn_done_timeout = signoff_parallel_desktop_turn_done_timeout_sec(180.0)
     recover_timeout = signoff_parallel_desktop_turn_done_timeout_sec(60.0)
     after_turn = await wait_stream_done_with_marker(
         chat,
@@ -923,47 +1037,94 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     )
 
     pending_source = str(tool_activity.get("pendingSource") or "")
+    seeded_api_kickoff = False
     if pending_source == "seeded-fallback" and not last_tool.startswith("desktop_"):
         progress(
             "seeded pending fallback approval — resend agent prompt "
             "after approval click (no prior agent turn)"
         )
-        await asyncio.to_thread(activate_chrome)
-        bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
-        await chat.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
-        resend = await chat.fast_desktop_agent_submit(
-            E2E_PROMPT,
-            E2E_PROMPT,
-            chat_id_hint=chat_id or None,
-        )
-        progress(f"post-seeded-approval resend: {resend.get('submit', resend)}")
-        started = resend.get("started")
-        submit = resend.get("submit")
-        if isinstance(started, dict):
-            chat_id = str(started.get("chatId") or chat_id or "").strip()
-        if isinstance(submit, dict):
-            chat_id = str(submit.get("chatId") or chat_id or "").strip()
-        await asyncio.to_thread(preflight_textedit_foreground)
-
-    chat_id_hint = (
-        chat_id
-        or str(
-            (
-                await chat.evaluate(
-                    "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
-                    await_promise=False,
-                )
+        kickoff_timeout = signoff_parallel_desktop_turn_done_timeout_sec(120.0)
+        kickoff_ok = False
+        if chat_id:
+            progress("seeded resend — API agent-stream kickoff (R232 mux-bypass)")
+            api_timeout = min(45.0, max(20.0, kickoff_timeout / 4.0))
+            await asyncio.to_thread(
+                _kickoff_desktop_turn_via_api_sync,
+                chat_id,
+                query=E2E_PROMPT,
+                timeout_sec=api_timeout,
             )
-            or ""
-        ).strip()
-        or None
-    )
+            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                chat,
+                chat_id=chat_id,
+                timeout_sec=min(90.0, kickoff_timeout),
+            )
+        if not kickoff_ok:
+            progress(
+                "seeded resend API kickoff miss — CDP fast_desktop_agent_submit fallback"
+            )
+            await asyncio.to_thread(activate_chrome)
+            resend = await chat.fast_desktop_agent_submit(
+                E2E_PROMPT,
+                E2E_PROMPT,
+                chat_id_hint=chat_id or None,
+            )
+            progress(f"post-seeded-approval resend: {resend.get('submit', resend)}")
+            started = resend.get("started")
+            submit = resend.get("submit")
+            if isinstance(started, dict):
+                chat_id = str(started.get("chatId") or chat_id or "").strip()
+            if isinstance(submit, dict):
+                chat_id = str(submit.get("chatId") or chat_id or "").strip()
+            await asyncio.to_thread(preflight_textedit_foreground)
+            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                chat,
+                chat_id=chat_id,
+                timeout_sec=kickoff_timeout,
+            )
+        if not kickoff_ok:
+            progress("seeded resend kickoff failed — full bridge E2E_PROMPT resend")
+            await asyncio.to_thread(activate_chrome)
+            await chat.ensure_react_e2e_bridge(
+                timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+            )
+            await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                chat,
+                chat_id=chat_id,
+                timeout_sec=kickoff_timeout,
+            )
+        if not kickoff_ok:
+            raise RuntimeError(
+                "seeded-fallback post-approval resend did not start agent turn "
+                f"within {kickoff_timeout:.0f}s"
+            )
+        seeded_api_kickoff = bool(chat_id)
+
+    chat_id_hint = chat_id.strip() if chat_id else None
+    if not chat_id_hint and not seeded_api_kickoff:
+        chat_id_hint = (
+            str(
+                (
+                    await chat.evaluate(
+                        "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
+                        await_promise=False,
+                    )
+                )
+                or ""
+            ).strip()
+            or None
+        )
 
     trusted: dict[str, object] | None = None
     if scope == "always":
         trusted = await wait_for_trusted_app_display_name("TextEdit", timeout_sec=120.0)
 
-    chat_id = await complete_turn_after_approval(chat, chat_id_hint=chat_id_hint)
+    chat_id = await complete_turn_after_approval(
+        chat,
+        chat_id_hint=chat_id_hint,
+        api_primary_done=seeded_api_kickoff,
+    )
 
     if scope == "always":
         assert trusted is not None

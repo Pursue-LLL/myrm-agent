@@ -2,13 +2,14 @@
 
 [INPUT]
 - e2e_session_snapshot sidecars
-- ps(1) etime for live holder/pytest pids
+- dev_gate_cli (POS: Unix socket 协调器自动启动客户端) — coordinator 活跃性检测
+- ps(1) etime for live holder/pytest pids (degraded mode fallback only)
 
 [OUTPUT]
 - list_live_e2e_sessions(): deduped sessions for e2e-context + hung reap
 
 [POS]
-Dev Gate observability — replaces pytest-only scan as parallel truth source.
+Dev Gate observability — coordinator 为主 truth source；coordinator 不可用时降级 ps scan。
 """
 
 from __future__ import annotations
@@ -127,10 +128,27 @@ def _row_from_snapshot(pid: int, payload: dict[str, object]) -> LiveE2ESessionRo
     )
 
 
+def _coordinator_has_sessions() -> bool:
+    """Check if the Dev Gate coordinator is active and tracking sessions."""
+    try:
+        from dev_gate_cli import send  # noqa: PLC0415
+
+        result = send({"operation": "list_active"})
+        return isinstance(result.get("sessions"), list)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return False
+
+
 def _list_test_sh_admit_fallback(
     covered_test_ids: set[str],
 ) -> tuple[LiveE2ESessionRow, ...]:
-    """Fallback for ADMIT test.sh before sidecar write (R144-B — ps enrich only)."""
+    """Fallback for ADMIT test.sh before sidecar write — disabled when coordinator active.
+
+    P0-A: formal flow relies on coordinator + session snapshots, not ps scan.
+    ps fallback only activates when coordinator is unreachable (degraded mode).
+    """
+    if _coordinator_has_sessions():
+        return ()
     try:
         proc = subprocess.run(
             ["ps", "-eo", "pid=,stat=,etime=,command="],

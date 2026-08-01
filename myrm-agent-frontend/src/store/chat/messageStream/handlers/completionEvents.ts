@@ -162,6 +162,8 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       H.playCompletionSound();
     }
 
+    H.dispatchPetSurfaceAwayCompletion();
+
     if (H.useConfigStore.getState().enableWebNotifications) {
       const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
       const title = lang.startsWith('zh') ? 'Agent 回复已完成' : 'Agent response completed';

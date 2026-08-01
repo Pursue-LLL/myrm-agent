@@ -177,7 +177,11 @@ async def test_runtime_stream_failure_invokes_failure_handler():
         ),
         patch(
             "app.core.channel_bridge.model_resolver.resolve_model_config",
-            return_value={},
+            return_value=MagicMock(supports_vision=False, model="fake/test"),
+        ),
+        patch(
+            "app.core.channel_bridge.model_resolver.enrich_model_capabilities",
+            side_effect=lambda cfg, *_args, **_kwargs: cfg,
         ),
         patch(
             "app.core.channel_bridge.model_resolver.enrich_model_context_window",

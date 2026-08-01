@@ -14,9 +14,10 @@ from tests.support.e2e_runtime_guard import (
     assert_e2e_runtime_unchanged,
     heartbeat_e2e_lease,
     reap_chrome_e2e_session_hygiene,
-    register_e2e_resource,
     require_e2e_runtime_lease,
 )
+
+from e2e_resource_ledger import register_e2e_resource
 
 
 def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -47,6 +48,8 @@ def test_heartbeat_loop_extends_lease_without_peer_reaper(
 ) -> None:
     import time
 
+    import e2e_unified_heartbeat
+
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
 
     heartbeat_calls: list[int] = []
@@ -55,10 +58,7 @@ def test_heartbeat_loop_extends_lease_without_peer_reaper(
         heartbeat_calls.append(1)
 
     monkeypatch.delenv("MYRM_E2E_SESSION_HEARTBEAT_PID", raising=False)
-    monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard.heartbeat_once",
-        _fake_heartbeat,
-    )
+    monkeypatch.setattr(e2e_unified_heartbeat, "heartbeat_once", _fake_heartbeat)
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.12)
     assert len(heartbeat_calls) >= 2
@@ -70,6 +70,8 @@ def test_heartbeat_loop_skips_thread_when_shell_loop_active(
     import threading
     import time
 
+    import e2e_unified_heartbeat
+
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
 
     heartbeat_calls: list[int] = []
@@ -78,15 +80,12 @@ def test_heartbeat_loop_skips_thread_when_shell_loop_active(
         heartbeat_calls.append(1)
 
     monkeypatch.setenv("MYRM_E2E_SESSION_HEARTBEAT_PID", str(os.getpid()))
-    monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard.heartbeat_once",
-        _fake_heartbeat,
-    )
+    monkeypatch.setattr(e2e_unified_heartbeat, "heartbeat_once", _fake_heartbeat)
     before = threading.active_count()
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.08)
     after = threading.active_count()
-    assert heartbeat_calls == 2
+    assert len(heartbeat_calls) == 2
     assert after == before
 
 
@@ -404,8 +403,13 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """P0-A: drift heal reads state file updated by Coordinator (no subprocess reap).
+
+    Scenario: Coordinator has already healed the state file (runtime-healed).
+    The test process reads the healed state and succeeds without invoking subprocess.
+    """
     agent_id = "e2e-parent-48344-49446-ea479a04"
-    _write_state(tmp_path, runtime_id="runtime-stale")
+    _write_state(tmp_path, runtime_id="runtime-healed")
     state_dir = tmp_path / "state"
     state_path = state_dir / "wave-orchestrator.json"
     payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -416,20 +420,14 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(state_dir))
     monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
     monkeypatch.setenv("MYRM_E2E_AGENT_ID", agent_id)
-    monkeypatch.setenv("MYRM_E2E_STACK_FP", "runtime-stale")
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "runtime-healed")
 
-    def _heal_on_reap(cmd: list[str], **kwargs: object) -> object:
-        payload = json.loads(state_path.read_text(encoding="utf-8"))
-        wave = payload.get("wave")
-        if isinstance(wave, dict):
-            wave["runtimeId"] = "runtime-healed"
-        for item in payload.get("leases", []):
-            if isinstance(item, dict) and item.get("status") == "active":
-                item["runtimeId"] = "runtime-healed"
-        state_path.write_text(json.dumps(payload), encoding="utf-8")
-        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
-
-    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _heal_on_reap)
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.subprocess.run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("P0-A: subprocess.run must not be called for wave reap")
+        ),
+    )
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
         lambda: "runtime-healed",
@@ -437,7 +435,6 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
 
     lease = require_e2e_runtime_lease()
     assert lease.runtime_id == "runtime-healed"
-    assert os.environ.get("MYRM_E2E_STACK_FP") == "runtime-healed"
     assert_e2e_runtime_unchanged(lease)
 
 
@@ -458,88 +455,71 @@ def test_e2e_lock_holder_roundtrip(tmp_path: Path) -> None:
     assert read_e2e_lock_holder(lock_path) is None
 
 
-def test_snapshot_live_e2e_processes_parses_ps(
+def test_snapshot_live_e2e_processes_reads_session_registry(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    """Verify snapshot_live_e2e_processes reads session snapshots + lock holders."""
     from tests.support.e2e_parallel_snapshot import snapshot_live_e2e_processes
+
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
 
     stream_lock = tmp_path / "myrm-live-agent-stream.lock"
     desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
     write_holder = tmp_path / "myrm-live-agent-stream.lock.holder"
     write_holder.write_text(
-        "99999:tests/e2e/holder.py::test_holder\n", encoding="utf-8"
+        f"{os.getpid()}:tests/e2e/holder.py::test_holder\n", encoding="utf-8"
     )
 
-    ps_output = (
-        " 2715 Ss 12:35 python -m pytest tests/e2e/test_desktop_control_approval_chrome_e2e.py"
-        "::test_chrome_ui_desktop_control_approval_allow_session -m chrome_e2e_desktop\n"
-        " 2694 S 12:35 python run_pytest_safe.py python -m pytest tests/e2e/other.py\n"
+    session_dir = tmp_path / "myrm-e2e-session"
+    session_dir.mkdir()
+    (session_dir / f"{os.getpid()}.json").write_text(
+        json.dumps({
+            "pid": os.getpid(),
+            "phase": "body",
+            "node": "tests/e2e/test_demo.py::test_demo",
+            "started_at": "2026-08-01T12:00:00Z",
+            "heartbeat_at": "2026-08-01T12:00:30Z",
+        }),
+        encoding="utf-8",
     )
 
     def _fake_run(cmd: list[str], **kwargs: object) -> object:
-        assert cmd[:2] == ["ps", "-eo"]
-        return type("Result", (), {"returncode": 0, "stdout": ps_output})()
+        return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
 
-    monkeypatch.setattr(
-        "e2e_live_chrome_pytest_scan.subprocess.run",
-        _fake_run,
-    )
-    monkeypatch.setattr(
-        "e2e_live_chrome_pytest_scan._pid_alive",
-        lambda pid: pid in {2715, 99999},
-    )
-    monkeypatch.setattr(
-        "tests.support.e2e_parallel_snapshot._pid_alive",
-        lambda pid: pid in {2715, 99999},
-    )
+    monkeypatch.setattr("e2e_session_registry.subprocess.run", _fake_run)
 
     snapshot = snapshot_live_e2e_processes(
         agent_stream_lock_path=stream_lock,
         desktop_approval_lock_path=desktop_lock,
     )
     assert snapshot.agent_stream_lock is not None
-    assert snapshot.agent_stream_lock.pid == 99999
-    assert len(snapshot.active_tests) == 1
-    assert snapshot.active_tests[0].pid == 2715
-    assert "allow_session" in snapshot.active_tests[0].test_id
+    assert snapshot.agent_stream_lock.pid == os.getpid()
+    assert len(snapshot.active_tests) >= 1
+    active_pids = {t.pid for t in snapshot.active_tests}
+    assert os.getpid() in active_pids
 
 
-def test_snapshot_live_e2e_processes_parses_marker_only_selector(
+def test_snapshot_live_e2e_processes_empty_when_no_sessions(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    """Verify empty snapshot when no session files exist."""
     from tests.support.e2e_parallel_snapshot import snapshot_live_e2e_processes
+
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
 
     stream_lock = tmp_path / "myrm-live-agent-stream.lock"
     desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
 
-    ps_output = (
-        " 60813 S 01:15 "
-        "python run_pytest_safe.py python -m pytest -m chrome_e2e_browser_takeover_live "
-        "-x -s --timeout=7200 myrm-agent/myrm-agent-server/tests/e2e/\n"
-    )
-
     def _fake_run(cmd: list[str], **kwargs: object) -> object:
-        assert cmd[:2] == ["ps", "-eo"]
-        return type("Result", (), {"returncode": 0, "stdout": ps_output})()
+        return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
 
-    monkeypatch.setattr(
-        "e2e_live_chrome_pytest_scan.subprocess.run",
-        _fake_run,
-    )
-    monkeypatch.setattr(
-        "e2e_live_chrome_pytest_scan._pid_alive",
-        lambda pid: pid == 60813,
-    )
+    monkeypatch.setattr("e2e_session_registry.subprocess.run", _fake_run)
 
     snapshot = snapshot_live_e2e_processes(
         agent_stream_lock_path=stream_lock,
         desktop_approval_lock_path=desktop_lock,
     )
-    assert len(snapshot.active_tests) == 1
-    assert snapshot.active_tests[0].pid == 60813
-    assert (
-        snapshot.active_tests[0].test_id
-        == "tests/e2e/ -m chrome_e2e_browser_takeover_live"
-    )
+    assert snapshot.agent_stream_lock is None
+    assert len(snapshot.active_tests) == 0

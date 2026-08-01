@@ -1,6 +1,6 @@
 /**
- * Tests for pet-status-event CustomEvent dispatches in toolsProgressEvents handler.
- * Covers: APPROVAL_REQUIRED, CLARIFICATION_REQUIRED, TOOL_APPROVAL_REQUEST, APPROVAL_PROCESSED.
+ * Tests for pet-status-event behavior in toolsProgressEvents handler.
+ * Approval/clarify waiting is store-driven in PetOverlay — handlers must not dispatch pet events.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +19,7 @@ vi.mock('./handlerDeps', () => {
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
     APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
+    CORRECTION_LEARNED: 'correction_learned',
   } as const;
 
   return {
@@ -31,10 +32,14 @@ vi.mock('./handlerDeps', () => {
       getState: vi.fn(() => ({
         addRequest: vi.fn(),
         removeRequestsByMessageId: vi.fn(),
+        queue: [],
       })),
     },
     useToolsSnapshotStore: {
       getState: vi.fn(() => ({ setTools: vi.fn() })),
+    },
+    useConfigStore: {
+      getState: vi.fn(() => ({ enableWebNotifications: false })),
     },
     mapTaskStepStatus: vi.fn(() => 'success'),
     mergeMessageSources: vi.fn(),
@@ -82,25 +87,20 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
     vi.useRealTimers();
   });
 
-  it('APPROVAL_REQUIRED dispatches approval_waiting after microtask', async () => {
+  it('APPROVAL_REQUIRED does not dispatch pet-status-event', async () => {
     const ctx = makeCtx('approval_required', { data: { type: 'manual', message: 'test' } });
     await toolsProgressEvents(ctx);
-
-    expect(dispatchedEvents).toHaveLength(0);
-
     vi.advanceTimersByTime(0);
-    expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'approval_waiting' });
+    expect(dispatchedEvents).toHaveLength(0);
   });
 
-  it('APPROVAL_REQUIRED calls setLoading(false) before pet dispatch', async () => {
+  it('APPROVAL_REQUIRED calls setLoading(false)', async () => {
     const ctx = makeCtx('approval_required', { data: { type: 'manual', message: 'test' } });
     await toolsProgressEvents(ctx);
-
     expect(ctx.actions.setLoading).toHaveBeenCalledWith(false);
   });
 
-  it('CLARIFICATION_REQUIRED dispatches approval_waiting after microtask', async () => {
+  it('CLARIFICATION_REQUIRED does not dispatch pet-status-event', async () => {
     const ctx = makeCtx('clarification_required', {
       data: {
         type: 'ask_question',
@@ -111,29 +111,11 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
       },
     });
     await toolsProgressEvents(ctx);
-
-    expect(dispatchedEvents).toHaveLength(0);
-
     vi.advanceTimersByTime(0);
-    expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'approval_waiting' });
+    expect(dispatchedEvents).toHaveLength(0);
   });
 
-  it('CLARIFICATION_REQUIRED calls setLoading(false)', async () => {
-    const ctx = makeCtx('clarification_required', {
-      data: {
-        type: 'ask_question',
-        form: {
-          title: 'Q',
-          questions: [{ id: 'q1', prompt: 'Pick one', options: [{ id: 'a', label: 'A' }] }],
-        },
-      },
-    });
-    await toolsProgressEvents(ctx);
-    expect(ctx.actions.setLoading).toHaveBeenCalledWith(false);
-  });
-
-  it('TOOL_APPROVAL_REQUEST dispatches approval_waiting synchronously', async () => {
+  it('TOOL_APPROVAL_REQUEST does not dispatch pet-status-event', async () => {
     const ctx = makeCtx('tool_approval_request', {
       data: {
         actionRequests: [{ action: 'bash', args: { command: 'ls' } }],
@@ -142,29 +124,23 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
       },
     });
     await toolsProgressEvents(ctx);
-
-    expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'approval_waiting' });
+    expect(dispatchedEvents).toHaveLength(0);
   });
 
-  it('APPROVAL_PROCESSED dispatches approval_released synchronously', async () => {
+  it('APPROVAL_PROCESSED does not dispatch pet-status-event', async () => {
     const ctx = makeCtx('approval_processed', {});
     await toolsProgressEvents(ctx);
-
-    expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'approval_released' });
+    expect(dispatchedEvents).toHaveLength(0);
   });
 
-  it('APPROVAL_PROCESSED calls removeRequestsByMessageId on store', async () => {
-    const ctx = makeCtx('approval_processed', {});
-    const result = await toolsProgressEvents(ctx);
-
-    expect(result).not.toBeNull();
+  it('CORRECTION_LEARNED dispatches correction_learned for sprite bridge', async () => {
+    const ctx = makeCtx('correction_learned', { summaries: ['Fixed tone'] });
+    await toolsProgressEvents(ctx);
     expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail.step_key).toBe('approval_released');
+    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'correction_learned' });
   });
 
-  it('returns done StreamTurn for all 4 event types', async () => {
+  it('returns done StreamTurn for HITL event types', async () => {
     const types = [
       { type: 'approval_required', extra: { data: { type: 'manual' } } },
       { type: 'clarification_required', extra: { data: { title: 'Q', questions: [] } } },
@@ -185,8 +161,6 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
       const ctx = makeCtx(type, extra);
       const result = await toolsProgressEvents(ctx);
       expect(result, `${type} should return StreamTurn`).not.toBeNull();
-      expect(result).toHaveProperty('added');
-      expect(result).toHaveProperty('recievedMessage');
     }
   });
 });

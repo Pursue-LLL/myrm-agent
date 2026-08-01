@@ -18,7 +18,22 @@ import sys
 import time
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-APPROVAL_WAIT_SEC = 240.0
+
+
+def _resolve_approval_wait_sec() -> float:
+    base = 240.0
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
+            try:
+                from cdp_chat_support import signoff_parallel_desktop_approval_wait_sec
+
+                return signoff_parallel_desktop_approval_wait_sec(base)
+            except ImportError:
+                return base
+    return base
+
+
+APPROVAL_WAIT_SEC = _resolve_approval_wait_sec()
 GATE_IDLE_FAIL_FAST_SEC = 180.0
 
 
@@ -41,6 +56,8 @@ GATE_STREAM_NUDGE_SEC = 45.0
 GATE_IDLE_NUDGE_SEC = 30.0
 # After snapshot + nudge, fail-fast if model still loops snapshot without interact.
 GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
+
+
 # Hard wall-clock fail-fast for one desktop approval attempt.
 # 200s per attempt × 2 attempts + 60s bootstrap < 600s pytest-timeout.
 # Signoff may queue behind parallel SHPOIB; allow extra slack without exceeding 600s leg.
@@ -49,7 +66,9 @@ def _resolve_desktop_e2e_wall_clock_fail_sec() -> float:
         base = 280.0
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import signoff_parallel_desktop_wall_clock_fail_sec
+                from cdp_chat_support import (
+                    signoff_parallel_desktop_wall_clock_fail_sec,
+                )
 
                 return signoff_parallel_desktop_wall_clock_fail_sec(base)
             except ImportError:

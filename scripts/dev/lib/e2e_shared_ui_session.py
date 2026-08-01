@@ -201,6 +201,39 @@ def _session_error(token: str, detail: object) -> RuntimeError:
     return RuntimeError(f"{token}: {detail}")
 
 
+def _shared_ui_deadline_extend_cap_sec() -> float:
+    """Scale shared UI contract extension under parallel mux pressure (v2.2)."""
+    base = 90.0
+    try:
+        from dev_gate_contract import _parallel_chrome_e2e_pressure
+
+        peers = _parallel_chrome_e2e_pressure()
+        if peers >= 2:
+            return min(180.0, base + peers * 15.0)
+    except ImportError:
+        pass
+    return base
+
+
+def _extend_shared_ui_deadline_if_wall_allows(
+    deadline: float | None,
+) -> float | None:
+    """Extend an expired inner deadline when outer bootstrap/body wall still has budget."""
+    if deadline is None or time.monotonic() < deadline:
+        return deadline
+    from e2e_session_lifecycle import current_phase, remaining_wall_sec
+
+    remaining = remaining_wall_sec()
+    extend_floor = (
+        20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
+    )
+    phase = current_phase()
+    if phase not in {"bootstrap", "body"} or remaining <= extend_floor:
+        return deadline
+    extend_cap = _shared_ui_deadline_extend_cap_sec()
+    return time.monotonic() + min(extend_cap, remaining - 10.0)
+
+
 async def _evaluate_bridge_probe(chat: SharedUiSessionChat) -> dict[str, object]:
     probe_raw = await chat.evaluate(
         BRIDGE_READY_PROBE_JS,
@@ -218,7 +251,31 @@ def _bridge_probe_ready(probe: dict[str, object], *, policy: SearchPolicy) -> bo
     return True
 
 
-async def _apply_empty_search_block(chat: SharedUiSessionChat) -> None:
+async def _apply_empty_search_block(
+    chat: SharedUiSessionChat,
+    *,
+    skip_reason: str | None = None,
+) -> dict[str, object]:
+    """Set empty-search block flag; skip redundant mux evaluate on fast paths (R229)."""
+    if skip_reason in ("block_preserved", "fallback_block_only"):
+        return {"ok": True, "phase": "SEARCH_POLICY", "skipped": skip_reason}
+    if skip_reason != "force":
+        try:
+            probe = await chat.evaluate(
+                "(() => ({ ok: true, blocked: !!window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ }))()",
+                await_promise=False,
+                recv_timeout=10.0,
+            )
+        except (RuntimeError, TimeoutError):
+            probe = None
+        if isinstance(probe, dict) and probe.get("blocked") is True:
+            return {"ok": True, "phase": "SEARCH_POLICY", "skipped": "already_blocked"}
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_SEARCH_BLOCK")
+    except ImportError:
+        pass
     block_raw = await chat.evaluate(
         SET_EMPTY_SEARCH_BLOCK_JS,
         await_promise=False,
@@ -226,6 +283,7 @@ async def _apply_empty_search_block(chat: SharedUiSessionChat) -> None:
     )
     if not isinstance(block_raw, dict) or block_raw.get("ok") is not True:
         raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", block_raw)
+    return block_raw
 
 
 async def _ensure_bridge_probe_ready(
@@ -257,8 +315,19 @@ async def _ensure_bridge_probe_ready(
             flush=True,
         )
 
-        rehydrate_timeout = min(45.0, timeout_sec)
+        rehydrate_base = 45.0
+        if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+            try:
+                from dev_gate_contract import _parallel_signoff_pressure_peers
+
+                peers = _parallel_signoff_pressure_peers()
+                if peers >= 2:
+                    rehydrate_base = min(120.0, 45.0 + peers * 8.0)
+            except ImportError:
+                pass
+        rehydrate_timeout = min(rehydrate_base, timeout_sec)
         if deadline is not None:
+            deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
             rehydrate_timeout = min(
                 rehydrate_timeout, max(0.0, deadline - time.monotonic())
             )
@@ -296,7 +365,7 @@ async def _ensure_bridge_probe_ready(
             continue
 
         if policy == "empty":
-            await _apply_empty_search_block(chat)
+            await _apply_empty_search_block(chat, skip_reason="force")
 
         await asyncio.sleep(0.5)
 
@@ -305,7 +374,7 @@ async def _ensure_bridge_probe_ready(
         and last_probe.get("hasSendChatMessage") is True
         and last_probe.get("blockSearchSync") is not True
     ):
-        await _apply_empty_search_block(chat)
+        await _apply_empty_search_block(chat, skip_reason="force")
         last_probe = await _evaluate_bridge_probe(chat)
         if _bridge_probe_ready(last_probe, policy=policy):
             return last_probe
@@ -329,16 +398,11 @@ async def apply_shared_ui_session_contract(
         return {"ok": True, "skipped": True}
 
     if deadline is not None and time.monotonic() >= deadline:
-        from e2e_session_lifecycle import current_phase, remaining_wall_sec
-
-        remaining = remaining_wall_sec()
-        extend_floor = 20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
-        if current_phase() == "bootstrap" and remaining > extend_floor:
-            deadline = time.monotonic() + min(90.0, remaining - 10.0)
-        else:
-            raise _session_error(
-                "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
-            )
+        deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
+    if deadline is not None and time.monotonic() >= deadline:
+        raise _session_error(
+            "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
+        )
 
     assert_phase_budget("E2E_SHARED_UI_SESSION_RESET")
     try:
@@ -481,13 +545,13 @@ async def apply_shared_ui_session_contract(
 
             _mark_empty_policy_strong_clear_done(empty_state_key)
 
-        block_raw = await chat.evaluate(
-            SET_EMPTY_SEARCH_BLOCK_JS,
-            await_promise=False,
-            recv_timeout=15.0,
-        )
-        if not isinstance(block_raw, dict) or block_raw.get("ok") is not True:
-            raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", block_raw)
+        skip_block: str | None = None
+        if short_circuit_reason == "block_preserved":
+            skip_block = "block_preserved"
+        elif search_result.get("fallback") == "block_only":
+            skip_block = "fallback_block_only"
+        block_raw = await _apply_empty_search_block(chat, skip_reason=skip_block)
+        search_result["block"] = block_raw
     else:
         search_raw = await chat.evaluate(
             HYDRATE_PRIVATE_SEARCH_JS,

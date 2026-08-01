@@ -2,18 +2,16 @@
  * [INPUT]
  * - PetStateMachine (POS: SSE event → animation row state machine)
  * - SpriteRenderer (POS: React canvas wrapper for spritesheet rendering)
- * - tauriPetBridge (POS: Tauri IPC bridge for native pet overlay window)
+ * - usePetSurfaceHost (POS: Tauri popped-out lifecycle + IPC sync)
  * - useCompanionStore (POS: Companion state with sprite config)
- * - useLivenessState (POS: Global agent liveness SSOT for loading detection)
+ * - deriveBlockedOnUser (POS: HITL store → blocked-on-user flag)
  *
  * [OUTPUT]
  * - PetOverlay: Draggable floating sprite overlay with context menu
  *
  * [POS]
  * Top-level pet overlay container mounted from ChatWindowSatellites when companion_mode
- * is enabled. In Web/SaaS mode, renders an in-browser draggable canvas overlay. In Tauri
- * desktop mode, delegates to the native transparent always-on-top window via tauriPetBridge.
- * Integrates PetStateMachine for SSE-driven animation state transitions.
+ * is enabled. Web renders in-browser overlay; Tauri supports embedded + popped-out OS window.
  */
 'use client';
 
@@ -22,75 +20,33 @@ import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
 import { resolveCompanionSpritesheetUrl } from '@/services/companion/petSpritesheet';
+import useApprovalStore from '@/store/useApprovalStore';
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+import useChatStore from '@/store/useChatStore';
 import useCompanionStore from '@/store/useCompanionStore';
+import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { useLivenessState } from '@/hooks/shell/useLivenessState';
 
-import { AnimRow, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
-import { resolveAnimRow } from './petStateMapping';
+import { deriveBlockedOnUser, hasPendingClarificationFromMessages } from './deriveBlockedOnUser';
+import {
+  clampPosition,
+  defaultPosition,
+  getStoredPosition,
+  getStoredSize,
+  PET_SIZES,
+  storePosition,
+  storeSize,
+  type PetPosition,
+  type PetSize,
+} from './petOverlayLayoutStorage';
+import { PetState, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
+import { resolvePetSheetRow } from './petStateMapping';
+import { isTauriEnv } from './petSurfaceBridge';
 import SpriteRenderer from './SpriteRenderer';
-import { isTauriEnv, showPetOverlay, hidePetOverlay, setPetOverlayRow } from './tauriPetBridge';
+import { usePetSurfaceHost } from './usePetSurfaceHost';
 
 import type { SpriteLoadState } from './SpriteEngine';
-
-const PET_SIZES = [48, 64, 80, 96, 128] as const;
-type PetSize = (typeof PET_SIZES)[number];
-
-interface PetPosition {
-  x: number;
-  y: number;
-}
-
-function getStoredPosition(): PetPosition {
-  try {
-    const raw = localStorage.getItem('myrm-pet-position');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-        return parsed;
-      }
-    }
-  } catch {}
-  return { x: -1, y: -1 }; // sentinel for "not set"
-}
-
-function storePosition(pos: PetPosition) {
-  try {
-    localStorage.setItem('myrm-pet-position', JSON.stringify(pos));
-  } catch {}
-}
-
-function getStoredSize(): PetSize {
-  try {
-    const raw = localStorage.getItem('myrm-pet-size');
-    if (raw) {
-      const n = Number(raw);
-      if (PET_SIZES.includes(n as PetSize)) return n as PetSize;
-    }
-  } catch {}
-  return 64;
-}
-
-function storeSize(size: PetSize) {
-  try {
-    localStorage.setItem('myrm-pet-size', String(size));
-  } catch {}
-}
-
-function clampPosition(pos: PetPosition, size: number): PetPosition {
-  const maxX = Math.max(0, window.innerWidth - size);
-  const maxY = Math.max(0, window.innerHeight - size);
-  return {
-    x: Math.max(0, Math.min(pos.x, maxX)),
-    y: Math.max(0, Math.min(pos.y, maxY)),
-  };
-}
-
-function defaultPosition(size: number): PetPosition {
-  return {
-    x: window.innerWidth - size - 24,
-    y: window.innerHeight - size - 120,
-  };
-}
 
 interface ContextMenuState {
   visible: boolean;
@@ -106,13 +62,27 @@ const PetOverlay = memo(function PetOverlay() {
   const sheetUrl = resolveCompanionSpritesheetUrl(spriteConfig);
   const liveness = useLivenessState();
   const loading = liveness.state === 'busy' || liveness.state === 'draining';
+  const toolApprovalQueueLength = useToolApprovalStore((s) => s.queue.length);
+  const approvalQueueLength = useApprovalStore((s) => s.queue.length);
+  const hasPendingClarification = useChatStore((s) => hasPendingClarificationFromMessages(s.messages));
+  const desktopControlPending = useDesktopControlApprovalStore((s) => s.pending);
+  const browserTakeoverPending = useBrowserTakeoverStore((s) => s.pending);
 
+  const blockedOnUser = deriveBlockedOnUser({
+    toolApprovalQueueLength,
+    approvalQueueLength,
+    hasPendingClarification,
+    desktopControlPending,
+    browserTakeoverPending,
+  });
+
+  const isTauri = isTauriEnv();
+  const [petState, setPetState] = useState(PetState.IDLE);
   const [petSize, setPetSize] = useState<PetSize>(getStoredSize);
   const [position, setPosition] = useState<PetPosition>(() => {
     const stored = getStoredPosition();
     return stored.x < 0 ? defaultPosition(getStoredSize()) : stored;
   });
-  const [animRow, setAnimRow] = useState(AnimRow.IDLE);
   const [sheetRows, setSheetRows] = useState(9);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
@@ -125,10 +95,23 @@ const PetOverlay = memo(function PetOverlay() {
   const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number; moved: boolean } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Init state machine
+  const { poppedOut, handlePopOut, toggleSurfaceMode } = usePetSurfaceHost({
+    enabled: spriteEnabled && Boolean(sheetUrl),
+    isTauri,
+    petSize,
+    payloadBase: {
+      sheetUrl: sheetUrl ?? '',
+      sheetRows,
+      petSize,
+      petState,
+      blockedOnUser,
+      loading,
+    },
+  });
+
   useEffect(() => {
     const sm = new PetStateMachine({
-      onChange: (row) => setAnimRow(row),
+      onChange: (state) => setPetState(state),
     });
     stateMachineRef.current = sm;
     return () => {
@@ -137,12 +120,14 @@ const PetOverlay = memo(function PetOverlay() {
     };
   }, []);
 
-  // React to loading state
   useEffect(() => {
     stateMachineRef.current?.setLoading(loading);
   }, [loading]);
 
-  // Listen for SSE status events (via CustomEvent from statusStreamEvents)
+  useEffect(() => {
+    stateMachineRef.current?.setBlockedOnUser(blockedOnUser);
+  }, [blockedOnUser]);
+
   useEffect(() => {
     const handleStatusEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -159,7 +144,6 @@ const PetOverlay = memo(function PetOverlay() {
     return () => window.removeEventListener('pet-status-event', handleStatusEvent);
   }, []);
 
-  // Drag handlers
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button !== 0) return;
@@ -174,9 +158,7 @@ const PetOverlay = memo(function PetOverlay() {
         moved: false,
       };
       setIsDragging(true);
-
-      const el = e.currentTarget as HTMLElement;
-      el.setPointerCapture(e.pointerId);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
     [position],
   );
@@ -193,8 +175,7 @@ const PetOverlay = memo(function PetOverlay() {
     }
 
     if (drag.moved) {
-      const newPos = clampPosition({ x: drag.posX + dx, y: drag.posY + dy }, petSize);
-      setPosition(newPos);
+      setPosition(clampPosition({ x: drag.posX + dx, y: drag.posY + dy }, petSize));
     }
   }, [petSize]);
 
@@ -203,36 +184,36 @@ const PetOverlay = memo(function PetOverlay() {
       const drag = dragRef.current;
       if (!drag) return;
 
-      const el = e.currentTarget as HTMLElement;
       try {
-        el.releasePointerCapture(e.pointerId);
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {}
 
       if (drag.moved) {
         storePosition(position);
+      } else if (isTauri && e.shiftKey) {
+        toggleSurfaceMode();
       }
 
       dragRef.current = null;
       setIsDragging(false);
     },
-    [position],
+    [position, isTauri, toggleSurfaceMode],
   );
 
-  // Context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const menuW = 160;
-    const menuH = 180;
-    const x = Math.min(e.clientX, window.innerWidth - menuW);
-    const y = Math.min(e.clientY, window.innerHeight - menuH);
-    setContextMenu({ visible: true, x: Math.max(0, x), y: Math.max(0, y) });
-  }, []);
+    const menuH = isTauri ? 220 : 180;
+    setContextMenu({
+      visible: true,
+      x: Math.max(0, Math.min(e.clientX, window.innerWidth - menuW)),
+      y: Math.max(0, Math.min(e.clientY, window.innerHeight - menuH)),
+    });
+  }, [isTauri]);
 
-  // Close context menu on outside click
   useEffect(() => {
     if (!contextMenu.visible) return;
-
     const close = () => setContextMenu((prev) => ({ ...prev, visible: false }));
     const timer = setTimeout(() => window.addEventListener('click', close, { once: true }), 0);
     return () => {
@@ -259,7 +240,10 @@ const PetOverlay = memo(function PetOverlay() {
     setContextMenu((prev) => ({ ...prev, visible: false }));
   }, [petSize]);
 
-  const resolvedRow = resolveAnimRow(animRow, sheetRows);
+  const handlePopOutFromMenu = useCallback(() => {
+    handlePopOut();
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }, [handlePopOut]);
 
   const handleSheetRowsDetected = useCallback((rows: number) => {
     setSheetRows(rows);
@@ -267,11 +251,11 @@ const PetOverlay = memo(function PetOverlay() {
 
   const handleSpriteLoadState = useCallback((state: SpriteLoadState) => {
     if (state === 'error') {
-      setAnimRow(AnimRow.IDLE);
+      stateMachineRef.current?.reset();
+      setPetState(PetState.IDLE);
     }
   }, []);
 
-  // Clamp position on window resize
   useEffect(() => {
     const handleResize = () => {
       setPosition((prev) => clampPosition(prev, petSize));
@@ -280,26 +264,10 @@ const PetOverlay = memo(function PetOverlay() {
     return () => window.removeEventListener('resize', handleResize);
   }, [petSize]);
 
-  const isTauri = isTauriEnv();
-
-  // Tauri: manage native overlay window lifecycle
-  useEffect(() => {
-    if (!isTauri || !spriteEnabled || !sheetUrl) return;
-
-    showPetOverlay(sheetUrl, petSize, resolvedRow);
-    return () => { hidePetOverlay(); };
-  }, [isTauri, spriteEnabled, sheetUrl, petSize]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Tauri: sync animation row changes to native overlay
-  useEffect(() => {
-    if (!isTauri || !spriteEnabled) return;
-    setPetOverlayRow(resolvedRow);
-  }, [isTauri, spriteEnabled, resolvedRow]);
-
   if (!spriteEnabled || !sheetUrl) return null;
+  if (poppedOut) return null;
 
-  // In Tauri mode, the native overlay handles rendering; skip in-browser overlay
-  if (isTauri) return null;
+  const resolvedRow = resolvePetSheetRow(petState, sheetRows);
 
   return (
     <>
@@ -331,7 +299,6 @@ const PetOverlay = memo(function PetOverlay() {
         />
       </div>
 
-      {/* Context menu */}
       {contextMenu.visible && (
         <div
           className="fixed z-[70] min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg"
@@ -341,9 +308,17 @@ const PetOverlay = memo(function PetOverlay() {
             {t('sprite.contextTitle')}
           </div>
 
-          <div className="px-2 py-1 text-xs text-muted-foreground">
-            {t('sprite.size')}
-          </div>
+          {isTauri && (
+            <button
+              type="button"
+              onClick={handlePopOutFromMenu}
+              className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors"
+            >
+              {t('sprite.popOut')}
+            </button>
+          )}
+
+          <div className="px-2 py-1 text-xs text-muted-foreground">{t('sprite.size')}</div>
           <div className="flex gap-1 px-2 pb-1">
             {PET_SIZES.map((s) => (
               <button

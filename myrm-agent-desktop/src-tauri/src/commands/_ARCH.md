@@ -1,38 +1,20 @@
-# commands 模块架构
+# Tauri IPC commands
 
 [INPUT]
-- runtime / agent_runner_rpc / sessions / permissions / config / utils
+- `ipc_security/` (POS: sender gate + command allowlist)
+- `runtime/` (POS: sidecar lifecycle)
 
 [OUTPUT]
-- Tauri invoke IPC 命令（前端 ↔ Rust）
+- Tauri `#[tauri::command]` handlers registered via `command_registry_macro.in`
 
 [POS]
-Tauri IPC 薄封装层；业务逻辑委托 runtime 与子模块。
-
-> 注：命令调度前统一经过 `ipc_security` sender gate（app 层），并对高敏命令采用“短时意图票据 + 原生确认（多语言文案 + 主窗口 parent 绑定）”双校验（如数据迁移/数据库导出）。
-
-## 架构概述
-
-Tauri `invoke` IPC 命令层：薄封装转发到 runtime、agent_runner_rpc、sessions、utils。
-
-父模块：[../_ARCH.md](../_ARCH.md)
-
-## 文件清单
+Leaf IPC command modules invoked from the main webview, session webviews, and pet-surface webview.
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `mod.rs` | 核心 | 子模块聚合与 re-export | — |
-| `config.rs` | 核心 | 系统配置读写、快捷键、数据目录迁移 | — |
-| `agent/` | 核心 | CLI Agent IPC → [agent/_ARCH.md](agent/_ARCH.md) | — |
-| `power.rs` | 核心 | 电源锁 IPC（委托 `utils/power`） | — |
-| `screen_lock.rs` | 核心 | 锁屏 IPC（委托 `utils/screen_lock`） | — |
-| `pet_overlay.rs` | 核心 | 桌面宠物 overlay 窗口 | — |
-| `recovery.rs` | 核心 | 崩溃恢复：无后端数据库导出 + 目录打开 | — |
-| `visual_approval_overlay.rs` | 核心 | 视觉审批红框 overlay | — |
-| `session_window.rs` | 核心 | Focused 模式独立会话窗口 | — |
+| `pet_surface.rs` | 核心 | 透明置顶 `/pet-overlay` webview；bounds/show/hide/ignore/focus/toggle | ✅ |
+| `session_window.rs` | 核心 | 多会话 CLI 二级 webview | ✅ |
+| `visual_approval_overlay.rs` | 核心 | 视觉审批 overlay | ✅ |
+| `mod.rs` | 辅助 | 模块导出 | — |
 
-## 依赖
-
-- `runtime` — Sidecar 启停、Appshot force capture
-- `agent_runner_rpc` — Agent Runner RPC
-- `sessions` / `permissions` / `config` / `utils`
+Pet-surface webview 仅允许调用：`pet_surface_set_ignore_cursor`、`pet_surface_set_focusable`、`pet_surface_focus_main_window`、`pet_surface_toggle_main_window`（见 `ipc_security/policy.rs`）。

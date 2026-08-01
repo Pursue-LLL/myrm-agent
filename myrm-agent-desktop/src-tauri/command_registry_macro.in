@@ -53,9 +53,24 @@ macro_rules! tauri_command_registry {
                 "hide_visual_approval_overlay",
                 crate::commands::visual_approval_overlay::hide_visual_approval_overlay
             ),
-            ("show_pet_overlay", crate::commands::pet_overlay::show_pet_overlay),
-            ("hide_pet_overlay", crate::commands::pet_overlay::hide_pet_overlay),
-            ("pet_overlay_set_row", crate::commands::pet_overlay::pet_overlay_set_row),
+            ("show_pet_surface", crate::commands::pet_surface::show_pet_surface),
+            ("hide_pet_surface", crate::commands::pet_surface::hide_pet_surface),
+            (
+                "pet_surface_set_ignore_cursor",
+                crate::commands::pet_surface::pet_surface_set_ignore_cursor
+            ),
+            (
+                "pet_surface_set_focusable",
+                crate::commands::pet_surface::pet_surface_set_focusable
+            ),
+            (
+                "pet_surface_focus_main_window",
+                crate::commands::pet_surface::pet_surface_focus_main_window
+            ),
+            (
+                "pet_surface_toggle_main_window",
+                crate::commands::pet_surface::pet_surface_toggle_main_window
+            ),
             ("open_session_window", crate::commands::session_window::open_session_window),
             ("close_session_window", crate::commands::session_window::close_session_window),
             ("force_appshot_capture", crate::commands::config::force_appshot_capture),

@@ -31,6 +31,9 @@ from dev_gate_contract import STALL_PROGRESS_SEC  # noqa: E402
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from live_turn_wait import (  # noqa: E402
     live_empty_write_parallel_scaled_cap_sec,
+    live_empty_write_steer_attempts_cap,
+    live_empty_write_steer_retry_idle_sec,
+    live_empty_write_ui_nudge_allowed_after_steer,
     parallel_live_agent_peer_count,
     steer_empty_write_prompt,
 )
@@ -485,6 +488,18 @@ def _live_empty_write_post_steer_idle_cap_sec() -> float:
     return _live_empty_write_parallel_scaled_cap_sec(base=float(STALL_PROGRESS_SEC))
 
 
+def _live_empty_write_steer_attempts_cap() -> int:
+    return live_empty_write_steer_attempts_cap()
+
+
+def _live_empty_write_steer_retry_idle_sec() -> float:
+    return live_empty_write_steer_retry_idle_sec()
+
+
+def _live_empty_write_ui_nudge_allowed_after_steer(*, idle_sec: float) -> bool:
+    return live_empty_write_ui_nudge_allowed_after_steer(idle_sec=idle_sec)
+
+
 def _live_api_poll_timeout_sec() -> float:
     """R167: private-backend message fetch under parallel mux load."""
     peers = _parallel_live_agent_peer_count()
@@ -701,7 +716,7 @@ async def test_file_write_empty_live_agent_webui(
         last_ui_sample = ""
         invoked_since: float | None = None
         not_invoked_since: float | None = None
-        steer_attempted = False
+        steer_attempts = 0
         ui_nudge_attempts = 0
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
@@ -883,10 +898,13 @@ async def test_file_write_empty_live_agent_webui(
                     target_file.name if target_file is not None else "output.txt"
                 )
                 if idle_sec >= 30.0 and not last_api[0]:
-                    # R150: steer before UI nudge — in-flight stream rejects nudge (409)
-                    # even when turnSnapshot.isStreaming is false under parallel MUX load.
-                    if not steer_attempted:
-                        steer_attempted = True
+                    # R150/R173: steer before UI nudge; repeat steer under parallel.
+                    steer_cap = _live_empty_write_steer_attempts_cap()
+                    if steer_attempts < steer_cap and (
+                        steer_attempts == 0
+                        or idle_sec >= _live_empty_write_steer_retry_idle_sec()
+                    ):
+                        steer_attempts += 1
                         steer_ok = await _steer_empty_write_turn(
                             chat_id, nudge_filename
                         )
@@ -895,8 +913,11 @@ async def test_file_write_empty_live_agent_webui(
                         if steer_ok:
                             await asyncio.sleep(1.5)
                             continue
-                    if ui_nudge_attempts < 2 and not (
-                        steer_attempted and _parallel_live_agent_peer_count() >= 2
+                    if ui_nudge_attempts < 2 and (
+                        steer_attempts == 0
+                        or _live_empty_write_ui_nudge_allowed_after_steer(
+                            idle_sec=idle_sec
+                        )
                     ):
                         nudge_outcome = await _api_nudge_turn(
                             chat_id, agent_id, nudge_filename
@@ -906,13 +927,13 @@ async def test_file_write_empty_live_agent_webui(
                         if nudge_outcome == "ok":
                             ui_nudge_attempts += 1
                         elif nudge_outcome == "deferred":
-                            if steer_attempted:
+                            if steer_attempts > 0:
                                 touch_wall_progress()
                             pass
                 elif idle_sec >= _live_empty_write_post_steer_idle_cap_sec():
                     raise AssertionError(
                         "Live empty write: LLM idle without file_write_tool; "
-                        f"api_invoked={last_api[0]} steer={steer_attempted} "
+                        f"api_invoked={last_api[0]} steer_attempts={steer_attempts} "
                         f"ui_nudges={ui_nudge_attempts} idle_sec={idle_sec:.0f} "
                         f"cap={_live_empty_write_post_steer_idle_cap_sec():.0f}s "
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
@@ -929,7 +950,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"{int(stall_elapsed)}s (cap={stall_cap:.0f}s); "
                         f"api_invoked={last_api[0]} api_failure={last_api[1]} "
                         f"isStreaming={ui.get('isStreaming')} "
-                        f"steer={steer_attempted} ui_nudges={ui_nudge_attempts} "
+                        f"steer_attempts={steer_attempts} ui_nudges={ui_nudge_attempts} "
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"remaining_wall={remaining_wall_sec():.0f}s"
                     )
@@ -944,7 +965,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"{int(stall_elapsed)}s (cap={stall_cap:.0f}s); "
                         f"api_invoked={last_api[0]} api_failure={last_api[1]} "
                         f"isStreaming={ui.get('isStreaming')} "
-                        f"steer={steer_attempted} ui_nudges={ui_nudge_attempts} "
+                        f"steer_attempts={steer_attempts} ui_nudges={ui_nudge_attempts} "
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"remaining_wall={remaining_wall_sec():.0f}s"
                     )
