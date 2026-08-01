@@ -143,7 +143,8 @@ def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
         max_cap = max(max_cap, 1200.0)
     floor = float(base)
     if desktop_soak:
-        floor = max(floor, 900.0)
+        # R247: parallel chrome_e2e + seeded R244 path needs full 1200s BODY floor.
+        floor = max(floor, 1200.0)
     if peers < 2:
         return int(min(max_cap, floor))
     scaled = base + peers * LIVE_AGENT_BODY_WALL_PER_PEER_SEC

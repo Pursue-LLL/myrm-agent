@@ -265,3 +265,31 @@ async def test_wait_seeded_resend_turn_kickoff_no_false_positive_on_stale_user_c
         baseline_ui_user_count=1,
     )
     assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_wait_seeded_resend_turn_kickoff_r245_effective_ui_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R245: UI baseline must honor API baseline when R241 fastpath sets baseline_user=1."""
+    monkeypatch.setattr(
+        turn_flow,
+        "_seeded_kickoff_activity_probe",
+        lambda *_args, **_kwargs: {"active": False, "userCount": 1},
+    )
+
+    class _Chat:
+        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+            return {"userCount": 1, "isStreaming": False}
+
+        async def send_message(self, *_args: object, **_kwargs: object) -> None:
+            return None
+
+    ok = await turn_flow._wait_seeded_resend_turn_kickoff(  # noqa: SLF001
+        _Chat(),  # type: ignore[arg-type]
+        chat_id="chat-r245",
+        timeout_sec=0.5,
+        baseline_user_count=1,
+        baseline_ui_user_count=0,
+    )
+    assert ok is False

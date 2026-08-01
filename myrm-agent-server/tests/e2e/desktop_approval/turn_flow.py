@@ -335,10 +335,11 @@ async def _wait_seeded_resend_turn_kickoff(
             continue
         if isinstance(probe, dict):
             user_count = int(probe.get("userCount") or 0)
-            if bool(probe.get("isStreaming")) or user_count > baseline_ui_user_count:
+            effective_ui_baseline = max(baseline_ui_user_count, baseline_user_count)
+            if bool(probe.get("isStreaming")) or user_count > effective_ui_baseline:
                 progress(
                     f"seeded resend kickoff: UI userCount={user_count} "
-                    f"baseline={baseline_ui_user_count} "
+                    f"baseline={effective_ui_baseline} "
                     f"streaming={probe.get('isStreaming')} poll=#{poll}"
                 )
                 return True
@@ -537,6 +538,8 @@ async def complete_turn_after_approval(
     *,
     chat_id_hint: str | None,
     api_primary_done: bool = False,
+    skip_chat_route_restore: bool = False,
+    bridge_kickoff_done: bool = False,
 ) -> str:
     turn_done_timeout = signoff_parallel_desktop_turn_done_timeout_sec(180.0)
     if api_primary_done and chat_id_hint:
@@ -559,7 +562,27 @@ async def complete_turn_after_approval(
             progress(f"done chat_id={chat_id_hint}")
             return chat_id_hint
         progress("R233 api-primary DONE miss — fall back to CDP turn wait")
-    if chat_id_hint:
+    if bridge_kickoff_done and chat_id_hint and not api_primary_done:
+        progress("R244 bridge kickoff — API DONE wait without route restore")
+        bridge_api_budget = min(120.0, max(60.0, turn_done_timeout * 0.35))
+        api_done = await asyncio.to_thread(
+            wait_chat_messages_done,
+            chat_id_hint,
+            api_url=get_e2e_api_url(),
+            timeout_sec=bridge_api_budget,
+            fetch_timeout_sec=30.0,
+            progress_interval_sec=20.0,
+            on_tick=heartbeat_e2e_lease,
+        )
+        if api_done:
+            progress(
+                f"approval verified via R244 bridge API DONE chat_id={chat_id_hint}"
+            )
+            assert chat_user_message_count(chat_id_hint) >= 1, chat_id_hint
+            progress(f"done chat_id={chat_id_hint}")
+            return chat_id_hint
+        progress("R244 bridge API DONE miss — CDP turn wait without route restore")
+    if chat_id_hint and not skip_chat_route_restore:
         await _ensure_chat_route(chat, chat_id_hint)
     progress("wait assistant DONE")
     recover_timeout = signoff_parallel_desktop_turn_done_timeout_sec(60.0)
@@ -1092,6 +1115,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
 
     pending_source = str(tool_activity.get("pendingSource") or "")
     seeded_api_kickoff = False
+    bridge_kickoff_used = False
     if pending_source == "seeded-fallback" and not last_tool.startswith("desktop_"):
         progress(
             "seeded pending fallback approval — resend agent prompt "
@@ -1102,25 +1126,47 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         seeded_api_kickoff = False
         baseline_user = 0
         baseline_ui_user = 0
+        baseline_r241_fastpath = False
         if chat_id:
             try:
-                baseline_user = await asyncio.to_thread(
-                    chat_user_message_count,
-                    chat_id,
-                    api_url=get_e2e_api_url(),
+                baseline_user = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        chat_user_message_count,
+                        chat_id,
+                        api_url=get_e2e_api_url(),
+                    ),
+                    timeout=10.0,
                 )
-            except urllib.error.HTTPError:
-                baseline_user = 0
+            except (asyncio.TimeoutError, TimeoutError, urllib.error.HTTPError):
+                baseline_user = 1
+                baseline_r241_fastpath = True
+                progress(
+                    "seeded resend baseline userCount timeout — assume baseline=1 (R241)"
+                )
             try:
-                ui_snap = await chat.evaluate(
-                    "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
-                    await_promise=False,
+                ui_snap = await asyncio.wait_for(
+                    chat.evaluate(
+                        "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
+                        await_promise=False,
+                    ),
+                    timeout=15.0,
                 )
                 if isinstance(ui_snap, dict):
                     baseline_ui_user = int(ui_snap.get("userCount") or 0)
-            except (TimeoutError, RuntimeError, OSError):
+            except (asyncio.TimeoutError, TimeoutError, RuntimeError, OSError):
                 baseline_ui_user = baseline_user
-        if chat_id:
+                progress(
+                    "seeded resend baseline UI snapshot timeout — "
+                    f"use baseline_ui={baseline_ui_user} (R241)"
+                )
+            if baseline_r241_fastpath:
+                # R245: API baseline=1 but UI snapshot may still read userCount=0;
+                # align UI baseline so bridge resend cannot false-positive on userCount=1.
+                baseline_ui_user = max(baseline_ui_user, baseline_user)
+                progress(
+                    f"R245 align UI baseline={baseline_ui_user} after R241 fastpath"
+                )
+        if chat_id and not baseline_r241_fastpath:
             progress("seeded resend — API agent-stream kickoff (R232 mux-bypass)")
             api_timeout = min(45.0, max(20.0, kickoff_timeout / 4.0))
             kickoff_thread_budget = min(25.0, api_timeout + 5.0)
@@ -1134,7 +1180,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     ),
                     timeout=kickoff_thread_budget,
                 )
-            except TimeoutError:
+            except (asyncio.TimeoutError, TimeoutError):
                 progress(
                     "seeded resend API kickoff thread budget exceeded "
                     f"(R240 {kickoff_thread_budget:.0f}s) — bridge fallback"
@@ -1171,6 +1217,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                         seeded_api_kickoff = bool(activity.get("active"))
                     except urllib.error.HTTPError:
                         seeded_api_kickoff = False
+        elif chat_id and baseline_r241_fastpath:
+            progress(
+                "R242 skip API kickoff after R241 baseline timeout — bridge first"
+            )
         if not kickoff_ok:
             progress(
                 "seeded resend API kickoff miss — bridge E2E_PROMPT resend "
@@ -1188,6 +1238,27 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 baseline_user_count=baseline_user,
                 baseline_ui_user_count=baseline_ui_user,
             )
+            if kickoff_ok:
+                try:
+                    activity = await asyncio.to_thread(
+                        _seeded_kickoff_activity_probe,
+                        chat_id,
+                        baseline_user_count=baseline_user,
+                        api_url=get_e2e_api_url(),
+                    )
+                    if activity.get("active"):
+                        bridge_kickoff_used = True
+                    else:
+                        progress(
+                            "R245 bridge kickoff UI-only false positive — "
+                            f"activity={activity}; CDP fallback"
+                        )
+                        kickoff_ok = False
+                except urllib.error.HTTPError:
+                    progress(
+                        "R245 bridge kickoff activity probe HTTPError — CDP fallback"
+                    )
+                    kickoff_ok = False
         if not kickoff_ok:
             progress(
                 "seeded resend bridge miss — CDP fast_desktop_agent_submit fallback"
@@ -1245,6 +1316,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         chat,
         chat_id_hint=chat_id_hint,
         api_primary_done=seeded_api_kickoff,
+        skip_chat_route_restore=bridge_kickoff_used,
+        bridge_kickoff_done=bridge_kickoff_used,
     )
 
     if scope == "always":
