@@ -6,6 +6,8 @@ browser concurrency instead of four independent MCP ownership processes.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from enum import StrEnum
 from typing import TypedDict
 
@@ -72,6 +74,17 @@ def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
         mux_contexts=contexts,
         wave_leases=wave_leases,
     )
+
+
+@contextmanager
+def browser_operation_credit_slot(
+    *, operation_id: str | None = None
+) -> Iterator[str]:
+    """P0-B: single entry for mux cold-attach / new_page operation credits."""
+    from mux_upstream_admission import upstream_cold_attach_slot
+
+    with upstream_cold_attach_slot(operation_id=operation_id) as op_id:
+        yield op_id
 
 
 def close_exact_targets(

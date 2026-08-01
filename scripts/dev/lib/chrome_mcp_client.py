@@ -151,8 +151,8 @@ from mux_load import (
     new_page_stagger_sec,
     snapshot_mux_load,
 )
+from browser_orchestrator import browser_operation_credit_slot
 from mux_upstream_admission import (
-    upstream_cold_attach_slot,
     wait_mux_hand_probe_allowed,
 )
 
@@ -807,7 +807,7 @@ class ChromeMcpClient:
         page: McpPage | None = None
         runtime_binding = self._runtime_binding_source_for(url)
         _ensure_cdp_ready_before_parallel_new_page(self)
-        with upstream_cold_attach_slot():
+        with browser_operation_credit_slot():
             try:
                 self._heartbeat_lease(lease_id)
                 load = snapshot_mux_load()
@@ -1009,13 +1009,9 @@ class ChromeMcpClient:
                     "owner_token": owner_token,
                     "ownership": {
                         "browser_context_id": self._browser_context_id,
-                        "page_ids": [
-                            str(page_id) for page_id in sorted(self._pages)
-                        ],
+                        "page_ids": [str(page_id) for page_id in sorted(self._pages)],
                         "lease_id": self._parent_lease_id,
-                        "runtime_id": os.environ.get(
-                            "MYRM_E2E_RUNTIME_ID", ""
-                        ).strip(),
+                        "runtime_id": os.environ.get("MYRM_E2E_RUNTIME_ID", "").strip(),
                     },
                 }
             )
@@ -1349,7 +1345,7 @@ class ChromeMcpClient:
         _check_mux_reclaim_deadline(
             reclaim_deadline, "new_page", started=reclaim_started
         )
-        with upstream_cold_attach_slot():
+        with browser_operation_credit_slot():
             result = self.call_tool(
                 "new_page",
                 arguments,
