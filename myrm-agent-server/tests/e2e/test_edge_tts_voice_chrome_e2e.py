@@ -123,6 +123,15 @@ _LAYOUT_PROBE_JS = """(() => ({
 
 
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
+    import sys
+    from pathlib import Path
+
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from e2e_effect_guard import assert_http_effect_allowed
+
+    assert_http_effect_allowed(method=method, url=url)
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(  # noqa: S310 - loopback only
         url, data=data, method=method
@@ -157,6 +166,17 @@ def _require_live_stack() -> None:
 
 
 def _ensure_voice_feature_enabled() -> None:
+    import os
+
+    scope = os.environ.get("MYRM_E2E_ACCESS_SCOPE", "READ").strip().upper()
+    if scope == "READ":
+        info = _http_json("GET", f"{get_e2e_api_url()}/api/v1/health/info")
+        if isinstance(info, dict) and info.get("voiceInteractionEnabled") is True:
+            return
+        pytest.skip(
+            "voice_interaction not enabled on shared hot stack; "
+            "READ scope cannot POST /features/voice_interaction/toggle"
+        )
     _http_json(
         "POST",
         f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
