@@ -43,7 +43,10 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
-from tests.support.e2e_wall_progress import touch_e2e_wall_progress, write_e2e_session_snapshot  # noqa: E402
+from tests.support.e2e_wall_progress import (
+    touch_e2e_wall_progress,
+    write_e2e_session_snapshot,
+)  # noqa: E402
 
 
 def _voice_settings_url() -> str:
@@ -122,25 +125,16 @@ _LAYOUT_PROBE_JS = """(() => ({
 }))()"""
 
 
+def _read_scope_active() -> bool:
+    import os
+
+    return os.environ.get("MYRM_E2E_ACCESS_SCOPE", "READ").strip().upper() == "READ"
+
+
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
-    import sys
-    from pathlib import Path
+    from tests.support.chrome_mcp_e2e import http_json
 
-    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-    if str(dev_lib) not in sys.path:
-        sys.path.insert(0, str(dev_lib))
-    from e2e_effect_guard import assert_http_effect_allowed
-
-    assert_http_effect_allowed(method=method, url=url)
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(  # noqa: S310 - loopback only
-        url, data=data, method=method
-    )
-    if data is not None:
-        req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - loopback only
-        raw = resp.read()
-        return json.loads(raw) if raw else {}
+    return http_json(method, url, body)
 
 
 def _server_reachable() -> bool:
@@ -252,6 +246,10 @@ def _put_edge_voice_config() -> None:
 
 def _seed_voice_and_personal_settings() -> None:
     _ensure_voice_feature_enabled()
+    if _read_scope_active():
+        if not _edge_tts_available():
+            pytest.skip("edge_tts_available=false on shared READ stack")
+        return
     _put_edge_voice_config()
     personal = _http_json("GET", f"{get_e2e_api_url()}/api/v1/config/personalSettings")
     assert isinstance(personal, dict)
@@ -337,6 +335,8 @@ def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]
     try:
         yield
     finally:
+        if _read_scope_active():
+            return
         if _server_reachable():
             try:
                 _http_json(
@@ -463,14 +463,11 @@ class _McpSession:
                     continue
                 raise
             ready = state if isinstance(state, dict) else {"probeError": state}
-            if (
-                ready.get("ready") is True
-                or (
-                    ready.get("hasLayout")
-                    and ready.get("readyState") in ("complete", "interactive")
-                    and int(ready.get("skeletons", 99)) < 6
-                    and ready.get("hasVoicePanel")
-                )
+            if ready.get("ready") is True or (
+                ready.get("hasLayout")
+                and ready.get("readyState") in ("complete", "interactive")
+                and int(ready.get("skeletons", 99)) < 6
+                and ready.get("hasVoicePanel")
             ):
                 return ready
             if ready.get("onChannelsSettings") and not ready.get("hasVoicePanel"):
@@ -515,7 +512,9 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
             heartbeat_e2e_lease()
             touch_e2e_wall_progress(current_node=progress_node)
             try:
-                with open_mcp_page(voice_url, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS) as (
+                with open_mcp_page(
+                    voice_url, timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS
+                ) as (
                     client,
                     page,
                 ):
@@ -536,7 +535,9 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
                         }))()""",
                         timeout_sec=90.0,
                     )
-                    return wait_for_state(client, page, _VOICE_PROBE_JS, timeout_sec=90.0)
+                    return wait_for_state(
+                        client, page, _VOICE_PROBE_JS, timeout_sec=90.0
+                    )
             except (RuntimeError, TimeoutError) as exc:
                 last_exc = exc
                 if outer + 1 >= 2:
@@ -556,11 +557,6 @@ async def _probe_read_aloud_fetch(
         await cdp.wait_app_layout()
         probe_js = f"""(async () => {{
           try {{
-            await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
-              method: 'POST',
-              headers: {{ 'Content-Type': 'application/json' }},
-              body: JSON.stringify({{ enabled: true }}),
-            }});
             const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
               method: 'POST',
               headers: {{ 'Content-Type': 'application/json' }},
@@ -588,7 +584,9 @@ async def _probe_read_aloud_fetch(
     return last
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_voice_settings_no_edge_banner_when_available(
@@ -629,7 +627,9 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
@@ -649,11 +649,6 @@ async def test_read_aloud_edge_api_from_browser_context(
         result = await cdp.eval(
             f"""(async () => {{
               try {{
-                await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
-                  method: 'POST',
-                  headers: {{ 'Content-Type': 'application/json' }},
-                  body: JSON.stringify({{ enabled: true }}),
-                }});
                 const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
                   method: 'POST',
                   headers: {{ 'Content-Type': 'application/json' }},
@@ -673,7 +668,9 @@ async def test_read_aloud_edge_api_from_browser_context(
     assert int(result.get("bytes", 0)) > 0, result
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 @pytest.mark.asyncio
@@ -735,7 +732,9 @@ def test_live_stt_status_reflects_local_install() -> None:
         assert status["available"] is True
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 @pytest.mark.asyncio
@@ -750,7 +749,9 @@ async def test_voice_settings_no_local_banner_when_available(
     )
     from e2e_session_lifecycle import complete_bootstrap_phase
 
-    complete_bootstrap_phase(phase_label="test_voice_settings_no_local_banner_when_available")
+    complete_bootstrap_phase(
+        phase_label="test_voice_settings_no_local_banner_when_available"
+    )
     state = await asyncio.to_thread(
         _chrome_probe_voice_settings_with_retry,
         progress_node="test_voice_settings_no_local_banner_when_available",
