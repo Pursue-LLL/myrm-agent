@@ -291,3 +291,44 @@ async def test_cron_tools_turn1_eager_when_enabled() -> None:
         await mixin._setup_cron_tools(tools, user_id="user-1")
 
     assert len(tools) == 1
+
+
+def test_memory_search_tool_description_hides_web_corpus() -> None:
+    """Verify the Server→Harness wiring: allow_web=False (default) hides corpus=web from description."""
+    from unittest.mock import AsyncMock
+
+    from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+    from myrm_agent_harness.toolkits.memory.memory_agent_tools import (
+        create_memory_tools,
+    )
+    from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+        MemorySearchPolicy,
+    )
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+    config = MemoryConfig(
+        embedding_model="test-model",
+        collection_prefix="integration_test",
+        bm25_top_k=50,
+        bm25_max_corpus_size=5000,
+    )
+    vector = AsyncMock()
+    vector.count = AsyncMock(return_value=0)
+    vector.scroll = AsyncMock(return_value=([], None))
+    vector.search = AsyncMock(return_value=[])
+    embedding = AsyncMock()
+    embedding.embed = AsyncMock(return_value=[0.1] * 768)
+    embedding.dimension = 768
+
+    manager = MemoryManager(config, user_id="test_user", vector=vector, embedding=embedding)
+    policy = MemorySearchPolicy(
+        allow_wiki=True,
+        allow_sessions=True,
+    )
+    tools = create_memory_tools(manager, search_policy=policy)
+    search_tool = next(t for t in tools if t.name == "memory_search_tool")
+
+    assert "corpus=web" not in search_tool.description
+    assert "web corpus" not in search_tool.description
+    assert "wiki:" in search_tool.description
+    assert "sessions:" in search_tool.description
