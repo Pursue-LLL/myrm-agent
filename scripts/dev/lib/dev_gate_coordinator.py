@@ -33,6 +33,7 @@ from desktop_seat_controller import (
     DesktopSeatController,
     desktop_seat_capacity,
 )
+from dev_gate_async_queue import DevGateAsyncWriter, async_queue_enabled, max_async_queue_depth
 
 _MAX_REQUEST_BYTES = 1_048_576
 
@@ -279,6 +280,13 @@ class _CoordinatorServer(socketserver.ThreadingUnixStreamServer):
 
     def __init__(self, path: Path, service: CoordinatorService) -> None:
         self.service = service
+        self._async_writer: DevGateAsyncWriter | None = None
+        if async_queue_enabled():
+            self._async_writer = DevGateAsyncWriter(
+                service,
+                max_queue=max_async_queue_depth(),
+            )
+            self._async_writer.start()
         self._ready = threading.Event()
         path = normalized_socket_path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -313,7 +321,11 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError("request must be a JSON object")
             server = cast(_CoordinatorServer, self.server)
-            response = {"ok": True, **server.service.handle(payload)}
+            if server._async_writer is not None:
+                body = server._async_writer.dispatch(payload)
+            else:
+                body = server.service.handle(payload)
+            response = {"ok": True, **body}
         except (ValueError, KeyError, PermissionError, json.JSONDecodeError) as exc:
             response = {
                 "ok": False,
