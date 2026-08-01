@@ -29,6 +29,10 @@ from private_resource_controller import (
     PrivateResourceController,
     private_capacity_credits,
 )
+from desktop_seat_controller import (
+    DesktopSeatController,
+    desktop_seat_capacity,
+)
 
 _MAX_REQUEST_BYTES = 1_048_576
 
@@ -76,11 +80,18 @@ class CoordinatorService:
         store: DevGateStore,
         *,
         private_capacity: int | None = None,
+        desktop_capacity: int | None = None,
     ) -> None:
         self.store = store
         self.private_controller = PrivateResourceController(
             store,
             capacity_credits=private_capacity or private_capacity_credits(),
+        )
+        self.desktop_controller = DesktopSeatController(
+            store,
+            capacity_seats=desktop_capacity
+            if desktop_capacity is not None
+            else desktop_seat_capacity(),
         )
 
     def handle(self, request: dict[str, object]) -> dict[str, object]:
@@ -127,6 +138,27 @@ class CoordinatorService:
                     "next_progress_sec": admission.next_progress_sec,
                 }
             }
+        if operation == "desktop_admit":
+            admission = self.desktop_controller.admit(
+                _required_text(request, "session_id"),
+                _required_text(request, "owner_token"),
+            )
+            return {
+                "admission": {
+                    "granted": admission.granted,
+                    "queue_position": admission.queue_position,
+                    "active_seats": admission.active_seats,
+                    "capacity_seats": admission.capacity_seats,
+                    "waited_sec": admission.waited_sec,
+                    "next_progress_sec": admission.next_progress_sec,
+                }
+            }
+        if operation == "desktop_release":
+            granted = self.desktop_controller.release(
+                _required_text(request, "session_id"),
+                _required_text(request, "owner_token"),
+            )
+            return {"granted_session_ids": list(granted)}
         if operation == "private_release":
             granted = self.private_controller.release(
                 _required_text(request, "session_id"),

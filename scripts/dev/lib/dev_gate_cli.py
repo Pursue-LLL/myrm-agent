@@ -179,6 +179,37 @@ def _private_admit(args: argparse.Namespace) -> int:
         time.sleep(min(1.0, float(admission.get("next_progress_sec", 1.0))))
 
 
+def _desktop_admit(args: argparse.Namespace) -> int:
+    started = time.monotonic()
+    next_progress = 0.0
+    while True:
+        response = send(
+            {
+                "operation": "desktop_admit",
+                "session_id": args.session_id,
+                "owner_token": args.owner_token,
+            }
+        )
+        admission = response.get("admission")
+        if not isinstance(admission, dict):
+            raise RuntimeError("desktop seat admission response missing")
+        if admission.get("granted") is True:
+            print(json.dumps(admission, separators=(",", ":"), sort_keys=True))
+            return 0
+        elapsed = time.monotonic() - started
+        if elapsed >= next_progress:
+            print(
+                "E2E_DESKTOP_SEAT_WAIT: "
+                f"position={admission.get('queue_position')} "
+                f"active={admission.get('active_seats')}/"
+                f"{admission.get('capacity_seats')} elapsed={int(elapsed)}s",
+                file=sys.stderr,
+                flush=True,
+            )
+            next_progress = elapsed + 30.0
+        time.sleep(min(1.0, float(admission.get("next_progress_sec", 1.0))))
+
+
 def _simple_operation(args: argparse.Namespace) -> int:
     payload: dict[str, object] = {
         "operation": args.command,
@@ -293,6 +324,11 @@ def _parser() -> argparse.ArgumentParser:
     private_admit.add_argument("--owner-token", required=True)
     private_admit.set_defaults(handler=_private_admit)
 
+    desktop_admit = commands.add_parser("desktop_admit")
+    desktop_admit.add_argument("--session-id", required=True)
+    desktop_admit.add_argument("--owner-token", required=True)
+    desktop_admit.set_defaults(handler=_desktop_admit)
+
     reap = commands.add_parser("reap")
     reap.set_defaults(handler=_coordinator_reap)
 
@@ -301,6 +337,7 @@ def _parser() -> argparse.ArgumentParser:
         "heartbeat",
         "cleanup",
         "private_release",
+        "desktop_release",
         "finish",
     ):
         operation = commands.add_parser(command)
