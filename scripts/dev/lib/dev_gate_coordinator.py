@@ -102,7 +102,11 @@ class CoordinatorService:
         if operation == "reap":
             reaped = list(self.store.reap_abandoned())
             reaped.extend(self.store.reap_expired_deadlines())
-            return {"reaped_session_ids": reaped}
+            compacted = self.store.compact_journal()
+            return {
+                "reaped_session_ids": reaped,
+                "journal_events_compacted": compacted,
+            }
         if operation == "submit":
             return self._submit(request)
         if operation == "transition":

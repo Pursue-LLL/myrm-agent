@@ -21,6 +21,8 @@ from dev_gate_session import (
     initial_state,
 )
 
+DEFAULT_JOURNAL_RETENTION_SEC: float = 7 * 86400
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
@@ -258,9 +260,7 @@ class DevGateStore:
                 detail={"from": current.value, "failure_token": failure_token},
                 now=changed_at,
             )
-            return self._record(
-                self._required_row(connection, session_id)
-            )
+            return self._record(self._required_row(connection, session_id))
 
     def heartbeat(
         self,
@@ -414,11 +414,14 @@ class DevGateStore:
         return None if row is None else self._record(row)
 
     def list_active(self) -> tuple[SessionRecord, ...]:
-        terminal = tuple(state.value for state in (
-            SessionState.SUCCEEDED,
-            SessionState.FAILED,
-            SessionState.CANCELLED,
-        ))
+        terminal = tuple(
+            state.value
+            for state in (
+                SessionState.SUCCEEDED,
+                SessionState.FAILED,
+                SessionState.CANCELLED,
+            )
+        )
         with self._connect() as connection:
             rows = connection.execute(
                 """
@@ -553,6 +556,21 @@ class DevGateStore:
                 )
                 reaped.append(session_id)
         return tuple(reaped)
+
+    def compact_journal(
+        self,
+        *,
+        now: float | None = None,
+        retention_sec: float = DEFAULT_JOURNAL_RETENTION_SEC,
+    ) -> int:
+        """Delete event journal rows older than retention window (P0-D)."""
+        cutoff = (time.time() if now is None else now) - max(3600.0, retention_sec)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM events WHERE created_at < ?",
+                (cutoff,),
+            )
+            return int(cursor.rowcount)
 
     @staticmethod
     def _required_row(
