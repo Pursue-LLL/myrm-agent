@@ -85,7 +85,7 @@ def hydrate_auth_template_for_context(
     context_id: str,
     workspace_fingerprint: str = "",
 ) -> bool:
-    """Per-context hydrate hook (stub until encrypted template blob + CDP inject land)."""
+    """Hydrate sealed template cookies into an isolated context and probe auth."""
     normalized = context_id.strip()
     if not normalized:
         return False
@@ -93,9 +93,34 @@ def hydrate_auth_template_for_context(
     status = auth_template_status(workspace_fingerprint=workspace)
     if status["next_action"] != "READY":
         return False
-    # Future: decrypt runtime-scoped template and inject storage for `normalized`.
-    _ = normalized
-    return True
+    template = _load_template()
+    if template is None:
+        return False
+    cookies_raw = template.get("cookies", [])
+    if not isinstance(cookies_raw, list) or not cookies_raw:
+        return True
+    origin = str(template.get("origin", "")).strip()
+    if not origin:
+        return False
+    probe_path = str(template.get("probePath", "/")).strip() or "/"
+    try:
+        from e2e_auth_cdp import (  # noqa: PLC0415
+            cdp_auth_hydrate_enabled,
+            hydrate_and_probe_context,
+        )
+    except ImportError:
+        return False
+    if not cdp_auth_hydrate_enabled():
+        return True
+    observed = hydrate_and_probe_context(
+        browser_context_id=normalized,
+        origin=origin,
+        cookies=[item for item in cookies_raw if isinstance(item, dict)],
+        probe_path=probe_path,
+    )
+    if observed is None:
+        return False
+    return observed
 
 
 def _state_dir() -> Path:
@@ -242,6 +267,8 @@ def seal_auth_template(
     test_account: str = "",
     ttl_sec: float = DEFAULT_TEMPLATE_TTL_SEC,
     workspace_fingerprint: str = "",
+    cookies: list[dict[str, object]] | None = None,
+    probe_path: str = "/",
 ) -> AuthTemplateStatus:
     """Persist sealed auth template metadata after successful manual setup."""
     runtime_fp = runtime_fingerprint(workspace_fingerprint=workspace_fingerprint)
@@ -249,7 +276,7 @@ def seal_auth_template(
     template_fp = hashlib.sha256(
         f"{origin.strip()}|{test_account.strip()}|{runtime_fp}|{now}".encode()
     ).hexdigest()[:16]
-    record = {
+    record: dict[str, object] = {
         "schemaVersion": SCHEMA_VERSION,
         "templateFingerprint": template_fp,
         "runtimeFingerprint": runtime_fp,
@@ -257,7 +284,10 @@ def seal_auth_template(
         "expiresAt": now + max(3600.0, ttl_sec),
         "origin": origin.strip(),
         "testAccount": test_account.strip(),
+        "probePath": probe_path.strip() or "/",
     }
+    if cookies:
+        record["cookies"] = cookies
     path = _template_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".json.tmp")
