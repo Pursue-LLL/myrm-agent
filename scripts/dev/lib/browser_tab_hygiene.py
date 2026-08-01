@@ -158,6 +158,8 @@ def _is_blankish_url(url: object) -> bool:
 
 def prune_orphan_cdp_pages(*, cdp_port: int | None = None, threshold: int = 20) -> tuple[int, int]:
     """Close self-owned unbound blank tabs only; fail-closed when protection set unknown."""
+    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR_PRUNE", "").strip() != "1":
+        return 0, 0
     port = cdp_port if cdp_port is not None else _chrome_port()
     protected = _protected_target_ids()
     if protected is None:

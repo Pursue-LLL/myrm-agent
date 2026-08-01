@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close stale infra-owned targets and unbound blank orphan CDP pages.
+# Close stale infra-owned targets and unbound blank orphan CDP pages via Browser Orchestrator.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,23 +16,13 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
-infra_out="$("${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/infra_browser_registry.py" \
-  --prune \
+ORCHESTRATOR_PY="${SCRIPT_DIR}/lib/browser_orchestrator.py"
+threshold="${MYRM_CHROME_E2E_TAB_PRUNE_THRESHOLD:-20}"
+orch_out="$("${PREFLIGHT_PY}" "${ORCHESTRATOR_PY}" \
+  --prune-self-blanks \
+  --threshold "${threshold}" \
   --cdp-port "${MYRM_CHROME_E2E_PORT}" 2>&1)" || {
-  echo "${infra_out}" >&2
-  exit 1
+  echo "CHROME_E2E_WARN: orchestrator prune failed — ${orch_out}" >&2
+  exit 0
 }
-echo "${infra_out}"
-
-HYGIENE_PY="${SCRIPT_DIR}/lib/browser_tab_hygiene.py"
-if [[ -f "${HYGIENE_PY}" ]]; then
-  threshold="${MYRM_CHROME_E2E_TAB_PRUNE_THRESHOLD:-20}"
-  orphan_out="$("${PREFLIGHT_PY}" "${HYGIENE_PY}" \
-    --prune-orphans \
-    --threshold "${threshold}" \
-    --cdp-port "${MYRM_CHROME_E2E_PORT}" 2>&1)" || {
-    echo "CHROME_E2E_WARN: orphan tab prune failed — ${orphan_out}" >&2
-    exit 0
-  }
-  echo "${orphan_out}"
-fi
+echo "${orch_out}"

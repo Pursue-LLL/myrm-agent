@@ -72,3 +72,87 @@ def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
         mux_contexts=contexts,
         wave_leases=wave_leases,
     )
+
+
+def close_exact_targets(
+    *,
+    target_ids: tuple[str, ...],
+    cdp_port: int | None = None,
+) -> tuple[int, int]:
+    """Close explicit CDP targets through the orchestrator plane (exact-id only)."""
+    from infra_browser_registry import close_exact_target, _chrome_port
+
+    port = cdp_port if cdp_port is not None else _chrome_port()
+    closed = 0
+    failed = 0
+    for target_id in target_ids:
+        normalized = target_id.strip()
+        if not normalized:
+            continue
+        if close_exact_target(port, normalized):
+            closed += 1
+        else:
+            failed += 1
+    return closed, failed
+
+
+def prune_self_owned_blanks(
+    *,
+    cdp_port: int | None = None,
+    threshold: int = 20,
+) -> tuple[int, int, int, int]:
+    """Infra dead-owner prune + self-owned blank tabs; orchestrator entry only."""
+    import os
+
+    from browser_tab_hygiene import prune_orphan_cdp_pages
+    from infra_browser_registry import _chrome_port, prune_infra_registry
+
+    prior = os.environ.get("MYRM_BROWSER_ORCHESTRATOR_PRUNE", "")
+    os.environ["MYRM_BROWSER_ORCHESTRATOR_PRUNE"] = "1"
+    try:
+        port = cdp_port if cdp_port is not None else _chrome_port()
+        infra_closed, infra_failed = prune_infra_registry(port)
+        orphan_closed, orphan_failed = prune_orphan_cdp_pages(
+            cdp_port=port,
+            threshold=threshold,
+        )
+        return infra_closed, infra_failed, orphan_closed, orphan_failed
+    finally:
+        if prior:
+            os.environ["MYRM_BROWSER_ORCHESTRATOR_PRUNE"] = prior
+        else:
+            os.environ.pop("MYRM_BROWSER_ORCHESTRATOR_PRUNE", None)
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Browser Orchestrator CLI (P0-B).")
+    parser.add_argument("--snapshot", action="store_true")
+    parser.add_argument("--prune-self-blanks", action="store_true")
+    parser.add_argument("--threshold", type=int, default=20)
+    parser.add_argument("--cdp-port", type=int, default=0)
+    args = parser.parse_args()
+    if args.snapshot:
+        import json
+
+        print(json.dumps(browser_orchestrator_snapshot(), sort_keys=True))
+        return 0
+    if args.prune_self_blanks:
+        port = args.cdp_port if args.cdp_port > 0 else None
+        infra_closed, infra_failed, orphan_closed, orphan_failed = prune_self_owned_blanks(
+            cdp_port=port,
+            threshold=args.threshold,
+        )
+        print(
+            "MYRM_BROWSER_ORCHESTRATOR_PRUNE_OK: "
+            f"infra_closed={infra_closed} infra_failed={infra_failed} "
+            f"orphan_closed={orphan_closed} orphan_failed={orphan_failed}"
+        )
+        return 0 if infra_failed == 0 and orphan_failed == 0 else 1
+    parser.error("--snapshot or --prune-self-blanks is required")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
