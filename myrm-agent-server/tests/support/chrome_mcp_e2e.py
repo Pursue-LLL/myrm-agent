@@ -768,9 +768,15 @@ def _parallel_open_page_peer_count() -> int:
 
 
 def _should_skip_attach_preflight_restart() -> bool:
-    """R122-B8: full attach-restart preflight waits UI under parallel — use shim recover."""
-    if is_e2e_signoff_runtime():
-        return False
+    """P0-B: global mux attach restart must not run under active parallel load."""
+    try:
+        from mux_load import snapshot_mux_load
+
+        load = snapshot_mux_load(force=True)
+        if max(0, load.mux_contexts, load.wave_leases) > 0:
+            return True
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
     return _parallel_open_page_peer_count() >= 2
 
 

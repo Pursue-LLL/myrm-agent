@@ -879,6 +879,7 @@ print(len(contexts) if isinstance(contexts, list) else 0)
 _mux_attach_timeout_restart_allowed() {
   [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]] || return 1
   [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] || return 1
+  _mux_parallel_load_blocks_global_restart && return 1
   _mux_upstream_ready && _mux_ws_stamp_matches
 }
 
@@ -1130,6 +1131,10 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     exit 0
   fi
   if [[ "${MYRM_MUX_FORCE_ATTACH_RESTART:-}" == "1" ]]; then
+    if _mux_parallel_load_blocks_global_restart; then
+      echo "CHROME_E2E_WARN: force attach restart blocked — parallel contexts or wave leases active" >&2
+      exit 1
+    fi
     _restart_mux_safely "attach new_page timeout (forced open_mcp_page heal)"
     ok "mux daemon force-restarted (attach new_page heal)"
     exit 0

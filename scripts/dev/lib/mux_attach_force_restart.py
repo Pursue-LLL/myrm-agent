@@ -11,6 +11,25 @@ from contextlib import contextmanager
 from pathlib import Path
 
 ATTACH_RESTART_COOLDOWN_SEC: float = 45.0
+ATTACH_RESTART_BLOCKED_TOKEN: str = "MUX_ATTACH_RESTART_BLOCKED_PARALLEL"
+
+
+def _parallel_load_blocks_attach_restart() -> bool:
+    """P0-B: active mux contexts / wave leases block global daemon restart."""
+    try:
+        from mux_load import snapshot_mux_load
+
+        load = snapshot_mux_load(force=True)
+        if max(0, load.mux_contexts, load.wave_leases) > 0:
+            return True
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
+    try:
+        from chrome_mcp_client import _parallel_mux_peer_count
+
+        return _parallel_mux_peer_count() >= 2
+    except (ImportError, OSError, TypeError, ValueError):
+        return False
 
 
 def _preflight_timeout_sec() -> float:
@@ -66,6 +85,14 @@ def force_mux_attach_restart(*, reason: str = "attach new_page timeout") -> bool
     Parallel callers must use ``force_mux_attach_restart_scoped`` or
     ``force_mux_attach_restart_deduped`` (inside an existing ``mux_recovery_scope``).
     """
+    if _parallel_load_blocks_attach_restart():
+        import sys
+
+        sys.stderr.write(
+            f"{ATTACH_RESTART_BLOCKED_TOKEN}: parallel mux contexts or wave leases active\n"
+        )
+        sys.stderr.flush()
+        return False
     monorepo_root = Path(__file__).resolve().parents[4]
     preflight = monorepo_root / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-preflight.sh"
     if not preflight.is_file():
