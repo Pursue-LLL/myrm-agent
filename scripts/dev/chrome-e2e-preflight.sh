@@ -681,11 +681,25 @@ fi
 PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
 if [[ -f "${PRUNE_SCRIPT}" ]]; then
   export MYRM_CHROME_E2E_PORT
-  if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
-    echo "${prune_out}"
-    ok "stale infra-owned tabs pruned"
+  _preflight_blank_tab_prune_allowed() {
+    local contexts active_leases
+    contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
+    active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo 0)"
+    if [[ "${contexts}" =~ ^[0-9]+$ && "${contexts}" -gt 0 ]]; then
+      return 1
+    fi
+    [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] && return 1
+    return 0
+  }
+  if _preflight_blank_tab_prune_allowed; then
+    if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
+      echo "${prune_out}"
+      ok "stale infra-owned tabs pruned"
+    else
+      echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
+    fi
   else
-    echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
+    echo "CHROME_E2E_WARN: blank-tab prune skipped — parallel mux contexts or wave leases active" >&2
   fi
 fi
 

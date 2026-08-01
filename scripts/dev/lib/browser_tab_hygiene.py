@@ -111,13 +111,16 @@ def _list_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
     return [item for item in payload if isinstance(item, dict) and item.get("type") == "page"]
 
 
-def _protected_target_ids() -> set[str]:
+def _protected_target_ids() -> set[str] | None:
+    """Return protected target ids, or None when ledgers are unreadable (fail-closed)."""
     protected: set[str] = set()
     state_dir = Path(os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev"))
     state_file = state_dir / "wave-orchestrator.json"
+    wave_readable = True
     try:
         payload = json.loads(state_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        wave_readable = False
         payload = {}
     leases = payload.get("leases")
     if isinstance(leases, list):
@@ -129,13 +132,20 @@ def _protected_target_ids() -> set[str]:
             target_id = lease.get("targetId")
             if isinstance(target_id, str) and target_id.strip():
                 protected.add(target_id.strip())
+    elif wave_readable:
+        pass
+    else:
+        return None
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
     import infra_browser_registry as registry
 
-    for item in registry.list_infra_targets():
-        protected.add(item["targetId"])
+    try:
+        for item in registry.list_infra_targets():
+            protected.add(item["targetId"])
+    except OSError:
+        return None
     return protected
 
 
@@ -147,24 +157,41 @@ def _is_blankish_url(url: object) -> bool:
 
 
 def prune_orphan_cdp_pages(*, cdp_port: int | None = None, threshold: int = 20) -> tuple[int, int]:
-    """Close unbound blank tabs; when above threshold, close all unbound blankish pages."""
+    """Close self-owned unbound blank tabs only; fail-closed when protection set unknown."""
     port = cdp_port if cdp_port is not None else _chrome_port()
+    protected = _protected_target_ids()
+    if protected is None:
+        return 0, 0
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
     import infra_browser_registry as registry
 
-    protected = _protected_target_ids()
+    from owner_identity import capture_owner_process_start
+
+    self_pid = os.getpid()
+    self_start = capture_owner_process_start(self_pid)
+    self_owned = {
+        item["targetId"]
+        for item in registry.list_infra_targets()
+        if item["ownerPid"] == self_pid
+        and (
+            not item.get("ownerProcessStart")
+            or item.get("ownerProcessStart") == self_start
+        )
+    }
     pages = _list_cdp_pages(port)
     closed = 0
     failed = 0
 
-    def _close_if_unbound(page: dict[str, object]) -> None:
+    def _close_if_self_blank(page: dict[str, object]) -> None:
         nonlocal closed, failed
         target_id = page.get("id")
         if not isinstance(target_id, str) or not target_id.strip():
             return
         if target_id in protected:
+            return
+        if target_id not in self_owned:
             return
         if registry.close_exact_target(port, target_id):
             closed += 1
@@ -173,13 +200,13 @@ def prune_orphan_cdp_pages(*, cdp_port: int | None = None, threshold: int = 20) 
 
     for page in pages:
         if _is_blankish_url(page.get("url")):
-            _close_if_unbound(page)
+            _close_if_self_blank(page)
 
     remaining = _list_cdp_pages(port)
     if len(remaining) > threshold:
         for page in remaining:
             if _is_blankish_url(page.get("url")):
-                _close_if_unbound(page)
+                _close_if_self_blank(page)
 
     return closed, failed
 

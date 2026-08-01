@@ -28,6 +28,7 @@ from typing import Iterator, TypedDict
 class InfraBrowserTarget(TypedDict):
     targetId: str
     ownerPid: int
+    ownerProcessStart: str
     url: str
 
 
@@ -68,10 +69,14 @@ def _read(path: Path) -> list[InfraBrowserTarget]:
         owner_pid = item.get("ownerPid")
         url = item.get("url")
         if isinstance(target_id, str) and target_id and isinstance(owner_pid, int):
+            process_start = item.get("ownerProcessStart")
             result.append(
                 {
                     "targetId": target_id,
                     "ownerPid": owner_pid,
+                    "ownerProcessStart": process_start
+                    if isinstance(process_start, str)
+                    else "",
                     "url": url if isinstance(url, str) else "",
                 }
             )
@@ -92,9 +97,19 @@ def register_infra_target(target_id: str, url: str, *, owner_pid: int | None = N
     if not target:
         raise ValueError("target_id is required")
     pid = owner_pid if owner_pid is not None else os.getpid()
+    from owner_identity import capture_owner_process_start
+
+    process_start = capture_owner_process_start(pid)
     with _locked_ledger() as ledger:
         records = [item for item in _read(ledger) if item["targetId"] != target]
-        records.append({"targetId": target, "ownerPid": pid, "url": url})
+        records.append(
+            {
+                "targetId": target,
+                "ownerPid": pid,
+                "ownerProcessStart": process_start,
+                "url": url,
+            }
+        )
         _write(ledger, records)
 
 
@@ -104,12 +119,13 @@ def unregister_infra_target(target_id: str) -> None:
         _write(ledger, [item for item in _read(ledger) if item["targetId"] != target])
 
 
-def _pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+def _owner_stale(item: InfraBrowserTarget) -> bool:
+    from owner_identity import owner_process_matches
+
+    return not owner_process_matches(
+        pid=int(item["ownerPid"]),
+        expected_start=str(item.get("ownerProcessStart", "")),
+    )
 
 
 def close_exact_target(cdp_port: int, target_id: str) -> bool:
@@ -136,7 +152,7 @@ def prune_infra_registry(cdp_port: int | None = None) -> tuple[int, int]:
     port = cdp_port if cdp_port is not None else _chrome_port()
     with _locked_ledger() as ledger:
         records = _read(ledger)
-        stale = [item for item in records if not _pid_alive(item["ownerPid"])]
+        stale = [item for item in records if _owner_stale(item)]
         closed_ids = {
             item["targetId"]
             for item in stale
