@@ -21,12 +21,12 @@ from cdp_chat_support import (  # noqa: E402
 )
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_ui_url,
     open_mcp_page,
     wait_for_state,
     warm_ui_route,
-    _warm_ui_parallel_wait_sec,
 )
 
 _PRIORITY_CHAIN_PAYLOAD = {
