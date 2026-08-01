@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TypedDict
 
 MAX_BROWSER_SLOTS = 4
@@ -142,6 +144,41 @@ def _pressure_low(snapshot: HostPressureSnapshot) -> bool:
     return snapshot.memory_available_bytes >= MEMORY_UPGRADE_BYTES
 
 
+def _transition_log_path() -> Path:
+    override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
+    base = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    return base / "host-governor-transitions.jsonl"
+
+
+def _persist_transition(entry: dict[str, object]) -> None:
+    path = _transition_log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def recent_transition_log(*, limit: int = 16) -> list[dict[str, object]]:
+    capped = max(1, limit)
+    rows = list(_state.transition_log[-capped:])
+    path = _transition_log_path()
+    if path.is_file():
+        file_rows: list[dict[str, object]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict):
+                file_rows.append(payload)
+        if len(file_rows) > capped:
+            file_rows = file_rows[-capped:]
+        if len(file_rows) > len(rows):
+            rows = file_rows
+    return rows[-capped:]
+
+
 def _record_transition(
     *,
     before: int,
@@ -161,6 +198,10 @@ def _record_transition(
     _state.transition_log.append(entry)
     if len(_state.transition_log) > 32:
         _state.transition_log.pop(0)
+    try:
+        _persist_transition(entry)
+    except OSError:
+        pass
 
 
 def tick_governor(*, now: float | None = None) -> int:

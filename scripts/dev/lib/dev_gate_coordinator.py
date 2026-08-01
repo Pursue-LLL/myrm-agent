@@ -174,6 +174,25 @@ class CoordinatorService:
             return {"granted_session_ids": list(granted)}
         if operation == "snapshot":
             session_id = _optional_text(request, "session_id")
+            if session_id == "__health__":
+                health: dict[str, object] = {}
+                try:
+                    from host_resource_governor import (  # noqa: PLC0415
+                        host_resource_governor_snapshot,
+                        recent_transition_log,
+                    )
+
+                    health["hostGovernor"] = host_resource_governor_snapshot()
+                    health["hostGovernorTransitions"] = recent_transition_log(limit=8)
+                except ImportError:
+                    pass
+                try:
+                    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+
+                    health["devGate"] = dev_gate_status()
+                except ImportError:
+                    pass
+                return health
             if session_id:
                 record = self.store.get(session_id)
                 return {
@@ -423,6 +442,48 @@ def request(
     raise TimeoutError("coordinator request timed out")
 
 
+_DEADLINE_REAP_GRACE_SEC = 5.0
+
+
+def _terminate_deadline_reaped(
+    store: DevGateStore,
+    reaped_session_ids: list[object],
+) -> None:
+    """P0-A enforcement: terminate owner processes of deadline-expired sessions.
+
+    Only kills when PID + process_start still match the original owner,
+    preventing PID-reuse misfire.
+    """
+    import signal  # noqa: PLC0415
+
+    from owner_identity import owner_process_matches  # noqa: PLC0415
+
+    for raw_id in reaped_session_ids:
+        session_id = str(raw_id)
+        record = store.get(session_id)
+        if record is None:
+            continue
+        if record.failure_token != "HARD_DEADLINE":
+            continue
+        pid = record.owner_pid
+        process_start = record.owner_process_start
+        if pid <= 0:
+            continue
+        if not owner_process_matches(pid=pid, expected_start=process_start):
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            continue
+        time.sleep(_DEADLINE_REAP_GRACE_SEC)
+        if not owner_process_matches(pid=pid, expected_start=process_start):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
 class _BackgroundReaper:
     """P0-A: coordinator-owned periodic store + hung/stale lease reap."""
 
@@ -455,7 +516,11 @@ class _BackgroundReaper:
         os.environ["MYRM_DEV_GATE_COORDINATOR_REAP"] = "1"
         while not self._stop.wait(self._interval_sec):
             try:
-                self._service.handle({"operation": "reap"})
+                result = self._service.handle({"operation": "reap"})
+                _terminate_deadline_reaped(
+                    self._service.store,
+                    result.get("reaped_session_ids", []),
+                )
                 from e2e_stale_lease_reap import (  # noqa: PLC0415
                     maybe_reap_excess_wave_leases,
                     maybe_reap_hung_chrome_e2e_pytest,
