@@ -1015,6 +1015,17 @@ def _context_to_dict(
     except ImportError:
         payload["browserOrchestrator"] = {"health": "UNKNOWN"}
     try:
+        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+
+        payload["authTemplateStatus"] = auth_template_status(
+            workspace_fingerprint=ctx.workspace_fingerprint
+        )
+    except ImportError:
+        payload["authTemplateStatus"] = {
+            "status": "UNKNOWN",
+            "next_action": "OBSERVABILITY_UNKNOWN",
+        }
+    try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
         lifecycle = orchestrator_snapshot()
@@ -1099,6 +1110,18 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"blocked={'yes' if ctx.blocked else 'no'})\n"
     )
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
+    try:
+        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+
+        auth_status = auth_template_status(workspace_fingerprint=ctx.workspace_fingerprint)
+        sys.stdout.write(
+            "E2E_AUTH_TEMPLATE="
+            f"status={auth_status['status']} "
+            f"next_action={auth_status['next_action']} "
+            f"runtime_fp={auth_status['runtimeFingerprint']}\n"
+        )
+    except ImportError:
+        pass
     if ctx.blocked:
         sys.stdout.write(f"BLOCKED_REASON={ctx.blocked_reason}\n")
         if not ctx.epoch_match:
