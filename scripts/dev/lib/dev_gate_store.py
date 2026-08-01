@@ -745,6 +745,62 @@ class DevGateStore:
             )
             return int(cursor.rowcount)
 
+    def latest_event_id(self, session_id: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COALESCE(MAX(event_id), 0) AS max_id
+                FROM events WHERE session_id=?
+                """,
+                (session_id,),
+            ).fetchone()
+        return 0 if row is None else int(row["max_id"])
+
+    def fetch_events_after(
+        self,
+        session_id: str,
+        *,
+        after_event_id: int,
+        event_types: frozenset[str] | None = None,
+    ) -> tuple[dict[str, object], ...]:
+        with self._connect() as connection:
+            if event_types:
+                placeholders = ",".join("?" for _ in event_types)
+                rows = connection.execute(
+                    f"""
+                    SELECT event_id, event_type, state, created_at, detail_json, version
+                    FROM events
+                    WHERE session_id=? AND event_id>? AND event_type IN ({placeholders})
+                    ORDER BY event_id ASC
+                    """,
+                    (session_id, after_event_id, *sorted(event_types)),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT event_id, event_type, state, created_at, detail_json, version
+                    FROM events
+                    WHERE session_id=? AND event_id>?
+                    ORDER BY event_id ASC
+                    """,
+                    (session_id, after_event_id),
+                ).fetchall()
+        events: list[dict[str, object]] = []
+        for row in rows:
+            detail_raw = self._load_json_field(row["detail_json"], default={})
+            detail = detail_raw if isinstance(detail_raw, dict) else {}
+            events.append(
+                {
+                    "event_id": int(row["event_id"]),
+                    "event_type": str(row["event_type"]),
+                    "state": str(row["state"]),
+                    "created_at": float(row["created_at"]),
+                    "version": int(row["version"]),
+                    "detail": detail,
+                }
+            )
+        return tuple(events)
+
     @staticmethod
     def _required_row(
         connection: sqlite3.Connection,

@@ -8,13 +8,17 @@ import json
 import os
 import socket
 import socketserver
-import sys
 import tempfile
 import threading
 import time
 from pathlib import Path
 from typing import cast
 
+from desktop_seat_controller import (
+    DesktopSeatController,
+    desktop_seat_capacity,
+)
+from dev_gate_async_queue import DevGateAsyncWriter, async_queue_enabled, max_async_queue_depth
 from dev_gate_session import (
     AccessScope,
     CleanupReceipt,
@@ -29,11 +33,6 @@ from private_resource_controller import (
     PrivateResourceController,
     private_capacity_credits,
 )
-from desktop_seat_controller import (
-    DesktopSeatController,
-    desktop_seat_capacity,
-)
-from dev_gate_async_queue import DevGateAsyncWriter, async_queue_enabled, max_async_queue_depth
 
 _MAX_REQUEST_BYTES = 1_048_576
 
@@ -172,6 +171,26 @@ class CoordinatorService:
                 _required_text(request, "owner_token"),
             )
             return {"granted_session_ids": list(granted)}
+        if operation == "wait_event":
+            event_types_raw = request.get("event_types")
+            if not isinstance(event_types_raw, list) or not all(
+                isinstance(item, str) and item.strip() for item in event_types_raw
+            ):
+                raise ValueError("wait_event.event_types must be a non-empty string list")
+            after_raw = request.get("after_event_id")
+            after_event_id = int(after_raw) if isinstance(after_raw, int) else 0
+            budget_raw = request.get("budget_sec")
+            budget_sec = float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
+            from dev_gate_event_wait import wait_for_session_event
+
+            event = wait_for_session_event(
+                self.store,
+                session_id=_required_text(request, "session_id"),
+                event_types=frozenset(str(item) for item in event_types_raw),
+                after_event_id=after_event_id,
+                budget_sec=budget_sec,
+            )
+            return {"event": event}
         if operation == "snapshot":
             session_id = _optional_text(request, "session_id")
             if session_id == "__health__":
