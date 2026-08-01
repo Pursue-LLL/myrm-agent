@@ -10,7 +10,7 @@
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` and `project_id` filters for bounded, project-scoped candidate queries, optional `assessment_import_candidate` semantic probe metadata, and exposes publication state via `publications[]`.
+Provides REST endpoints for listing, retrieving, verifying artifacts; list endpoint supports optional `limit` and `project_id` filters for bounded, project-scoped candidate queries, optional `assessment_import_candidate` semantic probe metadata (content parse-ability + ledger eligibility), and exposes publication state via `publications[]`.
 """
 
 import logging
@@ -26,6 +26,7 @@ from sqlalchemy.orm import selectinload
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from app.database.models.artifact_publication import ArtifactPublication
+from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.chat import Chat
 from app.platform_utils.workspace_root import get_workspace_root
 from app.services.hosting.publication_store import list_publications, list_publications_for_artifacts, publication_to_dict
@@ -42,6 +43,7 @@ router = APIRouter()
 
 _ASSESSMENT_CANDIDATE_STATUS_IMPORTABLE = "importable"
 _ASSESSMENT_CANDIDATE_STATUS_NOT_IMPORTABLE = "not_importable"
+_ASSESSMENT_CANDIDATE_STATUS_ALREADY_IMPORTED = "already_imported"
 _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN = "unknown"
 _ASSESSMENT_CANDIDATE_REASON_NO_ACTIONABLE_TASKS = "no_actionable_tasks"
 _ASSESSMENT_CANDIDATE_REASON_NO_IMPORTABLE_TASKS = "no_importable_tasks"
@@ -60,12 +62,19 @@ def _probe_assessment_import_candidate(
     artifact: Artifact,
     *,
     vault: ArtifactVault,
+    already_imported_version_ids: set[str] | None = None,
 ) -> dict[str, str | None]:
     latest_version = _latest_version(artifact)
     if latest_version is None:
         return {
             "status": _ASSESSMENT_CANDIDATE_STATUS_UNKNOWN,
             "reason": _ASSESSMENT_CANDIDATE_REASON_MISSING_ARTIFACT_VERSION,
+        }
+
+    if already_imported_version_ids and latest_version.id in already_imported_version_ids:
+        return {
+            "status": _ASSESSMENT_CANDIDATE_STATUS_ALREADY_IMPORTED,
+            "reason": "artifact_version_already_imported",
         }
 
     vault_uri = latest_version.vault_uri
@@ -181,8 +190,21 @@ async def list_artifacts(
     assessment_import_candidate_map: dict[str, dict[str, str | None]] = {}
     if assessment_import_candidate:
         candidate_vault = ArtifactVault(str(get_workspace_root()))
+        already_imported_version_ids: set[str] = set()
+        if project_id is not None:
+            version_ids = [v.id for a in artifacts for v in (a.versions or []) if v.id]
+            if version_ids:
+                ledger_stmt = select(AssessmentImportLedger.artifact_version_id).where(
+                    AssessmentImportLedger.project_id == project_id,
+                    AssessmentImportLedger.artifact_version_id.in_(version_ids),
+                )
+                ledger_result = await db.execute(ledger_stmt)
+                already_imported_version_ids = {row[0] for row in ledger_result.all()}
         assessment_import_candidate_map = {
-            artifact.id: _probe_assessment_import_candidate(artifact, vault=candidate_vault) for artifact in artifacts
+            artifact.id: _probe_assessment_import_candidate(
+                artifact, vault=candidate_vault, already_imported_version_ids=already_imported_version_ids,
+            )
+            for artifact in artifacts
         }
 
     return {

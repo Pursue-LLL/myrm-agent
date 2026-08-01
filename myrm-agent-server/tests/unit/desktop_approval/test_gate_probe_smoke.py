@@ -10,6 +10,7 @@ from tests.e2e.desktop_approval.gate_probe import (
     _build_fallback_budget,
     _DesktopFallbackBudget,
     _ensure_nudge_chat_surface_guarded,
+    _merge_desktop_progress,
     _record_pending_seed_fallback,
     _record_synthetic_dref_fallback,
     _send_interact_nudge,
@@ -183,6 +184,14 @@ def test_record_synthetic_dref_fallback_raises_when_budget_exceeded() -> None:
     budget = _DesktopFallbackBudget(synthetic_dref_limit=0, pending_seed_limit=1)
     with pytest.raises(AssertionError, match="synthetic dref fallback budget exceeded"):
         _record_synthetic_dref_fallback(budget, reason="unit-test")
+
+
+def test_merge_desktop_progress_preserves_api_wall_timeout_err() -> None:
+    merged = _merge_desktop_progress(
+        {"active": False, "lastTool": "", "stepCount": 0},
+        {"active": False, "lastTool": "", "stepCount": 0, "err": "api-progress-wall-timeout"},
+    )
+    assert merged.get("err") == "api-progress-wall-timeout"
 
 
 def test_record_pending_seed_fallback_tracks_usage_within_budget() -> None:

@@ -212,3 +212,56 @@ async def test_complete_turn_after_approval_api_primary_skips_cdp_route(
     assert chat_id == "chat-seeded"
     assert waited == ["chat-seeded"]
     assert routed == []
+
+
+@pytest.mark.asyncio
+async def test_seeded_kickoff_activity_probe_requires_beyond_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [{"role": "user", "content": "hello"}]
+
+    def _fetch(_chat_id: str, *, api_url: str | None = None, **kwargs: object) -> list[dict[str, object]]:
+        _ = api_url
+        _ = kwargs
+        return list(messages)
+
+    monkeypatch.setattr(turn_flow, "fetch_chat_messages", _fetch)
+    inactive = turn_flow._seeded_kickoff_activity_probe(  # noqa: SLF001
+        "chat-1",
+        baseline_user_count=1,
+    )
+    assert inactive["active"] is False
+
+    messages.append({"role": "assistant", "content": "working"})
+    active = turn_flow._seeded_kickoff_activity_probe(  # noqa: SLF001
+        "chat-1",
+        baseline_user_count=1,
+    )
+    assert active["active"] is True
+
+
+@pytest.mark.asyncio
+async def test_wait_seeded_resend_turn_kickoff_no_false_positive_on_stale_user_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        turn_flow,
+        "_seeded_kickoff_activity_probe",
+        lambda *_args, **_kwargs: {"active": False, "userCount": 1},
+    )
+
+    class _Chat:
+        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+            return {"userCount": 1, "isStreaming": False}
+
+        async def send_message(self, *_args: object, **_kwargs: object) -> None:
+            return None
+
+    ok = await turn_flow._wait_seeded_resend_turn_kickoff(  # noqa: SLF001
+        _Chat(),  # type: ignore[arg-type]
+        chat_id="chat-stale",
+        timeout_sec=0.5,
+        baseline_user_count=1,
+        baseline_ui_user_count=1,
+    )
+    assert ok is False

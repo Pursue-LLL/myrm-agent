@@ -525,6 +525,10 @@ def _merge_desktop_progress(
         merged["completionStatus"] = api_probe.get("completionStatus")
     merged["uiLastTool"] = ui_last
     merged["apiLastTool"] = api_last
+    api_err = str(api_probe.get("err") or "").strip()
+    if api_err == "api-progress-wall-timeout":
+        # R235: preserve API wall-timeout through UI merge so seeded-fallback streak fires.
+        merged["err"] = api_err
     return merged
 
 

@@ -680,7 +680,10 @@ def signoff_effective_body_wall_sec() -> int:
         batch_env = os.environ.get("MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "").strip()
         if batch_env.isdigit():
             return int(batch_env)
-        return 900
+        from transport_supervisor import live_agent_body_wall_cap_sec
+
+        # R236: scale BODY under parallel mux; desktop soak max 1200s (not flat 900).
+        return int(live_agent_body_wall_cap_sec())
     return signoff_read_shpoib_body_wall_sec()
 
 

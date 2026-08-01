@@ -128,12 +128,26 @@ def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
     """LIVE_AGENT BODY hard wall; scales under parallel mux load (R171)."""
+    import os
+
     peers = _mux_peer_count(pessimistic=pessimistic)
     base = int(LIVE_AGENT_BODY_WALL_BASE_SEC)
+    max_cap = float(LIVE_AGENT_BODY_WALL_MAX_SEC)
+    desktop_soak = os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if desktop_soak:
+        # R236: seeded R233 path needs body budget under parallel chrome_e2e.
+        max_cap = max(max_cap, 1200.0)
+    floor = float(base)
+    if desktop_soak:
+        floor = max(floor, 900.0)
     if peers < 2:
-        return base
+        return int(min(max_cap, floor))
     scaled = base + peers * LIVE_AGENT_BODY_WALL_PER_PEER_SEC
-    return int(min(LIVE_AGENT_BODY_WALL_MAX_SEC, scaled))
+    return int(min(max_cap, max(scaled, floor)))
 
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:

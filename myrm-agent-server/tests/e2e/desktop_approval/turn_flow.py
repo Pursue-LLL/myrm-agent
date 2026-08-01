@@ -17,6 +17,7 @@ from cdp_chat_support import (
     chat_id_from_path,
     chat_messages_have_done,
     chat_user_message_count,
+    fetch_chat_messages,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
     signoff_parallel_desktop_mux_step_timeout_sec,
@@ -243,13 +244,63 @@ def _kickoff_desktop_turn_via_api_sync(
     )
 
 
+def _seeded_kickoff_activity_probe(
+    chat_id: str,
+    *,
+    baseline_user_count: int,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    """R237: seeded path already has userCount>=1 — require turn activity beyond baseline."""
+    messages = fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=15.0,
+    )
+    user_count = sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
+    assistant_msgs = [
+        msg
+        for msg in messages
+        if isinstance(msg, dict) and msg.get("role") == "assistant"
+    ]
+    last_assistant = assistant_msgs[-1] if assistant_msgs else None
+    assistant_tail = (
+        str(last_assistant.get("content") or "")[:80] if last_assistant else ""
+    )
+    active = (
+        user_count > baseline_user_count
+        or bool(assistant_msgs)
+        or bool(assistant_tail.strip())
+    )
+    return {
+        "userCount": user_count,
+        "baselineUserCount": baseline_user_count,
+        "assistantCount": len(assistant_msgs),
+        "assistantTail": assistant_tail,
+        "active": active,
+    }
+
+
+def _agent_stream_kickoff_started(result: dict[str, object]) -> bool:
+    """True when POST agent-stream returned productive SSE (not immediate error)."""
+    if result.get("error"):
+        return False
+    events = result.get("events")
+    if not isinstance(events, list) or not events:
+        return False
+    return any(isinstance(event, dict) for event in events)
+
+
 async def _wait_seeded_resend_turn_kickoff(
     chat: McpChatSession,
     *,
     chat_id: str,
     timeout_sec: float,
+    baseline_user_count: int = 0,
+    baseline_ui_user_count: int = 0,
 ) -> bool:
-    """R227: nativeClick resend after seeded approval may not start agent turn under mux load."""
+    """R227/R237: resend after seeded approval must observe agent turn activity, not stale userCount."""
     normalized = chat_id.strip()
     deadline = asyncio.get_event_loop().time() + timeout_sec
     poll = 0
@@ -259,14 +310,15 @@ async def _wait_seeded_resend_turn_kickoff(
         heartbeat_e2e_lease()
         if normalized:
             try:
-                api_count = await asyncio.to_thread(
-                    chat_user_message_count,
+                activity = await asyncio.to_thread(
+                    _seeded_kickoff_activity_probe,
                     normalized,
+                    baseline_user_count=baseline_user_count,
                     api_url=get_e2e_api_url(),
                 )
-                if api_count >= 1:
+                if activity.get("active"):
                     progress(
-                        f"seeded resend kickoff: API userCount={api_count} poll=#{poll}"
+                        f"seeded resend kickoff: API activity={activity} poll=#{poll}"
                     )
                     return True
             except urllib.error.HTTPError:
@@ -283,9 +335,10 @@ async def _wait_seeded_resend_turn_kickoff(
             continue
         if isinstance(probe, dict):
             user_count = int(probe.get("userCount") or 0)
-            if user_count >= 1 or bool(probe.get("isStreaming")):
+            if bool(probe.get("isStreaming")) or user_count > baseline_ui_user_count:
                 progress(
                     f"seeded resend kickoff: UI userCount={user_count} "
+                    f"baseline={baseline_ui_user_count} "
                     f"streaming={probe.get('isStreaming')} poll=#{poll}"
                 )
                 return True
@@ -488,11 +541,12 @@ async def complete_turn_after_approval(
     turn_done_timeout = signoff_parallel_desktop_turn_done_timeout_sec(180.0)
     if api_primary_done and chat_id_hint:
         progress("R233 api-primary DONE wait (seeded mux-bypass)")
+        api_primary_budget = min(120.0, max(60.0, turn_done_timeout * 0.35))
         api_done = await asyncio.to_thread(
             wait_chat_messages_done,
             chat_id_hint,
             api_url=get_e2e_api_url(),
-            timeout_sec=turn_done_timeout,
+            timeout_sec=api_primary_budget,
             fetch_timeout_sec=30.0,
             progress_interval_sec=20.0,
             on_tick=heartbeat_e2e_lease,
@@ -1045,23 +1099,98 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         )
         kickoff_timeout = signoff_parallel_desktop_turn_done_timeout_sec(120.0)
         kickoff_ok = False
+        seeded_api_kickoff = False
+        baseline_user = 0
+        baseline_ui_user = 0
+        if chat_id:
+            try:
+                baseline_user = await asyncio.to_thread(
+                    chat_user_message_count,
+                    chat_id,
+                    api_url=get_e2e_api_url(),
+                )
+            except urllib.error.HTTPError:
+                baseline_user = 0
+            try:
+                ui_snap = await chat.evaluate(
+                    "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
+                    await_promise=False,
+                )
+                if isinstance(ui_snap, dict):
+                    baseline_ui_user = int(ui_snap.get("userCount") or 0)
+            except (TimeoutError, RuntimeError, OSError):
+                baseline_ui_user = baseline_user
         if chat_id:
             progress("seeded resend — API agent-stream kickoff (R232 mux-bypass)")
             api_timeout = min(45.0, max(20.0, kickoff_timeout / 4.0))
-            await asyncio.to_thread(
-                _kickoff_desktop_turn_via_api_sync,
-                chat_id,
-                query=E2E_PROMPT,
-                timeout_sec=api_timeout,
+            kickoff_thread_budget = min(25.0, api_timeout + 5.0)
+            try:
+                kickoff_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        _kickoff_desktop_turn_via_api_sync,
+                        chat_id,
+                        query=E2E_PROMPT,
+                        timeout_sec=api_timeout,
+                    ),
+                    timeout=kickoff_thread_budget,
+                )
+            except TimeoutError:
+                progress(
+                    "seeded resend API kickoff thread budget exceeded "
+                    f"(R240 {kickoff_thread_budget:.0f}s) — bridge fallback"
+                )
+                kickoff_result = {
+                    "events": [],
+                    "error": {"error_type": "KickoffThreadTimeout"},
+                }
+            if _agent_stream_kickoff_started(kickoff_result):
+                events = kickoff_result.get("events")
+                event_count = len(events) if isinstance(events, list) else 0
+                progress(
+                    f"seeded resend kickoff: API stream events={event_count} "
+                    f"(R237 immediate)"
+                )
+                kickoff_ok = True
+                seeded_api_kickoff = True
+            if not kickoff_ok:
+                kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                    chat,
+                    chat_id=chat_id,
+                    timeout_sec=min(90.0, kickoff_timeout),
+                    baseline_user_count=baseline_user,
+                    baseline_ui_user_count=baseline_ui_user,
+                )
+                if kickoff_ok:
+                    try:
+                        activity = await asyncio.to_thread(
+                            _seeded_kickoff_activity_probe,
+                            chat_id,
+                            baseline_user_count=baseline_user,
+                            api_url=get_e2e_api_url(),
+                        )
+                        seeded_api_kickoff = bool(activity.get("active"))
+                    except urllib.error.HTTPError:
+                        seeded_api_kickoff = False
+        if not kickoff_ok:
+            progress(
+                "seeded resend API kickoff miss — bridge E2E_PROMPT resend "
+                "(R239 mux-bypass before CDP nativeClick)"
             )
+            await asyncio.to_thread(activate_chrome)
+            await chat.ensure_react_e2e_bridge(
+                timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+            )
+            await chat.send_message(E2E_PROMPT, E2E_PROMPT)
             kickoff_ok = await _wait_seeded_resend_turn_kickoff(
                 chat,
                 chat_id=chat_id,
                 timeout_sec=min(90.0, kickoff_timeout),
+                baseline_user_count=baseline_user,
+                baseline_ui_user_count=baseline_ui_user,
             )
         if not kickoff_ok:
             progress(
-                "seeded resend API kickoff miss — CDP fast_desktop_agent_submit fallback"
+                "seeded resend bridge miss — CDP fast_desktop_agent_submit fallback"
             )
             await asyncio.to_thread(activate_chrome)
             resend = await chat.fast_desktop_agent_submit(
@@ -1081,25 +1210,17 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 chat,
                 chat_id=chat_id,
                 timeout_sec=kickoff_timeout,
-            )
-        if not kickoff_ok:
-            progress("seeded resend kickoff failed — full bridge E2E_PROMPT resend")
-            await asyncio.to_thread(activate_chrome)
-            await chat.ensure_react_e2e_bridge(
-                timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
-            )
-            await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
-                chat,
-                chat_id=chat_id,
-                timeout_sec=kickoff_timeout,
+                baseline_user_count=baseline_user,
+                baseline_ui_user_count=baseline_ui_user,
             )
         if not kickoff_ok:
             raise RuntimeError(
                 "seeded-fallback post-approval resend did not start agent turn "
                 f"within {kickoff_timeout:.0f}s"
             )
-        seeded_api_kickoff = bool(chat_id)
+        progress(
+            f"seeded resend kickoff complete api_primary_done={seeded_api_kickoff}"
+        )
 
     chat_id_hint = chat_id.strip() if chat_id else None
     if not chat_id_hint and not seeded_api_kickoff:

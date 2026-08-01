@@ -199,6 +199,58 @@ async def test_list_artifacts_returns_assessment_import_candidate_probe(
 
 
 @pytest.mark.asyncio
+async def test_probe_returns_already_imported_when_ledger_entry_exists(
+    client: TestClient,
+    db_session: AsyncSession,
+    tmp_path,
+):
+    from unittest.mock import patch
+
+    from app.database.models.assessment_import import AssessmentImportLedger
+
+    vault_dir = tmp_path / ".agent" / "vault" / "objects"
+    vault_dir.mkdir(parents=True, exist_ok=True)
+    (vault_dir / "obj-ledger-hit").write_text("# Sprint\n- [ ] Launch feature X", encoding="utf-8")
+
+    db_session.add(Project(id="proj-ledger", name="Ledger"))
+    db_session.add(Chat(id="chat-ledger", project_id="proj-ledger"))
+    db_session.add(Artifact(id="art-ledger", name="Already Done", chat_id="chat-ledger"))
+    db_session.add(
+        ArtifactVersion(
+            id="ver-ledger",
+            artifact_id="art-ledger",
+            vault_uri="vault://obj-ledger-hit",
+            sha256_hash="sha-ledger",
+        )
+    )
+    db_session.add(
+        AssessmentImportLedger(
+            project_id="proj-ledger",
+            artifact_id="art-ledger",
+            artifact_version_id="ver-ledger",
+            source_chat_id="chat-ledger",
+            status="completed",
+            total_milestones=2,
+            total_tasks=5,
+        )
+    )
+    await db_session.commit()
+
+    with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
+        response = client.get(
+            "/api/v1/files/artifacts?project_id=proj-ledger&assessment_import_candidate=true"
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    by_id = {item["id"]: item for item in data["artifacts"]}
+    assert by_id["art-ledger"]["assessment_import_candidate"] == {
+        "status": "already_imported",
+        "reason": "artifact_version_already_imported",
+    }
+
+
+@pytest.mark.asyncio
 async def test_get_artifact_returns_publications(client: TestClient, db_session: AsyncSession):
     artifact = Artifact(
         id="art-get-1",

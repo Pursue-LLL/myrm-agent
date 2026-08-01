@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Files management API module | ✅ |
 | `evicted.py` | 模块 | UECD evicted-file read API (`GET /evicted` paginated line-range); harness `read_evicted_line_range`; default `limit=500`; path traversal checks; missing file → HTTP 404 + `{"expired": true}` | ✅ |
-| `artifact_api.py` | 模块 | List/retrieve/verify artifacts；`GET /files/artifacts` 支持可选 `limit`、`project_id` 与 `assessment_import_candidate` 查询参数（候选控量 + 项目相关候选过滤 + 评估导入可导入性语义探测，返回 `assessment_import_candidate.{status,reason}`）；exposes `publications[]` per artifact；`POST /download-bundle` packages multiple artifacts into a single ZIP archive | ✅ |
+| `artifact_api.py` | 模块 | List/retrieve/verify artifacts；`GET /files/artifacts` 支持可选 `limit`、`project_id` 与 `assessment_import_candidate` 查询参数（候选控量 + 项目相关候选过滤 + 评估导入资格语义探测：内容可解析性 + ledger 已导入检查，返回 `assessment_import_candidate.{status,reason}`，status 含 `importable/not_importable/already_imported/unknown`）；exposes `publications[]` per artifact；`POST /download-bundle` packages multiple artifacts into a single ZIP archive | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
 | `browse.py` | 模块 | Workspace browse API; `chat_id` 分支经 `effective_workspace` SSOT；`/browse/search` uses harness `filesystem_suggest`. | ✅ |
 | `browse_watch.py` | 模块 | POST/DELETE `/browse/watch` — refcounted vault watch → `WORKSPACE_FILE_CHANGED` SSE. | ✅ |

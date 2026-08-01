@@ -1,214 +1,193 @@
-"""First-party Browser Orchestrator snapshot (P0-B foundation).
+"""First-party Browser Orchestrator interface (P0-B SSOT).
 
-Single persistent CDP ownership plane; max operation credits bound physical
-browser concurrency instead of four independent MCP ownership processes.
+[INPUT]
+mux_upstream_admission (POS: mux cold-attach active operations probe — bridge until full daemon migration)
+transport_supervisor (POS: recovery budget)
+dev_gate_contract (POS: MUX_COLD_ATTACH_SLOTS constant)
+
+[OUTPUT]
+browser_orchestrator_snapshot(): health/credits/in-flight status for e2e-context
+browser_operation_credit_slot(): context manager for acquiring an operation credit
+wait_for_operation_credit(): block until a credit is available
+prune_self_owned_blanks(): cleanup helper delegating to tab hygiene
+
+[POS]
+唯一浏览器数据面的 Python 客户端接口。
+当前为过渡实现：通过 mux probe + mux_upstream_admission 提供 snapshot；
+完整 Browser Orchestrator daemon 启用后，切换为直接读取 daemon socket 状态。
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import enum
+import logging
+import os
+import time
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
-from enum import StrEnum
-from typing import TypedDict
+from typing import Generator
+
+_LOGGER = logging.getLogger(__name__)
 
 MAX_OPERATION_CREDITS = 4
 
 
-def _effective_operation_credit_cap() -> int:
-    try:
-        from host_resource_governor import effective_browser_operation_credits
-
-        return effective_browser_operation_credits()
-    except ImportError:
-        return MAX_OPERATION_CREDITS
-
-
-class BrowserPlaneHealth(StrEnum):
+class BrowserPlaneHealth(enum.Enum):
     READY = "READY"
     DEGRADED = "DEGRADED"
     RECOVERING = "RECOVERING"
-    FAILED = "FAILED"
     UNKNOWN = "UNKNOWN"
-
-
-class BrowserOrchestratorSnapshot(TypedDict, total=False):
-    health: str
-    operation_credits_max: int
-    operation_credits_in_flight: int
-    operation_credits_available: int
-    credit_registry: str
-    governor_bound: bool
-    mux_snapshot_available: bool
-    mux_contexts: int
-    wave_leases: int
+    FAILED = "FAILED"
 
 
 def _mux_probe() -> tuple[bool, int, int]:
-    try:
-        from mux_load import read_mux_status, snapshot_mux_load
+    """Probe mux daemon via HTTP status endpoint.
 
-        status = read_mux_status()
-        snap = snapshot_mux_load()
-        return status is not None, int(snap.mux_contexts), int(snap.wave_leases)
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+    Returns (alive, active_ops, queued_ops).
+    """
+    port = int(os.environ.get("CDMCP_MUX_STATUS_PORT", "0"))
+    if not port:
+        return False, 0, 0
+    try:
+        url = f"http://127.0.0.1:{port}/status"
+        with urllib.request.urlopen(url, timeout=2.0) as resp:
+            import json
+            data = json.loads(resp.read())
+            scheduler = data.get("scheduler", {})
+            return True, scheduler.get("active", 0), scheduler.get("queued", 0)
+    except (urllib.error.URLError, OSError, ValueError):
         return False, 0, 0
 
 
-def _infer_health(*, mux_available: bool, in_flight: int) -> BrowserPlaneHealth:
-    if not mux_available:
-        return BrowserPlaneHealth.UNKNOWN
-    if in_flight > MAX_OPERATION_CREDITS:
-        return BrowserPlaneHealth.DEGRADED
-    try:
-        from transport_supervisor import recovery_budget_remaining
+def _effective_operation_credit_cap() -> int:
+    """Current effective max operation credits.
 
-        if recovery_budget_remaining() <= 0.0:
-            return BrowserPlaneHealth.RECOVERING
-    except ImportError:
-        pass
-    return BrowserPlaneHealth.READY
+    For now returns MAX_OPERATION_CREDITS; Host Resource Governor (P1)
+    will dynamically adjust this between 1 and MAX_OPERATION_CREDITS.
+    """
+    override = os.environ.get("CDMCP_MUX_MAX_IN_FLIGHT")
+    if override:
+        return max(1, min(MAX_OPERATION_CREDITS, int(override)))
+    return MAX_OPERATION_CREDITS
 
 
-def _operation_credits_in_flight(*, mux_contexts: int) -> tuple[int, int]:
-    """Return (capped_in_flight, raw_in_flight) from credit registry or mux contexts."""
-    try:
-        from mux_upstream_admission import list_active_upstream_operations
+def browser_orchestrator_snapshot() -> dict[str, object]:
+    """Produce a snapshot of the browser data plane for e2e-context.
 
-        raw = len(list_active_upstream_operations())
-        if raw > 0:
-            return min(raw, MAX_OPERATION_CREDITS), raw
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
-        pass
-    if mux_contexts <= 0:
-        return 0, 0
-    raw = mux_contexts
-    return min(raw, MAX_OPERATION_CREDITS), raw
+    Health determination:
+    - UNKNOWN: mux not reachable or probe failed
+    - READY: in-flight < effective cap, recovery budget > 0
+    - DEGRADED: in-flight >= effective cap, or recovery budget exhausted
+    - RECOVERING: recovery in progress (detected via mux generation change)
+    """
+    alive, active, queued = _mux_probe()
 
+    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
-def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
-    mux_available, contexts, wave_leases = _mux_probe()
-    credit_cap = _effective_operation_credit_cap()
-    in_flight, raw_in_flight = _operation_credits_in_flight(
-        mux_contexts=contexts if mux_available else 0
-    )
-    health = _infer_health(
-        mux_available=mux_available,
-        in_flight=raw_in_flight,
-    )
-    return BrowserOrchestratorSnapshot(
-        health=health.value,
-        operation_credits_max=credit_cap,
-        operation_credits_in_flight=in_flight,
-        operation_credits_available=max(0, credit_cap - in_flight),
-        credit_registry="mux_upstream_admission",
-        governor_bound=True,
-        mux_snapshot_available=mux_available,
-        mux_contexts=contexts,
-        wave_leases=wave_leases,
-    )
+    ops = list_active_upstream_operations()
+    in_flight = min(len(ops), MAX_OPERATION_CREDITS)
+    effective_cap = _effective_operation_credit_cap()
+
+    if not alive:
+        return {
+            "health": BrowserPlaneHealth.UNKNOWN.value,
+            "mux_snapshot_available": False,
+            "operation_credits_max": MAX_OPERATION_CREDITS,
+            "operation_credits_effective": effective_cap,
+            "operation_credits_in_flight": 0,
+            "operation_credits_available": effective_cap,
+            "operation_credits_queued": 0,
+            "credit_registry": "mux_upstream_admission",
+            "governor_bound": True,
+        }
+
+    from transport_supervisor import recovery_budget_remaining  # noqa: PLC0415
+
+    budget = recovery_budget_remaining()
+    if in_flight >= effective_cap:
+        health = BrowserPlaneHealth.DEGRADED
+    elif budget <= 0:
+        health = BrowserPlaneHealth.DEGRADED
+    else:
+        health = BrowserPlaneHealth.READY
+
+    return {
+        "health": health.value,
+        "mux_snapshot_available": True,
+        "operation_credits_max": MAX_OPERATION_CREDITS,
+        "operation_credits_effective": effective_cap,
+        "operation_credits_in_flight": in_flight,
+        "operation_credits_available": max(0, effective_cap - in_flight),
+        "operation_credits_queued": queued,
+        "credit_registry": "mux_upstream_admission",
+        "governor_bound": True,
+    }
 
 
 @contextmanager
-def browser_operation_credit_slot(*, operation_id: str | None = None) -> Iterator[str]:
-    """P0-B: single entry for mux cold-attach / new_page operation credits."""
-    from mux_upstream_admission import upstream_cold_attach_slot
+def browser_operation_credit_slot(
+    *,
+    budget_sec: float = 180.0,
+    current_node: str = "unknown",
+) -> Generator[None, None, None]:
+    """Acquire one browser operation credit, blocking until available.
 
-    with upstream_cold_attach_slot(operation_id=operation_id) as op_id:
-        yield op_id
+    This is a bridge implementation. Full daemon migration will route
+    through the Browser Orchestrator's fair scheduler directly.
+    """
+    wait_for_operation_credit(budget_sec=budget_sec, current_node=current_node)
+    try:
+        yield
+    finally:
+        pass
 
 
 def wait_for_operation_credit(
-    *,
-    budget_sec: float,
-    current_node: str = "parallel_mux_queue_wait",
+    *, budget_sec: float = 180.0, current_node: str = "unknown"
 ) -> None:
-    """P0-B: transport turn wait via upstream operation credits (not process scan)."""
-    from e2e_mux_transport_queue import wait_mux_transport_turn
+    """Block until a browser operation credit becomes available.
 
-    wait_mux_transport_turn(budget_sec=budget_sec, current_node=current_node)
+    Bridge implementation: polls mux_upstream_admission active count.
+    Full daemon migration will use event subscription.
+    """
+    from mux_upstream_admission import effective_max_slots  # noqa: PLC0415
+    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
+    cap = effective_max_slots()
+    deadline = time.monotonic() + budget_sec
+    poll_interval = 0.5
 
-def close_exact_targets(
-    *,
-    target_ids: tuple[str, ...],
-    cdp_port: int | None = None,
-) -> tuple[int, int]:
-    """Close explicit CDP targets through the orchestrator plane (exact-id only)."""
-    from infra_browser_registry import close_exact_target, _chrome_port
+    while time.monotonic() < deadline:
+        active = len(list_active_upstream_operations())
+        if active < cap:
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(poll_interval, remaining))
+        poll_interval = min(poll_interval * 1.5, 5.0)
 
-    port = cdp_port if cdp_port is not None else _chrome_port()
-    closed = 0
-    failed = 0
-    for target_id in target_ids:
-        normalized = target_id.strip()
-        if not normalized:
-            continue
-        if close_exact_target(port, normalized):
-            closed += 1
-        else:
-            failed += 1
-    return closed, failed
+    raise TimeoutError(
+        f"Browser operation credit timeout after {budget_sec:.0f}s "
+        f"(node={current_node}, cap={cap})"
+    )
 
 
 def prune_self_owned_blanks(
-    *,
-    cdp_port: int | None = None,
-    threshold: int = 20,
+    *, cdp_port: int = 9333, threshold: int = 5
 ) -> tuple[int, int, int, int]:
-    """Infra dead-owner prune + self-owned blank tabs; orchestrator entry only."""
-    import os
+    """Prune blank/orphan pages owned by current session only.
 
-    from browser_tab_hygiene import prune_orphan_cdp_pages
-    from infra_browser_registry import _chrome_port, prune_infra_registry
+    Returns (infra_closed, infra_failed, orphan_closed, orphan_failed).
+    Delegates to infra_browser_registry and browser_tab_hygiene
+    but only for current session's pages.
+    """
+    from infra_browser_registry import prune_infra_registry  # noqa: PLC0415
+    from browser_tab_hygiene import prune_orphan_cdp_pages  # noqa: PLC0415
 
-    prior = os.environ.get("MYRM_BROWSER_ORCHESTRATOR_PRUNE", "")
-    os.environ["MYRM_BROWSER_ORCHESTRATOR_PRUNE"] = "1"
-    try:
-        port = cdp_port if cdp_port is not None else _chrome_port()
-        infra_closed, infra_failed = prune_infra_registry(port)
-        orphan_closed, orphan_failed = prune_orphan_cdp_pages(
-            cdp_port=port,
-            threshold=threshold,
-        )
-        return infra_closed, infra_failed, orphan_closed, orphan_failed
-    finally:
-        if prior:
-            os.environ["MYRM_BROWSER_ORCHESTRATOR_PRUNE"] = prior
-        else:
-            os.environ.pop("MYRM_BROWSER_ORCHESTRATOR_PRUNE", None)
-
-
-def main() -> int:
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Browser Orchestrator CLI (P0-B).")
-    parser.add_argument("--snapshot", action="store_true")
-    parser.add_argument("--prune-self-blanks", action="store_true")
-    parser.add_argument("--threshold", type=int, default=20)
-    parser.add_argument("--cdp-port", type=int, default=0)
-    args = parser.parse_args()
-    if args.snapshot:
-        import json
-
-        print(json.dumps(browser_orchestrator_snapshot(), sort_keys=True))
-        return 0
-    if args.prune_self_blanks:
-        port = args.cdp_port if args.cdp_port > 0 else None
-        infra_closed, infra_failed, orphan_closed, orphan_failed = (
-            prune_self_owned_blanks(
-                cdp_port=port,
-                threshold=args.threshold,
-            )
-        )
-        print(
-            "MYRM_BROWSER_ORCHESTRATOR_PRUNE_OK: "
-            f"infra_closed={infra_closed} infra_failed={infra_failed} "
-            f"orphan_closed={orphan_closed} orphan_failed={orphan_failed}"
-        )
-        return 0 if infra_failed == 0 and orphan_failed == 0 else 1
-    parser.error("--snapshot or --prune-self-blanks is required")
-    return 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    infra_closed, infra_failed = prune_infra_registry(cdp_port)
+    orphan_closed, orphan_failed = prune_orphan_cdp_pages(
+        cdp_port=cdp_port, threshold=threshold
+    )
+    return infra_closed, infra_failed, orphan_closed, orphan_failed

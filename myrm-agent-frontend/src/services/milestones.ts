@@ -63,7 +63,7 @@ export interface AssessmentImportArtifactCandidate {
   importable: boolean;
 }
 
-type AssessmentImportCandidateStatus = 'importable' | 'not_importable' | 'unknown';
+type AssessmentImportCandidateStatus = 'importable' | 'not_importable' | 'already_imported' | 'unknown';
 
 interface AssessmentImportCandidateProbe {
   status?: AssessmentImportCandidateStatus;
@@ -108,7 +108,9 @@ export function normalizeAssessmentImportArtifactCandidates(
       typeof artifact.latest_version_id === 'string' ? artifact.latest_version_id.trim() : '';
     const status = artifact.assessment_import_candidate?.status;
     const candidateStatus: AssessmentImportCandidateStatus =
-      status === 'importable' || status === 'not_importable' || status === 'unknown' ? status : 'unknown';
+      status === 'importable' || status === 'not_importable' || status === 'already_imported' || status === 'unknown'
+        ? status
+        : 'unknown';
     normalized.push({
       id,
       name: nameValue || id,

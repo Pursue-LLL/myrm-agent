@@ -18,7 +18,7 @@
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
 | `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
-| `milestones.ts` | `/projects/*/milestones` CRUD、progress/roadmap、`import-assessment` 导入回执（含 `import_id`）；并复用 `/files/artifacts?limit=N&project_id=...&assessment_import_candidate=true` 拉取当前项目最近工件候选供里程碑导入入口，优先返回后端语义探测为 `importable` 的候选（无命中时回退时间排序）；导入失败时可从标准错误结构 `error.details[field=import_reason]` 读取机器可读原因 |
+| `milestones.ts` | `/projects/*/milestones` CRUD、progress/roadmap、`import-assessment` 导入回执（含 `import_id`）；并复用 `/files/artifacts?limit=N&project_id=...&assessment_import_candidate=true` 拉取当前项目最近工件候选供里程碑导入入口，优先返回后端语义探测为 `importable` 的候选（`already_imported` 与 `not_importable` 均视为不可导入，无 importable 命中时回退时间排序）；导入失败时可从标准错误结构 `error.details[field=import_reason]` 读取机器可读原因 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `archiveSecurityErrorCore.ts` | 批量导入 `archive_security.*` 错误码解析与 i18n key 映射纯函数，供技能导入 UI 稳定消费 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |

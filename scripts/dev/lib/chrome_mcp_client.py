@@ -55,93 +55,36 @@ from mcp_protocol import (
     parse_new_page,
     text_content,
 )
-
-_STALE_MUX_PAGE_TOKEN = "No McpPage found for the given page"
-
-
-def _should_recover_mux_after_tool_error(
-    name: str,
-    message: str,
-    *,
-    retry_tools: frozenset[str],
-) -> bool:
-    if _is_transient_mux_error(message):
-        return True
-    if name == "new_page" and _STALE_MUX_PAGE_TOKEN in message:
-        return True
-    lowered = message.lower()
-    if name == "new_page" and _is_new_page_cdp_drift_message(message):
-        return True
-    if name in retry_tools and ("timed out" in lowered or "timeout" in lowered):
-        return True
-    return False
-
-
-def _is_new_page_cdp_drift_message(message: str) -> bool:
-    lowered = message.lower()
-    return (
-        "could not connect to chrome" in lowered
-        or "unexpected server response: 404" in lowered
-    )
-
-
-def _is_retryable_new_page_parse_exc(
-    exc: BaseException,
-    new_page_result: dict[str, object] | None,
-) -> bool:
-    """R229: CDP 404 drift must enter new_page inner retry, not instant re-raise."""
-    if isinstance(exc, TimeoutError):
-        return True
-    if not isinstance(exc, RuntimeError):
-        return False
-    if is_retryable_incomplete_new_page_error(exc, new_page_result):
-        return True
-    return _is_new_page_cdp_drift_message(str(exc))
-
-
-def _new_page_tool_max_attempts(*, open_page_budget_active: bool) -> int:
-    """R121: open_mcp_page wall budget must allow one CDP-drift heal + retry (was 1 → instant fail)."""
-    base = _tool_retry_attempts("new_page")
-    if not open_page_budget_active:
-        return base
-    return max(2, min(base, 2))
-
-
-def _ensure_cdp_ready_before_parallel_new_page(client: "ChromeMcpClient") -> None:
-    """R121: probe CDP before mux new_page when peers≥2; 404 heal stays in new_page retry."""
-    del client
-    peers = _parallel_mux_peer_count()
-    if peers < 2:
-        return
-    probe_sec = min(60.0, 20.0 + peers * 5.0)
-    if wait_e2e_cdp_ready(timeout_sec=probe_sec):
-        return
-    raise RuntimeError(
-        "CDP endpoint not ready before parallel new_page "
-        f"(peers={peers}, port={os.environ.get('MYRM_CHROME_E2E_PORT', '9333')})"
-    )
-
-
-def _recover_new_page_chrome_drift(client: "ChromeMcpClient") -> None:
-    """Heal CDP 404 on new_page — lightweight shim recover under parallel (R122-B8)."""
-    client._recover_mux_transport()
-    if wait_e2e_cdp_ready(timeout_sec=12.0):
-        return
-    peers = _parallel_mux_peer_count()
-    if peers >= 2:
-        if wait_e2e_cdp_ready(timeout_sec=20.0):
-            return
-        raise RuntimeError(
-            "CDP endpoint not ready after lightweight mux recover under parallel load "
-            f"(peers={peers})"
-        )
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
-
-    force_mux_attach_restart_scoped(reason="new_page chrome cdp 404")
-    time.sleep(3.0)
-    client._recover_mux_transport()
-    if not wait_e2e_cdp_ready(timeout_sec=15.0):
-        raise RuntimeError("CDP endpoint not ready after attach restart on 404 drift")
+from mcp_transport_adapter import (
+    TrackedRLock as _TrackedRLock,
+    TransportDeadError as _TransportDeadError,
+    chrome_e2e_port as _chrome_e2e_port,
+    parallel_request_lock_cap_sec as _parallel_request_lock_cap_sec,
+    resolve_request_lock_acquire_sec as _resolve_request_lock_acquire_sec_raw,
+    _TRANSPORT_RECOVER_ATTEMPTS,
+)
+from mcp_page_helpers import (
+    _STALE_MUX_PAGE_TOKEN,
+    check_mux_reclaim_deadline as _check_mux_reclaim_deadline,
+    ensure_cdp_ready_before_parallel_new_page as _ensure_cdp_ready_before_parallel_new_page,
+    http_close_exact_target as _http_close_exact_target,
+    is_mux_parallel_fail_fast_message as _is_mux_parallel_fail_fast_message,
+    is_new_page_cdp_drift_message as _is_new_page_cdp_drift_message,
+    is_retryable_new_page_parse_exc as _is_retryable_new_page_parse_exc,
+    new_page_retry_attempts as _new_page_retry_attempts,
+    new_page_tool_max_attempts as _new_page_tool_max_attempts,
+    parallel_mux_peer_count as _parallel_mux_peer_count,
+    parallel_scaled_page_timeout_ms as _parallel_scaled_page_timeout_ms,
+    raise_mux_reclaim_stall as _raise_mux_reclaim_stall,
+    reclaim_wall_deadline as _reclaim_wall_deadline,
+    recover_new_page_chrome_drift as _recover_new_page_chrome_drift,
+    remaining_reclaim_sec as _remaining_reclaim_sec,
+    shim_process_alive as _shim_process_alive,
+    should_recover_mux_after_tool_error as _should_recover_mux_after_tool_error,
+    tool_retry_attempts as _tool_retry_attempts,
+    tool_retry_backoff_sec as _tool_retry_backoff_sec,
+    wave_command_timeout_sec as _wave_command_timeout_sec,
+)
 
 
 from cdp_chat_support import (
@@ -173,226 +116,14 @@ _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _MCP_READ_POLL_SEC = _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _TOOL_RETRY_ATTEMPTS = TOOL_RETRY_ATTEMPTS
 _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
-
-
-def _new_page_retry_attempts() -> int:
-    """Scale cold new_page retries under parallel mux/wave load (R112)."""
-    peers = _parallel_mux_peer_count()
-    if peers <= 3:
-        return _NEW_PAGE_TOOL_RETRY_ATTEMPTS
-    return _NEW_PAGE_TOOL_RETRY_ATTEMPTS + min(3, peers - 3)
-
-
-def _parallel_scaled_page_timeout_ms(base_ms: int) -> int:
-    peers = _parallel_mux_peer_count()
-    if peers <= 3:
-        return base_ms
-    from mux_load import _MAX_PAGE_TIMEOUT_MS
-
-    scaled = base_ms + (peers - 3) * 20_000
-    return min(int(_MAX_PAGE_TIMEOUT_MS * 1.5), scaled)
-
-
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
-
-
-def _is_mux_parallel_fail_fast_message(message: str) -> bool:
-    from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
-
-    return (
-        MUX_RECLAIM_STALL_TOKEN in message
-        or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
-        or MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN in message
-    )
-
-
-def _parallel_mux_peer_count() -> int:
-    """Active parallel mux/wave peers for cross-session teardown guard (R69/TRSM)."""
-    snapshot = snapshot_mux_load(force=True)
-    wave_leases = max(0, snapshot.wave_leases)
-    mux_contexts = max(0, snapshot.mux_contexts)
-    daemon_count = 1
-    try:
-        from runtime_probe import mux_owned_daemon_count
-
-        daemon_count = max(1, int(mux_owned_daemon_count()))
-    except (ImportError, OSError, TypeError, ValueError):
-        pass
-    return max(wave_leases, mux_contexts, daemon_count)
-
-
-def _shim_process_alive(client: "ChromeMcpClient") -> bool:
-    process = client._process
-    return process is not None and process.poll() is None
-
-
-def _reclaim_wall_deadline() -> float:
-    return time.monotonic() + float(mux_page_reclaim_hard_timeout_sec())
-
-
-def _remaining_reclaim_sec(deadline: float) -> float:
-    return max(0.0, deadline - time.monotonic())
-
-
-def _raise_mux_reclaim_stall(phase: str, *, started: float) -> None:
-    elapsed = time.monotonic() - started
-    reclaim_cap = mux_page_reclaim_hard_timeout_sec()
-    raise RuntimeError(
-        f"{MUX_RECLAIM_STALL_TOKEN}: {phase} blocked for {elapsed:.1f}s "
-        f"(cap={reclaim_cap}s); recover mux and retry"
-    )
-
-
-def _check_mux_reclaim_deadline(deadline: float, phase: str, *, started: float) -> None:
-    if time.monotonic() >= deadline:
-        _raise_mux_reclaim_stall(phase, started=started)
-
-
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
-_TRANSPORT_RECOVER_ATTEMPTS = 3
-_REQUEST_LOCK_ACQUIRE_SEC = 5.0
-_REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC = 90.0
-_REQUEST_LOCK_ACQUIRE_SIGNOFF_PARALLEL_CAP_SEC = 180.0
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
 
 
-class _TrackedRLock:
-    """Reentrant request lock with portable ownership state for orphan recovery."""
-
-    def __init__(self) -> None:
-        self._lock = threading.RLock()
-        self._state_lock = threading.Lock()
-        self._owner_thread_id: int | None = None
-        self._depth = 0
-
-    def acquire(self, blocking: bool = True, timeout: float = -1.0) -> bool:
-        if not blocking:
-            acquired = self._lock.acquire(blocking=False)
-        elif timeout < 0:
-            acquired = self._lock.acquire()
-        else:
-            acquired = self._lock.acquire(timeout=timeout)
-        if not acquired:
-            return False
-        thread_id = threading.get_ident()
-        with self._state_lock:
-            if self._owner_thread_id is None:
-                self._owner_thread_id = thread_id
-            elif self._owner_thread_id != thread_id:
-                self._lock.release()
-                raise RuntimeError("request lock ownership state is inconsistent")
-            self._depth += 1
-        return True
-
-    def release(self) -> None:
-        thread_id = threading.get_ident()
-        with self._state_lock:
-            if self._owner_thread_id != thread_id or self._depth < 1:
-                raise RuntimeError("cannot release an unowned request lock")
-            self._depth -= 1
-            if self._depth == 0:
-                self._owner_thread_id = None
-        self._lock.release()
-
-    def locked(self) -> bool:
-        with self._state_lock:
-            return self._depth > 0
-
-
-def _parallel_request_lock_cap_sec() -> float:
-    try:
-        from dev_gate_contract import is_e2e_signoff_runtime
-
-        if is_e2e_signoff_runtime():
-            return _REQUEST_LOCK_ACQUIRE_SIGNOFF_PARALLEL_CAP_SEC
-    except ImportError:
-        pass
-    return _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC
-
-
 def _resolve_request_lock_acquire_sec() -> float:
-    """Scale per-session mux request lock wait with parallel E2E load (R76).
-
-    ``transport_supervisor.recovery_lock_wait_sec`` scales on active pytest count;
-    ``_parallel_mux_peer_count`` scales on concurrent mux sessions.
-    """
-    scaled = _REQUEST_LOCK_ACQUIRE_SEC
-    try:
-        from transport_supervisor import recovery_lock_wait_sec
-
-        scaled = max(scaled, recovery_lock_wait_sec())
-    except ImportError:
-        pass
-    peer_count = _parallel_mux_peer_count()
-    if peer_count > 1:
-        peer_scaled = _REQUEST_LOCK_ACQUIRE_SEC + (peer_count - 1) * 15.0
-        scaled = max(scaled, peer_scaled)
-    return min(
-        max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
-        _parallel_request_lock_cap_sec(),
-    )
-
-
-class _TransportDeadError(RuntimeError):
-    """Raised when the MCP shim process is missing, exited, or its stdio pipe closed.
-
-    All transport-level failures (_read EOF, _write BrokenPipe, process poll ≠ None)
-    MUST use this type so ``_request`` can catch and trigger ``_recover_mux_transport``.
-    Application-level errors (tool failures, protocol errors) use plain RuntimeError.
-    """
-
-
-def _chrome_e2e_port() -> int:
-    raw = os.environ.get("MYRM_CHROME_E2E_PORT", "9333").strip()
-    try:
-        return max(int(raw), 1)
-    except ValueError:
-        return 9333
-
-
-def _http_close_exact_target(target_id: str) -> bool:
-    target = target_id.strip()
-    if not target:
-        return False
-    url = f"http://127.0.0.1:{_chrome_e2e_port()}/json/close/{target}"
-    try:
-        with urllib.request.urlopen(url, timeout=3) as response:
-            response.read()
-        return True
-    except urllib.error.HTTPError as exc:
-        return exc.code == 404
-    except (OSError, urllib.error.URLError):
-        return False
-
-
-def _tool_retry_attempts(tool_name: str) -> int:
-    if tool_name == "new_page":
-        base = _NEW_PAGE_TOOL_RETRY_ATTEMPTS
-    else:
-        base = _TOOL_RETRY_ATTEMPTS
-    peers = _parallel_mux_peer_count()
-    if peers <= 3:
-        return base
-    return base + min(3, peers - 3)
-
-
-def _tool_retry_backoff_sec(tool_name: str, attempt: int, *, transient: bool) -> float:
-    base = 0.5 * (attempt + 1)
-    if tool_name == "new_page":
-        base = max(base, 1.0 * (attempt + 1))
-    if transient:
-        base += 0.75 * (attempt + 1)
-    return base
-
-
-def _wave_command_timeout_sec() -> float:
-    override = os.environ.get("MYRM_WAVE_CMD_TIMEOUT_SEC", "").strip()
-    if override:
-        return float(override)
-    if os.environ.get("MYRM_E2E_LEASE_ID", "").strip():
-        return 120.0
-    return 10.0
+    return _resolve_request_lock_acquire_sec_raw(_parallel_mux_peer_count)
 
 
 @dataclass(frozen=True, slots=True)
