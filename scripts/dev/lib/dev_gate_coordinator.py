@@ -345,15 +345,63 @@ def request(
     raise TimeoutError("coordinator request timed out")
 
 
+class _BackgroundReaper:
+    """P0-A: coordinator-owned periodic store + hung/stale lease reap."""
+
+    def __init__(self, service: CoordinatorService) -> None:
+        self._service = service
+        raw = os.environ.get("MYRM_DEV_GATE_BACKGROUND_REAP_SEC", "30").strip()
+        try:
+            self._interval_sec = max(5.0, float(raw))
+        except ValueError:
+            self._interval_sec = 30.0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._interval_sec <= 0:
+            return
+        self._thread = threading.Thread(
+            target=self._loop,
+            name="dev-gate-background-reap",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+
+    def _loop(self) -> None:
+        os.environ["MYRM_DEV_GATE_COORDINATOR_REAP"] = "1"
+        while not self._stop.wait(self._interval_sec):
+            try:
+                self._service.handle({"operation": "reap"})
+                from e2e_stale_lease_reap import (  # noqa: PLC0415
+                    maybe_reap_excess_wave_leases,
+                    maybe_reap_stale_heartbeat_leases,
+                )
+
+                maybe_reap_stale_heartbeat_leases()
+                maybe_reap_excess_wave_leases()
+            except Exception:
+                pass
+
+
 def serve(socket_path: Path, database_path: Path) -> None:
     socket_path = normalized_socket_path(socket_path)
+    service = CoordinatorService(DevGateStore(database_path.resolve()))
+    reaper = _BackgroundReaper(service)
+    reaper.start()
     server = _CoordinatorServer(
         socket_path,
-        CoordinatorService(DevGateStore(database_path.resolve())),
+        service,
     )
     try:
         server.serve_forever(poll_interval=0.2)
     finally:
+        reaper.stop()
         server.server_close()
         socket_path.unlink(missing_ok=True)
 

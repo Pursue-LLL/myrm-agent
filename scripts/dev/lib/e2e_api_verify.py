@@ -1009,6 +1009,12 @@ def _context_to_dict(
 
     payload["devGate"] = dev_gate_status()
     try:
+        from browser_orchestrator import browser_orchestrator_snapshot  # noqa: PLC0415
+
+        payload["browserOrchestrator"] = browser_orchestrator_snapshot()
+    except ImportError:
+        payload["browserOrchestrator"] = {"health": "UNKNOWN"}
+    try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
         lifecycle = orchestrator_snapshot()

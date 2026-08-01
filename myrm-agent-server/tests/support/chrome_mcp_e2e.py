@@ -130,6 +130,9 @@ def http_json(
     *,
     expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
 ) -> object:
+    from e2e_effect_guard import assert_http_effect_allowed
+
+    assert_http_effect_allowed(method=method, url=url)
     allowed = (get_e2e_ui_url(), get_e2e_api_url())
     if not url.startswith(allowed):
         raise ValueError(
@@ -628,9 +631,9 @@ def _restart_open_page_mux_budget(
         ChromeMcpClient().recover_mux_transport()
     except RuntimeError:
         pass
-    cdp_budget = 15.0 if is_e2e_signoff_runtime() else 30.0
+    cdp_budget = _open_page_cdp_probe_budget_sec()
     _require_e2e_cdp_ready(budget_sec=cdp_budget)
-    time.sleep(2.0 if is_e2e_signoff_runtime() else 5.0)
+    time.sleep(min(5.0, max(2.0, cdp_budget * 0.05)))
     try:
         drain_budget = _mux_cold_attach_drain_budget_sec()
         _wait_mux_cold_attach_drain(budget_sec=drain_budget)
