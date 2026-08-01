@@ -162,11 +162,20 @@ def _registry_key(operation_id: str) -> str:
 
 
 def effective_max_slots() -> int:
-    raw = os.environ.get("MYRM_MUX_COLD_ATTACH_SLOTS", str(DEFAULT_MAX_SLOTS))
+    """P0-B: cold-attach slots are browser operation credits (orchestrator SSOT)."""
     try:
-        return max(1, int(raw))
-    except ValueError:
-        return DEFAULT_MAX_SLOTS
+        from browser_orchestrator import MAX_OPERATION_CREDITS
+
+        cap = MAX_OPERATION_CREDITS
+    except ImportError:
+        cap = DEFAULT_MAX_SLOTS
+    raw = os.environ.get("MYRM_MUX_COLD_ATTACH_SLOTS", "").strip()
+    if raw:
+        try:
+            cap = min(cap, max(1, int(raw)))
+        except ValueError:
+            pass
+    return cap
 
 
 def _active_count(registry: UpstreamAdmissionRegistry) -> int:
@@ -384,6 +393,18 @@ def acquire_with_wait(
             from e2e_session_snapshot import touch_session_progress
 
             touch_session_progress()
+        except ImportError:
+            pass
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node="parallel_mux_upstream_wait")
+        except ImportError:
+            pass
+        try:
+            from e2e_lease_heartbeat import heartbeat_e2e_lease
+
+            heartbeat_e2e_lease()
         except ImportError:
             pass
         prune_stale()
