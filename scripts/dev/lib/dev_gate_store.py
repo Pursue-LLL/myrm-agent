@@ -64,6 +64,17 @@ CREATE TABLE IF NOT EXISTS events (
     detail_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS events_session_idx ON events(session_id, event_id);
+CREATE TABLE IF NOT EXISTS ownership_resources (
+    session_id TEXT NOT NULL,
+    resource_key TEXT NOT NULL,
+    resource_kind TEXT NOT NULL,
+    resource_value TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY (session_id, resource_key)
+);
+CREATE INDEX IF NOT EXISTS ownership_resources_session_idx
+ON ownership_resources(session_id, updated_at);
 """
 
 _MIGRATIONS: tuple[str, ...] = (
@@ -77,6 +88,10 @@ def default_store_path() -> Path:
     if override:
         return Path(override).resolve()
     return Path.home() / ".local/state/myrm-dev-gate/coordinator.sqlite3"
+
+
+class OwnershipConflictError(RuntimeError):
+    """Raised when an ownership CAS update loses against a newer session version."""
 
 
 class DevGateStore:
@@ -168,7 +183,35 @@ class DevGateStore:
                 return record
             connection.execute(
                 """
-                INSERT INTO sessions VALUES (
+                INSERT INTO sessions (
+                    session_id,
+                    owner_pid,
+                    owner_token,
+                    owner_process_start,
+                    owner_boot_id,
+                    test_node_id,
+                    execution_mode,
+                    access_scope,
+                    workload,
+                    namespace,
+                    priority,
+                    private_credits,
+                    state,
+                    version,
+                    submitted_at,
+                    phase_started_at,
+                    last_progress_at,
+                    hard_deadline,
+                    node_started_at,
+                    current_node,
+                    browser_context_id,
+                    page_ids_json,
+                    lease_id,
+                    runtime_id,
+                    outcome,
+                    failure_token,
+                    cleanup_json
+                ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 0, '',
                     '', '[]', '', '', '', '', '{}'
                 )
@@ -299,11 +342,20 @@ class DevGateStore:
         session_id: str,
         owner_token: str,
         ownership: SessionOwnership,
+        *,
+        expected_version: int | None = None,
     ) -> SessionRecord:
+        touched_at = time.time()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = self._owned_row(connection, session_id, owner_token)
-            version = int(row["version"]) + 1
+            current_version = int(row["version"])
+            if expected_version is not None and current_version != expected_version:
+                raise OwnershipConflictError(
+                    f"ownership version mismatch: session={session_id} "
+                    f"expected={expected_version} actual={current_version}"
+                )
+            version = current_version + 1
             connection.execute(
                 """
                 UPDATE sessions SET version=?, browser_context_id=?,
@@ -319,7 +371,128 @@ class DevGateStore:
                     session_id,
                 ),
             )
+            self._sync_ownership_resource_rows(
+                connection,
+                session_id=session_id,
+                ownership=ownership,
+                version=version,
+                updated_at=touched_at,
+            )
             return self._record(self._required_row(connection, session_id))
+
+    def cas_add_page_id(
+        self,
+        session_id: str,
+        owner_token: str,
+        page_id: str,
+        *,
+        expected_version: int,
+    ) -> SessionRecord:
+        """Merge one page id under session-version CAS (P0-D resource-key row)."""
+        normalized = page_id.strip()
+        if not normalized:
+            raise ValueError("page_id must be non-empty")
+        touched_at = time.time()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = self._owned_row(connection, session_id, owner_token)
+            current_version = int(row["version"])
+            if current_version != expected_version:
+                raise OwnershipConflictError(
+                    f"ownership version mismatch: session={session_id} "
+                    f"expected={expected_version} actual={current_version}"
+                )
+            pages_raw = self._load_json_field(row["page_ids_json"], default=[])
+            page_ids = (
+                tuple(str(item) for item in pages_raw)
+                if isinstance(pages_raw, list)
+                else ()
+            )
+            if normalized in page_ids:
+                return self._record(row)
+            merged = page_ids + (normalized,)
+            version = current_version + 1
+            connection.execute(
+                """
+                UPDATE sessions SET version=?, page_ids_json=?
+                WHERE session_id=?
+                """,
+                (
+                    version,
+                    json.dumps(merged, separators=(",", ":")),
+                    session_id,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO ownership_resources(
+                    session_id, resource_key, resource_kind, resource_value,
+                    version, updated_at
+                ) VALUES (?, ?, 'page', ?, ?, ?)
+                ON CONFLICT(session_id, resource_key) DO UPDATE SET
+                    resource_value=excluded.resource_value,
+                    version=excluded.version,
+                    updated_at=excluded.updated_at
+                WHERE excluded.version >= ownership_resources.version
+                """,
+                (
+                    session_id,
+                    f"page:{normalized}",
+                    normalized,
+                    version,
+                    touched_at,
+                ),
+            )
+            return self._record(self._required_row(connection, session_id))
+
+    @staticmethod
+    def _sync_ownership_resource_rows(
+        connection: sqlite3.Connection,
+        *,
+        session_id: str,
+        ownership: SessionOwnership,
+        version: int,
+        updated_at: float,
+    ) -> None:
+        rows: list[tuple[str, str, str, str]] = []
+        if ownership.browser_context_id:
+            rows.append(
+                (
+                    "browser_context",
+                    "browser_context",
+                    ownership.browser_context_id,
+                )
+            )
+        if ownership.lease_id:
+            rows.append(("lease", "lease", ownership.lease_id))
+        if ownership.runtime_id:
+            rows.append(("runtime", "runtime", ownership.runtime_id))
+        for page_id in ownership.page_ids:
+            normalized = page_id.strip()
+            if normalized:
+                rows.append((f"page:{normalized}", "page", normalized))
+        for resource_key, resource_kind, resource_value in rows:
+            connection.execute(
+                """
+                INSERT INTO ownership_resources(
+                    session_id, resource_key, resource_kind, resource_value,
+                    version, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id, resource_key) DO UPDATE SET
+                    resource_value=excluded.resource_value,
+                    version=excluded.version,
+                    updated_at=excluded.updated_at
+                WHERE excluded.version >= ownership_resources.version
+                """,
+                (
+                    session_id,
+                    resource_key,
+                    resource_kind,
+                    resource_value,
+                    version,
+                    updated_at,
+                ),
+            )
 
     def record_cleanup(
         self,
@@ -596,14 +769,24 @@ class DevGateStore:
         return row
 
     @staticmethod
+    def _load_json_field(raw: object, *, default: object) -> object:
+        text = str(raw or "").strip()
+        if not text:
+            return default
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return default
+
+    @staticmethod
     def _record(row: sqlite3.Row) -> SessionRecord:
-        pages_raw: object = json.loads(str(row["page_ids_json"]))
+        pages_raw = DevGateStore._load_json_field(row["page_ids_json"], default=[])
         page_ids = (
             tuple(str(item) for item in pages_raw)
             if isinstance(pages_raw, list)
             else ()
         )
-        cleanup_raw: object = json.loads(str(row["cleanup_json"]))
+        cleanup_raw = DevGateStore._load_json_field(row["cleanup_json"], default={})
         cleanup = cleanup_raw if isinstance(cleanup_raw, dict) else {}
         return SessionRecord(
             session_id=str(row["session_id"]),

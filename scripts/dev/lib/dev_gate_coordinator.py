@@ -226,6 +226,21 @@ class CoordinatorService:
         return {"session": record.to_dict()}
 
     def _ownership(self, request: dict[str, object]) -> dict[str, object]:
+        session_id = _required_text(request, "session_id")
+        owner_token = _required_text(request, "owner_token")
+        expected_raw = request.get("expected_version")
+        expected_version = expected_raw if isinstance(expected_raw, int) else None
+        merge_page_raw = request.get("merge_page_id")
+        if isinstance(merge_page_raw, str) and merge_page_raw.strip():
+            if expected_version is None:
+                raise ValueError("merge_page_id requires expected_version")
+            record = self.store.cas_add_page_id(
+                session_id,
+                owner_token,
+                merge_page_raw.strip(),
+                expected_version=expected_version,
+            )
+            return {"session": record.to_dict()}
         ownership_raw = request.get("ownership")
         if not isinstance(ownership_raw, dict):
             raise ValueError("ownership must be an object")
@@ -241,9 +256,10 @@ class CoordinatorService:
             runtime_id=_optional_text(ownership_raw, "runtime_id"),
         )
         record = self.store.set_ownership(
-            _required_text(request, "session_id"),
-            _required_text(request, "owner_token"),
+            session_id,
+            owner_token,
             ownership,
+            expected_version=expected_version,
         )
         return {"session": record.to_dict()}
 
