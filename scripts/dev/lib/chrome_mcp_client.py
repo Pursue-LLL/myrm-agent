@@ -152,9 +152,6 @@ from mux_load import (
     snapshot_mux_load,
 )
 from browser_orchestrator import browser_operation_credit_slot
-from mux_upstream_admission import (
-    wait_mux_hand_probe_allowed,
-)
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
@@ -818,7 +815,6 @@ class ChromeMcpClient:
                 )
                 if stagger_sec > 0 and self._tool_wall_deadline is None:
                     time.sleep(stagger_sec)
-                wait_mux_hand_probe_allowed()
                 initial_url = "about:blank" if runtime_binding is not None else url
                 arguments: dict[str, object] = {
                     "url": initial_url,

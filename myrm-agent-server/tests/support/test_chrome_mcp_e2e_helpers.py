@@ -32,9 +32,9 @@ def test_open_mcp_page_applies_shpoib_bootstrap_without_initial_reload() -> None
     )
     assert "_blocking_progress_loop" in block
     assert "open_mcp_page_blocking" in block
-    assert "wait_mux_hand_probe_allowed" in block
+    assert "wait_for_operation_credit" in block
     assert "mux_upstream_wait_cap" in block
-    assert block.index("wait_mux_hand_probe_allowed") < block.index(
+    assert block.index("wait_for_operation_credit") < block.index(
         "transport_session_started = time.monotonic()"
     )
     assert "R156: runtime inject must not share sliced tool wall" in block

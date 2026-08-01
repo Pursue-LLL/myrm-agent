@@ -44,10 +44,6 @@ from e2e_shared_ui_hydrate import (  # noqa: E402
     shared_ui_hydrate_slot,
 )
 from e2e_warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
-from mux_upstream_admission import (  # noqa: E402
-    read_mux_cold_attach_status,
-    wait_mux_hand_probe_allowed,
-)
 
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
 
@@ -831,14 +827,16 @@ def _signoff_mux_drain_budget_sec() -> float:
 
 
 def _signoff_wait_mux_before_new_page(*, budget_sec: float | None = None) -> None:
-    """Signoff pre-new_page mux gate — cold-attach drain SSOT (aligned with desktop R193)."""
-    from mux_upstream_admission import wait_mux_hand_probe_allowed
+    """Signoff pre-new_page mux gate — operation-credit transport SSOT (P0-B)."""
+    from browser_orchestrator import wait_for_operation_credit
 
     wait_budget = float(
         budget_sec if budget_sec is not None else _signoff_mux_drain_budget_sec()
     )
-    wait_mux_hand_probe_allowed(budget_sec=wait_budget)
-    _wait_mux_cold_attach_drain(budget_sec=wait_budget)
+    wait_for_operation_credit(
+        budget_sec=wait_budget,
+        current_node="open_mcp_page_signoff_gate",
+    )
 
 
 def _signoff_threaded_new_page(
@@ -980,32 +978,12 @@ def _mux_cold_attach_drain_budget_sec() -> float:
 
 
 def _wait_mux_cold_attach_drain(*, budget_sec: float) -> None:
-    """Wait until no other mux cold-attach ops hold registry slots (post-timeout heal)."""
-    deadline = time.monotonic() + budget_sec
-    started = time.monotonic()
-    last: dict[str, object] = {}
-    last_emit = started
-    while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
-        touch_wall_progress(current_node="open_mcp_page_mux_drain")
-        last = read_mux_cold_attach_status()
-        if int(last.get("active") or 0) == 0:
-            return
-        now = time.monotonic()
-        if now - last_emit >= 30.0:
-            elapsed = int(now - started)
-            print(
-                "E2E_MUX_PRE_BODY_BACKPRESSURE: "
-                f"mux cold attach active={last.get('active')!r} "
-                f"elapsed={elapsed}s budget={int(budget_sec)}s "
-                "(BOOT drain wait; do not stop other pytest)",
-                file=sys.stderr,
-                flush=True,
-            )
-            last_emit = now
-        time.sleep(2.0)
-    raise RuntimeError(
-        f"MUX cold attach drain timeout after {budget_sec:.0f}s: active={last.get('active')!r}"
+    """Wait until mux operation credits are free — orchestrator SSOT (P0-B)."""
+    from browser_orchestrator import wait_for_operation_credit
+
+    wait_for_operation_credit(
+        budget_sec=budget_sec,
+        current_node="open_mcp_page_mux_drain",
     )
 
 
@@ -1116,20 +1094,20 @@ def open_mcp_page(
     parallel_transport = _open_page_parallel_total_wall_only()
     boot_mux_gate_ok = os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
     if _parallel_open_page_peer_count() >= 2:
+        from browser_orchestrator import wait_for_operation_credit
+        from transport_supervisor import mux_upstream_wait_cap
+
         if boot_mux_gate_ok:
             probe_budget = (
                 _signoff_mux_drain_budget_sec() if is_e2e_signoff_runtime() else 15.0
             )
-            wait_mux_hand_probe_allowed(budget_sec=min(probe_budget, 45.0))
-            if is_e2e_signoff_runtime():
-                _wait_mux_cold_attach_drain(budget_sec=probe_budget)
+            probe_budget = min(probe_budget, 45.0)
         else:
-            from transport_supervisor import mux_upstream_wait_cap
-
             probe_budget = float(mux_upstream_wait_cap())
-            wait_mux_hand_probe_allowed(budget_sec=probe_budget)
-            # R154: drain mux cold-attach slots before BODY transport pass (v3.1 §10 WAIT).
-            _wait_mux_cold_attach_drain(budget_sec=probe_budget)
+        wait_for_operation_credit(
+            budget_sec=probe_budget,
+            current_node="open_mcp_page_boot_gate",
+        )
     transport_session_started = time.monotonic()
     total_deadline = transport_session_started + open_page_total_budget_sec
     wall_deadline = transport_session_started + open_page_wall_budget_sec
