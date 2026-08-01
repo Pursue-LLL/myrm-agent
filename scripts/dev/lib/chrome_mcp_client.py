@@ -1604,6 +1604,12 @@ class ChromeMcpClient:
                     time.sleep(3.0)
                 _respawn_cold_shim_local()
             return
+        from transport_supervisor import mux_recovery_scope, parallel_mux_peer_count
+
+        if parallel_mux_peer_count() >= 2:
+            with mux_recovery_scope(phase="restart_cold_shim"):
+                _respawn_cold_shim_local()
+            return
         _respawn_cold_shim_local()
 
     def _recover_mux_transport(self, *, start_generation: int | None = None) -> None:
