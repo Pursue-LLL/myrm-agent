@@ -181,16 +181,22 @@ class CoordinatorService:
             after_event_id = int(after_raw) if isinstance(after_raw, int) else 0
             budget_raw = request.get("budget_sec")
             budget_sec = float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
-            from dev_gate_event_wait import wait_for_session_event
-
-            event = wait_for_session_event(
-                self.store,
-                session_id=_required_text(request, "session_id"),
-                event_types=frozenset(str(item) for item in event_types_raw),
-                after_event_id=after_event_id,
-                budget_sec=budget_sec,
+            from dev_gate_event_wait import (
+                SessionEventTimeoutError,
+                wait_for_session_event,
             )
-            return {"event": event}
+
+            try:
+                event = wait_for_session_event(
+                    self.store,
+                    session_id=_required_text(request, "session_id"),
+                    event_types=frozenset(str(item) for item in event_types_raw),
+                    after_event_id=after_event_id,
+                    budget_sec=budget_sec,
+                )
+            except SessionEventTimeoutError:
+                return {"event": None, "timed_out": True}
+            return {"event": event, "timed_out": False}
         if operation == "snapshot":
             session_id = _optional_text(request, "session_id")
             if session_id == "__health__":

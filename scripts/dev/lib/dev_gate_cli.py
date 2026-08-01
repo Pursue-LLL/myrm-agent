@@ -105,11 +105,39 @@ def ensure_coordinator(
     )
 
 
+def _handle_in_process(payload: dict[str, object]) -> dict[str, object]:
+    return CoordinatorService(DevGateStore(default_store_path())).handle(payload)
+
+
 def send(payload: dict[str, object]) -> dict[str, object]:
     socket_path = ensure_coordinator()
     if socket_path is None:
-        return CoordinatorService(DevGateStore(default_store_path())).handle(payload)
-    return request(payload, socket_path=socket_path)
+        return _handle_in_process(payload)
+    operation = payload.get("operation")
+    timeout_sec = 10.0
+    if isinstance(operation, str) and operation in {
+        "submit",
+        "private_admit",
+        "desktop_admit",
+        "reap",
+        "heartbeat",
+        "finish",
+        "cleanup",
+    }:
+        timeout_sec = 30.0
+    if operation == "wait_event":
+        budget_raw = payload.get("budget_sec")
+        if isinstance(budget_raw, (int, float)):
+            timeout_sec = max(5.0, float(budget_raw) + 5.0)
+        else:
+            timeout_sec = 35.0
+    try:
+        return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
+    except RuntimeError as exc:
+        message = str(exc)
+        if "DEV_GATE_COORDINATOR_ERROR" in message and "Expecting value" in message:
+            return _handle_in_process(payload)
+        raise
 
 
 def _submit(args: argparse.Namespace) -> int:
@@ -147,9 +175,19 @@ def _submit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _private_admit_event_wait_enabled() -> bool:
+    return os.environ.get("MYRM_DEV_GATE_EVENT_WAIT", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+
+
 def _private_admit(args: argparse.Namespace) -> int:
     started = time.monotonic()
     next_progress = 0.0
+    after_event_id = 0
     while True:
         response = send(
             {
@@ -175,6 +213,24 @@ def _private_admit(args: argparse.Namespace) -> int:
                 flush=True,
             )
             next_progress = elapsed + 30.0
+        if _private_admit_event_wait_enabled():
+            wait_budget = float(admission.get("next_progress_sec", 30.0))
+            wait_budget = max(1.0, min(wait_budget, 30.0))
+            waited = send(
+                {
+                    "operation": "wait_event",
+                    "session_id": args.session_id,
+                    "event_types": ["PRIVATE_ADMIT_GRANTED"],
+                    "after_event_id": after_event_id,
+                    "budget_sec": wait_budget,
+                }
+            )
+            event = waited.get("event")
+            if isinstance(event, dict):
+                event_id = event.get("event_id")
+                if isinstance(event_id, int):
+                    after_event_id = event_id
+                continue
         time.sleep(min(1.0, float(admission.get("next_progress_sec", 1.0))))
 
 
