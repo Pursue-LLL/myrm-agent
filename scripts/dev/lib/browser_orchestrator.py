@@ -77,14 +77,23 @@ def browser_orchestrator_snapshot() -> BrowserOrchestratorSnapshot:
 
 
 @contextmanager
-def browser_operation_credit_slot(
-    *, operation_id: str | None = None
-) -> Iterator[str]:
+def browser_operation_credit_slot(*, operation_id: str | None = None) -> Iterator[str]:
     """P0-B: single entry for mux cold-attach / new_page operation credits."""
     from mux_upstream_admission import upstream_cold_attach_slot
 
     with upstream_cold_attach_slot(operation_id=operation_id) as op_id:
         yield op_id
+
+
+def wait_for_operation_credit(
+    *,
+    budget_sec: float,
+    current_node: str = "parallel_mux_queue_wait",
+) -> None:
+    """P0-B: transport turn wait via upstream operation credits (not process scan)."""
+    from e2e_mux_transport_queue import wait_mux_transport_turn
+
+    wait_mux_transport_turn(budget_sec=budget_sec, current_node=current_node)
 
 
 def close_exact_targets(
@@ -153,9 +162,11 @@ def main() -> int:
         return 0
     if args.prune_self_blanks:
         port = args.cdp_port if args.cdp_port > 0 else None
-        infra_closed, infra_failed, orphan_closed, orphan_failed = prune_self_owned_blanks(
-            cdp_port=port,
-            threshold=args.threshold,
+        infra_closed, infra_failed, orphan_closed, orphan_failed = (
+            prune_self_owned_blanks(
+                cdp_port=port,
+                threshold=args.threshold,
+            )
         )
         print(
             "MYRM_BROWSER_ORCHESTRATOR_PRUNE_OK: "

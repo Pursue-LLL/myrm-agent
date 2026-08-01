@@ -1,6 +1,7 @@
-"""Mux transport queue (TQ) — fair wait before owned mux page open / force chat shell.
+"""Mux transport queue — fair wait via browser operation credits (P0-B).
 
-Peers on transport stall nodes block newcomers until the node clears or budget expires.
+Peers holding upstream operation credits block newcomers until credits free or
+budget expires. Replaces process-scan transport stall detection (roadmap P0-B).
 """
 
 from __future__ import annotations
@@ -14,9 +15,9 @@ from pathlib import Path
 MUX_TRANSPORT_QUEUE_WAIT_TOKEN: str = "E2E_MUX_TRANSPORT_QUEUE_WAIT"
 MUX_TRANSPORT_QUEUE_OK_TOKEN: str = "E2E_MUX_TRANSPORT_QUEUE_OK"
 MUX_TRANSPORT_QUEUE_TIMEOUT_TOKEN: str = "E2E_MUX_TRANSPORT_QUEUE_TIMEOUT"
-# R221: must NOT match TRANSPORT_STALL_NODE_PREFIXES — waiters are not mux holders.
 MUX_TRANSPORT_QUEUE_WAIT_NODE: str = "parallel_mux_queue_wait"
 
+_OPERATION_CREDIT_NODE: str = "mux_operation_credit"
 _FORCE_CHAT_SHELL_BLOCKING_NODE: str = "force_chat_shell_blocking"
 _OPEN_MCP_PAGE_BLOCKING_NODE: str = "open_mcp_page_blocking"
 
@@ -49,7 +50,8 @@ def _emit_stderr(token: str, *, peers: TransportQueueSnapshot | None = None) -> 
     sys.stderr.flush()
 
 
-def _load_parallel_active_tests() -> list[dict[str, object]]:
+def _resolve_peer_node(owner_pid: int) -> str:
+    """Best-effort node label for observability; credit ownership is SSOT."""
     support_path = (
         Path(__file__).resolve().parents[3] / "myrm-agent-server" / "tests" / "support"
     )
@@ -64,39 +66,52 @@ def _load_parallel_active_tests() -> list[dict[str, object]]:
             snapshot_live_e2e_processes,
         )
 
-        snapshot = snapshot_live_e2e_processes()
-        payload = parallel_snapshot_to_dict(snapshot)
+        payload = parallel_snapshot_to_dict(snapshot_live_e2e_processes())
         active_raw = payload.get("active_tests")
-        if not isinstance(active_raw, list):
-            return []
-        return [row for row in active_raw if isinstance(row, dict)]
+        if isinstance(active_raw, list):
+            for row in active_raw:
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    pid = int(row.get("pid"))
+                except (TypeError, ValueError):
+                    continue
+                if pid != owner_pid:
+                    continue
+                node = str(row.get("current_node") or "").strip()
+                if node and node != MUX_TRANSPORT_QUEUE_WAIT_NODE:
+                    return node
+    except ImportError:
+        pass
     finally:
         if inserted:
             sys.path.remove(support_text)
+    return _OPERATION_CREDIT_NODE
 
 
-def _transport_blocking_peers(*, exclude_pid: int | None = None) -> tuple[TransportQueuePeer, ...]:
-    from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
+def _transport_blocking_peers(
+    *, exclude_pid: int | None = None
+) -> tuple[TransportQueuePeer, ...]:
+    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
     owner = exclude_pid if exclude_pid is not None else os.getpid()
     peers: list[TransportQueuePeer] = []
-    for row in _load_parallel_active_tests():
-        pid_raw = row.get("pid")
-        try:
-            pid = int(pid_raw)
-        except (TypeError, ValueError):
+    for operation in list_active_upstream_operations():
+        if operation.owner_pid == owner:
             continue
-        if pid == owner:
-            continue
-        node = str(row.get("current_node") or "").strip()
-        if not node or not is_transport_stall_node(node):
-            continue
-        peers.append(TransportQueuePeer(pid=pid, node=node))
+        peers.append(
+            TransportQueuePeer(
+                pid=operation.owner_pid,
+                node=_resolve_peer_node(operation.owner_pid),
+            )
+        )
     peers.sort(key=lambda item: item.pid)
     return tuple(peers)
 
 
-def transport_queue_snapshot(*, exclude_pid: int | None = None) -> TransportQueueSnapshot:
+def transport_queue_snapshot(
+    *, exclude_pid: int | None = None
+) -> TransportQueueSnapshot:
     peers = _transport_blocking_peers(exclude_pid=exclude_pid)
     return TransportQueueSnapshot(blocked=len(peers) > 0, peers=peers)
 
@@ -112,7 +127,7 @@ def wait_mux_transport_turn(
     budget_sec: float,
     current_node: str = MUX_TRANSPORT_QUEUE_WAIT_NODE,
 ) -> None:
-    """Block until no peer holds a transport stall node, then mark this session ready."""
+    """Block until no peer holds an operation credit, then mark this session ready."""
     try:
         from e2e_session_lifecycle import touch_wall_progress  # noqa: PLC0415
     except ImportError:

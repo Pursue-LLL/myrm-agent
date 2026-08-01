@@ -1218,9 +1218,9 @@ def open_mcp_page(
         heartbeat_e2e_lease()
         touch_wall_progress(current_node="open_mcp_page_attempt")
         if _parallel_open_page_peer_count() >= 2:
-            from e2e_mux_transport_queue import wait_mux_transport_turn
+            from browser_orchestrator import wait_for_operation_credit
 
-            wait_mux_transport_turn(budget_sec=_mux_transport_wait_budget_sec())
+            wait_for_operation_credit(budget_sec=_mux_transport_wait_budget_sec())
         attempt_mono = time.monotonic()
         attempt_wall_deadline = attempt_mono + open_page_wall_budget_sec
         attempt_total_deadline = attempt_mono + open_page_total_budget_sec

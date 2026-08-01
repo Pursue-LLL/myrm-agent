@@ -15,6 +15,7 @@ import sys
 import time
 import uuid
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, TypedDict
 
@@ -196,6 +197,42 @@ class MuxColdAttachStatus(TypedDict):
     maxSlots: int
     saturated: bool
     handProbeAllowed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveUpstreamOperation:
+    operation_id: str
+    owner_pid: int
+    acquired_at: float
+
+
+def list_active_upstream_operations() -> tuple[ActiveUpstreamOperation, ...]:
+    """Durable mux operation credits (orchestrator SSOT); replaces process-scan TQ."""
+    if _admission_disabled():
+        return ()
+    now = time.time()
+    with _locked_registry() as registry_path:
+        registry = _load_registry(registry_path)
+        _prune_stale(registry, now=now)
+        active: list[ActiveUpstreamOperation] = []
+        for operation_id, record in registry["operations"].items():
+            if not isinstance(record, dict):
+                continue
+            owner_pid = record.get("ownerPid")
+            acquired = record.get("acquiredAt")
+            if not isinstance(owner_pid, int) or not isinstance(acquired, (int, float)):
+                continue
+            if not _pid_alive(owner_pid):
+                continue
+            active.append(
+                ActiveUpstreamOperation(
+                    operation_id=str(record.get("operationId", operation_id)),
+                    owner_pid=owner_pid,
+                    acquired_at=float(acquired),
+                )
+            )
+        active.sort(key=lambda item: (item.owner_pid, item.operation_id))
+        return tuple(active)
 
 
 def read_mux_cold_attach_status() -> MuxColdAttachStatus:
