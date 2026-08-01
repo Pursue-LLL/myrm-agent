@@ -46,6 +46,58 @@ class AuthTemplateStatus(TypedDict):
     origin: str
 
 
+class AuthTemplateGateError(RuntimeError):
+    """Raised when isolated context new_page requires auth template but it is not ready."""
+
+
+def _resolve_workspace_fingerprint() -> str:
+    env_fp = os.environ.get("MYRM_WORKSPACE_FINGERPRINT", "").strip()
+    if env_fp:
+        return env_fp
+    try:
+        from e2e_api_verify import workspace_backend_fingerprint
+
+        return workspace_backend_fingerprint()
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        return ""
+
+
+def assert_auth_template_ready_for_isolated_context(
+    *,
+    workspace_fingerprint: str = "",
+) -> AuthTemplateStatus:
+    """Fail-closed gate before isolated-context new_page (P0-C)."""
+    if os.environ.get("MYRM_E2E_RELAX_AUTH_TEMPLATE", "").strip() == "1":
+        return auth_template_status(workspace_fingerprint=workspace_fingerprint)
+    workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()
+    status = auth_template_status(workspace_fingerprint=workspace)
+    if status["next_action"] == "READY":
+        return status
+    raise AuthTemplateGateError(
+        "AUTH_TEMPLATE_GATE: isolated context requires sealed auth template; "
+        f"status={status['status']} next_action={status['next_action']} "
+        f"runtime_fp={status['runtimeFingerprint']}"
+    )
+
+
+def hydrate_auth_template_for_context(
+    *,
+    context_id: str,
+    workspace_fingerprint: str = "",
+) -> bool:
+    """Per-context hydrate hook (stub until encrypted template blob + CDP inject land)."""
+    normalized = context_id.strip()
+    if not normalized:
+        return False
+    workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()
+    status = auth_template_status(workspace_fingerprint=workspace)
+    if status["next_action"] != "READY":
+        return False
+    # Future: decrypt runtime-scoped template and inject storage for `normalized`.
+    _ = normalized
+    return True
+
+
 def _state_dir() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     return Path(override) if override else Path.home() / ".local/state/myrm-dev"

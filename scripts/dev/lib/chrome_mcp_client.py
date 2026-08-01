@@ -800,6 +800,14 @@ class ChromeMcpClient:
         )
         if isolated_context is not None and not context_id:
             raise ValueError("isolated_context must not be empty")
+        if isolated_context is not None:
+            from e2e_auth_provisioner import (  # noqa: PLC0415
+                assert_auth_template_ready_for_isolated_context,
+                hydrate_auth_template_for_context,
+            )
+
+            assert_auth_template_ready_for_isolated_context()
+            hydrate_auth_template_for_context(context_id=context_id)
         lease_id = self._acquire_page_lease()
         page: McpPage | None = None
         runtime_binding = self._runtime_binding_source_for(url)
