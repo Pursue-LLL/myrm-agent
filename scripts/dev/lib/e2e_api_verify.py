@@ -1009,6 +1009,19 @@ def _context_to_dict(
 
     payload["devGate"] = dev_gate_status()
     try:
+        from dev_gate_coordinator import default_socket_path, request  # noqa: PLC0415
+
+        metrics = request(
+            {"operation": "snapshot", "session_id": "__health__"},
+            socket_path=default_socket_path(),
+            timeout_sec=0.5,
+        )
+        depth = metrics.get("asyncQueueDepth")
+        if isinstance(depth, int):
+            payload["devGateAsyncQueueDepth"] = depth
+    except (ConnectionError, OSError, RuntimeError, TimeoutError, ImportError):
+        pass
+    try:
         from browser_orchestrator import browser_orchestrator_snapshot  # noqa: PLC0415
 
         payload["browserOrchestrator"] = browser_orchestrator_snapshot()

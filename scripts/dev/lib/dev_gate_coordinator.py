@@ -325,6 +325,11 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 body = server._async_writer.dispatch(payload)
             else:
                 body = server.service.handle(payload)
+            if payload.get("operation") == "snapshot" and server._async_writer is not None:
+                body = {
+                    **body,
+                    "asyncQueueDepth": server._async_writer.queue_depth,
+                }
             response = {"ok": True, **body}
         except (ValueError, KeyError, PermissionError, json.JSONDecodeError) as exc:
             response = {
@@ -346,6 +351,7 @@ def request(
     target = normalized_socket_path(socket_path or default_socket_path())
     deadline = time.monotonic() + max(0.1, timeout_sec)
     last_refused: ConnectionRefusedError | None = None
+    last_decode: json.JSONDecodeError | None = None
     while True:
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
@@ -368,6 +374,8 @@ def request(
                     raw.extend(chunk)
                     if b"\n" in chunk:
                         break
+            if not raw:
+                raise json.JSONDecodeError("empty coordinator response", "", 0)
             response: object = json.loads(bytes(raw).split(b"\n", 1)[0].decode("utf-8"))
             if not isinstance(response, dict):
                 raise RuntimeError("coordinator returned a non-object response")
@@ -381,6 +389,15 @@ def request(
             if time.monotonic() >= deadline:
                 break
             time.sleep(min(0.02, deadline - time.monotonic()))
+        except json.JSONDecodeError as exc:
+            last_decode = exc
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(min(0.05, deadline - time.monotonic()))
+    if last_decode is not None:
+        raise RuntimeError(
+            f"DEV_GATE_COORDINATOR_ERROR: {last_decode.msg}"
+        ) from last_decode
     if last_refused is not None:
         raise last_refused
     raise TimeoutError("coordinator request timed out")
