@@ -71,7 +71,7 @@ function createClipboardEvent(files: File[]): React.ClipboardEvent {
   return {
     clipboardData: {
       items: items as unknown as DataTransferItemList,
-      getData: vi.fn(),
+      getData: vi.fn(() => ''),
       setData: vi.fn(),
       clearData: vi.fn(),
       types: [],
@@ -114,7 +114,7 @@ function createClipboardEventWithTextOnly(): React.ClipboardEvent {
 
 describe('useInputFileUpload', () => {
   const defaultParams: UploadParams = {
-    actionMode: 'normal' as const,
+    actionMode: 'agent' as const,
     files: [],
     setFiles: vi.fn<(files: UploadParams['files']) => void>(),
     setHideAttachList: vi.fn<(hide: boolean) => void>(),
@@ -227,6 +227,195 @@ describe('useInputFileUpload', () => {
         },
         preventDefault: vi.fn(),
       } as unknown as React.ClipboardEvent;
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(mockUploadFiles).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handlePaste - Office text-priority (Excel/WPS/Sheets)', () => {
+    function createOfficeClipboardEvent(opts: {
+      plainText?: string;
+      htmlText?: string;
+      imageFile?: File;
+    }): React.ClipboardEvent {
+      const items: DataTransferItem[] = [];
+      if (opts.plainText !== undefined) {
+        items.push({
+          kind: 'string' as const,
+          type: 'text/plain',
+          getAsFile: () => null,
+          getAsString: vi.fn(),
+          webkitGetAsEntry: vi.fn(),
+        });
+      }
+      if (opts.htmlText !== undefined) {
+        items.push({
+          kind: 'string' as const,
+          type: 'text/html',
+          getAsFile: () => null,
+          getAsString: vi.fn(),
+          webkitGetAsEntry: vi.fn(),
+        });
+      }
+      if (opts.imageFile) {
+        items.push({
+          kind: 'file' as const,
+          type: opts.imageFile.type,
+          getAsFile: () => opts.imageFile!,
+          getAsString: vi.fn(),
+          webkitGetAsEntry: vi.fn(),
+        });
+      }
+      const getDataMap: Record<string, string> = {
+        'text/plain': opts.plainText ?? '',
+        'text/html': opts.htmlText ?? '',
+      };
+      return {
+        clipboardData: {
+          items: items as unknown as DataTransferItemList,
+          getData: vi.fn((type: string) => getDataMap[type] ?? ''),
+          setData: vi.fn(),
+          clearData: vi.fn(),
+          types: Object.keys(getDataMap).filter((k) => getDataMap[k]),
+          files: [] as unknown as FileList,
+          dropEffect: 'none' as const,
+          effectAllowed: 'none' as const,
+          setDragImage: vi.fn(),
+        },
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as React.ClipboardEvent;
+    }
+
+    it('should NOT preventDefault when Excel paste has text+image (text priority)', async () => {
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const bitmap = new File(['img'], 'image.png', { type: 'image/png' });
+      const event = createOfficeClipboardEvent({
+        plainText: 'A1\tB1\nA2\tB2',
+        htmlText: '<table><tr><td>A1</td></tr></table>',
+        imageFile: bitmap,
+      });
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(mockUploadFiles).not.toHaveBeenCalled();
+    });
+
+    it('should NOT preventDefault when clipboard has text+image but no HTML (WPS scenario)', async () => {
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const bitmap = new File(['img'], 'screenshot.png', { type: 'image/png' });
+      const event = createOfficeClipboardEvent({
+        plainText: 'Cell data here',
+        imageFile: bitmap,
+      });
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(mockUploadFiles).not.toHaveBeenCalled();
+    });
+
+    it('should upload image when text is an image file path (file manager copy)', async () => {
+      mockUploadFiles.mockResolvedValue({
+        uploaded_count: 1,
+        files: [{ fileName: 'photo.png', fileUrl: '/f/photo.png' }],
+      });
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const imgFile = new File(['img'], 'photo.png', { type: 'image/png' });
+      const event = createOfficeClipboardEvent({
+        plainText: 'C:\\Users\\me\\photo.png',
+        imageFile: imgFile,
+      });
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(mockUploadFiles).toHaveBeenCalledWith([imgFile], expect.anything());
+    });
+
+    it('should upload pure image paste (no text at all)', async () => {
+      mockUploadFiles.mockResolvedValue({
+        uploaded_count: 1,
+        files: [{ fileName: 'screenshot.png', fileUrl: '/f/screenshot.png' }],
+      });
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const img = new File(['img'], 'screenshot.png', { type: 'image/png' });
+      const event = createOfficeClipboardEvent({ imageFile: img });
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(mockUploadFiles).toHaveBeenCalledWith([img], expect.anything());
+    });
+
+    it('should still upload non-image files even when text is present (PDF paste)', async () => {
+      mockUploadFiles.mockResolvedValue({
+        uploaded_count: 1,
+        files: [{ fileName: 'doc.pdf', fileUrl: '/f/doc.pdf' }],
+      });
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const pdf = new File(['pdf'], 'doc.pdf', { type: 'application/pdf' });
+      const items: DataTransferItem[] = [
+        {
+          kind: 'string' as const,
+          type: 'text/plain',
+          getAsFile: () => null,
+          getAsString: vi.fn(),
+          webkitGetAsEntry: vi.fn(),
+        },
+        {
+          kind: 'file' as const,
+          type: 'application/pdf',
+          getAsFile: () => pdf,
+          getAsString: vi.fn(),
+          webkitGetAsEntry: vi.fn(),
+        },
+      ];
+      const event = {
+        clipboardData: {
+          items: items as unknown as DataTransferItemList,
+          getData: vi.fn((type: string) => (type === 'text/plain' ? 'some text' : '')),
+          setData: vi.fn(),
+          clearData: vi.fn(),
+          types: ['text/plain'],
+          files: [] as unknown as FileList,
+          dropEffect: 'none' as const,
+          effectAllowed: 'none' as const,
+          setDragImage: vi.fn(),
+        },
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as React.ClipboardEvent;
+
+      await act(async () => {
+        await result.current.handlePaste(event);
+      });
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(mockUploadFiles).toHaveBeenCalledWith([pdf], expect.anything());
+    });
+
+    it('should NOT preventDefault when clipboard has only HTML and image (Google Sheets)', async () => {
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const bitmap = new File(['img'], 'table.png', { type: 'image/png' });
+      const event = createOfficeClipboardEvent({
+        htmlText: '<table><tr><td>Sheets</td></tr></table>',
+        imageFile: bitmap,
+      });
 
       await act(async () => {
         await result.current.handlePaste(event);

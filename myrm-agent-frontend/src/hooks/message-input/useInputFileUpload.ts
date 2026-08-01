@@ -8,7 +8,7 @@
  * - useInputFileUpload: exposes paste/drop upload handlers and upload state.
  *
  * [POS]
- * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、SHA-256 去重和上传后附件状态转换。
+ * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、Office 剪贴板文本优先智能识别、SHA-256 去重和上传后附件状态转换。
  */
 
 import { useCallback, useState } from 'react';
@@ -154,20 +154,42 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
     async (e: React.ClipboardEvent) => {
       if (actionMode === 'fast') return;
 
-      const items = e.clipboardData?.items;
-      if (!items) return;
+      const dt = e.clipboardData;
+      if (!dt?.items) return;
 
-      const pastedFiles: globalThis.File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].kind === 'file') {
-          const file = items[i].getAsFile();
-          if (file) pastedFiles.push(file);
+      const imageFiles: globalThis.File[] = [];
+      const otherFiles: globalThis.File[] = [];
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind !== 'file') continue;
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (file.type.startsWith('image/')) {
+          imageFiles.push(file);
+        } else {
+          otherFiles.push(file);
         }
       }
-      if (pastedFiles.length === 0) return;
+
+      const allFiles = [...otherFiles, ...imageFiles];
+      if (allFiles.length === 0) return;
+
+      // Office apps (Excel/WPS/Google Sheets) place both text and a rendered
+      // bitmap on the clipboard. Prefer text so pasting cells inserts TSV data
+      // instead of a screenshot. Only apply when ALL files are images — if the
+      // user copies a real file (PDF, etc.) we always upload it.
+      if (otherFiles.length === 0 && imageFiles.length > 0) {
+        const plain = dt.getData('text/plain').trim();
+        const hasHtml = dt.getData('text/html').trim().length > 0;
+        const looksLikeImagePath =
+          plain.length > 0 && !plain.includes('\n') && /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(plain);
+        if ((plain.length > 0 || hasHtml) && !looksLikeImagePath) {
+          return;
+        }
+      }
 
       e.preventDefault();
-      await handleDroppedFiles(pastedFiles);
+      await handleDroppedFiles(allFiles);
     },
     [actionMode, handleDroppedFiles],
   );
