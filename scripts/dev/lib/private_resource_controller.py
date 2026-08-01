@@ -38,6 +38,8 @@ class PrivateAdmission:
     capacity_credits: int
     waited_sec: float
     next_progress_sec: float
+    idle_reason: str = ""
+    available_credits: int = 0
 
 
 def private_capacity_credits() -> int:
@@ -128,6 +130,11 @@ class PrivateResourceController:
             queued = self._queue_row(connection, session_id)
             active = self._active_credits(connection)
             if queued["granted_at"] is not None:
+                idle = self._credit_idle_reason(
+                    active_credits=active,
+                    available_credits=max(0, self.capacity_credits - active),
+                    waiting_rows=self._ordered_waiters(connection, admitted_at),
+                )
                 return PrivateAdmission(
                     granted=True,
                     queue_position=0,
@@ -135,10 +142,17 @@ class PrivateResourceController:
                     capacity_credits=self.capacity_credits,
                     waited_sec=waited,
                     next_progress_sec=0.0,
+                    idle_reason=idle,
+                    available_credits=max(0, self.capacity_credits - active),
                 )
             position = self._queue_position(connection, session_id, admitted_at)
             next_progress = PRIVATE_QUEUE_PROGRESS_SEC - (
                 waited % PRIVATE_QUEUE_PROGRESS_SEC
+            )
+            idle = self._credit_idle_reason(
+                active_credits=active,
+                available_credits=max(0, self.capacity_credits - active),
+                waiting_rows=self._ordered_waiters(connection, admitted_at),
             )
             return PrivateAdmission(
                 granted=False,
@@ -147,6 +161,8 @@ class PrivateResourceController:
                 capacity_credits=self.capacity_credits,
                 waited_sec=waited,
                 next_progress_sec=next_progress,
+                idle_reason=idle,
+                available_credits=max(0, self.capacity_credits - active),
             )
 
     def release(
@@ -185,9 +201,17 @@ class PrivateResourceController:
                 ORDER BY enqueued_at, session_id
                 """
             ).fetchall()
+        available = max(0, self.capacity_credits - active)
+        idle_reason = self._credit_idle_reason(
+            active_credits=active,
+            available_credits=available,
+            waiting_rows=waiting,
+        )
         return {
             "capacity_credits": self.capacity_credits,
             "active_credits": active,
+            "available_credits": available,
+            "idle_reason": idle_reason,
             "waiting": [
                 {
                     "session_id": str(row["session_id"]),
@@ -200,6 +224,22 @@ class PrivateResourceController:
                 for row in waiting
             ],
         }
+
+    @staticmethod
+    def _credit_idle_reason(
+        *,
+        active_credits: int,
+        available_credits: int,
+        waiting_rows: list[sqlite3.Row],
+    ) -> str:
+        if available_credits <= 0:
+            return "capacity_full"
+        if not waiting_rows:
+            return "available"
+        min_wait_credits = min(int(row["credits"]) for row in waiting_rows)
+        if min_wait_credits > available_credits:
+            return "head_blocked_large_reservation"
+        return "backfill_eligible"
 
     @staticmethod
     def _release_terminal_sessions(
@@ -293,9 +333,6 @@ class PrivateResourceController:
         for waiter in self._ordered_waiters(connection, now):
             credits = int(waiter["credits"])
             if credits > available:
-                waited = max(0.0, now - float(waiter["enqueued_at"]))
-                if waited >= PRIVATE_AGING_INTERVAL_SEC:
-                    break
                 continue
             session_id = str(waiter["session_id"])
             session = connection.execute(
