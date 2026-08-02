@@ -62,6 +62,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
 API_ONLY_DOMAINS: frozenset[str] = frozenset(
     {
         "api_keys",
+        "browser_domain_skills",
         "browser_sessions",
         "client_logs",
         "credentials",
