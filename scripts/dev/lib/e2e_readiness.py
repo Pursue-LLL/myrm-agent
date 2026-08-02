@@ -243,6 +243,21 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
     )
+    if headroom.get("registryObservabilityUnknown") is True:
+        return ChromeE2eReadinessVerdict(
+            status="WAIT",
+            token="WAIT:OBSERVABILITY_UNKNOWN",
+            reason=_reason_for_verdict(
+                next_action="OBSERVABILITY_UNKNOWN",
+                ctx=ctx,
+            ),
+            next_action="OBSERVABILITY_UNKNOWN",
+            launch_allowed=False,
+            attach_allowed=True,
+            ready_chrome_full=False,
+            blocked=ctx.blocked,
+            epoch_match=ctx.epoch_match,
+        )
     return evaluate_chrome_e2e_readiness(
         ctx,
         headroom=headroom,

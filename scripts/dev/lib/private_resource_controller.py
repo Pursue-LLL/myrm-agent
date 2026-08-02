@@ -84,7 +84,7 @@ class PrivateResourceController:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA busy_timeout=5000")
+        connection.execute("PRAGMA busy_timeout=30000")
         return connection
 
     def admit(

@@ -21,9 +21,11 @@ Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 c
 
 from __future__ import annotations
 
+import ast
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final, Literal
 
 E2eWallProfile = Literal["dev", "signoff"]
@@ -936,7 +938,10 @@ def signoff_new_page_join_stall_abandon_sec(
     base = 120.0 + max(0, int(peers)) * 20.0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         base = max(base, 180.0)
-    return min(join_timeout_sec, min(base, 300.0))
+    stall_cap = 300.0
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
+        stall_cap = 420.0
+    return min(join_timeout_sec, min(base, stall_cap))
 
 
 def signoff_bootstrap_transport_stall_cap_sec(
@@ -973,29 +978,13 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
     if peers is None:
         peers = 0
         try:
-            from transport_supervisor import parallel_mux_peer_count
+            from mux_load import active_mux_context_count, read_mux_status, snapshot_mux_load
 
-            peers = parallel_mux_peer_count()
-        except ImportError:
+            mux_status = read_mux_status()
+            load = snapshot_mux_load()
+            peers = max(int(load.wave_leases), active_mux_context_count(mux_status))
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError):
             peers = 0
-        if peers < 2:
-            try:
-                from mux_load import snapshot_mux_load
-
-                load = snapshot_mux_load()
-                peers = max(int(load.wave_leases), int(load.mux_contexts))
-            except (ImportError, OSError, RuntimeError, TypeError, ValueError):
-                peers = 0
-        if peers < 2:
-            try:
-                from pathlib import Path
-
-                from stack_mutation_policy import wave_active_lease_count
-
-                monorepo_root = Path(__file__).resolve().parents[4]
-                peers = wave_active_lease_count(monorepo_root)
-            except (ImportError, OSError, RuntimeError, ValueError):
-                peers = 0
     if peers < 2:
         return float(NODE_STUCK_FAIL_FAST_SEC)
     try:
@@ -1462,6 +1451,48 @@ def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> s
 
 
 _CHROME_E2E_PYTEST_FILE = re.compile(r"(^|[/\\])test_[^/\\]*_chrome_e2e\.py(::|$)")
+_SERVER_E2E_ROOT = Path(__file__).resolve().parents[3] / "myrm-agent-server"
+
+
+def _resolve_chrome_e2e_test_path(path_arg: str) -> Path | None:
+    file_part = path_arg.split("::", 1)[0]
+    prefixes = (
+        "myrm-agent/myrm-agent-server/",
+        "myrm-agent-server/",
+    )
+    rel = file_part
+    for prefix in prefixes:
+        if rel.startswith(prefix):
+            rel = rel.removeprefix(prefix)
+            break
+    candidate = _SERVER_E2E_ROOT / rel
+    if candidate.is_file():
+        return candidate
+    return None
+
+
+def explicit_node_has_chrome_e2e_marker(path_arg: str) -> bool:
+    """True when path_arg selects a test function decorated with pytest.mark.chrome_e2e."""
+    if "::" not in path_arg:
+        return True
+    file_path = _resolve_chrome_e2e_test_path(path_arg)
+    if file_path is None:
+        return True
+    test_name = path_arg.split("::", 1)[1]
+    tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if node.name != test_name:
+            continue
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Call) and isinstance(
+                decorator.func, ast.Attribute
+            ):
+                if decorator.func.attr == "chrome_e2e":
+                    return True
+        return False
+    return False
 
 
 def pytest_argv_needs_live_chrome_e2e(
@@ -1473,8 +1504,12 @@ def pytest_argv_needs_live_chrome_e2e(
 
     Must not match unit-test node ids or -k filters that merely contain the substring
     ``chrome_e2e`` (R99 gate tests live under scripts/dev/tests/).
+
+    Explicit ``*_chrome_e2e.py::test_name`` node ids without ``@pytest.mark.chrome_e2e``
+    (integration-only signoff legs) do not require live Chrome attach / ADMIT.
     """
     next_is_marker = False
+    chrome_paths: list[str] = []
     for arg in argv:
         if next_is_marker:
             next_is_marker = False
@@ -1484,8 +1519,12 @@ def pytest_argv_needs_live_chrome_e2e(
         if arg in {"-m", "--markers"}:
             next_is_marker = True
             continue
+        if arg.startswith("-"):
+            continue
         if _CHROME_E2E_PYTEST_FILE.search(arg):
-            return True
+            chrome_paths.append(arg)
+    if chrome_paths:
+        return any(explicit_node_has_chrome_e2e_marker(path_arg) for path_arg in chrome_paths)
     if run_e2e_tests:
         return any(_CHROME_E2E_PYTEST_FILE.search(arg) for arg in argv)
     return False

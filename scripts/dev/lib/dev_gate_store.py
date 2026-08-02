@@ -378,7 +378,7 @@ class DevGateStore:
         now: float | None = None,
     ) -> SessionRecord:
         last_locked: sqlite3.OperationalError | None = None
-        for attempt in range(8):
+        for attempt in range(12):
             try:
                 return self._heartbeat_once(
                     session_id,
@@ -701,6 +701,42 @@ class DevGateStore:
             row = self._owned_row(connection, session_id, owner_token)
             current = SessionState(str(row["state"]))
             if current in TERMINAL_STATES:
+                if succeeded and current is SessionState.FAILED:
+                    prior_token = str(row["failure_token"] or "")
+                    try:
+                        cleanup = json.loads(str(row["cleanup_json"] or "{}"))
+                    except json.JSONDecodeError:
+                        cleanup = {}
+                    if (
+                        prior_token == "OWNER_EXITED"
+                        and cleanup.get("ledger_cleaned") is True
+                    ):
+                        version = int(row["version"]) + 1
+                        connection.execute(
+                            """
+                            UPDATE sessions SET state=?, version=?, outcome=?,
+                                failure_token='', phase_started_at=?, last_progress_at=?
+                            WHERE session_id=?
+                            """,
+                            (
+                                SessionState.SUCCEEDED.value,
+                                version,
+                                "PASSED",
+                                finished_at,
+                                finished_at,
+                                session_id,
+                            ),
+                        )
+                        self._event(
+                            connection,
+                            session_id=session_id,
+                            version=version,
+                            event_type="FINISH_OWNER_EXITED_RECOVERY",
+                            state=SessionState.SUCCEEDED,
+                            detail={"prior_failure_token": prior_token},
+                            now=finished_at,
+                        )
+                        return self._record(self._required_row(connection, session_id))
                 if succeeded and current is not SessionState.SUCCEEDED:
                     raise TerminalConflictError(
                         f"cannot finish succeeded: session already {current.value}"
@@ -792,6 +828,12 @@ class DevGateStore:
                 if owner_process_matches(pid=owner_pid, expected_start=owner_start):
                     continue
                 session_id = str(row["session_id"])
+                try:
+                    existing_cleanup = json.loads(str(row["cleanup_json"] or "{}"))
+                except json.JSONDecodeError:
+                    existing_cleanup = {}
+                if existing_cleanup.get("ledger_cleaned") is True:
+                    continue
                 version = int(row["version"]) + 1
                 cleanup = {
                     "closed_page_ids": [],

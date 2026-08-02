@@ -144,6 +144,7 @@ def cap_headroom_fields(
         parallel_snapshot=parallel_snapshot,
     )
     dev_gate = dev_gate_status()
+    registry_unknown = dev_gate.get("registry_observability") == "unknown"
     return {
         "waveLeasesActive": counts.total,
         "waveLeasesEffective": counts.effective_total,
@@ -161,6 +162,7 @@ def cap_headroom_fields(
         "privateCreditIdleReason": str(
             dev_gate.get("private_credit_idle_reason", "unknown")
         ),
+        "registryObservabilityUnknown": registry_unknown,
     }
 
 

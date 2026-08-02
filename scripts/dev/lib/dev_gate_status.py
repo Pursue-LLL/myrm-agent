@@ -14,10 +14,9 @@ from private_resource_controller import (
 from desktop_seat_controller import DesktopSeatController, desktop_seat_capacity
 
 
-def _dev_gate_status_once() -> dict[str, object]:
-    database = default_store_path()
+def _unavailable_registry_status(*, registry_error: str = "") -> dict[str, object]:
     capacity = private_capacity_credits()
-    unavailable: dict[str, object] = {
+    payload: dict[str, object] = {
         "shared_unlimited": True,
         "shared_active": 0,
         "private_active": 0,
@@ -25,19 +24,27 @@ def _dev_gate_status_once() -> dict[str, object]:
         "private_active_credits": 0,
         "private_capacity_credits": capacity,
         "private_available_credits": capacity,
-        "private_credit_idle_reason": "available",
+        "private_credit_idle_reason": "unknown",
         "desktop_active_seats": 0,
         "desktop_waiting": 0,
         "desktop_capacity_seats": desktop_seat_capacity(),
         "sessions": [],
         "reaped_session_ids": [],
+        "registry_observability": "unknown",
     }
+    if registry_error:
+        payload["registry_error"] = registry_error
+    return payload
+
+
+def _dev_gate_status_once() -> dict[str, object]:
+    database = default_store_path()
     if not database.is_file():
-        return unavailable
+        return _unavailable_registry_status()
     try:
         store = DevGateStore(database)
     except (OSError, PermissionError):
-        return unavailable
+        return _unavailable_registry_status()
     sessions = store.list_active()
     controller = PrivateResourceController(
         store,
@@ -77,19 +84,21 @@ def _dev_gate_status_once() -> dict[str, object]:
         "desktop_capacity_seats": int(desktop.get("capacity_seats", 0)),
         "sessions": [record.to_dict() for record in sessions],
         "reaped_session_ids": [],
+        "registry_observability": "ok",
     }
 
 
 def dev_gate_status() -> dict[str, object]:
     last_error: sqlite3.OperationalError | None = None
-    for attempt in range(8):
+    for attempt in range(12):
         try:
             return _dev_gate_status_once()
         except sqlite3.OperationalError as exc:
-            if "locked" not in str(exc).lower() or attempt >= 7:
+            if "locked" not in str(exc).lower():
                 raise
             last_error = exc
+            if attempt >= 11:
+                break
             time.sleep(min(0.25 * (2**attempt), 2.0))
-    if last_error is not None:
-        raise last_error
-    raise RuntimeError("dev_gate_status retry exhausted without result")
+    error_text = str(last_error) if last_error is not None else "database_locked"
+    return _unavailable_registry_status(registry_error=error_text)
