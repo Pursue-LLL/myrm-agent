@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconBan, IconFolder, IconGlobe, IconPlus, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
+import { IconBan, IconFolder, IconGlobe, IconPlus, IconShieldAlert, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
 import { DOMAIN_PATTERN } from '../../system/securityPolicyUtils';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
@@ -30,6 +30,7 @@ interface SecurityOverridesData {
   networkBlocklist: string[];
   commandDenylist: string[];
   domainHitlEnabled: boolean;
+  injectionPolicy: 'log_only' | 'fail_closed' | null;
 }
 
 const EMPTY_DATA: SecurityOverridesData = {
@@ -40,6 +41,7 @@ const EMPTY_DATA: SecurityOverridesData = {
   networkBlocklist: [],
   commandDenylist: [],
   domainHitlEnabled: false,
+  injectionPolicy: null,
 };
 
 function normalizeDomainInput(raw: string): string {
@@ -65,6 +67,8 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
   const cmdDenylist = Array.isArray(raw.commandDenylist) ? (raw.commandDenylist as string[]) : [];
 
   const domainHitl = raw.domainHitlEnabled === true;
+  const injPolicy = raw.injectionPolicy === 'fail_closed' ? 'fail_closed' as const
+    : raw.injectionPolicy === 'log_only' ? 'log_only' as const : null;
 
   return {
     capabilities: caps,
@@ -74,6 +78,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
     networkBlocklist: blocklist,
     commandDenylist: cmdDenylist,
     domainHitlEnabled: domainHitl,
+    injectionPolicy: injPolicy,
   };
 }
 
@@ -85,7 +90,8 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
     data.networkAllowlist.length > 0 ||
     data.networkBlocklist.length > 0 ||
     data.commandDenylist.length > 0 ||
-    data.domainHitlEnabled;
+    data.domainHitlEnabled ||
+    data.injectionPolicy !== null;
 
   if (!hasContent) return null;
 
@@ -97,6 +103,7 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
   if (data.networkBlocklist.length > 0) result.networkBlocklist = data.networkBlocklist;
   if (data.commandDenylist.length > 0) result.commandDenylist = data.commandDenylist;
   if (data.domainHitlEnabled) result.domainHitlEnabled = true;
+  if (data.injectionPolicy !== null) result.injectionPolicy = data.injectionPolicy;
   return result;
 }
 
@@ -528,6 +535,27 @@ export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: Agen
             {t('noCommandDenylist', { default: 'No command restrictions — uses global policy only.' })}
           </p>
         )}
+      </div>
+
+      {/* Injection Policy */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <IconShieldAlert className="h-4 w-4 text-amber-500" />
+              {t('injectionPolicyTitle', { default: 'Prompt Injection Guard' })}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {t('injectionPolicyDesc', {
+                default: 'Block high-threat prompt injection patterns for this agent. Merges with global policy using OR semantics (either side enabling blocking wins).',
+              })}
+            </p>
+          </div>
+          <Switch
+            checked={data.injectionPolicy === 'fail_closed'}
+            onCheckedChange={(checked) => update({ injectionPolicy: checked ? 'fail_closed' : 'log_only' })}
+          />
+        </div>
       </div>
 
       {/* Approval Timeout */}

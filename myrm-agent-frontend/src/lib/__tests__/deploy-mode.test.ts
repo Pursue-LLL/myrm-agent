@@ -5,6 +5,8 @@ import {
   getBackendBaseUrl,
   getDocsUrl,
   getNotificationStreamUrl,
+  getRemoteGatewayConfig,
+  isRemoteGatewayActive,
 } from '@/lib/deploy-mode';
 import { getWsUrl } from '@/lib/api';
 
@@ -172,5 +174,182 @@ describe('deploy-mode base url resolution', () => {
       configurable: true,
       value: originalWindow,
     });
+  });
+});
+
+// ── Remote Gateway ──────────────────────────────────────────────────────────
+
+describe('remote gateway config', () => {
+  const originalWindow = globalThis.window;
+
+  function makeTauriWindow(storageEntries: Record<string, string> = {}) {
+    const store = new Map(Object.entries(storageEntries));
+    return {
+      __TAURI__: {},
+      location: { hostname: 'desktop.myrm.local' },
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      },
+    };
+  }
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
+  it('returns null when no remote gateway is configured', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow(),
+    });
+    expect(getRemoteGatewayConfig()).toBeNull();
+    expect(isRemoteGatewayActive()).toBe(false);
+  });
+
+  it('parses valid remote gateway config from localStorage', () => {
+    const cfg = JSON.stringify({ enabled: true, url: 'https://remote.example.com' });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow({ 'myrm-remote-gateway': cfg }),
+    });
+    const result = getRemoteGatewayConfig();
+    expect(result).toEqual({ enabled: true, url: 'https://remote.example.com' });
+    expect(isRemoteGatewayActive()).toBe(true);
+  });
+
+  it('rejects disabled remote gateway config', () => {
+    const cfg = JSON.stringify({ enabled: false, url: 'https://remote.example.com' });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow({ 'myrm-remote-gateway': cfg }),
+    });
+    expect(getRemoteGatewayConfig()).toBeNull();
+    expect(isRemoteGatewayActive()).toBe(false);
+  });
+
+  it('rejects invalid protocol in remote gateway url', () => {
+    const cfg = JSON.stringify({ enabled: true, url: 'ftp://remote.example.com' });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow({ 'myrm-remote-gateway': cfg }),
+    });
+    expect(getRemoteGatewayConfig()).toBeNull();
+  });
+
+  it('rejects malformed JSON in remote gateway storage', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow({ 'myrm-remote-gateway': 'not-json' }),
+    });
+    expect(getRemoteGatewayConfig()).toBeNull();
+  });
+
+  it('strips trailing slashes from remote gateway url', () => {
+    const cfg = JSON.stringify({ enabled: true, url: 'https://remote.example.com///' });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindow({ 'myrm-remote-gateway': cfg }),
+    });
+    const result = getRemoteGatewayConfig();
+    expect(result?.url).toBe('https://remote.example.com');
+  });
+
+  it('returns false for isRemoteGatewayActive in non-Tauri environment', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: { hostname: 'localhost' },
+        localStorage: {
+          getItem: () => JSON.stringify({ enabled: true, url: 'https://remote.example.com' }),
+          setItem: () => undefined,
+          removeItem: () => undefined,
+        },
+      },
+    });
+    expect(isRemoteGatewayActive()).toBe(false);
+  });
+
+  it('returns null for getRemoteGatewayConfig during SSR', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: undefined,
+    });
+    expect(getRemoteGatewayConfig()).toBeNull();
+  });
+});
+
+describe('remote gateway URL routing', () => {
+  const originalWindow = globalThis.window;
+  const originalEnv = snapshotEnv();
+
+  function makeTauriWindowWithRemote(remoteUrl: string) {
+    const cfg = JSON.stringify({ enabled: true, url: remoteUrl });
+    const store = new Map([['myrm-remote-gateway', cfg]]);
+    return {
+      __TAURI__: {},
+      location: { hostname: 'desktop.myrm.local' },
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+      },
+    };
+  }
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+    restoreEnv(originalEnv);
+  });
+
+  it('routes API calls to remote server when gateway is active', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: makeTauriWindowWithRemote('https://my-vps.example.com'),
+    });
+
+    expect(getApiBaseUrl()).toBe('https://my-vps.example.com/api/v1');
+    expect(getBackendBaseUrl()).toBe('https://my-vps.example.com');
+    expect(getAgentApiBaseUrl()).toBe('https://my-vps.example.com/v1');
+    expect(getNotificationStreamUrl()).toBe('https://my-vps.example.com/api/v1/notifications/stream');
+  });
+
+  it('E2E override takes priority over remote gateway', () => {
+    const tauriWin = makeTauriWindowWithRemote('https://my-vps.example.com');
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        ...tauriWin,
+        __MYRM_E2E_API_BASE__: 'http://127.0.0.1:19999/',
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:19999/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:19999');
+  });
+
+  it('falls back to local backend when remote gateway is removed', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __TAURI__: {},
+        location: { hostname: 'desktop.myrm.local' },
+        localStorage: {
+          getItem: () => null,
+          setItem: () => undefined,
+          removeItem: () => undefined,
+        },
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:8080/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:8080');
   });
 });

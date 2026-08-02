@@ -19,21 +19,22 @@ import json
 import logging
 import os
 import socket
+import tempfile
 import time
 from pathlib import Path
 from typing import TypedDict
 
 _LOGGER = logging.getLogger(__name__)
 
-_SOCKET_PATH = os.environ.get(
-    "BROWSER_ORCHESTRATOR_SOCKET",
-    str(
-        Path(
-            os.environ.get("XDG_RUNTIME_DIR", f"/tmp/mux-{os.getuid()}")
-        )
-        / "browser-orchestrator.sock"
-    ),
-)
+
+def _default_socket_path() -> str:
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "").strip()
+    if not runtime:
+        runtime = os.path.join(tempfile.gettempdir(), f"mux-{os.getuid()}")
+    return str(Path(runtime) / "browser-orchestrator.sock")
+
+
+_SOCKET_PATH = os.environ.get("BROWSER_ORCHESTRATOR_SOCKET", _default_socket_path())
 _REQUEST_TIMEOUT_SEC = 30.0
 _CONNECT_TIMEOUT_SEC = 5.0
 
@@ -43,6 +44,7 @@ class SessionResult(TypedDict):
 
 
 class PageResult(TypedDict):
+    pageId: int
     targetId: str
 
 
@@ -96,10 +98,8 @@ class BrowserOrchestratorClient:
 
     def create_page(self, session_id: str, url: str = "") -> PageResult:
         """Create a new page in the session's BrowserContext."""
-        result = self._request(
-            "page/create", {"sessionId": session_id, "url": url}
-        )
-        return PageResult(targetId=result["targetId"])
+        result = self._request("page/create", {"sessionId": session_id, "url": url})
+        return PageResult(pageId=result["pageId"], targetId=result["targetId"])
 
     def close_page(self, session_id: str, target_id: str) -> CloseResult:
         """Close a specific page by target ID."""
@@ -107,6 +107,30 @@ class BrowserOrchestratorClient:
             "page/close", {"sessionId": session_id, "targetId": target_id}
         )
         return CloseResult(closed=result.get("closed", False))
+
+    def navigate_page(
+        self, session_id: str, target_id: str, url: str
+    ) -> dict[str, object]:
+        """Navigate an owned page to ``url``."""
+        result = self._request(
+            "page/navigate",
+            {"sessionId": session_id, "targetId": target_id, "url": url},
+        )
+        return {"ok": bool(result.get("ok", False))}
+
+    def evaluate_page(
+        self, session_id: str, target_id: str, expression: str
+    ) -> dict[str, object]:
+        """Evaluate JavaScript in an owned page."""
+        result = self._request(
+            "page/evaluate",
+            {
+                "sessionId": session_id,
+                "targetId": target_id,
+                "expression": expression,
+            },
+        )
+        return {"value": result.get("value")}
 
     def cleanup_seal(self, session_id: str) -> CleanupSealResult | None:
         """Verify cleanup seal: check if all targets are physically absent."""
@@ -140,9 +164,7 @@ class BrowserOrchestratorClient:
         except (OSError, TimeoutError, RuntimeError):
             return False
 
-    def _request(
-        self, method: str, params: dict[str, object]
-    ) -> dict[str, object]:
+    def _request(self, method: str, params: dict[str, object]) -> dict[str, object]:
         req_id = self._next_id
         self._next_id += 1
         payload = json.dumps(
@@ -192,9 +214,7 @@ class BrowserOrchestratorClient:
             f"Browser Orchestrator response timeout ({self._timeout_sec}s)"
         )
 
-    def _parse_response(
-        self, line: str, expected_id: int
-    ) -> dict[str, object]:
+    def _parse_response(self, line: str, expected_id: int) -> dict[str, object]:
         try:
             msg = json.loads(line)
         except json.JSONDecodeError as exc:
@@ -208,9 +228,7 @@ class BrowserOrchestratorClient:
             )
         if "error" in msg:
             err = msg["error"]
-            raise RuntimeError(
-                f"Browser Orchestrator error: {err.get('message', err)}"
-            )
+            raise RuntimeError(f"Browser Orchestrator error: {err.get('message', err)}")
         return msg.get("result", {})
 
     @property

@@ -60,15 +60,18 @@ def test_uninstall_pet_removes_directory(pet_data_dir: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_install_pet_downloads_and_persists(pet_data_dir: Path) -> None:
+    from PIL import Image
+
     manifest_entry = {
         "slug": "nous-girl",
         "displayName": "Nous Girl",
         "spritesheetUrl": "https://petdex.dev/pets/nous-girl/spritesheet.webp",
     }
 
-    async def fake_download(url: str, dest: Path) -> None:
+    async def fake_download(_url: str, dest: Path) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(b"downloaded-webp")
+        image = Image.new("RGBA", (1536, 1872), (0, 0, 0, 0))
+        image.save(dest, format="WEBP")
 
     with (
         patch(
@@ -102,6 +105,34 @@ async def test_install_pet_is_idempotent_without_force(pet_data_dir: Path) -> No
 
     assert installed.slug == "cached-pet"
     assert installed.content_sha256 == "cached-sha"
+
+
+@pytest.mark.asyncio
+async def test_install_pet_rejects_invalid_atlas(pet_data_dir: Path) -> None:
+    from PIL import Image
+
+    manifest_entry = {
+        "slug": "bad-pet",
+        "displayName": "Bad Pet",
+        "spritesheetUrl": "https://petdex.dev/pets/bad-pet/spritesheet.webp",
+    }
+
+    async def fake_download(_url: str, dest: Path) -> None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        image = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+        image.save(dest, format="WEBP")
+
+    with (
+        patch(
+            "app.services.companion.pet_store._find_manifest_entry",
+            new=AsyncMock(return_value=manifest_entry),
+        ),
+        patch("app.services.companion.pet_store._download_url", side_effect=fake_download),
+    ):
+        with pytest.raises(PetStoreError, match="Spritesheet|Invalid|grid"):
+            await install_pet("bad-pet")
+
+    assert load_pet("bad-pet") is None
 
 
 @pytest.mark.asyncio

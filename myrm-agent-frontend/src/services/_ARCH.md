@@ -54,6 +54,7 @@
 | `templateDiscovery.ts` | 模板发现层共享纯函数：检索标准化、命中过滤、模板类别归一化（TemplateMarket 与 FlowPad 复用，避免口径漂移）。 |
 | `templateSummon.ts` | 模板召唤共享执行层：统一实例化 + 观测事件写入（attempt/success/fail），收敛 TemplateMarket 与 FlowPad 的重复逻辑。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
+| `companion/` | Petdex 客户端 · [_ARCH.md](companion/_ARCH.md)（install/doctor/spritesheet/i18n core） |
 
 ## 依赖
 

@@ -268,7 +268,22 @@ def _active_lease(payload: object, lease_id: str) -> _LeasePayload | None:
     return None
 
 
-def require_e2e_runtime_lease(
+def _heal_stale_e2e_lease() -> None:
+    """Best-effort heal when parallel wave reap races pytest fixture setup."""
+    lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
+    if not lease_id:
+        return
+    dev_lib = str(_DEV_LIB)
+    if dev_lib not in sys.path:
+        sys.path.insert(0, dev_lib)
+    from e2e_lease_runtime_sync import sync_lease_runtime_with_shared_hot
+
+    sync_lease_runtime_with_shared_hot(lease_id=lease_id)
+    heartbeat_e2e_lease()
+    time.sleep(0.25)
+
+
+def _require_e2e_runtime_lease_once(
     *,
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> E2ERuntimeLease:
@@ -344,6 +359,26 @@ def require_e2e_runtime_lease(
         runtime_id_reader=runtime_id_reader,
     )
     return E2ERuntimeLease(lease_id=lease_id, runtime_id=expected, lane=expected_lane)
+
+
+def require_e2e_runtime_lease(
+    *,
+    runtime_id_reader: Callable[[], str] = _runtime_id_reader,
+) -> E2ERuntimeLease:
+    last_error: RuntimeError | None = None
+    for attempt in range(3):
+        try:
+            return _require_e2e_runtime_lease_once(runtime_id_reader=runtime_id_reader)
+        except RuntimeError as exc:
+            last_error = exc
+            message = str(exc)
+            retryable = "is not active" in message or "is expired" in message
+            if not retryable or attempt >= 2:
+                raise
+            _heal_stale_e2e_lease()
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("E2E_LEASE_INVALID: lease validation failed")
 
 
 def assert_e2e_runtime_unchanged(

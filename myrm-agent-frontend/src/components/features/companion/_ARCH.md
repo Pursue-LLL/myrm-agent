@@ -23,7 +23,8 @@
 | `PetGallery.tsx`        | 辅助 | Petdex 图鉴编排：GET 已安装行 + spriteConfig 同步 + generation 守卫 refetch + manifest fail-open |
 | `InstalledPetRow.tsx`   | 辅助 | Volume 已安装宠物 chip 行（本地 spritesheet，点击切换；触屏可见菜单移除） |
 | `PetGalleryThumb.tsx`   | 辅助 | IntersectionObserver 懒加载 canvas 缩略图 |
-| `petGalleryManifest.ts` | 辅助 | petdex.dev manifest 获取与 session 缓存 |
+| `petGalleryManifest.ts` | 辅助 | petdex.dev manifest 获取与 session 缓存；curated 推导 + rankManifestPets |
+| `CompanionPetDoctorPanel.tsx` | 辅助 | GUI sprite 健康检查（Gallery 内嵌；server checks i18n + store 打开 Palette） |
 | `PetPalette.tsx`        | 辅助 | 会话内宠物面板（`/pet` slash 打开；Dialog/Sheet + 当前宠物 + 图鉴嵌入） |
 | `CompanionXpBar.tsx`    | 辅助 | XP 进度条组件                                                                   |
 

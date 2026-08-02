@@ -245,6 +245,10 @@ export interface SessionAnalytics {
   context_health: ContextHealth;
   token_economics?: TokenEconomicsSnapshot;
   streamTtft?: StreamTtftStats;
+  security_audit?: {
+    total: number;
+    breakdown: Record<string, number>;
+  };
 }
 
 export interface TokenEconomicsSnapshot {

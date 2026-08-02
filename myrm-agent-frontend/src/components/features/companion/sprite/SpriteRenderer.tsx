@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -21,6 +22,8 @@ interface SpriteRendererProps {
   className?: string;
   /** Called when load state changes. */
   onLoadStateChange?: (state: SpriteLoadState) => void;
+  /** Called when user requests health check from error fallback. */
+  onHealthCheckRequest?: () => void;
   /** Called with detected grid rows after sheet loads (for dynamic row mapping). */
   onSheetRowsDetected?: (rows: number) => void;
   /** Called when the canvas element mounts (alpha hit-testing in popped-out window). */
@@ -47,9 +50,11 @@ export default function SpriteRenderer({
   meta,
   className,
   onLoadStateChange,
+  onHealthCheckRequest,
   onSheetRowsDetected,
   onCanvasRef,
 }: SpriteRendererProps) {
+  const t = useTranslations('companion');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SpriteEngine | null>(null);
   const [loadState, setLoadState] = useState<SpriteLoadState>('idle');
@@ -142,7 +147,21 @@ export default function SpriteRenderer({
           )}
         >
           {loadState === 'error' && (
-            <span className="text-xs text-destructive">!</span>
+            <div className="flex flex-col items-center gap-0.5 px-1">
+              <span className="text-xs text-destructive">!</span>
+              {onHealthCheckRequest && (
+                <button
+                  type="button"
+                  className="text-[9px] text-destructive underline-offset-2 hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onHealthCheckRequest();
+                  }}
+                >
+                  {t('doctor.openFromSprite')}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

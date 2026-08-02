@@ -38,6 +38,12 @@ class SessionState(StrEnum):
 TERMINAL_STATES = frozenset(
     {SessionState.SUCCEEDED, SessionState.FAILED, SessionState.CANCELLED}
 )
+
+
+class TerminalConflictError(ValueError):
+    """Raised when finish would contradict an existing terminal session state."""
+
+
 _TRANSITIONS: dict[SessionState, frozenset[SessionState]] = {
     SessionState.SUBMITTED: frozenset(
         {SessionState.PRIVATE_ADMIT, SessionState.PREPARING, SessionState.CANCELLED}
@@ -100,6 +106,7 @@ class CleanupReceipt:
     released_lease_id: str = ""
     released_runtime_id: str = ""
     ledger_cleaned: bool = False
+    physical_released: bool | None = None
     sealed: bool = False
     requested_at: float = 0.0
     observed_at: float = 0.0

@@ -1,8 +1,8 @@
 /**
  * [INPUT]
  * - `@/lib/backend-health` (`checkBackendReadyOnce`)
- * - `@/lib/deploy-mode` (`isLocalMode`)
- * - `next-intl` (`common.configLoadError`, `common.close`)
+ * - `@/lib/deploy-mode` (`isLocalMode`, `isRemoteGatewayActive`, `setRemoteGatewayConfig`, `getRemoteGatewayConfig`)
+ * - `next-intl` (`common.configLoadError`, `common.close`, `common.remoteGateway`)
  *
  * [OUTPUT]
  * - `LocalBackendUnavailableBanner`: local 模式主内容区顶部告警条
@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
 import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-backend-e2e-probe';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, isRemoteGatewayActive, setRemoteGatewayConfig, getRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -53,18 +53,32 @@ interface LocalBackendUnavailableBannerProps {
 export default function LocalBackendUnavailableBanner({ className }: LocalBackendUnavailableBannerProps) {
   const tHint = useTranslations('common.configLoadError');
   const tCommon = useTranslations('common');
+  const tRemote = useTranslations('common.remoteGateway');
   const [visible, setVisible] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [isRemote, setIsRemote] = useState(false);
+
+  const handleSwitchToLocal = useCallback(() => {
+    setRemoteGatewayConfig(null);
+    window.location.reload();
+  }, []);
 
   useEffect(() => {
-    if (!isLocalMode() || isLocalBackendBannerDismissed()) {
+    const remoteActive = isRemoteGatewayActive();
+    setIsRemote(remoteActive);
+
+    if (!isLocalMode() && !remoteActive) {
+      return undefined;
+    }
+
+    if (!remoteActive && isLocalBackendBannerDismissed()) {
       return undefined;
     }
 
     let cancelled = false;
 
     void (async () => {
-      if (isChromeE2eTab()) {
+      if (!remoteActive && isChromeE2eTab()) {
         const bound = await waitForChromeE2eBackendBinding();
         if (cancelled) {
           return;
@@ -78,9 +92,17 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       if (cancelled || ready) {
         return;
       }
-      const setupHint = await resolveLocalBackendSetupHint(tHint);
-      if (!cancelled) {
+
+      if (remoteActive) {
+        const cfg = getRemoteGatewayConfig();
+        const host = cfg ? new URL(cfg.url).host : '';
+        setHint(tRemote('unreachable', { host }));
+      } else {
+        const setupHint = await resolveLocalBackendSetupHint(tHint);
         setHint(setupHint);
+      }
+
+      if (!cancelled) {
         setVisible(true);
       }
     })();
@@ -88,7 +110,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
     return () => {
       cancelled = true;
     };
-  }, [tHint]);
+  }, [tHint, tRemote]);
 
   useEffect(() => {
     if (!visible) {
@@ -144,7 +166,18 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       )}
     >
       <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
-      <p className="min-w-0 flex-1 whitespace-pre-line font-mono">{hint}</p>
+      <div className="min-w-0 flex-1">
+        <p className="whitespace-pre-line font-mono">{hint}</p>
+        {isRemote && (
+          <button
+            type="button"
+            onClick={handleSwitchToLocal}
+            className="mt-2 text-xs font-medium underline underline-offset-2 hover:no-underline"
+          >
+            {tRemote('switchToLocal')}
+          </button>
+        )}
+      </div>
       <button
         type="button"
         onClick={handleDismiss}

@@ -242,8 +242,14 @@ export const fetchWithTimeout = async (
     const response = await fetch(url, fetchOptions);
 
     // 全局 401/403 强制登出拦截 (底层 Fetch 拦截)
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       redirectToLoginAfterAuthFailure();
+    } else if (response.status === 403) {
+      const companionFeatureGate =
+        typeof url === 'string' && url.includes('/companion/');
+      if (!companionFeatureGate) {
+        redirectToLoginAfterAuthFailure();
+      }
     }
 
     if (

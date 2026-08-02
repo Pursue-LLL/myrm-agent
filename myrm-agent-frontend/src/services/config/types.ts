@@ -382,6 +382,7 @@ export interface SecurityConfigValue {
   networkBlocklist?: string[];
   commandDenylist?: string[];
   domainHitlEnabled?: boolean;
+  injectionPolicy?: 'log_only' | 'fail_closed';
   planConfirmEnabled?: boolean;
   yoloModeEnabled?: boolean;
   yoloModeEnabledAt?: number;

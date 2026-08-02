@@ -124,10 +124,7 @@ class CdpChatTurn(CdpChatSubmit):
                 except OSError:
                     api_ok = False
                 if api_ok and bridge_id == chat_id:
-                    if (
-                        not is_live_send_turn_profile()
-                        and ui_progress
-                    ):
+                    if not is_live_send_turn_profile() and ui_progress:
                         last["chatId"] = chat_id
                         last["okViaApi"] = True
                         return last

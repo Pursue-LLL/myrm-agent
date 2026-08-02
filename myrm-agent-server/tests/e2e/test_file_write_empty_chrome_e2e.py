@@ -304,7 +304,9 @@ def _seed_file_mutation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_shows_mutation_warning_banner() -> None:
@@ -377,7 +379,9 @@ def test_file_write_empty_shows_mutation_warning_banner() -> None:
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_mutation_banner_survives_page_reload() -> None:
@@ -581,7 +585,9 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio

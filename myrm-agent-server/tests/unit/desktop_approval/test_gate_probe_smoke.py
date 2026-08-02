@@ -189,7 +189,12 @@ def test_record_synthetic_dref_fallback_raises_when_budget_exceeded() -> None:
 def test_merge_desktop_progress_preserves_api_wall_timeout_err() -> None:
     merged = _merge_desktop_progress(
         {"active": False, "lastTool": "", "stepCount": 0},
-        {"active": False, "lastTool": "", "stepCount": 0, "err": "api-progress-wall-timeout"},
+        {
+            "active": False,
+            "lastTool": "",
+            "stepCount": 0,
+            "err": "api-progress-wall-timeout",
+        },
     )
     assert merged.get("err") == "api-progress-wall-timeout"
 

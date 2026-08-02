@@ -24,8 +24,11 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from app.services.companion.pet_atlas import AtlasReport
 
 import httpx
 
@@ -51,6 +54,8 @@ class InstalledPet:
     directory: Path
     spritesheet: Path
     content_sha256: str
+    format_label: str | None = None
+    format_tier: str | None = None
 
     @property
     def exists(self) -> bool:
@@ -158,6 +163,44 @@ async def _download_url(url: str, dest: Path) -> None:
                     handle.write(chunk)
 
 
+def _atlas_fields_from_meta(meta: dict[str, Any]) -> tuple[str | None, str | None]:
+    atlas_raw = meta.get("atlasReport")
+    if not isinstance(atlas_raw, dict):
+        return None, None
+    label = atlas_raw.get("label")
+    tier = atlas_raw.get("formatTier") or atlas_raw.get("format_tier")
+    return (
+        str(label) if isinstance(label, str) and label.strip() else None,
+        str(tier) if isinstance(tier, str) and tier.strip() else None,
+    )
+
+
+def persist_atlas_report(slug: str, report: AtlasReport) -> None:
+    """Write a fresh atlas report into pet.json for the given installed pet."""
+    from app.services.companion.pet_atlas import atlas_report_dict
+
+    normalized = _safe_slug(slug)
+    if not normalized:
+        return
+    pet = load_pet(normalized)
+    if pet is None:
+        return
+    pet_json = pet.directory / "pet.json"
+    meta: dict[str, Any] = {}
+    if pet_json.is_file():
+        try:
+            loaded = json.loads(pet_json.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                meta = loaded
+        except (OSError, ValueError) as exc:
+            logger.warning("Could not read pet.json for atlas persist (%s): %s", normalized, exc)
+    meta["atlasReport"] = atlas_report_dict(report)
+    try:
+        pet_json.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not persist atlas report for %s: %s", normalized, exc)
+
+
 def load_pet(slug: str) -> InstalledPet | None:
     normalized = _safe_slug(slug)
     if not normalized:
@@ -179,12 +222,15 @@ def load_pet(slug: str) -> InstalledPet | None:
     if not sha:
         sha = _sha256_file(spritesheet)
     display_name = str(meta.get("displayName", "") or normalized)
+    format_label, format_tier = _atlas_fields_from_meta(meta)
     return InstalledPet(
         slug=normalized,
         display_name=display_name,
         directory=directory,
         spritesheet=spritesheet,
         content_sha256=sha,
+        format_label=format_label,
+        format_tier=format_tier,
     )
 
 
@@ -224,6 +270,19 @@ async def install_pet(slug: str, *, force: bool = False) -> InstalledPet:
     sprite_path = directory / f"spritesheet{ext}"
 
     await _download_url(spritesheet_url, sprite_path)
+
+    from app.services.companion.pet_atlas import FormatTier, analyze_spritesheet, atlas_report_dict
+
+    try:
+        atlas_report = analyze_spritesheet(sprite_path)
+    except ValueError as exc:
+        sprite_path.unlink(missing_ok=True)
+        raise PetStoreError(f"spritesheet validation failed: {exc}") from exc
+
+    if atlas_report.format_tier == FormatTier.FAIL:
+        sprite_path.unlink(missing_ok=True)
+        raise PetStoreError(atlas_report.message)
+
     content_sha256 = _sha256_file(sprite_path)
 
     display_name = str(entry.get("displayName", "") or normalized)
@@ -234,6 +293,7 @@ async def install_pet(slug: str, *, force: bool = False) -> InstalledPet:
         "contentSha256": content_sha256,
         "sourceUrl": spritesheet_url,
         "installedAt": int(time.time()),
+        "atlasReport": atlas_report_dict(atlas_report),
     }
     (directory / "pet.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -243,6 +303,8 @@ async def install_pet(slug: str, *, force: bool = False) -> InstalledPet:
         directory=directory,
         spritesheet=sprite_path,
         content_sha256=content_sha256,
+        format_label=atlas_report.label,
+        format_tier=atlas_report.format_tier.value,
     )
     logger.info("Installed companion pet slug=%s sha=%s", normalized, content_sha256[:12])
     return installed

@@ -20,14 +20,7 @@ export type AssessmentImportMetricEventType =
   | 'import_succeeded'
   | 'import_failed'
   | 'dropped_report';
-export type AssessmentImportFailureReason =
-  | 'artifact_version_already_imported'
-  | 'no_actionable_tasks'
-  | 'no_importable_tasks'
-  | 'artifact_not_found'
-  | 'project_not_found'
-  | 'network_error'
-  | 'unknown_error';
+export type { AssessmentImportFailureReason } from '../components/features/sidebar/assessmentImportError';
 
 interface AssessmentImportMetricEventPayload {
   event_type: AssessmentImportMetricEventType;

@@ -26,6 +26,7 @@ import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
 import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
+import ServerConnectionCard from './ServerConnectionCard';
 import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
 import SandboxResetCard from './SandboxResetCard';
@@ -656,6 +657,9 @@ const SystemSection = memo(() => {
 
         <AccessCard config={config} localIP={localIP} ingressSnapshot={ingressSnapshot} />
       </section>
+
+      {/* Server Connection (Remote Gateway) */}
+      <ServerConnectionCard />
 
       {/* Push Notifications */}
       <PushNotificationCard />

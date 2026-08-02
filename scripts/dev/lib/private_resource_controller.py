@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT
 from dev_gate_session import SessionState
-from dev_gate_store import DevGateStore
+from dev_gate_store import DevGateStore, _begin_immediate
 
 PRIVATE_ADMIT_TIMEOUT_SEC = 900.0
 PRIVATE_QUEUE_PROGRESS_SEC = 30.0
@@ -80,11 +80,11 @@ class PrivateResourceController:
             connection.executescript(_QUEUE_SCHEMA)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.store.path, timeout=10.0)
+        connection = sqlite3.connect(self.store.path, timeout=30.0)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA busy_timeout=10000")
+        connection.execute("PRAGMA busy_timeout=60000")
         return connection
 
     def admit(
@@ -96,7 +96,7 @@ class PrivateResourceController:
     ) -> PrivateAdmission:
         admitted_at = time.time() if now is None else now
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
             session = self._owned_private_session(connection, session_id, owner_token)
             connection.execute(
@@ -171,7 +171,7 @@ class PrivateResourceController:
     ) -> tuple[str, ...]:
         released_at = time.time() if now is None else now
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._queue_row(connection, session_id)
             if str(row["owner_token"]) != owner_token:
                 raise PermissionError(f"private admission owner mismatch: {session_id}")
@@ -186,18 +186,31 @@ class PrivateResourceController:
 
     def snapshot(self, *, now: float | None = None) -> dict[str, object]:
         captured_at = time.time() if now is None else now
-        with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            self._release_terminal_sessions(connection, captured_at)
-            active = self._active_credits(connection)
-            waiting = connection.execute(
-                """
-                SELECT session_id, credits, priority, enqueued_at
-                FROM private_admission
-                WHERE granted_at IS NULL AND released_at IS NULL
-                ORDER BY enqueued_at, session_id
-                """
-            ).fetchall()
+        last_error: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            try:
+                with self._connect() as connection:
+                    _begin_immediate(connection)
+                    self._release_terminal_sessions(connection, captured_at)
+                    active = self._active_credits(connection)
+                    waiting = connection.execute(
+                        """
+                        SELECT session_id, credits, priority, enqueued_at
+                        FROM private_admission
+                        WHERE granted_at IS NULL AND released_at IS NULL
+                        ORDER BY enqueued_at, session_id
+                        """
+                    ).fetchall()
+                break
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() or attempt >= 7:
+                    raise
+                last_error = exc
+                time.sleep(min(0.25 * (2**attempt), 2.0))
+        else:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("private admission snapshot failed")
         available = max(0, self.capacity_credits - active)
         idle_reason = self._credit_idle_reason(
             active_credits=active,

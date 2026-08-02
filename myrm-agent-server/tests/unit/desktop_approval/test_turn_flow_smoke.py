@@ -32,7 +32,9 @@ class _ForceShellChat:
             return
         return
 
-    async def wait_shell_ready(self, *, timeout_sec: float, require_bridge: bool) -> None:
+    async def wait_shell_ready(
+        self, *, timeout_sec: float, require_bridge: bool
+    ) -> None:
         _ = timeout_sec
         _ = require_bridge
 
@@ -149,7 +151,9 @@ async def test_complete_turn_after_approval_recovers_on_empty_snapshot(
     monkeypatch.setattr(turn_flow, "wait_stream_done_with_marker", _wait_done)
     monkeypatch.setattr(turn_flow, "_ensure_chat_route", _ensure_route)
     monkeypatch.setattr(turn_flow, "resolve_chat_id", _resolve_chat_id)
-    monkeypatch.setattr(turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1)
+    monkeypatch.setattr(
+        turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1
+    )
     chat = object()
     chat_id = await complete_turn_after_approval(  # type: ignore[arg-type]
         chat,
@@ -165,12 +169,17 @@ def test_turn_flow_seeded_resend_api_kickoff_ssot() -> None:
     assert "R232 mux-bypass" in text
     assert "R233 api-primary DONE wait" in text
     assert "api_primary_done=seeded_api_kickoff" in text
+    assert "R264 CDP resend transport fail" in text
+    assert "run_r262_chain" in text
     seeded_block = text.split("seeded pending fallback approval", maxsplit=1)[1]
     seeded_block = seeded_block.split("if not kickoff_ok:")[0]
-    assert "await chat.ensure_react_e2e_bridge" not in seeded_block.split(
-        "API kickoff miss",
-        maxsplit=1,
-    )[0]
+    assert (
+        "await chat.ensure_react_e2e_bridge"
+        not in seeded_block.split(
+            "API kickoff miss",
+            maxsplit=1,
+        )[0]
+    )
 
 
 @pytest.mark.asyncio
@@ -202,7 +211,9 @@ async def test_complete_turn_after_approval_api_primary_skips_cdp_route(
 
     monkeypatch.setattr(turn_flow, "_ensure_chat_route", _ensure_route)
     monkeypatch.setattr(turn_flow, "wait_chat_messages_done", _wait_api_done)
-    monkeypatch.setattr(turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1)
+    monkeypatch.setattr(
+        turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1
+    )
     chat = object()
     chat_id = await complete_turn_after_approval(  # type: ignore[arg-type]
         chat,
@@ -220,7 +231,9 @@ async def test_seeded_kickoff_activity_probe_requires_beyond_baseline(
 ) -> None:
     messages = [{"role": "user", "content": "hello"}]
 
-    def _fetch(_chat_id: str, *, api_url: str | None = None, **kwargs: object) -> list[dict[str, object]]:
+    def _fetch(
+        _chat_id: str, *, api_url: str | None = None, **kwargs: object
+    ) -> list[dict[str, object]]:
         _ = api_url
         _ = kwargs
         return list(messages)
@@ -251,7 +264,9 @@ async def test_wait_seeded_resend_turn_kickoff_no_false_positive_on_stale_user_c
     )
 
     class _Chat:
-        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+        async def evaluate(
+            self, *_args: object, **_kwargs: object
+        ) -> dict[str, object]:
             return {"userCount": 1, "isStreaming": False}
 
         async def send_message(self, *_args: object, **_kwargs: object) -> None:
@@ -279,7 +294,9 @@ async def test_wait_seeded_resend_turn_kickoff_r245_effective_ui_baseline(
     )
 
     class _Chat:
-        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+        async def evaluate(
+            self, *_args: object, **_kwargs: object
+        ) -> dict[str, object]:
             return {"userCount": 1, "isStreaming": False}
 
         async def send_message(self, *_args: object, **_kwargs: object) -> None:

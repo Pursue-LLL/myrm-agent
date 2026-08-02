@@ -73,7 +73,11 @@ def _with_process_signoff_budget_env(pid: int):
 
     @contextmanager
     def _ctx():
-        keys = ("E2E_SIGNOFF", "MYRM_E2E_SIGNOFF_BATCH_BODY_SEC", "MYRM_E2E_DESKTOP_SOAK")
+        keys = (
+            "E2E_SIGNOFF",
+            "MYRM_E2E_SIGNOFF_BATCH_BODY_SEC",
+            "MYRM_E2E_DESKTOP_SOAK",
+        )
         prior = {key: os.environ.get(key) for key in keys}
         try:
             if _process_has_signoff_env(pid):

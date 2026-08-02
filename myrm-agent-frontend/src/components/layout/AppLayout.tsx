@@ -26,6 +26,7 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
 import E2EChatBridge from '@/components/dev/E2EChatBridge';
+import E2ECompanionBridge from '@/components/dev/E2ECompanionBridge';
 
 const CronPushPoller = lazy(() =>
   import('@/components/features/cron/CronPushPoller').then((mod) => ({ default: mod.default })),
@@ -183,6 +184,7 @@ function AppLayout({
       <BudgetExceededDialog />
       <UpgradeNudgeDialog />
       <E2EChatBridge />
+      <E2ECompanionBridge />
     </>
   );
 }

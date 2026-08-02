@@ -28,6 +28,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [networkBlocklist, setNetworkBlocklist] = useState<string[]>([]);
   const [commandDenylist, setCommandDenylist] = useState<string[]>([]);
   const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
+  const [injectionPolicy, setInjectionPolicy] = useState<'log_only' | 'fail_closed'>('log_only');
   const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
   const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
@@ -48,6 +49,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setNetworkBlocklist(cached.networkBlocklist ?? []);
       setCommandDenylist(cached.commandDenylist ?? []);
       setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
+      setInjectionPolicy(cached.injectionPolicy ?? 'log_only');
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
       setAutoReviewEnabled(cached.autoReviewEnabled ?? true);
@@ -79,6 +81,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         blockedDomains?: string[];
         cmdDenylist?: string[];
         hitl?: boolean;
+        injection?: 'log_only' | 'fail_closed';
         planConfirm?: boolean;
         yoloMode?: boolean;
         autoReview?: boolean;
@@ -95,6 +98,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         networkBlocklist: overrides.blockedDomains ?? networkBlocklist,
         commandDenylist: overrides.cmdDenylist ?? commandDenylist,
         domainHitlEnabled: overrides.hitl ?? domainHitlEnabled,
+        injectionPolicy: overrides.injection ?? injectionPolicy,
         planConfirmEnabled: overrides.planConfirm ?? planConfirmEnabled,
         yoloModeEnabled: overrides.yoloMode ?? yoloModeEnabled,
         autoReviewEnabled: overrides.autoReview ?? autoReviewEnabled,
@@ -107,7 +111,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       };
       syncManager.set('securityConfig', value);
     },
-    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, networkBlocklist, commandDenylist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
+    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, networkBlocklist, commandDenylist, domainHitlEnabled, injectionPolicy, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
   );
 
   const savePathPolicy = useCallback(
@@ -289,6 +293,16 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     [save, t],
   );
 
+  const handleInjectionPolicyToggle = useCallback(
+    (checked: boolean) => {
+      const next = checked ? 'fail_closed' : 'log_only';
+      setInjectionPolicy(next);
+      save({ injection: next });
+      toast.success(t('injectionPolicy.saved', { default: 'Prompt injection policy saved' }));
+    },
+    [save, t],
+  );
+
   const handlePlanConfirmToggle = useCallback(
     (checked: boolean) => {
       setPlanConfirmEnabled(checked);
@@ -365,6 +379,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const dh = cfg.domainHitlEnabled as boolean | undefined;
       if (dh !== undefined) setDomainHitlEnabled(dh);
 
+      const ip = cfg.injectionPolicy as 'log_only' | 'fail_closed' | undefined;
+      if (ip !== undefined) setInjectionPolicy(ip);
+
       const pc = cfg.planConfirmEnabled as boolean | undefined;
       if (pc !== undefined) setPlanConfirmEnabled(pc);
 
@@ -383,6 +400,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         blockedDomains: nb,
         cmdDenylist: cd,
         hitl: dh,
+        injection: ip,
         planConfirm: pc,
         yoloMode: ym,
         autoReview: ar,
@@ -439,6 +457,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     networkBlocklist,
     commandDenylist,
     domainHitlEnabled,
+    injectionPolicy,
     planConfirmEnabled,
     yoloModeEnabled,
     autoReviewEnabled,
@@ -460,6 +479,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleAddCommandPattern,
     handleRemoveCommandPattern,
     handleDomainHitlToggle,
+    handleInjectionPolicyToggle,
     handlePlanConfirmToggle,
     handleYoloModeToggle,
     handleAutoReviewToggle,

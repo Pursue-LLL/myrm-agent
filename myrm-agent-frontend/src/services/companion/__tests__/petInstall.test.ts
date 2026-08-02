@@ -21,7 +21,7 @@ describe('listInstalledCompanionPets', () => {
     });
 
     const pets = await listInstalledCompanionPets();
-    expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets');
+    expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets', { silent: true });
     expect(pets).toEqual([
       { slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' },
     ]);
@@ -49,6 +49,7 @@ describe('installCompanionPet', () => {
     expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets/install', {
       method: 'POST',
       body: JSON.stringify({ slug: 'lobster' }),
+      silent: true,
     });
     expect(installed.slug).toBe('lobster');
   });
@@ -65,6 +66,7 @@ describe('uninstallCompanionPet', () => {
     await uninstallCompanionPet('lobster');
     expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets/lobster', {
       method: 'DELETE',
+      silent: true,
     });
   });
 
@@ -74,6 +76,7 @@ describe('uninstallCompanionPet', () => {
     await uninstallCompanionPet('my pet');
     expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets/my%20pet', {
       method: 'DELETE',
+      silent: true,
     });
   });
 });

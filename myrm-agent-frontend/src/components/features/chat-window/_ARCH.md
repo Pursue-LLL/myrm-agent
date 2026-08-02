@@ -34,7 +34,7 @@
 | `MobileStatusBoard.tsx` | 组件 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入） | ✅ |
 | `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块 | ✅ |
 | `MobileStatusLivePreview.tsx` | 组件 | 浏览器/桌面 Live Preview 与 Lightbox | ✅ |
-| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果与 Plan 步骤 | ✅ |
+| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤 | ✅ |
 | `Navbar.tsx` | 组件 | 对话页顶栏：模型/Agent/后台任务/通知入口 | ✅ |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |

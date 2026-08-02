@@ -65,6 +65,10 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
         return True
     if "chrome mcp transport closed" in message:
         return True
+    if "chrome mcp client is not running" in message:
+        return True
+    if "not running after transport" in message:
+        return True
     if "dev e2e chat bridge not available" in message:
         return True
     if "connection reset during tools/call" in message:

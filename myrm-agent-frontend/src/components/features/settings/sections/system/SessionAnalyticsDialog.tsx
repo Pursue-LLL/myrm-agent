@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconX, IconClock, IconChat, IconChart, IconZap, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
+import { IconX, IconClock, IconChat, IconChart, IconZap, IconAlertCircle, IconShieldAlert } from '@/components/features/icons/PremiumIcons';
 import { getSessionAnalytics, type SessionAnalytics } from '@/services/statistics';
 import { formatCost, formatTokenCount } from './RoutingAnalyticsPanel';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -226,6 +226,34 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                       <span>{tool.call_count} calls</span>
                       <span>{Math.round(tool.total_duration_ms)}ms total</span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Security Audit */}
+          {data.security_audit && data.security_audit.total > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <IconShieldAlert className="h-4 w-4 text-amber-500" />
+                {t('securityAudit', { default: 'Security Audit' })}
+              </h3>
+              <div className="space-y-2">
+                {Object.entries(data.security_audit.breakdown as Record<string, number>).map(([kind, count]) => (
+                  <div
+                    key={kind}
+                    className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
+                  >
+                    <span className={cn(
+                      'text-sm font-medium',
+                      kind.includes('BLOCKED') || kind.includes('DENY') ? 'text-destructive' :
+                      kind.includes('WARN') || kind.includes('DETECTED') ? 'text-amber-600 dark:text-amber-400' :
+                      'text-foreground'
+                    )}>
+                      {kind}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
                   </div>
                 ))}
               </div>

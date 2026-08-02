@@ -232,6 +232,35 @@ const SecurityPolicySection = memo(() => {
       />
 
       <SettingsSection
+        title={t('injectionPolicy.title', { default: 'Prompt Injection Guard' })}
+        description={t('injectionPolicy.description', {
+          default:
+            'Block detected prompt injection attacks instead of only logging them. IM and Cron channels default to blocking mode regardless of this setting.',
+        })}
+      >
+        <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-background">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <IconShieldAlert className="h-4 w-4 text-amber-500" />
+              <span className="font-medium">
+                {t('injectionPolicy.enableLabel', { default: 'Enable Fail-Closed Blocking' })}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('injectionPolicy.enableDesc', {
+                default:
+                  'When enabled, high-threat prompt injection patterns (score >= 0.7) will be blocked and replaced with a safe placeholder, preventing the LLM from processing malicious input.',
+              })}
+            </p>
+          </div>
+          <Switch
+            checked={policy.injectionPolicy === 'fail_closed'}
+            onCheckedChange={policy.handleInjectionPolicyToggle}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
         title={t('autoReview.title', { default: 'Smart Intent Guard' })}
         description={t('autoReview.description', {
           default:

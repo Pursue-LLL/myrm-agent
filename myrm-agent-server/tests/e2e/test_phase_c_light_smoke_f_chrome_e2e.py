@@ -1,11 +1,11 @@
-"""Phase C light smoke variant F — settings route (8-lane pool)."""
+"""Phase C light smoke variant F — home shell (8-lane burst pool)."""
 
 from __future__ import annotations
 
 import pytest
 
-from tests.e2e.test_phase_c_settings_route_smoke_chrome_e2e import (
-    test_phase_c_settings_route_shell_smoke,
+from tests.e2e.test_phase_c_shared_read_smoke_chrome_e2e import (
+    test_phase_c_shared_read_home_shell_smoke,
 )
 
 
@@ -15,4 +15,4 @@ from tests.e2e.test_phase_c_settings_route_smoke_chrome_e2e import (
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_phase_c_light_smoke_variant_f() -> None:
-    test_phase_c_settings_route_shell_smoke()
+    test_phase_c_shared_read_home_shell_smoke()

@@ -23,7 +23,8 @@ import { useTranslations } from 'next-intl';
 
 import { InstalledPetRow } from '@/components/features/companion/InstalledPetRow';
 import { PetGalleryThumb } from '@/components/features/companion/PetGalleryThumb';
-import { fetchPetdexManifest, type ManifestPet } from '@/components/features/companion/petGalleryManifest';
+import { fetchPetdexManifest, rankManifestPets, petdexPetPageUrl, type ManifestPet } from '@/components/features/companion/petGalleryManifest';
+import { CompanionPetDoctorPanel } from '@/components/features/companion/CompanionPetDoctorPanel';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,7 @@ import {
   installCompanionPet,
   listInstalledCompanionPets,
   uninstallCompanionPet,
+  CompanionFeatureDisabledError,
   type InstalledCompanionPet,
 } from '@/services/companion/petInstall';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -53,10 +55,18 @@ interface PetGalleryProps {
 
 function mergeInstalledPet(
   prev: InstalledCompanionPet[],
-  next: InstalledCompanionPet,
+  next: Partial<InstalledCompanionPet> & Pick<InstalledCompanionPet, 'slug'>,
 ): InstalledCompanionPet[] {
+  const existing = prev.find((item) => item.slug === next.slug);
+  const merged: InstalledCompanionPet = {
+    slug: next.slug,
+    display_name: next.display_name ?? existing?.display_name ?? next.slug,
+    content_sha256: next.content_sha256 ?? existing?.content_sha256 ?? '',
+    format_label: next.format_label ?? existing?.format_label,
+    format_tier: next.format_tier ?? existing?.format_tier,
+  };
   const without = prev.filter((item) => item.slug !== next.slug);
-  return [...without, next];
+  return [...without, merged];
 }
 
 export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryProps) {
@@ -66,6 +76,8 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
   const saveConfigToServer = useCompanionStore((s) => s.saveConfigToServer);
   const spriteConfig = useCompanionStore((s) => s.spriteConfig);
   const currentSlug = spriteConfig?.petSlug;
+  const doctorExpandPending = useCompanionStore((s) => s.doctorExpandPending);
+  const clearDoctorExpandPending = useCompanionStore((s) => s.clearDoctorExpandPending);
 
   const [installedPets, setInstalledPets] = useState<InstalledCompanionPet[]>([]);
   const [installedLoading, setInstalledLoading] = useState(true);
@@ -81,6 +93,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
   const [uninstallDialogOpen, setUninstallDialogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [doctorExpanded, setDoctorExpanded] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const installedFetchGenRef = useRef(0);
@@ -138,13 +151,24 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!doctorExpandPending) return;
+    setDoctorExpanded(true);
+    clearDoctorExpandPending();
+  }, [doctorExpandPending, clearDoctorExpandPending]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return manifestPets;
+    const installedSlugs = new Set(installedPets.map((p) => p.slug));
+    const ranked = rankManifestPets(manifestPets, {
+      installedSlugs,
+      activeSlug: currentSlug,
+    });
+    if (!search.trim()) return ranked;
     const q = search.trim().toLowerCase();
-    return manifestPets.filter(
+    return ranked.filter(
       (p) => p.slug.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q),
     );
-  }, [manifestPets, search]);
+  }, [manifestPets, installedPets, currentSlug, search]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
@@ -200,7 +224,11 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
         setInstalledPets((prev) => mergeInstalledPet(prev, installed));
         persistSpriteSelection();
       } catch (err) {
-        setInstallError(String(err instanceof Error ? err.message : err));
+        if (err instanceof CompanionFeatureDisabledError) {
+          setInstallError(t('gallery.companionGateError'));
+        } else {
+          setInstallError(String(err instanceof Error ? err.message : err));
+        }
       } finally {
         setInstallingSlug(null);
       }
@@ -270,6 +298,11 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
 
   return (
     <div className="space-y-4">
+      <CompanionPetDoctorPanel
+        expanded={doctorExpanded}
+        onExpandedChange={setDoctorExpanded}
+      />
+
       <InstalledPetRow
         pets={installedPets}
         currentSlug={currentSlug}
@@ -358,30 +391,50 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
               const isActive = currentSlug === pet.slug;
               const isInstalling = installingSlug === pet.slug;
               return (
-                <button
+                <div
                   key={pet.slug}
-                  type="button"
-                  onClick={() => handleInstall(pet)}
-                  disabled={isInstalling}
-                  title={pet.displayName}
                   className={cn(
-                    'relative flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all',
+                    'relative flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-all',
                     isActive
                       ? 'bg-primary/15 ring-1 ring-primary'
                       : 'hover:bg-muted',
-                    isInstalling && 'opacity-60 cursor-wait',
+                    isInstalling && 'opacity-60',
                   )}
                 >
-                  {isInstalling && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    </div>
-                  )}
-                  <PetGalleryThumb url={pet.spritesheetUrl} alt={pet.displayName} />
-                  <span className="w-full truncate text-center text-[10px] leading-tight text-foreground">
-                    {pet.displayName}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleInstall(pet)}
+                    disabled={isInstalling}
+                    title={pet.displayName}
+                    className={cn(
+                      'relative flex w-full flex-col items-center gap-1',
+                      isInstalling && 'cursor-wait',
+                    )}
+                  >
+                    {isInstalling && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      </div>
+                    )}
+                    <PetGalleryThumb url={pet.spritesheetUrl} alt={pet.displayName} />
+                    {pet.curated && (
+                      <span className="absolute left-0.5 top-0.5 rounded bg-primary/90 px-1 py-px text-[8px] font-medium text-primary-foreground">
+                        {t('gallery.officialBadge')}
+                      </span>
+                    )}
+                    <span className="w-full truncate text-center text-[10px] leading-tight text-foreground">
+                      {pet.displayName}
+                    </span>
+                  </button>
+                  <a
+                    href={petdexPetPageUrl(pet.slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[9px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  >
+                    {t('gallery.viewOnPetdex')}
+                  </a>
+                </div>
               );
             })}
           </div>

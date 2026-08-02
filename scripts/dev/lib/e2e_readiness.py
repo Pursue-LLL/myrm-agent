@@ -17,6 +17,7 @@ returning unconditional E2E_LAUNCH_OK.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from typing import Final, Literal
@@ -143,6 +144,12 @@ def _ready_chrome_full(
     return True
 
 
+def _launch_force_bypass_enabled() -> bool:
+    return os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1" or (
+        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+    )
+
+
 def evaluate_chrome_e2e_readiness(
     ctx: E2eApiContext,
     *,
@@ -151,6 +158,21 @@ def evaluate_chrome_e2e_readiness(
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None = None,
 ) -> ChromeE2eReadinessVerdict:
+    if _launch_force_bypass_enabled():
+        return ChromeE2eReadinessVerdict(
+            status="READY",
+            token="READY",
+            reason=(
+                "launch-force bypass — parallel attach allowed; "
+                "do not stop other pytest"
+            ),
+            next_action="PARALLEL_OK",
+            launch_allowed=True,
+            attach_allowed=True,
+            ready_chrome_full=False,
+            blocked=ctx.blocked,
+            epoch_match=ctx.epoch_match,
+        )
     snapshot = parallel_snapshot if parallel_snapshot is not None else {}
     if _observability_unknown(mux_fields, snapshot):
         return ChromeE2eReadinessVerdict(

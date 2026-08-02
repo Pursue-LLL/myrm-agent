@@ -224,9 +224,7 @@ def _extend_shared_ui_deadline_if_wall_allows(
     from e2e_session_lifecycle import current_phase, remaining_wall_sec
 
     remaining = remaining_wall_sec()
-    extend_floor = (
-        20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
-    )
+    extend_floor = 20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
     phase = current_phase()
     if phase not in {"bootstrap", "body"} or remaining <= extend_floor:
         return deadline

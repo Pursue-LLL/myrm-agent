@@ -35,18 +35,32 @@ def _optional_health_snapshot() -> dict[str, object]:
 def build_signoff_artifact(
     store: DevGateStore,
     *,
+    session_ids: tuple[str, ...] | None = None,
     session_limit: int = 200,
     event_limit: int = 2000,
 ) -> dict[str, object]:
     """Collect coordinator state for signoff audit without mutating the store."""
-    sessions = store.list_recent_sessions(limit=session_limit)
-    session_ids = tuple(record.session_id for record in sessions)
-    events = store.fetch_recent_events(limit=event_limit, session_ids=session_ids)
-    ownership = store.list_ownership_resources(session_ids=session_ids)
+    if session_ids:
+        sessions = tuple(
+            record
+            for record in (
+                store.get(session_id)
+                for session_id in session_ids
+                if session_id.strip()
+            )
+            if record is not None
+        )
+        scoped_ids = tuple(record.session_id for record in sessions)
+    else:
+        sessions = store.list_recent_sessions(limit=session_limit)
+        scoped_ids = tuple(record.session_id for record in sessions)
+    events = store.fetch_recent_events(limit=event_limit, session_ids=scoped_ids)
+    ownership = store.list_ownership_resources(session_ids=scoped_ids)
     return {
         "schema_version": 1,
         "exported_at": time.time(),
         "store_path": str(store.path),
+        "session_scope": list(scoped_ids),
         "journal": store.journal_stats(),
         "sessions": [record.to_dict() for record in sessions],
         "events": list(events),
@@ -59,12 +73,14 @@ def export_signoff_artifact(
     store: DevGateStore,
     output_path: Path,
     *,
+    session_ids: tuple[str, ...] | None = None,
     session_limit: int = 200,
     event_limit: int = 2000,
 ) -> dict[str, object]:
     """Write signoff artifact JSON and return export metadata."""
     artifact = build_signoff_artifact(
         store,
+        session_ids=session_ids,
         session_limit=session_limit,
         event_limit=event_limit,
     )

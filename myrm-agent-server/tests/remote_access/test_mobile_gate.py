@@ -65,9 +65,29 @@ def test_hub_list_token_only_authorizes_hub_paths() -> None:
     assert pair_token_authorizes_path(token, sessions_path)
     assert pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token")
     assert pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token/refresh")
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn-options")
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn")
     assert not pair_token_authorizes_path(token, "/api/v1/agents/chat/chat-a/attach")
     assert not pair_token_authorizes_path(token, "/api/v1/agents/agent-stream")
     assert not pair_token_authorizes_path(token, "/ws/stt/stream")
+
+
+def test_hub_list_token_authorizes_spawn_paths() -> None:
+    token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn-options")
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn")
+
+
+def test_scoped_control_token_rejects_spawn_paths() -> None:
+    token = create_pairing_token(chat_id="chat-a", purpose=MOBILE_HUB_CONTROL_PURPOSE)
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn-options")
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn")
+
+
+def test_browser_takeover_token_rejects_spawn_paths() -> None:
+    token = create_pairing_token(chat_id="chat-a", purpose=BROWSER_TAKEOVER_PURPOSE)
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn-options")
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/spawn")
 
 
 def test_scoped_control_token_authorizes_refresh_path() -> None:

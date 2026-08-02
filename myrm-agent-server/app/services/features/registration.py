@@ -115,16 +115,9 @@ _ALL_FEATURES: list[FeatureSpec] = [
     FeatureSpec(
         id="companion_mode",
         key="companion_mode",
-        stage=FeatureStage.EXPERIMENTAL,
-        default_enabled=False,
-        description="Enable AI companion personality and conversational mode",
-        experimental_info=ExperimentalInfo(
-            name="Companion Mode",
-            description=(
-                "Enable a conversational AI companion with customizable "
-                "personality. More casual and interactive interaction style."
-            ),
-        ),
+        stage=FeatureStage.STABLE,
+        default_enabled=True,
+        description="Desktop companion mascot with petdex sprite gallery and status reactions",
     ),
     FeatureSpec(
         id="voice_interaction",

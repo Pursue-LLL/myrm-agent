@@ -9,9 +9,10 @@ dev_gate_contract (POS: Dev Gate v2 合约常量 SSOT)
 dev_gate_cli (POS: Unix socket 协调器自动启动客户端)
 mux_load (POS: mux context / wave lease 负载探针)
 mux_upstream_admission (POS: mux cold attach 准入)
+browser_orchestrator_client (POS: Browser Orchestrator daemon Unix socket JSON-RPC 客户端)
 
 [OUTPUT]
-ChromeMcpClient: 同步 MCP JSON-RPC 客户端（shim 进程管理、transport recovery、generation check、page lease）
+ChromeMcpClient: 同步 MCP JSON-RPC 客户端（shim 进程管理、transport recovery、generation check、page lease；MYRM_BROWSER_ORCHESTRATOR=1 时通过 daemon 分发）
 McpPage: MCP 页面句柄（targetId + client 引用）
 _TransportDeadError: transport 层统一异常（_read EOF / _write BrokenPipe / 进程退出）
 
@@ -19,6 +20,7 @@ _TransportDeadError: transport 层统一异常（_read EOF / _write BrokenPipe /
 正式 pytest UI E2E 的 MCP JSON-RPC 通信层。管理 shim 子进程生命周期，
 提供 transport-level 容错（_TransportDeadError → recover）、generation-based 竞态防护、
 page lease 心跳，供 mcp_chat_ui / cdp_chat_* 调用。
+MYRM_BROWSER_ORCHESTRATOR=1 时条件分发到 Browser Orchestrator daemon。
 """
 
 from __future__ import annotations
@@ -170,9 +172,105 @@ class ChromeMcpClient:
         self._mux_reset_executor: object | None = None
         self._tool_wall_deadline: float | None = None
         self._cold_shim_recover_streak = 0
+        self._use_daemon = os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
+        self._daemon_client: BrowserOrchestratorClient | None = None
+        self._daemon_session_id: str | None = None
 
     def _request_lock_is_held(self) -> bool:
         return self._request_lock.locked()
+
+    def _ensure_daemon_session(self) -> BrowserOrchestratorClient:
+        """Lazily create daemon client and session; idempotent."""
+        if self._daemon_client is not None:
+            return self._daemon_client
+        from browser_orchestrator_client import BrowserOrchestratorClient
+
+        client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
+        session_id = self._browser_context_id
+        client.create_session(session_id)
+        self._daemon_client = client
+        self._daemon_session_id = session_id
+        _LOGGER.info("daemon session created: %s", session_id)
+        return client
+
+    def _destroy_daemon_session(self) -> None:
+        """Destroy daemon session if active; best-effort."""
+        client = self._daemon_client
+        session_id = self._daemon_session_id
+        if client is None or session_id is None:
+            return
+        try:
+            result = client.destroy_session(session_id)
+            _LOGGER.info("daemon session destroyed: %s sealed=%s", session_id, result.get("sealed"))
+        except (OSError, RuntimeError, TimeoutError) as exc:
+            _LOGGER.warning("daemon session destroy failed: %s", exc)
+        finally:
+            self._daemon_client = None
+            self._daemon_session_id = None
+
+    def _daemon_new_page(self, url: str) -> McpPage:
+        client = self._ensure_daemon_session()
+        session_id = self._daemon_session_id
+        assert session_id is not None
+        lease_id = self._acquire_page_lease()
+        try:
+            result = client.create_page(session_id, url=url)
+            page_id = result["pageId"]
+            target_id = result["targetId"]
+            page = McpPage(
+                page_id=page_id,
+                target_id=target_id,
+                lease_id=lease_id,
+                context_id=session_id,
+                url=url,
+            )
+            self._pages[page_id] = page
+            self._page_lease_heartbeat.track(lease_id)
+            return page
+        except Exception:
+            self._release_lease(lease_id, close_wave_if_idle=False)
+            raise
+
+    def _daemon_evaluate(self, page: McpPage, expression: str) -> object:
+        client = self._ensure_daemon_session()
+        session_id = self._daemon_session_id
+        assert session_id is not None
+        result = client.evaluate_page(session_id, page.target_id, expression)
+        return result.get("value")
+
+    def _daemon_navigate(self, page: McpPage, url: str) -> None:
+        client = self._ensure_daemon_session()
+        session_id = self._daemon_session_id
+        assert session_id is not None
+        client.navigate_page(session_id, page.target_id, url)
+
+    def _daemon_close_page(
+        self, page: McpPage, *, ignore_errors: bool = False
+    ) -> None:
+        self._page_lease_heartbeat.untrack(page.lease_id)
+        client = self._daemon_client
+        session_id = self._daemon_session_id
+        if client is None or session_id is None:
+            self._pages.pop(page.page_id, None)
+            try:
+                self._release_page_lease(page, unbind=True)
+            except (RuntimeError, TimeoutError):
+                _LOGGER.warning("daemon lease release failed (no client)")
+            return
+        try:
+            client.close_page(session_id, page.target_id)
+        except (OSError, RuntimeError, TimeoutError) as exc:
+            if not ignore_errors:
+                raise RuntimeError(f"daemon close_page failed: {exc}") from exc
+            _LOGGER.warning("daemon close_page failed (ignored): %s", exc)
+        self._pages.pop(page.page_id, None)
+        self._disconnected_pages.pop(page.page_id, None)
+        try:
+            self._release_page_lease(page, unbind=True)
+        except (RuntimeError, TimeoutError) as exc:
+            if not ignore_errors:
+                raise
+            _LOGGER.warning("daemon lease release failed: %s", exc)
 
     @staticmethod
     def _initial_mux_generation() -> int:
@@ -413,6 +511,11 @@ class ChromeMcpClient:
                 self.close_page(page, ignore_errors=True)
             except Exception as exc:
                 errors.append(exc)
+        if self._use_daemon:
+            try:
+                self._destroy_daemon_session()
+            except Exception as exc:
+                errors.append(exc)
         process = self._process
         self._process = None
         if process is not None:
@@ -538,6 +641,8 @@ class ChromeMcpClient:
         timeout_ms: int | None = None,
         isolated_context: str | None = None,
     ) -> McpPage:
+        if self._use_daemon:
+            return self._daemon_new_page(url)
         from transport_supervisor import assert_mux_daemons_single
 
         assert_mux_daemons_single(phase="new_page")
@@ -618,18 +723,24 @@ class ChromeMcpClient:
                         if parse_attempt + 1 >= parse_attempts:
                             raise
                         self._check_tool_wall_deadline("new_page_recover")
-                        if not mux_attach_restarted and parse_attempt + 1 >= max(
-                            2, parse_attempts // 2
+                        if (
+                            not mux_attach_restarted
+                            and parse_attempt + 1 >= max(2, parse_attempts // 2)
                         ):
                             try:
-                                from mux_attach_force_restart import (
-                                    force_mux_attach_restart_scoped,
+                                from transport_supervisor import (
+                                    should_defer_cold_shim_restart,
                                 )
 
-                                force_mux_attach_restart_scoped(
-                                    reason="new_page timeout under parallel mux load"
-                                )
-                                mux_attach_restarted = True
+                                if not should_defer_cold_shim_restart():
+                                    from mux_attach_force_restart import (
+                                        force_mux_attach_restart_scoped,
+                                    )
+
+                                    force_mux_attach_restart_scoped(
+                                        reason="new_page timeout under parallel mux load"
+                                    )
+                                    mux_attach_restarted = True
                             except ImportError:
                                 pass
                         if isinstance(
@@ -733,6 +844,9 @@ class ChromeMcpClient:
                 raise
 
     def close_page(self, page: McpPage, *, ignore_errors: bool = False) -> None:
+        if self._use_daemon:
+            self._daemon_close_page(page, ignore_errors=ignore_errors)
+            return
         errors: list[str] = []
         self._page_lease_heartbeat.untrack(page.lease_id)
         mcp_closed = False
@@ -808,26 +922,38 @@ class ChromeMcpClient:
             return True
         try:
             from dev_gate_cli import send
-
-            snapshot = send({"operation": "snapshot", "session_id": session_id})
-            session = snapshot.get("session")
-            version = session.get("version") if isinstance(session, dict) else None
-            if not isinstance(version, int):
-                self._publish_dev_gate_ownership()
-                return True
-            send(
-                {
-                    "operation": "ownership",
-                    "session_id": session_id,
-                    "owner_token": owner_token,
-                    "merge_page_id": str(page_id),
-                    "expected_version": version,
-                }
-            )
-            return True
-        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        except ImportError as exc:
             _LOGGER.warning("DEV_GATE_ATOMIC_REGISTER_FAILED: %s", exc)
             return False
+
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            try:
+                snapshot = send({"operation": "snapshot", "session_id": session_id})
+                session = snapshot.get("session")
+                version = session.get("version") if isinstance(session, dict) else None
+                if not isinstance(version, int):
+                    self._publish_dev_gate_ownership()
+                    return True
+                send(
+                    {
+                        "operation": "ownership",
+                        "session_id": session_id,
+                        "owner_token": owner_token,
+                        "merge_page_id": str(page_id),
+                        "expected_version": version,
+                    }
+                )
+                return True
+            except (OSError, RuntimeError, ValueError) as exc:
+                message = str(exc).lower()
+                retryable = "version mismatch" in message or "version conflict" in message
+                if retryable and attempt + 1 < max_attempts:
+                    time.sleep(0.04 * float(attempt + 1))
+                    continue
+                _LOGGER.warning("DEV_GATE_ATOMIC_REGISTER_FAILED: %s", exc)
+                return False
+        return False
 
     def _resolve_page(self, page: McpPage) -> McpPage:
         tracked = self._pages.get(page.page_id)
@@ -961,6 +1087,8 @@ class ChromeMcpClient:
     def evaluate(
         self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
+        if self._use_daemon:
+            return self._daemon_evaluate(page, expression)
         resolved = self._resolve_page(page)
         self._ensure_page_tracked_for_recovery(resolved)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
@@ -1007,6 +1135,9 @@ class ChromeMcpClient:
         *,
         timeout_ms: int | None = None,
     ) -> None:
+        if self._use_daemon:
+            self._daemon_navigate(page, url)
+            return
         resolved = self._resolve_page(page)
         resolved_timeout_ms = (
             timeout_ms if timeout_ms is not None else self._default_page_timeout_ms()
@@ -1361,6 +1492,27 @@ class ChromeMcpClient:
         Per-session shim teardown/spawn is local; global mux attach restart runs under
         ``mux_recovery_scope`` so parallel workers never stampede daemon restart.
         """
+        from transport_supervisor import (
+            mux_recovery_scope,
+            parallel_mux_peer_count,
+            should_defer_cold_shim_restart,
+        )
+
+        if should_defer_cold_shim_restart():
+            peer_count = parallel_mux_peer_count()
+            _LOGGER.warning(
+                "COLD_SHIM_RESTART_DEFERRED: parallel_mux_peers=%d — wait for "
+                "mux recovery lock; caller retries via queue (do not stop other pytest)",
+                peer_count,
+            )
+            try:
+                with mux_recovery_scope(phase="restart_cold_shim_deferred"):
+                    pass
+            except RuntimeError as exc:
+                _LOGGER.warning("COLD_SHIM_DEFER_WAIT: %s", exc)
+            time.sleep(min(2.0, 0.15 * float(peer_count)))
+            return
+
         needs_global_restart = False
         held_lock = self._acquire_request_lock()
         try:
@@ -1399,7 +1551,6 @@ class ChromeMcpClient:
 
         if needs_global_restart:
             from mux_attach_force_restart import force_mux_attach_restart_deduped
-            from transport_supervisor import mux_recovery_scope
 
             with mux_recovery_scope(phase="restart_cold_shim"):
                 if force_mux_attach_restart_deduped(
@@ -1408,8 +1559,6 @@ class ChromeMcpClient:
                     time.sleep(3.0)
                 _respawn_cold_shim_local()
             return
-        from transport_supervisor import mux_recovery_scope, parallel_mux_peer_count
-
         if parallel_mux_peer_count() >= 2:
             with mux_recovery_scope(phase="restart_cold_shim"):
                 _respawn_cold_shim_local()

@@ -48,6 +48,14 @@ MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
 MUX_TRANSPORT_EXHAUSTED_TOKEN: str = "E2E_MUX_TRANSPORT_EXHAUSTED"
 MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
+# Burst signoff (8-lane): local cold-shim restart poisons peer sessions — defer to mux queue.
+COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD: int = 4
+
+
+def should_defer_cold_shim_restart() -> bool:
+    """True when parallel mux load is high enough that local shim restart must not run."""
+    return parallel_mux_peer_count() >= COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD
+
 
 _GLOBAL_RECOVERY_LOCK = threading.Lock()
 _CROSS_PROCESS_RECOVERY_LOCK_PATH = (

@@ -30,6 +30,7 @@ from dev_gate_session import (
     SessionOwnership,
     SessionPolicy,
     SessionState,
+    TerminalConflictError,
     Workload,
 )
 from dev_gate_store import DevGateStore, default_store_path
@@ -270,11 +271,20 @@ class CoordinatorService:
             event_limit = (
                 int(event_limit_raw) if isinstance(event_limit_raw, int) else 2000
             )
+            session_ids_raw = request.get("session_ids")
+            session_ids: tuple[str, ...] | None = None
+            if isinstance(session_ids_raw, list):
+                session_ids = tuple(
+                    item.strip()
+                    for item in session_ids_raw
+                    if isinstance(item, str) and item.strip()
+                )
             from dev_gate_signoff_export import export_signoff_artifact  # noqa: PLC0415
 
             return export_signoff_artifact(
                 self.store,
                 Path(output_raw.strip()),
+                session_ids=session_ids,
                 session_limit=session_limit,
                 event_limit=event_limit,
             )
@@ -381,6 +391,11 @@ class CoordinatorService:
             released_lease_id=_optional_text(receipt_raw, "released_lease_id"),
             released_runtime_id=_optional_text(receipt_raw, "released_runtime_id"),
             ledger_cleaned=receipt_raw.get("ledger_cleaned") is True,
+            physical_released=(
+                True
+                if receipt_raw.get("physical_released") is True
+                else (False if receipt_raw.get("physical_released") is False else None)
+            ),
             sealed=receipt_raw.get("sealed") is True,
             requested_at=float(receipt_raw.get("requested_at", 0.0)),
             observed_at=float(receipt_raw.get("observed_at", 0.0)),
@@ -460,7 +475,13 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                     "asyncQueueDepth": server._async_writer.queue_depth,
                 }
             response = {"ok": True, **body}
-        except (ValueError, KeyError, PermissionError, json.JSONDecodeError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            PermissionError,
+            json.JSONDecodeError,
+            TerminalConflictError,
+        ) as exc:
             response = {
                 "ok": False,
                 "error": type(exc).__name__,

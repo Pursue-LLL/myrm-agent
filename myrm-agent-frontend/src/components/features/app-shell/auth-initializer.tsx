@@ -18,7 +18,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import useAuthStore from '@/store/useAuthStore';
 import AuthCallback from './auth-callback';
-import { isTauriRuntime, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
+import { isTauriRuntime, isLocalMode, shouldRedirectToLoginOnAuthFailure, isRemoteGatewayActive } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
 
 const AUTH_PATHS = [
@@ -105,7 +105,7 @@ export default function AuthInitializer() {
   useEffect(() => {
     if (isInitialized) return;
 
-    if (localMode) {
+    if (localMode && !isRemoteGatewayActive()) {
       initTauriLocalUser();
     } else {
       initAuth();

@@ -855,6 +855,13 @@
         "domainAdded": "已添加禁止域名",
         "domainRemoved": "已移除禁止域名"
       },
+      "injectionPolicy": {
+        "title": "提示词注入防护",
+        "description": "阻断检测到的提示词注入攻击，而不仅仅是记录日志。IM 和 Cron 渠道无论此设置如何，默认使用阻断模式。",
+        "enableLabel": "启用 Fail-Closed 阻断",
+        "enableDesc": "开启后，高威胁提示词注入模式（评分 ≥ 0.7）将被阻断并替换为安全占位符，阻止 LLM 处理恶意输入。",
+        "saved": "提示词注入策略已保存"
+      },
       "planReview": {
         "title": "计划预审",
         "description": "在 AI 开始执行前，先审核并确认任务计划。提前发现问题，避免文件被错误修改。",
@@ -3863,6 +3870,26 @@
         "storageLowWarning": "磁盘空间不足，建议迁移数据到其他磁盘",
         "storageSelectDir": "选择新的数据存储目录"
       },
+      "serverConnection": {
+        "title": "服务器连接",
+        "description": "连接到远程 Myrm 服务器，替代本地后端",
+        "modeLocal": "本地",
+        "modeRemote": "远程",
+        "localDesc": "正在使用内置本地后端",
+        "remoteDesc": "已连接到远程服务器",
+        "serverUrl": "服务器地址",
+        "serverUrlPlaceholder": "https://your-server.example.com",
+        "testConnection": "测试连接",
+        "testing": "测试中...",
+        "testSuccess": "连接成功",
+        "testFailed": "无法连接到服务器",
+        "save": "连接",
+        "disconnect": "断开连接",
+        "connected": "已连接到远程服务器",
+        "disconnected": "已切换为本地模式",
+        "loginRequired": "该服务器需要身份验证，连接后将跳转到登录页面。",
+        "invalidUrl": "请输入有效的 HTTP 或 HTTPS 地址"
+      },
       "webuiAccess": {
         "title": "WebUI 访问密码",
         "description": "修改管理员密码或关闭密码保护。关闭后同一局域网设备可无密码访问，请谨慎操作。",
@@ -5148,7 +5175,8 @@
     "securityCenter": "安全中心",
     "runs": "活动",
     "extensionConnected": "浏览器扩展已连接",
-    "extensionDisconnected": "浏览器扩展未连接"
+    "extensionDisconnected": "浏览器扩展未连接",
+    "remoteGateway": "已连接远程服务器"
   },
   "health": {
     "title": "系统诊断",
@@ -6089,7 +6117,8 @@
       "verifications": "验收条件",
       "livePreview": "实时预览",
       "browser": "浏览器",
-      "desktop": "桌面"
+      "desktop": "桌面",
+      "artifacts": "交付物"
     }
   },
   "common": {
@@ -6185,6 +6214,10 @@
     "goalMode": "目标模式",
     "forkBranch": "分支对话",
     "enabled": "已开启",
+    "remoteGateway": {
+      "unreachable": "远程服务器 {host} 无法访问，请检查服务器地址或切回本地模式。",
+      "switchToLocal": "切换为本地模式"
+    },
     "configLoadError": {
       "title": "配置加载失败",
       "description": "无法连接到服务，请检查后端是否正常运行后重试。",
@@ -12261,7 +12294,60 @@
       "uninstall": "移除",
       "uninstallConfirm": "确定要从本机移除此宠物吗？之后可从图鉴重新安装。",
       "uninstallError": "移除宠物失败",
-      "cancel": "取消"
+      "cancel": "取消",
+      "companionGateError": "桌宠伴侣功能当前已关闭，请在设置 → 开发者中重新开启。",
+      "officialBadge": "官方",
+      "viewOnPetdex": "在 Petdex 查看",
+      "formatCodexStandard": "格式：Codex 标准",
+      "formatLegacyStandard": "格式：Legacy 标准",
+      "formatNonStandard": "格式：非标准",
+      "formatInvalid": "格式：无效"
+    },
+    "doctor": {
+      "title": "精灵健康检查",
+      "ready": "就绪",
+      "issues": "{count} 项待处理",
+      "runHint": "点击诊断",
+      "loading": "检查中…",
+      "fix": "修复",
+      "refresh": "刷新",
+      "rescan": "重新校验格式",
+      "openFromSprite": "健康检查",
+      "checks": {
+        "spriteEnabledPass": "界面已启用精灵覆盖层。",
+        "spriteEnabledFail": "界面未启用精灵覆盖层。"
+      },
+      "serverChecks": {
+        "feature_gate_companion_mode": {
+          "pass": "桌宠伴侣功能已开启。",
+          "fail": "桌宠伴侣功能未开启。"
+        },
+        "config_sprite_slug": {
+          "pass": "当前激活宠物为「{slug}」。",
+          "fail": "Companion 设置中尚未选择激活宠物。"
+        },
+        "disk_installed_pets": {
+          "pass": "本机已安装 {count} 只宠物。",
+          "fail": "本机尚未安装任何宠物。"
+        },
+        "disk_active_pet_files": {
+          "pass": "「{slug}」的精灵图文件已存在。",
+          "fail": "激活宠物的精灵图文件缺失或未安装。"
+        },
+        "atlas_format": {
+          "pass": "精灵图符合支持的 Codex 或 Legacy 图集标准。",
+          "warn": "图集格式非标准，但仍可能渲染。若显示异常请重新安装或重新验证。",
+          "fail": "精灵图图集格式无效。"
+        },
+        "config_sha256_match": {
+          "pass": "配置校验和与磁盘上的精灵图一致。",
+          "warn": "配置校验和与磁盘上的精灵图不一致，请在图鉴中重新选择该宠物。"
+        },
+        "serve_file_readable": {
+          "pass": "精灵图文件可读，可供本地加载。",
+          "fail": "无法从磁盘读取精灵图文件。"
+        }
+      }
     },
     "sprite": {
       "contextTitle": "宠物精灵",
@@ -14258,13 +14344,24 @@
     "badge": "移动遥控",
     "subtitle": "点选正在运行的任务，在手机上跟进进度或审批操作。",
     "loading": "正在加载活跃会话...",
-    "empty": "当前没有运行中的 Agent。",
+    "empty": "当前没有运行中的 Agent。在下方新建任务吧！",
     "loadFailed": "加载活跃会话失败。",
     "e2eeHandshakeFailed": "安全连接建立失败，请从设置页重新获取链接或检查网络。",
     "openFailed": "打开会话控制链接失败。",
     "opening": "正在打开…",
     "footer": "链接 1 小时后过期；若无法访问，请从设置页重新分享。",
-    "elapsed": "已运行 {seconds} 秒"
+    "elapsed": "已运行 {seconds} 秒",
+    "newTask": "新建任务",
+    "newTaskCollapse": "取消",
+    "selectAgent": "智能体",
+    "selectProject": "项目（可选）",
+    "noProject": "不选择",
+    "taskDescription": "让 Agent 做什么？",
+    "taskPlaceholder": "例如：调研竞品最新动态，写一份对比报告",
+    "submit": "开始任务",
+    "submitting": "正在创建…",
+    "spawnFailed": "创建任务失败。",
+    "loadOptionsFailed": "加载选项失败。"
   },
   "whatsNew": {
     "title": "v{version} 新功能",

@@ -17,10 +17,22 @@ from dev_gate_session import (
     SessionRecord,
     SessionState,
     TERMINAL_STATES,
+    TerminalConflictError,
     Workload,
     assert_transition,
     initial_state,
 )
+
+
+def _begin_immediate(connection: sqlite3.Connection) -> None:
+    for attempt in range(10):
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower() or attempt >= 9:
+                raise
+            time.sleep(min(0.05 * (2**attempt), 1.5))
 
 DEFAULT_JOURNAL_RETENTION_SEC: float = 7 * 86400
 
@@ -102,12 +114,12 @@ class DevGateStore:
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=10.0)
+        connection = sqlite3.connect(self.path, timeout=30.0)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=10000")
+        connection.execute("PRAGMA busy_timeout=60000")
         return connection
 
     def _initialize(self) -> None:
@@ -166,7 +178,7 @@ class DevGateStore:
         created_at = time.time() if now is None else now
         state = initial_state(policy)
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             existing = connection.execute(
                 "SELECT * FROM sessions WHERE session_id = ?", (session_id,)
             ).fetchone()
@@ -317,7 +329,7 @@ class DevGateStore:
     ) -> SessionRecord:
         changed_at = time.time() if now is None else now
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             current = SessionState(row["state"])
             version = int(row["version"])
@@ -365,9 +377,35 @@ class DevGateStore:
         current_node: str = "",
         now: float | None = None,
     ) -> SessionRecord:
+        last_locked: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            try:
+                return self._heartbeat_once(
+                    session_id,
+                    owner_token,
+                    current_node=current_node,
+                    now=now,
+                )
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower():
+                    raise
+                last_locked = exc
+                time.sleep(min(0.2 * float(attempt + 1), 2.0))
+        if last_locked is not None:
+            raise last_locked
+        raise RuntimeError("heartbeat retry exhausted without result")
+
+    def _heartbeat_once(
+        self,
+        session_id: str,
+        owner_token: str,
+        *,
+        current_node: str = "",
+        now: float | None = None,
+    ) -> SessionRecord:
         touched_at = time.time() if now is None else now
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             version = int(row["version"]) + 1
             node_started = float(row["node_started_at"])
@@ -399,7 +437,7 @@ class DevGateStore:
     ) -> SessionRecord:
         touched_at = time.time()
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             current_version = int(row["version"])
             if expected_version is not None and current_version != expected_version:
@@ -446,7 +484,7 @@ class DevGateStore:
             raise ValueError("page_id must be non-empty")
         touched_at = time.time()
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             current_version = int(row["version"])
             if current_version != expected_version:
@@ -553,24 +591,43 @@ class DevGateStore:
         receipt: CleanupReceipt,
     ) -> SessionRecord:
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             version = int(row["version"]) + 1
+            final_receipt = receipt
+            physical_ok = receipt.physical_released is True
+            if receipt.ledger_cleaned and physical_ok:
+                self._clear_session_ownership(connection, session_id=session_id)
+                final_receipt = CleanupReceipt(
+                    closed_page_ids=receipt.closed_page_ids,
+                    closed_context_id=receipt.closed_context_id,
+                    released_lease_id=receipt.released_lease_id,
+                    released_runtime_id=receipt.released_runtime_id,
+                    ledger_cleaned=True,
+                    physical_released=True,
+                    sealed=True,
+                    requested_at=receipt.requested_at,
+                    observed_at=(
+                        receipt.observed_at if receipt.observed_at > 0 else time.time()
+                    ),
+                    completed_at=receipt.completed_at,
+                )
             connection.execute(
                 "UPDATE sessions SET version=?, cleanup_json=? WHERE session_id=?",
                 (
                     version,
                     json.dumps(
                         {
-                            "closed_page_ids": receipt.closed_page_ids,
-                            "closed_context_id": receipt.closed_context_id,
-                            "released_lease_id": receipt.released_lease_id,
-                            "released_runtime_id": receipt.released_runtime_id,
-                            "ledger_cleaned": receipt.ledger_cleaned,
-                            "sealed": receipt.sealed,
-                            "requested_at": receipt.requested_at,
-                            "observed_at": receipt.observed_at,
-                            "completed_at": receipt.completed_at,
+                            "closed_page_ids": final_receipt.closed_page_ids,
+                            "closed_context_id": final_receipt.closed_context_id,
+                            "released_lease_id": final_receipt.released_lease_id,
+                            "released_runtime_id": final_receipt.released_runtime_id,
+                            "ledger_cleaned": final_receipt.ledger_cleaned,
+                            "physical_released": final_receipt.physical_released,
+                            "sealed": final_receipt.sealed,
+                            "requested_at": final_receipt.requested_at,
+                            "observed_at": final_receipt.observed_at,
+                            "completed_at": final_receipt.completed_at,
                         },
                         separators=(",", ":"),
                         sort_keys=True,
@@ -579,6 +636,25 @@ class DevGateStore:
                 ),
             )
             return self._record(self._required_row(connection, session_id))
+
+    @staticmethod
+    def _clear_session_ownership(
+        connection: sqlite3.Connection,
+        *,
+        session_id: str,
+    ) -> None:
+        connection.execute(
+            """
+            UPDATE sessions SET browser_context_id='', page_ids_json='[]',
+                lease_id='', runtime_id=''
+            WHERE session_id=?
+            """,
+            (session_id,),
+        )
+        connection.execute(
+            "DELETE FROM ownership_resources WHERE session_id=?",
+            (session_id,),
+        )
 
     def finish(
         self,
@@ -590,17 +666,49 @@ class DevGateStore:
         now: float | None = None,
     ) -> SessionRecord:
         """Finalize a session from any nonterminal phase after best-effort teardown."""
+        last_locked: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            try:
+                return self._finish_once(
+                    session_id,
+                    owner_token,
+                    succeeded=succeeded,
+                    failure_token=failure_token,
+                    now=now,
+                )
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower():
+                    raise
+                last_locked = exc
+                time.sleep(min(0.2 * float(attempt + 1), 2.0))
+        if last_locked is not None:
+            raise last_locked
+        raise RuntimeError("finish retry exhausted without result")
+
+    def _finish_once(
+        self,
+        session_id: str,
+        owner_token: str,
+        *,
+        succeeded: bool,
+        failure_token: str = "",
+        now: float | None = None,
+    ) -> SessionRecord:
         finished_at = time.time() if now is None else now
         target = SessionState.SUCCEEDED if succeeded else SessionState.FAILED
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             current = SessionState(str(row["state"]))
-            if current in {
-                SessionState.SUCCEEDED,
-                SessionState.FAILED,
-                SessionState.CANCELLED,
-            }:
+            if current in TERMINAL_STATES:
+                if succeeded and current is not SessionState.SUCCEEDED:
+                    raise TerminalConflictError(
+                        f"cannot finish succeeded: session already {current.value}"
+                    )
+                if not succeeded and current is SessionState.SUCCEEDED:
+                    raise TerminalConflictError(
+                        f"cannot finish failed: session already {current.value}"
+                    )
                 return self._record(row)
             version = int(row["version"]) + 1
             outcome = "PASSED" if succeeded else "FAILED"
@@ -663,7 +771,7 @@ class DevGateStore:
         reaped_at = time.time() if now is None else now
         reaped: list[str] = []
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             terminal = (
                 SessionState.SUCCEEDED.value,
                 SessionState.FAILED.value,
@@ -733,7 +841,7 @@ class DevGateStore:
         reaped_at = time.time() if now is None else now
         reaped: list[str] = []
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             exempt = (
                 SessionState.SUCCEEDED.value,
                 SessionState.FAILED.value,

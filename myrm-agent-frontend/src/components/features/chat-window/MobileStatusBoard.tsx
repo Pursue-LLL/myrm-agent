@@ -4,7 +4,7 @@
  * Mobile Command Center - real-time task monitoring, approval, and control.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Square, Activity, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -73,11 +73,22 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const { status, snapshotFetchFailed, retrySnapshot } = useVisualApprovalSnapshot(inlineRequests);
   const snapshotRetrying = status === 'loading';
 
+  const autoStartFired = useRef(false);
+
   useEffect(() => {
     void useChatStore.getState().loadMessages(chatId);
   }, [chatId]);
 
   useEffect(() => scheduleMobilePairRefresh(), []);
+
+  useEffect(() => {
+    if (autoStartFired.current || !isMessagesLoaded || loading) return;
+    const pendingMessage = sessionStorage.getItem('myrm_mobile_autostart_message');
+    if (!pendingMessage) return;
+    autoStartFired.current = true;
+    sessionStorage.removeItem('myrm_mobile_autostart_message');
+    sendMessage(pendingMessage);
+  }, [isMessagesLoaded, loading, sendMessage]);
 
   useEffect(() => {
     if (!lightboxSrc) return;

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sqlite3
+import time
+
 from dev_gate_session import ExecutionMode, SessionState
 from dev_gate_store import DevGateStore, default_store_path
 from private_resource_controller import (
@@ -11,7 +14,7 @@ from private_resource_controller import (
 from desktop_seat_controller import DesktopSeatController, desktop_seat_capacity
 
 
-def dev_gate_status() -> dict[str, object]:
+def _dev_gate_status_once() -> dict[str, object]:
     database = default_store_path()
     capacity = private_capacity_credits()
     unavailable: dict[str, object] = {
@@ -75,3 +78,18 @@ def dev_gate_status() -> dict[str, object]:
         "sessions": [record.to_dict() for record in sessions],
         "reaped_session_ids": [],
     }
+
+
+def dev_gate_status() -> dict[str, object]:
+    last_error: sqlite3.OperationalError | None = None
+    for attempt in range(8):
+        try:
+            return _dev_gate_status_once()
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower() or attempt >= 7:
+                raise
+            last_error = exc
+            time.sleep(min(0.25 * (2**attempt), 2.0))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("dev_gate_status retry exhausted without result")

@@ -248,6 +248,8 @@ class InstalledPetResponse(BaseModel):
     slug: str
     display_name: str
     content_sha256: str
+    format_label: str | None = None
+    format_tier: str | None = None
 
 
 class InstalledPetListResponse(BaseModel):
@@ -435,6 +437,8 @@ async def list_installed_pets() -> InstalledPetListResponse:
             slug=pet.slug,
             display_name=pet.display_name,
             content_sha256=pet.content_sha256,
+            format_label=pet.format_label,
+            format_tier=pet.format_tier,
         )
         for pet in list_installed_pets()
     ]
@@ -459,6 +463,8 @@ async def install_companion_pet(req: PetInstallRequest) -> InstalledPetResponse:
         slug=installed.slug,
         display_name=installed.display_name,
         content_sha256=installed.content_sha256,
+        format_label=installed.format_label,
+        format_tier=installed.format_tier,
     )
 
 

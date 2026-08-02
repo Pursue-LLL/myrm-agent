@@ -118,6 +118,21 @@ async def run_desktop_approval_chrome_e2e(
                 if attempt >= attempts:
                     break
                 progress(f"retry after: {last_error}")
+                try:
+                    from e2e_session_lifecycle import remaining_wall_sec
+
+                    body_remaining = remaining_wall_sec()
+                except ImportError:
+                    body_remaining = float("inf")
+                retry_body_reserve = signoff_parallel_desktop_mux_step_timeout_sec(
+                    180.0
+                )
+                if body_remaining < retry_body_reserve:
+                    progress(
+                        "R255 skip internal retry — body budget remaining "
+                        f"{body_remaining:.0f}s < reserve {retry_body_reserve:.0f}s"
+                    )
+                    break
                 if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
                     from tests.e2e.desktop_approval.turn_flow import (
                         _signoff_mux_attach_restart,
@@ -130,7 +145,9 @@ async def run_desktop_approval_chrome_e2e(
                     )
                 try:
                     progress("retry reset: lightweight chat reset (no page reopen)")
-                    mux_step_timeout = signoff_parallel_desktop_mux_step_timeout_sec(75.0)
+                    mux_step_timeout = signoff_parallel_desktop_mux_step_timeout_sec(
+                        75.0
+                    )
                     await _retry_reset_step(
                         "recover_mux_transport",
                         asyncio.to_thread(chat._client.recover_mux_transport),

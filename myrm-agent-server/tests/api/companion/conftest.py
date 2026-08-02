@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -18,7 +19,7 @@ from sqlalchemy.pool import StaticPool
 from app.database.models import Base
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_companion_database(tmp_path: Path):
     """Create an isolated file-backed SQLite database for companion tests."""
     db_file = tmp_path / "test_companion.db"
@@ -47,6 +48,7 @@ async def setup_companion_database(tmp_path: Path):
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),
+        patch("app.services.config.service.get_session_factory", mock_get_session_factory),
     ):
         yield
 

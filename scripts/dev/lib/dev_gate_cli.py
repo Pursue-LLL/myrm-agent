@@ -278,40 +278,19 @@ def _simple_operation(args: argparse.Namespace) -> int:
     elif args.command == "heartbeat":
         payload["current_node"] = args.current_node
     elif args.command == "cleanup":
-        from cleanup_observed_seal import observe_cleanup_seal
-
-        snapshot = send(
-            {
-                "operation": "snapshot",
-                "session_id": args.session_id,
-            }
-        )
-        session = snapshot.get("session")
-        ownership = session.get("ownership") if isinstance(session, dict) else None
-        owned_pages: list[str] = []
-        owned_context = ""
-        if isinstance(ownership, dict):
-            pages_raw = ownership.get("page_ids", [])
-            if isinstance(pages_raw, list):
-                owned_pages = [
-                    page_id for page_id in pages_raw if isinstance(page_id, str)
-                ]
-            owned_context = str(ownership.get("browser_context_id", ""))
-        requested_at = time.time()
-        released_lease = args.released_lease_id.strip()
-        ledger_cleaned, sealed = observe_cleanup_seal(
-            released_lease_id=released_lease,
-            owned_page_ids=tuple(owned_pages),
-            owned_context_id=owned_context,
-        )
         from cleanup_observed_seal import (
             collect_cdp_target_ids,
             lease_bound_target_ids,
+            lease_released,
             physical_targets_absent,
         )
 
+        requested_at = time.time()
+        released_lease = args.released_lease_id.strip()
+        ledger_cleaned = lease_released(released_lease)
         physical_released = physical_targets_absent(lease_id=released_lease)
         cdp_after = collect_cdp_target_ids()
+        sealed = ledger_cleaned and physical_released is True
         payload["receipt"] = {
             "closed_page_ids": list(lease_bound_target_ids(released_lease)),
             "closed_context_id": args.closed_context_id,
@@ -328,8 +307,17 @@ def _simple_operation(args: argparse.Namespace) -> int:
     elif args.command == "finish":
         payload["succeeded"] = args.succeeded
         payload["failure_token"] = args.failure_token
-    response = send(payload)
-    print(json.dumps(response, separators=(",", ":"), sort_keys=True))
+    try:
+        response = send(payload)
+    except RuntimeError as exc:
+        message = str(exc)
+        if "TerminalConflictError" in message or "cannot finish succeeded" in message:
+            print(message, file=sys.stderr)
+            return 1
+        raise
+    # cleanup/finish run inside test.sh EXIT trap; stdout would pollute detach pytest logs.
+    json_stream = sys.stderr if args.command in {"cleanup", "finish"} else sys.stdout
+    print(json.dumps(response, separators=(",", ":"), sort_keys=True), file=json_stream)
     if args.command == "cleanup":
         if os.environ.get("MYRM_E2E_RELAX_DEV_GATE_TERMINAL", "").strip() == "1":
             return 0
@@ -339,6 +327,18 @@ def _simple_operation(args: argparse.Namespace) -> int:
             return 0
         print("E2E_DEV_GATE_CLEANUP_UNSEALED: observed seal missing", file=sys.stderr)
         return 1
+    if args.command == "finish" and args.succeeded:
+        session = response.get("session")
+        if not isinstance(session, dict):
+            print("E2E_DEV_GATE_FINISH_MISSING_SESSION", file=sys.stderr)
+            return 1
+        if session.get("state") != "SUCCEEDED" or session.get("outcome") != "PASSED":
+            print(
+                "E2E_DEV_GATE_FINISH_TERMINAL_MISMATCH: "
+                f"state={session.get('state')} outcome={session.get('outcome')}",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 
@@ -374,14 +374,15 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
 
 
 def _export_signoff_artifact(args: argparse.Namespace) -> int:
-    response = send(
-        {
-            "operation": "export_signoff_artifact",
-            "output_path": args.output_path,
-            "session_limit": args.session_limit,
-            "event_limit": args.event_limit,
-        }
-    )
+    payload: dict[str, object] = {
+        "operation": "export_signoff_artifact",
+        "output_path": args.output_path,
+        "session_limit": args.session_limit,
+        "event_limit": args.event_limit,
+    }
+    if args.session_id:
+        payload["session_ids"] = list(args.session_id)
+    response = send(payload)
     print(json.dumps(response, separators=(",", ":"), sort_keys=True))
     return 0
 
@@ -441,6 +442,12 @@ def _parser() -> argparse.ArgumentParser:
     export_signoff.add_argument("--output-path", required=True)
     export_signoff.add_argument("--session-limit", type=int, default=200)
     export_signoff.add_argument("--event-limit", type=int, default=2000)
+    export_signoff.add_argument(
+        "--session-id",
+        action="append",
+        default=[],
+        help="Run-scoped session id(s) to export; repeatable",
+    )
     export_signoff.set_defaults(handler=_export_signoff_artifact)
 
     verify_signoff = commands.add_parser("verify_signoff_artifact")

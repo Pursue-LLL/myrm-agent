@@ -17,6 +17,7 @@ export interface ManifestPet {
   displayName: string;
   kind: string;
   spritesheetUrl: string;
+  curated: boolean;
 }
 
 const MANIFEST_URL = 'https://petdex.dev/api/manifest';
@@ -56,6 +57,7 @@ export async function fetchPetdexManifest(): Promise<ManifestPet[]> {
       displayName: String(entry.displayName || entry.slug),
       kind: String(entry.kind || 'pet'),
       spritesheetUrl: String(entry.spritesheetUrl),
+      curated: String(entry.spritesheetUrl).includes('/curated/'),
     });
   }
 
@@ -66,4 +68,21 @@ export async function fetchPetdexManifest(): Promise<ManifestPet[]> {
   } catch {}
 
   return pets;
+}
+
+export function rankManifestPets(
+  pets: ManifestPet[],
+  options: { installedSlugs?: ReadonlySet<string>; activeSlug?: string } = {},
+): ManifestPet[] {
+  const installed = options.installedSlugs ?? new Set<string>();
+  const activeSlug = options.activeSlug;
+  const score = (pet: ManifestPet) =>
+    (pet.curated ? 4 : 0) +
+    (installed.has(pet.slug) ? 2 : 0) +
+    (activeSlug === pet.slug ? 1 : 0);
+  return [...pets].sort((a, b) => score(b) - score(a));
+}
+
+export function petdexPetPageUrl(slug: string): string {
+  return `https://petdex.dev/pets/${encodeURIComponent(slug)}`;
 }

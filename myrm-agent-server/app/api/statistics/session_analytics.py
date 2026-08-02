@@ -175,13 +175,16 @@ async def get_session_analytics(
                 for se in summary.events_timeline
             ]
 
-            return {
+            result: dict[str, object] = {
                 "duration_ms": summary.duration_ms,
                 "tool_breakdown": tool_breakdown,
                 "events_timeline": events_timeline,
                 "task_metrics": summary.task_metrics,
                 "token_economics": summary.token_economics,
             }
+            if summary.security_audit:
+                result["security_audit"] = summary.security_audit
+            return result
 
         chat_meta, message_stats, event_log_data = await asyncio.gather(
             get_chat_metadata(),

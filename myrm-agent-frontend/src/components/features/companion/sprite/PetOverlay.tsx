@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
 import { resolveCompanionSpritesheetUrl } from '@/services/companion/petSpritesheet';
+import { openCompanionHealthCheck } from '@/services/companion/petDoctor';
 import useApprovalStore from '@/store/useApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
@@ -296,6 +297,7 @@ const PetOverlay = memo(function PetOverlay() {
           size={petSize}
           onLoadStateChange={handleSpriteLoadState}
           onSheetRowsDetected={handleSheetRowsDetected}
+          onHealthCheckRequest={openCompanionHealthCheck}
         />
       </div>
 

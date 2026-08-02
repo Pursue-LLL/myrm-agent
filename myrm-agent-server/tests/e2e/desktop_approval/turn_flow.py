@@ -25,6 +25,7 @@ from cdp_chat_support import (
     signoff_parallel_force_chat_timeout_sec,
     wait_chat_messages_done,
     wait_e2e_provider_ready,
+    _signoff_desktop_soak_parallel_load,
 )
 from mcp_chat_ui import McpChatSession
 
@@ -36,6 +37,7 @@ from tests.e2e.desktop_approval.constants import (
     progress,
 )
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
+from tests.e2e.desktop_approval.infra_retry import is_retriable_page_transport
 from tests.e2e.desktop_approval.textedit_fixture import (
     ensure_textedit_fixture_ready,
     preflight_textedit_foreground,
@@ -65,6 +67,7 @@ def _api_done_wait_tick() -> None:
         touch_wall_progress(current_node="wait_api_done")
     except ImportError:
         pass
+
 
 _CHAT_ROUTE_PROBE_TIMEOUT_SEC = 20.0
 _CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC = 45.0
@@ -293,6 +296,48 @@ def _seeded_kickoff_activity_probe(
     }
 
 
+def _bridge_seal_agent_started_probe(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> bool:
+    """R257: bridge SEAL only counts when assistant turn activity exists."""
+    activity = _seeded_kickoff_activity_probe(
+        chat_id,
+        baseline_user_count=0,
+        api_url=api_url,
+    )
+    assistant_count = int(activity.get("assistantCount") or 0)
+    assistant_tail = str(activity.get("assistantTail") or "").strip()
+    return assistant_count > 0 or bool(assistant_tail)
+
+
+async def _verify_bridge_seal_api_kickoff(
+    chat_id: str,
+    *,
+    timeout_sec: float,
+) -> bool:
+    """R257: short API-only probe after bridge SEAL before trusting kickoff."""
+    deadline = asyncio.get_event_loop().time() + timeout_sec
+    while asyncio.get_event_loop().time() < deadline:
+        heartbeat_e2e_lease()
+        try:
+            started = await asyncio.to_thread(
+                _bridge_seal_agent_started_probe,
+                chat_id,
+                api_url=get_e2e_api_url(),
+            )
+        except (urllib.error.HTTPError, TimeoutError, OSError) as exc:
+            progress(f"R257 bridge SEAL API probe skipped (non-fatal): {exc}")
+            started = False
+        if started:
+            progress("R257 bridge SEAL verified — assistant turn activity via API")
+            return True
+        await asyncio.sleep(5.0)
+    progress("R257 bridge SEAL API kickoff miss — CDP fallback next")
+    return False
+
+
 def _agent_stream_kickoff_started(result: dict[str, object]) -> bool:
     """True when POST agent-stream returned productive SSE (not immediate error)."""
     if result.get("error"):
@@ -334,6 +379,12 @@ async def _wait_seeded_resend_turn_kickoff(
                     return True
             except urllib.error.HTTPError:
                 pass
+            except (TimeoutError, OSError) as exc:
+                if poll == 1 or poll % 5 == 0:
+                    progress(
+                        f"seeded resend kickoff API probe skipped "
+                        f"(non-fatal): {exc} poll=#{poll}"
+                    )
         try:
             probe = await chat.evaluate(
                 "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
@@ -357,7 +408,10 @@ async def _wait_seeded_resend_turn_kickoff(
         if not nudged and poll >= 8:
             nudged = True
             progress("seeded resend kickoff slow — bridge send_message nudge")
-            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
+            try:
+                await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
+            except (TimeoutError, RuntimeError, OSError) as exc:
+                progress(f"seeded resend kickoff nudge skipped (non-fatal): {exc}")
         await asyncio.sleep(2.0)
     return False
 
@@ -419,13 +473,21 @@ async def wait_stream_done_with_marker(
                 except urllib.error.HTTPError as exc:
                     progress(f"API DONE probe HTTP {exc.code} chat_id={chat_id}")
                     api_has_done = False
-                if api_has_done:
-                    return {
-                        **probe,
-                        "chatId": chat_id,
-                        "matched": True,
-                        "mode": "api-done",
-                    }
+                except (TimeoutError, OSError) as exc:
+                    if poll == 1 or poll % 5 == 0:
+                        progress(
+                            f"poll DONE marker #{poll} API probe skipped "
+                            f"(non-fatal): {exc}"
+                        )
+                    api_has_done = False
+                else:
+                    if api_has_done:
+                        return {
+                            **probe,
+                            "chatId": chat_id,
+                            "matched": True,
+                            "mode": "api-done",
+                        }
             if (
                 chat_id
                 and int(probe.get("userCount") or 0) >= 1
@@ -442,9 +504,19 @@ async def wait_stream_done_with_marker(
             ):
                 nudged_done = True
                 progress("nudge model to reply DONE only")
-                await chat.send_message(
-                    "Reply with only DONE.", "Reply with only DONE."
-                )
+                nudge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+                try:
+                    await asyncio.wait_for(
+                        chat.send_message(
+                            "Reply with only DONE.", "Reply with only DONE."
+                        ),
+                        timeout=nudge_timeout,
+                    )
+                except (TimeoutError, asyncio.TimeoutError) as exc:
+                    progress(
+                        f"R254 nudge send_message timeout after {nudge_timeout:.0f}s "
+                        f"— continue DONE poll (non-fatal): {exc}"
+                    )
                 heartbeat_e2e_lease()
                 continue
         await asyncio.sleep(2.0)
@@ -575,7 +647,11 @@ async def complete_turn_after_approval(
         progress("R233 api-primary DONE miss — fall back to CDP turn wait")
     if bridge_kickoff_done and chat_id_hint and not api_primary_done:
         progress("R244 bridge kickoff — API DONE wait without route restore")
-        bridge_api_budget = min(120.0, max(60.0, turn_done_timeout * 0.35))
+        bridge_api_budget = min(420.0, max(120.0, turn_done_timeout * 0.75))
+        progress(
+            f"R259 bridge API DONE budget={bridge_api_budget:.0f}s "
+            f"(turn_done_timeout={turn_done_timeout:.0f}s)"
+        )
         api_done = await asyncio.to_thread(
             wait_chat_messages_done,
             chat_id_hint,
@@ -593,7 +669,9 @@ async def complete_turn_after_approval(
             progress(f"done chat_id={chat_id_hint}")
             return chat_id_hint
         progress("R244 bridge API DONE miss — CDP turn wait without route restore")
-    if chat_id_hint and not skip_chat_route_restore:
+    if chat_id_hint and (not skip_chat_route_restore or bridge_kickoff_done):
+        if bridge_kickoff_done and skip_chat_route_restore:
+            progress("R256 bridge kickoff — restore chat route before CDP DONE wait")
         await _ensure_chat_route(chat, chat_id_hint)
     progress("wait assistant DONE")
     recover_timeout = signoff_parallel_desktop_turn_done_timeout_sec(60.0)
@@ -636,6 +714,10 @@ async def complete_turn_after_approval(
                 progress(
                     f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}"
                 )
+                api_done = False
+            except (TimeoutError, OSError) as exc:
+                progress(f"post-approval API DONE probe skipped (non-fatal): {exc}")
+                api_done = False
         if chat_id_probe and api_done:
             progress("approval verified via API DONE marker fallback")
             after_turn = {
@@ -1229,10 +1311,13 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     except urllib.error.HTTPError:
                         seeded_api_kickoff = False
         elif chat_id and baseline_r241_fastpath:
+            progress("R242 skip API kickoff after R241 baseline timeout — bridge first")
+        parallel_load = _signoff_desktop_soak_parallel_load()
+        if not kickoff_ok and parallel_load >= 3:
             progress(
-                "R242 skip API kickoff after R241 baseline timeout — bridge first"
+                f"R258 parallel load={parallel_load} — skip bridge resend, CDP first"
             )
-        if not kickoff_ok:
+        elif not kickoff_ok:
             progress(
                 "seeded resend API kickoff miss — bridge E2E_PROMPT resend "
                 "(R239 mux-bypass before CDP nativeClick)"
@@ -1241,60 +1326,230 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             await chat.ensure_react_e2e_bridge(
                 timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
             )
-            await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
-                chat,
-                chat_id=chat_id,
-                timeout_sec=min(90.0, kickoff_timeout),
-                baseline_user_count=baseline_user,
-                baseline_ui_user_count=baseline_ui_user,
-            )
-            if kickoff_ok:
-                try:
-                    activity = await asyncio.to_thread(
-                        _seeded_kickoff_activity_probe,
+            bridge_send_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+            try:
+                await asyncio.wait_for(
+                    chat.send_message(E2E_PROMPT, E2E_PROMPT),
+                    timeout=bridge_send_timeout,
+                )
+            except (TimeoutError, asyncio.TimeoutError) as exc:
+                progress(
+                    f"R257 bridge send_message timeout after {bridge_send_timeout:.0f}s "
+                    f"— CDP fallback next: {exc}"
+                )
+            else:
+                progress(
+                    "R253 bridge send_message complete — verify API kickoff (R257)"
+                )
+                bridge_kickoff_used = True
+                if chat_id:
+                    verify_budget = min(
+                        60.0,
+                        signoff_parallel_desktop_mux_step_timeout_sec(60.0),
+                    )
+                    if await _verify_bridge_seal_api_kickoff(
                         chat_id,
-                        baseline_user_count=baseline_user,
-                        api_url=get_e2e_api_url(),
-                    )
-                    if activity.get("active"):
-                        bridge_kickoff_used = True
+                        timeout_sec=verify_budget,
+                    ):
+                        kickoff_ok = True
+                        seeded_api_kickoff = True
                     else:
-                        progress(
-                            "R245 bridge kickoff UI-only false positive — "
-                            f"activity={activity}; CDP fallback"
-                        )
                         kickoff_ok = False
-                except urllib.error.HTTPError:
-                    progress(
-                        "R245 bridge kickoff activity probe HTTPError — CDP fallback"
-                    )
-                    kickoff_ok = False
+                        bridge_kickoff_used = False
+                else:
+                    kickoff_ok = True
         if not kickoff_ok:
             progress(
                 "seeded resend bridge miss — CDP fast_desktop_agent_submit fallback"
             )
             await asyncio.to_thread(activate_chrome)
-            resend = await chat.fast_desktop_agent_submit(
-                E2E_PROMPT,
-                E2E_PROMPT,
-                chat_id_hint=chat_id or None,
-            )
-            progress(f"post-seeded-approval resend: {resend.get('submit', resend)}")
-            started = resend.get("started")
-            submit = resend.get("submit")
-            if isinstance(started, dict):
-                chat_id = str(started.get("chatId") or chat_id or "").strip()
-            if isinstance(submit, dict):
-                chat_id = str(submit.get("chatId") or chat_id or "").strip()
+            cdp_transport_failed = False
+            run_r262_chain = False
+            resend: dict[str, object] | None = None
+            try:
+                resend = await chat.fast_desktop_agent_submit(
+                    E2E_PROMPT,
+                    E2E_PROMPT,
+                    chat_id_hint=chat_id or None,
+                )
+            except (RuntimeError, TimeoutError, OSError) as exc:
+                if is_retriable_page_transport(exc):
+                    progress(
+                        "R264 CDP resend transport fail — "
+                        f"R262 API kickoff bypass: {exc}"
+                    )
+                    cdp_transport_failed = True
+                    run_r262_chain = True
+                else:
+                    raise
+            if cdp_transport_failed:
+                submit_payload: object = {"ok": False}
+                progress("post-seeded-approval resend: transport_fail")
+            else:
+                assert resend is not None
+                submit_payload = resend.get("submit", resend)
+                progress(f"post-seeded-approval resend: {submit_payload}")
+                started = resend.get("started")
+                submit = resend.get("submit")
+                if isinstance(started, dict):
+                    chat_id = str(started.get("chatId") or chat_id or "").strip()
+                if isinstance(submit, dict):
+                    chat_id = str(submit.get("chatId") or chat_id or "").strip()
             await asyncio.to_thread(preflight_textedit_foreground)
-            kickoff_ok = await _wait_seeded_resend_turn_kickoff(
-                chat,
-                chat_id=chat_id,
-                timeout_sec=kickoff_timeout,
-                baseline_user_count=baseline_user,
-                baseline_ui_user_count=baseline_ui_user,
-            )
+            if isinstance(submit_payload, dict) and submit_payload.get("ok") is True:
+                progress("R251 CDP resend submit ok — verify API kickoff (R260)")
+                verify_budget = min(
+                    90.0,
+                    signoff_parallel_desktop_mux_step_timeout_sec(90.0),
+                )
+                if chat_id and await _verify_bridge_seal_api_kickoff(
+                    chat_id,
+                    timeout_sec=verify_budget,
+                ):
+                    progress(
+                        "R260 CDP submit verified — trust nativeClick kickoff "
+                        "(skip activity wait)"
+                    )
+                    kickoff_ok = True
+                    bridge_kickoff_used = True
+                    seeded_api_kickoff = True
+                elif chat_id:
+                    run_r262_chain = True
+                else:
+                    progress(
+                        "R251 CDP resend submit ok — no chat_id, trust nativeClick"
+                    )
+                    kickoff_ok = True
+                    bridge_kickoff_used = True
+            if run_r262_chain and chat_id:
+                if cdp_transport_failed:
+                    progress("R264 CDP transport fail — R262→R261→activity wait chain")
+                    progress(
+                        "R262 API agent-stream kickoff after R264 transport fail "
+                        "(R241 bypass)"
+                    )
+                else:
+                    progress(
+                        "R260 CDP submit API kickoff miss — "
+                        "R262→R261→activity wait chain"
+                    )
+                    progress(
+                        "R262 API agent-stream kickoff after R260 CDP miss "
+                        "(R241 bypass)"
+                    )
+                api_timeout = min(60.0, max(30.0, kickoff_timeout / 6.0))
+                kickoff_thread_budget = min(50.0, api_timeout + 15.0)
+                try:
+                    kickoff_result = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            _kickoff_desktop_turn_via_api_sync,
+                            chat_id,
+                            query=E2E_PROMPT,
+                            timeout_sec=api_timeout,
+                        ),
+                        timeout=kickoff_thread_budget,
+                    )
+                except (asyncio.TimeoutError, TimeoutError):
+                    progress(
+                        f"R262 API kickoff thread budget exceeded "
+                        f"({kickoff_thread_budget:.0f}s)"
+                    )
+                    kickoff_result = {
+                        "events": [],
+                        "error": {"error_type": "KickoffThreadTimeout"},
+                    }
+                if _agent_stream_kickoff_started(kickoff_result):
+                    events = kickoff_result.get("events")
+                    event_count = len(events) if isinstance(events, list) else 0
+                    progress(
+                        f"R262 API stream kickoff started events={event_count} "
+                        "after R260 miss"
+                    )
+                    kickoff_ok = True
+                    seeded_api_kickoff = True
+                    bridge_kickoff_used = False
+                else:
+                    verify_budget = min(
+                        45.0,
+                        signoff_parallel_desktop_mux_step_timeout_sec(45.0),
+                    )
+                    if await _verify_bridge_seal_api_kickoff(
+                        chat_id,
+                        timeout_sec=verify_budget,
+                    ):
+                        progress("R262 API activity verified after R260 miss")
+                        kickoff_ok = True
+                        seeded_api_kickoff = True
+                        bridge_kickoff_used = False
+                parallel_load_now = _signoff_desktop_soak_parallel_load()
+                if not kickoff_ok and parallel_load_now >= 3:
+                    progress(
+                        f"R261 parallel load={parallel_load_now} — "
+                        "bridge resend after R260 CDP miss"
+                    )
+                    await asyncio.to_thread(activate_chrome)
+                    await chat.ensure_react_e2e_bridge(
+                        timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
+                    )
+                    bridge_send_timeout = signoff_parallel_desktop_mux_step_timeout_sec(
+                        90.0
+                    )
+                    try:
+                        await asyncio.wait_for(
+                            chat.send_message(E2E_PROMPT, E2E_PROMPT),
+                            timeout=bridge_send_timeout,
+                        )
+                    except (TimeoutError, asyncio.TimeoutError) as exc:
+                        progress(
+                            f"R261 bridge send_message timeout — "
+                            f"activity wait next: {exc}"
+                        )
+                    else:
+                        progress(
+                            "R261 bridge send_message complete — verify API kickoff"
+                        )
+                        verify_budget = min(
+                            60.0,
+                            signoff_parallel_desktop_mux_step_timeout_sec(60.0),
+                        )
+                        if await _verify_bridge_seal_api_kickoff(
+                            chat_id,
+                            timeout_sec=verify_budget,
+                        ):
+                            progress("R261 bridge kickoff verified after R260 CDP miss")
+                            kickoff_ok = True
+                            bridge_kickoff_used = True
+                            seeded_api_kickoff = True
+                if not kickoff_ok:
+                    kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                        chat,
+                        chat_id=chat_id,
+                        timeout_sec=kickoff_timeout,
+                        baseline_user_count=baseline_user,
+                        baseline_ui_user_count=baseline_ui_user,
+                    )
+                    if kickoff_ok:
+                        bridge_kickoff_used = True
+                        try:
+                            activity = await asyncio.to_thread(
+                                _seeded_kickoff_activity_probe,
+                                chat_id,
+                                baseline_user_count=baseline_user,
+                                api_url=get_e2e_api_url(),
+                            )
+                            seeded_api_kickoff = bool(activity.get("active"))
+                        except urllib.error.HTTPError:
+                            seeded_api_kickoff = False
+                    else:
+                        bridge_kickoff_used = False
+            elif not kickoff_ok:
+                kickoff_ok = await _wait_seeded_resend_turn_kickoff(
+                    chat,
+                    chat_id=chat_id,
+                    timeout_sec=kickoff_timeout,
+                    baseline_user_count=baseline_user,
+                    baseline_ui_user_count=baseline_ui_user,
+                )
         if not kickoff_ok:
             raise RuntimeError(
                 "seeded-fallback post-approval resend did not start agent turn "

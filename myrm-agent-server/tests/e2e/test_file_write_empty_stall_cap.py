@@ -33,7 +33,16 @@ def test_live_empty_write_post_send_stall_cap_scales_with_peers(
 
 
 def test_transport_retryable_rejects_business_failures() -> None:
-    assert mod._is_transport_retryable(AssertionError("E2E_STALL: live empty write")) is False
-    assert mod._is_transport_retryable(AssertionError("LLM idle without file_write_tool")) is False
-    assert mod._is_transport_retryable(TimeoutError("Dev E2E chat bridge not available")) is True
+    assert (
+        mod._is_transport_retryable(AssertionError("E2E_STALL: live empty write"))
+        is False
+    )
+    assert (
+        mod._is_transport_retryable(AssertionError("LLM idle without file_write_tool"))
+        is False
+    )
+    assert (
+        mod._is_transport_retryable(TimeoutError("Dev E2E chat bridge not available"))
+        is True
+    )
     assert mod._is_transport_retryable(RuntimeError("MUX reclaim stall")) is True

@@ -16,7 +16,9 @@ and persists the results to the user's private volume.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import shutil
 import time
 from itertools import groupby
 from pathlib import Path
@@ -88,8 +90,6 @@ def get_dataset_path(dataset_id: str | None = None) -> Path:
         path = DEFAULT_DATASETS_DIR / "default.jsonl"
         legacy_path = Path(".myrm/eval_cases.jsonl")
         if not path.exists() and legacy_path.exists():
-            import shutil
-
             shutil.move(str(legacy_path), str(path))
         return path
 
@@ -330,7 +330,6 @@ async def run_eval_suite(
 
     # Save the report
     reports_dir.mkdir(parents=True, exist_ok=True)
-    import time
 
     timestamp = int(time.time())
     report_path = reports_dir / f"eval_report_{timestamp}.jsonl"
@@ -346,8 +345,6 @@ async def run_eval_suite(
         latest_path.unlink()
 
     # Use copy instead of symlink to avoid cross-platform issues
-    import shutil
-
     shutil.copy2(report_path, latest_path)
 
     return {
@@ -399,8 +396,6 @@ def get_latest_report_summary(reports_dir: Path | None = None) -> dict[str, obje
         return None
 
     try:
-        import json
-
         with latest_path.open("r", encoding="utf-8") as f:
             lines = f.readlines()
             if not lines:
@@ -427,8 +422,6 @@ def get_all_report_summaries(reports_dir: Path | None = None) -> list[dict[str, 
     reports_dir = reports_dir or DEFAULT_REPORTS_DIR
     if not reports_dir.exists():
         return []
-
-    import json
 
     summaries = []
     report_files = list(reports_dir.glob("eval_report_*.jsonl"))
@@ -576,13 +569,10 @@ async def _run_matrix_eval(
 
     _matrix_state["profile_progress"] = len(profile_ids)
 
-    import json
-    import time as time_mod
-
     reports_dir = DEFAULT_MATRIX_REPORTS_DIR
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = int(time_mod.time())
+    timestamp = int(time.time())
     report_path = reports_dir / f"matrix_report_{timestamp}.json"
 
     report_data = matrix_result.to_dict()
@@ -596,7 +586,6 @@ async def _run_matrix_eval(
     latest_path = reports_dir / "latest.json"
     if latest_path.exists():
         latest_path.unlink()
-    import shutil
     shutil.copy2(report_path, latest_path)
 
     logger.info("Matrix evaluation completed. Report: %s", report_path)
@@ -605,8 +594,6 @@ async def _run_matrix_eval(
 
 def get_latest_matrix_report() -> dict[str, object] | None:
     """Get the latest matrix evaluation report."""
-    import json
-
     latest_path = DEFAULT_MATRIX_REPORTS_DIR / "latest.json"
     if not latest_path.exists():
         return None

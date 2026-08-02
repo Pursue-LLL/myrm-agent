@@ -6,7 +6,8 @@
  * evolvedRarity, evolvedStats, evolvedAt, snacksRemaining, lastSnackReset.
  *
  * Session-scoped fields (not persisted): currentReaction, lastPetAt, observerCount,
- * lastObserverTrigger, mascotStatus, mood, lastInteractionAt, petPaletteOpen.
+ * lastObserverTrigger, mascotStatus, mood, lastInteractionAt, petPaletteOpen,
+ * doctorExpandPending.
  */
 
 import { create } from 'zustand';
@@ -94,6 +95,7 @@ interface CompanionState {
 
   // Session-scoped UI (not persisted)
   petPaletteOpen: boolean;
+  doctorExpandPending: boolean;
 }
 
 interface CompanionActions {
@@ -126,6 +128,8 @@ interface CompanionActions {
   setSpriteEnabled: (enabled: boolean) => void;
   setSpriteConfig: (config: SpriteConfig | null) => void;
   setPetPaletteOpen: (open: boolean) => void;
+  openCompanionHealthCheck: () => void;
+  clearDoctorExpandPending: () => void;
 }
 
 type CompanionStore = CompanionState & CompanionActions;
@@ -166,6 +170,7 @@ const useCompanionStore = create<CompanionStore>()(
       spriteEnabled: false,
       spriteConfig: null,
       petPaletteOpen: false,
+      doctorExpandPending: false,
 
       setEnabled: (enabled) => set({ enabled }),
       setMuted: (muted) => set({ muted }),
@@ -296,6 +301,14 @@ const useCompanionStore = create<CompanionStore>()(
       setSpriteEnabled: (spriteEnabled) => set({ spriteEnabled }),
       setSpriteConfig: (spriteConfig) => set({ spriteConfig }),
       setPetPaletteOpen: (petPaletteOpen) => set({ petPaletteOpen }),
+
+      openCompanionHealthCheck: () =>
+        set({
+          petPaletteOpen: true,
+          doctorExpandPending: true,
+        }),
+
+      clearDoctorExpandPending: () => set({ doctorExpandPending: false }),
 
       saveConfigToServer: async () => {
         try {

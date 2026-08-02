@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 
 from dev_gate_session import SessionState, TERMINAL_STATES, Workload
-from dev_gate_store import DevGateStore
+from dev_gate_store import DevGateStore, _begin_immediate
 
 DESKTOP_SEAT_TIMEOUT_SEC = 900.0
 DESKTOP_SEAT_QUEUE_PROGRESS_SEC = 30.0
@@ -60,11 +60,11 @@ class DesktopSeatController:
             connection.executescript(_SCHEMA)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.store.path, timeout=10.0)
+        connection = sqlite3.connect(self.store.path, timeout=30.0)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA busy_timeout=10000")
+        connection.execute("PRAGMA busy_timeout=60000")
         return connection
 
     def admit(
@@ -90,7 +90,7 @@ class DesktopSeatController:
         if record.policy.workload is not Workload.DESKTOP:
             raise ValueError(f"desktop seat requires DESKTOP workload: {session_id}")
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
             connection.execute(
                 """
@@ -149,7 +149,7 @@ class DesktopSeatController:
     ) -> tuple[str, ...]:
         released_at = time.time() if now is None else now
         with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_immediate(connection)
             row = self._queue_row(connection, session_id)
             if str(row["owner_token"]) != owner_token:
                 raise PermissionError(f"desktop seat owner mismatch: {session_id}")
@@ -164,18 +164,31 @@ class DesktopSeatController:
 
     def snapshot(self, *, now: float | None = None) -> dict[str, object]:
         captured_at = time.time() if now is None else now
-        with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            self._release_terminal_sessions(connection, captured_at)
-            active = self._active_seats(connection)
-            waiting = connection.execute(
-                """
-                SELECT session_id, enqueued_at
-                FROM desktop_seat_admission
-                WHERE granted_at IS NULL AND released_at IS NULL
-                ORDER BY enqueued_at, session_id
-                """
-            ).fetchall()
+        last_error: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            try:
+                with self._connect() as connection:
+                    _begin_immediate(connection)
+                    self._release_terminal_sessions(connection, captured_at)
+                    active = self._active_seats(connection)
+                    waiting = connection.execute(
+                        """
+                        SELECT session_id, enqueued_at
+                        FROM desktop_seat_admission
+                        WHERE granted_at IS NULL AND released_at IS NULL
+                        ORDER BY enqueued_at, session_id
+                        """
+                    ).fetchall()
+                break
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() or attempt >= 7:
+                    raise
+                last_error = exc
+                time.sleep(min(0.25 * (2**attempt), 2.0))
+        else:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("desktop seat snapshot failed")
         return {
             "capacity_seats": self.capacity_seats,
             "active_seats": active,
@@ -191,15 +204,27 @@ class DesktopSeatController:
     def _release_terminal_sessions(
         self, connection: sqlite3.Connection, now: float
     ) -> None:
-        for record in self.store.list_active():
-            if record.state in TERMINAL_STATES:
-                connection.execute(
-                    """
-                    UPDATE desktop_seat_admission SET released_at=?
-                    WHERE session_id=? AND released_at IS NULL
-                    """,
-                    (now, record.session_id),
-                )
+        terminal_values = tuple(state.value for state in TERMINAL_STATES)
+        placeholders = ",".join("?" for _ in terminal_values)
+        rows = connection.execute(
+            f"""
+            SELECT s.session_id
+            FROM sessions AS s
+            INNER JOIN desktop_seat_admission AS d ON d.session_id = s.session_id
+            WHERE s.state IN ({placeholders})
+              AND d.granted_at IS NOT NULL
+              AND d.released_at IS NULL
+            """,
+            terminal_values,
+        ).fetchall()
+        for row in rows:
+            connection.execute(
+                """
+                UPDATE desktop_seat_admission SET released_at=?
+                WHERE session_id=? AND released_at IS NULL
+                """,
+                (now, str(row["session_id"])),
+            )
 
     def _active_seats(self, connection: sqlite3.Connection) -> int:
         row = connection.execute(

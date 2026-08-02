@@ -65,7 +65,51 @@ export const remoteAccessService = {
     return apiRequest<ActiveSessionsResponse>(`/remote-access/mobile/sessions${query}`);
   },
 
+  async getSpawnOptions(): Promise<SpawnOptionsResponse> {
+    if (isMobileRemoteSurface()) {
+      return mobileApiRequest<SpawnOptionsResponse>('/api/v1/remote-access/mobile/spawn-options');
+    }
+    return apiRequest<SpawnOptionsResponse>('/remote-access/mobile/spawn-options');
+  },
+
+  async spawnMobileSession(params: SpawnMobileSessionParams): Promise<SpawnMobileSessionResponse> {
+    const body = {
+      agent_id: params.agentId,
+      project_id: params.projectId ?? null,
+      initial_message: params.initialMessage,
+    };
+    if (isMobileRemoteSurface()) {
+      return mobileRemotePost<SpawnMobileSessionResponse>('/api/v1/remote-access/mobile/spawn', body);
+    }
+    return apiRequest<SpawnMobileSessionResponse>('/remote-access/mobile/spawn', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   async getE2EEPublicKey(): Promise<{ publicKeyB64: string }> {
     return apiRequest<{ publicKeyB64: string }>('/remote-access/e2ee/public-key');
   },
+};
+
+export type SpawnOptionAgent = { id: string; name: string; avatar: string | null };
+export type SpawnOptionProject = { id: string; name: string; color: string | null };
+
+export type SpawnOptionsResponse = {
+  agents: SpawnOptionAgent[];
+  projects: SpawnOptionProject[];
+  defaultAgentId: string | null;
+};
+
+export type SpawnMobileSessionParams = {
+  agentId: string;
+  projectId?: string;
+  initialMessage: string;
+};
+
+export type SpawnMobileSessionResponse = {
+  chatId: string;
+  token: string;
+  mobilePath: string;
+  mobileUrl?: string;
 };

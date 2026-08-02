@@ -855,6 +855,13 @@
         "domainAdded": "Blocked domain added",
         "domainRemoved": "Blocked domain removed"
       },
+      "injectionPolicy": {
+        "title": "Prompt Injection Guard",
+        "description": "Block detected prompt injection attacks instead of only logging them. IM and Cron channels default to blocking mode regardless of this setting.",
+        "enableLabel": "Enable Fail-Closed Blocking",
+        "enableDesc": "When enabled, high-threat prompt injection patterns (score ≥ 0.7) will be blocked and replaced with a safe placeholder, preventing the LLM from processing malicious input.",
+        "saved": "Prompt injection policy saved"
+      },
       "planReview": {
         "title": "Plan Review",
         "description": "Review and approve the AI's task plan before execution begins. Helps catch mistakes early — before any files are modified.",
@@ -3863,6 +3870,26 @@
         "storageLowWarning": "Low disk space, consider migrating data to another drive",
         "storageSelectDir": "Select new data storage directory"
       },
+      "serverConnection": {
+        "title": "Server Connection",
+        "description": "Connect to a remote Myrm server instead of the local backend",
+        "modeLocal": "Local",
+        "modeRemote": "Remote",
+        "localDesc": "Using the built-in local backend",
+        "remoteDesc": "Connected to a remote server",
+        "serverUrl": "Server URL",
+        "serverUrlPlaceholder": "https://your-server.example.com",
+        "testConnection": "Test Connection",
+        "testing": "Testing...",
+        "testSuccess": "Connection successful",
+        "testFailed": "Unable to reach the server",
+        "save": "Connect",
+        "disconnect": "Disconnect",
+        "connected": "Connected to remote server",
+        "disconnected": "Switched to local mode",
+        "loginRequired": "This server requires authentication. You will be redirected to login after connecting.",
+        "invalidUrl": "Please enter a valid HTTP or HTTPS URL"
+      },
       "webuiAccess": {
         "title": "WebUI access password",
         "description": "Change the admin password or disable password protection. Disabling allows LAN devices to access without a password.",
@@ -5148,7 +5175,8 @@
     "securityCenter": "Security Center",
     "runs": "Activity",
     "extensionConnected": "Browser Extension Connected",
-    "extensionDisconnected": "Browser Extension Disconnected"
+    "extensionDisconnected": "Browser Extension Disconnected",
+    "remoteGateway": "Connected to Remote Server"
   },
   "health": {
     "title": "System Doctor",
@@ -6089,7 +6117,8 @@
       "verifications": "Acceptance Criteria",
       "livePreview": "Live Preview",
       "browser": "Browser",
-      "desktop": "Desktop"
+      "desktop": "Desktop",
+      "artifacts": "Deliverables"
     }
   },
   "common": {
@@ -6185,6 +6214,10 @@
     "goalMode": "Goal Mode",
     "forkBranch": "Fork Branch",
     "enabled": "Enabled",
+    "remoteGateway": {
+      "unreachable": "Remote server {host} is unreachable. Check the server address or switch back to local mode.",
+      "switchToLocal": "Switch to Local Mode"
+    },
     "configLoadError": {
       "title": "Failed to load configuration",
       "description": "Unable to connect to the service. Please check if the backend is running and try again.",
@@ -12261,7 +12294,60 @@
       "uninstall": "Remove",
       "uninstallConfirm": "Remove this pet from your device? You can install it again from the catalog.",
       "uninstallError": "Failed to remove pet",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "companionGateError": "Companion feature is currently disabled. Re-enable it in Settings → Developer.",
+      "officialBadge": "Official",
+      "viewOnPetdex": "View on Petdex",
+      "formatCodexStandard": "Format: Codex Standard",
+      "formatLegacyStandard": "Format: Legacy Standard",
+      "formatNonStandard": "Format: Non-standard",
+      "formatInvalid": "Format: Invalid"
+    },
+    "doctor": {
+      "title": "Sprite health check",
+      "ready": "Ready",
+      "issues": "{count} issue(s)",
+      "runHint": "Tap to diagnose",
+      "loading": "Checking…",
+      "fix": "Fix",
+      "refresh": "Refresh",
+      "rescan": "Re-validate atlas",
+      "openFromSprite": "Health check",
+      "checks": {
+        "spriteEnabledPass": "Sprite overlay is enabled in the UI.",
+        "spriteEnabledFail": "Sprite overlay is disabled in the UI."
+      },
+      "serverChecks": {
+        "feature_gate_companion_mode": {
+          "pass": "Companion feature is enabled.",
+          "fail": "Companion feature is disabled."
+        },
+        "config_sprite_slug": {
+          "pass": "Active pet is set to \"{slug}\".",
+          "fail": "No active pet is selected in companion settings."
+        },
+        "disk_installed_pets": {
+          "pass": "{count} pet(s) installed on this device.",
+          "fail": "No pets installed on this device."
+        },
+        "disk_active_pet_files": {
+          "pass": "Spritesheet file exists for \"{slug}\".",
+          "fail": "Active pet spritesheet file is missing or not installed."
+        },
+        "atlas_format": {
+          "pass": "Spritesheet matches a supported Codex or Legacy atlas.",
+          "warn": "Atlas format is non-standard but may still render. Re-install or re-validate if the sprite looks wrong.",
+          "fail": "Spritesheet atlas format is invalid."
+        },
+        "config_sha256_match": {
+          "pass": "Configured checksum matches the on-disk spritesheet.",
+          "warn": "Configured checksum does not match the on-disk spritesheet. Re-select the pet in the gallery."
+        },
+        "serve_file_readable": {
+          "pass": "Spritesheet file is readable for local serving.",
+          "fail": "Spritesheet file cannot be read from disk."
+        }
+      }
     },
     "sprite": {
       "contextTitle": "Pet Sprite",
@@ -14258,13 +14344,24 @@
     "badge": "Mobile control",
     "subtitle": "Tap a running task to follow progress or approve actions on your phone.",
     "loading": "Loading active sessions...",
-    "empty": "No agents are running right now.",
+    "empty": "No agents are running right now. Create a new task below!",
     "loadFailed": "Failed to load active sessions.",
     "e2eeHandshakeFailed": "Secure connection setup failed. Reload the link from Settings or check your network.",
     "openFailed": "Failed to open session control link.",
     "opening": "Opening…",
     "footer": "Links expire after 1 hour. Re-share from Settings if access is lost.",
-    "elapsed": "{seconds}s running"
+    "elapsed": "{seconds}s running",
+    "newTask": "New Task",
+    "newTaskCollapse": "Cancel",
+    "selectAgent": "Agent",
+    "selectProject": "Project (optional)",
+    "noProject": "None",
+    "taskDescription": "What should the agent do?",
+    "taskPlaceholder": "e.g. Research competitors and write a summary report",
+    "submit": "Start Task",
+    "submitting": "Starting…",
+    "spawnFailed": "Failed to create task.",
+    "loadOptionsFailed": "Failed to load options."
   },
   "whatsNew": {
     "title": "What's New in v{version}",

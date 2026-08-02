@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import useAuthStore from '@/store/useAuthStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useSubscription } from '@/hooks/billing/useSubscription';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, isRemoteGatewayActive } from '@/lib/deploy-mode';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { preloadMonacoEditor } from '@/lib/utils/componentPreloader';
 import { useNavBadges } from '@/hooks/shell/useNavBadges';
@@ -433,6 +433,23 @@ function NavBarInner({
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">{t('common.expandMenu')}</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Remote Gateway Indicator */}
+        {isRemoteGatewayActive() && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/settings/system"
+                onClick={closeMobileSidebar}
+                className="inline-flex items-center justify-center w-10 h-10 rounded-xl transition-transform hover:scale-105"
+                aria-label={t('nav.remoteGateway')}
+              >
+                <Plug size={14} className="text-indigo-400" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('nav.remoteGateway')}</TooltipContent>
           </Tooltip>
         )}
 

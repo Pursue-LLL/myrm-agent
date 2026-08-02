@@ -11,7 +11,8 @@
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
 | `frontend-client-warmup.py` | Unix | CDP `Target.createTarget(background=true)` 预热 `:3000/` 直至 `[data-testid="app-layout"]` + `[data-chat-input]`；注册 `infra-browser-targets.json` |
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
-| `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；每 session 稳定 isolated context；page/lease 精确所有权同步到协调器；有界 transport 恢复与 exact-target 清理 |
+| `browser_orchestrator_client.py` | Unix | Browser Orchestrator daemon 的 Python Unix socket JSON-RPC 客户端；session/page lifecycle 操作路由到 daemon |
+| `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`MYRM_BROWSER_ORCHESTRATOR=1` 时条件分发到 daemon client；每 session 稳定 isolated context；page/lease 精确所有权同步到协调器；有界 transport 恢复与 exact-target 清理 |
 | `transport_recovery_core.py` | Unix | **R79 TRSM SSOT**：`solo_full` / `parallel_page_reclaim` / `parallel_local_respawn`；`DEV_GATE_CHROME_MCP_ROADMAP.md` §55 |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用；**R72-FINAL** `cdp_chat_submit.send_chat_message_atomic` 仅 `submitAndObserveTurn` fail-closed（无 legacy `submit()` pyramid）；`cdp_chat_turn.send_message` 强制 `sendTurnSealed`；**R50** `ensure_chat_surface` SHPOIB 缩放 + `_hydrate_chat_home_surface` + `ensure_react_e2e_bridge` fallback；**R67** `cdp_chat_bootstrap.bootstrap` 结束 `complete_bootstrap_phase()` 重置 BODY 墙钟；`cdp_chat_input._heal_empty_chat_shell_for_bridge` 走 `_shared_ui_burst`；`cdp_chat_input.ensure_react_e2e_bridge` 拒绝 DOM fallback，blank shell 时 heal 重导航；`cdp_chat_bootstrap._wait_providers_hydrated` 的 API readiness probe 走 `to_thread + wait_for` 非阻塞守门；computer_use/builtin-tools 须 React bridge |
 | `dev_gate_contract.py` | Unix | Dev Gate 超时、错误分类与物理浏览器池 SSOT；**S2** `LIVE_SHPOIB_MAX_CONCURRENT=4` 为 cap 根，派生 bootstrap/mux/private credits；共享逻辑 session 不设 cap，BODY=600s |
@@ -58,6 +59,7 @@
 | `verify_backend_seed.py` | Unix | verify-api BLOCKED 时 backend-only isolated spawn（SHPOIB cap 内；cap/bootstrap 5s×1 重试；`claim_bootstrap_slot`→health→`running` phase SSOT） |
 | `../resolve_e2e_session_profile.py` | Unix | collect-only 解析显式 `{execution_mode, access_scope, workload}`；缺失、混合或非法组合 fail-closed |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
+| `e2e_lease_pytest_gate.py` | Unix | pytest spawn 前 fail-closed：`require_e2e_runtime_lease()` SSOT；`test.sh` `_e2e_ensure_lease_ready_for_pytest` 与 sync 组合，lease 失效时 re-acquire |
 | `mux_load.py` | Unix | mux context / wave lease 负载探针；adaptive page/tool timeout |
 | `mux_responsive_probe.py` | Unix | mux daemon stamp 对齐 + `tools/list` 探活；`--probe-timeout-sec` 随 active Wave leases 缩放（preflight attach heal） |
 

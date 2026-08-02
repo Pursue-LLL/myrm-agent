@@ -27,6 +27,7 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import type { InstalledCompanionPet } from '@/services/companion/petInstall';
 import { companionPetSpritesheetUrl } from '@/services/companion/petSpritesheet';
+import { resolveCompanionFormatLabelKey } from '@/services/companion/companionFormatLabelCore';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface InstalledPetRowProps {
@@ -60,6 +61,7 @@ export function InstalledPetRow({
           const isUninstalling = uninstallingSlug === pet.slug;
           const isBusy = isActivating || isUninstalling;
           const label = pet.display_name || pet.slug;
+          const formatLabelKey = resolveCompanionFormatLabelKey(pet);
           return (
             <div
               key={pet.slug}
@@ -89,6 +91,16 @@ export function InstalledPetRow({
                 <span className="w-full truncate text-center text-[10px] leading-tight text-foreground">
                   {label}
                 </span>
+                {formatLabelKey && (
+                  <span
+                    className={cn(
+                      'w-full truncate text-center text-[9px] leading-tight',
+                      pet.format_tier === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
+                    )}
+                  >
+                    {t(formatLabelKey)}
+                  </span>
+                )}
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

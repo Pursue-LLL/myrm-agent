@@ -900,9 +900,7 @@ def _signoff_threaded_new_page(
         now = time.monotonic()
         if now >= join_deadline or now >= stall_deadline:
             break
-        worker.join(
-            timeout=min(poll_sec, join_deadline - now, stall_deadline - now)
-        )
+        worker.join(timeout=min(poll_sec, join_deadline - now, stall_deadline - now))
     if worker.is_alive():
         try:
             client.abandon_inflight_requests(cdp_drift=True)
@@ -1128,6 +1126,15 @@ def open_mcp_page(
     resolved_timeout_ms = timeout_ms if timeout_ms is not None else 90_000
     if is_e2e_signoff_runtime():
         resolved_timeout_ms = min(resolved_timeout_ms, 90_000)
+    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
+        from browser_orchestrator_e2e import open_orchestrator_mcp_page
+
+        with open_orchestrator_mcp_page(
+            url,
+            request_timeout_sec=request_timeout_sec,
+        ) as (client, page):
+            yield client, page  # type: ignore[misc]
+        return
     new_page_timeout_ms = min(resolved_timeout_ms, _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS)
     (
         client_timeout_sec,

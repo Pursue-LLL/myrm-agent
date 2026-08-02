@@ -10,6 +10,9 @@
  * - getBackendBaseUrl: 返回安全的后端基础地址。
  * - getDocsUrl: 返回文档站外链。
  * - normalizeConfiguredBaseUrl: 规范化并校验配置的 URL。
+ * - RemoteGatewayConfig: 远程网关配置接口。
+ * - getRemoteGatewayConfig / setRemoteGatewayConfig: localStorage 远程网关配置读写。
+ * - isRemoteGatewayActive: 是否正在使用远程网关模式。
  *
  * [POS]
  * 前端部署模式与基础地址解析层。统一判定本地、桌面和沙箱环境，并阻断 `undefined` 之类的脏配置进入请求链路。
@@ -49,6 +52,69 @@ export type DeployMode = 'tauri' | 'local' | 'sandbox';
 const LOCAL_MODES: ReadonlySet<DeployMode> = new Set(['tauri', 'local']);
 const FALLBACK_API_BASE_URL = 'http://127.0.0.1:8080/api/v1';
 const FALLBACK_BACKEND_BASE_URL = 'http://127.0.0.1:8080';
+
+// ── Remote Gateway (Tauri Desktop → Remote Server) ──────────────────────────
+const REMOTE_GATEWAY_STORAGE_KEY = 'myrm-remote-gateway';
+const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
+
+export interface RemoteGatewayConfig {
+  enabled: boolean;
+  url: string;
+}
+
+export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(REMOTE_GATEWAY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<RemoteGatewayConfig>;
+    if (!parsed.enabled || !parsed.url) return null;
+    const url = parsed.url.trim().replace(/\/+$/, '');
+    try {
+      const p = new URL(url);
+      if (p.protocol !== 'http:' && p.protocol !== 'https:') return null;
+    } catch {
+      return null;
+    }
+    return { enabled: true, url };
+  } catch {
+    return null;
+  }
+}
+
+export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void {
+  if (typeof window === 'undefined') return;
+  if (!config || !config.enabled) {
+    window.localStorage.removeItem(REMOTE_GATEWAY_STORAGE_KEY);
+    restoreLocalAuthToken();
+    return;
+  }
+  const url = config.url.trim().replace(/\/+$/, '');
+  window.localStorage.setItem(REMOTE_GATEWAY_STORAGE_KEY, JSON.stringify({ enabled: true, url }));
+  backupLocalAuthToken();
+}
+
+export function isRemoteGatewayActive(): boolean {
+  return isTauriRuntime() && getRemoteGatewayConfig() !== null;
+}
+
+function backupLocalAuthToken(): void {
+  if (typeof window === 'undefined') return;
+  const current = window.localStorage.getItem('auth_token');
+  if (current && current !== 'local_user_token') return;
+  if (current) {
+    window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
+  }
+}
+
+function restoreLocalAuthToken(): void {
+  if (typeof window === 'undefined') return;
+  const backup = window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY);
+  if (backup) {
+    window.localStorage.setItem('auth_token', backup);
+    window.localStorage.removeItem(LOCAL_TOKEN_BACKUP_KEY);
+  }
+}
 /** Desktop sidecar default; mirrors BackendConfig when enable_webui_mode=false. */
 const TAURI_DESKTOP_API_PORT = 8080;
 /** WebUI sidecar default; mirrors SystemConfig.api_port when enable_webui_mode=true. */
@@ -159,9 +225,9 @@ export function isSandboxAuthBuild(): boolean {
   return process.env.NEXT_PUBLIC_DEPLOY_MODE === 'sandbox';
 }
 
-/** Redirect to /auth/login only for hosted sandbox builds (CP auth), not local/tauri. */
+/** Redirect to /auth/login on 401 for sandbox builds or when Tauri Desktop uses remote gateway. */
 export function shouldRedirectToLoginOnAuthFailure(): boolean {
-  return isSandboxAuthBuild();
+  return isSandboxAuthBuild() || isRemoteGatewayActive();
 }
 
 /**
@@ -234,6 +300,10 @@ export function getApiBaseUrl(): string {
   if (e2eBase) {
     return `${e2eBase}/api/v1`;
   }
+  const remote = isTauriRuntime() ? getRemoteGatewayConfig() : null;
+  if (remote) {
+    return `${remote.url}/api/v1`;
+  }
   if (isTauriRuntime()) {
     if (isLoopbackDevHost()) {
       return '/api/v1';
@@ -253,6 +323,10 @@ export function getBackendBaseUrl(): string {
   const e2eBase = resolveE2eApiBase();
   if (e2eBase) {
     return e2eBase;
+  }
+  const remote = isTauriRuntime() ? getRemoteGatewayConfig() : null;
+  if (remote) {
+    return remote.url;
   }
   if (isTauriRuntime()) {
     if (isLoopbackDevHost()) {
@@ -275,21 +349,17 @@ export function getAgentApiBaseUrl(): string {
   if (e2eBase) {
     return `${e2eBase}/v1`;
   }
+  const backendBase = getBackendBaseUrl();
+  if (backendBase) {
+    return `${backendBase}/v1`;
+  }
   if (isTauriRuntime()) {
-    const backendBase = getBackendBaseUrl();
-    if (backendBase) {
-      return `${backendBase}/v1`;
-    }
     return `http://127.0.0.1:${getTauriBackendPort()}/v1`;
   }
   if (isLocalMode()) {
     return `${FALLBACK_BACKEND_BASE_URL}/v1`;
   }
-  const backendBase = normalizeConfiguredBaseUrl(
-    process.env.NEXT_PUBLIC_BACKEND_BASE_URL,
-    FALLBACK_BACKEND_BASE_URL,
-  );
-  return `${backendBase}/v1`;
+  return `${normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_BACKEND_BASE_URL, FALLBACK_BACKEND_BASE_URL)}/v1`;
 }
 
 /**

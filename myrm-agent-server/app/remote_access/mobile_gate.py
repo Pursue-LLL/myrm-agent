@@ -101,6 +101,8 @@ def _chat_id_from_mobile_path(path: str) -> str | None:
 
 
 MOBILE_SESSIONS_PATH = "/api/v1/remote-access/mobile/sessions"
+MOBILE_SPAWN_OPTIONS_PATH = "/api/v1/remote-access/mobile/spawn-options"
+MOBILE_SPAWN_PATH = "/api/v1/remote-access/mobile/spawn"
 MOBILE_PAIRING_ISSUE_PATH = "/api/v1/remote-access/pairing-token"
 MOBILE_PAIRING_REFRESH_PATH = "/api/v1/remote-access/pairing-token/refresh"
 NODE_EVENTS_PATH = "/api/v1/remote-access/node/events"
@@ -130,6 +132,8 @@ def _purpose_allows_path(purpose: str, path: str) -> bool:
     if purpose == MOBILE_HUB_LIST_PURPOSE:
         return path in (
             MOBILE_SESSIONS_PATH,
+            MOBILE_SPAWN_OPTIONS_PATH,
+            MOBILE_SPAWN_PATH,
             MOBILE_PAIRING_ISSUE_PATH,
             MOBILE_PAIRING_REFRESH_PATH,
             NODE_EVENTS_PATH,
@@ -201,6 +205,8 @@ __all__ = [
     "MOBILE_PAIRING_ISSUE_PATH",
     "MOBILE_PAIRING_REFRESH_PATH",
     "MOBILE_SESSIONS_PATH",
+    "MOBILE_SPAWN_OPTIONS_PATH",
+    "MOBILE_SPAWN_PATH",
     "NODE_EVENTS_PATH",
     "PAIR_TOKEN_HEADER",
     "extract_pair_token",

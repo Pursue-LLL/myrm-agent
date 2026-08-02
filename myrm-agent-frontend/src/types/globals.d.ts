@@ -226,6 +226,18 @@ interface Window {
     };
     dismissBrowserTakeover?: () => void;
   };
+  /** Dev-only bridge for companion health-check Chrome E2E (AppLayout E2ECompanionBridge). */
+  __MYRM_E2E_COMPANION__?: {
+    enableCompanionModeForE2e: () => void;
+    prepareBrokenSpriteForE2e: () => void;
+    openHealthCheck: () => void;
+    getHealthCheckState: () => {
+      petPaletteOpen: boolean;
+      doctorExpandPending: boolean;
+      companionModeEnabled: boolean;
+    };
+    closePetPaletteForE2e: () => void;
+  };
   /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
   __MYRM_E2E_SUBAGENT__?: {
     hydrate: (rows: Array<Record<string, unknown>>) => void;

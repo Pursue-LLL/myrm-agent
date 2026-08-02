@@ -652,10 +652,20 @@ def _compute_next_action(
             admit_active += 1
             if isinstance(admit_elapsed, (int, float)):
                 if float(admit_elapsed) >= float(E2E_ADMISSION_WALL_CLOCK_SEC):
-                    return "FAIL_FAST"
+                    from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                        cluster_fail_fast_suppressed_for_active_test,
+                    )
+
+                    if not cluster_fail_fast_suppressed_for_active_test(row):
+                        return "FAIL_FAST"
             elif isinstance(row.get("elapsed_sec"), (int, float)):
                 if float(row["elapsed_sec"]) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
-                    return "FAIL_FAST"
+                    from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                        cluster_fail_fast_suppressed_for_active_test,
+                    )
+
+                    if not cluster_fail_fast_suppressed_for_active_test(row):
+                        return "FAIL_FAST"
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
             try:
@@ -665,7 +675,12 @@ def _compute_next_action(
             except ImportError:
                 body_wall_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
             if float(body_elapsed) >= body_wall_cap:
-                return "FAIL_FAST"
+                from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                    cluster_fail_fast_suppressed_for_active_test,
+                )
+
+                if not cluster_fail_fast_suppressed_for_active_test(row):
+                    return "FAIL_FAST"
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
         if isinstance(current_node, str) and isinstance(node_elapsed, (int, float)):
@@ -674,7 +689,12 @@ def _compute_next_action(
             )
 
             if parallel_active_test_node_stuck_fail_fast(row):
-                return "FAIL_FAST"
+                from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                    cluster_fail_fast_suppressed_for_active_test,
+                )
+
+                if not cluster_fail_fast_suppressed_for_active_test(row):
+                    return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
         if isinstance(process_elapsed, (int, float)) and wall_phase not in (
@@ -682,7 +702,12 @@ def _compute_next_action(
             "admit",
         ):
             if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
-                return "FAIL_FAST"
+                from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                    cluster_fail_fast_suppressed_for_active_test,
+                )
+
+                if not cluster_fail_fast_suppressed_for_active_test(row):
+                    return "FAIL_FAST"
     if headroom.get("parallelQueueExpected") is True:
         return "QUEUE"
     if ctx.blocked and admit_active > 0:
