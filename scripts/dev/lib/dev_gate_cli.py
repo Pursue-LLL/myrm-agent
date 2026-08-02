@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 import secrets
+import sqlite3
 import subprocess
 import sys
 import time
@@ -22,7 +23,17 @@ from dev_gate_coordinator import (
 )
 from dev_gate_store import DevGateStore, default_store_path
 
-_START_TIMEOUT_SEC = 2.0
+_START_TIMEOUT_SEC = 8.0
+_PING_WAIT_SEC = 10.0
+
+
+def _wait_for_ping(socket_path: Path, *, budget_sec: float) -> bool:
+    deadline = time.monotonic() + max(0.1, budget_sec)
+    while time.monotonic() < deadline:
+        if _ping(socket_path):
+            return True
+        time.sleep(0.25)
+    return False
 
 
 @contextmanager
@@ -39,15 +50,19 @@ def _startup_lock(database_path: Path) -> Iterator[None]:
 
 
 def _ping(socket_path: Path) -> bool:
-    try:
-        request(
-            {"operation": "snapshot", "session_id": "__health__"},
-            socket_path=socket_path,
-            timeout_sec=0.5,
-        )
-        return True
-    except (ConnectionError, OSError, RuntimeError, TimeoutError):
-        return False
+    for attempt in range(3):
+        try:
+            request(
+                {"operation": "snapshot", "session_id": "__health__"},
+                socket_path=socket_path,
+                timeout_sec=2.0,
+            )
+            return True
+        except (ConnectionError, OSError, RuntimeError, TimeoutError):
+            if attempt >= 2:
+                return False
+            time.sleep(0.2 * (attempt + 1))
+    return False
 
 
 def ensure_coordinator(
@@ -106,7 +121,18 @@ def ensure_coordinator(
 
 
 def _handle_in_process(payload: dict[str, object]) -> dict[str, object]:
-    return CoordinatorService(DevGateStore(default_store_path())).handle(payload)
+    last_exc: sqlite3.OperationalError | None = None
+    for attempt in range(8):
+        try:
+            return CoordinatorService(DevGateStore(default_store_path())).handle(payload)
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower() or attempt >= 7:
+                raise
+            last_exc = exc
+            time.sleep(min(0.1 * (2**attempt), 2.0))
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("DEV_GATE_IN_PROCESS_FAILED")
 
 
 def send(payload: dict[str, object]) -> dict[str, object]:
@@ -138,6 +164,8 @@ def send(payload: dict[str, object]) -> dict[str, object]:
     except RuntimeError as exc:
         message = str(exc)
         if "DEV_GATE_COORDINATOR_ERROR" in message and "Expecting value" in message:
+            return _handle_in_process(payload)
+        if "timeout" in message.lower() or "timed out" in message.lower():
             return _handle_in_process(payload)
         raise
 

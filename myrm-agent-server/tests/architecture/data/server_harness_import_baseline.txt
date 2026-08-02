@@ -404,6 +404,7 @@ myrm_agent_harness.toolkits.storage.paths
 myrm_agent_harness.toolkits.storage.types
 myrm_agent_harness.toolkits.tasks
 myrm_agent_harness.toolkits.vector
+myrm_agent_harness.toolkits.vector.base
 myrm_agent_harness.toolkits.vector.config
 myrm_agent_harness.toolkits.vector.pool
 myrm_agent_harness.toolkits.vector.qdrant

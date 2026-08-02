@@ -39,6 +39,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "context",
         "extension",
         "external_agents",
+        "faq",
         "features",
         "files",
         "integrations",
