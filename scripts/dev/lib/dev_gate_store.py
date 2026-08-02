@@ -34,6 +34,7 @@ def _begin_immediate(connection: sqlite3.Connection) -> None:
                 raise
             time.sleep(min(0.05 * (2**attempt), 3.0))
 
+
 DEFAULT_JOURNAL_RETENTION_SEC: float = 7 * 86400
 
 _SCHEMA = """

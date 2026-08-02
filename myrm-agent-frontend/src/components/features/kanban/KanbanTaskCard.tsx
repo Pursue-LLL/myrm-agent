@@ -219,6 +219,7 @@ export default function KanbanTaskCard({
   return (
     <div
       id={`kanban-task-${task.task_id}`}
+      data-theme-shell="surface"
       className="relative group rounded-full border bg-background hover:shadow transition-shadow"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -312,6 +313,11 @@ export default function KanbanTaskCard({
             {task.max_runtime_seconds != null && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-chart-5/10 text-chart-5 border border-chart-5/20">
                 {t('timeoutLabel')}: {formatDuration(task.max_runtime_seconds)}
+              </span>
+            )}
+            {task.goal_mode && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-chart-4/10 text-chart-4 border border-chart-4/20">
+                {t('goalModeBadge')}{task.goal_max_turns ? ` ×${task.goal_max_turns}` : ''}
               </span>
             )}
             {task.retry_count > 0 && (

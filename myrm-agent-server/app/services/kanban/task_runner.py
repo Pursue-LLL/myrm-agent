@@ -30,6 +30,7 @@ from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutError
 
+from app.services.agent.goal_registry import GoalRegistry
 from app.services.agent.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     resolve_builtin_tool_flags,
@@ -81,13 +82,18 @@ class KanbanTaskRunner:
         )
         effective_timeout = task.max_runtime_seconds or default_timeout
 
+        goal_provider = await self._setup_goal_provider(task) if task.goal_mode else None
+
         self._register_background_tokens(task)
         t0 = time.monotonic()
         try:
-            return await asyncio.wait_for(
-                self._execute_agent(task, query_input, profile, workspace_root),
+            result = await asyncio.wait_for(
+                self._execute_agent(task, query_input, profile, workspace_root, goal_provider=goal_provider),
                 timeout=effective_timeout,
             )
+            if goal_provider:
+                result = await self._map_goal_outcome(task, goal_provider, result)
+            return result
         except asyncio.TimeoutError:
             elapsed = time.monotonic() - t0
             logger.warning(
@@ -106,6 +112,8 @@ class KanbanTaskRunner:
             return False, str(exc)
         finally:
             self._unregister_background_tokens(task)
+            if goal_provider:
+                GoalRegistry.unregister(f"kanban:{task.task_id}")
 
     def _register_background_tokens(self, task: KanbanTask) -> None:
         if (task.metadata or {}).get("background_source") != "btw":
@@ -182,12 +190,69 @@ class KanbanTaskRunner:
     async def _resolve_profile(self, agent_id: str | None) -> _ResolvedProfile | None:
         return await resolve_agent_profile(agent_id)
 
+    async def _setup_goal_provider(self, task: KanbanTask):
+        """Create a GoalProvider for a goal-mode kanban task."""
+        from myrm_agent_harness.agent.goals.types import GoalBudget
+
+        session_id = f"kanban:{task.task_id}"
+        provider = GoalRegistry.get_or_create_provider(session_id)
+
+        active = await provider.get_active_goal(session_id)
+        if active:
+            return provider
+
+        budget = GoalBudget(max_turns=task.goal_max_turns or 10)
+        criteria = task.metadata.get("completion_criteria")
+        acceptance: list[dict[str, str | int]] | None = None
+        if isinstance(criteria, list):
+            acceptance = criteria
+        elif isinstance(criteria, str) and criteria.strip():
+            acceptance = [{"type": "semantic", "criteria": criteria}]
+
+        await provider.create_goal(
+            session_id=session_id,
+            objective=task.description or task.title,
+            budget=budget,
+            acceptance_criteria=acceptance,
+            ui_summary=task.title[:120],
+        )
+        logger.info("Goal created for kanban task %s (max_turns=%s)", task.task_id[:8], budget.max_turns)
+        return provider
+
+    async def _map_goal_outcome(
+        self,
+        task: KanbanTask,
+        goal_provider,
+        agent_result: tuple[bool, str],
+    ) -> tuple[bool, str]:
+        """Map Goal terminal status to Kanban result."""
+        from myrm_agent_harness.agent.goals.types import GoalStatus
+
+        session_id = f"kanban:{task.task_id}"
+        goal = await goal_provider.get_active_goal(session_id)
+        if not goal:
+            return agent_result
+
+        if goal.status == GoalStatus.COMPLETE:
+            turns_info = f" ({goal.turns_used} turns)"
+            summary = agent_result[1] or "Goal completed"
+            return True, summary + turns_info
+
+        if goal.status == GoalStatus.BUDGET_LIMITED:
+            return False, f"Budget exhausted after {goal.turns_used} turns"
+
+        if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW):
+            return False, f"Goal paused: {goal.metadata.get('pause_reason', 'needs review')}"
+
+        return agent_result
+
     async def _execute_agent(
         self,
         task: KanbanTask,
         context: str | list[dict[str, object]],
         profile: _ResolvedProfile | None,
         workspace_root: str | None = None,
+        goal_provider: object | None = None,
     ) -> tuple[bool, str]:
         from app.ai_agents.agents import AgentFactory, GeneralAgentParams
         from app.core.channel_bridge.config_loader import load_user_configs
@@ -360,6 +425,8 @@ class KanbanTaskRunner:
         runtime_context = await build_agent_runtime_context(
             execution_mode=ExecutionMode.EPHEMERAL,
         )
+        if goal_provider is not None:
+            runtime_context["goal_provider"] = goal_provider
 
         agent = AgentFactory.create_general_agent(params)
         agent.approval_session_key = f"kanban:{task.task_id}"

@@ -33,6 +33,23 @@ type GalleryTab = 'official' | 'community' | 'owned';
 
 type PurchaseReturnPhase = 'idle' | 'completing' | 'failed';
 
+async function recordThemeInstallWithRetry(
+  listingId: string,
+  warnMessage: string,
+): Promise<void> {
+  try {
+    await recordThemeInstall(listingId);
+    return;
+  } catch {
+    try {
+      await recordThemeInstall(listingId);
+    } catch (secondError) {
+      console.warn('Theme install succeeded locally but CP install counter failed:', secondError);
+      toast.warning(warnMessage);
+    }
+  }
+}
+
 const ThemeStudioGalleryPanel = () => {
   const t = useTranslations('settings.themeStudio.gallery');
   const searchParams = useSearchParams();
@@ -111,11 +128,7 @@ const ThemeStudioGalleryPanel = () => {
             activeThemeProfileId: installed.id,
           });
         }
-        try {
-          await recordThemeInstall(listing.id);
-        } catch (recordError) {
-          console.warn('Theme install recorded locally but CP install counter failed:', recordError);
-        }
+        await recordThemeInstallWithRetry(listing.id, t('recordInstallWarn'));
         await load(refreshTab);
         toast.success(t('installed'));
       } catch (error) {

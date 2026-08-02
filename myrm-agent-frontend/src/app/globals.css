@@ -465,6 +465,14 @@ html[data-myrm-theme-art='on'] [data-theme-shell='main'] {
   background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-main-opacity, 0.72) * 100%), transparent);
 }
 
+html[data-myrm-theme-art='on'] [data-theme-shell='surface'] {
+  background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-surface-opacity, 0.78) * 100%), transparent);
+}
+
+html[data-myrm-theme-art='on'][data-myrm-theme-scene='functional'] [data-theme-shell='main'] [class*='sticky'] {
+  backdrop-filter: blur(12px) saturate(1.05);
+}
+
 /* Dual-accent profiles: solid CTA buttons use warm accent; chat send stays teal primary */
 html[data-myrm-theme-dual-accent='true'] .bg-primary.text-primary-foreground:not(.message-send-btn),
 html[data-myrm-theme-dual-accent='true'] .bg-primary.text-white:not(.message-send-btn) {

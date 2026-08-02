@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { derivePalette, meetsContrast, relativeLuminance } from '../oklch';
+import { derivePalette, meetsContrast, relativeLuminance, resolveContrastSafeForeground } from '../oklch';
 import { compileThemeProfile } from '../compiler';
 import { getDefaultThemeProfile } from '../presets';
 
@@ -113,12 +113,14 @@ describe('derivePalette', () => {
     const light = compileThemeProfile(recipe, {
       colorScheme: 'light',
       layoutId: 'full-bleed',
+      sceneId: 'immersive',
       prefersReducedMotion: false,
       isMobile: false,
     });
     const dark = compileThemeProfile(recipe, {
       colorScheme: 'dark',
       layoutId: 'full-bleed',
+      sceneId: 'immersive',
       prefersReducedMotion: false,
       isMobile: false,
     });
@@ -138,5 +140,12 @@ describe('derivePalette', () => {
       expect(palette.primaryDark).toMatch(HEX_RE);
       expect(palette.primaryLight).not.toBe(palette.primaryDark);
     }
+  });
+});
+
+describe('resolveContrastSafeForeground', () => {
+  it('meets WCAG AA for official default light primary', () => {
+    const foreground = resolveContrastSafeForeground('#588e95');
+    expect(meetsContrast(foreground, '#588e95')).toBe(true);
   });
 });

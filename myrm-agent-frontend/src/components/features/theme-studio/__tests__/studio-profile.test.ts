@@ -46,6 +46,7 @@ describe('theme studio compile parity', () => {
     const compiled = compileThemeProfile(draft, {
       colorScheme: 'light',
       layoutId: draft.layoutId,
+      sceneId: 'immersive',
       prefersReducedMotion: false,
       isMobile: false,
     });

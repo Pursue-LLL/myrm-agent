@@ -1,14 +1,16 @@
 /**
  * [INPUT]
  * - lib/cp-base-url::resolveCpBaseUrl (POS: CP REST base URL for browser)
+ * - lib/auth-cp-token::isCpAuthTokenValid (POS: CP HMAC API token client decode)
  *
  * [OUTPUT]
  * - probeCpHealth, hasCpMarketplaceJwt, resolveThemeMarketplaceGateState
  *
  * [POS]
- * Theme marketplace availability SSOT (CP health + cloud JWT). Used by Theme Studio Gallery/Creator/Admin.
+ * Theme marketplace availability SSOT (CP health + cloud auth token). Used by Theme Studio Gallery/Creator/Admin.
  */
 
+import { isCpAuthTokenValid } from '@/lib/auth-cp-token';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 
 const LOCAL_ONLY_AUTH_TOKEN = 'local_user_token';
@@ -27,12 +29,12 @@ export function readAuthToken(): string | null {
   return token || null;
 }
 
-/** True when the browser holds a CP-issued JWT (Gallery/Creator API auth). */
+/** True when the browser holds a non-expired CP HMAC API token (Gallery/Creator API auth). */
 export function hasCpMarketplaceJwt(token: string | null = readAuthToken()): boolean {
   if (!token || token === LOCAL_ONLY_AUTH_TOKEN) {
     return false;
   }
-  return token.split('.').length === 3;
+  return isCpAuthTokenValid(token);
 }
 
 export async function probeCpHealth(baseUrl: string = resolveCpBaseUrl()): Promise<boolean> {

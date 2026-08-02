@@ -36,6 +36,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
   const [newTaskSkills, setNewTaskSkills] = useState('');
   const [newTaskMaxRuntime, setNewTaskMaxRuntime] = useState<number | null>(null);
   const [newTaskBranch, setNewTaskBranch] = useState('');
+  const [newTaskGoalMode, setNewTaskGoalMode] = useState(false);
+  const [newTaskGoalMaxTurns, setNewTaskGoalMaxTurns] = useState<number | null>(null);
   const [newTaskAttachments, setNewTaskAttachments] = useState<KanbanAttachment[]>([]);
 
   const toggleDep = (taskId: string) => {
@@ -52,6 +54,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setNewTaskCriteria('');
     setNewTaskMaxRuntime(null);
     setNewTaskBranch('');
+    setNewTaskGoalMode(false);
+    setNewTaskGoalMaxTurns(null);
     setNewTaskAttachments([]);
   }, []);
 
@@ -74,6 +78,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
         completion_criteria: newTaskCriteria.trim() || undefined,
         agent_id: newTaskAgentId || undefined,
         max_runtime_seconds: newTaskMaxRuntime ?? undefined,
+        goal_mode: newTaskGoalMode || undefined,
+        goal_max_turns: newTaskGoalMaxTurns ?? undefined,
         branch: newTaskBranch.trim() || undefined,
         initial_status: isTriageColumn ? 'triage' : undefined,
       });
@@ -87,6 +93,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
       setNewTaskSkills('');
       setNewTaskMaxRuntime(null);
       setNewTaskBranch('');
+      setNewTaskGoalMode(false);
+      setNewTaskGoalMaxTurns(null);
       setNewTaskAttachments([]);
       setAddingColumn(null);
       await onCreated();
@@ -103,6 +111,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     newTaskSkills,
     newTaskMaxRuntime,
     newTaskBranch,
+    newTaskGoalMode,
+    newTaskGoalMaxTurns,
     newTaskAttachments,
     selectedDeps,
     addingColumn,
@@ -132,6 +142,10 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setNewTaskMaxRuntime,
     newTaskBranch,
     setNewTaskBranch,
+    newTaskGoalMode,
+    setNewTaskGoalMode,
+    newTaskGoalMaxTurns,
+    setNewTaskGoalMaxTurns,
     newTaskAttachments,
     setNewTaskAttachments,
     toggleDep,

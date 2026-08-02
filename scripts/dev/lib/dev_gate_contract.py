@@ -978,7 +978,11 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
     if peers is None:
         peers = 0
         try:
-            from mux_load import active_mux_context_count, read_mux_status, snapshot_mux_load
+            from mux_load import (
+                active_mux_context_count,
+                read_mux_status,
+                snapshot_mux_load,
+            )
 
             mux_status = read_mux_status()
             load = snapshot_mux_load()
@@ -1524,7 +1528,9 @@ def pytest_argv_needs_live_chrome_e2e(
         if _CHROME_E2E_PYTEST_FILE.search(arg):
             chrome_paths.append(arg)
     if chrome_paths:
-        return any(explicit_node_has_chrome_e2e_marker(path_arg) for path_arg in chrome_paths)
+        return any(
+            explicit_node_has_chrome_e2e_marker(path_arg) for path_arg in chrome_paths
+        )
     if run_e2e_tests:
         return any(_CHROME_E2E_PYTEST_FILE.search(arg) for arg in argv)
     return False

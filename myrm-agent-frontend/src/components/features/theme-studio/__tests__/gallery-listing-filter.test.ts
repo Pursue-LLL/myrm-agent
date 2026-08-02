@@ -18,7 +18,6 @@ function listing(
     layoutId: 'chat-first',
     mediaKind: 'none',
     priceCents: 0,
-    vipOnly: false,
     status: 'published',
     packageSha256: 'a'.repeat(64),
     previewThumbnail: null,

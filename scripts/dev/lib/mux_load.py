@@ -150,7 +150,9 @@ def wave_lease_count(status: dict[str, object] | None) -> int:
 
 def adaptive_page_timeout_ms(*, mux_contexts: int, wave_leases: int = 0) -> int:
     load = max(0, mux_contexts, wave_leases)
-    return min(_BASE_PAGE_TIMEOUT_MS + load * _PAGE_TIMEOUT_SLOT_MS, _MAX_PAGE_TIMEOUT_MS)
+    return min(
+        _BASE_PAGE_TIMEOUT_MS + load * _PAGE_TIMEOUT_SLOT_MS, _MAX_PAGE_TIMEOUT_MS
+    )
 
 
 def adaptive_tool_timeout_sec(
@@ -162,7 +164,9 @@ def adaptive_tool_timeout_sec(
     nav_ms = (
         page_timeout_ms
         if page_timeout_ms is not None
-        else adaptive_page_timeout_ms(mux_contexts=mux_contexts, wave_leases=wave_leases)
+        else adaptive_page_timeout_ms(
+            mux_contexts=mux_contexts, wave_leases=wave_leases
+        )
     )
     return max(_BASE_TOOL_TIMEOUT_SEC, nav_ms / 1000.0 + 45.0)
 
@@ -286,7 +290,12 @@ def reap_idle_empty_mux_contexts(*, idle_ms: int | None = None) -> dict[str, obj
             return {"ok": False, "reason": "invalid_payload", "reaped": 0}
         if payload.get("ok") is not True:
             reason = str(payload.get("reason") or "reap_empty_failed")
-            return {"ok": False, "reason": reason, "reaped": 0, "code": payload.get("code")}
+            return {
+                "ok": False,
+                "reason": reason,
+                "reaped": 0,
+                "code": payload.get("code"),
+            }
         reaped_raw = payload.get("reaped")
         reaped = int(reaped_raw) if isinstance(reaped_raw, int) else 0
         return {

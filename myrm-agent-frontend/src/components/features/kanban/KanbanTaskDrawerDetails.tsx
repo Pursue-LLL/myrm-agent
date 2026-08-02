@@ -236,6 +236,20 @@ export function TaskDetailsSection({
         </button>
       )}
 
+      {/* Goal mode */}
+      {task.goal_mode && (
+        <div className="text-xs bg-chart-4/5 rounded px-2 py-1.5 mt-1 space-y-0.5">
+          <p className="flex items-center gap-1 font-medium text-chart-4">
+            {t('goalModeBadge')}
+          </p>
+          {task.goal_max_turns && (
+            <p className="text-[10px] text-muted-foreground">
+              {t('goalMaxTurnsLabel')}: {task.goal_max_turns}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Progress note & blocked */}
       {task.status === 'running' && task.progress_note && (
         <p className="text-xs text-chart-4 bg-chart-4/5 rounded px-2 py-1 mt-1 font-medium">{task.progress_note}</p>

@@ -119,6 +119,8 @@ async def list_tasks(
             attachment_ids=att_ids,
             attachments=attachments,
             max_runtime_seconds=t.max_runtime_seconds,
+            goal_mode=t.goal_mode,
+            goal_max_turns=t.goal_max_turns,
             completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
             created_at=t.created_at,
             updated_at=t.updated_at,
@@ -179,6 +181,8 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             max_runtime_seconds=body.max_runtime_seconds,
             workspace_path=body.workspace_path,
             branch=body.branch,
+            goal_mode=body.goal_mode,
+            goal_max_turns=body.goal_max_turns,
             metadata_patch=body.metadata,
         )
     except ValueError as exc:

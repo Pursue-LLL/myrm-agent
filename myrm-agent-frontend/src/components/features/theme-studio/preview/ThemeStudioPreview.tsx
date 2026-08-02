@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   compileThemeProfile,
-  resolveLayoutFromPathname,
+  resolveReadabilityScene,
   type ThemeProfileRecipe,
+  type ThemeReadabilityScene,
 } from '@/theme-engine';
 
 export type PreviewScene = 'chat' | 'kanban' | 'settings' | 'workDense';
@@ -17,6 +18,13 @@ interface ThemeStudioPreviewProps {
   previewAssetUrl: string | null;
   scene: PreviewScene;
   compact?: boolean;
+}
+
+function previewSceneToReadability(scene: PreviewScene): ThemeReadabilityScene {
+  if (scene === 'chat') {
+    return 'immersive';
+  }
+  return 'functional';
 }
 
 const ThemeStudioPreview = ({
@@ -34,18 +42,15 @@ const ThemeStudioPreview = ({
     setMounted(true);
   }, []);
 
-  const layoutId = useMemo(() => {
-    if (scene === 'workDense') {
-      return 'work-dense' as const;
-    }
+  const sceneId = useMemo(() => {
     if (scene === 'kanban') {
-      return resolveLayoutFromPathname('/kanban', draft.layoutId);
+      return resolveReadabilityScene('/kanban');
     }
     if (scene === 'settings') {
-      return resolveLayoutFromPathname('/settings/preferences', draft.layoutId);
+      return resolveReadabilityScene('/settings/preferences');
     }
-    return draft.layoutId;
-  }, [draft.layoutId, scene]);
+    return previewSceneToReadability(scene);
+  }, [scene]);
 
   const compiled = useMemo(() => {
     if (!mounted) {
@@ -55,7 +60,8 @@ const ThemeStudioPreview = ({
       draft,
       {
         colorScheme,
-        layoutId,
+        layoutId: draft.layoutId,
+        sceneId,
         prefersReducedMotion: false,
         isMobile: compact,
       },
@@ -64,7 +70,7 @@ const ThemeStudioPreview = ({
         posterUrl: previewAssetUrl,
       },
     );
-  }, [colorScheme, compact, draft, layoutId, mounted, previewAssetUrl]);
+  }, [colorScheme, compact, draft, sceneId, mounted, previewAssetUrl]);
 
   if (!compiled) {
     return (
@@ -77,7 +83,7 @@ const ThemeStudioPreview = ({
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">{t(`scene.${scene}`)}</p>
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-          {layoutId}
+          {sceneId}
         </span>
       </div>
       <div

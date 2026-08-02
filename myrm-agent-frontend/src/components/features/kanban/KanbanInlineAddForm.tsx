@@ -44,6 +44,8 @@ interface KanbanInlineAddFormProps {
   skills: string;
   maxRuntimeSeconds: number | null;
   branch: string;
+  goalMode: boolean;
+  goalMaxTurns: number | null;
   agents: AgentListItem[];
   allTasks: KanbanTask[];
   attachments: KanbanAttachment[];
@@ -58,6 +60,8 @@ interface KanbanInlineAddFormProps {
   onSkillsChange: (value: string) => void;
   onMaxRuntimeChange: (value: number | null) => void;
   onBranchChange: (value: string) => void;
+  onGoalModeChange: (value: boolean) => void;
+  onGoalMaxTurnsChange: (value: number | null) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -74,6 +78,8 @@ export default function KanbanInlineAddForm({
   skills,
   maxRuntimeSeconds,
   branch,
+  goalMode,
+  goalMaxTurns,
   agents,
   allTasks,
   attachments,
@@ -88,6 +94,8 @@ export default function KanbanInlineAddForm({
   onSkillsChange,
   onMaxRuntimeChange,
   onBranchChange,
+  onGoalModeChange,
+  onGoalMaxTurnsChange,
   onSubmit,
   onCancel,
 }: KanbanInlineAddFormProps) {
@@ -313,6 +321,31 @@ export default function KanbanInlineAddForm({
           {agents.map((ag) => (
             <option key={ag.id} value={ag.id}>
               {ag.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {/* Goal Mode */}
+      <label className="flex items-center gap-2 text-[10px]">
+        <input
+          type="checkbox"
+          checked={goalMode}
+          onChange={(e) => onGoalModeChange(e.target.checked)}
+          className="rounded border-muted-foreground/30"
+        />
+        <span className="text-primary/70">{t('goalMode')}</span>
+      </label>
+      {goalMode && (
+        <select
+          value={goalMaxTurns === null ? '' : String(goalMaxTurns)}
+          onChange={(e) => onGoalMaxTurnsChange(e.target.value ? Number(e.target.value) : null)}
+          className="text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="">{t('goalMaxTurnsDefault')}</option>
+          {[3, 5, 10, 20, 50].map((n) => (
+            <option key={n} value={n}>
+              {t('goalMaxTurnsOption', { turns: n })}
             </option>
           ))}
         </select>

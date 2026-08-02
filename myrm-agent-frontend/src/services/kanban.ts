@@ -78,6 +78,8 @@ export interface KanbanTask {
   attachment_ids: string[];
   attachments: AttachmentInfo[];
   max_runtime_seconds?: number | null;
+  goal_mode?: boolean;
+  goal_max_turns?: number | null;
   completion_criteria?: string | null;
   dep_count: number;
   children_total: number;
@@ -176,6 +178,8 @@ export async function createTask(
     attachment_ids?: string[];
     completion_criteria?: string;
     max_runtime_seconds?: number;
+    goal_mode?: boolean;
+    goal_max_turns?: number;
     initial_status?: TaskStatus;
     workspace_path?: string;
     branch?: string;

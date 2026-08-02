@@ -12,10 +12,11 @@ Theme Studio: four-step wizard to create full `ThemeProfileRecipe` entries, prev
 | `ThemeStudioCreatorPanel.tsx` | Creator submit + mine（CP gate；status i18n incl. pending/suspended / reviewReason） |
 | `ThemeStudioAdminPanel.tsx` | Admin pending review + catalog suspend/restore（CP gate + admin API） |
 | `ThemeMarketplaceGateBanner.tsx` | Offline / link-cloud CTA when CP unreachable or JWT missing |
-| `hooks/useThemeMarketplaceGate.ts` | CP `/api/health` + JWT gate state |
+| `hooks/ThemeMarketplaceGateProvider.tsx` | Shared CP `/api/health` + JWT gate (single probe for all panels) |
+| `hooks/useThemeMarketplaceGate.ts` | Re-export gate context hook |
 | `ThemeStudioMarketplacePreviewDialog.tsx` | Install preview dialog for gallery |
 | `ThemeStudioStepPanels.tsx` | Steps 1–4 panels; Step 3 includes preset grid + custom primary color picker (`derivePalette`) |
-| `preview/ThemeStudioPreview.tsx` | Compiler-driven shell preview |
+| `preview/ThemeStudioPreview.tsx` | Compiler-driven shell preview (layout + readability scene) |
 | `ProfileLibraryPanel.tsx` | List/edit/apply/delete `studio/*` and `imported/*` profiles |
 | `RecipeImportPanel.tsx` | Paste Skill JSON into the wizard draft |
 | `studio-profile.ts` | ID allocation + draft helpers |

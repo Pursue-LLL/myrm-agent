@@ -99,8 +99,34 @@ def _with_process_signoff_budget_env(pid: int):
     return _ctx()
 
 
+def _pytest_timeout_sec_for_pid(pid: int) -> int | None:
+    """Parse pytest --timeout=N from live process command."""
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    import re
+
+    match = re.search(r"--timeout(?:=|\s+)(\d+)", result.stdout)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
 def _body_wall_cap_for_pid(pid: int) -> float:
     """BODY hung-reap cap aligned with resolve_budget_policy SSOT (incl. batch BODY sec)."""
+    if _process_has_desktop_soak_env(pid):
+        pytest_cap = _pytest_timeout_sec_for_pid(pid)
+        if pytest_cap is not None:
+            return float(pytest_cap)
     if not _process_has_signoff_env(pid):
         try:
             from transport_supervisor import live_agent_body_wall_cap_sec
@@ -532,6 +558,31 @@ def _desktop_soak_runner_active() -> bool:
     return True
 
 
+def _elapsed_sec_from_reason(reason: str, *, prefix: str) -> int | None:
+    import re
+
+    match = re.search(rf"{re.escape(prefix)}=(\d+)s", reason)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
+def _past_body_wall_cap(row: LiveE2ESessionRow, reason: str) -> bool:
+    """True when hung reason exceeds per-process BODY wall SSOT."""
+    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+
+    cap = _body_wall_cap_for_pid(row.pid)
+    if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
+        body_elapsed = _elapsed_sec_from_reason(reason, prefix="body_elapsed")
+        return body_elapsed is not None and body_elapsed >= cap
+    if reason.startswith("process_elapsed="):
+        elapsed = _elapsed_sec_from_reason(reason, prefix="process_elapsed")
+        if elapsed is None:
+            elapsed = int(row.elapsed_sec)
+        return float(elapsed) >= cap
+    return float(row.elapsed_sec) >= cap
+
+
 def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
     """Skip false-positive hung-reap on desktop soak pytest (HITL/mux waits > NODE_STUCK)."""
     if not _process_has_desktop_soak_env(row.pid):
@@ -541,14 +592,31 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
     from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
-        # R250: hung-reap must not SIGINT desktop soak at legacy 600s BODY cap.
-        return True
+        if _process_has_signoff_env(row.pid):
+            return not _past_body_wall_cap(row, reason)
+        body_elapsed = _elapsed_sec_from_reason(reason, prefix="body_elapsed")
+        from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
+
+        if (
+            body_elapsed is not None
+            and body_elapsed >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
+        ):
+            return False
+        return not _past_body_wall_cap(row, reason)
     if reason.startswith("E2E_NODE_STUCK"):
         return True
     if reason.startswith("progress_stale="):
         return True
     if reason.startswith("process_elapsed=") and row.phase == "body":
-        return True
+        if not _process_has_signoff_env(row.pid):
+            from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
+
+            elapsed = _elapsed_sec_from_reason(reason, prefix="process_elapsed")
+            if elapsed is None:
+                elapsed = int(row.elapsed_sec)
+            if float(elapsed) >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC):
+                return False
+        return not _past_body_wall_cap(row, reason)
     return False
 
 
@@ -565,18 +633,23 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return False
     if _parallel_node_stuck_reason(row) is not None:
         return False
+    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+
+    if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
+        return not _past_body_wall_cap(row, reason)
     if _session_row_is_healthy_body(row):
         return True
-    if not reason.startswith("process_elapsed="):
-        return False
-    if row.phase != "body":
-        return False
-    try:
-        from e2e_session_snapshot import resolve_session_snapshot  # noqa: PLC0415
-    except ImportError:
-        return False
-    snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
-    return snapshot is not None
+    if reason.startswith("process_elapsed="):
+        if row.phase != "body":
+            return False
+        if _past_body_wall_cap(row, reason):
+            return False
+        try:
+            from e2e_session_snapshot import resolve_session_snapshot  # noqa: PLC0415
+        except ImportError:
+            return False
+        return resolve_session_snapshot(pid=row.pid, test_id=row.test_id) is not None
+    return False
 
 
 def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
@@ -661,7 +734,9 @@ def maybe_reap_stale_empty_mux_contexts(*, min_stale: int = 3) -> bool:
     if stale < max(1, int(min_stale)):
         return False
     result = reap_idle_empty_mux_contexts()
-    reaped = int(result.get("reaped", 0)) if isinstance(result.get("reaped"), int) else 0
+    reaped = (
+        int(result.get("reaped", 0)) if isinstance(result.get("reaped"), int) else 0
+    )
     if reaped <= 0:
         return False
     print(

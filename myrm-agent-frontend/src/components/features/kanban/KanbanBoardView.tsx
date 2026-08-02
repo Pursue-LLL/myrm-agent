@@ -295,6 +295,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     setNewTaskMaxRuntime,
     newTaskBranch,
     setNewTaskBranch,
+    newTaskGoalMode,
+    setNewTaskGoalMode,
+    newTaskGoalMaxTurns,
+    setNewTaskGoalMaxTurns,
     newTaskAttachments,
     setNewTaskAttachments,
     toggleDep,
@@ -603,6 +607,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               skills={newTaskSkills}
                               maxRuntimeSeconds={newTaskMaxRuntime}
                               branch={newTaskBranch}
+                              goalMode={newTaskGoalMode}
+                              goalMaxTurns={newTaskGoalMaxTurns}
                               agents={agents}
                               allTasks={tasks}
                               attachments={newTaskAttachments}
@@ -617,6 +623,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               onSkillsChange={setNewTaskSkills}
                               onMaxRuntimeChange={setNewTaskMaxRuntime}
                               onBranchChange={setNewTaskBranch}
+                              onGoalModeChange={setNewTaskGoalMode}
+                              onGoalMaxTurnsChange={setNewTaskGoalMaxTurns}
                               onSubmit={handleAddTask}
                               onCancel={resetAddForm}
                             />

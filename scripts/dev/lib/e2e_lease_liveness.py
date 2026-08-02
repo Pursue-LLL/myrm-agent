@@ -92,8 +92,7 @@ def load_wave_snapshot() -> dict[str, object]:
             "activeLeases": active,
             "leaseHistoryCount": len(state["leases"]),
             "activeResourceCount": sum(
-                item.get("status") == "active"
-                for item in state.get("resources", [])
+                item.get("status") == "active" for item in state.get("resources", [])
             ),
             "resourceHistoryCount": len(state.get("resources", [])),
             "stackPin": stack_pin,

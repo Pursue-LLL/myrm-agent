@@ -105,7 +105,9 @@ def force_mux_attach_restart(
         sys.stderr.flush()
         return False
     monorepo_root = Path(__file__).resolve().parents[4]
-    preflight = monorepo_root / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-preflight.sh"
+    preflight = (
+        monorepo_root / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-preflight.sh"
+    )
     if not preflight.is_file():
         return False
     env = {

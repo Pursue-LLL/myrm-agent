@@ -1,6 +1,11 @@
-export type { ThemeProfileIndexEntry, ThemeProfileRecipe, ThemeLayoutId, CompiledTheme } from './schema';
+export type { ThemeProfileIndexEntry, ThemeProfileRecipe, ThemeLayoutId, ThemeReadabilityScene, CompiledTheme } from './schema';
 export { compileThemeProfile, applyCompiledTheme, applyThemeFont, clearThemeRuntime } from './compiler';
-export { resolveLayoutFromPathname } from './route-layout';
+export {
+  resolveReadabilityScene,
+  FUNCTIONAL_ROUTE_PREFIXES,
+  STATIC_APP_SEGMENTS,
+} from './readability-scene';
+export { effectiveArtWash, mergeSceneSurfaces, FUNCTIONAL_ART_WASH_FLOOR } from './scene-surfaces';
 export {
   BUILTIN_THEME_PROFILES,
   OFFICIAL_DEFAULT_PROFILE_ID,
@@ -26,7 +31,7 @@ export {
 export type { ThemeBackgroundValidationError } from './overlay';
 export { THEME_PREINIT_STORAGE_KEY, writeThemePreinitSnapshot } from './preinit';
 export type { ThemePreinitSnapshot } from './preinit';
-export { meetsContrast, contrastRatio, derivePalette } from './oklch';
+export { meetsContrast, contrastRatio, derivePalette, resolveContrastSafeForeground } from './oklch';
 export { THEME_LAYOUT_CATALOG, getLayoutCatalogItem } from './layout-catalog';
 export type { ThemeLayoutCatalogItem } from './layout-catalog';
 export { parseThemeRecipeJson, ThemeRecipeParseError } from './parse-recipe';

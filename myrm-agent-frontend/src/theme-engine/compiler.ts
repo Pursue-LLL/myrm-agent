@@ -1,6 +1,7 @@
 import type { FontId } from '@/lib/fonts';
 import { getFontStack } from '@/lib/fonts';
-import { getLayoutSurfaces } from './layouts';
+import { resolveContrastSafeForeground } from './oklch';
+import { effectiveArtWash, mergeSceneSurfaces } from './scene-surfaces';
 import type {
   CompiledTheme,
   CompiledThemeArtLayer,
@@ -23,8 +24,8 @@ function pickPrimary(recipe: ThemeProfileRecipe, colorScheme: 'light' | 'dark') 
       ? recipe.palette.accentWarmDark ?? primary
       : recipe.palette.accentWarmLight ?? primary
     : primary;
-  const primaryForeground = isDark ? '#0a0a0a' : '#fbfbf8';
-  const accentWarmForeground = isDark ? '#1a1208' : '#1a1208';
+  const primaryForeground = resolveContrastSafeForeground(primary);
+  const accentWarmForeground = resolveContrastSafeForeground(accentWarm);
   return { primary, primaryHover, primaryDark, accentWarm, primaryForeground, accentWarmForeground };
 }
 
@@ -58,7 +59,7 @@ function buildArtLayer(
   context: ThemeCompileContext,
   assetUrls: ThemeAssetUrls,
 ): CompiledThemeArtLayer {
-  const layout = getLayoutSurfaces(context.layoutId);
+  const surfaces = mergeSceneSurfaces(context.layoutId, context.sceneId);
   const isVideoSource = recipe.art.mediaKind === 'video';
   const posterUrl = assetUrls.posterUrl;
   const mediaUrl = assetUrls.mediaUrl;
@@ -102,11 +103,11 @@ function buildArtLayer(
     posterUrl: displayPosterUrl,
     focusX: recipe.art.focusX,
     focusY: recipe.art.focusY,
-    wash: recipe.art.wash,
-    surfaceOpacity: layout.surfaceOpacity,
-    navOpacity: layout.navOpacity,
-    sidebarOpacity: layout.sidebarOpacity,
-    mainOpacity: layout.mainOpacity,
+    wash: effectiveArtWash(recipe.art.wash, context.sceneId),
+    surfaceOpacity: surfaces.surfaceOpacity,
+    navOpacity: surfaces.navOpacity,
+    sidebarOpacity: surfaces.sidebarOpacity,
+    mainOpacity: surfaces.mainOpacity,
   };
 }
 
@@ -149,6 +150,7 @@ export function compileThemeProfile(
   const dataAttributes: Record<string, string> = {
     'data-myrm-theme-profile': recipe.id,
     'data-myrm-theme-layout': context.layoutId,
+    'data-myrm-theme-scene': context.sceneId,
     'data-myrm-theme-art': artLayer.enabled ? 'on' : 'off',
     'data-myrm-theme-dual-accent': dual ? 'true' : 'false',
   };
@@ -217,6 +219,7 @@ export function clearThemeRuntime(root: HTMLElement): void {
   }
   root.removeAttribute('data-myrm-theme-profile');
   root.removeAttribute('data-myrm-theme-layout');
+  root.removeAttribute('data-myrm-theme-scene');
   root.removeAttribute('data-myrm-theme-art');
   root.removeAttribute('data-myrm-theme-dual-accent');
 }

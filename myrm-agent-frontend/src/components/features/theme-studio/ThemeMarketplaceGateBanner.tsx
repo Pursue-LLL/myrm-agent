@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - lib/theme-marketplace-gate::ThemeMarketplaceGateState (POS: CP health + JWT gate SSOT)
+ * - components/auth/OAuthButtons (POS: cloud account link CTA)
+ *
+ * [OUTPUT]
+ * - ThemeMarketplaceGateBanner
+ *
+ * [POS]
+ * Theme Studio marketplace offline / link-cloud CTA when gate is not ready.
+ */
+
 import { useTranslations } from 'next-intl';
 import OAuthButtons from '@/components/auth/OAuthButtons';
 import type { ThemeMarketplaceGateState } from '@/lib/theme-marketplace-gate';

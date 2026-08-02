@@ -847,7 +847,10 @@ def _context_to_dict(
     observe_json = os.environ.get("MYRM_E2E_CONTEXT_JSON", "").strip() == "1"
     if not observe_json:
         try:
-            from dev_gate_coordinator import default_socket_path, request  # noqa: PLC0415
+            from dev_gate_coordinator import (
+                default_socket_path,
+                request,
+            )  # noqa: PLC0415
 
             metrics = request(
                 {"operation": "snapshot", "session_id": "__health__"},
@@ -861,7 +864,9 @@ def _context_to_dict(
             pass
     if not observe_json:
         try:
-            from browser_orchestrator import browser_orchestrator_snapshot  # noqa: PLC0415
+            from browser_orchestrator import (
+                browser_orchestrator_snapshot,
+            )  # noqa: PLC0415
 
             payload["browserOrchestrator"] = browser_orchestrator_snapshot()
         except ImportError:

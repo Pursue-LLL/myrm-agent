@@ -18,7 +18,9 @@ from e2e_session_lifecycle import (  # noqa: E402
     ENV_WALL_STARTED,
     export_session_env,
 )
-from e2e_shared_ui_session import _extend_shared_ui_deadline_if_wall_allows  # noqa: E402
+from e2e_shared_ui_session import (
+    _extend_shared_ui_deadline_if_wall_allows,
+)  # noqa: E402
 
 
 def test_extend_expired_deadline_when_body_wall_has_budget(

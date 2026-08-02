@@ -1203,7 +1203,9 @@ def _refresh_signoff_open_nav_tool_wall(
         nav_floor = max(nav_floor, 90.0 + peers * 12.0)
     if attempt_remaining < 30.0 and bootstrap_remaining < 30.0:
         # R265: mux queue consumed attempt wall — grant fresh nav slice from SSOT.
-        budget = max(nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55)
+        budget = max(
+            nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55
+        )
     else:
         budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
     client.set_tool_wall_deadline(now + budget)

@@ -1,10 +1,11 @@
-import type { CompiledTheme, ThemeLayoutId } from './schema';
+import type { CompiledTheme, ThemeLayoutId, ThemeReadabilityScene } from './schema';
 
 export const THEME_PREINIT_STORAGE_KEY = 'myrm-theme-preinit';
 
 export interface ThemePreinitSnapshot {
   profileId: string;
   layoutId: ThemeLayoutId;
+  sceneId: ThemeReadabilityScene;
   artOn: boolean;
   dualAccent: boolean;
   isDark: boolean;
@@ -25,6 +26,7 @@ export function writeThemePreinitSnapshot(
   compiled: CompiledTheme,
   colorScheme: 'light' | 'dark',
   layoutId: ThemeLayoutId,
+  sceneId: ThemeReadabilityScene,
   options: ThemePreinitWriteOptions = {},
 ): void {
   if (typeof window === 'undefined') {
@@ -33,6 +35,7 @@ export function writeThemePreinitSnapshot(
   const snapshot: ThemePreinitSnapshot = {
     profileId: compiled.dataAttributes['data-myrm-theme-profile'] ?? 'official-default',
     layoutId,
+    sceneId,
     artOn: compiled.dataAttributes['data-myrm-theme-art'] === 'on',
     dualAccent: compiled.dataAttributes['data-myrm-theme-dual-accent'] === 'true',
     isDark: colorScheme === 'dark',

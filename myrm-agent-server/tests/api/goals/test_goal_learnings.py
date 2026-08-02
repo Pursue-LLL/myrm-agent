@@ -250,12 +250,14 @@ class TestGoalTerminalNotificationTemplate:
                 "status": "complete",
                 "objective": "Refactor auth module",
                 "files_modified": 3,
+                "turns_used": 7,
+                "execution_duration_s": 120.3,
                 "total_tokens": 5000,
                 "total_cost_usd": 0.25,
             },
         )
         result = _format_message(event)
-        assert result == "[Myrm AI] Goal complete: Refactor auth module\n3 files · 5,000 tokens · $0.25"
+        assert result == "[Myrm AI] Goal complete: Refactor auth module\n3 files · 7 turns · 120s · 5,000 tokens · $0.25"
 
     def test_goal_terminal_template_budget_limited(self):
         from app.core.notifications.dispatcher import _format_message
@@ -267,12 +269,14 @@ class TestGoalTerminalNotificationTemplate:
                 "status": "budget_limited",
                 "objective": "Long task",
                 "files_modified": 0,
+                "turns_used": 15,
+                "execution_duration_s": 900.0,
                 "total_tokens": 10000,
                 "total_cost_usd": 1.50,
             },
         )
         result = _format_message(event)
-        assert result == "[Myrm AI] Goal budget_limited: Long task\n0 files · 10,000 tokens · $1.50"
+        assert result == "[Myrm AI] Goal budget_limited: Long task\n0 files · 15 turns · 900s · 10,000 tokens · $1.50"
 
 
 class TestRetrieveRelevantLearnings:

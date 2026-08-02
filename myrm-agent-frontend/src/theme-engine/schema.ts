@@ -2,6 +2,8 @@ import type { FontId } from '@/lib/fonts';
 
 export type ThemeLayoutId = 'full-bleed' | 'nav-rail-focus' | 'chat-hero' | 'work-dense';
 
+export type ThemeReadabilityScene = 'immersive' | 'functional';
+
 export type ThemeMediaKind = 'none' | 'image' | 'video';
 
 export interface ThemePaletteTokens {
@@ -42,6 +44,7 @@ export interface ThemeProfileRecipe {
 export interface ThemeCompileContext {
   colorScheme: 'light' | 'dark';
   layoutId: ThemeLayoutId;
+  sceneId: ThemeReadabilityScene;
   prefersReducedMotion: boolean;
   isMobile: boolean;
 }

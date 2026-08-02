@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - process.env.NEXT_PUBLIC_CP_API_URL (POS: Control Plane 基础 URL)
- * - localStorage auth_token (POS: CP JWT)
+ * - localStorage auth_token (POS: CP HMAC API token)
  *
  * [OUTPUT]
  * - fetchUserSandbox: 拉取当前用户沙箱

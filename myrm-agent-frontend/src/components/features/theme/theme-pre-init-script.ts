@@ -1,6 +1,7 @@
 /**
  * Blocking pre-hydration script for theme-color meta and Theme Engine tokens.
  * Served from /public/theme-init.js via next/script beforeInteractive.
+ * Scene route tables must stay aligned with `readability-scene.ts`.
  */
 export const THEME_PRE_INIT_SCRIPT = `
 try {
@@ -15,8 +16,27 @@ try {
   var profileId=pre&&pre.profileId?pre.profileId:'official-default';
   var layoutId=pre&&pre.layoutId?pre.layoutId:'full-bleed';
   var artOn=pre&&pre.artOn?'on':'off';
+  var functionalPrefixes=['/kanban','/settings','/projects','/eval-lab','/brain','/library','/artifacts','/cron','/work','/workspace','/audit','/security','/agents','/canvas','/batch-optimization','/skill-optimization','/journey','/subscription','/pricing','/health','/mobile','/auth','/payment','/growth'];
+  var staticSegments={'agents':1,'audit':1,'artifacts':1,'auth':1,'batch-optimization':1,'brain':1,'canvas':1,'chat':1,'eval-lab':1,'growth':1,'health':1,'journey':1,'library':1,'mobile':1,'payment':1,'pricing':1,'projects':1,'security':1,'settings':1,'skill-optimization':1,'subscription':1,'workspace':1,'kanban':1,'cron':1,'work':1};
+  var path=(location.pathname||'/').split('?')[0];
+  if(path.length>1&&path.charAt(path.length-1)==='/'){path=path.slice(0,-1);}
+  if(!path){path='/';}
+  var sceneId='functional';
+  if(path==='/'||path==='/chat'){sceneId='immersive';}
+  else{
+    var matched=false;
+    for(var i=0;i<functionalPrefixes.length;i++){
+      var p=functionalPrefixes[i];
+      if(path===p||path.indexOf(p+'/')===0){matched=true;break;}
+    }
+    if(!matched){
+      var segMatch=/^\\/([^/]+)$/.exec(path);
+      if(segMatch&&!staticSegments[segMatch[1]]){sceneId='immersive';}
+    }
+  }
   d.setAttribute('data-myrm-theme-profile',profileId);
   d.setAttribute('data-myrm-theme-layout',layoutId);
+  d.setAttribute('data-myrm-theme-scene',sceneId);
   d.setAttribute('data-myrm-theme-art',artOn);
   if(pre&&pre.dualAccent){d.setAttribute('data-myrm-theme-dual-accent','true');}else{d.setAttribute('data-myrm-theme-dual-accent','false');}
   if(pre&&pre.primary){
@@ -35,6 +55,14 @@ try {
     d.style.setProperty('--primary-hover','#4a7d84');
     d.style.setProperty('--accent-warm','#e07830');
   }
+  if(sceneId==='functional'&&artOn==='on'){
+    d.style.setProperty('--myrm-theme-nav-opacity','0.92');
+    d.style.setProperty('--myrm-theme-sidebar-opacity','0.9');
+    d.style.setProperty('--myrm-theme-main-opacity','0.94');
+    d.style.setProperty('--myrm-theme-surface-opacity','0.96');
+    var wash=pre&&typeof pre.artWash==='number'?Math.max(pre.artWash,0.55):0.55;
+    d.style.setProperty('--myrm-theme-art-wash',String(wash));
+  }
   if(pre&&pre.artPosterUrl&&artOn==='on'){
     var preloadId='myrm-theme-art-preload';
     var existing=document.getElementById(preloadId);
@@ -46,7 +74,7 @@ try {
       link.href=pre.artPosterUrl;
       document.head.appendChild(link);
     }
-    if(typeof pre.artWash==='number'){
+    if(sceneId!=='functional'&&typeof pre.artWash==='number'){
       d.style.setProperty('--myrm-theme-art-wash',String(pre.artWash));
     }
   }

@@ -16,6 +16,7 @@ import RecipeImportPanel from '@/components/features/theme-studio/RecipeImportPa
 import ThemeStudioGalleryPanel from '@/components/features/theme-studio/ThemeStudioGalleryPanel';
 import ThemeStudioCreatorPanel from '@/components/features/theme-studio/ThemeStudioCreatorPanel';
 import ThemeStudioAdminPanel from '@/components/features/theme-studio/ThemeStudioAdminPanel';
+import { ThemeMarketplaceGateProvider } from '@/components/features/theme-studio/hooks/useThemeMarketplaceGate';
 import { useThemeStudioDomPreview } from '@/components/features/theme-studio/hooks/useThemeStudioDomPreview';
 import {
   allocateStudioProfileId,
@@ -273,11 +274,13 @@ const ThemeStudioSection = () => {
         ))}
       </ol>
 
-      <Suspense fallback={null}>
-        <ThemeStudioGalleryPanel />
-      </Suspense>
-      <ThemeStudioCreatorPanel />
-      <ThemeStudioAdminPanel />
+      <ThemeMarketplaceGateProvider>
+        <Suspense fallback={null}>
+          <ThemeStudioGalleryPanel />
+        </Suspense>
+        <ThemeStudioCreatorPanel />
+        <ThemeStudioAdminPanel />
+      </ThemeMarketplaceGateProvider>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         <div className="space-y-4">

@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 import secrets
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -101,6 +102,86 @@ def _ping(socket_path: Path, *, timeout_sec: float = 0.5) -> bool:
         return False
 
 
+def _list_coordinator_serve_pids(
+    *,
+    socket_target: Path,
+    database_target: Path,
+) -> list[int]:
+    """PIDs for coordinator serve processes bound to this socket/database."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-lf", "dev_gate_coordinator.py serve"],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode != 0:
+        return []
+    socket_str = str(socket_target)
+    database_str = str(database_target)
+    pids: list[int] = []
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) < 2:
+            continue
+        pid_str, command = parts[0], parts[1]
+        if socket_str not in command and database_str not in command:
+            continue
+        try:
+            pids.append(int(pid_str))
+        except ValueError:
+            continue
+    return pids
+
+
+def _reconcile_coordinator_singleton(
+    *,
+    socket_target: Path,
+    database_target: Path,
+    pid_path: Path,
+) -> None:
+    """Keep one healthy coordinator; terminate orphan serve processes (infra only)."""
+    serve_pids = _list_coordinator_serve_pids(
+        socket_target=socket_target,
+        database_target=database_target,
+    )
+    alive_pids = [pid for pid in serve_pids if _pid_alive(pid)]
+    if not alive_pids:
+        _clear_stale_coordinator_pid(pid_path)
+        return
+
+    if _ping(socket_target) or _wait_for_ping(socket_target, budget_sec=2.0):
+        canonical = _read_coordinator_pid(pid_path)
+        keeper: int | None = None
+        if canonical is not None and canonical in alive_pids:
+            keeper = canonical
+        else:
+            keeper = alive_pids[0]
+        _write_coordinator_pid(pid_path, keeper)
+        for pid in alive_pids:
+            if pid == keeper:
+                continue
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                continue
+        return
+
+    for pid in alive_pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            continue
+    _clear_stale_coordinator_pid(pid_path)
+    try:
+        socket_target.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def ensure_coordinator(
     *,
     socket_path: Path | None = None,
@@ -115,6 +196,11 @@ def ensure_coordinator(
         if disabled_age < 60.0:
             return None
         disabled_path.unlink(missing_ok=True)
+    _reconcile_coordinator_singleton(
+        socket_target=socket_target,
+        database_target=database_target,
+        pid_path=pid_path,
+    )
     _clear_stale_coordinator_pid(pid_path)
     live_pid = _read_coordinator_pid(pid_path)
     if live_pid is not None and _pid_alive(live_pid):
@@ -124,7 +210,9 @@ def ensure_coordinator(
             return socket_target
     if _ping(socket_target):
         return socket_target
-    if socket_target.exists() and _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC):
+    if socket_target.exists() and _wait_for_ping(
+        socket_target, budget_sec=_PING_WAIT_SEC
+    ):
         return socket_target
     with _startup_lock(database_target):
         _clear_stale_coordinator_pid(pid_path)
@@ -190,7 +278,9 @@ def _handle_in_process(payload: dict[str, object]) -> dict[str, object]:
     last_exc: sqlite3.OperationalError | None = None
     for attempt in range(8):
         try:
-            return CoordinatorService(DevGateStore(default_store_path())).handle(payload)
+            return CoordinatorService(DevGateStore(default_store_path())).handle(
+                payload
+            )
         except sqlite3.OperationalError as exc:
             if "locked" not in str(exc).lower() or attempt >= 7:
                 raise

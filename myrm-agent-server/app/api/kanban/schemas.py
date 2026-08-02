@@ -125,6 +125,16 @@ class TaskCreate(BaseModel):
         le=86400,
         description="Per-task timeout in seconds (10s–24h). Falls back to system default when unset.",
     )
+    goal_mode: bool = Field(
+        False,
+        description="Enable autonomous multi-turn execution until the task objective is met.",
+    )
+    goal_max_turns: int | None = Field(
+        None,
+        ge=1,
+        le=100,
+        description="Maximum turns for goal loop (1–100). Defaults to 10 when goal_mode is enabled.",
+    )
     initial_status: str | None = Field(
         None,
         description="Initial status: triage / backlog / ready / blocked. Defaults to backlog if depends_on, else ready.",
@@ -345,6 +355,8 @@ class TaskResponse(BaseModel):
     attachment_ids: list[str] = []
     attachments: list[AttachmentInfo] = []
     max_runtime_seconds: int | None = None
+    goal_mode: bool = False
+    goal_max_turns: int | None = None
     completion_criteria: str | list[dict[str, str | int]] | None = None
     dep_count: int = 0
     children_total: int = 0

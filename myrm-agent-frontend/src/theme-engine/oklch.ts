@@ -26,6 +26,32 @@ export function meetsContrast(foreground: string, background: string, minRatio =
   return contrastRatio(foreground, background) >= minRatio;
 }
 
+const FOREGROUND_CANDIDATES = ['#fbfbf8', '#0a0a0a', '#ffffff', '#1a1208'] as const;
+
+/**
+ * Pick a foreground hex that meets WCAG AA against `background`, preferring light text first.
+ */
+export function resolveContrastSafeForeground(
+  background: string,
+  minRatio = 4.5,
+): string {
+  for (const candidate of FOREGROUND_CANDIDATES) {
+    if (meetsContrast(candidate, background, minRatio)) {
+      return candidate;
+    }
+  }
+  let best = FOREGROUND_CANDIDATES[0];
+  let bestRatio = contrastRatio(best, background);
+  for (const candidate of FOREGROUND_CANDIDATES) {
+    const ratio = contrastRatio(candidate, background);
+    if (ratio > bestRatio) {
+      best = candidate;
+      bestRatio = ratio;
+    }
+  }
+  return best;
+}
+
 function hexToHsl(hex: string): [number, number, number] {
   const v = hex.replace('#', '');
   const r = Number.parseInt(v.slice(0, 2), 16) / 255;

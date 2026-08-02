@@ -139,6 +139,8 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         max_runtime_seconds: int | None = None,
         workspace_path: str | None = None,
         branch: str | None = None,
+        goal_mode: bool = False,
+        goal_max_turns: int | None = None,
         metadata_patch: dict[str, object] | None = None,
     ) -> KanbanTask:
         return await run_add_task(
@@ -158,6 +160,8 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             max_runtime_seconds,
             workspace_path,
             branch,
+            goal_mode,
+            goal_max_turns,
             metadata_patch,
             validate_agent_id=self._validate_agent_id,
             wake_dispatcher=self._wake_dispatcher,

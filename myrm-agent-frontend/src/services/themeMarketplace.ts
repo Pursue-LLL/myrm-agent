@@ -17,7 +17,6 @@ export interface ThemeMarketplaceListing {
   layoutId: string;
   mediaKind: string;
   priceCents: number;
-  vipOnly: boolean;
   status: string;
   packageSha256: string;
   previewThumbnail: string | null;
@@ -52,7 +51,6 @@ function parseListing(raw: Record<string, unknown>): ThemeMarketplaceListing {
     layoutId: String(raw.layoutId ?? raw.layout_id ?? 'chat-first'),
     mediaKind: String(raw.mediaKind ?? raw.media_kind ?? 'none'),
     priceCents: Number(raw.priceCents ?? raw.price_cents ?? 0),
-    vipOnly: Boolean(raw.vipOnly ?? raw.vip_only),
     status: String(raw.status ?? 'published'),
     packageSha256: String(raw.packageSha256 ?? raw.package_sha256 ?? ''),
     previewThumbnail: (raw.previewThumbnail ?? raw.preview_thumbnail ?? null) as string | null,

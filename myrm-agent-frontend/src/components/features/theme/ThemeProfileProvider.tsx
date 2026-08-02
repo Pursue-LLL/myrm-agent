@@ -16,7 +16,7 @@ import {
   getDefaultThemeProfile,
   mergeArtOverlay,
   EMPTY_THEME_PROFILES,
-  resolveLayoutFromPathname,
+  resolveReadabilityScene,
   writeThemePreinitSnapshot,
   type CompiledTheme,
   type ThemeProfileRecipe,
@@ -69,9 +69,11 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
   const profile = domPreviewEnabled && domPreviewProfile ? domPreviewProfile : configProfile;
 
-  const layoutId = useMemo(
-    () => resolveLayoutFromPathname(pathname ?? '/', profile.layoutId),
-    [pathname, profile.layoutId],
+  const layoutId = profile.layoutId;
+
+  const sceneId = useMemo(
+    () => resolveReadabilityScene(pathname ?? '/'),
+    [pathname],
   );
 
   const colorScheme = resolvedTheme === 'light' ? 'light' : 'dark';
@@ -154,20 +156,20 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
     () =>
       compileThemeProfile(
         profile,
-        { colorScheme, layoutId, prefersReducedMotion, isMobile },
+        { colorScheme, layoutId, sceneId, prefersReducedMotion, isMobile },
         { mediaUrl, posterUrl },
       ),
-    [profile, colorScheme, layoutId, prefersReducedMotion, isMobile, mediaUrl, posterUrl],
+    [profile, colorScheme, layoutId, sceneId, prefersReducedMotion, isMobile, mediaUrl, posterUrl],
   );
 
   useEffect(() => {
     ensureFontLoaded(compiled.fontId);
     applyCompiledTheme(document.documentElement, compiled);
-    writeThemePreinitSnapshot(compiled, colorScheme, layoutId, {
+    writeThemePreinitSnapshot(compiled, colorScheme, layoutId, sceneId, {
       artPosterUrl: posterUrl ?? (profile.art.mediaKind === 'image' ? mediaUrl : null),
       artWash: compiled.artLayer.wash,
     });
-  }, [compiled, colorScheme, layoutId, posterUrl, mediaUrl, profile.art.mediaKind]);
+  }, [compiled, colorScheme, layoutId, sceneId, posterUrl, mediaUrl, profile.art.mediaKind]);
 
   useEffect(
     () => () => {
