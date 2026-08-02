@@ -1,9 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { IconGift } from '@/components/features/icons/PremiumIcons';
 import useCompanionStore from '@/store/useCompanionStore';
 import useAgentStore from '@/store/useAgentStore';
+import {
+  resolveCompanionRarityVisual,
+  useCompanionThemeEpoch,
+} from '@/services/companion/companionTheme';
 
 import { getRarityAbilities } from './companionGenerator';
 import { SPECIES_ICON_MAP, HAT_ICON_MAP } from './CompanionIcons';
@@ -21,35 +26,19 @@ interface CompanionSpriteProps {
   isBirthday?: boolean;
 }
 
-const RARITY_GLOW: Record<Rarity, string> = {
-  Common: '',
-  Uncommon: 'drop-shadow(0 0 4px rgba(59,130,246,0.3))',
-  Rare: 'drop-shadow(0 0 6px rgba(168,85,247,0.4))',
-  Epic: 'drop-shadow(0 0 8px rgba(236,72,153,0.5)) drop-shadow(0 0 16px rgba(236,72,153,0.2))',
-  Legendary: 'drop-shadow(0 0 12px rgba(234,179,8,0.6)) drop-shadow(0 0 24px rgba(234,179,8,0.3))',
-};
-
-const RARITY_RING: Record<Rarity, string> = {
-  Common: '',
+const RARITY_COLOR_CLASS: Record<Rarity, string> = {
+  Common: 'text-foreground/70',
   Uncommon: '',
   Rare: '',
-  Epic: 'ring-1 ring-pink-400/30',
-  Legendary: 'ring-2 ring-amber-400/40',
-};
-
-const RARITY_COLOR: Record<Rarity, string> = {
-  Common: 'text-foreground/70',
-  Uncommon: 'text-blue-500',
-  Rare: 'text-purple-500',
-  Epic: 'text-pink-500',
-  Legendary: 'text-amber-500',
+  Epic: '',
+  Legendary: '',
 };
 
 const STATUS_ICONS: Record<string, { icon: string; className: string }> = {
   sleeping: { icon: 'z', className: 'text-muted-foreground opacity-60' },
-  dizzy: { icon: '~', className: 'text-yellow-500 animate-spin' },
-  celebrating: { icon: '*', className: 'text-amber-500 animate-bounce' },
-  panting: { icon: '!', className: 'text-red-500 animate-pulse' },
+  dizzy: { icon: '~', className: 'text-accent-warm animate-spin' },
+  celebrating: { icon: '*', className: 'text-accent-warm animate-bounce' },
+  panting: { icon: '!', className: 'text-destructive animate-pulse' },
 };
 
 const MOOD_ANIM: Record<Mood, string> = {
@@ -68,11 +57,16 @@ export default function CompanionSprite({
   onClick,
   isBirthday,
 }: CompanionSpriteProps) {
+  const themeEpoch = useCompanionThemeEpoch();
   const evolvedRarity = useCompanionStore((s) => s.evolvedRarity);
   const mascotStatus = useCompanionStore((s) => s.mascotStatus);
   const mood = useCompanionStore((s) => s.mood);
   const effectiveRarity: Rarity = (evolvedRarity ?? bones.rarity) as Rarity;
   const abilities = getRarityAbilities(effectiveRarity);
+  const rarityVisual = useMemo(
+    () => resolveCompanionRarityVisual(effectiveRarity),
+    [effectiveRarity, themeEpoch],
+  );
 
   const activeAgent = useAgentStore((s) => s.selectedAgent);
   const activeAgentId = activeAgent?.id ?? '';
@@ -112,9 +106,9 @@ export default function CompanionSprite({
     }
   }
 
-  const glow = RARITY_GLOW[effectiveRarity];
-  const ring = RARITY_RING[effectiveRarity];
-  const rarityColor = RARITY_COLOR[effectiveRarity];
+  const glow = rarityVisual.glowFilter;
+  const rarityColorClass = RARITY_COLOR_CLASS[effectiveRarity];
+  const rarityColorStyle = rarityVisual.textColor ? { color: rarityVisual.textColor } : undefined;
 
   const SpeciesIcon = SPECIES_ICON_MAP[species];
   const HatIcon = hat ? HAT_ICON_MAP[hat] : null;
@@ -133,13 +127,15 @@ export default function CompanionSprite({
         animState === 'bounce' && 'animate-companion-bounce',
         mascotStatus === 'dizzy' && 'animate-bounce',
         moodAnim,
-        ring,
       )}
-      style={{ filter: glow || undefined }}
+      style={{
+        filter: glow || undefined,
+        boxShadow: rarityVisual.ringShadow || undefined,
+      }}
       aria-label="Companion"
     >
       {HatIcon ? (
-        <span className={cn('leading-none -mb-0.5 z-10', rarityColor)}>
+        <span className={cn('leading-none -mb-0.5 z-10', rarityColorClass)} style={rarityColorStyle}>
           <HatIcon size={14} />
         </span>
       ) : hat ? (
@@ -149,7 +145,8 @@ export default function CompanionSprite({
       <div className="relative">
         {SpeciesIcon ? (
           <span
-            className={cn('block', rarityColor, (bones.shiny || abilities.legendaryFlair) && 'animate-shimmer-overlay')}
+            className={cn('block', rarityColorClass, (bones.shiny || abilities.legendaryFlair) && 'animate-shimmer-overlay')}
+            style={rarityColorStyle}
           >
             <SpeciesIcon size={28} />
           </span>

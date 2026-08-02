@@ -14,7 +14,7 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 | `scene-surfaces.ts` | layout × scene merge + exported `FUNCTIONAL_SURFACE_FLOORS` / `FUNCTIONAL_ART_WASH_FLOOR` |
 | `presets.ts` | 17 built-in profiles: default, 5 accents, 3 eye-care, 4 nature, 2 efficiency, 2 warm |
 | `overlay.ts` | User art overlay merge + profile builders |
-| `preinit.ts` | Blocking pre-hydration localStorage snapshot writer (tokens + optional art poster preload hint) |
+| `preinit.ts` | Pre-hydration localStorage snapshot writer + `applyThemePreinitFromLocalStorage` for cross-window token sync |
 | `oklch.ts` | WCAG contrast utilities + `derivePalette(hex)` + `resolveContrastSafeForeground` |
 | `parse-recipe.ts` | Skill/clipboard JSON → validated ThemeProfileRecipe patch |
 | `studio-constants.ts` | Ephemeral preview profile id + startup sanitize helpers |

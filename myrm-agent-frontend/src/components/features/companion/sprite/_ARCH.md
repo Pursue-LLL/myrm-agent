@@ -8,7 +8,7 @@
 | `PetOverlay.tsx` | 核心 | 主窗口嵌入层 UI + 右键菜单 | ✅ |
 | `usePetSurfaceHost.ts` | 核心 | Tauri 外置窗生命周期 + IPC 同步 | ✅ |
 | `PetOverlayWindowApp.tsx` | 核心 | `/pet-overlay` 傀儡窗（气泡/composer/mail/alpha 穿透） | ✅ |
-| `PetStatusBubble.tsx` / `petStatusBubbleSpec.ts` | 辅助 | 外置窗状态气泡文案 | ✅ |
+| `PetStatusBubble.tsx` / `petStatusBubbleSpec.ts` | 辅助 | 外置窗状态气泡文案；tone 色从 `companionTheme.ts` token 派生 | ✅ |
 | `petSurfaceBridge.ts` | 辅助 | Tauri IPC + event 桥 | ✅ |
 | `petSurfaceTypes.ts` / `petSurfaceStorage.ts` | 辅助 | IPC 类型 + 持久化 | ✅ |
 | `petSurfaceAwayCompletion.ts` / `usePetSurfaceUnread.ts` | 辅助 | 离屏完成 → mail 未读 | ✅ |

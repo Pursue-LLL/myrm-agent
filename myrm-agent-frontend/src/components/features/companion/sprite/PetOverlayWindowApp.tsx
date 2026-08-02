@@ -9,6 +9,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
+import {
+  applyThemePreinitFromLocalStorage,
+  THEME_PREINIT_STORAGE_KEY,
+} from '@/theme-engine/preinit';
 
 import PetStatusBubble from './PetStatusBubble';
 import {
@@ -61,6 +65,17 @@ export default function PetOverlayWindowApp() {
       unlisten?.();
       if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    applyThemePreinitFromLocalStorage();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === THEME_PREINIT_STORAGE_KEY) {
+        applyThemePreinitFromLocalStorage();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   useEffect(() => {

@@ -29,23 +29,19 @@ async def test_companion_config_flow(companion_app) -> None:
         await session.commit()
 
     async with AsyncClient(transport=ASGITransport(app=companion_app), base_url="http://test") as ac:
-        # 1. GET config when empty (should return empty config structure)
         resp = await ac.get("/api/v1/companion/config")
         assert resp.status_code == 200
         data = resp.json()
         assert data["value"]["name"] is None
         assert data["value"]["species"] is None
         assert data["value"]["hat"] is None
-        assert data["value"]["palette_theme"] is None
         assert data["value"]["sprite"] is None
 
-        # 2. SET config with pet slug sprite selection
         set_payload = {
             "value": {
                 "name": "Ferris",
                 "species": "Crab",
                 "hat": "Cowboy Hat",
-                "palette_theme": "Laserwave",
                 "sprite": {
                     "pet_slug": "nous-girl",
                     "content_sha256": "deadbeef",
@@ -60,19 +56,16 @@ async def test_companion_config_flow(companion_app) -> None:
         assert data["value"]["name"] == "Ferris"
         assert data["value"]["species"] == "Crab"
         assert data["value"]["hat"] == "Cowboy Hat"
-        assert data["value"]["palette_theme"] == "Laserwave"
         assert data["value"]["sprite"]["pet_slug"] == "nous-girl"
         assert data["value"]["sprite"]["content_sha256"] == "deadbeef"
         assert data["value"]["sprite"]["display_name"] == "Nous Girl"
         assert data["version"] is not None
 
-        # 3. GET config again to check persistence
         resp = await ac.get("/api/v1/companion/config")
         assert resp.status_code == 200
         data = resp.json()
         assert data["value"]["name"] == "Ferris"
         assert data["value"]["species"] == "Crab"
         assert data["value"]["hat"] == "Cowboy Hat"
-        assert data["value"]["palette_theme"] == "Laserwave"
         assert data["value"]["sprite"]["pet_slug"] == "nous-girl"
         assert data["value"]["sprite"]["display_name"] == "Nous Girl"

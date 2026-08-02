@@ -34,7 +34,11 @@ export {
   validateThemeBackgroundFile,
 } from './overlay';
 export type { ThemeBackgroundValidationError } from './overlay';
-export { THEME_PREINIT_STORAGE_KEY, writeThemePreinitSnapshot } from './preinit';
+export {
+  THEME_PREINIT_STORAGE_KEY,
+  applyThemePreinitFromLocalStorage,
+  writeThemePreinitSnapshot,
+} from './preinit';
 export type { ThemePreinitSnapshot } from './preinit';
 export { meetsContrast, contrastRatio, derivePalette, resolveContrastSafeForeground } from './oklch';
 export { THEME_LAYOUT_CATALOG, getLayoutCatalogItem } from './layout-catalog';

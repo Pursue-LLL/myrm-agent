@@ -235,6 +235,13 @@ class CdpChatBootstrap(CdpChatTransport):
     def _shell_probe_progress(self, *, polls: int, started: float, phase: str) -> None:
         import sys
 
+        try:
+            from e2e_session_lifecycle import touch_wall_progress
+
+            touch_wall_progress(current_node=phase)
+        except ImportError:
+            pass
+
         elapsed = int(time.monotonic() - started)
         last_logged = getattr(self, "_last_shell_probe_log_sec", -1)
         if polls == 1 or (

@@ -4656,6 +4656,20 @@
     "benefit2": "减小 BM25 インデックスサイズ，加快重要词匹配",
     "benefit3": "履歴データ保留，ない削除",
     "benefit4": "アーカイブメモリ可合格专使用API検索",
+    "domainSkills": {
+      "title": "ドメインスキル",
+      "description": "よく使うサイト向けの実行可能ツールパック — ブラウザ操作を加速",
+      "loading": "ドメインスキルを読み込み中...",
+      "empty": "ドメインスキルがありません",
+      "builtinBadge": "内蔵",
+      "userBadge": "カスタム",
+      "tools": "{count} ツール",
+      "domains": "ドメイン",
+      "delete": "スキルを削除",
+      "deleteSuccess": "ドメインスキル「{name}」を削除しました",
+      "deleteFailed": "ドメインスキルの削除に失敗しました",
+      "confirmDelete": "ドメインスキル「{name}」を削除しますか？この操作は取り消せません。"
+    },
     "savedSessions": {
       "title": "保存済みブラウザセッション",
       "description": "AIアシスタントが保存した暗号化ログイン状態（Cookie & localStorage）",
@@ -11334,7 +11348,9 @@
     "hat": "帽子",
     "noHat": "なし",
     "defaultHat": "デフォルト",
-    "paletteTheme": "外観配色",
+    "themeFollowWorkspace": "ワークスペーステーマ",
+    "themeFollowWorkspaceDesc": "コンパニオンのアクセント色は「外観」のワークスペーステーマに連動します。",
+    "themeFollowWorkspaceLink": "外観設定を開く",
     "close": "非表示小伙伴",
     "settings": "小伙伴設定",
     "goalStatus": {

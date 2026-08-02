@@ -23,6 +23,7 @@ from app.api.audit.auth_router import router as auth_audit_router
 from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_optimization import router as batch_optimization_router
+from app.api.browser_domain_skills import router as browser_domain_skills_router
 from app.api.browser_recording import router as browser_recording_router
 from app.api.browser_sessions import router as browser_sessions_router
 from app.api.budget import budget_router
@@ -159,6 +160,9 @@ api_router.include_router(
 )
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
+api_router.include_router(
+    browser_domain_skills_router, prefix="/browser", tags=["browser-domain-skills"]
+)
 api_router.include_router(
     browser_recording_router, prefix="/browser", tags=["browser-recording"]
 )

@@ -1,4 +1,7 @@
-/** Routes that render without AppLayout sidebar (public + auth + billing). */
+/** Tauri transparent popped-out desk pet — no AppLayout chrome. */
+export const PET_OVERLAY_PATH = '/pet-overlay';
+
+/** Routes that render without AppLayout sidebar (public + auth + billing + pet overlay). */
 export const STANDALONE_PATHS = [
   '/pricing',
   '/auth/login',
@@ -6,10 +9,18 @@ export const STANDALONE_PATHS = [
   '/auth/oauth/callback',
   '/payment/success',
   '/payment/cancel',
+  PET_OVERLAY_PATH,
 ] as const;
 
+export function isPetOverlayPath(pathname: string): boolean {
+  return pathname === PET_OVERLAY_PATH || pathname.startsWith(`${PET_OVERLAY_PATH}/`);
+}
+
 export function isStandalonePath(pathname: string): boolean {
-  return STANDALONE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return (
+    isPetOverlayPath(pathname) ||
+    STANDALONE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+  );
 }
 
 /** Routes accessible without authentication in SaaS (sandbox) mode. */

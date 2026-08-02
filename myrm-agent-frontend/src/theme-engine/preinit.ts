@@ -56,3 +56,50 @@ export function writeThemePreinitSnapshot(
     /* storage quota — pre-init falls back to official default */
   }
 }
+
+function readThemePreinitSnapshot(): ThemePreinitSnapshot | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const raw = localStorage.getItem(THEME_PREINIT_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed as ThemePreinitSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+/** Apply persisted workspace theme tokens (e.g. popped-out pet overlay on storage sync). */
+export function applyThemePreinitFromLocalStorage(root: HTMLElement = document.documentElement): boolean {
+  const snapshot = readThemePreinitSnapshot();
+  if (!snapshot) {
+    return false;
+  }
+
+  root.classList.toggle('dark', snapshot.isDark);
+  root.classList.toggle('light', !snapshot.isDark);
+
+  root.setAttribute('data-myrm-theme-profile', snapshot.profileId);
+  root.setAttribute('data-myrm-theme-layout', snapshot.layoutId);
+  root.setAttribute('data-myrm-theme-scene', snapshot.sceneId);
+  root.setAttribute('data-myrm-theme-art', snapshot.artOn ? 'on' : 'off');
+  root.setAttribute('data-myrm-theme-dual-accent', snapshot.dualAccent ? 'true' : 'false');
+
+  if (snapshot.primary) {
+    root.style.setProperty('--primary', snapshot.primary);
+    root.style.setProperty('--primary-foreground', snapshot.primaryForeground);
+    root.style.setProperty('--primary-hover', snapshot.primaryHover);
+  }
+  if (snapshot.accentWarm) {
+    root.style.setProperty('--accent-warm', snapshot.accentWarm);
+  }
+
+  return true;
+}

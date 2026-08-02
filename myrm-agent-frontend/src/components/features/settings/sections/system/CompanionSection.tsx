@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/primitives/button';
@@ -53,13 +54,6 @@ function EvolutionProgress({ label, current, target }: { label: string; current:
   );
 }
 
-const THEME_PALETTES = [
-  { id: 'nord', label: 'Nord', colors: ['bg-[#2e3440]', 'bg-[#88c0d0]'] },
-  { id: 'dracula', label: 'Dracula', colors: ['bg-[#282a36]', 'bg-[#50fa7b]'] },
-  { id: 'laserwave', label: 'Laserwave', colors: ['bg-[#1b1c26]', 'bg-[#eb4b8c]'] },
-  { id: 'retro', label: 'Retro', colors: ['bg-[#ffb000]', 'bg-[#000000]'] },
-];
-
 const CompanionSection = memo(() => {
   const t = useTranslations('companion');
   const user = useAuthStore((s) => s.user);
@@ -69,7 +63,6 @@ const CompanionSection = memo(() => {
     nameOverride,
     speciesOverride,
     hatOverride,
-    paletteThemeOverride,
     evolvedRarity,
     evolvedAt,
     setEnabled,
@@ -77,7 +70,6 @@ const CompanionSection = memo(() => {
     setNameOverride,
     setSpeciesOverride,
     setHatOverride,
-    setPaletteThemeOverride,
     evolve,
     loadConfigFromServer,
     saveConfigToServer,
@@ -105,7 +97,7 @@ const CompanionSection = memo(() => {
       saveConfigToServer();
     }, 500);
     return () => clearTimeout(timer);
-  }, [nameOverride, speciesOverride, hatOverride, paletteThemeOverride, saveConfigToServer]);
+  }, [nameOverride, speciesOverride, hatOverride, saveConfigToServer]);
 
   useEffect(() => {
     if (!enabled || !bones || !user?.id) return;
@@ -239,29 +231,15 @@ const CompanionSection = memo(() => {
           </div>
         </div>
 
-        <div className="space-y-1">
-          <Label>{t('paletteTheme')}</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {THEME_PALETTES.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPaletteThemeOverride(p.id === paletteThemeOverride ? null : p.id)}
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  (paletteThemeOverride ?? 'nord') === p.id
-                    ? 'bg-primary/15 ring-1 ring-primary'
-                    : 'hover:bg-muted border border-border'
-                }`}
-                disabled={!enabled}
-              >
-                <div className="flex gap-0.5">
-                  <div className={`w-2.5 h-2.5 rounded-full ${p.colors[0]}`} />
-                  <div className={`w-2.5 h-2.5 rounded-full ${p.colors[1]}`} />
-                </div>
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-1 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+          <Label>{t('themeFollowWorkspace')}</Label>
+          <p className="text-xs text-muted-foreground">{t('themeFollowWorkspaceDesc')}</p>
+          <Link
+            href="/settings/preferences"
+            className="inline-flex text-xs font-medium text-primary hover:underline"
+          >
+            {t('themeFollowWorkspaceLink')}
+          </Link>
         </div>
 
         {/* Evolution section */}

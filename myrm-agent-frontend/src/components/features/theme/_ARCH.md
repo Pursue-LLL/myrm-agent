@@ -7,7 +7,7 @@ Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Reci
 | File | Role | I/O/P |
 |------|------|-------|
 | `ThemeProvider.tsx` | next-themes wrapper + theme-color meta | ✅ |
-| `ThemeProfileProvider.tsx` | ConfigSync profile → compiler → DOM + Art Layer + preinit; honors Studio DOM preview | ✅ |
+| `ThemeProfileProvider.tsx` | ConfigSync profile → compiler → DOM + Art Layer + preinit; skips Art Layer and asset load on `/pet-overlay` | ✅ |
 | `ThemeAssetMissingBanner.tsx` | Non-blocking banner when synced `file:` assets are missing on this device | ✅ |
 | `WorkspaceArtLayer.tsx` | Full-window poster/video layer | ✅ |
 | `AppearancePanel.tsx` | Profile picker + workspace background upload + wash + font + `.myrmtheme` import/export | ✅ |
@@ -16,10 +16,12 @@ Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Reci
 | `shared/ThemePresetGrid.tsx` | Shared preset swatch grid (Appearance + Studio) | ✅ |
 | `shared/ThemeProfilePicker.tsx` | Built-in + saved profile picker (Appearance) | ✅ |
 | `theme-pre-init-script.ts` | Blocking tokens + pathname scene + functional opacity/wash floor + art poster preload + legacy purge（opacity 数值与 `scene-surfaces.FUNCTIONAL_SURFACE_FLOORS` parity 由 `__tests__/theme-init-asset.test.ts` 锁定） | ✅ |
+| `__tests__/ThemeProfileProvider.petOverlay.test.tsx` | Regression: `/pet-overlay` skips `WorkspaceArtLayer` + missing-asset banner | ✅ |
 
 ## Dependencies
 
 - `@/theme-engine` — compiler + presets + overlay + preinit
 - `@/services/theme-assets` — `uploadThemeBackground` SSOT + assetRef resolution + MP4 poster extraction
 - `@/services/theme-packages` — `.myrmtheme` inspect / install / export API clients
+- `@/lib/marketing-paths` — `isPetOverlayPath()` for art-layer skip on popped-out desk pet
 - `PersonalSettings.activeThemeProfileId` / `themeProfiles` / `themeFontOverride` — ConfigSync SSOT

@@ -3902,6 +3902,20 @@
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
     "benefit4": "Archived memories searchable via dedicated API",
+    "domainSkills": {
+      "title": "Domain-Skills",
+      "description": "Ausführbare Tool-Pakete für häufig besuchte Websites — beschleunigt wiederkehrende Browser-Aufgaben",
+      "loading": "Domain-Skills werden geladen...",
+      "empty": "Keine Domain-Skills installiert",
+      "builtinBadge": "Integriert",
+      "userBadge": "Benutzerdefiniert",
+      "tools": "{count} Tools",
+      "domains": "Domains",
+      "delete": "Skill löschen",
+      "deleteSuccess": "Domain-Skill \"{name}\" entfernt",
+      "deleteFailed": "Fehler beim Löschen des Domain-Skills",
+      "confirmDelete": "Domain-Skill \"{name}\" löschen? Dies kann nicht rückgängig gemacht werden."
+    },
     "savedSessions": {
       "title": "Gespeicherte Browser-Sitzungen",
       "description": "Verschlüsselte Login-Sitzungen, die vom KI-Assistenten gespeichert wurden (Cookies & localStorage)",
@@ -10235,7 +10249,9 @@
         }
       }
     },
-    "paletteTheme": "Theme Palette",
+    "themeFollowWorkspace": "Arbeitsbereich-Design",
+    "themeFollowWorkspaceDesc": "Begleiter-Akzente folgen dem Arbeitsbereich-Design unter „Erscheinungsbild“.",
+    "themeFollowWorkspaceLink": "Erscheinungsbild-Einstellungen öffnen",
     "tabs": {
       "settings": "Einstellungen",
       "gallery": "Haustier-Galerie"

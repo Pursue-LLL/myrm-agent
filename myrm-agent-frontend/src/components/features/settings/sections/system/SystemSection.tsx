@@ -30,6 +30,7 @@ import ServerConnectionCard from './ServerConnectionCard';
 import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
 import SandboxResetCard from './SandboxResetCard';
+import DomainSkillsCard from './DomainSkillsCard';
 import SavedSessionsCard from './SavedSessionsCard';
 import PushNotificationCard from './PushNotificationCard';
 
@@ -689,6 +690,9 @@ const SystemSection = memo(() => {
 
       {/* CAPTCHA Auto-Solver */}
       <CaptchaSolverCard />
+
+      {/* Domain Executable Skills */}
+      <DomainSkillsCard />
 
       {/* Saved Browser Sessions */}
       <SavedSessionsCard />

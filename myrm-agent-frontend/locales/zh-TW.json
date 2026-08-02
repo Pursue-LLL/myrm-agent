@@ -4675,6 +4675,20 @@
     "benefit2": "減小 BM25 索引大小，加快關鍵詞匹配",
     "benefit3": "歷史資料保留，不刪除",
     "benefit4": "歸檔記憶可透過專用API搜尋",
+    "domainSkills": {
+      "title": "網域技能",
+      "description": "為常用網站提供可執行工具包 — 加速重複瀏覽器操作",
+      "loading": "載入網域技能中...",
+      "empty": "暫無網域技能",
+      "builtinBadge": "內建",
+      "userBadge": "自訂",
+      "tools": "{count} 個工具",
+      "domains": "網域",
+      "delete": "刪除網域技能",
+      "deleteSuccess": "已刪除網域技能「{name}」",
+      "deleteFailed": "刪除網域技能失敗",
+      "confirmDelete": "確定刪除網域技能「{name}」嗎？此操作不可撤銷。"
+    },
     "savedSessions": {
       "title": "已儲存的瀏覽器會話",
       "description": "AI 助手自動儲存的加密登入狀態（Cookies 和 LocalStorage）",
@@ -11375,7 +11389,9 @@
     "hat": "帽子",
     "noHat": "無",
     "defaultHat": "預設",
-    "paletteTheme": "外觀配色",
+    "themeFollowWorkspace": "工作區主題",
+    "themeFollowWorkspaceDesc": "小伙伴強調色與「外觀」中的工作區主題保持一致。",
+    "themeFollowWorkspaceLink": "開啟外觀設定",
     "close": "隱藏小夥伴",
     "settings": "小夥伴設定",
     "goalStatus": {

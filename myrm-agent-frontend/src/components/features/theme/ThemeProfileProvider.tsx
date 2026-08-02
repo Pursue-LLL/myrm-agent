@@ -21,6 +21,7 @@ import {
   type CompiledTheme,
   type ThemeProfileRecipe,
 } from '@/theme-engine';
+import { isPetOverlayPath } from '@/lib/marketing-paths';
 import {
   resolveThemeAssetUrl,
   verifyThemeAssetAvailable,
@@ -76,6 +77,8 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
     [pathname],
   );
 
+  const isPetOverlay = isPetOverlayPath(pathname ?? '');
+
   const colorScheme = resolvedTheme === 'light' ? 'light' : 'dark';
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
@@ -93,6 +96,13 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
     if (domPreviewEnabled) {
       setMediaUrl(domPreviewMediaUrl);
       setPosterUrl(domPreviewPosterUrl);
+      setAssetMissing(false);
+      return;
+    }
+
+    if (isPetOverlay) {
+      setMediaUrl(null);
+      setPosterUrl(null);
       setAssetMissing(false);
       return;
     }
@@ -147,6 +157,7 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
     domPreviewEnabled,
     domPreviewMediaUrl,
     domPreviewPosterUrl,
+    isPetOverlay,
     profile.art.assetRef,
     profile.art.mediaKind,
     profile.art.posterAssetRef,
@@ -180,8 +191,8 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
-      <WorkspaceArtLayer art={compiled.artLayer} />
-      {!domPreviewEnabled && assetMissing ? <ThemeAssetMissingBanner /> : null}
+      {!isPetOverlay ? <WorkspaceArtLayer art={compiled.artLayer} /> : null}
+      {!isPetOverlay && !domPreviewEnabled && assetMissing ? <ThemeAssetMissingBanner /> : null}
       {children}
     </>
   );

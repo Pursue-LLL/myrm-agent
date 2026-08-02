@@ -150,6 +150,8 @@ SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 # Holder / progress stale detection while queueing on shared_hot stream.
 STALL_PROGRESS_SEC: Final[int] = 90
+# R281: M3 signoff desktop wait_shell_layout may block on mux evaluate >90s even solo.
+SIGNOFF_STALL_PROGRESS_FLOOR_SEC: Final[int] = 150
 # Watchdog: expire heartbeat-stale leases (display stale remains STALL_PROGRESS_SEC).
 E2E_STALE_HEARTBEAT_REAP_SEC: Final[int] = 45
 
@@ -168,7 +170,7 @@ def shpoib_parallel_stall_progress_sec() -> float:
     """Scale BODY progress-stale cap under parallel SHPOIB load (R124).
 
     Matches file_write LIVE scaling: base 90s + 10s per active wave lease (max 150s).
-    R219: desktop leg soak extends cap under parallel chrome_e2e (wait_shell_layout mux wait).
+    R219/R281: signoff (incl. desktop soak) extends cap for wait_shell_layout mux evaluate.
     """
     base = float(STALL_PROGRESS_SEC)
     active_leases = 0
@@ -181,9 +183,10 @@ def shpoib_parallel_stall_progress_sec() -> float:
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError, ValueError):
         active_leases = 0
-    if is_desktop_soak_signoff_runtime():
+    if is_e2e_signoff_runtime():
         load = max(active_leases, _parallel_signoff_pressure_peers())
-        return min(240.0, base + load * 15.0)
+        scaled = base + load * 15.0
+        return min(240.0, max(float(SIGNOFF_STALL_PROGRESS_FLOOR_SEC), scaled))
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         return base
     if active_leases < 2:

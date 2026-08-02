@@ -5,9 +5,9 @@
 纯前端宠物伴侣系统，提供两层视觉渲染：
 
 1. **SVG/Emoji 层**（默认）：基于 CompanionIcons 的 15 物种 + 9 帽子 SVG 渲染，随智能体切换联动，嵌入输入框旁。
-2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持嵌入层 + 透明置顶外置窗（`/pet-overlay`，PSUA）。
+2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持嵌入层 + 透明置顶外置窗（`/pet-overlay`）。
 
-状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage，sprite 配置（`petSlug` + SHA256）同步至服务端；精灵图二进制由服务端 `GET /companion/pets/{slug}/spritesheet` 本地提供。
+状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage；sprite 配置（`petSlug` + SHA256）同步至服务端。Accent 色跟随 workspace Theme Profile CSS token（`services/companion/companionTheme.ts`）。
 
 ## 文件清单
 
@@ -19,7 +19,7 @@
 | `CompanionSprite.tsx`   | 核心 | 伴侣视觉渲染组件（SVG 图标、稀有度光环、状态表情、情绪动画）                    |
 | `CompanionWidget.tsx`   | 核心 | 主容器组件（InfoCard、SnackButton、HoverCard、Observer、情绪计算编排）          |
 | `CompanionBubble.tsx`   | 辅助 | 气泡对话框组件（思考/观察者反应/完成提示）                                      |
-| `CompanionSettings.tsx` | 辅助 | 伴侣设置面板（Tab 切换：设置/图鉴，名称/物种/帽子/主题/精灵图自定义）           |
+| `CompanionSettings.tsx` | 辅助 | 伴侣设置面板（Tab 切换：设置/图鉴，名称/物种/帽子/精灵图）           |
 | `PetGallery.tsx`        | 辅助 | Petdex 图鉴编排：GET 已安装行 + spriteConfig 同步 + generation 守卫 refetch + manifest fail-open |
 | `InstalledPetRow.tsx`   | 辅助 | Volume 已安装宠物 chip 行（本地 spritesheet，点击切换；触屏可见菜单移除） |
 | `PetGalleryThumb.tsx`   | 辅助 | IntersectionObserver 懒加载 canvas 缩略图 |

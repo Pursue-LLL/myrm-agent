@@ -5350,6 +5350,20 @@
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
     "benefit4": "Archived memories searchable via dedicated API",
+    "domainSkills": {
+      "title": "Domain Skills",
+      "description": "Executable tool packs for frequently visited sites — accelerate repeated browser tasks",
+      "loading": "Loading domain skills...",
+      "empty": "No domain skills installed",
+      "builtinBadge": "Built-in",
+      "userBadge": "User",
+      "tools": "{count} tools",
+      "domains": "Domains",
+      "delete": "Delete skill",
+      "deleteSuccess": "Domain skill \"{name}\" removed",
+      "deleteFailed": "Failed to delete domain skill",
+      "confirmDelete": "Remove domain skill \"{name}\"? This cannot be undone."
+    },
     "savedSessions": {
       "title": "Saved Browser Sessions",
       "description": "Encrypted login sessions saved by the AI agent (cookies & localStorage)",
@@ -12401,7 +12415,9 @@
     "hat": "Hat",
     "noHat": "None",
     "defaultHat": "Default",
-    "paletteTheme": "Theme Palette",
+    "themeFollowWorkspace": "Workspace theme",
+    "themeFollowWorkspaceDesc": "Companion accents follow your workspace theme from Appearance settings.",
+    "themeFollowWorkspaceLink": "Open Appearance settings",
     "close": "Hide Companion",
     "settings": "Companion Settings",
     "goalStatus": {

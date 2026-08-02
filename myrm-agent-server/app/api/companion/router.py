@@ -235,7 +235,6 @@ class CompanionConfigValue(BaseModel):
     name: str | None = None
     species: str | None = None
     hat: str | None = None
-    palette_theme: str | None = None
     sprite: SpriteConfigValue | None = None
 
 
@@ -289,11 +288,6 @@ def _companion_value_from_record(val: dict[str, object]) -> CompanionConfigValue
         name=val.get("name") if isinstance(val.get("name"), str) else None,
         species=val.get("species") if isinstance(val.get("species"), str) else None,
         hat=val.get("hat") if isinstance(val.get("hat"), str) else None,
-        palette_theme=(
-            val.get("palette_theme")
-            if isinstance(val.get("palette_theme"), str)
-            else None
-        ),
         sprite=_sprite_from_raw(sprite_raw),
     )
 
@@ -436,7 +430,6 @@ async def set_companion_config(
         "name": req.value.name,
         "species": req.value.species,
         "hat": req.value.hat,
-        "palette_theme": req.value.palette_theme,
         "sprite": sprite_dict,
     }
     record = await config_service.set(

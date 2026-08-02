@@ -2,12 +2,14 @@
  * Companion Store — Zustand state for the pet companion system.
  *
  * Persisted fields (localStorage): enabled, muted, nameOverride, speciesOverride,
- * hatOverride, paletteThemeOverride, hatchedAt, petCount, conversationCount,
+ * hatOverride, hatchedAt, petCount, conversationCount,
  * evolvedRarity, evolvedStats, evolvedAt, snacksRemaining, lastSnackReset.
  *
  * Session-scoped fields (not persisted): currentReaction, lastPetAt, observerCount,
  * lastObserverTrigger, mascotStatus, mood, lastInteractionAt, petPaletteOpen,
  * doctorExpandPending.
+ *
+ * Accent colors follow workspace Theme Profile CSS tokens (see companionTheme.ts).
  */
 
 import { create } from 'zustand';
@@ -61,7 +63,6 @@ interface CompanionState {
   nameOverride: string | null;
   speciesOverride: Species | null;
   hatOverride: Hat | null | undefined;
-  paletteThemeOverride: string | null;
   hatchedAt: number | null;
   petCount: number;
   conversationCount: number;
@@ -104,7 +105,6 @@ interface CompanionActions {
   setNameOverride: (name: string | null) => void;
   setSpeciesOverride: (species: Species | null) => void;
   setHatOverride: (hat: Hat | null | undefined) => void;
-  setPaletteThemeOverride: (paletteTheme: string | null) => void;
   setMascotStatus: (status: string) => void;
   setMood: (mood: Mood) => void;
   touchInteraction: () => void;
@@ -142,7 +142,6 @@ const useCompanionStore = create<CompanionStore>()(
       nameOverride: null,
       speciesOverride: null,
       hatOverride: undefined,
-      paletteThemeOverride: null,
       hatchedAt: null,
       petCount: 0,
       conversationCount: 0,
@@ -177,7 +176,6 @@ const useCompanionStore = create<CompanionStore>()(
       setNameOverride: (name) => set({ nameOverride: name }),
       setSpeciesOverride: (species) => set({ speciesOverride: species }),
       setHatOverride: (hat) => set({ hatOverride: hat }),
-      setPaletteThemeOverride: (paletteThemeOverride) => set({ paletteThemeOverride }),
       setMascotStatus: (mascotStatus) => set({ mascotStatus }),
       setMood: (mood) => set({ mood }),
       touchInteraction: () => set({ lastInteractionAt: Date.now() }),
@@ -264,7 +262,6 @@ const useCompanionStore = create<CompanionStore>()(
               name: string | null;
               species: Species | null;
               hat: Hat | null;
-              palette_theme: string | null;
               sprite: {
                 pet_slug?: string | null;
                 content_sha256?: string | null;
@@ -278,7 +275,6 @@ const useCompanionStore = create<CompanionStore>()(
               speciesOverride: data.value.species,
               hatOverride:
                 data.value.hat === null ? null : data.value.hat === undefined ? undefined : (data.value.hat as Hat),
-              paletteThemeOverride: data.value.palette_theme,
             };
             const slug = data.value.sprite?.pet_slug;
             if (slug) {
@@ -321,7 +317,6 @@ const useCompanionStore = create<CompanionStore>()(
                 name: state.nameOverride,
                 species: state.speciesOverride,
                 hat: state.hatOverride,
-                palette_theme: state.paletteThemeOverride,
                 sprite: state.spriteConfig
                   ? {
                       pet_slug: state.spriteConfig.petSlug,
@@ -346,7 +341,6 @@ const useCompanionStore = create<CompanionStore>()(
         nameOverride: state.nameOverride,
         speciesOverride: state.speciesOverride,
         hatOverride: state.hatOverride,
-        paletteThemeOverride: state.paletteThemeOverride,
         hatchedAt: state.hatchedAt,
         petCount: state.petCount,
         conversationCount: state.conversationCount,

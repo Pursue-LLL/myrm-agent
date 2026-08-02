@@ -96,10 +96,11 @@ describe('CompanionSprite', () => {
     expect(screen.getByTestId('icon-gift')).toBeTruthy();
   });
 
-  it('applies rarity ring classes for Epic', () => {
+  it('applies rarity ring shadow for Epic via inline style', () => {
+    document.documentElement.style.setProperty('--accent-warm', '#e07830');
     const { container } = render(<CompanionSprite bones={makeBones({ rarity: 'Epic' })} animState="idle" />);
     const btn = container.querySelector('button')!;
-    expect(btn.className).toContain('ring');
+    expect(btn.style.boxShadow).toContain('1px');
   });
 
   it('respects speciesOverride prop', () => {

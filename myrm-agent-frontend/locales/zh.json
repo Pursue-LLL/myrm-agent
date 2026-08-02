@@ -5350,6 +5350,20 @@
     "benefit2": "减小 BM25 索引大小，加快关键词匹配",
     "benefit3": "历史数据保留，不删除",
     "benefit4": "归档记忆可通过专用API搜索",
+    "domainSkills": {
+      "title": "域技能",
+      "description": "为常用网站提供可执行工具包 — 加速重复浏览器操作",
+      "loading": "加载域技能中...",
+      "empty": "暂无域技能",
+      "builtinBadge": "内置",
+      "userBadge": "自定义",
+      "tools": "{count} 个工具",
+      "domains": "域名",
+      "delete": "删除域技能",
+      "deleteSuccess": "已删除域技能「{name}」",
+      "deleteFailed": "删除域技能失败",
+      "confirmDelete": "确定删除域技能「{name}」吗？此操作不可撤销。"
+    },
     "savedSessions": {
       "title": "已保存的浏览器会话",
       "description": "AI 助手自动保存的加密登录状态（Cookies 和 LocalStorage）",
@@ -12401,7 +12415,9 @@
     "hat": "帽子",
     "noHat": "无",
     "defaultHat": "默认",
-    "paletteTheme": "外观配色",
+    "themeFollowWorkspace": "跟随工作区主题",
+    "themeFollowWorkspaceDesc": "小伙伴强调色与「外观」中的工作区主题保持一致。",
+    "themeFollowWorkspaceLink": "打开外观设置",
     "close": "隐藏小伙伴",
     "settings": "小伙伴设置",
     "goalStatus": {

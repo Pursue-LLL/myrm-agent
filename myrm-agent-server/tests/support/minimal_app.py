@@ -224,6 +224,11 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "remote_access": _RouterMount(
         "app.api.remote_access.router", prefix="/remote-access", tags=("remote-access",)
     ),
+    "browser_domain_skills": _RouterMount(
+        "app.api.browser_domain_skills",
+        prefix="/browser",
+        tags=("browser-domain-skills",),
+    ),
 }
 
 PRESETS: dict[str, tuple[str, ...]] = {
@@ -318,6 +323,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "memory",
     ),
     "webui_only": (),
+    "browser_domain_skills": ("browser_domain_skills",),
 }
 
 
@@ -436,6 +442,8 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "eval"
     if path.startswith("tests/api/workspace_rules/"):
         return "workspace"
+    if path.startswith("tests/api/browser_domain_skills/"):
+        return "browser_domain_skills"
     if path.startswith("tests/api/agent/"):
         return "agents_api"
     if path.startswith("tests/architecture/"):
