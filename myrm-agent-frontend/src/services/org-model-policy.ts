@@ -1,11 +1,17 @@
 /**
- * Organization Model Policy API client.
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
  *
- * Fetches org-level model whitelist patterns from the server.
- * Used by frontend to grey-out/hide restricted models.
+ * [OUTPUT]
+ * - fetchOrgModelPolicy: Loads org model policy from backend
+ * - isModelAllowedByPolicy: Checks if a model name matches allowed glob patterns
+ *
+ * [POS]
+ * Frontend client for organization model policy. Provides glob-pattern matching
+ * to filter model selections in cloud-hosted deployments.
  */
 
-import { getApiUrl } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
 
 export interface OrgModelPolicyResponse {
   allowed_patterns: string[];
@@ -13,26 +19,18 @@ export interface OrgModelPolicyResponse {
 }
 
 export async function fetchOrgModelPolicy(): Promise<OrgModelPolicyResponse> {
-  const url = getApiUrl('/org-policy/allowed-models');
-  const res = await fetch(url);
-  if (!res.ok) {
-    return { allowed_patterns: [], restricted: false };
-  }
-  return res.json();
+  return apiRequest<OrgModelPolicyResponse>('/org-policy/allowed-models');
 }
 
-/**
- * Check if a model name matches any of the allowed glob patterns.
- * Uses minimatch-style glob: * matches any chars within a segment.
- */
+function globToRegex(pattern: string): RegExp {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${escaped}$`);
+}
+
 export function isModelAllowedByPolicy(modelName: string, patterns: string[]): boolean {
   if (patterns.length === 0) return true;
-  return patterns.some((pattern) => globMatch(modelName, pattern));
-}
-
-function globMatch(str: string, pattern: string): boolean {
-  const regex = new RegExp(
-    '^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$',
-  );
-  return regex.test(str);
+  return patterns.some((pattern) => globToRegex(pattern).test(modelName));
 }

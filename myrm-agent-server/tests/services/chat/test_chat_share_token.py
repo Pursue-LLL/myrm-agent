@@ -1,8 +1,9 @@
-"""Tests for chat share HMAC tokens."""
+"""Tests for chat share HMAC tokens (including password gate)."""
 
 import time
 from unittest.mock import patch
 
+from app.core.security.share_hmac import is_password_protected
 from app.services.chat.share_token import (
     create_chat_share_token,
     parse_chat_share_token,
@@ -15,6 +16,7 @@ def test_share_token_round_trip() -> None:
     assert claims is not None
     assert claims.chat_id == "chat-abc-123"
     assert claims.exp == exp
+    assert claims.password_protected is False
 
 
 def test_share_token_rejects_tampered_signature() -> None:
@@ -26,7 +28,7 @@ def test_share_token_rejects_tampered_signature() -> None:
 def test_share_token_rejects_expired() -> None:
     token, _ = create_chat_share_token("chat-1", ttl_seconds=60)
     future = int(time.time()) + 120
-    with patch("app.services.chat.share_token.time.time", return_value=future):
+    with patch("app.core.security.share_hmac.time.time", return_value=future):
         assert parse_chat_share_token(token) is None
 
 
@@ -49,3 +51,27 @@ def test_share_token_different_chats_produce_different_tokens() -> None:
     t1, _ = create_chat_share_token("chat-a")
     t2, _ = create_chat_share_token("chat-b")
     assert t1 != t2
+
+
+# ── Password gate tests ──────────────────────────────────────────
+
+
+def test_password_token_round_trip() -> None:
+    token, exp = create_chat_share_token("chat-pw", ttl_seconds=3600, password="abc")
+    assert is_password_protected(token) is True
+    assert parse_chat_share_token(token) is None
+    claims = parse_chat_share_token(token, password="abc")
+    assert claims is not None
+    assert claims.chat_id == "chat-pw"
+    assert claims.password_protected is True
+    assert claims.exp == exp
+
+
+def test_password_token_rejects_wrong_password() -> None:
+    token, _ = create_chat_share_token("chat-pw", password="right")
+    assert parse_chat_share_token(token, password="wrong") is None
+
+
+def test_non_password_token_not_protected() -> None:
+    token, _ = create_chat_share_token("chat-1")
+    assert is_password_protected(token) is False

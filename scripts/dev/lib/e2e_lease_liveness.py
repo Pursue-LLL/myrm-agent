@@ -101,6 +101,41 @@ def load_wave_snapshot() -> dict[str, object]:
         }
 
 
+def load_wave_snapshot_observation() -> dict[str, object]:
+    """Observation-only wave read — no flock; slightly stale under parallel writers."""
+    import sys
+    from pathlib import Path
+
+    dev_dir = Path(__file__).resolve().parent.parent
+    dev_text = str(dev_dir)
+    if dev_text not in sys.path:
+        sys.path.insert(0, dev_text)
+    from wave_orchestrator.lease_state import active_leases  # noqa: PLC0415
+    from wave_orchestrator.paths import resolve_wave_paths  # noqa: PLC0415
+    from wave_orchestrator.stack_pin import read_stack_pin  # noqa: PLC0415
+    from wave_orchestrator.store import load_state  # noqa: PLC0415
+
+    paths = resolve_wave_paths()
+    state = load_state(paths.state_file)
+    active = active_leases(state)
+    try:
+        stack_pin = read_stack_pin(paths=paths)
+    except PermissionError:
+        stack_pin = None
+    return {
+        "wave": state["wave"],
+        "activeLeaseCount": len(active),
+        "activeLeases": active,
+        "leaseHistoryCount": len(state["leases"]),
+        "activeResourceCount": sum(
+            item.get("status") == "active" for item in state.get("resources", [])
+        ),
+        "resourceHistoryCount": len(state.get("resources", [])),
+        "stackPin": stack_pin,
+        "readOnlyFallback": True,
+    }
+
+
 def _live_agent_bucket(namespace: str) -> str:
     ns = namespace.strip()
     if ns == LIVE_E2E_SHARED_HOT_NAMESPACE:

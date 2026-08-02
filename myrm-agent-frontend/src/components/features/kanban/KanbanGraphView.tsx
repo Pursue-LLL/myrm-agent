@@ -94,7 +94,7 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
           <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
             {t(`status.${task.status}`)}
           </span>
-          {task.metadata?.branch && (
+          {typeof task.metadata?.branch === 'string' && (
             <span
               className="ml-auto inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 truncate max-w-[80px]"
               title={String(task.metadata.branch)}

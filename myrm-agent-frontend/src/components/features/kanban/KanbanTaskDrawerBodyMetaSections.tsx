@@ -2,10 +2,27 @@
 
 import type { RefObject } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import type { TaskDepInfo } from './kanban-styles';
 import { STATUS_DOT } from './kanban-styles';
+import type { KanbanTask } from '@/services/kanban';
 import KanbanMarkdown from './KanbanMarkdown';
 
-// --- Attachments Section ---
+// --- Dependencies Section ---
+
+interface DependenciesSectionProps {
+  parents: TaskDepInfo[];
+  children: TaskDepInfo[];
+  showAddDep: boolean;
+  setShowAddDep: (v: boolean) => void;
+  addingDep: boolean;
+  availableParents: KanbanTask[];
+  progressPill: { done: number; total: number } | null;
+  handleAddDep: (parentId: string) => void;
+  handleRemoveDep: (parentId: string) => void;
+  onNavigateTask?: (taskId: string) => void;
+  t: (key: string) => string;
+}
+
 export function DependenciesSection({
   parents,
   children,

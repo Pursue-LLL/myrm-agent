@@ -130,7 +130,6 @@ export interface ConfigState {
 
   // Web 端 TTS 朗读服务商
   webTtsProvider: import('@/services/config/types').WebTtsProvider;
-  customPrimaryColor?: string;
 
   // 用户时区（IANA 格式，如 "Asia/Shanghai"），空字符串表示自动检测
   timezone: string;
@@ -201,7 +200,6 @@ export interface ConfigState {
   setPreCompactBudgetTokens: (tokens: number) => void;
   setEnableAutoTitleGeneration: (enable: boolean) => void;
   setWebTtsProvider: (provider: import('@/services/config/types').WebTtsProvider) => void;
-  setCustomPrimaryColor: (color: string | undefined) => void;
   updatePersonalSettings: (
     settings: Partial<import('@/services/config/types').PersonalSettingsConfigValue>,
   ) => Promise<void>;

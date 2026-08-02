@@ -633,12 +633,16 @@ class _BackgroundReaper:
                     result.get("reaped_session_ids", []),
                 )
                 from e2e_stale_lease_reap import (  # noqa: PLC0415
+                    maybe_reap_epoch_drift_stale_sessions,
                     maybe_reap_excess_wave_leases,
+                    maybe_reap_stale_empty_mux_contexts,
                     maybe_reap_stale_heartbeat_leases,
                 )
 
                 maybe_reap_stale_heartbeat_leases()
+                maybe_reap_stale_empty_mux_contexts()
                 maybe_reap_excess_wave_leases()
+                maybe_reap_epoch_drift_stale_sessions()
                 self._maybe_apply_pending_drift()
             except Exception:
                 pass

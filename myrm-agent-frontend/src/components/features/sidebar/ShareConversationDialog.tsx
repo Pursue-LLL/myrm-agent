@@ -2,8 +2,10 @@
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Copy, Info, Link2, Loader2, Unlink } from 'lucide-react';
+import { Check, Copy, Info, Link2, Loader2, Lock, Unlink } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,7 @@ interface ShareConversationDialogProps {
   shareUrl: string | null;
   expiresAt: number | null;
   loading: boolean;
-  onCreateLink: (ttlDays: number) => void;
+  onCreateLink: (ttlDays: number, password?: string) => void;
   onRevoke: () => void;
 }
 
@@ -35,7 +37,8 @@ export function ShareConversationDialog({
 }: ShareConversationDialogProps) {
   const t = useTranslations();
   const [copied, setCopied] = useState(false);
-  const [ttlDays] = useState(7);
+  const [ttlDays, setTtlDays] = useState(7);
+  const [password, setPassword] = useState('');
   const isLocal = isLocalMode();
 
   const handleCopy = useCallback(async () => {
@@ -44,6 +47,11 @@ export function ShareConversationDialog({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);
+
+  const handleCreate = useCallback(() => {
+    const pwd = password.trim() || undefined;
+    onCreateLink(ttlDays, pwd);
+  }, [onCreateLink, ttlDays, password]);
 
   const expiresDate = expiresAt ? new Date(expiresAt * 1000).toLocaleDateString() : null;
 
@@ -85,7 +93,38 @@ export function ShareConversationDialog({
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t('chat.share.description')}</p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Lock size={12} />
+                  {t('chat.share.passwordLabel')}
+                </Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('chat.share.passwordPlaceholder')}
+                  className="h-8 text-sm"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t('chat.share.ttlLabel')}</Label>
+                <div className="flex gap-1.5">
+                  {[1, 7, 14, 30].map((d) => (
+                    <Button
+                      key={d}
+                      variant={ttlDays === d ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 flex-1 text-xs px-0"
+                      onClick={() => setTtlDays(d)}
+                    >
+                      {t('chat.share.ttlDays', { days: d })}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -96,7 +135,7 @@ export function ShareConversationDialog({
               {t('chat.share.revoke')}
             </Button>
           ) : (
-            <Button onClick={() => onCreateLink(ttlDays)} disabled={loading}>
+            <Button onClick={handleCreate} disabled={loading}>
               {loading && <Loader2 size={14} className="mr-1.5 animate-spin" />}
               {loading ? t('chat.share.creating') : t('chat.share.createLink')}
             </Button>

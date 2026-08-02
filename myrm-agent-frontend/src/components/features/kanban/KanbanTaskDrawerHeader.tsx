@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';
 import { NEXT_STATUSES, STATUS_DOT } from './kanban-styles';
-import type { Agent } from '@/services/agent';
+import type { AgentListItem } from '@/services/agent';
 
 interface StatusActionsBarProps {
   task: KanbanTask;
@@ -15,7 +15,7 @@ interface StatusActionsBarProps {
   reclaimAgentId: string;
   setReclaimAgentId: (v: string) => void;
   reclaiming: boolean;
-  agents: Agent[];
+  agents: AgentListItem[];
   promoteConfirm: PromoteResult | null;
   setPromoteConfirm: (v: PromoteResult | null) => void;
   handleMove: (status: TaskStatus) => void;

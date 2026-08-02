@@ -155,6 +155,7 @@ function AppLayout({
       )}
 
       <main
+        data-theme-shell="main"
         data-testid="app-layout"
         className={cn(
           'main-content-area bg-background',

@@ -234,3 +234,58 @@ def format_queue_human(
         "Progress on stderr: E2E_PRIVATE_ADMIT_WAIT every 30s. "
         "Do NOT pipe './myrm test' to tail|head — hides progress."
     )
+
+
+def format_soak_headroom_verdict(*, max_active: int, max_wave: int) -> str:
+    """Lightweight headroom probe for desktop soak — no full e2e-context json."""
+    from e2e_api_verify import _mux_context_fields  # noqa: PLC0415
+    from e2e_lease_liveness import (  # noqa: PLC0415
+        load_wave_snapshot_observation,
+        wave_lease_counts,
+    )
+
+    parallel, _ = load_parallel_runtime_snapshot()
+    active = safe_active_test_count(parallel)
+    if parallel.get("snapshot_unavailable") is True:
+        active = -1
+
+    wave_snapshot = load_wave_snapshot_observation()
+    counts = wave_lease_counts(wave_snapshot)
+    mux_fields = _mux_context_fields()
+    headroom = cap_headroom_fields(
+        lease_counts=counts,
+        mux_fields=mux_fields,
+        active_test_count=max(0, active),
+        parallel_snapshot=parallel,
+    )
+    wave = int(
+        headroom.get("waveLeasesEffective", headroom.get("waveLeasesActive", 0)) or 0
+    )
+    mux_sat = 1 if mux_fields.get("muxColdAttachSaturated") is True else 0
+    hand_probe_block = 1 if mux_fields.get("muxHandProbeAllowed") is False else 0
+    transport_queue_block = 0
+    reasons = headroom.get("queueReasons")
+    if isinstance(reasons, list):
+        for reason in reasons:
+            if "mux_transport" in str(reason):
+                transport_queue_block = 1
+                break
+
+    need = 0
+    if active < 0:
+        need = 0
+    elif active > max_active:
+        need = 1
+    if wave >= max_wave:
+        need = 1
+    if mux_sat:
+        need = 1
+    if hand_probe_block:
+        need = 1
+    if transport_queue_block:
+        need = 1
+    return (
+        f"active={active} wave={wave} mux_sat={mux_sat} "
+        f"hand_probe_block={hand_probe_block} transport_queue_block={transport_queue_block} "
+        f"need_wait={need}"
+    )

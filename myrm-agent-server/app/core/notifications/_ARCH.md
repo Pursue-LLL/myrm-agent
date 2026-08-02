@@ -40,7 +40,7 @@ and pushes human-readable notifications to user-configured IM channels
 | `CONFIG_HEALTH_WARNING` | ✅ | `config/health_monitor` |
 | `SYSTEM_NOTIFICATION` | ✅ | `lifecycle/system` |
 | `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push; lifecycle events silently skipped |
-| `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, total_tokens and total_cost_usd statistics |
+| `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, turns_used, execution_duration_s, total_tokens, total_cost_usd and verifications. Additionally, `GoalTerminalNotifier` (in `channel_bridge/goal_terminal_notifier.py`) delivers results back to the originating IM thread when the Goal carries source channel metadata |
 | `OAUTH_REAUTH_REQUIRED` | ✅ | `services/agent/oauth_refresher` — published when OAuth token refresh fails (4xx or missing refresh_token); per-issuer 300s dedup to avoid notification storms |
 
 Events not in `_EVENT_TEMPLATES` (e.g. `IDLE_STATUS`, `SKILL_INSTALL_PROGRESS`)

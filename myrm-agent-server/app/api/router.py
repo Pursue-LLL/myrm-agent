@@ -48,6 +48,7 @@ from app.api.faq import router as faq_router
 from app.api.features.router import router as features_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
+from app.api.theme.router import router as theme_router
 from app.api.files.vault_proxy import router as vault_proxy_router
 from app.api.goals.router import router as goals_router
 from app.api.health.diagnostic import router as diagnostic_router
@@ -131,6 +132,7 @@ api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(files_router, prefix="/files", tags=["files"])
+api_router.include_router(theme_router)
 api_router.include_router(
     artifact_share_public_router,
     prefix="/public/artifact-share",

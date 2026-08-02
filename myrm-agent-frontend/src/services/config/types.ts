@@ -203,7 +203,9 @@ export interface PersonalSettingsConfigValue {
   webTtsProvider: WebTtsProvider;
   timezone: string;
   locale?: string;
-  customPrimaryColor?: string;
+  activeThemeProfileId?: string;
+  themeProfiles?: import('@/theme-engine/schema').ThemeProfileRecipe[];
+  themeFontOverride?: import('@/lib/fonts').FontId;
   enableWebNotifications: boolean;
   enableCompletionSound: boolean;
   enableIdleApprovalNotification: boolean;
@@ -765,6 +767,8 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   suggestWorkflowMode: false,
   autoContinueInterruptedTurns: true,
   publicIngressBaseUrl: '',
+  activeThemeProfileId: 'official-default',
+  themeProfiles: [],
 };
 
 /**

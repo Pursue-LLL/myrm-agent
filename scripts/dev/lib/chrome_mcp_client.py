@@ -179,13 +179,22 @@ class ChromeMcpClient:
     def _request_lock_is_held(self) -> bool:
         return self._request_lock.locked()
 
+    def _require_daemon_alive(self, client: BrowserOrchestratorClient) -> None:
+        if not client.is_alive():
+            raise RuntimeError(
+                "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+            )
+
     def _ensure_daemon_session(self) -> BrowserOrchestratorClient:
         """Lazily create daemon client and session; idempotent."""
         if self._daemon_client is not None:
+            self._require_daemon_alive(self._daemon_client)
             return self._daemon_client
         from browser_orchestrator_client import BrowserOrchestratorClient
 
         client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
+        self._require_daemon_alive(client)
         session_id = self._browser_context_id
         client.create_session(session_id)
         self._daemon_client = client
@@ -479,6 +488,12 @@ class ChromeMcpClient:
             raise
 
     def start(self) -> None:
+        if self._use_daemon:
+            from browser_orchestrator_client import BrowserOrchestratorClient
+
+            client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
+            self._require_daemon_alive(client)
+            return
         process = self._process
         if process is not None and process.poll() is None:
             return
@@ -516,6 +531,9 @@ class ChromeMcpClient:
                 self._destroy_daemon_session()
             except Exception as exc:
                 errors.append(exc)
+            if errors:
+                raise ExceptionGroup("Chrome MCP cleanup failed", errors)
+            return
         process = self._process
         self._process = None
         if process is not None:
@@ -1498,36 +1516,6 @@ class ChromeMcpClient:
             should_defer_cold_shim_restart,
         )
 
-        if should_defer_cold_shim_restart():
-            peer_count = parallel_mux_peer_count()
-            _LOGGER.warning(
-                "COLD_SHIM_RESTART_DEFERRED: parallel_mux_peers=%d — wait for "
-                "mux recovery lock; caller retries via queue (do not stop other pytest)",
-                peer_count,
-            )
-            try:
-                with mux_recovery_scope(phase="restart_cold_shim_deferred"):
-                    pass
-            except RuntimeError as exc:
-                _LOGGER.warning("COLD_SHIM_DEFER_WAIT: %s", exc)
-            time.sleep(min(2.0, 0.15 * float(peer_count)))
-            return
-
-        needs_global_restart = False
-        held_lock = self._acquire_request_lock()
-        try:
-            _LOGGER.warning(
-                "RECOVER_MUX_COLD_SHIM: pages=0 disconnected=%d streak=%d",
-                len(self._disconnected_pages),
-                self._cold_shim_recover_streak + 1,
-            )
-            self._cold_shim_recover_streak += 1
-            if self._cold_shim_recover_streak >= 2:
-                needs_global_restart = True
-                self._cold_shim_recover_streak = 0
-        finally:
-            self._release_request_lock(held_lock)
-
         def _respawn_cold_shim_local() -> None:
             held_inner = self._acquire_request_lock()
             try:
@@ -1548,6 +1536,32 @@ class ChromeMcpClient:
                 raise RuntimeError("Chrome MCP cold shim restart failed")
             finally:
                 self._release_request_lock(held_inner)
+
+        if should_defer_cold_shim_restart():
+            peer_count = parallel_mux_peer_count()
+            _LOGGER.warning(
+                "COLD_SHIM_RESTART_DEFERRED: parallel_mux_peers=%d — queue for "
+                "mux recovery lock then respawn (do not stop other pytest)",
+                peer_count,
+            )
+            with mux_recovery_scope(phase="restart_cold_shim_deferred"):
+                _respawn_cold_shim_local()
+            return
+
+        needs_global_restart = False
+        held_lock = self._acquire_request_lock()
+        try:
+            _LOGGER.warning(
+                "RECOVER_MUX_COLD_SHIM: pages=0 disconnected=%d streak=%d",
+                len(self._disconnected_pages),
+                self._cold_shim_recover_streak + 1,
+            )
+            self._cold_shim_recover_streak += 1
+            if self._cold_shim_recover_streak >= 2:
+                needs_global_restart = True
+                self._cold_shim_recover_streak = 0
+        finally:
+            self._release_request_lock(held_lock)
 
         if needs_global_restart:
             from mux_attach_force_restart import force_mux_attach_restart_deduped

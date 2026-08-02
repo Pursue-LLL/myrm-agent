@@ -31,6 +31,7 @@ export const SSR_SHELL_SETTINGS_SECTIONS = [
   'language',
   'languageChannelSyncDesc',
   'languageOptions',
+  'themeStudio',
 ] as const satisfies readonly SettingsSection[];
 
 /** Remaining settings/* sections loaded via /api/i18n/deferred after mount. */

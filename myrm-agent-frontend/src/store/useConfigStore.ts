@@ -175,11 +175,6 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
         syncPersonalSettings({ webTtsProvider: provider });
       },
 
-      setCustomPrimaryColor: (color) => {
-        set({ customPrimaryColor: color });
-        syncPersonalSettings({ customPrimaryColor: color });
-      },
-
       updatePersonalSettings: async (settings) => {
         set((state) => ({
           ...settings,

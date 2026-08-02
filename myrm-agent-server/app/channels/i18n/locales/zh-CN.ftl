@@ -331,3 +331,9 @@ agent_picker_select = 选择一个智能体：
 agent_picker_switched = 已切换至：{ $name }
 artifact_deep_link = 💻 查看交互网页
 artifact_deep_link_named = 💻 { $filename }
+goal_completed =
+    ✅ 目标已完成："{ $objective }"
+    { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更
+goal_failed =
+    ❌ 目标已结束："{ $objective }"
+    { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更

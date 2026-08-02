@@ -157,10 +157,11 @@ class BrowserOrchestratorClient:
         )
 
     def is_alive(self) -> bool:
-        """Check if daemon is reachable."""
+        """Check if daemon is reachable and not in FAILED state."""
         try:
-            self.status()
-            return True
+            snapshot = self.status()
+            state = str(snapshot.get("state", "")).strip()
+            return state not in ("", "UNKNOWN", "FAILED")
         except (OSError, TimeoutError, RuntimeError):
             return False
 

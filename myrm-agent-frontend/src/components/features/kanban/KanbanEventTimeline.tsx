@@ -86,13 +86,13 @@ export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
                   <span className="text-muted-foreground italic truncate">@{String(ev.payload.author ?? 'user')}</span>
                 )}
               </div>
-              {ev.kind === 'user_comment' && ev.payload?.body && (
+              {ev.kind === 'user_comment' && typeof ev.payload?.body === 'string' && (
                 <div className="ml-[52px] mt-0.5">
-                  <KanbanMarkdown className="text-foreground/80">{String(ev.payload.body)}</KanbanMarkdown>
+                  <KanbanMarkdown className="text-foreground/80">{ev.payload.body}</KanbanMarkdown>
                 </div>
               )}
-              {ev.kind === 'heartbeat' && ev.payload?.note && (
-                <p className="ml-[52px] text-[10px] text-chart-4/80 mt-0.5">{String(ev.payload.note)}</p>
+              {ev.kind === 'heartbeat' && typeof ev.payload?.note === 'string' && (
+                <p className="ml-[52px] text-[10px] text-chart-4/80 mt-0.5">{ev.payload.note}</p>
               )}
               {ev.kind === 'branch_switched' && ev.payload && (
                 <p className="ml-[52px] text-[10px] text-blue-500/80 mt-0.5">
@@ -101,7 +101,7 @@ export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
                   {ev.payload.migrated ? ' (Migrated)' : ' (Stashed)'}
                 </p>
               )}
-              {ev.kind === 'verification_failed' && ev.payload?.reason && (
+              {ev.kind === 'verification_failed' && typeof ev.payload?.reason === 'string' && (
                 <div className="ml-[52px] mt-0.5">
                   <span className="text-[10px] font-medium text-chart-5">{t('verificationReason')}:</span>
                   <KanbanMarkdown className="text-chart-5/80 mt-0.5" maxLines={4}>

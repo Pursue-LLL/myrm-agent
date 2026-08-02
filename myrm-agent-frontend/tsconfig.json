@@ -61,7 +61,9 @@
     ".next-isolated-spc-signoff/types/**/*.ts",
     ".next-isolated-spc-signoff/dev/types/**/*.ts",
     ".next-isolated-chrome-test_migration_readiness_gap_chrome_e2e_-21029f6c-53432-9fbcc6b2/types/**/*.ts",
-    ".next-isolated-chrome-test_migration_readiness_gap_chrome_e2e_-21029f6c-53432-9fbcc6b2/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_migration_readiness_gap_chrome_e2e_-21029f6c-53432-9fbcc6b2/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-53400-53407-85a44efb/types/**/*.ts",
+    ".next-isolated-e2e-parent-53400-53407-85a44efb/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

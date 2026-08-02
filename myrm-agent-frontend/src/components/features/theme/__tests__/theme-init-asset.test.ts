@@ -7,14 +7,19 @@ const publicScript = readFileSync(resolve(process.cwd(), 'public/theme-init.js')
 
 describe('theme-init public asset parity', () => {
   it('keeps public/theme-init.js aligned with THEME_PRE_INIT_SCRIPT keys', () => {
-    for (const key of ['myrm-skin', 'myrm-font', 'theme-color', 'data-skin', 'data-font', '--font-override']) {
+    for (const key of [
+      'myrm-theme-preinit',
+      'myrm-skin',
+      'myrm-font',
+      'theme-color',
+      'data-myrm-theme-profile',
+      'data-myrm-theme-layout',
+      'data-myrm-theme-art',
+      'artPosterUrl',
+      'myrm-theme-art-preload',
+    ]) {
       expect(publicScript).toContain(key);
       expect(THEME_PRE_INIT_SCRIPT).toContain(key);
     }
-  });
-
-  it('serves font stacks for system and atkinson', () => {
-    expect(publicScript).toContain('Atkinson Hyperlegible Next');
-    expect(publicScript).toContain('ui-sans-serif');
   });
 });

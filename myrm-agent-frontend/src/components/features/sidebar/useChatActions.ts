@@ -201,11 +201,11 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   }, []);
 
   const handleShareCreate = useCallback(
-    async (ttlDays: number = 7) => {
+    async (ttlDays: number = 7, password?: string) => {
       if (!shareChatId) return;
       setShareLoading(true);
       try {
-        const result = await createChatShare(shareChatId, ttlDays);
+        const result = await createChatShare(shareChatId, ttlDays, password);
         setShareUrl(result.share_url);
         setShareExpiresAt(result.expires_at);
       } catch (error) {

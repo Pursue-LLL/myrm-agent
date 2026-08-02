@@ -26,7 +26,9 @@ security/
 ├── master_key.py        # MasterKeyProvider（零落盘密钥管理）
 ├── config_crypto.py     # 敏感配置key检测（字段级）
 ├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）
-└── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
+├── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
+├── share_hmac.py        # 公共分享链接 HMAC 签名原语（含密码门支持）
+└── share_password_page.py # 密码门 HTML 页面渲染
 ```
 
 **注意**：
@@ -46,6 +48,8 @@ security/
 | `config_crypto.py` | 敏感配置字段检测（关键词匹配 + 精确 key 匹配，如 browserCloudProvider） |
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
+| `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）|
+| `share_password_page.py` | 密码门自包含 HTML 页面模板（支持暗色模式、错误提示） |
 
 ---
 
@@ -63,6 +67,7 @@ security/
 | MasterKey 管理 | 业务层 | `app/core/security/master_key.py` |
 | 加密策略决策 | 业务层 | `app/services/config/encryption.py` |
 | 安全中间件集成 | 业务层 | `app/middleware/security.py` |
+| 分享链接 HMAC + 密码门 | 业务层 | `app/core/security/share_hmac.py` |
 | 内部服务认证 | 业务层 | `app/api/dependencies.py` |
 
 ---

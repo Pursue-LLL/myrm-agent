@@ -26,6 +26,9 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useWorkspaceStore.ts` | 多标签页与上下文切换（RAM） | 负责保存后台 Tab 的快照（Snapshot）与生命周期句柄（AbortController） |
 | `useAgentStore.ts` | Agent 列表与详情状态 | `fetchAgent(signal)` 支持请求级中止，供 FlowPad route-switch 防晚到污染 |
 | `useFlowPadStore.ts` | FlowPad 模态窗口状态（截屏上下文、初始文本、开关） | 服务 Appshot 和 deep link 入口 |
+| `useThemePackagePendingStore.ts` | Desktop 双击 `.myrmtheme` 待导入 File 缓冲 | Tauri `theme-package-open` → AppearancePanel inspect |
+| `useThemeStudioDraftStore.ts` | Theme Studio 四步 wizard draft + sessionStorage | `/settings/theme-studio` |
+| `useThemeStudioDomPreviewStore.ts` | Ephemeral workspace live preview (DOM-only, zero ConfigSync) | Theme Studio live preview toggle |
 | `useCommandStore.ts` | Slash 命令管理（系统行为 + 用户自定义命令 + 搜索 + 最近使用） | `builtinActions.ts` 定义内置命令；通过 ConfigSyncManager 跨端同步 |
 | `builtinActions.ts` | 内置 Slash 命令定义（compact/focus/yolo/freeze/new/stop/model/learn/fork/goal/pet） | 被 `useCommandStore` 初始化时调用；`pet` 受 `companion_mode` 门控 |
 | `useBrowserTakeoverStore.ts` | 浏览器 HITL takeover 状态（`uiMode` managed/extension、`autoDetectCompletion`、`liveAssistUrl`） | SSE `browser_takeover_requested`（handler 内 `setLoading(false)`）或 approval recovery 写入 |
@@ -33,6 +36,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useBudgetExceededStore.ts` | WU 耗尽阻断弹窗状态 | balance=0 时由 SSE `budget_alert` 触发 |
 | `useUpgradeNudgeStore.ts` | 升级引导弹窗状态（低余额预警 + Feature Gate） | 24h 防骚扰 localStorage 节流 |
 | `useEmbedConsentStore.ts` | Link Embeds consent（ask/always/off）与 per-provider allowlist | persist `myrm-embed-consent`；Settings Preferences + `embeds/UrlEmbed` |
+| `useOrgModelPolicyStore.ts` | 组织模型白名单策略缓存 | `loadPolicy()` 从 GET `/org-policy/allowed-models` 拉取；`isModelAllowed(name)` glob 匹配；无 policy 全放行（本地/Tauri 无影响）|
 | `use*Store.ts`（根级） | 看板、伴侣、浏览器检查器等 | 一域一 store |
 
 ## 依赖

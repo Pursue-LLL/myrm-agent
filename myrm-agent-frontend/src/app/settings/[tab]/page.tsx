@@ -8,6 +8,7 @@ import { defaultLocale } from '@/i18n/config';
 const VALID_TABS = [
   'account',
   'preferences',
+  'theme-studio',
   'personalization',
   'agents',
   'security',

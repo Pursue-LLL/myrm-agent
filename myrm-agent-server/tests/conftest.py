@@ -392,6 +392,42 @@ def _e2e_dev_lib_path() -> Path:
     return _SERVER_ROOT.parents[1] / "scripts" / "dev" / "lib"
 
 
+def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
+    """Layer-1 entry gate: skip SHARED tests immediately when epoch drift is active.
+
+    Prevents lease acquisition under epoch mismatch, breaking the deadlock cycle
+    where held leases block system restart which would resolve the epoch drift.
+    """
+    if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
+        return
+    profile = _chrome_e2e_profile(request.node)
+    if profile is None:
+        return
+    execution_mode = profile[0]
+    if execution_mode == "PRIVATE":
+        return
+
+    dev_lib = _e2e_dev_lib_path()
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from e2e_api_verify import resolve_e2e_api_context
+
+        ctx = resolve_e2e_api_context(retry_after_apply=False)
+    except Exception:
+        return
+
+    if ctx.epoch_match or not ctx.blocked:
+        return
+
+    pytest.skip(
+        f"epoch drift entry gate: shared backend epoch mismatch "
+        f"(blocked={ctx.blocked_reason!r}). "
+        f"Skipping to avoid lease acquisition under drift — "
+        f"system will auto-restart once all leases are released."
+    )
+
+
 @pytest.fixture(autouse=True)
 def _chrome_e2e_item_runtime(
     request: pytest.FixtureRequest,
@@ -487,6 +523,7 @@ def _require_live_e2e_lease(
         pass
 
     try:
+        _epoch_drift_entry_skip_if_shared(request)
         reap_chrome_e2e_session_hygiene()
         _heal_stale_e2e_lease()
         lease = require_e2e_runtime_lease()

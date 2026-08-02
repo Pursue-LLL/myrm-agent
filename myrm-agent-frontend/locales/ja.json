@@ -3173,8 +3173,6 @@
     "enterpriseTlsCompatDesc": "放宽严格の TLS 证书校验，适配企业プロキシ環境（Zscaler、Netskope 等）。仍保留证书链と主机名验证。",
     "publicIngressBaseUrl": "公网アクセスアドレス",
     "publicIngressBaseUrlDesc": "使用于外部コールバックの公网 Ingress 基础 URL",
-    "customPrimaryColor": "カスタム主色",
-    "customPrimaryColorDesc": "上書きテーマ主色调（留空は使用デフォルト配色）",
     "notificationDeliveries": "通知投递",
     "notificationDeliveriesDesc": "システムイベントアラート（OAuth、予算、配に対する、チャンネルヘルス）。エージェントタスク完推送してくださいで各エージェントの「通知チャンネル」中設定。",
     "webPushTitle": "バックグラウンド推送通知",
@@ -8583,10 +8581,18 @@
     "pptxLoadError": "演示文稿読み込みに失敗しました",
     "noContent": "なし内容可プレビュー",
     "sharePreview": {
-      "open": "コピー只読み取り共有リンク",
-      "successTitle": "共有リンク済みコピー",
-      "successDescription": "持有リンクの人可で 7 日内只読み取り表示该工件。",
-      "failed": "作成共有リンク失敗"
+      "open": "共有",
+      "title": "共有リンク",
+      "passwordLabel": "パスワード（任意）",
+      "passwordPlaceholder": "アクセスパスワードを設定",
+      "ttlLabel": "有効期限",
+      "ttlDays": "{days} 日間",
+      "createBtn": "リンクを作成",
+      "creating": "作成中...",
+      "successTitle": "共有リンクをコピーしました",
+      "successDescription": "リンクを持つ人は {days} 日間閲覧できます。",
+      "successDescriptionProtected": "パスワード付きリンクをコピーしました。有効期限 {days} 日間。",
+      "failed": "共有リンクの作成に失敗しました"
     },
     "publish": {
       "title": "Web に公開",

@@ -15,6 +15,7 @@ observe_cleanup_seal(): (ledger_cleaned, sealed) — 验证 lease release + CDP 
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 
@@ -72,6 +73,26 @@ def physical_targets_absent(*, lease_id: str) -> bool | None:
     if live is None:
         return None
     return not any(target_id in live for target_id in bound)
+
+
+def poll_physical_targets_absent(
+    *,
+    lease_id: str,
+    timeout_sec: float = 15.0,
+    poll_sec: float = 0.5,
+) -> bool | None:
+    """Poll until lease-bound CDP targets disappear or timeout."""
+    bound = lease_bound_target_ids(lease_id)
+    if not bound:
+        return True
+    deadline = time.time() + max(0.0, timeout_sec)
+    last: bool | None = None
+    while time.time() <= deadline:
+        last = physical_targets_absent(lease_id=lease_id)
+        if last is True:
+            return True
+        time.sleep(max(0.05, poll_sec))
+    return last
 
 
 def lease_released(lease_id: str) -> bool:

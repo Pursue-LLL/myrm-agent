@@ -180,6 +180,8 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         }
     }
 
+    runtime::handle_startup_args(&app.handle());
+
     Ok(())
 }
 

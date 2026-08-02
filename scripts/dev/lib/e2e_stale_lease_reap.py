@@ -644,6 +644,35 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
     return True
 
 
+def maybe_reap_stale_empty_mux_contexts(*, min_stale: int = 3) -> bool:
+    """Reap idle mux shim contexts with zero owned pages (P0-A transport hygiene)."""
+    if not _coordinator_reap_authorized():
+        return False
+    try:
+        from mux_load import (
+            read_mux_status,
+            reap_idle_empty_mux_contexts,
+            stale_empty_mux_context_count,
+        )
+    except ImportError:
+        return False
+    status = read_mux_status(force=True)
+    stale = stale_empty_mux_context_count(status)
+    if stale < max(1, int(min_stale)):
+        return False
+    result = reap_idle_empty_mux_contexts()
+    reaped = int(result.get("reaped", 0)) if isinstance(result.get("reaped"), int) else 0
+    if reaped <= 0:
+        return False
+    print(
+        f"E2E_MUX_REAP_IDLE: stale_empty={stale} reaped={reaped} "
+        f"remaining={result.get('remaining')} (do not stop other pytest)",
+        file=sys.stderr,
+        flush=True,
+    )
+    return True
+
+
 def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
     """Return True when an extra wave reap was triggered."""
     if not _coordinator_reap_authorized():
@@ -684,3 +713,53 @@ def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
         env=env,
     )
     return True
+
+
+_EPOCH_DRIFT_REAPER_BUDGET_SEC = 180.0
+
+
+def maybe_reap_epoch_drift_stale_sessions() -> bool:
+    """Layer-3 safety net: reap sessions stuck in BOOTSTRAP with epoch_match=no >180s.
+
+    When epoch drift persists and Layers 1+2 haven't fully released all leases
+    (e.g. tests started before the guard was deployed), this coordinator-level
+    reaper forcibly releases their leases to allow system restart.
+    """
+    if not _coordinator_reap_authorized():
+        return False
+
+    try:
+        from e2e_api_verify import resolve_e2e_api_context
+    except ImportError:
+        return False
+
+    ctx = resolve_e2e_api_context(retry_after_apply=False)
+    if ctx.epoch_match or not ctx.blocked:
+        return False
+
+    reaped = False
+    for row in list_live_e2e_sessions():
+        if row.phase not in ("bootstrap", "admit"):
+            continue
+        if row.elapsed_sec < _EPOCH_DRIFT_REAPER_BUDGET_SEC:
+            continue
+        print(
+            f"E2E_EPOCH_DRIFT_REAP: pid={row.pid} test={row.test_id} "
+            f"phase={row.phase} elapsed={row.elapsed_sec:.0f}s "
+            f"(epoch_match=no, blocked={ctx.blocked_reason!r}) "
+            "(releasing lease to allow system restart)",
+            file=sys.stderr,
+            flush=True,
+        )
+        if _terminate_hung_pytest(row.pid, admit_stall=False):
+            reaped = True
+            time.sleep(0.5)
+
+    if reaped:
+        wave_bin = _monorepo_root() / "myrm-agent" / "scripts" / "dev" / "wave.sh"
+        subprocess.run(
+            ["bash", str(wave_bin), "reap"],
+            check=False,
+            env=os.environ.copy(),
+        )
+    return reaped

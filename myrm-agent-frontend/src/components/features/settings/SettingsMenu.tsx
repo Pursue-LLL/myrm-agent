@@ -24,6 +24,7 @@ import {
   Archive,
   Columns,
   Wand2,
+  Sparkles,
   ChevronDown,
   ChevronUp,
   XCircle,
@@ -49,6 +50,7 @@ const groupConfig: Record<SettingsGroup, { labelKey: string; order: number }> = 
 export type SettingsTab =
   | 'account'
   | 'preferences'
+  | 'theme-studio'
   | 'personalization'
   | 'agents'
   | 'security'
@@ -106,6 +108,7 @@ const menuItems: MenuItem[] = [
   // 个人与偏好
   { id: 'account', icon: User, labelKey: 'account', group: 'personal' },
   { id: 'preferences', icon: Sliders, labelKey: 'preferences', group: 'personal' },
+  { id: 'theme-studio', icon: Sparkles, labelKey: 'themeStudio', group: 'personal' },
   { id: 'personalization', icon: Palette, labelKey: 'personalization', group: 'personal' },
 
   // 智能体配置

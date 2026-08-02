@@ -1,0 +1,27 @@
+"""Theme package (.myrmtheme) size and version limits.
+
+[INPUT]
+(none — 纯常量)
+
+[OUTPUT]
+MAX_PACKAGE_BYTES, MAX_UNPACKED_BYTES, RECIPE_JSON, INSPECT_SESSION_TTL_SECONDS 等常量
+
+[POS]
+集中管理 .myrmtheme 包格式的安全上限和版本标识。
+"""
+
+from __future__ import annotations
+
+THEME_PACKAGE_SCHEMA_VERSION = 1
+THEME_PACKAGE_MIN_ENGINE_VERSION = '1.0.0'
+
+MAX_PACKAGE_BYTES = 24 * 1024 * 1024
+MAX_UNPACKED_BYTES = 32 * 1024 * 1024
+MAX_PACKAGE_FILES = 16
+MAX_IMAGE_BYTES = 16 * 1024 * 1024
+MAX_MOTION_BYTES = 12 * 1024 * 1024
+MAX_IMAGE_SIDE = 8192
+
+INSPECT_SESSION_TTL_SECONDS = 30 * 60
+
+RECIPE_JSON = 'recipe.json'

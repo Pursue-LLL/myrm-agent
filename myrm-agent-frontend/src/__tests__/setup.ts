@@ -23,6 +23,12 @@ afterEach(() => {
   cleanup();
 });
 
+// Mock next/font/google (compiler and fonts module import at load time)
+vi.mock('next/font/google', () => ({
+  Inter: () => ({ variable: '--font-sans', className: 'mock-inter' }),
+  JetBrains_Mono: () => ({ variable: '--font-mono', className: 'mock-jbm' }),
+}));
+
 // Mock next-intl
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,

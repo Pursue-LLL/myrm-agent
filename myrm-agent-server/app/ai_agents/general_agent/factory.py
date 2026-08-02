@@ -200,6 +200,10 @@ async def build_general_agent(
     else:
         escalation_target_llm = None
 
+    # 1.6 Org model policy enforcement (cloud-hosted only; no-op when patterns empty)
+    if not signoff_contract_active:
+        await _enforce_org_model_policy(agent_wrapper)
+
     # 2. Storage backend (adapts to DEPLOY_MODE)
     from app.platform_utils import get_storage_provider
 
@@ -1284,3 +1288,63 @@ def _apply_small_model_tuning(agent_wrapper: "GeneralAgent") -> None:
         )
 
     agent_wrapper.engine_params = engine
+
+
+async def _enforce_org_model_policy(agent_wrapper: "GeneralAgent") -> None:
+    """Fail-closed check: reject models not whitelisted by org policy.
+
+    No-op when no policy is configured (local/Tauri or no org restriction).
+    Raises OrgModelPolicyViolation on mismatch to give instant user feedback.
+    """
+    from fnmatch import fnmatch
+
+    from app.services.config.service import ConfigService
+
+    try:
+        config_svc = ConfigService()
+        record = await config_svc.get("orgModelPolicy")
+    except Exception:
+        return
+
+    if record is None:
+        return
+    patterns: list[str] = (
+        record.value.get("allowed_patterns", [])
+        if isinstance(record.value, dict)
+        else []
+    )
+    if not patterns:
+        return
+
+    model_names: set[str] = set()
+    for cfg in (
+        agent_wrapper.model_cfg,
+        agent_wrapper.lite_model_cfg,
+        agent_wrapper.fallback_model_cfg,
+        agent_wrapper.safety_fallback_model_cfg,
+        agent_wrapper.reasoning_model_cfg,
+    ):
+        name = getattr(cfg, "model", None) if cfg is not None else None
+        if name:
+            model_names.add(name)
+
+    for model_name in model_names:
+        if not any(fnmatch(model_name, p) for p in patterns):
+            logger.warning(
+                "Org model policy violation: model '%s' not in allowed patterns %s",
+                model_name,
+                patterns,
+            )
+            raise OrgModelPolicyViolation(model_name, patterns)
+
+
+class OrgModelPolicyViolation(Exception):
+    """Raised when a configured model is not allowed by organization policy."""
+
+    def __init__(self, model_name: str, allowed_patterns: list[str]) -> None:
+        self.model_name = model_name
+        self.allowed_patterns = allowed_patterns
+        super().__init__(
+            f"The model '{model_name}' is restricted by your organization's policy. "
+            "Please select an approved model or contact your administrator."
+        )

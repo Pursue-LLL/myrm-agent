@@ -26,6 +26,13 @@
     ],
     "copyright": "Copyright © 2026 MyrmAgent Team",
     "category": "Productivity",
+    "fileAssociations": [
+      {
+        "ext": ["myrmtheme"],
+        "mimeType": "application/zip",
+        "description": "MyrmAgent workspace theme package"
+      }
+    ],
     "shortDescription": "Persistent AI assistant for work automation",
     "longDescription": "MyrmAgent is a Claw-class AI assistant that runs persistently on your device, helping you automate work with skills, memory, and multi-agent capabilities. All your data stays local.",
     "macOS": {

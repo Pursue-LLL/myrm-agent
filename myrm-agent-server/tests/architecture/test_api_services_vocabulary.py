@@ -52,6 +52,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "security",
         "skill_optimization",
         "skills",
+        "theme",
         "webui",
         "wiki",
         "workspace",

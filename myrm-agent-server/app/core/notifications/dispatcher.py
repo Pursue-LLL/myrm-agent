@@ -58,7 +58,8 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.CONFIG_HEALTH_WARNING: ("[Myrm AI] Configuration issue detected.\nMissing: {missing_items}"),
     AppEventType.SYSTEM_NOTIFICATION: ("[Myrm AI] {title}: {message}"),
     AppEventType.GOAL_TERMINAL: (
-        "[Myrm AI] Goal {status}: {objective}\n{files_modified} files · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
+        "[Myrm AI] Goal {status}: {objective}\n"
+        "{files_modified} files · {turns_used} turns · {execution_duration_s:.0f}s · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
     ),
     AppEventType.SUBAGENT_STALE: (
         "[Myrm AI] Subagent stalled: {agent_type} ({task_id})\nNo progress for {stale_duration_seconds:.0f}s · {wasted_tokens:,} tokens"

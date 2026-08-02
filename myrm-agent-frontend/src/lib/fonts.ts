@@ -3,7 +3,7 @@
  * [OUTPUT] fontSans, fontMono: next/font instances (Inter / JetBrains Mono).
  * [OUTPUT] FONT_STORAGE_KEY, FontId, FONT_CHOICES, getFontStack, ensureFontLoaded.
  * [POS] 全局字体系统 SSOT。layout.tsx 导入实例用于 self-host 加载；
- *       FontPicker / ThemeProvider 导入 FONT_CHOICES 实现运行时切换。
+ *       AppearancePanel / ThemeProfileProvider 导入 FONT_CHOICES 实现运行时切换。
  */
 import { Inter, JetBrains_Mono } from 'next/font/google';
 

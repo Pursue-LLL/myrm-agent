@@ -844,62 +844,65 @@ def _context_to_dict(
     from dev_gate_status import dev_gate_status  # noqa: PLC0415
 
     payload["devGate"] = dev_gate_status()
-    try:
-        from dev_gate_coordinator import default_socket_path, request  # noqa: PLC0415
+    observe_json = os.environ.get("MYRM_E2E_CONTEXT_JSON", "").strip() == "1"
+    if not observe_json:
+        try:
+            from dev_gate_coordinator import default_socket_path, request  # noqa: PLC0415
 
-        metrics = request(
-            {"operation": "snapshot", "session_id": "__health__"},
-            socket_path=default_socket_path(),
-            timeout_sec=0.5,
-        )
-        depth = metrics.get("asyncQueueDepth")
-        if isinstance(depth, int):
-            payload["devGateAsyncQueueDepth"] = depth
-    except (ConnectionError, OSError, RuntimeError, TimeoutError, ImportError):
-        pass
-    try:
-        from browser_orchestrator import browser_orchestrator_snapshot  # noqa: PLC0415
+            metrics = request(
+                {"operation": "snapshot", "session_id": "__health__"},
+                socket_path=default_socket_path(),
+                timeout_sec=0.5,
+            )
+            depth = metrics.get("asyncQueueDepth")
+            if isinstance(depth, int):
+                payload["devGateAsyncQueueDepth"] = depth
+        except (ConnectionError, OSError, RuntimeError, TimeoutError, ImportError):
+            pass
+    if not observe_json:
+        try:
+            from browser_orchestrator import browser_orchestrator_snapshot  # noqa: PLC0415
 
-        payload["browserOrchestrator"] = browser_orchestrator_snapshot()
-    except ImportError:
-        payload["browserOrchestrator"] = {"health": "UNKNOWN"}
-    try:
-        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+            payload["browserOrchestrator"] = browser_orchestrator_snapshot()
+        except ImportError:
+            payload["browserOrchestrator"] = {"health": "UNKNOWN"}
+        try:
+            from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
 
-        payload["authTemplateStatus"] = auth_template_status(
-            workspace_fingerprint=ctx.workspace_fingerprint
-        )
-    except ImportError:
-        payload["authTemplateStatus"] = {
-            "status": "UNKNOWN",
-            "next_action": "OBSERVABILITY_UNKNOWN",
-        }
-    try:
-        from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
+            payload["authTemplateStatus"] = auth_template_status(
+                workspace_fingerprint=ctx.workspace_fingerprint
+            )
+        except ImportError:
+            payload["authTemplateStatus"] = {
+                "status": "UNKNOWN",
+                "next_action": "OBSERVABILITY_UNKNOWN",
+            }
+        try:
+            from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
 
-        payload["browserPool"] = browser_identity_snapshot()
-    except ImportError:
-        payload["browserPool"] = {
-            "canonical": False,
-            "next_action": "OBSERVABILITY_UNKNOWN",
-        }
-    try:
-        from host_resource_governor import (
-            host_resource_governor_snapshot,
-        )  # noqa: PLC0415
+            payload["browserPool"] = browser_identity_snapshot()
+        except ImportError:
+            payload["browserPool"] = {
+                "canonical": False,
+                "next_action": "OBSERVABILITY_UNKNOWN",
+            }
+        try:
+            from host_resource_governor import (
+                host_resource_governor_snapshot,
+            )  # noqa: PLC0415
 
-        payload["hostGovernor"] = host_resource_governor_snapshot()
-    except ImportError:
-        payload["hostGovernor"] = {"enabled": False, "effective_browser_slots": 4}
-    try:
-        from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
+            payload["hostGovernor"] = host_resource_governor_snapshot()
+        except ImportError:
+            payload["hostGovernor"] = {"enabled": False, "effective_browser_slots": 4}
+        try:
+            from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
-        lifecycle = orchestrator_snapshot()
-        payload["sessionLifecycle"] = lifecycle
-        payload["phase"] = lifecycle.get("phase")
-        payload["budgets_remaining"] = lifecycle.get("budgets_remaining")
-    except Exception:
-        pass
+            lifecycle = orchestrator_snapshot()
+            payload["sessionLifecycle"] = lifecycle
+            payload["phase"] = lifecycle.get("phase")
+            payload["budgets_remaining"] = lifecycle.get("budgets_remaining")
+        except Exception:
+            pass
     if payload.get("muxColdAttachSaturated") is True:
         payload["agent_rule"] = (
             f"{ctx.agent_rule} "
@@ -949,6 +952,7 @@ def _context_to_dict(
 
 
 def _cmd_context_json(_args: argparse.Namespace) -> int:
+    os.environ["MYRM_E2E_CONTEXT_JSON"] = "1"
     ctx = resolve_e2e_api_context()
     sys.stdout.write(json.dumps(_context_to_dict(ctx), indent=2, sort_keys=True) + "\n")
     return 0

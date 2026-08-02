@@ -436,6 +436,9 @@ async def apply_shared_ui_session_contract(
 
     bridge_timeout = _resolve_bridge_ready_timeout_sec(timeout_sec)
     if deadline is not None:
+        # R269: long open_mcp can expire inner bridge_deadline while BODY wall still
+        # has budget — mirror rehydrate path extension before fail-fast.
+        deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
         bridge_timeout = min(bridge_timeout, max(0.0, deadline - time.monotonic()))
     if bridge_timeout <= 0:
         raise _session_error(
@@ -513,6 +516,8 @@ async def apply_shared_ui_session_contract(
         else:
             search_budget = min(45.0, timeout_sec)
             if deadline is not None:
+                # R272: extend inner deadline before SEARCH_POLICY (mirror R269 BRIDGE).
+                deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
                 search_budget = min(
                     search_budget, max(0.0, deadline - time.monotonic())
                 )

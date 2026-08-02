@@ -266,6 +266,8 @@
     "menu": {
       "account": "Account",
       "preferences": "Preferences",
+      "themeStudio": "Theme Studio",
+      "theme-studio": "Theme Studio",
       "personalization": "Personalization",
       "agents": "Agents",
       "models": "Model Service",
@@ -1595,6 +1597,7 @@
       "searchModels": "Search models...",
       "noEnabledModels": "Please enable models in Model Service first",
       "noMatchingModels": "No matching models",
+      "orgPolicyRestricted": "Restricted by organization policy",
       "temperature": "Temperature",
       "temperatureHint": "Controls output randomness",
       "precise": "Precise",
@@ -3337,6 +3340,256 @@
       "violet": "Violet",
       "ocean": "Ocean"
     },
+    "appearancePanel": {
+      "workspaceTheme": "Workspace theme",
+      "workspaceBackground": "Workspace background",
+      "workspaceBackgroundDesc": "Upload an image or MP4 loop for a full-window backdrop.",
+      "uploadBackground": "Upload background",
+      "changeBackground": "Change background",
+      "clearBackground": "Remove background",
+      "backgroundUploadSuccess": "Background updated",
+      "backgroundUploadFailed": "Failed to upload background",
+      "backgroundPosterFailed": "Could not extract a poster frame from this video",
+      "backgroundPosterReupload": "Re-upload this background once to enable mobile and reduced-motion display.",
+      "backgroundInvalidType": "Unsupported file type. Use PNG, JPEG, WebP, or MP4.",
+      "backgroundTooLarge": "File exceeds 80 MB limit.",
+      "backgroundEmpty": "File is empty.",
+      "backgroundWash": "Background wash",
+      "backgroundWashDesc": "Increase wash to improve text readability over bright backgrounds.",
+      "customPrimaryColor": "Or pick a custom primary color",
+      "hexPlaceholder": "#2563eb",
+      "font": "Font",
+      "restoreDefault": "Restore official default",
+      "packageSection": "Theme package",
+      "packageSectionDesc": "Import or export a .myrmtheme file to share your full workspace look.",
+      "packageImport": "Import theme package",
+      "packageExport": "Export current theme",
+      "packageImportTitle": "Import theme package",
+      "packageHeroPreview": "Background preview",
+      "packageApply": "Apply theme",
+      "packageCancel": "Cancel",
+      "assetMissingTitle": "Background unavailable on this device",
+      "assetMissingDesc": "Theme colors are applied, but the wallpaper file is missing here. Re-upload a background or import a .myrmtheme package in Appearance.",
+      "assetMissingAction": "Open Appearance settings",
+      "packageUnsignedHint": "This package is not signed. Only import themes from sources you trust.",
+      "packageImportSuccess": "Theme package applied",
+      "packageImportFailed": "Failed to import theme package",
+      "packageExportSuccess": "Theme package downloaded",
+      "packageExportFailed": "Failed to export theme package",
+      "openThemeStudio": "Open Theme Studio",
+      "presets": {
+        "official-default": "Teal & Orange",
+        "preset-teal": "Teal",
+        "preset-rose": "Rose",
+        "preset-amber": "Amber",
+        "preset-violet": "Violet",
+        "preset-ocean": "Ocean",
+        "preset-atkinson-calm": "Calm Readable"
+      }
+    },
+    "themeStudio": {
+      "title": "Theme Studio",
+      "subtitle": "Create a full workspace theme in four steps, preview it on Myrm layouts, then apply or export.",
+      "steps": {
+        "1": "Hero",
+        "2": "Layout",
+        "3": "Style",
+        "4": "Finish",
+        "heroDesc": "Upload a PNG, JPEG, WebP, or MP4 loop for your workspace backdrop."
+      },
+      "focusX": "Horizontal focus",
+      "focusY": "Vertical focus",
+      "themeName": "Theme name",
+      "themeNamePlaceholder": "My workspace theme",
+      "tagline": "Tagline (optional)",
+      "defaultThemeName": "My workspace theme",
+      "back": "Back",
+      "next": "Next",
+      "apply": "Apply to workspace",
+      "export": "Export .myrmtheme",
+      "applySuccess": "Theme applied",
+      "applyFailed": "Failed to apply theme",
+      "exportSuccess": "Theme package downloaded",
+      "exportFailed": "Failed to export theme",
+      "livePreview": "Preview on live workspace",
+      "openAiSkill": "Generate with AI skill",
+      "layouts": {
+        "fullBleed": {
+          "name": "Full bleed",
+          "description": "Immersive backdrop across the whole window.",
+          "guidance": "Use calm gradients or wide scenes; keep the center readable."
+        },
+        "navRailFocus": {
+          "name": "Nav rail focus",
+          "description": "Stronger navigation surfaces with a softer main canvas.",
+          "guidance": "Place the subject away from the left navigation rail."
+        },
+        "chatHero": {
+          "name": "Chat hero",
+          "description": "Chat-first layout with a lighter hero band.",
+          "guidance": "Keep the upper area quieter for empty-chat messaging."
+        },
+        "workDense": {
+          "name": "Work dense",
+          "description": "Higher surface opacity for Kanban, settings, and tools.",
+          "guidance": "Best for long functional sessions and readability-first themes."
+        }
+      },
+      "preview": {
+        "scene": {
+          "chat": "Chat",
+          "kanban": "Kanban",
+          "settings": "Settings",
+          "workDense": "Functional pages"
+        }
+      },
+      "library": {
+        "title": "My themes",
+        "empty": "No saved themes yet. Finish the wizard and apply to add one here.",
+        "apply": "Apply",
+        "applied": "Theme applied",
+        "delete": "Delete theme",
+        "deleted": "Theme removed"
+      },
+      "gallery": {
+        "title": "Theme gallery",
+        "subtitle": "Browse official and community themes. Free themes install in one click.",
+        "tabs": {
+          "official": "Official",
+          "community": "Community",
+          "owned": "Owned"
+        },
+        "loading": "Loading gallery…",
+        "empty": "No themes in this tab yet.",
+        "searchEmpty": "No themes match your search.",
+        "searchLabel": "Search themes",
+        "searchPlaceholder": "Search by name or tagline…",
+        "sortLabel": "Sort themes",
+        "sort": {
+          "latest": "Latest",
+          "popular": "Popular",
+          "price": "Price"
+        },
+        "install": "Install",
+        "installing": "Installing…",
+        "installed": "Theme installed",
+        "installFailed": "Could not install theme",
+        "priceFree": "Free",
+        "pricePaid": "${cents}",
+        "purchase": "Purchase",
+        "purchasing": "Redirecting…",
+        "purchaseFailed": "Could not start checkout",
+        "previewInstall": "Preview & install",
+        "previewTitle": "Install theme",
+        "previewCancel": "Cancel",
+        "previewConfirm": "Install",
+        "paidSoon": "Paid checkout coming soon",
+        "purchaseCompleting": "Completing your purchase…",
+        "purchaseReturnFailed": "Purchase succeeded but install failed.",
+        "purchaseRetryOwned": "Open Owned and install"
+      },
+      "marketplaceGate": {
+        "needsAuthTitle": "Link your cloud account",
+        "needsAuthBody": "Sign in to browse, purchase, and install themes from the marketplace.",
+        "offlineTitle": "Marketplace offline",
+        "offlineBody": "Control Plane is unreachable. You can still import a .myrmtheme file from Theme Studio step 4 or Appearance settings."
+      },
+      "creator": {
+        "title": "Submit a theme",
+        "subtitle": "Upload a .myrmtheme package for community review.",
+        "fields": {
+          "name": "Name",
+          "slug": "Slug",
+          "tagline": "Tagline",
+          "description": "Description",
+          "priceCents": "Price (cents, 0 = free)",
+          "package": "Theme package"
+        },
+        "submit": "Submit for review",
+        "submitting": "Submitting…",
+        "inspecting": "Inspecting package…",
+        "submitted": "Theme submitted for review",
+        "mineTitle": "Your submissions",
+        "mineEmpty": "No submissions yet.",
+        "loading": "Loading…",
+        "installCount": "{count} installs",
+        "totalEarned": "Total earned: ${amount}",
+        "status": {
+          "pending": "Awaiting review",
+          "pending_review": "Awaiting review",
+          "published": "Published",
+          "rejected": "Rejected",
+          "suspended": "Suspended",
+          "draft": "Draft"
+        },
+        "errors": {
+          "missingFields": "Name and package file are required",
+          "inspectFailed": "Could not inspect theme package",
+          "submitFailed": "Could not submit theme"
+        },
+        "preview": {
+          "packageImportTitle": "Review before submit",
+          "packageHeroPreview": "Theme preview",
+          "packageApply": "Submit for review",
+          "packageCancel": "Cancel",
+          "packageUnsignedHint": "This package is not signed. Only submit themes from sources you trust.",
+          "backgroundWash": "Background wash"
+        }
+      },
+      "admin": {
+        "title": "Theme review queue",
+        "pendingSection": "Pending review",
+        "catalogSection": "Published catalog",
+        "catalogEmpty": "No published or suspended themes.",
+        "loading": "Loading queue…",
+        "empty": "No themes pending review.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "suspend": "Suspend",
+        "restore": "Restore",
+        "approved": "Theme approved",
+        "rejected": "Theme rejected",
+        "suspended": "Theme suspended",
+        "restored": "Theme restored",
+        "reviewFailed": "Review action failed",
+        "moderationFailed": "Moderation action failed",
+        "defaultReviewReason": "Reviewed from Theme Studio admin panel",
+        "rejectReasonLabel": "Rejection reason",
+        "rejectReasonPlaceholder": "Explain what the creator should fix before resubmitting.",
+        "suspendReasonLabel": "Suspension reason",
+        "suspendReasonPlaceholder": "Explain why this listing is being removed from the gallery.",
+        "restoreReasonLabel": "Restore reason",
+        "restoreReasonPlaceholder": "Explain why this listing is being republished.",
+        "rejectConfirm": "Confirm reject",
+        "suspendConfirm": "Confirm suspend",
+        "restoreConfirm": "Confirm restore",
+        "moderationCancel": "Cancel",
+        "reasonTooShort": "Reason must be at least 2 characters.",
+        "status": {
+          "published": "Published",
+          "suspended": "Suspended"
+        }
+      },
+      "recipeImport": {
+        "title": "Import recipe from AI skill",
+        "hint": "Paste the JSON from generate-myrm-theme, then upload hero media in step 1 if needed.",
+        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "import": "Import recipe",
+        "success": "Recipe imported into the editor",
+        "errors": {
+          "invalid_json": "Invalid JSON",
+          "not_object": "Recipe must be a JSON object",
+          "missing_name": "name is required",
+          "invalid_layout": "layoutId is invalid",
+          "invalid_font": "fontId is invalid",
+          "invalid_palette": "palette colors are invalid",
+          "invalid_art": "art settings are invalid"
+        }
+      },
+      "profilePicker": {
+        "savedTitle": "Saved themes"
+      }
+    },
     "fontOptions": {
       "inter": "Inter (Default)",
       "system": "System Font",
@@ -3546,8 +3799,6 @@
     "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
-    "customPrimaryColor": "Custom Primary Color",
-    "customPrimaryColorDesc": "Override the theme primary color (leave empty for default)",
     "notificationDeliveries": "Notification Deliveries",
     "notificationDeliveriesDesc": "System event alerts (OAuth, budget, pairing, channel health). For agent-initiated task notifications, configure Notification Channels on each agent.",
     "webPushTitle": "Background Push Notifications",
@@ -6475,6 +6726,10 @@
       "revoked": "Share link revoked",
       "expires": "Expires",
       "ttlDays": "Valid for {days} days",
+      "passwordLabel": "Password (optional)",
+      "passwordPlaceholder": "Set access password",
+      "ttlLabel": "Expires after",
+      "successProtected": "Password-protected link created. Valid for {days} days.",
       "localFallback": "Share links are available in Cloud mode. Use Export as HTML to share locally.",
       "error": "Failed to create share link"
     },
@@ -7188,6 +7443,10 @@
       "preferences": {
         "title": "Preferences",
         "description": "Customize your application preferences"
+      },
+      "theme-studio": {
+        "title": "Theme Studio",
+        "description": "Create and preview workspace themes"
       },
       "personalization": {
         "title": "Personalization",
@@ -9275,9 +9534,17 @@
     "pptxLoadError": "Failed to load presentation",
     "noContent": "No content to preview",
     "sharePreview": {
-      "open": "Copy read-only share link",
+      "open": "Share",
+      "title": "Share Link",
+      "passwordLabel": "Password (optional)",
+      "passwordPlaceholder": "Set access password",
+      "ttlLabel": "Expires after",
+      "ttlDays": "{days} days",
+      "createBtn": "Create Link",
+      "creating": "Creating...",
       "successTitle": "Share link copied",
-      "successDescription": "Anyone with the link can view this artifact for 7 days.",
+      "successDescription": "Anyone with the link can view this artifact for {days} days.",
+      "successDescriptionProtected": "Password-protected link copied. Valid for {days} days.",
       "failed": "Failed to create share link"
     },
     "publish": {

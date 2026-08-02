@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.artifacts.share_token (POS: HMAC token create/parse)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
+- app.core.security.share_hmac (POS: password-protection detection)
 
 [OUTPUT]
 - router: authenticated create-share endpoints
@@ -10,14 +11,15 @@
 
 [POS]
 Lets GUI users share html/pdf/document artifacts without Vercel deploy.
+Supports optional password-protected share links.
 """
 
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +28,8 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import get_workspace_root
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
+from app.core.security.share_hmac import is_password_protected
+from app.core.security.share_password_page import render_password_gate_html
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share_bundle import (
@@ -56,6 +60,7 @@ class CreateArtifactShareRequest(BaseModel):
         default=None,
         description="Client artifact type from SSE (html, pdf, document) when DB name lacks suffix.",
     )
+    password: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class CreateArtifactShareResponse(BaseModel):
@@ -64,6 +69,7 @@ class CreateArtifactShareResponse(BaseModel):
     expires_at: int
     artifact_id: str
     version_id: str
+    password_protected: bool = False
 
 
 def _share_path(token: str) -> str:
@@ -163,6 +169,7 @@ async def create_artifact_share_preview(
         latest.id,
         ttl_seconds=ttl_seconds,
         artifact_type=share_type,
+        password=body.password,
     )
     claims = ArtifactShareClaims(
         artifact_id=artifact.id,
@@ -185,47 +192,77 @@ async def create_artifact_share_preview(
         expires_at=expires_at,
         artifact_id=artifact.id,
         version_id=latest.id,
+        password_protected=body.password is not None,
     )
 
 
+def _parse_or_gate(
+    token: str, password: str | None,
+) -> ArtifactShareClaims | HTMLResponse:
+    """Parse token with optional password.
+
+    Returns ``ArtifactShareClaims`` on success, or an ``HTMLResponse``
+    password-gate page when a password is required but missing/wrong.
+    """
+    protected = is_password_protected(token)
+    if protected and not password:
+        return HTMLResponse(render_password_gate_html(), status_code=403)
+    claims = parse_artifact_share_token(token, password=password)
+    if claims is None:
+        if protected and password:
+            return HTMLResponse(
+                render_password_gate_html(wrong_password=True), status_code=403,
+            )
+        raise HTTPException(status_code=404, detail="Share link is invalid or expired")
+    return claims
+
+
 @public_router.get("/{token}", response_model=None)
+@limiter.limit("30/minute")
 async def get_public_artifact_share(
     request: Request,
     token: str,
+    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve the bundle entry file for a valid share token (no API key)."""
-    claims = parse_artifact_share_token(token)
-    if claims is None:
-        raise HTTPException(status_code=404, detail="Share link is invalid or expired")
-    if bundle_asset_count(claims) > 1 and not str(request.url.path).endswith("/"):
+    result = _parse_or_gate(token, pwd)
+    if isinstance(result, HTMLResponse):
+        return result
+    if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         return RedirectResponse(url=str(request.url) + "/", status_code=307)
-    return await _serve_share_bundle(claims, db, workspace_root, None)
+    return await _serve_share_bundle(result, db, workspace_root, None)
 
 
 @public_router.get("/{token}/")
+@limiter.limit("30/minute")
 async def get_public_artifact_share_index(
+    request: Request,
     token: str,
+    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
-) -> FileResponse:
+):
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
-    claims = parse_artifact_share_token(token)
-    if claims is None:
-        raise HTTPException(status_code=404, detail="Share link is invalid or expired")
-    return await _serve_share_bundle(claims, db, workspace_root, None)
+    result = _parse_or_gate(token, pwd)
+    if isinstance(result, HTMLResponse):
+        return result
+    return await _serve_share_bundle(result, db, workspace_root, None)
 
 
 @public_router.get("/{token}/{asset_path:path}")
+@limiter.limit("60/minute")
 async def get_public_artifact_share_asset(
+    request: Request,
     token: str,
     asset_path: str,
+    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
-) -> FileResponse:
+):
     """Serve a static asset from a multi-file share bundle."""
-    claims = parse_artifact_share_token(token)
-    if claims is None:
-        raise HTTPException(status_code=404, detail="Share link is invalid or expired")
-    return await _serve_share_bundle(claims, db, workspace_root, asset_path)
+    result = _parse_or_gate(token, pwd)
+    if isinstance(result, HTMLResponse):
+        return result
+    return await _serve_share_bundle(result, db, workspace_root, asset_path)

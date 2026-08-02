@@ -1,7 +1,8 @@
-"""Chrome E2E pytest session dedupe — one concurrent session per test file.
+"""Chrome E2E pytest session idempotency — one concurrent holder per submission key.
 
-Rejects duplicate chrome_e2e invocations that target the same ``tests/e2e/*.py``
-file regardless of ``::nodeid``, ``-q``, ``-n0``, or ``--timeout=`` argv shape.
+Rejects duplicate chrome_e2e relaunches that reuse the same ``MYRM_E2E_RUN_ID``
+(or legacy argv fingerprint when run id is unavailable). Different submissions
+may target the same ``tests/e2e/*.py`` file or node in parallel.
 """
 
 from __future__ import annotations
@@ -79,12 +80,16 @@ def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
             continue
         if arg.startswith(("--tb=", "--timeout=", "-k=")):
             continue
-        normalized.append(_strip_pytest_node_id(arg))
+        normalized.append(arg)
     return tuple(normalized)
 
 
 def fingerprint_argv(argv: tuple[str, ...]) -> str:
-    """Stable hash for chrome_e2e pytest argv (ignores ephemeral run ids)."""
+    """Stable hash for chrome_e2e submission idempotency."""
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    if run_id:
+        payload = f"submission:{run_id}".encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()[:16]
     payload = "\0".join(_normalize_argv(argv)).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
 

@@ -1,5 +1,9 @@
-"""Tests for artifact share HMAC tokens."""
+"""Tests for artifact share HMAC tokens (including password gate)."""
 
+import time
+from unittest.mock import patch
+
+from app.core.security.share_hmac import is_password_protected
 from app.services.artifacts.share_token import (
     create_artifact_share_token,
     is_shareable_artifact,
@@ -15,6 +19,7 @@ def test_share_token_round_trip() -> None:
     assert claims.artifact_id == "art-1"
     assert claims.version_id == "ver-1"
     assert claims.exp == exp
+    assert claims.password_protected is False
 
 
 def test_share_token_rejects_tamper() -> None:
@@ -45,10 +50,35 @@ def test_share_token_round_trip_with_artifact_type() -> None:
 
 
 def test_share_token_rejects_expired() -> None:
-    import time
-    from unittest.mock import patch
-
     token, _ = create_artifact_share_token("art-1", "ver-1", ttl_seconds=60)
     future = int(time.time()) + 120
-    with patch("app.services.artifacts.share_token.time.time", return_value=future):
+    with patch("app.core.security.share_hmac.time.time", return_value=future):
         assert parse_artifact_share_token(token) is None
+
+
+# ── Password gate tests ──────────────────────────────────────────
+
+
+def test_password_token_round_trip() -> None:
+    token, exp = create_artifact_share_token(
+        "art-pw", "ver-pw", ttl_seconds=3600, password="s3cret",
+    )
+    assert is_password_protected(token) is True
+    assert parse_artifact_share_token(token) is None
+    claims = parse_artifact_share_token(token, password="s3cret")
+    assert claims is not None
+    assert claims.artifact_id == "art-pw"
+    assert claims.password_protected is True
+    assert claims.exp == exp
+
+
+def test_password_token_rejects_wrong_password() -> None:
+    token, _ = create_artifact_share_token(
+        "art-pw", "ver-pw", password="correct",
+    )
+    assert parse_artifact_share_token(token, password="wrong") is None
+
+
+def test_non_password_token_not_protected() -> None:
+    token, _ = create_artifact_share_token("art-1", "ver-1")
+    assert is_password_protected(token) is False

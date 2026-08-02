@@ -2,11 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const apiRequestMock = vi.fn();
 
-vi.mock('@/lib/api', () => ({
-  apiRequest: (...args: unknown[]) => apiRequestMock(...args),
-}));
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
+  return {
+    ...actual,
+    apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+  };
+});
 
-import { installCompanionPet, listInstalledCompanionPets, uninstallCompanionPet } from '@/services/companion/petInstall';
+import { ApiError } from '@/lib/api';
+import {
+  CompanionFeatureDisabledError,
+  installCompanionPet,
+  listInstalledCompanionPets,
+  uninstallCompanionPet,
+} from '@/services/companion/petInstall';
 
 describe('listInstalledCompanionPets', () => {
   beforeEach(() => {
@@ -52,6 +62,21 @@ describe('installCompanionPet', () => {
       silent: true,
     });
     expect(installed.slug).toBe('lobster');
+  });
+
+  it('maps companion feature gate 403 to CompanionFeatureDisabledError', async () => {
+    apiRequestMock.mockRejectedValueOnce(new ApiError('Forbidden', 403));
+
+    await expect(installCompanionPet('lobster')).rejects.toBeInstanceOf(
+      CompanionFeatureDisabledError,
+    );
+  });
+
+  it('rethrows non-403 ApiError unchanged', async () => {
+    const err = new ApiError('Not found', 404);
+    apiRequestMock.mockRejectedValueOnce(err);
+
+    await expect(installCompanionPet('lobster')).rejects.toBe(err);
   });
 });
 

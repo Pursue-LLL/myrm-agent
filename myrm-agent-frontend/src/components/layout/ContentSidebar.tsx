@@ -100,6 +100,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
 
     return (
       <aside
+        data-theme-shell="sidebar"
         className={cn(
           'flex flex-col relative',
           isMobile

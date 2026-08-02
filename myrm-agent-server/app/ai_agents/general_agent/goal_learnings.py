@@ -57,20 +57,25 @@ def build_goal_terminal_callback(
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
             event_bus = get_event_bus()
-            event_bus.publish(
-                AppEvent(
-                    event_type=AppEventType.GOAL_TERMINAL,
-                    data={
-                        "goal_id": goal.goal_id,
-                        "session_id": goal.session_id,
-                        "status": goal.status.value,
-                        "objective": goal.objective[:200],
-                        "files_modified": len(summary.files_modified),
-                        "total_tokens": summary.total_tokens,
-                        "total_cost_usd": round(summary.total_cost_usd, 4),
-                    },
-                )
-            )
+            meta = goal.metadata or {}
+            event_data: dict[str, object] = {
+                "goal_id": goal.goal_id,
+                "session_id": goal.session_id,
+                "status": goal.status.value,
+                "objective": goal.objective[:200],
+                "files_modified": len(summary.files_modified),
+                "total_tokens": summary.total_tokens,
+                "total_cost_usd": round(summary.total_cost_usd, 4),
+                "execution_duration_s": round(summary.execution_duration_s, 1),
+                "turns_used": summary.turns_used,
+                "verifications": tuple(summary.verifications),
+            }
+            if meta.get("source_channel"):
+                event_data["channel"] = meta["source_channel"]
+                event_data["chat_id"] = meta.get("source_chat_id", "")
+                event_data["thread_id"] = meta.get("source_thread_id", "")
+                event_data["locale"] = meta.get("source_locale", "en")
+            event_bus.publish(AppEvent(event_type=AppEventType.GOAL_TERMINAL, data=event_data))
         except Exception as e:
             logger.warning("Failed to publish goal terminal event (non-fatal): %s", e)
 

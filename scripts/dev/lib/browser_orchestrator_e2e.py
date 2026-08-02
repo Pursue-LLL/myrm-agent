@@ -6,6 +6,7 @@ Used when ``MYRM_BROWSER_ORCHESTRATOR=1`` — no mux MCP fallback.
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -87,11 +88,14 @@ def open_orchestrator_mcp_page(
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
     daemon = BrowserOrchestratorClient()
-    if not daemon.is_alive():
-        raise RuntimeError(
-            "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-            "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
-        )
+    deadline = time.monotonic() + 20.0
+    while not daemon.is_alive():
+        if time.monotonic() >= deadline:
+            raise RuntimeError(
+                "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+            )
+        time.sleep(0.5)
     session_id = _resolve_session_id()
     daemon.create_session(session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)

@@ -320,3 +320,9 @@ agent_picker_select = エージェントを選択してください：
 agent_picker_switched = 切り替えました：{ $name }
 artifact_deep_link = 💻 インタラクティブページを表示
 artifact_deep_link_named = 💻 { $filename }
+goal_completed =
+    ✅ ゴール達成：「{ $objective }」
+    { $turns } ターン · { $duration } 分 · { $files } ファイル変更
+goal_failed =
+    ❌ ゴール終了：「{ $objective }」
+    { $turns } ターン · { $duration } 分 · { $files } ファイル変更

@@ -25,6 +25,46 @@ from dev_gate_store import DevGateStore, default_store_path
 
 _START_TIMEOUT_SEC = 8.0
 _PING_WAIT_SEC = 10.0
+_SUBMIT_REQUEST_TIMEOUT_SEC = 120.0
+
+
+def _coordinator_pid_path(database_path: Path) -> Path:
+    return database_path.with_name("coordinator.pid")
+
+
+def _read_coordinator_pid(pid_path: Path) -> int | None:
+    try:
+        raw = pid_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _write_coordinator_pid(pid_path: Path, pid: int) -> None:
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text(f"{pid}\n", encoding="utf-8")
+    os.chmod(pid_path, 0o600)
+
+
+def _clear_stale_coordinator_pid(pid_path: Path) -> None:
+    existing = _read_coordinator_pid(pid_path)
+    if existing is None:
+        return
+    if _pid_alive(existing):
+        return
+    pid_path.unlink(missing_ok=True)
 
 
 def _wait_for_ping(socket_path: Path, *, budget_sec: float) -> bool:
@@ -49,20 +89,16 @@ def _startup_lock(database_path: Path) -> Iterator[None]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def _ping(socket_path: Path) -> bool:
-    for attempt in range(3):
-        try:
-            request(
-                {"operation": "snapshot", "session_id": "__health__"},
-                socket_path=socket_path,
-                timeout_sec=2.0,
-            )
-            return True
-        except (ConnectionError, OSError, RuntimeError, TimeoutError):
-            if attempt >= 2:
-                return False
-            time.sleep(0.2 * (attempt + 1))
-    return False
+def _ping(socket_path: Path, *, timeout_sec: float = 0.5) -> bool:
+    try:
+        request(
+            {"operation": "snapshot", "session_id": "__health__"},
+            socket_path=socket_path,
+            timeout_sec=timeout_sec,
+        )
+        return True
+    except (ConnectionError, OSError, RuntimeError, TimeoutError):
+        return False
 
 
 def ensure_coordinator(
@@ -73,20 +109,49 @@ def ensure_coordinator(
     socket_target = normalized_socket_path(socket_path or default_socket_path())
     database_target = (database_path or default_store_path()).resolve()
     disabled_path = database_target.with_suffix(".socket-disabled")
+    pid_path = _coordinator_pid_path(database_target)
     if disabled_path.is_file():
         disabled_age = time.time() - disabled_path.stat().st_mtime
         if disabled_age < 60.0:
             return None
         disabled_path.unlink(missing_ok=True)
+    _clear_stale_coordinator_pid(pid_path)
+    live_pid = _read_coordinator_pid(pid_path)
+    if live_pid is not None and _pid_alive(live_pid):
+        if _ping(socket_target) or _wait_for_ping(
+            socket_target, budget_sec=_PING_WAIT_SEC
+        ):
+            return socket_target
     if _ping(socket_target):
         return socket_target
+    if socket_target.exists() and _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC):
+        return socket_target
     with _startup_lock(database_target):
+        _clear_stale_coordinator_pid(pid_path)
+        live_pid = _read_coordinator_pid(pid_path)
+        if live_pid is not None and _pid_alive(live_pid):
+            if _ping(socket_target) or _wait_for_ping(
+                socket_target, budget_sec=_PING_WAIT_SEC
+            ):
+                return socket_target
         if _ping(socket_target):
             return socket_target
+        if socket_target.exists():
+            if _wait_for_ping(socket_target, budget_sec=2.0):
+                return socket_target
+            live_pid = _read_coordinator_pid(pid_path)
+            if live_pid is not None and _pid_alive(live_pid):
+                if _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC):
+                    return socket_target
+            # R273: stale socket blocks all waiters — remove and spawn one coordinator.
+            try:
+                socket_target.unlink(missing_ok=True)
+            except OSError:
+                return None
         log_path = database_target.with_name("coordinator.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("ab", buffering=0) as log_handle:
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 [
                     sys.executable,
                     str(Path(__file__).with_name("dev_gate_coordinator.py")),
@@ -102,6 +167,7 @@ def ensure_coordinator(
                 start_new_session=True,
                 close_fds=True,
             )
+        _write_coordinator_pid(pid_path, proc.pid)
         deadline = time.monotonic() + _START_TIMEOUT_SEC
         while time.monotonic() < deadline:
             if _ping(socket_target):
@@ -141,8 +207,9 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         return _handle_in_process(payload)
     operation = payload.get("operation")
     timeout_sec = 10.0
+    if isinstance(operation, str) and operation == "submit":
+        timeout_sec = _SUBMIT_REQUEST_TIMEOUT_SEC
     if isinstance(operation, str) and operation in {
-        "submit",
         "private_admit",
         "desktop_admit",
         "reap",
@@ -313,16 +380,30 @@ def _simple_operation(args: argparse.Namespace) -> int:
             lease_bound_target_ids,
             lease_released,
             physical_targets_absent,
+            poll_physical_targets_absent,
         )
 
         requested_at = time.time()
         released_lease = args.released_lease_id.strip()
         ledger_cleaned = lease_released(released_lease)
-        physical_released = physical_targets_absent(lease_id=released_lease)
+        if not ledger_cleaned:
+            for _ in range(3):
+                time.sleep(1.0)
+                if lease_released(released_lease):
+                    ledger_cleaned = True
+                    break
+        bound = lease_bound_target_ids(released_lease)
+        if bound:
+            physical_released = poll_physical_targets_absent(
+                lease_id=released_lease,
+                timeout_sec=15.0,
+            )
+        else:
+            physical_released = physical_targets_absent(lease_id=released_lease)
         cdp_after = collect_cdp_target_ids()
         sealed = ledger_cleaned and physical_released is True
         payload["receipt"] = {
-            "closed_page_ids": list(lease_bound_target_ids(released_lease)),
+            "closed_page_ids": list(bound),
             "closed_context_id": args.closed_context_id,
             "released_lease_id": released_lease,
             "released_runtime_id": args.released_runtime_id,
@@ -378,12 +459,14 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
     from e2e_stale_lease_reap import (  # noqa: PLC0415
         maybe_reap_excess_wave_leases,
         maybe_reap_hung_chrome_e2e_pytest,
+        maybe_reap_stale_empty_mux_contexts,
         maybe_reap_stale_heartbeat_leases,
     )
 
     store_reaped = send({"operation": "reap"})
     reaped_ids = store_reaped.get("reaped_session_ids", [])
     stale = maybe_reap_stale_heartbeat_leases()
+    mux_reaped = maybe_reap_stale_empty_mux_contexts()
     hung = maybe_reap_hung_chrome_e2e_pytest()
     excess = maybe_reap_excess_wave_leases()
     print(
@@ -393,6 +476,7 @@ def _coordinator_reap(_args: argparse.Namespace) -> int:
                     reaped_ids if isinstance(reaped_ids, list) else list(reaped_ids)
                 ),
                 "stale_heartbeat_reaped": stale,
+                "mux_idle_reaped": mux_reaped,
                 "hung_reaped": hung,
                 "excess_wave_reaped": excess,
             },

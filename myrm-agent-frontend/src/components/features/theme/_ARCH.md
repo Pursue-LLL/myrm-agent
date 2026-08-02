@@ -1,17 +1,24 @@
 # theme/
 
-## 架构概述
+Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Recipe compiler + Art Layer).
 
-主题、皮肤、字体等外观偏好的初始化与运行时管理。支持 light/dark/system 三种模式，system 模式通过 `enableSystem` 实时跟随 OS 亮暗偏好切换。
+## Files
 
-## 文件清单
+| File | Role | I/O/P |
+|------|------|-------|
+| `ThemeProvider.tsx` | next-themes wrapper + theme-color meta | ✅ |
+| `ThemeProfileProvider.tsx` | ConfigSync profile → compiler → DOM + Art Layer + preinit; honors Studio DOM preview | ✅ |
+| `ThemeAssetMissingBanner.tsx` | Non-blocking banner when synced `file:` assets are missing on this device | ✅ |
+| `WorkspaceArtLayer.tsx` | Full-window poster/video layer | ✅ |
+| `AppearancePanel.tsx` | Profile picker + workspace background upload + wash + font + `.myrmtheme` import/export | ✅ |
+| `ThemePackageImportPreview.tsx` | Import preview modal (hero thumbnail, warnings, apply) | ✅ |
+| `shared/ThemePresetGrid.tsx` | Shared preset swatch grid (Appearance + Studio) | ✅ |
+| `shared/ThemeProfilePicker.tsx` | Built-in + saved profile picker (Appearance) | ✅ |
+| `theme-pre-init-script.ts` | Blocking tokens + optional art poster preload hint + legacy purge | ✅ |
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `ThemeProvider.tsx` | 核心 | next-themes 封装；初始化 theme-color meta、skin（data-skin）、font（data-font + --font-override）偏好 | ✅ |
+## Dependencies
 
-## 依赖
-
-- `next-themes` — 亮/暗/system 主题切换（`enableSystem` 启用 OS 跟随）
-- `@/lib/fonts` — 字体常量与动态加载
-- 父模块 [`features/_ARCH.md`](../_ARCH.md)
+- `@/theme-engine` — compiler + presets + overlay + preinit
+- `@/services/theme-assets` — upload + assetRef resolution + MP4 poster extraction
+- `@/services/theme-packages` — `.myrmtheme` inspect / install / export API clients
+- `PersonalSettings.activeThemeProfileId` / `themeProfiles` / `themeFontOverride` — ConfigSync SSOT

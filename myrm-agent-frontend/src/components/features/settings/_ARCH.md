@@ -25,8 +25,9 @@
 | `SchemaForm.tsx` | 辅助 | JSON Schema 驱动表单 | ✅ |
 | `ConfigImportExport.tsx` | 辅助 | 配置导入导出 | ✅ |
 | `MCPConfigForm.tsx` | 辅助 | MCP 顶层表单（详情见 `mcp/`） | ✅ |
-| `SkinPicker.tsx` | 辅助 | 品牌皮肤选择器（6 套强调色方案，data-skin + localStorage） | ✅ |
-| `FontPicker.tsx` | 辅助 | 字体选择器（Inter/系统字体/Atkinson Hyperlegible，data-font + localStorage） | ✅ |
+| `Switcher.tsx` | 辅助 | 亮/暗/系统主题切换 | ✅ |
+| `AppearancePanel`（`theme/AppearancePanel.tsx`） | 辅助 | Theme Engine v2 预设、壁纸上传、wash 滑条、字体（ConfigSync SSOT） | ✅ |
+| `ThemeStudioSettingsSection`（`sections/personal/ThemeStudioSettingsSection.tsx`） | 辅助 | 四步 Theme Studio 设置页 `/settings/theme-studio` | ✅ |
 
 ## 子目录
 

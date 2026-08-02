@@ -12,7 +12,7 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 | `routing.ts` | next-intl routing 配置 |
 | `request.ts` | Server Component locale 解析（`loadShellMessages`） |
 | `load-messages.ts` | Server-only：shell / deferred namespace 文件加载 |
-| `locale-manifest.ts` | SSR shell vs deferred namespace 清单（`SSR_SHELL_SETTINGS_SECTIONS` + deferred 顶层 `channels`） |
+| `locale-manifest.ts` | SSR shell vs deferred namespace 清单（含 `themeStudio` settings shell；deferred 顶层 `channels`） |
 | `merge-messages.ts` | 浅合并 shell + deferred messages（settings 深合并） |
 | `__tests__/locale-shell.test.ts` | shell/deferred 分割与 merge 单测 |
 | `__tests__/ClientIntlProvider.test.tsx` | deferred fetch retry / fail-closed 单测 |

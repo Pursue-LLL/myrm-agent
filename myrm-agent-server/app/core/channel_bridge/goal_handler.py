@@ -19,7 +19,7 @@ import time
 
 from myrm_agent_harness.agent.goals.types import GoalBudget, GoalStatus
 
-from app.channels.i18n import get_text
+from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.protocols.goal_command import (
     GoalSubcommand,
     SubgoalSubcommand,
@@ -155,10 +155,17 @@ class ChannelGoalCommandHandler:
 
         await check_and_handle_branch_stash(chat_id)
         provider = GoalRegistry.get_or_create_provider(chat_id)
+        source_meta: dict[str, object] = {
+            "source_channel": msg.channel,
+            "source_chat_id": msg.chat_id or msg.sender_id or "",
+            "source_thread_id": msg.thread_id or "",
+            "source_locale": resolve_message_locale(msg),
+        }
         goal = await provider.create_goal(
             session_id=chat_id,
             objective=parsed_objective,
             acceptance_criteria=acceptance_criteria or None,
+            metadata=source_meta,
         )
 
         from myrm_agent_harness.agent.goals.types import GoalStatus

@@ -52,9 +52,74 @@ MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
 COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD: int = 4
 
 
+def cold_shim_restart_defer_peer_threshold() -> int:
+    """Parallel mux load above which local cold-shim restart must defer (R231/R265)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        # Signoff always runs under parallel chrome_e2e; threshold=4 never drains.
+        # R265: mux recovery lock serializes cold-shim restart — proceed at 5–7 peers.
+        return 8
+    return COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD
+
+
+def _chrome_e2e_pytest_peer_count() -> int:
+    """Live ``python -m pytest … chrome_e2e`` workers (SSOT: gate solo-wait)."""
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            ["pgrep", "-f", r"python -m pytest.*chrome_e2e"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return parallel_active_test_count()
+    if proc.returncode != 0:
+        return 0
+    return len([line for line in proc.stdout.splitlines() if line.strip()])
+
+
+def _cold_shim_defer_peer_load() -> int:
+    """Mux load that must block unsynchronized local cold-shim restart (R231).
+
+    Uses wave leases + contexts with owned pages only — stale empty mux shells and
+    runtime-cell cardinality must not inflate defer pressure.
+    """
+    wave_leases = 0
+    active_mux_contexts = 0
+    try:
+        from mux_load import (
+            active_mux_context_count,
+            read_mux_status,
+            snapshot_mux_load,
+        )
+
+        snapshot = snapshot_mux_load(force=True)
+        wave_leases = max(0, snapshot.wave_leases)
+        active_mux_contexts = active_mux_context_count(read_mux_status(force=True))
+    except ImportError:
+        return parallel_mux_peer_count()
+    policy_wave_leases = 0
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        policy_wave_leases = max(
+            0, wave_active_lease_count(Path(__file__).resolve().parents[4])
+        )
+    except ImportError:
+        pass
+    return max(wave_leases, active_mux_contexts, policy_wave_leases)
+
+
 def should_defer_cold_shim_restart() -> bool:
     """True when parallel mux load is high enough that local shim restart must not run."""
-    return parallel_mux_peer_count() >= COLD_SHIM_RESTART_DEFER_PEER_THRESHOLD
+    # P0-A Step 1: solo chrome_e2e must recover transport; runtime cells over-count
+    # stale mux shims — use live pytest peer SSOT instead.
+    if _chrome_e2e_pytest_peer_count() <= 1:
+        return False
+    return _cold_shim_defer_peer_load() >= cold_shim_restart_defer_peer_threshold()
 
 
 _GLOBAL_RECOVERY_LOCK = threading.Lock()
@@ -188,13 +253,18 @@ def recovery_budget_remaining() -> float:
 
 def parallel_active_test_count() -> int:
     """Best-effort parallel chrome_e2e count for recovery mutex scaling (R73-F TPC M3)."""
+    pytest_peers = _chrome_e2e_pytest_peer_count()
+    if pytest_peers > 0:
+        return pytest_peers
     raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
     if raw.isdigit():
         return max(1, int(raw))
     try:
         from e2e_runtime_cell import count_live_runtime_cells
 
-        return max(1, count_live_runtime_cells())
+        live_cells = count_live_runtime_cells()
+        if live_cells > 0:
+            return live_cells
     except ImportError:
         pass
     return 1
@@ -203,13 +273,17 @@ def parallel_active_test_count() -> int:
 def parallel_mux_peer_count() -> int:
     """Wave/mux peer load for recovery lock scaling (align with chrome_mcp_client TRSM)."""
     wave_leases = 0
-    mux_contexts = 0
+    active_mux_contexts = 0
     try:
-        from mux_load import snapshot_mux_load
+        from mux_load import (
+            active_mux_context_count,
+            read_mux_status,
+            snapshot_mux_load,
+        )
 
         snapshot = snapshot_mux_load(force=True)
         wave_leases = max(0, snapshot.wave_leases)
-        mux_contexts = max(0, snapshot.mux_contexts)
+        active_mux_contexts = active_mux_context_count(read_mux_status(force=True))
     except ImportError:
         pass
     daemon_count = 1
@@ -232,7 +306,7 @@ def parallel_mux_peer_count() -> int:
         pass
     return max(
         wave_leases,
-        mux_contexts,
+        active_mux_contexts,
         daemon_count,
         parallel_active_test_count(),
         policy_wave_leases,
@@ -240,7 +314,7 @@ def parallel_mux_peer_count() -> int:
 
 
 def recovery_lock_wait_sec() -> float:
-    active = parallel_mux_peer_count()
+    active = max(parallel_active_test_count(), _cold_shim_defer_peer_load())
     scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
     cap = MUX_RECOVERY_LOCK_WAIT_SEC
     try:

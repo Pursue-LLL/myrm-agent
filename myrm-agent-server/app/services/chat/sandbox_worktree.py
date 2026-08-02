@@ -248,6 +248,47 @@ async def cleanup_sandbox_worktree(base_dir: str, chat_id: str) -> bool:
         return False
 
 
+async def _auto_commit_dirty_worktree(worktree_path: str) -> bool:
+    """Commit any uncommitted changes in the worktree before merge.
+
+    Prevents data loss when agent tools (file_write, etc.) modify files
+    without creating git commits.  Returns True if a commit was created.
+    """
+    status = await asyncio.to_thread(
+        subprocess.run,
+        ["git", "status", "--porcelain"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        env=_GIT_ENV,
+    )
+    if status.returncode != 0 or not status.stdout.strip():
+        return False
+
+    await asyncio.to_thread(
+        subprocess.run,
+        ["git", "add", "-A"],
+        cwd=worktree_path,
+        capture_output=True,
+        timeout=10,
+        env=_GIT_ENV,
+    )
+    commit = await asyncio.to_thread(
+        subprocess.run,
+        ["git", "commit", "-m", "Sandbox auto-commit before merge"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env=_GIT_ENV,
+    )
+    if commit.returncode == 0:
+        logger.info("Auto-committed dirty sandbox worktree at %s", worktree_path)
+        return True
+    return False
+
+
 async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, str]:
     """Merge sandbox branch changes back to the parent branch.
 
@@ -258,6 +299,10 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
     parent_branch = await _get_current_branch(base_dir)
     if not parent_branch:
         return False, "Cannot determine parent branch"
+
+    worktree_path = get_sandbox_worktree_path(base_dir, chat_id)
+    if Path(worktree_path).exists():
+        await _auto_commit_dirty_worktree(worktree_path)
 
     try:
         result = await asyncio.to_thread(

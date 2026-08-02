@@ -1169,12 +1169,20 @@ export interface ChatShareResponse {
   share_url: string;
   expires_at: number;
   chat_id: string;
+  password_protected: boolean;
 }
 
-export const createChatShare = async (chatId: string, ttlDays: number = 7): Promise<ChatShareResponse> => {
+export const createChatShare = async (
+  chatId: string,
+  ttlDays: number = 7,
+  password?: string,
+): Promise<ChatShareResponse> => {
   const res = await apiRequest<{ data: ChatShareResponse }>(`/chats/${chatId}/share`, {
     method: 'POST',
-    body: JSON.stringify({ ttl_days: ttlDays }),
+    body: JSON.stringify({
+      ttl_days: ttlDays,
+      ...(password ? { password } : {}),
+    }),
     headers: { 'Content-Type': 'application/json' },
   });
   return res.data;

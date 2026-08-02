@@ -183,9 +183,19 @@ async def sandbox_diff(chat_id: str):
         raise HTTPException(status_code=400, detail="Sandbox worktree not found")
 
     try:
+        parent_head = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "rev-parse", "HEAD"],
+            cwd=sandbox_base,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        base_ref = parent_head.stdout.strip() if parent_head.returncode == 0 else "HEAD"
+
         stat_result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "diff", "--stat", "HEAD"],
+            ["git", "diff", "--stat", base_ref],
             cwd=sandbox_path,
             capture_output=True,
             text=True,
@@ -194,7 +204,7 @@ async def sandbox_diff(chat_id: str):
 
         diff_result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "diff", "HEAD"],
+            ["git", "diff", base_ref],
             cwd=sandbox_path,
             capture_output=True,
             text=True,

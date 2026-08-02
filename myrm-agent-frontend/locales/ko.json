@@ -3396,8 +3396,6 @@
     "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
-    "customPrimaryColor": "Custom Primary Color",
-    "customPrimaryColorDesc": "Override the theme primary color (leave empty for default)",
     "notificationDeliveries": "Notification Deliveries",
     "notificationDeliveriesDesc": "Custom notification channels and delivery targets",
     "webPushTitle": "Background Push Notifications",
@@ -7473,10 +7471,18 @@
       }
     },
     "sharePreview": {
-      "open": "Copy read-only share link",
-      "successTitle": "Share link copied",
-      "successDescription": "Anyone with the link can view this artifact for 7 days.",
-      "failed": "Failed to create share link"
+      "open": "공유",
+      "title": "공유 링크",
+      "passwordLabel": "비밀번호 (선택)",
+      "passwordPlaceholder": "접근 비밀번호 설정",
+      "ttlLabel": "유효 기간",
+      "ttlDays": "{days}일",
+      "createBtn": "링크 생성",
+      "creating": "생성 중...",
+      "successTitle": "공유 링크가 복사되었습니다",
+      "successDescription": "링크가 있는 사람은 {days}일 동안 볼 수 있습니다.",
+      "successDescriptionProtected": "비밀번호 보호 링크가 복사되었습니다. 유효 기간 {days}일.",
+      "failed": "공유 링크 생성 실패"
     },
     "publish": {
       "title": "웹에 게시",

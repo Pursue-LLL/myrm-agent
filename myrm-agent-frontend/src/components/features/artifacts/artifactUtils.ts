@@ -323,6 +323,7 @@ export interface ArtifactSharePreviewResult {
   token: string;
   share_path: string;
   expires_at: number;
+  password_protected: boolean;
 }
 
 export function buildPublicArtifactShareUrl(sharePath: string): string {
@@ -334,13 +335,15 @@ export function buildPublicArtifactShareUrl(sharePath: string): string {
 export async function createArtifactSharePreview(
   artifactId: string,
   artifactType?: string,
+  options?: { ttlDays?: number; password?: string },
 ): Promise<ArtifactSharePreviewResult> {
   const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/share-preview`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      ttl_days: 7,
+      ttl_days: options?.ttlDays ?? 7,
       ...(artifactType ? { artifact_type: artifactType } : {}),
+      ...(options?.password ? { password: options.password } : {}),
     }),
   });
   if (!response.ok) {

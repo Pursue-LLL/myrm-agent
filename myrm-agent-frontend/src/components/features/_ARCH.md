@@ -42,7 +42,7 @@
 | `message-actions/` / `message-input-actions/` | 消息操作与输入区动作 | [_ARCH.md](message-actions/_ARCH.md) · [_ARCH.md](message-input-actions/_ARCH.md) |
 | `notifications/` | 通知中心 | [_ARCH.md](notifications/_ARCH.md) |
 | `task-card/` | 任务卡片组件 | [_ARCH.md](task-card/_ARCH.md) |
-| `theme/` | 主题切换 | [_ARCH.md](theme/_ARCH.md) |
+| `theme/` | Theme Engine v2（预设、壁纸、Compiler runtime） | [_ARCH.md](theme/_ARCH.md) |
 | `voice/` | 语音输入/会话 UI | [_ARCH.md](voice/_ARCH.md) |
 | `agent-events/` | Agent 事件时间线 | [_ARCH.md](agent-events/_ARCH.md) |
 | `file-preview/` | 通用文件预览 | [_ARCH.md](file-preview/_ARCH.md) |

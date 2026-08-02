@@ -63,6 +63,7 @@
 | `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
 | `extension/` | ✅ 辅助 | 浏览器扩展桥 WebSocket 生命周期与 CDP 代理 | [_ARCH.md](extension/_ARCH.md) |
+| `theme/` | ✅ 辅助 | 主题包 inspect/install/export（`.myrmtheme`） | [_ARCH.md](theme/_ARCH.md) |
 ---
 
 ## 依赖关系

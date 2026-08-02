@@ -1039,7 +1039,6 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
 
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
     chat._reset_shell_session_clock()
-    wall_started_at = _approval_attempt_wall_clock_start()
     await _force_chat_shell(chat, label="pre-attempt")
     progress("new chat + ensure surface")
     new_chat_timeout = signoff_parallel_desktop_mux_step_timeout_sec(75.0)
@@ -1186,11 +1185,14 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     heartbeat_e2e_lease()
 
     progress("wait desktop tool activity")
+    # R271: per-attempt wall must not include force_chat_shell/textedit prep —
+    # otherwise wait_desktop_tool_activity fail-fast fires on poll #1 after long mux prep.
+    activity_wall_started_at = _approval_attempt_wall_clock_start()
     tool_activity, last_tool, server_pending, ui_pending = await ensure_interact_gate(
         chat,
         chat_id=chat_id,
         textedit_foreground=True,
-        wall_started_at=wall_started_at,
+        wall_started_at=activity_wall_started_at,
     )
     progress(
         f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"

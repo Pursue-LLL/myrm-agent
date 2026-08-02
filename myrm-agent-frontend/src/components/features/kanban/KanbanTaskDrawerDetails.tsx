@@ -6,7 +6,7 @@ import { PRIORITY_STYLES, TIMEOUT_PRESETS, formatDate, formatDuration } from './
 import KanbanMarkdown from './KanbanMarkdown';
 import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
-import type { Agent } from '@/services/agent';
+import type { AgentListItem } from '@/services/agent';
 import { KANBAN_SOURCE_CHAT_METADATA_KEY } from '@/services/kanban';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
 
@@ -30,8 +30,8 @@ interface TaskDetailsSectionProps {
   setCriteriaText: (v: string) => void;
   savingCriteria: boolean;
   handleSaveCriteria: () => void;
-  assignedAgent: Agent | null;
-  agents: Agent[];
+  assignedAgent: AgentListItem | null;
+  agents: AgentListItem[];
   handleAgentChange: (agentId: string | null) => void;
   t: (key: string) => string;
 }

@@ -10,6 +10,7 @@
 //! - SetupTokenState / get_setup_token
 //! - bootstrap_agent_runner / resolve_agent_runner_path
 //! - Inline Input: handle_inline_input_shortcut / paste_back / INLINE_INPUT_SHORTCUT_STR
+//! - `.myrmtheme` open-file bridge via theme_package_open (emit theme-package-open)
 //!
 //! [POS]
 //! Tauri 主进程内的 Sidecar 与系统运行时层，承接 Python/Next.js/Agent Runner 进程生命周期。
@@ -17,6 +18,7 @@
 mod agent_runner;
 mod appshot;
 mod inline_input;
+mod theme_package_open;
 pub mod nextjs_frontend;
 mod port;
 pub mod python_backend;
@@ -29,6 +31,7 @@ pub use appshot::{
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
 pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
+pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use setup_token::SetupTokenState;

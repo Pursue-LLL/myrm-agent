@@ -27,6 +27,7 @@ from app.config.deploy_mode import is_local_mode
 from app.core.channel_bridge import channel_gateway
 from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
 from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 from app.core.channel_bridge.channel_factory import create_all_channels
 from app.core.channel_bridge.kanban_command_handler import ChannelKanbanCommandHandler
 from app.core.notifications.dispatcher import NotificationDispatcher
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 _notification_dispatcher: NotificationDispatcher | None = None
 _btw_notifier: BtwTaskNotifier | None = None
+_goal_terminal_notifier: GoalTerminalNotifier | None = None
 _web_push_dispatcher: WebPushDispatcher | None = None
 _background_task_handler: ChannelBackgroundTaskHandler | None = None
 _kanban_command_handler: ChannelKanbanCommandHandler | None = None
@@ -82,6 +84,10 @@ async def start_channel_gateway() -> None:
     _btw_notifier = BtwTaskNotifier(bus)
     await _btw_notifier.start()
 
+    global _goal_terminal_notifier  # noqa: PLW0603
+    _goal_terminal_notifier = GoalTerminalNotifier(bus)
+    await _goal_terminal_notifier.start()
+
     global _web_push_dispatcher  # noqa: PLW0603
     _web_push_dispatcher = WebPushDispatcher(bus)
     await _web_push_dispatcher.start()
@@ -97,6 +103,15 @@ async def stop_channel_gateway() -> None:
             logger.warning("Failed to stop web push dispatcher: %s", exc)
         finally:
             _web_push_dispatcher = None
+
+    global _goal_terminal_notifier  # noqa: PLW0603
+    if _goal_terminal_notifier:
+        try:
+            await _goal_terminal_notifier.stop()
+        except Exception as exc:
+            logger.warning("Failed to stop goal terminal notifier: %s", exc)
+        finally:
+            _goal_terminal_notifier = None
 
     global _btw_notifier  # noqa: PLW0603
     if _btw_notifier:

@@ -166,6 +166,7 @@ function NavBarInner({
 
   return (
     <nav
+      data-theme-shell="nav"
       className={cn(
         'flex flex-col',
         'bg-background/95 backdrop-blur-xl',

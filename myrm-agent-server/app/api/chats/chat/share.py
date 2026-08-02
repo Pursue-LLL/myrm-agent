@@ -4,6 +4,7 @@
 - app.services.chat.share_token (POS: HMAC token create/parse)
 - app.services.chat.share_renderer (POS: HTML generation)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
+- app.core.security.share_hmac (POS: password-protection detection)
 
 [OUTPUT]
 - router: authenticated create/revoke endpoints
@@ -11,6 +12,7 @@
 
 [POS]
 Enables GUI users to share conversations via time-limited read-only URLs.
+Supports optional password-protected share links.
 Cloud: public URL; Local/Desktop: falls back to client-side HTML export.
 """
 
@@ -18,7 +20,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import update
@@ -26,6 +28,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
+from app.core.security.share_hmac import is_password_protected
+from app.core.security.share_password_page import render_password_gate_html
 from app.database.connection import get_db
 from app.database.models.chat import Chat
 from app.services.chat.chat_service import ChatService
@@ -57,6 +61,7 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
 
 class CreateChatShareRequest(BaseModel):
     ttl_days: int = Field(default=_DEFAULT_TTL_DAYS, ge=1, le=_MAX_TTL_DAYS)
+    password: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class CreateChatShareResponse(BaseModel):
@@ -64,6 +69,7 @@ class CreateChatShareResponse(BaseModel):
     share_url: str
     expires_at: int
     chat_id: str
+    password_protected: bool = False
 
 
 @router.post("/{chat_id}/share", response_model=CreateChatShareResponse)
@@ -85,7 +91,9 @@ async def create_chat_share(
         await db.commit()
 
     ttl_seconds = body.ttl_days * 24 * 3600
-    token, expires_at = create_chat_share_token(chat_id, ttl_seconds=ttl_seconds)
+    token, expires_at = create_chat_share_token(
+        chat_id, ttl_seconds=ttl_seconds, password=body.password,
+    )
 
     base_url = str(request.base_url).rstrip("/")
     share_url = f"{base_url}/api/v1/public/chat-share/{token}"
@@ -95,6 +103,7 @@ async def create_chat_share(
         share_url=share_url,
         expires_at=expires_at,
         chat_id=chat_id,
+        password_protected=body.password is not None,
     )
 
 
@@ -125,11 +134,20 @@ async def revoke_chat_share(
 async def get_public_chat_share(
     request: Request,
     token: str,
+    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
 ) -> HTMLResponse:
     """Serve the read-only HTML page for a valid chat share token (no auth)."""
-    claims = parse_chat_share_token(token)
+    protected = is_password_protected(token)
+    if protected and not pwd:
+        return HTMLResponse(render_password_gate_html(), status_code=403)
+
+    claims = parse_chat_share_token(token, password=pwd)
     if claims is None:
+        if protected and pwd:
+            return HTMLResponse(
+                render_password_gate_html(wrong_password=True), status_code=403,
+            )
         raise HTTPException(status_code=404, detail="Share link is invalid or expired")
 
     chat = await ChatService.get_chat_metadata(claims.chat_id)

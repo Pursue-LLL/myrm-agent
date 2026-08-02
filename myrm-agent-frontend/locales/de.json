@@ -3396,8 +3396,6 @@
     "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
-    "customPrimaryColor": "Custom Primary Color",
-    "customPrimaryColorDesc": "Override the theme primary color (leave empty for default)",
     "notificationDeliveries": "Notification Deliveries",
     "notificationDeliveriesDesc": "Custom notification channels and delivery targets",
     "webPushTitle": "Background Push Notifications",
@@ -7473,10 +7471,18 @@
       }
     },
     "sharePreview": {
-      "open": "Copy read-only share link",
-      "successTitle": "Share link copied",
-      "successDescription": "Anyone with the link can view this artifact for 7 days.",
-      "failed": "Failed to create share link"
+      "open": "Teilen",
+      "title": "Freigabelink",
+      "passwordLabel": "Passwort (optional)",
+      "passwordPlaceholder": "Zugangspasswort festlegen",
+      "ttlLabel": "Gültig für",
+      "ttlDays": "{days} Tage",
+      "createBtn": "Link erstellen",
+      "creating": "Wird erstellt...",
+      "successTitle": "Freigabelink kopiert",
+      "successDescription": "Jeder mit dem Link kann das Artefakt {days} Tage lang ansehen.",
+      "successDescriptionProtected": "Passwortgeschützter Link kopiert. Gültig für {days} Tage.",
+      "failed": "Freigabelink konnte nicht erstellt werden"
     },
     "publish": {
       "title": "Im Web veröffentlichen",

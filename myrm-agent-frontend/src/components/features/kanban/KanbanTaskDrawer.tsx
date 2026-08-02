@@ -164,7 +164,6 @@ export default function KanbanTaskDrawer({
             <LatestProgressSection latestSummary={drawer.latestSummary} t={t} />
 
             <DependenciesSection
-              task={task}
               parents={drawer.parents}
               children={drawer.children}
               showAddDep={drawer.showAddDep}

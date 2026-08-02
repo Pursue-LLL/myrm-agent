@@ -78,14 +78,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                println!("🛑 Exit requested (e.g., Cmd+Q), initiating graceful shutdown...");
-                api.prevent_exit();
-                let app_handle_clone = app_handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    lifecycle::graceful_shutdown(app_handle_clone.clone()).await;
-                    app_handle_clone.exit(0);
-                });
+            match event {
+                tauri::RunEvent::Opened { urls } => {
+                    runtime::handle_open_urls(&app_handle, urls);
+                }
+                tauri::RunEvent::ExitRequested { api, .. } => {
+                    println!("🛑 Exit requested (e.g., Cmd+Q), initiating graceful shutdown...");
+                    api.prevent_exit();
+                    let app_handle_clone = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        lifecycle::graceful_shutdown(app_handle_clone.clone()).await;
+                        app_handle_clone.exit(0);
+                    });
+                }
+                _ => {}
             }
         });
 }

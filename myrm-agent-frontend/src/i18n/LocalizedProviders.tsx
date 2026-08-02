@@ -19,6 +19,7 @@ import type { Messages } from '@/i18n/locale-manifest';
 import PageLayout from '@/components/layout/PageLayout';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import ThemeProvider from '@/components/features/theme/ThemeProvider';
+import ThemeProfileProvider from '@/components/features/theme/ThemeProfileProvider';
 import ToastServiceInitializer from '@/components/features/app-shell/toast-service-initializer';
 import SettingsSyncInitializer from '@/components/features/app-shell/settings-sync-initializer';
 import AuthInitializer from '@/components/features/app-shell/auth-initializer';
@@ -45,6 +46,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
       <DocumentLang locale={locale} />
       <GlobalErrorBoundary>
         <ThemeProvider>
+          <ThemeProfileProvider>
           <TooltipProvider delayDuration={300} skipDelayDuration={100}>
             <ClientIntlProvider locale={locale as Locale} shellMessages={messages as Messages}>
               <ToastServiceInitializer />
@@ -61,6 +63,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
               <Toaster position="top-right" expand={true} richColors />
             </ClientIntlProvider>
           </TooltipProvider>
+          </ThemeProfileProvider>
         </ThemeProvider>
       </GlobalErrorBoundary>
     </>

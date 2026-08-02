@@ -4,10 +4,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, MessageSquarePlus, Play, Send } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, Lock, MessageSquarePlus, Play, Send } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { pushWeChatOfficialDraft } from '@/services/channels';
 import { useWechatCoverSuggest } from './useWechatCoverSuggest';
@@ -107,6 +108,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [publications, setPublications] = useState<ArtifactPublication[]>(artifact.publications ?? []);
   const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
+  const [sharePassword, setSharePassword] = useState('');
+  const [shareTtlDays, setShareTtlDays] = useState(7);
   const [ingestLoading, setIngestLoading] = useState(false);
   const [wechatDraftOpen, setWechatDraftOpen] = useState(false);
   const [wechatDraftTitle, setWechatDraftTitle] = useState('');
@@ -229,29 +233,34 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     [deployPreflight],
   );
 
-  const handleSharePreview = useCallback(
-    async (event: React.MouseEvent) => {
-      event.stopPropagation();
-      if (shareLoading) {
-        return;
-      }
-      setShareLoading(true);
-      try {
-        const result = await createArtifactSharePreview(artifactState.id, artifactState.type);
-        const url = buildPublicArtifactShareUrl(result.share_path);
-        await writeToClipboard(url);
-        toast.success(t('sharePreview.successTitle'), {
-          description: t('sharePreview.successDescription'),
-        });
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : t('sharePreview.failed');
-        toast.error(message);
-      } finally {
-        setShareLoading(false);
-      }
-    },
-    [artifactState.id, shareLoading, t],
-  );
+  const handleSharePreview = useCallback(async () => {
+    if (shareLoading) return;
+    setShareLoading(true);
+    try {
+      const pwd = sharePassword.trim() || undefined;
+      const result = await createArtifactSharePreview(
+        artifactState.id,
+        artifactState.type,
+        { ttlDays: shareTtlDays, password: pwd },
+      );
+      const url = buildPublicArtifactShareUrl(result.share_path);
+      await writeToClipboard(url);
+      const descKey = result.password_protected
+        ? 'sharePreview.successDescriptionProtected'
+        : 'sharePreview.successDescription';
+      toast.success(t('sharePreview.successTitle'), {
+        description: t(descKey, { days: shareTtlDays }),
+      });
+      setSharePopoverOpen(false);
+      setSharePassword('');
+      setShareTtlDays(7);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('sharePreview.failed');
+      toast.error(message);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [artifactState.id, artifactState.type, shareLoading, sharePassword, shareTtlDays, t]);
 
   const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
   const inlineFetchAttempted = useRef(false);
@@ -694,16 +703,63 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
             </Button>
           )}
           {canSharePreview && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-primary"
-              disabled={shareLoading}
-              onClick={handleSharePreview}
-              title={t('sharePreview.open')}
-            >
-              <Link2 className={cn('w-4 h-4', shareLoading && 'opacity-50')} />
-            </Button>
+            <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-primary"
+                  onClick={(e) => e.stopPropagation()}
+                  title={t('sharePreview.open')}
+                >
+                  <Link2 className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-72 p-3 space-y-3"
+                align="end"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-sm font-medium">{t('sharePreview.title')}</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    {t('sharePreview.passwordLabel')}
+                  </Label>
+                  <Input
+                    type="password"
+                    value={sharePassword}
+                    onChange={(e) => setSharePassword(e.target.value)}
+                    placeholder={t('sharePreview.passwordPlaceholder')}
+                    className="h-8 text-sm"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('sharePreview.ttlLabel')}</Label>
+                  <div className="flex gap-1.5">
+                    {[1, 7, 14, 30].map((d) => (
+                      <Button
+                        key={d}
+                        variant={shareTtlDays === d ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-7 flex-1 text-xs px-0"
+                        onClick={() => setShareTtlDays(d)}
+                      >
+                        {t('sharePreview.ttlDays', { days: d })}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  className="w-full h-8 text-sm"
+                  disabled={shareLoading}
+                  onClick={() => { void handleSharePreview(); }}
+                >
+                  {shareLoading ? t('sharePreview.creating') : t('sharePreview.createBtn')}
+                </Button>
+              </PopoverContent>
+            </Popover>
           )}
           {isDeployCandidate && (
             <Button

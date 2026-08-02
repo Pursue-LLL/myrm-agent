@@ -18,4 +18,38 @@ describe('configNormalizer', () => {
     });
     expect(normalized.providers.length).toBeGreaterThan(0);
   });
+
+  it('strips studio preview profile from personal settings on startup normalize', () => {
+    const normalized = normalizePersonalSettings({
+      activeThemeProfileId: 'studio/__preview__',
+      themeProfiles: [
+        {
+          id: 'studio/__preview__',
+          name: 'Preview',
+          layoutId: 'full-bleed',
+          fontId: 'inter',
+          builtin: false,
+          palette: {
+            primaryLight: '#112233',
+            primaryDark: '#223344',
+            primaryHoverLight: '#334455',
+            primaryHoverDark: '#445566',
+            primaryDarkLight: '#556677',
+            primaryDarkDark: '#667788',
+            dualAccent: false,
+          },
+          art: {
+            focusX: 0.5,
+            focusY: 0.5,
+            wash: 0.5,
+            mediaKind: 'none',
+            assetRef: null,
+            posterAssetRef: null,
+          },
+        },
+      ],
+    });
+    expect(normalized.activeThemeProfileId).toBe('official-default');
+    expect(normalized.themeProfiles).toEqual([]);
+  });
 });

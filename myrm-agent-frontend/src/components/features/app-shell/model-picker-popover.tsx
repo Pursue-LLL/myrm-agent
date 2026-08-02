@@ -13,6 +13,7 @@ import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
+import { useOrgModelPolicyStore } from '@/store/useOrgModelPolicyStore';
 
 interface PickerModelSelection {
   providerId: string;
@@ -67,7 +68,13 @@ export default function ModelPickerPopover({
     })),
   );
 
+  const { restricted, initialized: policyInitialized, loadPolicy, isModelAllowed } = useOrgModelPolicyStore();
+
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
+
+  useEffect(() => {
+    if (!policyInitialized) void loadPolicy();
+  }, [policyInitialized, loadPolicy]);
 
   useEffect(() => {
     if (!open) return;
@@ -294,6 +301,7 @@ export default function ModelPickerPopover({
                     const caps = capabilities[model];
                     const cost = costPerMillion[model];
                     const contextLabel = caps?.max_input_tokens ? formatTokens(caps.max_input_tokens) : null;
+                    const policyBlocked = restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
                     const highlightColor =
                       activeSlot === 'primary'
                         ? 'bg-primary/10 text-primary font-medium'
@@ -304,10 +312,15 @@ export default function ModelPickerPopover({
                     return (
                       <button
                         key={model}
-                        onClick={() => handleModelClick(provider.id, model)}
+                        disabled={policyBlocked}
+                        onClick={() => !policyBlocked && handleModelClick(provider.id, model)}
+                        title={policyBlocked ? t('orgPolicyRestricted') : undefined}
                         className={cn(
-                          'flex items-center w-full pl-9 pr-3 py-2.5 text-sm hover:bg-accent transition-colors cursor-pointer gap-2',
-                          isActive && highlightColor,
+                          'flex items-center w-full pl-9 pr-3 py-2.5 text-sm transition-colors gap-2',
+                          policyBlocked
+                            ? 'opacity-40 cursor-not-allowed'
+                            : 'hover:bg-accent cursor-pointer',
+                          isActive && !policyBlocked && highlightColor,
                         )}
                       >
                         <span className="truncate flex-1 text-left flex items-center gap-2">{model}</span>

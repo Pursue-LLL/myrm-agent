@@ -14,6 +14,13 @@ ATTACH_RESTART_COOLDOWN_SEC: float = 45.0
 ATTACH_RESTART_BLOCKED_TOKEN: str = "MUX_ATTACH_RESTART_BLOCKED_PARALLEL"
 
 
+def _desktop_soak_signoff_parallel_attach_restart_ok() -> bool:
+    """R265: desktop leg soak must heal mux attach under active wave leases."""
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
+        "MYRM_E2E_DESKTOP_SOAK", ""
+    ).strip() in ("1", "true", "yes")
+
+
 def _parallel_load_blocks_attach_restart() -> bool:
     """P0-B: active mux contexts / wave leases block global daemon restart."""
     try:
@@ -76,7 +83,11 @@ def _attach_restart_registry_lock() -> Iterator[Path]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def force_mux_attach_restart(*, reason: str = "attach new_page timeout") -> bool:
+def force_mux_attach_restart(
+    *,
+    reason: str = "attach new_page timeout",
+    allow_parallel: bool = False,
+) -> bool:
     """Restart mux daemon via chrome-e2e-preflight (MYRM_MUX_FORCE_ATTACH_RESTART=1).
 
     Safe under active wave leases: attach heal path only restarts mux, not shared backend.
@@ -85,7 +96,7 @@ def force_mux_attach_restart(*, reason: str = "attach new_page timeout") -> bool
     Parallel callers must use ``force_mux_attach_restart_scoped`` or
     ``force_mux_attach_restart_deduped`` (inside an existing ``mux_recovery_scope``).
     """
-    if _parallel_load_blocks_attach_restart():
+    if not allow_parallel and _parallel_load_blocks_attach_restart():
         import sys
 
         sys.stderr.write(
@@ -143,7 +154,8 @@ def force_mux_attach_restart_deduped(
                     return False
             except ValueError:
                 pass
-        ok = force_mux_attach_restart(reason=reason)
+        allow_parallel = _desktop_soak_signoff_parallel_attach_restart_ok()
+        ok = force_mux_attach_restart(reason=reason, allow_parallel=allow_parallel)
         if ok:
             stamp_path.write_text(str(now), encoding="utf-8")
         return ok

@@ -21,6 +21,10 @@ const AccountSection = dynamic(() => import('./sections/personal/AccountSection'
 const PreferencesSection = dynamic(() => import('./sections/personal/PreferencesSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const ThemeStudioSettingsSection = dynamic(
+  () => import('./sections/personal/ThemeStudioSettingsSection'),
+  { loading: () => <SettingsSkeleton /> },
+);
 const PersonalizationSection = dynamic(() => import('./sections/personal/PersonalizationSection'), {
   loading: () => <SettingsSkeleton />,
 });
@@ -102,6 +106,7 @@ const DEFAULT_TAB: SettingsTab = 'account';
 const BASE_TABS: SettingsTab[] = [
   'account',
   'preferences',
+  'theme-studio',
   'personalization',
   'agents',
   'security',
@@ -170,6 +175,7 @@ const DEPRECATED_TAB_MAP: Record<string, { parent: SettingsTab; sub?: string }> 
 const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   account: AccountSection,
   preferences: PreferencesSection,
+  'theme-studio': ThemeStudioSettingsSection,
   personalization: PersonalizationSection,
   agents: AgentsSection,
   security: SecurityPolicySection,
@@ -215,7 +221,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
 };
 
 // 轻量级 Section（预渲染）
-const LIGHTWEIGHT_SECTIONS: SettingsTab[] = ['account', 'preferences', 'personalization', 'developer'];
+const LIGHTWEIGHT_SECTIONS: SettingsTab[] = ['account', 'preferences', 'theme-studio', 'personalization', 'developer'];
 
 function SettingsLayout() {
   const t = useTranslations('settings');

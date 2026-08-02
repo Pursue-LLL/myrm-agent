@@ -604,8 +604,57 @@ def _open_page_body_fraction_cap_sec() -> float:
 
 def _open_page_layout_wait_sec() -> float:
     if is_e2e_signoff_runtime():
-        return float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
+        base = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
+        peers = _parallel_open_page_peer_count()
+        if peers >= 1:
+            return min(base + peers * 15.0, 300.0)
+        return base
     return _OPEN_PAGE_LAYOUT_WAIT_SEC
+
+
+_APP_LAYOUT_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="app-layout"]'),
+  pathname: location.pathname,
+  title: document.title,
+  bodyLen: document.body?.innerText?.length ?? 0,
+}))()"""
+
+
+def _wait_for_app_layout_open(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    url: str,
+    timeout_ms: int,
+) -> None:
+    """Wait for AppLayout shell; signoff reload-heals stale mux tabs that never hydrated."""
+    layout_timeout = _open_page_layout_wait_sec()
+    client.set_tool_wall_deadline(None)
+    try:
+        wait_for_state(
+            client,
+            page,
+            _APP_LAYOUT_READY_JS,
+            timeout_sec=layout_timeout,
+        )
+        return
+    except AssertionError:
+        if not is_e2e_signoff_runtime():
+            raise
+    client.set_tool_wall_deadline(None)
+    reload_mcp_page(client, page, target_url=url, timeout_ms=timeout_ms)
+    client.set_tool_wall_deadline(None)
+    try:
+        wait_for_state(
+            client,
+            page,
+            _APP_LAYOUT_READY_JS,
+            timeout_sec=min(120.0, layout_timeout * 0.5),
+        )
+    except AssertionError as retry_exc:
+        raise AssertionError(
+            f"App layout did not hydrate after reload: {retry_exc.args[0]}"
+        ) from retry_exc
 
 
 def _shpoib_rebind_location_wait_cap() -> float:
@@ -764,25 +813,9 @@ def _open_page_parallel_budgets(
 
 def _parallel_open_page_peer_count() -> int:
     """Wave/mux peers for open_mcp_page heal policy (R122-B8)."""
-    try:
-        from mux_load import snapshot_mux_load
+    from mux_load import parallel_open_page_peer_count
 
-        load = snapshot_mux_load()
-        mux = int(load.mux_contexts)
-        wave = int(load.wave_leases)
-        if is_e2e_signoff_runtime():
-            # R184: parent signoff runner leaves stale wave leases — mux contexts is ground truth.
-            return mux if mux > 0 else wave
-        return max(wave, mux)
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
-        pass
-    monorepo_root = Path(__file__).resolve().parents[4]
-    try:
-        from stack_mutation_policy import wave_active_lease_count
-
-        return wave_active_lease_count(monorepo_root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return 0
+    return parallel_open_page_peer_count(signoff=is_e2e_signoff_runtime())
 
 
 def _should_skip_attach_preflight_restart() -> bool:
@@ -850,6 +883,54 @@ def _signoff_mux_drain_budget_sec() -> float:
     return budget
 
 
+def _wait_cold_shim_peer_pressure_drain(
+    *, budget_sec: float, current_node: str
+) -> None:
+    """Wait until mux peer load drops below cold-shim defer threshold (R231)."""
+    try:
+        from transport_supervisor import (
+            _cold_shim_defer_peer_load,
+            cold_shim_restart_defer_peer_threshold,
+        )
+    except ImportError:
+        return
+    defer_threshold = cold_shim_restart_defer_peer_threshold()
+    deadline = time.monotonic() + max(0.0, budget_sec)
+    poll_sec = 1.0
+    while time.monotonic() < deadline:
+        peers = _cold_shim_defer_peer_load()
+        if peers < defer_threshold:
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        print(
+            f"E2E_COLD_SHIM_PEER_WAIT: peers={peers} "
+            f"threshold={defer_threshold} "
+            f"remaining={remaining:.0f}s node={current_node}",
+            file=sys.stderr,
+            flush=True,
+        )
+        time.sleep(min(poll_sec, remaining))
+        poll_sec = min(poll_sec * 1.2, 5.0)
+    peers = _cold_shim_defer_peer_load()
+    if peers >= defer_threshold:
+        if is_e2e_signoff_runtime():
+            print(
+                f"E2E_COLD_SHIM_PEER_WAIT: peers={peers} "
+                f">= {defer_threshold} after {budget_sec:.0f}s — "
+                f"signoff proceed to mux recovery lock (node={current_node})",
+                file=sys.stderr,
+                flush=True,
+            )
+            return
+        raise RuntimeError(
+            f"E2E_COLD_SHIM_PEER_PRESSURE: defer_peer_load={peers} "
+            f">= {defer_threshold} after {budget_sec:.0f}s "
+            f"(node={current_node}; do not stop other pytest)"
+        )
+
+
 def _signoff_wait_mux_before_new_page(*, budget_sec: float | None = None) -> None:
     """Signoff pre-new_page mux gate — operation-credit transport SSOT (P0-B)."""
     from browser_orchestrator import wait_for_operation_credit
@@ -857,9 +938,16 @@ def _signoff_wait_mux_before_new_page(*, budget_sec: float | None = None) -> Non
     wait_budget = float(
         budget_sec if budget_sec is not None else _signoff_mux_drain_budget_sec()
     )
+    gate_started = time.monotonic()
+    credit_budget = min(wait_budget, _mux_transport_wait_budget_sec())
     wait_for_operation_credit(
-        budget_sec=wait_budget,
+        budget_sec=credit_budget,
         current_node="open_mcp_page_signoff_gate",
+    )
+    peer_budget = max(30.0, wait_budget - (time.monotonic() - gate_started))
+    _wait_cold_shim_peer_pressure_drain(
+        budget_sec=peer_budget,
+        current_node="open_mcp_page_signoff_peer_gate",
     )
 
 
@@ -1067,6 +1155,8 @@ def _sync_open_page_tool_wall(
     now = time.monotonic()
     remaining = min(wall_deadline, total_deadline) - now
     if remaining <= 0:
+        if is_e2e_signoff_runtime():
+            return
         client.set_tool_wall_deadline(now)
         return
     if _open_page_parallel_total_wall_only():
@@ -1111,7 +1201,11 @@ def _refresh_signoff_open_nav_tool_wall(
     nav_floor = min(float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.6)
     if peers >= 2:
         nav_floor = max(nav_floor, 90.0 + peers * 12.0)
-    budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
+    if attempt_remaining < 30.0 and bootstrap_remaining < 30.0:
+        # R265: mux queue consumed attempt wall — grant fresh nav slice from SSOT.
+        budget = max(nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55)
+    else:
+        budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
     client.set_tool_wall_deadline(now + budget)
 
 
@@ -1326,7 +1420,32 @@ def open_mcp_page(
                         timeout_ms=new_page_timeout_ms,
                         attempt_wall_deadline=attempt_wall_deadline,
                     )
+                    if is_e2e_signoff_runtime():
+                        # R266: mux-delayed new_page retries exhaust attempt-local tool wall.
+                        wall_deadline = time.monotonic() + open_page_wall_budget_sec
+                        total_deadline = time.monotonic() + open_page_total_budget_sec
+                        client.set_tool_wall_deadline(None)
                     ensure_desktop_viewport(client, page)
+                    if is_e2e_signoff_runtime():
+                        # R265: mux-delayed new_page may return before document paints — re-nav heal.
+                        client.navigate(page, url, timeout_ms=resolved_timeout_ms)
+                        wall_deadline = time.monotonic() + open_page_wall_budget_sec
+                        total_deadline = time.monotonic() + open_page_total_budget_sec
+                        client.set_tool_wall_deadline(None)
+                        wait_for_state(
+                            client,
+                            page,
+                            _LOCALHOST_PAGE_JS,
+                            timeout_sec=min(90.0, _open_page_layout_wait_sec() * 0.35),
+                        )
+                        binding_source = e2e_runtime_binding_source()
+                        if binding_source:
+                            client.set_tool_wall_deadline(None)
+                            client.evaluate(
+                                page,
+                                f"(() => {{{binding_source} return true; }})()",
+                            )
+                        dismiss_blocking_modals(client, page)
                     open_steps -= 1
                 open_steps -= 1
                 _sync_open_page_tool_wall(
@@ -1340,19 +1459,14 @@ def open_mcp_page(
                     wall_deadline=wall_deadline,
                     total_deadline=total_deadline,
                 )
-                if (
-                    _parallel_open_page_peer_count() >= 2
-                    and not is_e2e_signoff_runtime()
-                ):
-                    # R171: layout poll must not inherit sliced evaluate wall under mux queue.
+                if is_e2e_signoff_runtime() or _parallel_open_page_peer_count() >= 2:
+                    # R171/R266: layout poll must not inherit exhausted mux-queue tool wall.
                     client.set_tool_wall_deadline(None)
-                wait_for_state(
+                _wait_for_app_layout_open(
                     client,
                     page,
-                    """(() => ({
-                      ready: !!document.querySelector('[data-testid="app-layout"]'),
-                    }))()""",
-                    timeout_sec=_open_page_layout_wait_sec(),
+                    url=url,
+                    timeout_ms=resolved_timeout_ms,
                 )
                 client.set_tool_wall_deadline(None)
             from e2e_session_lifecycle import current_phase, seal_page_open_body_budget

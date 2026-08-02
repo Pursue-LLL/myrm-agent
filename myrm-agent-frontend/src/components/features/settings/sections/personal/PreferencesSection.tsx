@@ -22,8 +22,7 @@ import useEmbedConsentStore, { type EmbedMode } from '@/store/useEmbedConsentSto
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { toast } from '@/lib/utils/toast';
 import ThemeSwitcher from '../../Switcher';
-import SkinPicker from '../../SkinPicker';
-import FontPicker from '../../FontPicker';
+import AppearancePanel from '@/components/features/theme/AppearancePanel';
 import LanguageSwitcher from '../../LanguageSwitcher';
 import ConfigToggleItem from '../../ConfigToggleItem';
 import SettingsSection from '../SettingsSection';
@@ -161,11 +160,7 @@ const PreferencesSection = memo(() => {
       <SettingsSection title={t('appearance')}>
         <div className="flex flex-col space-y-4">
           <ThemeSwitcher />
-          <SkinPicker />
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">{t('font')}</p>
-            <FontPicker />
-          </div>
+          <AppearancePanel />
         </div>
       </SettingsSection>
 

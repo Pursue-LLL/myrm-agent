@@ -452,183 +452,37 @@
   --chart-5: #e2366f;
 }
 
-/* Skin: Teal — brand cyan, single accent without orange */
-:root[data-skin='teal'] {
-  --primary: #588e95;
-  --primary-foreground: #fbfbf8;
-  --primary-hover: #4a7d84;
-  --primary-dark: #10505a;
-  --ring: #588e95;
-}
-.dark[data-skin='teal'] {
-  --primary: #6ba3aa;
-  --primary-foreground: #0a0a0a;
-  --primary-hover: #7eb5bc;
-  --primary-dark: #588e95;
-  --ring: #6ba3aa;
+/* Theme Engine v2 — runtime tokens injected by ThemeProfileProvider; shell material hooks */
+html[data-myrm-theme-art='on'] [data-theme-shell='nav'] {
+  background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-nav-opacity, 0.72) * 100%), transparent);
 }
 
-/* Skin: Rose */
-:root[data-skin='rose'] {
-  --primary: #c4567a;
-  --primary-foreground: #fbfbf8;
-  --primary-hover: #a8425f;
-  --primary-dark: #8c3050;
-  --ring: #c4567a;
-}
-.dark[data-skin='rose'] {
-  --primary: #f472b6;
-  --primary-foreground: #0a0a0a;
-  --primary-hover: #ec4899;
-  --primary-dark: #db2777;
-  --ring: #f472b6;
+html[data-myrm-theme-art='on'] [data-theme-shell='sidebar'] {
+  background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-sidebar-opacity, 0.68) * 100%), transparent);
 }
 
-/* Skin: Amber */
-:root[data-skin='amber'] {
-  --primary: #b4762c;
-  --primary-foreground: #fbfbf8;
-  --primary-hover: #996320;
-  --primary-dark: #7d5018;
-  --ring: #b4762c;
-}
-.dark[data-skin='amber'] {
-  --primary: #fbbf24;
-  --primary-foreground: #0a0a0a;
-  --primary-hover: #f59e0b;
-  --primary-dark: #d97706;
-  --ring: #fbbf24;
+html[data-myrm-theme-art='on'] [data-theme-shell='main'] {
+  background-color: color-mix(in srgb, var(--background) calc(var(--myrm-theme-main-opacity, 0.72) * 100%), transparent);
 }
 
-/* Skin: Violet */
-:root[data-skin='violet'] {
-  --primary: #7c4dba;
-  --primary-foreground: #fbfbf8;
-  --primary-hover: #6b3fa4;
-  --primary-dark: #5a338e;
-  --ring: #7c4dba;
-}
-.dark[data-skin='violet'] {
-  --primary: #a78bfa;
-  --primary-foreground: #0a0a0a;
-  --primary-hover: #8b5cf6;
-  --primary-dark: #7c3aed;
-  --ring: #a78bfa;
-}
-
-/* Skin: Ocean */
-:root[data-skin='ocean'] {
-  --primary: #2563eb;
-  --primary-foreground: #fbfbf8;
-  --primary-hover: #1d4ed8;
-  --primary-dark: #1e40af;
-  --ring: #2563eb;
-}
-.dark[data-skin='ocean'] {
-  --primary: #60a5fa;
-  --primary-foreground: #0a0a0a;
-  --primary-hover: #3b82f6;
-  --primary-dark: #2563eb;
-  --ring: #60a5fa;
-}
-
-/* Single-accent skins — primary only, no teal-orange mixing */
-:root[data-skin='rose'],
-:root[data-skin='amber'],
-:root[data-skin='violet'],
-:root[data-skin='ocean'],
-:root[data-skin='teal'] {
-  --accent-warm: var(--primary);
-  --brand-gradient: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
-  --brand-gradient-subtle: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 14%, transparent) 0%,
-    color-mix(in srgb, var(--primary) 8%, transparent) 100%
-  );
-  --brand-gradient-border: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 45%, transparent) 0%,
-    color-mix(in srgb, var(--primary) 28%, transparent) 100%
-  );
-  --shadow-brand:
-    inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
-    inset 0 -2px 6px 0 color-mix(in srgb, black 20%, transparent),
-    0 2px 4px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 10px 20px color-mix(in srgb, var(--primary) 12%, transparent);
-  --shadow-brand-lg:
-    inset 0 1px 0 0 color-mix(in srgb, white 28%, transparent),
-    inset 0 -2px 6px 0 color-mix(in srgb, black 16%, transparent),
-    0 4px 8px color-mix(in srgb, var(--primary) 20%, transparent),
-    0 8px 16px color-mix(in srgb, var(--primary) 26%, transparent),
-    0 12px 24px color-mix(in srgb, var(--primary) 14%, transparent);
-  --shadow-brand-sm:
-    inset 0 2px 6px 0 color-mix(in srgb, black 16%, transparent),
-    inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
-    0 2px 10px color-mix(in srgb, var(--primary) 14%, transparent);
-  --shadow-brand-inset: inset 0 1px 0 color-mix(in srgb, var(--primary) 18%, transparent);
-  --button-fill: var(--primary);
-  --button-fill-hover: var(--primary-hover);
-  --button-fill-foreground: var(--primary-foreground);
-}
-
-.dark[data-skin='rose'],
-.dark[data-skin='amber'],
-.dark[data-skin='violet'],
-.dark[data-skin='ocean'],
-.dark[data-skin='teal'] {
-  --accent-warm: var(--primary);
-  --brand-gradient: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
-  --brand-gradient-subtle: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 16%, transparent) 0%,
-    color-mix(in srgb, var(--primary) 10%, transparent) 100%
-  );
-  --brand-gradient-border: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 50%, transparent) 0%,
-    color-mix(in srgb, var(--primary) 32%, transparent) 100%
-  );
-  --shadow-brand:
-    inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
-    inset 0 -2px 6px 0 color-mix(in srgb, black 20%, transparent),
-    0 2px 4px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 10px 20px color-mix(in srgb, var(--primary) 12%, transparent);
-  --shadow-brand-lg:
-    inset 0 1px 0 0 color-mix(in srgb, white 28%, transparent),
-    inset 0 -2px 6px 0 color-mix(in srgb, black 16%, transparent),
-    0 4px 8px color-mix(in srgb, var(--primary) 20%, transparent),
-    0 8px 16px color-mix(in srgb, var(--primary) 26%, transparent),
-    0 12px 24px color-mix(in srgb, var(--primary) 14%, transparent);
-  --shadow-brand-sm:
-    inset 0 2px 6px 0 color-mix(in srgb, black 16%, transparent),
-    inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
-    0 2px 10px color-mix(in srgb, var(--primary) 14%, transparent);
-  --shadow-brand-inset: inset 0 1px 0 color-mix(in srgb, var(--primary) 20%, transparent);
-  --button-fill: var(--primary);
-  --button-fill-hover: var(--primary-hover);
-  --button-fill-foreground: var(--primary-foreground);
-}
-
-/* Default skin: solid CTA buttons use orange; chat send stays teal primary */
-html:not([data-skin]) .bg-primary.text-primary-foreground:not(.message-send-btn),
-html:not([data-skin]) .bg-primary.text-white:not(.message-send-btn) {
+/* Dual-accent profiles: solid CTA buttons use warm accent; chat send stays teal primary */
+html[data-myrm-theme-dual-accent='true'] .bg-primary.text-primary-foreground:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.text-white:not(.message-send-btn) {
   background-color: var(--accent-warm);
   color: var(--accent-warm-foreground);
 }
 
-html:not([data-skin]) .hover\:bg-primary-hover:hover.bg-primary:not(.message-send-btn),
-html:not([data-skin]) .bg-primary.hover\:bg-primary-hover:hover:not(.message-send-btn) {
+html[data-myrm-theme-dual-accent='true'] .hover\:bg-primary-hover:hover.bg-primary:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.hover\:bg-primary-hover:hover:not(.message-send-btn) {
   background-color: var(--button-fill-hover);
 }
 
-html:not([data-skin]) .hover\:bg-primary\/90:hover.bg-primary:not(.message-send-btn),
-html:not([data-skin]) .bg-primary.hover\:bg-primary\/90:hover:not(.message-send-btn) {
+html[data-myrm-theme-dual-accent='true'] .hover\:bg-primary\/90:hover.bg-primary:not(.message-send-btn),
+html[data-myrm-theme-dual-accent='true'] .bg-primary.hover\:bg-primary\/90:hover:not(.message-send-btn) {
   background-color: color-mix(in srgb, var(--accent-warm) 90%, transparent);
 }
 
-/* Dark mode: boost accent surface contrast across all skins */
+/* Dark mode: boost accent surface contrast across theme profiles */
 .dark .bg-accent-warm\/5 {
   background-color: color-mix(in srgb, var(--accent-warm) 12%, transparent);
 }
@@ -1315,12 +1169,12 @@ a[data-footnote-backref] {
   margin-left: 0.25rem;
 }
 
-html:not([data-skin]) ::selection {
+html[data-myrm-theme-dual-accent='true'] ::selection {
   background: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
   color: var(--foreground);
 }
 
-.dark:not([data-skin]) ::selection {
+.dark[data-myrm-theme-dual-accent='true'] ::selection {
   background: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
 }
 

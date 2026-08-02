@@ -3192,8 +3192,6 @@
     "enterpriseTlsCompatDesc": "放寬嚴格的 TLS 證書校驗，適配企業代理環境（Zscaler、Netskope 等）。仍保留證書鏈和主機名驗證。",
     "publicIngressBaseUrl": "公網訪問地址",
     "publicIngressBaseUrlDesc": "用於外部回撥的公網 Ingress 基礎 URL",
-    "customPrimaryColor": "自定義主色",
-    "customPrimaryColorDesc": "覆蓋主題主色調（留空則使用預設配色）",
     "notificationDeliveries": "通知投遞",
     "notificationDeliveriesDesc": "系統事件告警（OAuth、預算、配對、渠道健康）。智慧體任務完成推送請在各智慧體的「通知渠道」中配置。",
     "webPushTitle": "後臺推送通知",
@@ -8631,9 +8629,17 @@
     "pptxLoadError": "簡報載入失敗",
     "noContent": "無內容可預覽",
     "sharePreview": {
-      "open": "複製只讀分享連結",
+      "open": "分享",
+      "title": "分享連結",
+      "passwordLabel": "密碼（可選）",
+      "passwordPlaceholder": "設定存取密碼",
+      "ttlLabel": "有效期限",
+      "ttlDays": "{days} 天",
+      "createBtn": "建立連結",
+      "creating": "建立中...",
       "successTitle": "分享連結已複製",
-      "successDescription": "持有連結的人可在 7 天內只讀檢視該工件。",
+      "successDescription": "持有連結的人可在 {days} 天內只讀檢視該工件。",
+      "successDescriptionProtected": "密碼保護連結已複製，有效期 {days} 天。",
       "failed": "建立分享連結失敗"
     },
     "publish": {

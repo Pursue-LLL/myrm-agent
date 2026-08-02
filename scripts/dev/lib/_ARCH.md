@@ -25,7 +25,7 @@
 | `e2e_stall_guard.py` | Unix | **R96-B6** Semantic Stall SSOT：`is_transport_stall_node` · `node_stuck_reason_from_snapshot` · `assert_transport_node_not_stuck`；hung reap + open_mcp_page + e2e-context 共用 |
 | `e2e_session_snapshot.py` | Unix | per-pid session snapshot；**R96-B6** `nodeStartedMonotonic`（同 `currentNode` 不重置）· `body_elapsed` / `progress_stale` / `node_elapsed` |
 | `e2e_session_registry.py` | Unix | 统一 E2E session registry — ADMIT through BODY (R144 SSOT)；`list_live_e2e_sessions()` 去重 session 列表；P0-A: coordinator 活跃时禁用 ps fallback |
-| `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap：**R62** body≥600 · **R195** signoff friend immunity（`lockdir/pid` · `E2E_HUNG_REAP_SKIP_SIGNOFF_FRIEND`）；P0-A: `_coordinator_reap_authorized()` 环境变量守卫确保 Coordinator-only reaping |
+| `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap + `maybe_reap_stale_empty_mux_contexts` + `maybe_reap_epoch_drift_stale_sessions`（coordinator-only）；**R62** body≥600 · **R195** signoff friend immunity · epoch drift 兜底 reap（bootstrap/admit + epoch_match=no + >180s） |
 | `cleanup_observed_seal.py` | Unix | P0-A observed cleanup seal：验证 lease released + CDP targets physically absent + ownership cleared；`observe_cleanup_seal()` 返回 `(ledger_cleaned, sealed)` |
 | `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`get_e2e_api_url/get_e2e_ui_url` 与 `_e2e_api_urlopen` 强制 loopback HTTP allowlist（127.0.0.1/localhost/::1/0.0.0.0）并对 config/messages 短重试 · **`wait_e2e_provider_ready`** 每轮重检 health + readiness（SHPOIB batch 场景间 wait）· **`E2E_API_BINDING_PROBE_JS` / `require_e2e_api_binding_probe`**（WebUI `__MYRM_E2E_API_BASE__` 与 private SHPOIB 对齐 SSOT）· **`chat_user_message_count`** kickoff 硬锚 · **`start_clarify_turn_via_api`**（signoff clarify API stream fallback）· **`_collect_agent_stream_events`** SSE 采集 SSOT |
 | `e2e_resource_ledger.py` | Unix | **R98** E2E runtime resource ledger SSOT；`E2EResourceLedger` · wave `ledger register`；SHPOIB ephemeral 跳过 register |
@@ -60,7 +60,7 @@
 | `../resolve_e2e_session_profile.py` | Unix | collect-only 解析显式 `{execution_mode, access_scope, workload}`；缺失、混合或非法组合 fail-closed |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
 | `e2e_lease_pytest_gate.py` | Unix | pytest spawn 前 fail-closed：`require_e2e_runtime_lease()` SSOT；`test.sh` `_e2e_ensure_lease_ready_for_pytest` 与 sync 组合，lease 失效时 re-acquire |
-| `mux_load.py` | Unix | mux context / wave lease 负载探针；adaptive page/tool timeout |
+| `mux_load.py` | Unix | mux context / wave lease 负载探针；`active_mux_context_count` · `parallel_open_page_peer_count`（不计 stale empty shell）；`reap_idle_empty_mux_contexts`；adaptive page/tool timeout |
 | `mux_responsive_probe.py` | Unix | mux daemon stamp 对齐 + `tools/list` 探活；`--probe-timeout-sec` 随 active Wave leases 缩放（preflight attach heal） |
 
 ## 依赖

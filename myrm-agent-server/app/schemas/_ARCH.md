@@ -7,7 +7,8 @@
 | 文件 | 职责 |
 |------|------|
 | `streaming.py` | SSE envelope 与标准响应头 |
-| `config.py` | 配置同步 API 模型（含 `personalSettings.reasoningDisplayMode`：off/collapsed/inline、`personalSettings.autoContinueInterruptedTurns`：崩溃自动续跑开关） |
+| `config.py` | 配置同步 API 模型（含 `personalSettings.reasoningDisplayMode`：off/collapsed/inline、`personalSettings.autoContinueInterruptedTurns`：崩溃自动续跑开关、`personalSettings.themeProfiles` Theme Recipe 校验） |
+| `theme_profile.py` | Theme Engine Recipe Pydantic 模型（`file:` assetRef、`themeProfiles` 校验） |
 | `control_plane.py` | Server↔CP 遥测契约（含 context compaction、memory brief `envelope_id(max_length=128)` + `aggregates`/`dropped_aggregates`、memory guardian guard `envelope_id(max_length=128)` + governed `reason/guard/frequency_tier` 聚合） |
 | `memory/command_center.py` | Memory Command Center 响应模型 |
 | `security/dashboard.py` | 安全仪表盘 DTO（API + services 共用） |

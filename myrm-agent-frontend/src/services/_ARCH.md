@@ -40,7 +40,9 @@
 | `artifact*.ts` | 工件相关 REST |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |
 | `marketplace.ts` | **仅 SaaS/sandbox** Org Marketplace CRUD：browse/install/publish/force-push |
+| `themeMarketplace.ts` | **仅 SaaS/sandbox** 公开主题市场：CP catalog/checkout + admin suspend/restore + server install-from-marketplace |
 | `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
+| `org-model-policy.ts` | **仅 SaaS/sandbox** 组织模型白名单客户端：`fetchOrgModelPolicy` + `isModelAllowedByPolicy` glob 匹配 |
 | `*-api.ts` | 零散 REST 封装 |
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
@@ -54,6 +56,8 @@
 | `templateDiscovery.ts` | 模板发现层共享纯函数：检索标准化、命中过滤、模板类别归一化（TemplateMarket 与 FlowPad 复用，避免口径漂移）。 |
 | `templateSummon.ts` | 模板召唤共享执行层：统一实例化 + 观测事件写入（attempt/success/fail），收敛 TemplateMarket 与 FlowPad 的重复逻辑。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
+| `theme-packages/` | `.myrmtheme` inspect / install / export · [_ARCH.md](theme-packages/_ARCH.md) |
+| `theme-assets/` | 主题背景上传 + `file:` 资产解析 + MP4 poster 提取 |
 | `companion/` | Petdex 客户端 · [_ARCH.md](companion/_ARCH.md)（install/doctor/spritesheet/i18n core） |
 
 ## 依赖

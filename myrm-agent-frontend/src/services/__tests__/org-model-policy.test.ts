@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isModelAllowedByPolicy } from '../org-model-policy';
+import { getLiteLLMModelName } from '@/store/config/providerTypes';
 
 describe('isModelAllowedByPolicy', () => {
   it('allows all models when patterns list is empty', () => {
@@ -40,5 +41,39 @@ describe('isModelAllowedByPolicy', () => {
   it('escapes regex special chars in patterns', () => {
     expect(isModelAllowedByPolicy('openai/gpt-4.0', ['openai/gpt-4.0'])).toBe(true);
     expect(isModelAllowedByPolicy('openai/gpt-4X0', ['openai/gpt-4.0'])).toBe(false);
+  });
+});
+
+describe('model-picker integration: getLiteLLMModelName + isModelAllowedByPolicy', () => {
+  const patterns = ['openai/*', 'deepseek/*'];
+
+  it('allows openai model via LiteLLM format conversion', () => {
+    const litellmName = getLiteLLMModelName('openai', 'gpt-4o-mini');
+    expect(litellmName).toBe('openai/gpt-4o-mini');
+    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  });
+
+  it('allows deepseek model via LiteLLM format conversion', () => {
+    const litellmName = getLiteLLMModelName('deepseek', 'deepseek-chat');
+    expect(litellmName).toBe('deepseek/deepseek-chat');
+    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  });
+
+  it('blocks anthropic model via LiteLLM format conversion', () => {
+    const litellmName = getLiteLLMModelName('anthropic', 'claude-4-opus');
+    expect(litellmName).toBe('anthropic/claude-4-opus');
+    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(false);
+  });
+
+  it('raw model name without conversion would give wrong result', () => {
+    expect(isModelAllowedByPolicy('gpt-4o-mini', patterns)).toBe(false);
+    const litellmName = getLiteLLMModelName('openai', 'gpt-4o-mini');
+    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  });
+
+  it('model already in LiteLLM format is not double-prefixed', () => {
+    const litellmName = getLiteLLMModelName('openai', 'openai/gpt-4o');
+    expect(litellmName).toBe('openai/gpt-4o');
+    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
   });
 });

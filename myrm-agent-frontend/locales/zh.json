@@ -266,6 +266,8 @@
     "menu": {
       "account": "账户",
       "preferences": "偏好设置",
+      "themeStudio": "主题工作室",
+      "theme-studio": "主题工作室",
       "personalization": "个性化",
       "agents": "智能体",
       "models": "模型服务",
@@ -1595,6 +1597,7 @@
       "searchModels": "搜索模型...",
       "noEnabledModels": "请先在模型服务中启用模型",
       "noMatchingModels": "没有匹配的模型",
+      "orgPolicyRestricted": "受组织策略限制",
       "temperature": "温度",
       "temperatureHint": "控制输出的随机性",
       "precise": "精确",
@@ -3337,6 +3340,256 @@
       "violet": "紫罗兰",
       "ocean": "海洋"
     },
+    "appearancePanel": {
+      "workspaceTheme": "工作区主题",
+      "workspaceBackground": "工作区背景",
+      "workspaceBackgroundDesc": "上传图片或 MP4 循环视频，作为全窗口背景。",
+      "uploadBackground": "上传背景",
+      "changeBackground": "更换背景",
+      "clearBackground": "移除背景",
+      "backgroundUploadSuccess": "背景已更新",
+      "backgroundUploadFailed": "背景上传失败",
+      "backgroundPosterFailed": "无法从该视频提取封面帧",
+      "backgroundPosterReupload": "请重新上传一次背景，以启用移动端与减少动效模式下的显示。",
+      "backgroundInvalidType": "不支持的文件类型，请使用 PNG、JPEG、WebP 或 MP4。",
+      "backgroundTooLarge": "文件超过 80 MB 限制。",
+      "backgroundEmpty": "文件为空。",
+      "backgroundWash": "背景浓度",
+      "backgroundWashDesc": "提高浓度可改善亮背景上的文字可读性。",
+      "customPrimaryColor": "或自定义主色",
+      "hexPlaceholder": "#2563eb",
+      "font": "字体",
+      "restoreDefault": "恢复官方默认",
+      "packageSection": "主题包",
+      "packageSectionDesc": "导入或导出 .myrmtheme 文件，分享完整工作区外观。",
+      "packageImport": "导入主题包",
+      "packageExport": "导出当前主题",
+      "packageImportTitle": "导入主题包",
+      "packageHeroPreview": "背景预览",
+      "packageApply": "应用主题",
+      "packageCancel": "取消",
+      "assetMissingTitle": "此设备上背景不可用",
+      "assetMissingDesc": "主题配色已生效，但壁纸文件在本设备缺失。请在外观设置中重新上传背景或导入 .myrmtheme 主题包。",
+      "assetMissingAction": "打开外观设置",
+      "packageUnsignedHint": "此主题包未签名，请仅导入您信任的来源。",
+      "packageImportSuccess": "主题包已应用",
+      "packageImportFailed": "导入主题包失败",
+      "packageExportSuccess": "主题包已下载",
+      "packageExportFailed": "导出主题包失败",
+      "openThemeStudio": "打开主题工作室",
+      "presets": {
+        "official-default": "青橙",
+        "preset-teal": "暗青",
+        "preset-rose": "玫瑰",
+        "preset-amber": "琥珀",
+        "preset-violet": "紫罗兰",
+        "preset-ocean": "海洋",
+        "preset-atkinson-calm": "护眼可读"
+      }
+    },
+    "themeStudio": {
+      "title": "主题工作室",
+      "subtitle": "四步创建完整工作区主题，在 Myrm 真实布局上预览，然后应用或导出。",
+      "steps": {
+        "1": "主图",
+        "2": "布局",
+        "3": "风格",
+        "4": "完成",
+        "heroDesc": "上传 PNG、JPEG、WebP 或 MP4 循环视频作为全窗背景。"
+      },
+      "focusX": "水平焦点",
+      "focusY": "垂直焦点",
+      "themeName": "主题名称",
+      "themeNamePlaceholder": "我的工作区主题",
+      "tagline": "标语（可选）",
+      "defaultThemeName": "我的工作区主题",
+      "back": "上一步",
+      "next": "下一步",
+      "apply": "应用到工作区",
+      "export": "导出 .myrmtheme",
+      "applySuccess": "主题已应用",
+      "applyFailed": "应用主题失败",
+      "exportSuccess": "主题包已下载",
+      "exportFailed": "导出失败",
+      "livePreview": "在工作区实时预览",
+      "openAiSkill": "使用 AI 技能生成",
+      "layouts": {
+        "fullBleed": {
+          "name": "全景沉浸",
+          "description": "背景铺满整个窗口。",
+          "guidance": "适合渐变或宽场景，保持中央区域可读。"
+        },
+        "navRailFocus": {
+          "name": "导航聚焦",
+          "description": "导航区更实，主内容区更柔和。",
+          "guidance": "主体尽量避开左侧导航区域。"
+        },
+        "chatHero": {
+          "name": "对话主视觉",
+          "description": "以对话为主的较轻 hero 带。",
+          "guidance": "上方区域保持简洁，便于空对话提示。"
+        },
+        "workDense": {
+          "name": "功能密集",
+          "description": "看板、设置等功能页更高不透明度。",
+          "guidance": "适合长时间办公与可读性优先的主题。"
+        }
+      },
+      "preview": {
+        "scene": {
+          "chat": "对话",
+          "kanban": "看板",
+          "settings": "设置",
+          "workDense": "功能页"
+        }
+      },
+      "library": {
+        "title": "我的主题",
+        "empty": "尚无已保存主题。完成向导并应用后会出现在这里。",
+        "apply": "应用",
+        "applied": "主题已应用",
+        "delete": "删除主题",
+        "deleted": "主题已删除"
+      },
+      "gallery": {
+        "title": "主题画廊",
+        "subtitle": "浏览官方与社区主题，免费主题一键安装。",
+        "tabs": {
+          "official": "官方精选",
+          "community": "社区广场",
+          "owned": "已拥有"
+        },
+        "loading": "加载画廊…",
+        "empty": "此分类暂无主题。",
+        "searchEmpty": "没有匹配的主题。",
+        "searchLabel": "搜索主题",
+        "searchPlaceholder": "按名称或标语搜索…",
+        "sortLabel": "排序",
+        "sort": {
+          "latest": "最新",
+          "popular": "最热",
+          "price": "价格"
+        },
+        "install": "安装",
+        "installing": "安装中…",
+        "installed": "主题已安装",
+        "installFailed": "无法安装主题",
+        "priceFree": "免费",
+        "pricePaid": "¥{cents}",
+        "purchase": "购买",
+        "purchasing": "跳转支付…",
+        "purchaseFailed": "无法发起支付",
+        "previewInstall": "预览并安装",
+        "previewTitle": "安装主题",
+        "previewCancel": "取消",
+        "previewConfirm": "安装",
+        "paidSoon": "付费购买即将上线",
+        "purchaseCompleting": "正在完成购买…",
+        "purchaseReturnFailed": "购买成功，但自动安装失败。",
+        "purchaseRetryOwned": "打开「已拥有」手动安装"
+      },
+      "marketplaceGate": {
+        "needsAuthTitle": "关联云账号",
+        "needsAuthBody": "登录后即可浏览、购买并安装主题市场中的主题。",
+        "offlineTitle": "主题市场不可用",
+        "offlineBody": "无法连接控制平面。你仍可在主题工作室第 4 步或外观设置中导入 .myrmtheme 文件。"
+      },
+      "creator": {
+        "title": "投稿主题",
+        "subtitle": "上传 .myrmtheme 包，提交社区审核。",
+        "fields": {
+          "name": "名称",
+          "slug": "Slug",
+          "tagline": "一句话介绍",
+          "description": "描述",
+          "priceCents": "价格（分，0 为免费）",
+          "package": "主题包"
+        },
+        "submit": "提交审核",
+        "submitting": "提交中…",
+        "inspecting": "正在检查主题包…",
+        "submitted": "已提交审核",
+        "mineTitle": "我的投稿",
+        "mineEmpty": "暂无投稿。",
+        "loading": "加载中…",
+        "installCount": "{count} 次安装",
+        "totalEarned": "累计收益：¥{amount}",
+        "status": {
+          "pending": "待审核",
+          "pending_review": "待审核",
+          "published": "已上架",
+          "rejected": "已拒绝",
+          "suspended": "已下架",
+          "draft": "草稿"
+        },
+        "errors": {
+          "missingFields": "请填写名称并选择主题包",
+          "inspectFailed": "无法检查主题包",
+          "submitFailed": "提交失败"
+        },
+        "preview": {
+          "packageImportTitle": "提交前预览",
+          "packageHeroPreview": "主题预览",
+          "packageApply": "提交审核",
+          "packageCancel": "取消",
+          "packageUnsignedHint": "该主题包未签名，请仅提交您信任的来源。",
+          "backgroundWash": "背景蒙版"
+        }
+      },
+      "admin": {
+        "title": "主题审核队列",
+        "pendingSection": "待审核",
+        "catalogSection": "已上架目录",
+        "catalogEmpty": "暂无已上架或已下架主题。",
+        "loading": "加载队列…",
+        "empty": "暂无待审核主题。",
+        "approve": "通过",
+        "reject": "拒绝",
+        "suspend": "下架",
+        "restore": "恢复上架",
+        "approved": "已通过",
+        "rejected": "已拒绝",
+        "suspended": "已下架",
+        "restored": "已恢复上架",
+        "reviewFailed": "审核操作失败",
+        "moderationFailed": "管理操作失败",
+        "defaultReviewReason": "Theme Studio 管理面板审核",
+        "rejectReasonLabel": "拒绝原因",
+        "rejectReasonPlaceholder": "说明创作者需要修改的内容，便于重新提交。",
+        "suspendReasonLabel": "下架原因",
+        "suspendReasonPlaceholder": "说明为何从画廊移除此主题。",
+        "restoreReasonLabel": "恢复原因",
+        "restoreReasonPlaceholder": "说明为何重新上架此主题。",
+        "rejectConfirm": "确认拒绝",
+        "suspendConfirm": "确认下架",
+        "restoreConfirm": "确认恢复",
+        "moderationCancel": "取消",
+        "reasonTooShort": "原因至少需要 2 个字符。",
+        "status": {
+          "published": "已上架",
+          "suspended": "已下架"
+        }
+      },
+      "recipeImport": {
+        "title": "从 AI 技能导入配方",
+        "hint": "粘贴 generate-myrm-theme 输出的 JSON；如需背景图请在步骤 1 上传。",
+        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "import": "导入配方",
+        "success": "配方已导入编辑器",
+        "errors": {
+          "invalid_json": "JSON 无效",
+          "not_object": "配方必须是 JSON 对象",
+          "missing_name": "缺少 name 字段",
+          "invalid_layout": "layoutId 无效",
+          "invalid_font": "fontId 无效",
+          "invalid_palette": "palette 颜色无效",
+          "invalid_art": "art 设置无效"
+        }
+      },
+      "profilePicker": {
+        "savedTitle": "已保存主题"
+      }
+    },
     "fontOptions": {
       "inter": "Inter（默认）",
       "system": "系统字体",
@@ -3546,8 +3799,6 @@
     "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。仍保留证书链和主机名验证。",
     "publicIngressBaseUrl": "公网访问地址",
     "publicIngressBaseUrlDesc": "用于外部回调的公网 Ingress 基础 URL",
-    "customPrimaryColor": "自定义主色",
-    "customPrimaryColorDesc": "覆盖主题主色调（留空则使用默认配色）",
     "notificationDeliveries": "通知投递",
     "notificationDeliveriesDesc": "系统事件告警（OAuth、预算、配对、渠道健康）。智能体任务完成推送请在各智能体的「通知渠道」中配置。",
     "webPushTitle": "后台推送通知",
@@ -6475,6 +6726,10 @@
       "revoked": "分享链接已撤回",
       "expires": "有效期至",
       "ttlDays": "有效期 {days} 天",
+      "passwordLabel": "密码（可选）",
+      "passwordPlaceholder": "设置访问密码",
+      "ttlLabel": "有效期",
+      "successProtected": "密码保护链接已创建，有效期 {days} 天。",
       "localFallback": "分享链接仅在云托管模式下可用。请使用导出 HTML 进行本地分享。",
       "error": "创建分享链接失败"
     },
@@ -7188,6 +7443,10 @@
       "preferences": {
         "title": "偏好设置",
         "description": "自定义你的应用偏好"
+      },
+      "theme-studio": {
+        "title": "主题工作室",
+        "description": "创建并预览工作区主题"
       },
       "personalization": {
         "title": "个性化",
@@ -9275,9 +9534,17 @@
     "pptxLoadError": "演示文稿加载失败",
     "noContent": "无内容可预览",
     "sharePreview": {
-      "open": "复制只读分享链接",
+      "open": "分享",
+      "title": "分享链接",
+      "passwordLabel": "密码（可选）",
+      "passwordPlaceholder": "设置访问密码",
+      "ttlLabel": "有效期",
+      "ttlDays": "{days} 天",
+      "createBtn": "创建链接",
+      "creating": "创建中...",
       "successTitle": "分享链接已复制",
-      "successDescription": "持有链接的人可在 7 天内只读查看该工件。",
+      "successDescription": "持有链接的人可在 {days} 天内只读查看该工件。",
+      "successDescriptionProtected": "密码保护链接已复制，有效期 {days} 天。",
       "failed": "创建分享链接失败"
     },
     "publish": {

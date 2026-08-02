@@ -10,6 +10,18 @@ import {
   buildKanbanBoardDeepLink,
   writeKanbanLastBoardId,
 } from '@/lib/kanban/kanbanChatBoard';
+import type { KanbanBoard } from '@/services/kanban';
+
+function board(id: string, name: string): KanbanBoard {
+  return {
+    board_id: id,
+    name,
+    description: '',
+    settings: { max_concurrent_tasks: 1, heartbeat_interval_seconds: 30, zombie_timeout_seconds: 300, max_retries_per_task: 3, auto_block_after_consecutive_failures: 3, specify_max_tokens: 4096, auto_specify_on_create: false },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  };
+}
 
 describe('kanbanChatBoard', () => {
   beforeEach(() => {
@@ -38,26 +50,20 @@ describe('kanbanChatBoard', () => {
   });
 
   it('auto-picks sole board', () => {
-    const boards = [{ board_id: 'only', name: 'Only' }];
+    const boards = [board('only', 'Only')];
     expect(resolveKanbanChatBoardId(boards, 'proj-a')).toBe('only');
     expect(shouldShowKanbanBoardPicker(boards, 'proj-a')).toBe(false);
   });
 
   it('uses saved board when valid among many', () => {
     writeKanbanLastBoardId('b2', 'proj-a');
-    const boards = [
-      { board_id: 'b1', name: 'One' },
-      { board_id: 'b2', name: 'Two' },
-    ];
+    const boards = [board('b1', 'One'), board('b2', 'Two')];
     expect(resolveKanbanChatBoardId(boards, 'proj-a')).toBe('b2');
     expect(shouldShowKanbanBoardPicker(boards, 'proj-a')).toBe(false);
   });
 
   it('requires picker when multiple boards and no valid saved id', () => {
-    const boards = [
-      { board_id: 'b1', name: 'One' },
-      { board_id: 'b2', name: 'Two' },
-    ];
+    const boards = [board('b1', 'One'), board('b2', 'Two')];
     expect(resolveKanbanChatBoardId(boards, 'proj-a')).toBeNull();
     expect(shouldShowKanbanBoardPicker(boards, 'proj-a')).toBe(true);
   });
@@ -73,25 +79,19 @@ describe('kanbanChatBoard', () => {
   });
 
   it('blocks send when multiple boards and no selection', () => {
-    const boards = [
-      { board_id: 'b1', name: 'One' },
-      { board_id: 'b2', name: 'Two' },
-    ];
+    const boards = [board('b1', 'One'), board('b2', 'Two')];
     expect(resolveKanbanSendBlockReasonFromBoards(boards, 'proj-a')).toBe('need_board');
   });
 
   it('clears stale saved id and blocks when board was deleted', () => {
     writeKanbanLastBoardId('deleted-board', 'proj-a');
-    const boards = [
-      { board_id: 'b1', name: 'One' },
-      { board_id: 'b2', name: 'Two' },
-    ];
+    const boards = [board('b1', 'One'), board('b2', 'Two')];
     expect(resolveKanbanSendBlockReasonFromBoards(boards, 'proj-a')).toBe('need_board');
     expect(readKanbanLastBoardId('proj-a')).toBeNull();
   });
 
   it('allows send when sole board without saved id', () => {
-    expect(resolveKanbanSendBlockReasonFromBoards([{ board_id: 'only', name: 'Only' }], 'proj-a')).toBeNull();
+    expect(resolveKanbanSendBlockReasonFromBoards([board('only', 'Only')], 'proj-a')).toBeNull();
   });
 
   it('builds board deep link with source chat and board id', () => {

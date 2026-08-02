@@ -51,15 +51,29 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
     """True when pid is alive and still the same OS process instance."""
     if pid <= 0:
         return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
     if not expected_start.strip():
-        try:
-            os.kill(pid, 0)
-        except OSError:
-            return False
         return True
     from process_identity import capture_process
 
     current = capture_process(pid, role="e2e-owner", runtime_id="owner")
     if current is None:
-        return False
+        # Distinguish zombie (dead for reap) from transient ps parse failure.
+        try:
+            result = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "stat="],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return True
+        if result.returncode != 0:
+            return False
+        if "Z" in result.stdout:
+            return False
+        return True
     return current["startedAt"] == expected_start
