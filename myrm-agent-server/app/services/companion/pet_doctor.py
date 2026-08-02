@@ -17,7 +17,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from app.services.companion.pet_atlas import AtlasReport, FormatTier, analyze_spritesheet
+from app.services.companion.pet_atlas import (
+    AtlasReport,
+    FormatTier,
+    analyze_spritesheet,
+)
 from app.services.companion.pet_store import load_pet, list_installed_pets
 
 logger = logging.getLogger(__name__)
@@ -72,7 +76,9 @@ def _read_sprite_config(raw: dict[str, object]) -> tuple[str | None, str | None]
     return slug, sha
 
 
-def _load_atlas_report(meta: dict[str, object], *, rescan_path: str | None) -> AtlasReport | None:
+def _load_atlas_report(
+    meta: dict[str, object], *, rescan_path: str | None
+) -> AtlasReport | None:
     atlas_raw = meta.get("atlasReport")
     if isinstance(atlas_raw, dict) and not rescan_path:
         parsed = AtlasReport.from_dict(atlas_raw)
@@ -162,7 +168,11 @@ async def run_companion_doctor(*, rescan: bool = False) -> CompanionDoctorReport
         )
 
     active_pet = load_pet(config_slug) if config_slug else None
-    rescan_path = str(active_pet.spritesheet) if rescan and active_pet and active_pet.exists else None
+    rescan_path = (
+        str(active_pet.spritesheet)
+        if rescan and active_pet and active_pet.exists
+        else None
+    )
 
     if config_slug and config_slug not in installed_slugs:
         checks.append(
@@ -235,7 +245,9 @@ async def run_companion_doctor(*, rescan: bool = False) -> CompanionDoctorReport
                     id="atlas.format",
                     status=atlas_status,
                     message=atlas.message,
-                    fix_action=None if atlas_status == CheckStatus.PASS else "open_pet_gallery",
+                    fix_action=(
+                        None if atlas_status == CheckStatus.PASS else "open_pet_gallery"
+                    ),
                 )
             )
         elif active_pet.exists:
@@ -308,4 +320,9 @@ async def run_companion_doctor(*, rescan: bool = False) -> CompanionDoctorReport
     )
 
 
-__all__ = ["CheckStatus", "CompanionDoctorReport", "DoctorCheck", "run_companion_doctor"]
+__all__ = [
+    "CheckStatus",
+    "CompanionDoctorReport",
+    "DoctorCheck",
+    "run_companion_doctor",
+]

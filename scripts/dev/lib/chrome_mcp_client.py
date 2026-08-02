@@ -172,7 +172,9 @@ class ChromeMcpClient:
         self._mux_reset_executor: object | None = None
         self._tool_wall_deadline: float | None = None
         self._cold_shim_recover_streak = 0
-        self._use_daemon = os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
+        self._use_daemon = (
+            os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
+        )
         self._daemon_client: BrowserOrchestratorClient | None = None
         self._daemon_session_id: str | None = None
 
@@ -210,7 +212,11 @@ class ChromeMcpClient:
             return
         try:
             result = client.destroy_session(session_id)
-            _LOGGER.info("daemon session destroyed: %s sealed=%s", session_id, result.get("sealed"))
+            _LOGGER.info(
+                "daemon session destroyed: %s sealed=%s",
+                session_id,
+                result.get("sealed"),
+            )
         except (OSError, RuntimeError, TimeoutError) as exc:
             _LOGGER.warning("daemon session destroy failed: %s", exc)
         finally:
@@ -253,9 +259,7 @@ class ChromeMcpClient:
         assert session_id is not None
         client.navigate_page(session_id, page.target_id, url)
 
-    def _daemon_close_page(
-        self, page: McpPage, *, ignore_errors: bool = False
-    ) -> None:
+    def _daemon_close_page(self, page: McpPage, *, ignore_errors: bool = False) -> None:
         self._page_lease_heartbeat.untrack(page.lease_id)
         client = self._daemon_client
         session_id = self._daemon_session_id
@@ -734,16 +738,13 @@ class ChromeMcpClient:
                         page_id, target_id = parse_new_page(new_page_result)
                         break
                     except (RuntimeError, TimeoutError) as exc:
-                        if not _is_retryable_new_page_parse_exc(
-                            exc, new_page_result
-                        ):
+                        if not _is_retryable_new_page_parse_exc(exc, new_page_result):
                             raise
                         if parse_attempt + 1 >= parse_attempts:
                             raise
                         self._check_tool_wall_deadline("new_page_recover")
-                        if (
-                            not mux_attach_restarted
-                            and parse_attempt + 1 >= max(2, parse_attempts // 2)
+                        if not mux_attach_restarted and parse_attempt + 1 >= max(
+                            2, parse_attempts // 2
                         ):
                             try:
                                 from transport_supervisor import (
@@ -965,7 +966,9 @@ class ChromeMcpClient:
                 return True
             except (OSError, RuntimeError, ValueError) as exc:
                 message = str(exc).lower()
-                retryable = "version mismatch" in message or "version conflict" in message
+                retryable = (
+                    "version mismatch" in message or "version conflict" in message
+                )
                 if retryable and attempt + 1 < max_attempts:
                     time.sleep(0.04 * float(attempt + 1))
                     continue

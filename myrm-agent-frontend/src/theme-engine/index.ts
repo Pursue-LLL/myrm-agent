@@ -5,7 +5,12 @@ export {
   FUNCTIONAL_ROUTE_PREFIXES,
   STATIC_APP_SEGMENTS,
 } from './readability-scene';
-export { effectiveArtWash, mergeSceneSurfaces, FUNCTIONAL_ART_WASH_FLOOR } from './scene-surfaces';
+export {
+  effectiveArtWash,
+  mergeSceneSurfaces,
+  FUNCTIONAL_ART_WASH_FLOOR,
+  FUNCTIONAL_SURFACE_FLOORS,
+} from './scene-surfaces';
 export {
   BUILTIN_THEME_PROFILES,
   OFFICIAL_DEFAULT_PROFILE_ID,

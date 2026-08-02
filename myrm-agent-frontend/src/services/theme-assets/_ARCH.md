@@ -8,8 +8,10 @@ Theme media upload and assetRef URL resolution for Theme Engine Art Layer.
 |------|------|-------|
 | `ThemeAssetStore.ts` | Resolve `file:` assetRef → URL; verify remote availability (HEAD/Range) | ✅ |
 | `uploadThemeAsset.ts` | POST `/api/theme/assets/upload` client | ✅ |
+| `uploadThemeBackground.ts` | SSOT: validate → poster extract → upload → `file:` refs | ✅ |
 | `extractVideoPoster.ts` | Client-side MP4 first-frame poster extraction before upload | ✅ |
 | `__tests__/ThemeAssetStore.test.ts` | asset availability probe (HEAD + Range fallback) | ✅ |
+| `__tests__/uploadThemeBackground.test.ts` | upload orchestration + ref format + poster-first | ✅ |
 
 ## assetRef formats
 

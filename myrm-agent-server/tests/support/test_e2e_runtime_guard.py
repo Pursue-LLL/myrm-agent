@@ -478,13 +478,15 @@ def test_snapshot_live_e2e_processes_reads_session_registry(
     session_dir = tmp_path / "myrm-e2e-session"
     session_dir.mkdir()
     (session_dir / f"{os.getpid()}.json").write_text(
-        json.dumps({
-            "pid": os.getpid(),
-            "phase": "body",
-            "node": "tests/e2e/test_demo.py::test_demo",
-            "started_at": "2026-08-01T12:00:00Z",
-            "heartbeat_at": "2026-08-01T12:00:30Z",
-        }),
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "phase": "body",
+                "node": "tests/e2e/test_demo.py::test_demo",
+                "started_at": "2026-08-01T12:00:00Z",
+                "heartbeat_at": "2026-08-01T12:00:30Z",
+            }
+        ),
         encoding="utf-8",
     )
 

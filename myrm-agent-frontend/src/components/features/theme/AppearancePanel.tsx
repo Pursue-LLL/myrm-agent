@@ -17,7 +17,6 @@ import {
   buildArtOverlayProfile,
   getArtOverlayProfile,
   hasArtOverlay,
-  mediaKindFromFile,
   stripArtOverlay,
   updateArtOverlayWash,
   upsertArtOverlayProfile,
@@ -27,11 +26,11 @@ import {
 } from '@/theme-engine';
 import type { FontId } from '@/lib/fonts';
 import { FONT_CHOICES } from '@/lib/fonts';
-import { uploadThemeAsset } from '@/services/theme-assets/uploadThemeAsset';
 import {
-  extractVideoPosterBlob,
-  VideoPosterExtractionError,
-} from '@/services/theme-assets/extractVideoPoster';
+  ThemeBackgroundValidationFailedError,
+  uploadThemeBackground,
+} from '@/services/theme-assets/uploadThemeBackground';
+import { VideoPosterExtractionError } from '@/services/theme-assets/extractVideoPoster';
 import { inspectThemePackage } from '@/services/theme-packages/inspectThemePackage';
 import { installThemePackage } from '@/services/theme-packages/installThemePackage';
 import {
@@ -171,26 +170,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
 
       setUploading(true);
       try {
-        const mediaKind = mediaKindFromFile(file);
-        let assetRef: string;
-        let posterAssetRef: string | null = null;
-
-        if (mediaKind === 'video') {
-          const posterBlob = await extractVideoPosterBlob(file);
-          const posterName = file.name.replace(/\.mp4$/i, '') || 'workspace-background';
-          const posterFile = new File([posterBlob], `${posterName}-poster.jpg`, {
-            type: 'image/jpeg',
-          });
-          const [uploaded, posterUploaded] = await Promise.all([
-            uploadThemeAsset(file),
-            uploadThemeAsset(posterFile),
-          ]);
-          assetRef = `file:${uploaded.fileId}`;
-          posterAssetRef = `file:${posterUploaded.fileId}`;
-        } else {
-          const uploaded = await uploadThemeAsset(file);
-          assetRef = `file:${uploaded.fileId}`;
-        }
+        const { assetRef, mediaKind, posterAssetRef } = await uploadThemeBackground(file);
 
         const overlay = buildArtOverlayProfile(activeProfile, assetRef, mediaKind, posterAssetRef);
         await updatePersonalSettings({
@@ -199,11 +179,13 @@ const AppearancePanel = ({ className }: { className?: string }) => {
         toast.success(t('backgroundUploadSuccess'));
       } catch (error) {
         const message =
-          error instanceof VideoPosterExtractionError
-            ? t('backgroundPosterFailed')
-            : error instanceof Error
-              ? error.message
-              : t('backgroundUploadFailed');
+          error instanceof ThemeBackgroundValidationFailedError
+            ? t(VALIDATION_MESSAGE_KEYS[error.code])
+            : error instanceof VideoPosterExtractionError
+              ? t('backgroundPosterFailed')
+              : error instanceof Error
+                ? error.message
+                : t('backgroundUploadFailed');
         toast.error(message);
       } finally {
         setUploading(false);

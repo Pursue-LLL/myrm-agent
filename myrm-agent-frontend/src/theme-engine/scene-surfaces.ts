@@ -4,7 +4,8 @@ import type { ThemeLayoutId, ThemeReadabilityScene } from './schema';
 /** Minimum art wash overlay on functional pages (MP4/image readability). */
 export const FUNCTIONAL_ART_WASH_FLOOR = 0.55;
 
-const FUNCTIONAL_SURFACE_FLOORS: LayoutSurfaceTokens = {
+/** Minimum surface opacities on functional pages — keep aligned with theme-pre-init-script / theme-init.js. */
+export const FUNCTIONAL_SURFACE_FLOORS: LayoutSurfaceTokens = {
   navOpacity: 0.92,
   sidebarOpacity: 0.9,
   mainOpacity: 0.94,

@@ -113,11 +113,16 @@ def _sha256_file(path: Path) -> str:
 async def _fetch_manifest() -> list[dict[str, Any]]:
     global _manifest_cache, _manifest_cached_at
     now = time.monotonic()
-    if _manifest_cache is not None and now - _manifest_cached_at < _MANIFEST_CACHE_TTL_SECONDS:
+    if (
+        _manifest_cache is not None
+        and now - _manifest_cached_at < _MANIFEST_CACHE_TTL_SECONDS
+    ):
         pets = _manifest_cache.get("pets")
         return pets if isinstance(pets, list) else []
 
-    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True
+    ) as client:
         response = await client.get(PETDEX_MANIFEST_URL)
         response.raise_for_status()
         payload = response.json()
@@ -128,7 +133,9 @@ async def _fetch_manifest() -> list[dict[str, Any]]:
     if not isinstance(pets_raw, list):
         raise PetStoreError("Invalid petdex manifest pets list")
 
-    entries: list[dict[str, Any]] = [entry for entry in pets_raw if isinstance(entry, dict)]
+    entries: list[dict[str, Any]] = [
+        entry for entry in pets_raw if isinstance(entry, dict)
+    ]
     _manifest_cache = {"pets": entries}
     _manifest_cached_at = now
     return entries
@@ -149,7 +156,9 @@ async def _download_url(url: str, dest: Path) -> None:
     if not _is_petdex_host(url):
         raise PetStoreError(f"refusing non-petdex download host: {url}")
     dest.parent.mkdir(parents=True, exist_ok=True)
-    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True
+    ) as client:
         async with client.stream("GET", url) as response:
             response.raise_for_status()
             total = 0
@@ -193,7 +202,9 @@ def persist_atlas_report(slug: str, report: AtlasReport) -> None:
             if isinstance(loaded, dict):
                 meta = loaded
         except (OSError, ValueError) as exc:
-            logger.warning("Could not read pet.json for atlas persist (%s): %s", normalized, exc)
+            logger.warning(
+                "Could not read pet.json for atlas persist (%s): %s", normalized, exc
+            )
     meta["atlasReport"] = atlas_report_dict(report)
     try:
         pet_json.write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -271,7 +282,11 @@ async def install_pet(slug: str, *, force: bool = False) -> InstalledPet:
 
     await _download_url(spritesheet_url, sprite_path)
 
-    from app.services.companion.pet_atlas import FormatTier, analyze_spritesheet, atlas_report_dict
+    from app.services.companion.pet_atlas import (
+        FormatTier,
+        analyze_spritesheet,
+        atlas_report_dict,
+    )
 
     try:
         atlas_report = analyze_spritesheet(sprite_path)
@@ -306,7 +321,9 @@ async def install_pet(slug: str, *, force: bool = False) -> InstalledPet:
         format_label=atlas_report.label,
         format_tier=atlas_report.format_tier.value,
     )
-    logger.info("Installed companion pet slug=%s sha=%s", normalized, content_sha256[:12])
+    logger.info(
+        "Installed companion pet slug=%s sha=%s", normalized, content_sha256[:12]
+    )
     return installed
 
 

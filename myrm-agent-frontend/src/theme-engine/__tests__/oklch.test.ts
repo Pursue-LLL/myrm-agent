@@ -132,8 +132,12 @@ describe('derivePalette', () => {
     expect(dark.dataAttributes['data-myrm-theme-profile']).toBe('test-custom');
   });
 
-  it('all 7 builtin preset hex values work correctly', () => {
-    const presetColors = ['#588e95', '#c4567a', '#b4762c', '#7c4dba', '#2563eb', '#4a7d84'];
+  it('all builtin preset primary hex values derive valid palettes', () => {
+    const presetColors = [
+      '#588e95', '#c4567a', '#b4762c', '#7c4dba', '#2563eb', '#4a7d84',
+      '#7a9a8e', '#8b7355', '#5a7a5e', '#c06030', '#4a6a9a', '#2a9a48',
+      '#6a6a72', '#c87060', '#a08860', '#3a9a8a',
+    ];
     for (const hex of presetColors) {
       const palette = derivePalette(hex);
       expect(palette.primaryLight).toMatch(HEX_RE);
@@ -147,5 +151,10 @@ describe('resolveContrastSafeForeground', () => {
   it('meets WCAG AA for official default light primary', () => {
     const foreground = resolveContrastSafeForeground('#588e95');
     expect(meetsContrast(foreground, '#588e95')).toBe(true);
+  });
+
+  it('meets WCAG AA for mid-gray backgrounds via lightness sweep', () => {
+    const foreground = resolveContrastSafeForeground('#777777');
+    expect(meetsContrast(foreground, '#777777')).toBe(true);
   });
 });

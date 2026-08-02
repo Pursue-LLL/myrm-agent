@@ -5,17 +5,13 @@ import { ImageIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import {
-  mediaKindFromFile,
-  validateThemeBackgroundFile,
-  type ThemeBackgroundValidationError,
-} from '@/theme-engine';
-import { uploadThemeAsset } from '@/services/theme-assets/uploadThemeAsset';
-import {
-  extractVideoPosterBlob,
-  VideoPosterExtractionError,
-} from '@/services/theme-assets/extractVideoPoster';
+import { validateThemeBackgroundFile, type ThemeBackgroundValidationError } from '@/theme-engine';
 import { resolveThemeAssetUrl } from '@/services/theme-assets/ThemeAssetStore';
+import { VideoPosterExtractionError } from '@/services/theme-assets/extractVideoPoster';
+import {
+  ThemeBackgroundValidationFailedError,
+  uploadThemeBackground,
+} from '@/services/theme-assets/uploadThemeBackground';
 
 const ACCEPTED_BACKGROUND_TYPES =
   'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
@@ -58,29 +54,21 @@ const ThemeMediaUploadField = ({ disabled = false, onUploaded }: ThemeMediaUploa
       }
       setUploading(true);
       try {
-        const mediaKind = mediaKindFromFile(file);
-        const assetRef = await uploadThemeAsset(file);
-        let posterAssetRef: string | null = null;
-        if (mediaKind === 'video') {
-          try {
-            const posterBlob = await extractVideoPosterBlob(file);
-            posterAssetRef = await uploadThemeAsset(
-              new File([posterBlob], 'poster.png', { type: 'image/png' }),
-            );
-          } catch (error) {
-            if (error instanceof VideoPosterExtractionError) {
-              toast.warning(t('backgroundPosterFailed'));
-            } else {
-              throw error;
-            }
-          }
-        }
+        const { assetRef, mediaKind, posterAssetRef } = await uploadThemeBackground(file);
         const previewUrl = await resolveThemeAssetUrl(
           mediaKind === 'video' ? (posterAssetRef ?? assetRef) : assetRef,
         );
         onUploaded({ assetRef, mediaKind, posterAssetRef, previewUrl });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : t('backgroundUploadFailed'));
+        const message =
+          error instanceof ThemeBackgroundValidationFailedError
+            ? t(VALIDATION_MESSAGE_KEYS[error.code])
+            : error instanceof VideoPosterExtractionError
+              ? t('backgroundPosterFailed')
+              : error instanceof Error
+                ? error.message
+                : t('backgroundUploadFailed');
+        toast.error(message);
       } finally {
         setUploading(false);
       }

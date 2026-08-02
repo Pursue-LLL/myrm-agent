@@ -39,7 +39,9 @@ def verify_companion_enabled() -> None:
 
     feature_set = get_features()
     if not feature_set.enabled("companion_mode"):
-        raise HTTPException(status_code=403, detail="Companion feature is disabled via Feature Gate")
+        raise HTTPException(
+            status_code=403, detail="Companion feature is disabled via Feature Gate"
+        )
 
 
 router = APIRouter(dependencies=[Depends(verify_companion_enabled)])
@@ -120,7 +122,9 @@ async def companion_react(
         raise
     except Exception as exc:
         logger.warning("companion_observer_failed: %s", exc)
-        raise HTTPException(status_code=502, detail="Companion reaction generation failed") from exc
+        raise HTTPException(
+            status_code=502, detail="Companion reaction generation failed"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +164,9 @@ async def get_evolution_status(
     user_chats = select(Chat.id).subquery()
 
     conversations_q = select(func.count()).select_from(user_chats)
-    active_days_q = select(func.count(func.distinct(func.date(Message.created_at)))).where(
+    active_days_q = select(
+        func.count(func.distinct(func.date(Message.created_at)))
+    ).where(
         and_(
             Message.chat_id.in_(select(user_chats.c.id)),
             Message.role == "user",
@@ -188,7 +194,11 @@ async def get_evolution_status(
 
     for rarity in _RARITY_ORDER[current_idx + 1 :]:
         req_conv, req_days, req_msgs = _EVOLUTION_THRESHOLDS[rarity]
-        if conversations >= req_conv and active_days >= req_days and total_messages >= req_msgs:
+        if (
+            conversations >= req_conv
+            and active_days >= req_days
+            and total_messages >= req_msgs
+        ):
             max_reachable = rarity
         else:
             break
@@ -266,7 +276,9 @@ def _sprite_from_raw(raw: object) -> SpriteConfigValue | None:
         return SpriteConfigValue(
             pet_slug=pet_slug.strip(),
             content_sha256=sha if isinstance(sha, str) and sha else None,
-            display_name=display_name if isinstance(display_name, str) and display_name else None,
+            display_name=(
+                display_name if isinstance(display_name, str) and display_name else None
+            ),
         )
     return None
 
@@ -277,7 +289,11 @@ def _companion_value_from_record(val: dict[str, object]) -> CompanionConfigValue
         name=val.get("name") if isinstance(val.get("name"), str) else None,
         species=val.get("species") if isinstance(val.get("species"), str) else None,
         hat=val.get("hat") if isinstance(val.get("hat"), str) else None,
-        palette_theme=val.get("palette_theme") if isinstance(val.get("palette_theme"), str) else None,
+        palette_theme=(
+            val.get("palette_theme")
+            if isinstance(val.get("palette_theme"), str)
+            else None
+        ),
         sprite=_sprite_from_raw(sprite_raw),
     )
 
@@ -292,7 +308,9 @@ async def _persist_sprite_selection(
     from app.services.config.service import config_service
 
     record = await config_service.get("companion_config")
-    base: dict[str, object] = dict(record.value) if record and isinstance(record.value, dict) else {}
+    base: dict[str, object] = (
+        dict(record.value) if record and isinstance(record.value, dict) else {}
+    )
     base["sprite"] = {
         "pet_slug": pet_slug,
         "content_sha256": content_sha256,
@@ -362,7 +380,11 @@ async def get_companion_config() -> CompanionConfigResponse:
 
     val = record.value if isinstance(record.value, dict) else {}
     sprite_raw = val.get("sprite")
-    if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") and not sprite_raw.get("pet_slug"):
+    if (
+        isinstance(sprite_raw, dict)
+        and sprite_raw.get("sheet_url")
+        and not sprite_raw.get("pet_slug")
+    ):
         legacy_slug = sprite_raw.get("name")
         if isinstance(legacy_slug, str) and legacy_slug.strip():
             try:

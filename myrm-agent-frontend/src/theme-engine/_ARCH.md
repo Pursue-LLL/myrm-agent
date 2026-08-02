@@ -11,8 +11,8 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 | `layouts.ts` | Myrm-native layout surface opacity map |
 | `layout-catalog.ts` | Studio layout cards + guidance i18n keys |
 | `readability-scene.ts` | pathname → immersive/functional scene SSOT |
-| `scene-surfaces.ts` | layout × scene merge + functional art wash floor |
-| `presets.ts` | Built-in profiles (official-default + 6 accents + calm) |
+| `scene-surfaces.ts` | layout × scene merge + exported `FUNCTIONAL_SURFACE_FLOORS` / `FUNCTIONAL_ART_WASH_FLOOR` |
+| `presets.ts` | 17 built-in profiles: default, 5 accents, 3 eye-care, 4 nature, 2 efficiency, 2 warm |
 | `overlay.ts` | User art overlay merge + profile builders |
 | `preinit.ts` | Blocking pre-hydration localStorage snapshot writer (tokens + optional art poster preload hint) |
 | `oklch.ts` | WCAG contrast utilities + `derivePalette(hex)` + `resolveContrastSafeForeground` |
@@ -31,3 +31,5 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 - **Scene** (`ThemeReadabilityScene`): runtime route-derived — `immersive` (chat) vs `functional` (Kanban, Settings, …).
 - `ThemeProfileProvider` passes both to `compileThemeProfile`; `data-myrm-theme-layout` no longer overridden by route.
 - Cold start: `public/theme-init.js` resolves scene from `location.pathname` (keep aligned with `readability-scene.ts`).
+- Functional opacity floors: exported from `scene-surfaces.ts`; parity asserted in `theme-init-asset.test.ts`.
+- WCAG: `resolveContrastSafeForeground` sweeps achromatic lightness after brand neutrals; all `BUILTIN_THEME_PROFILES` asserted in `compiler.test.ts`.

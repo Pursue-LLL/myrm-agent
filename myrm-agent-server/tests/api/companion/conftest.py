@@ -48,7 +48,9 @@ async def setup_companion_database(tmp_path: Path):
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),
-        patch("app.services.config.service.get_session_factory", mock_get_session_factory),
+        patch(
+            "app.services.config.service.get_session_factory", mock_get_session_factory
+        ),
     ):
         yield
 

@@ -202,12 +202,13 @@ def make_correction_propagation_callback(
     agent_id: str,
     llm_func: Callable[[str, str], Awaitable[str]],
 ) -> Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]]:
-    """Create a session cleanup callback that propagates corrections to SharedContexts.
+    """Create a session cleanup callback that detects implicit corrections and propagates them.
 
-    When the user corrects an Agent (detected via FeedbackSignal.NEGATIVE),
-    a concise correction summary is extracted via LLM and written as a proposal
-    to all SharedContexts bound to the Agent. If the SharedContext policy has
-    `correction_auto_approve=true`, the proposal is automatically materialized.
+    Uses the two-stage implicit feedback pipeline (regex fast-path + LLM deep scan)
+    to detect both explicit and implicit user corrections. Produces structured correction
+    proposals routed to:
+    1. Agent personal memory — via PendingMemory Governance queue (HITL approval)
+    2. SharedContexts — via SharedContext write proposals (policy-based auto-approve)
     """
 
     async def _propagate(messages: Sequence[dict[str, str]], chat_id: str | None) -> None:
@@ -226,39 +227,129 @@ async def _run_correction_propagation(
     llm_func: Callable[[str, str], Awaitable[str]],
     chat_id: str | None,
 ) -> None:
-    """Core logic: detect correction → extract summary → create proposals → auto-approve."""
-    from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-        FeedbackSignal,
-        detect_feedback_signals,
+    """Core logic: implicit feedback detection → structured planning → dual-target proposals."""
+    from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+        detect_implicit_feedback,
     )
 
     if len(messages) < 2:
         return
 
-    feedback = detect_feedback_signals(messages)
-    if feedback != FeedbackSignal.NEGATIVE:
+    result = await detect_implicit_feedback(messages, llm_func)
+
+    if result.signal != FeedbackSignal.NEGATIVE:
         return
 
-    from app.services.memory.shared_context import resolve_shared_context_ids
-
-    context_ids = await resolve_shared_context_ids(agent_id=agent_id)
-    if not context_ids:
+    if not result.proposals:
         logger.info(
-            "Correction detected for agent %s but no SharedContexts bound, skipping propagation",
+            "Correction signal detected for agent %s but planner produced no proposals",
             agent_id,
         )
         return
 
-    summary = await _extract_correction_summary(messages, llm_func)
-    if not summary:
-        return
+    logger.info(
+        "Implicit feedback: agent=%s signal=%s implicit=%s proposals=%d",
+        agent_id,
+        result.signal,
+        result.has_implicit_contradiction,
+        len(result.proposals),
+    )
+
+    await _route_proposals_to_personal_memory(result.proposals, agent_id=agent_id, chat_id=chat_id)
+
+    await _route_proposals_to_shared_contexts(result.proposals, agent_id=agent_id, chat_id=chat_id)
+
+
+async def _route_proposals_to_personal_memory(
+    proposals: list,
+    *,
+    agent_id: str,
+    chat_id: str | None,
+) -> None:
+    """Route correction proposals to the Agent's personal memory Governance queue."""
+    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionAction
+
+    from app.database.connection import get_session
+    from app.database.models.memory import PendingMemory
+    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+    async with get_session() as session:
+        created_count = 0
+        for proposal in proposals:
+            if proposal.action == CorrectionAction.DELETE:
+                continue
+
+            proposal_id = build_correction_proposal_source_id(chat_id, proposal.content)
+
+            existing = await session.get(PendingMemory, proposal_id)
+            if existing is not None:
+                continue
+
+            pending = PendingMemory(
+                id=proposal_id,
+                agent_id=agent_id,
+                memory_type=proposal.memory_type,
+                content=proposal.content,
+                metadata_json={
+                    "source": "implicit_feedback",
+                    "source_chat_id": chat_id or "",
+                    "action": proposal.action.value,
+                    "reasoning": proposal.reasoning,
+                    "confidence": proposal.confidence,
+                    "old_content": proposal.old_content,
+                },
+                confidence=proposal.confidence,
+                status="pending",
+                is_conflict=proposal.action == CorrectionAction.UPDATE,
+                conflict_old_content=proposal.old_content,
+            )
+            session.add(pending)
+            created_count += 1
+
+        if created_count > 0:
+            await session.commit()
+            logger.info(
+                "Created %d pending memory proposals from implicit feedback: agent=%s",
+                created_count,
+                agent_id,
+            )
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.MEMORY_OPERATION,
+                    data={
+                        "operation": "implicit_feedback_personal",
+                        "agent_id": agent_id,
+                        "proposal_count": created_count,
+                        "source_chat_id": chat_id or "",
+                    },
+                )
+            )
+
+
+async def _route_proposals_to_shared_contexts(
+    proposals: list,
+    *,
+    agent_id: str,
+    chat_id: str | None,
+) -> None:
+    """Route correction proposals to all SharedContexts bound to this Agent."""
+    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionAction
 
     from app.database.connection import get_session
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-    from app.services.memory.shared_context import SharedContextService
-    from app.services.memory.shared_context_materializer import (
-        SharedContextProposalMaterializer,
-    )
+    from app.services.memory.shared_context import SharedContextService, resolve_shared_context_ids
+    from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
+
+    context_ids = await resolve_shared_context_ids(agent_id=agent_id)
+    if not context_ids:
+        return
+
+    add_or_update_proposals = [
+        p for p in proposals if p.action in (CorrectionAction.ADD, CorrectionAction.UPDATE)
+    ]
+    if not add_or_update_proposals:
+        return
 
     async with get_session() as session:
         svc = SharedContextService(session)
@@ -269,89 +360,40 @@ async def _run_correction_propagation(
             if context is None or context.status != "active":
                 continue
 
-            proposal = await svc.create_write_proposal(
-                context_id=context_id,
-                memory_type="semantic",
-                content=summary,
-                metadata={
-                    "source_agent_id": agent_id,
-                    "source_chat_id": chat_id or "",
-                    "propagation_type": "correction",
-                },
-                source_type="correction_propagation",
-                source_id=build_correction_proposal_source_id(chat_id, summary),
-            )
-            if proposal is None:
-                continue
-
-            if proposal.status in ("approved", "rejected"):
-                logger.info(
-                    "Correction propagation idempotent skip: context=%s proposal=%s status=%s",
-                    context_id,
-                    proposal.id,
-                    proposal.status,
-                )
-                continue
-
             policy = context.policy or {}
             auto_approve = policy.get("correction_auto_approve") is not False
 
-            if auto_approve:
-                await materializer.approve_write_proposal(proposal.id)
-                logger.warning(
-                    "Correction auto-propagated to SharedContext %s (proposal=%s)",
-                    context_id,
-                    proposal.id,
+            for proposal in add_or_update_proposals:
+                sc_proposal = await svc.create_write_proposal(
+                    context_id=context_id,
+                    memory_type=proposal.memory_type,
+                    content=proposal.content,
+                    metadata={
+                        "source_agent_id": agent_id,
+                        "source_chat_id": chat_id or "",
+                        "propagation_type": "implicit_feedback",
+                        "action": proposal.action.value,
+                        "reasoning": proposal.reasoning,
+                        "old_content": proposal.old_content,
+                    },
+                    source_type="implicit_feedback",
+                    source_id=build_correction_proposal_source_id(chat_id, proposal.content),
                 )
-            else:
-                logger.warning(
-                    "Correction proposal created for SharedContext %s (proposal=%s, pending approval)",
-                    context_id,
-                    proposal.id,
-                )
+                if sc_proposal is None or sc_proposal.status in ("approved", "rejected"):
+                    continue
 
-            get_event_bus().publish(
-                AppEvent(
+                if auto_approve:
+                    await materializer.approve_write_proposal(sc_proposal.id)
+
+                get_event_bus().publish(AppEvent(
                     event_type=AppEventType.MEMORY_OPERATION,
                     data={
-                        "operation": "correction_propagation",
+                        "operation": "implicit_feedback_shared",
                         "context_id": context_id,
                         "context_name": context.name,
-                        "proposal_id": proposal.id,
+                        "proposal_id": sc_proposal.id,
                         "agent_id": agent_id,
                         "auto_approved": bool(auto_approve),
-                        "summary": summary[:200],
+                        "content": proposal.content[:200],
                     },
-                )
-            )
-
-
-_CORRECTION_SUMMARY_SYSTEM = (
-    "You are a concise fact-extraction assistant. "
-    "The user corrected an AI assistant during their conversation. "
-    "Extract ONLY the factual correction as a single declarative sentence. "
-    "Format: '[Wrong] X → [Correct] Y' or a concise factual statement. "
-    "If no clear correction is found, reply with exactly 'NONE'."
-)
-
-_CORRECTION_SUMMARY_PROMPT_TEMPLATE = (
-    "Conversation (last {n} messages):\n\n{conversation}\n\nExtract the factual correction made by the user."
-)
-
-
-async def _extract_correction_summary(
-    messages: list[dict[str, str]],
-    llm_func: Callable[[str, str], Awaitable[str]],
-) -> str:
-    """Extract a concise correction summary from the conversation via LLM."""
-    recent = messages[-8:]
-    conversation = "\n".join(f"{'User' if m['role'] == 'user' else 'AI'}: {m['content'][:500]}" for m in recent)
-    prompt = _CORRECTION_SUMMARY_PROMPT_TEMPLATE.format(n=len(recent), conversation=conversation)
-    raw_result = await llm_func(_CORRECTION_SUMMARY_SYSTEM, prompt)
-    from myrm_agent_harness.utils.text_sanitizer import extract_and_strip_think_blocks
-
-    result, _ = extract_and_strip_think_blocks(raw_result)
-    result = result.strip()
-    if not result or result.upper() == "NONE":
-        return ""
-    return result[:1000]
+                ))

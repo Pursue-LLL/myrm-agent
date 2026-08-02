@@ -51,7 +51,11 @@ class AtlasReport:
         label = raw.get("label")
         tier_raw = raw.get("formatTier") or raw.get("format_tier")
         message = raw.get("message")
-        if not isinstance(label, str) or not isinstance(tier_raw, str) or not isinstance(message, str):
+        if (
+            not isinstance(label, str)
+            or not isinstance(tier_raw, str)
+            or not isinstance(message, str)
+        ):
             return None
         try:
             tier = FormatTier(tier_raw)

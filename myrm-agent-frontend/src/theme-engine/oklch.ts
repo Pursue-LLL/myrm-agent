@@ -28,8 +28,25 @@ export function meetsContrast(foreground: string, background: string, minRatio =
 
 const FOREGROUND_CANDIDATES = ['#fbfbf8', '#0a0a0a', '#ffffff', '#1a1208'] as const;
 
+function sweepAchromaticForeground(
+  background: string,
+  minRatio: number,
+  fromL: number,
+  toL: number,
+): string | null {
+  const step = fromL <= toL ? 1 : -1;
+  for (let l = fromL; step > 0 ? l <= toL : l >= toL; l += step) {
+    const candidate = hslToHex(0, 0, l);
+    if (meetsContrast(candidate, background, minRatio)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 /**
- * Pick a foreground hex that meets WCAG AA against `background`, preferring light text first.
+ * Pick a foreground hex that meets WCAG AA against `background`.
+ * Tries brand neutrals first, then sweeps achromatic lightness toward the opposite pole.
  */
 export function resolveContrastSafeForeground(
   background: string,
@@ -40,9 +57,33 @@ export function resolveContrastSafeForeground(
       return candidate;
     }
   }
+
+  const preferLight = relativeLuminance(background) < 0.5;
+  const primarySweep = preferLight
+    ? sweepAchromaticForeground(background, minRatio, 100, 50)
+    : sweepAchromaticForeground(background, minRatio, 0, 50);
+  if (primarySweep) {
+    return primarySweep;
+  }
+
+  const secondarySweep = preferLight
+    ? sweepAchromaticForeground(background, minRatio, 0, 50)
+    : sweepAchromaticForeground(background, minRatio, 100, 50);
+  if (secondarySweep) {
+    return secondarySweep;
+  }
+
   let best = FOREGROUND_CANDIDATES[0];
   let bestRatio = contrastRatio(best, background);
   for (const candidate of FOREGROUND_CANDIDATES) {
+    const ratio = contrastRatio(candidate, background);
+    if (ratio > bestRatio) {
+      best = candidate;
+      bestRatio = ratio;
+    }
+  }
+  for (let l = 5; l <= 95; l += 5) {
+    const candidate = hslToHex(0, 0, l);
     const ratio = contrastRatio(candidate, background);
     if (ratio > bestRatio) {
       best = candidate;

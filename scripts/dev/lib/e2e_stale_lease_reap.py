@@ -597,9 +597,8 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         body_elapsed = _elapsed_sec_from_reason(reason, prefix="body_elapsed")
         from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
 
-        if (
-            body_elapsed is not None
-            and body_elapsed >= float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
+        if body_elapsed is not None and body_elapsed >= float(
+            LIVE_AGENT_BODY_WALL_CLOCK_SEC
         ):
             return False
         return not _past_body_wall_cap(row, reason)
@@ -609,7 +608,9 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return True
     if reason.startswith("process_elapsed=") and row.phase == "body":
         if not _process_has_signoff_env(row.pid):
-            from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
+            from dev_gate_contract import (
+                LIVE_AGENT_BODY_WALL_CLOCK_SEC,
+            )  # noqa: PLC0415
 
             elapsed = _elapsed_sec_from_reason(reason, prefix="process_elapsed")
             if elapsed is None:
@@ -815,6 +816,9 @@ def maybe_reap_epoch_drift_stale_sessions() -> bool:
     reaped = False
     for row in list_live_e2e_sessions():
         if row.phase not in ("bootstrap", "admit"):
+            continue
+        # R279: M3 signoff legs queue through drift — do not coordinator-reap at 180s.
+        if _process_has_signoff_env(row.pid):
             continue
         if row.elapsed_sec < _EPOCH_DRIFT_REAPER_BUDGET_SEC:
             continue

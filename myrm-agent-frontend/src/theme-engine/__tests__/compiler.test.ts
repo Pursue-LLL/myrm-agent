@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { compileThemeProfile } from '../compiler';
-import { getDefaultThemeProfile } from '../presets';
+import { BUILTIN_THEME_PROFILES, getDefaultThemeProfile } from '../presets';
 import { resolveReadabilityScene, FUNCTIONAL_ROUTE_PREFIXES } from '../readability-scene';
-import { effectiveArtWash } from '../scene-surfaces';
+import { effectiveArtWash, FUNCTIONAL_ART_WASH_FLOOR, FUNCTIONAL_SURFACE_FLOORS } from '../scene-surfaces';
 import { meetsContrast } from '../oklch';
 
 describe('theme-engine compiler', () => {
+  it('all builtin presets meet WCAG AA for primary and button foreground', () => {
+    for (const profile of BUILTIN_THEME_PROFILES) {
+      for (const colorScheme of ['light', 'dark'] as const) {
+        const compiled = compileThemeProfile(profile, {
+          colorScheme,
+          layoutId: profile.layoutId,
+          sceneId: 'immersive',
+          prefersReducedMotion: false,
+          isMobile: false,
+        });
+        const pairs: [string, string][] = [
+          [compiled.cssVariables['--primary-foreground'], compiled.cssVariables['--primary']],
+          [compiled.cssVariables['--button-fill-foreground'], compiled.cssVariables['--button-fill']],
+        ];
+        for (const [foreground, background] of pairs) {
+          expect(meetsContrast(foreground, background)).toBe(true);
+        }
+      }
+    }
+  });
+
   it('compiles official default for light and dark with WCAG AA foreground', () => {
     const profile = getDefaultThemeProfile();
     const light = compileThemeProfile(profile, {
@@ -45,7 +66,10 @@ describe('theme-engine compiler', () => {
     });
     expect(compiled.dataAttributes['data-myrm-theme-layout']).toBe('full-bleed');
     expect(compiled.dataAttributes['data-myrm-theme-scene']).toBe('functional');
-    expect(Number(compiled.artLayer.surfaceOpacity)).toBeGreaterThan(0.9);
+    expect(compiled.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(
+      FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity,
+    );
+    expect(compiled.artLayer.mainOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.mainOpacity);
   });
 
   it('raises art wash floor on functional scene only', () => {
@@ -82,8 +106,13 @@ describe('theme-engine compiler', () => {
       { mediaUrl: 'https://cdn.example.com/hero.png', posterUrl: 'https://cdn.example.com/hero.png' },
     );
     expect(immersive.artLayer.wash).toBe(0.25);
+    expect(functional.artLayer.enabled).toBe(true);
     expect(functional.artLayer.wash).toBe(effectiveArtWash(0.25, 'functional'));
-    expect(functional.artLayer.wash).toBeGreaterThan(0.25);
+    expect(functional.artLayer.wash).toBeGreaterThanOrEqual(FUNCTIONAL_ART_WASH_FLOOR);
+    expect(functional.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(
+      FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity,
+    );
+    expect(functional.artLayer.navOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.navOpacity);
   });
 
   it('downgrades mobile video to poster image without mp4 background', () => {

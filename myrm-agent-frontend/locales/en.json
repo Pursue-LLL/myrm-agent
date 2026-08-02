@@ -3384,7 +3384,17 @@
         "preset-amber": "Amber",
         "preset-violet": "Violet",
         "preset-ocean": "Ocean",
-        "preset-atkinson-calm": "Calm Readable"
+        "preset-atkinson-calm": "Calm Readable",
+        "preset-dark-comfort": "Dark Comfort",
+        "preset-paper-sepia": "Paper Sepia",
+        "preset-moss": "Moss Green",
+        "preset-sunset": "Sunset",
+        "preset-midnight": "Midnight",
+        "preset-terminal": "Terminal",
+        "preset-studio-gray": "Studio Gray",
+        "preset-peach": "Peach Blush",
+        "preset-cream": "Cream",
+        "preset-mint": "Mint Fresh"
       }
     },
     "themeStudio": {

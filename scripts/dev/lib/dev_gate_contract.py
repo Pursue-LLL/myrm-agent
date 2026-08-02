@@ -1011,6 +1011,18 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     if not is_transport_stall_node(current_node):
         return transport
     if is_e2e_signoff_runtime():
+        if current_node.startswith("open_mcp_page"):
+            try:
+                from mux_load import parallel_open_page_peer_count
+
+                peers = parallel_open_page_peer_count(signoff=True)
+            except ImportError:
+                peers = 0
+            bootstrap_cap = signoff_bootstrap_transport_stall_cap_sec(
+                parallel_peers=peers,
+            )
+            body_cap = signoff_open_page_transport_stall_cap_sec()
+            return max(transport, bootstrap_cap, body_cap)
         return max(transport, signoff_open_page_transport_stall_cap_sec())
     if current_node.startswith("open_mcp_page"):
         live = live_open_page_transport_stall_cap_sec()

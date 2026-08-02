@@ -20,7 +20,9 @@ async def test_companion_doctor_reports_feature_gate(companion_app) -> None:
     register_all_features()
     init_features(overrides={"companion_mode": False})
 
-    async with AsyncClient(transport=ASGITransport(app=companion_app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=companion_app), base_url="http://test"
+    ) as ac:
         resp = await ac.get("/api/v1/companion/doctor")
         assert resp.status_code == 200
         payload = resp.json()

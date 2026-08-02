@@ -3384,7 +3384,17 @@
         "preset-amber": "琥珀",
         "preset-violet": "紫罗兰",
         "preset-ocean": "海洋",
-        "preset-atkinson-calm": "护眼可读"
+        "preset-atkinson-calm": "护眼可读",
+        "preset-dark-comfort": "暗夜舒适",
+        "preset-paper-sepia": "纸墨暖棕",
+        "preset-moss": "苔藓绿",
+        "preset-sunset": "落日橙",
+        "preset-midnight": "深夜蓝",
+        "preset-terminal": "终端绿",
+        "preset-studio-gray": "工作灰",
+        "preset-peach": "蜜桃粉",
+        "preset-cream": "奶油白",
+        "preset-mint": "薄荷绿"
       }
     },
     "themeStudio": {

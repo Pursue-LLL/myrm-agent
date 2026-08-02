@@ -400,6 +400,11 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     """
     if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
         return
+    # R278/R279: signoff + desktop soak queue via ADMIT — never pytest.skip here.
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return
+    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1":
+        return
     profile = _chrome_e2e_profile(request.node)
     if profile is None:
         return

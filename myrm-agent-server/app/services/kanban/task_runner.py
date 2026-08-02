@@ -9,15 +9,18 @@ tools, memory, security).
 - myrm_agent_harness.toolkits.kanban.protocols::TaskRunner (POS: Harness protocol.)
 - myrm_agent_harness.toolkits.kanban.context_builder::build_task_context (POS: Worker context.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskTimeoutError (POS: Kanban domain types.)
+- myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
+- app.services.agent.goal_registry::GoalRegistry (POS: Session-level goal management.)
 - task_runner_stream::build_multimodal_query (POS: Multimodal query assembly.)
 - task_runner_worktree::resolve_workspace, cleanup_worktree (POS: Git worktree isolation.)
 - task_runner_profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]
-- KanbanTaskRunner: Concrete TaskRunner implementation.
+- KanbanTaskRunner: Concrete TaskRunner with goal-mode support.
 
 [POS]
 Server-layer TaskRunner that executes kanban tasks through the agent pipeline.
+Supports goal-mode for autonomous multi-turn execution via GoalProvider injection.
 """
 
 from __future__ import annotations
@@ -25,8 +28,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api import KanbanStore
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutError
 
@@ -190,7 +197,7 @@ class KanbanTaskRunner:
     async def _resolve_profile(self, agent_id: str | None) -> _ResolvedProfile | None:
         return await resolve_agent_profile(agent_id)
 
-    async def _setup_goal_provider(self, task: KanbanTask):
+    async def _setup_goal_provider(self, task: KanbanTask) -> GoalProvider:
         """Create a GoalProvider for a goal-mode kanban task."""
         from myrm_agent_harness.agent.goals.types import GoalBudget
 
@@ -222,7 +229,7 @@ class KanbanTaskRunner:
     async def _map_goal_outcome(
         self,
         task: KanbanTask,
-        goal_provider,
+        goal_provider: GoalProvider,
         agent_result: tuple[bool, str],
     ) -> tuple[bool, str]:
         """Map Goal terminal status to Kanban result."""
@@ -252,7 +259,7 @@ class KanbanTaskRunner:
         context: str | list[dict[str, object]],
         profile: _ResolvedProfile | None,
         workspace_root: str | None = None,
-        goal_provider: object | None = None,
+        goal_provider: GoalProvider | None = None,
     ) -> tuple[bool, str]:
         from app.ai_agents.agents import AgentFactory, GeneralAgentParams
         from app.core.channel_bridge.config_loader import load_user_configs

@@ -279,7 +279,9 @@ def _reacquire_e2e_lease_from_wave() -> bool:
     # Pytest heal must outlive wave acquire poll budget but stay bounded under parallel load.
     acquire_timeout = min(max(wait_sec + 45, 90), 240)
     env = os.environ.copy()
-    env.setdefault("MYRM_WAVE_AGENT_ID", os.environ.get("MYRM_E2E_AGENT_ID", "").strip())
+    env.setdefault(
+        "MYRM_WAVE_AGENT_ID", os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
+    )
     try:
         proc = subprocess.run(
             ["bash", str(lease_script), "acquire"],
