@@ -28,6 +28,14 @@ export function useThemeMarketplaceGate(): {
   }, [refresh]);
 
   useEffect(() => {
+    const onFocus = () => {
+      refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refresh]);
+
+  useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === 'auth_token') {
         refresh();

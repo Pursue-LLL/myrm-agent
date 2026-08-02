@@ -10,7 +10,7 @@
 | `whitelist.py` | Root filename whitelist + MP4/APNG/animated WebP checks | ✅ |
 | `manifest.py` | `recipe.json` Pydantic models + `to_installed_profile()` | ✅ |
 | `session_store.py` | In-memory inspect sessions (TTL 30min) | ✅ |
-| `inspect_service.py` | Safe extract + manifest validation + thumbnails | ✅ |
+| `inspect_service.py` | Safe extract + manifest validation + thumbnails (`signature_status=unsigned` for file uploads) | ✅ |
 | `install_service.py` | Consume session → upload assets → profile | ✅ |
 | `export_service.py` | Profile + `file:` refs → ZIP bytes | ✅ |
 | `marketplace_signing.py` | Verify CP transport HMAC for marketplace downloads | ✅ |

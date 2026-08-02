@@ -10,7 +10,7 @@
 - POST /theme/packages/inspect — 上传 .myrmtheme，返回预览会话与缩略图
 - POST /theme/packages/install — 消费 inspect 会话，返回 installed ThemeProfileRecipe
 - POST /theme/packages/export — 导出 profile 为 .myrmtheme 下载
-- POST /theme/packages/install-from-marketplace — CP 签名的 `.myrmtheme` 直装（Gallery 安装链）
+- POST /theme/packages/install-from-marketplace — CP 签名的 `.myrmtheme` 直装（Gallery 安装链；响应含 `trustTier`）
 
 [POS]
 主题包 HTTP 入口。WebUI Appearance 导入/导出的 server-authoritative 边界。

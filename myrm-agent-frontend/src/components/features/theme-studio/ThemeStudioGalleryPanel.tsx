@@ -113,8 +113,8 @@ const ThemeStudioGalleryPanel = () => {
         }
         try {
           await recordThemeInstall(listing.id);
-        } catch {
-          // Non-fatal: profile is installed; counter may catch up on retry.
+        } catch (recordError) {
+          console.warn('Theme install recorded locally but CP install counter failed:', recordError);
         }
         await load(refreshTab);
         toast.success(t('installed'));

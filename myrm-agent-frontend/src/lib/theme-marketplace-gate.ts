@@ -1,5 +1,12 @@
 /**
- * Theme marketplace availability — CP health + cloud JWT (not local-only token).
+ * [INPUT]
+ * - lib/cp-base-url::resolveCpBaseUrl (POS: CP REST base URL for browser)
+ *
+ * [OUTPUT]
+ * - probeCpHealth, hasCpMarketplaceJwt, resolveThemeMarketplaceGateState
+ *
+ * [POS]
+ * Theme marketplace availability SSOT (CP health + cloud JWT). Used by Theme Studio Gallery/Creator/Admin.
  */
 
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
