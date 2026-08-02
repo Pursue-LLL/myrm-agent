@@ -105,6 +105,10 @@ def _apply_session_preset(
 
     When *preset* is ``None`` or ``"hitl"``, the base config is returned
     unchanged (HITL is the default — every tool call requires approval).
+
+    The ``permissions`` key is merged at the individual permission level
+    (not replaced wholesale) so that base deny rules are preserved unless
+    the preset explicitly overrides them.
     """
     if not preset or preset == "hitl":
         return base
@@ -114,7 +118,14 @@ def _apply_session_preset(
     if base is None:
         return dict(overlay)
     merged = dict(base)
-    merged.update(overlay)
+    for key, value in overlay.items():
+        if key == "permissions" and isinstance(value, dict):
+            base_perms = merged.get("permissions")
+            merged_perms = dict(base_perms) if isinstance(base_perms, dict) else {}
+            merged_perms.update(value)
+            merged["permissions"] = merged_perms
+        else:
+            merged[key] = value
     return merged
 
 
@@ -641,6 +652,11 @@ async def convert_to_general_agent_params(
     )
 
     security_config_dict = configs.security_config_dict if configs else None
+
+    security_config_dict = _apply_session_preset(
+        security_config_dict, request.security_preset
+    )
+
     if http_request is not None:
         from app.remote_access.tool_policy import merge_remote_security_overlay
 
@@ -649,10 +665,6 @@ async def convert_to_general_agent_params(
             trust_zone=getattr(http_request.state, "trust_zone", None),
             admission_path=getattr(http_request.state, "admission_path", None),
         )
-
-    security_config_dict = _apply_session_preset(
-        security_config_dict, request.security_preset
-    )
 
     external_agents_config = None
     if configs and configs.external_agents_dict:
