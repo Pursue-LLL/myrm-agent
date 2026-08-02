@@ -46,6 +46,7 @@ def _dev_gate_status_once() -> dict[str, object]:
     except (OSError, PermissionError):
         return _unavailable_registry_status()
     sessions = store.list_active()
+    capacity = private_capacity_credits()
     controller = PrivateResourceController(
         store,
         capacity_credits=capacity,
