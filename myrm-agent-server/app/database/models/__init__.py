@@ -19,6 +19,7 @@ from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
 from .daily_wrap import DailyWrapCache
+from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .expert_summon_metric import ExpertSummonMetricEvent
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
@@ -170,6 +171,10 @@ __all__ = [
     "ArtifactVersion",
     "ArtifactAuditLog",
     "ArtifactPublication",
+    # FAQ
+    "FaqCorpus",
+    "FaqEntry",
+    "FaqHitLog",
     # Fission
     "FissionTaskRecord",
     # Widget KV Storage

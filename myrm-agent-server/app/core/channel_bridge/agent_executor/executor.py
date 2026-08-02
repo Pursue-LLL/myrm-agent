@@ -89,6 +89,27 @@ class ChannelAgentExecutor:
         # crosses into the harness approval subsystem.
         set_approval_user_id(user_id or msg.user_id or msg.sender_id)
 
+        if (
+            not is_resume
+            and topic_context
+            and topic_context.agent_id
+            and msg.content
+        ):
+            faq_reply = await self._try_faq_intercept(
+                agent_id=topic_context.agent_id,
+                user_query=msg.content,
+                channel=msg.channel,
+            )
+            if faq_reply is not None:
+                yield OutboundMessage(
+                    content=faq_reply,
+                    channel=msg.channel,
+                    receiver_id=msg.sender_id,
+                    chat_id=msg.chat_id,
+                    reply_to_id=msg.message_id,
+                )
+                return
+
         try:
             prep_result = await prepare_channel_execution(
                 self,
@@ -212,3 +233,48 @@ class ChannelAgentExecutor:
                     agent_id=params.agent_id,
                     extra_context=runtime_context,
                 )
+
+    @staticmethod
+    async def _try_faq_intercept(
+        *,
+        agent_id: str,
+        user_query: str,
+        channel: str,
+    ) -> str | None:
+        """Attempt FAQ semantic match. Returns answer text or None."""
+        try:
+            from app.services.faq.factory import get_faq_interceptor
+
+            interceptor = await get_faq_interceptor()
+            if interceptor is None:
+                return None
+
+            result, corpus_id, top_score = await interceptor.try_match(
+                agent_id, user_query, channel=channel,
+            )
+
+            from app.services.faq.tracker import FaqHitTracker
+
+            tracker = FaqHitTracker()
+            if result is not None:
+                await tracker.record(
+                    corpus_id=result.corpus_id,
+                    channel=channel,
+                    user_query=user_query,
+                    top_score=result.score,
+                    entry_id=result.entry_id,
+                    hit=True,
+                )
+                return result.answer
+
+            if corpus_id:
+                await tracker.record(
+                    corpus_id=corpus_id,
+                    channel=channel,
+                    user_query=user_query,
+                    top_score=top_score,
+                    hit=False,
+                )
+        except Exception:
+            logger.debug("FAQ intercept failed", exc_info=True)
+        return None

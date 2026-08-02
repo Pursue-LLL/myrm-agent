@@ -125,6 +125,8 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         "cleanup",
     }:
         timeout_sec = 30.0
+    if isinstance(operation, str) and operation == "cleanup":
+        timeout_sec = 60.0
     if operation == "wait_event":
         budget_raw = payload.get("budget_sec")
         if isinstance(budget_raw, (int, float)):

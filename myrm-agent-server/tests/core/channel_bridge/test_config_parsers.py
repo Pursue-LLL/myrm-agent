@@ -18,7 +18,7 @@ from app.core.channel_bridge.config_parsers import (
 
 
 def _make_cfg(service: str = "searxng", api_key: str = "", api_base: str = "") -> SimpleNamespace:
-    return SimpleNamespace(search_service=service, api_key=api_key, api_base=api_base)
+    return SimpleNamespace(search_service=service, api_key=api_key, api_base=api_base, provider_chain=None)
 
 
 def _mock_httpx_client(response: SimpleNamespace | None = None, exc: Exception | None = None) -> AsyncMock:
@@ -44,13 +44,23 @@ def _clear_cache() -> None:
 @pytest.mark.asyncio
 async def test_api_key_present_returns_true() -> None:
     cfg = _make_cfg(service="tavily", api_key="sk-123")
-    assert await verify_search_service_available(cfg) is True
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
+        assert await verify_search_service_available(cfg) is True
 
 
 @pytest.mark.asyncio
 async def test_api_key_missing_returns_false() -> None:
     cfg = _make_cfg(service="perplexity", api_key="")
-    assert await verify_search_service_available(cfg) is False
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+        return_value=False,
+    ):
+        assert await verify_search_service_available(cfg) is False
 
 
 # ── _ping_searxng unit tests ─────────────────────────────────────
@@ -105,75 +115,88 @@ async def test_ping_searxng_no_url_returns_false() -> None:
 async def test_cache_hit_skips_network_call() -> None:
     cfg = _make_cfg(api_base="http://localhost:8081")
 
-    with patch.object(config_parsers, "_ping_searxng", new_callable=AsyncMock) as mock_ping:
-        mock_ping.return_value = True
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+    ) as mock_verify:
+        mock_verify.return_value = True
 
         result1 = await verify_search_service_available(cfg)
         result2 = await verify_search_service_available(cfg)
 
         assert result1 is True
         assert result2 is True
-        assert mock_ping.await_count == 1
+        assert mock_verify.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_cache_expires_after_ttl() -> None:
     cfg = _make_cfg(api_base="http://localhost:8081")
 
-    with (
-        patch.object(config_parsers, "_ping_searxng", new_callable=AsyncMock) as mock_ping,
-        patch.object(config_parsers, "_SEARCH_HEALTH_TTL", 0.1),
-    ):
-        mock_ping.return_value = True
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+    ) as mock_verify:
+        mock_verify.return_value = True
 
         await verify_search_service_available(cfg)
-        assert mock_ping.await_count == 1
+        assert mock_verify.await_count == 1
 
         time.sleep(0.15)
         await verify_search_service_available(cfg)
-        assert mock_ping.await_count == 2
+        assert mock_verify.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_invalidate_cache_forces_recheck() -> None:
     cfg = _make_cfg(api_base="http://localhost:8081")
 
-    with patch.object(config_parsers, "_ping_searxng", new_callable=AsyncMock) as mock_ping:
-        mock_ping.return_value = True
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+    ) as mock_verify:
+        mock_verify.return_value = True
 
         await verify_search_service_available(cfg)
-        assert mock_ping.await_count == 1
+        assert mock_verify.await_count == 1
 
         invalidate_search_health_cache()
         await verify_search_service_available(cfg)
-        assert mock_ping.await_count == 2
+        assert mock_verify.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_cache_stores_false_result() -> None:
-    """Negative results should also be cached to avoid repeated failing pings."""
+    """Negative results should also be cached via verify_search_config_cached."""
     cfg = _make_cfg(api_base="http://localhost:8081")
 
-    with patch.object(config_parsers, "_ping_searxng", new_callable=AsyncMock) as mock_ping:
-        mock_ping.return_value = False
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+    ) as mock_verify:
+        mock_verify.return_value = False
 
         result1 = await verify_search_service_available(cfg)
         result2 = await verify_search_service_available(cfg)
 
         assert result1 is False
         assert result2 is False
-        assert mock_ping.await_count == 1
+        assert mock_verify.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_api_key_service_bypasses_cache() -> None:
-    """API-key services (non-SearXNG) should not use the cache."""
+    """API-key services (non-SearXNG) also go through verify_search_config_cached."""
     cfg = _make_cfg(service="tavily", api_key="sk-key")
 
-    with patch.object(config_parsers, "_ping_searxng", new_callable=AsyncMock) as mock_ping:
+    with patch(
+        "app.services.integrations.search_verify.verify_search_config_cached",
+        new_callable=AsyncMock,
+    ) as mock_verify:
+        mock_verify.return_value = True
         await verify_search_service_available(cfg)
         await verify_search_service_available(cfg)
-        mock_ping.assert_not_awaited()
+        assert mock_verify.await_count == 2
 
 
 # ── session_policy_from_agent_dict ────────────────────────────────

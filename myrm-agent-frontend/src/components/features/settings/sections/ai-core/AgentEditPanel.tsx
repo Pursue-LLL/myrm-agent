@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { HelpCircle, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { IconArrowRight, IconFileText, IconZap, IconBot, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -13,6 +13,7 @@ import AgentConfigEditDialog from '@/components/features/chat-window/agent-confi
 import { AgentSecurityTab } from './agent/AgentSecurityTab';
 import { AgentSecretsTab } from './agent/AgentSecretsTab';
 import { AgentProfileTimeMachine } from './agent/AgentProfileTimeMachine';
+import { AgentFaqTab } from './agent/AgentFaqTab';
 import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
 import { AgentCapabilitiesTab } from './agent/AgentCapabilitiesTab';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
@@ -23,7 +24,7 @@ import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
 
-type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'inbox';
+type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
 interface AgentEditPanelProps {
   agentId: string | null;
@@ -214,6 +215,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         label: t('agent.secrets.tabTitle', { fallback: 'Secrets' }),
         icon: IconKey,
         color: 'text-rose-500',
+      },
+      {
+        id: 'faq' as ConfigTab,
+        label: t('agent.faq.tabTitle', { fallback: 'FAQ' }),
+        icon: HelpCircle,
+        color: 'text-cyan-500',
       },
       {
         id: 'inbox' as ConfigTab,
@@ -417,6 +424,10 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>
               <AgentSecretsTab agentId={agentId} isNew={isNew} />
             </div>
+          )}
+
+          {activeTab === 'faq' && (
+            <AgentFaqTab agentId={agentId} />
           )}
 
           {activeTab === 'inbox' && (

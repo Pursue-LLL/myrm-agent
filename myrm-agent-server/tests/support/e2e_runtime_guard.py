@@ -268,6 +268,39 @@ def _active_lease(payload: object, lease_id: str) -> _LeasePayload | None:
     return None
 
 
+def _reacquire_e2e_lease_from_wave() -> bool:
+    """Acquire a fresh wave lease when the current env lease was reaped under parallel load."""
+    dev_scripts = _DEV_LIB.parent
+    lease_script = dev_scripts / "wave-e2e-lease.sh"
+    if not lease_script.is_file():
+        return False
+    wait_raw = os.environ.get("MYRM_E2E_LEASE_WAIT_SEC", "900").strip()
+    wait_sec = int(wait_raw) if wait_raw.isdigit() else 900
+    # Pytest heal must outlive wave acquire poll budget but stay bounded under parallel load.
+    acquire_timeout = min(max(wait_sec + 45, 90), 240)
+    env = os.environ.copy()
+    env.setdefault("MYRM_WAVE_AGENT_ID", os.environ.get("MYRM_E2E_AGENT_ID", "").strip())
+    try:
+        proc = subprocess.run(
+            ["bash", str(lease_script), "acquire"],
+            capture_output=True,
+            text=True,
+            timeout=acquire_timeout,
+            check=False,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    merged = f"{proc.stdout or ''}\n{proc.stderr or ''}"
+    for line in merged.splitlines():
+        candidate = line.strip()
+        if len(candidate) == 36 and candidate.count("-") == 4:
+            os.environ["MYRM_E2E_LEASE_ID"] = candidate
+            heartbeat_e2e_lease()
+            return True
+    return False
+
+
 def _heal_stale_e2e_lease() -> None:
     """Best-effort heal when parallel wave reap races pytest fixture setup."""
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
@@ -276,11 +309,36 @@ def _heal_stale_e2e_lease() -> None:
     dev_lib = str(_DEV_LIB)
     if dev_lib not in sys.path:
         sys.path.insert(0, dev_lib)
-    from e2e_lease_runtime_sync import sync_lease_runtime_with_shared_hot
 
+    state_path = _wave_state_path()
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    lease = _active_lease(payload, lease_id)
+    if lease is None or lease.get("status") != "active":
+        if _reacquire_e2e_lease_from_wave():
+            time.sleep(0.25)
+        return
+
+    from e2e_lease_runtime_sync import (
+        lease_runtime_matches_shared_hot,
+        sync_lease_runtime_with_shared_hot,
+    )
+
+    ok, _ = lease_runtime_matches_shared_hot(lease_id=lease_id)
+    if ok:
+        heartbeat_e2e_lease()
+        time.sleep(0.25)
+        return
     sync_lease_runtime_with_shared_hot(lease_id=lease_id)
-    heartbeat_e2e_lease()
-    time.sleep(0.25)
+    ok, _ = lease_runtime_matches_shared_hot(lease_id=lease_id)
+    if ok:
+        heartbeat_e2e_lease()
+        time.sleep(0.25)
+        return
+    if _reacquire_e2e_lease_from_wave():
+        time.sleep(0.25)
 
 
 def _require_e2e_runtime_lease_once(
@@ -365,6 +423,7 @@ def require_e2e_runtime_lease(
     *,
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> E2ERuntimeLease:
+    heartbeat_e2e_lease()
     last_error: RuntimeError | None = None
     for attempt in range(3):
         try:

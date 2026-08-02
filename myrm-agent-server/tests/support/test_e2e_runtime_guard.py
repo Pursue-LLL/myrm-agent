@@ -423,6 +423,10 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     monkeypatch.setenv("MYRM_E2E_STACK_FP", "runtime-healed")
 
     monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        lambda: None,
+    )
+    monkeypatch.setattr(
         "tests.support.e2e_runtime_guard.subprocess.run",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("P0-A: subprocess.run must not be called for wave reap")

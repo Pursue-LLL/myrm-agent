@@ -64,7 +64,7 @@ class DesktopSeatController:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA busy_timeout=60000")
+        connection.execute("PRAGMA busy_timeout=5000")
         return connection
 
     def admit(

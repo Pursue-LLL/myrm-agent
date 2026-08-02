@@ -80,6 +80,9 @@ class CommandRegistry:
                 existing.kind.value,
                 cmd.kind.value,
             )
+            for old_alias in existing.aliases:
+                self._lookup.pop(old_alias.lower(), None)
+            self._lookup.pop(canonical, None)
             self._commands = [c for c in self._commands if c.name.lower() != canonical]
 
         for alias in cmd.aliases:

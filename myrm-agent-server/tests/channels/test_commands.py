@@ -913,6 +913,33 @@ class TestRegistryValidation:
         assert resolved is not None
         assert resolved.command_def.agent_id == "a2"
 
+    def test_overwrite_cleans_old_aliases(self) -> None:
+        """Overwriting a non-SYSTEM command must remove the old aliases from _lookup."""
+        registry = CommandRegistry()
+        cmd1 = CommandDef(
+            name="report",
+            description="first",
+            kind=CommandKind.SKILL,
+            skill_ids=("s1",),
+            aliases=("rpt", "rp"),
+        )
+        cmd2 = CommandDef(
+            name="report",
+            description="second",
+            kind=CommandKind.SKILL,
+            skill_ids=("s2",),
+            aliases=("rep",),
+        )
+        registry.register(cmd1)
+        assert registry.get("rpt") is cmd1
+        assert registry.get("rp") is cmd1
+
+        registry.register(cmd2)
+        assert registry.get("report") is cmd2
+        assert registry.get("rep") is cmd2
+        assert registry.get("rpt") is None, "old alias 'rpt' should be cleaned up"
+        assert registry.get("rp") is None, "old alias 'rp' should be cleaned up"
+
     def test_invalid_alias_raises(self) -> None:
         registry = CommandRegistry()
         with pytest.raises(ValueError, match="Invalid alias"):

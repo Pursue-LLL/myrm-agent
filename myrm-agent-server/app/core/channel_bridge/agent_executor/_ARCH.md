@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Business-layer AgentExecutor for channel inbound messages. | ✅ |
-| `executor.py` | 核心 | ChannelAgentExecutor orchestration：preamble 调度 + stream + finally。 | ✅ |
+| `executor.py` | 核心 | ChannelAgentExecutor orchestration：FAQ 语义拦截 → preamble 调度 → stream → finally。topic_context.agent_id 存在且非 resume 时，先尝试 `_try_faq_intercept`，命中则直接 yield OutboundMessage 并跳过 Agent 管线。 | ✅ |
 | `execute_preamble.py` | 模块 | Preamble 编排门面：预算门控 + 子模块串联。 | ✅ |
 | `execute_preamble_types.py` | 模块 | preamble 数据结构；`ChannelAgentBuildOutcome` XOR（result | early_reply） | ✅ |
 | `execute_preamble_session.py` | 模块 | 会话键、冷启动检测、历史加载、auto-reset 预事件。 | ✅ |

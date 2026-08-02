@@ -65,6 +65,7 @@ def _agent_build_kwargs(
         "lite_model_cfg": None,
         "fallback_model_cfg": None,
         "fallback_lite_model_cfg": None,
+        "vision_fallback_model_cfg": None,
         "user_instructions": "",
         "chat_id": "chat-db-id",
         "session_key": "telegram:chat-1",

@@ -39,11 +39,29 @@ def main() -> int:
         sys.path.insert(0, server_root_str)
     from tests.support.e2e_runtime_guard import require_e2e_runtime_lease
 
+    gate_timeout_raw = os.environ.get("MYRM_E2E_LEASE_PYTEST_GATE_SEC", "90").strip()
+    gate_timeout = int(gate_timeout_raw) if gate_timeout_raw.isdigit() else 90
+    gate_timeout = max(30, min(gate_timeout, 240))
+
+    import signal
+
+    def _timeout_handler(_signum: int, _frame: object) -> None:
+        raise TimeoutError(
+            f"E2E_LEASE_PYTEST_GATE_FAILED: gate exceeded {gate_timeout}s"
+        )
+
+    signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.setitimer(signal.ITIMER_REAL, float(gate_timeout))
     try:
         require_e2e_runtime_lease()
+    except TimeoutError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     except RuntimeError as exc:
         print(f"E2E_LEASE_PYTEST_GATE_FAILED: {exc}", file=sys.stderr)
         return 1
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0.0)
     return 0
 
 

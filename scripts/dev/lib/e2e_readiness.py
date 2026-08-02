@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final, Literal
 
 from e2e_api_verify import (
@@ -288,7 +290,39 @@ def _cmd_emit(_args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_check(_args: argparse.Namespace) -> int:
+def _launch_check_wall_sec() -> float:
+    raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
+    if not raw:
+        return 30.0
+    try:
+        parsed = float(raw)
+    except ValueError:
+        return 30.0
+    return parsed if parsed > 0 else 30.0
+
+
+def _readiness_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    lib = Path(__file__).resolve().parent
+    scripts_dev = lib.parent
+    monorepo = scripts_dev.parent.parent
+    paths = [str(lib), str(scripts_dev), str(monorepo / "scripts" / "dev")]
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join([*paths, existing] if existing else paths)
+    return env
+
+
+def _parse_emit_fields(stdout: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for line in stdout.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", maxsplit=1)
+        fields[key.strip()] = value.strip()
+    return fields
+
+
+def _cmd_check_inprocess(_args: argparse.Namespace) -> int:
     verdict = resolve_chrome_e2e_readiness()
     if verdict.launch_allowed:
         sys.stdout.write("E2E_LAUNCH_OK\n")
@@ -297,6 +331,49 @@ def _cmd_check(_args: argparse.Namespace) -> int:
     denial = launch_denial_line(verdict)
     if denial:
         sys.stderr.write(denial + "\n")
+    return 2
+
+
+def _parse_emit_launch_allowed(stdout: str) -> tuple[bool, str]:
+    fields = _parse_emit_fields(stdout)
+    launch_allowed = fields.get("E2E_LAUNCH_ALLOWED", "no").lower() == "yes"
+    token = fields.get("MYRM_READINESS_TOKEN", "UNKNOWN")
+    return launch_allowed, token
+
+
+def _cmd_check(_args: argparse.Namespace) -> int:
+    if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "1") != "1":
+        return _cmd_check_inprocess(_args)
+    wall = _launch_check_wall_sec()
+    lib = Path(__file__).resolve().parent
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "e2e_readiness", "emit"],
+            capture_output=True,
+            text=True,
+            timeout=wall,
+            check=False,
+            cwd=str(lib),
+            env=_readiness_subprocess_env(),
+        )
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(
+            f"E2E_LAUNCH_CHECK_TIMEOUT: readiness probe exceeded {int(wall)}s "
+            "(do not stop other pytest)\n"
+        )
+        return 2
+    launch_allowed, token = _parse_emit_launch_allowed(proc.stdout)
+    if launch_allowed:
+        sys.stdout.write("E2E_LAUNCH_OK\n")
+        sys.stdout.write(f"E2E_READINESS={token}\n")
+        return 0
+    fields = _parse_emit_fields(proc.stdout)
+    reason = fields.get("MYRM_READINESS_REASON", proc.stderr.strip() or "launch denied")
+    sys.stderr.write(
+        f"E2E_LAUNCH_DENIED: {token}; {reason}; "
+        "run ./myrm e2e-context; maintainer override MYRM_E2E_LAUNCH_FORCE=1 "
+        "(do not stop other pytest)\n"
+    )
     return 2
 
 

@@ -472,6 +472,7 @@ def _require_live_e2e_lease(
     from tests.support.e2e_runtime_guard import (
         assert_chrome_attach_health,
         reap_chrome_e2e_session_hygiene,
+        _heal_stale_e2e_lease,
     )
 
     runtime_cell_id: str | None = None
@@ -487,6 +488,7 @@ def _require_live_e2e_lease(
 
     try:
         reap_chrome_e2e_session_hygiene()
+        _heal_stale_e2e_lease()
         lease = require_e2e_runtime_lease()
 
         dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"

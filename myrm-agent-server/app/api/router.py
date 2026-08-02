@@ -44,6 +44,7 @@ from app.api.eval.router import router as eval_router
 from app.api.extension import router as extension_router
 from app.api.extension import ws_router as extension_ws_router
 from app.api.external_agents import router as external_agents_router
+from app.api.faq import router as faq_router
 from app.api.features.router import router as features_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
@@ -158,6 +159,7 @@ api_router.include_router(credentials_router, prefix="/credentials", tags=["cred
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 api_router.include_router(context_bundle_router, tags=["context-bundle"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
+api_router.include_router(faq_router, prefix="/faq", tags=["faq"])
 api_router.include_router(widget_storage_router, tags=["widget-storage"])
 api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
 api_router.include_router(kanban_router)

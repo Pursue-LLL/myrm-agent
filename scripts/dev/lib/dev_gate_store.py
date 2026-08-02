@@ -25,14 +25,14 @@ from dev_gate_session import (
 
 
 def _begin_immediate(connection: sqlite3.Connection) -> None:
-    for attempt in range(10):
+    for attempt in range(20):
         try:
             connection.execute("BEGIN IMMEDIATE")
             return
         except sqlite3.OperationalError as exc:
-            if "locked" not in str(exc).lower() or attempt >= 9:
+            if "locked" not in str(exc).lower() or attempt >= 19:
                 raise
-            time.sleep(min(0.05 * (2**attempt), 1.5))
+            time.sleep(min(0.05 * (2**attempt), 3.0))
 
 DEFAULT_JOURNAL_RETENTION_SEC: float = 7 * 86400
 
@@ -119,7 +119,7 @@ class DevGateStore:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=60000")
+        connection.execute("PRAGMA busy_timeout=30000")
         return connection
 
     def _initialize(self) -> None:

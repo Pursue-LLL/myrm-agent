@@ -411,6 +411,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             except asyncio.CancelledError:
                 pass
 
+    _SESSION_STATE_TTL = 86400.0  # 24h TTL for session-level state (yolo/personality)
+    _NEW_SESSION_PEER_TTL = 3600.0  # 1h TTL for /new markers
+
     async def _janitor_loop(self) -> None:
         while True:
             await asyncio.sleep(60)
@@ -435,7 +438,40 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     estimator_cleaned,
                 )
 
+            self._cleanup_stale_session_state(now)
             await self._reap_stuck_tasks(now)
+
+    def _cleanup_stale_session_state(self, now_monotonic: float) -> None:
+        """Evict stale entries from _new_session_peers, _session_yolo, _session_personality."""
+        peer_cutoff = now_monotonic - self._NEW_SESSION_PEER_TTL
+        stale_peers = [k for k, ts in self._new_session_peers.items() if ts < peer_cutoff]
+        for k in stale_peers:
+            del self._new_session_peers[k]
+
+        # _session_yolo uses time.time() (wall clock), not monotonic
+        wall_now = time.time()
+        yolo_cutoff = wall_now - self._SESSION_STATE_TTL
+        stale_yolo = [
+            k for k, (enabled_at, _timeout) in self._session_yolo.items()
+            if enabled_at < yolo_cutoff
+        ]
+        for k in stale_yolo:
+            del self._session_yolo[k]
+
+        if len(self._session_personality) > 1000:
+            stale_personality = [
+                k for k in self._session_personality
+                if k not in self._session_yolo and k not in self._active_tasks
+            ]
+            for k in stale_personality:
+                del self._session_personality[k]
+
+        total_cleaned = len(stale_peers) + len(stale_yolo)
+        if total_cleaned > 0:
+            logger.info(
+                "[JANITOR] Session state cleanup: peers=%d, yolo=%d",
+                len(stale_peers), len(stale_yolo),
+            )
 
     async def _reap_stuck_tasks(self, now: float) -> None:
         """Cancel agent tasks that exceed _STUCK_TASK_TIMEOUT and release all held resources.
