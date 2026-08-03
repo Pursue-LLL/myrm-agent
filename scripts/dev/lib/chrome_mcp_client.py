@@ -108,7 +108,6 @@ from mux_load import (
     MuxLoadSnapshot,
     adaptive_page_timeout_ms,
     adaptive_tool_timeout_sec,
-    new_page_stagger_sec,
     snapshot_mux_load,
 )
 from browser_orchestrator import browser_operation_credit_slot
@@ -701,14 +700,7 @@ class ChromeMcpClient:
         with browser_operation_credit_slot():
             try:
                 self._heartbeat_lease(lease_id)
-                load = snapshot_mux_load()
-                stagger_sec = new_page_stagger_sec(
-                    mux_contexts=load.mux_contexts,
-                    wave_leases=load.wave_leases,
-                    jitter_seed=os.getpid(),
-                )
-                if stagger_sec > 0 and self._tool_wall_deadline is None:
-                    time.sleep(stagger_sec)
+                # Slot acquisition serializes mux admission; no stagger while holding credit.
                 initial_url = "about:blank" if runtime_binding is not None else url
                 arguments: dict[str, object] = {
                     "url": initial_url,

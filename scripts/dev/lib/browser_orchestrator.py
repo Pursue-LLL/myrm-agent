@@ -215,7 +215,7 @@ def browser_operation_credit_slot(
     current_node: str = "unknown",
 ) -> Generator[None, None, None]:
     """Acquire one browser operation credit, blocking until available."""
-    wait_for_operation_credit(budget_sec=budget_sec, current_node=current_node)
+    del budget_sec, current_node
     from mux_upstream_admission import upstream_cold_attach_slot  # noqa: PLC0415
 
     with upstream_cold_attach_slot():
