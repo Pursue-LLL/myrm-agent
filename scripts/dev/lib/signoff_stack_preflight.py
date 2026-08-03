@@ -90,6 +90,14 @@ def choose_signoff_ready_mode(
         and hot.client_hot
     ):
         return SignoffReadyMode.HOT_ATTACH
+    # Backend epoch-aligned + ports live → attach-wait shell_hot (avoid dev-stack ensure SIGTERM under wave pin).
+    if (
+        hot.epoch_match
+        and not hot.blocked
+        and hot.backend_healthy
+        and shared_stack_ports_reachable()
+    ):
+        return SignoffReadyMode.HOT_ATTACH
     # Solo + ports live + shell already hot → fast attach (≤60s).
     if shared_stack_ports_reachable() and hot.shell_hot:
         return SignoffReadyMode.HOT_ATTACH

@@ -342,6 +342,12 @@ def epoch_preflight_loop(
 
     while time.monotonic() < deadline:
         attempt += 1
+        try:
+            from signoff_runtime_guard import guard_signoff_runtime
+
+            guard_signoff_runtime(reap=True)
+        except ImportError:
+            pass
         snap = read_solo_snapshot()
 
         if snap.peers > 0 or snap.mux_peers > 1:

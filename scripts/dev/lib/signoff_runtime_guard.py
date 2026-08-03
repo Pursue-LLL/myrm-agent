@@ -21,6 +21,9 @@ from pathlib import Path
 LAUNCHER_LOCK_DIR = Path("/tmp/e2e-signoff-auto-launcher.lockdir")
 GATE_SCRIPT_MARKER = "e2e-p0a-1lane-gate.sh"
 
+CHROME_E2E_PYTEST_MARKER = "pytest"
+CHROME_E2E_PYTEST_FILTER = "chrome_e2e"
+
 FORBIDDEN_CMD_SUBSTRINGS: tuple[str, ...] = (
     "p0a-gate-wait-loop",
     "p0a-gate-final-run",
@@ -175,6 +178,53 @@ def _gate_allowed_pids(
     return frozenset(allowed)
 
 
+def _process_has_signoff_env(pid: int) -> bool:
+    env = _process_ps_environ(pid)
+    return "E2E_SIGNOFF=1" in env or "MYRM_E2E_P0A_GATE=1" in env
+
+
+def _scan_foreign_chrome_e2e_pytest_violations(
+    *,
+    holder_pid: int | None,
+    launcher_pid: int | None,
+    gate_pids: list[int],
+    allowed_gates: frozenset[int],
+    self_pid: int,
+) -> list[AdhocViolation]:
+    """Reap ad-hoc chrome_e2e pytest peers during active Step1 signoff."""
+    if holder_pid is None and not gate_pids:
+        return []
+    violations: list[AdhocViolation] = []
+    allowed_roots: set[int] = set(allowed_gates)
+    if holder_pid is not None:
+        allowed_roots.update(_ancestor_pids(holder_pid))
+    if launcher_pid is not None:
+        allowed_roots.add(launcher_pid)
+        allowed_roots.update(_ancestor_pids(launcher_pid))
+    for gate_pid in allowed_gates:
+        allowed_roots.update(_ancestor_pids(gate_pid))
+
+    for pid in _pgrep_pids(f"{CHROME_E2E_PYTEST_MARKER}.*{CHROME_E2E_PYTEST_FILTER}"):
+        if pid in {self_pid, os.getppid()}:
+            continue
+        cmd = _ps_args(pid)
+        if not cmd or CHROME_E2E_PYTEST_FILTER not in cmd:
+            continue
+        if _process_has_signoff_env(pid):
+            continue
+        chain = _ancestor_pids(pid)
+        if chain & allowed_roots:
+            continue
+        violations.append(
+            AdhocViolation(
+                pid=pid,
+                reason="foreign_chrome_e2e_during_signoff",
+                cmd_preview=cmd[:240],
+            )
+        )
+    return violations
+
+
 def scan_signoff_adhoc_violations() -> list[AdhocViolation]:
     """Return ad-hoc signoff processes that must not run alongside SAO."""
     violations: list[AdhocViolation] = []
@@ -227,6 +277,16 @@ def scan_signoff_adhoc_violations() -> list[AdhocViolation]:
                 cmd_preview=cmd[:240] or GATE_SCRIPT_MARKER,
             )
         )
+
+    violations.extend(
+        _scan_foreign_chrome_e2e_pytest_violations(
+            holder_pid=holder_pid,
+            launcher_pid=launcher_pid,
+            gate_pids=gate_pids,
+            allowed_gates=allowed_gates,
+            self_pid=self_pid,
+        )
+    )
 
     return violations
 
