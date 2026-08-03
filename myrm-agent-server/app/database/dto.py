@@ -83,6 +83,7 @@ class ChatDTO(BaseModel):
     first_message: str | None = None
     last_message: str | None = None
     action_mode: str = "fast"
+    active_moa_preset_id: str | None = None
     is_incognito: bool = False
     source: str = "web"
     channel_session_key: str | None = None

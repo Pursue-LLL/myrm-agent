@@ -1,0 +1,63 @@
+/**
+ * [INPUT]
+ * @/lib/moaPresetUtils::MOA_PRESET_IDS (POS: valid MoA preset id SSOT)
+ *
+ * [OUTPUT]
+ * readStoredMoaPresetId / writeStoredMoaPresetId / clearStoredMoaPresetId /
+ * resolveHydratedMoaPresetId
+ *
+ * [POS]
+ * Per-chat MoA preset persistence in localStorage (survives full page refresh; skipped in incognito).
+ */
+
+import { MOA_PRESET_IDS, type MoaPresetId } from '@/lib/moaPresetUtils';
+
+const STORAGE_PREFIX = 'moaPreset:';
+
+function storageKey(chatId: string): string {
+  return `${STORAGE_PREFIX}${chatId}`;
+}
+
+function isValidPresetId(value: string | null): value is MoaPresetId {
+  return value !== null && (MOA_PRESET_IDS as readonly string[]).includes(value);
+}
+
+export function readStoredMoaPresetId(chatId: string | undefined): string | null {
+  if (typeof window === 'undefined' || !chatId) {
+    return null;
+  }
+  const raw = localStorage.getItem(storageKey(chatId));
+  return isValidPresetId(raw) ? raw : null;
+}
+
+export function writeStoredMoaPresetId(chatId: string | undefined, presetId: string | null): void {
+  if (typeof window === 'undefined' || !chatId) {
+    return;
+  }
+  const key = storageKey(chatId);
+  if (presetId && isValidPresetId(presetId)) {
+    localStorage.setItem(key, presetId);
+    return;
+  }
+  localStorage.removeItem(key);
+}
+
+export function clearStoredMoaPresetId(chatId: string | undefined): void {
+  writeStoredMoaPresetId(chatId, null);
+}
+
+export interface HydrateMoaPresetOptions {
+  actionMode: string;
+  incognitoMode: boolean;
+}
+
+/** Hydrate session MoA preset from storage only when agent mode and not incognito. */
+export function resolveHydratedMoaPresetId(
+  chatId: string | undefined,
+  options: HydrateMoaPresetOptions,
+): string | null {
+  if (options.actionMode !== 'agent' || options.incognitoMode) {
+    return null;
+  }
+  return readStoredMoaPresetId(chatId);
+}

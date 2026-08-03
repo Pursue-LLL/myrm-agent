@@ -1,4 +1,4 @@
-"""Gap-fill tests for four-source external source migration (v1.4 routing + lanes)."""
+"""Gap-fill tests for five-source external source migration (routing + lanes)."""
 
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ class TestResolveCompetitorImportSource:
             ("codex", "codex"),
             ("claude", "claude"),
             ("chatgpt", "chatgpt"),
+            ("pi", "pi"),
             ("unknown_vendor", "auto"),
         ],
     )
@@ -46,7 +47,7 @@ class TestSupportedCompetitorIds:
     def test_closed_set_matches_wizard(self) -> None:
         from app.services.migration.source_payload_loader import supported_source_ids
 
-        assert supported_source_ids() == frozenset({"hermes", "openclaw", "claude", "codex"})
+        assert supported_source_ids() == frozenset({"hermes", "openclaw", "claude", "codex", "pi"})
 
 
 class TestAutoRoutingRegression:

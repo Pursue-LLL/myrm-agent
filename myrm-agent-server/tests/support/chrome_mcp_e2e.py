@@ -1392,12 +1392,14 @@ def open_mcp_page(
             probe_budget = min(probe_budget, 45.0)
         else:
             probe_budget = float(mux_upstream_wait_cap())
-        transport_session_started, wall_deadline, total_deadline = _wait_open_page_mux_turn(
-            budget_sec=probe_budget,
-            current_node="open_mcp_page_boot_gate",
-            transport_session_started=transport_session_started,
-            wall_deadline=wall_deadline,
-            total_deadline=total_deadline,
+        transport_session_started, wall_deadline, total_deadline = (
+            _wait_open_page_mux_turn(
+                budget_sec=probe_budget,
+                current_node="open_mcp_page_boot_gate",
+                transport_session_started=transport_session_started,
+                wall_deadline=wall_deadline,
+                total_deadline=total_deadline,
+            )
         )
     last_exc: BaseException | None = None
     mux_restarted = False

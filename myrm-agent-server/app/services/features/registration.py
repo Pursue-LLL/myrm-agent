@@ -135,17 +135,9 @@ _ALL_FEATURES: list[FeatureSpec] = [
     FeatureSpec(
         id="consensus",
         key="consensus",
-        stage=FeatureStage.EXPERIMENTAL,
+        stage=FeatureStage.REMOVED,
         default_enabled=False,
-        description="Enable multi-model consensus reasoning for higher-quality answers",
-        experimental_info=ExperimentalInfo(
-            name="Consensus Mode",
-            description=(
-                "Use multiple AI models to independently reason about a question, "
-                "then synthesize their answers into a single high-quality response. "
-                "Increases token usage proportional to the number of reference models."
-            ),
-        ),
+        description="Standalone consensus action mode removed; use MoA overlay via model picker",
     ),
     FeatureSpec(
         id="goals_system",

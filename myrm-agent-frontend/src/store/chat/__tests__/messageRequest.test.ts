@@ -748,7 +748,7 @@ describe('messageRequest - send preconditions', () => {
       () => 'req-kanban-alloc',
     );
 
-    expect(resolveKanbanSendBlockReasonMock).toHaveBeenCalledWith(['kanban']);
+    expect(resolveKanbanSendBlockReasonMock).toHaveBeenCalledWith(['kanban'], null);
     expect(showI18nToastMock).toHaveBeenCalledWith(
       'chat.sendBlocked.title',
       undefined,

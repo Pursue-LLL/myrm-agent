@@ -16,7 +16,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 
 from app.database.connection import get_session
 from app.database.models.approval import ApprovalRecord
@@ -226,6 +226,7 @@ class ApprovalRegistry:
             except Exception as e:
                 logger.error("Failed to push Native Approval Block to channel: %s", e)
 
+        await cls._sync_copilot_pending(chat_id)
         return record
 
     @classmethod
@@ -259,7 +260,39 @@ class ApprovalRegistry:
 
             await db.commit()
             await db.refresh(record)
+            await cls._sync_copilot_pending(record.chat_id)
             return record
+
+    @classmethod
+    async def count_pending_for_chat(cls, chat_id: str) -> int:
+        if not chat_id.strip():
+            return 0
+        background_growth = and_(
+            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
+            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
+        )
+        async with get_session() as db:
+            stmt = (
+                select(func.count())
+                .select_from(ApprovalRecord)
+                .where(ApprovalRecord.status == "PENDING")
+                .where(ApprovalRecord.chat_id == chat_id)
+                .where(~background_growth)
+            )
+            result = await db.execute(stmt)
+            return int(result.scalar_one())
+
+    @classmethod
+    async def _sync_copilot_pending(cls, chat_id: str | None) -> None:
+        if not chat_id:
+            return
+        try:
+            from app.services.copilot.run_digest_store import RunDigestStore
+
+            count = await cls.count_pending_for_chat(chat_id)
+            RunDigestStore.set_pending_approval_count(chat_id, count)
+        except Exception as exc:
+            logger.warning("Failed to sync copilot pending approval count: %s", exc)
 
     @classmethod
     async def list_pending(cls, limit: int = 50, offset: int = 0) -> list[ApprovalRecord]:

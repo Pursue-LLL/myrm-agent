@@ -12,7 +12,7 @@
 | `AgentWorkMap.tsx` | 组件 | ReactFlow 子代理/Goal 工作拓扑可视化 | ✅ |
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |
-| `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo） | ✅ |
+| `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo）；`RunStatusChip` + `SessionAdvisorPanel`（Co-Pilot） | ✅ |
 | `ChatWindowSatellites.tsx` | 核心 | 聊天窗口卫星组件：Browser/Desktop Inspector、PetOverlay/PetPalette（`companion_mode` gate）、SubagentDashboard 等 | ✅ |
 | `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
 | `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + archive + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog） | ✅ |
@@ -27,15 +27,15 @@
 | `LifeStatusCapsule.tsx` | 组件 | Agent liveness 三态胶囊（busy/idle/degraded） | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
-| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、语音、模式切换、队列与流式发送；支持“下一条消息”单轮 Skill/MCP 能力子集覆写；Project 已绑定 `workspacePath` 时隐藏 `WorkspaceDirPicker`（SSOT 由 project 决定） | ✅ |
+| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash（含 `/ask`/`/side`）、语音、模式切换、队列与流式发送；run 进行中输入 `/btw`/`/bg` 时显示 Advisor 消歧提示 | ✅ |
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + revoke）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列可视化与 DnD 拖拽排序（复用 @dnd-kit 模式） | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
 | `MobileActionSheet.tsx` | 组件 | 移动端底部动作 Sheet（`useMobileSheetEntries` 驱动） | ✅ |
-| `MobileStatusBoard.tsx` | 组件 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入） | ✅ |
+| `MobileStatusBoard.tsx` | 组件 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入 + Co-Pilot chip/Advisor；run 中「查看完整对话」→ 主 Chat 复用 QuoteToolbar 划词） | ✅ |
 | `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块 | ✅ |
 | `MobileStatusLivePreview.tsx` | 组件 | 浏览器/桌面 Live Preview 与 Lightbox | ✅ |
-| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤 | ✅ |
+| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤；run 结束后 result 卡片「查看完整对话」跳转主 Chat | ✅ |
 | `Navbar.tsx` | 组件 | 对话页顶栏：模型/Agent/后台任务/通知入口 | ✅ |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |
@@ -75,6 +75,10 @@
 | `goal-icons.tsx` | 辅助 | Goal 图标集 | ✅ |
 
 ## Visual Approval（工具 HITL 截图审批）
+
+## copilot/
+
+详见 [copilot/_ARCH.md](../copilot/_ARCH.md)。`RunStatusChip` + `SessionAdvisorPanel` 由 `ChatWindow` / `MobileStatusBoard` 挂载。
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|

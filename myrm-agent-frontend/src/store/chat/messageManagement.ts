@@ -34,6 +34,7 @@ import {
   getChatNavigationSnapshot,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
+import { resolveHydratedMoaPresetId } from '@/store/chat/moaPresetStorage';
 import { mergeChatSessionConfig } from '@/store/chat/chatSessionConfig';
 import { useProjectStore } from '@/store/useProjectStore';
 import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
@@ -111,16 +112,21 @@ export const loadMessages = async (
     actions.setMessages((state) => {
       if (state.chatId === chatId) {
         state.messages = messages;
+        const isIncognito = chatData.chat.is_incognito || false;
+        state.incognitoMode = isIncognito;
         if (!preserveInstantSessionConfig) {
           state.actionMode = normalizeActionMode(chatData.chat.actionMode);
         }
+        state.activeMoaPresetId = resolveHydratedMoaPresetId(chatId, {
+          actionMode: state.actionMode,
+          incognitoMode: isIncognito,
+        });
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
         state.lastCompactionMeta = null;
         state.workspaceDir = chatData.chat.workspace_dir;
         state.sessionSkillOverrides = chatData.chat.session_loaded_skill_names;
         state.sessionAccessRoots = normalizeSessionAccessRoots(chatData.chat.session_access_roots);
-        state.incognitoMode = chatData.chat.is_incognito || false;
         state.hasMoreMessages = page.has_more;
         state.nextCursor = page.next_cursor;
         state.isMessagesLoaded = true;
@@ -323,7 +329,9 @@ export const initializeChat = (
         Object.assign(draft, snapshot);
         draft.chatId = id;
         draft.isMessagesLoaded = true;
-        draft.activeMoaPresetId = snapshot.activeMoaPresetId ?? null;
+        draft.activeMoaPresetId = snapshot.incognitoMode
+          ? null
+          : (snapshot.activeMoaPresetId ?? null);
       });
       actions.clearCurrentSessionMessageId();
 

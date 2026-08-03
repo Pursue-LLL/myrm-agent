@@ -11,6 +11,7 @@
 | `__init__.py` | 入口 | 挂载子路由；**优先**挂载 `../test_fixtures`（E2E seed 路由） | ✅ |
 | `catchup.py` | 模块 | Get catchup briefs for all chats with unread activity. | ✅ |
 | `compaction.py` | 模块 | 压缩摘要、归档只读、context pins/branches CRUD、snapshot bookmark fork | ✅ |
+| `copilot.py` | 模块 | Co-Pilot API：run-digest GET、advisor ask/messages/clear | ✅ |
 | `core.py` | 模块 | 会话 CRUD 核心：列表（分页/来源/项目过滤）、元数据（GET 含 session_access_roots）、创建/更新、Fission 拓扑、session-skills PATCH、session-access-roots revoke PATCH；PATCH workspace 在 project 已绑定时 409 | ✅ |
 | `fork.py` | 模块 | Fork conversation from specific message index. | ✅ |
 | `rewind.py` | 模块 | Rewind conversation to before a user message; returns composer seed text. | ✅ |

@@ -23,7 +23,9 @@ from tests.support.chrome_mcp_e2e import (
 
 
 def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> None:
-    assert _page_shell_ready_js_for_url("http://127.0.0.1:3000/") == _APP_LAYOUT_READY_JS
+    assert (
+        _page_shell_ready_js_for_url("http://127.0.0.1:3000/") == _APP_LAYOUT_READY_JS
+    )
     assert (
         _page_shell_ready_js_for_url("http://127.0.0.1:3000/settings/extensionBridge")
         == _SETTINGS_LAYOUT_READY_JS
@@ -398,12 +400,11 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
 
 def test_browser_operation_credit_slot_acquires_upstream_registry() -> None:
     source = (
-        Path(__file__).resolve().parents[3]
-        / "scripts/dev/lib/browser_orchestrator.py"
+        Path(__file__).resolve().parents[3] / "scripts/dev/lib/browser_orchestrator.py"
     ).read_text(encoding="utf-8")
-    block = source.split("def browser_operation_credit_slot", 1)[1].split(
-        "\ndef ", 1
-    )[0]
+    block = source.split("def browser_operation_credit_slot", 1)[1].split("\ndef ", 1)[
+        0
+    ]
     assert "upstream_cold_attach_slot" in block
     assert "wait_for_operation_credit" in block
 

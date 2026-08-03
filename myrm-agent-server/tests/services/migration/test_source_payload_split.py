@@ -79,6 +79,41 @@ def test_build_coverage_items_four_lanes() -> None:
     assert "channels_manual" in labels
 
 
+def test_pi_payload_builds_correct_coverage_items() -> None:
+    from app.services.migration.source_payload_loader import build_coverage_items
+
+    rows = build_coverage_items(
+        {
+            "agents_md": "You are a coder.",
+            "pi_sessions": [{"id": "s1", "messages": []}],
+            "skills": [{"name": "deploy"}],
+            "env_keys": [{"name": "ANTHROPIC_API_KEY"}],
+        },
+    )
+    labels = {row["label"] for row in rows}
+    assert "instruction_lane" in labels
+    assert "memory_lane" in labels
+    assert "skills_review" in labels
+    assert "api_keys_manual" in labels
+
+
+def test_pi_settings_go_to_global_supplement_not_memory() -> None:
+    loaded = {
+        "_source": "pi",
+        "agents_md": "You are a DevOps engineer.",
+        "pi_settings": {"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"},
+        "pi_sessions": [{"id": "s1", "messages": [{"role": "user", "content": "hi"}]}],
+    }
+    plan = build_instruction_plan(loaded)
+    memory = extract_memory_payload(loaded, include_episodic=True)
+
+    assert "DevOps" in plan.agent_persona
+    assert "Pi settings" in plan.global_supplement
+    assert "pi_settings" not in memory
+    assert "agents_md" not in memory
+    assert "pi_sessions" in memory
+
+
 def test_cursor_rules_go_to_instruction_not_memory() -> None:
     loaded = {
         "_source": "cursor",

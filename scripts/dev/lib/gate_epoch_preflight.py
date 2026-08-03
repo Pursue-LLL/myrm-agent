@@ -192,8 +192,31 @@ def _verify_api_seed(monorepo_root: Path) -> None:
     )
 
 
+def _try_signoff_stack_core_fast_path(monorepo_root: Path) -> bool:
+    """Skip myrm ready when stack core + API liveness OK and solo clear (P0-SAO-8)."""
+    from runtime_identity import build_health_json, stack_core_health_errors
+
+    snap = read_solo_snapshot()
+    if not solo_cluster_clear(snap):
+        return False
+    core_errors = stack_core_health_errors(build_health_json())
+    if core_errors:
+        return False
+    _emit(
+        "SIGNOFF_PREFLIGHT_STACK_CORE_OK: "
+        f"epoch_match={'yes' if snap.epoch_match else 'no'} "
+        f"active_leases={snap.active_leases}"
+    )
+    _verify_api_seed(monorepo_root)
+    if snap.active_leases == 0:
+        _apply_drift_when_idle(monorepo_root)
+    return True
+
+
 def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
     if os.environ.get("MYRM_E2E_P0A_GATE") == "1" or os.environ.get("E2E_SIGNOFF") == "1":
+        if _try_signoff_stack_core_fast_path(monorepo_root):
+            return
         from signoff_stack_preflight import run_signoff_ready_under_flock
 
         rc = run_signoff_ready_under_flock(monorepo_root, wall_sec=wall_sec)
@@ -240,6 +263,35 @@ def _poll_solo_stray_leases_after_ready(
     return read_solo_snapshot()
 
 
+def _poll_solo_transient_peers_after_ready(
+    snap: SoloSnapshot,
+    *,
+    poll_sec: float = 2.0,
+    wall_sec: float = 30.0,
+) -> SoloSnapshot:
+    """Poll transient pytest peers after solo ready --chrome before deferring."""
+    if snap.peers == 0 and snap.mux_peers <= 1:
+        return snap
+    if snap.peers > 1 or snap.mux_peers > 1:
+        return snap
+    _emit(
+        "GATE_EPOCH_PREFLIGHT: solo transient peers after ready "
+        f"peers={snap.peers} active_leases={snap.active_leases} "
+        f"mux_peers={snap.mux_peers} — poll idle (no peer kill)"
+    )
+    deadline = time.monotonic() + wall_sec
+    while time.monotonic() < deadline:
+        snap = read_solo_snapshot()
+        if solo_cluster_clear(snap):
+            _emit(
+                "GATE_EPOCH_PREFLIGHT: solo transient peers cleared "
+                f"peers={snap.peers} active_leases={snap.active_leases}"
+            )
+            return snap
+        time.sleep(poll_sec)
+    return read_solo_snapshot()
+
+
 def epoch_preflight_loop(
     monorepo_root: Path,
     *,
@@ -277,6 +329,7 @@ def epoch_preflight_loop(
 
         _ready_chrome_under_flock(monorepo_root, wall_sec=180)
         snap = _poll_solo_stray_leases_after_ready()
+        snap = _poll_solo_transient_peers_after_ready(snap)
 
         if snap.peers > 0 or snap.mux_peers > 1:
             _emit(

@@ -53,6 +53,62 @@ def openclaw_e2e_root(tmp_path: Path) -> Path:
     return root
 
 
+def _make_pi_session_jsonl(session_id: str, messages: list[dict[str, str]]) -> str:
+    header = json.dumps({
+        "type": "session",
+        "version": 3,
+        "id": session_id,
+        "timestamp": "2025-07-01T12:00:00Z",
+        "cwd": "/tmp/test-project",
+    })
+    lines = [header]
+    for idx, msg in enumerate(messages):
+        entry = json.dumps({
+            "id": f"entry-{idx}",
+            "type": "message",
+            "timestamp": "2025-07-01T12:00:01Z",
+            "parentId": None,
+            "message": {"role": msg["role"], "content": msg["content"]},
+        })
+        lines.append(entry)
+    return "\n".join(lines)
+
+
+@pytest.fixture()
+def pi_e2e_root(tmp_path: Path) -> Path:
+    root = tmp_path / ".pi" / "agent"
+    root.mkdir(parents=True)
+    (root / "AGENTS.md").write_text("You are a senior backend engineer.", encoding="utf-8")
+    (root / "settings.json").write_text(
+        json.dumps({"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"}),
+        encoding="utf-8",
+    )
+    (root / "auth.json").write_text(
+        json.dumps({"anthropic": {"token": "sk-ant-test"}, "openai": {"token": "sk-test"}}),
+        encoding="utf-8",
+    )
+    sessions = root / "sessions"
+    sessions.mkdir()
+    (sessions / "s1.jsonl").write_text(
+        _make_pi_session_jsonl("s1", [
+            {"role": "user", "content": "Build a REST API with FastAPI"},
+            {"role": "assistant", "content": "I'll create a FastAPI app with proper routing."},
+        ]),
+        encoding="utf-8",
+    )
+    (sessions / "s2.jsonl").write_text(
+        _make_pi_session_jsonl("s2", [
+            {"role": "user", "content": "Add database migrations with Alembic"},
+            {"role": "assistant", "content": "Setting up Alembic for SQLAlchemy models."},
+        ]),
+        encoding="utf-8",
+    )
+    skill_dir = root / "skills" / "deploy"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("Deploy to production via SSH", encoding="utf-8")
+    return root
+
+
 class TestMigrationE2E:
     def test_hermes_discover_to_dry_run(
         self,
@@ -135,4 +191,71 @@ class TestMigrationE2E:
         assert dry_run.summary.mapped_items >= 2
         buckets = {mapping.source_bucket for mapping in dry_run.mappings}
         assert "openclaw_sessions" in buckets
+
+    def test_pi_discover_to_dry_run(
+        self,
+        pi_e2e_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        discovery = {"competitor": "pi", "root": str(pi_e2e_root), "files": []}
+        loaded = load_source_payload(discovery)
+        assert loaded.get("_source") == "pi"
+        assert loaded.get("agents_md") is not None
+        assert loaded.get("pi_settings") is not None
+        assert isinstance(loaded.get("env_keys"), list)
+        assert len(loaded["env_keys"]) == 2
+
+        skills = extract_pending_skills(loaded)
+        assert len(skills) == 1
+        assert skills[0]["name"] == "deploy"
+
+        plan = build_instruction_plan(loaded)
+        assert "senior backend engineer" in plan.agent_persona.lower()
+        assert "pi settings" in plan.global_supplement.lower()
+
+    def test_pi_split_sessions_to_episodic_memory(
+        self,
+        pi_e2e_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        loaded = load_source_payload(
+            {"competitor": "pi", "root": str(pi_e2e_root), "files": []},
+        )
+        memory_payload = extract_memory_payload(loaded, include_episodic=True)
+        assert "agents_md" not in memory_payload
+        assert "pi_settings" not in memory_payload
+        pi_sessions = memory_payload.get("pi_sessions")
+        assert isinstance(pi_sessions, list) and len(pi_sessions) == 2
+
+        dry_run = build_memory_import_dry_run(memory_payload)
+        assert dry_run.summary.mapped_items == 2
+        assert dry_run.summary.status == "ready"
+        episodic = dry_run.normalized_data.get("episodic")
+        assert isinstance(episodic, list) and len(episodic) == 2
+        contents = [e["content"] for e in episodic]
+        assert any("REST API" in c for c in contents)
+        assert any("Alembic" in c for c in contents)
+
+    def test_pi_episodic_disabled_strips_sessions(
+        self,
+        pi_e2e_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        loaded = load_source_payload(
+            {"competitor": "pi", "root": str(pi_e2e_root), "files": []},
+        )
+        memory_payload = extract_memory_payload(loaded, include_episodic=False)
+        assert "pi_sessions" not in memory_payload
 

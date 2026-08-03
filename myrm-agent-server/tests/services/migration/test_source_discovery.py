@@ -243,6 +243,7 @@ class TestMultipleCompetitors:
             (".claude", {"CLAUDE.md": "- pref", "settings.json": "{}"}),
             (".openclaw", {"memory.json": "[]", "sessions.json": "[]"}),
             (".codex", {"instructions.md": "# I", "config.json": "{}"}),
+            (".pi/agent", {"AGENTS.md": "You are a coder", "settings.json": "{}"}),
         ]:
             root = fake_home / name
             root.mkdir(exist_ok=True, parents=True)
@@ -257,7 +258,8 @@ class TestMultipleCompetitors:
         assert "claude" in competitors
         assert "openclaw" in competitors
         assert "codex" in competitors
-        assert len(competitors) == 4
+        assert "pi" in competitors
+        assert len(competitors) == 5
 
 
 class TestEdgeCases:

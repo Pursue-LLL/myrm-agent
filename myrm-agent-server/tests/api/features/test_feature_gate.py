@@ -54,12 +54,17 @@ async def async_client():
 class TestFeatureRegistration:
     """Verify all gated features are registered with correct metadata."""
 
-    def test_consensus_registered(self):
+    def test_consensus_registered_as_removed(self):
         _init_with_overrides({})
         spec = registry.get("consensus")
         assert spec is not None
-        assert spec.stage == FeatureStage.EXPERIMENTAL
+        assert spec.stage == FeatureStage.REMOVED
         assert spec.default_enabled is False
+
+    def test_consensus_override_is_ignored(self):
+        fs = _init_with_overrides({"consensus": True})
+        assert not fs.enabled("consensus")
+        assert any("removed" in w.lower() for w in fs.warnings())
 
     def test_deep_research_registered_as_removed(self):
         _init_with_overrides({})
@@ -80,15 +85,8 @@ class TestFeatureRegistration:
         assert spec.stage == FeatureStage.EXPERIMENTAL
         assert spec.default_enabled is False
 
-    def test_consensus_has_experimental_info(self):
-        _init_with_overrides({})
-        spec = registry.get("consensus")
-        assert spec is not None
-        assert spec.experimental_info is not None
-        assert spec.experimental_info.name == "Consensus Mode"
-
     def test_all_gated_features_default_disabled(self):
-        """consensus, voice_interaction should be off by default; deep_research is removed."""
+        """voice_interaction off by default; deep_research and consensus are removed."""
         fs = _init_with_overrides({})
         assert not fs.enabled("deep_research")
         assert not fs.enabled("consensus")
@@ -102,7 +100,7 @@ class TestFeatureRegistration:
             }
         )
         assert not fs.enabled("deep_research")
-        assert fs.enabled("consensus")
+        assert not fs.enabled("consensus")
         assert fs.enabled("voice_interaction")
 
     def test_sanitize_user_overrides_strips_removed_features(self):
@@ -116,7 +114,7 @@ class TestFeatureRegistration:
             }
         )
         assert "deep_research" not in cleaned
-        assert cleaned["consensus"] is True
+        assert "consensus" not in cleaned
 
 
 # ---------------------------------------------------------------------------
@@ -271,3 +269,4 @@ class TestExperimentalFeaturesAPI:
         payload = response.json()
         keys = [item["key"] for item in payload.get("features", []) if isinstance(item, dict)]
         assert "deep_research" not in keys
+        assert "consensus" not in keys

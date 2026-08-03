@@ -6,7 +6,7 @@
 
 ### 支持范围策略（封闭集合）
 
-**Wizard 自动发现的来源（本地 filesystem scan）固定为 4 种：**
+**Wizard 自动发现的来源（本地 filesystem scan）固定为 5 种：**
 
 | id | 产品名 | 发现方式 |
 |----|--------|----------|
@@ -14,6 +14,7 @@
 | `openclaw` | OpenClaw | 本地 scan |
 | `claude` | Claude Code | 本地 scan |
 | `codex` | Codex | 本地 scan |
+| `pi` | Pi | 本地 scan |
 
 **ZIP upload 检测的来源（Cloud/SaaS 与 Local 均可）：**
 
@@ -34,12 +35,13 @@
 |------|------|------|-------|
 | `source_discovery.py` | 核心 | 数据类定义、工具函数、discover_external_sources 编排入口 | ✅ |
 | `source_manifest.py` | 核心 | 迁移来源 SSOT：来源清单、display name、import source 映射、discover mode、deep-link 开关 | ✅ |
-| `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
+| `source_probes.py` | 核心 | 5 源 filesystem probe（hermes/claude/openclaw/codex/pi） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw；Hermes loader 含 .usage.json 与 **cron/jobs.json** 导入计划 | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw、pi；Hermes loader 含 .usage.json 与 **cron/jobs.json** 导入计划 | ✅ |
 | `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan + skipped preview rows（无 model 字段，agent SSOT） | ✅ |
 | `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
+| `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
 | `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断；仅 migrated_slots 非空时启用 routing），由 Wizard confirm 调用 | ✅ |

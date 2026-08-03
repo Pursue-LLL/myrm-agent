@@ -17,7 +17,8 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `agent/` | 智能体编辑/配置面板/预设/gallery（含 `config-panel/` 子模块） | [_ARCH.md](agent/_ARCH.md) |
 | `chat/` | 会话级 UX hook：`useChatTurnPrewarm`（EmptyChat/focus/agent 切换；module dedupe；autoOnMount 不 unmount cancel） | — |
 | `shell/` | 全局 liveness、tab badge、nav badge、快捷键、crash guard | [_ARCH.md](shell/_ARCH.md) |
-| `globalEvents/` | SSE 全局事件编排 + toast 子模块 | [_ARCH.md](globalEvents/_ARCH.md) |
+| `globalEvents/` | SSE 全局事件编排 + toast 子模块（含 `run_digest_updated` → `run-digest-updated`） | [_ARCH.md](globalEvents/_ARCH.md) |
+| `copilot/` | Run digest hook（SSE + GET） | [_ARCH.md](copilot/_ARCH.md) |
 | `multimodal/` | 摄像头输入、视觉意图（voice/输入 toolbar 共用） | [_ARCH.md](multimodal/_ARCH.md) |
 | `pwa/` | PWA 安装、Web Push、What's New | [_ARCH.md](pwa/_ARCH.md) |
 | `workspace/` | 工作区流、widget 存储、artifact 版本、batch WS | [_ARCH.md](workspace/_ARCH.md) |

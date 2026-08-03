@@ -5,7 +5,8 @@
  * AgentConfig.engineParams.moa_overlay (profile preset definition)
  *
  * [OUTPUT]
- * isMoaPresetConfigured, countMoaReferenceModels, listMoaPresetOptions
+ * isMoaPresetConfigured, countMoaReferenceModels, listMoaPresetOptions,
+ * resolveMoaPresetLabelKey
  *
  * [POS]
  * Frontend guard for showing the virtual Mixture of Agents picker group.
@@ -55,13 +56,28 @@ export interface MoaPresetOption {
   refCount: number;
 }
 
+const PRESET_LABEL_KEYS: Record<MoaPresetId, MoaPresetOption['labelKey']> = {
+  [MOA_PRESET_DEFAULT_ID]: 'defaultLabel',
+  [MOA_PRESET_REVIEW_ID]: 'reviewLabel',
+  [MOA_PRESET_FAST_ID]: 'fastLabel',
+};
+
+export function resolveMoaPresetLabelKey(
+  presetId: string | null | undefined,
+): MoaPresetOption['labelKey'] | null {
+  if (!presetId || !(MOA_PRESET_IDS as readonly string[]).includes(presetId)) {
+    return null;
+  }
+  return PRESET_LABEL_KEYS[presetId as MoaPresetId];
+}
+
 export function listMoaPresetOptions(
   engineParams: Record<string, unknown> | null | undefined,
 ): MoaPresetOption[] {
   const refCount = countMoaReferenceModels(engineParams);
   return [
-    { id: MOA_PRESET_DEFAULT_ID, labelKey: 'defaultLabel', refCount },
-    { id: MOA_PRESET_REVIEW_ID, labelKey: 'reviewLabel', refCount },
-    { id: MOA_PRESET_FAST_ID, labelKey: 'fastLabel', refCount },
+    { id: MOA_PRESET_DEFAULT_ID, labelKey: PRESET_LABEL_KEYS[MOA_PRESET_DEFAULT_ID], refCount },
+    { id: MOA_PRESET_REVIEW_ID, labelKey: PRESET_LABEL_KEYS[MOA_PRESET_REVIEW_ID], refCount },
+    { id: MOA_PRESET_FAST_ID, labelKey: PRESET_LABEL_KEYS[MOA_PRESET_FAST_ID], refCount },
   ];
 }

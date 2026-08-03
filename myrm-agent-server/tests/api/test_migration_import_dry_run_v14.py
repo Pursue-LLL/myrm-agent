@@ -185,6 +185,50 @@ class TestSourceImportDryRunApi:
         assert body["instruction_preview_rule_names"] == []
         assert body["result"]["summary"]["mapped_items"] == 0
 
+    def test_pi_dry_run_full_pipeline(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".pi" / "agent"
+        root.mkdir(parents=True)
+        (root / "AGENTS.md").write_text("You are a DevOps engineer.", encoding="utf-8")
+        (root / "settings.json").write_text(
+            json.dumps({"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"}),
+            encoding="utf-8",
+        )
+        (root / "auth.json").write_text(
+            json.dumps({"anthropic": {"token": "sk-test"}}),
+            encoding="utf-8",
+        )
+        sessions_dir = root / "sessions"
+        sessions_dir.mkdir()
+        header = json.dumps({
+            "type": "session", "version": 3, "id": "s1",
+            "timestamp": "2025-07-01T12:00:00Z", "cwd": "/tmp",
+        })
+        entry = json.dumps({
+            "id": "e1", "type": "message",
+            "message": {"role": "user", "content": "Deploy to production"},
+        })
+        (sessions_dir / "s1.jsonl").write_text(f"{header}\n{entry}", encoding="utf-8")
+        skill_dir = root / "skills" / "ci"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("Run CI pipeline", encoding="utf-8")
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "pi", "root": str(root), "files": []},
+            "migration": {"include_episodic": True, "apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["mapped_items"] >= 1
+        assert body["result"]["summary"]["status"] == "ready"
+        assert body.get("instruction_total_chars", 0) > 0
+        assert "DevOps" in (body.get("instruction_preview_persona") or "")
+        assert len(body.get("pending_skills", [])) == 1
+        assert body["pending_skills"][0]["name"] == "ci"
+        coverage_labels = {item["label"] for item in body.get("coverage_items", [])}
+        assert "api_keys_manual" in coverage_labels
+
     def test_codex_dry_run_instruction_lane(self, client: TestClient, tmp_path: Path) -> None:
         root = tmp_path / ".codex"
         root.mkdir()

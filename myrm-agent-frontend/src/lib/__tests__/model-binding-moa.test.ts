@@ -6,12 +6,15 @@ import type { DefaultModelConfig, ProviderConfig } from '@/store/config/provider
 const providers: ProviderConfig[] = [
   {
     id: 'openai',
+    routingProfile: 'openai',
     name: 'OpenAI',
+    isBuiltIn: true,
     isEnabled: true,
     enabledModels: ['gpt-4o'],
+    availableModels: ['gpt-4o'],
     providerType: 'openai',
-    apiKey: 'sk-test',
-    baseUrl: '',
+    apiUrl: '',
+    apiKeys: [{ id: 'key-1', key: 'sk-test', remark: 'test', isActive: true }],
   },
 ];
 

@@ -15,7 +15,7 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`send_outbound_draft_payload()` 共享的草稿发送逻辑 | ✅ |
+| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`send_outbound_draft_payload()` 共享的草稿发送逻辑；create/resolve 后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数 | ✅ |
 
 ## `list_pending` 契约
 

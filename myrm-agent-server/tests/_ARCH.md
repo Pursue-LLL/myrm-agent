@@ -92,7 +92,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
-| `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
+| `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（五源 discover/load/e2e） |
 | `services/memory/test_import_sessions.py` | 模块 | import session lifecycle；readiness/first-turn 持久化；`recheck_facts` SSOT + readiness recheck facts fallback |
 | `services/memory/test_import_readiness.py` | 模块 | 导入后 `readiness` 合同规则单测（ready/warning/critical + issue codes + settings_path） |
 | `services/agent/stream_session/test_migration_readiness_preflight.py` | 模块 | migration readiness live preflight：`from_readiness` SSE + async `resolve_and_build_*`（warning→/settings/mcp） |

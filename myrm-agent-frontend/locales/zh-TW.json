@@ -7167,6 +7167,7 @@
       "loop_guard": "循環限制",
       "sandbox_boundary": "邊界限制",
       "frequency_guard": "頻率限制",
+      "turn_budget_guard": "本輪配額",
       "steering": "已跳過",
       "invalid_tool": "無效工具",
       "trust_attenuation": "信任降級",

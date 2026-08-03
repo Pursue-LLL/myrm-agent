@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Square, Activity, Send } from 'lucide-react';
+import { ArrowLeft, Square, Activity, Send, MessageCircleQuestion } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -27,6 +27,8 @@ import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
 import { MobileStatusMessageBody } from './MobileStatusMessageBody';
+import RunStatusChip from '@/components/features/copilot/RunStatusChip';
+import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
@@ -54,6 +56,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<'browser' | 'desktop'>('browser');
+  const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [advisorQuestion, setAdvisorQuestion] = useState('');
   const e2ee = useE2EEStatus();
   const { plan } = usePlanStore();
   const activeGoal = useGoalStore((s) => s.activeGoal);
@@ -82,7 +86,30 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   useEffect(() => scheduleMobilePairRefresh(), []);
 
   useEffect(() => {
-    if (autoStartFired.current || !isMessagesLoaded || loading) return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ question?: string }>).detail;
+      setAdvisorQuestion(detail?.question ?? '');
+      setAdvisorOpen(true);
+    };
+    window.addEventListener('copilot-open-advisor', handler);
+    return () => window.removeEventListener('copilot-open-advisor', handler);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') return;
+    window.__MYRM_E2E_MOBILE_CC__ = {
+      setLoading: (loading: boolean) => {
+        useChatStore.setState({ loading });
+      },
+    };
+    return () => {
+      delete window.__MYRM_E2E_MOBILE_CC__;
+    };
+  }, []);
+
+  useEffect(() => {
     const pendingMessage = sessionStorage.getItem('myrm_mobile_autostart_message');
     if (!pendingMessage) return;
     autoStartFired.current = true;
@@ -106,10 +133,21 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const handleSendQuickCommand = useCallback(() => {
     const text = quickInput.trim();
     if (!text) return;
+    const askMatch = text.match(/^\/(?:ask|side)\s*(.*)$/i);
+    if (askMatch) {
+      setAdvisorQuestion(askMatch[1]?.trim() ?? '');
+      setAdvisorOpen(true);
+      setQuickInput('');
+      return;
+    }
     if (loading) steerMessage(text);
     else sendMessage(text);
     setQuickInput('');
   }, [quickInput, sendMessage, steerMessage, loading]);
+
+  const handleOpenFullConversation = useCallback(() => {
+    router.push(`/${chatId}`);
+  }, [router, chatId]);
 
   if (!isMessagesLoaded) {
     return (
@@ -131,11 +169,32 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="ml-3 flex flex-col">
+        <div className="ml-3 flex min-w-0 flex-col">
           <h1 className="text-base font-semibold leading-tight">{t('title')}</h1>
           <span className="text-xs text-muted-foreground">{loading ? t('running') : t('finished')}</span>
+          {loading ? (
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto justify-start p-0 text-xs font-normal text-primary"
+              data-testid="mobile-command-view-full-conversation"
+              onClick={handleOpenFullConversation}
+            >
+              {t('viewFull')} &rarr;
+            </Button>
+          ) : null}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            onClick={() => setAdvisorOpen(true)}
+          >
+            <MessageCircleQuestion className="h-3.5 w-3.5" />
+            {t('advisorOpen')}
+          </Button>
           <E2EESecurityPanel {...e2ee} />
           {pendingCount > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
@@ -150,6 +209,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           )}
         </div>
       </div>
+
+      <RunStatusChip chatId={chatId} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <MobileStatusApprovalsSection
@@ -227,6 +288,18 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           </div>
         )}
       </div>
+
+      <SessionAdvisorPanel
+        chatId={chatId}
+        open={advisorOpen}
+        onOpenChange={(open) => {
+          setAdvisorOpen(open);
+          if (!open) {
+            setAdvisorQuestion('');
+          }
+        }}
+        initialQuestion={advisorQuestion}
+      />
     </div>
   );
 }

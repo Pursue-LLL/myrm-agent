@@ -161,7 +161,11 @@ def _admit_wall_cap_for_pid(pid: int) -> float:
     return float(admit_wall_clock_sec())
 
 
-def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
+def _hung_reason_for_row(
+    row: LiveChromeE2ERow,
+    *,
+    admit_elapsed_sec: float | None = None,
+) -> str | None:
     signoff = _process_has_signoff_env(row.pid)
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
@@ -293,9 +297,12 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
         return None
     from dev_gate_contract import LIVE_AGENT_PYTEST_WALL_CAP_SEC  # noqa: PLC0415
 
-    if row.elapsed_sec >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
+    effective_elapsed = float(row.elapsed_sec)
+    if admit_elapsed_sec is not None:
+        effective_elapsed = max(0.0, effective_elapsed - float(admit_elapsed_sec))
+    if effective_elapsed >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
         return (
-            f"process_elapsed={int(row.elapsed_sec)}s>="
+            f"process_elapsed={int(effective_elapsed)}s>="
             f"{LIVE_AGENT_PYTEST_WALL_CAP_SEC}s"
         )
     return None
@@ -359,7 +366,10 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
         test_id=row.test_id,
         state=row.state,
     )
-    reason = _hung_reason_for_row(chrome_row)
+    reason = _hung_reason_for_row(
+        chrome_row,
+        admit_elapsed_sec=row.admit_elapsed_sec,
+    )
     if reason is not None:
         return reason
     parallel_stuck = _parallel_node_stuck_reason(row)

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from ..test_fixtures import router as test_fixtures_router
 from .catchup import router as catchup_router
 from .compaction import router as compaction_router
+from .copilot import router as copilot_router
 from .core import router as core_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
@@ -27,6 +28,7 @@ router.include_router(title_router)
 router.include_router(turn_router)
 router.include_router(rewind_router)
 router.include_router(compaction_router)
+router.include_router(copilot_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)
 router.include_router(sandbox_router)

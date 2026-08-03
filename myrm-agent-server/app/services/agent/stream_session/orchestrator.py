@@ -430,6 +430,10 @@ async def run_agent_stream(
         collector = StreamContentCollector(
             sibling_group_id=request.sibling_group_id, chat_id=request.chat_id
         )
+        if request.chat_id:
+            from app.services.copilot.run_digest_store import RunDigestStore
+
+            RunDigestStore.begin_run(request.chat_id)
 
         session = AgentStreamSession(
             request=request,

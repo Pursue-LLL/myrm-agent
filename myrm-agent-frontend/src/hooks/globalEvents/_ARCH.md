@@ -4,7 +4,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useGlobalEvents.ts` | SSE 订阅、审批/预算/后台任务等全局事件编排 |
+| `useGlobalEvents.ts` | SSE 订阅、审批/预算/后台任务/`run_digest_updated` 等全局事件编排 |
 | `memoryOperationToasts.ts` | 记忆 CRUD toast |
 | `locatorHealedToast.tsx` | 浏览器 locator 自愈通知 |
 | `messageDeadLetteredToast.ts` | 消息死信告警 |

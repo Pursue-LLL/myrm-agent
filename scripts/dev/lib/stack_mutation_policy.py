@@ -100,6 +100,14 @@ def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAc
         return DriftHealAction.NOOP
     if active_leases > 0:
         return DriftHealAction.DEFER
+    try:
+        from e2e_session_registry import body_active_count, list_live_e2e_sessions
+
+        sessions = list_live_e2e_sessions()
+        if body_active_count(sessions) > 0:
+            return DriftHealAction.DEFER
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
     return DriftHealAction.APPLY
 
 
@@ -125,7 +133,16 @@ def should_defer_supervisor_backend_heal(
 ) -> bool:
     del pending_drift, api_http_ok
     # R143 / BUG-DG-2026-07-29-008: never backend-only heal while wave leases active.
-    return active_leases > 0
+    if active_leases > 0:
+        return True
+    try:
+        from e2e_session_registry import body_active_count, list_live_e2e_sessions
+
+        if body_active_count(list_live_e2e_sessions()) > 0:
+            return True
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return False
 
 
 def _backend_only_ensure_timeout_sec() -> float:

@@ -30,6 +30,12 @@ import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/ser
 import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
+import {
+  clearStoredMoaPresetId,
+  resolveHydratedMoaPresetId,
+  writeStoredMoaPresetId,
+} from '@/store/chat/moaPresetStorage';
+import { updateChatActiveMoaPreset } from '@/services/chat';
 
 function readStoredBuiltinTools(): BuiltinToolId[] {
   if (typeof window === 'undefined') {
@@ -271,12 +277,28 @@ const useChatStore = create<ChatState>()(
         if (typeof window !== 'undefined') {
           localStorage.setItem('actionMode', mode);
         }
+        const state = get();
+        const activeMoaPresetId =
+          mode === 'agent'
+            ? resolveHydratedMoaPresetId(state.chatId, {
+                actionMode: 'agent',
+                incognitoMode: state.incognitoMode,
+              })
+            : null;
         set({
           actionMode: mode,
-          ...(mode !== 'agent' ? { activeMoaPresetId: null } : {}),
+          activeMoaPresetId,
         });
       },
       setActiveMoaPresetId: (presetId) => {
+        const chatId = get().chatId;
+        const incognitoMode = get().incognitoMode;
+        if (!incognitoMode) {
+          writeStoredMoaPresetId(chatId, presetId);
+          if (chatId) {
+            void updateChatActiveMoaPreset(chatId, presetId).catch(() => {});
+          }
+        }
         set({ activeMoaPresetId: presetId });
         if (presetId) {
           if (typeof window !== 'undefined') {
@@ -343,6 +365,7 @@ const useChatStore = create<ChatState>()(
       clearPendingGapRetry: () => set({ pendingGapRetry: null }),
       setAgentConfig: (config) => {
         if (!config) {
+          clearStoredMoaPresetId(get().chatId);
           set({ agentConfig: null, activeMoaPresetId: null });
           return;
         }
@@ -352,6 +375,9 @@ const useChatStore = create<ChatState>()(
         const autoRestoreDomains = [...(config.autoRestoreDomains ?? [])];
         if (typeof window !== 'undefined') {
           localStorage.setItem('currentBuiltinTools', JSON.stringify(builtinTools));
+        }
+        if (agentChanged) {
+          clearStoredMoaPresetId(get().chatId);
         }
         set({
           agentConfig: {

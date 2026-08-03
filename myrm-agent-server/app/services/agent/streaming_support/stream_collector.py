@@ -299,6 +299,15 @@ def _step_accepts_pending_evicted(
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
+
+def _sync_run_digest(collector: "StreamContentCollector") -> None:
+    chat_id = collector._chat_id
+    if not chat_id:
+        return
+    from app.services.copilot.run_digest_store import RunDigestStore
+
+    RunDigestStore.update_from_progress(chat_id, collector._progress_steps)
+
 _INTERRUPT_REPLAY_TYPES: frozenset[str] = frozenset(
     {
         "tool_approval_request",
@@ -581,6 +590,7 @@ class StreamContentCollector:
             ):
                 _attach_evicted_to_step(step, self._pending_evicted)
                 self._pending_evicted = None
+            _sync_run_digest(self)
         elif event_type == "token_usage" and isinstance(data, dict):
             self._usage = string_keyed_dict(data.get("usage"))
 

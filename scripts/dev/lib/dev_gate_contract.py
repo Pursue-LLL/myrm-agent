@@ -693,11 +693,34 @@ def signoff_effective_body_wall_sec() -> int:
 DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC: Final[int] = 60
 
 
+def dev_gate_post_admit_hard_timeout_sec() -> int:
+    """PREPARING+ coordinator budget after PRIVATE admit grant (bootstrap + BODY + teardown).
+
+    tools_panel log-8: grant used now+600 while bootstrap cap=990 + BODY=660 remained;
+    HARD_DEADLINE @ ~709s from submit → PARENT_LEASE_NOT_ACTIVE during mux recovery.
+    """
+    bootstrap_sec = int(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
+    try:
+        from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
+
+        bootstrap_sec = int(
+            bootstrap_wall_cap_sec(pessimistic=True)
+            + mux_upstream_wait_cap(pessimistic=True)
+        )
+    except ImportError:
+        pass
+    return (
+        bootstrap_sec
+        + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        + E2E_TEARDOWN_WALL_CLOCK_SEC
+        + DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC
+    )
+
+
 def dev_gate_submit_hard_timeout_sec() -> int:
     """Coordinator hard_deadline offset from session submit (R249).
 
-    Legacy bootstrap used a flat 900s cap while desktop soak BODY floor is 1200s
-    (R247/R248). Submit deadline must cover ADMIT + bootstrap + effective BODY.
+    Submit deadline must cover ADMIT queue + bootstrap + effective BODY + teardown.
     """
     if is_desktop_soak_signoff_runtime():
         body = signoff_effective_body_wall_sec()
@@ -714,7 +737,7 @@ def dev_gate_submit_hard_timeout_sec() -> int:
             + SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
             + DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC
         )
-    return E2E_ADMISSION_WALL_CLOCK_SEC
+    return admit_wall_clock_sec() + dev_gate_post_admit_hard_timeout_sec()
 
 
 def parallel_mux_cold_attach_drain_sec(*, parallel_peers: int | None = None) -> float:
@@ -986,7 +1009,10 @@ def signoff_open_page_transport_stall_cap_sec() -> float:
 
 
 def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -> float:
-    """R170: hung-reap NODE_STUCK cap aligned with chrome_mcp open_mcp body fraction."""
+    """R170/P0-G: hung-reap NODE_STUCK cap aligned with chrome_mcp open_mcp body fraction.
+
+    log-11 @121s: peers<2 returned 120s while mux queue still draining — SIGKILL mid open_mcp.
+    """
     peers = active_peers
     if peers is None:
         peers = 0
@@ -1002,14 +1028,17 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
             peers = max(int(load.wave_leases), active_mux_context_count(mux_status))
         except (ImportError, OSError, RuntimeError, TypeError, ValueError):
             peers = 0
-    if peers < 2:
-        return float(NODE_STUCK_FAIL_FAST_SEC)
     try:
         from transport_supervisor import live_agent_body_wall_cap_sec
 
         body_cap = float(live_agent_body_wall_cap_sec())
     except ImportError:
         body_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
+    body_frac = max(_OPEN_PAGE_BODY_FRACTION_FLOOR_SEC, body_cap * _OPEN_PAGE_BODY_FRACTION)
+    drain_floor = float(parallel_mux_cold_attach_drain_sec(parallel_peers=peers))
+    solo_floor = max(body_frac, drain_floor, float(NODE_STUCK_FAIL_FAST_SEC))
+    if peers < 2:
+        return solo_floor
     base = max(_OPEN_PAGE_BODY_FRACTION_FLOOR_SEC, body_cap * _OPEN_PAGE_BODY_FRACTION)
     return min(base + float(peers) * 25.0, body_cap * 0.45)
 

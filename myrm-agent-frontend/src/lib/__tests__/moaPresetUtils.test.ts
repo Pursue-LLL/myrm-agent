@@ -6,6 +6,7 @@ import {
   countMoaReferenceModels,
   isMoaPresetConfigured,
   listMoaPresetOptions,
+  resolveMoaPresetLabelKey,
 } from '@/lib/moaPresetUtils';
 
 describe('moaPresetUtils', () => {
@@ -47,5 +48,11 @@ describe('moaPresetUtils', () => {
       MOA_PRESET_FAST_ID,
     ]);
     expect(options.every((option) => option.refCount === 2)).toBe(true);
+  });
+
+  it('maps preset ids to label keys', () => {
+    expect(resolveMoaPresetLabelKey('review')).toBe('reviewLabel');
+    expect(resolveMoaPresetLabelKey('unknown')).toBeNull();
+    expect(resolveMoaPresetLabelKey(null)).toBeNull();
   });
 });

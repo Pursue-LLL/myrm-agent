@@ -66,6 +66,7 @@ class AppEventType(StrEnum):
     MCP_AUTH_REQUIRED = "mcp_auth_required"
     OAUTH_REAUTH_REQUIRED = "oauth_reauth_required"
     WORKSPACE_FILE_CHANGED = "workspace_file_changed"
+    RUN_DIGEST_UPDATED = "run_digest_updated"
 
 
 @dataclass(frozen=True, slots=True)

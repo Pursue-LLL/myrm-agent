@@ -707,7 +707,11 @@ class _BackgroundReaper:
 
 def serve(socket_path: Path, database_path: Path) -> None:
     socket_path = normalized_socket_path(socket_path)
-    service = CoordinatorService(DevGateStore(database_path.resolve()))
+    resolved_db = database_path.resolve()
+    from dev_gate_cli import _write_coordinator_code_stamp  # noqa: PLC0415
+
+    _write_coordinator_code_stamp(resolved_db)
+    service = CoordinatorService(DevGateStore(resolved_db))
     reaper = _BackgroundReaper(service)
     reaper.start()
     server = _CoordinatorServer(

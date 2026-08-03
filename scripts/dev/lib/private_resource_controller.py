@@ -357,11 +357,13 @@ class PrivateResourceController:
                 """,
                 (now, session_id),
             )
-            # Preserve submit wall budget: grant must not shrink hard_deadline below
-            # the coordinator submit offset (e.g. 900s dev ADMIT) when queue wait
-            # consumed part of the budget before PREPARING.
+            # Preserve submit wall budget: grant must cover remaining bootstrap+BODY after
+            # queue wait (log-8: flat now+600 caused HARD_DEADLINE mid mux recovery).
             existing_deadline = float(session["hard_deadline"])
-            new_hard_deadline = max(existing_deadline, now + 600.0)
+            from dev_gate_contract import dev_gate_post_admit_hard_timeout_sec  # noqa: PLC0415
+
+            post_admit_budget = float(dev_gate_post_admit_hard_timeout_sec())
+            new_hard_deadline = max(existing_deadline, now + post_admit_budget)
             connection.execute(
                 """
                 UPDATE sessions SET state='PREPARING', version=?,

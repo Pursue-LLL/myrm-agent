@@ -12,8 +12,54 @@ import os
 import subprocess
 
 
+def _process_ancestor_pids(pid: int, *, max_depth: int = 24) -> frozenset[int]:
+    """Walk parent chain including pid itself."""
+    seen: set[int] = {pid}
+    current = pid
+    for _ in range(max_depth):
+        try:
+            ps_proc = subprocess.run(
+                ["ps", "-p", str(current), "-o", "ppid="],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            break
+        if ps_proc.returncode != 0:
+            break
+        ppid_raw = ps_proc.stdout.strip()
+        if not ppid_raw.isdigit():
+            break
+        ppid = int(ppid_raw)
+        if ppid <= 1 or ppid in seen:
+            break
+        seen.add(ppid)
+        current = ppid
+    return frozenset(seen)
+
+
+def _active_session_owner_pids() -> frozenset[int] | None:
+    """Owner PIDs for non-terminal Dev Gate sessions; None when store unavailable."""
+    try:
+        from dev_gate_store import DevGateStore, default_store_path
+
+        store = DevGateStore(default_store_path())
+        owners = {record.owner_pid for record in store.list_active() if record.owner_pid > 0}
+        return frozenset(owners)
+    except OSError:
+        return None
+
+
+def _pytest_pid_serves_active_session(pid: int, owners: frozenset[int]) -> bool:
+    if not owners:
+        return False
+    return bool(_process_ancestor_pids(pid) & owners)
+
+
 def chrome_e2e_pytest_peer_count() -> int:
     """Live python -m pytest chrome_e2e workers; excludes run_pytest_safe wrapper."""
+    owners = _active_session_owner_pids()
     try:
         proc = subprocess.run(
             ["pgrep", "-f", r"python -m pytest.*chrome_e2e"],
@@ -30,6 +76,7 @@ def chrome_e2e_pytest_peer_count() -> int:
         pid_raw = line.strip()
         if not pid_raw.isdigit():
             continue
+        pid = int(pid_raw)
         try:
             ps_proc = subprocess.run(
                 ["ps", "-p", pid_raw, "-o", "args="],
@@ -42,6 +89,8 @@ def chrome_e2e_pytest_peer_count() -> int:
             continue
         cmd = ps_proc.stdout.strip()
         if "run_pytest_safe" in cmd or "--collect-only" in cmd:
+            continue
+        if owners is not None and not _pytest_pid_serves_active_session(pid, owners):
             continue
         peers += 1
     return peers

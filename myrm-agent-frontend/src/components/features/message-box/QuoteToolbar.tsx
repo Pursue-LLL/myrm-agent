@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Quote, Copy } from 'lucide-react';
+import { Quote, Copy, MessageCircleQuestion } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useQuoteStore from '@/store/useQuoteStore';
@@ -86,7 +86,7 @@ export function useQuoteSelection(containerRef: React.RefObject<HTMLDivElement |
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
 
-    const toolbarWidth = 120;
+    const toolbarWidth = 248;
     const x = Math.max(
       8,
       Math.min(rect.left + rect.width / 2 - toolbarWidth / 2, window.innerWidth - toolbarWidth - 8),
@@ -143,6 +143,8 @@ export function useQuoteSelection(containerRef: React.RefObject<HTMLDivElement |
 
 export function QuoteToolbar({ state, onDismiss }: { state: QuoteToolbarState; onDismiss: () => void }) {
   const t = useTranslations('chat');
+  const tCopilot = useTranslations('copilot');
+  const loading = useChatStore((s) => s.loading);
   const [copied, setCopied] = useState(false);
 
   const handleQuote = useCallback(() => {
@@ -180,6 +182,19 @@ export function QuoteToolbar({ state, onDismiss }: { state: QuoteToolbarState; o
     }, 800);
   }, [state.text, onDismiss]);
 
+  const handleAskAdvisor = useCallback(() => {
+    window.dispatchEvent(
+      new CustomEvent('copilot-open-advisor', {
+        detail: {
+          question: tCopilot('advisorSelectionDefaultQuestion'),
+          selection: state.text,
+        },
+      }),
+    );
+    window.getSelection()?.removeAllRanges();
+    onDismiss();
+  }, [onDismiss, state.text, tCopilot]);
+
   if (typeof window === 'undefined') return null;
 
   return createPortal(
@@ -207,6 +222,20 @@ export function QuoteToolbar({ state, onDismiss }: { state: QuoteToolbarState; o
             <Quote className="h-3.5 w-3.5 text-primary" />
             <span>{t('quoteSelection')}</span>
           </button>
+          {loading ? (
+            <>
+              <div className="h-4 w-px bg-border" />
+              <button
+                data-testid="quote-toolbar-advisor-ask"
+                onClick={handleAskAdvisor}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-popover-foreground hover:bg-accent transition-colors"
+                title={tCopilot('advisorSelectionAsk')}
+              >
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-primary" />
+                <span>{tCopilot('advisorSelectionAsk')}</span>
+              </button>
+            </>
+          ) : null}
           <div className="h-4 w-px bg-border" />
           <button
             onClick={handleCopy}

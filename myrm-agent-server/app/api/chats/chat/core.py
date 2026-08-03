@@ -150,6 +150,7 @@ async def get_chat(
             id=chat.id,
             title=chat.title,
             actionMode=chat.action_mode,
+            activeMoaPresetId=chat.active_moa_preset_id,
             agent_id=chat.agent_id,
             is_incognito=chat.is_incognito,
             compacted_summary=chat.compacted_summary,

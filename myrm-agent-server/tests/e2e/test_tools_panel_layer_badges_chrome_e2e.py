@@ -409,7 +409,9 @@ async def _run_tools_panel_layer_badges_flow(
         f"streaming={seal_streaming} baseline={baseline_users}"
     )
 
-    if seal_api_users <= baseline_users:
+    if seal_api_users <= baseline_users and not (
+        seal_streaming and submit.get("ok") is True
+    ):
         # LIVE sendTurnSealed may seal on uiProgress+streaming before API row persists (parallel SHPOIB).
         api_gate_sec = (
             signoff_parallel_force_chat_timeout_sec(180.0)
@@ -421,6 +423,10 @@ async def _run_tools_panel_layer_badges_flow(
             api_url=api_url,
             min_count=1,
             timeout_sec=api_gate_sec,
+        )
+    elif seal_api_users <= baseline_users:
+        _touch_wall_progress(
+            "tools_panel_api_gate_skipped sendTurnSealed streaming=true"
         )
 
     # SSOT: stay on the streaming tab — post-SEAL attachToChat can force-reload while

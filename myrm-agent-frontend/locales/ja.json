@@ -7119,6 +7119,7 @@
       "loop_guard": "ループ制限",
       "sandbox_boundary": "境界制限",
       "frequency_guard": "頻度制限",
+      "turn_budget_guard": "ターン上限",
       "steering": "スキップ",
       "invalid_tool": "無効なツール",
       "trust_attenuation": "信頼低下",

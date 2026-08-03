@@ -16,11 +16,13 @@ _smp_state_dir() {
 
 _smp_apply_backend_drift_ensure() {
   local dev_stack="${1:?}" policy_py="${2:?}" state_dir="${3:?}"
-  local attempt max_attempts backoff_sec
+  local attempt max_attempts backoff_sec flock_wait_sec
   max_attempts="${MYRM_E2E_ATTACH_BACKEND_ENSURE_MAX_ATTEMPTS:-3}"
   [[ "${max_attempts}" =~ ^[0-9]+$ && "${max_attempts}" -gt 0 ]] || max_attempts=3
+  flock_wait_sec="${MYRM_E2E_CRASH_HEAL_FLOCK_WAIT_SEC:-180}"
   for attempt in $(seq 1 "${max_attempts}"); do
-    if MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
+    if _smp_with_backend_heal_flock "${flock_wait_sec}" \
+      env MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure; then
       python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
       return 0
     fi

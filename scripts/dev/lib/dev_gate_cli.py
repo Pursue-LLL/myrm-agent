@@ -30,6 +30,7 @@ _SUBMIT_REQUEST_TIMEOUT_SEC = 120.0
 
 _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "dev_gate_coordinator.py",
+    "dev_gate_cli.py",
     "dev_gate_contract.py",
     "private_resource_controller.py",
     "dev_gate_store.py",

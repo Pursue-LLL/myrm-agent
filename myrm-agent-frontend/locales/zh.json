@@ -186,8 +186,30 @@
       "petOverlayDisabled": "宠物精灵覆盖层已隐藏",
       "petInstalled": "已安装宠物：{name}",
       "petInstallFailed": "安装宠物失败",
-      "petNoActive": "尚未安装宠物 — 正在打开宠物面板"
+      "petNoActive": "尚未安装宠物 — 正在打开宠物面板",
+      "ask": "打开会话顾问进行只读旁路问答（/side）",
+      "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。"
     }
+  },
+  "copilot": {
+    "runningFallback": "Agent 运行中",
+    "headlineRunning": "步骤 {step}：{tool}",
+    "headlineWaitingApproval": "等待审批（{count}）",
+    "headlineCompleted": "已完成（{step} 步）",
+    "headlineFailed": "运行失败",
+    "headlineCancelled": "运行已取消",
+    "askButton": "提问",
+    "advisorTitle": "会话顾问",
+    "advisorHint": "只读旁路问答 — 不会写入主对话记录。",
+    "advisorEmpty": "可询问运行状态、进度或待审批项。",
+    "advisorPlaceholder": "Agent 现在在做什么？",
+    "advisorSend": "提问",
+    "advisorSending": "提问中…",
+    "advisorClear": "清空",
+    "tierRules": "运行摘要",
+    "tierLite": "Lite 模型",
+    "advisorSelectionAsk": "旁路提问",
+    "advisorSelectionDefaultQuestion": "解释选中内容"
   },
   "settings": {
     "lockedUse": {
@@ -1600,9 +1622,9 @@
       "orgPolicyRestricted": "受组织策略限制",
       "moaPreset": {
         "groupTitle": "多智能体混合",
-        "defaultLabel": "default",
-        "reviewLabel": "review",
-        "fastLabel": "fast",
+        "defaultLabel": "标准",
+        "reviewLabel": "深度审查",
+        "fastLabel": "快速",
         "activeLabel": "MoA · {preset}",
         "refCount": "{count} 个参考模型"
       },
@@ -6468,7 +6490,9 @@
       "livePreview": "实时预览",
       "browser": "浏览器",
       "desktop": "桌面",
-      "artifacts": "交付物"
+      "artifacts": "交付物",
+      "advisorAsk": "问顾问",
+      "advisorOpen": "旁路问答"
     }
   },
   "common": {
@@ -8048,6 +8072,7 @@
       "loop_guard": "循环限制",
       "sandbox_boundary": "边界限制",
       "frequency_guard": "频率限制",
+      "turn_budget_guard": "本轮配额",
       "steering": "已跳过",
       "invalid_tool": "无效工具",
       "trust_attenuation": "信任降级",

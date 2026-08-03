@@ -285,6 +285,15 @@ export function useGlobalEvents(): void {
             detail: payload.data,
           }),
         );
+      } else if (payload.type === 'run_digest_updated') {
+        const data = asRecord(payload.data);
+        const chatId = typeof data.chat_id === 'string' ? data.chat_id : '';
+        const digest = asRecord(data.digest);
+        window.dispatchEvent(
+          new CustomEvent('run-digest-updated', {
+            detail: { chat_id: chatId, digest: Object.keys(digest).length ? digest : undefined },
+          }),
+        );
       } else if (payload.type === 'system_notification') {
         const title = String(payload.data.title ?? '系统通知');
         const message = String(payload.data.message ?? '');

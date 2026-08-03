@@ -23,6 +23,7 @@ class Chat(Base):
     first_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     action_mode: Mapped[str] = mapped_column(String(50), default="fast", nullable=False)
+    active_moa_preset_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     source: Mapped[str] = mapped_column(String(50), default="web", nullable=False, index=True)
     channel_session_key: Mapped[str | None] = mapped_column(String(500), nullable=True, index=True)

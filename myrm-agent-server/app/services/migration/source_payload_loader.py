@@ -9,7 +9,8 @@ Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, ``convers
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
 Public API: load_source_payload, build_coverage_items, extract_pending_skills.
-Loaders: hermes/claude/codex/chatgpt/gbrain in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
+Loaders: hermes/claude/codex/chatgpt/gbrain in source_payload_loaders_impl.py;
+openclaw in _loaders_openclaw.py; pi in _loaders_pi.py.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .source_payload_loaders_impl import (
     load_gbrain,
     load_hermes,
     load_openclaw,
+    load_pi,
 )
 
 _SUPPORTED_SOURCES = migration_source_local_scan_ids()
@@ -65,6 +67,7 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
         "claude": load_claude,
         "chatgpt": load_chatgpt,
         "gbrain": load_gbrain,
+        "pi": load_pi,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -87,7 +90,7 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
         "cursor_rules",
         "semantic",
     )
-    memory_keys = ("memory_md", "user_md", "openclaw_sessions", "openclaw_memory")
+    memory_keys = ("memory_md", "user_md", "openclaw_sessions", "openclaw_memory", "pi_sessions")
 
     if any(loaded_payload.get(key) for key in instruction_keys):
         rows.append({"key": "instruction", "status": "ready", "label": "instruction_lane"})

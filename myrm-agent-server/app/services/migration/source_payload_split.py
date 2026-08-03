@@ -84,6 +84,12 @@ def build_instruction_plan(loaded: dict[str, object]) -> SourceInstructionPlan:
             f"## Claude settings (from {competitor})\n\n```json\n{_settings_preview(claude_settings)}\n```",
         )
 
+    pi_settings = loaded.get("pi_settings")
+    if isinstance(pi_settings, dict) and pi_settings:
+        global_parts.append(
+            f"## Pi settings (from {competitor})\n\n```json\n{_settings_preview(pi_settings)}\n```",
+        )
+
     plan.agent_persona = _SECTION_BREAK.join(persona_parts).strip()
     plan.global_supplement = _SECTION_BREAK.join(global_parts).strip()
 
@@ -110,6 +116,7 @@ def extract_memory_payload(
         "cursor_settings",
         "codex_settings",
         "claude_settings",
+        "pi_settings",
         "env_keys",
         "skills",
         "openclaw_skills",
@@ -119,6 +126,7 @@ def extract_memory_payload(
 
     if not include_episodic:
         memory.pop("openclaw_sessions", None)
+        memory.pop("pi_sessions", None)
 
     if str(loaded.get("_source", "")).strip().lower() == "claude":
         memory.pop("semantic", None)

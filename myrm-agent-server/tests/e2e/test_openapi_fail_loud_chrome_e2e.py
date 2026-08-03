@@ -245,7 +245,7 @@ def _assert_openapi_outcome(
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="LIVE",
 )
@@ -294,7 +294,7 @@ async def test_openapi_load_fail_shows_chat_error_in_real_ui(
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="LIVE",
 )

@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.memory import (
 from app.services.memory.import_adapter_utils import (
     SUPPORTED_NATIVE_BUCKETS,
     WARNING_UNSUPPORTED_SOURCE,
+    build_result,
     to_memory_import_source,
     unsupported_result,
 )
@@ -61,6 +62,7 @@ RequestedImportSource = Literal[
     "claude",
     "mem0",
     "chatgpt",
+    "pi",
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
@@ -131,6 +133,8 @@ def build_memory_import_dry_run(
         return dry_run_mem0(resolved_payload)
     if detected == "chatgpt":
         return dry_run_chatgpt(resolved_payload)
+    if _is_pi_payload(resolved_payload):
+        return _dry_run_pi(resolved_payload)
     return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
 
 
@@ -169,7 +173,7 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
     return "unknown"
 
 
-_INSTRUCTION_ONLY_SOURCES = frozenset({"claude", "cursor", "codex"})
+_INSTRUCTION_ONLY_SOURCES = frozenset({"claude", "cursor", "codex", "pi"})
 
 
 def _is_instruction_only_source_payload(payload: dict[str, object]) -> bool:
@@ -189,9 +193,10 @@ def _instruction_only_source_dry_run(payload: dict[str, object]) -> MemoryImport
 
     competitor = str(payload.get("_source", "")).strip().lower()
     adapter_source = resolve_migration_source(competitor)
-    harness_source = to_memory_import_source(
-        adapter_source if adapter_source not in {"auto"} else competitor,
-    )
+    raw_source = adapter_source if adapter_source not in {"auto"} else competitor
+    harness_source = to_memory_import_source(raw_source)
+    if harness_source == "unknown" and raw_source != "unknown":
+        harness_source = to_memory_import_source("hermes")
     return MemoryImportDryRunResult(
         summary=MemoryImportDryRunSummary(
             source=harness_source,
@@ -261,3 +266,63 @@ def _is_codex_payload(payload: dict[str, object]) -> bool:
     if payload.get("_source") == "codex":
         return True
     return isinstance(payload.get("codex_instructions"), str) or isinstance(payload.get("codex_settings"), dict)
+
+
+def _is_pi_payload(payload: dict[str, object]) -> bool:
+    if payload.get("_source") == "pi":
+        return True
+    return isinstance(payload.get("pi_sessions"), list)
+
+
+def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
+    """Map Pi sessions into episodic memory entries for the dry-run preview."""
+    from myrm_agent_harness.toolkits.memory import MemoryImportMappingItem
+
+    normalized: dict[str, list[dict[str, object]]] = {}
+    mappings: list[MemoryImportMappingItem] = []
+    mapped_items = 0
+
+    sessions = payload.get("pi_sessions")
+    if isinstance(sessions, list):
+        episodic_items: list[dict[str, object]] = []
+        for session in sessions:
+            if not isinstance(session, dict):
+                continue
+            messages = session.get("messages")
+            if not isinstance(messages, list) or not messages:
+                continue
+            first_user_msg = next(
+                (str(m.get("content", ""))[:200] for m in messages if isinstance(m, dict) and m.get("role") == "user"),
+                "",
+            )
+            episodic_items.append({
+                "content": first_user_msg or f"Session {session.get('id', 'unknown')}",
+                "type": "episodic",
+                "category": "pi_session",
+                "metadata": {
+                    "session_id": str(session.get("id", "")),
+                    "timestamp": str(session.get("timestamp", "")),
+                    "message_count": session.get("message_count", 0),
+                },
+            })
+        if episodic_items:
+            normalized["episodic"] = episodic_items
+            mapped_items = len(episodic_items)
+            mappings.append(
+                MemoryImportMappingItem(
+                    source_bucket="pi_sessions",
+                    target_bucket="episodic",
+                    status="mapped",
+                    count=len(episodic_items),
+                ),
+            )
+
+    return build_result(
+        source=to_memory_import_source("hermes"),
+        version="1",
+        normalized=normalized,
+        mappings=mappings,
+        mapped_items=mapped_items,
+        unmapped_items=0,
+        warnings=[],
+    )

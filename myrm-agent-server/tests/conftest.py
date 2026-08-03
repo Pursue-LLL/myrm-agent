@@ -397,8 +397,19 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
 
     Prevents lease acquisition under epoch mismatch, breaking the deadlock cycle
     where held leases block system restart which would resolve the epoch drift.
+
+    P0-DGR-6: SHARED+NAMESPACE_WRITE+LIVE uses EpochPin instead of skip.
     """
     if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
+        return
+    dev_lib = _e2e_dev_lib_path()
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from epoch_delivery_plane import epoch_pin_active
+    except ImportError:
+        epoch_pin_active = lambda: os.environ.get("MYRM_E2E_EPOCH_PIN", "").strip() == "1"  # noqa: E731
+    if epoch_pin_active():
         return
     # R278/R279: signoff + desktop soak queue via ADMIT — never pytest.skip here.
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
@@ -431,6 +442,84 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
         f"Skipping to avoid lease acquisition under drift — "
         f"system will auto-restart once all leases are released."
     )
+
+
+def _signoff_critical_section_entry_skip(request: pytest.FixtureRequest) -> None:
+    """Block new daily chrome_e2e while signoff gate holds critical section (P0-SAO-8)."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return
+    if os.environ.get("MYRM_SIGNOFF_CRITICAL", "").strip() == "1":
+        return
+    dev_lib = _e2e_dev_lib_path()
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from signoff_admission import signoff_critical_section_holder
+    except ImportError:
+        return
+    holder = signoff_critical_section_holder()
+    if holder is None:
+        return
+    pytest.skip(
+        f"signoff critical section active: holder={holder.label} "
+        f"episode={holder.episode_id} — defer until signoff gate completes "
+        f"(do not stop other pytest)"
+    )
+
+
+@pytest.fixture(autouse=True)
+def _chrome_e2e_epoch_pin(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    """Pin epoch-matched API for SHARED LIVE NAMESPACE_WRITE without private ADMIT (P0-DGR-6)."""
+    if not _is_formal_chrome_e2e(request):
+        yield
+        return
+    profile = _chrome_e2e_profile(request.node)
+    if profile is None:
+        yield
+        return
+    dev_lib = _e2e_dev_lib_path()
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from epoch_delivery_plane import (
+            apply_epoch_pin_for_shared_live,
+            evaluate_epoch_pin_eligibility,
+        )
+    except ImportError:
+        yield
+        return
+    decision = evaluate_epoch_pin_eligibility(
+        execution_mode=profile[0],
+        access_scope=profile[1],
+        workload=profile[2],
+    )
+    if not decision.eligible:
+        yield
+        return
+    monorepo = _SERVER_ROOT.parents[2]
+    outcome = apply_epoch_pin_for_shared_live(
+        monorepo=monorepo,
+        node_id=request.node.nodeid,
+    )
+    if not outcome.applied:
+        if outcome.detail != "shared_epoch_aligned":
+            pytest.fail(
+                f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}"
+            )
+        yield
+        return
+    for key, value in outcome.environment.items():
+        monkeypatch.setenv(key, value)
+    print(
+        "E2E_EPOCH_PIN: "
+        f"api={outcome.api_base} runtime={outcome.runtime_id} "
+        f"seeded={'yes' if outcome.seeded else 'no'} detail={outcome.detail}",
+        flush=True,
+    )
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -498,6 +587,7 @@ def _chrome_e2e_item_runtime(
 @pytest.fixture(autouse=True)
 def _require_live_e2e_lease(
     request: pytest.FixtureRequest,
+    _chrome_e2e_epoch_pin: None,
     _chrome_e2e_item_runtime: object | None,
 ) -> Iterator[None]:
     """Fail live E2E before side effects when Wave ownership is missing or drifts."""
@@ -529,6 +619,7 @@ def _require_live_e2e_lease(
 
     try:
         _epoch_drift_entry_skip_if_shared(request)
+        _signoff_critical_section_entry_skip(request)
         reap_chrome_e2e_session_hygiene()
         _heal_stale_e2e_lease()
         lease = require_e2e_runtime_lease()

@@ -64,7 +64,9 @@ def test_runtime_cell_snapshot() -> None:
     assert snapshot["liveCellCount"] >= 1
 
 
-def test_cell_mux_generation_persists_and_client_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cell_mux_generation_persists_and_client_sync(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cell = allocate_runtime_cell(run_id="run-mux")
     assert read_cell_mux_generation(cell.cell_id) == 1
     persist_cell_mux_generation(4, cell_id=cell.cell_id)

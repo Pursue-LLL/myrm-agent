@@ -30,6 +30,7 @@ HIDDEN_PREBUILT_TEMPLATE_IDS: frozenset[str] = frozenset(
 REMOVED_FEATURE_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         "deep_research",
+        "consensus",
     }
 )
 

@@ -15,5 +15,5 @@ Wizard 支持的 discover 来源封闭为 4 种：Hermes、OpenClaw、Claude Cod
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `discovery.py` | 模块 | `GET /discover` 四源扫描；`POST /secrets/import` opt-in API key 导入 | ✅ |
+| `discovery.py` | 模块 | `GET /discover` 五源扫描；`POST /secrets/import` opt-in API key 导入 | ✅ |
 | `upload.py` | 模块 | `POST /upload` Cloud ZIP 上传迁移桥；解压后调用 `discover_external_sources(home_dir=...)` | ✅ |

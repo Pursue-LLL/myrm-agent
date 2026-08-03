@@ -579,6 +579,20 @@ async def finalize_agent_stream_session(
             session.request.chat_id,
         )
     else:
+        if session.request.chat_id:
+            from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+            from app.services.copilot.run_digest_store import RunDigestStore
+
+            phase = RunDigestPhase.COMPLETED
+            if session.cancel_token.is_cancelled:
+                phase = RunDigestPhase.CANCELLED
+            elif session.had_fatal_error:
+                phase = RunDigestPhase.ERROR
+            RunDigestStore.end_run(
+                session.request.chat_id,
+                phase=phase,
+                progress_steps=list(session.collector._progress_steps),
+            )
         session.collector.cleanup()
 
 

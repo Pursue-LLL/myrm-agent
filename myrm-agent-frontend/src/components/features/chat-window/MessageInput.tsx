@@ -125,6 +125,7 @@ const mentionReferenceKey = (reference: {
 const MessageInput = ({ loading }: { loading: boolean }) => {
   const commonT = useTranslations('common');
   const chatT = useTranslations('chat');
+  const commandsT = useTranslations('commands');
   const messages = useChatStore((s) => s.messages);
   const chatId = useChatStore((s) => s.chatId);
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
@@ -204,6 +205,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     removeMessage,
     reorder,
   } = useMessageInput();
+
+  const showBtwDisambiguation = React.useMemo(
+    () => loading && /^\/(?:btw|bg)\b/i.test(inputMessage.trim()),
+    [loading, inputMessage],
+  );
 
   const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
     useShallow((state) => ({
@@ -457,6 +463,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 className="mb-2"
                 onRemove={() => setPendingExplicitSkillActivation(null)}
               />
+            ) : null}
+            {showBtwDisambiguation ? (
+              <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                {commandsT('builtin.btwDisambiguation')}
+              </p>
             ) : null}
             <TextareaAutosize
               ref={inputRef}

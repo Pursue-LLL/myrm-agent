@@ -8,7 +8,7 @@ DiscoveryResult: list of detected data sources with confidence scoring.
 
 [POS]
 Local/Tauri-only service that scans the user's home directory for external
-AI assistant data (Hermes, Claude Code, OpenClaw, Codex — four sources only).
+AI assistant data (Hermes, Claude Code, OpenClaw, Codex, Pi — five sources).
 SaaS sandboxes cannot access user filesystems.
 Per-source probe logic lives in source_probes.py.
 New migration sources are intentionally out of scope; see _ARCH.md policy.
@@ -135,6 +135,7 @@ def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:
         discover_codex,
         discover_hermes,
         discover_openclaw,
+        discover_pi,
     )
 
     home = Path(home_dir) if home_dir else None
@@ -146,6 +147,7 @@ def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:
         discover_claude,
         discover_openclaw,
         discover_codex,
+        discover_pi,
     ]
 
     for probe in probes:

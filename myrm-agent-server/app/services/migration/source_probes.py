@@ -4,10 +4,10 @@
 source_discovery::_get_search_paths (POS: 外部助手数据目录路径解析)
 
 [OUTPUT]
-ExternalSource | None for hermes, claude, openclaw, codex.
+ExternalSource | None for hermes, claude, openclaw, codex, pi.
 
 [POS]
-Local/Tauri filesystem probes for the four supported migration sources only.
+Local/Tauri filesystem probes for the five supported migration sources only.
 """
 
 from __future__ import annotations
@@ -163,6 +163,56 @@ def discover_codex(explicit_home: Path | None) -> ExternalSource | None:
 
     source.confidence = "high" if len(source.files) >= 2 else "medium" if source.files else "low"
     return source if source.confidence != "low" else None
+
+
+def discover_pi(explicit_home: Path | None) -> ExternalSource | None:
+    home = explicit_home or Path.home()
+    agent_dir = home / ".pi" / "agent"
+    if not agent_dir.is_dir():
+        return None
+
+    source = ExternalSource(competitor="pi", root=str(agent_dir))
+
+    for filename, kind in (("AGENTS.md", "agents"), ("settings.json", "settings")):
+        path = agent_dir / filename
+        if path.is_file():
+            source.files.append(
+                DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size)
+            )
+
+    auth_path = agent_dir / "auth.json"
+    if auth_path.is_file():
+        source.files.append(
+            DiscoveredFile(path=str(auth_path), kind="auth", size_bytes=auth_path.stat().st_size)
+        )
+        source.has_api_keys = True
+
+    sessions_dir = agent_dir / "sessions"
+    if sessions_dir.is_dir():
+        session_count = sum(1 for f in sessions_dir.iterdir() if f.suffix == ".jsonl")
+        if session_count > 0:
+            source.memory_count_estimate = session_count
+
+    skills_dir = agent_dir / "skills"
+    if skills_dir.is_dir():
+        source.skill_count = sum(
+            1 for entry in skills_dir.iterdir()
+            if entry.is_dir() and (entry / "SKILL.md").is_file()
+        )
+
+    source.confidence = _pi_confidence(source)
+    return source if source.confidence != "low" else None
+
+
+def _pi_confidence(source: ExternalSource) -> ConfidenceLevel:
+    has_agents = any(f.kind == "agents" for f in source.files)
+    has_settings = any(f.kind == "settings" for f in source.files)
+    has_sessions = source.memory_count_estimate > 0
+    if has_agents and (has_settings or has_sessions):
+        return "high"
+    if has_agents or has_settings or has_sessions:
+        return "medium"
+    return "low"
 
 
 def _find_first_dir(candidates: list[Path]) -> Path | None:

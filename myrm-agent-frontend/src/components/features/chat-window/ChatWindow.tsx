@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, memo, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, memo, useRef, useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import EmptyChat from './EmptyChat';
@@ -34,6 +34,8 @@ import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';
 import WorkingStateBadge from './WorkingStateBadge';
+import RunStatusChip from '@/components/features/copilot/RunStatusChip';
+import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/memory';
@@ -94,6 +96,20 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const hasAppliedApprovalRef = useRef<string | null>(null);
   const isGoalsEnabled = useFeatureGateStore((s) => s.isEnabled('goals_system'));
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [advisorQuestion, setAdvisorQuestion] = useState('');
+  const [advisorSelection, setAdvisorSelection] = useState<string | undefined>();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ question?: string; selection?: string }>).detail;
+      setAdvisorQuestion(detail?.question ?? '');
+      setAdvisorSelection(detail?.selection);
+      setAdvisorOpen(true);
+    };
+    window.addEventListener('copilot-open-advisor', handler);
+    return () => window.removeEventListener('copilot-open-advisor', handler);
+  }, []);
 
   const {
     messages,
@@ -459,6 +475,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               </div>
             ) : null}
             <WorkingStateBadge />
+            {id ? <RunStatusChip chatId={id} /> : null}
             <YoloModeBanner />
             <EStopBanner />
             <ExtensionDisconnectedBanner />
@@ -485,6 +502,21 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           onDesktopInspectorInstruction={handleDesktopInspectorInstruction}
         />
         {isGoalsEnabled ? <GoalStatusCard /> : null}
+        {id ? (
+          <SessionAdvisorPanel
+            chatId={id}
+            open={advisorOpen}
+            onOpenChange={(open) => {
+              setAdvisorOpen(open);
+              if (!open) {
+                setAdvisorQuestion('');
+                setAdvisorSelection(undefined);
+              }
+            }}
+            initialQuestion={advisorQuestion}
+            selectionSnippet={advisorSelection}
+          />
+        ) : null}
         <LifeStatusCapsule currentSessionId={id || null} />
       </>
     );

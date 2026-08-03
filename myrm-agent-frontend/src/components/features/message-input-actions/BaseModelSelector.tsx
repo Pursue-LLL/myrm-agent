@@ -28,6 +28,7 @@ import {
 import {
   listMoaPresetOptions,
   isMoaPresetConfigured,
+  resolveMoaPresetLabelKey,
 } from '@/lib/moaPresetUtils';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
@@ -139,6 +140,14 @@ const BaseModelSelector = () => {
     return triggerDisplay.modelName;
   }, [triggerDisplay.modelName, commonT]);
 
+  const moaChipLabel = useMemo(() => {
+    const labelKey = resolveMoaPresetLabelKey(triggerDisplay.moaPresetId);
+    if (!labelKey) {
+      return null;
+    }
+    return moaPresetT('activeLabel', { preset: moaPresetT(labelKey) });
+  }, [triggerDisplay.moaPresetId, moaPresetT]);
+
   const isCurrentSelectionValid = useMemo(() => {
     if (!currentSelection) return false;
     return enabledModels.some(
@@ -241,9 +250,9 @@ const BaseModelSelector = () => {
               <span className="inline text-xs font-medium text-black/60 dark:text-white/60 group-hover:text-black dark:group-hover:text-white transition-colors duration-300 truncate max-w-[120px] sm:max-w-none">
                 {currentModelName}
               </span>
-              {triggerDisplay.moaPresetId && (
+              {moaChipLabel && (
                 <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                  {moaPresetT('activeLabel', { preset: triggerDisplay.moaPresetId })}
+                  {moaChipLabel}
                 </span>
               )}
               <ChevronDown

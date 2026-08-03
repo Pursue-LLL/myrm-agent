@@ -8,7 +8,8 @@ Adapter-ready dict per competitor (soul_md, memory, skills, env_keys, etc.).
 
 [POS]
 Basic loaders (hermes/codex/claude/gbrain) live here.
-OpenClaw loader lives in _loaders_openclaw.py and is re-exported from this module.
+OpenClaw loader lives in _loaders_openclaw.py and Pi loader in _loaders_pi.py;
+both are re-exported from this module.
 """
 
 from __future__ import annotations
@@ -227,3 +228,4 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
 
 
 from ._loaders_openclaw import load_openclaw  # noqa: E402, F401
+from ._loaders_pi import load_pi  # noqa: E402, F401

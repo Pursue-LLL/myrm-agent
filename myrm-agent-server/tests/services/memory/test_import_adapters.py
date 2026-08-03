@@ -391,3 +391,86 @@ class TestEdgeCases:
         result = build_memory_import_dry_run(payload, source="agentmemory")
         semantic = result.normalized_data["semantic"][0]
         assert semantic["importance"] == pytest.approx(0.8, abs=0.01)
+
+
+class TestPiDryRun:
+    """Validates the Pi-specific dry-run adapter path."""
+
+    def test_pi_sessions_mapped_to_episodic(self) -> None:
+        payload = {
+            "_source": "pi",
+            "pi_sessions": [
+                {
+                    "id": "sess-1",
+                    "timestamp": "2025-07-01T12:00:00Z",
+                    "message_count": 3,
+                    "messages": [
+                        {"role": "user", "content": "Build a REST API"},
+                        {"role": "assistant", "content": "Sure, I'll create one."},
+                        {"role": "user", "content": "Add auth middleware"},
+                    ],
+                },
+            ],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1
+        episodic = result.normalized_data.get("episodic")
+        assert isinstance(episodic, list) and len(episodic) == 1
+        assert episodic[0]["category"] == "pi_session"
+        assert "REST API" in episodic[0]["content"]
+
+    def test_pi_multiple_sessions(self) -> None:
+        sessions = [
+            {
+                "id": f"sess-{i}",
+                "timestamp": f"2025-07-0{i}T12:00:00Z",
+                "message_count": 2,
+                "messages": [
+                    {"role": "user", "content": f"Task {i}"},
+                    {"role": "assistant", "content": f"Response {i}"},
+                ],
+            }
+            for i in range(1, 4)
+        ]
+        payload = {"_source": "pi", "pi_sessions": sessions}
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.mapped_items == 3
+        assert len(result.normalized_data["episodic"]) == 3
+
+    def test_pi_no_sessions_returns_missing(self) -> None:
+        payload = {"_source": "pi", "agents_md": "You are a coder"}
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.status == "missing"
+        assert result.summary.mapped_items == 0
+
+    def test_pi_session_without_messages_skipped(self) -> None:
+        payload = {
+            "_source": "pi",
+            "pi_sessions": [
+                {"id": "no-msgs", "timestamp": "", "message_count": 0, "messages": []},
+                {
+                    "id": "with-msgs",
+                    "timestamp": "2025-07-01",
+                    "message_count": 1,
+                    "messages": [{"role": "user", "content": "hello"}],
+                },
+            ],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.mapped_items == 1
+
+    def test_pi_detected_via_payload_key(self) -> None:
+        payload = {
+            "pi_sessions": [
+                {
+                    "id": "auto-detect",
+                    "timestamp": "",
+                    "message_count": 1,
+                    "messages": [{"role": "user", "content": "test"}],
+                },
+            ],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1

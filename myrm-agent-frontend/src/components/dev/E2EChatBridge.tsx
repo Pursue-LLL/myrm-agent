@@ -1531,6 +1531,9 @@ export default function E2EChatBridge() {
           messageCount: state.messages.length,
         };
       },
+      setLoading: (loading: boolean) => {
+        useChatStore.setState({ loading });
+      },
       hideApprovalDrawer: () => {
         flushSync(() => {
           useApprovalStore.getState().hideDrawer();

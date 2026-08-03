@@ -27,6 +27,18 @@ Harness 层 `deep_research` 编排器仍保留（`myrm-agent-harness/agent/deep_
 3. `SearchModeSelector.tsx`：恢复 `deep_research` 模式入口
 4. 更新本段文档状态为「已上线」
 
+## Consensus（独立 action mode）产品面状态
+
+> **当前：已移除。** MoA 能力通过 Agent 模式 + 模型 picker overlay 提供。
+
+| 项 | 当前状态 | SSOT |
+|---|---|---|
+| Feature Flag `consensus` | `FeatureStage.REMOVED` | `registration.py` |
+| SearchModeSelector「Consensus」 | 已移除 | `SearchModeSelector.tsx` |
+| 历史 overrides 中 `consensus: true` | `sanitize_user_overrides()` 清除 | `product_surface.py` |
+| legacy `action_mode=consensus` API | 映射为 `agent` + default MoA preset | `orchestrator.py` |
+| Harness `consensus/` engine | 保留（MoA overlay middleware 依赖） | harness |
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
@@ -43,5 +55,5 @@ Harness 层 `deep_research` 编排器仍保留（`myrm-agent-harness/agent/deep_
 | goals_system | `api/goals/router.py` verify_goals_enabled | GoalModeToggle |
 | companion_mode | `api/companion/router.py` verify_companion_enabled | SettingsMenu / EmptyChat |
 | deep_research | `orchestrator.py` action_mode gate（**REMOVED，永久 off**） | 已从 SearchModeSelector 移除 |
-| consensus | **已移除独立 action_mode**；legacy `action_mode=consensus` 由 `orchestrator._normalize_legacy_consensus_request` 映射为 `agent` + MoA preset；MoA 运行时走 `moa_overlay` + picker | 已从 SearchModeSelector 移除 |
+| consensus | **REMOVED**；legacy API shim → MoA overlay | 已从 SearchModeSelector 移除 |
 | voice_interaction | `api/voice,stt,tts` verify_voice_enabled | MessageInput isVoiceEnabled |

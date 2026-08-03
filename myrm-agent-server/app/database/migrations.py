@@ -878,6 +878,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE projects ADD COLUMN default_agent_id VARCHAR(255) REFERENCES agents(id) ON DELETE SET NULL",
     "ALTER TABLE kanban_tasks ADD COLUMN goal_mode BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE kanban_tasks ADD COLUMN goal_max_turns INTEGER",
+    "ALTER TABLE chats ADD COLUMN active_moa_preset_id VARCHAR(50)",
 ]
 
 

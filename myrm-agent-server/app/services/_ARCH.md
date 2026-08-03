@@ -47,6 +47,7 @@
 | `channels/` | ✅ 核心 | 渠道业务编排（实例配置、CP egress、配对绑定） | [_ARCH.md](channels/_ARCH.md) |
 | `checkpoint/` | ✅ 核心 | 会话检查点业务服务 | [_ARCH.md](checkpoint/_ARCH.md) |
 | `companion/` | ✅ 辅助 | 桌宠 Observer 反应与进化状态（见上方术语表） | [_ARCH.md](companion/_ARCH.md) |
+| `copilot/` | ✅ 辅助 | Lean Co-Pilot：RunDigest SSOT + Session Advisor（旁路只读问答） | [_ARCH.md](copilot/_ARCH.md) |
 | `mascot/` | ✅ 辅助 | Mascot XP / 状态映射与缓存清理（见上方术语表） | [_ARCH.md](mascot/_ARCH.md) |
 | `context/` | ✅ 核心 | Shared Context / Context Bundle 业务编排 | [_ARCH.md](context/_ARCH.md) |
 | `artifacts/` | ✅ 核心 | 产物业务编排与 API 侧用例 | [_ARCH.md](artifacts/_ARCH.md) |

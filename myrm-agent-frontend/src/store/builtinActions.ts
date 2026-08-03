@@ -385,6 +385,23 @@ export function buildBuiltinActions(): SlashAction[] {
       },
     },
     {
+      id: 'builtin:ask',
+      name: 'ask',
+      description: 'commands.builtin.ask',
+      argsHint: '[question]',
+      aliases: ['side'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const args = inputValue.replace(/^\/(?:ask|side)\s*/i, '').trim();
+        window.dispatchEvent(
+          new CustomEvent('copilot-open-advisor', {
+            detail: { question: args },
+          }),
+        );
+        return { success: true, newInputValue: '' };
+      },
+    },
+    {
       id: 'builtin:pet',
       name: 'pet',
       description: 'commands.builtin.pet',

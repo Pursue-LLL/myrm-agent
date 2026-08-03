@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-外部助手数据迁移业务层回归测试。覆盖四源 discover/load/split、e2e dry-run、instruction rollback、skills binding。与 `tests/architecture/test_migration_source_closure.py` 互补：本目录测行为，architecture 测 probe/loader 封闭集合同步。
+外部助手数据迁移业务层回归测试。覆盖五源 discover/load/split、e2e dry-run、instruction rollback、skills binding。与 `tests/architecture/test_migration_source_closure.py` 互补：本目录测行为，architecture 测 probe/loader 封闭集合同步。
 
 上级：`app/services/migration/_ARCH.md`（Wizard 封闭 4 源政策）。
 
@@ -14,7 +14,7 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `test_source_discovery.py` | 核心 | 四源 filesystem discover（confidence、多源共存、edge cases） |
+| `test_source_discovery.py` | 核心 | 五源 filesystem discover（confidence、多源共存、edge cases） |
 | `test_source_manifest.py` | 核心 | 迁移来源 manifest SSOT（ids、import map、local-scan 封闭集、payload 结构） |
 | `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items |
 | `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分 |

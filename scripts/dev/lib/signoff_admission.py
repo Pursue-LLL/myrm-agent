@@ -122,7 +122,60 @@ def _connect() -> sqlite3.Connection:
             ON signoff_episodes(state);
         """
     )
+    _ensure_episode_columns(conn)
     return conn
+
+
+def _ensure_episode_columns(conn: sqlite3.Connection) -> None:
+    cols = {
+        str(row[1])
+        for row in conn.execute("PRAGMA table_info(signoff_episodes)").fetchall()
+    }
+    if "gate_log_path" not in cols:
+        conn.execute(
+            "ALTER TABLE signoff_episodes ADD COLUMN gate_log_path TEXT NOT NULL DEFAULT ''"
+        )
+        conn.commit()
+
+
+def signoff_critical_section_holder() -> RunningEpisode | None:
+    """Return active signoff gate holder while episode RUNNING (P0-SAO-8 spawn gate)."""
+    try:
+        with _connect() as conn:
+            _reconcile_stale_episodes(conn)
+            return _running_episode(conn)
+    except sqlite3.Error:
+        return None
+
+
+def set_episode_gate_log(episode_id: str, gate_log_path: str) -> bool:
+    """Bind gate artifact path to episode (P0-SAO-7d / P0-SAO-8)."""
+    path = gate_log_path.strip()
+    if not episode_id or not path:
+        return False
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE signoff_episodes
+            SET gate_log_path = ?
+            WHERE episode_id = ? AND state = ?
+            """,
+            (path, episode_id, EpisodeState.RUNNING.value),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def read_episode_gate_log_path(episode_id: str) -> str | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT gate_log_path FROM signoff_episodes WHERE episode_id = ?",
+            (episode_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    raw = str(row["gate_log_path"] or "").strip()
+    return raw or None
 
 
 def _reconcile_stale_episodes(conn: sqlite3.Connection) -> None:

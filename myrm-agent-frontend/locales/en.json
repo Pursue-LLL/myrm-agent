@@ -186,8 +186,30 @@
       "petOverlayDisabled": "Pet sprite overlay hidden",
       "petInstalled": "Installed pet: {name}",
       "petInstallFailed": "Failed to install pet",
-      "petNoActive": "No pet installed — opening pet palette"
+      "petNoActive": "No pet installed — opening pet palette",
+      "ask": "Open session advisor for read-only side Q&A (/side)",
+      "btwDisambiguation": "In Myrm, /btw starts a background task. For side Q&A while a run is active, use /ask or /side instead."
     }
+  },
+  "copilot": {
+    "runningFallback": "Agent running",
+    "headlineRunning": "Step {step}: {tool}",
+    "headlineWaitingApproval": "Waiting for approval ({count})",
+    "headlineCompleted": "Finished ({count} steps)",
+    "headlineFailed": "Run failed",
+    "headlineCancelled": "Run cancelled",
+    "askButton": "Ask",
+    "advisorTitle": "Session Advisor",
+    "advisorHint": "Read-only side Q&A — does not enter the main transcript.",
+    "advisorEmpty": "Ask about run status, progress, or pending approvals.",
+    "advisorPlaceholder": "What is the agent doing?",
+    "advisorSend": "Ask",
+    "advisorSending": "Asking…",
+    "advisorClear": "Clear",
+    "tierRules": "Run summary",
+    "tierLite": "Lite model",
+    "advisorSelectionAsk": "Ask Advisor",
+    "advisorSelectionDefaultQuestion": "Explain this selection"
   },
   "settings": {
     "lockedUse": {
@@ -1600,9 +1622,9 @@
       "orgPolicyRestricted": "Restricted by organization policy",
       "moaPreset": {
         "groupTitle": "Mixture of Agents",
-        "defaultLabel": "default",
-        "reviewLabel": "review",
-        "fastLabel": "fast",
+        "defaultLabel": "Standard",
+        "reviewLabel": "Deep review",
+        "fastLabel": "Fast",
         "activeLabel": "MoA · {preset}",
         "refCount": "{count} refs"
       },
@@ -6468,7 +6490,9 @@
       "livePreview": "Live Preview",
       "browser": "Browser",
       "desktop": "Desktop",
-      "artifacts": "Deliverables"
+      "artifacts": "Deliverables",
+      "advisorAsk": "Ask Advisor",
+      "advisorOpen": "Side Q&A"
     }
   },
   "common": {
@@ -8048,6 +8072,7 @@
       "loop_guard": "Loop Limit",
       "sandbox_boundary": "Boundary Limit",
       "frequency_guard": "Rate Limited",
+      "turn_budget_guard": "Turn Budget",
       "steering": "Skipped",
       "invalid_tool": "Invalid Tool",
       "trust_attenuation": "Trust Reduced",

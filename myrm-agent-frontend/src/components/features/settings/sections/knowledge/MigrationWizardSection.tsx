@@ -153,7 +153,10 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
           {
             target_agent_id: targetAgentId,
             clone_from_agent_id: cloneFromAgentId,
-            include_episodic: source.competitor === 'chatgpt' || (source.competitor === 'openclaw' && includeEpisodic),
+            include_episodic:
+              source.competitor === 'chatgpt' ||
+              source.competitor === 'pi' ||
+              (source.competitor === 'openclaw' && includeEpisodic),
             apply_global_instructions: true,
           },
         );

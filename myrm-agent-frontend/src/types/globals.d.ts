@@ -225,6 +225,19 @@ interface Window {
       reason: string;
     };
     dismissBrowserTakeover?: () => void;
+    getChatShellState?: () => {
+      chatId: string | null;
+      notFound: boolean;
+      loadError: boolean;
+      isMessagesLoaded: boolean;
+      loading: boolean;
+      messageCount: number;
+    };
+    setLoading?: (loading: boolean) => void;
+  };
+  /** Dev-only bridge for Mobile Command Center Chrome E2E. */
+  __MYRM_E2E_MOBILE_CC__?: {
+    setLoading: (loading: boolean) => void;
   };
   /** Dev-only bridge for companion health-check Chrome E2E (AppLayout E2ECompanionBridge). */
   __MYRM_E2E_COMPANION__?: {

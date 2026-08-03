@@ -10,15 +10,20 @@
 - shutdown_mcp_endpoint: cancel session manager task group
 
 [POS]
-Exposes the memory system as a Streamable HTTP MCP endpoint that external
-agents (Claude Code, Cursor, etc.) can connect to. Each Bearer token
-carries an agent_id; middleware dynamically binds the MemoryManager to the
-target Agent Profile + SharedContext via ContextVar, enabling per-agent
+Exposes the memory system as a stateless Streamable HTTP MCP endpoint that
+external agents (Claude Code, Cursor, etc.) can connect to. Each Bearer
+token carries an agent_id; middleware dynamically binds the MemoryManager to
+the target Agent Profile + SharedContext via ContextVar, enabling per-agent
 memory scoping. Mounted at /mcp on the FastAPI application during startup.
+
+Stateless mode (no Mcp-Session-Id tracking) is used because all four memory
+tools are inherently per-request — auth and agent scoping are handled
+entirely by the Bearer token middleware, not by MCP session state.
 
 FastAPI's mount() does not propagate lifespan events to sub-apps, so we
 manually start the MCP session manager's task group via a background task
-and cancel it on shutdown.
+and cancel it on shutdown (the SDK requires the task group even in stateless
+mode for per-request transport lifecycle).
 """
 
 from __future__ import annotations
@@ -168,7 +173,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
         )
 
         mcp_server = MemoryMCPServer(memory_manager)
-        mcp_asgi_app = mcp_server.get_streamable_http_app()
+        mcp_asgi_app = mcp_server.get_streamable_http_app(stateless=True)
 
         # FastAPI mount() does not propagate lifespan to sub-apps, so the
         # Starlette sub-app's lifespan (which calls session_manager.run())

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-记忆 Tab 容器与子 Section：记忆浏览器、Wiki、迁移向导、备份与监控。迁移 Wizard 仅支持 Hermes / OpenClaw / Claude Code / Codex 四源自动发现（与 server `services/migration/_ARCH.md` 封闭集合一致）。
+记忆 Tab 容器与子 Section：记忆浏览器、Wiki、迁移向导、备份与监控。迁移 Wizard 支持 Hermes / OpenClaw / Claude Code / Codex / Pi 五源自动发现（与 server `services/migration/_ARCH.md` 封闭集合一致）。
 
 ## 文件清单
 
@@ -11,7 +11,7 @@
 | `MemoryCenterSection.tsx` | 容器 | 记忆 Tab 路由（explorer / backup / archival / follow-ups / migration） | — |
 | `FollowUpsPanel.tsx` | 核心 | 智能跟进列表（list / dismiss / snooze）；Vitest：`__tests__/FollowUpsPanel.test.tsx` | — |
 | `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD；JSON 导入 confirm 后展示 readiness toast（非 ready 时 issue 文案 + 设置深链） | — |
-| `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview；Settings 路径 Result 内嵌 vault bind handoff | — |
+| `MigrationWizardSection.tsx` | 核心 | 五源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview；Pi/ChatGPT 永远包含 episodic 记忆，OpenClaw 用户可选；Settings 路径 Result 内嵌 vault bind handoff | — |
 | `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI；Hermes cron skip 列表 + Result cron 摘要 + `/settings/cron` 深链 | — |
 | `MigrationVaultBindPanel.tsx` | 辅助 | 迁移后 project workspace bind 共享 UI（Settings Result + Onboarding sync_folder）；bind 成功 queue `boundProjectId`；若当前 chat 已存在则立即 PATCH project | — |
 | `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案（含 Hermes voice/consensus gate 引导）；深链 href 消费 API `issue.settings_path` | — |
