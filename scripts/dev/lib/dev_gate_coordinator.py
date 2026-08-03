@@ -127,6 +127,8 @@ class CoordinatorService:
             return self._ownership(request)
         if operation == "cleanup":
             return self._cleanup(request)
+        if operation == "teardown_finish":
+            return self._teardown_finish(request)
         if operation == "finish":
             record = self.store.finish(
                 _required_text(request, "session_id"),
@@ -407,6 +409,40 @@ class CoordinatorService:
             _required_text(request, "session_id"),
             _required_text(request, "owner_token"),
             receipt,
+        )
+        return {"session": record.to_dict()}
+
+    def _teardown_finish(self, request: dict[str, object]) -> dict[str, object]:
+        receipt_raw = request.get("receipt")
+        if not isinstance(receipt_raw, dict):
+            raise ValueError("teardown_finish receipt must be an object")
+        pages_raw = receipt_raw.get("closed_page_ids", [])
+        if not isinstance(pages_raw, list) or not all(
+            isinstance(item, str) for item in pages_raw
+        ):
+            raise ValueError("receipt.closed_page_ids must be a string list")
+        receipt = CleanupReceipt(
+            closed_page_ids=tuple(cast(list[str], pages_raw)),
+            closed_context_id=_optional_text(receipt_raw, "closed_context_id"),
+            released_lease_id=_optional_text(receipt_raw, "released_lease_id"),
+            released_runtime_id=_optional_text(receipt_raw, "released_runtime_id"),
+            ledger_cleaned=receipt_raw.get("ledger_cleaned") is True,
+            physical_released=(
+                True
+                if receipt_raw.get("physical_released") is True
+                else (False if receipt_raw.get("physical_released") is False else None)
+            ),
+            sealed=receipt_raw.get("sealed") is True,
+            requested_at=float(receipt_raw.get("requested_at", 0.0)),
+            observed_at=float(receipt_raw.get("observed_at", 0.0)),
+            completed_at=float(receipt_raw.get("completed_at", time.time())),
+        )
+        record = self.store.teardown_and_finish(
+            _required_text(request, "session_id"),
+            _required_text(request, "owner_token"),
+            receipt,
+            succeeded=request.get("succeeded") is True,
+            failure_token=_optional_text(request, "failure_token"),
         )
         return {"session": record.to_dict()}
 

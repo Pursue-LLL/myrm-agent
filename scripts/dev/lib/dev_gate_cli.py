@@ -306,9 +306,10 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         "heartbeat",
         "finish",
         "cleanup",
+        "teardown_finish",
     }:
         timeout_sec = 30.0
-    if isinstance(operation, str) and operation == "cleanup":
+    if isinstance(operation, str) and operation in {"cleanup", "teardown_finish"}:
         timeout_sec = 60.0
     if operation == "wait_event":
         budget_raw = payload.get("budget_sec")
@@ -457,6 +458,49 @@ def _desktop_admit(args: argparse.Namespace) -> int:
         time.sleep(min(1.0, float(admission.get("next_progress_sec", 1.0))))
 
 
+def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, object]:
+    from cleanup_observed_seal import (
+        collect_cdp_target_ids,
+        lease_bound_target_ids,
+        lease_released,
+        physical_targets_absent,
+        poll_physical_targets_absent,
+    )
+
+    requested_at = time.time()
+    released_lease = args.released_lease_id.strip()
+    ledger_cleaned = lease_released(released_lease)
+    if not ledger_cleaned:
+        for _ in range(3):
+            time.sleep(1.0)
+            if lease_released(released_lease):
+                ledger_cleaned = True
+                break
+    bound = lease_bound_target_ids(released_lease)
+    if bound:
+        physical_released = poll_physical_targets_absent(
+            lease_id=released_lease,
+            timeout_sec=15.0,
+        )
+    else:
+        physical_released = physical_targets_absent(lease_id=released_lease)
+    cdp_after = collect_cdp_target_ids()
+    sealed = ledger_cleaned and physical_released is True
+    return {
+        "closed_page_ids": list(bound),
+        "closed_context_id": args.closed_context_id,
+        "released_lease_id": released_lease,
+        "released_runtime_id": args.released_runtime_id,
+        "ledger_cleaned": ledger_cleaned,
+        "physical_released": physical_released,
+        "cdp_target_ids_after": sorted(cdp_after) if cdp_after is not None else [],
+        "sealed": sealed,
+        "requested_at": requested_at,
+        "observed_at": time.time() if sealed else 0.0,
+        "completed_at": time.time(),
+    }
+
+
 def _simple_operation(args: argparse.Namespace) -> int:
     payload: dict[str, object] = {
         "operation": args.command,
@@ -469,47 +513,12 @@ def _simple_operation(args: argparse.Namespace) -> int:
         payload["failure_token"] = args.failure_token
     elif args.command == "heartbeat":
         payload["current_node"] = args.current_node
-    elif args.command == "cleanup":
-        from cleanup_observed_seal import (
-            collect_cdp_target_ids,
-            lease_bound_target_ids,
-            lease_released,
-            physical_targets_absent,
-            poll_physical_targets_absent,
-        )
-
-        requested_at = time.time()
-        released_lease = args.released_lease_id.strip()
-        ledger_cleaned = lease_released(released_lease)
-        if not ledger_cleaned:
-            for _ in range(3):
-                time.sleep(1.0)
-                if lease_released(released_lease):
-                    ledger_cleaned = True
-                    break
-        bound = lease_bound_target_ids(released_lease)
-        if bound:
-            physical_released = poll_physical_targets_absent(
-                lease_id=released_lease,
-                timeout_sec=15.0,
-            )
-        else:
-            physical_released = physical_targets_absent(lease_id=released_lease)
-        cdp_after = collect_cdp_target_ids()
-        sealed = ledger_cleaned and physical_released is True
-        payload["receipt"] = {
-            "closed_page_ids": list(bound),
-            "closed_context_id": args.closed_context_id,
-            "released_lease_id": released_lease,
-            "released_runtime_id": args.released_runtime_id,
-            "ledger_cleaned": ledger_cleaned,
-            "physical_released": physical_released,
-            "cdp_target_ids_after": sorted(cdp_after) if cdp_after is not None else [],
-            "sealed": sealed,
-            "requested_at": requested_at,
-            "observed_at": time.time() if sealed else 0.0,
-            "completed_at": time.time(),
-        }
+    elif args.command in {"cleanup", "teardown-finish"}:
+        payload["receipt"] = _build_observed_cleanup_receipt(args)
+        if args.command == "teardown-finish":
+            payload["operation"] = "teardown_finish"
+            payload["succeeded"] = args.succeeded
+            payload["failure_token"] = args.failure_token
     elif args.command == "finish":
         payload["succeeded"] = args.succeeded
         payload["failure_token"] = args.failure_token
@@ -525,7 +534,11 @@ def _simple_operation(args: argparse.Namespace) -> int:
             return 1
         raise
     # cleanup/finish run inside test.sh EXIT trap; stdout would pollute detach pytest logs.
-    json_stream = sys.stderr if args.command in {"cleanup", "finish"} else sys.stdout
+    json_stream = sys.stderr if args.command in {
+        "cleanup",
+        "finish",
+        "teardown-finish",
+    } else sys.stdout
     print(json.dumps(response, separators=(",", ":"), sort_keys=True), file=json_stream)
     if args.command == "cleanup":
         if os.environ.get("MYRM_E2E_RELAX_DEV_GATE_TERMINAL", "").strip() == "1":
@@ -536,6 +549,26 @@ def _simple_operation(args: argparse.Namespace) -> int:
             return 0
         print("E2E_DEV_GATE_CLEANUP_UNSEALED: observed seal missing", file=sys.stderr)
         return 1
+    if args.command == "teardown-finish":
+        if os.environ.get("MYRM_E2E_RELAX_DEV_GATE_TERMINAL", "").strip() == "1":
+            return 0
+        session = response.get("session")
+        if not isinstance(session, dict):
+            print("E2E_DEV_GATE_TEARDOWN_FINISH_MISSING_SESSION", file=sys.stderr)
+            return 1
+        cleanup = session.get("cleanup")
+        if args.succeeded:
+            if not isinstance(cleanup, dict) or cleanup.get("sealed") is not True:
+                print("E2E_DEV_GATE_TEARDOWN_FINISH_UNSEALED", file=sys.stderr)
+                return 1
+            if session.get("state") != "SUCCEEDED" or session.get("outcome") != "PASSED":
+                print(
+                    "E2E_DEV_GATE_TEARDOWN_FINISH_TERMINAL_MISMATCH: "
+                    f"state={session.get('state')} outcome={session.get('outcome')}",
+                    file=sys.stderr,
+                )
+                return 1
+        return 0
     if args.command == "finish" and args.succeeded:
         session = response.get("session")
         if not isinstance(session, dict):
@@ -670,6 +703,7 @@ def _parser() -> argparse.ArgumentParser:
         "transition",
         "heartbeat",
         "cleanup",
+        "teardown-finish",
         "private_release",
         "desktop_release",
         "finish",

@@ -43,6 +43,45 @@ def _require_cleanup_sealed_for_success(row: sqlite3.Row) -> None:
     )
 
 
+def _normalize_cleanup_receipt(receipt: CleanupReceipt) -> CleanupReceipt:
+    physical_ok = receipt.physical_released is True
+    if receipt.ledger_cleaned and physical_ok:
+        return CleanupReceipt(
+            closed_page_ids=receipt.closed_page_ids,
+            closed_context_id=receipt.closed_context_id,
+            released_lease_id=receipt.released_lease_id,
+            released_runtime_id=receipt.released_runtime_id,
+            ledger_cleaned=True,
+            physical_released=True,
+            sealed=True,
+            requested_at=receipt.requested_at,
+            observed_at=(
+                receipt.observed_at if receipt.observed_at > 0 else time.time()
+            ),
+            completed_at=receipt.completed_at,
+        )
+    return receipt
+
+
+def _cleanup_receipt_payload(receipt: CleanupReceipt) -> str:
+    return json.dumps(
+        {
+            "closed_page_ids": receipt.closed_page_ids,
+            "closed_context_id": receipt.closed_context_id,
+            "released_lease_id": receipt.released_lease_id,
+            "released_runtime_id": receipt.released_runtime_id,
+            "ledger_cleaned": receipt.ledger_cleaned,
+            "physical_released": receipt.physical_released,
+            "sealed": receipt.sealed,
+            "requested_at": receipt.requested_at,
+            "observed_at": receipt.observed_at,
+            "completed_at": receipt.completed_at,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
 def _begin_immediate(connection: sqlite3.Connection) -> None:
     for attempt in range(20):
         try:
@@ -614,48 +653,117 @@ class DevGateStore:
             _begin_immediate(connection)
             row = self._owned_row(connection, session_id, owner_token)
             version = int(row["version"]) + 1
-            final_receipt = receipt
-            physical_ok = receipt.physical_released is True
-            if receipt.ledger_cleaned and physical_ok:
+            final_receipt = _normalize_cleanup_receipt(receipt)
+            if final_receipt.sealed:
                 self._clear_session_ownership(connection, session_id=session_id)
-                final_receipt = CleanupReceipt(
-                    closed_page_ids=receipt.closed_page_ids,
-                    closed_context_id=receipt.closed_context_id,
-                    released_lease_id=receipt.released_lease_id,
-                    released_runtime_id=receipt.released_runtime_id,
-                    ledger_cleaned=True,
-                    physical_released=True,
-                    sealed=True,
-                    requested_at=receipt.requested_at,
-                    observed_at=(
-                        receipt.observed_at if receipt.observed_at > 0 else time.time()
-                    ),
-                    completed_at=receipt.completed_at,
-                )
             connection.execute(
                 "UPDATE sessions SET version=?, cleanup_json=? WHERE session_id=?",
-                (
-                    version,
-                    json.dumps(
-                        {
-                            "closed_page_ids": final_receipt.closed_page_ids,
-                            "closed_context_id": final_receipt.closed_context_id,
-                            "released_lease_id": final_receipt.released_lease_id,
-                            "released_runtime_id": final_receipt.released_runtime_id,
-                            "ledger_cleaned": final_receipt.ledger_cleaned,
-                            "physical_released": final_receipt.physical_released,
-                            "sealed": final_receipt.sealed,
-                            "requested_at": final_receipt.requested_at,
-                            "observed_at": final_receipt.observed_at,
-                            "completed_at": final_receipt.completed_at,
-                        },
-                        separators=(",", ":"),
-                        sort_keys=True,
-                    ),
-                    session_id,
-                ),
+                (version, _cleanup_receipt_payload(final_receipt), session_id),
             )
             return self._record(self._required_row(connection, session_id))
+
+    def teardown_and_finish(
+        self,
+        session_id: str,
+        owner_token: str,
+        receipt: CleanupReceipt,
+        *,
+        succeeded: bool,
+        failure_token: str = "",
+        now: float | None = None,
+    ) -> SessionRecord:
+        """Atomically persist cleanup receipt and terminal state (P0-A)."""
+        last_locked: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            try:
+                return self._teardown_and_finish_once(
+                    session_id,
+                    owner_token,
+                    receipt,
+                    succeeded=succeeded,
+                    failure_token=failure_token,
+                    now=now,
+                )
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower():
+                    raise
+                last_locked = exc
+                time.sleep(min(0.2 * float(attempt + 1), 2.0))
+        if last_locked is not None:
+            raise last_locked
+        raise RuntimeError("teardown_and_finish retry exhausted without result")
+
+    def _teardown_and_finish_once(
+        self,
+        session_id: str,
+        owner_token: str,
+        receipt: CleanupReceipt,
+        *,
+        succeeded: bool,
+        failure_token: str = "",
+        now: float | None = None,
+    ) -> SessionRecord:
+        finished_at = time.time() if now is None else now
+        target = SessionState.SUCCEEDED if succeeded else SessionState.FAILED
+        terminal_only = False
+        with self._connect() as connection:
+            _begin_immediate(connection)
+            row = self._owned_row(connection, session_id, owner_token)
+            current = SessionState(str(row["state"]))
+            if current in TERMINAL_STATES:
+                terminal_only = True
+            else:
+                final_receipt = _normalize_cleanup_receipt(receipt)
+                if succeeded and not final_receipt.sealed:
+                    raise CleanupUnsealedError(
+                        "cannot finish succeeded: cleanup not sealed "
+                        f"for session {session_id}"
+                    )
+                if final_receipt.sealed:
+                    self._clear_session_ownership(connection, session_id=session_id)
+                version = int(row["version"]) + 1
+                outcome = "PASSED" if succeeded else "FAILED"
+                connection.execute(
+                    """
+                    UPDATE sessions SET state=?, version=?, outcome=?,
+                        failure_token=?, cleanup_json=?, phase_started_at=?,
+                        last_progress_at=?
+                    WHERE session_id=?
+                    """,
+                    (
+                        target.value,
+                        version,
+                        outcome,
+                        failure_token,
+                        _cleanup_receipt_payload(final_receipt),
+                        finished_at,
+                        finished_at,
+                        session_id,
+                    ),
+                )
+                self._event(
+                    connection,
+                    session_id=session_id,
+                    version=version,
+                    event_type="TEARDOWN_FINISH",
+                    state=target,
+                    detail={
+                        "from": current.value,
+                        "outcome": outcome,
+                        "cleanup_sealed": final_receipt.sealed,
+                    },
+                    now=finished_at,
+                )
+                return self._record(self._required_row(connection, session_id))
+        if terminal_only:
+            return self._finish_once(
+                session_id,
+                owner_token,
+                succeeded=succeeded,
+                failure_token=failure_token,
+                now=now,
+            )
+        raise RuntimeError("teardown_and_finish reached unreachable path")
 
     @staticmethod
     def _clear_session_ownership(
