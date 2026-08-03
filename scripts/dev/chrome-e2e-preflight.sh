@@ -405,16 +405,18 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       _heal_mux_under_parallel_attach_load || true
       continue
     fi
-    if [[ "${E2E_SIGNOFF:-}" == "1" ]] \
-      && [[ "${require_ready}" == "--require-signoff-stream-ready" ]] \
+    if [[ "${mux_heal_during_wait}" -lt 2 ]] \
       && [[ "${health}" == *"wsStampMatch=false"* ]] \
-      && [[ "${mux_heal_during_wait}" -lt 2 ]] \
       && _mux_upstream_ready; then
-      mux_heal_during_wait=$((mux_heal_during_wait + 1))
-      echo "CHROME_E2E_ATTACH_HEAL: signoff ws restamp during attach wait ${mux_heal_during_wait}/2 (R173)" >&2
-      _stamp_mux_ws_url || true
-      _stamp_mux_daemon_ws_url || true
-      continue
+      if [[ "${E2E_SIGNOFF:-}" == "1" && "${require_ready}" == "--require-signoff-stream-ready" ]] \
+        || [[ "${MYRM_E2E_P0A_GATE:-}" == "1" && "${require_ready}" == "--require-attach-ready" ]] \
+        || [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && _mux_solo_gate_cluster_clear ]]; then
+        mux_heal_during_wait=$((mux_heal_during_wait + 1))
+        echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2 (R255)" >&2
+        _stamp_mux_ws_url || true
+        _stamp_mux_daemon_ws_url || true
+        continue
+      fi
     fi
     wait_sec="$(_bootstrap_attach_remaining_sec)"
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
@@ -898,8 +900,35 @@ _mux_parallel_load_blocks_global_restart() {
   return 1
 }
 
+_mux_solo_gate_cluster_clear() {
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+from mux_load import solo_gate_cluster_clear
+import sys
+sys.exit(0 if solo_gate_cluster_clear() else 1)
+" 2>/dev/null
+}
+
+_mux_ws_restamp_solo_heal() {
+  local label="$1"
+  echo "CHROME_E2E_SOLO_WS_RESTAMP: ${label}" >&2
+  _stamp_mux_ws_url || return 1
+  _stamp_mux_daemon_ws_url || true
+  if _mux_ws_stamp_matches && _mux_daemon_ws_matches && _mux_upstream_ready; then
+    ok "cdmcp-mux solo ws restamp (${label})"
+    return 0
+  fi
+  return 1
+}
+
 _mux_restart_allowed() {
-  [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || return 1
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    if [[ "${MYRM_E2E_P0A_GATE:-}" == "1" ]] && _mux_solo_gate_cluster_clear; then
+      :
+    else
+      return 1
+    fi
+  fi
   _mux_parallel_load_blocks_global_restart && return 1
   if [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]]; then
     return 0
@@ -949,6 +978,15 @@ _ensure_mux_upstream() {
   if _mux_ws_stamp_matches && _mux_daemon_ws_matches && _mux_upstream_ready; then
     return 0
   fi
+  # R255: solo gate/signoff — restamp CDP ws drift before attach fail-closed or blocked restart.
+  if ! _mux_ws_stamp_matches && _mux_upstream_ready && _mux_solo_gate_cluster_clear; then
+    if [[ "${E2E_SIGNOFF:-}" == "1" || "${MYRM_E2E_P0A_GATE:-}" == "1" ]]; then
+      _mux_ws_restamp_solo_heal "signoff-or-p0a-gate upstreamReady" && return 0
+    fi
+    if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+      _mux_ws_restamp_solo_heal "attach solo cluster ws drift" && return 0
+    fi
+  fi
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     fail "mux not ready for parallel attach (upstreamReady or CDP ws drift) — first Agent must run: ./myrm ready --chrome"
   fi
@@ -961,7 +999,12 @@ _ensure_mux_upstream() {
     _restart_mux_safely "upstream self-heal timeout"
   else
     echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — daemon options require a new endpoint" >&2
-    # R94: signoff stream-lock client_hot must not fail-closed when parallel contexts block mux restart.
+    # R94/R255: signoff or solo gate — restamp ws without restart when cluster is solo-clear.
+    if _mux_upstream_ready \
+      && { [[ "${E2E_SIGNOFF:-}" == "1" ]] || [[ "${MYRM_E2E_P0A_GATE:-}" == "1" ]]; } \
+      && _mux_solo_gate_cluster_clear; then
+      _mux_ws_restamp_solo_heal "solo cluster upstreamReady" && return 0
+    fi
     if [[ "${E2E_SIGNOFF:-}" == "1" ]] && _mux_upstream_ready; then
       echo "CHROME_E2E_SIGNOFF_MUX_WS_RESTAMP: upstreamReady with parallel contexts — restamp ws without restart" >&2
       _stamp_mux_ws_url || true

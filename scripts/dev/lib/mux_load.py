@@ -249,6 +249,80 @@ def _reload_mux_daemon_if_needed() -> bool:
     return proc.returncode == 0
 
 
+def solo_gate_cluster_clear() -> bool:
+    """Step-1 gate solo cluster: pytest peers=0, wave leases=0, active mux contexts <= 1."""
+    try:
+        from transport_supervisor import _chrome_e2e_pytest_peer_count
+
+        if _chrome_e2e_pytest_peer_count() != 0:
+            return False
+    except ImportError:
+        return False
+    try:
+        from e2e_api_verify import resolve_e2e_api_context
+
+        ctx = resolve_e2e_api_context(retry_after_apply=False)
+        if ctx.active_leases != 0:
+            return False
+    except Exception:
+        return False
+    status = read_mux_status(force=True)
+    return active_mux_context_count(status) <= 1
+
+
+def heal_mux_for_solo_gate() -> dict[str, object]:
+    """Solo Step-1 gate heal: prune dead cells, reap empty mux shells, reload when idle."""
+    pruned_cells = 0
+    try:
+        from e2e_runtime_cell import prune_dead_runtime_cells
+
+        pruned_cells = prune_dead_runtime_cells()
+    except ImportError:
+        pass
+
+    status = read_mux_status(force=True)
+    stale_before = stale_empty_mux_context_count(status)
+    active_before = active_mux_context_count(status)
+    reaped = 0
+    reloaded = False
+
+    if stale_before >= 1 or stale_before + active_before > 1:
+        result = reap_idle_empty_mux_contexts(idle_ms=0)
+        reaped = int(result.get("reaped", 0) or 0)
+
+    status = read_mux_status(force=True)
+    active_after = active_mux_context_count(status)
+    total_after = mux_context_count(status)
+
+    pytest_peers = 0
+    try:
+        from transport_supervisor import _chrome_e2e_pytest_peer_count
+
+        pytest_peers = _chrome_e2e_pytest_peer_count()
+    except ImportError:
+        pass
+
+    if pytest_peers == 0 and (active_after > 1 or total_after > 1):
+        reloaded = _reload_mux_daemon_if_needed()
+        if reloaded:
+            global _status_cache
+            _status_cache = None
+            status = read_mux_status(force=True)
+            active_after = active_mux_context_count(status)
+            total_after = mux_context_count(status)
+
+    return {
+        "prunedCells": pruned_cells,
+        "staleBefore": stale_before,
+        "activeBefore": active_before,
+        "reaped": reaped,
+        "activeAfter": active_after,
+        "totalAfter": total_after,
+        "reloaded": reloaded,
+        "pytestPeers": pytest_peers,
+    }
+
+
 def reap_idle_empty_mux_contexts(*, idle_ms: int | None = None) -> dict[str, object]:
     """Ask mux daemon to destroy idle empty contexts (P0-A stale shell reap)."""
     global _status_cache
