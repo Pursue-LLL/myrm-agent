@@ -55,12 +55,15 @@
 | `e2e_session_lifecycle.py` | Unix | **R62/R96-R62** 四相位 budget SSOT（ADMIT/BOOTSTRAP/BODY/TEARDOWN）；dev LIVE_AGENT BODY **600s** · READ/signoff **600s**；**R67** `begin_bootstrap_phase` 始终切 BOOT 180s · `complete_bootstrap_phase` 重置 BODY |
 | `stack_mutation_policy.py` / `stack_mutation_policy.sh` | Unix | R30 SMP SSOT：shared-stack drift heal defer under active wave leases；`pending-stack-drift.json`；preflight/bootstrap/supervisor 统一入口；**R46** attach crash heal（3× `backend-only ensure` + backoff 5s/10s；preflight wait 每 30s 再 heal max 2）；**R46.1** attach 健康探针（`CHROME_E2E_ATTACH_HEALTH_PROBE_*`）先判 backend/pending drift，再进入 mux attach；idle apply 若命中 harness import 失败会自动执行一次 `./myrm harness install` 后重试 `backend-only ensure` |
 | `e2e_launch_gate.py` | Unix | **R166-B UPAP**：`test.sh` / `./myrm e2e-context launch-check` fail-closed when cluster `NEXT_ACTION=FAIL_FAST`；override `MYRM_E2E_LAUNCH_FORCE=1` |
-| `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：stored/workspace fingerprint epoch 匹配路由；blocked+epoch mismatch 时 stderr **`E2E_BLOCKED_EPOCH`**；`muxColdAttachSaturated`/`muxHandProbeAllowed`；**默认 human/json 含 `parallelSnapshot` + `capHeadroom`（`live_agent_shpoib`/`read_page_leases`/`waveLeasesEffective`）+ `leaseLiveness` + `E2E_LEASE_LIVENESS` + `E2E_PARALLEL_ACTIVE`**；**R167** e2e-context 接线 stale→excess reap · **`launch-check` 子命令** |
+| `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：stored/workspace fingerprint epoch 匹配路由；blocked+epoch mismatch 时 stderr **`E2E_BLOCKED_EPOCH`**；`muxColdAttachSaturated`/`muxHandProbeAllowed`；**默认 human/json 含 `parallelSnapshot` + `capHeadroom`（含 `queueLayer`/`live_agent_shpoib`/`read_page_leases`/`waveLeasesEffective`）+ `leaseLiveness` + `E2E_LEASE_LIVENESS` + `E2E_PARALLEL_ACTIVE`**；**R167** e2e-context 接线 stale→excess reap · **`launch-check` 子命令** |
+| `e2e_parallel_status.py` | Unix | `capHeadroom`/`queueLayer` SSOT：`compute_queue_layer()` 区分 session（PRIVATE 排队）与 operation（mux 背压）；`e2e_api_verify` 输出 |
 | `verify_backend_seed.py` | Unix | verify-api BLOCKED 时 backend-only isolated spawn（SHPOIB cap 内；cap/bootstrap 5s×1 重试；`claim_bootstrap_slot`→health→`running` phase SSOT） |
 | `../resolve_e2e_session_profile.py` | Unix | collect-only 解析显式 `{execution_mode, access_scope, workload}`；缺失、混合或非法组合 fail-closed |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
 | `e2e_lease_pytest_gate.py` | Unix | pytest spawn 前 fail-closed：`require_e2e_runtime_lease()` SSOT；`test.sh` `_e2e_ensure_lease_ready_for_pytest` 与 sync 组合，lease 失效时 re-acquire |
-| `mux_load.py` | Unix | mux context / wave lease 负载探针；`active_mux_context_count` · `parallel_open_page_peer_count`（不计 stale empty shell）；`reap_idle_empty_mux_contexts`；adaptive page/tool timeout |
+| `mux_load.py` | Unix | mux context / wave lease 负载探针；`active_mux_context_count` · `heal_mux_for_solo_gate` · `parallel_open_page_peer_count` · `reap_idle_empty_mux_contexts` |
+| `peer_count_ssot.py` | Unix | **Peer 计数 SSOT**：`chrome_e2e_pytest_peer_count` · `solo_gate_active_mux_peer_count` · `parallel_active_test_count_ssot` |
+| `signoff_admission.py` | Unix | **SAO §14**：`admit_or_defer` · `build_signoff_admission_snapshot` · instant DEFER（无 900s 空等） |
 | `mux_responsive_probe.py` | Unix | mux daemon stamp 对齐 + `tools/list` 探活；`--probe-timeout-sec` 随 active Wave leases 缩放（preflight attach heal） |
 
 ## 依赖

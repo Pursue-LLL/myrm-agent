@@ -49,7 +49,8 @@ PORT_SCAN_PROBE_TIMEOUT_SEC: Final[float] = 0.5
 DEFAULT_CONTEXT_PROBE_WALL_SEC: Final[float] = 15.0
 _CONTEXT_PROBE_STARTED_MONO: float | None = None
 AGENT_NEVER_SAY: Final[str] = (
-    "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|停止并行测试|kill wave"
+    "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|先清wave/tab|"
+    "共享只能N个session|停止并行测试|kill wave"
 )
 _CURL_STATUS_MARKER: Final[str] = "\n__MYRM_HTTP_STATUS__:"
 _LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -953,6 +954,15 @@ def _context_to_dict(
     )
     payload["next_action"] = next_action
     payload["agent_never_say"] = AGENT_NEVER_SAY
+    try:
+        from signoff_admission import build_signoff_admission_snapshot  # noqa: PLC0415
+
+        payload["signoffAdmission"] = build_signoff_admission_snapshot()
+    except (ImportError, OSError, RuntimeError):
+        payload["signoffAdmission"] = {
+            "state": "UNKNOWN",
+            "next_action": "OBSERVABILITY_UNKNOWN",
+        }
     return payload
 
 
