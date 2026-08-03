@@ -1,4 +1,14 @@
-"""Normalize MCP surface mode from agent profile engine_params."""
+"""Normalize MCP surface mode from agent profile engine_params.
+
+[INPUT]
+- engine_params dict from agent profile
+
+[OUTPUT]
+- (canonical_mode, cleaned_engine_params) tuple
+
+[POS]
+Thin adapter between agent profile engine_params and harness MCP surface mode parser.
+"""
 
 from __future__ import annotations
 
