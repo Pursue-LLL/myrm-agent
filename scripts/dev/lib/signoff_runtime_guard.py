@@ -24,6 +24,7 @@ GATE_SCRIPT_MARKER = "e2e-p0a-1lane-gate.sh"
 FORBIDDEN_CMD_SUBSTRINGS: tuple[str, ...] = (
     "p0a-gate-wait-loop",
     "p0a-gate-final-run",
+    "p0a-gate-manual-run",
     "p0a-gate-wait",
     "e2e-m3-signoff-goal-run",
     "TRIGGER gate",
