@@ -438,6 +438,38 @@ def _default_state_dir() -> Path:
     )
 
 
+def default_backend_heal_flock_file() -> Path:
+    return _default_state_dir() / "chrome-e2e-backend-heal.flock"
+
+
+def run_command_with_backend_heal_flock(
+    *,
+    cmd: list[str],
+    lock_file: Path,
+    wait_sec: float,
+) -> int:
+    """Run subprocess argv under backend heal flock (P0-STACK-1 / R46.2 SSOT)."""
+    if not cmd:
+        print("run-heal-flocked: empty command", file=sys.stderr)
+        return 2
+    try:
+        with backend_heal_file_lock(lock_file, wait_sec):
+            completed = subprocess.run(cmd, check=False)
+        return int(completed.returncode)
+    except TimeoutError as exc:
+        print(f"GATE_STACK_HEAL_FLOCK_TIMEOUT: {exc}", file=sys.stderr)
+        return 1
+
+
+def _cmd_run_heal_flocked(args: argparse.Namespace) -> int:
+    cmd = [str(part) for part in args.cmd if str(part)]
+    return run_command_with_backend_heal_flock(
+        cmd=cmd,
+        lock_file=Path(args.lock_file),
+        wait_sec=float(args.wait_sec),
+    )
+
+
 def _cmd_decide_drift(args: argparse.Namespace) -> int:
     action = decide_drift_heal(
         active_leases=int(args.active_leases),
@@ -557,6 +589,19 @@ def main(argv: list[str] | None = None) -> int:
         help="1 when caller is SHPOIB lane (skip shared :8080 preflight)",
     )
     preflight.set_defaults(handler=_cmd_attach_health_preflight)
+
+    run_flock = sub.add_parser("run-heal-flocked")
+    run_flock.add_argument(
+        "--lock-file",
+        default=str(default_backend_heal_flock_file()),
+    )
+    run_flock.add_argument("--wait-sec", type=float, default=180.0)
+    run_flock.add_argument(
+        "cmd",
+        nargs=argparse.REMAINDER,
+        help="Command after -- (e.g. run-heal-flocked -- ./myrm ready --chrome)",
+    )
+    run_flock.set_defaults(handler=_cmd_run_heal_flocked)
 
     parsed = parser.parse_args(argv)
     handler = getattr(parsed, "handler", None)

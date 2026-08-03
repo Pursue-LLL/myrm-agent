@@ -78,16 +78,13 @@ _smp_backend_heal_flock_file() {
 _smp_with_backend_heal_flock() {
   local wait_sec="${1:-180}"
   shift
-  local flock_file
+  local policy_py flock_file
+  policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
   flock_file="$(_smp_backend_heal_flock_file)"
-  mkdir -p "$(dirname "${flock_file}")"
-  (
-    flock -w "${wait_sec}" 200 || {
-      echo "CHROME_E2E_ATTACH_HEAL: backend heal flock timeout after ${wait_sec}s" >&2
-      exit 1
-    }
-    "$@"
-  ) 200>"${flock_file}"
+  python3 "${policy_py}" run-heal-flocked \
+    --lock-file "${flock_file}" \
+    --wait-sec "${wait_sec}" \
+    -- "$@"
 }
 
 _smp_attach_backend_crash_heal_inner() {
