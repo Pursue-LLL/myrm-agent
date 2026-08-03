@@ -873,17 +873,6 @@ def _context_to_dict(
         except ImportError:
             payload["browserOrchestrator"] = {"health": "UNKNOWN"}
         try:
-            from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
-
-            payload["authTemplateStatus"] = auth_template_status(
-                workspace_fingerprint=ctx.workspace_fingerprint
-            )
-        except ImportError:
-            payload["authTemplateStatus"] = {
-                "status": "UNKNOWN",
-                "next_action": "OBSERVABILITY_UNKNOWN",
-            }
-        try:
             from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
 
             payload["browserPool"] = browser_identity_snapshot()
@@ -909,6 +898,17 @@ def _context_to_dict(
             payload["budgets_remaining"] = lifecycle.get("budgets_remaining")
         except Exception:
             pass
+    try:
+        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+
+        payload["authTemplateStatus"] = auth_template_status(
+            workspace_fingerprint=ctx.workspace_fingerprint
+        )
+    except ImportError:
+        payload["authTemplateStatus"] = {
+            "status": "UNKNOWN",
+            "next_action": "OBSERVABILITY_UNKNOWN",
+        }
     if payload.get("muxColdAttachSaturated") is True:
         payload["agent_rule"] = (
             f"{ctx.agent_rule} "
