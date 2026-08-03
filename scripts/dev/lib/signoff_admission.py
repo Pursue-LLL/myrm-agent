@@ -142,8 +142,7 @@ def _wave_active_leases() -> int:
         from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts
 
         counts = wave_lease_counts(load_wave_snapshot())
-        active = counts.get("active")
-        return int(active) if isinstance(active, int) else 0
+        return int(counts.effective_total)
     except ImportError:
         return 0
 
