@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { flushSync } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import useConfigStore from '@/store/useConfigStore';
@@ -13,11 +13,16 @@ import ThemeStudioStepPanels from '@/components/features/theme-studio/ThemeStudi
 import ThemeStudioPreview, { type PreviewScene } from '@/components/features/theme-studio/preview/ThemeStudioPreview';
 import ProfileLibraryPanel from '@/components/features/theme-studio/ProfileLibraryPanel';
 import RecipeImportPanel from '@/components/features/theme-studio/RecipeImportPanel';
+import ThemePackageImportSection from '@/components/features/theme/shared/ThemePackageImportSection';
 import ThemeStudioGalleryPanel from '@/components/features/theme-studio/ThemeStudioGalleryPanel';
 import ThemeStudioCreatorPanel from '@/components/features/theme-studio/ThemeStudioCreatorPanel';
 import ThemeStudioAdminPanel from '@/components/features/theme-studio/ThemeStudioAdminPanel';
 import { ThemeMarketplaceGateProvider } from '@/components/features/theme-studio/hooks/useThemeMarketplaceGate';
 import { useThemeStudioDomPreview } from '@/components/features/theme-studio/hooks/useThemeStudioDomPreview';
+import {
+  buildHeroSampleApplyPatch,
+  shouldClearHeroSampleOnDraftPatch,
+} from '@/components/features/theme-studio/hero-recommend-draft';
 import {
   allocateStudioProfileId,
   createStudioDraft,
@@ -32,9 +37,25 @@ import { resolveThemeAssetUrl } from '@/services/theme-assets/ThemeAssetStore';
 import {
   EMPTY_THEME_PROFILES,
   stripArtOverlay,
+  type HeroImageSample,
   type ThemeProfileRecipe,
 } from '@/theme-engine';
 import { listSkills } from '@/services/skill';
+import {
+  canRestoreOfficialTheme,
+  executeOfficialThemeRestore,
+  shouldConfirmOfficialThemeRestore,
+} from '@/components/features/theme/restoreOfficialTheme';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 
 const STEPS: BuilderStep[] = [1, 2, 3, 4];
 
@@ -49,6 +70,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 const ThemeStudioSection = () => {
   const t = useTranslations('settings.themeStudio');
+  const tAppearance = useTranslations('settings.appearancePanel');
   const draft = useThemeStudioDraftStore((state) => state.draft);
   const step = useThemeStudioDraftStore((state) => state.step);
   const previewAssetUrl = useThemeStudioDraftStore((state) => state.previewAssetUrl);
@@ -66,12 +88,28 @@ const ThemeStudioSection = () => {
   const activeThemeProfileId = useConfigStore(
     (state) => state.personalSettings?.activeThemeProfileId,
   );
+  const themeFontOverride = useConfigStore(
+    (state) => state.personalSettings?.themeFontOverride,
+  );
   const updatePersonalSettings = useConfigStore((state) => state.updatePersonalSettings);
 
   const [previewScene, setPreviewScene] = useState<PreviewScene>('chat');
   const [livePreview, setLivePreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hasAiSkill, setHasAiSkill] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [heroSample, setHeroSample] = useState<HeroImageSample | null>(null);
+
+  const patchDraftGuarded = useCallback(
+    (patch: Partial<ThemeProfileRecipe>) => {
+      if (shouldClearHeroSampleOnDraftPatch(patch)) {
+        setHeroSample(null);
+      }
+      patchDraft(patch);
+    },
+    [patchDraft],
+  );
 
   const debouncedDraft = useDebouncedValue(draft, 150);
 
@@ -152,6 +190,7 @@ const ThemeStudioSection = () => {
         themeFontOverride: finalProfile.fontId,
       });
       toast.success(t('applySuccess'));
+      setHeroSample(null);
       resetDraft();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('applyFailed'));
@@ -218,6 +257,7 @@ const ThemeStudioSection = () => {
 
   const handleEditProfile = useCallback(
     (profile: ThemeProfileRecipe) => {
+      setHeroSample(null);
       replaceDraft(createStudioDraft(profile), profile.id);
     },
     [replaceDraft],
@@ -225,6 +265,10 @@ const ThemeStudioSection = () => {
 
   const handleRecipeImport = useCallback(
     (patch: Partial<ThemeProfileRecipe>) => {
+      // Guard on incoming patch only — merged object always carries palette even for art-only imports.
+      if (shouldClearHeroSampleOnDraftPatch(patch)) {
+        setHeroSample(null);
+      }
       patchDraft({
         ...patch,
         art: patch.art ? { ...draft.art, ...patch.art } : draft.art,
@@ -237,6 +281,46 @@ const ThemeStudioSection = () => {
   const canGoNext =
     step === 1 ? draft.art.mediaKind !== 'none' && Boolean(draft.art.assetRef) : true;
 
+  const restoreState = useMemo(
+    () => ({ activeThemeProfileId, themeProfiles, themeFontOverride }),
+    [activeThemeProfileId, themeFontOverride, themeProfiles],
+  );
+
+  const showRestoreOfficial = canRestoreOfficialTheme(restoreState);
+
+  const runRestoreOfficial = useCallback(async () => {
+    setRestoreBusy(true);
+    try {
+      flushSync(() => setLivePreview(false));
+      await executeOfficialThemeRestore();
+      toast.success(tAppearance('restoreSuccess'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : tAppearance('restoreFailed'));
+    } finally {
+      setRestoreBusy(false);
+    }
+  }, [tAppearance]);
+
+  const handleRestoreClick = useCallback(() => {
+    if (shouldConfirmOfficialThemeRestore(restoreState)) {
+      setRestoreConfirmOpen(true);
+      return;
+    }
+    void runRestoreOfficial();
+  }, [restoreState, runRestoreOfficial]);
+
+  const handleApplyHeroSample = useCallback(() => {
+    if (!heroSample) {
+      return;
+    }
+    patchDraftGuarded(buildHeroSampleApplyPatch(heroSample));
+    toast.success(t('heroRecommend.applied'));
+  }, [heroSample, patchDraftGuarded, t]);
+
+  const handleDismissHeroSample = useCallback(() => {
+    setHeroSample(null);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -244,15 +328,32 @@ const ThemeStudioSection = () => {
           <h2 className="text-lg font-semibold text-foreground">{t('title')}</h2>
           <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        {hasAiSkill ? (
-          <Link
-            href="/settings/skills?sub=prebuilt"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Sparkles className="h-4 w-4" />
-            {t('openAiSkill')}
-          </Link>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {showRestoreOfficial ? (
+            <button
+              type="button"
+              disabled={restoreBusy || busy}
+              onClick={handleRestoreClick}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-60"
+            >
+              {restoreBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw className="h-4 w-4" aria-hidden />
+              )}
+              {tAppearance('restoreDefault')}
+            </button>
+          ) : null}
+          {hasAiSkill ? (
+            <Link
+              href="/settings/skills?sub=prebuilt"
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Sparkles className="h-4 w-4" />
+              {t('openAiSkill')}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <ol className="flex flex-wrap gap-2">
@@ -287,17 +388,24 @@ const ThemeStudioSection = () => {
           <ThemeStudioStepPanels
             step={step}
             draft={draft}
-            onPatchDraft={patchDraft}
-            onMediaUploaded={({ assetRef, mediaKind, posterAssetRef, previewUrl }) => {
+            onPatchDraft={patchDraftGuarded}
+            heroSample={heroSample}
+            onApplyHeroSample={handleApplyHeroSample}
+            onDismissHeroSample={handleDismissHeroSample}
+            onMediaUploaded={({ assetRef, mediaKind, posterAssetRef, previewUrl, heroSample: sample }) => {
               patchDraft({
                 art: {
                   ...draft.art,
                   assetRef,
                   mediaKind,
                   posterAssetRef: posterAssetRef ?? null,
+                  ...(sample
+                    ? { focusX: sample.focalX, focusY: sample.focalY }
+                    : {}),
                 },
               });
               setPreviewAssetUrl(previewUrl);
+              setHeroSample(sample ?? null);
             }}
           />
           {step === 1 ? <RecipeImportPanel onImport={handleRecipeImport} /> : null}
@@ -346,15 +454,18 @@ const ThemeStudioSection = () => {
           </div>
 
           {step === 4 ? (
-            <div className="space-y-2 border-t border-border pt-4">
-              <p className="text-xs font-medium text-muted-foreground">{t('library.title')}</p>
-              <ProfileLibraryPanel
-                profiles={themeProfiles}
-                activeProfileId={activeThemeProfileId}
-                onEdit={handleEditProfile}
-                onApply={(profile) => void handleApplyProfile(profile)}
-                onDelete={(profileId) => void handleDeleteProfile(profileId)}
-              />
+            <div className="space-y-4 border-t border-border pt-4">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">{t('library.title')}</p>
+                <ProfileLibraryPanel
+                  profiles={themeProfiles}
+                  activeProfileId={activeThemeProfileId}
+                  onEdit={handleEditProfile}
+                  onApply={(profile) => void handleApplyProfile(profile)}
+                  onDelete={(profileId) => void handleDeleteProfile(profileId)}
+                />
+              </div>
+              <ThemePackageImportSection showExport={false} disabled={busy} />
             </div>
           ) : null}
         </div>
@@ -392,6 +503,26 @@ const ThemeStudioSection = () => {
           </label>
         </aside>
       </div>
+
+      <AlertDialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tAppearance('restoreConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{tAppearance('restoreConfirmDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tAppearance('restoreCancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setRestoreConfirmOpen(false);
+                void runRestoreOfficial();
+              }}
+            >
+              {tAppearance('restoreConfirmAction')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

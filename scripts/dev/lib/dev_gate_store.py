@@ -708,10 +708,7 @@ class DevGateStore:
                         cleanup = json.loads(str(row["cleanup_json"] or "{}"))
                     except json.JSONDecodeError:
                         cleanup = {}
-                    if (
-                        prior_token == "OWNER_EXITED"
-                        and cleanup.get("ledger_cleaned") is True
-                    ):
+                    if prior_token == "OWNER_EXITED" and cleanup.get("sealed") is True:
                         version = int(row["version"]) + 1
                         connection.execute(
                             """

@@ -3360,6 +3360,12 @@
       "hexPlaceholder": "#2563eb",
       "font": "Font",
       "restoreDefault": "Restore official default",
+      "restoreConfirmTitle": "Restore official default?",
+      "restoreConfirmDescription": "This removes custom themes, workspace backgrounds, and saved Studio profiles. Purchased marketplace themes can be installed again. You can undo this in Personal preferences → Time Machine.",
+      "restoreConfirmAction": "Restore",
+      "restoreCancel": "Cancel",
+      "restoreSuccess": "Official default theme restored",
+      "restoreFailed": "Failed to restore official default",
       "packageSection": "Theme package",
       "packageSectionDesc": "Import or export a .myrmtheme file to share your full workspace look.",
       "packageImport": "Import theme package",
@@ -3409,6 +3415,13 @@
       },
       "focusX": "Horizontal focus",
       "focusY": "Vertical focus",
+      "heroRecommend": {
+        "title": "Suggested palette & layout",
+        "body": "Sampled from your hero image (no cloud, no LLM). Apply to set colors, focal point, and a recommended layout.",
+        "apply": "Apply suggestion",
+        "applied": "Suggestion applied",
+        "dismiss": "Dismiss"
+      },
       "themeName": "Theme name",
       "themeNamePlaceholder": "My workspace theme",
       "tagline": "Tagline (optional)",
@@ -3503,7 +3516,7 @@
         "needsAuthTitle": "Link your cloud account",
         "needsAuthBody": "Sign in to browse, purchase, and install themes from the marketplace.",
         "offlineTitle": "Marketplace offline",
-        "offlineBody": "Control Plane is unreachable. You can still import a .myrmtheme file from Theme Studio step 4 or Appearance settings."
+        "offlineBody": "Control Plane is unreachable. Theme Studio step 4 and Appearance settings both support importing a .myrmtheme file — no cloud account required."
       },
       "creator": {
         "title": "Submit a theme",
@@ -4402,7 +4415,7 @@
     "mcpScanAckDesc": "Security scan found {count} high-risk issue(s) for \"{name}\". Acknowledge to continue.",
     "mcpScanAckConfirm": "Acknowledge and continue",
     "mcpReloadConfirmTitle": "Reload MCP tools?",
-    "mcpReloadConfirmDesc": "Saving MCP changes updates the agent tool list. New conversations pick this up immediately; ongoing chats may lose prompt-cache efficiency until you start a fresh thread.",
+    "mcpReloadConfirmDesc": "Saving MCP changes updates the agent tool list. New conversations pick this up immediately. In catalog mode, ongoing chats can hot-update runtime tools; in direct mode, ongoing chats may lose prompt-cache efficiency until you start a fresh thread.",
     "mcpReloadConfirmAction": "Save and apply",
     "mcpThreat": {
       "prompt_injection": "Prompt injection content detected (attempt to override system instructions)",
@@ -5880,7 +5893,9 @@
         "clientId": "Client ID",
         "clientSecret": "Client Secret",
         "scopes": "Scopes (comma-separated)"
-      }
+      },
+      "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
+      "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors."
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -6071,6 +6086,12 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
+      "memoryExtractionPreset": "Memory Focus",
+      "memoryPresetAuto": "Auto Detect",
+      "memoryPresetPersona": "Personal Companion",
+      "memoryPresetWork": "Work Assistant",
+      "memoryPresetResearch": "Research",
+      "memoryPresetNone": "Generic",
       "jitTeam": "JIT Team",
       "jitTeamOff": "Single Agent (no team)",
       "jitTeamPlaceholder": "No virtual team",
@@ -6910,6 +6931,9 @@
         "scanning": "AI is scanning this directory/file"
       }
     },
+    "deliverable": {
+      "awaitingArtifact": "Waiting for artifact sync — link will activate shortly"
+    },
     "tokenUsage": {
       "title": "Token Usage",
       "inputTokens": "Input Tokens",
@@ -7210,6 +7234,30 @@
       "skip": "Skip",
       "submitFailed": "Failed to submit clarification. Please try again.",
       "answered": "Clarification answered"
+    },
+    "directoryRequest": {
+      "title": "Directory access required",
+      "pathLabel": "Folder path",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "Please enter a folder path",
+      "writableLabel": "Allow write access (needed to modify files)",
+      "grant": "Grant access",
+      "deny": "Deny",
+      "submitFailed": "Failed to submit directory response. Please try again.",
+      "answered": "Directory access resolved",
+      "chooseFolder": "Choose folder",
+      "browseFailed": "Could not open folder picker. Enter the path manually.",
+      "selectThis": "Use this folder",
+      "recent": "Recent",
+      "filter": "Filter folders",
+      "noSubdirs": "No subfolders here"
+    },
+    "sessionAccessRoots": {
+      "label": "Extra folders",
+      "readOnly": "Read",
+      "writable": "Write",
+      "revoke": "Revoke access",
+      "revokeFailed": "Could not revoke folder access. Please try again."
     },
     "planConfirmation": {
       "title": "Research Plan",
@@ -8000,35 +8048,6 @@
       "post_hook_blocked": "Blocked After Run",
       "tool_cancelled": "Cancelled",
       "guardrail_blocked": "Safety Blocked"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "Reading files",
-      "file_write_tool": "Writing files",
-      "file_edit_tool": "Editing files",
-      "file_editor_tool": "Editing files",
-      "file_editor_view_tool": "Viewing files",
-      "file_editor_create_tool": "Creating files",
-      "file_editor_edit_tool": "Editing files",
-      "text_editor_tool": "Editing text",
-      "bash_code_execute_tool": "Executing command",
-      "code_execution_tool": "Running code",
-      "web_search_tool": "Web research",
-      "web_fetch_tool": "Fetching webpage",
-      "memory_search_tool": "Searching memory",
-      "memory_store_tool": "Storing memory",
-      "memory_save": "Saving memory",
-      "memory_manage": "Managing memory",
-      "memory_recall": "Recalling information",
-      "profile_get_tool": "Reading profile",
-      "profile_update_tool": "Updating profile",
-      "image_tool": "Generating image",
-      "video_tool": "Generating video",
-      "mcp_tool": "Tool execution",
-      "skill_select_tool": "Selecting skill",
-      "render_ui_tool": "Rendering UI",
-      "update_ui_data_tool": "Updating UI data",
-      "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -8961,7 +8980,8 @@
           "instruction_lane": "Instructions & persona",
           "memory_lane": "Facts & preferences (global memory)",
           "skill_lane": "Skills",
-          "credential_lane": "API keys"
+          "credential_lane": "API keys",
+          "cron_lane": "Scheduled tasks (cron)"
         },
         "coverageTitle": "Migration coverage",
         "coverageStatus": {
@@ -8980,7 +9000,9 @@
           "mcp_manual": "MCP tools",
           "channels_manual": "Channels",
           "agent_config_manual": "Agent config",
-          "no_importable_data": "Importable data"
+          "no_importable_data": "Importable data",
+          "cron_lane": "Scheduled tasks (cron)",
+          "kanban_not_migrated": "Kanban boards"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",
@@ -8990,7 +9012,7 @@
         "mcpKeepalive": "Keepalive interval: {seconds}s",
         "mcpKeepaliveIgnored": "Keepalive setting ignored because it is below 5 seconds or unsupported by this transport",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
-        "hermesEconomyHint": "Hermes imports use the Economy agent preset with Smart Routing defaults. Auxiliary models map into your model settings automatically.",
+        "hermesEconomyHint": "Hermes imports use the Knowledge Work agent preset (search, files, tasks, memory). Smart Routing and auxiliary models map into your model settings automatically.",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
@@ -9061,13 +9083,17 @@
           "postImportDiagnosticsWarning": "Post-import diagnostics reported warnings ({count} issue(s)).",
           "mcpServersImportedDisabled": "{count} imported MCP server(s) are disabled by default. Review and enable as needed.",
           "workspaceRulesSkipped": "{count} workspace rule file(s) were skipped because they already existed.",
+          "voiceFeatureDisabled": "Voice interaction is off. Enable it in Voice settings if you used speech features in Hermes.",
+          "consensusFeatureDisabled": "Multi-model consensus is off. Enable it in Agent settings for higher-quality answers.",
           "generic": "Readiness check requires attention: {code}"
         },
         "readinessAction": {
           "configureProviders": "Fix provider setup",
           "openMemoryCenter": "Open memory diagnostics",
           "configureMcp": "Review MCP settings",
-          "reviewMigrationRules": "Review migration rules"
+          "reviewMigrationRules": "Review migration rules",
+          "configureVoice": "Open voice settings",
+          "configureConsensus": "Open agent settings"
         },
         "rollbackIncludesInstructions": "Rollback restores memories and imported instructions",
         "startChat": "Chat with this agent",
@@ -12153,6 +12179,90 @@
     "connect": "Connect now →",
     "dismiss": "Dismiss"
   },
+  "humanize": {
+    "fallback": {
+      "file": "a file",
+      "used_tool": "Used {tool}"
+    },
+    "progress": {
+      "file_read": "Read {filename}",
+      "file_write": "Wrote {filename}",
+      "shell": "Run {command}",
+      "shell_with_desc": "Run command — {description}",
+      "shell_generic": "Run a command",
+      "web_search": "Search the web — \"{query}\"",
+      "web_search_generic": "Search the web",
+      "web_fetch": "Read webpage — {url}",
+      "web_fetch_generic": "Read a webpage",
+      "memory_generic": "Memory operation",
+      "kanban": "Update plan — \"{task}\"",
+      "kanban_generic": "Update the plan",
+      "skill": "Use skill: {name}",
+      "skill_generic": "Use a skill",
+      "mcp": "Use {server} — {tool}",
+      "browser_url": "Opened webpage — {url}",
+      "browser_generic": "Browser action",
+      "save_skill": "Added skill: {name}",
+      "save_skill_generic": "Added a skill",
+      "send_message": "Sent message to {destination}",
+      "send_message_generic": "Sent a message"
+    },
+    "approval": {
+      "file_read": "Read {filename}",
+      "file_write": "Write {filename}",
+      "shell": "Run {command}",
+      "shell_with_desc": "Run command — {description}",
+      "shell_generic": "Run a command",
+      "web_search": "Search the web — \"{query}\"",
+      "web_search_generic": "Search the web",
+      "web_fetch": "Read webpage — {url}",
+      "web_fetch_generic": "Read a webpage",
+      "memory_generic": "Memory operation",
+      "kanban": "Update plan — \"{task}\"",
+      "kanban_generic": "Update the plan",
+      "skill": "Use skill: {name}",
+      "skill_generic": "Use a skill",
+      "mcp": "Use {server} — {tool}",
+      "browser_url": "Open webpage — {url}",
+      "browser_generic": "Browser action",
+      "save_skill": "Add skill: {name}",
+      "save_skill_generic": "Add a skill",
+      "send_message": "Send message to {destination}",
+      "send_message_generic": "Send a message"
+    },
+    "ask": {
+      "file_read": "Wanted to read {filename}",
+      "file_write": "Wanted to write {filename}",
+      "file_write_ask": "Wanted to write {filename}",
+      "shell": "Wanted to run {command}",
+      "shell_with_desc": "Wanted to run command — {description}",
+      "shell_generic": "Wanted to run a command",
+      "web_search": "Wanted to search the web — \"{query}\"",
+      "web_search_generic": "Wanted to search the web",
+      "web_fetch": "Wanted to read webpage — {url}",
+      "web_fetch_generic": "Wanted to read a webpage",
+      "memory_generic": "Wanted a memory operation",
+      "kanban": "Wanted to update plan — \"{task}\"",
+      "kanban_generic": "Wanted to update the plan",
+      "skill": "Wanted to use skill: {name}",
+      "skill_generic": "Wanted to use a skill",
+      "mcp": "Wanted to use {server} — {tool}",
+      "browser_url": "Wanted to open webpage — {url}",
+      "browser_generic": "Wanted a browser action",
+      "save_skill": "Wanted to add skill: {name}",
+      "save_skill_generic": "Wanted to add a skill",
+      "send_message": "Wanted to send message to {destination}",
+      "send_message_generic": "Wanted to send a message"
+    },
+    "scope": {
+      "local": "Changes stay on this device",
+      "local_overwrite": "Will overwrite an existing file",
+      "external": "Sends data to {destination}",
+      "external_unknown": "an external service",
+      "connector": "Uses a connected service",
+      "save_skill": "Saves a reusable skill to your library"
+    }
+  },
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",
@@ -12166,6 +12276,29 @@
     "outboundDraftOriginal": "Customer Message",
     "outboundDraftReply": "AI Draft Reply",
     "skillGrowthPending": "Skill Growth Review",
+    "saveSkill": {
+      "approve": "Add to my skills",
+      "deny": "Not now",
+      "showFullInstructions": "Show full instructions",
+      "showLess": "Show less",
+      "showAllLines": "Show all {count} lines",
+      "footer": "Approving adds this skill to your library on this device — available in every conversation afterward."
+    },
+    "toolCallStatus": {
+      "pending": "Pending approval",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed"
+    },
+    "ptc": {
+      "readOnlyLabel": "Read-Only",
+      "readOnlyTitle": "This tool only reads data and does not modify state.",
+      "destructiveLabel": "Destructive",
+      "destructiveTitle": "This tool makes destructive, irreversible changes.",
+      "openWorldLabel": "Open World",
+      "openWorldTitle": "This tool interacts with external systems or networks."
+    },
+    "toolCallPendingBanner": "{count, plural, one {# tool call awaiting approval} other {# tool calls awaiting approval}}",
     "viewChanges": "View changes",
     "hideChanges": "Hide changes",
     "memoryUpdate": "Memory Update",
@@ -12276,6 +12409,8 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "grantDirectory": "Also grant folder access",
+    "grantDirectoryDesc": "Allow the agent to access this folder for the rest of this chat session",
     "smartDenied": {
       "title": "Security reviewer recommends denial",
       "overrideOnce": "Override Once"
@@ -13853,6 +13988,21 @@
         "setupFailed": "Failed to set up Telegram assistant.",
         "setupFailedToast": "Telegram setup failed. Please check your credentials and retry.",
         "successToast": "Telegram assistant is ready: {agentName}"
+      },
+      "toolsConnect": {
+        "pageTitle": "Connect your everyday tools",
+        "pageDescription": "Let your assistant access the services you use daily. You can always add more later in Settings.",
+        "connected": "Connected",
+        "connectButton": "Connect",
+        "moreHint": "30+ integrations available in Settings → Integrations",
+        "continueButton": "Continue",
+        "skipButton": "Skip for now"
+      },
+      "themePick": {
+        "pageTitle": "Choose your workspace look",
+        "pageDescription": "Pick a starting theme for chat, kanban, and settings. You can customize further anytime in Appearance.",
+        "continueButton": "Continue",
+        "skipButton": "Keep default"
       }
     }
   },

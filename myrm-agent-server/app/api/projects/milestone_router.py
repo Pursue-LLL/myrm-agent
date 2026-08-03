@@ -88,6 +88,16 @@ async def create_milestone(project_id: str, req: MilestoneCreateRequest) -> JSON
         raise internal_error(operation="Create milestone", exception=e) from e
 
 
+@router.get("/{project_id}/milestones/batch-progress", response_model=StandardSuccessResponse)
+async def get_batch_progress(project_id: str) -> JSONResponse:
+    """批量获取项目下所有活跃里程碑的进度统计"""
+    try:
+        progress_list = await MilestoneService.get_batch_progress(project_id)
+        return success_response(data={"progress": progress_list})
+    except Exception as e:
+        raise internal_error(operation="Get batch milestone progress", exception=e) from e
+
+
 @router.get("/{project_id}/milestones/{milestone_id}", response_model=StandardSuccessResponse)
 async def get_milestone(project_id: str, milestone_id: str) -> JSONResponse:
     """获取单个里程碑详情"""

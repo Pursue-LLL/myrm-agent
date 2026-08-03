@@ -136,6 +136,12 @@ export const getChatDetail = async (
     compacted_before_id: string | null;
     workspace_dir: string | null;
     session_loaded_skill_names: string[] | null;
+    session_access_roots: Array<{
+      path: string;
+      writable: boolean;
+      label?: string;
+      source?: string;
+    }> | null;
     created_at: string;
     updated_at: string;
   };
@@ -168,6 +174,23 @@ export const updateChatWorkspaceDir = async (
   return apiRequest(`/chats/${chatId}/workspace`, {
     method: 'PATCH',
     body: JSON.stringify({ workspace_dir: workspaceDir }),
+  });
+};
+
+export const revokeSessionAccessRoot = async (
+  chatId: string,
+  path: string,
+): Promise<{
+  session_access_roots: Array<{
+    path: string;
+    writable: boolean;
+    label?: string;
+    source?: string;
+  }>;
+}> => {
+  return apiRequest(`/chats/${chatId}/session-access-roots`, {
+    method: 'PATCH',
+    body: JSON.stringify({ path }),
   });
 };
 

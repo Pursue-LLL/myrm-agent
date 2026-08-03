@@ -123,6 +123,16 @@ class ChatAgentExecutionCache:
                 entry.unit = unit
                 entry.last_used = time.monotonic()
 
+    async def snapshot_warm_units(self) -> list[tuple[str, BuiltExecutionUnit]]:
+        """Return a snapshot of all warm scope keys and their execution units."""
+        async with self._lock:
+            return [(scope_key, entry.unit) for scope_key, entry in self._entries.items()]
+
+    async def is_scope_turn_active(self, scope_key: str) -> bool:
+        """True when a turn is actively holding the per-scope turn lock."""
+        turn_lock = self._turn_locks.get(scope_key)
+        return turn_lock is not None and turn_lock.locked()
+
     async def close_scope(self, scope_key: str) -> None:
         async with self._lock:
             entry = self._entries.pop(scope_key, None)

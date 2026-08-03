@@ -52,13 +52,6 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def _strip_pytest_node_id(arg: str) -> str:
-    """Collapse ``file.py::node`` to ``file.py`` for session-level dedupe."""
-    if "::" in arg and arg.split("::", 1)[0].endswith(".py"):
-        return arg.split("::", 1)[0]
-    return arg
-
-
 def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
     normalized: list[str] = []
     skip_next = False
@@ -149,10 +142,9 @@ def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     if not _pid_alive(holder_pid):
         return True
     acquired_at = record.get("acquiredAt")
-    if (
-        isinstance(acquired_at, (int, float))
-        and now - float(acquired_at) > _max_holder_wall_sec(record)
-    ):
+    if isinstance(acquired_at, (int, float)) and now - float(
+        acquired_at
+    ) > _max_holder_wall_sec(record):
         return True
     heartbeat_at = record.get("heartbeatAt")
     if isinstance(heartbeat_at, (int, float)) and now - float(heartbeat_at) > 7200.0:

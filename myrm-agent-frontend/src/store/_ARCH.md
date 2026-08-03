@@ -22,6 +22,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `tasks/` | 通用后台任务 Map（`useTaskStore`） | [_ARCH.md](tasks/_ARCH.md) |
 | `useAuthStore.ts` | WebUI 会话 / SaaS OAuth 门控 | 本地模式不连 CP |
 | `useConfigStore.ts` | 用户设置镜像 | 与 Settings sections 同步；`mcpServers` 入站/订阅时统一归一化 transport 与 keepalive 语义（`http`→`streamable_http`、`stdio` keepalive 清空） |
+| `useMilestoneStore.ts` | 里程碑状态管理（CRUD + 批量进度） | 驱动 ProjectMilestonePanel |
 | `useArtifactPortalStore.ts` | 工件门户（标签、缓存、overlay/side-by-side 布局模式） | 大文件，拆分候选 |
 | `useWorkspaceStore.ts` | 多标签页与上下文切换（RAM） | 负责保存后台 Tab 的快照（Snapshot）与生命周期句柄（AbortController） |
 | `useAgentStore.ts` | Agent 列表与详情状态 | `fetchAgent(signal)` 支持请求级中止，供 FlowPad route-switch 防晚到污染 |

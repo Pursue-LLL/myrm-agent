@@ -43,6 +43,9 @@ import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
 import { useTranslations } from 'next-intl';
 import { detectEmbed, UrlEmbed } from '@/components/features/embeds';
 import { OgCard } from '@/components/features/embeds/OgCard';
+import DeliverableReferenceLink from './DeliverableReferenceLink';
+import { parseDeliverableReference } from '@/lib/deliverable-link/parseDeliverableReference';
+import type { Artifact } from '@/store/chat/types';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -103,11 +106,17 @@ const MarkdownContent = React.memo(
     sources,
     messageId: _messageId,
     isStreaming = false,
+    chatId,
+    messageArtifacts,
+    workspaceDir,
   }: {
     content: string;
     sources: Source[];
     messageId: string;
     isStreaming?: boolean;
+    chatId?: string;
+    messageArtifacts?: Artifact[];
+    workspaceDir?: string;
   }) => {
     const smoothStreamEnabled = useConfigStore((state) => state.smoothStreamEnabled);
     const { addChunk, displayedContent, flush, reset } = useSmoothStream();
@@ -252,8 +261,22 @@ const MarkdownContent = React.memo(
             return <CodeBlock language={language} value={value} isStreaming={isStreaming} />;
           }
 
-          // 内联代码块
+          // 内联代码块 — deliverable workspace / artifact references
           const isInlineCode = node?.position?.start?.line === node?.position?.end?.line;
+          if (isInlineCode && !isStreaming) {
+            const deliverableRef = parseDeliverableReference(value);
+            if (deliverableRef) {
+              return (
+                <DeliverableReferenceLink
+                  reference={deliverableRef}
+                  label={value}
+                  chatId={chatId}
+                  workspaceDir={workspaceDir}
+                  messageArtifacts={messageArtifacts}
+                />
+              );
+            }
+          }
           if (isInlineCode) {
             return (
               <code
@@ -412,7 +435,7 @@ const MarkdownContent = React.memo(
           );
         },
       }),
-      [sources, isStreaming, openKbDrawer, tSources],
+      [sources, isStreaming, openKbDrawer, tSources, chatId, messageArtifacts, workspaceDir],
     );
 
     return (

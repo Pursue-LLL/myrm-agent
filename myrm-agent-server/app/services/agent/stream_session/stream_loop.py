@@ -43,6 +43,7 @@ from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_intercepted,
     extract_approval_timeout,
     extract_clarification_required,
+    extract_directory_request_required,
     is_compression_exhausted,
 )
 from app.services.wiki.wiki_query_intent import should_use_wiki_knowledge_lane
@@ -60,7 +61,10 @@ class ApprovalTimeoutHolder:
 
 @dataclass
 class ClarificationTimeoutHolder:
+    """Tracks pending Web HITL form interrupts (clarify + directory request)."""
+
     pending: bool = False
+    directory_pending: bool = False
 
 
 def _has_visible_text_for_ttft(event_type: str, payload: object) -> bool:
@@ -506,6 +510,8 @@ async def iter_agent_stream_chunks(
         session.collector.feed_sse(sse_chunk)
         if extract_clarification_required(sse_chunk):
             clarification.pending = True
+        if extract_directory_request_required(sse_chunk):
+            clarification.directory_pending = True
         updated = extract_approval_timeout(sse_chunk)
         if updated is not None:
             approval.value = updated

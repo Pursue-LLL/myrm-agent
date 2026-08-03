@@ -243,9 +243,10 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
-    floor = max(base_sec, 15.0)
+    # R283: solo signoff desktop soak still needs >15s under mux/API load (v5 hit 15s wall).
+    floor = max(base_sec, 45.0)
     scaled = floor + load * 4.0
-    return min(scaled, 90.0)
+    return min(scaled, 120.0)
 
 
 def _signoff_desktop_soak_parallel_load() -> int:

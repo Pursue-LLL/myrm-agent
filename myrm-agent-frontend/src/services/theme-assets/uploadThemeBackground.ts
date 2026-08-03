@@ -49,7 +49,10 @@ function buildPosterFile(sourceFile: File, posterBlob: Blob): File {
 }
 
 /** Validate, extract MP4 poster when needed, upload, return `file:` asset refs. */
-export async function uploadThemeBackground(file: File): Promise<ThemeBackgroundUploadResult> {
+export async function uploadThemeBackground(
+  file: File,
+  options?: { videoPosterBlob?: Blob },
+): Promise<ThemeBackgroundUploadResult> {
   const validationError = validateThemeBackgroundFile(file);
   if (validationError) {
     throw new ThemeBackgroundValidationFailedError(validationError);
@@ -58,7 +61,7 @@ export async function uploadThemeBackground(file: File): Promise<ThemeBackground
   const mediaKind = mediaKindFromFile(file);
 
   if (mediaKind === 'video') {
-    const posterBlob = await extractVideoPosterBlob(file);
+    const posterBlob = options?.videoPosterBlob ?? (await extractVideoPosterBlob(file));
     const posterFile = buildPosterFile(file, posterBlob);
     const [uploaded, posterUploaded] = await Promise.all([
       uploadThemeAsset(file),

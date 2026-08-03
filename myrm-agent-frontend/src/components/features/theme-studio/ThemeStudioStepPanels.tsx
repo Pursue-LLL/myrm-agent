@@ -12,6 +12,8 @@ import {
   BUILTIN_THEME_PROFILES,
   THEME_LAYOUT_CATALOG,
   derivePalette,
+  getLayoutCatalogItem,
+  type HeroImageSample,
   type ThemeProfileRecipe,
 } from '@/theme-engine';
 import type { BuilderStep } from '@/store/useThemeStudioDraftStore';
@@ -20,11 +22,15 @@ interface ThemeStudioStepPanelsProps {
   step: BuilderStep;
   draft: ThemeProfileRecipe;
   onPatchDraft: (patch: Partial<ThemeProfileRecipe>) => void;
+  heroSample?: HeroImageSample | null;
+  onApplyHeroSample?: () => void;
+  onDismissHeroSample?: () => void;
   onMediaUploaded: (payload: {
     assetRef: string;
     mediaKind: 'image' | 'video';
     posterAssetRef?: string | null;
     previewUrl: string | null;
+    heroSample?: HeroImageSample | null;
   }) => void;
 }
 
@@ -34,6 +40,9 @@ const ThemeStudioStepPanels = ({
   step,
   draft,
   onPatchDraft,
+  heroSample,
+  onApplyHeroSample,
+  onDismissHeroSample,
   onMediaUploaded,
 }: ThemeStudioStepPanelsProps) => {
   const t = useTranslations('settings.themeStudio');
@@ -96,6 +105,40 @@ const ThemeStudioStepPanels = ({
                 }
               />
             </label>
+          </div>
+        ) : null}
+        {heroSample ? (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+            <p className="text-xs font-medium text-foreground">{t('heroRecommend.title')}</p>
+            <p className="text-xs text-muted-foreground">{t('heroRecommend.body')}</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span
+                className="inline-block h-5 w-5 rounded-md border border-border"
+                style={{ backgroundColor: heroSample.primaryHex }}
+                aria-hidden
+              />
+              <span>{heroSample.primaryHex}</span>
+              <span aria-hidden>·</span>
+              <span>
+                {tLayouts(getLayoutCatalogItem(heroSample.recommendedLayoutId).nameKey)}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onApplyHeroSample}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+              >
+                {t('heroRecommend.apply')}
+              </button>
+              <button
+                type="button"
+                onClick={onDismissHeroSample}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                {t('heroRecommend.dismiss')}
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

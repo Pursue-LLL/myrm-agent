@@ -389,6 +389,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE cron_jobs ADD COLUMN context_from JSON",
     # Per-chat working directory for agent CWD and sandbox boundary
     "ALTER TABLE chats ADD COLUMN workspace_dir VARCHAR(1024)",
+    "ALTER TABLE chats ADD COLUMN session_access_roots JSON",
     # Sibling branching: multiple regenerated responses for the same user query
     "ALTER TABLE messages ADD COLUMN sibling_group_id VARCHAR(255)",
     "ALTER TABLE messages ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1",
@@ -546,6 +547,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE cron_jobs ADD COLUMN acceptance_criteria JSON",
     "ALTER TABLE wiki_evidence_metric_events ADD COLUMN context_key VARCHAR(128)",
     CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL,
+    "ALTER TABLE agents ADD COLUMN memory_extraction_preset VARCHAR(32) NOT NULL DEFAULT 'auto'",
 ]
 
 # 创建索引的SQL语句列表
@@ -874,6 +876,8 @@ INDEX_STATEMENTS = [
     """CREATE INDEX IF NOT EXISTS ix_assessment_import_metrics_context_created_at
         ON assessment_import_metric_events(context_key, created_at)""",
     "ALTER TABLE projects ADD COLUMN default_agent_id VARCHAR(255) REFERENCES agents(id) ON DELETE SET NULL",
+    "ALTER TABLE kanban_tasks ADD COLUMN goal_mode BOOLEAN NOT NULL DEFAULT 0",
+    "ALTER TABLE kanban_tasks ADD COLUMN goal_max_turns INTEGER",
 ]
 
 

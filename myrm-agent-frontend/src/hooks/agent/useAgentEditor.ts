@@ -115,6 +115,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 记忆遗忘速度
   const [memoryDecayProfile, setMemoryDecayProfile] = useState<'permanent' | 'normal' | 'fast'>('normal');
 
+  // 记忆提取领域预设
+  const [memoryExtractionPreset, setMemoryExtractionPreset] = useState<'none' | 'auto' | 'persona' | 'work_assistant' | 'research'>('auto');
+
   // 子智能体工作空间策略
   const [workspacePolicy, setWorkspacePolicy] = useState<WorkspacePolicy>('INHERIT_REQUESTER');
 
@@ -178,6 +181,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     maxIterations: null as number | null,
     workspacePolicy: 'INHERIT_REQUESTER' as WorkspacePolicy,
     memoryDecayProfile: 'normal' as 'permanent' | 'normal' | 'fast',
+    memoryExtractionPreset: 'auto' as 'none' | 'auto' | 'persona' | 'work_assistant' | 'research',
     engineParams: null as Record<string, unknown> | null,
     openapiServices: [] as OpenAPIServiceConfig[],
     suggestionPrompts: [] as string[],
@@ -222,6 +226,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       personalityStyle !== originalData.personalityStyle ||
       promptMode !== originalData.promptMode ||
       memoryDecayProfile !== originalData.memoryDecayProfile ||
+      memoryExtractionPreset !== originalData.memoryExtractionPreset ||
       workspacePolicy !== originalData.workspacePolicy ||
       sessionPolicyChanged ||
       notifyChanged ||
@@ -251,6 +256,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     promptMode,
     maxIterations,
     memoryDecayProfile,
+    memoryExtractionPreset,
     openapiServices,
     engineParams,
     suggestionPrompts,
@@ -323,6 +329,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setCronPostRunVerify(data.cron_post_run_verify ?? false);
       setBusyInputMode(data.busy_input_mode || 'redirect');
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
+      setMemoryExtractionPreset(data.memory_extraction_preset || 'auto');
       setEngineParams(data.engine_params ?? null);
       setOpenapiServices((data.openapi_services as OpenAPIServiceConfig[]) || []);
       setSessionPolicy(data.session_policy ?? null);
@@ -352,6 +359,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         maxIterations: data.max_iterations ?? null,
         workspacePolicy: data.workspace_policy || 'INHERIT_REQUESTER',
         memoryDecayProfile: data.memory_decay_profile || 'normal',
+        memoryExtractionPreset: data.memory_extraction_preset || 'auto',
         engineParams: data.engine_params ?? null,
         openapiServices: (data.openapi_services as OpenAPIServiceConfig[]) || [],
         suggestionPrompts: data.suggestion_prompts || [],
@@ -447,6 +455,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
           memory_decay_profile: memoryDecayProfile,
+          memory_extraction_preset: memoryExtractionPreset,
           session_policy: sessionPolicy,
           engine_params: engineParams,
           openapi_services: openapiServices.length > 0 ? openapiServices : undefined,
@@ -484,6 +493,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
           memory_decay_profile: memoryDecayProfile,
+          memory_extraction_preset: memoryExtractionPreset,
           session_policy: sessionPolicy,
           engine_params: engineParams,
           openapi_services: openapiServices,
@@ -523,6 +533,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           promptMode,
           maxIterations,
           memoryDecayProfile,
+          memoryExtractionPreset,
           engineParams,
           openapiServices: [...openapiServices],
           suggestionPrompts: [...suggestionPrompts],
@@ -570,6 +581,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     promptMode,
     maxIterations,
     memoryDecayProfile,
+    memoryExtractionPreset,
     engineParams,
     openapiServices,
     suggestionPrompts,
@@ -712,6 +724,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 记忆遗忘速度
     memoryDecayProfile,
     setMemoryDecayProfile,
+    // 记忆提取领域预设
+    memoryExtractionPreset,
+    setMemoryExtractionPreset,
     // 高级引擎设置
     engineParams,
     setEngineParams,

@@ -4,6 +4,11 @@
 支持分层提示词架构和动态模板生成。
 """
 
+from .deliverable_discipline import (
+    DELIVERABLE_DISCIPLINE_RULES,
+    KNOWLEDGE_WORK_SYSTEM_PROMPT,
+    build_knowledge_work_system_prompt,
+)
 from .fast_search_agent_prompt import get_fast_search_agent_prompt
 from .general_agent_prompt import (
     CORE_SYSTEM_PROMPT,
@@ -17,6 +22,10 @@ from .shared_rules import (
 )
 
 __all__ = [
+    # deliverable_discipline
+    "DELIVERABLE_DISCIPLINE_RULES",
+    "KNOWLEDGE_WORK_SYSTEM_PROMPT",
+    "build_knowledge_work_system_prompt",
     # fast_search_agent_prompt
     "get_fast_search_agent_prompt",
     # layered_prompts

@@ -12,6 +12,8 @@
 | `mobileRemote.ts` | Pair token 存储/刷新；Hub URL 构建；`withMobilePairHeaders`（Hub list + scoped 控制） | 内联 |
 | `batch-optimization.ts` | 批量优化页类型、状态过滤、进度/统计聚合与格式化（无 HTTP；列表/创建在 page 直调 `apiRequest`） | 内联 |
 | `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL、Billing API 与 `BillingPlanKey` SSOT；Tauri 在 loopback dev host 走 `/api/v1` 代理 | 内联 |
+| `directoryBrowseRecent.ts` | 目录 browse Popover 最近路径 localStorage SSOT（grant / project workspace 分 key） | 内联 |
+| `sessionAccessRefresh.ts` | 会话 `session_access_roots` FE store 刷新 SSOT（grant/revoke 后 `getChatDetail` → `setSessionAccessRoots`；支持 optimistic） | 内联 |
 | `theme-marketplace-gate.ts` | Theme Studio marketplace gate SSOT（CP health + CP HMAC auth token） | 内联 |
 | `auth-cp-token.ts` | CP HMAC API token client decode（userId + expiry） | 内联 |
 | `tauri-system-config-cache.ts` | Tauri 桌面 `saveAndRestart`/`resetConfig` 前写入 `myrm-tauri-system-config` localStorage，供 `deploy-mode.ts` 冷启动读端口 | 内联 |
@@ -35,7 +37,7 @@
 | `intent-dispatcher/` | 意图分发 schema | [_ARCH.md](intent-dispatcher/_ARCH.md) |
 | `vision/` | 语音视觉会话纯函数 | [_ARCH.md](vision/_ARCH.md) |
 | `web-push/` | Web Push SW 深链 URL 消毒与 focus/navigate 判定 | [_ARCH.md](web-push/_ARCH.md) |
-| `widget-theme-bridge.ts` | Artifact iframe 运行时脚本注入：主题同步、高度 sync、链接拦截、DOM 元素拾取 | 内联 |
+| `widget-theme-bridge.ts` | Host 主题 DOM 订阅（`subscribeHostThemeVars` / `HOST_THEME_MUTATION_ATTRIBUTES`）+ Artifact iframe srcdoc bridge | 内联 |
 | `constants/` | 路径、artifact、主题常量 | [_ARCH.md](constants/_ARCH.md) |
 | `server/` | Next Route Handler 用 HTTP 辅助 | [_ARCH.md](server/_ARCH.md) |
 | `skills/` | 技能 OAuth 展示名等纯函数 | [_ARCH.md](skills/_ARCH.md) |

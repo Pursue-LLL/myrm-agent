@@ -25,6 +25,7 @@ from app.database.models import Agent
 from app.services.agent.builtin_agent_specs import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
+    _TOOL_COWORK,
     _TOOL_DATA_VIZ,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
@@ -38,6 +39,7 @@ __all__ = [
     "_BUILTIN_AGENTS",
     "_BuiltInAgentSpec",
     "_TOOL_CODING",
+    "_TOOL_COWORK",
     "_TOOL_DATA_VIZ",
     "_TOOL_DEFAULT",
     "_TOOL_DESIGN",
@@ -59,7 +61,8 @@ async def initialize_builtin_agents() -> None:
     """Create or update built-in agents at startup.
 
     Idempotent: creates missing agents and updates spec-controlled fields
-    (name, description, avatar, personality, system_prompt, suggestion_prompts)
+    (name, description, avatar, personality, system_prompt, enabled_builtin_tools,
+    memory_extraction_preset, suggestion_prompts)
     for existing ones to keep them in sync with code definitions.
     User-customizable fields (skill_ids, mcp_servers, etc.) are never overwritten.
     suggestion_prompts are only populated when the DB value is empty (protects user edits).
@@ -104,6 +107,8 @@ async def initialize_builtin_agents() -> None:
                     agent_kwargs["engine_params"] = spec.engine_params
                 if spec.memory_policy is not None:
                     agent_kwargs["memory_policy"] = spec.memory_policy
+                if spec.memory_extraction_preset is not None:
+                    agent_kwargs["memory_extraction_preset"] = spec.memory_extraction_preset
                 if spec.suggestion_prompts:
                     agent_kwargs["suggestion_prompts"] = list(spec.suggestion_prompts)
 
@@ -169,6 +174,9 @@ def _sync_existing_agent(
         changed = True
     if spec.memory_policy is not None and agent.memory_policy != spec.memory_policy:
         agent.memory_policy = spec.memory_policy
+        changed = True
+    if spec.memory_extraction_preset is not None and agent.memory_extraction_preset != spec.memory_extraction_preset:
+        agent.memory_extraction_preset = spec.memory_extraction_preset
         changed = True
     if spec.suggestion_prompts and not agent.suggestion_prompts:
         agent.suggestion_prompts = list(spec.suggestion_prompts)

@@ -1,6 +1,7 @@
 """Built-in agent specs — core agents.
 
 [INPUT]
+app.ai_agents.prompts.deliverable_discipline::KNOWLEDGE_WORK_SYSTEM_PROMPT (POS: knowledge-work deliverable discipline SSOT)
 app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型与工具集常量)
 
 [OUTPUT]
@@ -10,8 +11,10 @@ _CORE_BUILTIN_AGENTS: Tuple segment for _BUILTIN_AGENTS aggregation.
 builtin_specs 子包：核心预置智能体规格
 """
 
+from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
 from app.services.agent.builtin_specs.types import (
     _TOOL_CODING,
+    _TOOL_COWORK,
     _TOOL_DEFAULT,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
@@ -128,21 +131,21 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
     ),
     _BuiltInAgentSpec(
         id="builtin-economy",
-        name="Economy Assistant",
-        description="Cost-conscious assistant with Smart Routing — ideal for high-volume daily tasks and Hermes migrants.",
+        name="Knowledge Work",
+        description=(
+            "Deliverable-first assistant for everyday knowledge work — search, files, tasks, and memory. "
+            "Ideal for Hermes migrants and Cowork-style workflows."
+        ),
         icon_id="general",
         personality_style="concise",
-        system_prompt=(
-            "You are a cost-efficient AI assistant optimized for everyday workloads. "
-            "Prefer concise answers, avoid unnecessary tool calls, and route simple subtasks to lighter models when Smart Routing is available. "
-            "For cloud-hosted users: your sandbox stays available 24/7 without SSH or VPS maintenance — use scheduled tasks and channels for always-on workflows."
-        ),
-        enabled_builtin_tools=_TOOL_MINIMAL,
+        system_prompt=KNOWLEDGE_WORK_SYSTEM_PROMPT,
+        enabled_builtin_tools=_TOOL_COWORK,
+        memory_extraction_preset="work_assistant",
         suggestion_prompts=(
-            "Summarize this article in 5 bullet points",
+            "Summarize this article into a structured markdown brief",
+            "Extract action items from my meeting notes and add them to the task board",
             "Draft a short reply to this email",
-            "Extract action items from my meeting notes",
-            "Help me plan a low-cost weekly meal prep",
+            "Organize my research notes into a deliverable outline",
             "Rewrite this paragraph to be shorter and clearer",
         ),
     ),

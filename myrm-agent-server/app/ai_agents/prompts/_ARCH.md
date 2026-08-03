@@ -18,6 +18,7 @@
 | `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用） |
 | `search_suggestions.py` | ✅ 辅助 | 搜索建议生成提示词 |
 | `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量 |
+| `deliverable_discipline.py` | ✅ 辅助 | Deliverable-first SSOT（Knowledge Work / builtin-economy user_instructions；含 kanban 工具名 + 反幻觉写文件约束） |
 
 ---
 

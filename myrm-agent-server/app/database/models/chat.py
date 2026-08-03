@@ -43,6 +43,9 @@ class Chat(Base):
     # Per-chat working directory: agent CWD and sandbox boundary
     workspace_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
+    # HITL-granted extra directory roots for this chat session
+    session_access_roots: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+
     # Original repo root when sandbox (git worktree) is active
     sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 

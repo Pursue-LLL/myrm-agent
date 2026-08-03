@@ -82,6 +82,25 @@ def _should_mount_ask_question_tool(
     return resolve_channel_type(channel_name) == ChannelType.WEB_CHAT
 
 
+def _should_mount_request_directory_tool(
+    *,
+    unattended_mode: bool,
+    channel_name: str,
+    sandbox_base_dir: str | None,
+) -> bool:
+    """Return True when mid-session directory HITL grants are allowed."""
+    if unattended_mode:
+        return False
+    if sandbox_base_dir:
+        return False
+    from myrm_agent_harness.agent.security.channel_presets import (
+        ChannelType,
+        resolve_channel_type,
+    )
+
+    return resolve_channel_type(channel_name) == ChannelType.WEB_CHAT
+
+
 def _should_mount_render_ui_tools(
     *,
     enable_render_ui: bool,
@@ -408,6 +427,97 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.info("🙋 已加载 ask_question_tool (交互式澄清表单)")
         except Exception as e:
             logger.warning(f"⚠️ ask_question_tool 加载失败: {e}")
+
+    def _setup_session_access_tools(self, tools: list[object]) -> None:
+        """Set up request_directory HITL tool for interactive web_chat sessions."""
+        if not _should_mount_request_directory_tool(
+            unattended_mode=getattr(self, "unattended_mode", False),
+            channel_name=getattr(self, "channel_name", "web_chat"),
+            sandbox_base_dir=getattr(self, "sandbox_base_dir", None),
+        ):
+            return
+
+        try:
+            import json
+
+            from myrm_agent_harness.agent.meta_tools.session_access.request_directory import (
+                RequestDirectoryInput,
+            )
+            from myrm_agent_harness.agent.meta_tools.session_access.request_directory_tool import (
+                create_request_directory_tool,
+            )
+            from myrm_agent_harness.agent.security.session_access import (
+                get_session_access_roots,
+                grant_session_access_root,
+                resolve_grant_directory_path,
+            )
+            from myrm_agent_harness.agent.security.types import (
+                AccessRoot,
+                _default_path_policy,
+            )
+
+            async def _on_request_directory(form: RequestDirectoryInput) -> str:
+                from langgraph.types import interrupt
+
+                payload = {"type": "directory_request", "request": form.model_dump()}
+                response = interrupt(payload)
+
+                if isinstance(response, dict) and response.get("granted") is True:
+                    path_obj = response.get("path")
+                    writable_obj = response.get("writable")
+                    if isinstance(path_obj, str) and str(path_obj).strip():
+                        grant_path = str(path_obj).strip()
+                    else:
+                        grant_path = form.path
+                    workspace_root = (
+                        self.declared_allowed_roots[0]
+                        if getattr(self, "declared_allowed_roots", ())
+                        else None
+                    )
+                    normalized_grant = resolve_grant_directory_path(
+                        grant_path,
+                        workspace_root,
+                    )
+                    if normalized_grant:
+                        roots_before = get_session_access_roots()
+                        grant_session_access_root(
+                            AccessRoot(
+                                path=normalized_grant,
+                                writable=bool(writable_obj)
+                                if isinstance(writable_obj, bool)
+                                else form.writable,
+                                source="hitl_grant",
+                            ),
+                            policy=_default_path_policy(),
+                            workspace_root=workspace_root,
+                        )
+                        if len(get_session_access_roots()) > len(roots_before):
+                            chat_id = getattr(self, "chat_id", None) or getattr(
+                                self, "_current_chat_id", None
+                            )
+                            if chat_id:
+                                from app.services.agent.session_access_service import (
+                                    persist_chat_session_access_roots,
+                                )
+
+                                await persist_chat_session_access_roots(chat_id)
+
+                if not response:
+                    return json.dumps(
+                        {"granted": False, "error": "User declined or timed out"},
+                        ensure_ascii=False,
+                    )
+                if isinstance(response, dict):
+                    return json.dumps(response, ensure_ascii=False)
+                return json.dumps(
+                    {"granted": False, "error": "Invalid directory grant response"},
+                    ensure_ascii=False,
+                )
+
+            tools.append(create_request_directory_tool(_on_request_directory))
+            logger.info("📁 已加载 request_directory_tool (会话目录授权)")
+        except Exception as e:
+            logger.warning(f"⚠️ request_directory_tool 加载失败: {e}")
 
     def _setup_image_generation_tools(
         self,

@@ -34,6 +34,10 @@ from app.core.channel_bridge.executor_helpers import (
 from app.core.types.business import ModelConfig
 
 from .artifact_deep_links import build_artifact_deep_links
+from .deliverable_path_scanner import (
+    collect_deliverable_paths_from_text,
+    resolve_chat_workspace_root,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +58,22 @@ async def finalize_channel_stream_reply(
     """Build the final channel reply after stream accumulation."""
     content = strip_internal_markers("".join(acc.chunks))
 
+    workspace_root = await resolve_chat_workspace_root(chat_id)
+    scanned_attachments: list[MediaAttachment] = []
+    if content.strip() and workspace_root:
+        content, scanned_attachments = collect_deliverable_paths_from_text(
+            content,
+            workspace_root=workspace_root,
+            existing_filenames={m.filename for m in acc.file_attachments},
+        )
+
     if not content.strip():
-        if acc.error_message:
+        if scanned_attachments:
+            from app.channels.i18n import channel_t, resolve_message_locale
+
+            locale = resolve_message_locale(msg)
+            content = str(channel_t(locale, "deliverable_attached_only"))
+        elif acc.error_message:
             logger.warning(
                 "ChannelAgentExecutor: agent error for %s: %s",
                 msg.sender_id,
@@ -159,6 +177,7 @@ async def finalize_channel_stream_reply(
         )
 
     media_list.extend(acc.file_attachments)
+    media_list.extend(scanned_attachments)
 
     artifact_components = await build_artifact_deep_links(
         acc, media_list, resolve_message_locale(msg),

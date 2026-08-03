@@ -107,6 +107,21 @@ def compute_queue_state(
     return len(reasons) > 0, reasons
 
 
+def compute_queue_layer(
+    *,
+    queue_expected: bool,
+    queue_reasons: list[str],
+    private_waiting: int,
+    mux_saturated: bool,
+) -> str:
+    """Distinguish session-level PRIVATE queue from operation-level mux backpressure."""
+    if private_waiting > 0 or "private_credit_queue" in queue_reasons:
+        return "session"
+    if queue_expected or mux_saturated:
+        return "operation"
+    return "none"
+
+
 def cap_headroom_fields(
     *,
     lease_counts: object,
@@ -138,12 +153,20 @@ def cap_headroom_fields(
     )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", MUX_COLD_ATTACH_SLOTS))
+    mux_saturated = mux_fields.get("muxColdAttachSaturated") is True
+    dev_gate = dev_gate_status()
     queue_expected, queue_reasons = compute_queue_state(
         live_agent_shpoib_count=counts.effective_live_agent_shpoib,
         mux_fields=mux_fields,
         parallel_snapshot=parallel_snapshot,
     )
-    dev_gate = dev_gate_status()
+    private_waiting = int(dev_gate["private_waiting"])
+    queue_layer = compute_queue_layer(
+        queue_expected=queue_expected,
+        queue_reasons=queue_reasons,
+        private_waiting=private_waiting,
+        mux_saturated=mux_saturated,
+    )
     registry_unknown = dev_gate.get("registry_observability") == "unknown"
     return {
         "waveLeasesActive": counts.total,
@@ -152,6 +175,7 @@ def cap_headroom_fields(
         "activeTestCount": active_test_count,
         "parallelQueueExpected": queue_expected,
         "queueReasons": queue_reasons,
+        "queueLayer": queue_layer,
         "sharedUnlimited": True,
         "sharedActive": int(dev_gate["shared_active"]),
         "privateActive": int(dev_gate["private_active"]),

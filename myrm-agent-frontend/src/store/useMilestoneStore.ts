@@ -1,15 +1,16 @@
 /**
- * [INPUT] @/services/milestones
- * [OUTPUT] useMilestoneStore: 里程碑状态管理
- * [POS] 管理当前项目的里程碑列表和 CRUD 操作，驱动 ProjectRoadmapPanel 组件。
+ * [INPUT] @/services/milestones (POS: 里程碑 REST API 封装)
+ * [OUTPUT] useMilestoneStore: 里程碑状态管理（列表 + 批量进度）
+ * [POS] 管理当前项目的里程碑列表、批量进度统计和 CRUD 操作，驱动 ProjectMilestonePanel 组件。
  */
 
 import { create } from 'zustand';
 
-import type { Milestone } from '@/services/milestones';
+import type { Milestone, MilestoneProgress } from '@/services/milestones';
 import {
   type AssessmentImportReceipt,
   getMilestones,
+  getBatchProgress,
   createMilestone,
   importAssessmentArtifact,
   updateMilestone as apiUpdateMilestone,
@@ -18,6 +19,7 @@ import {
 
 interface MilestoneState {
   milestones: Milestone[];
+  progressMap: Record<string, MilestoneProgress>;
   loading: boolean;
   currentProjectId: string | null;
 }
@@ -42,14 +44,22 @@ interface MilestoneActions {
 
 export const useMilestoneStore = create<MilestoneState & MilestoneActions>()((set) => ({
   milestones: [],
+  progressMap: {},
   loading: false,
   currentProjectId: null,
 
   fetchMilestones: async (projectId) => {
     set({ loading: true, currentProjectId: projectId });
     try {
-      const milestones = await getMilestones(projectId);
-      set({ milestones, loading: false });
+      const [milestones, progressList] = await Promise.all([
+        getMilestones(projectId),
+        getBatchProgress(projectId),
+      ]);
+      const progressMap: Record<string, MilestoneProgress> = {};
+      for (const p of progressList) {
+        progressMap[p.milestoneId] = p;
+      }
+      set({ milestones, progressMap, loading: false });
     } catch {
       set({ loading: false });
     }
@@ -88,10 +98,17 @@ export const useMilestoneStore = create<MilestoneState & MilestoneActions>()((se
 
   importAssessment: async (projectId, payload) => {
     const receipt = await importAssessmentArtifact(projectId, payload);
-    const milestones = await getMilestones(projectId);
-    set({ milestones, currentProjectId: projectId });
+    const [milestones, progressList] = await Promise.all([
+      getMilestones(projectId),
+      getBatchProgress(projectId),
+    ]);
+    const progressMap: Record<string, MilestoneProgress> = {};
+    for (const p of progressList) {
+      progressMap[p.milestoneId] = p;
+    }
+    set({ milestones, progressMap, currentProjectId: projectId });
     return receipt;
   },
 
-  reset: () => set({ milestones: [], loading: false, currentProjectId: null }),
+  reset: () => set({ milestones: [], progressMap: {}, loading: false, currentProjectId: null }),
 }));

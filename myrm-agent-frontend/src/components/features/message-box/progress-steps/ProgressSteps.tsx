@@ -68,6 +68,7 @@ interface ProgressStepsProps {
 
 const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, steps, loading }) => {
   const t = useTranslations('progressSteps');
+  const tHumanize = useTranslations('humanize');
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -231,7 +232,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   {formatAgentHandle(step.agent_instance, step.display_name)}
                 </Badge>
               )}
-              {getStepTitle(step, t)}
+              {getStepTitle(step, t, true, tHumanize)}
               {step.step_key === 'safety_fallback_active' && (
                 <Badge
                   variant="outline"

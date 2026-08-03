@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
-import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
+import { resolveThemeVars, buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { useWidgetStorage } from '@/hooks/workspace/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 import { Pencil } from 'lucide-react';
@@ -69,24 +69,18 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
 
     const storageReady = storageData !== undefined;
 
-    // Resolve theme variables once on mount and when theme changes
+    // Resolve theme variables on mount and when host Theme Profile / dark mode changes
     useEffect(() => {
-      themeVarsRef.current = resolveThemeVars();
+      if (!injectTheme) return;
 
-      const observer = new MutationObserver(() => {
-        const newVars = resolveThemeVars();
+      return subscribeHostThemeVars((newVars) => {
         themeVarsRef.current = newVars;
-        // Notify iframe of theme change via postMessage
-        iframeRef.current?.contentWindow?.postMessage({ type: 'widget-theme-update', vars: newVars }, '*');
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'widget-theme-update', vars: newVars },
+          '*',
+        );
       });
-
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-      });
-
-      return () => observer.disconnect();
-    }, []);
+    }, [injectTheme]);
 
     // Build srcdoc from content + theme
     const srcdoc = useMemo(() => {

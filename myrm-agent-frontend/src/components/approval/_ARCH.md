@@ -10,6 +10,10 @@
 |------|------|------|
 | `ApprovalDrawer.tsx` | 核心 | 全局审批抽屉（subagent 批量 decisions） |
 | `PolymorphicApprovalCard.tsx` | 核心 | 单条审批卡片（shell/MCP/视觉/`deploy_approval` 等形态） |
+| `CompactFileWriteApprovalRow.tsx` | UI | Subagent 本地文件写 compact 行 + 折叠 Monaco 预览 |
+| `SaveSkillApprovalPreview.tsx` | UI | save_skill / skill_manage save 审批 bundle 预览（#8） |
+| `ApprovalScopeNoteLine.tsx` | UI | `resolveScopeNote` 单行展示（Drawer / CLI 审批） |
+| `PtcHintBadges.tsx` | UI | MCP PTC read-only/destructive/open-world 注解 badge |
 | `__tests__/` | 测试 | 组件级测试 |
 
 ## 依赖

@@ -4283,6 +4283,12 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
+      "memoryExtractionPreset": "Memory Focus",
+      "memoryPresetAuto": "Auto Detect",
+      "memoryPresetPersona": "Personal Companion",
+      "memoryPresetWork": "Work Assistant",
+      "memoryPresetResearch": "Research",
+      "memoryPresetNone": "Generic",
       "templateMarket": "Template Market",
       "orgMarketplace": "Org-Marktplatz",
       "searchMarketplace": "Agenten suchen...",
@@ -5159,6 +5165,30 @@
       "multipleChoicePrompt": "Choose one or more options:",
       "freeTextWithOptionsPlaceholder": "Add details or other answers..."
     },
+    "directoryRequest": {
+      "title": "Directory access required",
+      "pathLabel": "Folder path",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "Please enter a folder path",
+      "writableLabel": "Allow write access",
+      "grant": "Grant access",
+      "deny": "Deny",
+      "submitFailed": "Failed to submit directory response.",
+      "answered": "Directory access resolved",
+      "chooseFolder": "Ordner wählen",
+      "browseFailed": "Ordnerauswahl konnte nicht geöffnet werden. Pfad manuell eingeben.",
+      "selectThis": "Diesen Ordner verwenden",
+      "recent": "Zuletzt",
+      "filter": "Ordner filtern",
+      "noSubdirs": "Keine Unterordner"
+    },
+    "sessionAccessRoots": {
+      "label": "Extra-Ordner",
+      "readOnly": "Lesen",
+      "writable": "Schreiben",
+      "revoke": "Zugriff widerrufen",
+      "revokeFailed": "Ordnerzugriff konnte nicht widerrufen werden."
+    },
     "toolsPanel": {
       "title": "Available Tools",
       "searchPlaceholder": "Search tools...",
@@ -5285,6 +5315,9 @@
         "modifying": "AI is modifying this file",
         "scanning": "AI is scanning this directory/file"
       }
+    },
+    "deliverable": {
+      "awaitingArtifact": "Artefakt wird synchronisiert — Link wird in Kürze aktiv"
     },
     "dragDrop": {
       "title": "Drop files here",
@@ -5914,34 +5947,6 @@
       "signal_terminated": "Signal Terminated",
       "nonzero_exit": "Non-Zero Exit",
       "trust_attenuation": "Vertrauen reduziert"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "Reading files",
-      "file_write_tool": "Writing files",
-      "file_edit_tool": "Editing files",
-      "file_editor_tool": "Editing files",
-      "file_editor_view_tool": "Viewing files",
-      "file_editor_create_tool": "Creating files",
-      "file_editor_edit_tool": "Editing files",
-      "text_editor_tool": "Editing text",
-      "bash_code_execute_tool": "Executing command",
-      "code_execution_tool": "Running code",
-      "web_search_tool": "Web research",
-      "web_fetch_tool": "Fetching webpage",
-      "memory_search_tool": "Speicher wird durchsucht",
-      "memory_store_tool": "Storing memory",
-      "memory_save": "Saving memory",
-      "memory_manage": "Managing memory",
-      "memory_recall": "Recalling information",
-      "profile_get_tool": "Reading profile",
-      "profile_update_tool": "Updating profile",
-      "image_tool": "Generating image",
-      "video_tool": "Generating video",
-      "mcp_tool": "Tool execution",
-      "skill_select_tool": "Selecting skill",
-      "render_ui_tool": "Rendering UI",
-      "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -7002,7 +7007,8 @@
           "instruction_lane": "Instructions & persona",
           "memory_lane": "Facts & preferences (global memory)",
           "skill_lane": "Skills",
-          "credential_lane": "API keys"
+          "credential_lane": "API keys",
+          "cron_lane": "Scheduled tasks (cron)"
         },
         "coverageTitle": "Migration coverage",
         "coverageStatus": {
@@ -7020,7 +7026,9 @@
           "mcp_manual": "MCP tools",
           "channels_manual": "Channels",
           "agent_config_manual": "Agent config",
-          "no_importable_data": "Importable data"
+          "no_importable_data": "Importable data",
+          "cron_lane": "Scheduled tasks (cron)",
+          "kanban_not_migrated": "Kanban boards"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",
@@ -7030,6 +7038,7 @@
         "mcpKeepalive": "Keepalive interval: {seconds}s",
         "mcpKeepaliveIgnored": "Keepalive setting ignored because it is below 5 seconds or unsupported by this transport",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
+        "hermesEconomyHint": "Hermes-Importe nutzen das Wissensarbeit-Agentenprofil (Suche, Dateien, Aufgaben, Gedächtnis). Smart Routing und Hilfsmodelle werden automatisch in Ihre Modell-Einstellungen übernommen.",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
@@ -9788,6 +9797,90 @@
     "message": "YOLO-Modus aktiv – Alle Tools werden automatisch genehmigt",
     "disable": "Deaktivieren"
   },
+  "humanize": {
+    "fallback": {
+      "file": "eine Datei",
+      "used_tool": "{tool} verwendet"
+    },
+    "progress": {
+      "file_read": "{filename} gelesen",
+      "file_write": "{filename} geschrieben",
+      "shell": "{command} ausführen",
+      "shell_with_desc": "Befehl ausführen — {description}",
+      "shell_generic": "Befehl ausführen",
+      "web_search": "Im Web suchen — \"{query}\"",
+      "web_search_generic": "Im Web suchen",
+      "web_fetch": "Webseite lesen — {url}",
+      "web_fetch_generic": "Webseite lesen",
+      "memory_generic": "Speicheroperation",
+      "kanban": "Plan aktualisieren — \"{task}\"",
+      "kanban_generic": "Plan aktualisieren",
+      "skill": "Skill verwenden: {name}",
+      "skill_generic": "Skill verwenden",
+      "mcp": "{server} — {tool} verwenden",
+      "browser_url": "Webseite geöffnet — {url}",
+      "browser_generic": "Browser-Aktion",
+      "save_skill": "Skill hinzugefügt: {name}",
+      "save_skill_generic": "Skill hinzugefügt",
+      "send_message": "Nachricht an {destination} gesendet",
+      "send_message_generic": "Nachricht gesendet"
+    },
+    "approval": {
+      "file_read": "{filename} lesen",
+      "file_write": "{filename} schreiben",
+      "shell": "{command} ausführen",
+      "shell_with_desc": "Befehl ausführen — {description}",
+      "shell_generic": "Befehl ausführen",
+      "web_search": "Im Web suchen — \"{query}\"",
+      "web_search_generic": "Im Web suchen",
+      "web_fetch": "Webseite lesen — {url}",
+      "web_fetch_generic": "Webseite lesen",
+      "memory_generic": "Speicheroperation",
+      "kanban": "Plan aktualisieren — \"{task}\"",
+      "kanban_generic": "Plan aktualisieren",
+      "skill": "Skill verwenden: {name}",
+      "skill_generic": "Skill verwenden",
+      "mcp": "{server} — {tool} verwenden",
+      "browser_url": "Webseite öffnen — {url}",
+      "browser_generic": "Browser-Aktion",
+      "save_skill": "Skill hinzufügen: {name}",
+      "save_skill_generic": "Skill hinzufügen",
+      "send_message": "Nachricht an {destination} senden",
+      "send_message_generic": "Nachricht senden"
+    },
+    "ask": {
+      "file_read": "Wollte {filename} lesen",
+      "file_write": "Wollte {filename} schreiben",
+      "file_write_ask": "Wollte {filename} schreiben",
+      "shell": "Wollte {command} ausführen",
+      "shell_with_desc": "Wollte Befehl ausführen — {description}",
+      "shell_generic": "Wollte Befehl ausführen",
+      "web_search": "Wollte im Web suchen — \"{query}\"",
+      "web_search_generic": "Wollte im Web suchen",
+      "web_fetch": "Wollte Webseite lesen — {url}",
+      "web_fetch_generic": "Wollte Webseite lesen",
+      "memory_generic": "Wollte Speicheroperation",
+      "kanban": "Wollte Plan aktualisieren — \"{task}\"",
+      "kanban_generic": "Wollte Plan aktualisieren",
+      "skill": "Wollte Skill verwenden: {name}",
+      "skill_generic": "Wollte Skill verwenden",
+      "mcp": "Wollte {server} — {tool} verwenden",
+      "browser_url": "Wollte Webseite öffnen — {url}",
+      "browser_generic": "Wollte Browser-Aktion",
+      "save_skill": "Wollte Skill hinzufügen: {name}",
+      "save_skill_generic": "Wollte Skill hinzufügen",
+      "send_message": "Wollte Nachricht an {destination} senden",
+      "send_message_generic": "Wollte Nachricht senden"
+    },
+    "scope": {
+      "local": "Änderungen bleiben auf diesem Gerät",
+      "local_overwrite": "Überschreibt eine vorhandene Datei",
+      "external": "Sendet Daten an {destination}",
+      "external_unknown": "externen Dienst",
+      "connector": "Verwendet einen verbundenen Dienst",
+      "save_skill": "Speichert wiederverwendbaren Skill in der Bibliothek"
+    }
+  },
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",
@@ -9801,6 +9894,29 @@
     "outboundDraftOriginal": "Kundennachricht",
     "outboundDraftReply": "KI-Antwortentwurf",
     "skillGrowthPending": "Skill Growth Review",
+    "saveSkill": {
+      "approve": "Zu meinen Skills hinzufügen",
+      "deny": "Nicht jetzt",
+      "showFullInstructions": "Vollständige Anleitung anzeigen",
+      "showLess": "Weniger anzeigen",
+      "showAllLines": "Alle {count} Zeilen anzeigen",
+      "footer": "Nach der Freigabe wird dieser Skill in Ihrer Bibliothek auf diesem Gerät gespeichert und steht in allen künftigen Unterhaltungen zur Verfügung."
+    },
+    "toolCallStatus": {
+      "pending": "Freigabe ausstehend",
+      "approved": "Freigegeben",
+      "rejected": "Abgelehnt",
+      "completed": "Abgeschlossen"
+    },
+    "ptc": {
+      "readOnlyLabel": "Nur lesen",
+      "readOnlyTitle": "Dieses Tool liest nur Daten und ändert keinen Zustand.",
+      "destructiveLabel": "Destruktiv",
+      "destructiveTitle": "Dieses Tool nimmt irreversible, destruktive Änderungen vor.",
+      "openWorldLabel": "Extern",
+      "openWorldTitle": "Dieses Tool interagiert mit externen Systemen oder Netzwerken."
+    },
+    "toolCallPendingBanner": "{count, plural, one {# Tool-Aufruf wartet auf Freigabe} other {# Tool-Aufrufe warten auf Freigabe}}",
     "viewChanges": "Änderungen anzeigen",
     "hideChanges": "Änderungen ausblenden",
     "memoryUpdate": "Memory Update",
@@ -9909,6 +10025,8 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "grantDirectory": "Also grant folder access",
+    "grantDirectoryDesc": "Allow the agent to access this folder for the rest of this chat session",
     "smartDenied": {
       "title": "Sicherheitsprüfer empfiehlt Ablehnung",
       "overrideOnce": "Einmal überschreiben"

@@ -135,6 +135,7 @@ class CoordinatorService:
             )
             return {"session": record.to_dict()}
         if operation == "private_admit":
+            self.store.reap_abandoned()
             admission = self.private_controller.admit(
                 _required_text(request, "session_id"),
                 _required_text(request, "owner_token"),

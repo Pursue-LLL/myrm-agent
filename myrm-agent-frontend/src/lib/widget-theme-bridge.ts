@@ -34,6 +34,14 @@ const THEME_VAR_NAMES = [
   '--chart-4',
   '--chart-5',
   '--radius',
+  '--font-override',
+] as const;
+
+/** Host attributes that affect computed theme tokens for widget iframes. */
+export const HOST_THEME_MUTATION_ATTRIBUTES = [
+  'class',
+  'data-myrm-theme-profile',
+  'style',
 ] as const;
 
 /**
@@ -48,9 +56,34 @@ export function resolveThemeVars(): Record<string, string> {
     const val = computed.getPropertyValue(name).trim();
     if (val) vars[name] = val;
   }
-  // Detect dark mode
   vars['--is-dark'] = document.documentElement.classList.contains('dark') ? '1' : '0';
   return vars;
+}
+
+/**
+ * Subscribe to host theme token changes (dark mode, Theme Profile preset, inline CSS vars).
+ * Returns unsubscribe. No-op on SSR.
+ */
+export function subscribeHostThemeVars(
+  onChange: (vars: Record<string, string>) => void,
+): () => void {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const emit = () => {
+    onChange(resolveThemeVars());
+  };
+
+  emit();
+
+  const observer = new MutationObserver(emit);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [...HOST_THEME_MUTATION_ATTRIBUTES],
+  });
+
+  return () => observer.disconnect();
 }
 
 // Semantic CSS variable bridge (maps guideline names to host tokens)
@@ -130,12 +163,15 @@ export function buildWidgetStyleBlock(resolvedVars: Record<string, string>): str
     .map(([k, v]) => `${k}:${v};`)
     .join('');
   const isDark = resolvedVars['--is-dark'] === '1';
+  const fontFamily =
+    resolvedVars['--font-override'] ??
+    "-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif";
 
   return `<style>
 :root{${rootVars}}
 ${isDark ? '.dark{color-scheme:dark}' : ''}
 body{${CSS_BRIDGE}
-  margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  margin:0;font-family:${fontFamily};
   font-size:16px;line-height:1.6;color:var(--widget-text);background:transparent;
 }
 *{box-sizing:border-box}

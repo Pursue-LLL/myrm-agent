@@ -24,6 +24,8 @@ import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
+import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
+import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
 import useAgentStore from '@/store/useAgentStore';
 import { useSkillStore } from '@/store/skill';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
@@ -113,6 +115,7 @@ export const loadMessages = async (
         state.lastCompactionMeta = null;
         state.workspaceDir = chatData.chat.workspace_dir;
         state.sessionSkillOverrides = chatData.chat.session_loaded_skill_names;
+        state.sessionAccessRoots = normalizeSessionAccessRoots(chatData.chat.session_access_roots);
         state.incognitoMode = chatData.chat.is_incognito || false;
         state.hasMoreMessages = page.has_more;
         state.nextCursor = page.next_cursor;
@@ -231,6 +234,10 @@ function parseMessages(raw: Message[]): Message[] {
 
     if (parsed.clarification) {
       parsed.clarification = normalizeHydratedClarification(parsed.clarification);
+    }
+
+    if (parsed.directoryRequest) {
+      parsed.directoryRequest = normalizeHydratedDirectoryRequest(parsed.directoryRequest);
     }
 
     if (!parsed.reasoning) {

@@ -13,7 +13,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 公共导出 | ✅ |
-| `registry.py` | 核心 | acquire/release/refresh_unit/guard_turn/idle_evict；进程级 singleton；`execution_cache_created` / `execution_cache_reuse` 以 WARNING 写入 backend.log（供 Chrome E2E 断言） | ✅ |
+| `registry.py` | 核心 | acquire/release/refresh_unit/guard_turn/idle_evict；`snapshot_warm_units` / `is_scope_turn_active` 供 catalog 热更新；进程级 singleton | ✅ |
 | `types.py` | 核心 | `ExecutionMode`、`BuiltExecutionUnit.teardown()` | ✅ |
 | `fingerprint.py` | 核心 | `compute_execution_fingerprint`（MCP/skill version/harness epoch） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |

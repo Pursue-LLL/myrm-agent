@@ -102,6 +102,15 @@ export type Message = {
     form?: ClarificationForm;
     isResumeMode?: boolean;
   };
+  directoryRequest?: {
+    answered: boolean;
+    isResumeMode?: boolean;
+    request?: {
+      reason?: string;
+      path?: string;
+      writable?: boolean;
+    };
+  };
   planConfirmation?: {
     plan: string;
     status: 'waiting' | 'confirmed' | 'edited' | 'skipped';

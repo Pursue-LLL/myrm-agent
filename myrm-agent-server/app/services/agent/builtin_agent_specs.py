@@ -15,6 +15,7 @@ from app.services.agent.builtin_specs.extended import _EXTENDED_BUILTIN_AGENTS
 from app.services.agent.builtin_specs.search import _SEARCH_BUILTIN_AGENTS
 from app.services.agent.builtin_specs.types import (
     _TOOL_CODING,
+    _TOOL_COWORK,
     _TOOL_DATA_VIZ,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
@@ -36,6 +37,7 @@ __all__ = [
     "_BUILTIN_AGENTS",
     "_BuiltInAgentSpec",
     "_TOOL_CODING",
+    "_TOOL_COWORK",
     "_TOOL_DATA_VIZ",
     "_TOOL_DEFAULT",
     "_TOOL_DESIGN",

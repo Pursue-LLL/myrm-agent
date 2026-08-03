@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
 from app.services.agent.builtin_initializer import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
+    _TOOL_COWORK,
     _TOOL_DATA_VIZ,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
@@ -49,3 +51,14 @@ def test_data_analyst_has_data_viz_tools() -> None:
     assert analyst.enabled_builtin_tools == _TOOL_DATA_VIZ
     assert "external_cli" in analyst.enabled_builtin_tools
     assert "image_generation" in analyst.enabled_builtin_tools
+
+
+def test_economy_has_cowork_tools() -> None:
+    economy = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-economy")
+    assert economy.enabled_builtin_tools == _TOOL_COWORK
+    assert "kanban" in (economy.enabled_builtin_tools or ())
+    assert "external_cli" not in (economy.enabled_builtin_tools or ())
+    assert economy.memory_extraction_preset == "work_assistant"
+    assert economy.name == "Knowledge Work"
+    assert economy.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert "<deliverable_discipline>" in economy.system_prompt

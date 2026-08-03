@@ -45,6 +45,32 @@ interface BuildToolApprovalRequestParams {
   batchSize?: number;
 }
 
+function resolvePathGrantMeta(
+  action: ApprovalActionPayload,
+): { eligible: boolean; path?: string; writable: boolean } {
+  const reason = action.description || action.reviewerReason || '';
+  if (!reason.includes('Path outside allowed zones')) {
+    return { eligible: false, writable: false };
+  }
+  const rawPath =
+    (typeof action.args.path === 'string' && action.args.path) ||
+    (typeof action.args.file_path === 'string' && action.args.file_path) ||
+    (typeof action.args.target_path === 'string' && action.args.target_path) ||
+    '';
+  if (!rawPath.trim()) {
+    return { eligible: true, writable: false };
+  }
+  const normalized = rawPath.replace(/\\/g, '/');
+  const slash = normalized.lastIndexOf('/');
+  const grantPath = slash > 0 ? normalized.slice(0, slash) : normalized;
+  const writeTools = new Set(['file_write_tool', 'file_edit_tool', 'file_delete_tool']);
+  return {
+    eligible: true,
+    path: grantPath || rawPath.trim(),
+    writable: writeTools.has(action.action),
+  };
+}
+
 export function buildToolApprovalRequest({
   action,
   reviewConfig,
@@ -65,6 +91,7 @@ export function buildToolApprovalRequest({
         : '';
 
   const commandSpans = parseCommandSpans(action.command_spans, shellCommand.length);
+  const pathGrant = resolvePathGrantMeta(action);
 
   return {
     requestId,
@@ -100,5 +127,8 @@ export function buildToolApprovalRequest({
     smartDenied: reviewConfig?.smartDenied === true ? true : undefined,
     hideAllowAlways: reviewConfig?.hideAllowAlways === true ? true : undefined,
     reviewerReason: action.reviewerReason,
+    pathGrantEligible: pathGrant.eligible || undefined,
+    pathGrantPath: pathGrant.path,
+    pathGrantWritable: pathGrant.eligible ? pathGrant.writable : undefined,
   };
 }

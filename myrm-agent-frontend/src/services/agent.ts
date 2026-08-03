@@ -122,6 +122,7 @@ export interface Agent {
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';
+  memory_extraction_preset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   session_policy?: AgentSessionPolicy | null;
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;
@@ -179,6 +180,7 @@ export interface AgentCreate {
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';
+  memory_extraction_preset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   session_policy?: AgentSessionPolicy | null;
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;
@@ -216,6 +218,7 @@ export interface AgentUpdate {
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';
+  memory_extraction_preset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   session_policy?: AgentSessionPolicy | null;
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;

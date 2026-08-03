@@ -485,12 +485,46 @@ class CustomAgentFactory:
         skill_ids = await resolve_runtime_skill_ids(
             getattr(profile, "skills", None) or []
         )
+
+        profile_metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
+        raw_engine_params = profile_metadata.get("engine_params")
+        engine_params: dict[str, object] | None = (
+            dict(raw_engine_params) if isinstance(raw_engine_params, dict) else None
+        )
+        raw_openapi = profile_metadata.get("openapi_services")
+        openapi_services: list[dict[str, object]] = (
+            [item for item in raw_openapi if isinstance(item, dict)]
+            if isinstance(raw_openapi, list)
+            else []
+        )
+        from app.services.agent.mcp_surface_mode import (
+            normalize_mcp_surface_engine_params,
+        )
+
+        mcp_surface_mode, engine_params = normalize_mcp_surface_engine_params(
+            engine_params
+        )
+
+        mcp_servers = list(self._cached_mcp_configs)
+        if mcp_servers:
+            from app.services.agent.mcp_runtime_prepare import (
+                prepare_mcp_configs_for_runtime,
+            )
+
+            mcp_servers = await prepare_mcp_configs_for_runtime(
+                self._agent_id,
+                mcp_servers,
+            )
+
         spec = AgentRuntimeSpec(
             agent_id=self._agent_id,
             name=getattr(profile, "display_name", None) or self._agent_id,
             system_prompt=system_prompt,
             skill_ids=skill_ids,
-            mcp_servers=self._cached_mcp_configs,
+            mcp_servers=mcp_servers,
+            openapi_services=openapi_services,
+            engine_params=engine_params,
+            mcp_surface_mode=mcp_surface_mode,
             max_iterations=max_iterations,
         )
 
@@ -527,7 +561,7 @@ class CustomAgentFactory:
             len(skill_ids),
             len(all_tools),
             config.memory_isolation.value,
-            len(self._cached_mcp_configs),
+            len(mcp_servers),
             extra={"complexity_tier": complexity_tier, "current_depth": current_depth},
         )
         return agent

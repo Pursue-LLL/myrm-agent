@@ -320,6 +320,48 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.DIRECTORY_REQUEST_REQUIRED) {
+    const payload =
+      data.data && typeof data.data === 'object'
+        ? (data.data as Record<string, unknown>)
+        : undefined;
+    const request =
+      payload?.request && typeof payload.request === 'object'
+        ? (payload.request as Record<string, unknown>)
+        : undefined;
+    const normalizedRequest = request
+      ? {
+          reason: typeof request.reason === 'string' ? request.reason : undefined,
+          path: typeof request.path === 'string' ? request.path : undefined,
+          writable: typeof request.writable === 'boolean' ? request.writable : undefined,
+        }
+      : undefined;
+
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const directoryRequest = {
+        answered: false,
+        isResumeMode: true,
+        request: normalizedRequest,
+      };
+      if (messageIndex !== -1) {
+        state.messages[messageIndex].directoryRequest = directoryRequest;
+      } else {
+        state.messages.push({
+          content: '',
+          messageId: data.messageId,
+          chatId: state.messages[0]?.chatId || '',
+          role: 'assistant',
+          createdAt: new Date(),
+          directoryRequest,
+        });
+        ctx.added = true;
+      }
+    });
+    actions.setLoading(false);
+    return done(ctx);
+  }
+
   // 处理 tool_approval_request 事件：弹出审批对话框
   if (data.type === H.AgentEventType.TOOL_APPROVAL_REQUEST) {
     const payload = data.data as {

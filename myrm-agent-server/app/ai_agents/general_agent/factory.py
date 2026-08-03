@@ -246,6 +246,7 @@ async def build_general_agent(
     agent_wrapper._task_user_id = user_id or "default"
     agent_wrapper._setup_search_and_basic_tools(tools)
     agent_wrapper._setup_clarification_tools(tools)
+    agent_wrapper._setup_session_access_tools(tools)
 
     from app.services.context.context_assembly import ContextAssemblyService
 
@@ -377,6 +378,11 @@ async def build_general_agent(
         ZeroCostMemoryExtension,
     )
 
+    extraction_preset = agent_wrapper.memory_extraction_preset
+    if extraction_preset == "auto":
+        from myrm_agent_harness.toolkits.memory.strategies.extraction_domain import auto_detect_preset
+        extraction_preset = auto_detect_preset(agent_wrapper.user_instructions or "").value
+
     memory_ext = ZeroCostMemoryExtension(
         enable_memory_auto_extraction=agent_wrapper.enable_memory_auto_extraction,
         is_subagent=getattr(agent_wrapper, "is_subagent", False),
@@ -385,6 +391,7 @@ async def build_general_agent(
         effective_chat_id=effective_chat_id,
         extractor_llm=agent_wrapper._lite_llm or llm,
         deep_scan=agent_wrapper.privacy_deep_scan,
+        memory_extraction_preset=extraction_preset,
     )
     compress_eviction_cb = memory_ext.build_eviction_callback()
 
@@ -639,77 +646,18 @@ async def build_general_agent(
             skill_backend, _user_skill_cfg.skill_env_vars
         )
 
-    if agent_wrapper.agent_id:
+    if agent_wrapper.agent_id and agent_wrapper.mcp_config:
         try:
-            from app.core.security import MasterKeyProvider
-            from app.services.agent.backends import (
-                DatabaseSecretBackend,
-                MCPSecretAuthProvider,
+            from app.services.agent.mcp_runtime_prepare import (
+                prepare_mcp_configs_for_runtime,
             )
 
-            master_key = MasterKeyProvider.get_master_key()
-            secret_store = DatabaseSecretBackend(master_key=master_key)
-
-            global_env = await secret_store.get_all_secrets(agent_wrapper.agent_id)
-            if global_env:
-                logger.info(
-                    f"Loaded {len(global_env)} secrets for agent {agent_wrapper.agent_id}"
-                )
-
-            if agent_wrapper.mcp_config:
-                new_mcp_configs = []
-                for cfg in agent_wrapper.mcp_config:
-                    if cfg.type == "stdio":
-                        ep_raw = cfg.extra_params or {}
-                        extra_params: dict[str, object] = (
-                            dict(ep_raw) if isinstance(ep_raw, dict) else {}
-                        )
-                        env_raw = extra_params.get("env")
-                        env: dict[str, str] = {}
-                        if isinstance(env_raw, dict):
-                            for k, v in env_raw.items():
-                                if isinstance(k, str) and isinstance(v, str):
-                                    env[k] = v
-
-                        req_keys = getattr(cfg, "required_secrets", None)
-                        if req_keys and global_env:
-                            for req_key in req_keys:
-                                if req_key in global_env:
-                                    env[req_key] = global_env[req_key]
-                                else:
-                                    logger.warning(
-                                        "MCP server '%s' requires secret '%s', but it is not found in agent secrets.",
-                                        cfg.name,
-                                        req_key,
-                                    )
-
-                        extra_params["env"] = env
-                        new_mcp_configs.append(
-                            cfg.model_copy(update={"extra_params": extra_params})
-                        )
-                    else:
-                        cfg_headers = getattr(cfg, "headers", None) or {}
-                        has_secret_refs = (
-                            any("{{secret:" in v for v in cfg_headers.values())
-                            if cfg_headers
-                            else False
-                        )
-
-                        if has_secret_refs and agent_wrapper.agent_id:
-                            auth_provider = MCPSecretAuthProvider(
-                                header_templates=cfg_headers,
-                                secret_store=secret_store,
-                                agent_id=agent_wrapper.agent_id,
-                            )
-                            new_mcp_configs.append(
-                                cfg.model_copy(update={"auth_provider": auth_provider})
-                            )
-                        else:
-                            oauth_cfg = await _try_inject_mcp_oauth(cfg)
-                            new_mcp_configs.append(oauth_cfg)
-                agent_wrapper.mcp_config = new_mcp_configs
+            agent_wrapper.mcp_config = await prepare_mcp_configs_for_runtime(
+                agent_wrapper.agent_id,
+                agent_wrapper.mcp_config,
+            )
         except Exception as e:
-            logger.warning(f"Failed to fetch agent secrets: {e}")
+            logger.warning("Failed to prepare MCP configs for agent %s: %s", agent_wrapper.agent_id, e)
 
     state_manager = None
     default_skill_instances: dict[str, str] = {}
@@ -796,6 +744,12 @@ async def build_general_agent(
         agent_wrapper, enable_planning=enable_planning
     )
 
+    from app.services.agent.mcp_surface_mode import normalize_mcp_surface_engine_params
+
+    mcp_surface_mode, normalized_engine_params = normalize_mcp_surface_engine_params(
+        agent_wrapper.engine_params
+    )
+
     spec = AgentRuntimeSpec(
         agent_id=agent_wrapper.agent_id,
         name=agent_wrapper.agent_id or "default",
@@ -813,7 +767,8 @@ async def build_general_agent(
         locale=agent_wrapper.locale,
         channel_name=agent_wrapper.channel_name,
         security_config=None,
-        engine_params=agent_wrapper.engine_params,
+        engine_params=normalized_engine_params,
+        mcp_surface_mode=mcp_surface_mode,
     )
     # Build similarity checker (for anti-entropy dedup in skill_manage_tool + growth_lifecycle)
     sim_checker = None

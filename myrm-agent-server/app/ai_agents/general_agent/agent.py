@@ -153,9 +153,11 @@ class GeneralAgent(ToolSetupMixin):
         subagent_ids: list[str] | None = None,
         jit_subagents: dict[str, object] | None = None,
         session_loaded_skill_names: list[str] | None = None,
+        sandbox_base_dir: str | None = None,
         max_iterations: int | None = None,
         memory_policy: AgentMemoryPolicy | None = None,
         memory_decay_profile: str | None = None,
+        memory_extraction_preset: str | None = None,
         engine_params: dict[str, object] | None = None,
         quote: str | None = None,
         goal: dict[str, object] | None = None,
@@ -181,6 +183,7 @@ class GeneralAgent(ToolSetupMixin):
         self.subagent_ids = subagent_ids
         self.jit_subagents = jit_subagents
         self.session_loaded_skill_names = session_loaded_skill_names
+        self.sandbox_base_dir = sandbox_base_dir
         self.skill_ids = skill_ids or []
         self.skill_configs = skill_configs
         self.memory_require_confirmation = memory_require_confirmation
@@ -257,6 +260,7 @@ class GeneralAgent(ToolSetupMixin):
         self.max_iterations = max_iterations
         self.memory_policy = memory_policy
         self.memory_decay_profile = memory_decay_profile
+        self.memory_extraction_preset = memory_extraction_preset or "auto"
         self.engine_params = engine_params
         self.prompt_mode = prompt_mode
         self.search_depth = search_depth

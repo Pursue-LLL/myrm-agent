@@ -60,6 +60,8 @@ const COVERAGE_LABEL_KEYS = new Set([
   'channels_manual',
   'agent_config_manual',
   'no_importable_data',
+  'cron_lane',
+  'kanban_not_migrated',
 ]);
 
 function CloudUploadZone({

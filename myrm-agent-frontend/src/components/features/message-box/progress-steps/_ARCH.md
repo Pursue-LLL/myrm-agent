@@ -9,7 +9,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `ProgressSteps.tsx` | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位） | ✅ |
-| `utils.ts` | 辅助 | 步骤标题、items 类型推断、错误 linkify | ✅ |
+| `utils.ts` | 辅助 | 步骤标题（`@/lib/humanize` SSOT） | ✅ |
 | `treeUtils.ts` | 辅助 | progressSteps 树构建 | ✅ |
 | `toolIcons.tsx` | 辅助 | 步骤图标与 agent 主题色 | ✅ |
 | `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作 | ✅ |
@@ -21,6 +21,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 ## 依赖
 
 - `@/store/useChatStore` — `updateMessages`（immer updater，禁止误用 `setMessages`）
+- `@/lib/humanize` — ProgressSteps 步骤标题 SSOT（`getStepTitle` 第四参 `tHumanize`）
 - `@/store/chat/messageStream/handlers/statusStreamProgressSteps.ts` — STATUS progress step reducer
 
 ## 约束

@@ -280,6 +280,7 @@ export const useAgentConfigPanel = () => {
         suggestion_prompts: agentConfig?.suggestionPrompts || null,
         model_selection: modelSelection,
         memory_decay_profile: agentConfig?.memoryDecayProfile,
+        memory_extraction_preset: agentConfig?.memoryExtractionPreset,
       };
       const newAgent = await createAgent(agentData);
       toast({ title: tAgent('createSuccess') });
@@ -322,6 +323,7 @@ export const useAgentConfigPanel = () => {
         suggestion_prompts: agentConfig.suggestionPrompts || null,
         model_selection: modelSelection,
         memory_decay_profile: agentConfig.memoryDecayProfile,
+        memory_extraction_preset: agentConfig.memoryExtractionPreset,
       };
       await updateAgent(agentConfig.agentId, agentData);
 
@@ -334,6 +336,7 @@ export const useAgentConfigPanel = () => {
         autoRestoreDomains: [...(agentConfig.autoRestoreDomains || [])],
         enabledBuiltinTools: [...currentBuiltinTools],
         memoryDecayProfile: agentConfig.memoryDecayProfile || 'normal',
+        memoryExtractionPreset: agentConfig.memoryExtractionPreset || 'auto',
         modelSelection: agentConfig.modelSelection ?? null,
         fallbackModelSelection: agentConfig.fallbackModelSelection ?? null,
         safetyFallbackModelSelection: agentConfig.safetyFallbackModelSelection ?? null,
@@ -390,6 +393,7 @@ export const useAgentConfigPanel = () => {
                 }
               : null,
           memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
+          memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
           browserSource: agentDetail.browser_source || undefined,
         };
         setAgentConfig(newConfig);
@@ -403,6 +407,7 @@ export const useAgentConfigPanel = () => {
           autoRestoreDomains: agentDetail.auto_restore_domains || [],
           enabledBuiltinTools: builtinTools,
           memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
+          memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
           modelSelection: newConfig.modelSelection ?? null,
           fallbackModelSelection: newConfig.fallbackModelSelection ?? null,
           safetyFallbackModelSelection: newConfig.safetyFallbackModelSelection ?? null,

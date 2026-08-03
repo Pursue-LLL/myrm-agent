@@ -3360,6 +3360,12 @@
       "hexPlaceholder": "#2563eb",
       "font": "字体",
       "restoreDefault": "恢复官方默认",
+      "restoreConfirmTitle": "恢复官方默认？",
+      "restoreConfirmDescription": "将移除自定义主题、工作区背景和已保存的主题工作室作品。已购社区主题可重新安装。可在「个人偏好 → 时光机」中撤销。",
+      "restoreConfirmAction": "恢复",
+      "restoreCancel": "取消",
+      "restoreSuccess": "已恢复官方默认主题",
+      "restoreFailed": "恢复官方默认失败",
       "packageSection": "主题包",
       "packageSectionDesc": "导入或导出 .myrmtheme 文件，分享完整工作区外观。",
       "packageImport": "导入主题包",
@@ -3409,6 +3415,13 @@
       },
       "focusX": "水平焦点",
       "focusY": "垂直焦点",
+      "heroRecommend": {
+        "title": "推荐配色与布局",
+        "body": "已从主图本地采样（无云端、无 LLM）。采纳后将设置配色、焦点与推荐布局。",
+        "apply": "采纳推荐",
+        "applied": "已应用推荐",
+        "dismiss": "忽略"
+      },
       "themeName": "主题名称",
       "themeNamePlaceholder": "我的工作区主题",
       "tagline": "标语（可选）",
@@ -3503,7 +3516,7 @@
         "needsAuthTitle": "关联云账号",
         "needsAuthBody": "登录后即可浏览、购买并安装主题市场中的主题。",
         "offlineTitle": "主题市场不可用",
-        "offlineBody": "无法连接控制平面。你仍可在主题工作室第 4 步或外观设置中导入 .myrmtheme 文件。"
+        "offlineBody": "无法连接控制平面。主题工作室第 4 步与外观设置均可导入 .myrmtheme 文件，无需云账号。"
       },
       "creator": {
         "title": "投稿主题",
@@ -4443,7 +4456,7 @@
     "mcpScanAckDesc": "安全扫描在「{name}」中发现 {count} 项高风险问题，确认后继续。",
     "mcpScanAckConfirm": "我已了解风险并继续",
     "mcpReloadConfirmTitle": "重新加载 MCP 工具？",
-    "mcpReloadConfirmDesc": "保存 MCP 变更会更新 Agent 工具列表。新对话会立即生效；进行中的对话可能损失提示词缓存效率，建议必要时开启新会话。",
+    "mcpReloadConfirmDesc": "保存 MCP 变更会更新 Agent 工具列表。新对话会立即生效。catalog 模式下，进行中的对话可热更新运行时工具；direct 模式下，进行中的对话可能损失提示词缓存效率，建议必要时开启新会话。",
     "mcpReloadConfirmAction": "保存并应用",
     "mcpThreat": {
       "prompt_injection": "检测到提示词注入内容（试图覆盖系统指令）",
@@ -5883,7 +5896,9 @@
         "clientId": "Client ID",
         "clientSecret": "Client Secret",
         "scopes": "Scopes (逗号分隔)"
-      }
+      },
+      "turn1BudgetWarning": "预估 Turn1 schema（约 {tokens} tokens）超出直接绑定预算（{budget}）。请减少已选 endpoint，否则 Agent 无法使用这些 API 工具。",
+      "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -6071,6 +6086,12 @@
       "memoryDecayPermanent": "永久记忆",
       "memoryDecayNormal": "标准衰减",
       "memoryDecayFast": "快速遗忘",
+      "memoryExtractionPreset": "记忆聚焦",
+      "memoryPresetAuto": "自动检测",
+      "memoryPresetPersona": "生活伙伴",
+      "memoryPresetWork": "工作助手",
+      "memoryPresetResearch": "学术研究",
+      "memoryPresetNone": "通用",
       "jitTeam": "JIT 团队配置",
       "jitTeamOff": "单 Agent (无下属团队)",
       "jitTeamPlaceholder": "不使用虚拟团队",
@@ -6909,6 +6930,9 @@
         "scanning": "AI 正在扫描此目录/文件"
       }
     },
+    "deliverable": {
+      "awaitingArtifact": "工件同步中，链接稍后可点击"
+    },
     "tokenUsage": {
       "title": "Token 使用量",
       "inputTokens": "输入 Token",
@@ -7209,6 +7233,30 @@
       "skip": "跳过",
       "submitFailed": "提交澄清失败，请重试",
       "answered": "已回答澄清问题"
+    },
+    "directoryRequest": {
+      "title": "需要目录访问权限",
+      "pathLabel": "文件夹路径",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "请输入文件夹路径",
+      "writableLabel": "允许写入（修改文件时需要）",
+      "grant": "授予访问",
+      "deny": "拒绝",
+      "submitFailed": "提交目录授权失败，请重试",
+      "answered": "目录访问已处理",
+      "chooseFolder": "选择文件夹",
+      "browseFailed": "无法打开文件夹选择器，请手动输入路径",
+      "selectThis": "使用此文件夹",
+      "recent": "最近使用",
+      "filter": "筛选文件夹",
+      "noSubdirs": "没有子文件夹"
+    },
+    "sessionAccessRoots": {
+      "label": "额外文件夹",
+      "readOnly": "只读",
+      "writable": "读写",
+      "revoke": "撤销访问",
+      "revokeFailed": "无法撤销文件夹访问，请重试"
     },
     "planConfirmation": {
       "title": "研究计划",
@@ -8000,35 +8048,6 @@
       "post_hook_blocked": "执行后拦截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全拦截"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "正在读取文件",
-      "file_write_tool": "正在写入文件",
-      "file_edit_tool": "正在编辑文件",
-      "file_editor_tool": "正在编辑文件",
-      "file_editor_view_tool": "正在查看文件",
-      "file_editor_create_tool": "正在创建文件",
-      "file_editor_edit_tool": "正在编辑文件",
-      "text_editor_tool": "正在编辑文本",
-      "bash_code_execute_tool": "正在执行命令",
-      "code_execution_tool": "正在运行代码",
-      "web_search_tool": "正在网络搜索",
-      "web_fetch_tool": "正在获取网页",
-      "memory_search_tool": "正在搜索记忆",
-      "memory_store_tool": "正在存储记忆",
-      "memory_save": "正在保存记忆",
-      "memory_manage": "正在管理记忆",
-      "memory_recall": "正在回忆信息",
-      "profile_get_tool": "正在读取画像",
-      "profile_update_tool": "正在更新画像",
-      "image_tool": "正在生成图片",
-      "video_tool": "正在生成视频",
-      "mcp_tool": "正在执行工具",
-      "skill_select_tool": "正在选择技能",
-      "render_ui_tool": "正在渲染界面",
-      "update_ui_data_tool": "正在更新界面数据",
-      "answer_user_tool": "正在生成回答",
-      "request_answer_user_tool": "正在准备回复"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -8964,7 +8983,8 @@
           "instruction_lane": "指令与人设",
           "memory_lane": "事实与偏好（全局记忆）",
           "skill_lane": "技能",
-          "credential_lane": "API 密钥"
+          "credential_lane": "API 密钥",
+          "cron_lane": "定时任务（Cron）"
         },
         "coverageTitle": "迁移覆盖范围",
         "coverageStatus": {
@@ -8983,7 +9003,9 @@
           "mcp_manual": "MCP 工具",
           "channels_manual": "消息渠道",
           "agent_config_manual": "Agent 配置",
-          "no_importable_data": "可导入数据"
+          "no_importable_data": "可导入数据",
+          "cron_lane": "定时任务（Cron）",
+          "kanban_not_migrated": "看板任务"
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
         "mcpServersTitle": "检测到 MCP 服务",
@@ -8993,7 +9015,7 @@
         "mcpKeepalive": "保活间隔：{seconds} 秒",
         "mcpKeepaliveIgnored": "源配置保活值不适用于当前连接类型或低于 5 秒，已按规则忽略",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
-        "hermesEconomyHint": "Hermes 迁移将使用 Economy 智能体预设，并自动启用 Smart Routing；辅助模型会写入模型设置。",
+        "hermesEconomyHint": "Hermes 迁移将使用「知识工作助手」预设（搜索、文件、任务、记忆），并自动启用 Smart Routing；辅助模型会写入模型设置。",
         "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
         "configureProvidersLink": "打开模型服务商设置",
         "backupHint": "建议在导入前导出当前记忆备份（可回滚恢复）",
@@ -9064,13 +9086,17 @@
           "postImportDiagnosticsWarning": "导入后诊断发现提醒项（{count} 项）。",
           "mcpServersImportedDisabled": "已导入的 {count} 个 MCP 服务默认禁用，请按需审核启用。",
           "workspaceRulesSkipped": "{count} 条工作区规则因已存在而跳过。",
+          "voiceFeatureDisabled": "语音交互功能未开启。若你在 Hermes 中使用过语音，请前往语音设置开启。",
+          "consensusFeatureDisabled": "多模型合议未开启。可在智能体设置中开启以获得更高质量回答。",
           "generic": "就绪检查需要处理：{code}"
         },
         "readinessAction": {
           "configureProviders": "去配置模型服务商",
           "openMemoryCenter": "查看记忆诊断",
           "configureMcp": "检查 MCP 设置",
-          "reviewMigrationRules": "查看迁移规则"
+          "reviewMigrationRules": "查看迁移规则",
+          "configureVoice": "打开语音设置",
+          "configureConsensus": "打开智能体设置"
         },
         "rollbackIncludesInstructions": "回滚将同时恢复记忆与已导入的指令",
         "startChat": "用此智能体开始对话",
@@ -12153,6 +12179,90 @@
     "connect": "立即连接 →",
     "dismiss": "关闭"
   },
+  "humanize": {
+    "fallback": {
+      "file": "文件",
+      "used_tool": "使用了 {tool}"
+    },
+    "progress": {
+      "file_read": "读取 {filename}",
+      "file_write": "写入 {filename}",
+      "shell": "运行 {command}",
+      "shell_with_desc": "运行命令 — {description}",
+      "shell_generic": "运行命令",
+      "web_search": "搜索网页 — \"{query}\"",
+      "web_search_generic": "搜索网页",
+      "web_fetch": "读取网页 — {url}",
+      "web_fetch_generic": "读取网页",
+      "memory_generic": "记忆操作",
+      "kanban": "更新计划 — \"{task}\"",
+      "kanban_generic": "更新计划",
+      "skill": "使用技能：{name}",
+      "skill_generic": "使用技能",
+      "mcp": "使用 {server} — {tool}",
+      "browser_url": "已打开网页 — {url}",
+      "browser_generic": "浏览器操作",
+      "save_skill": "添加技能：{name}",
+      "save_skill_generic": "添加技能",
+      "send_message": "发送消息至 {destination}",
+      "send_message_generic": "发送消息"
+    },
+    "approval": {
+      "file_read": "读取 {filename}",
+      "file_write": "写入 {filename}",
+      "shell": "运行 {command}",
+      "shell_with_desc": "运行命令 — {description}",
+      "shell_generic": "运行命令",
+      "web_search": "搜索网页 — \"{query}\"",
+      "web_search_generic": "搜索网页",
+      "web_fetch": "读取网页 — {url}",
+      "web_fetch_generic": "读取网页",
+      "memory_generic": "记忆操作",
+      "kanban": "更新计划 — \"{task}\"",
+      "kanban_generic": "更新计划",
+      "skill": "使用技能：{name}",
+      "skill_generic": "使用技能",
+      "mcp": "使用 {server} — {tool}",
+      "browser_url": "打开网页 — {url}",
+      "browser_generic": "浏览器操作",
+      "save_skill": "添加技能：{name}",
+      "save_skill_generic": "添加技能",
+      "send_message": "发送消息至 {destination}",
+      "send_message_generic": "发送消息"
+    },
+    "ask": {
+      "file_read": "想要读取 {filename}",
+      "file_write": "想要写入 {filename}",
+      "file_write_ask": "想要写入 {filename}",
+      "shell": "想要运行 {command}",
+      "shell_with_desc": "想要运行命令 — {description}",
+      "shell_generic": "想要运行命令",
+      "web_search": "想要搜索网页 — \"{query}\"",
+      "web_search_generic": "想要搜索网页",
+      "web_fetch": "想要读取网页 — {url}",
+      "web_fetch_generic": "想要读取网页",
+      "memory_generic": "想要进行记忆操作",
+      "kanban": "想要更新计划 — \"{task}\"",
+      "kanban_generic": "想要更新计划",
+      "skill": "想要使用技能：{name}",
+      "skill_generic": "想要使用技能",
+      "mcp": "想要使用 {server} — {tool}",
+      "browser_url": "想要打开网页 — {url}",
+      "browser_generic": "想要进行浏览器操作",
+      "save_skill": "想要添加技能：{name}",
+      "save_skill_generic": "想要添加技能",
+      "send_message": "想要发送消息至 {destination}",
+      "send_message_generic": "想要发送消息"
+    },
+    "scope": {
+      "local": "更改仅保留在本设备",
+      "local_overwrite": "将覆盖已有文件",
+      "external": "将数据发送到 {destination}",
+      "external_unknown": "外部服务",
+      "connector": "使用已连接的服务",
+      "save_skill": "将可复用技能保存到库中"
+    }
+  },
   "toolApproval": {
     "title": "工具执行审批",
     "batchTitle": "批量审批 ({count} 个工具)",
@@ -12162,6 +12272,29 @@
     "deployApprovalArtifact": "Artifact",
     "deployApprovalHint": "批准后将通过 Vercel 发布该 artifact，产生公网可访问 URL。",
     "skillGrowthPending": "技能成长待审",
+    "saveSkill": {
+      "approve": "添加到我的技能",
+      "deny": "暂不添加",
+      "showFullInstructions": "展开完整说明",
+      "showLess": "收起",
+      "showAllLines": "展开全部 {count} 行",
+      "footer": "批准后，此技能将保存到本机技能库，之后每次对话均可使用。"
+    },
+    "toolCallStatus": {
+      "pending": "待审批",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "completed": "已完成"
+    },
+    "ptc": {
+      "readOnlyLabel": "只读",
+      "readOnlyTitle": "此工具仅读取数据，不会修改状态。",
+      "destructiveLabel": "破坏性",
+      "destructiveTitle": "此工具会进行不可撤销的破坏性更改。",
+      "openWorldLabel": "开放外部",
+      "openWorldTitle": "此工具会与外部系统或网络交互。"
+    },
+    "toolCallPendingBanner": "{count, plural, other {# 个工具调用等待审批}}",
     "viewChanges": "查看变更",
     "hideChanges": "收起变更",
     "memoryUpdate": "记忆更新",
@@ -12276,6 +12409,8 @@
       "allowDomain": "始终允许此域名",
       "allowDomainDesc": "后续对该域名的请求将自动通过（仅当前会话）"
     },
+    "grantDirectory": "同时授予文件夹访问",
+    "grantDirectoryDesc": "允许 Agent 在本会话后续轮次访问该文件夹",
     "smartDenied": {
       "title": "安全审查建议拒绝此操作",
       "overrideOnce": "覆写一次"
@@ -13824,6 +13959,21 @@
         "setupFailed": "Telegram 助手配置失败。",
         "setupFailedToast": "配置失败，请检查凭据后重试。",
         "successToast": "Telegram 助手已就绪：{agentName}"
+      },
+      "toolsConnect": {
+        "pageTitle": "连接你的日常工具",
+        "pageDescription": "让助手直接访问你每天使用的服务，随时可在设置中添加更多。",
+        "connected": "已连接",
+        "connectButton": "连接",
+        "moreHint": "30+ 集成服务可在 设置 → 集成 中配置",
+        "continueButton": "继续",
+        "skipButton": "暂时跳过"
+      },
+      "themePick": {
+        "pageTitle": "选择工作区风格",
+        "pageDescription": "为对话、看板和设置选一个起始主题。之后可随时在外观设置中深度定制。",
+        "continueButton": "继续",
+        "skipButton": "保持默认"
       }
     }
   },

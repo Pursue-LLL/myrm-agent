@@ -5,7 +5,7 @@
 | 文件 | 职责 |
 |------|------|
 | `usePendingApprovalsRecovery.ts` | 启动/SSE 重连恢复审批队列 |
-| `useToolApprovalResolve.ts` | 单条/bulk approve/reject + SSE resume |
+| `useToolApprovalResolve.ts` | 单条/bulk approve/reject + SSE resume；path-ASK grantDirectory 后 `refreshSessionAccessRoots` |
 | `useVisualApprovalSnapshot.ts` | pending visual 审批自动拉 snapshot |
 | `useVisualApprovalOsOverlay.ts` | Tauri OS 红框 overlay 生命周期 |
 | `useBrowserTakeoverActions.ts` | Extension/VNC browser HITL Done/Skip |

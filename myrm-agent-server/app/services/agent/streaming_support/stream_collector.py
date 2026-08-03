@@ -32,6 +32,7 @@ from myrm_agent_harness.utils.text_sanitizer import sanitize_llm_output
 
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
+    collect_directory_request_required,
     collect_cron_job_result,
     collect_file_mutation_failures,
     collect_kanban_task_created,
@@ -303,6 +304,7 @@ _INTERRUPT_REPLAY_TYPES: frozenset[str] = frozenset(
         "tool_approval_request",
         "approval_required",
         "clarification_required",
+        "directory_request_required",
     }
 )
 
@@ -344,6 +346,7 @@ class StreamContentCollector:
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
         self._clarification: dict[str, object] | None = None
+        self._directory_request: dict[str, object] | None = None
         self._plan_confirmation: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
         self._pending_interrupt_events: list[dict[str, object]] = []
@@ -671,6 +674,10 @@ class StreamContentCollector:
             clarification = collect_clarification_required(event)
             if clarification is not None:
                 self._clarification = clarification
+        elif event_type == "directory_request_required":
+            directory_request = collect_directory_request_required(event)
+            if directory_request is not None:
+                self._directory_request = directory_request
         elif event_type == "ui_update":
             subtype = event.get("subtype")
             if subtype == "ui_artifact" and isinstance(data, list):
@@ -839,6 +846,8 @@ class StreamContentCollector:
             result["sessionRecording"] = self._session_recording
         if self._clarification:
             result["clarification"] = self._clarification
+        if self._directory_request:
+            result["directoryRequest"] = self._directory_request
         if self._plan_confirmation:
             result["planConfirmation"] = self._plan_confirmation
         if self._ui_artifacts:

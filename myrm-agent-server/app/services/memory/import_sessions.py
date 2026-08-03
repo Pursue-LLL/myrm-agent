@@ -99,15 +99,19 @@ class ImportReadinessRecheckFacts:
     diagnostic_failed_count: int
     mcp_config_count: int
     workspace_rules_skipped: int
+    migration_competitor: str | None = None
 
     def to_metadata_block(self) -> dict[str, object]:
-        return {
+        block: dict[str, object] = {
             "source_has_api_keys": self.source_has_api_keys,
             "diagnostic_status": self.diagnostic_status,
             "diagnostic_failed_count": self.diagnostic_failed_count,
             "mcp_config_count": self.mcp_config_count,
             "workspace_rules_skipped": self.workspace_rules_skipped,
         }
+        if self.migration_competitor:
+            block["migration_competitor"] = self.migration_competitor
+        return block
 
     @classmethod
     def from_metadata_block(cls, block: dict[str, object]) -> ImportReadinessRecheckFacts:
@@ -117,12 +121,19 @@ class ImportReadinessRecheckFacts:
             if isinstance(diagnostic_status_raw, str) and diagnostic_status_raw.strip()
             else None
         )
+        competitor_raw = block.get("migration_competitor")
+        migration_competitor = (
+            competitor_raw.strip()
+            if isinstance(competitor_raw, str) and competitor_raw.strip()
+            else None
+        )
         return cls(
             source_has_api_keys=block.get("source_has_api_keys") is True,
             diagnostic_status=diagnostic_status,
             diagnostic_failed_count=_coerce_non_negative_int(block.get("diagnostic_failed_count")),
             mcp_config_count=_coerce_non_negative_int(block.get("mcp_config_count")),
             workspace_rules_skipped=_coerce_non_negative_int(block.get("workspace_rules_skipped")),
+            migration_competitor=migration_competitor,
         )
 
 
@@ -566,6 +577,7 @@ class MemoryImportSessionService:
             diagnostic_failed_count=facts.diagnostic_failed_count,
             mcp_config_count=facts.mcp_config_count,
             workspace_rules_skipped=facts.workspace_rules_skipped,
+            migration_competitor=facts.migration_competitor,
         )
 
     async def save_post_import_readiness(

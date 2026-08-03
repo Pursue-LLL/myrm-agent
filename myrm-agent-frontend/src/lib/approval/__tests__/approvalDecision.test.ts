@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildApprovalDecision } from '@/lib/approval/approvalDecision';
+import { buildApprovalDecision, extractDirectoryGrantOptimistic, resumeDecisionsIncludeDirectoryGrant } from '@/lib/approval/approvalDecision';
 
 describe('buildApprovalDecision', () => {
   it('builds approve decisions with extensions', () => {
@@ -68,5 +68,28 @@ describe('buildApprovalDecision', () => {
   it('omits guidance when not provided', () => {
     const result = buildApprovalDecision('approve');
     expect(result.guidance).toBeUndefined();
+  });
+
+  it('detects directory grant in resume decisions', () => {
+    expect(
+      resumeDecisionsIncludeDirectoryGrant([
+        buildApprovalDecision('approve', { grant_directory: true, grant_directory_path: '/tmp' }),
+      ]),
+    ).toBe(true);
+    expect(resumeDecisionsIncludeDirectoryGrant([buildApprovalDecision('approve')])).toBe(false);
+    expect(resumeDecisionsIncludeDirectoryGrant([buildApprovalDecision('reject')])).toBe(false);
+  });
+
+  it('extracts path-ASK optimistic root from grant decisions', () => {
+    expect(
+      extractDirectoryGrantOptimistic([
+        buildApprovalDecision('approve', {
+          grant_directory: true,
+          grant_directory_path: '/tmp/proj',
+          grant_directory_writable: true,
+        }),
+      ]),
+    ).toEqual({ path: '/tmp/proj', writable: true, source: 'path_ask_grant' });
+    expect(extractDirectoryGrantOptimistic([buildApprovalDecision('approve')])).toBeUndefined();
   });
 });

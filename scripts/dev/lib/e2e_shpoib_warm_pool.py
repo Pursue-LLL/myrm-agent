@@ -14,6 +14,8 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -110,22 +112,50 @@ def _save_registry(registry: WarmPoolRegistry) -> None:
     tmp.replace(path)
 
 
+def warm_backend_health_ok(api_base: str, runtime_id: str) -> bool:
+    """Quick probe before borrow — stale registry rows must not block LIVE bootstrap."""
+    url = f"{api_base.rstrip('/')}/api/v1/health"
+    try:
+        with urllib.request.urlopen(url, timeout=2.0) as resp:  # noqa: S310
+            if not (200 <= resp.status < 300):
+                return False
+            payload = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("status") != "healthy":
+        return False
+    observed = str(payload.get("runtime_id") or "").strip()
+    return not observed or observed == runtime_id
+
+
+def _record_is_stale(record: WarmBackendRecord, *, now: float) -> bool:
+    owner_pid = record.get("ownerPid")
+    heartbeat_at = record.get("heartbeatAt")
+    state = record.get("state")
+    if state == "borrowed":
+        return False
+    if not isinstance(owner_pid, int) or not isinstance(heartbeat_at, (int, float)):
+        return True
+    if not _pid_alive(owner_pid):
+        return True
+    if now - float(heartbeat_at) > 900.0:
+        return True
+    if state != "ready":
+        return False
+    api_base = record.get("apiBase")
+    runtime_id = str(record.get("runtimeId") or "")
+    if not isinstance(api_base, str) or not runtime_id:
+        return True
+    return not warm_backend_health_ok(api_base, runtime_id)
+
+
 def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
     removed = 0
     stale_keys: list[str] = []
     for key, record in registry["backends"].items():
-        owner_pid = record.get("ownerPid")
-        heartbeat_at = record.get("heartbeatAt")
-        state = record.get("state")
-        if state == "borrowed":
-            continue
-        if not isinstance(owner_pid, int) or not isinstance(heartbeat_at, (int, float)):
-            stale_keys.append(key)
-            continue
-        if not _pid_alive(owner_pid):
-            stale_keys.append(key)
-            continue
-        if now - float(heartbeat_at) > 900.0:
+        if _record_is_stale(record, now=now):
             stale_keys.append(key)
     for key in stale_keys:
         registry["backends"].pop(key, None)
@@ -243,6 +273,14 @@ def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowRes
                 owner_token = record.get("ownerToken")
                 api_base = record.get("apiBase")
                 if not isinstance(owner_token, str) or not isinstance(api_base, str):
+                    registry["backends"].pop(key, None)
+                    continue
+                if not warm_backend_health_ok(api_base, runtime_id):
+                    print(
+                        "E2E_SHPOIB_WARM_POOL_PRUNE: "
+                        f"runtime={runtime_id} api={api_base} reason=unhealthy",
+                        file=sys.stderr,
+                    )
                     registry["backends"].pop(key, None)
                     continue
                 record["state"] = "borrowed"

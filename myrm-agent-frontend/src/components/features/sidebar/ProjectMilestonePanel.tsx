@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * [INPUT] @/store/useMilestoneStore, @/store/useProjectStore, ./assessmentImportError::resolveAssessmentImportErrorMessage
+ * [INPUT] @/store/useMilestoneStore (POS: 里程碑状态管理), @/store/useProjectStore, ./assessmentImportError::resolveAssessmentImportErrorMessage
  * [OUTPUT] ProjectMilestonePanel: 项目里程碑管理面板
- * [POS] 在侧边栏显示当前项目的里程碑列表，支持创建、完成、删除与评估工件导入（最近候选一键导入 + 手输兜底），并展示导入后价值锚点。
+ * [POS] 在侧边栏显示当前项目的里程碑列表，支持创建、完成、删除、内联重命名、实时进度条与评估工件导入（最近候选一键导入 + 手输兜底），并展示导入后价值锚点。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,7 +32,7 @@ export default function ProjectMilestonePanel() {
   const t = useTranslations();
   const { error: toastError, success: toastSuccess } = useToast();
   const { activeFilter, projects } = useProjectStore();
-  const { milestones, loading, fetchMilestones, addMilestone, completeMilestone, removeMilestone, importAssessment } =
+  const { milestones, progressMap, loading, fetchMilestones, addMilestone, updateMilestone, completeMilestone, removeMilestone, importAssessment } =
     useMilestoneStore();
   const [expanded, setExpanded] = useState(false);
   const [showInput, setShowInput] = useState(false);
@@ -110,6 +110,18 @@ export default function ProjectMilestonePanel() {
       }
     },
     [activeProject, removeMilestone, toastError, t],
+  );
+
+  const handleRename = useCallback(
+    async (ms: Milestone, newTitle: string) => {
+      if (!activeProject || newTitle === ms.title) return;
+      try {
+        await updateMilestone(activeProject.id, ms.id, { title: newTitle });
+      } catch {
+        toastError(t('common.operationFailed'));
+      }
+    },
+    [activeProject, updateMilestone, toastError, t],
   );
 
   const loadArtifactCandidates = useCallback(async (projectId: string) => {
@@ -273,7 +285,14 @@ export default function ProjectMilestonePanel() {
           {loading && <div className="text-[9px] text-muted-foreground/50">{t('common.loading')}</div>}
 
           {activeMilestones.map((ms) => (
-            <MilestoneRow key={ms.id} milestone={ms} onComplete={handleComplete} onDelete={handleDelete} />
+            <MilestoneRow
+              key={ms.id}
+              milestone={ms}
+              progress={progressMap[ms.id]}
+              onComplete={handleComplete}
+              onDelete={handleDelete}
+              onRename={handleRename}
+            />
           ))}
 
           {completedMilestones.length > 0 && (
@@ -412,15 +431,37 @@ export default function ProjectMilestonePanel() {
 
 function MilestoneRow({
   milestone,
+  progress,
   onComplete,
   onDelete,
+  onRename,
 }: {
   milestone: Milestone;
+  progress?: { milestoneId: string; totalTasks: number; completedTasks: number; progress: number };
   onComplete: (ms: Milestone) => void;
   onDelete: (ms: Milestone) => void;
+  onRename: (ms: Milestone, newTitle: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(milestone.title);
+  const editRef = useRef<HTMLInputElement>(null);
   const hasDetails = milestone.description || milestone.acceptanceCriteria;
+  const hasTasks = progress && progress.totalTasks > 0;
+
+  useEffect(() => {
+    if (editing) editRef.current?.focus();
+  }, [editing]);
+
+  const commitRename = () => {
+    const trimmed = editValue.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== milestone.title) {
+      onRename(milestone, trimmed);
+    } else {
+      setEditValue(milestone.title);
+    }
+  };
 
   return (
     <div>
@@ -434,12 +475,48 @@ function MilestoneRow({
         >
           {milestone.status === 'completed' && <Check size={8} className="text-primary" />}
         </button>
-        <span
-          className={cn('truncate flex-1', hasDetails && 'cursor-pointer hover:text-primary/80')}
-          onClick={() => hasDetails && setOpen(!open)}
-        >
-          {milestone.title}
-        </span>
+        <div className="flex-1 min-w-0">
+          {editing ? (
+            <input
+              ref={editRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') {
+                  setEditing(false);
+                  setEditValue(milestone.title);
+                }
+              }}
+              className="w-full h-4 px-0.5 text-[10px] rounded border border-primary/30 bg-transparent outline-none"
+            />
+          ) : (
+            <span
+              className={cn('truncate block', hasDetails ? 'cursor-pointer hover:text-primary/80' : 'cursor-text')}
+              onClick={() => hasDetails && setOpen(!open)}
+              onDoubleClick={() => {
+                setEditValue(milestone.title);
+                setEditing(true);
+              }}
+            >
+              {milestone.title}
+            </span>
+          )}
+          {hasTasks && (
+            <div className="flex items-center gap-1 mt-px">
+              <div className="flex-1 h-[3px] rounded-full bg-muted-foreground/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary/70 transition-all duration-300"
+                  style={{ width: `${progress.progress}%` }}
+                />
+              </div>
+              <span className="text-[8px] text-muted-foreground/50 shrink-0">
+                {progress.completedTasks}/{progress.totalTasks}
+              </span>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => onDelete(milestone)}
           className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40 hover:text-destructive"

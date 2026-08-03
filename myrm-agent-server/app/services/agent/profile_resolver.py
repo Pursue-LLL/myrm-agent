@@ -158,6 +158,7 @@ class ResolvedAgentProfile:
     workspace_policy: str | None = None
     memory_policy: AgentMemoryPolicy | None = None
     memory_decay_profile: str | None = None
+    memory_extraction_preset: str | None = None
     skill_configs: dict[str, dict] | None = field(default=None, kw_only=True)
     engine_params: dict[str, object] | None = field(default=None, kw_only=True)
     auto_restore_domains: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
@@ -346,6 +347,7 @@ class AgentProfileResolver:
                         else None
                     ),
                     memory_decay_profile=getattr(agent, "memory_decay_profile", None),
+                    memory_extraction_preset=getattr(agent, "memory_extraction_preset", None),
                     enabled_builtin_tools=tools_tuple,
                     model_kwargs=model_kwargs,
                     openapi_services=openapi_services,

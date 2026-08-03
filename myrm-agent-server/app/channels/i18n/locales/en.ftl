@@ -331,6 +331,7 @@ agent_picker_select = Select an agent:
 agent_picker_switched = Switched to: { $name }
 artifact_deep_link = 💻 View interactive page
 artifact_deep_link_named = 💻 { $filename }
+deliverable_attached_only = Deliverable attached.
 goal_completed =
     ✅ Goal completed: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified

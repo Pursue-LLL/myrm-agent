@@ -88,6 +88,7 @@ class BaseArtifactProcessor(ABC):
         for item in artifacts_data:
             filename = item.get("filename", "")
             file_path = item.get("path", "")
+            short_file_id = item.get("short_file_id")
 
             if self._should_ignore(filename):
                 logger.debug(f"📦 忽略文件: {filename}")
@@ -116,6 +117,7 @@ class BaseArtifactProcessor(ABC):
                     language=infer_language(filename),
                     created_at=datetime.now(UTC).isoformat(),
                     file_path=self._resolve_file_path(file_path),
+                    short_file_id=str(short_file_id) if isinstance(short_file_id, str) and short_file_id else None,
                 )
                 artifacts.append(artifact)
                 processed_entries.append((filename, file_path, result.file_id))

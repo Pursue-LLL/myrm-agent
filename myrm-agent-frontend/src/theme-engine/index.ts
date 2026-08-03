@@ -41,6 +41,12 @@ export {
 } from './preinit';
 export type { ThemePreinitSnapshot } from './preinit';
 export { meetsContrast, contrastRatio, derivePalette, resolveContrastSafeForeground } from './oklch';
+export { recommendLayoutFromAspect } from './recommend-layout-from-aspect';
+export {
+  sampleHeroImageBlob,
+  sampleHeroImageData,
+  type HeroImageSample,
+} from './sample-hero-image';
 export { THEME_LAYOUT_CATALOG, getLayoutCatalogItem } from './layout-catalog';
 export type { ThemeLayoutCatalogItem } from './layout-catalog';
 export { parseThemeRecipeJson, ThemeRecipeParseError } from './parse-recipe';
@@ -50,3 +56,10 @@ export {
   stripStudioPreviewProfiles,
   sanitizeActiveThemeProfileId,
 } from './studio-constants';
+export {
+  buildOfficialThemeRestorePatch,
+  isThemeDeviatedFromOfficial,
+  needsRestoreConfirm,
+  type ThemeRestoreState,
+  type OfficialThemeRestorePatch,
+} from './official-restore';

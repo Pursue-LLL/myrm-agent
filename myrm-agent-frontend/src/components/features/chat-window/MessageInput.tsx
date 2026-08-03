@@ -63,7 +63,10 @@ import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
 import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
+import DirectoryApprovalInput from '../message-box/DirectoryApprovalInput';
+import SessionAccessRootsBar from './SessionAccessRootsBar';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
+import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -136,7 +139,12 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     () => findActivePendingClarification(messages),
     [messages],
   );
+  const pendingDirectoryRequest = React.useMemo(
+    () => findActivePendingDirectoryRequest(messages),
+    [messages],
+  );
   const isComposerClarifyMode = pendingClarification !== null;
+  const isComposerDirectoryMode = pendingDirectoryRequest !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
   const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
 
@@ -421,6 +429,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               onClose={inputHistory.close}
             />
             <QuoteCard />
+            <SessionAccessRootsBar />
             {isComposerClarifyMode && pendingClarification ? (
               <ClarificationInput
                 messageId={pendingClarification.messageId}
@@ -431,6 +440,13 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 title={pendingClarification.clarification.title}
                 form={pendingClarification.clarification.form}
                 variant="composer"
+              />
+            ) : isComposerDirectoryMode && pendingDirectoryRequest ? (
+              <DirectoryApprovalInput
+                messageId={pendingDirectoryRequest.messageId}
+                answered={pendingDirectoryRequest.directoryRequest.answered}
+                isResumeMode={pendingDirectoryRequest.directoryRequest.isResumeMode}
+                request={pendingDirectoryRequest.directoryRequest.request}
               />
             ) : (
               <>

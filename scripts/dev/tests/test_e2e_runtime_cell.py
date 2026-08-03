@@ -13,6 +13,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from e2e_runtime_cell import (  # noqa: E402
+    _cell_dir,
     allocate_runtime_cell,
     cell_hydrate_lock_path,
     current_cell_id,
@@ -47,8 +48,10 @@ def test_allocate_runtime_cell_idempotent() -> None:
 
 def test_release_runtime_cell_clears_env() -> None:
     cell = allocate_runtime_cell(run_id="run-d")
+    cell_path = _cell_dir(cell.cell_id)
     release_runtime_cell(cell.cell_id)
     assert current_cell_id() == ""
+    assert not cell_path.exists()
 
 
 def test_runtime_cell_snapshot() -> None:

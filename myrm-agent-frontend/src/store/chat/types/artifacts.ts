@@ -48,6 +48,7 @@ export interface Artifact {
   language?: string; // 编程语言（代码类型）
   created_at?: string; // 创建时间
   file_path?: string; // 本地文件路径（仅本地模式）
+  short_file_id?: string; // harness @file_NNN alias for deliverable links
   // 版本历史
   versions?: ArtifactVersion[]; // 版本历史列表
   currentVersionIndex?: number; // 当前版本索引（默认为最新版本）

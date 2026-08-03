@@ -27,6 +27,7 @@ def _extend_default_tools(*extra: str) -> tuple[str, ...]:
 
 
 _TOOL_MINIMAL: tuple[str, ...] = DEFAULT_ENABLED_BUILTIN_TOOLS
+_TOOL_COWORK: tuple[str, ...] = _extend_default_tools("kanban")
 _TOOL_DEFAULT: tuple[str, ...] = _extend_default_tools("external_cli")
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
 _TOOL_RESEARCH: tuple[str, ...] = _extend_default_tools("answer_tool")
@@ -52,4 +53,5 @@ class _BuiltInAgentSpec:
     prompt_mode: str = "full"
     engine_params: dict[str, object] | None = field(default=None, compare=False)
     memory_policy: dict[str, object] | None = field(default=None, compare=False)
+    memory_extraction_preset: str | None = None
     suggestion_prompts: tuple[str, ...] = ()

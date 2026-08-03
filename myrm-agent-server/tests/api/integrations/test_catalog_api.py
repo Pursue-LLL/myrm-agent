@@ -337,3 +337,18 @@ class TestCatalogDetailEndpoint:
         data = response.json()["data"]
         assert data["deploymentScope"] == "all_modes"
         assert data["mcpConfig"]["deploymentScope"] == "all_modes"
+
+    def test_hubspot_entry(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/hubspot")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "hubspot"
+        assert data["connectorType"] == "mcp"
+        assert data["authType"] == "api_key"
+
+    def test_salesforce_entry(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/salesforce")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "salesforce"
+        assert data["connectorType"] == "mcp"

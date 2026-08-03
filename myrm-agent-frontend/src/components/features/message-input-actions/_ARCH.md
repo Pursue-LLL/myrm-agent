@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ActiveWorkingMemoryPanel.tsx` | 组件 | 当前会话 working memory 预览 Popover | ✅ |
+| `ActiveWorkingMemoryPanel.tsx` | 组件 | 当前轮次工具触及文件的筹码预览；无 diff 时经 `openWorkspaceFileInPortal` 拉取内容 | ✅ |
 | `AgentIndicator.tsx` | 组件 | 输入区当前 Agent 头像/名称指示 | ✅ |
 | `ReadinessBadge.tsx` | 组件 | Per-agent readiness dot (amber/red) + tooltip with deep-link to Settings | ✅ |
 | `AgentToolsToggle.tsx` | 组件 | Agent 工具开关快捷切换 | ✅ |

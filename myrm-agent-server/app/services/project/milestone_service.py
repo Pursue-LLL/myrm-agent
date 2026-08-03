@@ -181,6 +181,70 @@ class MilestoneService:
             }
 
     @staticmethod
+    async def get_batch_progress(project_id: str) -> list[dict[str, object]]:
+        """批量获取项目下所有 active 里程碑的进度统计"""
+        async with get_session() as db:
+            milestones_stmt = (
+                select(Milestone)
+                .where(Milestone.project_id == project_id, Milestone.status == "active")
+                .order_by(Milestone.sort_order.asc())
+            )
+            milestones_result = await db.execute(milestones_stmt)
+            milestones = milestones_result.scalars().all()
+
+            if not milestones:
+                return []
+
+            milestone_ids = [m.id for m in milestones]
+            boards_stmt = select(KanbanBoardModel.id, KanbanBoardModel.milestone_id).where(
+                KanbanBoardModel.milestone_id.in_(milestone_ids)
+            )
+            boards_result = await db.execute(boards_stmt)
+            board_rows = boards_result.all()
+
+            milestone_board_ids: dict[str, list[str]] = {mid: [] for mid in milestone_ids}
+            for board_id, ms_id in board_rows:
+                milestone_board_ids[ms_id].append(board_id)
+
+            all_board_ids = [bid for bids in milestone_board_ids.values() for bid in bids]
+            task_counts: dict[str, tuple[int, int]] = {}
+            if all_board_ids:
+                total_stmt = (
+                    select(KanbanTaskModel.board_id, func.count(KanbanTaskModel.id))
+                    .where(KanbanTaskModel.board_id.in_(all_board_ids))
+                    .group_by(KanbanTaskModel.board_id)
+                )
+                total_result = await db.execute(total_stmt)
+                board_totals = {bid: cnt for bid, cnt in total_result.all()}
+
+                done_stmt = (
+                    select(KanbanTaskModel.board_id, func.count(KanbanTaskModel.id))
+                    .where(
+                        KanbanTaskModel.board_id.in_(all_board_ids),
+                        KanbanTaskModel.status == TaskStatus.COMPLETED.value,
+                    )
+                    .group_by(KanbanTaskModel.board_id)
+                )
+                done_result = await db.execute(done_stmt)
+                board_dones = {bid: cnt for bid, cnt in done_result.all()}
+
+                for bid in all_board_ids:
+                    task_counts[bid] = (board_totals.get(bid, 0), board_dones.get(bid, 0))
+
+            results: list[dict[str, object]] = []
+            for mid in milestone_ids:
+                total = sum(task_counts.get(bid, (0, 0))[0] for bid in milestone_board_ids[mid])
+                done = sum(task_counts.get(bid, (0, 0))[1] for bid in milestone_board_ids[mid])
+                progress = (done / total * 100) if total > 0 else 0.0
+                results.append({
+                    "milestoneId": mid,
+                    "totalTasks": total,
+                    "completedTasks": done,
+                    "progress": round(progress, 1),
+                })
+            return results
+
+    @staticmethod
     async def get_project_roadmap_summary(project_id: str) -> dict[str, object]:
         """生成项目路线图摘要，用于 Agent context injection"""
         async with get_session() as db:

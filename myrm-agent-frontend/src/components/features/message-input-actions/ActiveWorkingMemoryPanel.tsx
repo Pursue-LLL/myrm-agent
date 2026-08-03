@@ -11,12 +11,12 @@
  */
 import React, { useMemo } from 'react';
 import useChatStore from '@/store/useChatStore';
-import useArtifactPortalStore, { ArtifactErrorType } from '@/store/useArtifactPortalStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { FileIconSVG } from './FileIconSVG';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useTranslations } from 'next-intl';
 import type { Artifact } from '@/store/chat/types';
-import { fetchWithTimeout } from '@/lib/api';
+import { openWorkspaceFileInPortal } from '@/services/deliverable/openWorkspaceFileInPortal';
 
 // 提取文件扩展名
 const getExtension = (filename: string) => {
@@ -125,13 +125,9 @@ export default function ActiveWorkingMemoryPanel() {
   const isGenerating = useChatStore((s) => s.loading);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
   const chatId = useChatStore((s) => s.chatId);
-  const setWorkspaceDirStore = useChatStore((s) => s.setWorkspaceDir);
 
   const openArtifact = useArtifactPortalStore((s) => s.openArtifact);
   const setCachedContent = useArtifactPortalStore((s) => s.setCachedContent);
-  const setContent = useArtifactPortalStore((s) => s.setContent);
-  const setContentLoading = useArtifactPortalStore((s) => s.setContentLoading);
-  const setError = useArtifactPortalStore((s) => s.setError);
 
   // 只在生成中，或者最后一条消息是 assistant 时显示
   const lastMessage = messages[messages.length - 1];
@@ -259,21 +255,7 @@ export default function ActiveWorkingMemoryPanel() {
       return;
     }
 
-    let dir = workspaceDir;
-    if (!dir && chatId) {
-      try {
-        const { getChatDetail } = await import('@/services/chat');
-        const detail = await getChatDetail(chatId, true);
-        const w = detail.chat.workspace_dir;
-        if (typeof w === 'string' && w.trim().length > 0) {
-          dir = w.trim();
-          setWorkspaceDirStore(dir);
-        }
-      } catch {
-        /* non-fatal: /files/browse/content can still resolve workspace via chat_id */
-      }
-    }
-    if (!dir && !chatId) return;
+    if (!workspaceDir && !chatId) return;
 
     const artifactId = `mem-${file.path}`;
     const artifact: Artifact = {
@@ -287,48 +269,18 @@ export default function ActiveWorkingMemoryPanel() {
       language: file.extension,
     };
 
-    openArtifact(artifact, { lineRange: file.lineRange });
-    setContentLoading(true);
-
-    try {
-      const qp = new URLSearchParams();
-      qp.set('path', file.path);
-      if (dir) {
-        qp.set('workspace', dir);
-      }
-      if (chatId) {
-        qp.set('chat_id', chatId);
-      }
-      const res = await fetchWithTimeout(`/files/browse/content?${qp.toString()}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          // 处理幽灵文件 (Ghost File)
-          setContent(`// 👻 ${t('ghostFile', { defaultMessage: 'This file was deleted or moved by the AI.' })}`);
-          return;
-        }
-        throw new Error(`Failed to fetch content: ${res.status}`);
-      }
-
-      const isTruncated = res.headers.get('X-Content-Truncated') === 'true';
-      let content = await res.text();
-
-      if (isTruncated) {
-        content =
-          `/* [Warning] ${t('fileTooLarge', { defaultMessage: 'File is too large, showing the first 1MB.' })} */\n\n` +
-          content;
-      }
-
-      setContent(content);
-    } catch (err) {
-      setError({
-        type: ArtifactErrorType.Unknown,
-        messageKey: 'errors.unknown',
-        details: err instanceof Error ? err.message : 'Unknown error',
-        retryable: false,
-      });
-    } finally {
-      setContentLoading(false);
-    }
+    await openWorkspaceFileInPortal({
+      artifact,
+      browsePath: file.path,
+      chatId,
+      workspaceDir: workspaceDir ?? undefined,
+      portalOpenOptions: { lineRange: file.lineRange },
+      formatTruncated: (content) =>
+        `/* [Warning] ${t('fileTooLarge', { defaultMessage: 'File is too large, showing the first 1MB.' })} */\n\n${content}`,
+      formatNotFound: () =>
+        `// 👻 ${t('ghostFile', { defaultMessage: 'This file was deleted or moved by the AI.' })}`,
+      onMissingContext: () => undefined,
+    });
   };
 
   if (!shouldShow || activeFiles.length === 0) {

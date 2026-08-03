@@ -2,7 +2,7 @@
 
 import React, { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { resolveThemeVars } from '@/lib/widget-theme-bridge';
+import { subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -72,25 +72,15 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
     return () => { cancelled = true; };
   }, [view.resourceUri, view.serverName]);
 
-  // Theme bridge
+  // Theme bridge: sync when host Theme Profile preset or color scheme changes
   useEffect(() => {
-    themeVarsRef.current = resolveThemeVars();
-
-    const observer = new MutationObserver(() => {
-      const newVars = resolveThemeVars();
+    return subscribeHostThemeVars((newVars) => {
       themeVarsRef.current = newVars;
       iframeRef.current?.contentWindow?.postMessage(
         { type: 'hostcontextchanged', context: { theme: newVars } },
         '*',
       );
     });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => observer.disconnect();
   }, []);
 
   // Send structuredContent to the embedded app after iframe loads

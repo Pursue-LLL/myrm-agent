@@ -7,6 +7,7 @@ import logging
 import uuid
 from collections.abc import AsyncGenerator
 
+from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
@@ -53,6 +54,7 @@ from app.services.agent.streaming_support.sse_helpers import (
     error_sse,
     schedule_approval_timeout,
     schedule_clarification_timeout,
+    schedule_directory_timeout,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,25 @@ async def _mark_pending_clarification_answered(chat_id: str) -> None:
         return
 
 
+async def _mark_pending_directory_request_answered(chat_id: str) -> None:
+    """Mark the latest assistant directoryRequest as answered after resume."""
+    from app.services.chat.chat_service import ChatService
+
+    messages = await ChatService.get_all_messages(chat_id)
+    for message in reversed(messages):
+        if message.role != "assistant":
+            continue
+        extra_data = dict(message.extra_data or {})
+        directory_request = extra_data.get("directoryRequest")
+        if not isinstance(directory_request, dict):
+            continue
+        if directory_request.get("answered") is True:
+            continue
+        extra_data["directoryRequest"] = {**directory_request, "answered": True}
+        await ChatService.update_message_extra_data(message.id, extra_data)
+        return
+
+
 def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool:
     extra = session.collector.extra_data
     if not isinstance(extra, dict):
@@ -89,6 +110,27 @@ def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool
     if not isinstance(clarification, dict):
         return False
     return clarification.get("answered") is False
+
+
+def _collector_has_unanswered_directory_request(session: AgentStreamSession) -> bool:
+    extra = session.collector.extra_data
+    if not isinstance(extra, dict):
+        return False
+    directory_request = extra.get("directoryRequest")
+    if not isinstance(directory_request, dict):
+        return False
+    return directory_request.get("answered") is False
+
+
+def _directory_timeout_needed(
+    session: AgentStreamSession,
+    clarification: ClarificationTimeoutHolder,
+) -> bool:
+    if clarification.directory_pending:
+        return True
+    if session.request.chat_id is None:
+        return False
+    return _collector_has_unanswered_directory_request(session)
 
 
 def _clarification_timeout_needed(
@@ -230,6 +272,26 @@ async def yield_stream_exception_chunks(
             "status_code": 409,
         }
         yield SSEEnvelope.from_any(busy_event).to_sse_chunk()
+    elif isinstance(exc, ConfigIncompleteError):
+        session.had_fatal_error = True
+        lang = session.params.locale or "en"
+        user_message = exc.user_friendly_message.get(lang) or exc.user_friendly_message.get(
+            "en", str(exc)
+        )
+        error_data = {
+            "type": "error",
+            "data": user_message,
+            "messageId": session.params.message_id or str(uuid.uuid4()),
+            "metadata": {
+                "error_type": exc.error_code,
+                "resolution_steps": exc.resolution_steps,
+            },
+        }
+        yield SSEEnvelope.from_any(error_data).to_sse_chunk()
+        await _record_turn_capability_failed_once(
+            session,
+            classify_turn_capability_failure_reason(exc),
+        )
     elif isinstance(exc, MyrmLLMError):
         session.had_fatal_error = True
         logger.error("Agent LLM error: %s", exc)
@@ -383,10 +445,12 @@ async def finalize_agent_stream_session(
         )
         if resume_completed or collector_clarification_answered:
             await _mark_pending_clarification_answered(session.request.chat_id)
+            await _mark_pending_directory_request_answered(session.request.chat_id)
 
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
+    directory_sched_needed = _directory_timeout_needed(session, clarification)
 
-    if approval.value and session.request.chat_id and not clarification_sched_needed:
+    if approval.value and session.request.chat_id and not clarification_sched_needed and not directory_sched_needed:
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,
@@ -395,6 +459,11 @@ async def finalize_agent_stream_session(
 
     if clarification_sched_needed and session.request.chat_id:
         schedule_clarification_timeout(
+            chat_id=session.request.chat_id,
+            params=session.params,
+        )
+    elif directory_sched_needed and session.request.chat_id:
+        schedule_directory_timeout(
             chat_id=session.request.chat_id,
             params=session.params,
         )

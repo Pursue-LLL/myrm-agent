@@ -190,7 +190,7 @@ describe('approvalAlertService', () => {
     it('single request shows tool name and remaining seconds', () => {
       notifyIdleApproval([makeRequest({ toolName: 'shell_tool', reason: 'Execute rm -rf' })]);
       expect(mockNotificationInstances[0].body).toContain('Execute rm -rf');
-      expect(mockNotificationInstances[0].body).toMatch(/\u5269\u4f59 \d+ \u79d2/);
+      expect(mockNotificationInstances[0].body).toMatch(/remaining \d+s/);
     });
 
     it('multiple requests shows count and tool names', () => {
@@ -205,18 +205,15 @@ describe('approvalAlertService', () => {
   });
 
   describe('notification click handler', () => {
-    it('focuses window and dispatches custom event on click', () => {
+    it('focuses window and closes notification on click', () => {
       const focusSpy = vi.spyOn(window, 'focus').mockImplementation(() => {});
-      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
       notifyIdleApproval([makeRequest({ requestId: 'click-test' })]);
       const notification = mockNotificationInstances[0];
       notification.onclick?.();
 
       expect(focusSpy).toHaveBeenCalled();
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'approval-notification-clicked' }),
-      );
+      expect(notification.close).toHaveBeenCalled();
     });
   });
 

@@ -119,17 +119,28 @@ class BrowserOrchestratorClient:
         return {"ok": bool(result.get("ok", False))}
 
     def evaluate_page(
-        self, session_id: str, target_id: str, expression: str
+        self,
+        session_id: str,
+        target_id: str,
+        expression: str,
+        *,
+        timeout_sec: float | None = None,
     ) -> dict[str, object]:
         """Evaluate JavaScript in an owned page."""
-        result = self._request(
-            "page/evaluate",
-            {
-                "sessionId": session_id,
-                "targetId": target_id,
-                "expression": expression,
-            },
-        )
+        prior_timeout = self._timeout_sec
+        if timeout_sec is not None:
+            self._timeout_sec = timeout_sec
+        try:
+            result = self._request(
+                "page/evaluate",
+                {
+                    "sessionId": session_id,
+                    "targetId": target_id,
+                    "expression": expression,
+                },
+            )
+        finally:
+            self._timeout_sec = prior_timeout
         return {"value": result.get("value")}
 
     def cleanup_seal(self, session_id: str) -> CleanupSealResult | None:

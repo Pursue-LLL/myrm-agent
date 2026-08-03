@@ -351,6 +351,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             avatarUrl: agent.avatar_url,
             suggestionPrompts: agent.suggestion_prompts || undefined,
             memoryDecayProfile: agent.memory_decay_profile || 'normal',
+            memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
             browserSource: agent.browser_source || undefined,
           };
           setAgentConfig(config);

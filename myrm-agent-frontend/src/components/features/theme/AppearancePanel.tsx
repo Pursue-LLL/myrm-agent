@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ImageIcon, Loader2, Package, Trash2, Upload } from 'lucide-react';
+import { ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import useConfigStore from '@/store/useConfigStore';
 import ThemeProfilePicker from '@/components/features/theme/shared/ThemeProfilePicker';
+import ThemePackageImportSection from '@/components/features/theme/shared/ThemePackageImportSection';
 import {
   ART_WASH_MAX,
   ART_WASH_MIN,
@@ -31,15 +32,20 @@ import {
   uploadThemeBackground,
 } from '@/services/theme-assets/uploadThemeBackground';
 import { VideoPosterExtractionError } from '@/services/theme-assets/extractVideoPoster';
-import { inspectThemePackage } from '@/services/theme-packages/inspectThemePackage';
-import { installThemePackage } from '@/services/theme-packages/installThemePackage';
 import {
-  downloadThemePackageBlob,
-  exportThemePackage,
-} from '@/services/theme-packages/exportThemePackage';
-import ThemePackageImportPreview from './ThemePackageImportPreview';
-import type { ThemePackageInspectResult } from '@/services/theme-packages/inspectThemePackage';
-import useThemePackagePendingStore from '@/store/useThemePackagePendingStore';
+  executeOfficialThemeRestore,
+  shouldConfirmOfficialThemeRestore,
+} from '@/components/features/theme/restoreOfficialTheme';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 
 const ACCEPTED_BACKGROUND_TYPES =
   'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
@@ -55,13 +61,8 @@ const AppearancePanel = ({ className }: { className?: string }) => {
   const tMenu = useTranslations('settings.menu');
   const tFonts = useTranslations('settings.fontOptions');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const packageInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [packageBusy, setPackageBusy] = useState(false);
-  const [packagePreviewOpen, setPackagePreviewOpen] = useState(false);
-  const [packageInspect, setPackageInspect] = useState<ThemePackageInspectResult | null>(null);
-  const pendingPackageFile = useThemePackagePendingStore((state) => state.pendingFile);
-  const clearPendingPackageFile = useThemePackagePendingStore((state) => state.clearPendingFile);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
 
   const activeThemeProfileId = useConfigStore(
     (s) => s.personalSettings?.activeThemeProfileId ?? OFFICIAL_DEFAULT_PROFILE_ID,
@@ -86,37 +87,6 @@ const AppearancePanel = ({ className }: { className?: string }) => {
   useEffect(() => {
     setWashDraft(persistedWash);
   }, [persistedWash]);
-
-  useEffect(() => {
-    if (!pendingPackageFile) {
-      return;
-    }
-    let cancelled = false;
-    const run = async () => {
-      setPackageBusy(true);
-      try {
-        const inspect = await inspectThemePackage(pendingPackageFile);
-        if (cancelled) {
-          return;
-        }
-        setPackageInspect(inspect);
-        setPackagePreviewOpen(true);
-      } catch (error) {
-        if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : t('packageImportFailed'));
-        }
-      } finally {
-        if (!cancelled) {
-          setPackageBusy(false);
-          clearPendingPackageFile();
-        }
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [clearPendingPackageFile, pendingPackageFile, t]);
 
   const activeFontId = useConfigStore(
     (s) => s.personalSettings?.themeFontOverride ?? activeProfile.fontId,
@@ -143,12 +113,21 @@ const AppearancePanel = ({ className }: { className?: string }) => {
   );
 
   const handleRestoreDefault = useCallback(async () => {
-    await updatePersonalSettings({
-      activeThemeProfileId: OFFICIAL_DEFAULT_PROFILE_ID,
-      themeProfiles: [],
-      themeFontOverride: undefined,
-    });
-  }, [updatePersonalSettings]);
+    try {
+      await executeOfficialThemeRestore();
+      toast.success(t('restoreSuccess'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('restoreFailed'));
+    }
+  }, [t]);
+
+  const handleRestoreClick = useCallback(() => {
+    if (shouldConfirmOfficialThemeRestore()) {
+      setRestoreConfirmOpen(true);
+      return;
+    }
+    void handleRestoreDefault();
+  }, [handleRestoreDefault]);
 
   const handleClearBackground = useCallback(async () => {
     await updatePersonalSettings({
@@ -216,73 +195,6 @@ const AppearancePanel = ({ className }: { className?: string }) => {
     }
     return activeProfile;
   }, [activeProfile, artOverlay]);
-
-  const handleExportPackage = useCallback(async () => {
-    setPackageBusy(true);
-    try {
-      const blob = await exportThemePackage(buildExportProfile());
-      const safeName = activeProfile.name.replace(/[^\w\-]+/g, '-').slice(0, 48) || 'workspace-theme';
-      downloadThemePackageBlob(blob, `${safeName}.myrmtheme`);
-      toast.success(t('packageExportSuccess'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('packageExportFailed'));
-    } finally {
-      setPackageBusy(false);
-    }
-  }, [activeProfile.name, buildExportProfile, t]);
-
-  const handlePackageSelected = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = '';
-      if (!file) return;
-      setPackageBusy(true);
-      try {
-        const inspect = await inspectThemePackage(file);
-        setPackageInspect(inspect);
-        setPackagePreviewOpen(true);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : t('packageImportFailed'));
-      } finally {
-        setPackageBusy(false);
-      }
-    },
-    [t],
-  );
-
-  const handleConfirmPackageImport = useCallback(async () => {
-    if (!packageInspect) return;
-    setPackageBusy(true);
-    try {
-      const existingIds = [
-        ...BUILTIN_THEME_PROFILES.map((p) => p.id),
-        ...themeProfiles.map((p) => p.id),
-      ];
-      const { profile, setActive } = await installThemePackage({
-        sessionId: packageInspect.sessionId,
-        setActive: true,
-        existingProfileIds: existingIds,
-      });
-      const withoutImported = themeProfiles.filter((p) => !p.id.startsWith('imported/'));
-      const cleaned = stripArtOverlay(withoutImported);
-      await updatePersonalSettings({
-        themeProfiles: [...cleaned, profile],
-        ...(setActive
-          ? {
-              activeThemeProfileId: profile.id,
-              themeFontOverride: profile.fontId,
-            }
-          : {}),
-      });
-      setPackagePreviewOpen(false);
-      setPackageInspect(null);
-      toast.success(t('packageImportSuccess'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('packageImportFailed'));
-    } finally {
-      setPackageBusy(false);
-    }
-  }, [packageInspect, t, themeProfiles, updatePersonalSettings]);
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
@@ -388,7 +300,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
       </div>
       <button
         type="button"
-        onClick={handleRestoreDefault}
+        onClick={handleRestoreClick}
         className="self-start text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
       >
         {t('restoreDefault')}
@@ -401,60 +313,32 @@ const AppearancePanel = ({ className }: { className?: string }) => {
         {tMenu('themeStudio')}
       </Link>
 
-      <div className="border-t border-border pt-4 space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">{t('packageSection')}</p>
-        <p className="text-xs text-muted-foreground/80">{t('packageSectionDesc')}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={packageInputRef}
-            type="file"
-            accept=".myrmtheme,application/zip"
-            className="hidden"
-            onChange={handlePackageSelected}
-          />
-          <button
-            type="button"
-            disabled={packageBusy || uploading}
-            onClick={() => packageInputRef.current?.click()}
-            className={cn(
-              'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all',
-              'border-border bg-secondary/40 text-muted-foreground hover:text-foreground',
-              packageBusy && 'opacity-60 pointer-events-none',
-            )}
-          >
-            {packageBusy ? (
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            ) : (
-              <Package className="w-4 h-4" aria-hidden />
-            )}
-            {t('packageImport')}
-          </button>
-          <button
-            type="button"
-            disabled={packageBusy || uploading}
-            onClick={() => void handleExportPackage()}
-            className={cn(
-              'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all',
-              'border-border bg-secondary/40 text-muted-foreground hover:text-foreground',
-              packageBusy && 'opacity-60 pointer-events-none',
-            )}
-          >
-            <Upload className="w-4 h-4" aria-hidden />
-            {t('packageExport')}
-          </button>
-        </div>
-      </div>
-
-      <ThemePackageImportPreview
-        open={packagePreviewOpen}
-        inspect={packageInspect}
-        busy={packageBusy}
-        onClose={() => {
-          setPackagePreviewOpen(false);
-          setPackageInspect(null);
-        }}
-        onConfirm={() => void handleConfirmPackageImport()}
+      <ThemePackageImportSection
+        className="border-t border-border pt-4"
+        disabled={uploading}
+        exportProfile={buildExportProfile()}
+        stripOverlayOnImport
       />
+
+      <AlertDialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('restoreConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('restoreConfirmDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('restoreCancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setRestoreConfirmOpen(false);
+                void handleRestoreDefault();
+              }}
+            >
+              {t('restoreConfirmAction')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

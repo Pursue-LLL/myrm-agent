@@ -1,8 +1,10 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
 
 import {
   resolveCompanionBubbleTone,
   resolveCompanionRarityVisual,
+  useCompanionThemeEpoch,
 } from '@/services/companion/companionTheme';
 
 describe('companionTheme', () => {
@@ -11,6 +13,12 @@ describe('companionTheme', () => {
     document.documentElement.style.setProperty('--primary-hover', '#4a7d84');
     document.documentElement.style.setProperty('--accent-warm', '#e07830');
     document.documentElement.style.setProperty('--destructive', '#dc2626');
+  });
+
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-myrm-theme-profile');
+    document.documentElement.removeAttribute('style');
+    document.documentElement.classList.remove('dark');
   });
 
   it('returns empty glow for Common rarity', () => {
@@ -55,5 +63,17 @@ describe('companionTheme', () => {
   it('maps bubble error tone to destructive', () => {
     const tone = resolveCompanionBubbleTone('error');
     expect(tone.borderColor).toContain('#dc2626');
+  });
+
+  it('useCompanionThemeEpoch bumps when inline theme CSS vars change', async () => {
+    const { result } = renderHook(() => useCompanionThemeEpoch());
+
+    expect(result.current).toBe(1);
+
+    document.documentElement.style.setProperty('--primary', '#112233');
+
+    await waitFor(() => {
+      expect(result.current).toBeGreaterThan(1);
+    });
   });
 });

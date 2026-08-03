@@ -7,7 +7,7 @@
 1. **SVG/Emoji 层**（默认）：基于 CompanionIcons 的 15 物种 + 9 帽子 SVG 渲染，随智能体切换联动，嵌入输入框旁。
 2. **Sprite 层**（可选）：Canvas 2D 精灵图渲染引擎，支持 Codex 标准 8×9 SpriteSheet（1536×1872px），以可拖拽悬浮窗形式显示在屏幕上。Tauri 桌面端支持嵌入层 + 透明置顶外置窗（`/pet-overlay`）。
 
-状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage；sprite 配置（`petSlug` + SHA256）同步至服务端。Accent 色跟随 workspace Theme Profile CSS token（`services/companion/companionTheme.ts`）。
+状态由 Zustand store (`useCompanionStore`) 管理，持久化至 localStorage；sprite 配置（`petSlug` + SHA256）同步至服务端。Accent 色跟随 workspace Theme Profile CSS token（`services/companion/companionTheme.ts` → `subscribeHostThemeVars`）。
 
 ## 文件清单
 

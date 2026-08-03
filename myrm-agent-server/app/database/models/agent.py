@@ -61,6 +61,7 @@ class Agent(Base):
     suggestion_prompts: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     memory_decay_profile: Mapped[str] = mapped_column(String(32), default="normal", nullable=False)
+    memory_extraction_preset: Mapped[str] = mapped_column(String(32), default="auto", nullable=False)
     max_iterations: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     workspace_policy: Mapped[str] = mapped_column(String(50), default="INHERIT_REQUESTER", nullable=False)

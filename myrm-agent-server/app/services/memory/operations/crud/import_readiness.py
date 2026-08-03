@@ -10,7 +10,7 @@ build_import_readiness: aggregate post-import facts into a readiness contract (s
 resolve_readiness_issue_action / pick_primary_readiness_issue / resolve_migration_readiness_gap_message: issue SSOT for stream preflight and settings deep links.
 
 [POS]
-记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP 与规则跳过事实归并为可执行门禁状态。
+记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP、规则跳过与 Hermes 迁移 feature gate 事实归并为可执行门禁状态。
 """
 
 from __future__ import annotations
@@ -44,6 +44,8 @@ _READINESS_ISSUE_ACTIONS: dict[str, ReadinessIssueAction] = {
     "workspace_rules_skipped": ReadinessIssueAction(
         settings_path="/settings/memory?sub=migration"
     ),
+    "voice_feature_disabled": ReadinessIssueAction(settings_path="/settings/voice"),
+    "consensus_feature_disabled": ReadinessIssueAction(settings_path="/settings/agents"),
 }
 
 
@@ -115,6 +117,18 @@ def resolve_migration_readiness_gap_message(
             if is_zh
             else "Some workspace rules were skipped during migration. Review migration settings."
         )
+    if issue_code == "voice_feature_disabled":
+        return (
+            "迁移助手可启用语音交互，建议前往语音设置开启后再继续使用。"
+            if is_zh
+            else "Voice interaction is available — open Voice settings to enable speech input and output."
+        )
+    if issue_code == "consensus_feature_disabled":
+        return (
+            "多模型合议能力可在智能体设置中开启，以获得更高质量回答。"
+            if is_zh
+            else "Multi-model consensus is available — enable it in Agent settings for higher-quality answers."
+        )
     if status == "critical":
         return (
             "迁移助手尚未就绪，请先完成设置中的必要配置。"
@@ -128,6 +142,12 @@ def resolve_migration_readiness_gap_message(
     )
 
 
+def _migration_feature_enabled(feature_id: str) -> bool:
+    from myrm_agent_harness.core.features import get_features
+
+    return get_features().enabled(feature_id)
+
+
 def build_import_readiness(
     *,
     providers_configured: bool | None,
@@ -136,6 +156,7 @@ def build_import_readiness(
     diagnostic_failed_count: int,
     mcp_config_count: int,
     workspace_rules_skipped: int,
+    migration_competitor: str | None = None,
 ) -> MemoryImportReadiness:
     issues: list[MemoryImportReadinessIssue] = []
 
@@ -181,6 +202,23 @@ def build_import_readiness(
                 params={"count": workspace_rules_skipped},
             )
         )
+
+    competitor = (migration_competitor or "").strip().lower()
+    if competitor == "hermes":
+        if not _migration_feature_enabled("voice_interaction"):
+            issues.append(
+                build_readiness_issue(
+                    code="voice_feature_disabled",
+                    severity="warning",
+                )
+            )
+        if not _migration_feature_enabled("consensus"):
+            issues.append(
+                build_readiness_issue(
+                    code="consensus_feature_disabled",
+                    severity="warning",
+                )
+            )
 
     if any(issue.severity == "critical" for issue in issues):
         status = "critical"

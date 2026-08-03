@@ -29,6 +29,11 @@ import { useTranslations } from 'next-intl';
 import { Check, X, Loader2, Terminal, FileCode, Search, Globe } from 'lucide-react';
 import { ToolCallInfo } from '@/store/chat/types';
 import { cn } from '@/lib/utils/classnameUtils';
+import { humanizeApprovalTitle } from '@/lib/humanize';
+import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
+import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
+import PtcHintBadges from '@/components/approval/PtcHintBadges';
+import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 
 interface ToolCallApprovalProps {
   toolCalls: ToolCallInfo[];
@@ -56,33 +61,33 @@ const getToolIcon = (toolName: string) => {
 };
 
 /** 状态颜色映射 */
-const getStatusBadge = (status: ToolCallInfo['status']) => {
+function getStatusBadge(status: ToolCallInfo['status'], label: string) {
   const baseClasses = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium';
   switch (status) {
     case 'pending':
       return (
         <span className={cn(baseClasses, 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300')}>
-          待审批
+          {label}
         </span>
       );
     case 'approved':
       return (
         <span className={cn(baseClasses, 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300')}>
-          已批准
+          {label}
         </span>
       );
     case 'rejected':
       return (
-        <span className={cn(baseClasses, 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300')}>已拒绝</span>
+        <span className={cn(baseClasses, 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300')}>{label}</span>
       );
     case 'completed':
       return (
         <span className={cn(baseClasses, 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300')}>
-          已完成
+          {label}
         </span>
       );
   }
-};
+}
 
 /** 单个工具调用项 */
 const ToolCallItem: React.FC<{
@@ -92,7 +97,10 @@ const ToolCallItem: React.FC<{
 }> = ({ toolCall, onApprove, onReject }) => {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null);
   const t = useTranslations('toolApproval');
+  const tHumanize = useTranslations('humanize');
   const Icon = getToolIcon(toolCall.toolName);
+  const displayTitle = humanizeApprovalTitle(toolCall.toolName, toolCall.arguments, tHumanize);
+  const isSaveSkill = isSaveSkillApproval(toolCall.toolName, toolCall.arguments);
   const isPending = toolCall.status === 'pending' && toolCall.requiresApproval;
 
   const handleApprove = async () => {
@@ -124,46 +132,25 @@ const ToolCallItem: React.FC<{
     >
       {/* 头部 */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{toolCall.toolName}</span>
+        <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400 shrink-0" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayTitle}</span>
           </div>
 
-          {toolCall.ptcAnnotations && (
-            <div className="flex items-center gap-1.5 ml-1">
-              {toolCall.ptcAnnotations.readOnlyHint && (
-                <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-                  title="This tool only reads data and does not modify state."
-                >
-                  <Check className="w-3 h-3 mr-1" />
-                  Read-Only
-                </span>
-              )}
-              {toolCall.ptcAnnotations.destructiveHint && (
-                <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-                  title="This tool makes destructive, irreversible changes."
-                >
-                  <Terminal className="w-3 h-3 mr-1" />
-                  Destructive
-                </span>
-              )}
-              {toolCall.ptcAnnotations.openWorldHint && (
-                <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                  title="This tool interacts with external systems or networks."
-                >
-                  <Globe className="w-3 h-3 mr-1" />
-                  Open World
-                </span>
-              )}
-            </div>
-          )}
+          {toolCall.ptcAnnotations ? (
+            <PtcHintBadges annotations={toolCall.ptcAnnotations} t={t} />
+          ) : null}
         </div>
-        {getStatusBadge(toolCall.status)}
+        {getStatusBadge(toolCall.status, t(`toolCallStatus.${toolCall.status}`))}
       </div>
+
+      <ApprovalScopeNoteLine
+        toolName={toolCall.toolName}
+        toolInput={toolCall.arguments}
+        tHumanize={tHumanize}
+        className="block mb-2"
+      />
 
       {/* 参数显示 */}
       {typeof toolCall.arguments.reason === 'string' && toolCall.arguments.reason.trim() && (
@@ -172,7 +159,7 @@ const ToolCallItem: React.FC<{
           {String(toolCall.arguments.reason).trim()}
         </div>
       )}
-      {Object.keys(toolCall.arguments).length > 0 && (
+      {Object.keys(toolCall.arguments).length > 0 && !isSaveSkill && (
         <div className="mb-3">
           <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto max-h-32 text-gray-700 dark:text-gray-300">
             {JSON.stringify(
@@ -185,6 +172,17 @@ const ToolCallItem: React.FC<{
           </pre>
         </div>
       )}
+      {isSaveSkill ? (
+        <div className="mb-3">
+          <SaveSkillApprovalPreview
+            toolInput={toolCall.arguments}
+            showFullInstructionsLabel={t('saveSkill.showFullInstructions')}
+            showLessLabel={t('saveSkill.showLess')}
+            showAllLinesLabel={t('saveSkill.showAllLines')}
+            footerText={t('saveSkill.footer')}
+          />
+        </div>
+      ) : null}
 
       {/* 操作按钮 */}
       {isPending && (
@@ -198,7 +196,7 @@ const ToolCallItem: React.FC<{
             )}
           >
             {loading === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            批准
+            {isSaveSkill ? t('saveSkill.approve') : t('approve')}
           </button>
           <button
             onClick={handleReject}
@@ -209,7 +207,7 @@ const ToolCallItem: React.FC<{
             )}
           >
             {loading === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-            拒绝
+            {isSaveSkill ? t('saveSkill.deny') : t('reject')}
           </button>
         </div>
       )}
@@ -219,6 +217,8 @@ const ToolCallItem: React.FC<{
 
 /** 工具调用批准组件 */
 const ToolCallApproval: React.FC<ToolCallApprovalProps> = ({ toolCalls, onApprove, onReject }) => {
+  const t = useTranslations('toolApproval');
+
   if (!toolCalls || toolCalls.length === 0) {
     return null;
   }
@@ -230,7 +230,7 @@ const ToolCallApproval: React.FC<ToolCallApprovalProps> = ({ toolCalls, onApprov
       {pendingCount > 0 && (
         <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>有 {pendingCount} 个工具调用等待审批</span>
+          <span>{t('toolCallPendingBanner', { count: pendingCount })}</span>
         </div>
       )}
       <div className="grid gap-3">

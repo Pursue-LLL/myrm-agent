@@ -130,7 +130,17 @@ class CdpChatTurn(CdpChatSubmit):
                         return last
                 try:
                     if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
-                        return last
+                        if is_live_send_turn_profile():
+                            bridge_turn = await self._bridge_turn_snapshot()
+                            if isinstance(bridge_turn, dict):
+                                ui_users = int(bridge_turn.get("userCount") or 0)
+                                ui_streaming = bridge_turn.get("isStreaming") is True
+                                if ui_users >= min_user_msgs or ui_streaming:
+                                    last["chatId"] = chat_id
+                                    last["okViaUiTurn"] = True
+                                    return last
+                        else:
+                            return last
                 except OSError:
                     pass
             await asyncio.sleep(0.75)

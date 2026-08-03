@@ -42,6 +42,7 @@ class ZeroCostMemoryExtension(AgentExtension):
         extractor_llm: BaseChatModel,
         *,
         deep_scan: bool = False,
+        memory_extraction_preset: str = "auto",
     ) -> None:
         self.enable_memory_auto_extraction = enable_memory_auto_extraction
         self.is_subagent = is_subagent
@@ -50,6 +51,7 @@ class ZeroCostMemoryExtension(AgentExtension):
         self.effective_chat_id = effective_chat_id
         self.extractor_llm = extractor_llm
         self.deep_scan = deep_scan
+        self.memory_extraction_preset = memory_extraction_preset
 
     @property
     def name(self) -> str:
@@ -75,7 +77,10 @@ class ZeroCostMemoryExtension(AgentExtension):
         from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractionConfig, MemoryExtractor
 
         llm_func = create_extraction_llm_func(self.extractor_llm)
-        config = ExtractionConfig(enable_task_digest=False)
+        config = ExtractionConfig(
+            enable_task_digest=False,
+            domain_preset=self.memory_extraction_preset,
+        )
         extractor = MemoryExtractor(config=config, llm_func=llm_func)
         memory_manager = self.memory_manager
         effective_chat_id = self.effective_chat_id

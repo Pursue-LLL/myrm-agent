@@ -59,6 +59,7 @@ export interface AgentConfig {
   suggestionPrompts?: string[];
   ephemeralSubagents?: Record<string, unknown>;
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
+  memoryExtractionPreset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   mcpToolSelections?: Record<string, string[]>;
   commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];
   routingConfig?: RoutingConfig | null;

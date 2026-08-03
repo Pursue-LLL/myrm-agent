@@ -68,6 +68,7 @@ async def build_channel_execution_agent(
     enabled_builtin_tools: list[str],
     auto_restore_domains: list[str],
     memory_decay_profile: str | None,
+    memory_extraction_preset: str | None = None,
 ) -> ChannelAgentBuildOutcome:
     from app.core.memory.proactive.settings import (
         resolve_conversation_search_enabled,
@@ -236,6 +237,7 @@ async def build_channel_execution_agent(
         agent_security_raw=agent_security_raw,
         memory_policy=(resolved_profile.memory_policy if resolved_profile else None),
         memory_decay_profile=memory_decay_profile,
+        memory_extraction_preset=memory_extraction_preset,
         engine_params=agent_engine_params,
         max_iterations=agent_max_iterations,
         channel_name=msg.channel,

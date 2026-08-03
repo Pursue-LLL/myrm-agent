@@ -39,6 +39,14 @@ import {
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import ShellCommandDisplay from './approval/ShellCommandDisplay';
 import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import {
+  classifyApprovalSurface,
+  humanizeApprovalTitle,
+} from '@/lib/humanize';
+import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
+import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
+import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
+import PtcHintBadges from '@/components/approval/PtcHintBadges';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -68,6 +76,7 @@ export default function SingleApprovalCard({
   compact = false,
 }: SingleApprovalCardProps) {
   const t = useTranslations('toolApproval');
+  const tHumanize = useTranslations('humanize');
   const [mode, setMode] = useState<DialogMode>('default');
   const [editedArgs, setEditedArgs] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
@@ -83,6 +92,7 @@ export default function SingleApprovalCard({
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
   const [guidance, setGuidance] = useState('');
   const [guidanceOpen, setGuidanceOpen] = useState(false);
+  const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
 
   const desktopViewData = useDesktopInspectorStore((s) => s.viewData);
   const browserViewData = useBrowserInspectorStore((s) => s.viewData);
@@ -165,6 +175,18 @@ export default function SingleApprovalCard({
     };
   }, [isBrowserSession, request.toolInput]);
 
+  const isSaveSkill = isSaveSkillApproval(request.toolName, request.toolInput);
+
+  const isCompactSurface = compact || classifyApprovalSurface(request.toolName) === 'compact';
+
+  const approvalTitle = useMemo(
+    () => humanizeApprovalTitle(request.toolName, request.toolInput, tHumanize),
+    [request.toolInput, request.toolName, tHumanize],
+  );
+
+  const hideCompactPayload =
+    isCompactSurface && !shellCommand && classifyApprovalSurface(request.toolName) === 'compact';
+
   const permissionTypeLabel =
     request.toolName === 'bash_code_execute_tool' || request.toolName === 'execute_code'
       ? t('permissionTypes.codeInterpreter')
@@ -213,9 +235,22 @@ export default function SingleApprovalCard({
 
   const guidanceExtra = guidance.trim() ? { guidance: guidance.trim() } : undefined;
 
+  const directoryGrantExtra =
+    request.pathGrantEligible && grantDirectoryAccess
+      ? {
+          grant_directory: true,
+          ...(request.pathGrantPath && { grant_directory_path: request.pathGrantPath }),
+          grant_directory_writable: request.pathGrantWritable ?? false,
+        }
+      : undefined;
+
   const handleApprove = useCallback(
-    async () => await onResolve(request.requestId, 'approve', guidanceExtra),
-    [request.requestId, onResolve, guidanceExtra],
+    async () =>
+      await onResolve(request.requestId, 'approve', {
+        ...guidanceExtra,
+        ...directoryGrantExtra,
+      }),
+    [request.requestId, onResolve, guidanceExtra, directoryGrantExtra],
   );
 
   const handleAlwaysAllow = useCallback(() => {
@@ -356,7 +391,7 @@ export default function SingleApprovalCard({
   }
 
   return (
-    <div className={`space-y-3 ${compact ? 'p-2' : 'rounded-lg border p-4'}`}>
+    <div className={`space-y-3 ${isCompactSurface ? 'p-2' : 'rounded-lg border p-4'}`}>
       {isBrowserSession && browserSessionInfo ? (
         <BrowserSessionView
           action={browserSessionInfo.action}
@@ -367,46 +402,24 @@ export default function SingleApprovalCard({
       ) : (
         <>
           <div className="flex items-center flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-muted-foreground" />
-              <Badge variant="secondary" className="font-mono text-xs">
-                {request.toolName}
-              </Badge>
-            </div>
-            {request.ptcAnnotations && (
-              <div className="flex items-center gap-1.5">
-                {request.ptcAnnotations.readOnlyHint && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] h-5 px-1.5 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
-                    title="This tool only reads data and does not modify state."
-                  >
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Read-Only
-                  </Badge>
-                )}
-                {request.ptcAnnotations.destructiveHint && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] h-5 px-1.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
-                    title="This tool makes destructive, irreversible changes."
-                  >
-                    <ShieldAlert className="w-3 h-3 mr-1" />
-                    Destructive
-                  </Badge>
-                )}
-                {request.ptcAnnotations.openWorldHint && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] h-5 px-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                    title="This tool interacts with external systems or networks."
-                  >
-                    <Globe className="w-3 h-3 mr-1" />
-                    Open World
-                  </Badge>
-                )}
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium truncate">{approvalTitle}</span>
               </div>
-            )}
+              <span
+                className="text-xs pl-6 break-words block"
+              >
+                <ApprovalScopeNoteLine
+                  toolName={request.toolName}
+                  toolInput={request.toolInput}
+                  tHumanize={tHumanize}
+                />
+              </span>
+            </div>
+            {request.ptcAnnotations ? (
+              <PtcHintBadges annotations={request.ptcAnnotations} t={t} />
+            ) : null}
           </div>
 
           {visualContext && !hideVisualHighlight && (
@@ -452,7 +465,15 @@ export default function SingleApprovalCard({
               plainExplanation={request.plainExplanation}
               workspaceRoot={request.workspaceRoot}
             />
-          ) : (
+          ) : isSaveSkill ? (
+            <SaveSkillApprovalPreview
+              toolInput={request.toolInput}
+              showFullInstructionsLabel={t('saveSkill.showFullInstructions')}
+              showLessLabel={t('saveSkill.showLess')}
+              showAllLinesLabel={t('saveSkill.showAllLines')}
+              footerText={t('saveSkill.footer')}
+            />
+          ) : hideCompactPayload ? null : (
             inputEntries.length > 0 && (
               <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 text-xs font-mono">
                 {JSON.stringify(Object.fromEntries(inputEntries), null, 2)}
@@ -532,17 +553,19 @@ export default function SingleApprovalCard({
           <>
             <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired}>
               <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              {t('approve')}
+              {isSaveSkill ? t('saveSkill.approve') : t('approve')}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => setMode('editing')} disabled={isLoading || isExpired}>
-              <Pencil className="mr-1 h-3.5 w-3.5" />
-              {t('edit')}
-            </Button>
+            {!isSaveSkill && (
+              <Button size="sm" variant="secondary" onClick={() => setMode('editing')} disabled={isLoading || isExpired}>
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                {t('edit')}
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setMode('rejecting')} disabled={isLoading}>
               <MessageSquareX className="mr-1 h-3.5 w-3.5" />
-              {t('reject')}
+              {isSaveSkill ? t('saveSkill.deny') : t('reject')}
             </Button>
-            {!request.hideAllowAlways && (
+            {!isSaveSkill && !request.hideAllowAlways && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -565,6 +588,18 @@ export default function SingleApprovalCard({
                 <Globe className="mr-1 h-3.5 w-3.5" />
                 {t('domain.allowDomain')}
               </Button>
+            )}
+            {request.pathGrantEligible && (
+              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={grantDirectoryAccess}
+                  onChange={(event) => setGrantDirectoryAccess(event.target.checked)}
+                  disabled={isLoading || isExpired}
+                  className="h-3.5 w-3.5 rounded border-border accent-primary"
+                />
+                <span title={t('grantDirectoryDesc')}>{t('grantDirectory')}</span>
+              </label>
             )}
           </>
         )}

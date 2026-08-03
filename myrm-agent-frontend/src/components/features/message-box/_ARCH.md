@@ -12,11 +12,15 @@
 | `ClarificationInput.tsx` | 组件 | 结构化澄清表单（多题/多选/开放题）；选项提交 `option.id`，展示 `label`；resume 与 legacy clarify API 双路径 | ✅ |
 | `ConsensusMetaDisplay.tsx` | 组件 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
+| `DirectoryApprovalInput.tsx` | 组件 | `request_directory_tool` HITL 卡片：路径输入 + Tauri 原生 picker / Web `DirectoryBrowsePopover` + grant/deny resume；grant 后 `refreshSessionAccessRoots`（optimistic） | ✅ |
+| `DirectoryBrowsePopover.tsx` | 组件 | Web/Local 目录浏览 Popover（server `browseDirectories` API）；最近路径 localStorage；供 directory grant 与 workspace 绑定复用同一 browse 模式 | ✅ |
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/focus/Pin CRUD/Fork 新话题） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（创建/更新摘要 + 内嵌 CronJobAuditPanel） | ✅ |
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
-| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；web_search citation 传递 siteName/authority/date 至 LinkPopover 展示来源权威性与时效性；KB citation 可点击打开 SourceChunkDrawer，并传递分层来源 level（L0/L1/L2）+ claim `snapshot_status` 三态 + `claim_status` + `claim_confidence` + `claim_text` + wiki asset `hit_kind/asset_filename` 缩略图 + `contextKey(chat:<messageId>)` 用于证据语义展示与复问口径隔离。 | ✅ |
+| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation）；KB citation → SourceChunkDrawer；非 streaming 时 inline `` `workspace/...` `` / `artifact:` → DeliverableReferenceLink。 | ✅ |
+| `DeliverableReferenceLink.tsx` | 组件 | 内联 deliverable 引用点击 → ArtifactPortal（`workspace/`、`artifact:`、`@file_NNN` via `short_file_id`） | ✅ |
+| `__tests__/DeliverableReferenceLink.test.tsx` | 测试 | `@file` short_file_id 打开 Portal + 未同步 disabled | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 统一依据 Sheet（记忆引用 + web/mcp/历史会话来源） | ✅ |
 | `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏（发送前 Memory Brief + 结束后 budget/citation + brief 降级可见提示）；`brief` 缺失时根据 `injection` 状态与 `not_applied` 原因映射可执行文案（已注入/未注入/工具模式/系统回退），并显式展示 `source=preflight/runtime_fallback` 语义；移动端额外渲染非 hover 的说明文案，避免触屏端诊断信息不可达 | ✅ |
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |

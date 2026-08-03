@@ -33,6 +33,7 @@ PersonalityStyleLiteral = Literal[
     "wenyan",
 ]
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
+MemoryExtractionPresetLiteral = Literal["none", "auto", "persona", "work_assistant", "research"]
 PromptModeLiteral = Literal["full", "lean", "naked", "search"]
 WorkspacePolicyLiteral = Literal[
     "INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"
@@ -93,6 +94,7 @@ class ChatDTO(BaseModel):
     ephemeral_subagents: dict[str, Any] | None = None
     session_loaded_skill_names: list[str] | None = None
     workspace_dir: str | None = None
+    session_access_roots: list[dict[str, object]] | None = None
     sandbox_base_dir: str | None = None
     project_id: str | None = None
     is_pinned: bool = False
@@ -263,6 +265,9 @@ class ChatDetail(BaseModel):
     workspace_dir: str | None = Field(None, description="Per-chat working directory")
     session_loaded_skill_names: list[str] | None = Field(
         None, description="会话级 Skill override 列表"
+    )
+    session_access_roots: list[dict[str, object]] | None = Field(
+        None, description="Session-scoped HITL directory grants (path, writable, source)"
     )
     total_calls: int = Field(0, description="Session total model calls")
     total_tokens: int = Field(0, description="Session total tokens")
@@ -515,6 +520,9 @@ class AgentBase(BaseModel):
     memory_decay_profile: MemoryDecayProfileLiteral = Field(
         default="normal", description="Memory forgetting decay speed"
     )
+    memory_extraction_preset: MemoryExtractionPresetLiteral = Field(
+        default="auto", description="Domain extraction preset for memory precision"
+    )
     agent_type: AgentTypeLiteral = Field(
         default="individual", description="Agent type: individual or team (leader)"
     )
@@ -632,6 +640,9 @@ class AgentUpdate(BaseModel):
     )
     memory_decay_profile: MemoryDecayProfileLiteral | None = Field(
         None, description="Memory forgetting decay speed"
+    )
+    memory_extraction_preset: MemoryExtractionPresetLiteral | None = Field(
+        None, description="Domain extraction preset for memory precision"
     )
     agent_type: AgentTypeLiteral | None = Field(
         None, description="Agent type: individual or team (leader)"

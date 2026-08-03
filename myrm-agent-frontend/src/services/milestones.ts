@@ -163,6 +163,13 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
   await apiRequest(`/projects/${projectId}/milestones/${milestoneId}`, { method: 'DELETE' });
 };
 
+export const getBatchProgress = async (projectId: string): Promise<MilestoneProgress[]> => {
+  const data = (await apiRequest(`/projects/${projectId}/milestones/batch-progress`)) as {
+    progress?: MilestoneProgress[];
+  };
+  return data.progress ?? [];
+};
+
 export const getMilestoneProgress = async (projectId: string, milestoneId: string): Promise<MilestoneProgress> => {
   const data = (await apiRequest(`/projects/${projectId}/milestones/${milestoneId}/progress`)) as {
     progress: MilestoneProgress;

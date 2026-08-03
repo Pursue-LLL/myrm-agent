@@ -109,6 +109,20 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
         rows.append({"key": "mcp", "status": "manual", "label": "mcp_manual"})
     rows.append({"key": "channels", "status": "manual", "label": "channels_manual"})
 
+    source = str(loaded_payload.get("_source", "")).strip().lower()
+    if source == "hermes":
+        rows.append({"key": "kanban", "status": "manual", "label": "kanban_not_migrated"})
+        cron_plan_raw = loaded_payload.get("hermes_cron_plan")
+        cron_importable = 0
+        if isinstance(cron_plan_raw, dict):
+            importable_raw = cron_plan_raw.get("importable")
+            if isinstance(importable_raw, list):
+                cron_importable = len(importable_raw)
+        if cron_importable > 0:
+            rows.append({"key": "cron", "status": "ready", "label": "cron_lane"})
+        else:
+            rows.append({"key": "cron", "status": "missing", "label": "cron_lane"})
+
     if loaded_payload.get("_load_error"):
         rows.append({"key": "load_error", "status": "missing", "label": "no_importable_data"})
     elif not rows:

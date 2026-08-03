@@ -12,6 +12,22 @@ from fastapi.testclient import TestClient
 PETSTORE_SPEC_URL = "https://petstore3.swagger.io/api/v3/openapi.json"
 
 
+def _petstore_spec_url_reachable() -> bool:
+    """True when Petstore spec loads via the same bridge fetch path as production."""
+    import asyncio
+
+    from myrm_agent_harness.toolkits.openapi_bridge.spec_parser import parse_spec_from_url
+
+    async def _probe() -> bool:
+        try:
+            await parse_spec_from_url(PETSTORE_SPEC_URL)
+        except Exception:
+            return False
+        return True
+
+    return asyncio.run(_probe())
+
+
 @pytest.fixture
 def client():
     """Create a test client with the OpenAPI services router mounted."""
@@ -48,6 +64,10 @@ class TestGetPresetsEndpoint:
 class TestParseSpecEndpoint:
     """Test POST /api/v1/agents/openapi-services/parse-spec"""
 
+    @pytest.mark.skipif(
+        not _petstore_spec_url_reachable(),
+        reason="Petstore spec URL unreachable (network/SSL) in this environment",
+    )
     def test_parse_spec_from_url(self, client: TestClient):
         """Parse real Petstore spec from URL."""
         response = client.post(
@@ -132,6 +152,10 @@ class TestParseSpecEndpoint:
 class TestTestRequestEndpoint:
     """Test POST /api/v1/agents/openapi-services/test-request"""
 
+    @pytest.mark.skipif(
+        not _petstore_spec_url_reachable(),
+        reason="Petstore spec URL unreachable (network/SSL) in this environment",
+    )
     def test_successful_request(self, client: TestClient):
         """Execute a real test request against Petstore API.
 
@@ -157,6 +181,10 @@ class TestTestRequestEndpoint:
         assert "Spec error" not in data["status_message"]
         assert "not found" not in data["status_message"]
 
+    @pytest.mark.skipif(
+        not _petstore_spec_url_reachable(),
+        reason="Petstore spec URL unreachable (network/SSL) in this environment",
+    )
     def test_nonexistent_endpoint(self, client: TestClient):
         """Should report error for missing operation_id."""
         response = client.post(

@@ -20,6 +20,8 @@ import SmartRoutingStep from './SmartRoutingStep';
 import SmartGuardStep from './SmartGuardStep';
 import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
 import SyncFolderOnboardingStep from './SyncFolderOnboardingStep';
+import ToolsConnectOnboardingStep from './ToolsConnectOnboardingStep';
+import ThemeOnboardingStep from './ThemeOnboardingStep';
 import { Button } from '@/components/primitives/button';
 import { getConfigSyncManager } from '@/services/config';
 import type { SecurityConfigValue } from '@/services/config/types';
@@ -28,7 +30,7 @@ interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'sync_folder' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'finishing';
+type Step = 'welcome' | 'migration' | 'capabilities' | 'tools_connect' | 'sync_folder' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'theme_pick' | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
 
@@ -115,20 +117,12 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep('migration');
       } else if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
         setStep('capabilities');
-      } else if (isLocalDeployment) {
-        setStep('sync_folder');
-      } else if (shouldShowRouting()) {
-        setStep('routing');
-      } else if (shouldShowSmartGuard()) {
-        setStep('smart_guard');
-      } else if (!telegramConfigured) {
-        setStep('telegram_assistant');
       } else {
-        handleFinish();
+        setStep('tools_connect');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured, shouldShowRouting, shouldShowSmartGuard, telegramConfigured]);
+  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured]);
 
   const handleFinish = useCallback(async () => {
     setStep('finishing');
@@ -141,6 +135,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     setTimeout(onComplete, 400);
   }, [onComplete]);
 
+  const advanceToThemePick = useCallback(() => {
+    setStep('theme_pick');
+  }, []);
+
   const moveToSmartGuardOrNext = useCallback(() => {
     if (shouldShowSmartGuard()) {
       setStep('smart_guard');
@@ -150,8 +148,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       setStep('telegram_assistant');
       return;
     }
-    handleFinish();
-  }, [handleFinish, shouldShowSmartGuard, telegramConfigured]);
+    advanceToThemePick();
+  }, [advanceToThemePick, shouldShowSmartGuard, telegramConfigured]);
 
   const handleRoutingCompleteOrSkip = useCallback(() => {
     moveToSmartGuardOrNext();
@@ -162,10 +160,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       setStep('telegram_assistant');
       return;
     }
-    handleFinish();
-  }, [handleFinish, telegramConfigured]);
+    advanceToThemePick();
+  }, [advanceToThemePick, telegramConfigured]);
 
   const handleCapabilitiesComplete = useCallback(() => {
+    setStep('tools_connect');
+  }, []);
+
+  const handleToolsConnectCompleteOrSkip = useCallback(() => {
     if (isLocalDeployment) {
       setStep('sync_folder');
       return;
@@ -188,14 +190,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const handleMigrationCompleteOrSkip = useCallback(() => {
     if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
       setStep('capabilities');
-    } else if (isLocalDeployment) {
-      setStep('sync_folder');
-    } else if (shouldShowRouting()) {
-      setStep('routing');
     } else {
-      moveToSmartGuardOrNext();
+      setStep('tools_connect');
     }
-  }, [isLocalDeployment, hasEnabledProvider, moveToSmartGuardOrNext, searchConfigured, shouldShowRouting]);
+  }, [isLocalDeployment, hasEnabledProvider, searchConfigured]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (
@@ -268,6 +266,21 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           </div>
         )}
 
+        {step === 'tools_connect' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.toolsConnect.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.toolsConnect.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <ToolsConnectOnboardingStep
+                onComplete={handleToolsConnectCompleteOrSkip}
+                onSkip={handleToolsConnectCompleteOrSkip}
+              />
+            </div>
+          </div>
+        )}
+
         {step === 'sync_folder' && (
           <div className="space-y-6">
             <div className="text-center space-y-2 mb-8">
@@ -315,9 +328,21 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </div>
             <div className="bg-card border rounded-xl p-6">
               <TelegramAssistantOnboardingStep
-                onComplete={handleFinish}
-                onSkip={handleFinish}
+                onComplete={advanceToThemePick}
+                onSkip={advanceToThemePick}
               />
+            </div>
+          </div>
+        )}
+
+        {step === 'theme_pick' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.themePick.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.themePick.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <ThemeOnboardingStep onComplete={() => void handleFinish()} onSkip={() => void handleFinish()} />
             </div>
           </div>
         )}

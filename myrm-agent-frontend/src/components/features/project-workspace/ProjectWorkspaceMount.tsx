@@ -23,33 +23,17 @@ import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { browseDirectories, type DirectoryEntry } from '@/services/chat';
 import { updateProject } from '@/services/projects';
+import {
+  getRecentDirectoryPaths,
+  PROJECT_WORKSPACE_RECENT_KEY,
+  rememberDirectoryPath,
+  shortenHomePath,
+} from '@/lib/directoryBrowseRecent';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriEnvironment } from '@/lib/tauri';
 
-const RECENT_PROJECT_DIRS_KEY = 'myrm.projectWorkspace.recent';
-const MAX_RECENT_DIRS = 5;
-
-function getRecentDirs(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(RECENT_PROJECT_DIRS_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_DIRS);
-  } catch {
-    return [];
-  }
-}
-
 function addRecentDir(dir: string): void {
-  const current = getRecentDirs().filter((d) => d !== dir);
-  const updated = [dir, ...current].slice(0, MAX_RECENT_DIRS);
-  localStorage.setItem(RECENT_PROJECT_DIRS_KEY, JSON.stringify(updated));
-}
-
-function shortenHome(path: string): string {
-  return path.replace(/^\/(?:Users|home)\/[^/]+/, '~').replace(/^[A-Za-z]:\\Users\\[^\\]+/, '~');
+  rememberDirectoryPath(PROJECT_WORKSPACE_RECENT_KEY, dir);
 }
 
 export interface ProjectWorkspaceMountProps {
@@ -168,7 +152,7 @@ export default function ProjectWorkspaceMount({
     setBrowseOpen(true);
   }, [handleTauriNativePicker]);
 
-  const recentDirs = getRecentDirs();
+  const recentDirs = getRecentDirectoryPaths(PROJECT_WORKSPACE_RECENT_KEY);
 
   if (!open) return null;
 
@@ -198,7 +182,7 @@ export default function ProjectWorkspaceMount({
       {currentPath ? (
         <div className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2 py-1 text-[10px] text-muted-foreground">
           <FolderOpen className="h-3 w-3 shrink-0 text-primary/70" />
-          <span className="truncate">{shortenHome(currentPath)}</span>
+          <span className="truncate">{shortenHomePath(currentPath)}</span>
         </div>
       ) : (
         <p className="text-[10px] text-muted-foreground leading-relaxed">{t('emptyHint')}</p>
@@ -276,7 +260,7 @@ export default function ProjectWorkspaceMount({
                     onClick={() => void persistWorkspace(dir)}
                   >
                     <FolderOpen className="h-3 w-3 shrink-0 text-primary/60" />
-                    <span className="truncate">{shortenHome(dir)}</span>
+                    <span className="truncate">{shortenHomePath(dir)}</span>
                   </button>
                 ))}
               </div>

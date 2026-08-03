@@ -745,6 +745,9 @@ def _signoff_open_page_parallel_wall_cap() -> float:
     cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC)
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         cap = max(cap, 600.0)
+    elif is_e2e_signoff_runtime():
+        # R284: panel signoff legs hit join=420 HARD_DEADLINE under parallel mux (M3 v6).
+        cap = max(cap, 540.0)
     return cap
 
 
@@ -752,6 +755,8 @@ def _signoff_open_page_parallel_total_cap() -> float:
     cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_TOTAL_CAP_SEC)
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         cap = max(cap, 900.0)
+    elif is_e2e_signoff_runtime():
+        cap = max(cap, 780.0)
     return cap
 
 
@@ -920,12 +925,13 @@ def signoff_new_page_join_timeout_sec(
         _signoff_open_page_parallel_wall_cap(),
     )
     result = min(floor, cap)
-    if (
-        os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY
-        and is_e2e_signoff_runtime()
-    ):
-        desktop_scaled = max(result, 540.0, 120.0 + load * 25.0)
-        return min(desktop_scaled, _signoff_open_page_parallel_wall_cap())
+    if is_e2e_signoff_runtime():
+        if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
+            desktop_scaled = max(result, 540.0, 120.0 + load * 25.0)
+            return min(desktop_scaled, _signoff_open_page_parallel_wall_cap())
+        # R284: panel stdin legs under parallel mux (no desktop soak env).
+        panel_scaled = max(result, 480.0, 120.0 + load * 22.0)
+        return min(panel_scaled, _signoff_open_page_parallel_wall_cap())
     return result
 
 
@@ -941,9 +947,13 @@ def signoff_new_page_join_stall_abandon_sec(
     base = 120.0 + max(0, int(peers)) * 20.0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         base = max(base, 180.0)
+    elif is_e2e_signoff_runtime():
+        base = max(base, 240.0)
     stall_cap = 300.0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         stall_cap = 420.0
+    elif is_e2e_signoff_runtime():
+        stall_cap = 360.0
     return min(join_timeout_sec, min(base, stall_cap))
 
 

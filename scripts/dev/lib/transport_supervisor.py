@@ -63,20 +63,9 @@ def cold_shim_restart_defer_peer_threshold() -> int:
 
 def _chrome_e2e_pytest_peer_count() -> int:
     """Live ``python -m pytest … chrome_e2e`` workers (SSOT: gate solo-wait)."""
-    import subprocess
+    from peer_count_ssot import chrome_e2e_pytest_peer_count
 
-    try:
-        proc = subprocess.run(
-            ["pgrep", "-f", r"python -m pytest.*chrome_e2e"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
-        return parallel_active_test_count()
-    if proc.returncode != 0:
-        return 0
-    return len([line for line in proc.stdout.splitlines() if line.strip()])
+    return chrome_e2e_pytest_peer_count()
 
 
 def _cold_shim_defer_peer_load() -> int:
@@ -253,21 +242,9 @@ def recovery_budget_remaining() -> float:
 
 def parallel_active_test_count() -> int:
     """Best-effort parallel chrome_e2e count for recovery mutex scaling (R73-F TPC M3)."""
-    pytest_peers = _chrome_e2e_pytest_peer_count()
-    if pytest_peers > 0:
-        return pytest_peers
-    raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
-    if raw.isdigit():
-        return max(1, int(raw))
-    try:
-        from e2e_runtime_cell import count_live_runtime_cells
+    from peer_count_ssot import parallel_active_test_count_ssot
 
-        live_cells = count_live_runtime_cells()
-        if live_cells > 0:
-            return live_cells
-    except ImportError:
-        pass
-    return 1
+    return parallel_active_test_count_ssot()
 
 
 def parallel_mux_peer_count() -> int:

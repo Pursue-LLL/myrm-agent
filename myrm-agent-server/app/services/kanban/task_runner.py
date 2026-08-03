@@ -416,6 +416,7 @@ class KanbanTaskRunner:
             max_iterations=profile.max_iterations if profile else None,
             memory_policy=profile.memory_policy if profile else None,
             memory_decay_profile=profile.memory_decay_profile if profile else None,
+            memory_extraction_preset=profile.memory_extraction_preset if profile else None,
             engine_params=profile.engine_params if profile else None,
             memory_shared_context_ids=memory_shared_context_ids,
             enable_conversation_search=resolve_conversation_search_enabled(

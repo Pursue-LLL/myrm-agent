@@ -5,12 +5,14 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
 import { groupRequestsForBulkResume } from '@/lib/approval/approvalBulkGroups';
+import { extractDirectoryGrantOptimistic, resumeDecisionsIncludeDirectoryGrant } from '@/lib/approval/approvalDecision';
 import {
   ApprovalExpiredError,
   buildApprovalDecision,
   resumeApprovalStream,
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/resumeApprovalStream';
+import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
@@ -79,6 +81,12 @@ export function useToolApprovalResolve() {
 
         for (const req of requestsToRemove) {
           removeRequest(req.requestId);
+        }
+
+        if (resumeDecisionsIncludeDirectoryGrant(resumeValue.decisions) && request.chatId) {
+          void refreshSessionAccessRoots(request.chatId, {
+            optimistic: extractDirectoryGrantOptimistic(resumeValue.decisions),
+          });
         }
 
         if (decision === 'approve' || decision === 'edit') {

@@ -5,9 +5,9 @@ import { ImageIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import { validateThemeBackgroundFile, type ThemeBackgroundValidationError } from '@/theme-engine';
+import { validateThemeBackgroundFile, type ThemeBackgroundValidationError, type HeroImageSample, sampleHeroImageBlob } from '@/theme-engine';
 import { resolveThemeAssetUrl } from '@/services/theme-assets/ThemeAssetStore';
-import { VideoPosterExtractionError } from '@/services/theme-assets/extractVideoPoster';
+import { VideoPosterExtractionError, extractVideoPosterBlob } from '@/services/theme-assets/extractVideoPoster';
 import {
   ThemeBackgroundValidationFailedError,
   uploadThemeBackground,
@@ -32,6 +32,7 @@ interface ThemeMediaUploadFieldProps {
     mediaKind: 'image' | 'video';
     posterAssetRef?: string | null;
     previewUrl: string | null;
+    heroSample?: HeroImageSample | null;
   }) => void;
 }
 
@@ -54,11 +55,30 @@ const ThemeMediaUploadField = ({ disabled = false, onUploaded }: ThemeMediaUploa
       }
       setUploading(true);
       try {
-        const { assetRef, mediaKind, posterAssetRef } = await uploadThemeBackground(file);
-        const previewUrl = await resolveThemeAssetUrl(
-          mediaKind === 'video' ? (posterAssetRef ?? assetRef) : assetRef,
-        );
-        onUploaded({ assetRef, mediaKind, posterAssetRef, previewUrl });
+        const isVideo = file.type.startsWith('video/');
+        let heroSample: HeroImageSample | null = null;
+
+        if (isVideo) {
+          const posterBlob = await extractVideoPosterBlob(file);
+          const [sample, uploadResult] = await Promise.all([
+            sampleHeroImageBlob(posterBlob).catch(() => null),
+            uploadThemeBackground(file, { videoPosterBlob: posterBlob }),
+          ]);
+          heroSample = sample;
+          const previewUrl = await resolveThemeAssetUrl(
+            uploadResult.posterAssetRef ?? uploadResult.assetRef,
+          );
+          onUploaded({ ...uploadResult, previewUrl, heroSample });
+          return;
+        }
+
+        const [sample, uploadResult] = await Promise.all([
+          sampleHeroImageBlob(file).catch(() => null),
+          uploadThemeBackground(file),
+        ]);
+        heroSample = sample;
+        const previewUrl = await resolveThemeAssetUrl(uploadResult.assetRef);
+        onUploaded({ ...uploadResult, previewUrl, heroSample });
       } catch (error) {
         const message =
           error instanceof ThemeBackgroundValidationFailedError

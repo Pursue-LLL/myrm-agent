@@ -215,6 +215,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
     from app.services.memory.import_adapters import resolve_migration_source
     from app.services.migration.source_migration_types import (
         MigrationWizardOptions,
+        MigrationLanePreview,
         build_lane_previews,
         instruction_char_total,
     )
@@ -316,6 +317,10 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         }
         if model_migration_payload:
             session_metadata["model_migration"] = model_migration_payload
+        session_metadata["migration_competitor"] = competitor
+        cron_plan_raw = loaded_payload.get("hermes_cron_plan")
+        if isinstance(cron_plan_raw, dict):
+            session_metadata["cron_migration"] = cron_plan_raw
         from app.services.migration.workspace_bind_candidates import (
             candidates_to_metadata,
             discover_workspace_bind_candidates,
@@ -342,6 +347,37 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             providers_ready=providers_configured,
             include_episodic=migration_opts.include_episodic,
         )
+        if competitor == "hermes":
+            importable_count = 0
+            skipped_count = 0
+            if isinstance(cron_plan_raw, dict):
+                importable_raw = cron_plan_raw.get("importable")
+                skipped_raw = cron_plan_raw.get("skipped")
+                if isinstance(importable_raw, list):
+                    importable_count = len(importable_raw)
+                if isinstance(skipped_raw, list):
+                    skipped_count = len(skipped_raw)
+            if importable_count > 0:
+                cron_detail = (
+                    f"{importable_count} scheduled task(s) will import paused"
+                    + (f"; {skipped_count} skipped" if skipped_count else "")
+                )
+                cron_status = "ready"
+            elif skipped_count > 0:
+                cron_detail = f"{skipped_count} cron job(s) detected but not importable"
+                cron_status = "warning"
+            else:
+                cron_detail = "no cron jobs detected"
+                cron_status = "missing"
+            lane_previews = [
+                *lane_previews,
+                MigrationLanePreview(
+                    lane="cron",
+                    status=cron_status,
+                    label="cron_lane",
+                    detail=cron_detail,
+                ),
+            ]
 
     async with get_session() as db:
         dry_run_id, result, payload_hash, expires_at = await MemoryImportSessionService(db).create_dry_run(
@@ -537,6 +573,28 @@ async def confirm_import_memories(
                     },
                 )
 
+            cron_migration_raw = metadata.get("cron_migration")
+            if isinstance(cron_migration_raw, dict):
+                from app.services.migration.hermes_cron_converter import HermesCronMigrationPlan
+                from app.services.migration.hermes_cron_migration import apply_hermes_cron_migration_plan
+
+                cron_plan = HermesCronMigrationPlan.from_metadata_dict(cron_migration_raw)
+                migration_opts_raw = metadata.get("migration_options")
+                cron_agent_id: str | None = None
+                if instruction_result and instruction_result.target_agent_id:
+                    cron_agent_id = instruction_result.target_agent_id
+                elif isinstance(migration_opts_raw, dict) and migration_opts_raw.get("target_agent_id"):
+                    cron_agent_id = str(migration_opts_raw["target_agent_id"])
+                cron_apply_result = await apply_hermes_cron_migration_plan(
+                    cron_plan,
+                    agent_id=cron_agent_id,
+                )
+                if cron_apply_result.created_job_ids or cron_apply_result.failed_count:
+                    await MemoryImportLedgerService(db).merge_batch_metadata(
+                        result.import_batch_id,
+                        {"cron_rollback": cron_apply_result.to_metadata_dict()},
+                    )
+
             try:
                 snapshot = await MemoryCommandCenterService(db, manager).build_snapshot()
                 diagnostic_run = await MemoryDiagnosticsService(db, manager).run_diagnostics(
@@ -567,6 +625,14 @@ async def confirm_import_memories(
                     logger.warning("Post-import diagnostic failure state was not persisted: %s", save_exc)
             workspace_rules_skipped_count = instruction_result.workspace_rules_skipped if instruction_result else 0
             providers_configured = await external_source_providers_configured()
+            migration_competitor_raw = metadata.get("migration_competitor")
+            migration_competitor = (
+                migration_competitor_raw.strip()
+                if isinstance(migration_competitor_raw, str) and migration_competitor_raw.strip()
+                else None
+            )
+            if migration_competitor is None and isinstance(raw_instruction_plan, dict):
+                migration_competitor = str(raw_instruction_plan.get("competitor", "")).strip().lower() or None
             readiness = build_import_readiness(
                 providers_configured=providers_configured,
                 source_has_api_keys=source_has_api_keys,
@@ -574,6 +640,7 @@ async def confirm_import_memories(
                 diagnostic_failed_count=diagnostic_failed_count,
                 mcp_config_count=mcp_imported_disabled_count,
                 workspace_rules_skipped=workspace_rules_skipped_count,
+                migration_competitor=migration_competitor,
             )
             try:
                 await session_service.save_post_import_readiness(
@@ -586,6 +653,7 @@ async def confirm_import_memories(
                         diagnostic_failed_count=diagnostic_failed_count,
                         mcp_config_count=mcp_imported_disabled_count,
                         workspace_rules_skipped=workspace_rules_skipped_count,
+                        migration_competitor=migration_competitor,
                     ),
                 )
             except Exception as readiness_exc:
@@ -714,6 +782,11 @@ async def rollback_import_memories(
                     metadata,
                     delete_imported_agent=body.delete_imported_agent,
                 )
+                cron_raw = metadata.get("cron_rollback")
+                if isinstance(cron_raw, dict):
+                    from app.services.migration.hermes_cron_migration import rollback_hermes_cron_migration
+
+                    await rollback_hermes_cron_migration(cron_raw)
                 if body.delete_imported_agent and instructions_rolled_back:
                     raw = metadata.get("instruction_rollback")
                     if isinstance(raw, dict) and bool(raw.get("agent_created")):

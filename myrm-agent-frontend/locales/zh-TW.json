@@ -3777,7 +3777,7 @@
     "mcpScanAckDesc": "安全掃描在「{name}」中發現 {count} 項高風險問題，確認後繼續。",
     "mcpScanAckConfirm": "我已瞭解風險並繼續",
     "mcpReloadConfirmTitle": "重新載入 MCP 工具？",
-    "mcpReloadConfirmDesc": "儲存 MCP 變更會更新 Agent 工具列表。新對話會立即生效；進行中的對話可能損失提示詞快取效率，建議必要時開啟新會話。",
+    "mcpReloadConfirmDesc": "儲存 MCP 變更會更新 Agent 工具列表。新對話會立即生效。catalog 模式下，進行中的對話可熱更新執行時工具；direct 模式下，進行中的對話可能損失提示詞快取效率，建議必要時開啟新會話。",
     "mcpReloadConfirmAction": "儲存並套用",
     "mcpThreat": {
       "prompt_injection": "檢測到提示詞注入內容（試圖覆蓋系統指令）",
@@ -5359,6 +5359,12 @@
       "memoryDecayPermanent": "永久記憶",
       "memoryDecayNormal": "標準衰減",
       "memoryDecayFast": "快速遺忘",
+      "memoryExtractionPreset": "記憶聚焦",
+      "memoryPresetAuto": "自動偵測",
+      "memoryPresetPersona": "生活夥伴",
+      "memoryPresetWork": "工作助手",
+      "memoryPresetResearch": "學術研究",
+      "memoryPresetNone": "通用",
       "jitTeam": "JIT 團隊配置",
       "jitTeamOff": "單 Agent (無下屬團隊)",
       "jitTeamPlaceholder": "不使用虛擬團隊",
@@ -6086,6 +6092,9 @@
         "scanning": "AI 正在掃描此目錄/檔案"
       }
     },
+    "deliverable": {
+      "awaitingArtifact": "工件同步中，連結稍後可點擊"
+    },
     "tokenUsage": {
       "title": "Token 使用量",
       "inputTokens": "輸入 Token",
@@ -6381,6 +6390,30 @@
       "skip": "跳過",
       "submitFailed": "提交澄清失敗，請重試",
       "answered": "已回答澄清問題"
+    },
+    "directoryRequest": {
+      "title": "需要目錄存取權限",
+      "pathLabel": "資料夾路徑",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "請輸入資料夾路徑",
+      "writableLabel": "允許寫入（修改檔案時需要）",
+      "grant": "授予存取",
+      "deny": "拒絕",
+      "submitFailed": "提交目錄授權失敗，請重試",
+      "answered": "目錄存取已處理",
+      "chooseFolder": "選擇資料夾",
+      "browseFailed": "無法開啟資料夾選擇器，請手動輸入路徑",
+      "selectThis": "使用此資料夾",
+      "recent": "最近使用",
+      "filter": "篩選資料夾",
+      "noSubdirs": "沒有子資料夾"
+    },
+    "sessionAccessRoots": {
+      "label": "額外資料夾",
+      "readOnly": "唯讀",
+      "writable": "讀寫",
+      "revoke": "撤銷存取",
+      "revokeFailed": "無法撤銷資料夾存取，請重試"
     },
     "planConfirmation": {
       "title": "研究計劃",
@@ -7143,35 +7176,6 @@
       "post_hook_blocked": "執行後攔截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全攔截"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "正在讀取檔案",
-      "file_write_tool": "正在寫入檔案",
-      "file_edit_tool": "正在編輯檔案",
-      "file_editor_tool": "正在編輯檔案",
-      "file_editor_view_tool": "正在檢視檔案",
-      "file_editor_create_tool": "正在建立檔案",
-      "file_editor_edit_tool": "正在編輯檔案",
-      "text_editor_tool": "正在編輯文字",
-      "bash_code_execute_tool": "正在執行命令",
-      "code_execution_tool": "正在執行程式碼",
-      "web_search_tool": "正在網路搜尋",
-      "web_fetch_tool": "正在獲取網頁",
-      "memory_search_tool": "正在搜尋記憶",
-      "memory_store_tool": "正在儲存記憶",
-      "memory_save": "正在儲存記憶",
-      "memory_manage": "正在管理記憶",
-      "memory_recall": "正在回憶資訊",
-      "profile_get_tool": "正在讀取畫像",
-      "profile_update_tool": "正在更新畫像",
-      "image_tool": "正在生成圖片",
-      "video_tool": "正在生成影片",
-      "mcp_tool": "正在執行工具",
-      "skill_select_tool": "正在選擇技能",
-      "render_ui_tool": "正在渲染介面",
-      "update_ui_data_tool": "正在更新介面資料",
-      "answer_user_tool": "正在生成回答",
-      "request_answer_user_tool": "正在準備回覆"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -8090,7 +8094,8 @@
           "instruction_lane": "指令與人設",
           "memory_lane": "事實與偏好（全域性記憶）",
           "skill_lane": "技能",
-          "credential_lane": "API 金鑰"
+          "credential_lane": "API 金鑰",
+          "cron_lane": "定時任務（Cron）"
         },
         "coverageTitle": "遷移覆蓋範圍",
         "coverageStatus": {
@@ -8109,7 +8114,9 @@
           "mcp_manual": "MCP 工具",
           "channels_manual": "訊息渠道",
           "agent_config_manual": "Agent 配置",
-          "no_importable_data": "可匯入資料"
+          "no_importable_data": "可匯入資料",
+          "cron_lane": "定時任務（Cron）",
+          "kanban_not_migrated": "看板任務"
         },
         "pendingSkillsHint": "檢測到 {count} 個技能，確認匯入後將提交稽核佇列",
         "mcpServersTitle": "檢測到 MCP 服務",
@@ -8119,7 +8126,7 @@
         "mcpKeepalive": "保活間隔：{seconds} 秒",
         "mcpKeepaliveIgnored": "源配置保活值不適用於當前連線型別或低於 5 秒，已按規則忽略",
         "instructionLargeWarning": "指令內容約 {count} 字元，匯入後可能增加每輪 Token 消耗，請確認是否需要精簡 SOUL/規則",
-        "hermesEconomyHint": "Hermes 遷移將使用 Economy 智慧體預設，並自動啟用 Smart Routing；輔助模型會寫入模型設定。",
+        "hermesEconomyHint": "Hermes 遷移將使用「知識工作助手」預設（搜尋、檔案、任務、記憶），並自動啟用 Smart Routing；輔助模型會寫入模型設定。",
         "providersMissingHint": "檢測到外部助手 API Key，但尚未配置模型服務商。匯入金鑰前請先在模型設定中建立服務商，或確認匯入後將自動建立對應槽位",
         "configureProvidersLink": "開啟模型服務商設定",
         "backupHint": "建議在匯入前匯出當前記憶備份（可回滾恢復）",
@@ -11129,6 +11136,90 @@
     "connect": "立即連線 →",
     "dismiss": "關閉"
   },
+  "humanize": {
+    "fallback": {
+      "file": "檔案",
+      "used_tool": "使用了 {tool}"
+    },
+    "progress": {
+      "file_read": "讀取 {filename}",
+      "file_write": "寫入 {filename}",
+      "shell": "執行 {command}",
+      "shell_with_desc": "執行命令 — {description}",
+      "shell_generic": "執行命令",
+      "web_search": "搜尋網頁 — \"{query}\"",
+      "web_search_generic": "搜尋網頁",
+      "web_fetch": "讀取網頁 — {url}",
+      "web_fetch_generic": "讀取網頁",
+      "memory_generic": "記憶操作",
+      "kanban": "更新計畫 — \"{task}\"",
+      "kanban_generic": "更新計畫",
+      "skill": "使用技能：{name}",
+      "skill_generic": "使用技能",
+      "mcp": "使用 {server} — {tool}",
+      "browser_url": "已開啟網頁 — {url}",
+      "browser_generic": "瀏覽器操作",
+      "save_skill": "新增技能：{name}",
+      "save_skill_generic": "新增技能",
+      "send_message": "傳送訊息至 {destination}",
+      "send_message_generic": "傳送訊息"
+    },
+    "approval": {
+      "file_read": "讀取 {filename}",
+      "file_write": "寫入 {filename}",
+      "shell": "執行 {command}",
+      "shell_with_desc": "執行命令 — {description}",
+      "shell_generic": "執行命令",
+      "web_search": "搜尋網頁 — \"{query}\"",
+      "web_search_generic": "搜尋網頁",
+      "web_fetch": "讀取網頁 — {url}",
+      "web_fetch_generic": "讀取網頁",
+      "memory_generic": "記憶操作",
+      "kanban": "更新計畫 — \"{task}\"",
+      "kanban_generic": "更新計畫",
+      "skill": "使用技能：{name}",
+      "skill_generic": "使用技能",
+      "mcp": "使用 {server} — {tool}",
+      "browser_url": "開啟網頁 — {url}",
+      "browser_generic": "瀏覽器操作",
+      "save_skill": "新增技能：{name}",
+      "save_skill_generic": "新增技能",
+      "send_message": "傳送訊息至 {destination}",
+      "send_message_generic": "傳送訊息"
+    },
+    "ask": {
+      "file_read": "想要讀取 {filename}",
+      "file_write": "想要寫入 {filename}",
+      "file_write_ask": "想要寫入 {filename}",
+      "shell": "想要執行 {command}",
+      "shell_with_desc": "想要執行命令 — {description}",
+      "shell_generic": "想要執行命令",
+      "web_search": "想要搜尋網頁 — \"{query}\"",
+      "web_search_generic": "想要搜尋網頁",
+      "web_fetch": "想要讀取網頁 — {url}",
+      "web_fetch_generic": "想要讀取網頁",
+      "memory_generic": "想要進行記憶操作",
+      "kanban": "想要更新計畫 — \"{task}\"",
+      "kanban_generic": "想要更新計畫",
+      "skill": "想要使用技能：{name}",
+      "skill_generic": "想要使用技能",
+      "mcp": "想要使用 {server} — {tool}",
+      "browser_url": "想要開啟網頁 — {url}",
+      "browser_generic": "想要進行瀏覽器操作",
+      "save_skill": "想要新增技能：{name}",
+      "save_skill_generic": "想要新增技能",
+      "send_message": "想要傳送訊息至 {destination}",
+      "send_message_generic": "想要傳送訊息"
+    },
+    "scope": {
+      "local": "變更僅保留在本裝置",
+      "local_overwrite": "將覆蓋已有檔案",
+      "external": "將資料傳送到 {destination}",
+      "external_unknown": "外部服務",
+      "connector": "使用已連接的服務",
+      "save_skill": "將可複用技能儲存到庫中"
+    }
+  },
   "toolApproval": {
     "title": "工具執行審批",
     "batchTitle": "批次審批 ({count} 個工具)",
@@ -11138,6 +11229,29 @@
     "deployApprovalArtifact": "Artifact",
     "deployApprovalHint": "批准後將透過 Vercel 釋出該 artifact，產生公網可訪問 URL。",
     "skillGrowthPending": "技能成長待審",
+    "saveSkill": {
+      "approve": "加入我的技能",
+      "deny": "暫不加入",
+      "showFullInstructions": "展開完整說明",
+      "showLess": "收合",
+      "showAllLines": "展開全部 {count} 行",
+      "footer": "核准後，此技能將儲存至本機技能庫，之後每次對話均可使用。"
+    },
+    "toolCallStatus": {
+      "pending": "待核准",
+      "approved": "已核准",
+      "rejected": "已拒絕",
+      "completed": "已完成"
+    },
+    "ptc": {
+      "readOnlyLabel": "唯讀",
+      "readOnlyTitle": "此工具僅讀取資料，不會修改狀態。",
+      "destructiveLabel": "破壞性",
+      "destructiveTitle": "此工具會進行不可撤銷的破壞性變更。",
+      "openWorldLabel": "開放外部",
+      "openWorldTitle": "此工具會與外部系統或網路互動。"
+    },
+    "toolCallPendingBanner": "{count, plural, other {# 個工具呼叫等待核准}}",
     "viewChanges": "檢視變更",
     "hideChanges": "收起變更",
     "memoryUpdate": "記憶更新",
@@ -11250,6 +11364,8 @@
       "allowDomain": "始終允許此域名",
       "allowDomainDesc": "後續對該域名的請求將自動透過（僅當前會話）"
     },
+    "grantDirectory": "同時授予資料夾存取",
+    "grantDirectoryDesc": "允許 Agent 在本會話後續輪次存取該資料夾",
     "smartDenied": {
       "title": "安全審查建議拒絕此操作",
       "overrideOnce": "覆寫一次"

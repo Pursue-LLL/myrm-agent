@@ -17,6 +17,27 @@ import {
 } from '@/services/agent';
 import { toast } from '@/hooks/shared/useToast';
 
+/** Matches harness AGGREGATE_DIRECT_TOKEN_BUDGET (mcp_routing.py). */
+const OPENAPI_DIRECT_TOKEN_BUDGET = 1200;
+/** Conservative per-endpoint schema estimate (chars/4 heuristic). */
+const ESTIMATED_TOKENS_PER_ENDPOINT = 90;
+
+function estimateEndpointTokenLoad(endpointCount: number): number {
+  return endpointCount * ESTIMATED_TOKENS_PER_ENDPOINT;
+}
+
+function countExplicitSelectedEndpoints(services: OpenAPIServiceConfig[]): number {
+  return services
+    .filter((service) => service.enabled !== false)
+    .reduce((total, service) => {
+      const selected = service.selected_endpoints;
+      if (!selected || selected.length === 0) {
+        return total;
+      }
+      return total + selected.length;
+    }, 0);
+}
+
 interface AgentOpenAPIServicesTabProps {
   services: OpenAPIServiceConfig[];
   onChange: (services: OpenAPIServiceConfig[]) => void;
@@ -75,6 +96,14 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
   const updateAuth = (auth: OpenAPIAuthConfig | undefined) => {
     onUpdate(index, { ...service, auth });
   };
+
+  const selectedEndpointCount =
+    !service.selected_endpoints || service.selected_endpoints.length === 0
+      ? parsedSpec?.endpoint_count ?? 0
+      : service.selected_endpoints.length;
+  const estimatedServiceTokens = estimateEndpointTokenLoad(selectedEndpointCount);
+  const serviceOverBudget =
+    parsedSpec !== null && estimatedServiceTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
 
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 p-3 space-y-3">
@@ -229,6 +258,12 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                 })}
               </div>
             </div>
+          )}
+
+          {serviceOverBudget && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t('turn1BudgetServiceWarning')}
+            </p>
           )}
 
           {/* Auth Section */}
@@ -455,6 +490,11 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
     onChange(services.filter((_, i) => i !== index));
   };
 
+  const explicitEndpointCount = countExplicitSelectedEndpoints(services);
+  const estimatedAggregateTokens = estimateEndpointTokenLoad(explicitEndpointCount);
+  const aggregateOverBudget =
+    explicitEndpointCount > 0 && estimatedAggregateTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
+
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
@@ -473,6 +513,15 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
           </div>
         )}
       </div>
+
+      {aggregateOverBudget && (
+        <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">
+          {t('turn1BudgetWarning', {
+            tokens: estimatedAggregateTokens,
+            budget: OPENAPI_DIRECT_TOKEN_BUDGET,
+          })}
+        </p>
+      )}
 
       {showPresets && (
         <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">

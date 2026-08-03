@@ -5340,6 +5340,12 @@
       "memoryDecayPermanent": "永久メモリ",
       "memoryDecayNormal": "基準衰减",
       "memoryDecayFast": "快速遗忘",
+      "memoryExtractionPreset": "記憶フォーカス",
+      "memoryPresetAuto": "自動検出",
+      "memoryPresetPersona": "パーソナルコンパニオン",
+      "memoryPresetWork": "ワークアシスタント",
+      "memoryPresetResearch": "リサーチ",
+      "memoryPresetNone": "汎用",
       "jitTeam": "JITチーム設定",
       "jitTeamOff": "単体Agent（チームなし）",
       "jitTeamPlaceholder": "仮想チーム未使用",
@@ -6072,6 +6078,9 @@
         "scanning": "AI 中スキャン此目录/ファイル"
       }
     },
+    "deliverable": {
+      "awaitingArtifact": "Artifact sync in progress — link will activate shortly"
+    },
     "tokenUsage": {
       "title": "Token 使用量",
       "inputTokens": "入力 Token",
@@ -6334,6 +6343,30 @@
       "skip": "スキップ",
       "submitFailed": "送信澄清失敗，再試行してください",
       "answered": "済み回答澄清質問"
+    },
+    "directoryRequest": {
+      "title": "ディレクトリへのアクセスが必要です",
+      "pathLabel": "フォルダパス",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "フォルダパスを入力してください",
+      "writableLabel": "書き込みを許可",
+      "grant": "アクセスを許可",
+      "deny": "拒否",
+      "submitFailed": "ディレクトリ応答の送信に失敗しました",
+      "answered": "ディレクトリアクセスを処理しました",
+      "chooseFolder": "フォルダを選択",
+      "browseFailed": "フォルダ選択を開けませんでした。パスを手入力してください。",
+      "selectThis": "このフォルダを使用",
+      "recent": "最近",
+      "filter": "フォルダを絞り込み",
+      "noSubdirs": "サブフォルダがありません"
+    },
+    "sessionAccessRoots": {
+      "label": "追加フォルダ",
+      "readOnly": "読取",
+      "writable": "書込",
+      "revoke": "アクセスを解除",
+      "revokeFailed": "フォルダアクセスを解除できませんでした"
     },
     "planConfirmation": {
       "title": "研究プラン",
@@ -7095,35 +7128,6 @@
       "post_hook_blocked": "実行後に制限",
       "tool_cancelled": "キャンセル",
       "guardrail_blocked": "安全制限"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "中読み取り取ファイル",
-      "file_write_tool": "中書き込み入ファイル",
-      "file_edit_tool": "中編集ファイル",
-      "file_editor_tool": "中編集ファイル",
-      "file_editor_view_tool": "中表示ファイル",
-      "file_editor_create_tool": "中作成ファイル",
-      "file_editor_edit_tool": "中編集ファイル",
-      "text_editor_tool": "中編集文本",
-      "bash_code_execute_tool": "中実行コマンド",
-      "code_execution_tool": "実行中代码",
-      "web_search_tool": "中网络検索",
-      "web_fetch_tool": "中获取网ページ",
-      "memory_search_tool": "記憶を検索中",
-      "memory_store_tool": "中ストレージメモリ",
-      "memory_save": "中保存メモリ",
-      "memory_manage": "中管理メモリ",
-      "memory_recall": "中回忆信息",
-      "profile_get_tool": "中読み取り取画像",
-      "profile_update_tool": "中更新規画像",
-      "image_tool": "中生成画像",
-      "video_tool": "中生成動画",
-      "mcp_tool": "中実行ツール",
-      "skill_select_tool": "中選択スキル",
-      "render_ui_tool": "中渲染界面",
-      "update_ui_data_tool": "中更新規界面データ",
-      "answer_user_tool": "中生成回答",
-      "request_answer_user_tool": "中准备返信"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -8039,7 +8043,8 @@
           "instruction_lane": "指令と人设",
           "memory_lane": "事实と環境設定（全局メモリ）",
           "skill_lane": "スキル",
-          "credential_lane": "APIキー"
+          "credential_lane": "APIキー",
+          "cron_lane": "スケジュールタスク（Cron）"
         },
         "coverageTitle": "移行上書き范围",
         "coverageStatus": {
@@ -8058,7 +8063,9 @@
           "mcp_manual": "MCP ツール",
           "channels_manual": "メッセージチャンネル",
           "agent_config_manual": "Agent 設定",
-          "no_importable_data": "可インポートデータ"
+          "no_importable_data": "可インポートデータ",
+          "cron_lane": "スケジュールタスク（Cron）",
+          "kanban_not_migrated": "カンバンボード"
         },
         "pendingSkillsHint": "検出まで {count} 個スキル，確認インポート后が送信レビューキュー",
         "mcpServersTitle": "検出まで MCP サービス",
@@ -8068,7 +8075,7 @@
         "mcpKeepalive": "保活间隔：{seconds} 秒",
         "mcpKeepaliveIgnored": "源設定保活値ない适使用于現で接続タイプまたは低于 5 秒，済み按ルール忽略",
         "instructionLargeWarning": "指令内容约 {count} 文字，インポート后可能性增加每轮 Token 消費，してください確認はいいいえが必須要精简 SOUL/ルール",
-        "hermesEconomyHint": "Hermes 移行が使用 Economy エージェント预设，し自動有効 Smart Routing；辅助モデル会書き込み入モデル設定。",
+        "hermesEconomyHint": "Hermes 移行は「ナレッジワーク」エージェント预设（検索・ファイル・タスク・記憶）を使用し、Smart Routing を自動有効化します。補助モデルはモデル設定に反映されます。",
         "providersMissingHint": "検出まで外部助手 API Key，但尚未設定モデルサービス商。インポートキー前してください先でモデル設定中作成サービス商，または確認インポート后が自動作成に対するすべき槽位",
         "configureProvidersLink": "開くモデルサービス商設定",
         "backupHint": "推奨でインポート前エクスポート現でメモリバックアップ（可回滚復元）",
@@ -11088,6 +11095,90 @@
     "connect": "今すぐ接続 →",
     "dismiss": "閉じる"
   },
+  "humanize": {
+    "fallback": {
+      "file": "ファイル",
+      "used_tool": "{tool} を使用"
+    },
+    "progress": {
+      "file_read": "{filename} を読み取り",
+      "file_write": "{filename} に書き込み",
+      "shell": "{command} を実行",
+      "shell_with_desc": "コマンドを実行 — {description}",
+      "shell_generic": "コマンドを実行",
+      "web_search": "ウェブ検索 — \"{query}\"",
+      "web_search_generic": "ウェブ検索",
+      "web_fetch": "ウェブページを読み取り — {url}",
+      "web_fetch_generic": "ウェブページを読み取り",
+      "memory_generic": "メモリ操作",
+      "kanban": "プランを更新 — \"{task}\"",
+      "kanban_generic": "プランを更新",
+      "skill": "スキルを使用: {name}",
+      "skill_generic": "スキルを使用",
+      "mcp": "{server} — {tool} を使用",
+      "browser_url": "ウェブページを開きました — {url}",
+      "browser_generic": "ブラウザ操作",
+      "save_skill": "スキルを追加: {name}",
+      "save_skill_generic": "スキルを追加",
+      "send_message": "{destination} にメッセージ送信",
+      "send_message_generic": "メッセージを送信"
+    },
+    "approval": {
+      "file_read": "{filename} を読み取る",
+      "file_write": "{filename} に書き込む",
+      "shell": "{command} を実行",
+      "shell_with_desc": "コマンドを実行 — {description}",
+      "shell_generic": "コマンドを実行",
+      "web_search": "ウェブ検索 — \"{query}\"",
+      "web_search_generic": "ウェブ検索",
+      "web_fetch": "ウェブページを読み取る — {url}",
+      "web_fetch_generic": "ウェブページを読み取る",
+      "memory_generic": "メモリ操作",
+      "kanban": "プランを更新 — \"{task}\"",
+      "kanban_generic": "プランを更新",
+      "skill": "スキルを使用: {name}",
+      "skill_generic": "スキルを使用",
+      "mcp": "{server} — {tool} を使用",
+      "browser_url": "ウェブページを開く — {url}",
+      "browser_generic": "ブラウザ操作",
+      "save_skill": "スキルを追加: {name}",
+      "save_skill_generic": "スキルを追加",
+      "send_message": "{destination} にメッセージ送信",
+      "send_message_generic": "メッセージを送信"
+    },
+    "ask": {
+      "file_read": "{filename} を読み取ろうとしました",
+      "file_write": "{filename} に書き込もうとしました",
+      "file_write_ask": "{filename} に書き込もうとしました",
+      "shell": "{command} を実行しようとしました",
+      "shell_with_desc": "コマンドを実行しようとしました — {description}",
+      "shell_generic": "コマンドを実行しようとしました",
+      "web_search": "ウェブ検索しようとしました — \"{query}\"",
+      "web_search_generic": "ウェブ検索しようとしました",
+      "web_fetch": "ウェブページを読み取ろうとしました — {url}",
+      "web_fetch_generic": "ウェブページを読み取ろうとしました",
+      "memory_generic": "メモリ操作をしようとしました",
+      "kanban": "プランを更新しようとしました — \"{task}\"",
+      "kanban_generic": "プランを更新しようとしました",
+      "skill": "スキルを使用しようとしました: {name}",
+      "skill_generic": "スキルを使用しようとしました",
+      "mcp": "{server} — {tool} を使用しようとしました",
+      "browser_url": "ウェブページを開こうとしました — {url}",
+      "browser_generic": "ブラウザ操作をしようとしました",
+      "save_skill": "スキルを追加しようとしました: {name}",
+      "save_skill_generic": "スキルを追加しようとしました",
+      "send_message": "{destination} にメッセージを送ろうとしました",
+      "send_message_generic": "メッセージを送ろうとしました"
+    },
+    "scope": {
+      "local": "変更はこのデバイス内に留まります",
+      "local_overwrite": "既存ファイルを上書きします",
+      "external": "{destination} にデータを送信",
+      "external_unknown": "外部サービス",
+      "connector": "接続済みサービスを使用",
+      "save_skill": "再利用可能なスキルをライブラリに保存"
+    }
+  },
   "toolApproval": {
     "title": "ツール実行承認",
     "batchTitle": "一括承認 ({count} 個ツール)",
@@ -11101,6 +11192,29 @@
     "outboundDraftOriginal": "ユーザー原始メッセージ",
     "outboundDraftReply": "AI 生成の返信下書き",
     "skillGrowthPending": "スキル成长待审",
+    "saveSkill": {
+      "approve": "スキルに追加",
+      "deny": "今は追加しない",
+      "showFullInstructions": "説明をすべて表示",
+      "showLess": "折りたたむ",
+      "showAllLines": "全 {count} 行を表示",
+      "footer": "承認すると、このデバイスのスキルライブラリに保存され、以降のすべての会話で利用できます。"
+    },
+    "toolCallStatus": {
+      "pending": "承認待ち",
+      "approved": "承認済み",
+      "rejected": "拒否",
+      "completed": "完了"
+    },
+    "ptc": {
+      "readOnlyLabel": "読み取り専用",
+      "readOnlyTitle": "このツールはデータを読み取るのみで、状態を変更しません。",
+      "destructiveLabel": "破壊的操作",
+      "destructiveTitle": "このツールは取り消せない破壊的な変更を行います。",
+      "openWorldLabel": "外部連携",
+      "openWorldTitle": "このツールは外部システムまたはネットワークと連携します。"
+    },
+    "toolCallPendingBanner": "{count, plural, other {# 件のツール呼び出しが承認待ち}}",
     "viewChanges": "変更を表示",
     "hideChanges": "変更を非表示",
     "memoryUpdate": "メモリ更新規",
@@ -11209,6 +11323,8 @@
       "allowDomain": "始终許可此ドメイン",
       "allowDomainDesc": "后续に対する该ドメインのリクエストが自動合格（のみ現でセッション）"
     },
+    "grantDirectory": "フォルダアクセスも許可",
+    "grantDirectoryDesc": "このチャットの残りのセッションでこのフォルダへのアクセスを許可",
     "smartDenied": {
       "title": "セキュリティレビューがこの操作の拒否を推奨しています",
       "overrideOnce": "一度だけ上書き"

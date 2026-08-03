@@ -209,6 +209,113 @@ class TestMilestoneCRUD:
         assert progress["progress"] == 50.0
 
     @pytest.mark.asyncio
+    async def test_batch_progress_returns_all_active_milestones(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Batch Progress Test")
+        ms1_resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones", json={"title": "Phase 1"},
+        )
+        ms1 = ms1_resp.json()["data"]["milestone"]
+        ms2_resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones", json={"title": "Phase 2"},
+        )
+        ms2 = ms2_resp.json()["data"]["milestone"]
+
+        board_id = f"batch_board_{uuid4().hex[:8]}"
+        async with get_session() as db:
+            db.add(KanbanBoardModel(
+                id=board_id, name="B1", description="",
+                project_id=project["id"], milestone_id=ms1["id"],
+            ))
+            db.add(KanbanTaskModel(
+                id=f"bt1_{uuid4().hex[:8]}", board_id=board_id,
+                title="Done", description="", status="completed", priority="normal",
+            ))
+            db.add(KanbanTaskModel(
+                id=f"bt2_{uuid4().hex[:8]}", board_id=board_id,
+                title="Pending", description="", status="ready", priority="normal",
+            ))
+            await db.commit()
+
+        resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
+        assert resp.status_code == 200
+        progress_list = resp.json()["data"]["progress"]
+        assert len(progress_list) == 2
+
+        ms1_progress = next(p for p in progress_list if p["milestoneId"] == ms1["id"])
+        assert ms1_progress["totalTasks"] == 2
+        assert ms1_progress["completedTasks"] == 1
+        assert ms1_progress["progress"] == 50.0
+
+        ms2_progress = next(p for p in progress_list if p["milestoneId"] == ms2["id"])
+        assert ms2_progress["totalTasks"] == 0
+        assert ms2_progress["completedTasks"] == 0
+        assert ms2_progress["progress"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_batch_progress_excludes_completed_milestones(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Batch Exclude Completed")
+        ms_resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones", json={"title": "Will Complete"},
+        )
+        ms = ms_resp.json()["data"]["milestone"]
+        await async_client.put(
+            f"{PREFIX}/{project['id']}/milestones/{ms['id']}", json={"status": "completed"},
+        )
+
+        resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
+        assert resp.status_code == 200
+        progress_list = resp.json()["data"]["progress"]
+        assert len(progress_list) == 0
+
+    @pytest.mark.asyncio
+    async def test_batch_progress_empty_project_returns_empty(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Empty Project")
+        resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["progress"] == []
+
+    @pytest.mark.asyncio
+    async def test_batch_progress_multiple_boards_per_milestone(self, async_client: httpx.AsyncClient) -> None:
+        project = await _create_project(async_client, "Multi Board Test")
+        ms_resp = await async_client.post(
+            f"{PREFIX}/{project['id']}/milestones", json={"title": "Multi Board"},
+        )
+        ms = ms_resp.json()["data"]["milestone"]
+
+        uid = uuid4().hex[:6]
+        async with get_session() as db:
+            db.add(KanbanBoardModel(
+                id=f"mb1_{uid}", name="Board A", description="",
+                project_id=project["id"], milestone_id=ms["id"],
+            ))
+            db.add(KanbanBoardModel(
+                id=f"mb2_{uid}", name="Board B", description="",
+                project_id=project["id"], milestone_id=ms["id"],
+            ))
+            db.add(KanbanTaskModel(
+                id=f"mt1_{uid}", board_id=f"mb1_{uid}",
+                title="A-done", description="", status="completed", priority="normal",
+            ))
+            db.add(KanbanTaskModel(
+                id=f"mt2_{uid}", board_id=f"mb2_{uid}",
+                title="B-done", description="", status="completed", priority="normal",
+            ))
+            db.add(KanbanTaskModel(
+                id=f"mt3_{uid}", board_id=f"mb2_{uid}",
+                title="B-pending", description="", status="ready", priority="normal",
+            ))
+            await db.commit()
+
+        resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
+        assert resp.status_code == 200
+        progress_list = resp.json()["data"]["progress"]
+        assert len(progress_list) == 1
+        p = progress_list[0]
+        assert p["totalTasks"] == 3
+        assert p["completedTasks"] == 2
+        assert abs(p["progress"] - 66.7) < 0.1
+
+    @pytest.mark.asyncio
     async def test_invalid_status_returns_error(self, async_client: httpx.AsyncClient) -> None:
         project = await _create_project(async_client, "Validation Test")
         create_resp = await async_client.post(f"{PREFIX}/{project['id']}/milestones", json={"title": "Test"})

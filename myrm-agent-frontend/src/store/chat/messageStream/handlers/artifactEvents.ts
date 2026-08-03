@@ -9,6 +9,45 @@ import * as H from "./handlerDeps";
 
 export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
+
+  if (data.type === H.AgentEventType.ARTIFACT_FOCUS) {
+    const payload = data.data as { short_file_id?: string; path?: string } | undefined;
+    const shortFileId = payload?.short_file_id;
+    if (shortFileId) {
+      actions.setMessages((state) => {
+        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          return;
+        }
+        const artifacts = state.messages[messageIndex].artifacts ?? [];
+        const matched = artifacts.find(
+          (item) => item.short_file_id === shortFileId || item.id === shortFileId,
+        );
+        if (matched) {
+          void import('@/services/deliverable/openWorkspaceDeliverable').then(({ openArtifactDeliverable }) =>
+            openArtifactDeliverable(matched),
+          );
+          return;
+        }
+        const path = payload?.path ?? shortFileId;
+        const filename = path.split('/').pop() ?? shortFileId;
+        void import('@/services/deliverable/openWorkspaceDeliverable').then(({ openArtifactDeliverable }) =>
+          openArtifactDeliverable({
+            id: shortFileId,
+            filename,
+            short_file_id: shortFileId,
+            type: 'document',
+            content_type: 'text/plain',
+            size: 0,
+            preview_url: '',
+            download_url: '',
+          }),
+        );
+      });
+    }
+    return null;
+  }
+
   if (data.type === H.AgentEventType.ARTIFACTS) {
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);

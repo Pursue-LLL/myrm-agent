@@ -6,13 +6,21 @@ Used when ``MYRM_BROWSER_ORCHESTRATOR=1`` — no mux MCP fallback.
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterator
 
 from browser_orchestrator_client import BrowserOrchestratorClient
+from cdp_chat_support import (
+    e2e_api_base_inject_js,
+    e2e_runtime_binding_source,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
 
 
 @dataclass
@@ -54,11 +62,11 @@ class OrchestratorChromeClient:
         *,
         timeout_sec: float = 15.0,
     ) -> object:
-        _ = timeout_sec
         payload = self._daemon.evaluate_page(
             self._session_id,
             page.target_id,
             expression,
+            timeout_sec=min(max(5.0, timeout_sec), self._request_timeout_sec),
         )
         return payload.get("value")
 
@@ -73,6 +81,14 @@ class OrchestratorChromeClient:
         self._daemon.navigate_page(self._session_id, page.target_id, url)
         page.url = url
 
+    def reload(self, page: OrchestratorMcpPage, *, timeout_ms: int = 15_000) -> None:
+        _ = timeout_ms
+        self.evaluate(
+            page,
+            "(() => { window.location.reload(); return true; })()",
+            timeout_sec=min(30.0, max(5.0, timeout_ms / 1000.0)),
+        )
+
 
 def _resolve_session_id() -> str:
     run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
@@ -81,21 +97,95 @@ def _resolve_session_id() -> str:
     return f"orchestrator-e2e-{os.getpid()}-{uuid.uuid4().hex[:8]}"
 
 
+def _monorepo_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _spawn_ensure_orchestrator() -> None:
+    """Best-effort daemon (re)start — serialized by ensure script flock."""
+    script = _monorepo_root() / "scripts/dev/ensure-browser-orchestrator.sh"
+    if not script.is_file():
+        return
+    env = os.environ.copy()
+    env["MYRM_BROWSER_ORCHESTRATOR"] = "1"
+    try:
+        subprocess.run(
+            ["bash", str(script)],
+            env=env,
+            timeout=45.0,
+            capture_output=True,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+
+
+def _wait_orchestrator_daemon_ready(
+    daemon: BrowserOrchestratorClient,
+    *,
+    wall_sec: float = 90.0,
+) -> None:
+    """Wait for daemon; invoke ensure script once after a short unreachable window."""
+    deadline = time.monotonic() + wall_sec
+    ensure_spawned = False
+    while time.monotonic() < deadline:
+        if daemon.is_alive():
+            return
+        elapsed = wall_sec - (deadline - time.monotonic())
+        if not ensure_spawned and elapsed >= 8.0:
+            _spawn_ensure_orchestrator()
+            ensure_spawned = True
+        time.sleep(0.5)
+    raise RuntimeError(
+        "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+    )
+
+
+def _apply_orchestrator_shpoib_binding(
+    client: OrchestratorChromeClient,
+    page: OrchestratorMcpPage,
+    url: str,
+    *,
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+) -> None:
+    """Seed window.name then navigate so e2e-runtime-bootstrap.js binds private API."""
+    api_base = get_e2e_api_url().rstrip("/")
+    if not api_base or api_base == "http://127.0.0.1:8080":
+        daemon.navigate_page(session_id, page.target_id, url)
+        page.url = url
+        return
+    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=60.0):
+        raise RuntimeError(
+            f"E2E_RUNTIME_BINDING_FAILED: private API not ready before binding: {api_base}"
+        )
+    source = e2e_runtime_binding_source()
+    if source:
+        client.evaluate(
+            page,
+            f"(() => {{{source} return true; }})()",
+            timeout_sec=15.0,
+        )
+    else:
+        client.evaluate(
+            page,
+            e2e_api_base_inject_js(api_base),
+            timeout_sec=15.0,
+        )
+    daemon.navigate_page(session_id, page.target_id, url)
+    page.url = url
+
+
 @contextmanager
 def open_orchestrator_mcp_page(
     url: str,
     *,
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
-    daemon = BrowserOrchestratorClient()
-    deadline = time.monotonic() + 20.0
-    while not daemon.is_alive():
-        if time.monotonic() >= deadline:
-            raise RuntimeError(
-                "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
-            )
-        time.sleep(0.5)
+    daemon = BrowserOrchestratorClient(timeout_sec=max(request_timeout_sec, 90.0))
+    wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
+    _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
     session_id = _resolve_session_id()
     daemon.create_session(session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)

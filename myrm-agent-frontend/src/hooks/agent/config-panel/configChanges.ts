@@ -17,6 +17,7 @@ export interface OriginalAgentSnapshot {
   autoRestoreDomains: string[];
   enabledBuiltinTools: BuiltinToolId[];
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
+  memoryExtractionPreset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   modelSelection?: { providerId: string; model: string } | null;
   fallbackModelSelection?: { providerId: string; model: string } | null;
   safetyFallbackModelSelection?: { providerId: string; model: string } | null;
@@ -59,6 +60,7 @@ interface CurrentAgentState {
   systemPrompt: string;
   autoRestoreDomains?: string[];
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
+  memoryExtractionPreset?: 'none' | 'auto' | 'persona' | 'work_assistant' | 'research';
   modelSelection?: { providerId: string; model: string } | null;
   fallbackModelSelection?: { providerId: string; model: string } | null;
   safetyFallbackModelSelection?: { providerId: string; model: string } | null;
@@ -108,6 +110,9 @@ export function detectAgentConfigChanges(
   const memoryDecayChanged =
     (original.memoryDecayProfile || 'normal') !== (current.memoryDecayProfile || 'normal');
 
+  const memoryExtractionPresetChanged =
+    (original.memoryExtractionPreset || 'auto') !== (current.memoryExtractionPreset || 'auto');
+
   const modelSelectionChanged =
     (original.modelSelection?.providerId ?? '') !== (current.modelSelection?.providerId ?? '') ||
     (original.modelSelection?.model ?? '') !== (current.modelSelection?.model ?? '');
@@ -132,6 +137,7 @@ export function detectAgentConfigChanges(
     autoRestoreDomainsChanged ||
     builtinToolsChanged ||
     memoryDecayChanged ||
+    memoryExtractionPresetChanged ||
     modelSelectionChanged ||
     fallbackModelChanged ||
     safetyFallbackModelChanged

@@ -8,7 +8,15 @@ export interface ApprovalDecision {
   extensions: {
     allowAlways: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
     allowDomain?: boolean;
+    grantDirectory?: boolean;
+    grantDirectoryMeta?: { path: string; writable: boolean };
   };
+}
+
+export interface DirectoryGrantOptimistic {
+  path: string;
+  writable: boolean;
+  source: 'path_ask_grant';
 }
 
 export interface ResumeDecisionsPayload {
@@ -29,6 +37,9 @@ export interface ToolApprovalResolveExtra {
   guidance?: string;
   allow_always?: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
   allow_domain?: boolean;
+  grant_directory?: boolean;
+  grant_directory_path?: string;
+  grant_directory_writable?: boolean;
 }
 
 /**
@@ -36,6 +47,35 @@ export interface ToolApprovalResolveExtra {
  * [OUTPUT] LangGraph-compatible approval decision object
  * [POS] Shared payload builder for single and bulk approval resume
  */
+export function resumeDecisionsIncludeDirectoryGrant(decisions: ApprovalDecision[]): boolean {
+  return decisions.some(
+    (decision) =>
+      (decision.type === 'approve' || decision.type === 'edit') &&
+      decision.extensions.grantDirectory === true,
+  );
+}
+
+/** Optimistic root for path-ASK grantDirectory when GET may lag behind persist. */
+export function extractDirectoryGrantOptimistic(
+  decisions: ApprovalDecision[],
+): DirectoryGrantOptimistic | undefined {
+  for (const decision of decisions) {
+    const meta = decision.extensions.grantDirectoryMeta;
+    if (
+      (decision.type === 'approve' || decision.type === 'edit') &&
+      decision.extensions.grantDirectory &&
+      meta?.path?.trim()
+    ) {
+      return {
+        path: meta.path.trim(),
+        writable: meta.writable,
+        source: 'path_ask_grant',
+      };
+    }
+  }
+  return undefined;
+}
+
 export function buildApprovalDecision(
   decision: DecisionType,
   extra?: ToolApprovalResolveExtra,
@@ -48,6 +88,15 @@ export function buildApprovalDecision(
     extensions: {
       allowAlways: extra?.allow_always ?? false,
       ...(extra?.allow_domain && { allowDomain: true }),
+      ...(extra?.grant_directory && {
+        grantDirectory: true,
+        ...(extra.grant_directory_path && {
+          grantDirectoryMeta: {
+            path: extra.grant_directory_path,
+            writable: extra.grant_directory_writable ?? false,
+          },
+        }),
+      }),
     },
   };
 }

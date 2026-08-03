@@ -156,6 +156,7 @@ async def get_chat(
             compacted_before_id=chat.compacted_before_id,
             workspace_dir=workspace_dir,
             session_loaded_skill_names=chat.session_loaded_skill_names,
+            session_access_roots=chat.session_access_roots,
             created_at=chat.created_at,
             updated_at=chat.updated_at,
         )
@@ -443,3 +444,44 @@ async def update_session_skills(
         raise
     except Exception as e:
         raise internal_error(operation="Update session skills", exception=e) from e
+
+
+class RevokeSessionAccessRootRequest(BaseModel):
+    """Revoke one session-scoped directory grant."""
+
+    path: str = Field(..., description="Absolute or workspace-relative directory path to revoke", min_length=1)
+
+
+@router.patch("/{chat_id}/session-access-roots", response_model=StandardSuccessResponse)
+async def revoke_session_access_root(
+    chat_id: str,
+    body: RevokeSessionAccessRootRequest,
+) -> JSONResponse:
+    """Revoke one HITL-granted directory root for this chat session."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=False,
+        )
+
+        from app.services.agent.session_access_service import (
+            access_roots_to_json,
+            revoke_chat_session_access_root,
+        )
+
+        updated = await revoke_chat_session_access_root(
+            chat_id,
+            body.path.strip(),
+            workspace_dir=workspace_dir,
+        )
+        return success_response(data={"session_access_roots": access_roots_to_json(updated)})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Revoke session access root", exception=e) from e

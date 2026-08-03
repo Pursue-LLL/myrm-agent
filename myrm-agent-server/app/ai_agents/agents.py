@@ -181,9 +181,12 @@ class GeneralAgentParams(BaseAgentParams):
     max_iterations: int | None = None
     memory_policy: AgentMemoryPolicy | None = None
     memory_decay_profile: str | None = None
+    memory_extraction_preset: str | None = None
     engine_params: dict[str, object] | None = None
     jit_subagents: dict[str, object] | None = None
     session_loaded_skill_names: list[str] | None = None
+    session_access_roots: list[dict[str, object]] | None = None
+    sandbox_base_dir: str | None = None
     goal: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
     prompt_mode: str = "full"
@@ -345,9 +348,11 @@ class AgentFactory:
             subagent_ids=params.subagent_ids,
             jit_subagents=params.jit_subagents,
             session_loaded_skill_names=params.session_loaded_skill_names,
+            sandbox_base_dir=params.sandbox_base_dir,
             max_iterations=params.max_iterations,
             memory_policy=params.memory_policy,
             memory_decay_profile=params.memory_decay_profile,
+            memory_extraction_preset=params.memory_extraction_preset,
             engine_params=params.engine_params,
             quote=params.quote,
             providers_dict=params.providers_dict,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
+import { subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { THEME_PREINIT_STORAGE_KEY } from '@/theme-engine/preinit';
 
 export interface CompanionRarityVisual {
@@ -90,18 +91,13 @@ export function resolveCompanionBubbleTone(tone: 'wait' | 'error' | 'neutral'): 
   };
 }
 
-/** Re-render companion accents when workspace theme tokens change. */
+/** Re-render companion accents when host theme tokens change (profile, class, inline CSS). */
 export function useCompanionThemeEpoch(): number {
   const [epoch, setEpoch] = useState(0);
 
   useEffect(() => {
-    const root = document.documentElement;
-    const observer = new MutationObserver(() => {
+    const unsubscribe = subscribeHostThemeVars(() => {
       setEpoch((value) => value + 1);
-    });
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ['data-myrm-theme-profile', 'class'],
     });
 
     const onStorage = (event: StorageEvent) => {
@@ -111,7 +107,7 @@ export function useCompanionThemeEpoch(): number {
     };
     window.addEventListener('storage', onStorage);
     return () => {
-      observer.disconnect();
+      unsubscribe();
       window.removeEventListener('storage', onStorage);
     };
   }, []);

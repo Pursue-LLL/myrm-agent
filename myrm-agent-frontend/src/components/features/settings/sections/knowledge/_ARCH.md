@@ -14,7 +14,7 @@
 | `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview；Settings 路径 Result 内嵌 vault bind handoff | — |
 | `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；ResultStep Local Settings 路径展示 vault bind handoff；mount 时 silent recheck + readiness anchor | — |
 | `MigrationVaultBindPanel.tsx` | 辅助 | 迁移后 project workspace bind 共享 UI（Settings Result + Onboarding sync_folder）；bind 成功 queue `boundProjectId`；若当前 chat 已存在则立即 PATCH project | — |
-| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案；深链 href 消费 API `issue.settings_path`，label 仍按 code i18n | — |
+| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案（含 Hermes voice/consensus gate 引导）；深链 href 消费 API `issue.settings_path` | — |
 | `MigrationPendingReviewSection.tsx` | 辅助 | 待审核迁移技能队列 | — |
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 | — |
 | `MemoryBackupSection.tsx` | 辅助 | 本地备份 | — |

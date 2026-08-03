@@ -207,6 +207,40 @@ async def run_agent_stream(
                     request.chat_id,
                     request.resume_value.get("decision"),
                 )
+                sandbox_active = False
+                chat_workspace_dir: str | None = None
+                if request.chat_id:
+                    try:
+                        from app.services.chat.chat_service import ChatService
+
+                        chat_meta = await ChatService.get_chat_metadata(request.chat_id)
+                        sandbox_active = bool(
+                            chat_meta and chat_meta.sandbox_base_dir
+                        )
+                        if chat_meta:
+                            from app.services.chat.effective_workspace import (
+                                resolve_effective_chat_workspace,
+                            )
+
+                            chat_workspace_dir = await resolve_effective_chat_workspace(
+                                chat_meta,
+                                jit_fallback=False,
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to load sandbox state for resume grant: %s", exc
+                        )
+
+                from app.services.agent.session_access_service import (
+                    apply_directory_resume_grant,
+                )
+
+                await apply_directory_resume_grant(
+                    request.chat_id,
+                    request.resume_value,
+                    sandbox_active=sandbox_active,
+                    workspace_dir=chat_workspace_dir,
+                )
                 params, routing_tier, context_warnings, archive_restore_results = (
                     await convert_to_general_agent_params(
                         request,

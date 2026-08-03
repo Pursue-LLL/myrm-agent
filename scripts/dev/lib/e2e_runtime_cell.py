@@ -12,7 +12,7 @@
 [POS]
 Dev Gate parallel slot SSOT. Each formal chrome_e2e session owns one cell with
 exclusive mux budget key (MYRM_E2E_CELL_ID) and per-cell UI hydrate flock.
-Shared read-only: Chrome :9333 + Frontend :3000 HMR.
+`release_runtime_cell` rmtree cell dir; `prune_dead_runtime_cells` for solo heal.
 """
 
 from __future__ import annotations
@@ -159,6 +159,35 @@ def count_live_runtime_cells() -> int:
     return live
 
 
+def prune_dead_runtime_cells() -> int:
+    """Remove runtime cell directories whose owner PID is no longer alive."""
+    import shutil
+
+    root = _cells_root()
+    if not root.is_dir():
+        return 0
+    pruned = 0
+    for cell_path in root.iterdir():
+        if not cell_path.is_dir():
+            continue
+        meta_path = cell_path / _CELL_META_FILE
+        if not meta_path.is_file():
+            continue
+        try:
+            payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        pid = payload.get("pid")
+        if isinstance(pid, int) and _pid_alive(pid):
+            continue
+        try:
+            shutil.rmtree(cell_path)
+            pruned += 1
+        except OSError:
+            continue
+    return pruned
+
+
 def _resolve_run_id(explicit: str | None) -> str:
     if explicit and explicit.strip():
         return explicit.strip()
@@ -202,10 +231,18 @@ def allocate_runtime_cell(*, run_id: str | None = None) -> RuntimeCell:
 
 
 def release_runtime_cell(cell_id: str | None = None) -> None:
-    """Drop cell env binding; hydrate lock file remains for diagnostics."""
+    """Drop cell env binding and remove cell state dir (instant cleanup)."""
+    import shutil
+
     resolved = (cell_id or current_cell_id()).strip()
     os.environ.pop(_CELL_ENV, None)
     if resolved:
+        cell_path = _cell_dir(resolved)
+        try:
+            if cell_path.is_dir():
+                shutil.rmtree(cell_path)
+        except OSError:
+            pass
         print(
             f"E2E_RUNTIME_CELL_RELEASED: cell={resolved} pid={os.getpid()}",
             file=sys.stderr,

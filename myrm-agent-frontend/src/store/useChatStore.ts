@@ -100,6 +100,7 @@ const useChatStore = create<ChatState>()(
       compactionRefreshNonce: 0,
       workspaceDir: null,
       sessionSkillOverrides: null,
+      sessionAccessRoots: [],
 
       // 分页聊天历史状态
       chatHistoryItems: [],
@@ -240,6 +241,7 @@ const useChatStore = create<ChatState>()(
       setContextPinnedFilesLoadError: (error) => set({ contextPinnedFilesLoadError: error }),
       setCompactedBeforeId: (id) => set({ compactedBeforeId: id }),
       setWorkspaceDir: (dir) => set({ workspaceDir: dir }),
+      setSessionAccessRoots: (roots) => set({ sessionAccessRoots: roots }),
       setChatHistoryItems: (items) => set({ chatHistoryItems: items }),
       setChatHistoryPagination: (pagination) => set({ chatHistoryPagination: pagination }),
       setChatHistoryLoading: (loading) => set({ chatHistoryLoading: loading }),
@@ -546,6 +548,7 @@ const useChatStore = create<ChatState>()(
           contextBranchesLoadError: null,
           contextPinnedFilesLoadError: null,
           sessionSkillOverrides: null,
+          sessionAccessRoots: [],
           regenerateSiblingGroupId: undefined,
           regenerateInstruction: undefined,
           pendingArchiveRestoreAction: null,

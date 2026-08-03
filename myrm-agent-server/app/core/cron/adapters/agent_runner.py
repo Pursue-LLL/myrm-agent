@@ -570,6 +570,7 @@ class AgentJobRunner:
             enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
             auto_restore_domains: list[str] = []
             memory_decay_profile: str | None = None
+            memory_extraction_preset: str | None = None
             cron_post_run_verify = False
 
             if job.agent_id:
@@ -595,6 +596,10 @@ class AgentJobRunner:
                     raw_decay = resolved.memory_decay_profile
                     memory_decay_profile = (
                         raw_decay if isinstance(raw_decay, str) else None
+                    )
+                    raw_preset = resolved.memory_extraction_preset
+                    memory_extraction_preset = (
+                        raw_preset if isinstance(raw_preset, str) else None
                     )
                     cron_post_run_verify = resolved.cron_post_run_verify
 
@@ -706,6 +711,7 @@ class AgentJobRunner:
                 max_iterations=agent_max_iterations,
                 memory_policy=agent_memory_policy,
                 memory_decay_profile=memory_decay_profile,
+                memory_extraction_preset=memory_extraction_preset,
                 engine_params=agent_engine_params,
                 memory_shared_context_ids=memory_shared_context_ids,
                 enable_conversation_search=resolve_conversation_search_enabled(

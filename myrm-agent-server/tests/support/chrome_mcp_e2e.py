@@ -21,6 +21,7 @@ if str(_DEV_LIB) not in sys.path:
 
 from cdp_chat_support import (
     DISMISS_MODALS_JS,
+    E2E_API_BINDING_PROBE_JS,
     _e2e_api_urlopen,
     e2e_runtime_binding,
     e2e_runtime_binding_source,
@@ -322,7 +323,7 @@ def _reapply_shpoib_runtime_after_reload(
     api_base = get_e2e_api_url()
     bootstrap_js = e2e_runtime_bootstrap_apply_js()
     binding_source = e2e_runtime_binding_source()
-    if bootstrap_js is None:
+    if bootstrap_js is None and binding_source is None:
         raise RuntimeError("SHPOIB bootstrap JS missing after reload")
     if is_e2e_signoff_runtime():
         timeout_sec = max(timeout_sec, float(SIGNOFF_SHPOIB_REBIND_WALL_SEC))
@@ -331,6 +332,39 @@ def _reapply_shpoib_runtime_after_reload(
         rebind_cap = 420.0 if is_e2e_signoff_runtime() else 300.0
         timeout_sec = min(timeout_sec + parallel_peers * 15.0, rebind_cap)
     deadline = time.monotonic() + timeout_sec
+    normalized_target = _normalize_rebind_target_url(target_url)
+    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
+        if not binding_source:
+            raise RuntimeError("SHPOIB binding source missing for orchestrator rebind")
+        remaining = max(0.0, deadline - time.monotonic())
+        if not wait_e2e_provider_ready(
+            api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))
+        ):
+            raise RuntimeError(
+                f"SHPOIB private API not ready before orchestrator rebind: {api_base}"
+            )
+        client.evaluate(
+            page,
+            f"(() => {{{binding_source} return true; }})()",
+            timeout_sec=min(30.0, max(5.0, remaining)),
+        )
+        if normalized_target:
+            nav_timeout_ms = min(int(remaining * 1000), 120_000)
+            client.navigate(page, normalized_target, timeout_ms=nav_timeout_ms)
+        probe_js = (
+            f"(() => {{ const p = {E2E_API_BINDING_PROBE_JS}; "
+            f"return {{ ready: String(p.apiBase || '').replace(/\\\\/+$/,'') === "
+            f"{json.dumps(api_base.rstrip('/'))}, probe: p }}; }})()"
+        )
+        wait_for_state(
+            client,
+            page,
+            probe_js,
+            timeout_sec=min(60.0, max(5.0, remaining)),
+        )
+        return
+    if bootstrap_js is None:
+        raise RuntimeError("SHPOIB bootstrap JS missing after reload")
     last_observed: dict[str, object] = {"phase": "not_started"}
     max_attempts = 5
     for attempt in range(max_attempts):
@@ -343,7 +377,6 @@ def _reapply_shpoib_runtime_after_reload(
             time.sleep(2.0)
             continue
         nav_timeout_ms = min(int(remaining * 1000), 120_000)
-        normalized_target = _normalize_rebind_target_url(target_url)
         if binding_source is not None and normalized_target:
             client.evaluate(
                 page,
@@ -603,13 +636,22 @@ def _open_page_body_fraction_cap_sec() -> float:
 
 
 def _open_page_layout_wait_sec() -> float:
+    peers = _parallel_open_page_peer_count()
     if is_e2e_signoff_runtime():
         base = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
-        peers = _parallel_open_page_peer_count()
         if peers >= 1:
             return min(base + peers * 15.0, 300.0)
         return base
-    return _OPEN_PAGE_LAYOUT_WAIT_SEC
+    base = _OPEN_PAGE_LAYOUT_WAIT_SEC
+    if peers >= 1:
+        try:
+            from dev_gate_contract import shared_ui_hydrate_wait_sec
+
+            cap = float(shared_ui_hydrate_wait_sec())
+            return min(base + peers * 30.0, cap)
+        except ImportError:
+            return min(base + peers * 30.0, 240.0)
+    return base
 
 
 _APP_LAYOUT_READY_JS = """(() => ({
@@ -617,7 +659,35 @@ _APP_LAYOUT_READY_JS = """(() => ({
   pathname: location.pathname,
   title: document.title,
   bodyLen: document.body?.innerText?.length ?? 0,
+  kind: 'app',
 }))()"""
+
+_SETTINGS_LAYOUT_READY_JS = """(() => ({
+  ready:
+    location.pathname.startsWith('/settings') &&
+    (
+      !!document.querySelector('[data-testid="settings-layout"]') ||
+      (
+        !!document.querySelector('aside') &&
+        !!document.querySelector('[data-section][data-active]') &&
+        (document.body?.innerText?.length ?? 0) > 40
+      )
+    ),
+  pathname: location.pathname,
+  title: document.title,
+  bodyLen: document.body?.innerText?.length ?? 0,
+  kind: 'settings',
+}))()"""
+
+
+def _page_shell_ready_js_for_url(url: str) -> str:
+    """Settings routes use SettingsLayout, not AppLayout — do not wait for app-layout there."""
+    from urllib.parse import urlparse
+
+    path = urlparse(url).path
+    if path.startswith("/settings"):
+        return _SETTINGS_LAYOUT_READY_JS
+    return _APP_LAYOUT_READY_JS
 
 
 def _wait_for_app_layout_open(
@@ -627,19 +697,21 @@ def _wait_for_app_layout_open(
     url: str,
     timeout_ms: int,
 ) -> None:
-    """Wait for AppLayout shell; signoff reload-heals stale mux tabs that never hydrated."""
+    """Wait for page shell (AppLayout or SettingsLayout); signoff reload-heals stale mux tabs."""
+    shell_ready_js = _page_shell_ready_js_for_url(url)
     layout_timeout = _open_page_layout_wait_sec()
     client.set_tool_wall_deadline(None)
     try:
         wait_for_state(
             client,
             page,
-            _APP_LAYOUT_READY_JS,
+            shell_ready_js,
             timeout_sec=layout_timeout,
         )
         return
     except AssertionError:
-        if not is_e2e_signoff_runtime():
+        # SHPOIB settings routes block on deferred locale; reload-heal stale mux tabs (R267).
+        if not is_e2e_signoff_runtime() and e2e_runtime_binding() is None:
             raise
     client.set_tool_wall_deadline(None)
     reload_mcp_page(client, page, target_url=url, timeout_ms=timeout_ms)
@@ -648,12 +720,12 @@ def _wait_for_app_layout_open(
         wait_for_state(
             client,
             page,
-            _APP_LAYOUT_READY_JS,
+            shell_ready_js,
             timeout_sec=min(120.0, layout_timeout * 0.5),
         )
     except AssertionError as retry_exc:
         raise AssertionError(
-            f"App layout did not hydrate after reload: {retry_exc.args[0]}"
+            f"Page shell did not hydrate after reload: {retry_exc.args[0]}"
         ) from retry_exc
 
 
@@ -720,6 +792,56 @@ def _mux_transport_wait_budget_sec() -> float:
         from transport_supervisor import mux_upstream_wait_cap
 
         return float(mux_upstream_wait_cap())
+
+
+def _open_page_queue_wait_extends_deadlines() -> bool:
+    """P0-C: bootstrap mux fair-queue wait must not consume open_mcp_page attempt budget."""
+    if _dev_private_shpoib_bootstrap_phase():
+        return True
+    if is_e2e_signoff_runtime():
+        try:
+            from e2e_session_lifecycle import current_phase
+
+            return current_phase() == "bootstrap"
+        except ImportError:
+            return False
+    return False
+
+
+def _extend_open_page_deadlines_for_queue_wait(
+    *,
+    elapsed_sec: float,
+    transport_session_started: float,
+    wall_deadline: float,
+    total_deadline: float,
+) -> tuple[float, float, float]:
+    if elapsed_sec <= 0.0 or not _open_page_queue_wait_extends_deadlines():
+        return transport_session_started, wall_deadline, total_deadline
+    return (
+        transport_session_started,
+        wall_deadline + elapsed_sec,
+        total_deadline + elapsed_sec,
+    )
+
+
+def _wait_open_page_mux_turn(
+    *,
+    budget_sec: float,
+    current_node: str,
+    transport_session_started: float,
+    wall_deadline: float,
+    total_deadline: float,
+) -> tuple[float, float, float]:
+    from browser_orchestrator import wait_for_operation_credit
+
+    wait_started = time.monotonic()
+    wait_for_operation_credit(budget_sec=budget_sec, current_node=current_node)
+    return _extend_open_page_deadlines_for_queue_wait(
+        elapsed_sec=time.monotonic() - wait_started,
+        transport_session_started=transport_session_started,
+        wall_deadline=wall_deadline,
+        total_deadline=total_deadline,
+    )
 
 
 def _dev_private_shpoib_bootstrap_phase() -> bool:
@@ -1246,8 +1368,10 @@ def open_mcp_page(
     touch_wall_progress(current_node="open_mcp_page_attempt")
     parallel_transport = _open_page_parallel_total_wall_only()
     boot_mux_gate_ok = os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
+    transport_session_started = time.monotonic()
+    wall_deadline = transport_session_started + open_page_wall_budget_sec
+    total_deadline = transport_session_started + open_page_total_budget_sec
     if _parallel_open_page_peer_count() >= 2:
-        from browser_orchestrator import wait_for_operation_credit
         from transport_supervisor import mux_upstream_wait_cap
 
         if boot_mux_gate_ok:
@@ -1257,13 +1381,13 @@ def open_mcp_page(
             probe_budget = min(probe_budget, 45.0)
         else:
             probe_budget = float(mux_upstream_wait_cap())
-        wait_for_operation_credit(
+        transport_session_started, wall_deadline, total_deadline = _wait_open_page_mux_turn(
             budget_sec=probe_budget,
             current_node="open_mcp_page_boot_gate",
+            transport_session_started=transport_session_started,
+            wall_deadline=wall_deadline,
+            total_deadline=total_deadline,
         )
-    transport_session_started = time.monotonic()
-    total_deadline = transport_session_started + open_page_total_budget_sec
-    wall_deadline = transport_session_started + open_page_wall_budget_sec
     last_exc: BaseException | None = None
     mux_restarted = False
     if is_e2e_signoff_runtime():
@@ -1279,6 +1403,9 @@ def open_mcp_page(
         except RuntimeError:
             pass
         time.sleep(2.0)
+        transport_session_started = time.monotonic()
+        wall_deadline = transport_session_started + open_page_wall_budget_sec
+        total_deadline = transport_session_started + open_page_total_budget_sec
     for attempt in range(open_page_attempts):
         if is_e2e_signoff_runtime() and attempt > 0:
             _force_mux_attach_restart_after_new_page_timeout()
@@ -1349,9 +1476,15 @@ def open_mcp_page(
         heartbeat_e2e_lease()
         touch_wall_progress(current_node="open_mcp_page_attempt")
         if _parallel_open_page_peer_count() >= 2:
-            from browser_orchestrator import wait_for_operation_credit
-
-            wait_for_operation_credit(budget_sec=_mux_transport_wait_budget_sec())
+            transport_session_started, wall_deadline, total_deadline = (
+                _wait_open_page_mux_turn(
+                    budget_sec=_mux_transport_wait_budget_sec(),
+                    current_node="open_mcp_page_pre_attempt",
+                    transport_session_started=transport_session_started,
+                    wall_deadline=wall_deadline,
+                    total_deadline=total_deadline,
+                )
+            )
         attempt_mono = time.monotonic()
         attempt_wall_deadline = attempt_mono + open_page_wall_budget_sec
         attempt_total_deadline = attempt_mono + open_page_total_budget_sec

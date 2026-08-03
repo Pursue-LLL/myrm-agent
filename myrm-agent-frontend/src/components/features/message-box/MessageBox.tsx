@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
+import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
@@ -39,6 +40,7 @@ import { UIActionEvent } from '@/store/chat/types';
 import { formatUIActionAsMessage, type UIActionMessageLabels } from '@/components/features/interactive-ui/utils';
 import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
+import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
@@ -173,9 +175,16 @@ const MessageBox = ({
     () => findActivePendingClarification(messages),
     [messages],
   );
+  const composerPendingDirectoryRequest = useMemo(
+    () => findActivePendingDirectoryRequest(messages),
+    [messages],
+  );
   const hideInlineClarification =
     composerPendingClarification?.messageId === message.messageId;
+  const hideInlineDirectoryRequest =
+    composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
+  const workspaceDir = useChatStore((state) => state.workspaceDir ?? undefined);
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const reasoningDisplayMode = useConfigStore(
     (state) => state.personalSettings?.reasoningDisplayMode ?? state.reasoningDisplayMode ?? 'collapsed',
@@ -742,6 +751,9 @@ const MessageBox = ({
                 sources={accumulatedSources}
                 messageId={message.messageId}
                 isStreaming={isLast && loading}
+                chatId={chatId}
+                messageArtifacts={message.artifacts}
+                workspaceDir={workspaceDir}
               />
               {/* 流式输出动画 - 渐进变深的三个圆点，每个延迟 0.2s 形成波浪效果 */}
               {isLast && loading && parsedMessage && !message.isFadingOut && (
@@ -765,6 +777,15 @@ const MessageBox = ({
                 isResumeMode={message.clarification.isResumeMode}
                 title={message.clarification.title}
                 form={message.clarification.form}
+              />
+            )}
+
+            {message.directoryRequest && !hideInlineDirectoryRequest && (
+              <DirectoryApprovalInput
+                messageId={message.messageId}
+                answered={message.directoryRequest.answered}
+                isResumeMode={message.directoryRequest.isResumeMode}
+                request={message.directoryRequest.request}
               />
             )}
 

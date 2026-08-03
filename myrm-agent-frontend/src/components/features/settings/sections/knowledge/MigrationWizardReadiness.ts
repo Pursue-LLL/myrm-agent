@@ -57,6 +57,10 @@ export function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: Migra
       return t('result.readinessIssue.workspaceRulesSkipped', {
         count: Number(issue.params.count ?? 0),
       });
+    case 'voice_feature_disabled':
+      return t('result.readinessIssue.voiceFeatureDisabled');
+    case 'consensus_feature_disabled':
+      return t('result.readinessIssue.consensusFeatureDisabled');
     default:
       return t('result.readinessIssue.generic', { code: issue.code });
   }
@@ -92,6 +96,10 @@ function resolveReadinessActionLabel(code: string, t: MigrationWizardTranslation
       return t('result.readinessAction.configureMcp');
     case 'workspace_rules_skipped':
       return t('result.readinessAction.reviewMigrationRules');
+    case 'voice_feature_disabled':
+      return t('result.readinessAction.configureVoice');
+    case 'consensus_feature_disabled':
+      return t('result.readinessAction.configureConsensus');
     default:
       return t('result.readinessAction.openMemoryCenter');
   }

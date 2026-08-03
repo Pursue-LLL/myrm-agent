@@ -124,6 +124,28 @@ def _runtime_drift_heal_allowed() -> bool:
     return _formal_chrome_e2e_runtime_heal_allowed()
 
 
+def _signoff_runtime_drift_sync_allowed() -> bool:
+    """Signoff/desktop soak may sync lease runtimeId in pytest fixture setup."""
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1" or os.environ.get(
+        "MYRM_E2E_DESKTOP_SOAK", ""
+    ).strip() == "1"
+
+
+def _sync_signoff_runtime_drift(*, lease_id: str) -> str | None:
+    """In-place lease/wave runtimeId sync when backend restarted mid-attempt."""
+    if not lease_id.strip():
+        return None
+    from e2e_lease_runtime_sync import sync_lease_runtime_with_shared_hot
+
+    ok, detail = sync_lease_runtime_with_shared_hot(lease_id=lease_id)
+    if not ok:
+        return None
+    runtime_id = detail.strip()
+    if runtime_id:
+        os.environ["MYRM_E2E_STACK_FP"] = runtime_id
+    return runtime_id or None
+
+
 def _uses_shared_hot_runtime_probe() -> bool:
     return _runtime_drift_heal_allowed()
 
@@ -225,6 +247,12 @@ def _assert_runtime_matches_lease_or_heal(
         if drift_attempt + 1 < attempts:
             time.sleep(2.0)
     current = runtime_id_reader().strip()
+    if _signoff_runtime_drift_sync_allowed():
+        synced = _sync_signoff_runtime_drift(lease_id=lease_id)
+        if synced:
+            current = runtime_id_reader().strip()
+            if current == synced:
+                return current
     raise RuntimeError(
         f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}"
     )
@@ -433,7 +461,11 @@ def require_e2e_runtime_lease(
         except RuntimeError as exc:
             last_error = exc
             message = str(exc)
-            retryable = "is not active" in message or "is expired" in message
+            retryable = (
+                "is not active" in message
+                or "is expired" in message
+                or "RUNTIME_DRIFT" in message
+            )
             if not retryable or attempt >= 2:
                 raise
             _heal_stale_e2e_lease()

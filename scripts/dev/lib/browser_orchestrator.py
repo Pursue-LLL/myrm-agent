@@ -67,11 +67,13 @@ def _mux_probe() -> tuple[bool, int, int]:
 
 
 def _effective_operation_credit_cap() -> int:
-    """Current effective max operation credits.
+    """Current effective max operation credits (Host Resource Governor when available)."""
+    try:
+        from host_resource_governor import effective_browser_operation_credits
 
-    For now returns MAX_OPERATION_CREDITS; Host Resource Governor (P1)
-    will dynamically adjust this between 1 and MAX_OPERATION_CREDITS.
-    """
+        return max(1, min(MAX_OPERATION_CREDITS, effective_browser_operation_credits()))
+    except ImportError:
+        pass
     override = os.environ.get("CDMCP_MUX_MAX_IN_FLIGHT")
     if override:
         return max(1, min(MAX_OPERATION_CREDITS, int(override)))
@@ -212,47 +214,21 @@ def browser_operation_credit_slot(
     budget_sec: float = 180.0,
     current_node: str = "unknown",
 ) -> Generator[None, None, None]:
-    """Acquire one browser operation credit, blocking until available.
-
-    This is a bridge implementation. Full daemon migration will route
-    through the Browser Orchestrator's fair scheduler directly.
-    """
+    """Acquire one browser operation credit, blocking until available."""
     wait_for_operation_credit(budget_sec=budget_sec, current_node=current_node)
-    try:
+    from mux_upstream_admission import upstream_cold_attach_slot  # noqa: PLC0415
+
+    with upstream_cold_attach_slot():
         yield
-    finally:
-        pass
 
 
 def wait_for_operation_credit(
     *, budget_sec: float = 180.0, current_node: str = "unknown"
 ) -> None:
-    """Block until a browser operation credit becomes available.
+    """Block until no peer holds an upstream operation credit (fair queue SSOT)."""
+    from e2e_mux_transport_queue import wait_mux_transport_turn  # noqa: PLC0415
 
-    Bridge implementation: polls mux_upstream_admission active count.
-    Full daemon migration will use event subscription.
-    """
-    from mux_upstream_admission import effective_max_slots  # noqa: PLC0415
-    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
-
-    cap = effective_max_slots()
-    deadline = time.monotonic() + budget_sec
-    poll_interval = 0.5
-
-    while time.monotonic() < deadline:
-        active = len(list_active_upstream_operations())
-        if active < cap:
-            return
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        time.sleep(min(poll_interval, remaining))
-        poll_interval = min(poll_interval * 1.5, 5.0)
-
-    raise TimeoutError(
-        f"Browser operation credit timeout after {budget_sec:.0f}s "
-        f"(node={current_node}, cap={cap})"
-    )
+    wait_mux_transport_turn(budget_sec=budget_sec, current_node=current_node)
 
 
 def prune_self_owned_blanks(

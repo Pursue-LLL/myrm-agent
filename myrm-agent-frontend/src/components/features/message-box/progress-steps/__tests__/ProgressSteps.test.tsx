@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isValidElement } from 'react';
 
-import { getSemanticToolLabel, linkifyErrorText } from '../utils';
+import { linkifyErrorText } from '../utils';
 
 type AnchorElement = React.ReactElement<React.AnchorHTMLAttributes<HTMLAnchorElement>>;
 
@@ -70,67 +70,5 @@ describe('linkifyErrorText', () => {
     const anchors = nodes.filter(isValidElement);
     expect(anchors).toHaveLength(1);
     expect((anchors[0] as AnchorElement).props.href).toBe('https://only-url.com');
-  });
-});
-
-describe('getSemanticToolLabel', () => {
-  const mockT = (key: string) => key;
-
-  it('returns i18n translation when available', () => {
-    const t = (key: string) => (key === 'toolSemanticLabels.file_read_tool' ? 'Read File' : key);
-    expect(getSemanticToolLabel('file_read_tool', t)).toBe('Read File');
-  });
-
-  it('formats regular tool name when no translation', () => {
-    expect(getSemanticToolLabel('file_read_tool', mockT)).toBe('File Read');
-  });
-
-  it('extracts tool part from MCP prefixed name', () => {
-    expect(getSemanticToolLabel('mcp__github__search_repos', mockT)).toBe('Search Repos');
-  });
-
-  it('handles MCP tool with single-word tool name', () => {
-    expect(getSemanticToolLabel('mcp__filesystem__read', mockT)).toBe('Read');
-  });
-
-  it('strips _tool suffix from MCP tool name', () => {
-    expect(getSemanticToolLabel('mcp__remote__file_read_tool', mockT)).toBe('File Read');
-  });
-
-  it('handles MCP name with double underscore in tool part', () => {
-    expect(getSemanticToolLabel('mcp__server__complex__action', mockT)).toBe('Complex Action');
-  });
-
-  it('handles MCP prefix with only server (no tool delimiter)', () => {
-    expect(getSemanticToolLabel('mcp__serveronly', mockT)).toBe('Serveronly');
-  });
-
-  it('formats plain tool name without _tool suffix', () => {
-    expect(getSemanticToolLabel('web_search', mockT)).toBe('Web Search');
-  });
-
-  it('capitalizes each word', () => {
-    expect(getSemanticToolLabel('bash_code_execute_tool', mockT)).toBe('Bash Code Execute');
-  });
-
-  it('handles empty string', () => {
-    expect(getSemanticToolLabel('', mockT)).toBe('');
-  });
-
-  it('handles single character tool name', () => {
-    expect(getSemanticToolLabel('a', mockT)).toBe('A');
-  });
-
-  it('handles MCP prefix with empty tool part', () => {
-    expect(getSemanticToolLabel('mcp__server__', mockT)).toBe('');
-  });
-
-  it('does not treat non-mcp double underscore as MCP prefix', () => {
-    expect(getSemanticToolLabel('some__internal__name', mockT)).toBe('Some  Internal  Name');
-  });
-
-  it('preserves i18n for MCP tool when translation exists', () => {
-    const t = (key: string) => (key === 'toolSemanticLabels.mcp__github__search_repos' ? 'Search GitHub Repos' : key);
-    expect(getSemanticToolLabel('mcp__github__search_repos', t)).toBe('Search GitHub Repos');
   });
 });

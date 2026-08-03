@@ -14,6 +14,11 @@ import EditModeView from '@/components/features/chat-window/approval/EditModeVie
 import AllowAlwaysConfirmDialog from '@/components/features/chat-window/approval/AllowAlwaysConfirmDialog';
 import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
+import { humanizeApprovalTitle, classifyApprovalSurface, resolveScopeNote } from '@/lib/humanize';
+import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
+import CompactFileWriteApprovalRow from '@/components/approval/CompactFileWriteApprovalRow';
+import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
+import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
 import {
   extractShellCommand,
   getShellEditInputEntries,
@@ -191,6 +196,7 @@ function SkillApprovalContent({
 
 export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: PolymorphicApprovalCardProps) {
   const t = useTranslations('toolApproval');
+  const tHumanize = useTranslations('humanize');
   const tNotifications = useTranslations('notifications');
   const router = useRouter();
   const hideDrawer = useApprovalStore((s) => s.hideDrawer);
@@ -199,6 +205,16 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     [approval.payload?.tool_calls],
   );
   const primaryToolName = toolCalls[0]?.name ?? 'unknown';
+
+  const humanizeCallTitle = useCallback(
+    (toolName: string, args: unknown) =>
+      humanizeApprovalTitle(
+        toolName,
+        typeof args === 'object' && args !== null ? (args as Record<string, unknown>) : {},
+        tHumanize,
+      ),
+    [tHumanize],
+  );
   const [comment, setComment] = useState('');
   const [mode, setMode] = useState<CardDialogMode>('default');
   const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
@@ -397,37 +413,35 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <h4 className="font-medium text-sm text-muted-foreground">{t('subagentApprovalRequired')}</h4>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {toolCalls.map((call, idx: number) => {
-                // Special rendering for file_write tool to show DiffEditor
-                if (call.name === 'file_write' && typeof call.args === 'object' && call.args !== null) {
-                  const args = call.args as Record<string, any>;
-                  const content = args.content || args.file_content || args.text || '';
-                  const filePath = args.path || args.file_path || '';
+                if (typeof call.args === 'object' && call.args !== null && classifyApprovalSurface(call.name) === 'compact') {
+                  const args = call.args as Record<string, unknown>;
+                  const filePath =
+                    (typeof args.path === 'string' && args.path) ||
+                    (typeof args.file_path === 'string' && args.file_path) ||
+                    '';
+                  const content = String(args.content ?? args.file_content ?? args.text ?? '');
                   const language = getLanguageFromPath(filePath);
-                  // We don't have original content here easily, but we can show the new content in a nice editor
-                  // If we had original_content in args we could use DiffEditor. For now, just show the new content nicely.
-                  return (
-                    <div key={idx} className="rounded-lg border overflow-hidden">
-                      <div className="bg-muted px-3 py-2 border-b font-mono text-xs text-primary flex items-center justify-between">
-                        <span>{call.name}</span>
-                        <span className="text-muted-foreground truncate ml-2 max-w-[200px]" title={filePath}>{filePath}</span>
-                      </div>
-                      <div className="h-[300px]">
-                        <Editor
-                          height="100%"
-                          language={language}
-                          theme={isDark ? 'vs-dark' : 'light'}
-                          value={String(content)}
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: false },
-                            wordWrap: 'on',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
+                  const hasWriteContent = content.trim().length > 0;
+
+                  if (filePath || hasWriteContent) {
+                    const scope = resolveScopeNote(call.name, args, tHumanize);
+                    return (
+                      <CompactFileWriteApprovalRow
+                        key={idx}
+                        title={humanizeCallTitle(call.name, call.args)}
+                        filePath={filePath}
+                        content={content}
+                        language={language}
+                        isDark={isDark}
+                        viewChangesLabel={t('viewChanges')}
+                        hideChangesLabel={t('hideChanges')}
+                        scopeNote={scope.text}
+                        scopeExternal={scope.external}
+                      />
+                    );
+                  }
                 }
-                
+
                 // Shell / code execution tools
                 if (isShellApprovalTool(call.name) && typeof call.args === 'object' && call.args !== null) {
                   const args = call.args as Record<string, unknown>;
@@ -465,6 +479,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                           {executionIntent}
                         </div>
                       )}
+                      <ApprovalScopeNoteLine toolName={call.name} toolInput={args} tHumanize={tHumanize} />
                       <ShellCommandDisplay
                         toolName={call.name}
                         command={command}
@@ -478,10 +493,39 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   );
                 }
 
+                // save_skill / skill_manage save — bundle preview (OW SaveSkillPreview parity)
+                if (
+                  typeof call.args === 'object' &&
+                  call.args !== null &&
+                  isSaveSkillApproval(call.name, call.args as Record<string, unknown>)
+                ) {
+                  const args = call.args as Record<string, unknown>;
+                  return (
+                    <div key={idx} className="rounded-lg border p-4 bg-muted/20 space-y-2">
+                      <div className="font-medium text-sm text-primary">{humanizeCallTitle(call.name, call.args)}</div>
+                      <ApprovalScopeNoteLine toolName={call.name} toolInput={args} tHumanize={tHumanize} />
+                      <SaveSkillApprovalPreview
+                        toolInput={args}
+                        showFullInstructionsLabel={t('saveSkill.showFullInstructions')}
+                        showLessLabel={t('saveSkill.showLess')}
+                        showAllLinesLabel={t('saveSkill.showAllLines')}
+                        footerText={t('saveSkill.footer')}
+                      />
+                    </div>
+                  );
+                }
+
                 // Fallback for other tools
                 return (
-                  <div key={idx} className="rounded-lg border p-4 bg-muted/50">
-                    <div className="font-medium font-mono text-sm mb-2 text-primary">{call.name}</div>
+                  <div key={idx} className="rounded-lg border p-4 bg-muted/50 space-y-2">
+                    <div className="font-medium text-sm text-primary">{humanizeCallTitle(call.name, call.args)}</div>
+                    {typeof call.args === 'object' && call.args !== null ? (
+                      <ApprovalScopeNoteLine
+                        toolName={call.name}
+                        toolInput={call.args as Record<string, unknown>}
+                        tHumanize={tHumanize}
+                      />
+                    ) : null}
                     <pre className="text-xs overflow-x-auto text-muted-foreground whitespace-pre-wrap break-all">
                       {JSON.stringify(call.args, null, 2)}
                     </pre>

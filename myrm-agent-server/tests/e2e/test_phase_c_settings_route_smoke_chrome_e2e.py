@@ -21,7 +21,7 @@ _SETTINGS_SHELL_STATE = """(() => {
     ready:
       location.pathname.startsWith('/settings') &&
       bodyText.length > 20 &&
-      !!document.querySelector('[data-testid="app-layout"]'),
+      !!document.querySelector('[data-testid="settings-layout"]'),
     pathname: location.pathname,
     bodyLength: bodyText.length,
   };

@@ -6,6 +6,7 @@
  * 核心特性：
  * - 乐观更新：先更新 UI，再异步同步
  * - 防抖同步：避免频繁写入
+ * - 主题 fast-path：personalSettings 主题字段变更立即 flush + offline queue 落盘
  * - 离线支持：网络不可用时保存到本地队列
  * - 冲突检测：版本号乐观锁
  */
@@ -22,6 +23,7 @@ import {
   STARTUP_NORMALIZE_KEYS,
 } from './configNormalizer';
 import { threeWayMerge } from './mergeUtils';
+import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
 import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
 import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS, createInitialVersion, incrementVersion } from './types';
@@ -188,6 +190,7 @@ class ConfigSyncManager {
 
       if (offlineChanges.length > 0) {
         console.warn(`[ConfigSync] Found ${offlineChanges.length} offline changes, syncing...`);
+        this.applyPendingChangesToCache(offlineChanges);
         this.changeQueue = offlineChanges;
         await this.flushSync();
       }
@@ -337,7 +340,24 @@ class ConfigSyncManager {
       timestamp: Date.now(),
     });
 
-    // 4. 防抖同步
+    // 4. 主题字段 fast-path：持久化队列 + 立即同步，避免 1s debounce 内关 tab 丢 server 写入
+    if (
+      key === 'personalSettings' &&
+      isThemePersonalSettingsChange(
+        current?.value as ConfigValueMap['personalSettings'] | undefined,
+        value as ConfigValueMap['personalSettings'],
+      )
+    ) {
+      this.saveOfflineQueue(this.changeQueue);
+      if (this.syncDebounceTimer) {
+        clearTimeout(this.syncDebounceTimer);
+        this.syncDebounceTimer = null;
+      }
+      void this.flushSync();
+      return;
+    }
+
+    // 5. 防抖同步
     this.scheduleSyncDebounced();
   }
 
@@ -423,13 +443,22 @@ class ConfigSyncManager {
         // 清空离线队列
         this.clearOfflineQueue();
 
-        // 更新版本号
-        for (const [key, version] of result.newVersions) {
-          const record = this.cache.get(key);
-          if (record) {
-            record.meta.version = version;
-            this.baseCache.set(key, cloneDeep(record));
-          }
+        // 同步成功：cache/baseCache 必须与 mergedChanges 一致（offline replay 等路径可能未先乐观更新）
+        for (const change of mergedChanges) {
+          const serverVersion = result.newVersions.get(change.key);
+          const existing = this.cache.get(change.key);
+          const fallbackVersion = existing?.meta.version ?? createInitialVersion();
+          const newRecord: ConfigRecord = {
+            key: change.key,
+            value: change.value,
+            meta: {
+              version: serverVersion ?? incrementVersion(fallbackVersion),
+              updatedAt: new Date().toISOString(),
+              deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
+            },
+          };
+          this.cache.set(change.key, newRecord);
+          this.baseCache.set(change.key, cloneDeep(newRecord));
         }
 
         this._status = 'idle';
@@ -465,6 +494,26 @@ class ConfigSyncManager {
       console.warn('[ConfigSync] Sync failed:', error);
       this._status = 'error';
       throw error;
+    }
+  }
+
+  /** Apply queued change values to cache (mirrors set() optimistic write for offline replay). */
+  private applyPendingChangesToCache(changes: ConfigChange[]): void {
+    const merged = this.mergeChanges(changes);
+    for (const change of merged) {
+      const key = change.key;
+      const current = this.cache.get(key);
+      const currentVersion = current?.meta.version ?? createInitialVersion();
+      const newRecord: ConfigRecord = {
+        key,
+        value: change.value,
+        meta: {
+          version: incrementVersion(currentVersion),
+          updatedAt: new Date().toISOString(),
+          deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
+        },
+      };
+      this.cache.set(key, newRecord);
     }
   }
 

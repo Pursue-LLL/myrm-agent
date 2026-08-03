@@ -44,30 +44,32 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
   },
   'builtin-economy': {
     en: {
-      name: 'Economy Assistant',
+      name: 'Knowledge Work',
       description:
-        'Cost-conscious assistant with Smart Routing — ideal for high-volume daily tasks and Hermes migrants.',
+        'Deliverable-first assistant for everyday knowledge work — search, files, tasks, and memory. Ideal for Hermes migrants and Cowork-style workflows.',
     },
     zh: {
-      name: '省成本助手',
-      description: '面向高频日常任务的省成本智能体，内置 Smart Routing，适合 Hermes 迁移用户。',
+      name: '知识工作助手',
+      description: '面向日常知识工作的交付优先助手——搜索、文件、任务与记忆。适合 Hermes 迁移与 Cowork 式工作流。',
     },
     'zh-TW': {
-      name: '省成本助手',
-      description: '面向高頻日常任務的省成本智慧體，內建 Smart Routing，適合 Hermes 遷移使用者。',
+      name: '知識工作助手',
+      description: '面向日常知識工作的交付優先助手——搜尋、檔案、任務與記憶。適合 Hermes 遷移與 Cowork 式工作流。',
     },
     ja: {
-      name: 'エコノミーアシスタント',
-      description: 'Smart Routing 対応の低コストアシスタント。日常タスクと Hermes 移行ユーザー向け。',
+      name: 'ナレッジワーク',
+      description:
+        '日常のナレッジワーク向け交付優先アシスタント — 検索・ファイル・タスク・記憶。Hermes 移行と Cowork 型ワークフロー向け。',
     },
     ko: {
-      name: '절약형 어시스턴트',
-      description: 'Smart Routing 기반 비용 절감 어시스턴트. 일상 작업 및 Hermes 이전 사용자용.',
+      name: '지식 작업 어시스턴트',
+      description:
+        '일상 지식 작업을 위한 산출물 중심 어시스턴트 — 검색, 파일, 태스크, 메모리. Hermes 이전 및 Cowork 스타일 워크플로에 적합.',
     },
     de: {
-      name: 'Economy-Assistent',
+      name: 'Wissensarbeit',
       description:
-        'Kostenbewusster Assistent mit Smart Routing — ideal für häufige Alltagsaufgaben und Hermes-Migranten.',
+        'Lieferergebnis-orientierter Assistent für tägliche Wissensarbeit — Suche, Dateien, Aufgaben und Gedächtnis. Ideal für Hermes-Migranten und Cowork-Workflows.',
     },
   },
   'builtin-writer': {

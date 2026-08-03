@@ -80,6 +80,43 @@ class _RouteChat:
         self.surface_calls += 1
 
 
+class _SignoffForceShellChat(_ForceShellChat):
+    def __init__(self) -> None:
+        super().__init__()
+        self.shell_calls = 0
+
+    async def wait_shell_ready(
+        self, *, timeout_sec: float, require_bridge: bool
+    ) -> None:
+        _ = timeout_sec
+        _ = require_bridge
+        self.shell_calls += 1
+        if self.shell_calls == 1:
+            raise RuntimeError("shell-not-ready")
+
+
+@pytest.mark.asyncio
+async def test_signoff_force_chat_shell_skips_recover_mux_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    lightweight_calls: list[str] = []
+
+    async def _lightweight(_chat: object, *, reason: str) -> None:
+        lightweight_calls.append(reason)
+
+    monkeypatch.setattr(turn_flow, "_signoff_mux_recover_lightweight", _lightweight)
+    chat = _SignoffForceShellChat()
+    await turn_flow._force_chat_shell(chat, label="unit-signoff")
+    assert chat.navigate_calls == 2
+    assert chat._client.recover_calls == 0
+    assert lightweight_calls
+
+
 @pytest.mark.asyncio
 async def test_force_chat_shell_retries_after_wall_timeout(
     monkeypatch: pytest.MonkeyPatch,
@@ -166,9 +203,15 @@ async def test_complete_turn_after_approval_recovers_on_empty_snapshot(
 def test_turn_flow_seeded_resend_api_kickoff_ssot() -> None:
     text = open(turn_flow.__file__, encoding="utf-8").read()
     assert "_kickoff_desktop_turn_via_api_sync" in text
+    assert "_try_signoff_api_kickoff" in text
+    assert "R286 signoff initial send" in text
+    assert "R287 signoff skip force_chat_shell" in text
+    assert "R288 signoff lightweight mux recover" in text
+    assert "_signoff_mux_recover_lightweight" in text
     assert "R232 mux-bypass" in text
     assert "R233 api-primary DONE wait" in text
     assert "api_primary_done=seeded_api_kickoff" in text
+    assert "initial_api_kickoff" in text
     assert "R264 CDP resend transport fail" in text
     assert "run_r262_chain" in text
     seeded_block = text.split("seeded pending fallback approval", maxsplit=1)[1]
@@ -280,6 +323,65 @@ async def test_wait_seeded_resend_turn_kickoff_no_false_positive_on_stale_user_c
         baseline_ui_user_count=1,
     )
     assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_ensure_signoff_chat_surface_skips_force_chat_shell(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+    calls: list[str] = []
+
+    class _Chat:
+        async def wait_shell_ready(
+            self, *, timeout_sec: float, require_bridge: bool
+        ) -> None:
+            _ = timeout_sec
+            _ = require_bridge
+            calls.append("wait_shell_ready")
+
+        async def ensure_react_e2e_bridge(self, *, timeout_sec: float) -> None:
+            _ = timeout_sec
+            calls.append("ensure_react_e2e_bridge")
+
+    await turn_flow._ensure_signoff_chat_surface_after_open(_Chat())  # type: ignore[arg-type]
+    assert calls == ["wait_shell_ready", "ensure_react_e2e_bridge"]
+
+
+@pytest.mark.asyncio
+async def test_try_signoff_api_kickoff_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("E2E_SIGNOFF", "1")
+
+    def _kickoff(
+        chat_id: str,
+        *,
+        query: str,
+        timeout_sec: float,
+    ) -> dict[str, object]:
+        _ = chat_id
+        _ = query
+        _ = timeout_sec
+        return {"events": [{"type": "message"}], "error": None}
+
+    monkeypatch.setattr(turn_flow, "_kickoff_desktop_turn_via_api_sync", _kickoff)
+    ok, result = await turn_flow._try_signoff_api_kickoff(  # noqa: SLF001
+        "chat-r286",
+        label="unit",
+    )
+    assert ok is True
+    assert result.get("events")
+
+
+@pytest.mark.asyncio
+async def test_try_signoff_api_kickoff_missing_chat_id() -> None:
+    ok, result = await turn_flow._try_signoff_api_kickoff(  # noqa: SLF001
+        "",
+        label="unit",
+    )
+    assert ok is False
+    error = result.get("error")
+    assert isinstance(error, dict)
+    assert error.get("error_type") == "MissingChatId"
 
 
 @pytest.mark.asyncio

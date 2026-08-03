@@ -18,6 +18,52 @@ function renderCard(approval: ApprovalPayload) {
 }
 
 describe('PolymorphicApprovalCard', () => {
+  it('renders scope note for external subagent tool calls', () => {
+    renderCard({
+      approval_id: 'approval-scope-ext',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [
+          {
+            name: 'send_message_tool',
+            args: {
+              target: 'slack:general',
+              message: 'Weekly update',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('humanize.scope.external')).toBeInTheDocument();
+  });
+
+  it('renders scope note for local file write compact rows', () => {
+    renderCard({
+      approval_id: 'approval-scope-local',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [
+          {
+            name: 'file_write_tool',
+            args: {
+              path: '/workspace/report.md',
+              content: '# Report',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('humanize.scope.local')).toBeInTheDocument();
+  });
+
   it('renders generic approval payload labels without leaking translation keys', () => {
     renderCard({
       approval_id: 'approval-1',
@@ -80,7 +126,8 @@ describe('PolymorphicApprovalCard', () => {
     });
 
     expect(screen.getByText('toolApproval.subagentApprovalRequired')).toBeInTheDocument();
-    expect(screen.getByText('dummy_native_tool')).toBeInTheDocument();
+    expect(screen.getByText('Dummy Native')).toBeInTheDocument();
+    expect(screen.getByText('humanize.scope.local')).toBeInTheDocument();
     expect(screen.getByText(/"query": "hello_world"/)).toBeInTheDocument();
   });
 

@@ -414,6 +414,7 @@ async def convert_to_general_agent_params(
     agent_max_iterations: int | None = None
     agent_memory_policy = None
     agent_memory_decay_profile: str | None = None
+    agent_memory_extraction_preset: str | None = None
     engine_params: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
 
@@ -481,6 +482,7 @@ async def convert_to_general_agent_params(
             agent_max_iterations = resolved.max_iterations
             agent_memory_policy = resolved.memory_policy
             agent_memory_decay_profile = resolved.memory_decay_profile
+            agent_memory_extraction_preset = resolved.memory_extraction_preset
             engine_params = resolved.engine_params
             auto_restore_domains = list(resolved.auto_restore_domains)
             browser_source = resolved.browser_source
@@ -781,6 +783,8 @@ async def convert_to_general_agent_params(
     )
 
     jit_subagents = request.ephemeral_subagents
+    session_access_roots_raw: list[dict[str, object]] | None = None
+    sandbox_base_dir: str | None = None
     session_loaded_skill_names: list[str] | None = None
     chat_workspace_dir: str | None = None
     chat_loaded = False
@@ -798,6 +802,14 @@ async def convert_to_general_agent_params(
                     session_loaded_skill_names = [
                         str(name) for name in chat.session_loaded_skill_names if name
                     ]
+                if chat.session_access_roots:
+                    session_access_roots_raw = [
+                        dict(item)
+                        for item in chat.session_access_roots
+                        if isinstance(item, dict)
+                    ]
+                if chat.sandbox_base_dir:
+                    sandbox_base_dir = chat.sandbox_base_dir
 
                 from app.services.chat.effective_workspace import (
                     resolve_effective_chat_workspace,
@@ -817,6 +829,17 @@ async def convert_to_general_agent_params(
         chat_workspace_dir = await resolve_default_chat_workspace_dir(
             request.chat_id,
             persist_workspace=chat_loaded and not db_had_workspace,
+        )
+
+    if request.chat_id:
+        from app.services.agent.session_access_service import (
+            bootstrap_session_access_roots,
+        )
+
+        bootstrap_session_access_roots(
+            session_access_roots_raw,
+            workspace_dir=chat_workspace_dir,
+            sandbox_active=bool(sandbox_base_dir),
         )
 
     sandbox_worktree_dir: str | None = None
@@ -1101,6 +1124,7 @@ async def convert_to_general_agent_params(
         max_iterations=agent_max_iterations,
         memory_policy=agent_memory_policy,
         memory_decay_profile=agent_memory_decay_profile,
+        memory_extraction_preset=agent_memory_extraction_preset,
         engine_params=engine_params,
         memory_shared_context_ids=memory_shared_context_ids,
         quote=request.quote,
@@ -1110,6 +1134,8 @@ async def convert_to_general_agent_params(
             if not is_fast_search and not request.incognito_mode
             else None
         ),
+        session_access_roots=session_access_roots_raw,
+        sandbox_base_dir=sandbox_base_dir,
         declared_capabilities=tuple(declared_caps),
         declared_allowed_roots=(chat_workspace_dir,) if chat_workspace_dir else (),
         goal=request.goal.model_dump(exclude_none=True) if request.goal else None,

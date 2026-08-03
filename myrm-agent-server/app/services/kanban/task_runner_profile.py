@@ -33,6 +33,7 @@ class _ResolvedProfile:
     max_iterations: int | None
     memory_policy: object | None
     memory_decay_profile: str | None
+    memory_extraction_preset: str | None
     engine_params: dict[str, object] | None
     auto_restore_domains: tuple[str, ...]
     enabled_builtin_tools: tuple[str, ...]
@@ -49,6 +50,7 @@ class _ResolvedProfile:
             max_iterations=getattr(resolved, "max_iterations", None),
             memory_policy=getattr(resolved, "memory_policy", None),
             memory_decay_profile=getattr(resolved, "memory_decay_profile", None),
+            memory_extraction_preset=getattr(resolved, "memory_extraction_preset", None),
             engine_params=getattr(resolved, "engine_params", None),
             auto_restore_domains=getattr(resolved, "auto_restore_domains", ()),
             enabled_builtin_tools=getattr(

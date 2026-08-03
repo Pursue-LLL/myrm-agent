@@ -28,6 +28,7 @@
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
 | `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、语音、模式切换、队列与流式发送；支持“下一条消息”单轮 Skill/MCP 能力子集覆写；Project 已绑定 `workspacePath` 时隐藏 `WorkspaceDirPicker`（SSOT 由 project 决定） | ✅ |
+| `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + revoke）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列可视化与 DnD 拖拽排序（复用 @dnd-kit 模式） | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
 | `MobileActionSheet.tsx` | 组件 | 移动端底部动作 Sheet（`useMobileSheetEntries` 驱动） | ✅ |

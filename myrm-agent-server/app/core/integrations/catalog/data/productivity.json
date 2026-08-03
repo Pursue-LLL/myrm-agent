@@ -225,5 +225,76 @@
       "办公"
     ],
     "website": "https://www.wps.cn"
+  },
+  {
+    "id": "hubspot",
+    "name": "HubSpot",
+    "name_zh": "HubSpot",
+    "description": "Search and manage HubSpot CRM contacts, companies, deals, and tickets",
+    "description_zh": "搜索并管理 HubSpot CRM 联系人、公司、交易和工单",
+    "icon": "hubspot",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "hubspot",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@hubspot/mcp-server"
+      ],
+      "description": "HubSpot CRM MCP — contacts, companies, deals, tickets"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "PRIVATE_APP_ACCESS_TOKEN",
+      "help_url": "https://developers.hubspot.com/docs/apps/legacy-apps/private-apps",
+      "help_text": "Create a HubSpot private app and copy the access token into PRIVATE_APP_ACCESS_TOKEN",
+      "help_text_zh": "在 HubSpot 创建 Private App，将 Access Token 配置为 PRIVATE_APP_ACCESS_TOKEN"
+    },
+    "tags": [
+      "crm",
+      "sales",
+      "marketing",
+      "hubspot"
+    ],
+    "website": "https://www.hubspot.com"
+  },
+  {
+    "id": "salesforce",
+    "name": "Salesforce",
+    "name_zh": "Salesforce",
+    "description": "Query and manage Salesforce org data via the official Salesforce DX MCP server",
+    "description_zh": "通过官方 Salesforce DX MCP 服务查询和管理 Salesforce 组织数据",
+    "icon": "salesforce",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "salesforce",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@salesforce/mcp@latest",
+        "--orgs",
+        "DEFAULT_TARGET_ORG",
+        "--toolsets",
+        "orgs,metadata,data,users"
+      ],
+      "description": "Salesforce DX MCP — orgs, metadata, data, users"
+    },
+    "auth": {
+      "type": "none",
+      "help_url": "https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_mcp_server.htm",
+      "help_text": "Authorize a local org with Salesforce CLI (sf org login), then keep DEFAULT_TARGET_ORG as the default target org alias",
+      "help_text_zh": "使用 Salesforce CLI (sf org login) 授权本地组织，并保持 DEFAULT_TARGET_ORG 为默认目标组织别名"
+    },
+    "tags": [
+      "crm",
+      "sales",
+      "salesforce",
+      "sfdc"
+    ],
+    "website": "https://www.salesforce.com"
   }
 ]

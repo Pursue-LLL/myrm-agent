@@ -157,6 +157,33 @@ def collect_clarification_required(
     return clarification
 
 
+def collect_directory_request_required(
+    event: dict[str, object],
+) -> dict[str, object] | None:
+    """Build durable extra_data.directoryRequest from directory_request_required SSE."""
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    payload = string_keyed_dict(data)
+    if payload is None:
+        return None
+
+    request = payload.get("request")
+    if not isinstance(request, dict):
+        return None
+
+    normalized_request = string_keyed_dict(request)
+    if normalized_request is None:
+        return None
+
+    return {
+        "answered": False,
+        "isResumeMode": True,
+        "request": normalized_request,
+    }
+
+
 def collect_plan_confirmation_status(
     data: dict[str, object],
 ) -> dict[str, object] | None:

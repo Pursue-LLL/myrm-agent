@@ -73,6 +73,7 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     sessionRecording: (agent.session_recording ?? undefined) as AgentConfig['sessionRecording'],
     suggestionPrompts: agent.suggestion_prompts ?? undefined,
     memoryDecayProfile: agent.memory_decay_profile,
+    memoryExtractionPreset: agent.memory_extraction_preset,
     mcpToolSelections: agent.mcp_tool_selections,
     commandBindings: agent.command_bindings?.map((b) => ({
       command_name: b.command_name,

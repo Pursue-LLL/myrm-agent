@@ -446,6 +446,79 @@ async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sess
     assert agent.enabled_builtin_tools == list(hr_spec.enabled_builtin_tools)
 
 
+@pytest.mark.asyncio
+async def test_initialize_syncs_economy_memory_extraction_preset(test_db: sessionmaker) -> None:
+    """builtin-economy must sync memory_extraction_preset=work_assistant from spec."""
+    economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
+    assert economy_spec.memory_extraction_preset == "work_assistant"
+
+    async with test_db() as session:
+        session.add(
+            Agent(
+                id=economy_spec.id,
+                name=economy_spec.name,
+                description=economy_spec.description,
+                avatar=f"icon:{economy_spec.icon_id}",
+                is_built_in=True,
+                is_public=True,
+                personality_style=economy_spec.personality_style,
+                system_prompt=economy_spec.system_prompt,
+                memory_extraction_preset="auto",
+                skill_ids=[],
+                mcp_servers=[],
+                subagent_ids=[],
+                model_config={},
+            )
+        )
+        await session.commit()
+
+    await initialize_builtin_agents()
+
+    async with test_db() as session:
+        result = await session.execute(select(Agent).where(Agent.id == economy_spec.id))
+        agent = result.scalar_one()
+
+    assert agent.memory_extraction_preset == "work_assistant"
+
+
+@pytest.mark.asyncio
+async def test_initialize_syncs_economy_deliverable_system_prompt(test_db: sessionmaker) -> None:
+    """builtin-economy must sync KNOWLEDGE_WORK_SYSTEM_PROMPT from spec."""
+    from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
+
+    economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
+    assert economy_spec.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT
+
+    async with test_db() as session:
+        session.add(
+            Agent(
+                id=economy_spec.id,
+                name=economy_spec.name,
+                description=economy_spec.description,
+                avatar=f"icon:{economy_spec.icon_id}",
+                is_built_in=True,
+                is_public=True,
+                personality_style=economy_spec.personality_style,
+                system_prompt="Outdated inline economy prompt",
+                memory_extraction_preset=economy_spec.memory_extraction_preset,
+                skill_ids=[],
+                mcp_servers=[],
+                subagent_ids=[],
+                model_config={},
+            )
+        )
+        await session.commit()
+
+    await initialize_builtin_agents()
+
+    async with test_db() as session:
+        result = await session.execute(select(Agent).where(Agent.id == economy_spec.id))
+        agent = result.scalar_one()
+
+    assert agent.system_prompt == KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert "<deliverable_discipline>" in agent.system_prompt
+
+
 def test_all_default_skill_ids_exist_in_prebuilt_skills() -> None:
     """Every default_skill_ids entry must map to a prebuilt_skills dir containing SKILL.md."""
     from pathlib import Path

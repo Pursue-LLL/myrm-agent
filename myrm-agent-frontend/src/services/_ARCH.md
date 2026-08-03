@@ -55,9 +55,11 @@
 | `assessmentImportMetrics.ts` | `/statistics/assessment-import/*` 客户端：记录评估导入漏斗事件（import_attempted/import_succeeded/import_failed/dropped，维度含 trigger=manual_input/recent_candidate 与 failure_reason），并按 trigger 聚合离线丢样回补；支持查询导入成功率、失败率、recent-candidate 入口占比与失败原因分布；支持读取导入后价值锚点 `value-summary`（任务完成率/里程碑完成率/激活率）。 |
 | `templateDiscovery.ts` | 模板发现层共享纯函数：检索标准化、命中过滤、模板类别归一化（TemplateMarket 与 FlowPad 复用，避免口径漂移）。 |
 | `templateSummon.ts` | 模板召唤共享执行层：统一实例化 + 观测事件写入（attempt/success/fail），收敛 TemplateMarket 与 FlowPad 的重复逻辑。 |
-| `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
+| `config/` | `ConfigSyncManager` + 适配器 + `themePersonalSettingsSync` 主题 fast-path · [_ARCH.md](config/_ARCH.md) |
+| `deliverable/` | Workspace 交付物 Portal 打开 SSOT · [_ARCH.md](deliverable/_ARCH.md) |
 | `theme-packages/` | `.myrmtheme` inspect / install / export · [_ARCH.md](theme-packages/_ARCH.md) |
 | `theme-assets/` | 主题背景上传 + `file:` 资产解析 + MP4 poster 提取 |
+| `deliverable/` | workspace deliverable 打开编排（ArtifactPortal + `/files/browse/content`） |
 | `companion/` | Petdex 客户端 · [_ARCH.md](companion/_ARCH.md)（install/doctor/spritesheet/i18n core） |
 
 ## 依赖

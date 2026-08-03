@@ -945,3 +945,9 @@ export const useIsViewingHistory = () =>
   });
 
 export default useArtifactPortalStore;
+
+if (typeof window !== 'undefined') {
+  (
+    window as Window & { __myrmArtifactPortalStore?: typeof useArtifactPortalStore }
+  ).__myrmArtifactPortalStore = useArtifactPortalStore;
+}

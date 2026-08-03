@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -269,6 +270,53 @@ def _wait_api_list_waiting_for_input(
         f"List API never exposed waiting_for_input=true for {task_id} within {timeout_sec}s; "
         f"last={last_flags!r}"
     )
+
+
+_LIST_HAS_RUNNING_TASK_JS = """(async () => {
+  const api = (window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  if (!api) {
+    return { ready: false, phase: 'missing_api_base' };
+  }
+  try {
+    const response = await fetch(`${api}/api/v1/background-tasks`);
+    const body = await response.json();
+    const rows = Array.isArray(body.tasks) ? body.tasks : [];
+    const row = rows.find((item) => item.task_id === __TASK_ID__);
+    return {
+      ready: !!(row && row.status === 'running'),
+      status: row?.status ?? null,
+      count: rows.length,
+    };
+  } catch (error) {
+    return { ready: false, error: String(error) };
+  }
+})()"""
+
+
+def _panel_shell_row_timeout_sec() -> float:
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return 90.0
+    return 60.0
+
+
+def _wait_browser_running_task_row(
+    client: ChromeMcpClient,
+    page: McpPage,
+    task_id: str,
+    *,
+    timeout_sec: float | None = None,
+) -> None:
+    resolved_timeout = (
+        _panel_shell_row_timeout_sec() if timeout_sec is None else timeout_sec
+    )
+    client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
+    expression = _LIST_HAS_RUNNING_TASK_JS.replace("__TASK_ID__", json.dumps(task_id))
+    state = wait_for_state(client, page, expression, timeout_sec=resolved_timeout)
+    assert state.get("ready") is True, state
+    cancel_ready = wait_for_state(
+        client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=resolved_timeout
+    )
+    assert cancel_ready.get("ready") is True, cancel_ready
 
 
 _LIST_HAS_WAITING_JS = """(async () => {
@@ -573,8 +621,12 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
     _wait_api_task_status(api_base, task_id, "running")
 
     with _background_tasks_panel(api_base) as (client, page):
+        progress_timeout = _panel_shell_row_timeout_sec()
+        _wait_browser_running_task_row(
+            client, page, task_id, timeout_sec=progress_timeout
+        )
         toggle_visible = wait_for_state(
-            client, page, _SHELL_INPUT_TOGGLE_VISIBLE_JS, timeout_sec=60.0
+            client, page, _SHELL_INPUT_TOGGLE_VISIBLE_JS, timeout_sec=progress_timeout
         )
         assert toggle_visible.get("ready") is True, toggle_visible
 

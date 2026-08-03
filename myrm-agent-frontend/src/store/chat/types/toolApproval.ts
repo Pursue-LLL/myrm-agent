@@ -61,6 +61,10 @@ export interface ToolApprovalRequest {
   hideAllowAlways?: boolean;
   /** LLM reviewer's reason for denial */
   reviewerReason?: string;
+  /** Path-policy ASK: user may grant directory access alongside approval */
+  pathGrantEligible?: boolean;
+  pathGrantPath?: string;
+  pathGrantWritable?: boolean;
 }
 export interface ToolCallInfo {
   callId: string;

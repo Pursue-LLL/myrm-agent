@@ -13,6 +13,7 @@ seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户
 seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
+seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban closure Chrome E2E 提供可重复、无 LLM 的 DB 与 workspace 种子数据。
@@ -45,6 +46,7 @@ from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_rou
 from .test_fixtures_context_retention import (
     router as context_retention_fixture_router,
 )
+from .test_fixtures_deliverable import router as deliverable_fixture_router
 from .test_fixtures_evicted import router as evicted_fixture_router
 from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
 from .test_fixtures_file_mutation import router as file_mutation_fixture_router
@@ -357,6 +359,7 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
     }
 
 
+router.include_router(deliverable_fixture_router)
 router.include_router(clarify_refresh_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
 router.include_router(file_mutation_fixture_router)

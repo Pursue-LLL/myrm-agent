@@ -24,6 +24,7 @@ import type {
   PaginationInfo,
 } from './messages';
 import type { PendingGapRetry } from './pendingGapRetry';
+import type { SessionAccessRoot } from './sessionAccess';
 
 export type SecurityPreset = 'hitl' | 'accept_edits' | 'explore';
 export interface TurnCapabilityTerminalTelemetry {
@@ -52,6 +53,7 @@ export interface ChatState {
   compactionRefreshNonce: number;
   workspaceDir: string | null;
   sessionSkillOverrides: string[] | null;
+  sessionAccessRoots: SessionAccessRoot[];
 
   // 聊天历史列表（分页）
   chatHistoryItems: ChatHistoryItem[];
@@ -170,6 +172,7 @@ export interface ChatState {
   setContextPinnedFilesLoadError: (error: string | null) => void;
   setCompactedBeforeId: (id: string | null) => void;
   setWorkspaceDir: (dir: string | null) => void;
+  setSessionAccessRoots: (roots: SessionAccessRoot[]) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;
   setChatHistoryPagination: (pagination: PaginationInfo | null) => void;
   setChatHistoryLoading: (loading: boolean) => void;

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-外部 AI 助手数据迁移服务层（三部署均等：Local/Tauri 使用文件系统扫描，Cloud/SaaS 通过 ZIP 上传）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用；当竞品显式声明 `supports_parallel_tool_calls: false`（或 `supportsParallelToolCalls: false`）时，会映射为 `hostSerial: true` 保留串行策略语义；`transport=http` 会归一化为 `streamable_http`；若提供 `keepalive_interval` / `keepaliveInterval`，仅在 remote transport 且 `>=5s` 时透传为 `keepaliveInterval` 供长连接保活，`stdio` 或低于 5 秒的值会被忽略并在 preview 中标记解释。渠道在覆盖矩阵标 manual。迁移来源元数据由 `source_manifest.py` 单一真源维护（display name / import source / discover mode / deep-link capability），API 明确下发 `source_manifest_authoritative` 覆盖语义，前端据此决定是否替换本地默认映射；当 payload 未完整覆盖 SSOT source ids 时会自动降级 `source_manifest_authoritative=false`。
+外部 AI 助手数据迁移服务层（三部署均等：Local/Tauri 使用文件系统扫描，Cloud/SaaS 通过 ZIP 上传）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**、**Hermes Cron 定时任务（paused 导入 + batch rollback）**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用；当竞品显式声明 `supports_parallel_tool_calls: false`（或 `supportsParallelToolCalls: false`）时，会映射为 `hostSerial: true` 保留串行策略语义；`transport=http` 会归一化为 `streamable_http`；若提供 `keepalive_interval` / `keepaliveInterval`，仅在 remote transport 且 `>=5s` 时透传为 `keepaliveInterval` 供长连接保活，`stdio` 或低于 5 秒的值会被忽略并在 preview 中标记解释。渠道在覆盖矩阵标 manual。迁移来源元数据由 `source_manifest.py` 单一真源维护（display name / import source / discover mode / deep-link capability），API 明确下发 `source_manifest_authoritative` 覆盖语义，前端据此决定是否替换本地默认映射；当 payload 未完整覆盖 SSOT source ids 时会自动降级 `source_manifest_authoritative=false`。
 
 ### 支持范围策略（封闭集合）
 
@@ -36,7 +36,9 @@
 | `source_manifest.py` | 核心 | 迁移来源 SSOT：来源清单、display name、import source 映射、discover mode、deep-link 开关 | ✅ |
 | `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw；Hermes loader 含 .usage.json 导入；gbrain loader 解析 Markdown+YAML frontmatter 页面 | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw；Hermes loader 含 .usage.json 与 **cron/jobs.json** 导入计划 | ✅ |
+| `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan | ✅ |
+| `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused）+ batch rollback | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |

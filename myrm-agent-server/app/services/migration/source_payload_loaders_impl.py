@@ -72,6 +72,14 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                         skill_item["usage_stats"] = usage_record
             result["skills"] = skills
 
+    from .hermes_cron_converter import build_hermes_cron_migration_plan, load_hermes_cron_jobs
+
+    raw_cron_jobs = load_hermes_cron_jobs(root, file_paths)
+    if raw_cron_jobs:
+        result["hermes_cron_jobs"] = raw_cron_jobs
+        plan = build_hermes_cron_migration_plan(raw_cron_jobs)
+        result["hermes_cron_plan"] = plan.to_metadata_dict()
+
     return result
 
 

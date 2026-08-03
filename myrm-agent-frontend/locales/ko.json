@@ -4283,6 +4283,12 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
+      "memoryExtractionPreset": "Memory Focus",
+      "memoryPresetAuto": "Auto Detect",
+      "memoryPresetPersona": "Personal Companion",
+      "memoryPresetWork": "Work Assistant",
+      "memoryPresetResearch": "Research",
+      "memoryPresetNone": "Generic",
       "templateMarket": "Template Market",
       "orgMarketplace": "조직 마켓",
       "searchMarketplace": "에이전트 검색...",
@@ -5159,6 +5165,30 @@
       "multipleChoicePrompt": "Choose one or more options:",
       "freeTextWithOptionsPlaceholder": "Add details or other answers..."
     },
+    "directoryRequest": {
+      "title": "디렉터리 접근 권한 필요",
+      "pathLabel": "폴더 경로",
+      "pathPlaceholder": "/Users/you/Documents/project",
+      "pathRequired": "폴더 경로를 입력하세요",
+      "writableLabel": "쓰기 허용",
+      "grant": "접근 허용",
+      "deny": "거부",
+      "submitFailed": "디렉터리 응답 제출 실패",
+      "answered": "디렉터리 접근 처리 완료",
+      "chooseFolder": "폴더 선택",
+      "browseFailed": "폴더 선택기를 열 수 없습니다. 경로를 직접 입력하세요.",
+      "selectThis": "이 폴더 사용",
+      "recent": "최근",
+      "filter": "폴더 필터",
+      "noSubdirs": "하위 폴더 없음"
+    },
+    "sessionAccessRoots": {
+      "label": "추가 폴더",
+      "readOnly": "읽기",
+      "writable": "쓰기",
+      "revoke": "접근 해제",
+      "revokeFailed": "폴더 접근을 해제하지 못했습니다"
+    },
     "toolsPanel": {
       "title": "Available Tools",
       "searchPlaceholder": "Search tools...",
@@ -5285,6 +5315,9 @@
         "modifying": "AI is modifying this file",
         "scanning": "AI is scanning this directory/file"
       }
+    },
+    "deliverable": {
+      "awaitingArtifact": "Artifact sync in progress — link will activate shortly"
     },
     "dragDrop": {
       "title": "Drop files here",
@@ -5914,34 +5947,6 @@
       "signal_terminated": "Signal Terminated",
       "nonzero_exit": "Non-Zero Exit",
       "trust_attenuation": "신뢰도 감소"
-    },
-    "toolSemanticLabels": {
-      "file_read_tool": "Reading files",
-      "file_write_tool": "Writing files",
-      "file_edit_tool": "Editing files",
-      "file_editor_tool": "Editing files",
-      "file_editor_view_tool": "Viewing files",
-      "file_editor_create_tool": "Creating files",
-      "file_editor_edit_tool": "Editing files",
-      "text_editor_tool": "Editing text",
-      "bash_code_execute_tool": "Executing command",
-      "code_execution_tool": "Running code",
-      "web_search_tool": "Web research",
-      "web_fetch_tool": "Fetching webpage",
-      "memory_search_tool": "메모리 검색 중",
-      "memory_store_tool": "Storing memory",
-      "memory_save": "Saving memory",
-      "memory_manage": "Managing memory",
-      "memory_recall": "Recalling information",
-      "profile_get_tool": "Reading profile",
-      "profile_update_tool": "Updating profile",
-      "image_tool": "Generating image",
-      "video_tool": "Generating video",
-      "mcp_tool": "Tool execution",
-      "skill_select_tool": "Selecting skill",
-      "render_ui_tool": "Rendering UI",
-      "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -7002,7 +7007,8 @@
           "instruction_lane": "Instructions & persona",
           "memory_lane": "Facts & preferences (global memory)",
           "skill_lane": "Skills",
-          "credential_lane": "API keys"
+          "credential_lane": "API keys",
+          "cron_lane": "Scheduled tasks (cron)"
         },
         "coverageTitle": "Migration coverage",
         "coverageStatus": {
@@ -7020,7 +7026,9 @@
           "mcp_manual": "MCP tools",
           "channels_manual": "Channels",
           "agent_config_manual": "Agent config",
-          "no_importable_data": "Importable data"
+          "no_importable_data": "Importable data",
+          "cron_lane": "Scheduled tasks (cron)",
+          "kanban_not_migrated": "Kanban boards"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",
@@ -7030,6 +7038,7 @@
         "mcpKeepalive": "Keepalive interval: {seconds}s",
         "mcpKeepaliveIgnored": "Keepalive setting ignored because it is below 5 seconds or unsupported by this transport",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
+        "hermesEconomyHint": "Hermes 가져오기는 「지식 작업 어시스턴트」 프리셋(검색, 파일, 태스크, 메모리)을 사용하며 Smart Routing을 자동 활성화합니다. 보조 모델은 모델 설정에 반영됩니다.",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
@@ -9788,6 +9797,90 @@
     "message": "YOLO 모드 활성화 – 모든 도구가 자동 승인됩니다",
     "disable": "비활성화"
   },
+  "humanize": {
+    "fallback": {
+      "file": "파일",
+      "used_tool": "{tool} 사용"
+    },
+    "progress": {
+      "file_read": "{filename} 읽기",
+      "file_write": "{filename} 쓰기",
+      "shell": "{command} 실행",
+      "shell_with_desc": "명령 실행 — {description}",
+      "shell_generic": "명령 실행",
+      "web_search": "웹 검색 — \"{query}\"",
+      "web_search_generic": "웹 검색",
+      "web_fetch": "웹페이지 읽기 — {url}",
+      "web_fetch_generic": "웹페이지 읽기",
+      "memory_generic": "메모리 작업",
+      "kanban": "계획 업데이트 — \"{task}\"",
+      "kanban_generic": "계획 업데이트",
+      "skill": "스킬 사용: {name}",
+      "skill_generic": "스킬 사용",
+      "mcp": "{server} — {tool} 사용",
+      "browser_url": "웹페이지 열기 — {url}",
+      "browser_generic": "브라우저 작업",
+      "save_skill": "스킬 추가: {name}",
+      "save_skill_generic": "스킬 추가",
+      "send_message": "{destination}(으)로 메시지 전송",
+      "send_message_generic": "메시지 전송"
+    },
+    "approval": {
+      "file_read": "{filename} 읽기",
+      "file_write": "{filename} 쓰기",
+      "shell": "{command} 실행",
+      "shell_with_desc": "명령 실행 — {description}",
+      "shell_generic": "명령 실행",
+      "web_search": "웹 검색 — \"{query}\"",
+      "web_search_generic": "웹 검색",
+      "web_fetch": "웹페이지 읽기 — {url}",
+      "web_fetch_generic": "웹페이지 읽기",
+      "memory_generic": "메모리 작업",
+      "kanban": "계획 업데이트 — \"{task}\"",
+      "kanban_generic": "계획 업데이트",
+      "skill": "스킬 사용: {name}",
+      "skill_generic": "스킬 사용",
+      "mcp": "{server} — {tool} 사용",
+      "browser_url": "웹페이지 열기 — {url}",
+      "browser_generic": "브라우저 작업",
+      "save_skill": "스킬 추가: {name}",
+      "save_skill_generic": "스킬 추가",
+      "send_message": "{destination}(으)로 메시지 보내기",
+      "send_message_generic": "메시지 보내기"
+    },
+    "ask": {
+      "file_read": "{filename} 읽기 시도",
+      "file_write": "{filename} 쓰기 시도",
+      "file_write_ask": "{filename} 쓰기 시도",
+      "shell": "{command} 실행 시도",
+      "shell_with_desc": "명령 실행 시도 — {description}",
+      "shell_generic": "명령 실행 시도",
+      "web_search": "웹 검색 시도 — \"{query}\"",
+      "web_search_generic": "웹 검색 시도",
+      "web_fetch": "웹페이지 읽기 시도 — {url}",
+      "web_fetch_generic": "웹페이지 읽기 시도",
+      "memory_generic": "메모리 작업 시도",
+      "kanban": "계획 업데이트 시도 — \"{task}\"",
+      "kanban_generic": "계획 업데이트 시도",
+      "skill": "스킬 사용 시도: {name}",
+      "skill_generic": "스킬 사용 시도",
+      "mcp": "{server} — {tool} 사용 시도",
+      "browser_url": "웹페이지 열기 시도 — {url}",
+      "browser_generic": "브라우저 작업 시도",
+      "save_skill": "스킬 추가 시도: {name}",
+      "save_skill_generic": "스킬 추가 시도",
+      "send_message": "{destination}(으)로 메시지 보내기 시도",
+      "send_message_generic": "메시지 보내기 시도"
+    },
+    "scope": {
+      "local": "변경 사항은 이 기기에만 유지됩니다",
+      "local_overwrite": "기존 파일을 덮어씁니다",
+      "external": "{destination}(으)로 데이터 전송",
+      "external_unknown": "외부 서비스",
+      "connector": "연결된 서비스 사용",
+      "save_skill": "재사용 가능한 스킬을 라이브러리에 저장"
+    }
+  },
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",
@@ -9801,6 +9894,29 @@
     "outboundDraftOriginal": "고객 메시지",
     "outboundDraftReply": "AI 초안 응답",
     "skillGrowthPending": "Skill Growth Review",
+    "saveSkill": {
+      "approve": "내 스킬에 추가",
+      "deny": "나중에",
+      "showFullInstructions": "전체 설명 보기",
+      "showLess": "접기",
+      "showAllLines": "전체 {count}줄 보기",
+      "footer": "승인하면 이 기기의 스킬 라이브러리에 저장되며, 이후 모든 대화에서 사용할 수 있습니다."
+    },
+    "toolCallStatus": {
+      "pending": "승인 대기",
+      "approved": "승인됨",
+      "rejected": "거부됨",
+      "completed": "완료"
+    },
+    "ptc": {
+      "readOnlyLabel": "읽기 전용",
+      "readOnlyTitle": "이 도구는 데이터만 읽으며 상태를 변경하지 않습니다.",
+      "destructiveLabel": "파괴적",
+      "destructiveTitle": "이 도구는 되돌릴 수 없는 파괴적 변경을 수행합니다.",
+      "openWorldLabel": "외부 연동",
+      "openWorldTitle": "이 도구는 외부 시스템 또는 네트워크와 상호작용합니다."
+    },
+    "toolCallPendingBanner": "{count, plural, other {승인 대기 중인 도구 호출 #개}}",
     "viewChanges": "변경사항 보기",
     "hideChanges": "변경사항 숨기기",
     "memoryUpdate": "Memory Update",
@@ -9909,6 +10025,8 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "grantDirectory": "폴더 접근도 허용",
+    "grantDirectoryDesc": "이 채팅 세션 동안 해당 폴더 접근을 허용합니다",
     "smartDenied": {
       "title": "보안 검토자가 거부를 권장합니다",
       "overrideOnce": "한 번만 허용"

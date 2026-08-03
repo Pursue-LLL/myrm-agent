@@ -105,6 +105,24 @@ vi.mock('../TelegramAssistantOnboardingStep', () => ({
   ),
 }));
 
+vi.mock('../ToolsConnectOnboardingStep', () => ({
+  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+    <div data-testid="tools-connect-step">
+      <button data-testid="tools-connect-done" onClick={onComplete}>Done</button>
+      <button data-testid="tools-connect-skip" onClick={onSkip}>Skip</button>
+    </div>
+  ),
+}));
+
+vi.mock('../ThemeOnboardingStep', () => ({
+  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+    <div data-testid="theme-onboarding-step">
+      <button data-testid="theme-continue" onClick={onComplete}>Continue</button>
+      <button data-testid="theme-skip" onClick={onSkip}>Skip</button>
+    </div>
+  ),
+}));
+
 vi.mock('@/lib/utils/classnameUtils', () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
 }));
@@ -134,6 +152,7 @@ vi.mock('@/store/useConfigStore', () => ({
   default: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
       searchServiceConfigs: mockSearchConfigured.value ? [{ isActive: true }] : [],
+      updatePersonalSettings: mockUpdatePersonalSettings,
     }),
 }));
 
@@ -143,6 +162,7 @@ vi.mock('@/store/config/searchService', () => ({
 }));
 
 const mockSecurityConfig = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
+const mockUpdatePersonalSettings = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
 vi.mock('@/services/config', () => ({
   getConfigSyncManager: () => ({
@@ -151,6 +171,20 @@ vi.mock('@/services/config', () => ({
 }));
 
 vi.mock('@/services/config/types', () => ({}));
+
+async function completeToolsConnectStep() {
+  await waitFor(() => {
+    expect(screen.getByTestId('tools-connect-step')).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByTestId('tools-connect-skip'));
+}
+
+async function completeThemePickStep() {
+  await waitFor(() => {
+    expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByTestId('theme-skip'));
+}
 
 import OnboardingWizard from '../OnboardingWizard';
 
@@ -245,11 +279,15 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -266,6 +304,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeToolsConnectStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -338,6 +378,8 @@ describe('OnboardingWizard', () => {
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -366,11 +408,15 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -395,11 +441,15 @@ describe('OnboardingWizard', () => {
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -427,6 +477,8 @@ describe('OnboardingWizard', () => {
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -438,6 +490,8 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('routing-enable'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -463,6 +517,8 @@ describe('OnboardingWizard', () => {
 
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -474,6 +530,8 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('routing-skip'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -506,6 +564,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -518,8 +578,40 @@ describe('OnboardingWizard', () => {
 
       fireEvent.click(screen.getByTestId('telegram-setup-done'));
 
+      await completeThemePickStep();
+
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
+      });
+    });
+
+    it('shows theme pick step after telegram skip', async () => {
+      mockHasEnabledProvider.value = true;
+      mockSearchConfigured.value = true;
+      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await completeToolsConnectStep();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('telegram-setup-skip'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
       });
     });
   });
@@ -541,6 +633,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -560,6 +654,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeToolsConnectStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -600,6 +696,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -624,6 +722,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -647,6 +747,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeToolsConnectStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -676,6 +778,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeToolsConnectStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
       });
@@ -687,6 +791,8 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('guard-enable'));
+
+      await completeThemePickStep();
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();

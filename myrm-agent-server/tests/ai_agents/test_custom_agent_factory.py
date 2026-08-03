@@ -798,6 +798,78 @@ async def test_custom_agent_factory_build_fork_context_clears_system_prompt(monk
 
 
 @pytest.mark.asyncio
+async def test_custom_agent_factory_build_prepares_mcp_runtime_configs(monkeypatch) -> None:
+    from unittest.mock import AsyncMock
+
+    from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
+
+    profile = SimpleNamespace(
+        display_name="MCP Subagent",
+        skills=[],
+        enabled_builtin_tools=(),
+        max_iterations=8,
+        memory_policy=None,
+        metadata={
+            "engine_params": {"mcp_surface_mode": "catalog_invoke"},
+            "openapi_services": [{"name": "svc-a", "enabled": True}],
+        },
+    )
+    factory = CustomAgentFactory(agent_id="custom-mcp-prepare", agent_profile=profile)
+    factory._initialized = True
+    factory._cached_mcp_configs = [SimpleNamespace(name="mcp-a")]
+    factory._cached_skill_backend = None
+
+    prepared_mcp = [SimpleNamespace(name="mcp-a-prepared")]
+    prepare_mock = AsyncMock(return_value=prepared_mcp)
+    monkeypatch.setattr(
+        "app.services.agent.mcp_runtime_prepare.prepare_mcp_configs_for_runtime",
+        prepare_mock,
+    )
+
+    captured_spec: list[object] = []
+
+    async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
+        spec = kwargs.get("spec")
+        if spec is not None:
+            captured_spec.append(spec)
+        return SimpleNamespace()
+
+    import myrm_agent_harness.api as api_module
+
+    monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
+    monkeypatch.setattr(
+        "app.platform_utils.get_storage_provider",
+        lambda: SimpleNamespace(),
+    )
+
+    parent = SimpleNamespace(
+        llm=SimpleNamespace(),
+        executor=SimpleNamespace(),
+        enable_conversation_search=False,
+        incognito_mode=False,
+        enable_wiki=False,
+        _last_context={"chat_id": "chat-mcp-prepare"},
+    )
+    config = SubagentConfig(
+        display_name="MCP Worker",
+        system_prompt="Use MCP tools.",
+        memory_isolation=MemoryIsolationPolicy.EPHEMERAL_SESSION,
+    )
+
+    await factory.build(config, [], "Call MCP", parent, current_depth=1)
+
+    prepare_mock.assert_awaited_once_with("custom-mcp-prepare", factory._cached_mcp_configs)
+    assert captured_spec
+    spec = captured_spec[0]
+    assert spec.mcp_servers == prepared_mcp
+    assert spec.mcp_surface_mode == "auto"
+    assert spec.engine_params == {"mcp_surface_mode": "auto"}
+    assert spec.openapi_services == [{"name": "svc-a", "enabled": True}]
+
+
+@pytest.mark.asyncio
 async def test_ephemeral_agent_factory_fork_context_clears_system_prompt(monkeypatch) -> None:
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 

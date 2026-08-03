@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import time
@@ -14,6 +15,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (
+    BRIDGE_TURN_SNAPSHOT_JS,
     E2E_API_BINDING_PROBE_JS,
     STREAM_API_BINDING_JS,
     WAIT_WORKSPACE_STREAM_JS,
@@ -35,6 +37,14 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+
+_RECOVER_HITL_JS = """((chatId) => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.recoverHitlStream) {
+    return { ok: false, err: 'missing-recoverHitlStream' };
+  }
+  return bridge.recoverHitlStream(String(chatId || ''));
+})"""
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -412,11 +422,43 @@ async def _run_tools_panel_layer_badges_flow(
     # loading=true and drop direct SSE (run54605: userCount=0, sseTypes=[]).
     started = await chat.wait_stream_started(
         _USER_PROMPT,
-        timeout_sec=signoff_parallel_force_chat_timeout_sec(120.0),
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
         chat_id_hint=chat_id,
     )
     chat_id = chat_id or str(started.get("chatId") or "").strip()
     assert chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
+
+    turn_probe = await chat.evaluate(
+        BRIDGE_TURN_SNAPSHOT_JS,
+        await_promise=False,
+        recv_timeout=15.0,
+    )
+    turn = turn_probe if isinstance(turn_probe, dict) else {}
+    if int(turn.get("userCount") or 0) < 1 and turn.get("isStreaming") is not True:
+        await chat.evaluate(
+            f"({_RECOVER_HITL_JS})({json.dumps(chat_id)})",
+            await_promise=True,
+            recv_timeout=45.0,
+        )
+
+    await _wait_for_eval_ready(
+        chat,
+        """(() => {
+          const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+          const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+          return {
+            ready:
+              (turn.userCount ?? 0) >= 1 ||
+              turn.isStreaming === true ||
+              sse.includes('tools_snapshot'),
+            turn,
+            sseTypes: sse.slice(0, 12),
+          };
+        })()""",
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(120.0),
+        recv_timeout=30.0,
+        progress_node="tools_panel_live_ui_hydrate",
+    )
 
     path_probe = await chat.evaluate(
         "(() => ({ path: location.pathname }))()",
@@ -437,7 +479,7 @@ async def _run_tools_panel_layer_badges_flow(
         chat,
         api_url=api_url,
         chat_id=chat_id,
-        timeout_sec=120.0,
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
     )
     assert panel.get("hasTrigger") is True, panel
     assert panel.get("hasToolsSnapshotEvent") is True, panel

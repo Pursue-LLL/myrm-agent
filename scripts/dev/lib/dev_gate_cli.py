@@ -318,6 +318,11 @@ def send(payload: dict[str, object]) -> dict[str, object]:
             timeout_sec = 35.0
     try:
         return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
+    except FileNotFoundError:
+        socket_path = ensure_coordinator()
+        if socket_path is None:
+            return _handle_in_process(payload)
+        return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
     except RuntimeError as exc:
         message = str(exc)
         if "DEV_GATE_COORDINATOR_ERROR" in message and "Expecting value" in message:

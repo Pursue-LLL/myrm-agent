@@ -13,8 +13,8 @@ Companion Petdex 与 sprite 健康检查的前端 API 客户端与纯函数。�
 | `petSpritesheet.ts` | 辅助 | 本地 Volume spritesheet URL | ✅ |
 | `companionFormatLabelCore.ts` | 辅助 | 已安装 pet `format_tier` → gallery i18n key | ✅ |
 | `companionDoctorCheckI18nCore.ts` | 辅助 | server doctor `check.id` → `doctor.serverChecks.*` i18n | ✅ |
-| `companionTheme.ts` | 核心 | 桌宠 accent 从 workspace CSS token 派生（rarity glow / bubble tone） | ✅ |
-| `__tests__/companionTheme.test.ts` | 辅助 | rarity/bubble token 派生单测（Common→Legendary 全覆盖） | ✅ |
+| `companionTheme.ts` | 核心 | 桌宠 accent 从 workspace CSS token 派生；`useCompanionThemeEpoch` 复用 `subscribeHostThemeVars`（style/profile/class） | ✅ |
+| `__tests__/companionTheme.test.ts` | 辅助 | rarity/bubble 派生 + theme epoch 随 inline CSS 变更 | ✅ |
 
 ## 依赖
 

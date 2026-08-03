@@ -346,7 +346,10 @@ function SettingsLayout() {
   }
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">
+    <div
+      className="h-full w-full flex flex-col lg:flex-row overflow-hidden"
+      data-testid="settings-layout"
+    >
       {/* 移动端头部 */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-border/50 backdrop-blur-xl bg-background/80">
         <button

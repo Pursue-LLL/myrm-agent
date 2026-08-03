@@ -123,6 +123,7 @@ async def prepare_channel_execution(
     enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
     auto_restore_domains: list[str] = []
     memory_decay_profile: str | None = None
+    memory_extraction_preset: str | None = None
 
     if topic_context and topic_context.agent_id:
         resolved_agent_id = topic_context.agent_id
@@ -142,6 +143,8 @@ async def prepare_channel_execution(
             auto_restore_domains = list(resolved_profile.auto_restore_domains)
             raw_decay = resolved_profile.memory_decay_profile
             memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
+            raw_preset = resolved_profile.memory_extraction_preset
+            memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
 
     user_instructions = await enrich_channel_user_instructions(
         msg,
@@ -190,6 +193,7 @@ async def prepare_channel_execution(
         enabled_builtin_tools=enabled_builtin_tools,
         auto_restore_domains=auto_restore_domains,
         memory_decay_profile=memory_decay_profile,
+        memory_extraction_preset=memory_extraction_preset,
     )
 
     if agent_outcome.early_reply is not None:

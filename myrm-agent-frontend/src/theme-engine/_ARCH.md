@@ -4,32 +4,25 @@ Pure TypeScript Theme Engine v2: Recipe schema, layout surfaces, compiler, built
 
 ## Files
 
-| File | Role |
+| Path | Role |
 |------|------|
-| `schema.ts` | ThemeProfileRecipe / CompiledTheme types |
-| `compiler.ts` | Recipe → CSS vars + Art Layer config + applyCompiledTheme |
+| `schema.ts` | ThemeProfileRecipe + layout/scene IDs |
 | `layouts.ts` | Myrm-native layout surface opacity map |
 | `layout-catalog.ts` | Studio layout cards + guidance i18n keys |
-| `readability-scene.ts` | pathname → immersive/functional scene SSOT |
 | `scene-surfaces.ts` | layout × scene merge + exported `FUNCTIONAL_SURFACE_FLOORS` / `FUNCTIONAL_ART_WASH_FLOOR` |
-| `presets.ts` | 17 built-in profiles: default, 5 accents, 3 eye-care, 4 nature, 2 efficiency, 2 warm |
-| `overlay.ts` | User art overlay merge + profile builders |
-| `preinit.ts` | Pre-hydration localStorage snapshot writer + `applyThemePreinitFromLocalStorage` for cross-window token sync |
-| `oklch.ts` | WCAG contrast utilities + `derivePalette(hex)` + `resolveContrastSafeForeground` |
-| `parse-recipe.ts` | Skill/clipboard JSON → validated ThemeProfileRecipe patch |
-| `studio-constants.ts` | Ephemeral preview profile id + startup sanitize helpers |
-| `index.ts` | Public exports |
+| `readability-scene.ts` | Route → immersive/functional scene SSOT |
+| `compiler.ts` | Recipe → CSS vars + data attributes |
+| `presets.ts` | 17 built-in ThemeProfile recipes |
+| `oklch.ts` | WCAG contrast utilities + `derivePalette(hex)` |
+| `recommend-layout-from-aspect.ts` | Hero aspect ratio → layout hint |
+| `sample-hero-image.ts` | Client hero canvas sampling → palette hex + focal + layout hint |
+| `overlay.ts` | Art overlay merge + background validation |
+| `preinit.ts` | SSR/CSR zero-flash snapshot |
+| `parse-recipe.ts` | Skill JSON → partial recipe |
+| `official-restore.ts` | Official default restore SSOT |
 
 ## Boundaries
 
-- Frontend-only runtime; no harness / no LLM token impact.
-- Server stores profile metadata in `personalSettings`; media via `/api/theme/assets/upload` (`file:` refs).
-
-## Readability scene (roadmap #8)
-
-- **Layout** (`ThemeLayoutId`): user aesthetic choice persisted in Recipe.
-- **Scene** (`ThemeReadabilityScene`): runtime route-derived — `immersive` (chat) vs `functional` (Kanban, Settings, …).
-- `ThemeProfileProvider` passes both to `compileThemeProfile`; `data-myrm-theme-layout` no longer overridden by route.
-- Cold start: `public/theme-init.js` resolves scene from `location.pathname` (keep aligned with `readability-scene.ts`).
-- Functional opacity floors: exported from `scene-surfaces.ts`; parity asserted in `theme-init-asset.test.ts`.
-- WCAG: `resolveContrastSafeForeground` sweeps achromatic lightness after brand neutrals; all `BUILTIN_THEME_PROFILES` asserted in `compiler.test.ts`.
+- Frontend-only pure TS; no React, no server I/O.
+- Hero sampling (`sample-hero-image.ts`) runs in browser only; callers pass Blob (image or video poster).
+- `ThemeProfileProvider` passes both layout + scene to `compileThemeProfile`; `data-myrm-theme-layout` no longer overridden by route.

@@ -12,6 +12,7 @@ import json
 import os
 import secrets
 import sys
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -348,6 +349,25 @@ def try_acquire(
         return True, token, "ADMITTED"
 
 
+def touch_operation_heartbeat(*, operation_id: str, owner_token: str) -> bool:
+    """Refresh heartbeat and hold clock for an active upstream operation credit."""
+    if _admission_disabled():
+        return True
+    registry_key = _registry_key(operation_id)
+    now = time.time()
+    with _locked_registry() as registry_path:
+        registry = _load_registry(registry_path)
+        record = registry["operations"].get(registry_key)
+        if not isinstance(record, dict):
+            return False
+        if record.get("ownerToken") != owner_token:
+            return False
+        record["heartbeatAt"] = now
+        record["acquiredAt"] = now
+        _save_registry(registry_path, registry)
+        return True
+
+
 def release(*, operation_id: str, owner_token: str) -> bool:
     if _admission_disabled():
         return True
@@ -445,9 +465,26 @@ def upstream_cold_attach_slot(*, operation_id: str | None = None) -> Iterator[st
     """Acquire a global mux upstream cold-attach slot for the duration of new_page."""
     resolved_operation_id = operation_id or str(uuid.uuid4())
     token = acquire_with_wait(operation_id=resolved_operation_id, owner_pid=os.getpid())
+    stop = threading.Event()
+
+    def _heartbeat_loop() -> None:
+        while not stop.wait(30.0):
+            touch_operation_heartbeat(
+                operation_id=resolved_operation_id,
+                owner_token=token,
+            )
+
+    worker = threading.Thread(
+        target=_heartbeat_loop,
+        name="mux-upstream-hold-heartbeat",
+        daemon=True,
+    )
+    worker.start()
     try:
         yield resolved_operation_id
     finally:
+        stop.set()
+        worker.join(timeout=2.0)
         release(operation_id=resolved_operation_id, owner_token=token)
 
 

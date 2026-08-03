@@ -56,15 +56,17 @@ Design notes:
 |------|------|------|-------|
 | `gateway.py` | ✅ 核心 | Agent 执行网关 — 并发/内存压力熔断/排队与执行超时/优雅排空/活跃会话元数据；**`reserve_session` / `release_session`**（persist 前预占，`reserved_only`→`execute_stream`）；互斥 busy 经 SSE **`error_type:AgentBusyError`**（HTTP 200，非 HTTP 409）；`interrupt()` / `interrupt_session`；`ActiveSessionInfo` 弱引用 + `current_message_id` |
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
-| `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。`get_agents_by_name` 提供同名候选稳定排序（优先用户自建，再按 id），避免同名解析不确定性。 |
+| `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。MCP 变更后 POOLED 单元由 `compute_execution_fingerprint` 在下一 turn 重建。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
+| `mcp_runtime_prepare.py` | ✅ 核心 | MCP 配置 secret/OAuth 注入 SSOT；factory build 共用 | ✅ |
+| `mcp_surface_mode.py` | ✅ 辅助 | `engine_params.mcp_surface_mode` 归一化（obsolete `catalog_invoke` → `auto`） | ✅ |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`，含 `cron_post_run_verify` DB 列）、pre-rollback 保险快照、10 条 retention 裁剪；`updates_from_snapshot_data` 回滚时写回该列。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
 | `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags(..., allow_answer_tool=False)`（strip deploy 不兼容工具 + 忽略 profile `answer_tool`；Fast Search 在 converter 显式 `allow_answer_tool=True`）；TTL 缓存 | ✅ |
 | `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：19 canonical IDs（17 UI 可切换 + 2 Agent 基线无开关）；含 `skill_market` / `skill_manage`（默认 OFF，Turn1 条件挂载 `skill_market_tool` / `skill_manage_tool`）；`strip_deploy_incompatible_builtin_tools()` 按 deploy 剔除 `computer_use`（VNC）与 `external_cli`（仅 local/Tauri）；`external_cli` ON + UserConfig 有 CLI backend → Turn1 挂载 `delegate_to_agent_tool`；**persist 前** `external_cli_gate.assert_external_cli_tools_allowed()` 拒绝无 backend 的 `external_cli` 开关；`cron` 开启 → Turn1 eager（`enable_cron_eager`）；关闭则不加载；`structured_clarify` 开启 → 挂载 `ask_question_tool`（默认 ON）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory, structured_clarify)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `external_cli_gate.py` | ✅ 核心 | Local persist gate：`external_cli` ∈ `enabled_builtin_tools` 时要求 Settings CLI backend 或本地 auto-detect；与 runtime `_resolve_external_agent_cfgs` 同源 |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
-| `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（26 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
-| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 26 个预置智能体（从 `builtin_agent_specs` 导入规格）；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 |
+| `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（27 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
+| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 27 个预置智能体（从 `builtin_agent_specs` 导入规格）；sync spec-controlled 字段含 `memory_extraction_preset`；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；browser takeover 事件在服务端直出 `live_assist_url`（approval_required + browser_takeover_requested 同源签名链接）；finally 中检测 interrupt 类事件（approval/clarification）并发布 `awaiting_approval` session_status 激活侧边栏 per-chat 注意力指示；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent | ✅ |
@@ -84,7 +86,7 @@ Design notes:
 | `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
-| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume | ✅ |
+| `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |
 | `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval） | ✅ |
 | `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |

@@ -4,6 +4,8 @@
 
 import React from 'react';
 
+import { humanizeProgressStep } from '@/lib/humanize';
+import type { TranslateFn as HumanizeTranslateFn } from '@/lib/humanize';
 import type { ProgressItem } from '@/store/useChatStore';
 import { getStepCategory } from './toolIcons';
 
@@ -135,48 +137,18 @@ export const inferStageLabel = (step: ProgressItem, t: TranslateFn): string => {
 };
 
 /**
- * 获取语义化的工具标签
- * @param tool_name 工具名称
- * @param t 翻译函数
- * @returns 语义化标签，如果没有映射则返回格式化的工具名
- */
-export const getSemanticToolLabel = (tool_name: string, t: TranslateFn): string => {
-  // 尝试获取i18n翻译
-  const translationKey = `toolSemanticLabels.${tool_name}`;
-  const translated = t(translationKey);
-
-  // 如果翻译存在且不是key本身，使用翻译
-  if (translated && translated !== translationKey) {
-    return translated;
-  }
-
-  // MCP prefixed tools (mcp__{server}__{tool}): extract tool part for display
-  if (tool_name.startsWith('mcp__')) {
-    const parts = tool_name.split('__');
-    const toolPart = parts.length >= 3 ? parts.slice(2).join('__') : parts[parts.length - 1];
-    return toolPart
-      .replace(/_tool$/, '')
-      .replace(/_/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  // 否则格式化工具名
-  return tool_name
-    .replace(/_tool$/, '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-};
-
-/**
  * 根据 step_key 获取步骤标题
  * @param step 步骤信息
  * @param t 翻译函数
  * @param useSemantic 是否使用语义化标签（默认true）
  * @returns 步骤标题
  */
-export const getStepTitle = (step: ProgressItem, t: TranslateFn, useSemantic: boolean = true): string => {
+export const getStepTitle = (
+  step: ProgressItem,
+  t: TranslateFn,
+  useSemantic: boolean = true,
+  tHumanize?: HumanizeTranslateFn,
+): string => {
   const { step_key, tool_name, is_plan, items } = step;
 
   if (is_plan && items && isTextItems(items) && items.length > 0) {
@@ -201,11 +173,36 @@ export const getStepTitle = (step: ProgressItem, t: TranslateFn, useSemantic: bo
     return category === 'default' ? t('workflow_stage') || 'Workflow stage update' : category;
   }
 
+  // delegation_xxx_status → 提取 agent 名称
+  if (step_key?.startsWith('delegation_') && step_key.endsWith('_status')) {
+    const agentName = step_key.slice('delegation_'.length, -'_status'.length);
+    try {
+      return t('delegation', { agentName });
+    } catch {
+      return `Delegating to ${agentName}`;
+    }
+  }
+
+  const validToolName = tool_name && tool_name.length <= 50 && !tool_name.includes('\n');
+
+  // Tool steps: args-aware humanize wins over generic step_key labels (e.g. file_write_tool → "Writing file")
+  if (validToolName && useSemantic && tHumanize) {
+    const humanized = humanizeProgressStep(step, tHumanize);
+    if (humanized) {
+      let baseTitle = humanized;
+      if (step.elapsed_ms && step.status !== 'success' && step.status !== 'error') {
+        const seconds = Math.floor(step.elapsed_ms / 1000);
+        baseTitle = `${baseTitle} (${seconds}s)`;
+      }
+      return baseTitle;
+    }
+  }
+
   // 验证 step_key 格式
   const isValidStepKey =
     step_key && step_key.length <= 50 && !step_key.includes('\n') && !/[\u4e00-\u9fff]/.test(step_key);
 
-  // 尝试直接获取翻译
+  // 尝试直接获取翻译（非工具步骤，如 context_compaction / analyzing_image）
   if (isValidStepKey) {
     try {
       const translation = step.count !== undefined ? t(step_key, { count: step.count }) : t(step_key);
@@ -218,30 +215,13 @@ export const getStepTitle = (step: ProgressItem, t: TranslateFn, useSemantic: bo
     }
   }
 
-  // delegation_xxx_status → 提取 agent 名称
-  if (step_key?.startsWith('delegation_') && step_key.endsWith('_status')) {
-    const agentName = step_key.slice('delegation_'.length, -'_status'.length);
-    try {
-      return t('delegation', { agentName });
-    } catch {
-      return `Delegating to ${agentName}`;
-    }
-  }
-
-  // 使用 tool_name，优先使用语义化标签
-  const validToolName = tool_name && tool_name.length <= 50 && !tool_name.includes('\n');
+  // 使用 tool_name 格式化 fallback
   if (validToolName) {
-    // 如果启用语义化且有映射，使用语义化标签（通过i18n）
-    const toolLabel = useSemantic
-      ? getSemanticToolLabel(tool_name, t)
-      : tool_name
-          .replace(/_tool$/, '')
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (c) => c.toUpperCase());
+    let baseTitle = tool_name
+      .replace(/_tool$/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    let baseTitle = toolLabel;
-
-    // 如果有耗时数据（心跳），追加显示
     if (step.elapsed_ms && step.status !== 'success' && step.status !== 'error') {
       const seconds = Math.floor(step.elapsed_ms / 1000);
       baseTitle = `${baseTitle} (${seconds}s)`;
