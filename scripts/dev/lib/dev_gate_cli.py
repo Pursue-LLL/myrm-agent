@@ -28,6 +28,69 @@ _START_TIMEOUT_SEC = 8.0
 _PING_WAIT_SEC = 10.0
 _SUBMIT_REQUEST_TIMEOUT_SEC = 120.0
 
+_COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
+    "dev_gate_coordinator.py",
+    "dev_gate_contract.py",
+    "private_resource_controller.py",
+    "dev_gate_store.py",
+    "e2e_stale_lease_reap.py",
+)
+
+
+def coordinator_code_fingerprint() -> str:
+    lib = Path(__file__).resolve().parent
+    parts: list[str] = []
+    for name in _COORDINATOR_CODE_FP_FILES:
+        path = lib / name
+        if path.is_file():
+            parts.append(f"{name}:{path.stat().st_mtime_ns}")
+    return "|".join(parts)
+
+
+def _coordinator_code_stamp_path(database_target: Path) -> Path:
+    return database_target.with_name("coordinator.code-fp")
+
+
+def _write_coordinator_code_stamp(database_target: Path) -> None:
+    stamp_path = _coordinator_code_stamp_path(database_target)
+    stamp_path.parent.mkdir(parents=True, exist_ok=True)
+    stamp_path.write_text(coordinator_code_fingerprint(), encoding="utf-8")
+
+
+def _coordinator_code_stale(*, database_target: Path, live_pid: int | None) -> bool:
+    if live_pid is None or not _pid_alive(live_pid):
+        return False
+    stamp_path = _coordinator_code_stamp_path(database_target)
+    if not stamp_path.is_file():
+        return True
+    try:
+        recorded = stamp_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return True
+    return recorded != coordinator_code_fingerprint()
+
+
+def _restart_coordinator_for_code_drift(
+    *,
+    live_pid: int,
+    socket_target: Path,
+    pid_path: Path,
+) -> None:
+    try:
+        os.kill(live_pid, signal.SIGTERM)
+    except OSError:
+        pass
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        if not _pid_alive(live_pid):
+            break
+        time.sleep(0.05)
+    _clear_stale_coordinator_pid(pid_path)
+    try:
+        socket_target.unlink(missing_ok=True)
+    except OSError:
+        pass
+
 
 def _coordinator_pid_path(database_path: Path) -> Path:
     return database_path.with_name("coordinator.pid")
@@ -203,6 +266,15 @@ def ensure_coordinator(
     )
     _clear_stale_coordinator_pid(pid_path)
     live_pid = _read_coordinator_pid(pid_path)
+    if live_pid is not None and _coordinator_code_stale(
+        database_target=database_target, live_pid=live_pid
+    ):
+        _restart_coordinator_for_code_drift(
+            live_pid=live_pid,
+            socket_target=socket_target,
+            pid_path=pid_path,
+        )
+        live_pid = None
     if live_pid is not None and _pid_alive(live_pid):
         if _ping(socket_target) or _wait_for_ping(
             socket_target, budget_sec=_PING_WAIT_SEC
@@ -256,6 +328,7 @@ def ensure_coordinator(
                 close_fds=True,
             )
         _write_coordinator_pid(pid_path, proc.pid)
+        _write_coordinator_code_stamp(database_target)
         deadline = time.monotonic() + _START_TIMEOUT_SEC
         while time.monotonic() < deadline:
             if _ping(socket_target):
@@ -320,10 +393,21 @@ def send(payload: dict[str, object]) -> dict[str, object]:
     try:
         return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
     except FileNotFoundError:
-        socket_path = ensure_coordinator()
-        if socket_path is None:
+        last_missing: FileNotFoundError | None = None
+        for attempt in range(8):
+            socket_path = ensure_coordinator()
+            if socket_path is None:
+                return _handle_in_process(payload)
+            try:
+                return request(
+                    payload, socket_path=socket_path, timeout_sec=timeout_sec
+                )
+            except FileNotFoundError as exc:
+                last_missing = exc
+                time.sleep(min(0.15 * float(attempt + 1), 2.0))
+        if last_missing is not None:
             return _handle_in_process(payload)
-        return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
+        raise RuntimeError("DEV_GATE_SOCKET_RETRY_EXHAUSTED")
     except RuntimeError as exc:
         message = str(exc)
         if "DEV_GATE_COORDINATOR_ERROR" in message and "Expecting value" in message:
