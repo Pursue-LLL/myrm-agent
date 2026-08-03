@@ -211,22 +211,30 @@ def scan_signoff_adhoc_violations() -> list[AdhocViolation]:
 
 
 def _reap_violations(violations: list[AdhocViolation]) -> None:
+    holder_pid = _read_sao_holder_pid()
     for row in violations:
+        if holder_pid is not None and row.pid == holder_pid:
+            print(
+                f"SIGNOFF_RUNTIME_GUARD_SKIP_REAP: pid={row.pid} "
+                f"reason={row.reason} (SAO holder)"
+            )
+            continue
         try:
             os.kill(row.pid, signal.SIGTERM)
         except OSError:
             continue
-    if violations:
-        time.sleep(1.0)
-        for row in violations:
-            try:
-                os.kill(row.pid, 0)
-            except OSError:
-                continue
-            try:
-                os.kill(row.pid, signal.SIGKILL)
-            except OSError:
-                pass
+    time.sleep(1.0)
+    for row in violations:
+        if holder_pid is not None and row.pid == holder_pid:
+            continue
+        try:
+            os.kill(row.pid, 0)
+        except OSError:
+            continue
+        try:
+            os.kill(row.pid, signal.SIGKILL)
+        except OSError:
+            pass
 
 
 def guard_signoff_runtime(*, reap: bool = False) -> bool:

@@ -354,7 +354,7 @@ def _should_skip_port_scan_under_parallel_block(
         wave_lease_counts,
     )  # noqa: PLC0415
 
-    if wave_lease_counts(load_wave_snapshot()).total <= 0:
+    if wave_lease_counts(load_wave_snapshot()).effective_total <= 0:
         return False
     if any(item.epoch_match and item.health_ok for item in candidates):
         return False
@@ -557,7 +557,7 @@ def _resolve_e2e_api_context_impl(
 
     wave_snapshot = load_wave_snapshot()
     lease_counts = wave_lease_counts(wave_snapshot)
-    active_leases = lease_counts.total
+    active_leases = lease_counts.effective_total
 
     # P0-A: drift apply removed from observation path — Coordinator daemon owns mutation.
     # Here we only read drift state for context reporting.
