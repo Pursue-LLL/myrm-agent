@@ -192,7 +192,7 @@ def _scan_foreign_chrome_e2e_pytest_violations(
     self_pid: int,
 ) -> list[AdhocViolation]:
     """Reap ad-hoc chrome_e2e pytest peers during active Step1 signoff."""
-    if holder_pid is None and not gate_pids:
+    if holder_pid is None and not gate_pids and launcher_pid is None:
         return []
     violations: list[AdhocViolation] = []
     allowed_roots: set[int] = set(allowed_gates)
