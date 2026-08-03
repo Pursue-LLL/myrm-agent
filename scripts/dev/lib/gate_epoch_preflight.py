@@ -248,7 +248,7 @@ def epoch_preflight_loop(
         attempt += 1
         snap = read_solo_snapshot()
 
-        if not solo_cluster_clear(snap):
+        if snap.peers > 0 or snap.mux_peers > 1:
             _emit(
                 "GATE_EPOCH_PREFLIGHT: cluster busy "
                 f"peers={snap.peers} active_leases={snap.active_leases} "
@@ -262,10 +262,16 @@ def epoch_preflight_loop(
                 tokens=("GATE_EPOCH_PREFLIGHT_DEFER",),
             )
 
+        if snap.active_leases > 0:
+            _emit(
+                "GATE_EPOCH_PREFLIGHT: solo wave leases pending "
+                f"active_leases={snap.active_leases} — heal loop (no peer kill)"
+            )
+
         _ready_chrome_under_flock(monorepo_root, wall_sec=180)
         snap = _poll_solo_stray_leases_after_ready()
 
-        if not solo_cluster_clear(snap):
+        if snap.peers > 0 or snap.mux_peers > 1:
             _emit(
                 "GATE_EPOCH_PREFLIGHT: cluster busy after ready "
                 f"peers={snap.peers} active_leases={snap.active_leases} "
@@ -277,6 +283,12 @@ def epoch_preflight_loop(
                 attempts=attempt,
                 snapshot=snap,
                 tokens=("GATE_EPOCH_PREFLIGHT_DEFER",),
+            )
+
+        if snap.active_leases > 0:
+            _emit(
+                "GATE_EPOCH_PREFLIGHT: stray wave leases after ready "
+                f"active_leases={snap.active_leases} — continue heal loop (no instant defer)"
             )
 
         if epoch_ready(snap):
@@ -325,7 +337,7 @@ def epoch_preflight_loop(
         time.sleep(poll_sec)
 
     snap = read_solo_snapshot()
-    if not solo_cluster_clear(snap):
+    if snap.peers > 0 or snap.mux_peers > 1:
         _emit(
             "GATE_EPOCH_PREFLIGHT: cluster busy at wall "
             f"peers={snap.peers} active_leases={snap.active_leases} "
