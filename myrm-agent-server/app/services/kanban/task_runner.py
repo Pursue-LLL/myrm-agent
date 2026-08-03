@@ -35,7 +35,7 @@ from myrm_agent_harness.api import KanbanStore
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutError
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus, TaskTimeoutError, has_completion_intent
 
 from app.services.agent.goal_registry import GoalRegistry
 from app.services.agent.profile_resolver import (
@@ -61,6 +61,11 @@ _BACKGROUND_TASK_TIMEOUT_SECONDS = 3600
 _CHANNEL_NAME = "kanban"
 
 __all__ = ["KanbanTaskRunner", "_ResolvedProfile", "_classify_content_type"]
+
+
+_PROTOCOL_VIOLATION_MSG = (
+    "Protocol violation: agent finished without calling kanban_complete(summary=...)"
+)
 
 
 class KanbanTaskRunner:
@@ -100,7 +105,7 @@ class KanbanTaskRunner:
             )
             if goal_provider:
                 result = await self._map_goal_outcome(task, goal_provider, result)
-            return result
+            return await self._resolve_run_outcome(task.task_id, result)
         except asyncio.TimeoutError:
             elapsed = time.monotonic() - t0
             logger.warning(
@@ -241,15 +246,42 @@ class KanbanTaskRunner:
             return agent_result
 
         if goal.status == GoalStatus.COMPLETE:
-            turns_info = f" ({goal.turns_used} turns)"
-            summary = agent_result[1] or "Goal completed"
-            return True, summary + turns_info
+            fresh = await self._store.get_task(task.task_id)
+            if fresh is not None and has_completion_intent(fresh.metadata):
+                turns_info = f" ({goal.turns_used} turns)"
+                summary = fresh.result or agent_result[1] or "Goal completed"
+                return True, summary + turns_info
+            return False, _PROTOCOL_VIOLATION_MSG
 
         if goal.status == GoalStatus.BUDGET_LIMITED:
             return False, f"Budget exhausted after {goal.turns_used} turns"
 
         if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW):
             return False, f"Goal paused: {goal.metadata.get('pause_reason', 'needs review')}"
+
+        return agent_result
+
+    async def _resolve_run_outcome(
+        self,
+        task_id: str,
+        agent_result: tuple[bool, str],
+    ) -> tuple[bool, str]:
+        """Re-read task state after agent execution to enforce completion gate."""
+        fresh = await self._store.get_task(task_id)
+        if fresh is None:
+            return False, "Task not found after execution"
+
+        if fresh.status == TaskStatus.BLOCKED:
+            return False, fresh.blocked_reason or "Task blocked by agent"
+
+        if has_completion_intent(fresh.metadata):
+            summary = fresh.result or agent_result[1]
+            if not summary.strip():
+                return False, "Protocol violation: kanban_complete summary is empty"
+            return True, summary
+
+        if agent_result[0]:
+            return False, _PROTOCOL_VIOLATION_MSG
 
         return agent_result
 

@@ -7,6 +7,7 @@
 [OUTPUT]
 load/upsert/delete helpers for oauthCredentials UserConfig blob
 is_oauth_issuer_connected: probe whether an issuer has a stored access token
+extract_copilot_base_url: parse API base URL from Copilot JWT proxy-ep field
 
 [POS]
 Shared persistence layer for integrations/oauth CRUD and google_workspace_oauth callback.
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -149,6 +151,22 @@ async def upsert_oauth_credential(
 
     await db.commit()
     logger.info("Persisted OAuth credentials for issuer '%s'", issuer)
+
+
+_COPILOT_DEFAULT_BASE_URL = "https://api.individual.githubcopilot.com"
+
+
+def extract_copilot_base_url(token: str) -> str:
+    """Extract API base URL from a GitHub Copilot JWT's proxy-ep field.
+
+    Copilot tokens embed ``proxy-ep=<host>`` which resolves to the correct
+    regional API endpoint.  When absent, falls back to the global default.
+    """
+    match = re.search(r"proxy-ep=([^;]+)", token)
+    if match:
+        api_host = re.sub(r"^proxy\.", "api.", match.group(1))
+        return f"https://{api_host}"
+    return _COPILOT_DEFAULT_BASE_URL
 
 
 async def delete_oauth_credential(db: AsyncSession, issuer: str) -> bool:

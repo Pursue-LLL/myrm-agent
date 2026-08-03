@@ -393,24 +393,10 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       _heal_mux_under_parallel_attach_load || true
       continue
     fi
-    if [[ "${E2E_SIGNOFF:-}" == "1" ]] \
-      && [[ "${require_ready}" == "--require-signoff-stream-ready" ]] \
-      && [[ "${waited}" -ge 45 ]] \
-      && [[ "${mux_heal_during_wait}" -lt 2 ]] \
-      && [[ "${health}" == *"shellHot=false"* || "${health}" == *"clientHot=false"* ]]; then
-      mux_heal_during_wait=$((mux_heal_during_wait + 1))
-      echo "CHROME_E2E_ATTACH_HEAL: signoff SHC attach-heal during stream wait ${mux_heal_during_wait}/2 (R200-C)" >&2
-      PYTHONUNBUFFERED=1 python3 "${SCRIPT_DIR}/lib/signoff_stack_heal.py" attach-heal >/dev/null 2>&1 || true
-      _heal_mux_request_timeout_drift || true
-      _heal_mux_under_parallel_attach_load || true
-      continue
-    fi
     if [[ "${mux_heal_during_wait}" -lt 2 ]] \
       && [[ "${health}" == *"wsStampMatch=false"* ]] \
       && _mux_upstream_ready; then
-      if [[ "${E2E_SIGNOFF:-}" == "1" && "${require_ready}" == "--require-signoff-stream-ready" ]] \
-        || [[ "${MYRM_E2E_P0A_GATE:-}" == "1" && "${require_ready}" == "--require-attach-ready" ]] \
-        || [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && _mux_solo_gate_cluster_clear ]]; then
+      if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && _mux_solo_gate_cluster_clear ]]; then
         mux_heal_during_wait=$((mux_heal_during_wait + 1))
         echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2 (R255)" >&2
         _stamp_mux_ws_url || true

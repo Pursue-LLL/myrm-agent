@@ -8,6 +8,7 @@
 
 | 层级 | URL 形态 | 示例 | 实现 |
 |------|----------|------|------|
+| **Index redirect** | `/settings` | → `/settings/account` | `app/settings/page.tsx` server `redirect()` — 禁止无 tab 挂载 `SettingsLayout` |
 | **顶层 Tab** | `/settings/[tab]` | `/settings/wiki`、`/settings/memory` | `SettingsLayout.tsx` `handleTabChange` → `` `/settings/${tab}` ``（`:311-312`）；`urlTab` 读 `params.tab`（`:235-241`） |
 | **Section 子视图** | `/settings/[tab]?sub=` | `/settings/memory?sub=migration` | `handleTabChange(tab, sub)`（`:307-314`） |
 | **Memory 内部子 Tab** | `/settings/memory?tab=` | `/settings/memory?tab=shared` | Memory Section 专用 query（如 `memoryOperationToasts.ts`） |

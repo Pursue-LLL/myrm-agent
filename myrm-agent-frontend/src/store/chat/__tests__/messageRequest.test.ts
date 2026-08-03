@@ -174,8 +174,8 @@ describe('messageRequest - agent id fallback', () => {
     ).toBe('builtin-general');
   });
 
-  it('should return undefined for consensus mode', () => {
-    expect(resolveEffectiveAgentId('consensus', baseAgentConfig)).toBeUndefined();
+  it('should return undefined for claude_code mode', () => {
+    expect(resolveEffectiveAgentId('claude_code', baseAgentConfig)).toBeUndefined();
   });
 });
 

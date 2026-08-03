@@ -1626,7 +1626,11 @@
         "reviewLabel": "深度审查",
         "fastLabel": "快速",
         "activeLabel": "MoA · {preset}",
-        "refCount": "{count} 个参考模型"
+        "refCount": "{count} 个参考模型",
+        "persistFailed": "多智能体混合偏好保存失败",
+        "skippedNoReferenceConfigs": "已开启多智能体混合，但未配置参考模型。顾问叠加已跳过 — 请在智能体能力设置中添加参考模型。",
+        "skippedNoReferenceLlms": "已开启多智能体混合，但参考模型无法加载（请检查 API Key 或 Provider 配置）。顾问叠加已跳过。",
+        "skippedGeneric": "本条消息的多智能体顾问叠加已跳过。"
       },
       "temperature": "温度",
       "temperatureHint": "控制输出的随机性",
@@ -2483,6 +2487,16 @@
         "evidenceSnapshotVerified": "编译时已校验来源快照",
         "evidenceSnapshotStale": "源文件自编译快照后有变更",
         "evidenceSnapshotMissing": "该来源无编译快照",
+        "provenance": {
+          "compiled": "编译生成",
+          "repaired": "修复",
+          "agent": "AI 创建",
+          "create_note": "笔记",
+          "chat-save": "对话保存",
+          "contradiction_synthesis": "矛盾综合",
+          "import": "导入",
+          "web_fetch": "网页抓取"
+        },
         "evidenceStructuredClaim": "结构化断言",
         "evidenceExcerpt": "证据摘录",
         "evidenceClaimConfidence": "置信度 {value}",
@@ -2562,6 +2576,16 @@
         "filterConcepts": "概念草稿",
         "filterSynthesis": "演变合成",
         "synthesisBadge": "演变",
+        "provenance": {
+          "compiled": "编译生成",
+          "repaired": "修复",
+          "agent": "AI 创建",
+          "create_note": "笔记",
+          "chat-save": "对话保存",
+          "contradiction_synthesis": "矛盾综合",
+          "import": "导入",
+          "web_fetch": "网页抓取"
+        },
         "status": {
           "pending": "待审核",
           "approved": "已批准",
@@ -7302,7 +7326,15 @@
       "confirmed": "计划已批准",
       "edited": "计划已修改并批准",
       "skipped": "已跳过审阅",
-      "submitFailed": "提交计划响应失败，请重试"
+      "submitFailed": "提交计划响应失败，请重试",
+      "workflowTitle": "动态工作流计划",
+      "workflowBadge": "执行前请审阅",
+      "workflowDescription": "请审阅编排脚本与子 Agent 调用估算，确认后再在沙箱中执行。",
+      "workflowConfirm": "运行工作流",
+      "workflowCancel": "取消",
+      "spawnCount": "检测到 {count} 处 spawn 调用",
+      "estimatedCost": "预估费用 ${cost}",
+      "remainingBudget": "剩余预算 ${budget}"
     },
     "workflowSuggestion": {
       "hint": "检测到复杂任务 — 开启工作流模式可启用多 Agent 并行执行，获得更好效果。",
@@ -8072,7 +8104,7 @@
       "loop_guard": "循环限制",
       "sandbox_boundary": "边界限制",
       "frequency_guard": "频率限制",
-      "turn_budget_guard": "本轮配额",
+      "turn_budget_guard": "搜索配额",
       "steering": "已跳过",
       "invalid_tool": "无效工具",
       "trust_attenuation": "信任降级",
@@ -9617,7 +9649,14 @@
       "noData": "无数据可显示",
       "loadError": "加载失败",
       "saveChanges": "保存修改",
-      "truncated": "显示前 {count} 行，共 {total} 行"
+      "truncated": "显示前 {count} 行，共 {total} 行",
+      "draftRecovered": "已恢复未保存的草稿。您之前的编辑已被还原。",
+      "discardDraft": "丢弃草稿",
+      "fidelityWarning": "该文件包含{features}，编辑保存后可能无法完整保留。建议先下载备份。",
+      "charts": "图表",
+      "macros": "宏",
+      "pivotTables": "透视表",
+      "images": "图片"
     },
     "saving": "保存中...",
     "saved": "已保存",
@@ -10048,7 +10087,8 @@
     },
     "chart": {
       "noData": "暂无图表数据",
-      "loading": "图表加载中..."
+      "loading": "图表加载中...",
+      "allZero": "所有数据值均为零"
     },
     "image": {
       "loading": "图片加载中...",
@@ -10218,7 +10258,15 @@
       "proMember": "Pro 会员",
       "freeTier": "免费版",
       "upgradeToPro": "升级到 Pro",
-      "dailyLimitsSubtitle": "每日配额 & 实时用量"
+      "dailyLimitsSubtitle": "每日配额 & 实时用量",
+      "subscriptionWu": "订阅 WU",
+      "topupWu": "充值 WU",
+      "dailyRefresh": "每日刷新",
+      "freeModels": "免费模型",
+      "tierRateCard": "模型等级 WU 费率",
+      "pricingExplainer": "Myrm 使用工作单元 (WU) 作为统一计费单位。不同等级模型的 WU 消耗倍率不同 — 轻量模型 1 倍、标准模型 3 倍、旗舰模型 10 倍。BYOK 用户自带 API Key，费用直接向模型提供商支付。",
+      "reliabilityTrust": "您的任务受到计划审批门控、进程持久化和自动恢复机制的保障。",
+      "viewDetailedStats": "查看统计"
     },
     "subscription": {
       "title": "订阅管理",
@@ -11100,6 +11148,7 @@
     "autoFollow": "自动跟随",
     "events": "条事件",
     "oldestReadyAge": "最早就绪任务已等待 {minutes} 分钟",
+    "staleRunningCount": "{count} 个运行中任务可能已卡住",
     "agentDistribution": "智能体分布",
     "unassigned": "未分配",
     "laneByProfile": "按 Agent 分组",

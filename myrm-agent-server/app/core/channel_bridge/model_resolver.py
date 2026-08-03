@@ -7,7 +7,7 @@ All resolved models are explicitly configured and visible to the user via the
 frontend GUI. No implicit/hidden fallback to arbitrary providers.
 
 [INPUT]
-- providers_dict: dict from frontend providers config
+- providers_dict: dict from frontend providers config (may contain _oauthToken/_oauthBaseUrl injected by config_loader)
 - model_override: optional LiteLLM model name
 
 [OUTPUT]
@@ -202,7 +202,8 @@ def _fallback_model_from_providers(
                 if all_keys:
                     ptype = str(provider.get("providerType", "")) or None
                     full_model = _to_litellm_model(pid, model, ptype)
-                    api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
+                    oauth_base = provider.get("_oauthBaseUrl")
+                    api_url = str(oauth_base) if oauth_base else str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
                     model_kwargs = _build_platform_headers(all_keys[0])
@@ -267,7 +268,9 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         all_keys = _extract_all_active_keys(p)
         if not all_keys:
             continue
-        api_url = str(p.get("apiUrl") or p.get("baseURL") or "")
+        # OAuth-injected base_url takes precedence (e.g. Copilot dynamic proxy endpoint)
+        oauth_base = p.get("_oauthBaseUrl")
+        api_url = str(oauth_base) if oauth_base else str(p.get("apiUrl") or p.get("baseURL") or "")
         api_url = api_url if api_url else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
@@ -300,13 +303,15 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
 
     Returns a list of active keys (may be empty). Used by credential pool
     for key rotation on rate-limit errors.
+
+    Priority: explicit API keys > injected OAuth token > no-auth marker.
     """
     raw: object = provider.get("apiKeys")
     if not isinstance(raw, list):
         alt = provider.get("api_keys")
         raw = alt if isinstance(alt, list) else None
     if not isinstance(raw, list):
-        return []
+        raw = []
     out: list[str] = []
     for entry in raw:
         if not isinstance(entry, dict):
@@ -319,6 +324,12 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
             out.append(str(key_raw))
     if out:
         return out
+
+    # Fallback to OAuth token injected by config_loader from provider_oauth credentials
+    oauth_token = provider.get("_oauthToken")
+    if isinstance(oauth_token, str) and oauth_token:
+        return [oauth_token]
+
     if _supports_provider_no_auth(provider):
         return [_LOCAL_NO_AUTH_API_KEY_MARKER]
     return []

@@ -954,15 +954,6 @@ def _context_to_dict(
     )
     payload["next_action"] = next_action
     payload["agent_never_say"] = AGENT_NEVER_SAY
-    try:
-        from signoff_admission import build_signoff_admission_snapshot  # noqa: PLC0415
-
-        payload["signoffAdmission"] = build_signoff_admission_snapshot()
-    except (ImportError, OSError, RuntimeError):
-        payload["signoffAdmission"] = {
-            "state": "UNKNOWN",
-            "next_action": "OBSERVABILITY_UNKNOWN",
-        }
     return payload
 
 

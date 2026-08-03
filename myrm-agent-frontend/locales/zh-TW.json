@@ -6426,7 +6426,15 @@
       "confirmed": "計劃已批准",
       "edited": "計劃已修改並批准",
       "skipped": "已跳過審閱",
-      "submitFailed": "提交計劃響應失敗，請重試"
+      "submitFailed": "提交計劃響應失敗，請重試",
+      "workflowTitle": "動態工作流計劃",
+      "workflowBadge": "執行前請審閱",
+      "workflowDescription": "請審閱編排腳本與子 Agent 呼叫估算，確認後再在沙箱中執行。",
+      "workflowConfirm": "執行工作流",
+      "workflowCancel": "取消",
+      "spawnCount": "偵測到 {count} 處 spawn 呼叫",
+      "estimatedCost": "預估費用 ${cost}",
+      "remainingBudget": "剩餘預算 ${budget}"
     },
     "workflowSuggestion": {
       "hint": "檢測到複雜任務 — 開啟工作流模式可啟用多 Agent 並行執行，獲得更好效果。",
@@ -7167,7 +7175,7 @@
       "loop_guard": "循環限制",
       "sandbox_boundary": "邊界限制",
       "frequency_guard": "頻率限制",
-      "turn_budget_guard": "本輪配額",
+      "turn_budget_guard": "搜尋配額",
       "steering": "已跳過",
       "invalid_tool": "無效工具",
       "trust_attenuation": "信任降級",
@@ -9016,7 +9024,8 @@
     },
     "chart": {
       "noData": "暫無圖表資料",
-      "loading": "圖表載入中..."
+      "loading": "圖表載入中...",
+      "allZero": "所有資料值均為零"
     },
     "image": {
       "loading": "圖片載入中...",
@@ -9186,7 +9195,15 @@
       "proMember": "Pro 會員",
       "freeTier": "免費版",
       "upgradeToPro": "升級到 Pro",
-      "dailyLimitsSubtitle": "每日配額 & 實時用量"
+      "dailyLimitsSubtitle": "每日配額 & 實時用量",
+      "subscriptionWu": "訂閱 WU",
+      "topupWu": "充值 WU",
+      "dailyRefresh": "每日刷新",
+      "freeModels": "免費模型",
+      "tierRateCard": "模型等級 WU 費率",
+      "pricingExplainer": "Myrm 使用工作單元 (WU) 作為統一計費單位。不同等級模型的 WU 消耗倍率不同 — 輕量模型 1 倍、標準模型 3 倍、旗艦模型 10 倍。BYOK 用戶自備 API Key，費用直接向模型提供商支付。",
+      "reliabilityTrust": "您的任務受到計畫審批閘控、程序持久化和自動恢復機制的保障。",
+      "viewDetailedStats": "查看統計"
     },
     "subscription": {
       "title": "訂閱管理",

@@ -117,7 +117,11 @@ export type Message = {
     planItems?: Array<{ id: string; content: string; status?: string }>;
     totalItems?: number;
     goal?: string;
-    source?: 'deep_research' | 'general_agent';
+    source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+    spawnCount?: number;
+    estimatedCostUsd?: number;
+    remainingBudgetUsd?: number;
+    costStatus?: string;
   };
   workflowSuggestion?: {
     status: 'suggested' | 'accepted' | 'dismissed';

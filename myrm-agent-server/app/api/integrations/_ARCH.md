@@ -21,6 +21,7 @@
 | `model_specs.py` | 模块 | Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。 | ✅ |
 | `oauth.py` | 模块 | OAuth 凭证管理 API。提供个人 SaaS 集成凭证的加密存储、查询和撤销，支持断开时可选清除同步数据。 | ✅ |
 | `xai_oauth.py` | 模块 | xAI OAuth device-code flow；SuperGrok 订阅授权；复用 oauth_store 持久化 | ✅ |
+| `provider_oauth.py` | 模块 | Provider OAuth flows (Anthropic PKCE + OpenAI/Copilot device-code)；模型提供商订阅登录；OAuth token 注入 model_resolver 链路 | ✅ |
 | `retrieval.py` | 模块 | Retrieval Service Configuration Validation API | ✅ |
 | `router.py` | 路由 | Integrations API router | ✅ |
 | `search.py` | 模块 | Search provider manifest (`GET /providers`) 与 live probe 验证 (`POST /verify`)；manifest 驱动 Settings 下拉 | ✅ |

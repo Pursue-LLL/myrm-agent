@@ -797,6 +797,10 @@ const MessageBox = ({
                 planItems={message.planConfirmation.planItems}
                 goal={message.planConfirmation.goal}
                 source={message.planConfirmation.source}
+                spawnCount={message.planConfirmation.spawnCount}
+                estimatedCostUsd={message.planConfirmation.estimatedCostUsd}
+                remainingBudgetUsd={message.planConfirmation.remainingBudgetUsd}
+                costStatus={message.planConfirmation.costStatus}
               />
             )}
 

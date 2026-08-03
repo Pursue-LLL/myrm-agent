@@ -15,7 +15,7 @@ import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import type { BuiltinToolId } from './builtinTools';
 
 // 操作模式类型
-export type ActionMode = 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code';
+export type ActionMode = 'fast' | 'agent' | 'deep_research' | 'claude_code';
 
 export type BusyInputMode = 'redirect' | 'steer' | 'queue';
 

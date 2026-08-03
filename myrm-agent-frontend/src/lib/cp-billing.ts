@@ -67,12 +67,22 @@ export interface BillingCatalogPlan {
   monthly_wu: number;
   trial_days: number;
   checkout_available: boolean;
+  yearly_checkout_available: boolean;
   features: string[];
+}
+
+export interface TierMultiplier {
+  tier: string;
+  multiplier: number;
+  examples: string;
 }
 
 export interface BillingCatalogResponse {
   plans: BillingCatalogPlan[];
   topup_wu_per_usd: number;
+  billing_provider?: 'stripe' | 'creem';
+  topup_available?: boolean;
+  tier_multipliers?: TierMultiplier[];
 }
 
 export function getCpApiBaseUrl(): string {

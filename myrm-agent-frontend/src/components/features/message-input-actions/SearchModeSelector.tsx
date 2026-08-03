@@ -69,7 +69,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
   const t = useTranslations('mode');
 
   useEffect(() => {
-    if (actionMode === 'deep_research' || actionMode === 'consensus') {
+    if (actionMode === 'deep_research') {
       setActionMode('agent');
     }
   }, [actionMode, setActionMode]);

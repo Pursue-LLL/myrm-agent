@@ -89,7 +89,7 @@ Design notes:
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
 | `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |
 | `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval） | ✅ |
-| `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
+| `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；支持 Google Workspace / xAI / Provider OAuth (含 Copilot 非标准 GitHub token exchange)；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
 | `skill_instance_resolver.py` | ✅ 核心 | Agent profile `skill_configs.instance_name` → runtime `default_skill_instances` map（singleton / `default` / explicit）；`resolve_runtime_skill_instance_bindings` 为 factory SSOT；`validate_agent_skill_config_instances` + `serialize_agent_skill_configs` 在 Agent create/update 时校验并序列化 instance 绑定（400 / JSON persist）；`factory.py` 消费 | ✅ |
 

@@ -13,6 +13,6 @@
 | `petSurfaceTypes.ts` / `petSurfaceStorage.ts` | 辅助 | IPC 类型 + 持久化 | ✅ |
 | `petSurfaceAwayCompletion.ts` / `usePetSurfaceUnread.ts` | 辅助 | 离屏完成 → mail 未读 | ✅ |
 | `petOverlayLayoutStorage.ts` | 辅助 | 嵌入层位置/尺寸 localStorage | ✅ |
-| `PetStateMachine.ts` / `deriveBlockedOnUser.ts` / `petStateMapping.ts` | 核心 | 7 态 + HITL blocked SSOT | ✅ |
+| `PetStateMachine.ts` / `deriveBlockedOnUser.ts` / `petStateMapping.ts` | 核心 | 7 态 + HITL blocked SSOT；SSE 含 `moa_overlay_active` / `moa_ref_done`（MoA overlay 与 legacy consensus 键） | ✅ |
 
 路由：`src/app/pet-overlay/`（Tauri 透明置顶 webview 入口）。

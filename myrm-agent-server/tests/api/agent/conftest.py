@@ -358,7 +358,15 @@ def _clear_agent_test_process_state() -> None:
 
     from app.core.memory.adapters.setup import shutdown_cached_memory_managers
     from app.platform_utils import _reset_checkpointer_for_testing, _reset_quota_manager_for_testing
+    from app.services.agent.execution_cache.prewarm.coordinator import (
+        _reset_turn_prewarm_coordinator_for_testing,
+    )
+    from app.services.agent.execution_cache.registry import (
+        _reset_execution_cache_for_testing,
+    )
 
+    _reset_execution_cache_for_testing()
+    _reset_turn_prewarm_coordinator_for_testing()
     _reset_checkpointer_for_testing()
     _reset_quota_manager_for_testing()
     ApprovalTimeoutScheduler.get().cancel_all()

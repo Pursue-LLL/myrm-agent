@@ -49,7 +49,7 @@ describe('SamplePrompts', () => {
   });
 
   it('falls back to agent mode for unsupported modes', () => {
-    mockStore.actionMode = 'consensus';
+    mockStore.actionMode = 'claude_code';
     render(<SamplePrompts />);
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(4);

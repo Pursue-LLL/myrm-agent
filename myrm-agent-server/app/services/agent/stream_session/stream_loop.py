@@ -219,7 +219,11 @@ async def iter_agent_stream_chunks(
         from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
 
         logger.info(f"🚀 Dynamic Workflow Engine activated for message_id={session.params.message_id}")
-        stream = create_dynamic_workflow_stream(session.params, session.cancel_token)
+        stream = create_dynamic_workflow_stream(
+            session.params,
+            session.cancel_token,
+            session.request.resume_value if isinstance(session.request.resume_value, dict) else None,
+        )
     elif (
         session.routing_tier == "simple"
         and session.request.blueprint_id is None

@@ -23,7 +23,7 @@ config updates so load_user_configs returns fresh data.
 
 [OUTPUT]
 - UserConfigs: typed config bundle (model/search/retrieval/MCP/voice/security/external_agents + search_is_user_configured flag)
-- load_user_configs: async loader with TTL cache (auto-registers custom pricing)
+- load_user_configs: async loader with TTL cache (auto-registers custom pricing, injects provider OAuth tokens)
 - load_voice_config_only: lightweight voice-only loader (no model/provider dependency)
 - invalidate_user_configs_cache: 配置变更后调用以清除缓存
 """
@@ -40,6 +40,48 @@ if TYPE_CHECKING:
     from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
+
+
+_PROVIDER_OAUTH_MAP: dict[str, str] = {
+    "provider_anthropic": "anthropic",
+    "provider_openai": "openai",
+    "provider_copilot": "copilot",
+}
+
+
+def _inject_provider_oauth_tokens(
+    providers_dict: dict[str, object],
+    oauth_creds: dict[str, object],
+) -> None:
+    """Inject OAuth tokens from provider_* issuers into matching provider configs.
+
+    Sets `_oauthToken` (and `_oauthBaseUrl` for Copilot) on the provider dict
+    so `_extract_all_active_keys` can use them as API key fallbacks.
+    Tokens are always injected; `_extract_all_active_keys` handles API key priority.
+    """
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return
+
+    for issuer, provider_id in _PROVIDER_OAUTH_MAP.items():
+        cred = oauth_creds.get(issuer)
+        if not isinstance(cred, dict):
+            continue
+        token = cred.get("token")
+        if not token:
+            continue
+
+        for p in providers:
+            if not isinstance(p, dict):
+                continue
+            pid = str(p.get("id", "")).lower()
+            if pid != provider_id:
+                continue
+            p["_oauthToken"] = str(token)
+            base_url = cred.get("base_url")
+            if base_url:
+                p["_oauthBaseUrl"] = str(base_url)
+            break
 
 
 def _coerce_config_dict(raw: object) -> dict[str, object] | None:
@@ -210,6 +252,12 @@ async def load_user_configs() -> UserConfigs:
     search_configured = is_search_user_configured(search_services_raw)
 
     register_custom_model_pricing(providers_dict)
+
+    # Inject provider OAuth tokens into provider configs so model_resolver
+    # can use them as API key fallbacks (e.g. Claude Pro, ChatGPT Plus, Copilot)
+    oauth_creds_raw = config_map.get("oauthCredentials")
+    if isinstance(oauth_creds_raw, dict):
+        _inject_provider_oauth_tokens(providers_dict, oauth_creds_raw)
 
     from app.core.channel_bridge.model_resolver import enrich_model_context_window
 

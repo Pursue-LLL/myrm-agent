@@ -326,3 +326,9 @@ def get_turn_prewarm_coordinator() -> TurnPrewarmCoordinator:
     if _coordinator is None:
         _coordinator = TurnPrewarmCoordinator()
     return _coordinator
+
+
+def _reset_turn_prewarm_coordinator_for_testing() -> None:
+    """Drop process singleton so asyncio locks bind to the active test event loop."""
+    global _coordinator
+    _coordinator = None

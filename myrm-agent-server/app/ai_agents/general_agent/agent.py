@@ -283,6 +283,7 @@ class GeneralAgent(ToolSetupMixin):
         self.goal = goal
         self.openapi_services = openapi_services or []
         self.notify_targets = notify_targets
+        self.moa_overlay_skip_reason: str | None = None
 
     def _resolve_wiki_base_dir(self) -> str | None:
         """Resolve writable wiki base directory for this agent."""

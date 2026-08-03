@@ -20,6 +20,7 @@ def _make_agent_wrapper(
     fallback_model: str | None = None,
     safety_fallback_model: str | None = None,
     reasoning_model: str | None = None,
+    engine_params: dict[str, object] | None = None,
 ) -> SimpleNamespace:
     def _cfg(m: str | None) -> SimpleNamespace | None:
         return SimpleNamespace(model=m) if m else None
@@ -30,6 +31,7 @@ def _make_agent_wrapper(
         fallback_model_cfg=_cfg(fallback_model),
         safety_fallback_model_cfg=_cfg(safety_fallback_model),
         reasoning_model_cfg=_cfg(reasoning_model),
+        engine_params=engine_params,
     )
 
 
@@ -164,3 +166,39 @@ async def test_none_model_cfg_slots_skipped() -> None:
     )
     with _mock_config_service(_make_record(["openai/*"])):
         await _enforce_org_model_policy(wrapper)
+
+
+@pytest.mark.asyncio
+async def test_moa_overlay_reference_model_allowed() -> None:
+    wrapper = _make_agent_wrapper(
+        model="openai/gpt-4o-mini",
+        engine_params={
+            "moa_overlay": {
+                "enabled": True,
+                "reference_model_selections": [
+                    {"providerId": "openai", "model": "openai/gpt-4o-mini"},
+                ],
+            },
+        },
+    )
+    with _mock_config_service(_make_record(["openai/*"])):
+        await _enforce_org_model_policy(wrapper)
+
+
+@pytest.mark.asyncio
+async def test_moa_overlay_reference_model_disallowed_raises() -> None:
+    wrapper = _make_agent_wrapper(
+        model="openai/gpt-4o-mini",
+        engine_params={
+            "moa_overlay": {
+                "enabled": True,
+                "reference_model_selections": [
+                    {"providerId": "anthropic", "model": "anthropic/claude-3-5-sonnet"},
+                ],
+            },
+        },
+    )
+    with _mock_config_service(_make_record(["openai/*"])):
+        with pytest.raises(OrgModelPolicyViolation) as exc_info:
+            await _enforce_org_model_policy(wrapper)
+        assert "anthropic/claude-3-5-sonnet" in str(exc_info.value)

@@ -27,7 +27,11 @@ interface PlanConfirmationCardProps {
   status: 'waiting' | 'confirmed' | 'edited' | 'skipped';
   planItems?: Array<{ id: string; content: string; status?: string }>;
   goal?: string;
-  source?: 'deep_research' | 'general_agent';
+  source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+  spawnCount?: number;
+  estimatedCostUsd?: number;
+  remainingBudgetUsd?: number;
+  costStatus?: string;
 }
 
 const CheckCircleIcon = ({ className }: { className?: string }) => (
@@ -81,8 +85,18 @@ const resolvedStatusMap: Record<string, string> = {
   skipped: 'skipped',
 };
 
-const PlanConfirmationCard = ({ messageId, plan, status, planItems, source }: PlanConfirmationCardProps) => {
+const PlanConfirmationCard = ({
+  messageId,
+  plan,
+  status,
+  planItems,
+  source,
+  spawnCount,
+  estimatedCostUsd,
+  remainingBudgetUsd,
+}: PlanConfirmationCardProps) => {
   const t = useTranslations('chat.planConfirmation');
+  const isDynamicWorkflow = source === 'dynamic_workflow';
   const [editing, setEditing] = useState(false);
   const [editedPlan, setEditedPlan] = useState(plan);
   const [submitting, setSubmitting] = useState(false);
@@ -193,13 +207,37 @@ const PlanConfirmationCard = ({ messageId, plan, status, planItems, source }: Pl
         <div className="relative flex flex-col gap-4 p-3 sm:gap-5 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-sm font-semibold leading-snug text-foreground sm:text-base">{t('title')}</span>
-              <span className="text-xs leading-relaxed text-muted-foreground">{t('description')}</span>
+              <span className="text-sm font-semibold leading-snug text-foreground sm:text-base">
+                {isDynamicWorkflow ? t('workflowTitle') : t('title')}
+              </span>
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                {isDynamicWorkflow ? t('workflowDescription') : t('description')}
+              </span>
             </div>
             <span className="shrink-0 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
-              {t('badge')}
+              {isDynamicWorkflow ? t('workflowBadge') : t('badge')}
             </span>
           </div>
+
+          {isDynamicWorkflow && (spawnCount !== undefined || estimatedCostUsd !== undefined) && (
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {spawnCount !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('spawnCount', { count: spawnCount })}
+                </span>
+              )}
+              {estimatedCostUsd !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('estimatedCost', { cost: estimatedCostUsd.toFixed(2) })}
+                </span>
+              )}
+              {remainingBudgetUsd !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('remainingBudget', { budget: remainingBudgetUsd.toFixed(2) })}
+                </span>
+              )}
+            </div>
+          )}
 
           {editing ? (
             <textarea
@@ -217,39 +255,65 @@ const PlanConfirmationCard = ({ messageId, plan, status, planItems, source }: Pl
           )}
 
           <div className="flex flex-col-reverse gap-2 border-t border-border/50 pt-3 sm:flex-row sm:justify-end sm:pt-4">
-            <button
-              type="button"
-              onClick={handleSkip}
-              disabled={submitting}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
-            >
-              <SkipIcon className="h-3.5 w-3.5" />
-              {t('skip')}
-            </button>
-            <button
-              type="button"
-              onClick={handleEdit}
-              disabled={submitting}
-              className={cn(
-                'inline-flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 sm:w-auto sm:py-2',
-                editing
-                  ? 'border-blue-500/50 bg-blue-600 text-white hover:bg-blue-700'
-                  : 'border-blue-500/30 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-300',
-              )}
-            >
-              <PencilIcon className="h-3.5 w-3.5" />
-              {t('edit')}
-            </button>
-            {!editing && (
+            {!isDynamicWorkflow && (
               <button
                 type="button"
-                onClick={handleConfirm}
+                onClick={handleSkip}
                 disabled={submitting}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
               >
-                <CheckCircleIcon className="h-3.5 w-3.5" />
-                {t('confirm')}
+                <SkipIcon className="h-3.5 w-3.5" />
+                {t('skip')}
               </button>
+            )}
+            {isDynamicWorkflow ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
+                >
+                  {t('workflowCancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                >
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  {t('workflowConfirm')}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleEdit}
+                  disabled={submitting}
+                  className={cn(
+                    'inline-flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 sm:w-auto sm:py-2',
+                    editing
+                      ? 'border-blue-500/50 bg-blue-600 text-white hover:bg-blue-700'
+                      : 'border-blue-500/30 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-300',
+                  )}
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                  {t('edit')}
+                </button>
+                {!editing && (
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={submitting}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                  >
+                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                    {t('confirm')}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

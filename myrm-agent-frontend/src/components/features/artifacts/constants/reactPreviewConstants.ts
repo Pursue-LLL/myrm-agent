@@ -10,7 +10,7 @@ export const PRESET_DEPENDENCIES: Record<string, string> = {
   'class-variance-authority': 'latest',
   'tailwind-merge': 'latest',
   // 图表
-  recharts: '^2.12.0',
+  recharts: '^3.10.0',
   // 动画
   'framer-motion': '^11.0.0',
   // 日期处理

@@ -83,6 +83,8 @@ interface Window {
     resetChat?: () => void;
     isSendReady?: () => boolean;
     isProvidersInitialized?: () => boolean;
+    setWorkflowMode?: (enabled: boolean) => void;
+    isWorkflowMode?: () => boolean;
     debugProviderState?: () => Record<string, unknown>;
     clearStreamRequestMessageId?: () => void;
     submitSteerNudge?: (message: string) => Promise<{ ok: boolean; mode?: string; err?: string; detail?: unknown }>;
@@ -175,8 +177,8 @@ interface Window {
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
-    getActionMode?: () => 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code';
-    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code') => void;
+    getActionMode?: () => 'fast' | 'agent' | 'deep_research' | 'claude_code';
+    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research' | 'claude_code') => void;
     getBrowserToolProgress?: () => {
       active: boolean;
       takeoverPending: boolean;

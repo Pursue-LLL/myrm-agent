@@ -76,16 +76,19 @@ _ACTION_MODE_FEATURE_GATE: dict[str, str] = {
 }
 
 
-def _normalize_legacy_consensus_request(request: AgentRequest) -> AgentRequest:
-    """Map deprecated consensus action mode to agent + MoA overlay preset."""
+def _reject_legacy_consensus_request(request: AgentRequest) -> JSONResponse | None:
+    """Reject removed consensus action_mode with a clear migration hint."""
     if request.action_mode != "consensus":
-        return request
-    from app.services.agent.moa_preset_resolver import MOA_PRESET_DEFAULT_ID
-
-    updates: dict[str, object] = {"action_mode": "agent"}
-    if request.active_moa_preset_id is None:
-        updates["active_moa_preset_id"] = MOA_PRESET_DEFAULT_ID
-    return request.model_copy(update=updates)
+        return None
+    return JSONResponse(
+        status_code=400,
+        content={
+            "detail": (
+                "action_mode 'consensus' was removed. "
+                "Use action_mode 'agent' with active_moa_preset_id instead."
+            ),
+        },
+    )
 
 _SEARCH_AGENT_IDS: frozenset[str] = frozenset(
     {"builtin-fast-search", "builtin-deep-search"}
@@ -106,7 +109,9 @@ async def run_agent_stream(
     """
     stream_started_at_monotonic = time.perf_counter()
     request = prefer_direct_agent_stream(request)
-    request = _normalize_legacy_consensus_request(request)
+    consensus_rejection = _reject_legacy_consensus_request(request)
+    if consensus_rejection is not None:
+        return consensus_rejection
 
     async def _record_terminal_failure_if_needed(
         reason: TurnCapabilityFailureReason,

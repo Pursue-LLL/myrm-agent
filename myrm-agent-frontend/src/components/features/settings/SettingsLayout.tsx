@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
-import { useParams, useRouter, usePathname } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDeferredLocaleReady } from '@/i18n/deferred-locale-context';
 import useAuthStore from '@/store/useAuthStore';
@@ -227,7 +227,6 @@ function SettingsLayout() {
   const t = useTranslations('settings');
   const router = useRouter();
   const params = useParams();
-  const pathname = usePathname();
   const userRole = useAuthStore((s) => s.user?.role);
   const isAdmin = userRole === 'admin';
 
@@ -289,10 +288,8 @@ function SettingsLayout() {
   useEffect(() => {
     if (params?.tab && validTabs.includes(params.tab as SettingsTab)) {
       setIsMobileMenuOpen(false);
-    } else if (!params?.tab && pathname === '/settings') {
-      setIsMobileMenuOpen(true);
     }
-  }, [params?.tab, pathname, validTabs]);
+  }, [params?.tab, validTabs]);
 
   const isSavingRef = useRef(false);
 

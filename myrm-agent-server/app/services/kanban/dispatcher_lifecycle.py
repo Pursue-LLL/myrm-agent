@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
-from app.services.kanban.event_publisher import emit_btw_done, publish_kanban_event
+from app.services.kanban.event_publisher import emit_btw_done, emit_source_chat_done, publish_kanban_event
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ async def start_dispatcher(
         )
     )
     dispatcher.on_event(emit_btw_done)
+    dispatcher.on_event(emit_source_chat_done)
     await dispatcher.start()
     dispatchers[board_id] = dispatcher
     logger.info("Started dispatcher for board %s", board_id)

@@ -104,6 +104,7 @@ export interface BoardSummary {
   dispatcher_active: boolean;
   by_agent: AgentTaskCounts[];
   oldest_ready_age_seconds: number | null;
+  stale_running_count: number;
 }
 
 // ==================== Board API ====================

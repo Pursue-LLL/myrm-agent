@@ -213,8 +213,20 @@ def collect_plan_confirmation_status(
         result: dict[str, object] = {
             "plan": plan,
             "status": "waiting",
-            "source": "deep_research",
+            "source": data.get("source") if isinstance(data.get("source"), str) else "deep_research",
         }
+        spawn_count = data.get("spawn_count")
+        if isinstance(spawn_count, int):
+            result["spawnCount"] = spawn_count
+        estimated_cost = data.get("estimated_cost_usd")
+        if isinstance(estimated_cost, int | float):
+            result["estimatedCostUsd"] = round(float(estimated_cost), 4)
+        remaining_budget = data.get("remaining_budget_usd")
+        if isinstance(remaining_budget, int | float):
+            result["remainingBudgetUsd"] = round(float(remaining_budget), 4)
+        cost_status = data.get("cost_status")
+        if isinstance(cost_status, str) and cost_status.strip():
+            result["costStatus"] = cost_status.strip()
         if plan_items:
             result["planItems"] = plan_items
         total_items = data.get("total_items")

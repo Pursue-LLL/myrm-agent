@@ -149,6 +149,16 @@ describe('stepKeyToPetEvent', () => {
     expect(event).toEqual({ state: PetState.JUMP, mode: 'transient', ttlMs: 1500 });
   });
 
+  it('maps moa_ref_done to JUMP transient', () => {
+    const event = stepKeyToPetEvent('moa_ref_done');
+    expect(event).toEqual({ state: PetState.JUMP, mode: 'transient', ttlMs: 1500 });
+  });
+
+  it('maps moa_overlay_active to REVIEWING sticky', () => {
+    const event = stepKeyToPetEvent('moa_overlay_active');
+    expect(event).toEqual({ state: PetState.REVIEWING, mode: 'sticky' });
+  });
+
   it('maps correction_learned to REVIEWING transient', () => {
     const event = stepKeyToPetEvent('correction_learned');
     expect(event).toEqual({ state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 });

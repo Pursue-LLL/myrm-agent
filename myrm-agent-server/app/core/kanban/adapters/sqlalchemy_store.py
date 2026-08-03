@@ -342,6 +342,11 @@ class SqlAlchemyKanbanStore:
                 oldest = oldest.replace(tzinfo=UTC)
             return int((now - oldest).total_seconds())
 
+    async def count_stale_running_tasks(self, board_id: str, timeout_seconds: int) -> int:
+        """Count RUNNING tasks whose heartbeat is older than timeout (zombie candidates)."""
+        zombies = await self.list_zombie_tasks(board_id, timeout_seconds)
+        return len(zombies)
+
     async def save_task(self, task: KanbanTask) -> KanbanTask:
         async with get_session() as session:
             existing = await session.get(KanbanTaskModel, task.task_id)

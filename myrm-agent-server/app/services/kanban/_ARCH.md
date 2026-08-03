@@ -17,12 +17,12 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `service_ai_mixin.py` | ✅ 核心 | specify/decompose 工作流薄壳（直连 orchestrator） | ❌ |
 | `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
 | `service_types.py` | ✅ 核心 | DTO/异常/常量 | ❌ |
-| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done` | ❌ |
+| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done` | ❌ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定 | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete | ❌ |
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排 | ❌ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
-| `board_summary.py` | ✅ 核心 | `build_board_summary` | ❌ |
+| `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |
 | `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery | ❌ |
 | `task_runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入 | ✅ |
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径 + HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |

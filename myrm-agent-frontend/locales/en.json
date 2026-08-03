@@ -1626,7 +1626,11 @@
         "reviewLabel": "Deep review",
         "fastLabel": "Fast",
         "activeLabel": "MoA · {preset}",
-        "refCount": "{count} refs"
+        "refCount": "{count} refs",
+        "persistFailed": "Failed to save MoA preset preference",
+        "skippedNoReferenceConfigs": "Mixture of Agents is on, but no reference models are configured. Advisor overlay was skipped — check Agent capabilities settings.",
+        "skippedNoReferenceLlms": "Mixture of Agents is on, but reference models could not be loaded (check API keys or provider settings). Advisor overlay was skipped.",
+        "skippedGeneric": "Mixture of Agents advisor overlay was skipped for this message."
       },
       "temperature": "Temperature",
       "temperatureHint": "Controls output randomness",
@@ -2483,6 +2487,16 @@
         "evidenceSnapshotVerified": "Source snapshot verified at compile",
         "evidenceSnapshotStale": "Source file changed since compile snapshot",
         "evidenceSnapshotMissing": "No compile snapshot for this source",
+        "provenance": {
+          "compiled": "Compiled",
+          "repaired": "Repaired",
+          "agent": "Agent",
+          "create_note": "Note",
+          "chat-save": "Chat Save",
+          "contradiction_synthesis": "Synthesis",
+          "import": "Import",
+          "web_fetch": "Web Fetch"
+        },
         "evidenceStructuredClaim": "Structured claim",
         "evidenceExcerpt": "Evidence excerpt",
         "evidenceClaimConfidence": "Confidence {value}",
@@ -2562,6 +2576,16 @@
         "filterConcepts": "Concept drafts",
         "filterSynthesis": "Evolution synthesis",
         "synthesisBadge": "Evolution",
+        "provenance": {
+          "compiled": "Compiled",
+          "repaired": "Repaired",
+          "agent": "Agent",
+          "create_note": "Note",
+          "chat-save": "Chat Save",
+          "contradiction_synthesis": "Synthesis",
+          "import": "Import",
+          "web_fetch": "Web Fetch"
+        },
         "status": {
           "pending": "Pending",
           "approved": "Approved",
@@ -7303,7 +7327,15 @@
       "confirmed": "Plan approved",
       "edited": "Plan updated & approved",
       "skipped": "Review skipped",
-      "submitFailed": "Failed to submit plan response. Please try again."
+      "submitFailed": "Failed to submit plan response. Please try again.",
+      "workflowTitle": "Dynamic Workflow Plan",
+      "workflowBadge": "Review before execution",
+      "workflowDescription": "Review the orchestration script and spawn estimate before running sub-agents in the sandbox.",
+      "workflowConfirm": "Run Workflow",
+      "workflowCancel": "Cancel",
+      "spawnCount": "{count} spawn call(s) detected",
+      "estimatedCost": "Est. cost ${cost}",
+      "remainingBudget": "Budget left ${budget}"
     },
     "workflowSuggestion": {
       "hint": "Complex task detected — enable Workflow Mode for parallel multi-agent execution and better results.",
@@ -8072,7 +8104,7 @@
       "loop_guard": "Loop Limit",
       "sandbox_boundary": "Boundary Limit",
       "frequency_guard": "Rate Limited",
-      "turn_budget_guard": "Turn Budget",
+      "turn_budget_guard": "Search Quota",
       "steering": "Skipped",
       "invalid_tool": "Invalid Tool",
       "trust_attenuation": "Trust Reduced",
@@ -9617,7 +9649,14 @@
       "noData": "No data to display",
       "loadError": "Failed to load",
       "saveChanges": "Save Changes",
-      "truncated": "Showing first {count} of {total} rows"
+      "truncated": "Showing first {count} of {total} rows",
+      "draftRecovered": "An unsaved draft was recovered. Your previous edits have been restored.",
+      "discardDraft": "Discard draft",
+      "fidelityWarning": "This file contains {features} that may not be fully preserved after editing. Download a backup before saving.",
+      "charts": "charts",
+      "macros": "macros",
+      "pivotTables": "pivot tables",
+      "images": "images"
     },
     "saving": "Saving...",
     "saved": "Saved",
@@ -10048,7 +10087,8 @@
     },
     "chart": {
       "noData": "No chart data",
-      "loading": "Loading chart..."
+      "loading": "Loading chart...",
+      "allZero": "All values are zero"
     },
     "image": {
       "loading": "Loading image...",
@@ -10218,7 +10258,15 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
+      "subscriptionWu": "Subscription WU",
+      "topupWu": "Top-up WU",
+      "dailyRefresh": "Daily Refresh",
+      "freeModels": "Free Models",
+      "tierRateCard": "WU Rate by Model Tier",
+      "pricingExplainer": "Myrm uses Work Units (WU) as a unified billing unit. Different model tiers consume WU at different rates — Lite models at 1×, Standard at 3×, and Frontier at 10×. BYOK users bring their own API keys and pay providers directly.",
+      "reliabilityTrust": "Your tasks are protected by plan-based approval gates, process durability, and automatic recovery.",
+      "viewDetailedStats": "View Stats"
     },
     "subscription": {
       "title": "Subscription",
@@ -11100,6 +11148,7 @@
     "autoFollow": "Auto-follow",
     "events": "events",
     "oldestReadyAge": "Oldest ready: {minutes}m waiting",
+    "staleRunningCount": "{count} running task(s) may be stuck",
     "agentDistribution": "Per agent",
     "unassigned": "Unassigned",
     "laneByProfile": "Lanes by agent",

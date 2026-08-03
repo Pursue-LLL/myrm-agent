@@ -734,6 +734,10 @@ export default function E2EChatBridge() {
         const { actionMode, agentConfig } = useChatStore.getState();
         return getModelSelection(actionMode, agentConfig) !== null;
       },
+      setWorkflowMode: (enabled: boolean) => {
+        useChatStore.getState().setIsWorkflowMode(enabled);
+      },
+      isWorkflowMode: () => useChatStore.getState().isWorkflowMode,
       syncSearchServicesFromE2eApi: hydrateSearchServicesFromE2eApi,
       clearSearchServicesForE2e,
       debugSearchState: () => {

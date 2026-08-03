@@ -211,6 +211,29 @@ async def execute_stream_pipeline(
                 )
 
         assert agent_wrapper.agent is not None
+
+        from app.services.agent.stream_session.moa_overlay_setup import (
+            MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS,
+            MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS,
+            resolve_moa_overlay_models,
+        )
+
+        overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(agent_wrapper.engine_params)
+        moa_skip_reason: str | None = None
+        if overlay_cfg is not None:
+            if not ref_cfgs:
+                moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
+            elif agent_wrapper.moa_overlay_skip_reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS:
+                moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
+        if moa_skip_reason:
+            yield {
+                "type": "status",
+                "messageId": message_id,
+                "step_key": "moa_overlay_skipped",
+                "status": "warning",
+                "data": {"reason": moa_skip_reason},
+            }
+
         from app.ai_agents.extensions.security_policy_extension import (
             refresh_wrapper_security_config,
             sync_wrapper_security_from_store,

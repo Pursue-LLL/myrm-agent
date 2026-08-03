@@ -5,7 +5,7 @@
 - app.services.event.app_event_bus (POS: Global SSE event bus.)
 
 [OUTPUT]
-- publish_kanban_event, emit_btw_done
+- publish_kanban_event, emit_btw_done, emit_source_chat_done
 
 [POS]
 SSE event publishing for kanban task updates and BTW terminal events.
@@ -13,7 +13,7 @@ SSE event publishing for kanban task updates and BTW terminal events.
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask, extract_source_chat_id
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -73,6 +73,36 @@ def emit_btw_done(event_type: str, task: KanbanTask) -> None:
                 "thread_id": meta.get("thread_id", ""),
                 "user_id": meta.get("user_id", ""),
                 "locale": meta.get("locale", "en"),
+            },
+        )
+    )
+
+
+def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:
+    """Publish BACKGROUND_TASK_DONE when a kanban task with source_chat_id terminates."""
+    if event_type not in _BTW_TERMINAL_EVENTS:
+        return
+    meta = task.metadata or {}
+    if meta.get("background_source") == "btw":
+        return
+    source_chat_id = extract_source_chat_id(meta)
+    if not source_chat_id:
+        return
+    locale_raw = meta.get("locale")
+    locale = locale_raw if isinstance(locale_raw, str) and locale_raw.strip() else "en"
+    get_event_bus().publish(
+        AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": task.task_id,
+                "status": "completed" if event_type == "task_completed" else "failed",
+                "title": task.title,
+                "result": task.result or task.error or "",
+                "chat_id": source_chat_id,
+                "source_chat_id": source_chat_id,
+                "thread_id": "",
+                "user_id": "",
+                "locale": locale,
             },
         )
     )

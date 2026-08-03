@@ -191,6 +191,11 @@ export function WikiPendingEdits({
                         {t('pendingEdits.synthesisBadge')}
                       </Badge>
                     )}
+                    {edit.provenance && !isSynthesisEdit(edit) && (
+                      <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30">
+                        {t(`pendingEdits.provenance.${edit.provenance}`, { defaultValue: edit.provenance })}
+                      </Badge>
+                    )}
                     <Badge
                       variant="outline"
                       className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal"

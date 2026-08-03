@@ -43,16 +43,13 @@ import { abortCurrentUpload } from '@/services/uploadController';
 
 const CHAT_TITLE_MAX_LENGTH = 50;
 const CHAT_SUMMARY_MAX_LENGTH = 100;
-const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research', 'consensus', 'claude_code'];
+const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research', 'claude_code'];
 
 export interface LoadMessagesOptions {
   preserveInstantSessionConfig?: boolean;
 }
 
 function normalizeActionMode(actionMode: string | null | undefined): ActionMode {
-  if (actionMode === 'consensus') {
-    return 'agent';
-  }
   if (typeof actionMode === 'string' && VALID_ACTION_MODES.includes(actionMode as ActionMode)) {
     return actionMode as ActionMode;
   }

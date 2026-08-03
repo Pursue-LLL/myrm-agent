@@ -18,6 +18,7 @@ from app.api.integrations import (
     mcp,
     mcp_oauth,
     oauth,
+    provider_oauth,
     retrieval,
     search,
     web_fetch,
@@ -47,3 +48,8 @@ router.include_router(
 router.include_router(im_contacts.router, prefix="/contacts", tags=["integrations-contacts"])
 router.include_router(integration_memory.router, prefix="/memory", tags=["integrations-memory"])
 router.include_router(xai_oauth.router, prefix="/xai/oauth", tags=["integrations-xai-oauth"])
+router.include_router(
+    provider_oauth.router,
+    prefix="/provider-oauth",
+    tags=["integrations-provider-oauth"],
+)

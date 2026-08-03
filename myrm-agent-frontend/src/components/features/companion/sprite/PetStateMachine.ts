@@ -62,6 +62,7 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
     case 'workflow_init':
     case 'workflow_planning':
     case 'consensus_active':
+    case 'moa_overlay_active':
       return { state: PetState.REVIEWING, mode: 'sticky' };
 
     case 'workflow_execution':
@@ -89,6 +90,7 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
       return { state: PetState.REVIEWING, mode: 'sticky' };
 
     case 'consensus_reference_done':
+    case 'moa_ref_done':
       return { state: PetState.JUMP, mode: 'transient', ttlMs: 1500 };
 
     case 'loop_guard_warn':

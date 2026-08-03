@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { xlsxToUniverData, univerDataToXlsx, type WorkbookSnapshot } from '../index';
+import { xlsxToUniverData, univerDataToXlsx, type WorkbookSnapshot, type UniverCellData, type UniverSheetData } from '../index';
+
+type FidelityWarnings = { hasCharts: boolean; hasMacros: boolean; hasPivotTables: boolean; hasImages: boolean };
 
 async function createSimpleXlsx(data: unknown[][]): Promise<ArrayBuffer> {
   const XLSX = await import('xlsx');
@@ -8,6 +10,28 @@ async function createSimpleXlsx(data: unknown[][]): Promise<ArrayBuffer> {
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   return new Uint8Array(buf).buffer;
+}
+
+async function createXlsxWithFormulas(): Promise<ArrayBuffer> {
+  const XLSX = await import('xlsx');
+  const ws: Record<string, unknown> = {};
+  ws['A1'] = { v: 10, t: 'n' };
+  ws['A2'] = { v: 20, t: 'n' };
+  ws['A3'] = { v: 30, t: 'n', f: 'SUM(A1:A2)' };
+  ws['B1'] = { v: 0.35, t: 'n', z: '0.00%' };
+  ws['!ref'] = 'A1:B3';
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' })).buffer;
+}
+
+async function createXlsxWithMerges(): Promise<ArrayBuffer> {
+  const XLSX = await import('xlsx');
+  const ws = XLSX.utils.aoa_to_sheet([['Title', '', ''], ['a', 'b', 'c']]);
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' })).buffer;
 }
 
 async function createMultiSheetXlsx(
@@ -193,5 +217,94 @@ describe('univerDataToXlsx', () => {
     expect(wb.SheetNames).toContain('Test');
     const ws = wb.Sheets['Test'];
     expect(ws?.['A1']?.v).toBe('hello');
+  });
+});
+
+describe('formula roundtrip', () => {
+  it('preserves formulas through xlsx → univer → xlsx cycle', async () => {
+    const buf = await createXlsxWithFormulas();
+    const univerData = await xlsxToUniverData(buf);
+    const sheets = (univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }).sheets;
+
+    const a3 = sheets['Sheet1']?.cellData[2]?.[0];
+    expect(a3?.f).toBe('SUM(A1:A2)');
+
+    const blob = await univerDataToXlsx(univerData as WorkbookSnapshot);
+    const XLSX = await import('xlsx');
+    const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets['Sheet1'];
+    expect(ws?.['A3']?.f).toBe('SUM(A1:A2)');
+  });
+
+  it('preserves number format (numFmt) on import', async () => {
+    const buf = await createXlsxWithFormulas();
+    const univerData = await xlsxToUniverData(buf);
+    const sheets = (univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }).sheets;
+
+    const b1 = sheets['Sheet1']?.cellData[0]?.[1];
+    expect(b1?.numFmt).toBe('0.00%');
+  });
+
+  it('preserves numFmt in exported snapshot for Univer rendering', async () => {
+    const snapshot: WorkbookSnapshot = {
+      sheetOrder: ['s1'],
+      sheets: {
+        s1: {
+          name: 'Test',
+          cellData: { 0: { 0: { v: 0.35, t: 2, numFmt: '0.00%' } } },
+        },
+      },
+    };
+    const blob = await univerDataToXlsx(snapshot);
+    expect(blob.size).toBeGreaterThan(0);
+    const XLSX = await import('xlsx');
+    const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets['Test'];
+    expect(ws?.['A1']?.v).toBe(0.35);
+  });
+});
+
+describe('merge roundtrip', () => {
+  it('preserves merged cells through xlsx → univer → xlsx cycle', async () => {
+    const buf = await createXlsxWithMerges();
+    const univerData = await xlsxToUniverData(buf);
+    const sheets = (univerData as { sheets: Record<string, { mergeData?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> }> }).sheets;
+
+    expect(sheets['Sheet1']?.mergeData).toHaveLength(1);
+    expect(sheets['Sheet1']?.mergeData?.[0]).toEqual({
+      startRow: 0, endRow: 0, startColumn: 0, endColumn: 2,
+    });
+
+    const blob = await univerDataToXlsx(univerData as WorkbookSnapshot);
+    const XLSX = await import('xlsx');
+    const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets['Sheet1'];
+    expect(ws?.['!merges']).toHaveLength(1);
+    expect(ws?.['!merges']?.[0]).toEqual(
+      expect.objectContaining({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }),
+    );
+  });
+});
+
+describe('fidelity warnings', () => {
+  it('returns no warnings for plain xlsx', async () => {
+    const buf = await createSimpleXlsx([['plain']]);
+    const result = await xlsxToUniverData(buf);
+    const warnings = (result as Record<string, unknown>)._fidelityWarnings as { hasMacros: boolean; hasCharts: boolean };
+    expect(warnings.hasMacros).toBe(false);
+    expect(warnings.hasCharts).toBe(false);
+  });
+
+  it('_fidelityWarnings is always present', async () => {
+    const buf = await createSimpleXlsx([['test']]);
+    const result = await xlsxToUniverData(buf);
+    expect(result).toHaveProperty('_fidelityWarnings');
+    const warnings = (result as Record<string, unknown>)._fidelityWarnings as FidelityWarnings;
+    expect(warnings).toMatchObject({
+      hasCharts: false,
+      hasMacros: false,
+      hasPivotTables: false,
+      hasImages: false,
+    });
   });
 });

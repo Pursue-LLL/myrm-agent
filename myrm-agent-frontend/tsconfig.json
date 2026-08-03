@@ -67,7 +67,9 @@
     ".next-isolated-p1-resume-test/types/**/*.ts",
     ".next-isolated-p1-resume-test/dev/types/**/*.ts",
     ".next-isolated-e2e-parent-58516-63733-2996f72c/types/**/*.ts",
-    ".next-isolated-e2e-parent-58516-63733-2996f72c/dev/types/**/*.ts"
+    ".next-isolated-e2e-parent-58516-63733-2996f72c/dev/types/**/*.ts",
+    ".next-isolated-e2e-copilot/types/**/*.ts",
+    ".next-isolated-e2e-copilot/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

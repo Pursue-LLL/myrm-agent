@@ -24,6 +24,7 @@ export interface Concept {
   name: string;
   content: string;
   content_hash?: string;
+  provenance?: string | null;
   claims?: WikiClaim[];
   editor_sections?: WikiEditorSections;
 }
@@ -161,6 +162,7 @@ export interface PendingEdit {
   id: number;
   concept_name: string;
   proposed_content: string;
+  provenance?: string | null;
   status: string;
   created_at: string;
   updated_at: string;

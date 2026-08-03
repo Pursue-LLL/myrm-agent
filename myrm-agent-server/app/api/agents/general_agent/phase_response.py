@@ -72,6 +72,10 @@ async def plan_confirm_response(
 
     if request.action == "edit" and request.modified_plan:
         waiter.resolve(request.modified_plan)
+    elif request.action == "skip":
+        waiter.resolve(False)
+    elif request.action == "confirm":
+        waiter.resolve(True)
     else:
         waiter.resolve(None)
 

@@ -10,6 +10,25 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
+
+_PEER_PROBE_TIMEOUT_SEC = 2.0
+_PEER_COUNT_CACHE_TTL_SEC = 2.0
+_pytest_peer_count_cache: tuple[float, int] | None = None
+
+
+def _run_subprocess_probe(args: list[str]) -> subprocess.CompletedProcess[str] | None:
+    """Bounded pgrep/ps probe — must not block mux request-lock hot path under load."""
+    try:
+        return subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_PEER_PROBE_TIMEOUT_SEC,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
 
 
 def _process_ancestor_pids(pid: int, *, max_depth: int = 24) -> frozenset[int]:
@@ -17,14 +36,8 @@ def _process_ancestor_pids(pid: int, *, max_depth: int = 24) -> frozenset[int]:
     seen: set[int] = {pid}
     current = pid
     for _ in range(max_depth):
-        try:
-            ps_proc = subprocess.run(
-                ["ps", "-p", str(current), "-o", "ppid="],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except OSError:
+        ps_proc = _run_subprocess_probe(["ps", "-p", str(current), "-o", "ppid="])
+        if ps_proc is None:
             break
         if ps_proc.returncode != 0:
             break
@@ -59,17 +72,20 @@ def _pytest_pid_serves_active_session(pid: int, owners: frozenset[int]) -> bool:
 
 def chrome_e2e_pytest_peer_count() -> int:
     """Live python -m pytest chrome_e2e workers; excludes run_pytest_safe wrapper."""
+    global _pytest_peer_count_cache
+    now = time.monotonic()
+    if _pytest_peer_count_cache is not None:
+        cached_at, cached = _pytest_peer_count_cache
+        if now - cached_at < _PEER_COUNT_CACHE_TTL_SEC:
+            return cached
+
     owners = _active_session_owner_pids()
-    try:
-        proc = subprocess.run(
-            ["pgrep", "-f", r"python -m pytest.*chrome_e2e"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
-        return parallel_active_test_count_ssot()
+    proc = _run_subprocess_probe(["pgrep", "-f", r"python -m pytest.*chrome_e2e"])
+    if proc is None:
+        _pytest_peer_count_cache = (now, 0)
+        return 0
     if proc.returncode != 0:
+        _pytest_peer_count_cache = (now, 0)
         return 0
     peers = 0
     for line in proc.stdout.splitlines():
@@ -77,14 +93,8 @@ def chrome_e2e_pytest_peer_count() -> int:
         if not pid_raw.isdigit():
             continue
         pid = int(pid_raw)
-        try:
-            ps_proc = subprocess.run(
-                ["ps", "-p", pid_raw, "-o", "args="],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except OSError:
+        ps_proc = _run_subprocess_probe(["ps", "-p", pid_raw, "-o", "args="])
+        if ps_proc is None:
             peers += 1
             continue
         cmd = ps_proc.stdout.strip()
@@ -93,6 +103,7 @@ def chrome_e2e_pytest_peer_count() -> int:
         if owners is not None and not _pytest_pid_serves_active_session(pid, owners):
             continue
         peers += 1
+    _pytest_peer_count_cache = (now, peers)
     return peers
 
 

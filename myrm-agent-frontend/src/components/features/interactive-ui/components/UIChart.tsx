@@ -92,37 +92,34 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
     </div>
   );
 
-  // 渲染折线图
+  // 渲染折线图（使用百分比坐标，避免 preserveAspectRatio="none" 导致圆形变形）
   const renderLineChart = () => {
-    const width = 100;
     const chartHeight = height - 40;
     const points = chartData.map((item, index) => {
-      const x = (index / (chartData.length - 1 || 1)) * width;
-      const y = chartHeight - (item.value / maxValue) * chartHeight;
-      return { x, y, ...item };
+      const xPct = (index / (chartData.length - 1 || 1)) * 100;
+      const yPct = (1 - item.value / maxValue) * 100;
+      return { xPct, yPct, ...item };
     });
-
-    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
     return (
       <div className="relative" style={{ height }}>
-        <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
+        <svg className="w-full" style={{ height: chartHeight }} preserveAspectRatio="none">
           {/* 网格线 */}
           {[0, 25, 50, 75, 100].map((pct) => (
             <line
               key={pct}
-              x1="0"
-              y1={chartHeight - (pct / 100) * chartHeight}
-              x2={width}
-              y2={chartHeight - (pct / 100) * chartHeight}
+              x1="0%"
+              y1={`${pct}%`}
+              x2="100%"
+              y2={`${pct}%`}
               stroke="currentColor"
               strokeOpacity="0.1"
               strokeWidth="0.5"
             />
           ))}
           {/* 折线 */}
-          <path
-            d={pathD}
+          <polyline
+            points={points.map((p) => `${p.xPct}%,${p.yPct}%`).join(' ')}
             fill="none"
             stroke={defaultColors[0]}
             strokeWidth="2"
@@ -130,9 +127,9 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
           />
-          {/* 数据点 */}
+          {/* 数据点（使用百分比定位，r 不受拉伸影响） */}
           {points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="3" fill={defaultColors[0]} vectorEffect="non-scaling-stroke" />
+            <circle key={i} cx={`${p.xPct}%`} cy={`${p.yPct}%`} r="4" fill={defaultColors[0]} />
           ))}
         </svg>
         {/* X 轴标签 */}
@@ -149,6 +146,14 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
 
   // 渲染饼图/环形图
   const renderPieChart = () => {
+    if (totalValue === 0) {
+      return (
+        <div className="flex items-center justify-center p-8 text-gray-400 dark:text-gray-500">
+          <p className="text-sm">{t('allZero')}</p>
+        </div>
+      );
+    }
+
     const isDonut = chartType === 'donut';
     const size = Math.min(height, 200);
     const centerX = size / 2;

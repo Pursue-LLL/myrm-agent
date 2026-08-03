@@ -1,11 +1,20 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearStoredMoaPresetId,
+  persistMoaPresetToServer,
   readStoredMoaPresetId,
   resolveHydratedMoaPresetId,
   writeStoredMoaPresetId,
 } from '@/store/chat/moaPresetStorage';
+
+vi.mock('@/services/chat', () => ({
+  updateChatActiveMoaPreset: vi.fn(),
+}));
+
+vi.mock('@/services/i18nToastService', () => ({
+  showI18nToast: vi.fn(),
+}));
 
 const CHAT_ID = 'chat-moa-persist-1';
 
@@ -72,5 +81,19 @@ describe('moaPresetStorage', () => {
     expect(
       resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false }),
     ).toBe('default');
+  });
+
+  it('persistMoaPresetToServer invokes rollback and toast when PATCH fails', async () => {
+    const { updateChatActiveMoaPreset } = await import('@/services/chat');
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    vi.mocked(updateChatActiveMoaPreset).mockRejectedValueOnce(new Error('network'));
+    const rollback = vi.fn();
+    await persistMoaPresetToServer(CHAT_ID, 'default', rollback);
+    expect(rollback).toHaveBeenCalledOnce();
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'settings.defaultModel.moaPreset.persistFailed',
+      undefined,
+      { type: 'error' },
+    );
   });
 });

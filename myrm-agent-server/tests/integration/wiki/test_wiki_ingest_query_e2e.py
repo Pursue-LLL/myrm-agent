@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
+from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from app.services.wiki.vault_resolver import resolve_wiki_vault_path
@@ -42,5 +43,5 @@ class TestWikiIngestQueryE2E:
             assert archiver.get_wiki_path().resolve() == vault.resolve()
 
             result = await archiver.query_wiki("What is the enterprise pricing?")
-            assert isinstance(result, str)
-            assert result.strip()
+            assert isinstance(result, QueryResult)
+            assert result.answer.strip()

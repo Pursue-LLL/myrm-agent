@@ -154,6 +154,7 @@ async def board_summary(board_id: str) -> BoardSummaryResponse:
         dispatcher_active=data.dispatcher_active,
         by_agent=by_agent,
         oldest_ready_age_seconds=data.oldest_ready_age_seconds,
+        stale_running_count=data.stale_running_count,
     )
 
 

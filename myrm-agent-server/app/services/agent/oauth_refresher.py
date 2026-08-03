@@ -1,3 +1,22 @@
+"""OAuth token auto-refresh service.
+
+Handles automatic refresh of OAuth tokens for Google Workspace, xAI,
+and Provider OAuth (Anthropic, OpenAI, Copilot) credentials.
+Copilot uses non-standard refresh via GitHub access_token exchange.
+
+[INPUT]
+- app.database.models::UserConfig (POS: ORM model for user config storage)
+- app.services.config.encryption (POS: sensitive config encryption/decryption)
+- app.services.integrations.oauth_store::extract_copilot_base_url (POS: Copilot JWT proxy-ep parser)
+- myrm_agent_harness.agent.security::EphemeralUserCredential (POS: session-scoped credential)
+
+[OUTPUT]
+- refresh_oauth_token: async refresh for any OAuth issuer, returns EphemeralUserCredential
+
+[POS]
+OAuth token refresh service. Manages token lifecycle for all OAuth-connected integrations
+and model providers, with per-issuer locking and reauth notification.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -7,14 +26,17 @@ import time
 import httpx
 from myrm_agent_harness.agent.security import EphemeralUserCredential
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.connection import get_session
 from app.database.models import UserConfig
 from app.services.config.encryption import get_encryption_service
+from app.services.integrations.oauth_store import extract_copilot_base_url
 
 logger = logging.getLogger(__name__)
 
 GOOGLE_WORKSPACE_ISSUER = "google_workspace"
+COPILOT_ISSUER = "provider_copilot"
 
 _refresh_locks: dict[str, asyncio.Lock] = {}
 _reauth_emitted_at: dict[str, float] = {}
@@ -130,6 +152,10 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                     refresh_callback=lambda: refresh_oauth_token(issuer),
                 )
 
+            # Copilot uses non-standard refresh: GitHub access_token → /copilot_internal/v2/token
+            if issuer == COPILOT_ISSUER:
+                return await _refresh_copilot_token(cred_val, credentials_dict, row, db_session, service)
+
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
             client_id, client_secret = _resolve_oauth_client_credentials(issuer, cred_val)
@@ -188,8 +214,6 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
 
                         row.config_value = final_value
-                        from sqlalchemy.orm.attributes import flag_modified
-
                         flag_modified(row, "config_value")
                         await db_session.commit()
 
@@ -228,5 +252,88 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             _emit_reauth_if_needed(issuer, str(reason))
             except Exception as exc:
                 logger.error("refresh_oauth_token: failed to refresh token for '%s': %s", issuer, exc)
+
+    return None
+
+
+async def _refresh_copilot_token(
+    cred_val: dict[str, object],
+    credentials_dict: dict[str, object],
+    row: UserConfig,
+    db_session: object,
+    service: object,
+) -> EphemeralUserCredential | None:
+    """Refresh GitHub Copilot token using GitHub access token.
+
+    Copilot tokens are short-lived (~30min). The refresh_token field
+    stores the long-lived GitHub access token used to acquire new Copilot tokens.
+    """
+    github_access_token = cred_val.get("refresh_token")
+    if not github_access_token:
+        logger.warning("refresh_copilot_token: missing GitHub access token (refresh_token)")
+        _emit_reauth_if_needed(COPILOT_ISSUER, "missing_github_token")
+        return None
+
+    copilot_headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {github_access_token}",
+        "User-Agent": "GitHubCopilotChat/0.35.0",
+        "Editor-Version": "vscode/1.107.0",
+        "Editor-Plugin-Version": "copilot-chat/0.35.0",
+        "Copilot-Integration-Id": "vscode-chat",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                "https://api.github.com/copilot_internal/v2/token",
+                headers=copilot_headers,
+            )
+            if resp.status_code != 200:
+                logger.error(
+                    "refresh_copilot_token: Copilot token exchange failed (%d): %s",
+                    resp.status_code,
+                    resp.text,
+                )
+                if resp.status_code in (401, 403):
+                    _emit_reauth_if_needed(COPILOT_ISSUER, "github_token_expired")
+                return None
+
+            data = resp.json()
+            new_token = data.get("token")
+            new_expires_at = data.get("expires_at")
+
+            if not new_token or not isinstance(new_expires_at, (int, float)):
+                logger.error("refresh_copilot_token: invalid Copilot token response")
+                return None
+
+            base_url = extract_copilot_base_url(new_token)
+
+            updated_cred = dict(cred_val)
+            updated_cred["token"] = new_token
+            updated_cred["expires_at"] = float(new_expires_at)
+            updated_cred["base_url"] = base_url
+
+            credentials_dict[COPILOT_ISSUER] = updated_cred
+
+            enc_value, is_enc = service.encrypt_if_needed("oauthCredentials", credentials_dict)
+            final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
+
+            row.config_value = final_value
+            flag_modified(row, "config_value")
+            await db_session.commit()
+
+            logger.info("refresh_copilot_token: successfully refreshed Copilot token")
+
+            return EphemeralUserCredential(
+                issuer=COPILOT_ISSUER,
+                token=new_token,
+                scope="copilot",
+                user_id="",
+                expires_at=float(new_expires_at),
+                refresh_callback=lambda: refresh_oauth_token(COPILOT_ISSUER),
+            )
+    except Exception as exc:
+        logger.error("refresh_copilot_token: failed: %s", exc)
 
     return None

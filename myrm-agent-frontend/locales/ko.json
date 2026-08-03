@@ -7755,7 +7755,8 @@
     },
     "chart": {
       "noData": "No chart data",
-      "loading": "Loading chart..."
+      "loading": "Loading chart...",
+      "allZero": "모든 값이 0입니다"
     },
     "image": {
       "loading": "Loading image...",
@@ -7925,7 +7926,15 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
+      "subscriptionWu": "Subscription WU",
+      "topupWu": "Top-up WU",
+      "dailyRefresh": "Daily Refresh",
+      "freeModels": "Free Models",
+      "tierRateCard": "WU Rate by Model Tier",
+      "pricingExplainer": "Myrm uses Work Units (WU) as a unified billing unit. Different model tiers consume WU at different rates — Lite models at 1×, Standard at 3×, and Frontier at 10×. BYOK users bring their own API keys and pay providers directly.",
+      "reliabilityTrust": "Your tasks are protected by plan-based approval gates, process durability, and automatic recovery.",
+      "viewDetailedStats": "View Stats"
     },
     "subscription": {
       "title": "Subscription",

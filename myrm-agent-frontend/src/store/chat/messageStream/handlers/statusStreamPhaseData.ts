@@ -44,7 +44,13 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
       if (idx === -1) return;
       if (sd.status === 'waiting') {
         const planItems = Array.isArray(sd.plan_items) ? sd.plan_items as Array<{ id: string; content: string; status?: string }> : undefined;
+        const rawSource = typeof sd.source === 'string' ? sd.source : undefined;
         const isGeneralAgent = !!planItems;
+        const source = rawSource === 'dynamic_workflow'
+          ? 'dynamic_workflow'
+          : isGeneralAgent
+            ? 'general_agent'
+            : 'deep_research';
         const planText = typeof sd.plan === 'string' ? sd.plan as string
           : planItems ? planItems.map((item, i) => `${i + 1}. ${item.content}`).join('\n') : '';
         state.messages[idx].planConfirmation = {
@@ -53,7 +59,11 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
           planItems,
           totalItems: typeof sd.total_items === 'number' ? sd.total_items as number : undefined,
           goal: typeof sd.goal === 'string' ? sd.goal as string : undefined,
-          source: isGeneralAgent ? 'general_agent' : 'deep_research',
+          source,
+          spawnCount: typeof sd.spawn_count === 'number' ? sd.spawn_count as number : undefined,
+          estimatedCostUsd: typeof sd.estimated_cost_usd === 'number' ? sd.estimated_cost_usd as number : undefined,
+          remainingBudgetUsd: typeof sd.remaining_budget_usd === 'number' ? sd.remaining_budget_usd as number : undefined,
+          costStatus: typeof sd.cost_status === 'string' ? sd.cost_status as string : undefined,
         };
       } else if (sd.status === 'resolved') {
         if (state.messages[idx].planConfirmation) {

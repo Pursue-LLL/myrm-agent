@@ -46,24 +46,8 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     """Return human+machine denial line when a new chrome_e2e launch must abort."""
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return None
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        return None
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return None
-    if os.environ.get("MYRM_SIGNOFF_CRITICAL", "").strip() == "1":
-        return None
-    try:
-        from signoff_admission import signoff_critical_section_holder
-
-        holder = signoff_critical_section_holder()
-        if holder is not None:
-            return (
-                "E2E_LAUNCH_DENIED: SIGNOFF_CRITICAL_SECTION; "
-                f"holder={holder.label} episode={holder.episode_id}; "
-                "wait for signoff gate to finish (do not stop other pytest)"
-            )
-    except ImportError:
-        pass
     if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "1") != "1":
         from e2e_readiness import (  # noqa: PLC0415
             launch_denial_line,

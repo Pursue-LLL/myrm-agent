@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - resolve_moa_overlay_models: overlay config dict + reference ModelConfig list
-- build_moa_overlay_middleware: harness middleware or None when disabled
+- resolve_moa_overlay_skip_reason: user-visible skip reason when overlay enabled but unusable
+- build_moa_overlay_middleware: harness middleware or None when disabled/skipped
 
 [POS]
 Factory helper for agent-loop MoA overlay model resolution and middleware wiring.
@@ -23,6 +24,9 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
 logger = logging.getLogger(__name__)
+
+MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS = "no_reference_configs"
+MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS = "no_reference_llms"
 
 
 def _cfg_float(raw: dict[str, object], key: str, default: float) -> float:
@@ -88,27 +92,11 @@ async def resolve_moa_overlay_models(
     return overlay_config, ref_cfgs
 
 
-async def build_moa_overlay_middleware(
-    engine_params: dict[str, object] | None,
-    *,
-    unattended: bool = False,
-    action_mode: str = "agent",
-) -> Any | None:
-    overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(engine_params)
-    if overlay_cfg is None:
-        return None
-
-    from myrm_agent_harness.agent.middlewares.moa_advisor_middleware import (
-        create_moa_advisor_middleware,
-    )
+async def _build_reference_llms(ref_cfgs: list[object]) -> list[BaseChatModel]:
     from myrm_agent_harness.toolkits.llms import llm_manager
-    from myrm_agent_harness.toolkits.llms.consensus.moa_overlay_types import (
-        MoAOverlayConfig,
-        PrivacyFilterMode,
-    )
 
     reference_llms: list[BaseChatModel] = []
-    for mc in ref_cfgs or []:
+    for mc in ref_cfgs:
         try:
             llm = await llm_manager.get_llm_from_config(
                 mc,
@@ -120,10 +108,56 @@ async def build_moa_overlay_middleware(
                 "MoA overlay: failed to create reference LLM for %s, skipping",
                 getattr(mc, "model", "?"),
             )
+    return reference_llms
 
-    if not reference_llms:
-        logger.warning("MoA overlay: no reference LLMs configured, skipping middleware")
+
+async def resolve_moa_overlay_skip_reason(
+    engine_params: dict[str, object] | None,
+) -> str | None:
+    """Return a skip reason when overlay is enabled but cannot run; else None."""
+    overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(engine_params)
+    if overlay_cfg is None:
         return None
+    if not ref_cfgs:
+        return MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
+    reference_llms = await _build_reference_llms(ref_cfgs)
+    if not reference_llms:
+        return MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
+    return None
+
+
+async def build_moa_overlay_middleware(
+    engine_params: dict[str, object] | None,
+    *,
+    unattended: bool = False,
+    action_mode: str = "agent",
+) -> Any | None:
+    overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(engine_params)
+    if overlay_cfg is None:
+        return None
+
+    if not ref_cfgs:
+        logger.warning(
+            "MoA overlay: skipping middleware (%s)",
+            MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS,
+        )
+        return None
+
+    reference_llms = await _build_reference_llms(ref_cfgs)
+    if not reference_llms:
+        logger.warning(
+            "MoA overlay: skipping middleware (%s)",
+            MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS,
+        )
+        return None
+
+    from myrm_agent_harness.agent.middlewares.moa_advisor_middleware import (
+        create_moa_advisor_middleware,
+    )
+    from myrm_agent_harness.toolkits.llms.consensus.moa_overlay_types import (
+        MoAOverlayConfig,
+        PrivacyFilterMode,
+    )
 
     fanout_raw = _cfg_str(overlay_cfg, "fanout", "user_turn")
     fanout = fanout_raw if fanout_raw in ("user_turn", "per_iteration", "every_n") else "user_turn"

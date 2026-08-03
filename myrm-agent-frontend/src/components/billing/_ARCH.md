@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截未授权能力；`QuotaDisplay` 在账户设置页展示订阅配额。计费经 Creem MoR（CP `/api/billing/*`），前端 locale 使用 `billingMoR` 键；`/pricing` 在 `checkout_available=false` 时展示 banner + 禁用 CTA，并在 `handleSubscribe` 内二次校验 `checkoutAvailable`。Entitlements 使用 CP 字段 `billing_customer_id`（`cp-billing.ts`）。Top-up 仅付费订阅用户可见（CP 403 + FE `isPaidPlan` gate）；WU 耗尽时 `BudgetExceededDialog` 引导付费用户充值或升级。
+SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截未授权能力；`QuotaDisplay` 在账户设置页展示订阅配额与计费透明度（WU 余额拆分、模型倍率公示、daily refresh、free models、计费模型说明、可靠性信任条）。计费经 Creem MoR（CP `/api/billing/*`），前端 locale 使用 `billingMoR` 键；`/pricing` 在 `checkout_available=false` 时展示 banner + 禁用 CTA，并在 `handleSubscribe` 内二次校验 `checkoutAvailable`。Entitlements 使用 CP 字段 `billing_customer_id`（`cp-billing.ts`）。Top-up 仅付费订阅用户可见（CP 403 + FE `isPaidPlan` gate）；WU 耗尽时 `BudgetExceededDialog` 引导付费用户充值或升级。
 
 **升级引导双层体系**：
 - **事前预防**：`UpgradeNudgeDialog` — 余额 ≤20% 时主动提醒（每 24h 最多 1 次），并在 Feature Gate 点击升级时弹出推荐方案
@@ -19,6 +19,7 @@ SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截�
 | `WorkUnitBalanceBar.tsx` | 核心 | 对话页 Work Unit 总余额条 | ✅ |
 | `SessionSpendSurface.tsx` | 核心 | 对话页 per-turn/session WU 消耗 pill（Sandbox: WU / Local: $） | ✅ |
 | `QuotaDisplay.tsx` | 核心 | 账户设置页配额与用量卡片 | ✅ |
+| `QuotaWidgets.tsx` | 辅助 | QuotaDisplay 子组件（StatCard / PillIndicator / MembershipBadge）与工具函数 | ✅ |
 
 ## 相关 Hooks（`src/hooks/`）
 

@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
+import { Badge } from '@/components/primitives/badge';
 import { Card, CardContent, CardHeader } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
 import { IconBook, IconEdit, IconLoader, IconSave, IconX } from '@/components/features/icons/PremiumIcons';
@@ -81,7 +82,14 @@ export function WikiConceptDetailPanel({
       {selectedConcept ? (
         <>
           <CardHeader className="border-b bg-muted/20 flex flex-row items-center justify-between py-4 gap-3">
-            <div className="font-semibold text-lg truncate pr-4">{selectedConcept.name}</div>
+            <div className="flex items-center gap-2 truncate pr-4">
+              <span className="font-semibold text-lg truncate">{selectedConcept.name}</span>
+              {selectedConcept.provenance && (
+                <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30 shrink-0">
+                  {t(`provenance.${selectedConcept.provenance}`, { defaultValue: selectedConcept.provenance })}
+                </Badge>
+              )}
+            </div>
             <div className="flex gap-2 shrink-0">
               {isEditing ? (
                 <>

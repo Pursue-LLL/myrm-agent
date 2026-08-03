@@ -151,7 +151,7 @@ class TestPublicSharePage:
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=60)
         future = int(time.time()) + 120
-        with patch("app.services.chat.share_token.time.time", return_value=future):
+        with patch("app.core.security.share_hmac.time.time", return_value=future):
             resp = share_client.get(f"/public/chat-share/{token}")
             assert resp.status_code == 404
 

@@ -36,6 +36,23 @@ def test_collect_plan_confirmation_waiting() -> None:
     assert payload["source"] == "deep_research"
 
 
+def test_collect_plan_confirmation_dynamic_workflow() -> None:
+    payload = collect_plan_confirmation_status(
+        {
+            "phase": "plan_confirm",
+            "status": "waiting",
+            "plan": "Detected 2 literal spawn call(s)",
+            "source": "dynamic_workflow",
+            "spawn_count": 2,
+            "estimated_cost_usd": 1.25,
+        }
+    )
+    assert payload is not None
+    assert payload["source"] == "dynamic_workflow"
+    assert payload["spawnCount"] == 2
+    assert payload["estimatedCostUsd"] == 1.25
+
+
 def test_collect_file_mutation_failures_normalizes_rows() -> None:
     target: list[dict[str, object]] = []
     collect_file_mutation_failures(

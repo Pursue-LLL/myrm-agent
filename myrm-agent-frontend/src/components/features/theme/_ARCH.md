@@ -12,7 +12,7 @@ Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Reci
 | `WorkspaceArtLayer.tsx` | Full-window poster/video layer | ✅ |
 | `restoreOfficialTheme.ts` | Execute official restore + draft/DOM preview cleanup | ✅ |
 | `AppearancePanel.tsx` | Profile picker + workspace background upload + wash + font + `.myrmtheme` import/export + restore official SSOT | ✅ |
-| `shared/ThemePackageImportSection.tsx` | Shared `.myrmtheme` inspect/import/export + Desktop pending file; used by Appearance + Theme Studio Step 4 | ✅ |
+| `shared/ThemePackageImportSection.tsx` | Shared `.myrmtheme` inspect/import/export + Desktop pending file; Zustand selector 用模块级空数组 fallback（禁止 selector 内 `?? []`） | ✅ |
 | `ThemePackageImportPreview.tsx` | Import preview modal (hero thumbnail, warnings, apply) | ✅ |
 | `shared/ThemeMediaUploadField.tsx` | Hero file upload + client hero sampling (palette/layout hint); Theme Studio step 1 SSOT | ✅ |
 | `shared/ThemePresetGrid.tsx` | Shared preset swatch grid (Appearance + Studio) | ✅ |

@@ -337,6 +337,17 @@ def is_e2e_signoff_runtime() -> bool:
     return os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY
 
 
+# Beats PRIVATE_AGING (+1 per 60s) so signoff clarifies ahead of parallel chrome_e2e.
+E2E_SIGNOFF_PRIVATE_QUEUE_PRIORITY: Final[int] = 1000
+
+
+def resolve_dev_gate_submit_priority() -> int:
+    """Dev Gate submit priority for private_admission ordering."""
+    if is_e2e_signoff_runtime():
+        return E2E_SIGNOFF_PRIVATE_QUEUE_PRIORITY
+    return 0
+
+
 def is_e2e_signoff_clarify_api_runtime() -> bool:
     """True when signoff clarify leg runs API-only contract (R66, no chrome bootstrap)."""
     return (

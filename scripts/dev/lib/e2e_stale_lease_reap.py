@@ -545,37 +545,13 @@ def _reload_stall_guard_ssot() -> None:
 
 
 def _signoff_runner_active() -> bool:
-    """True when e2e-m3-signoff.sh holds lockdir pid (parallel peer friend-immunity guard)."""
-    lock_dir = Path("/tmp/e2e-m3-signoff.lockdir")
-    pid_file = lock_dir / "pid"
-    if not pid_file.is_file():
-        return False
-    try:
-        pid = int(pid_file.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+    """Removed: m3-signoff maintenance gate deleted."""
+    return False
 
 
 def _desktop_soak_runner_active() -> bool:
-    """True when e2e-m3-leg-soak.sh desktop holds singleton pid."""
-    lock_dir = Path("/tmp/e2e-m3-leg-soak-desktop.singleton.lock.d")
-    pid_file = lock_dir / "pid"
-    if not pid_file.is_file():
-        return False
-    try:
-        pid = int(pid_file.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+    """Removed: m3-leg-soak maintenance script deleted."""
+    return False
 
 
 def _elapsed_sec_from_reason(reason: str, *, prefix: str) -> int | None:

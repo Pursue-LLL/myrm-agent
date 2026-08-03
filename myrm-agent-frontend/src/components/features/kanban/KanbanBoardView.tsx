@@ -517,6 +517,12 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
             {t('oldestReadyAge', { minutes: Math.floor(summaryData.oldest_ready_age_seconds / 60) })}
           </span>
         )}
+        {(summaryData?.stale_running_count ?? 0) > 0 && (
+          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            {t('staleRunningCount', { count: summaryData?.stale_running_count ?? 0 })}
+          </span>
+        )}
       </div>
 
       {/* Per-agent distribution */}

@@ -444,28 +444,6 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     )
 
 
-def _signoff_critical_section_entry_skip(request: pytest.FixtureRequest) -> None:
-    """Block new daily chrome_e2e while signoff gate holds critical section (P0-SAO-8)."""
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        return
-    if os.environ.get("MYRM_SIGNOFF_CRITICAL", "").strip() == "1":
-        return
-    dev_lib = _e2e_dev_lib_path()
-    if str(dev_lib) not in sys.path:
-        sys.path.insert(0, str(dev_lib))
-    try:
-        from signoff_admission import signoff_critical_section_holder
-    except ImportError:
-        return
-    holder = signoff_critical_section_holder()
-    if holder is None:
-        return
-    pytest.skip(
-        f"signoff critical section active: holder={holder.label} "
-        f"episode={holder.episode_id} — defer until signoff gate completes "
-        f"(do not stop other pytest)"
-    )
-
 
 @pytest.fixture(autouse=True)
 def _chrome_e2e_epoch_pin(
@@ -619,7 +597,6 @@ def _require_live_e2e_lease(
 
     try:
         _epoch_drift_entry_skip_if_shared(request)
-        _signoff_critical_section_entry_skip(request)
         reap_chrome_e2e_session_hygiene()
         _heal_stale_e2e_lease()
         lease = require_e2e_runtime_lease()
@@ -656,9 +633,6 @@ def _require_live_e2e_lease(
             phase="bootstrap",
         )
         reap_chrome_e2e_session_hygiene()
-        from e2e_signoff_trace import begin_signoff_trace
-
-        begin_signoff_trace(nodeid=request.node.nodeid)
         namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
         os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
         with nullcontext():
@@ -707,39 +681,10 @@ def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
     )
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(
-    item: pytest.Item, call: pytest.CallInfo[None]
-) -> Iterator[None]:
-    outcome = yield
-    rep = outcome.get_result()
-    if call.when != "call" or not _is_formal_chrome_e2e(item):
-        return
-    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
-    if str(dev_infra) not in sys.path:
-        sys.path.insert(0, str(dev_infra))
-    from e2e_signoff_trace import end_signoff_trace
-
-    if rep.passed:
-        end_signoff_trace(outcome="PASSED")
-    elif rep.failed:
-        end_signoff_trace(outcome="FAILED")
-    elif rep.skipped:
-        end_signoff_trace(outcome="SKIPPED")
-
-
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """R148: orphan signoff trace + session cleanup on abort."""
-    del exitstatus
-    if any(_is_formal_chrome_e2e(item) for item in getattr(session, "items", ())):
-        dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
-        if str(dev_infra) not in sys.path:
-            sys.path.insert(0, str(dev_infra))
-        from e2e_signoff_trace import end_signoff_trace, signoff_trace_path
-
-        if signoff_trace_path() is not None:
-            end_signoff_trace(outcome="INTERRUPTED")
+    """Session cleanup on abort."""
+    del session, exitstatus
     _cleanup_browser_child_processes()
     _shutdown_test_session_resources()
 

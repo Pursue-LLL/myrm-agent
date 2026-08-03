@@ -36,7 +36,7 @@ Harness 层 `deep_research` 编排器仍保留（`myrm-agent-harness/agent/deep_
 | Feature Flag `consensus` | `FeatureStage.REMOVED` | `registration.py` |
 | SearchModeSelector「Consensus」 | 已移除 | `SearchModeSelector.tsx` |
 | 历史 overrides 中 `consensus: true` | `sanitize_user_overrides()` 清除 | `product_surface.py` |
-| legacy `action_mode=consensus` API | 映射为 `agent` + default MoA preset | `orchestrator.py` |
+| legacy `action_mode=consensus` API | 400 + DB migrate → `agent` | `orchestrator.py` |
 | Harness `consensus/` engine | 保留（MoA overlay middleware 依赖） | harness |
 
 ## 文件清单

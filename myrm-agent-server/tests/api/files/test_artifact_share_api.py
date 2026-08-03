@@ -337,7 +337,7 @@ async def test_public_share_expired_token(share_client, html_artifact) -> None:
     claims = parse_artifact_share_token(token)
     assert claims is not None
     with patch(
-        "app.services.artifacts.share_token.time.time",
+        "app.core.security.share_hmac.time.time",
         return_value=claims.exp + 1,
     ):
         expired = share_client.get(f"/public/artifact-share/{token}")

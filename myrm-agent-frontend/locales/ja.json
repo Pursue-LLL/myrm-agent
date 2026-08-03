@@ -6379,7 +6379,15 @@
       "confirmed": "プラン済み承認",
       "edited": "プラン済み修変更し承認",
       "skipped": "済みスキップ审阅",
-      "submitFailed": "送信プランレスポンス失敗，再試行してください"
+      "submitFailed": "送信プランレスポンス失敗，再試行してください",
+      "workflowTitle": "ダイナミックワークフロープラン",
+      "workflowBadge": "実行前に確認",
+      "workflowDescription": "オーケストレーションスクリプトと spawn 見積もりを確認してからサブエージェントを実行してください。",
+      "workflowConfirm": "ワークフローを実行",
+      "workflowCancel": "キャンセル",
+      "spawnCount": "spawn 呼び出し {count} 件を検出",
+      "estimatedCost": "推定コスト ${cost}",
+      "remainingBudget": "残予算 ${budget}"
     },
     "workflowSuggestion": {
       "hint": "検出まで複雑タスク — 有効化ワークフロー模式可有効多 Agent し行実行，取更好效果。",
@@ -7119,7 +7127,7 @@
       "loop_guard": "ループ制限",
       "sandbox_boundary": "境界制限",
       "frequency_guard": "頻度制限",
-      "turn_budget_guard": "ターン上限",
+      "turn_budget_guard": "検索上限",
       "steering": "スキップ",
       "invalid_tool": "無効なツール",
       "trust_attenuation": "信頼低下",
@@ -8972,7 +8980,8 @@
     },
     "chart": {
       "noData": "暂なし图表データ",
-      "loading": "图表読み込み中..."
+      "loading": "图表読み込み中...",
+      "allZero": "すべての値がゼロです"
     },
     "image": {
       "loading": "画像読み込み中...",
@@ -9142,7 +9151,15 @@
       "proMember": "Pro 会员",
       "freeTier": "免费版",
       "upgradeToPro": "アップグレードまで Pro",
-      "dailyLimitsSubtitle": "每日配额 & 实时使用量"
+      "dailyLimitsSubtitle": "每日配额 & 实时使用量",
+      "subscriptionWu": "サブスクリプション WU",
+      "topupWu": "チャージ WU",
+      "dailyRefresh": "毎日リフレッシュ",
+      "freeModels": "無料モデル",
+      "tierRateCard": "モデルティア別 WU レート",
+      "pricingExplainer": "Myrm はワークユニット（WU）を統一課金単位として使用します。モデルティアによって消費レートが異なります — ライト 1 倍、スタンダード 3 倍、フロンティア 10 倍。BYOK ユーザーは自分の API キーを使用し、プロバイダーに直接支払います。",
+      "reliabilityTrust": "タスクはプランベースの承認ゲート、プロセス耐久性、自動復旧により保護されています。",
+      "viewDetailedStats": "統計を見る"
     },
     "subscription": {
       "title": "订阅管理",

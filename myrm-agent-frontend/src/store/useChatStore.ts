@@ -32,10 +32,10 @@ import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
 import {
   clearStoredMoaPresetId,
+  persistMoaPresetToServer,
   resolveHydratedMoaPresetId,
   writeStoredMoaPresetId,
 } from '@/store/chat/moaPresetStorage';
-import { updateChatActiveMoaPreset } from '@/services/chat';
 
 function readStoredBuiltinTools(): BuiltinToolId[] {
   if (typeof window === 'undefined') {
@@ -291,13 +291,17 @@ const useChatStore = create<ChatState>()(
         });
       },
       setActiveMoaPresetId: (presetId) => {
+        const prevPresetId = get().activeMoaPresetId;
         const chatId = get().chatId;
         const incognitoMode = get().incognitoMode;
+        const rollback = () => {
+          if (!incognitoMode) {
+            writeStoredMoaPresetId(chatId, prevPresetId);
+          }
+          set({ activeMoaPresetId: prevPresetId });
+        };
         if (!incognitoMode) {
           writeStoredMoaPresetId(chatId, presetId);
-          if (chatId) {
-            void updateChatActiveMoaPreset(chatId, presetId).catch(() => {});
-          }
         }
         set({ activeMoaPresetId: presetId });
         if (presetId) {
@@ -305,6 +309,9 @@ const useChatStore = create<ChatState>()(
             localStorage.setItem('actionMode', 'agent');
           }
           set({ actionMode: 'agent' });
+        }
+        if (!incognitoMode && chatId) {
+          void persistMoaPresetToServer(chatId, presetId, rollback);
         }
       },
       setSearchDepth: (depth) => {
@@ -368,7 +375,7 @@ const useChatStore = create<ChatState>()(
           const chatId = get().chatId;
           clearStoredMoaPresetId(chatId);
           if (chatId && !get().incognitoMode) {
-            void updateChatActiveMoaPreset(chatId, null).catch(() => {});
+            void persistMoaPresetToServer(chatId, null);
           }
           set({ agentConfig: null, activeMoaPresetId: null });
           return;
@@ -384,7 +391,7 @@ const useChatStore = create<ChatState>()(
           const chatId = get().chatId;
           clearStoredMoaPresetId(chatId);
           if (chatId && !get().incognitoMode) {
-            void updateChatActiveMoaPreset(chatId, null).catch(() => {});
+            void persistMoaPresetToServer(chatId, null);
           }
         }
         set({

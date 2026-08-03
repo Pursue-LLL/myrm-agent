@@ -515,7 +515,16 @@ async def build_general_agent(
     )
     if moa_middleware is not None:
         middlewares_list.append(moa_middleware)
+        agent_wrapper.moa_overlay_skip_reason = None
         logger.info("MoA advisor overlay middleware mounted (chat_id=%s)", effective_chat_id)
+    else:
+        from app.services.agent.stream_session.moa_overlay_setup import (
+            resolve_moa_overlay_skip_reason,
+        )
+
+        agent_wrapper.moa_overlay_skip_reason = await resolve_moa_overlay_skip_reason(
+            agent_wrapper.engine_params,
+        )
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
@@ -1245,6 +1254,28 @@ def _apply_small_model_tuning(agent_wrapper: "GeneralAgent") -> None:
     agent_wrapper.engine_params = engine
 
 
+def _collect_moa_reference_model_names(
+    engine_params: dict[str, object] | None,
+) -> set[str]:
+    """Collect MoA overlay reference model names from agent engine_params."""
+    if not engine_params:
+        return set()
+    overlay = engine_params.get("moa_overlay")
+    if not isinstance(overlay, dict):
+        return set()
+    refs = overlay.get("reference_model_selections")
+    if not isinstance(refs, list):
+        return set()
+    names: set[str] = set()
+    for item in refs:
+        if not isinstance(item, dict):
+            continue
+        model = item.get("model")
+        if isinstance(model, str) and model:
+            names.add(model)
+    return names
+
+
 async def _enforce_org_model_policy(agent_wrapper: "GeneralAgent") -> None:
     """Fail-closed check: reject models not whitelisted by org policy.
 
@@ -1282,6 +1313,12 @@ async def _enforce_org_model_policy(agent_wrapper: "GeneralAgent") -> None:
         name = getattr(cfg, "model", None) if cfg is not None else None
         if name:
             model_names.add(name)
+
+    model_names.update(
+        _collect_moa_reference_model_names(
+            getattr(agent_wrapper, "engine_params", None),
+        )
+    )
 
     for model_name in model_names:
         if not any(fnmatch(model_name, p) for p in patterns):

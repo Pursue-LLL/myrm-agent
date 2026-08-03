@@ -62,6 +62,8 @@ export interface SubscriptionStatus {
   subscription_wu?: number;
   topup_wu?: number;
   monthly_allowance_wu?: number;
+  daily_refresh_remaining_wu?: number;
+  free_models?: string[];
 }
 
 export interface TokenUsage {
@@ -178,6 +180,7 @@ function mapEntitlementsToSubscription(snapshot: EntitlementSnapshot): Subscript
     subscription_wu: snapshot.subscription_wu,
     topup_wu: snapshot.topup_wu,
     monthly_allowance_wu: snapshot.monthly_allowance_wu,
+    daily_refresh_remaining_wu: snapshot.daily_refresh_remaining_wu,
     free_models: snapshot.free_models,
   };
 }

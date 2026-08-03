@@ -42,6 +42,9 @@ interface ThemePackageImportSectionProps {
   stripOverlayOnImport?: boolean;
 }
 
+/** Stable fallback — never inline `?? []` in Zustand selectors (new array each snapshot). */
+const EMPTY_THEME_PROFILES: ThemeProfileRecipe[] = [];
+
 const ThemePackageImportSection = ({
   className,
   disabled = false,
@@ -50,7 +53,8 @@ const ThemePackageImportSection = ({
   stripOverlayOnImport = false,
 }: ThemePackageImportSectionProps) => {
   const t = useTranslations('settings.appearancePanel');
-  const themeProfiles = useConfigStore((state) => state.personalSettings?.themeProfiles ?? []);
+  const themeProfilesRaw = useConfigStore((state) => state.personalSettings?.themeProfiles);
+  const themeProfiles = themeProfilesRaw ?? EMPTY_THEME_PROFILES;
   const updatePersonalSettings = useConfigStore((state) => state.updatePersonalSettings);
 
   const packageInputRef = useRef<HTMLInputElement>(null);

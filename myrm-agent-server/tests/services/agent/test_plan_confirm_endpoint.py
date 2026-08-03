@@ -38,7 +38,7 @@ class TestPlanConfirmEndpoint:
         body = resp.json()
         assert body.get("code") == 404 or "No pending" in str(body)
 
-    def test_confirm_action_resolves_with_none(self, client: TestClient):
+    def test_confirm_action_resolves_with_true(self, client: TestClient):
         waiter = PhaseWaiter.register("plan:msg-plan-1")
         assert not waiter.is_resolved
 
@@ -48,7 +48,7 @@ class TestPlanConfirmEndpoint:
         )
         assert resp.status_code == 200
         assert waiter.is_resolved
-        assert waiter._answer is None
+        assert waiter._answer is True
 
     def test_edit_action_resolves_with_modified_plan(self, client: TestClient):
         waiter = PhaseWaiter.register("plan:msg-plan-2")
@@ -65,7 +65,7 @@ class TestPlanConfirmEndpoint:
         assert waiter.is_resolved
         assert waiter._answer == "New plan step 1\nNew plan step 2"
 
-    def test_skip_action_resolves_with_none(self, client: TestClient):
+    def test_skip_action_resolves_with_false(self, client: TestClient):
         waiter = PhaseWaiter.register("plan:msg-plan-3")
 
         resp = client.post(
@@ -74,7 +74,7 @@ class TestPlanConfirmEndpoint:
         )
         assert resp.status_code == 200
         assert waiter.is_resolved
-        assert waiter._answer is None
+        assert waiter._answer is False
 
     def test_edit_without_modified_plan_resolves_with_none(self, client: TestClient):
         waiter = PhaseWaiter.register("plan:msg-plan-4")

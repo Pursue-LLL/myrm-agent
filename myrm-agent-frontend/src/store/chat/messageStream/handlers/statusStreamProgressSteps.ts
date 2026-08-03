@@ -41,6 +41,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'consensus_reference_done',
   'moa_overlay_active',
   'moa_ref_done',
+  'moa_overlay_skipped',
   'workflow_init',
   'workflow_planning',
   'workflow_execution',
@@ -297,6 +298,19 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         : 'Warning: Large content was intelligently truncated to fit within context limits.';
     const { toast } = await import('@/lib/utils/toast');
     toast.warning(msg, { duration: 8000 });
+  }
+
+  if (stepKey === 'moa_overlay_skipped') {
+    const payloadData = data.data as Record<string, unknown> | undefined;
+    const reason = typeof payloadData?.reason === 'string' ? payloadData.reason : '';
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    const reasonKey =
+      reason === 'no_reference_configs'
+        ? 'settings.defaultModel.moaPreset.skippedNoReferenceConfigs'
+        : reason === 'no_reference_llms'
+          ? 'settings.defaultModel.moaPreset.skippedNoReferenceLlms'
+          : 'settings.defaultModel.moaPreset.skippedGeneric';
+    showI18nToast(reasonKey, undefined, { type: 'warning', duration: 8000 });
   }
 }
 

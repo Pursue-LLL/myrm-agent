@@ -81,15 +81,18 @@ class BtwTaskNotifier:
 
         channel_name = str(data.get("channel", ""))
         chat_id = str(data.get("chat_id", ""))
+        thread_id = str(data.get("thread_id", "")) or None
+        locale = str(data.get("locale", "en"))
+
         if not channel_name or not chat_id:
-            return
+            resolved = await self._resolve_im_target(data)
+            if resolved is None:
+                return
+            channel_name, chat_id, thread_id, locale = resolved
 
         status = str(data.get("status", ""))
         title = str(data.get("title", ""))
         result = str(data.get("result", ""))
-        thread_id = str(data.get("thread_id", "")) or None
-
-        locale = str(data.get("locale", "en"))
         content = _format_notification(status, title, result, locale)
         task_id = str(data.get("task_id", ""))
 
@@ -149,6 +152,41 @@ class BtwTaskNotifier:
         except Exception as exc:
             channel.activity.record_error()
             logger.warning("Failed to deliver btw result to %s/%s: %s", channel_name, chat_id, exc, exc_info=True)
+
+    async def _resolve_im_target(
+        self,
+        data: dict[str, object],
+    ) -> tuple[str, str, str | None, str] | None:
+        """Resolve IM channel delivery target from source_chat_id when channel metadata is absent."""
+        source_chat_id = str(data.get("source_chat_id", "") or data.get("chat_id", "")).strip()
+        if not source_chat_id:
+            return None
+
+        locale = str(data.get("locale", "en"))
+        try:
+            from app.channels.types.session import SessionKey
+            from app.services.chat.chat_service import ChatService
+
+            chat = await ChatService.get_chat_by_id(source_chat_id)
+            if chat is None:
+                return None
+            if chat.source == "web" or not chat.channel_session_key:
+                return None
+
+            raw_key = chat.channel_session_key.split(":e=")[0]
+            session_key = SessionKey.parse(raw_key)
+            if session_key is None or not session_key.peer_id:
+                return None
+
+            thread_id = str(data.get("thread_id", "")) or None
+            return session_key.channel, session_key.peer_id, thread_id, locale
+        except Exception:
+            logger.debug(
+                "Failed to resolve IM target for source_chat_id=%s",
+                source_chat_id,
+                exc_info=True,
+            )
+            return None
 
 
 def _format_notification(status: str, title: str, result: str, locale: str = "en") -> str:

@@ -210,6 +210,55 @@ class TestEmitBtwDone:
         assert event.data["locale"] == "en"
 
 
+class TestEmitSourceChatDone:
+    """Unit tests for emit_source_chat_done callback."""
+
+    def test_publishes_on_task_completed(self) -> None:
+        from app.services.kanban.event_publisher import emit_source_chat_done
+
+        bus = _make_event_bus()
+        queue = bus.subscribe()
+        task = _btw_task(metadata={"source_chat_id": "chat-abc-1"})
+
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
+            emit_source_chat_done("task_completed", task)
+
+        event = queue.get_nowait()
+        assert event.event_type == AppEventType.BACKGROUND_TASK_DONE
+        assert event.data["chat_id"] == "chat-abc-1"
+        assert event.data["source_chat_id"] == "chat-abc-1"
+        assert event.data["status"] == "completed"
+
+    def test_ignores_btw_tasks(self) -> None:
+        from app.services.kanban.event_publisher import emit_source_chat_done
+
+        bus = _make_event_bus()
+        queue = bus.subscribe()
+        task = _btw_task(metadata={
+            "background_source": "btw",
+            "source_chat_id": "chat-abc-1",
+            "channel": "discord",
+            "chat_id": "ch123",
+        })
+
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
+            emit_source_chat_done("task_completed", task)
+
+        assert queue.empty()
+
+    def test_ignores_without_source_chat(self) -> None:
+        from app.services.kanban.event_publisher import emit_source_chat_done
+
+        bus = _make_event_bus()
+        queue = bus.subscribe()
+        task = _btw_task(metadata={})
+
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
+            emit_source_chat_done("task_completed", task)
+
+        assert queue.empty()
+
+
 class TestBtwTaskNotifier:
     """Unit tests for BtwTaskNotifier lifecycle and delivery."""
 

@@ -35,6 +35,7 @@ class BoardSummaryData:
     dispatcher_active: bool
     by_agent: dict[str | None, dict[str, int]] = field(default_factory=dict)
     oldest_ready_age_seconds: int | None = None
+    stale_running_count: int = 0
 
 
 class UnmetParentInfo(TypedDict):

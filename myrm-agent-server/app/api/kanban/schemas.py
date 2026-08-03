@@ -76,6 +76,7 @@ class BoardSummaryResponse(BaseModel):
     dispatcher_active: bool = False
     by_agent: list[AgentTaskCounts] = []
     oldest_ready_age_seconds: int | None = None
+    stale_running_count: int = 0
 
 
 class BoardListResponse(BaseModel):

@@ -5,12 +5,15 @@
  * [OUTPUT]
  * readStoredMoaPresetId / writeStoredMoaPresetId / clearStoredMoaPresetId /
  * resolveHydratedMoaPresetId — hydrate from server DB (preferred) then localStorage
+ * persistMoaPresetToServer — PATCH chat preset with rollback + toast on failure
  *
  * [POS]
  * Per-chat MoA preset persistence in localStorage (survives full page refresh; skipped in incognito).
  */
 
 import { MOA_PRESET_IDS, type MoaPresetId } from '@/lib/moaPresetUtils';
+import { updateChatActiveMoaPreset } from '@/services/chat';
+import { showI18nToast } from '@/services/i18nToastService';
 
 const STORAGE_PREFIX = 'moaPreset:';
 
@@ -64,4 +67,18 @@ export function resolveHydratedMoaPresetId(
     return serverPresetId;
   }
   return readStoredMoaPresetId(chatId);
+}
+
+/** Persist session MoA preset to server; optional rollback when PATCH fails. */
+export async function persistMoaPresetToServer(
+  chatId: string,
+  presetId: string | null,
+  onFailure?: () => void,
+): Promise<void> {
+  try {
+    await updateChatActiveMoaPreset(chatId, presetId);
+  } catch {
+    onFailure?.();
+    showI18nToast('settings.defaultModel.moaPreset.persistFailed', undefined, { type: 'error' });
+  }
 }

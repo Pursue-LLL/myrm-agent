@@ -20,6 +20,7 @@ contract:
   verification_steps:
     - step_id: recipe_schema_valid
       description: "Output JSON matches Myrm theme profile fields and uses relative asset refs"
+      validation_method: output_contains_json_keys
 ---
 
 # generate-myrm-theme

@@ -47,6 +47,7 @@ def _inject_wu_consumed(chunk: dict[str, object]) -> None:
 async def create_dynamic_workflow_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",
+    resume_value: dict[str, object] | None = None,
 ) -> AsyncIterable[dict[str, object]]:
     """Build Dynamic Workflow SSE stream from GeneralAgentParams.
 
@@ -54,7 +55,10 @@ async def create_dynamic_workflow_stream(
     sub-agents spawned by the DW engine inherit the complete tool registry,
     catalog, budget, and security policies.
     """
-    from myrm_agent_harness.agent.dynamic_workflow import run_dynamic_workflow_stream
+    from myrm_agent_harness.agent.dynamic_workflow import (
+        WorkflowPlanReview,
+        run_dynamic_workflow_stream,
+    )
     from myrm_agent_harness.api import AgentEventType
     from myrm_agent_harness.utils.token_economics.tracker import (
         get_token_tracker,
@@ -97,15 +101,37 @@ async def create_dynamic_workflow_stream(
         text_query = str(raw_q)
 
     init_token_tracker()
+
+    message_id = params.message_id or "default_msg"
+
+    async def _dw_approval_gate(review: WorkflowPlanReview) -> bool:
+        from app.services.agent.streaming import PhaseWaiter
+
+        plan_key = f"plan:{message_id}"
+        waiter = PhaseWaiter.register(plan_key)
+        logger.info(
+            "Dynamic Workflow plan confirmation waiting: message_id=%s spawn_count=%s",
+            message_id,
+            review.spawn_count,
+        )
+        answer = await waiter.wait_for_answer()
+        if answer is False:
+            return False
+        if answer is None:
+            return False
+        return True
+
     try:
         async for chunk in run_dynamic_workflow_stream(
             parent_agent=base_agent,
             query=text_query,
             chat_history=history,
             chat_id=params.chat_id or "default_chat",
-            message_id=params.message_id or "default_msg",
+            message_id=message_id,
             cancel_token=cancel_token,
             catalog=catalog,
+            approval_gate=_dw_approval_gate,
+            resume_value=resume_value,
         ):
             if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                 tracker = get_token_tracker()

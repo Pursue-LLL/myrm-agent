@@ -6,6 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.services.agent.stream_session.moa_overlay_setup import (
+    MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS,
+    MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS,
+    resolve_moa_overlay_skip_reason,
+)
+
 
 @pytest.mark.asyncio
 async def test_build_moa_overlay_middleware_disabled() -> None:
@@ -16,6 +22,58 @@ async def test_build_moa_overlay_middleware_disabled() -> None:
 
     result = await build_moa_overlay_middleware({"moa_overlay": {"enabled": False}})
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_disabled() -> None:
+    assert await resolve_moa_overlay_skip_reason(None) is None
+    assert await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": False}}) is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_no_reference_configs() -> None:
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, []),
+    ):
+        reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_no_reference_llms() -> None:
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, [mock_cfg]),
+    ):
+        with patch(
+            "app.services.agent.stream_session.moa_overlay_setup._build_reference_llms",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_none_when_ready() -> None:
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, [mock_cfg]),
+    ):
+        with patch(
+            "app.services.agent.stream_session.moa_overlay_setup._build_reference_llms",
+            new_callable=AsyncMock,
+            return_value=[mock_llm],
+        ):
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason is None
 
 
 @pytest.mark.asyncio

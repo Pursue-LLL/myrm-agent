@@ -183,6 +183,12 @@ def get_execution_cache() -> ChatAgentExecutionCache:
     return _registry
 
 
+def _reset_execution_cache_for_testing() -> None:
+    """Drop process singleton so the next access binds asyncio locks to the active loop."""
+    global _registry
+    _registry = None
+
+
 async def close_execution_cache_for_chat(chat_id: str | None, *, agent_id: str | None = None) -> None:
     if not chat_id or not chat_id.strip():
         return

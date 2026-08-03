@@ -28,7 +28,11 @@ import zipfile
 
 from fastapi import Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
+from myrm_agent_harness.toolkits.memory import (
+    MemoryManager,
+    MemoryOperationKind,
+    MemoryOperationStatus,
+)
 
 from app.database.connection import get_session
 from app.schemas.memory.archive import (
@@ -68,7 +72,9 @@ from app.services.memory.import_sessions import (
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
 from app.services.memory.operations.crud.import_readiness import build_import_readiness
-from app.services.migration.source_secrets_importer import external_source_providers_configured
+from app.services.migration.source_secrets_importer import (
+    external_source_providers_configured,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,14 +82,21 @@ _COMPETITOR_AVG_SKILL_TOKENS = 500
 _MYRM_AVG_INDEX_TOKENS = 30
 
 
-def _cron_skipped_preview_from_plan(raw: dict[str, object] | None) -> list[CronMigrationSkippedPreviewItem]:
+def _cron_skipped_preview_from_plan(
+    raw: dict[str, object] | None,
+) -> list[CronMigrationSkippedPreviewItem]:
     if not isinstance(raw, dict):
         return []
-    from app.services.migration.hermes_cron_converter import HermesCronMigrationPlan, cron_skipped_preview_rows
+    from app.services.migration.hermes_cron_converter import (
+        HermesCronMigrationPlan,
+        cron_skipped_preview_rows,
+    )
 
     plan = HermesCronMigrationPlan.from_metadata_dict(raw)
     return [
-        CronMigrationSkippedPreviewItem(name=str(row["name"]), reason=str(row["reason"]))
+        CronMigrationSkippedPreviewItem(
+            name=str(row["name"]), reason=str(row["reason"])
+        )
         for row in cron_skipped_preview_rows(plan)
         if row.get("name") and row.get("reason")
     ]
@@ -107,19 +120,29 @@ async def export_memories(
                     rows.append({str(ik): iv for ik, iv in item.items()})
             data[key] = rows
     total = sum(len(entries) for entries in data.values())
-    return MemoryExportResponse(version=MEMORY_EXPORT_VERSION, data=data, total_count=total)
+    return MemoryExportResponse(
+        version=MEMORY_EXPORT_VERSION, data=data, total_count=total
+    )
 
 
 async def export_rules_safe(
     manager: MemoryManager = Depends(get_crud_memory_manager),
     agent_id: str | None = Query(default=None, description="Filter by agent scope"),
-    rule_ids: str | None = Query(default=None, description="Comma-separated rule IDs to export"),
-    output_format: str = Query(default="markdown", description="Output format: markdown or json"),
+    rule_ids: str | None = Query(
+        default=None, description="Comma-separated rule IDs to export"
+    ),
+    output_format: str = Query(
+        default="markdown", description="Output format: markdown or json"
+    ),
 ) -> StreamingResponse:
     """Export procedural rules with privacy sanitization for safe sharing."""
-    ids_list = [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
+    ids_list = (
+        [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
+    )
     results = await manager.export_rules_safe(
-        agent_id=agent_id, rule_ids=ids_list, output_format=output_format,
+        agent_id=agent_id,
+        rule_ids=ids_list,
+        output_format=output_format,
     )
     if not results:
         raise HTTPException(status_code=404, detail="No rules found matching criteria")
@@ -144,13 +167,21 @@ async def export_rules_safe(
 async def preview_rules_safe(
     manager: MemoryManager = Depends(get_crud_memory_manager),
     agent_id: str | None = Query(default=None, description="Filter by agent scope"),
-    rule_ids: str | None = Query(default=None, description="Comma-separated rule IDs to preview"),
-    output_format: str = Query(default="markdown", description="Output format: markdown or json"),
+    rule_ids: str | None = Query(
+        default=None, description="Comma-separated rule IDs to preview"
+    ),
+    output_format: str = Query(
+        default="markdown", description="Output format: markdown or json"
+    ),
 ) -> list[dict[str, object]]:
     """Preview sanitized rules without downloading (for frontend diff display)."""
-    ids_list = [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
+    ids_list = (
+        [r.strip() for r in rule_ids.split(",") if r.strip()] if rule_ids else None
+    )
     return await manager.export_rules_safe(
-        agent_id=agent_id, rule_ids=ids_list, output_format=output_format,
+        agent_id=agent_id,
+        rule_ids=ids_list,
+        output_format=output_format,
     )
 
 
@@ -224,7 +255,9 @@ async def import_memories(
     )
 
 
-async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImportDryRunResponse:
+async def dry_run_import_memories(
+    body: MemoryImportDryRunRequest,
+) -> MemoryImportDryRunResponse:
     """Preview memory import mapping and bind the review result server-side."""
 
     from app.services.memory.import_adapters import resolve_migration_source
@@ -245,7 +278,9 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         extract_memory_payload,
         has_api_keys,
     )
-    from app.services.migration.source_secrets_importer import external_source_providers_configured
+    from app.services.migration.source_secrets_importer import (
+        external_source_providers_configured,
+    )
 
     pending_skills: list[dict[str, object]] = []
     coverage_items: list[dict[str, str]] = []
@@ -290,13 +325,20 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
 
         mcp_servers_preview: list[dict[str, object]] = []
         mcp_configs_serialized: list[dict[str, object]] = []
-        if isinstance(instruction_plan.mcp_servers, dict) and instruction_plan.mcp_servers:
+        if (
+            isinstance(instruction_plan.mcp_servers, dict)
+            and instruction_plan.mcp_servers
+        ):
             converted = convert_competitor_mcp_servers(
                 instruction_plan.mcp_servers,
                 competitor=instruction_plan.competitor,
             )
-            mcp_servers_preview = [mcp_migration_item_to_preview(item) for item in converted]
-            mcp_configs_serialized = [mcp_migration_item_to_config_dict(item) for item in converted]
+            mcp_servers_preview = [
+                mcp_migration_item_to_preview(item) for item in converted
+            ]
+            mcp_configs_serialized = [
+                mcp_migration_item_to_config_dict(item) for item in converted
+            ]
 
         model_migration_payload: dict[str, object] = {}
         hermes_cfg = loaded_payload.get("hermes_config")
@@ -304,6 +346,9 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             auxiliary = hermes_cfg.get("auxiliary")
             if isinstance(auxiliary, dict) and auxiliary:
                 model_migration_payload["hermes_auxiliary"] = auxiliary
+            moa_block = hermes_cfg.get("moa")
+            if isinstance(moa_block, dict) and moa_block:
+                model_migration_payload["hermes_moa"] = moa_block
         openclaw_cfg = loaded_payload.get("openclaw_config")
         if isinstance(openclaw_cfg, dict):
             agents_defaults = (openclaw_cfg.get("agents") or {}).get("defaults", {})
@@ -326,7 +371,8 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                 "agent_persona": instruction_plan.agent_persona,
                 "global_supplement": instruction_plan.global_supplement,
                 "workspace_rules": [
-                    {"filename": rule.filename, "content": rule.content} for rule in instruction_plan.workspace_rules
+                    {"filename": rule.filename, "content": rule.content}
+                    for rule in instruction_plan.workspace_rules
                 ],
                 "mcp_configs": mcp_configs_serialized,
             },
@@ -353,7 +399,9 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             )
             for item in bind_candidates
         ]
-        session_metadata["workspace_bind_candidates"] = candidates_to_metadata(bind_candidates)
+        session_metadata["workspace_bind_candidates"] = candidates_to_metadata(
+            bind_candidates
+        )
         instruction_total_chars = instruction_char_total(instruction_plan)
         lane_previews = build_lane_previews(
             instruction=instruction_plan,
@@ -397,7 +445,9 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             ]
 
     async with get_session() as db:
-        dry_run_id, result, payload_hash, expires_at = await MemoryImportSessionService(db).create_dry_run(
+        dry_run_id, result, payload_hash, expires_at = await MemoryImportSessionService(
+            db
+        ).create_dry_run(
             import_payload,
             resolved_source,
             skip_duplicates=body.skip_duplicates,
@@ -408,11 +458,18 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         migration_lanes = [
             MigrationLanePreviewItem(
                 lane=lane.lane,
-                status=(result.summary.status if lane.lane == "memory" else lane.status),
+                status=(
+                    result.summary.status if lane.lane == "memory" else lane.status
+                ),
                 label=lane.label,
                 detail=(
                     f"{result.summary.mapped_items} mapped item(s)"
-                    + (", episodic excluded" if body.migration is not None and not body.migration.include_episodic else "")
+                    + (
+                        ", episodic excluded"
+                        if body.migration is not None
+                        and not body.migration.include_episodic
+                        else ""
+                    )
                     if lane.lane == "memory"
                     else lane.detail
                 ),
@@ -440,7 +497,11 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         skill_count = len(pending_skills)
         source_tokens = skill_count * _COMPETITOR_AVG_SKILL_TOKENS
         myrm_tokens = skill_count * _MYRM_AVG_INDEX_TOKENS
-        savings = round((1 - myrm_tokens / source_tokens) * 100, 1) if source_tokens > 0 else 0.0
+        savings = (
+            round((1 - myrm_tokens / source_tokens) * 100, 1)
+            if source_tokens > 0
+            else 0.0
+        )
         token_economics = TokenEconomicsComparison(
             skill_count=skill_count,
             source_tokens_per_turn=source_tokens,
@@ -478,7 +539,9 @@ async def confirm_import_memories(
         instruction_rollback_record_from_apply,
         instruction_rollback_record_to_metadata,
     )
-    from app.services.migration.memory_import_binding import create_global_import_memory_manager
+    from app.services.migration.memory_import_binding import (
+        create_global_import_memory_manager,
+    )
     from app.services.migration.source_migration_types import (
         MigrationWizardOptions,
         SourceInstructionPlan,
@@ -492,8 +555,12 @@ async def confirm_import_memories(
     async with get_session() as db:
         try:
             session_service = MemoryImportSessionService(db)
-            metadata = await session_service.get_pending_session_metadata(body.dry_run_id)
-            from app.services.migration.workspace_bind_candidates import candidates_from_metadata
+            metadata = await session_service.get_pending_session_metadata(
+                body.dry_run_id
+            )
+            from app.services.migration.workspace_bind_candidates import (
+                candidates_from_metadata,
+            )
 
             workspace_bind_candidates = [
                 WorkspaceBindCandidate(
@@ -502,7 +569,9 @@ async def confirm_import_memories(
                     has_obsidian_config=item.has_obsidian_config,
                     markdown_file_count=item.markdown_file_count,
                 )
-                for item in candidates_from_metadata(metadata.get("workspace_bind_candidates"))
+                for item in candidates_from_metadata(
+                    metadata.get("workspace_bind_candidates")
+                )
             ]
             source_has_api_keys_raw = metadata.get("source_has_api_keys")
             source_has_api_keys = source_has_api_keys_raw is True
@@ -523,7 +592,8 @@ async def confirm_import_memories(
                 opts = MigrationWizardOptions(
                     target_agent_id=(
                         str(raw_opts["target_agent_id"])
-                        if isinstance(raw_opts, dict) and raw_opts.get("target_agent_id")
+                        if isinstance(raw_opts, dict)
+                        and raw_opts.get("target_agent_id")
                         else None
                     ),
                     clone_from_agent_id=(
@@ -531,9 +601,15 @@ async def confirm_import_memories(
                         if isinstance(raw_opts, dict)
                         else "builtin-general"
                     ),
-                    include_episodic=bool(raw_opts.get("include_episodic")) if isinstance(raw_opts, dict) else False,
+                    include_episodic=(
+                        bool(raw_opts.get("include_episodic"))
+                        if isinstance(raw_opts, dict)
+                        else False
+                    ),
                     apply_global_instructions=(
-                        bool(raw_opts.get("apply_global_instructions", True)) if isinstance(raw_opts, dict) else True
+                        bool(raw_opts.get("apply_global_instructions", True))
+                        if isinstance(raw_opts, dict)
+                        else True
                     ),
                 )
                 rules_raw = raw_plan.get("workspace_rules")
@@ -545,13 +621,17 @@ async def confirm_import_memories(
                             content = str(item.get("content", "")).strip()
                             if filename and content:
                                 workspace_rules.append(
-                                    WorkspaceRuleWrite(filename=filename, content=content),
+                                    WorkspaceRuleWrite(
+                                        filename=filename, content=content
+                                    ),
                                 )
                 mcp_configs_raw = raw_plan.get("mcp_configs")
                 mcp_configs_to_write: list[dict[str, object]] = []
                 if isinstance(mcp_configs_raw, list):
                     mcp_configs_to_write = [
-                        item for item in mcp_configs_raw if isinstance(item, dict) and item.get("name")
+                        item
+                        for item in mcp_configs_raw
+                        if isinstance(item, dict) and item.get("name")
                     ]
 
                 plan = SourceInstructionPlan(
@@ -571,13 +651,25 @@ async def confirm_import_memories(
 
                 if mcp_configs_to_write:
                     try:
-                        mcp_imported_disabled_count = await _write_migrated_mcp_configs(mcp_configs_to_write)
+                        mcp_imported_disabled_count = await _write_migrated_mcp_configs(
+                            mcp_configs_to_write
+                        )
                     except Exception as mcp_exc:
-                        logger.warning("MCP config migration write failed (non-fatal): %s", mcp_exc)
+                        logger.warning(
+                            "MCP config migration write failed (non-fatal): %s", mcp_exc
+                        )
 
                 model_migration_data = metadata.get("model_migration")
                 if isinstance(model_migration_data, dict):
-                    await _apply_model_migration(model_migration_data)
+                    moa_target_agent_id = (
+                        instruction_result.target_agent_id
+                        if instruction_result
+                        else None
+                    )
+                    await _apply_model_migration(
+                        model_migration_data,
+                        target_agent_id=moa_target_agent_id,
+                    )
 
                 rollback_record = instruction_rollback_record_from_apply(
                     instruction_result,
@@ -594,15 +686,23 @@ async def confirm_import_memories(
 
             cron_migration_raw = metadata.get("cron_migration")
             if isinstance(cron_migration_raw, dict):
-                from app.services.migration.hermes_cron_converter import HermesCronMigrationPlan
-                from app.services.migration.hermes_cron_migration import apply_hermes_cron_migration_plan
+                from app.services.migration.hermes_cron_converter import (
+                    HermesCronMigrationPlan,
+                )
+                from app.services.migration.hermes_cron_migration import (
+                    apply_hermes_cron_migration_plan,
+                )
 
-                cron_plan = HermesCronMigrationPlan.from_metadata_dict(cron_migration_raw)
+                cron_plan = HermesCronMigrationPlan.from_metadata_dict(
+                    cron_migration_raw
+                )
                 migration_opts_raw = metadata.get("migration_options")
                 cron_agent_id: str | None = None
                 if instruction_result and instruction_result.target_agent_id:
                     cron_agent_id = instruction_result.target_agent_id
-                elif isinstance(migration_opts_raw, dict) and migration_opts_raw.get("target_agent_id"):
+                elif isinstance(migration_opts_raw, dict) and migration_opts_raw.get(
+                    "target_agent_id"
+                ):
                     cron_agent_id = str(migration_opts_raw["target_agent_id"])
                 cron_apply_result = await apply_hermes_cron_migration_plan(
                     cron_plan,
@@ -620,8 +720,12 @@ async def confirm_import_memories(
                     )
 
             try:
-                snapshot = await MemoryCommandCenterService(db, manager).build_snapshot()
-                diagnostic_run = await MemoryDiagnosticsService(db, manager).run_diagnostics(
+                snapshot = await MemoryCommandCenterService(
+                    db, manager
+                ).build_snapshot()
+                diagnostic_run = await MemoryDiagnosticsService(
+                    db, manager
+                ).run_diagnostics(
                     health_cache_status=snapshot.health.cache_status,
                     runtime=snapshot.runtime,
                 )
@@ -635,7 +739,11 @@ async def confirm_import_memories(
                 result.diagnostic_run_id = diagnostic_run.id
                 diagnostic_failed_count = diagnostic_run.failed_count
             except Exception as exc:
-                logger.warning("Post-import diagnostics failed for %s: %s", result.import_batch_id, exc)
+                logger.warning(
+                    "Post-import diagnostics failed for %s: %s",
+                    result.import_batch_id,
+                    exc,
+                )
                 result.diagnostic_status = "failed"
                 diagnostic_failed_count = 1
                 try:
@@ -646,17 +754,38 @@ async def confirm_import_memories(
                         failed_count=1,
                     )
                 except Exception as save_exc:
-                    logger.warning("Post-import diagnostic failure state was not persisted: %s", save_exc)
-            workspace_rules_skipped_count = instruction_result.workspace_rules_skipped if instruction_result else 0
+                    logger.warning(
+                        "Post-import diagnostic failure state was not persisted: %s",
+                        save_exc,
+                    )
+            workspace_rules_skipped_count = (
+                instruction_result.workspace_rules_skipped if instruction_result else 0
+            )
             providers_configured = await external_source_providers_configured()
             migration_competitor_raw = metadata.get("migration_competitor")
             migration_competitor = (
                 migration_competitor_raw.strip()
-                if isinstance(migration_competitor_raw, str) and migration_competitor_raw.strip()
+                if isinstance(migration_competitor_raw, str)
+                and migration_competitor_raw.strip()
                 else None
             )
             if migration_competitor is None and isinstance(raw_instruction_plan, dict):
-                migration_competitor = str(raw_instruction_plan.get("competitor", "")).strip().lower() or None
+                migration_competitor = (
+                    str(raw_instruction_plan.get("competitor", "")).strip().lower()
+                    or None
+                )
+            moa_overlay_configured: bool | None = None
+            if migration_competitor == "hermes":
+                moa_overlay_configured = (
+                    await _resolve_post_import_moa_overlay_configured(
+                        (
+                            instruction_result.target_agent_id
+                            if instruction_result
+                            else None
+                        ),
+                        metadata.get("model_migration"),
+                    )
+                )
             readiness = build_import_readiness(
                 providers_configured=providers_configured,
                 source_has_api_keys=source_has_api_keys,
@@ -665,13 +794,15 @@ async def confirm_import_memories(
                 mcp_config_count=mcp_imported_disabled_count,
                 workspace_rules_skipped=workspace_rules_skipped_count,
                 migration_competitor=migration_competitor,
-                moa_overlay_configured=False if migration_competitor == "hermes" else None,
+                moa_overlay_configured=moa_overlay_configured,
             )
             try:
                 await session_service.save_post_import_readiness(
                     import_batch_id=result.import_batch_id,
                     readiness_status=readiness.status,
-                    readiness_issues=[issue.model_dump(mode="json") for issue in readiness.issues],
+                    readiness_issues=[
+                        issue.model_dump(mode="json") for issue in readiness.issues
+                    ],
                     recheck_facts=ImportReadinessRecheckFacts(
                         source_has_api_keys=source_has_api_keys,
                         diagnostic_status=result.diagnostic_status,
@@ -698,11 +829,21 @@ async def confirm_import_memories(
         transaction_items=len(result.transaction_items),
         diagnostic_status=result.diagnostic_status,
         diagnostic_run_id=result.diagnostic_run_id,
-        target_agent_id=instruction_result.target_agent_id if instruction_result else None,
+        target_agent_id=(
+            instruction_result.target_agent_id if instruction_result else None
+        ),
         agent_created=instruction_result.agent_created if instruction_result else False,
-        global_instructions_updated=(instruction_result.global_instructions_updated if instruction_result else False),
-        workspace_rules_written=(instruction_result.workspace_rules_written if instruction_result else 0),
-        workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
+        global_instructions_updated=(
+            instruction_result.global_instructions_updated
+            if instruction_result
+            else False
+        ),
+        workspace_rules_written=(
+            instruction_result.workspace_rules_written if instruction_result else 0
+        ),
+        workspace_rules_skipped=(
+            instruction_result.workspace_rules_skipped if instruction_result else 0
+        ),
         readiness=readiness,
         workspace_bind_candidates=workspace_bind_candidates,
         cron_import_summary=cron_import_summary,
@@ -721,7 +862,9 @@ async def recheck_import_readiness(
     async with get_session() as db:
         session_service = MemoryImportSessionService(db)
         try:
-            readiness = await session_service.resolve_live_import_readiness(import_batch_id)
+            readiness = await session_service.resolve_live_import_readiness(
+                import_batch_id
+            )
         except MemoryImportSessionError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -729,7 +872,9 @@ async def recheck_import_readiness(
             await session_service.save_post_import_readiness(
                 import_batch_id=import_batch_id,
                 readiness_status=readiness.status,
-                readiness_issues=[issue.model_dump(mode="json") for issue in readiness.issues],
+                readiness_issues=[
+                    issue.model_dump(mode="json") for issue in readiness.issues
+                ],
             )
         except Exception as readiness_exc:
             logger.warning(
@@ -786,7 +931,9 @@ async def rollback_import_memories(
 ) -> MemoryImportRollbackResponse:
     """Rollback a confirmed memory import batch from its server-bound session."""
     from app.services.memory.import_ledger import MemoryImportLedgerService
-    from app.services.migration.instruction_rollback import rollback_instruction_for_batch_metadata
+    from app.services.migration.instruction_rollback import (
+        rollback_instruction_for_batch_metadata,
+    )
 
     instructions_rolled_back = False
     imported_agent_deleted = False
@@ -803,14 +950,20 @@ async def rollback_import_memories(
                 import_batch_id=body.import_batch_id,
             )
             if batch is not None:
-                metadata = batch.metadata_json if isinstance(batch.metadata_json, dict) else {}
-                instructions_rolled_back = await rollback_instruction_for_batch_metadata(
-                    metadata,
-                    delete_imported_agent=body.delete_imported_agent,
+                metadata = (
+                    batch.metadata_json if isinstance(batch.metadata_json, dict) else {}
+                )
+                instructions_rolled_back = (
+                    await rollback_instruction_for_batch_metadata(
+                        metadata,
+                        delete_imported_agent=body.delete_imported_agent,
+                    )
                 )
                 cron_raw = metadata.get("cron_rollback")
                 if isinstance(cron_raw, dict):
-                    from app.services.migration.hermes_cron_migration import rollback_hermes_cron_migration
+                    from app.services.migration.hermes_cron_migration import (
+                        rollback_hermes_cron_migration,
+                    )
 
                     await rollback_hermes_cron_migration(cron_raw)
                 if body.delete_imported_agent and instructions_rolled_back:
@@ -847,7 +1000,9 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> i
     if record is not None and isinstance(record.value, list):
         existing = list(record.value)
 
-    existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
+    existing_names = {
+        str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)
+    }
 
     inserted_count = 0
     for cfg in mcp_configs:
@@ -863,7 +1018,41 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> i
     return inserted_count
 
 
-async def _apply_model_migration(model_data: dict[str, object]) -> None:
+async def _resolve_post_import_moa_overlay_configured(
+    target_agent_id: str | None,
+    model_migration_data: object,
+) -> bool:
+    """Return whether the migrated agent has MoA overlay refs after import."""
+    if target_agent_id:
+        from app.services.agent.agent_service import AgentService
+        from app.services.migration.hermes_moa_migrator import (
+            agent_has_moa_overlay_refs,
+        )
+
+        agent = await AgentService.get_agent_by_id(target_agent_id)
+        if agent is not None and agent_has_moa_overlay_refs(
+            agent.engine_params if isinstance(agent.engine_params, dict) else None
+        ):
+            return True
+
+    if isinstance(model_migration_data, dict):
+        hermes_moa = model_migration_data.get("hermes_moa")
+        if isinstance(hermes_moa, dict):
+            from app.services.migration.hermes_moa_migrator import (
+                build_moa_overlay_from_hermes_config,
+            )
+
+            if build_moa_overlay_from_hermes_config(hermes_moa) is not None:
+                return False
+
+    return True
+
+
+async def _apply_model_migration(
+    model_data: dict[str, object],
+    *,
+    target_agent_id: str | None = None,
+) -> None:
     """Apply model configuration migration from competitor payload (non-fatal)."""
     from app.services.migration.source_model_migrator import (
         migrate_hermes_auxiliary_models,
@@ -873,11 +1062,39 @@ async def _apply_model_migration(model_data: dict[str, object]) -> None:
     hermes_auxiliary = model_data.get("hermes_auxiliary")
     if isinstance(hermes_auxiliary, dict) and hermes_auxiliary:
         try:
-            result = await migrate_hermes_auxiliary_models({"auxiliary": hermes_auxiliary})
+            result = await migrate_hermes_auxiliary_models(
+                {"auxiliary": hermes_auxiliary}
+            )
             if result.migrated_slots:
-                logger.info("Model migration: %d Hermes auxiliary slots applied", len(result.migrated_slots))
+                logger.info(
+                    "Model migration: %d Hermes auxiliary slots applied",
+                    len(result.migrated_slots),
+                )
         except Exception as exc:
-            logger.warning("Hermes auxiliary model migration failed (non-fatal): %s", exc)
+            logger.warning(
+                "Hermes auxiliary model migration failed (non-fatal): %s", exc
+            )
+
+    hermes_moa = model_data.get("hermes_moa")
+    if isinstance(hermes_moa, dict) and target_agent_id:
+        try:
+            from app.services.migration.hermes_moa_migrator import (
+                migrate_hermes_moa_overlay,
+            )
+
+            moa_result = await migrate_hermes_moa_overlay(
+                {"moa": hermes_moa},
+                target_agent_id,
+            )
+            if moa_result.configured and moa_result.reference_count:
+                logger.info(
+                    "Model migration: Hermes MoA preset=%s refs=%d → agent %s",
+                    moa_result.preset_name,
+                    moa_result.reference_count,
+                    target_agent_id,
+                )
+        except Exception as exc:
+            logger.warning("Hermes MoA overlay migration failed (non-fatal): %s", exc)
 
     openclaw_defaults = model_data.get("openclaw_agents_defaults")
     if isinstance(openclaw_defaults, dict):
@@ -886,6 +1103,10 @@ async def _apply_model_migration(model_data: dict[str, object]) -> None:
                 {"agents": {"defaults": openclaw_defaults}},
             )
             if migrated_model:
-                logger.info("Model migration: OpenClaw default model → %s", migrated_model)
+                logger.info(
+                    "Model migration: OpenClaw default model → %s", migrated_model
+                )
         except Exception as exc:
-            logger.warning("OpenClaw default model migration failed (non-fatal): %s", exc)
+            logger.warning(
+                "OpenClaw default model migration failed (non-fatal): %s", exc
+            )
