@@ -50,6 +50,8 @@ from app.schemas.memory.archive import (
     MigrationLanePreviewItem,
     TokenEconomicsComparison,
     WorkspaceBindCandidate,
+    CronImportSummary,
+    CronMigrationSkippedPreviewItem,
 )
 from app.schemas.memory.crud import (
     MEMORY_EXPORT_VERSION,
@@ -72,6 +74,19 @@ logger = logging.getLogger(__name__)
 
 _COMPETITOR_AVG_SKILL_TOKENS = 500
 _MYRM_AVG_INDEX_TOKENS = 30
+
+
+def _cron_skipped_preview_from_plan(raw: dict[str, object] | None) -> list[CronMigrationSkippedPreviewItem]:
+    if not isinstance(raw, dict):
+        return []
+    from app.services.migration.hermes_cron_converter import HermesCronMigrationPlan, cron_skipped_preview_rows
+
+    plan = HermesCronMigrationPlan.from_metadata_dict(raw)
+    return [
+        CronMigrationSkippedPreviewItem(name=str(row["name"]), reason=str(row["reason"]))
+        for row in cron_skipped_preview_rows(plan)
+        if row.get("name") and row.get("reason")
+    ]
 
 
 async def export_memories(
@@ -243,6 +258,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
     instruction_total_chars = 0
     providers_configured = await external_source_providers_configured()
     workspace_bind_candidates: list[WorkspaceBindCandidate] = []
+    cron_skipped_preview: list[CronMigrationSkippedPreviewItem] = []
 
     if is_competitor:
         loaded_payload = load_source_payload(body.payload)
@@ -321,6 +337,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         cron_plan_raw = loaded_payload.get("hermes_cron_plan")
         if isinstance(cron_plan_raw, dict):
             session_metadata["cron_migration"] = cron_plan_raw
+            cron_skipped_preview = _cron_skipped_preview_from_plan(cron_plan_raw)
         from app.services.migration.workspace_bind_candidates import (
             candidates_to_metadata,
             discover_workspace_bind_candidates,
@@ -446,6 +463,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         providers_configured=providers_configured,
         mcp_servers_preview=mcp_servers_preview if is_competitor else [],
         workspace_bind_candidates=workspace_bind_candidates,
+        cron_skipped=cron_skipped_preview if is_competitor else [],
     )
 
 
@@ -470,6 +488,7 @@ async def confirm_import_memories(
     instruction_result = None
     readiness: MemoryImportReadiness | None = None
     workspace_bind_candidates: list[WorkspaceBindCandidate] = []
+    cron_import_summary: CronImportSummary | None = None
     async with get_session() as db:
         try:
             session_service = MemoryImportSessionService(db)
@@ -589,6 +608,11 @@ async def confirm_import_memories(
                     cron_plan,
                     agent_id=cron_agent_id,
                 )
+                cron_import_summary = CronImportSummary(
+                    imported_count=len(cron_apply_result.created_job_ids),
+                    failed_count=cron_apply_result.failed_count,
+                    skipped_count=len(cron_plan.skipped),
+                )
                 if cron_apply_result.created_job_ids or cron_apply_result.failed_count:
                     await MemoryImportLedgerService(db).merge_batch_metadata(
                         result.import_batch_id,
@@ -680,6 +704,7 @@ async def confirm_import_memories(
         workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
         readiness=readiness,
         workspace_bind_candidates=workspace_bind_candidates,
+        cron_import_summary=cron_import_summary,
     )
 
 

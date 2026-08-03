@@ -112,7 +112,6 @@ async def _create_paused_job(
         spec.job_type,
         schedule,
         prompt=spec.prompt,
-        model=spec.model,
         agent_id=agent_id,
         max_fires=spec.max_fires,
     )

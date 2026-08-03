@@ -5,9 +5,11 @@ Raw Hermes job dicts from ~/.hermes/cron/jobs.json (and per-profile stores).
 
 [OUTPUT]
 HermesCronMigrationJobSpec / HermesCronMigrationPlan for wizard preview + confirm.
+Skipped preview rows for dry-run API (`cron_skipped_preview_rows`).
 
 [POS]
 Server migration lane — pure conversion + plan assembly; apply lives in hermes_cron_migration.py.
+Migrated cron jobs omit model (bound agent profile is model SSOT).
 """
 
 from __future__ import annotations
@@ -321,8 +323,6 @@ def convert_hermes_job(job: dict[str, object]) -> tuple[HermesCronMigrationJobSp
     if schedule is None:
         return None, HermesCronSkippedJob(source_id, name, "invalid_schedule")
 
-    model_raw = job.get("model")
-    model = model_raw.strip() if isinstance(model_raw, str) and model_raw.strip() else None
     max_fires = _extract_max_fires(job.get("repeat"))
 
     run_at_iso = schedule.run_at.isoformat() if schedule.kind == ScheduleKind.ONCE and schedule.run_at else None
@@ -336,7 +336,7 @@ def convert_hermes_job(job: dict[str, object]) -> tuple[HermesCronMigrationJobSp
         schedule_interval_ms=schedule.interval_ms,
         schedule_run_at=run_at_iso,
         prompt=prompt,
-        model=model,
+        model=None,
         max_fires=max_fires,
         source_hermes_id=source_id,
         source_profile=profile,
@@ -354,3 +354,9 @@ def build_hermes_cron_migration_plan(jobs: list[dict[str, object]]) -> HermesCro
         elif skip is not None:
             skipped.append(skip)
     return HermesCronMigrationPlan(importable=tuple(importable), skipped=tuple(skipped))
+
+
+def cron_skipped_preview_rows(plan: HermesCronMigrationPlan) -> list[dict[str, str]]:
+    """Serialize skipped cron jobs for dry-run API preview."""
+
+    return [item.to_metadata_dict() for item in plan.skipped]

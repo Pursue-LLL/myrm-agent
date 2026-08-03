@@ -9034,6 +9034,14 @@
         "importing": "正在导入...",
         "cancel": "取消",
         "back": "返回",
+        "cronSkippedTitle": "有 {count} 条定时任务不会导入",
+        "cronSkippedReason": {
+          "no_agent_script": "纯脚本任务（无智能体提示词）",
+          "missing_prompt": "缺少智能体提示词",
+          "invalid_schedule": "计划无效或不支持",
+          "prompt_injection": "提示词未通过安全扫描",
+          "unsupported_job_type": "不支持的任务类型"
+        },
         "tokenEconomics": {
           "title": "每轮 Token 用量对比",
           "description": "检测到 {count} 个技能 — 以下是每轮对话 Token 开销对比",
@@ -9061,6 +9069,10 @@
         "globalInstructionsUpdated": "已更新全局系统指令",
         "workspaceRulesWritten": "已写入 {count} 条工作区规则（.myrm/rules）",
         "workspaceRulesSkipped": "{count} 条规则文件已存在，已跳过",
+        "cronImported": "已导入 {count} 条定时任务（默认暂停）",
+        "cronImportFailed": "{count} 条定时任务导入失败",
+        "cronSkippedOnly": "有 {count} 条定时任务已跳过（原因见预览页）",
+        "cronResumeHint": "请在设置中的「定时任务」查看并恢复已导入的任务。",
         "readinessSummary": "导入后运行就绪检查",
         "readinessResolveBeforeChat": "请先修复严重就绪问题，再开始对话。",
         "vaultBind": {

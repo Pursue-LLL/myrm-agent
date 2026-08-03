@@ -9031,6 +9031,14 @@
         "importing": "Importing...",
         "cancel": "Cancel",
         "back": "Back",
+        "cronSkippedTitle": "{count} scheduled task(s) will not be imported",
+        "cronSkippedReason": {
+          "no_agent_script": "Script-only task (no agent prompt)",
+          "missing_prompt": "Missing agent prompt",
+          "invalid_schedule": "Invalid or unsupported schedule",
+          "prompt_injection": "Prompt blocked by safety scan",
+          "unsupported_job_type": "Unsupported task type"
+        },
         "tokenEconomics": {
           "title": "Token usage comparison",
           "description": "{count} skill(s) detected — here is how per-turn token cost compares",
@@ -9058,6 +9066,10 @@
         "globalInstructionsUpdated": "Global system instructions updated",
         "workspaceRulesWritten": "Wrote {count} workspace rule file(s) under .myrm/rules",
         "workspaceRulesSkipped": "{count} rule file(s) already existed and were skipped",
+        "cronImported": "{count} scheduled task(s) imported (paused)",
+        "cronImportFailed": "{count} scheduled task(s) could not be imported",
+        "cronSkippedOnly": "{count} scheduled task(s) were skipped (see preview for reasons)",
+        "cronResumeHint": "Open Scheduled Tasks in Settings to review and resume imported tasks.",
         "readinessSummary": "Runtime readiness check after import",
         "readinessResolveBeforeChat": "Resolve critical readiness issues before starting chat.",
         "vaultBind": {

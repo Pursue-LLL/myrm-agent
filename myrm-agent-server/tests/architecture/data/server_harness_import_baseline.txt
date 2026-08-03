@@ -9,6 +9,7 @@ myrm_agent_harness.agent.background_worker.idle_tasks
 myrm_agent_harness.agent.background_worker.registry
 myrm_agent_harness.agent.base_agent
 myrm_agent_harness.agent.config
+myrm_agent_harness.agent.config.exceptions
 myrm_agent_harness.agent.config.llm
 myrm_agent_harness.agent.config.parsers
 myrm_agent_harness.agent.context_management.archive_checkpoint
@@ -65,6 +66,8 @@ myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
 myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool
 myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
+myrm_agent_harness.agent.meta_tools.session_access.request_directory
+myrm_agent_harness.agent.meta_tools.session_access.request_directory_tool
 myrm_agent_harness.agent.meta_tools.skills.manage
 myrm_agent_harness.agent.meta_tools.skills.market
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
@@ -95,6 +98,7 @@ myrm_agent_harness.agent.security.profile_audit
 myrm_agent_harness.agent.security.profile_audit.types
 myrm_agent_harness.agent.security.rate_limiter
 myrm_agent_harness.agent.security.redact
+myrm_agent_harness.agent.security.session_access
 myrm_agent_harness.agent.security.transcript_classifier
 myrm_agent_harness.agent.security.trust_context
 myrm_agent_harness.agent.security.types
@@ -384,6 +388,7 @@ myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.strategies.consolidation
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
+myrm_agent_harness.toolkits.memory.strategies.extraction_domain
 myrm_agent_harness.toolkits.memory.strategies.extractor
 myrm_agent_harness.toolkits.memory.strategies.implicit_feedback
 myrm_agent_harness.toolkits.memory.strategies.pattern_discovery

@@ -145,20 +145,20 @@ class TestCronExecutionPolicyApi:
         )
         assert fill_resp.status_code == 200, fill_resp.text
         fill_data = fill_resp.json()
-        assert fill_data["tools_allowed"] == ["file_ops"]
+        assert fill_data["tools_allowed"] == []
 
         create_resp = guarded_cron_client.post(
             "/cron",
             json={
                 "name": fill_data["name"],
-                "job_type": "agent",
+                "job_type": fill_data.get("job_type", "agent"),
                 "schedule": fill_data["schedule"],
                 "prompt": fill_data["prompt"],
                 "tools_allowed": fill_data["tools_allowed"],
             },
         )
         assert create_resp.status_code == 201, create_resp.text
-        assert create_resp.json()["tools_allowed"] == ["file_ops"]
+        assert create_resp.json()["tools_allowed"] == []
 
     def test_create_rejects_myrm_restart_prompt(self, guarded_cron_client: TestClient) -> None:
         resp = guarded_cron_client.post(

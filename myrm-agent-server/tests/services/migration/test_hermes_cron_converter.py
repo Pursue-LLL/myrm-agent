@@ -30,6 +30,21 @@ def test_convert_hermes_cron_job_maps_schedule() -> None:
     assert spec.name == "Morning brief"
     assert spec.schedule_kind == ScheduleKind.CRON
     assert spec.schedule_expr == "0 9 * * *"
+    assert spec.model is None
+
+
+def test_convert_hermes_job_ignores_source_model_field() -> None:
+    job = {
+        "id": "model1",
+        "name": "With model",
+        "prompt": "Run task",
+        "model": "hermes/main",
+        "schedule": {"kind": "cron", "expr": "0 10 * * *"},
+    }
+    spec, skipped = convert_hermes_job(job)
+    assert skipped is None
+    assert spec is not None
+    assert spec.model is None
 
 
 def test_convert_hermes_job_skips_no_agent_script() -> None:
@@ -44,6 +59,21 @@ def test_convert_hermes_job_skips_no_agent_script() -> None:
     assert spec is None
     assert skipped is not None
     assert skipped.reason == "no_agent_script"
+
+
+def test_cron_skipped_preview_rows() -> None:
+    from app.services.migration.hermes_cron_converter import (
+        HermesCronMigrationPlan,
+        HermesCronSkippedJob,
+        cron_skipped_preview_rows,
+    )
+
+    plan = HermesCronMigrationPlan(
+        importable=(),
+        skipped=(HermesCronSkippedJob("id1", "Watchdog", "no_agent_script"),),
+    )
+    rows = cron_skipped_preview_rows(plan)
+    assert rows == [{"source_hermes_id": "id1", "name": "Watchdog", "reason": "no_agent_script"}]
 
 
 @pytest.fixture()

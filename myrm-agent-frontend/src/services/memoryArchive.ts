@@ -274,6 +274,17 @@ export interface MCPServerPreviewItem {
   keepaliveIntervalIgnored?: boolean;
 }
 
+export interface CronMigrationSkippedPreviewItem {
+  name: string;
+  reason: string;
+}
+
+export interface CronImportSummary {
+  imported_count: number;
+  failed_count: number;
+  skipped_count: number;
+}
+
 export interface MemoryImportDryRunResponse {
   dry_run_id: string;
   payload_hash: string;
@@ -289,6 +300,7 @@ export interface MemoryImportDryRunResponse {
   providers_configured?: boolean;
   mcp_servers_preview?: MCPServerPreviewItem[];
   workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
+  cron_skipped?: CronMigrationSkippedPreviewItem[];
 }
 
 export interface MigrationWorkspaceBindCandidate {
@@ -312,6 +324,7 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
   workspace_rules_skipped?: number;
   readiness?: MemoryImportReadiness | null;
   workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
+  cron_import_summary?: CronImportSummary | null;
 }
 
 export interface MemoryImportReadinessIssue {

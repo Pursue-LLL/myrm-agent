@@ -64,6 +64,19 @@ const COVERAGE_LABEL_KEYS = new Set([
   'kanban_not_migrated',
 ]);
 
+const CRON_SKIP_REASON_KEYS = new Set([
+  'no_agent_script',
+  'missing_prompt',
+  'invalid_schedule',
+  'prompt_injection',
+  'unsupported_job_type',
+]);
+
+function formatCronSkippedReason(t: TranslationFn, reason: string): string {
+  const key = CRON_SKIP_REASON_KEYS.has(reason) ? reason : 'unsupported_job_type';
+  return t(`preview.cronSkippedReason.${key}`);
+}
+
 function CloudUploadZone({
   uploading,
   onUpload,
@@ -496,6 +509,23 @@ export function PreviewStep({
 
       <MigrationLaneMatrix lanes={dryRun.migration_lanes ?? []} t={t} />
 
+      {(dryRun.cron_skipped?.length ?? 0) > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-left text-xs space-y-2">
+          <p className="font-medium text-amber-800 dark:text-amber-300">
+            {t('preview.cronSkippedTitle', { count: dryRun.cron_skipped!.length })}
+          </p>
+          <ul className="space-y-1 text-muted-foreground">
+            {dryRun.cron_skipped!.map((item) => (
+              <li key={`${item.name}-${item.reason}`}>
+                <span className="font-medium text-foreground">{item.name}</span>
+                {' — '}
+                {formatCronSkippedReason(t, item.reason)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {dryRun.token_economics && (
         <TokenEconomicsCard data={dryRun.token_economics} sourceName={getMigrationSourceDisplayName(source.competitor)} t={t} />
       )}
@@ -844,6 +874,31 @@ export function ResultStep({
           <p className="text-sm text-amber-600 dark:text-amber-400">
             {t('result.workspaceRulesSkipped', { count: result.workspace_rules_skipped ?? 0 })}
           </p>
+        )}
+        {result.cron_import_summary && (
+          <>
+            {result.cron_import_summary.imported_count > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t('result.cronImported', { count: result.cron_import_summary.imported_count })}
+              </p>
+            )}
+            {result.cron_import_summary.failed_count > 0 && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                {t('result.cronImportFailed', { count: result.cron_import_summary.failed_count })}
+              </p>
+            )}
+            {result.cron_import_summary.imported_count === 0
+              && result.cron_import_summary.skipped_count > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t('result.cronSkippedOnly', { count: result.cron_import_summary.skipped_count })}
+              </p>
+            )}
+            {result.cron_import_summary.imported_count > 0 && (
+              <p className="text-xs text-muted-foreground/80">
+                {t('result.cronResumeHint')}
+              </p>
+            )}
+          </>
         )}
         <div
           className={cn(

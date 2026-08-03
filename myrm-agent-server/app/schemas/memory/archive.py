@@ -208,6 +208,21 @@ class WorkspaceBindCandidate(BaseModel):
     markdown_file_count: int = 0
 
 
+class CronMigrationSkippedPreviewItem(BaseModel):
+    """Hermes cron job skipped during migration preview."""
+
+    name: str
+    reason: str
+
+
+class CronImportSummary(BaseModel):
+    """Post-confirm Hermes cron migration counts."""
+
+    imported_count: int = Field(0, description="Cron jobs created in paused state")
+    failed_count: int = Field(0, description="Cron jobs that failed to create during confirm")
+    skipped_count: int = Field(0, description="Cron jobs skipped during dry-run conversion")
+
+
 class MemoryImportDryRunResponse(BaseModel):
     """Content-safe memory import preview bound to a server-side review session."""
 
@@ -242,6 +257,10 @@ class MemoryImportDryRunResponse(BaseModel):
     workspace_bind_candidates: list[WorkspaceBindCandidate] = Field(
         default_factory=list,
         description="Suggested project workspace paths after competitor import (Local/Tauri)",
+    )
+    cron_skipped: list[CronMigrationSkippedPreviewItem] = Field(
+        default_factory=list,
+        description="Hermes cron jobs skipped during preview (name + reason)",
     )
 
 
@@ -325,6 +344,10 @@ class MemoryImportConfirmResponse(MemoryImportResponse):
     workspace_rules_skipped: int = 0
     readiness: MemoryImportReadiness | None = None
     workspace_bind_candidates: list[WorkspaceBindCandidate] = Field(default_factory=list)
+    cron_import_summary: CronImportSummary | None = Field(
+        None,
+        description="Hermes cron migration result after confirm",
+    )
 
 
 class MemoryImportReadinessRecheckRequest(BaseModel):

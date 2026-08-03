@@ -37,8 +37,8 @@
 | `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
 | `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw；Hermes loader 含 .usage.json 与 **cron/jobs.json** 导入计划 | ✅ |
-| `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan | ✅ |
-| `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused）+ batch rollback | ✅ |
+| `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan + skipped preview rows（omit model） | ✅ |
+| `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |

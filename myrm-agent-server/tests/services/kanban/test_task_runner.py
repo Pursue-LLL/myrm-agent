@@ -90,6 +90,7 @@ class TestResolvedProfile:
             max_iterations=None,
             memory_policy=None,
             memory_decay_profile=None,
+            memory_extraction_preset=None,
             engine_params=None,
             auto_restore_domains=(),
             enabled_builtin_tools=("web_search",),
