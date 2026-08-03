@@ -320,8 +320,13 @@ def build_signoff_admission_snapshot() -> SignoffAdmissionDict:
     )
 
 
-def admit_or_defer(*, episode_kind: str, label: str) -> AdmitOrDeferResult:
-    owner_pid = os.getpid()
+def admit_or_defer(
+    *,
+    episode_kind: str,
+    label: str,
+    owner_pid: int | None = None,
+) -> AdmitOrDeferResult:
+    gate_owner = owner_pid if owner_pid is not None else os.getpid()
     _reap_stale_legacy_master_lock()
     solo_clear, solo_reason = solo_cluster_clear_for_signoff()
 
@@ -361,7 +366,7 @@ def admit_or_defer(*, episode_kind: str, label: str) -> AdmitOrDeferResult:
                 episode_id,
                 episode_kind,
                 label,
-                owner_pid,
+                gate_owner,
                 EpisodeState.RUNNING.value,
                 now,
                 now,
@@ -375,7 +380,7 @@ def admit_or_defer(*, episode_kind: str, label: str) -> AdmitOrDeferResult:
         reason=None,
         retry_after_sec=0,
         holder=label,
-        holder_pid=owner_pid,
+        holder_pid=gate_owner,
     )
 
 
