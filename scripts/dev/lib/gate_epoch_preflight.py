@@ -193,6 +193,13 @@ def _verify_api_seed(monorepo_root: Path) -> None:
 
 
 def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
+    if os.environ.get("MYRM_E2E_P0A_GATE") == "1" or os.environ.get("E2E_SIGNOFF") == "1":
+        from signoff_stack_preflight import run_signoff_ready_under_flock
+
+        rc = run_signoff_ready_under_flock(monorepo_root, wall_sec=wall_sec)
+        if rc != 0:
+            _emit(f"GATE_EPOCH_PREFLIGHT_WARN: signoff ready subprocess rc={rc}")
+        return
     env = os.environ.copy()
     env["MYRM_READY_CHROME_SOLO_WALL_SEC"] = str(wall_sec)
     cmd = ["env", f"MYRM_READY_CHROME_SOLO_WALL_SEC={wall_sec}", *_myrm_cmd(monorepo_root, "ready", "--chrome")]
