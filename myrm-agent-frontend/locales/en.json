@@ -1630,6 +1630,7 @@
         "persistFailed": "Failed to save MoA preset preference",
         "skippedNoReferenceConfigs": "Mixture of Agents is on, but no reference models are configured. Advisor overlay was skipped — check Agent capabilities settings.",
         "skippedNoReferenceLlms": "Mixture of Agents is on, but reference models could not be loaded (check API keys or provider settings). Advisor overlay was skipped.",
+        "skippedBudgetPressure": "Mixture of Agents advisor overlay was skipped because the session budget is under pressure.",
         "skippedGeneric": "Mixture of Agents advisor overlay was skipped for this message."
       },
       "temperature": "Temperature",
@@ -11055,6 +11056,7 @@
       "backlog": "Backlog",
       "ready": "Ready",
       "running": "Running",
+      "verifying": "Verifying",
       "blocked": "Blocked",
       "completed": "Completed",
       "failed": "Failed",

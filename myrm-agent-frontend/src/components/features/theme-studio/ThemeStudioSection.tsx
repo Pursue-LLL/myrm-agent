@@ -207,7 +207,7 @@ const ThemeStudioSection = () => {
     try {
       const finalProfile = buildFinalProfile();
       const blob = await exportThemePackage(finalProfile);
-      const safeName = finalProfile.name.replace(/[^\w\-]+/g, '-').slice(0, 48) || 'theme';
+      const safeName = finalProfile.name.replace(/[^\w-]+/g, '-').slice(0, 48) || 'theme';
       downloadThemePackageBlob(blob, `${safeName}.myrmtheme`);
       toast.success(t('exportSuccess'));
     } catch (error) {

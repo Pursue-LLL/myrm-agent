@@ -7,7 +7,7 @@ import KanbanMarkdown from './KanbanMarkdown';
 import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
-import { KANBAN_SOURCE_CHAT_METADATA_KEY } from '@/services/kanban';
+import { KANBAN_SOURCE_CHAT_METADATA_KEY, hasKanbanCompletionIntent } from '@/services/kanban';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
 
 interface TaskDetailsSectionProps {
@@ -251,7 +251,12 @@ export function TaskDetailsSection({
       )}
 
       {/* Progress note & blocked */}
-      {task.status === 'running' && task.progress_note && (
+      {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 rounded px-2 py-1 mt-1 font-medium">
+          {t('status.verifying')}
+        </p>
+      )}
+      {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
         <p className="text-xs text-chart-4 bg-chart-4/5 rounded px-2 py-1 mt-1 font-medium">{task.progress_note}</p>
       )}
       {task.blocked_reason && (

@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS = "no_reference_configs"
 MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS = "no_reference_llms"
+MOA_OVERLAY_SKIP_BUDGET_PRESSURE = "budget_pressure"
 
 
 def _cfg_float(raw: dict[str, object], key: str, default: float) -> float:

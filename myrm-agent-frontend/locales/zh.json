@@ -1630,6 +1630,7 @@
         "persistFailed": "多智能体混合偏好保存失败",
         "skippedNoReferenceConfigs": "已开启多智能体混合，但未配置参考模型。顾问叠加已跳过 — 请在智能体能力设置中添加参考模型。",
         "skippedNoReferenceLlms": "已开启多智能体混合，但参考模型无法加载（请检查 API Key 或 Provider 配置）。顾问叠加已跳过。",
+        "skippedBudgetPressure": "会话预算已告警，多智能体顾问叠加已跳过。",
         "skippedGeneric": "本条消息的多智能体顾问叠加已跳过。"
       },
       "temperature": "温度",
@@ -11055,6 +11056,7 @@
       "backlog": "待办",
       "ready": "就绪",
       "running": "执行中",
+      "verifying": "验收中",
       "blocked": "已阻塞",
       "completed": "已完成",
       "failed": "失败",

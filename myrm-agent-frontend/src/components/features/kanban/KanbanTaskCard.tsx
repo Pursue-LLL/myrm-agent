@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
-import type { KanbanTask, TaskStatus, TaskRun, TaskEvent } from '@/services/kanban';
+import {
+  hasKanbanCompletionIntent,
+  type KanbanTask,
+  type TaskRun,
+  type TaskEvent,
+  type TaskStatus,
+} from '@/services/kanban';
 import {
   listRuns,
   listEvents,
@@ -239,7 +245,12 @@ export default function KanbanTaskCard({
             </button>
           </div>
           {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
-          {task.status === 'running' && task.progress_note && (
+          {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (
+            <p className="text-[10px] mt-1 text-amber-600 dark:text-amber-400 font-medium truncate">
+              {t('status.verifying')}
+            </p>
+          )}
+          {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
             <p className="text-[10px] mt-1 text-chart-4 font-medium truncate" title={task.progress_note}>
               {task.progress_note}
             </p>

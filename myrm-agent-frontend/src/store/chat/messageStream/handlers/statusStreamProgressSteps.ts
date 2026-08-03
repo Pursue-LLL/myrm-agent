@@ -309,7 +309,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         ? 'settings.defaultModel.moaPreset.skippedNoReferenceConfigs'
         : reason === 'no_reference_llms'
           ? 'settings.defaultModel.moaPreset.skippedNoReferenceLlms'
-          : 'settings.defaultModel.moaPreset.skippedGeneric';
+          : reason === 'budget_pressure'
+            ? 'settings.defaultModel.moaPreset.skippedBudgetPressure'
+            : 'settings.defaultModel.moaPreset.skippedGeneric';
     showI18nToast(reasonKey, undefined, { type: 'warning', duration: 8000 });
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { xlsxToUniverData, univerDataToXlsx, type WorkbookSnapshot, type UniverCellData, type UniverSheetData } from '../index';
+import { xlsxToUniverData, univerDataToXlsx, type WorkbookSnapshot, type UniverCellData } from '../index';
 
 type FidelityWarnings = { hasCharts: boolean; hasMacros: boolean; hasPivotTables: boolean; hasImages: boolean };
 

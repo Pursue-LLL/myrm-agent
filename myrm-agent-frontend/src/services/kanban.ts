@@ -151,6 +151,11 @@ export async function getBoardSummary(boardId: string): Promise<BoardSummary> {
 // ==================== Task API ====================
 
 export const KANBAN_SOURCE_CHAT_METADATA_KEY = 'source_chat_id'; // SSOT: harness types.py
+export const KANBAN_COMPLETION_INTENT_KEY = 'completion_intent'; // SSOT: harness types.py
+
+export function hasKanbanCompletionIntent(metadata: Record<string, unknown> | undefined): boolean {
+  return metadata?.[KANBAN_COMPLETION_INTENT_KEY] === true;
+}
 
 export async function listTasks(
   boardId: string,

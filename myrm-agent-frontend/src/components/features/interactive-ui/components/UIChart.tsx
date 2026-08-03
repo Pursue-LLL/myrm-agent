@@ -92,46 +92,68 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
     </div>
   );
 
-  // 渲染折线图（使用百分比坐标，避免 preserveAspectRatio="none" 导致圆形变形）
+  // 渲染折线图（SVG 折线 + HTML 数据点，避免 viewBox 拉伸导致圆形变形）
   const renderLineChart = () => {
-    const chartHeight = height - 40;
+    const svgW = 1000;
+    const svgH = height - 40;
     const points = chartData.map((item, index) => {
+      const x = (index / (chartData.length - 1 || 1)) * svgW;
+      const y = (1 - item.value / maxValue) * svgH;
       const xPct = (index / (chartData.length - 1 || 1)) * 100;
       const yPct = (1 - item.value / maxValue) * 100;
-      return { xPct, yPct, ...item };
+      return { x, y, xPct, yPct, ...item };
     });
+
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
     return (
       <div className="relative" style={{ height }}>
-        <svg className="w-full" style={{ height: chartHeight }} preserveAspectRatio="none">
-          {/* 网格线 */}
-          {[0, 25, 50, 75, 100].map((pct) => (
-            <line
-              key={pct}
-              x1="0%"
-              y1={`${pct}%`}
-              x2="100%"
-              y2={`${pct}%`}
-              stroke="currentColor"
-              strokeOpacity="0.1"
-              strokeWidth="0.5"
+        <div className="relative" style={{ height: svgH }}>
+          <svg
+            viewBox={`0 0 ${svgW} ${svgH}`}
+            className="absolute inset-0 w-full h-full"
+            preserveAspectRatio="none"
+          >
+            {/* 网格线 */}
+            {[0, 25, 50, 75, 100].map((pct) => (
+              <line
+                key={pct}
+                x1="0"
+                y1={(pct / 100) * svgH}
+                x2={svgW}
+                y2={(pct / 100) * svgH}
+                stroke="currentColor"
+                strokeOpacity="0.1"
+                strokeWidth="0.5"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            {/* 折线 */}
+            <path
+              d={pathD}
+              fill="none"
+              stroke={defaultColors[0]}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          {/* 数据点使用 HTML 定位，不受 SVG viewBox 拉伸影响 */}
+          {points.map((p, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: `${p.xPct}%`,
+                top: `${p.yPct}%`,
+                width: 8,
+                height: 8,
+                backgroundColor: defaultColors[0],
+              }}
             />
           ))}
-          {/* 折线 */}
-          <polyline
-            points={points.map((p) => `${p.xPct}%,${p.yPct}%`).join(' ')}
-            fill="none"
-            stroke={defaultColors[0]}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-          {/* 数据点（使用百分比定位，r 不受拉伸影响） */}
-          {points.map((p, i) => (
-            <circle key={i} cx={`${p.xPct}%`} cy={`${p.yPct}%`} r="4" fill={defaultColors[0]} />
-          ))}
-        </svg>
+        </div>
         {/* X 轴标签 */}
         <div className="flex justify-between mt-2">
           {chartData.map((item, index) => (

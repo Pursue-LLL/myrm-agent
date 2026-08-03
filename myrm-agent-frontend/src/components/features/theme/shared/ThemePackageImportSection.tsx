@@ -103,7 +103,7 @@ const ThemePackageImportSection = ({
     try {
       const blob = await exportThemePackage(exportProfile);
       const safeName =
-        exportProfile.name.replace(/[^\w\-]+/g, '-').slice(0, 48) || 'workspace-theme';
+        exportProfile.name.replace(/[^\w-]+/g, '-').slice(0, 48) || 'workspace-theme';
       downloadThemePackageBlob(blob, `${safeName}.myrmtheme`);
       toast.success(t('packageExportSuccess'));
     } catch (error) {

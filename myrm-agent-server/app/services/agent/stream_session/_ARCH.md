@@ -24,7 +24,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `stream_busy.py` | 辅助 | `agent_busy_streaming_response`：HTTP 200 + SSE `{type:error, error_type:AgentBusyError, status_code:409}` SSOT | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |
 | `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane SSE 工厂；DR 完成回调经 `resolve_wiki_vault_path(agent_id)` 写 raw + 编译入队 | ✅ |
-| `moa_overlay_setup.py` | 辅助 | Agent-loop MoA overlay：解析 `engineParams.moa_overlay` reference 模型并构建 harness middleware；无可用 ref 时返回 None + `resolve_moa_overlay_skip_reason` 供 stream 发 `moa_overlay_skipped` SSE | ✅ |
+| `moa_overlay_setup.py` | 辅助 | Agent-loop MoA overlay：解析 `engineParams.moa_overlay` reference 模型并构建 harness middleware；无可用 ref 时返回 None + `resolve_moa_overlay_skip_reason` 供 stream 发 `moa_overlay_skipped` SSE；skip reason 含 `budget_pressure`（runtime 由 harness middleware emit） | ✅ |
 | `lanes/` | 核心 | Chat 专用 lane 流（见 [lanes/_ARCH.md](lanes/_ARCH.md)） | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |
 | `risk_gate.py` | 辅助 | 流式输入 risk 拦截 | ✅ |

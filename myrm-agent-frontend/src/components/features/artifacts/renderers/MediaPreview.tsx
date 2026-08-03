@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
-import { resolveThemeVars, buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
+import { buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { useWidgetStorage } from '@/hooks/workspace/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 import { Pencil } from 'lucide-react';
