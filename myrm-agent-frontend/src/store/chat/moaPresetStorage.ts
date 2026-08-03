@@ -4,7 +4,7 @@
  *
  * [OUTPUT]
  * readStoredMoaPresetId / writeStoredMoaPresetId / clearStoredMoaPresetId /
- * resolveHydratedMoaPresetId
+ * resolveHydratedMoaPresetId — hydrate from server DB (preferred) then localStorage
  *
  * [POS]
  * Per-chat MoA preset persistence in localStorage (survives full page refresh; skipped in incognito).
@@ -55,9 +55,13 @@ export interface HydrateMoaPresetOptions {
 export function resolveHydratedMoaPresetId(
   chatId: string | undefined,
   options: HydrateMoaPresetOptions,
+  serverPresetId?: string | null,
 ): string | null {
   if (options.actionMode !== 'agent' || options.incognitoMode) {
     return null;
+  }
+  if (serverPresetId && isValidPresetId(serverPresetId)) {
+    return serverPresetId;
   }
   return readStoredMoaPresetId(chatId);
 }

@@ -19,7 +19,7 @@
 | `clarificationState.ts` | pending clarify 选择器（倒序扫描 assistant，跳过无 pending 的较新消息）+ DB hydrate 归一化（`answered`/`isResumeMode`） |
 | `chatNavigationSnapshotCache.ts` | 侧边栏 LRU snapshot（20 条，跳过 incognito）；含 agentConfig/actionMode/selectedModels/contextBranches/contextPinnedFiles 及 load error 态；`resolvePaneSnapshotBase` 与 LRU 共用 session 字段 |
 | `chatSessionConfig.ts` | Session 字段 SSOT（`activeMoaPresetId` 等）；LRU / pane / background SmartUpdater 三处复用 |
-| `moaPresetStorage.ts` | per-chat `activeMoaPresetId` localStorage + `resolveHydratedMoaPresetId`（F5 恢复；incognito 不读写） |
+| `moaPresetStorage.ts` | per-chat `activeMoaPresetId` localStorage + `resolveHydratedMoaPresetId`（DB 优先 hydrate；incognito 不读写） |
 | `useChatStore.ts`（根 store） | `refreshCompactionState`：压缩 SSE 后并行 refresh summary/branches/pins（`Promise.allSettled`，detail 失败不阻断 metadata） |
 | `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
 | `__tests__/` | 请求组装、SSE schema、stream consumer 异常恢复与 handler reducer 回归测试 |

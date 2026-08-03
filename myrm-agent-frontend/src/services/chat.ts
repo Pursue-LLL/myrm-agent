@@ -130,6 +130,7 @@ export const getChatDetail = async (
     id: string;
     title: string | null;
     actionMode: string;
+    activeMoaPresetId?: string | null;
     agent_id: string | null;
     is_incognito: boolean;
     compacted_summary: string | null;
@@ -161,6 +162,17 @@ export const updateSessionSkills = async (
   return apiRequest(`/chats/${chatId}/session-skills`, {
     method: 'PATCH',
     body: JSON.stringify({ skill_names: skillNames }),
+  });
+};
+
+/** Persist session MoA preset for a chat (null clears). Skipped for incognito on server. */
+export const updateChatActiveMoaPreset = async (
+  chatId: string,
+  presetId: string | null,
+): Promise<{ active_moa_preset_id: string | null }> => {
+  return apiRequest(`/chats/${chatId}/active-moa-preset`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active_moa_preset_id: presetId }),
   });
 };
 

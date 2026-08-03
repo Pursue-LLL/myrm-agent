@@ -365,7 +365,11 @@ const useChatStore = create<ChatState>()(
       clearPendingGapRetry: () => set({ pendingGapRetry: null }),
       setAgentConfig: (config) => {
         if (!config) {
-          clearStoredMoaPresetId(get().chatId);
+          const chatId = get().chatId;
+          clearStoredMoaPresetId(chatId);
+          if (chatId && !get().incognitoMode) {
+            void updateChatActiveMoaPreset(chatId, null).catch(() => {});
+          }
           set({ agentConfig: null, activeMoaPresetId: null });
           return;
         }
@@ -377,7 +381,11 @@ const useChatStore = create<ChatState>()(
           localStorage.setItem('currentBuiltinTools', JSON.stringify(builtinTools));
         }
         if (agentChanged) {
-          clearStoredMoaPresetId(get().chatId);
+          const chatId = get().chatId;
+          clearStoredMoaPresetId(chatId);
+          if (chatId && !get().incognitoMode) {
+            void updateChatActiveMoaPreset(chatId, null).catch(() => {});
+          }
         }
         set({
           agentConfig: {

@@ -55,6 +55,10 @@ async def persist_user_message_and_load_history(
                 ephemeral_subagents=request.ephemeral_subagents,
                 extra_data=extra_data_val,
                 is_incognito=request.incognito_mode,
+                active_moa_preset_id=request.active_moa_preset_id,
+                persist_moa_preset=(
+                    request.action_mode == "agent" and not request.incognito_mode
+                ),
             )
             chat_history = await ChatService.load_web_chat_history(
                 request.chat_id,

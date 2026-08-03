@@ -51,4 +51,26 @@ describe('moaPresetStorage', () => {
       resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false }),
     ).toBeNull();
   });
+
+  it('prefers server preset over localStorage when both exist', () => {
+    writeStoredMoaPresetId(CHAT_ID, 'fast');
+    expect(
+      resolveHydratedMoaPresetId(
+        CHAT_ID,
+        { actionMode: 'agent', incognitoMode: false },
+        'review',
+      ),
+    ).toBe('review');
+  });
+
+  it('keeps localStorage preset when leaving agent mode (caller clears memory only)', () => {
+    writeStoredMoaPresetId(CHAT_ID, 'default');
+    expect(
+      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false }),
+    ).toBeNull();
+    expect(readStoredMoaPresetId(CHAT_ID)).toBe('default');
+    expect(
+      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false }),
+    ).toBe('default');
+  });
 });

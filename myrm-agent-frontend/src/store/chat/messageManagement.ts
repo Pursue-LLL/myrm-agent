@@ -34,7 +34,7 @@ import {
   getChatNavigationSnapshot,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
-import { resolveHydratedMoaPresetId } from '@/store/chat/moaPresetStorage';
+import { resolveHydratedMoaPresetId, writeStoredMoaPresetId } from '@/store/chat/moaPresetStorage';
 import { mergeChatSessionConfig } from '@/store/chat/chatSessionConfig';
 import { useProjectStore } from '@/store/useProjectStore';
 import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
@@ -117,10 +117,17 @@ export const loadMessages = async (
         if (!preserveInstantSessionConfig) {
           state.actionMode = normalizeActionMode(chatData.chat.actionMode);
         }
-        state.activeMoaPresetId = resolveHydratedMoaPresetId(chatId, {
-          actionMode: state.actionMode,
-          incognitoMode: isIncognito,
-        });
+        state.activeMoaPresetId = resolveHydratedMoaPresetId(
+          chatId,
+          {
+            actionMode: state.actionMode,
+            incognitoMode: isIncognito,
+          },
+          chatData.chat.activeMoaPresetId ?? null,
+        );
+        if (!isIncognito && state.activeMoaPresetId) {
+          writeStoredMoaPresetId(chatId, state.activeMoaPresetId);
+        }
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
         state.lastCompactionMeta = null;

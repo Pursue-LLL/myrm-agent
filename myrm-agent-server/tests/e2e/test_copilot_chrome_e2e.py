@@ -187,13 +187,14 @@ def _seed_copilot_fixture(api_url: str) -> dict[str, str]:
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_copilot_desktop_run_chip_advisor_tier0_and_quote_ask() -> None:
-    """Desktop: digest chip → expand steps → Tier-0 advisor → loading quote side-ask."""
+def test_copilot_desktop_and_mobile_full_flows() -> None:
+    """Single SHPOIB bootstrap: desktop chip/advisor/quote + mobile view-full."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
     seeded = _seed_copilot_fixture(api_url)
     chat_id = seeded["chat_id"]
+    mobile_path = seeded["mobile_path"]
 
     warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=90_000) as (client, page):
@@ -237,29 +238,13 @@ def test_copilot_desktop_run_chip_advisor_tier0_and_quote_ask() -> None:
         )
         assert selection_msg.get("ready") is True, selection_msg
 
-
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-)
-@pytest.mark.integration
-@pytest.mark.timeout(600)
-def test_copilot_mobile_view_full_navigates_to_chat() -> None:
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    seeded = _seed_copilot_fixture(api_url)
-    chat_id = seeded["chat_id"]
-    mobile_path = seeded["mobile_path"]
-
     warm_ui_route(mobile_path)
     with open_mcp_page(f"{ui_url}{mobile_path}", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=10.0)
         client.evaluate(page, _MOBILE_VIEWPORT_JS, timeout_sec=5.0)
-        set_loading = client.evaluate(page, _SET_MOBILE_LOADING_JS, timeout_sec=10.0)
-        assert isinstance(set_loading, dict) and set_loading.get("ok") is True, set_loading
+        set_mobile = client.evaluate(page, _SET_MOBILE_LOADING_JS, timeout_sec=10.0)
+        assert isinstance(set_mobile, dict) and set_mobile.get("ok") is True, set_mobile
         ready = wait_for_state(client, page, _MOBILE_VIEW_FULL_READY_JS, timeout_sec=60.0)
         assert ready.get("ready") is True, ready
         clicked = client.evaluate(page, _CLICK_MOBILE_VIEW_FULL_JS, timeout_sec=10.0)

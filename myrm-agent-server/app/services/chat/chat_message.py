@@ -103,6 +103,8 @@ class _ChatMessageMixin(_ChatServiceBase):
         ephemeral_subagents: dict[str, object] | None = None,
         extra_data: dict[str, object] | None = None,
         is_incognito: bool = False,
+        active_moa_preset_id: str | None = None,
+        persist_moa_preset: bool = False,
     ) -> MessageDTO:
         try:
             from app.core.eval.service import mark_chat_activity
@@ -118,6 +120,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                     id=chat_id,
                     agent_id=agent_id,
                     action_mode=action_mode,
+                    active_moa_preset_id=active_moa_preset_id if persist_moa_preset else None,
                     ephemeral_subagents=ephemeral_subagents,
                     is_incognito=is_incognito,
                     created_at=datetime.utcnow(),
@@ -136,6 +139,9 @@ class _ChatMessageMixin(_ChatServiceBase):
                     field_updates["ephemeral_subagents"] = ephemeral_subagents
                 if agent_id and chat.agent_id != agent_id:
                     field_updates["agent_id"] = agent_id
+                if persist_moa_preset and not is_incognito:
+                    field_updates["action_mode"] = action_mode
+                    field_updates["active_moa_preset_id"] = active_moa_preset_id
                 if field_updates:
                     await _ChatServiceBase._cr(uow).update_chat_fields(
                         chat_id, field_updates

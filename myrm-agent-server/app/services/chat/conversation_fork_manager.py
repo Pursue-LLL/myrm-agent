@@ -193,6 +193,7 @@ class ConversationForkManager:
             channel_session_key=None,  # Fork creates independent conversation
             session_loaded_skill_names=parent_chat.session_loaded_skill_names,
             action_mode=parent_chat.action_mode,
+            active_moa_preset_id=parent_chat.active_moa_preset_id,
             workspace_dir=fork_workspace_dir,
             sandbox_base_dir=None,
             project_id=parent_chat.project_id,

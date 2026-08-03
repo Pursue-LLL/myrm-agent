@@ -192,14 +192,51 @@ def _verify_api_seed(monorepo_root: Path) -> None:
     )
 
 
+def _build_signoff_stack_core_health_payload():
+    import os
+    from pathlib import Path
+
+    from runtime_identity import build_health_json
+    from runtime_probe import probe_runtime_context
+
+    ctx = probe_runtime_context()
+    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
+    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
+    frontend_dir = (
+        Path(str(ctx["frontend_dir"]))
+        if ctx.get("frontend_dir")
+        else None
+    )
+    profile_dir = (
+        Path(str(ctx["profile_dir"])) if ctx.get("profile_dir") else None
+    )
+    cdp_port_raw = ctx.get("cdp_port")
+    cdp_port = int(cdp_port_raw) if isinstance(cdp_port_raw, int) and cdp_port_raw > 0 else None
+    return build_health_json(
+        ui_base=ui_base,
+        api_base=api_base,
+        mux_daemon_count=int(ctx["mux_daemon_count"]),
+        upstream_ready=bool(ctx["upstream_ready"]),
+        ws_stamp_matches=bool(ctx["ws_stamp_matches"]),
+        shell_hot=False,
+        client_hot=False,
+        attach_mode=False,
+        auto_hot=True,
+        upstream_generation=int(ctx.get("upstream_generation") or 0),
+        frontend_dir=frontend_dir,
+        cdp_port=cdp_port,
+        profile_dir=profile_dir,
+    )
+
+
 def _try_signoff_stack_core_fast_path(monorepo_root: Path) -> bool:
     """Skip myrm ready when stack core + API liveness OK and solo clear (P0-SAO-8)."""
-    from runtime_identity import build_health_json, stack_core_health_errors
+    from runtime_identity import stack_core_health_errors
 
     snap = read_solo_snapshot()
     if not solo_cluster_clear(snap):
         return False
-    core_errors = stack_core_health_errors(build_health_json())
+    core_errors = stack_core_health_errors(_build_signoff_stack_core_health_payload())
     if core_errors:
         return False
     _emit(

@@ -259,6 +259,7 @@ class ChatDetail(BaseModel):
     id: str = Field(..., description="聊天会话ID")
     title: str | None = Field(None, description="聊天标题")
     actionMode: str = Field(..., description="聊天模式")
+    activeMoaPresetId: str | None = Field(None, description="会话 MoA preset（agent 模式 opt-in）")
     agent_id: str | None = Field(None, description="绑定的智能体ID")
     is_incognito: bool = Field(False, description="是否为无痕模式")
     compacted_summary: str | None = Field(None, description="上下文压缩结构化摘要")

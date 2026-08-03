@@ -422,6 +422,41 @@ class UpdateSessionSkillsRequest(BaseModel):
     skill_names: list[str] | None = Field(None, description="Skill name subset (null to clear override)")
 
 
+class UpdateActiveMoaPresetRequest(BaseModel):
+    """Set or clear session-level MoA preset selection."""
+
+    active_moa_preset_id: str | None = Field(
+        None, description="MoA preset id (default/review/fast) or null to deactivate"
+    )
+
+
+@router.patch("/{chat_id}/active-moa-preset", response_model=StandardSuccessResponse)
+async def update_active_moa_preset(
+    chat_id: str,
+    body: UpdateActiveMoaPresetRequest,
+) -> JSONResponse:
+    """Set or clear the session-level MoA preset for a chat."""
+    from app.services.agent.moa_preset_resolver import VALID_MOA_PRESET_IDS
+
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+        if chat.is_incognito:
+            raise validation_error("Incognito chats do not persist MoA preset")
+
+        preset_id = body.active_moa_preset_id
+        if preset_id is not None and preset_id not in VALID_MOA_PRESET_IDS:
+            raise validation_error(f"Invalid MoA preset id: {preset_id}")
+
+        await ChatService.update_chat_fields(chat_id, {"active_moa_preset_id": preset_id})
+        return success_response(data={"active_moa_preset_id": preset_id})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update active MoA preset", exception=e) from e
+
+
 @router.patch("/{chat_id}/session-skills", response_model=StandardSuccessResponse)
 async def update_session_skills(
     chat_id: str,
