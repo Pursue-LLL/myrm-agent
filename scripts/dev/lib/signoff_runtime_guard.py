@@ -26,6 +26,7 @@ FORBIDDEN_CMD_SUBSTRINGS: tuple[str, ...] = (
     "p0a-gate-final-run",
     "p0a-gate-manual-run",
     "p0a-gate-wait",
+    "P0E_DEAD",
     "e2e-m3-signoff-goal-run",
     "TRIGGER gate",
     "wait_launch()",
