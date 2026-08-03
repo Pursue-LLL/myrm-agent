@@ -11,6 +11,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,6 +28,9 @@ from dev_gate_store import DevGateStore, default_store_path
 _START_TIMEOUT_SEC = 8.0
 _PING_WAIT_SEC = 10.0
 _SUBMIT_REQUEST_TIMEOUT_SEC = 120.0
+
+_IN_PROCESS_SERVICE: CoordinatorService | None = None
+_IN_PROCESS_SERVICE_LOCK = threading.Lock()
 
 _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "dev_gate_coordinator.py",
@@ -348,13 +352,50 @@ def ensure_coordinator(
     )
 
 
+def _in_process_service() -> CoordinatorService:
+    global _IN_PROCESS_SERVICE
+    with _IN_PROCESS_SERVICE_LOCK:
+        if _IN_PROCESS_SERVICE is None:
+            _IN_PROCESS_SERVICE = CoordinatorService(DevGateStore(default_store_path()))
+        return _IN_PROCESS_SERVICE
+
+
+def _socket_live(socket_path: Path | None) -> bool:
+    return socket_path is not None and _ping(socket_path)
+
+
+def _request_via_socket_with_retries(
+    payload: dict[str, object],
+    *,
+    socket_path: Path,
+    timeout_sec: float,
+    attempts: int = 5,
+) -> dict[str, object]:
+    """Retry socket RPC while coordinator is live — never compete via in-process SQLite."""
+    target = socket_path
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            return request(payload, socket_path=target, timeout_sec=timeout_sec)
+        except (RuntimeError, TimeoutError, ConnectionError, OSError) as exc:
+            last_exc = exc
+            if attempt + 1 >= attempts:
+                break
+            time.sleep(min(0.12 * float(attempt + 1), 1.5))
+            refreshed = ensure_coordinator()
+            if refreshed is None or not _socket_live(refreshed):
+                break
+            target = refreshed
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("DEV_GATE_SOCKET_RETRY_EXHAUSTED")
+
+
 def _handle_in_process(payload: dict[str, object]) -> dict[str, object]:
     last_exc: sqlite3.OperationalError | None = None
     for attempt in range(8):
         try:
-            return CoordinatorService(DevGateStore(default_store_path())).handle(
-                payload
-            )
+            return _in_process_service().handle(payload)
         except sqlite3.OperationalError as exc:
             if "locked" not in str(exc).lower() or attempt >= 7:
                 raise
@@ -381,6 +422,9 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         "finish",
         "cleanup",
         "teardown_finish",
+        "ownership",
+        "snapshot",
+        "transition",
     }:
         timeout_sec = 30.0
     if isinstance(operation, str) and operation in {"cleanup", "teardown_finish"}:
@@ -392,7 +436,9 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         else:
             timeout_sec = 35.0
     try:
-        return request(payload, socket_path=socket_path, timeout_sec=timeout_sec)
+        return _request_via_socket_with_retries(
+            payload, socket_path=socket_path, timeout_sec=timeout_sec
+        )
     except FileNotFoundError:
         last_missing: FileNotFoundError | None = None
         for attempt in range(8):
@@ -400,21 +446,50 @@ def send(payload: dict[str, object]) -> dict[str, object]:
             if socket_path is None:
                 return _handle_in_process(payload)
             try:
-                return request(
+                return _request_via_socket_with_retries(
                     payload, socket_path=socket_path, timeout_sec=timeout_sec
                 )
             except FileNotFoundError as exc:
                 last_missing = exc
                 time.sleep(min(0.15 * float(attempt + 1), 2.0))
         if last_missing is not None:
-            return _handle_in_process(payload)
+            if ensure_coordinator() is None:
+                return _handle_in_process(payload)
+            raise last_missing
         raise RuntimeError("DEV_GATE_SOCKET_RETRY_EXHAUSTED")
     except RuntimeError as exc:
         message = str(exc)
-        if "DEV_GATE_COORDINATOR_ERROR" in message and "Expecting value" in message:
-            return _handle_in_process(payload)
-        if "timeout" in message.lower() or "timed out" in message.lower():
-            return _handle_in_process(payload)
+        decode_or_empty = "DEV_GATE_COORDINATOR_ERROR" in message and (
+            "Expecting value" in message or "empty coordinator response" in message
+        )
+        if decode_or_empty or "timeout" in message.lower() or "timed out" in message.lower():
+            database_target = default_store_path().resolve()
+            socket_target = normalized_socket_path(default_socket_path())
+            pid_path = _coordinator_pid_path(database_target)
+            for attempt in range(5):
+                _reconcile_coordinator_singleton(
+                    socket_target=socket_target,
+                    database_target=database_target,
+                    pid_path=pid_path,
+                )
+                socket_path = ensure_coordinator()
+                if socket_path is None:
+                    return _handle_in_process(payload)
+                if not _socket_live(socket_path):
+                    return _handle_in_process(payload)
+                try:
+                    extended = timeout_sec * (1.0 + 0.25 * float(attempt))
+                    return _request_via_socket_with_retries(
+                        payload,
+                        socket_path=socket_path,
+                        timeout_sec=extended,
+                        attempts=3,
+                    )
+                except (RuntimeError, TimeoutError, ConnectionError, OSError):
+                    if attempt + 1 >= 5:
+                        raise
+                    time.sleep(min(0.15 * float(attempt + 1), 1.0))
+            raise
         raise
 
 

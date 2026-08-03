@@ -959,13 +959,45 @@ class ChromeMcpClient:
             except (OSError, RuntimeError, ValueError) as exc:
                 message = str(exc).lower()
                 retryable = (
-                    "version mismatch" in message or "version conflict" in message
+                    "version mismatch" in message
+                    or "version conflict" in message
+                    or "empty coordinator response" in message
+                    or "dev_gate_coordinator_error" in message
+                    or "timeout" in message
+                    or "timed out" in message
+                    or "locked" in message
                 )
                 if retryable and attempt + 1 < max_attempts:
-                    time.sleep(0.04 * float(attempt + 1))
+                    time.sleep(0.06 * float(attempt + 1))
                     continue
-                _LOGGER.warning("DEV_GATE_ATOMIC_REGISTER_FAILED: %s", exc)
-                return False
+                try:
+                    from dev_gate_cli import send as _dev_gate_send
+
+                    _dev_gate_send(
+                        {
+                            "operation": "ownership",
+                            "session_id": session_id,
+                            "owner_token": owner_token,
+                            "ownership": {
+                                "browser_context_id": self._browser_context_id,
+                                "page_ids": [
+                                    str(pid) for pid in sorted(self._pages)
+                                ],
+                                "lease_id": self._parent_lease_id,
+                                "runtime_id": os.environ.get(
+                                    "MYRM_E2E_RUNTIME_ID", ""
+                                ).strip(),
+                            },
+                        }
+                    )
+                    return True
+                except (OSError, RuntimeError, ValueError) as fallback_exc:
+                    _LOGGER.warning(
+                        "DEV_GATE_ATOMIC_REGISTER_FAILED: %s; fallback=%s",
+                        exc,
+                        fallback_exc,
+                    )
+                    return False
         return False
 
     def _resolve_page(self, page: McpPage) -> McpPage:
