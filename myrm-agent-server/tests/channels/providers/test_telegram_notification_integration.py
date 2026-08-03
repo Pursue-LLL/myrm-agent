@@ -71,7 +71,8 @@ async def test_send_media_attachment_passes_disable_notification() -> None:
     attachment = MediaAttachment(media_type=MediaType.IMAGE, path=__file__)
 
     with patch(
-        "app.channels.providers.telegram.helpers.Path.read_bytes",
+        "app.channels.providers.telegram.helpers.asyncio.to_thread",
+        new_callable=AsyncMock,
         return_value=b"fake-image",
     ):
         await send_media_attachment(
@@ -91,15 +92,20 @@ async def test_send_media_on_outbound_uses_notify_policy() -> None:
     ch._client.send_photo = AsyncMock(return_value={"message_id": 3})
     ch._client.send_message = AsyncMock(return_value={"message_id": 4})
 
-    await ch.send(
-        OutboundMessage(
-            channel="telegram",
-            recipient_id="42",
-            content="caption text",
-            user_id="u1",
-            media=(MediaAttachment(media_type=MediaType.IMAGE, path=__file__),),
+    with patch(
+        "app.channels.providers.telegram.helpers.asyncio.to_thread",
+        new_callable=AsyncMock,
+        return_value=b"fake-image",
+    ):
+        await ch.send(
+            OutboundMessage(
+                channel="telegram",
+                recipient_id="42",
+                content="caption text",
+                user_id="u1",
+                media=(MediaAttachment(media_type=MediaType.IMAGE, path=__file__),),
+            )
         )
-    )
 
     assert ch._client.send_photo.await_args.kwargs.get("disable_notification") is True
     assert ch._client.send_message.await_args.kwargs.get("disable_notification") is True

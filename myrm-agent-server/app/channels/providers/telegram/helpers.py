@@ -113,7 +113,12 @@ async def send_media_attachment(
     from .exceptions import AudioFileTooLargeError, VoiceMessageTooLargeError
 
     reply_to = int(reply_to_id) if reply_to_id else None
-    source = attachment.url or (attachment.path and Path(attachment.path).read_bytes())
+    if attachment.url:
+        source: str | bytes = attachment.url
+    elif attachment.path:
+        source = await asyncio.to_thread(Path(attachment.path).read_bytes)
+    else:
+        source = None  # type: ignore[assignment]
     if not source:
         logger.warning("TelegramChannel: skipping media with no url or path")
         return
