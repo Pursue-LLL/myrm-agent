@@ -201,6 +201,38 @@ def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
         _emit(f"GATE_EPOCH_PREFLIGHT_WARN: ready --chrome subprocess rc={rc}")
 
 
+def _poll_solo_stray_leases_after_ready(
+    *,
+    poll_sec: float = 2.0,
+    wall_sec: float = 30.0,
+) -> SoloSnapshot:
+    """Poll transient wave leases left by solo ready --chrome before deferring."""
+    snap = read_solo_snapshot()
+    if snap.peers > 0 or snap.mux_peers > 1 or snap.active_leases == 0:
+        return snap
+    _emit(
+        "GATE_EPOCH_PREFLIGHT: solo stray leases after ready "
+        f"active_leases={snap.active_leases} — poll idle (no peer kill)"
+    )
+    try:
+        from e2e_stale_lease_reap import maybe_reap_stale_heartbeat_leases
+
+        maybe_reap_stale_heartbeat_leases()
+    except ImportError:
+        pass
+    deadline = time.monotonic() + wall_sec
+    while time.monotonic() < deadline:
+        snap = read_solo_snapshot()
+        if solo_cluster_clear(snap):
+            _emit(
+                "GATE_EPOCH_PREFLIGHT: solo stray leases cleared "
+                f"active_leases={snap.active_leases}"
+            )
+            return snap
+        time.sleep(poll_sec)
+    return read_solo_snapshot()
+
+
 def epoch_preflight_loop(
     monorepo_root: Path,
     *,
@@ -231,7 +263,21 @@ def epoch_preflight_loop(
             )
 
         _ready_chrome_under_flock(monorepo_root, wall_sec=180)
-        snap = read_solo_snapshot()
+        snap = _poll_solo_stray_leases_after_ready()
+
+        if not solo_cluster_clear(snap):
+            _emit(
+                "GATE_EPOCH_PREFLIGHT: cluster busy after ready "
+                f"peers={snap.peers} active_leases={snap.active_leases} "
+                f"mux_peers={snap.mux_peers} — defer (no attach budget burn)"
+            )
+            return PreflightResult(
+                outcome=PreflightOutcome.DEFER,
+                reason="solo_cluster_busy_after_ready",
+                attempts=attempt,
+                snapshot=snap,
+                tokens=("GATE_EPOCH_PREFLIGHT_DEFER",),
+            )
 
         if epoch_ready(snap):
             _emit(
@@ -279,6 +325,19 @@ def epoch_preflight_loop(
         time.sleep(poll_sec)
 
     snap = read_solo_snapshot()
+    if not solo_cluster_clear(snap):
+        _emit(
+            "GATE_EPOCH_PREFLIGHT: cluster busy at wall "
+            f"peers={snap.peers} active_leases={snap.active_leases} "
+            f"mux_peers={snap.mux_peers} — defer (no attach budget burn)"
+        )
+        return PreflightResult(
+            outcome=PreflightOutcome.DEFER,
+            reason="solo_cluster_busy_at_wall",
+            attempts=attempt,
+            snapshot=snap,
+            tokens=("GATE_EPOCH_PREFLIGHT_DEFER",),
+        )
     _emit(f"GATE_EPOCH_PREFLIGHT_FAIL: epoch_match!=yes after {int(wall_sec)}s")
     return PreflightResult(
         outcome=PreflightOutcome.FAIL,
