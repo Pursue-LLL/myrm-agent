@@ -197,7 +197,8 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
     mobile_path = seeded["mobile_path"]
 
     warm_ui_route(f"/{chat_id}")
-    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=90_000) as (client, page):
+    warm_ui_route(mobile_path)
+    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=10.0)
         ensure_desktop_viewport(client, page)
@@ -238,8 +239,7 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         )
         assert selection_msg.get("ready") is True, selection_msg
 
-    warm_ui_route(mobile_path)
-    with open_mcp_page(f"{ui_url}{mobile_path}", timeout_ms=90_000) as (client, page):
+        client.navigate(page, f"{ui_url}{mobile_path}", timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=10.0)
         client.evaluate(page, _MOBILE_VIEWPORT_JS, timeout_sec=5.0)

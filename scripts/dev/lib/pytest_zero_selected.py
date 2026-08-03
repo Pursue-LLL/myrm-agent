@@ -10,6 +10,8 @@ _DESELECTED_ALL_RE = re.compile(
     r"collected \d+ item(?:s)? / \d+ deselected / 0 selected",
     re.MULTILINE,
 )
+_COLLECTED_ITEMS_RE = re.compile(r"collected (\d+) item(?:s)?", re.MULTILINE)
+_SKIPPED_SUMMARY_RE = re.compile(r"=+ (\d+) skipped in", re.MULTILINE)
 
 
 def chrome_e2e_session_active() -> bool:
@@ -30,9 +32,22 @@ def pytest_output_zero_selected(output: str) -> bool:
     return False
 
 
+def pytest_output_all_skipped(output: str) -> bool:
+    """True when every collected chrome_e2e item was skipped (silent false-green)."""
+    collected = _COLLECTED_ITEMS_RE.search(output)
+    skipped = _SKIPPED_SUMMARY_RE.search(output)
+    if collected is None or skipped is None:
+        return False
+    collected_count = int(collected.group(1))
+    skipped_count = int(skipped.group(1))
+    return collected_count > 0 and skipped_count >= collected_count
+
+
 def zero_selected_exit_code(*, output: str, proc_exit_code: int) -> int:
     if not chrome_e2e_session_active():
         return proc_exit_code
+    if pytest_output_all_skipped(output):
+        return 5 if proc_exit_code == 0 else proc_exit_code
     if not pytest_output_zero_selected(output):
         return proc_exit_code
     return 5 if proc_exit_code == 0 else proc_exit_code
