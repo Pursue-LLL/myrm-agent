@@ -65,28 +65,38 @@ def _state_dir() -> Path:
     return Path.home() / ".local/state/myrm-dev"
 
 
-def _db_path() -> Path:
-    return _state_dir() / "signoff-admission.sqlite"
-
-
-def _legacy_master_lock_dir() -> Path:
-    return _state_dir() / "chrome-e2e-signoff.master.lockdir"
-
-
-def _legacy_master_lock_owner() -> tuple[str | None, int | None]:
-    lock_dir = _legacy_master_lock_dir()
+def _reap_stale_legacy_master_lock() -> None:
+    """Remove orphaned pre-SAO master lockdir (P0-SAO-4); does not affect SAO episodes."""
+    lock_dir = _state_dir() / "chrome-e2e-signoff.master.lockdir"
+    if not lock_dir.is_dir():
+        return
     pid_file = lock_dir / "pid"
     if not pid_file.is_file():
-        return None, None
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
+        return
     raw = pid_file.read_text(encoding="utf-8").strip()
     if not raw.isdigit():
-        return None, None
-    pid = int(raw)
+        pid_file.unlink(missing_ok=True)
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
+        return
     try:
-        os.kill(pid, 0)
+        os.kill(int(raw), 0)
     except OSError:
-        return None, None
-    return "legacy-master-lock", pid
+        pid_file.unlink(missing_ok=True)
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
+
+
+def _db_path() -> Path:
+    return _state_dir() / "signoff-admission.sqlite"
 
 
 def _connect() -> sqlite3.Connection:
@@ -186,15 +196,7 @@ def _running_episode(conn: sqlite3.Connection) -> RunningEpisode | None:
             label=str(row["label"]),
             owner_pid=int(row["owner_pid"]),
         )
-    legacy_label, legacy_pid = _legacy_master_lock_owner()
-    if legacy_label is None or legacy_pid is None:
-        return None
-    return RunningEpisode(
-        episode_id=f"legacy-{legacy_pid}",
-        episode_kind="legacy-master-lock",
-        label=legacy_label,
-        owner_pid=legacy_pid,
-    )
+    return None
 
 
 def _default_retry_after_sec(*, solo_clear: bool, has_holder: bool) -> int:
@@ -232,9 +234,8 @@ def build_signoff_admission_snapshot() -> SignoffAdmissionDict:
             if pending is not None:
                 queue_depth = int(pending["c"])
     except sqlite3.Error:
-        legacy_label, legacy_pid = _legacy_master_lock_owner()
-        holder = legacy_label
-        holder_pid = legacy_pid
+        holder = None
+        holder_pid = None
 
     if holder is not None:
         state = "RUNNING"
@@ -268,6 +269,7 @@ def build_signoff_admission_snapshot() -> SignoffAdmissionDict:
 
 def admit_or_defer(*, episode_kind: str, label: str) -> AdmitOrDeferResult:
     owner_pid = os.getpid()
+    _reap_stale_legacy_master_lock()
     solo_clear, solo_reason = solo_cluster_clear_for_signoff()
 
     with _connect() as conn:
