@@ -219,16 +219,26 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             if node_stuck is not None:
                 return node_stuck
         if phase == "bootstrap":
-            if signoff:
+            snapshot_cap = snapshot.get("phaseCapSec")
+            if isinstance(snapshot_cap, (int, float)) and float(snapshot_cap) > 0:
+                bootstrap_cap = float(snapshot_cap)
+            elif signoff:
                 from dev_gate_contract import (
                     signoff_effective_bootstrap_wall_sec,
                 )  # noqa: PLC0415
 
                 bootstrap_cap = signoff_effective_bootstrap_wall_sec()
             else:
-                from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
+                from dev_gate_contract import (
+                    dev_bootstrap_wall_cap_for_hung_reap,
+                )  # noqa: PLC0415
 
-                bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
+                lane = str(snapshot.get("lane") or "").strip().upper()
+                shpoib = snapshot.get("shpoib") is True
+                bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
+                    lane=lane,
+                    shpoib=shpoib,
+                )
             bootstrap_elapsed = phase_elapsed_from_snapshot(snapshot)
             elapsed_for_cap = (
                 bootstrap_elapsed if bootstrap_elapsed is not None else row.elapsed_sec
@@ -794,12 +804,51 @@ def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
 _EPOCH_DRIFT_REAPER_BUDGET_SEC = 180.0
 
 
+def _epoch_drift_reaper_budget_sec(row: LiveE2ESessionRow) -> float:
+    """Phase-aware epoch-drift reap cap — must match ADMIT/BOOTSTRAP lifecycle SSOT.
+
+    tools_panel log-7 @ ~240s: ADMIT_STACK_HEAL_WAIT + stack heal exceeded the legacy
+    180s process_elapsed cap while epoch_match=no; SIGTERM during shared UI recover.
+    """
+    phase = str(row.wall_phase or row.phase or "").strip().lower()
+    from dev_gate_contract import (  # noqa: PLC0415
+        admit_wall_clock_sec,
+        dev_bootstrap_wall_cap_for_hung_reap,
+    )
+
+    if phase == "admit":
+        return float(admit_wall_clock_sec())
+    if phase == "bootstrap":
+        lane = str(row.lane or "LIVE_AGENT").strip().upper() or "LIVE_AGENT"
+        return dev_bootstrap_wall_cap_for_hung_reap(lane=lane, shpoib=bool(row.shpoib))
+    return _EPOCH_DRIFT_REAPER_BUDGET_SEC
+
+
+def _epoch_drift_elapsed_sec(row: LiveE2ESessionRow) -> float:
+    phase = str(row.wall_phase or row.phase or "").strip().lower()
+    if phase == "admit" and row.admit_elapsed_sec is not None:
+        return float(row.admit_elapsed_sec)
+    if phase == "bootstrap":
+        from e2e_session_snapshot import (  # noqa: PLC0415
+            phase_elapsed_from_snapshot,
+            resolve_session_snapshot,
+        )
+
+        snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
+        if snapshot is not None:
+            phase_elapsed = phase_elapsed_from_snapshot(snapshot)
+            if phase_elapsed is not None:
+                return float(phase_elapsed)
+    return float(row.elapsed_sec)
+
+
 def maybe_reap_epoch_drift_stale_sessions() -> bool:
-    """Layer-3 safety net: reap sessions stuck in BOOTSTRAP with epoch_match=no >180s.
+    """Layer-3 safety net: reap sessions stuck in ADMIT/BOOTSTRAP with epoch_match=no.
 
     When epoch drift persists and Layers 1+2 haven't fully released all leases
     (e.g. tests started before the guard was deployed), this coordinator-level
     reaper forcibly releases their leases to allow system restart.
+    Budget follows admit_wall_clock_sec / dev_bootstrap_wall_cap_for_hung_reap (P0-E).
     """
     if not _coordinator_reap_authorized():
         return False
@@ -820,11 +869,13 @@ def maybe_reap_epoch_drift_stale_sessions() -> bool:
         # R279: M3 signoff legs queue through drift — do not coordinator-reap at 180s.
         if _process_has_signoff_env(row.pid):
             continue
-        if row.elapsed_sec < _EPOCH_DRIFT_REAPER_BUDGET_SEC:
+        budget_sec = _epoch_drift_reaper_budget_sec(row)
+        elapsed_sec = _epoch_drift_elapsed_sec(row)
+        if elapsed_sec < budget_sec:
             continue
         print(
             f"E2E_EPOCH_DRIFT_REAP: pid={row.pid} test={row.test_id} "
-            f"phase={row.phase} elapsed={row.elapsed_sec:.0f}s "
+            f"phase={row.phase} elapsed={elapsed_sec:.0f}s cap={budget_sec:.0f}s "
             f"(epoch_match=no, blocked={ctx.blocked_reason!r}) "
             "(releasing lease to allow system restart)",
             file=sys.stderr,

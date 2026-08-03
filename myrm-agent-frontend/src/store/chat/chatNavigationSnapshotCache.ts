@@ -9,6 +9,11 @@
  * In-memory bounded cache for instant chat re-entry when leaving a session via sidebar navigation.
  */
 import type { ChatState } from '@/store/chat/types';
+import {
+  createEmptyPaneMessageSnapshot,
+  extractChatSessionConfig,
+  mergeChatSessionConfig,
+} from '@/store/chat/chatSessionConfig';
 
 const MAX_ENTRIES = 20;
 
@@ -33,14 +38,30 @@ export function extractNavigationSnapshot(state: ChatState): Partial<ChatState> 
     loadError: state.loadError,
     hideAttachList: state.hideAttachList,
     hasUsedImagesInCurrentChat: state.hasUsedImagesInCurrentChat,
-    actionMode: state.actionMode,
-    agentConfig: state.agentConfig,
-    selectedModels: state.selectedModels,
-    hasUserSelectedModel: state.hasUserSelectedModel,
     files: state.files,
     cameraFrames: state.cameraFrames,
     mentionReferences: state.mentionReferences,
+    ...extractChatSessionConfig(state),
   };
+}
+
+export function resolvePaneSnapshotBase(
+  chatId: string,
+  paneSnapshot: Partial<ChatState> | null | undefined,
+): Partial<ChatState> {
+  const lruSnapshot = getChatNavigationSnapshot(chatId);
+  const messageBase = createEmptyPaneMessageSnapshot();
+  const withLru = lruSnapshot ? mergeChatSessionConfig(messageBase, lruSnapshot) : messageBase;
+  if (!paneSnapshot) {
+    return withLru;
+  }
+  return mergeChatSessionConfig(
+    {
+      ...withLru,
+      ...paneSnapshot,
+    },
+    paneSnapshot,
+  );
 }
 
 export function getChatNavigationSnapshot(chatId: string): Partial<ChatState> | null {

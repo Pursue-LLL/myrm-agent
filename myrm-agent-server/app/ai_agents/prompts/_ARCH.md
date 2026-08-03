@@ -27,7 +27,7 @@
 | Mode | Token 量 | 注入内容 | 适用场景 |
 |------|----------|----------|----------|
 | `full` | ~3600 chars | 身份+精简规则+绝对服从+回复规则+安全+任务完整性+记忆（条件） | 通用场景（默认） |
-| `lean` | ~2200 chars | 身份+精简规则+安全+任务完整性 | 高级用户减少干扰 |
+| `lean` | ~2200 chars | 身份+安全+任务完整性+记忆（条件） | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
 | `naked` | ~655 chars | 安全规则+工具调用指引 | 完全用户控制 |
 | `search` | ~1200 chars | 搜索专用提示词（来自 fast_search_agent_prompt.py）| 快速搜索模式 |
 
@@ -39,7 +39,7 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
 身份定义和 `request_answer_user_tool` 自审规则。
 
 工具感知条件注入：
-- `MEMORY_RULES`：仅当 `enable_memory=True` 时注入 full 模式（避免引用不存在的工具）
+- `MEMORY_RULES`：当 `enable_memory=True` 时注入 full 和 lean 模式（避免引用不存在的工具）
 - `enable_answer_tool`：控制 identity 和 ruleset 中 answer_tool 引导的注入
 
 中间件条件逻辑：

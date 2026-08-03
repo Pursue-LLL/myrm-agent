@@ -13,6 +13,7 @@ import json
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -22,6 +23,28 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+
+_DISMISS_MIGRATION_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
+
+_SETTINGS_SHELL_STATE = """(() => {
+  const bodyText = document.body.innerText || '';
+  return {
+    ready:
+      location.pathname.startsWith('/settings') &&
+      bodyText.length > 20 &&
+      !!document.querySelector('[data-testid="settings-layout"]'),
+    pathname: location.pathname,
+    bodyLength: bodyText.length,
+  };
+})()"""
 
 _DOMAIN_SKILLS_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
@@ -57,14 +80,33 @@ def test_chrome_ui_domain_skills_card_visible() -> None:
     x_com = next(s for s in resp if s["id"] == "x-com")
     assert x_com["is_builtin"] is True
 
-    warm_ui_route("/settings/system")
+    # System tab pulls a heavy bundle — warm parent route first (wiki/settings E2E pattern).
+    warm_ui_route("/settings")
+    warm_ui_route(
+        "/settings/system",
+        timeout_sec=_warm_ui_parallel_wait_sec(180.0),
+    )
     with open_mcp_page(
         f"{get_e2e_ui_url()}/settings/system",
-        timeout_ms=90_000,
+        timeout_ms=120_000,
     ) as (client, page):
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page)
 
-        state = wait_for_state(client, page, _DOMAIN_SKILLS_CARD_JS, timeout_sec=60.0)
+        shell = wait_for_state(
+            client,
+            page,
+            _SETTINGS_SHELL_STATE,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
+        assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
+
+        state = wait_for_state(
+            client,
+            page,
+            _DOMAIN_SKILLS_CARD_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
         assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
         assert state.get("hasXCom") is True
         assert state.get("hasDomainSkills") is True

@@ -1598,6 +1598,14 @@
       "noEnabledModels": "Please enable models in Model Service first",
       "noMatchingModels": "No matching models",
       "orgPolicyRestricted": "Restricted by organization policy",
+      "moaPreset": {
+        "groupTitle": "Mixture of Agents",
+        "defaultLabel": "default",
+        "reviewLabel": "review",
+        "fastLabel": "fast",
+        "activeLabel": "MoA · {preset}",
+        "refCount": "{count} refs"
+      },
       "temperature": "Temperature",
       "temperatureHint": "Controls output randomness",
       "precise": "Precise",
@@ -5773,7 +5781,8 @@
     "consensusTitle": "Multi-Model Consensus (MoA)",
     "consensusDesc": "Enable Mixture-of-Agents: queries multiple models in parallel and synthesizes a refined answer",
     "moaOverlayTitle": "Agent-Loop Advisor Overlay",
-    "moaOverlayDesc": "Lightweight reference models advise the acting agent before each tool loop iteration — distinct from standalone Consensus chat mode",
+    "moaOverlayDesc": "Configure advisor reference models for the chat model picker. Session activation happens from the Mixture of Agents group — not on every message by default.",
+    "moaOverlayPickerHint": "When enabled, this preset appears in the chat model picker. Select it per session to run the advisor overlay.",
     "moaOverlayFanout": "Fan-out Policy",
     "moaOverlayFanoutUserTurn": "Once per user turn",
     "moaOverlayFanoutPerIteration": "Every model call",
@@ -9097,6 +9106,7 @@
           "workspaceRulesSkipped": "{count} workspace rule file(s) were skipped because they already existed.",
           "voiceFeatureDisabled": "Voice interaction is off. Enable it in Voice settings if you used speech features in Hermes.",
           "consensusFeatureDisabled": "Multi-model consensus is off. Enable it in Agent settings for higher-quality answers.",
+          "moaOverlaySetupHint": "Enable MoA overlay in Agent settings, then pick a preset from the chat model picker for multi-model advice.",
           "generic": "Readiness check requires attention: {code}"
         },
         "readinessAction": {
@@ -9105,7 +9115,8 @@
           "configureMcp": "Review MCP settings",
           "reviewMigrationRules": "Review migration rules",
           "configureVoice": "Open voice settings",
-          "configureConsensus": "Open agent settings"
+          "configureConsensus": "Open agent settings",
+          "configureMoaOverlay": "Open agent settings"
         },
         "rollbackIncludesInstructions": "Rollback restores memories and imported instructions",
         "startChat": "Chat with this agent",

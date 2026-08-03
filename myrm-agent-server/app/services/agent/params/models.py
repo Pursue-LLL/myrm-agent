@@ -274,6 +274,14 @@ class AgentRequest(BaseModel):
     )
     archive_restore_actions: list[ArchiveRestoreActionRequest] | None = None
     engine_params: dict[str, object] | None = None
+    active_moa_preset_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Session-level MoA preset id from the chat model picker. "
+            "Enables advisor overlay when the agent profile has a matching configured preset."
+        ),
+    )
 
     resume_value: dict[str, object] | None = None
     sibling_group_id: str | None = None

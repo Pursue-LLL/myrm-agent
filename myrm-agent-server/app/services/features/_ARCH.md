@@ -43,5 +43,5 @@ Harness 层 `deep_research` 编排器仍保留（`myrm-agent-harness/agent/deep_
 | goals_system | `api/goals/router.py` verify_goals_enabled | GoalModeToggle |
 | companion_mode | `api/companion/router.py` verify_companion_enabled | SettingsMenu / EmptyChat |
 | deep_research | `orchestrator.py` action_mode gate（**REMOVED，永久 off**） | 已从 SearchModeSelector 移除 |
-| consensus | `orchestrator.py` action_mode gate | SearchModeSelector featureGate |
+| consensus | **已移除独立 action_mode**；legacy `action_mode=consensus` 由 `orchestrator._normalize_legacy_consensus_request` 映射为 `agent` + MoA preset；MoA 运行时走 `moa_overlay` + picker | 已从 SearchModeSelector 移除 |
 | voice_interaction | `api/voice,stt,tts` verify_voice_enabled | MessageInput isVoiceEnabled |

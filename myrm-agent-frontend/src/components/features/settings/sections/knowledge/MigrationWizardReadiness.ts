@@ -61,6 +61,8 @@ export function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: Migra
       return t('result.readinessIssue.voiceFeatureDisabled');
     case 'consensus_feature_disabled':
       return t('result.readinessIssue.consensusFeatureDisabled');
+    case 'moa_overlay_setup_hint':
+      return t('result.readinessIssue.moaOverlaySetupHint');
     default:
       return t('result.readinessIssue.generic', { code: issue.code });
   }
@@ -100,6 +102,8 @@ function resolveReadinessActionLabel(code: string, t: MigrationWizardTranslation
       return t('result.readinessAction.configureVoice');
     case 'consensus_feature_disabled':
       return t('result.readinessAction.configureConsensus');
+    case 'moa_overlay_setup_hint':
+      return t('result.readinessAction.configureMoaOverlay');
     default:
       return t('result.readinessAction.openMemoryCenter');
   }

@@ -1,12 +1,34 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/store/useChatStore (POS: 会话 agentConfig / activeMoaPresetId)
+ * @/store/useProviderStore (POS: 默认与 per-agent 模型绑定)
+ * @/lib/model-binding (POS: 活动模型与 picker 触发器展示)
+ * @/lib/moaPresetUtils (POS: MoA preset 配置检测)
+ *
+ * [OUTPUT]
+ * BaseModelSelector: 聊天输入区模型选择触发器 + ModelPickerPopover 接线
+ *
+ * [POS]
+ * MessageInput 主模型快速切换；Agent 模式下可选 MoA preset 虚拟分组。
+ */
+
 import { useMemo, useCallback, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useProviderStore from '@/store/useProviderStore';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
-import { resolveActiveModelSelection, resolveActiveFallbackSelection } from '@/lib/model-binding';
+import {
+  resolveActiveModelSelection,
+  resolveActiveFallbackSelection,
+  resolveModelPickerTriggerDisplay,
+} from '@/lib/model-binding';
+import {
+  listMoaPresetOptions,
+  isMoaPresetConfigured,
+} from '@/lib/moaPresetUtils';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 
@@ -14,12 +36,15 @@ type SingleModelSelection = { providerId: string; model: string };
 
 const BaseModelSelector = () => {
   const commonT = useTranslations('common');
+  const moaPresetT = useTranslations('settings.defaultModel.moaPreset');
 
-  const { agentConfig, actionMode, updateAgentConfig } = useChatStore(
+  const { agentConfig, actionMode, activeMoaPresetId, updateAgentConfig, setActiveMoaPresetId } = useChatStore(
     useShallow((state) => ({
       agentConfig: state.agentConfig,
       actionMode: state.actionMode,
+      activeMoaPresetId: state.activeMoaPresetId,
       updateAgentConfig: state.updateAgentConfig,
+      setActiveMoaPresetId: state.setActiveMoaPresetId,
     })),
   );
 
@@ -51,6 +76,30 @@ const BaseModelSelector = () => {
     }
   }, [isInitialized, initProviders]);
 
+  const moaPresetAvailable = useMemo(
+    () => isMoaPresetConfigured(agentConfig?.engineParams),
+    [agentConfig?.engineParams],
+  );
+
+  useEffect(() => {
+    if (!moaPresetAvailable && activeMoaPresetId) {
+      setActiveMoaPresetId(null);
+    }
+  }, [moaPresetAvailable, activeMoaPresetId, setActiveMoaPresetId]);
+
+  const showMoaPresets = actionMode === 'agent' && moaPresetAvailable;
+
+  const moaPresets = useMemo(() => {
+    if (!showMoaPresets) {
+      return [];
+    }
+    return listMoaPresetOptions(agentConfig?.engineParams).map((preset) => ({
+      id: preset.id,
+      label: moaPresetT(preset.labelKey),
+      refCount: preset.refCount,
+    }));
+  }, [showMoaPresets, agentConfig?.engineParams, moaPresetT]);
+
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
 
   const currentSelection = useMemo(
@@ -71,17 +120,31 @@ const BaseModelSelector = () => {
     [actionMode, agentConfig],
   );
 
+  const triggerDisplay = useMemo(
+    () =>
+      resolveModelPickerTriggerDisplay(
+        actionMode,
+        agentConfig,
+        defaultModelConfig,
+        providers,
+        activeMoaPresetId,
+      ),
+    [actionMode, agentConfig, defaultModelConfig, providers, activeMoaPresetId],
+  );
+
+  const currentModelName = useMemo(() => {
+    if (!triggerDisplay.modelName) {
+      return commonT('notConfigured');
+    }
+    return triggerDisplay.modelName;
+  }, [triggerDisplay.modelName, commonT]);
+
   const isCurrentSelectionValid = useMemo(() => {
     if (!currentSelection) return false;
     return enabledModels.some(
       (m) => m.providerId === currentSelection.providerId && m.model === currentSelection.model,
     );
   }, [currentSelection, enabledModels]);
-
-  const currentModelName = useMemo(
-    () => (!currentSelection || !isCurrentSelectionValid ? commonT('notConfigured') : currentSelection.model),
-    [currentSelection, isCurrentSelectionValid, commonT],
-  );
 
   const handleModelSelect = useCallback(
     (providerId: string, model: string) => {
@@ -152,6 +215,9 @@ const BaseModelSelector = () => {
         safetyFallbackSelection={safetyFallbackSelection}
         onSelectSafetyFallback={actionMode === 'agent' ? handleSafetyFallbackSelect : undefined}
         onClearSafetyFallback={actionMode === 'agent' ? handleClearSafetyFallback : undefined}
+        moaPresets={moaPresets}
+        activeMoaPresetId={activeMoaPresetId}
+        onSelectMoaPreset={showMoaPresets ? setActiveMoaPresetId : undefined}
         trigger={
           <button
             type="button"
@@ -160,7 +226,7 @@ const BaseModelSelector = () => {
           >
             <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
             <div className="relative z-10 flex h-8 min-h-8 items-center gap-1.5 px-2.5 py-0.5">
-              {currentSelection ? (
+              {currentSelection && isCurrentSelectionValid ? (
                 <ProviderIcon
                   providerId={currentSelection.providerId}
                   size={16}
@@ -172,9 +238,14 @@ const BaseModelSelector = () => {
                   className="shrink-0 text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors duration-300"
                 />
               )}
-              <span className="inline text-xs font-medium text-black/60 dark:text-white/60 group-hover:text-black dark:group-hover:text-white transition-colors duration-300 truncate max-w-[160px] sm:max-w-none">
+              <span className="inline text-xs font-medium text-black/60 dark:text-white/60 group-hover:text-black dark:group-hover:text-white transition-colors duration-300 truncate max-w-[120px] sm:max-w-none">
                 {currentModelName}
               </span>
+              {triggerDisplay.moaPresetId && (
+                <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                  {moaPresetT('activeLabel', { preset: triggerDisplay.moaPresetId })}
+                </span>
+              )}
               <ChevronDown
                 size={14}
                 className="text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors duration-300"

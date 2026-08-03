@@ -64,7 +64,9 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
         />
       </div>
       {isEnabled && (
-        <div className="space-y-4 pt-2 border-t border-border/30">
+        <>
+          <p className="text-[11px] text-muted-foreground">{t('agent.moaOverlayPickerHint')}</p>
+          <div className="space-y-4 pt-2 border-t border-border/30">
           <ConsensusRefModels
             consensus={overlay}
             setConsensus={setOverlay}
@@ -130,7 +132,8 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
               </Select>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

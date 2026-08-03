@@ -6,7 +6,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `orchestrator.py` | 核心 | 流式会话主编排：**`ChatSessionReservation.try_reserve` 在 persist 前**（零 TOCTOU）；busy → `agent_busy_streaming_response`；persist 后 **`apply_migration_bound_project`**；非 resume 路径经 `TurnPrewarmCoordinator.join_for_turn` 并行 join agent cache + memory brief（替代 250ms 串行 preflight）；成功路径 `transfer_to_stream` + `launch_buffered_stream`；`finally` release 预占 | ✅ |
+| `orchestrator.py` | 核心 | 流式会话主编排：入口 **`_normalize_legacy_consensus_request`**（deprecated `consensus` → `agent` + default MoA preset）；**`ChatSessionReservation.try_reserve` 在 persist 前**（零 TOCTOU）；busy → `agent_busy_streaming_response`；persist 后 **`apply_migration_bound_project`**；非 resume 路径经 `TurnPrewarmCoordinator.join_for_turn` 并行 join agent cache + memory brief；成功路径 `transfer_to_stream` + `launch_buffered_stream`；`finally` release 预占 | ✅ |
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`） | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |
 | `memory_brief.py` | 核心 | 发送后首 token 前的记忆简报预计算（同源 snapshot + 预览 payload） | ✅ |
@@ -23,7 +23,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `session_reservation.py` | 辅助 | `ChatSessionReservation`：orchestrator persist 前 gateway 预占/early exit release/transfer 至 execute_stream | ✅ |
 | `stream_busy.py` | 辅助 | `agent_busy_streaming_response`：HTTP 200 + SSE `{type:error, error_type:AgentBusyError, status_code:409}` SSOT | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |
-| `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane / Consensus SSE 工厂；DR 完成回调经 `resolve_wiki_vault_path(agent_id)` 写 raw + 编译入队 | ✅ |
+| `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane SSE 工厂；DR 完成回调经 `resolve_wiki_vault_path(agent_id)` 写 raw + 编译入队 | ✅ |
 | `moa_overlay_setup.py` | 辅助 | Agent-loop MoA overlay：解析 `engineParams.moa_overlay` reference 模型并构建 harness middleware；无可用 ref 时返回 None（不回退主模型） | ✅ |
 | `lanes/` | 核心 | Chat 专用 lane 流（见 [lanes/_ARCH.md](lanes/_ARCH.md)） | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |

@@ -71,6 +71,10 @@ export default function ClientIntlProvider({ locale, shellMessages, children }: 
           const isLastAttempt = attempt >= DEFERRED_FETCH_MAX_ATTEMPTS - 1;
           if (isLastAttempt) {
             console.error('Failed to load deferred locale messages after retries', error);
+            // Degrade to shell messages — settings must not infinite-skeleton on fetch blips.
+            if (!cancelled) {
+              setDeferredLocaleReady(true);
+            }
             return;
           }
 

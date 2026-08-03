@@ -365,7 +365,6 @@ function RoutingModelSlot({
   );
 }
 
-export { ConsensusSection } from './AgentCapabilitiesConsensusSection';
 export { MoaOverlaySection } from './AgentCapabilitiesMoaOverlaySection';
 export { SessionPolicySection } from './AgentCapabilitiesSessionSection';
 export { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';

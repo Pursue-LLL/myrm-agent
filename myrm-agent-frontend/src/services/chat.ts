@@ -476,6 +476,7 @@ export interface StreamRequestBody {
   message_id: string;
   chat_id: string;
   action_mode: ActionMode;
+  active_moa_preset_id?: string | null;
   search_depth?: 'normal' | 'deep';
   reasoning_display_mode?: 'off' | 'collapsed' | 'inline';
   model_selection: ModelSelection;

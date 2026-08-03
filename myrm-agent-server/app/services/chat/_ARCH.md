@@ -100,7 +100,7 @@ ChatService
 
 ### 被依赖方
 - `app/api/chats/`：聊天 API 路由（含 `/compact`、`/share` 端点）
-- `app/api/agents/general_agent/streaming.py`：Web Agent 统一入口（user message 持久化 + 历史加载，支持 fast/agent/deep_research/consensus 模式）
+- `app/api/agents/general_agent/streaming.py`：Web Agent 统一入口（user message 持久化 + 历史加载，支持 fast/agent/deep_research；legacy `consensus` 由 orchestrator 映射 agent+MoA preset）
 - `app/core/channel_bridge/agent_executor/`：频道 Agent 执行器（持久化 + 历史加载 + 流式出站）
 - `app/core/channel_bridge/compact_handler.py`：IM `/compact` 命令业务实现（实现 CompactHandler 协议）
 - `app/ai_agents/general_agent/tool_setup.py`：将 `ConversationHistorySearchProvider` 绑定为 `memory_search_tool` 的 sessions corpus 后端（opt-in `memoryEnableConversationSearch`）。

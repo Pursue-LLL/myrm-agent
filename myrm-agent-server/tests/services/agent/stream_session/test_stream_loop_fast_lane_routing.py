@@ -42,9 +42,6 @@ def _session(*, enable_web_search: bool) -> SimpleNamespace:
         stream_ttft_ms=None,
         stream_started_at_monotonic=0.0,
         research_model_cfg=None,
-        consensus_config=None,
-        consensus_ref_model_cfgs=None,
-        consensus_agg_model_cfg=None,
         collector=StreamContentCollector(chat_id=None),
         goal_provider=None,
     )

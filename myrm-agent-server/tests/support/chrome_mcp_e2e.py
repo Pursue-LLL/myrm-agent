@@ -680,11 +680,22 @@ _SETTINGS_LAYOUT_READY_JS = """(() => ({
 }))()"""
 
 
+_MCP_SETTINGS_PAGE_READY_JS = """(() => ({
+  ready: /MCP 服务配置|MCP Service/i.test(document.body?.innerText || ''),
+  pathname: location.pathname,
+  title: document.title,
+  bodyLen: document.body?.innerText?.length ?? 0,
+  kind: 'mcp-settings',
+}))()"""
+
+
 def _page_shell_ready_js_for_url(url: str) -> str:
     """Settings routes use SettingsLayout, not AppLayout — do not wait for app-layout there."""
     from urllib.parse import urlparse
 
     path = urlparse(url).path
+    if path.startswith("/settings/mcp"):
+        return _MCP_SETTINGS_PAGE_READY_JS
     if path.startswith("/settings"):
         return _SETTINGS_LAYOUT_READY_JS
     return _APP_LAYOUT_READY_JS

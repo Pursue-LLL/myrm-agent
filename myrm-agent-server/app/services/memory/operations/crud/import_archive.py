@@ -665,6 +665,7 @@ async def confirm_import_memories(
                 mcp_config_count=mcp_imported_disabled_count,
                 workspace_rules_skipped=workspace_rules_skipped_count,
                 migration_competitor=migration_competitor,
+                moa_overlay_configured=False if migration_competitor == "hermes" else None,
             )
             try:
                 await session_service.save_post_import_readiness(

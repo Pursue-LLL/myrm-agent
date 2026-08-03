@@ -23,7 +23,9 @@
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | 内联 |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | 内联 |
 | `product-surface.ts` | 隐藏 builtin agent / 未来上线前的产品面 SSOT（镜像 server `product_surface.py`） | 内联 |
-| `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（消除多处重复映射） | 内联 |
+| `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（含 `engineParams`） | 内联 |
+| `moaPresetUtils.ts` | MoA preset 配置检测、参考模型计数、`default`/`review`/`fast` picker 选项列表 | 内联 |
+| `model-binding.ts` | actionMode/agent 绑定的活动模型解析 + MoA preset 触发器 chip 展示 | 内联 |
 | `utils/diagnostic-export.ts` | DoctorDashboard 诊断数据格式化（Markdown/JSON）与导出 | 内联 |
 | `fonts.ts` | 全局字体系统配置（Inter/JetBrains Mono next/font 实例、字体目录 FONT_CHOICES、动态加载 ensureFontLoaded） | 内联 |
 | `i18n/` | 非 React 运行时 i18n（SSE/通知；与 `src/i18n/` next-intl 路由层分离） | [_ARCH.md](i18n/_ARCH.md) |

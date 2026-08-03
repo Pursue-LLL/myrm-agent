@@ -64,6 +64,7 @@ export interface AgentConfig {
   commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];
   routingConfig?: RoutingConfig | null;
   busyInputMode?: BusyInputMode;
+  engineParams?: Record<string, unknown> | null;
 }
 
 // 已选模型配置

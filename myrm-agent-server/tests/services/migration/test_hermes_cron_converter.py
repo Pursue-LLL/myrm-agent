@@ -154,7 +154,8 @@ def test_build_import_readiness_emits_hermes_gate_warnings(
         mcp_config_count=0,
         workspace_rules_skipped=0,
         migration_competitor="hermes",
+        moa_overlay_configured=False,
     )
     codes = {issue.code for issue in readiness.issues}
     assert "voice_feature_disabled" in codes
-    assert "consensus_feature_disabled" in codes
+    assert "moa_overlay_setup_hint" in codes

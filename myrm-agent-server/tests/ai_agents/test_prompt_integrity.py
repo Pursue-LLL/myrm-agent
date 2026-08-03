@@ -159,10 +159,13 @@ class TestMemoryRulesConditionalInjection:
         assert "<memory_rules>" not in prompt
         assert "memory_save" not in prompt
 
-    def test_lean_mode_never_has_memory_rules(self) -> None:
-        for memory in (True, False):
-            prompt = get_core_system_prompt("lean", enable_memory=memory)
-            assert "<memory_rules>" not in prompt
+    def test_lean_mode_includes_memory_rules_when_enabled(self) -> None:
+        prompt = get_core_system_prompt("lean", enable_memory=True)
+        assert "<memory_rules>" in prompt
+
+    def test_lean_mode_excludes_memory_rules_when_disabled(self) -> None:
+        prompt = get_core_system_prompt("lean", enable_memory=False)
+        assert "<memory_rules>" not in prompt
 
     def test_naked_mode_never_has_memory_rules(self) -> None:
         for memory in (True, False):

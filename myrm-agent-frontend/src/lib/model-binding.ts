@@ -111,6 +111,31 @@ export function resolveActiveFallbackSelection(
 }
 
 /**
+ * Model picker trigger display: primary model name plus optional session MoA preset chip.
+ */
+export interface ModelPickerTriggerDisplay {
+  modelName: string | null;
+  moaPresetId: string | null;
+}
+
+export function resolveModelPickerTriggerDisplay(
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+  defaultModelConfig: DefaultModelConfig,
+  providers: ProviderConfig[],
+  activeMoaPresetId: string | null,
+): ModelPickerTriggerDisplay {
+  const selection = resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
+  let modelName: string | null = null;
+  if (selection && isModelAvailable(selection, providers)) {
+    modelName = selection.model;
+  }
+
+  const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
+  return { modelName, moaPresetId };
+}
+
+/**
  * 检查模型是否可用（Provider 启用 + 有可用认证能力 + 模型在启用列表中）
  */
 export function isModelAvailable(selection: SingleModelSelection, providers: ProviderConfig[]): boolean {

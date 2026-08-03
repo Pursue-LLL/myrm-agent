@@ -14,7 +14,7 @@
 | `AgentToolsToggle.tsx` | 组件 | Agent 工具开关快捷切换 | ✅ |
 | `AttachButton.tsx` | 组件 | 文件附件按钮：Tauri 走原生对话框 / Web 走 `<input type="file">`；支持 image/video/audio/doc/text；含模型能力检查、SHA-256 去重、视频 100MB / 音频 25MB 大小校验 | ✅ |
 | `AttachList.tsx` | 组件 | 附件预览列表：ImageThumbnail（含 Lightbox + ImageEditor 标注，失败 toast）/ VideoThumbnail / FilePill | ✅ |
-| `BaseModelSelector.tsx` | 组件 | 基础模型快速选择下拉（非完整 model picker） | ✅ |
+| `BaseModelSelector.tsx` | 组件 | 聊天输入区模型选择：MoA 虚拟分组（default/review/fast）；per-chat `activeMoaPresetId`；主模型 + MoA chip 触发器 | ✅ |
 | `CameraInputButton.tsx` | 组件 | 摄像头拍照/录像输入按钮 | ✅ |
 | `CameraPreview.tsx` | 组件 | 摄像头实时预览与 capture 控制 | ✅ |
 | `DeepSearchToggle.tsx` | 组件 | Deep Research 模式开关 | ✅ |
@@ -26,7 +26,7 @@
 | `IncognitoModeToggle.tsx` | 组件 | 无痕/不写入记忆模式切换 | ✅ |
 | `SandboxModeToggle.tsx` | 组件 | 沙箱模式切换：Agent 模式下可见，一键隔离 workspace 到 git worktree | ✅ |
 | `SecurityPresetSelector.tsx` | 组件 | 会话级安全预设三档下拉（HITL/Auto-Approve Edits/Read-Only）：Agent 模式下可见；选择 accept_edits 时互斥关闭 YOLO；发送 `security_preset` 字段到 server | ✅ |
-| `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent / Consensus（深度研究已移除，未来上线见 server `features/_ARCH.md`） | ✅ |
+| `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent（legacy consensus 请求由 server 映射 agent+MoA） | ✅ |
 | `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出当前 Agent 绑定的 Skill（`agentConfig.selectedSkillIds`），用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
 | `TurnCapabilityToggle.tsx` | 组件 | 单轮能力作用域切换：Agent 模式下按“下一条消息”临时收敛 Skill/MCP 子集，不持久化，发送后自动清空 | ✅ |
 | `SpeechInputButton.tsx` | 组件 | 语音转文字输入按钮（STT） | ✅ |

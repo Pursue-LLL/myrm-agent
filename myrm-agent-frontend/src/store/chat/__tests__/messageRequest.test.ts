@@ -13,6 +13,7 @@ import {
 } from '@/store/chat/messageRequest';
 import useConfigStore from '@/store/useConfigStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
+import useChatStore from '@/store/useChatStore';
 
 const showI18nToastMock = vi.hoisted(() => vi.fn());
 const resolveKanbanSendBlockReasonMock = vi.hoisted(() => vi.fn());
@@ -753,5 +754,66 @@ describe('messageRequest - send preconditions', () => {
       undefined,
       expect.objectContaining({ descriptionKey: 'chat.sendBlocked.kanbanNeedBoardDescription' }),
     );
+  });
+});
+
+describe('messageRequest - active moa preset', () => {
+  beforeEach(() => {
+    useChatStore.setState({ activeMoaPresetId: null });
+  });
+
+  it('serializes active_moa_preset_id in agent mode when session preset is set', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    useChatStore.setState({ activeMoaPresetId: 'default' });
+
+    const state = {
+      chatId: 'chat-moa',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('moa request', 'msg-moa', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      action_mode: 'agent',
+      active_moa_preset_id: 'default',
+    });
   });
 });

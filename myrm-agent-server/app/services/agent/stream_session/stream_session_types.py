@@ -36,9 +36,6 @@ class AgentStreamSession:
     extra_context: dict[str, object]
     stream_started_at_monotonic: float = field(default=0.0)
     stream_ttft_ms: int | None = field(default=None)
-    consensus_config: dict[str, object] | None = field(default=None)
-    consensus_ref_model_cfgs: list[object] | None = field(default=None)
-    consensus_agg_model_cfg: object | None = field(default=None)
     durable_registered: bool = field(default=False)
     had_fatal_error: bool = field(default=False)
     turn_capability_terminal_recorded: bool = field(default=False)

@@ -410,7 +410,12 @@ async def _run_tools_panel_layer_badges_flow(
     )
 
     if seal_api_users <= baseline_users:
-        api_gate_sec = 20.0 if seal_streaming else signoff_parallel_force_chat_timeout_sec(45.0)
+        # LIVE sendTurnSealed may seal on uiProgress+streaming before API row persists (parallel SHPOIB).
+        api_gate_sec = (
+            signoff_parallel_force_chat_timeout_sec(180.0)
+            if seal_streaming
+            else signoff_parallel_force_chat_timeout_sec(45.0)
+        )
         await _wait_api_user_messages(
             chat_id,
             api_url=api_url,

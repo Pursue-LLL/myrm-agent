@@ -10,7 +10,7 @@ build_import_readiness: aggregate post-import facts into a readiness contract (s
 resolve_readiness_issue_action / pick_primary_readiness_issue / resolve_migration_readiness_gap_message: issue SSOT for stream preflight and settings deep links.
 
 [POS]
-记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP、规则跳过与 Hermes 迁移 feature gate 事实归并为可执行门禁状态。
+记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP、规则跳过与 Hermes 迁移 follow-up 事实归并为可执行门禁状态。
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ _READINESS_ISSUE_ACTIONS: dict[str, ReadinessIssueAction] = {
         settings_path="/settings/memory?sub=migration"
     ),
     "voice_feature_disabled": ReadinessIssueAction(settings_path="/settings/voice"),
-    "consensus_feature_disabled": ReadinessIssueAction(settings_path="/settings/agents"),
+    "moa_overlay_setup_hint": ReadinessIssueAction(settings_path="/settings/agents"),
 }
 
 
@@ -123,11 +123,11 @@ def resolve_migration_readiness_gap_message(
             if is_zh
             else "Voice interaction is available — open Voice settings to enable speech input and output."
         )
-    if issue_code == "consensus_feature_disabled":
+    if issue_code == "moa_overlay_setup_hint":
         return (
-            "多模型合议能力可在智能体设置中开启，以获得更高质量回答。"
+            "请在智能体设置中开启 MoA 叠加，然后在聊天模型选择器中选择 preset。"
             if is_zh
-            else "Multi-model consensus is available — enable it in Agent settings for higher-quality answers."
+            else "Enable MoA overlay in Agent settings, then pick a preset from the chat model picker."
         )
     if status == "critical":
         return (
@@ -157,6 +157,7 @@ def build_import_readiness(
     mcp_config_count: int,
     workspace_rules_skipped: int,
     migration_competitor: str | None = None,
+    moa_overlay_configured: bool | None = None,
 ) -> MemoryImportReadiness:
     issues: list[MemoryImportReadinessIssue] = []
 
@@ -212,10 +213,10 @@ def build_import_readiness(
                     severity="warning",
                 )
             )
-        if not _migration_feature_enabled("consensus"):
+        if moa_overlay_configured is False:
             issues.append(
                 build_readiness_issue(
-                    code="consensus_feature_disabled",
+                    code="moa_overlay_setup_hint",
                     severity="warning",
                 )
             )

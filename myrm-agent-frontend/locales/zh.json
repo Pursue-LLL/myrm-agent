@@ -1598,6 +1598,14 @@
       "noEnabledModels": "请先在模型服务中启用模型",
       "noMatchingModels": "没有匹配的模型",
       "orgPolicyRestricted": "受组织策略限制",
+      "moaPreset": {
+        "groupTitle": "多智能体混合",
+        "defaultLabel": "default",
+        "reviewLabel": "review",
+        "fastLabel": "fast",
+        "activeLabel": "MoA · {preset}",
+        "refCount": "{count} 个参考模型"
+      },
       "temperature": "温度",
       "temperatureHint": "控制输出的随机性",
       "precise": "精确",
@@ -5776,7 +5784,8 @@
     "consensusTitle": "多模型共识推理 (MoA)",
     "consensusDesc": "启用 Mixture-of-Agents：并行查询多个模型并综合生成精炼答案",
     "moaOverlayTitle": "Agent 环顾问叠加",
-    "moaOverlayDesc": "在工具环每轮主模型调用前，由轻量参考模型提供顾问视角（与独立 Consensus 对话模式分离）",
+    "moaOverlayDesc": "为聊天模型选择器配置顾问参考模型。会话级启用需在「多智能体混合」分组中选择，默认不会每条消息都运行。",
+    "moaOverlayPickerHint": "开启后，该预设会出现在聊天模型选择器中；需在会话里点选才会运行顾问叠加。",
     "moaOverlayFanout": "Fan-out 策略",
     "moaOverlayFanoutUserTurn": "每用户轮一次",
     "moaOverlayFanoutPerIteration": "每次模型调用",
@@ -9100,6 +9109,7 @@
           "workspaceRulesSkipped": "{count} 条工作区规则因已存在而跳过。",
           "voiceFeatureDisabled": "语音交互功能未开启。若你在 Hermes 中使用过语音，请前往语音设置开启。",
           "consensusFeatureDisabled": "多模型合议未开启。可在智能体设置中开启以获得更高质量回答。",
+          "moaOverlaySetupHint": "请在智能体设置中开启 MoA 叠加，然后在聊天模型选择器中选择 preset 以使用多模型参谋。",
           "generic": "就绪检查需要处理：{code}"
         },
         "readinessAction": {
@@ -9108,7 +9118,8 @@
           "configureMcp": "检查 MCP 设置",
           "reviewMigrationRules": "查看迁移规则",
           "configureVoice": "打开语音设置",
-          "configureConsensus": "打开智能体设置"
+          "configureConsensus": "打开智能体设置",
+          "configureMoaOverlay": "打开智能体设置"
         },
         "rollbackIncludesInstructions": "回滚将同时恢复记忆与已导入的指令",
         "startChat": "用此智能体开始对话",

@@ -28,6 +28,7 @@ from app.core.channel_bridge.config_parsers import verify_search_service_availab
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.database.dto import PersonalityStyleLiteral
 from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+from app.services.agent.moa_preset_resolver import apply_moa_preset_activation
 
 from .archive_restore import (
     ArchiveRestoreRequestError,
@@ -1125,7 +1126,7 @@ async def convert_to_general_agent_params(
         memory_policy=agent_memory_policy,
         memory_decay_profile=agent_memory_decay_profile,
         memory_extraction_preset=agent_memory_extraction_preset,
-        engine_params=engine_params,
+        engine_params=apply_moa_preset_activation(engine_params, request.active_moa_preset_id),
         memory_shared_context_ids=memory_shared_context_ids,
         quote=request.quote,
         jit_subagents=jit_subagents if not is_fast_search else None,

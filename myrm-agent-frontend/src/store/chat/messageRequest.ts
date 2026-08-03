@@ -587,6 +587,8 @@ export const createMessageRequest = async (
     ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId)
     : null;
 
+  const activeMoaPresetId = useChatStore.getState().activeMoaPresetId;
+
   const requestBody = {
     query,
     message_id: messageId,
@@ -675,6 +677,10 @@ export const createMessageRequest = async (
         ...(kanbanDefaultBoardId && { kanban_default_board_id: kanbanDefaultBoardId }),
       },
     }),
+    ...(isAgentMode &&
+      activeMoaPresetId && {
+        active_moa_preset_id: activeMoaPresetId,
+      }),
     ...(isAgentMode &&
       agentConfig?.forceDelegateAgent && {
         force_delegate_agent: agentConfig.forceDelegateAgent,
@@ -790,6 +796,7 @@ export const createMessageRequest = async (
 
 import { produce } from 'immer';
 import useWorkspaceStore from '../useWorkspaceStore';
+import { resolvePaneSnapshotBase } from '@/store/chat/chatNavigationSnapshotCache';
 
 export const createSmartUpdater = (
   chatId: string | undefined,
@@ -816,13 +823,7 @@ export const createSmartUpdater = (
 
     const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
     if (pane) {
-      const currentSnapshot = pane.snapshot || {
-        messages: [],
-        loading: false,
-        messageAppeared: false,
-        hideAttachList: false,
-        hasUsedImagesInCurrentChat: false,
-      };
+      const currentSnapshot = resolvePaneSnapshotBase(chatId, pane.snapshot ?? null);
       const nextSnapshot = produce(currentSnapshot, (draft: any) => {
         updater(draft as ChatActionsState);
       });

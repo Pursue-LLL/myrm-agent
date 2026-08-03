@@ -116,6 +116,7 @@ const useChatStore = create<ChatState>()(
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
       actionMode: 'agent',
+      activeMoaPresetId: null as string | null,
       searchDepth: 'normal',
       optimizationMode: 'speed',
       isGoalMode: false,
@@ -270,7 +271,19 @@ const useChatStore = create<ChatState>()(
         if (typeof window !== 'undefined') {
           localStorage.setItem('actionMode', mode);
         }
-        set({ actionMode: mode });
+        set({
+          actionMode: mode,
+          ...(mode !== 'agent' ? { activeMoaPresetId: null } : {}),
+        });
+      },
+      setActiveMoaPresetId: (presetId) => {
+        set({ activeMoaPresetId: presetId });
+        if (presetId) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('actionMode', 'agent');
+          }
+          set({ actionMode: 'agent' });
+        }
       },
       setSearchDepth: (depth) => {
         if (typeof window !== 'undefined') {
@@ -330,9 +343,11 @@ const useChatStore = create<ChatState>()(
       clearPendingGapRetry: () => set({ pendingGapRetry: null }),
       setAgentConfig: (config) => {
         if (!config) {
-          set({ agentConfig: null });
+          set({ agentConfig: null, activeMoaPresetId: null });
           return;
         }
+        const prevId = get().agentConfig?.agentId;
+        const agentChanged = prevId !== undefined && prevId !== config.agentId;
         const builtinTools = [...(config.enabledBuiltinTools ?? DEFAULT_ENABLED_BUILTIN_TOOLS)];
         const autoRestoreDomains = [...(config.autoRestoreDomains ?? [])];
         if (typeof window !== 'undefined') {
@@ -349,6 +364,7 @@ const useChatStore = create<ChatState>()(
             autoRestoreDomains: [...autoRestoreDomains],
           },
           currentBuiltinTools: builtinTools,
+          ...(agentChanged ? { activeMoaPresetId: null } : {}),
         });
       },
       updateAgentConfig: (partial) => {

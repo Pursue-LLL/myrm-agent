@@ -9,7 +9,7 @@
 - build_moa_overlay_middleware: harness middleware or None when disabled
 
 [POS]
-Factory helper mirroring consensus_stream_setup for agent-loop MoA overlay.
+Factory helper for agent-loop MoA overlay model resolution and middleware wiring.
 """
 
 from __future__ import annotations

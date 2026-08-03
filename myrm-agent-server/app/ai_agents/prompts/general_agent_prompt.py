@@ -110,9 +110,13 @@ def _build_prompt_map(
     if include_memory_rules:
         full_parts.append(MEMORY_RULES)
 
+    lean_parts = [identity, SECURITY_RULES, TASK_INTEGRITY_RULES]
+    if include_memory_rules:
+        lean_parts.append(MEMORY_RULES)
+
     return {
         "full": "\n".join(full_parts),
-        "lean": f"{identity}\n{SECURITY_RULES}\n{TASK_INTEGRITY_RULES}",
+        "lean": "\n".join(lean_parts),
         "naked": f"{SECURITY_RULES}\n{_NAKED_TOOL_GUIDANCE}",
         "search": _SEARCH_PROMPT_BASE,
     }
@@ -145,7 +149,7 @@ def get_core_system_prompt(
     Args:
         mode: 提示词模式
             - full: 完整规则（默认），适合通用场景
-            - lean: 精简规则，保留身份+安全+任务完整性
+            - lean: 精简规则，保留身份+安全+任务完整性+记忆（条件）
             - naked: 裸调模式，仅安全规则+工具调用指引
             - search: 搜索模式，轻量搜索专用提示词
         enable_answer_tool: 是否包含 request_answer_user_tool 引导规则

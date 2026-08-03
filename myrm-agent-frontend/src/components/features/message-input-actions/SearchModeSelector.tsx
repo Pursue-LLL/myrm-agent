@@ -2,14 +2,13 @@
  * [INPUT]
  * @/store/useConfigStore (POS: Global config state manager)
  * @/store/config/searchService::guardSearchServiceConfigured (POS: Search service config validator)
- * @/store/useFeatureGateStore (POS: Feature gate state manager)
  * @/store/chat/types::ActionMode (POS: Chat action mode type definitions)
  *
  * [OUTPUT]
- * SearchModeSelector: Segmented mode selector for Fast / Agent / Consensus.
+ * SearchModeSelector: Segmented mode selector for Fast / Agent.
  *
  * [POS]
- * Action mode picker. Renders a segmented control with feature-gated modes and search-service guards.
+ * Action mode picker. Renders a segmented control with search-service guards.
  */
 'use client';
 
@@ -20,7 +19,6 @@ import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import useConfigStore from '@/store/useConfigStore';
 import { guardSearchServiceConfigured } from '@/store/config/searchService';
-import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import type { ActionMode } from '@/store/chat/types';
 
 interface SearchModeSelectorProps {
@@ -51,34 +49,8 @@ const FastSearchIcon = ({ className }: { className?: string }) => (
 type ModeEntry = {
   key: ActionMode;
   icon: (props: { className?: string }) => React.ReactNode;
-  featureGate?: string;
   features?: string[];
 };
-
-const ConsensusIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={cn('shrink-0 transition-colors duration-300', className)}
-  >
-    <circle cx="12" cy="12" r="3" />
-    <circle cx="5" cy="6" r="2" />
-    <circle cx="19" cy="6" r="2" />
-    <circle cx="5" cy="18" r="2" />
-    <circle cx="19" cy="18" r="2" />
-    <line x1="6.7" y1="7.5" x2="10" y2="10" />
-    <line x1="17.3" y1="7.5" x2="14" y2="10" />
-    <line x1="6.7" y1="16.5" x2="10" y2="14" />
-    <line x1="17.3" y1="16.5" x2="14" y2="14" />
-  </svg>
-);
 
 const MODES: ModeEntry[] = [
   { key: 'fast', icon: FastSearchIcon },
@@ -89,30 +61,18 @@ const MODES: ModeEntry[] = [
     ),
     features: ['agentFeature1', 'agentFeature2'],
   },
-  {
-    key: 'consensus',
-    icon: ConsensusIcon,
-    featureGate: 'consensus',
-    features: ['consensusFeature1', 'consensusFeature2'],
-  },
 ];
 
 const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
-  const { isEnabled, initialized } = useFeatureGateStore();
-
-  const visibleModes = MODES.filter((m) => !m.featureGate || (initialized && isEnabled(m.featureGate)));
 
   useEffect(() => {
-    if (!initialized) {
-      return;
-    }
-    if (actionMode === 'deep_research' || (actionMode === 'consensus' && !isEnabled('consensus'))) {
+    if (actionMode === 'deep_research' || actionMode === 'consensus') {
       setActionMode('agent');
     }
-  }, [initialized, actionMode, isEnabled, setActionMode]);
+  }, [actionMode, setActionMode]);
 
   const handleModeChange = (mode: ActionMode) => {
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {
@@ -128,7 +88,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
         <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
 
         <div className="p-0.5 flex shrink-0 items-center">
-          {visibleModes.map((mode) => {
+          {MODES.map((mode) => {
             const isActive = actionMode === mode.key;
             const Icon = mode.icon;
             return (

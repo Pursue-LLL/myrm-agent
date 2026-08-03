@@ -1075,6 +1075,26 @@ def shpoib_rebind_location_wait_cap_sec() -> float:
     return base
 
 
+def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
+    """R221/P0-D: hung-reap bootstrap cap must match resolve_budget_policy().bootstrap_sec."""
+    bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
+    normalized_lane = lane.strip().upper()
+    try:
+        from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
+
+        if boot_mux_body_transport_gate_required():
+            bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
+            bootstrap_sec += float(mux_upstream_wait_cap(pessimistic=True))
+        elif shpoib or normalized_lane in {"LIVE_AGENT", "RESOURCE_WRITE"}:
+            bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
+            bootstrap_sec += float(mux_upstream_wait_cap(pessimistic=True))
+        else:
+            bootstrap_sec = float(bootstrap_wall_cap_sec())
+    except ImportError:
+        pass
+    return bootstrap_sec
+
+
 def signoff_effective_bootstrap_wall_sec() -> float:
     """R221: signoff bootstrap wall SSOT (lifecycle + hung-reap + mux queue wait)."""
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF)

@@ -409,6 +409,10 @@ class TestTtsSynthesize:
                 side_effect=RuntimeError("API down"),
             ),
             patch(
+                "app.channels.voice.tts.is_edge_tts_available",
+                return_value=True,
+            ),
+            patch(
                 "app.channels.voice.tts._synthesize_edge",
                 new_callable=AsyncMock,
                 return_value=Path("/tmp/fallback.mp3"),
@@ -441,6 +445,10 @@ class TestTtsSynthesize:
                 "app.channels.voice.tts._synthesize_api",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("API down"),
+            ),
+            patch(
+                "app.channels.voice.tts.is_edge_tts_available",
+                return_value=True,
             ),
             patch(
                 "app.channels.voice.tts._synthesize_edge",

@@ -75,6 +75,8 @@ export interface ChatState {
 
   // 操作模式配置
   actionMode: ActionMode;
+  /** Session-level MoA preset from model picker (null = single model). */
+  activeMoaPresetId: string | null;
   searchDepth: SearchDepth;
   optimizationMode: string;
   isGoalMode: boolean;
@@ -187,6 +189,7 @@ export interface ChatState {
   removeMentionReferencesByTypes: (types: MentionReferenceType[]) => void;
   clearMentionReferences: () => void;
   setActionMode: (mode: ActionMode) => void;
+  setActiveMoaPresetId: (presetId: string | null) => void;
   setSearchDepth: (depth: SearchDepth) => void;
   setOptimizationMode: (mode: string) => void;
   setIsGoalMode: (isGoalMode: boolean) => void;

@@ -4,7 +4,7 @@ Validates that disabled features are correctly rejected (403) at the API layer,
 and that enabled features pass through normally.
 
 Covers:
-- action_mode gate (deep_research, consensus) via orchestrator
+- action_mode gate (deep_research) via orchestrator
 - voice_interaction gate via router-level Depends (STT/TTS/Voice)
 - registration completeness
 """
@@ -162,14 +162,6 @@ class TestActionModeGate:
 
         assert "deep_research" in _ACTION_MODE_FEATURE_GATE
         assert _ACTION_MODE_FEATURE_GATE["deep_research"] == "deep_research"
-
-    def test_gate_mapping_has_consensus(self):
-        from app.services.agent.stream_session.orchestrator import (
-            _ACTION_MODE_FEATURE_GATE,
-        )
-
-        assert "consensus" in _ACTION_MODE_FEATURE_GATE
-        assert _ACTION_MODE_FEATURE_GATE["consensus"] == "consensus"
 
     def test_fast_mode_not_gated(self):
         from app.services.agent.stream_session.orchestrator import (

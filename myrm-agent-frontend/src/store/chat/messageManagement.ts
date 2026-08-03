@@ -34,6 +34,7 @@ import {
   getChatNavigationSnapshot,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
+import { mergeChatSessionConfig } from '@/store/chat/chatSessionConfig';
 import { useProjectStore } from '@/store/useProjectStore';
 import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 import { moveChatToProject } from '@/services/projects';
@@ -48,6 +49,9 @@ export interface LoadMessagesOptions {
 }
 
 function normalizeActionMode(actionMode: string | null | undefined): ActionMode {
+  if (actionMode === 'consensus') {
+    return 'agent';
+  }
   if (typeof actionMode === 'string' && VALID_ACTION_MODES.includes(actionMode as ActionMode)) {
     return actionMode as ActionMode;
   }
@@ -299,6 +303,7 @@ export const initializeChat = (
       state.workspaceDir = null;
       state.incognitoMode = false;
       state.sandboxMode = false;
+      state.activeMoaPresetId = null;
       const timestamp = Date.now().toString(36);
       const microTime = (performance.now() * 1000).toString(36).replace('.', '');
       const randomBytes = crypto.randomBytes(8).toString('hex');
@@ -318,6 +323,7 @@ export const initializeChat = (
         Object.assign(draft, snapshot);
         draft.chatId = id;
         draft.isMessagesLoaded = true;
+        draft.activeMoaPresetId = snapshot.activeMoaPresetId ?? null;
       });
       actions.clearCurrentSessionMessageId();
 
@@ -358,6 +364,7 @@ export const initializeChat = (
         draft.workspaceDir = null;
         draft.incognitoMode = false;
         draft.sandboxMode = false;
+        draft.activeMoaPresetId = null;
         draft.chatId = id;
       });
       actions.clearCurrentSessionMessageId();
@@ -385,7 +392,7 @@ export function resolveInstantChatSnapshot(chatId: string): Partial<ChatState> |
   const paneSnapshot = pane?.snapshot ?? null;
 
   if (lruSnapshot && paneSnapshot) {
-    const merged = { ...lruSnapshot };
+    const merged = mergeChatSessionConfig({ ...lruSnapshot }, paneSnapshot);
 
     if (shouldApplyPaneMessages(lruSnapshot, paneSnapshot) && paneSnapshot.messages !== undefined) {
       merged.messages = paneSnapshot.messages;

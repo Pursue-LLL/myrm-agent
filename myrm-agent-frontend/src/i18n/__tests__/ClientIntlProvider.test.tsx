@@ -60,7 +60,7 @@ describe('ClientIntlProvider deferred locale', () => {
     });
   });
 
-  it('stays not-ready when deferred fetch fails after retries', async () => {
+  it('degrades to shell messages when deferred fetch fails after retries', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -77,7 +77,9 @@ describe('ClientIntlProvider deferred locale', () => {
 
     await vi.runAllTimersAsync();
 
-    expect(screen.getByTestId('deferred-ready')).toHaveTextContent('no');
+    await waitFor(() => {
+      expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
+    });
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 

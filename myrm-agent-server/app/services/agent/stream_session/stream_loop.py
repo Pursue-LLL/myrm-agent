@@ -32,7 +32,6 @@ from app.services.agent.stream_session._memory_status_helpers import (
 )
 from app.services.agent.stream_session.lanes.wiki_knowledge_lane import create_wiki_knowledge_lane_stream
 from app.services.agent.stream_session.stream_lane_factory import (
-    create_consensus_stream,
     create_deep_research_stream,
     create_fast_lane_stream,
 )
@@ -216,14 +215,6 @@ async def iter_agent_stream_chunks(
     stream: AsyncIterable[str | dict[str, object]]
     if session.request.action_mode == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif session.request.action_mode == "consensus":
-        stream = create_consensus_stream(
-            session.params,
-            session.cancel_token,
-            consensus_cfg=session.consensus_config,
-            reference_model_cfgs=session.consensus_ref_model_cfgs,
-            aggregator_model_cfg=session.consensus_agg_model_cfg,
-        )
     elif session.request.use_workflow:
         from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
 

@@ -16,7 +16,6 @@ import {
   WorkspacePolicySection,
   ParallelFissionSection,
   AdvancedEngineParamsSection,
-  ConsensusSection,
   MoaOverlaySection,
   SessionPolicySection,
   DeliveryAssuranceSection,
@@ -95,7 +94,6 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       <WorkspacePolicySection editor={editor} t={t} />
       <ParallelFissionSection editor={editor} t={t} />
       <AdvancedEngineParamsSection editor={editor} t={t} />
-      <ConsensusSection editor={editor} t={t} />
       <MoaOverlaySection editor={editor} t={t} />
 
       <AgentBrowserConfigSection

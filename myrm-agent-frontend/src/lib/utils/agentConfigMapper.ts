@@ -82,5 +82,6 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
       instruction: b.instruction,
     })),
     routingConfig: toRoutingConfig(ms),
+    engineParams: agent.engine_params ?? null,
   };
 }

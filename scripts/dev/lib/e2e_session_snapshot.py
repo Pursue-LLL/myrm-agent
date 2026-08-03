@@ -96,7 +96,7 @@ def write_holder_session_snapshot(
         "holderPid": holder_pid,
         "testId": test_id.strip(),
         "currentNode": current_node,
-        "phase": "admit",
+        "phase": "body" if current_node == "E2E_PYTEST_SUBPROCESS" else "admit",
         "lane": lane.strip(),
         "shpoib": bool(shpoib),
         "sessionStartedMonotonic": started,
@@ -162,6 +162,13 @@ def write_session_snapshot(
         "progressAtMonotonic": now,
         "updatedAtEpoch": time.time(),
     }
+    try:
+        from e2e_session_lifecycle import phase_cap_sec
+
+        if resolved_phase in {"admit", "bootstrap", "body", "teardown"}:
+            payload["phaseCapSec"] = phase_cap_sec(resolved_phase)  # type: ignore[arg-type]
+    except ImportError:
+        pass
     if existing is not None and existing.get("holderPid") is not None:
         payload["holderPid"] = existing["holderPid"]
     if existing is not None and existing.get("lane"):

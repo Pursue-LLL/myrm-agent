@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/store/useProviderStore (POS: Provider 与启用模型状态)
+ * @/store/useOrgModelPolicyStore (POS: 组织模型策略门禁)
+ * @/services/llm-config::fetchModelCapabilitiesBatch (POS: 模型能力批量探测)
+ *
+ * [OUTPUT]
+ * ModelPickerPopover: Provider 分组 + 可选 MoA preset 虚拟分组 + Primary/Fallback/Safety 槽位选择
+ *
+ * [POS]
+ * 跨页面复用的模型选择 Popover（聊天输入、Settings、Cron 等）。
+ */
+
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -22,6 +35,12 @@ interface PickerModelSelection {
 
 type SlotMode = 'primary' | 'fallback' | 'safety';
 
+interface MoaPresetOption {
+  id: string;
+  label: string;
+  refCount: number;
+}
+
 interface ModelPickerPopoverProps {
   trigger: ReactNode;
   currentSelection?: PickerModelSelection | null;
@@ -32,6 +51,9 @@ interface ModelPickerPopoverProps {
   safetyFallbackSelection?: PickerModelSelection | null;
   onSelectSafetyFallback?: (providerId: string, model: string) => void;
   onClearSafetyFallback?: () => void;
+  moaPresets?: MoaPresetOption[];
+  activeMoaPresetId?: string | null;
+  onSelectMoaPreset?: (presetId: string | null) => void;
   align?: 'start' | 'center' | 'end';
   className?: string;
 }
@@ -46,11 +68,15 @@ export default function ModelPickerPopover({
   safetyFallbackSelection,
   onSelectSafetyFallback,
   onClearSafetyFallback,
+  moaPresets,
+  activeMoaPresetId,
+  onSelectMoaPreset,
   align = 'start',
   className,
 }: ModelPickerPopoverProps) {
   const t = useTranslations('settings.defaultModel');
   const tCap = useTranslations('settings.modelCapabilities');
+  const tMoa = useTranslations('settings.defaultModel.moaPreset');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeSlot, setActiveSlot] = useState<SlotMode>('primary');
@@ -59,6 +85,25 @@ export default function ModelPickerPopover({
   const [costPerMillion, setCostPerMillion] = useState<Record<string, { input: number; output: number }>>({});
   const hasFallbackSupport = !!onSelectFallback;
   const hasSafetyFallbackSupport = !!onSelectSafetyFallback;
+  const hasMoaPresets = !!onSelectMoaPreset && (moaPresets?.length ?? 0) > 0;
+
+  const visibleMoaPresets = useMemo(() => {
+    if (!hasMoaPresets || !moaPresets) {
+      return [];
+    }
+    const q = search.toLowerCase().trim();
+    if (!q) {
+      return moaPresets;
+    }
+    const groupMatch =
+      tMoa('groupTitle').toLowerCase().includes(q) ||
+      q.includes('moa') ||
+      q.includes('mixture') ||
+      q.includes('agent');
+    return moaPresets.filter(
+      (preset) => groupMatch || preset.label.toLowerCase().includes(q) || preset.id.toLowerCase().includes(q),
+    );
+  }, [hasMoaPresets, moaPresets, search, tMoa]);
 
   const { providers, getEnabledModels, customModelInfo } = useProviderStore(
     useShallow((s) => ({
@@ -176,6 +221,12 @@ export default function ModelPickerPopover({
     }
   };
 
+  const handleMoaPresetClick = (presetId: string) => {
+    const nextId = activeMoaPresetId === presetId ? null : presetId;
+    onSelectMoaPreset?.(nextId);
+    setOpen(false);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -284,7 +335,37 @@ export default function ModelPickerPopover({
         </div>
         <TooltipProvider>
           <div className="max-h-80 overflow-y-auto">
-            {grouped.length === 0 ? (
+            {hasMoaPresets && activeSlot === 'primary' && visibleMoaPresets.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-primary/10 sticky top-0 border-b border-border/50">
+                  <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-primary/40">
+                    <span className="h-1 w-1 rounded-full bg-primary" />
+                  </span>
+                  <span>{tMoa('groupTitle')}</span>
+                  <span className="ml-auto text-muted-foreground/60">{visibleMoaPresets.length}</span>
+                </div>
+                {visibleMoaPresets.map((preset) => {
+                  const isActive = activeMoaPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleMoaPresetClick(preset.id)}
+                      className={cn(
+                        'flex items-center w-full pl-9 pr-3 py-2.5 text-sm transition-colors gap-2 hover:bg-accent cursor-pointer',
+                        isActive && 'bg-primary/10 text-primary font-medium',
+                      )}
+                    >
+                      <span className="truncate flex-1 text-left">{preset.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                        {tMoa('refCount', { count: preset.refCount })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {grouped.length === 0 && visibleMoaPresets.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 {enabledModels.length === 0 ? t('noEnabledModels') : t('noMatchingModels')}
               </div>

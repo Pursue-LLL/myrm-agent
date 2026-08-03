@@ -5,6 +5,7 @@ import {
   getChatNavigationSnapshot,
   getChatNavigationSnapshotCountForTests,
   resetChatNavigationSnapshotsForTests,
+  resolvePaneSnapshotBase,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
 
@@ -70,6 +71,54 @@ describe('chatNavigationSnapshotCache', () => {
     expect(restored!.files).toEqual(mockFiles);
     expect(restored!.cameraFrames).toEqual(['frame-1']);
     expect(restored!.mentionReferences).toEqual([{ type: 'file', path: '/a.ts', display: 'a.ts' }]);
+  });
+
+  it('extractNavigationSnapshot preserves session MoA preset per chat', () => {
+    const snapshot = extractNavigationSnapshot({
+      messages: [],
+      activeMoaPresetId: 'default',
+    } as Parameters<typeof extractNavigationSnapshot>[0]);
+
+    expect(snapshot.activeMoaPresetId).toBe('default');
+  });
+
+  it('round-trips activeMoaPresetId through save/get cycle', () => {
+    const snapshot = extractNavigationSnapshot({
+      messages: [],
+      isMessagesLoaded: true,
+      activeMoaPresetId: 'default',
+    } as Parameters<typeof extractNavigationSnapshot>[0]);
+
+    saveChatNavigationSnapshot('moa-chat', snapshot);
+    expect(getChatNavigationSnapshot('moa-chat')?.activeMoaPresetId).toBe('default');
+  });
+
+  it('resolvePaneSnapshotBase seeds session config from LRU when pane snapshot is empty', () => {
+    saveChatNavigationSnapshot('pane-chat', {
+      messages: [],
+      activeMoaPresetId: 'fast',
+      actionMode: 'agent',
+    });
+
+    const base = resolvePaneSnapshotBase('pane-chat', null);
+    expect(base.activeMoaPresetId).toBe('fast');
+    expect(base.actionMode).toBe('agent');
+    expect(base.messages).toEqual([]);
+  });
+
+  it('resolvePaneSnapshotBase prefers pane session fields over LRU', () => {
+    saveChatNavigationSnapshot('pane-chat', {
+      messages: [],
+      activeMoaPresetId: 'default',
+    });
+
+    const base = resolvePaneSnapshotBase('pane-chat', {
+      messages: [{ id: 'm1' }],
+      activeMoaPresetId: 'review',
+    } as Parameters<typeof resolvePaneSnapshotBase>[1]);
+
+    expect(base.activeMoaPresetId).toBe('review');
+    expect(base.messages).toEqual([{ id: 'm1' }]);
   });
 
   it('evicts the oldest snapshot when capacity is exceeded', () => {

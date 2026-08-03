@@ -47,9 +47,6 @@ from app.services.agent.stream_session.chat_history_bootstrap import (
     persist_user_message_and_load_history,
     stream_text_content,
 )
-from app.services.agent.stream_session.consensus_stream_setup import (
-    resolve_consensus_stream_models,
-)
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,
 )
@@ -76,8 +73,19 @@ logger = logging.getLogger(__name__)
 
 _ACTION_MODE_FEATURE_GATE: dict[str, str] = {
     "deep_research": "deep_research",
-    "consensus": "consensus",
 }
+
+
+def _normalize_legacy_consensus_request(request: AgentRequest) -> AgentRequest:
+    """Map deprecated consensus action mode to agent + MoA overlay preset."""
+    if request.action_mode != "consensus":
+        return request
+    from app.services.agent.moa_preset_resolver import MOA_PRESET_DEFAULT_ID
+
+    updates: dict[str, object] = {"action_mode": "agent"}
+    if request.active_moa_preset_id is None:
+        updates["active_moa_preset_id"] = MOA_PRESET_DEFAULT_ID
+    return request.model_copy(update=updates)
 
 _SEARCH_AGENT_IDS: frozenset[str] = frozenset(
     {"builtin-fast-search", "builtin-deep-search"}
@@ -98,6 +106,7 @@ async def run_agent_stream(
     """
     stream_started_at_monotonic = time.perf_counter()
     request = prefer_direct_agent_stream(request)
+    request = _normalize_legacy_consensus_request(request)
 
     async def _record_terminal_failure_if_needed(
         reason: TurnCapabilityFailureReason,
@@ -417,16 +426,9 @@ async def run_agent_stream(
         is_long_running_task = request.action_mode in (
             "deep_research",
             "agentic_search",
-            "consensus",
         )
         collector = StreamContentCollector(
             sibling_group_id=request.sibling_group_id, chat_id=request.chat_id
-        )
-
-        consensus_config, consensus_ref_cfgs, consensus_agg_cfg = (
-            await resolve_consensus_stream_models(
-                request,
-            )
         )
 
         session = AgentStreamSession(
@@ -450,9 +452,6 @@ async def run_agent_stream(
             goal_provider=goal_provider,
             extra_context=extra_context or {},
             stream_started_at_monotonic=stream_started_at_monotonic,
-            consensus_config=consensus_config,
-            consensus_ref_model_cfgs=consensus_ref_cfgs,
-            consensus_agg_model_cfg=consensus_agg_cfg,
             entitlement_preflight_text=(
                 text_content if request.resume_value is None else None
             ),

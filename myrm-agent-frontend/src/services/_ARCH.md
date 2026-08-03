@@ -8,7 +8,7 @@
 
 | 文件 / 模式 | 职责 |
 |-------------|------|
-| `chat.ts` | 会话 CRUD、流式聊天 |
+| `chat.ts` | 会话 CRUD、流式聊天；`StreamRequestBody.active_moa_preset_id` 会话 MoA preset |
 | `cron.ts` / `cron.types.ts` | `/cron/*` REST 客户端；类型在 `cron.types.ts`（含 monitor contract error 与连续失败计数元数据） |
 | `channels.ts` | 渠道 facade → `channels/` 分片 |
 | `channels/` | 核心工厂、管理 API、Provider 凭证、登录协议 · [_ARCH.md](channels/_ARCH.md) |
