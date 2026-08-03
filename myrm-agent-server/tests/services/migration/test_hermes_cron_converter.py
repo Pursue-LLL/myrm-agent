@@ -30,7 +30,7 @@ def test_convert_hermes_cron_job_maps_schedule() -> None:
     assert spec.name == "Morning brief"
     assert spec.schedule_kind == ScheduleKind.CRON
     assert spec.schedule_expr == "0 9 * * *"
-    assert spec.model is None
+    assert "model" not in spec.to_metadata_dict()
 
 
 def test_convert_hermes_job_ignores_source_model_field() -> None:
@@ -44,7 +44,7 @@ def test_convert_hermes_job_ignores_source_model_field() -> None:
     spec, skipped = convert_hermes_job(job)
     assert skipped is None
     assert spec is not None
-    assert spec.model is None
+    assert "model" not in spec.to_metadata_dict()
 
 
 def test_convert_hermes_job_skips_no_agent_script() -> None:

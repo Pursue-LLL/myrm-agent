@@ -9058,6 +9058,7 @@
         "skillsRetrySuccess": "Skills resubmitted for review",
         "reviewSkills": "Review skills",
         "configureMcp": "Configure MCP",
+        "configureCron": "Review scheduled tasks",
         "configureChannels": "Configure channels",
         "configureProviders": "Configure API keys",
         "batchId": "Batch ID",
@@ -9069,7 +9070,6 @@
         "cronImported": "{count} scheduled task(s) imported (paused)",
         "cronImportFailed": "{count} scheduled task(s) could not be imported",
         "cronSkippedOnly": "{count} scheduled task(s) were skipped (see preview for reasons)",
-        "cronResumeHint": "Open Scheduled Tasks in Settings to review and resume imported tasks.",
         "readinessSummary": "Runtime readiness check after import",
         "readinessResolveBeforeChat": "Resolve critical readiness issues before starting chat.",
         "vaultBind": {

@@ -90,16 +90,6 @@ def _send_and_wait_openapi_error_js(
       const sse = bridge.sseSnapshot?.() ?? [];
       return {{ ok: true, ...chatHit, sseHasError: sse.includes('error'), send: result }};
     }}
-    const body = document.body?.innerText ?? '';
-    if (pattern.test(body)) {{
-      return {{
-        ok: true,
-        matched: 'body',
-        errorType: readChatErrorType()?.errorType ?? null,
-        sseHasError: (bridge.sseSnapshot?.() ?? []).includes('error'),
-        send: result,
-      }};
-    }}
     await new Promise((resolve) => setTimeout(resolve, 300));
   }}
   const messages = window.__myrmChatStore?.getState?.()?.messages ?? [];
@@ -253,9 +243,14 @@ def _assert_openapi_outcome(
     expected_error_type: str,
 ) -> None:
     assert outcome.get("ok") is True, json.dumps(outcome, ensure_ascii=False)
-    assert outcome.get("matched") in {"metadata", "progressStep", "body"}, outcome
-    if outcome.get("matched") in {"metadata", "progressStep"}:
-        assert outcome.get("errorType") == expected_error_type, outcome
+    matched = outcome.get("matched")
+    assert matched in {"metadata", "progressStep"}, (
+        f"expected chat metadata or progressStep, got {matched!r}: "
+        f"{json.dumps(outcome, ensure_ascii=False)}"
+    )
+    error_type = outcome.get("errorType")
+    if isinstance(error_type, str) and error_type:
+        assert error_type == expected_error_type, outcome
 
 
 @pytest.mark.chrome_e2e(

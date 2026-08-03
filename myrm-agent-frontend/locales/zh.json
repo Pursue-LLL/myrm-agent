@@ -9061,6 +9061,7 @@
         "skillsRetrySuccess": "技能已重新提交审核",
         "reviewSkills": "审核技能",
         "configureMcp": "配置 MCP",
+        "configureCron": "查看定时任务",
         "configureChannels": "配置渠道",
         "configureProviders": "配置 API Key",
         "batchId": "批次 ID",
@@ -9072,7 +9073,6 @@
         "cronImported": "已导入 {count} 条定时任务（默认暂停）",
         "cronImportFailed": "{count} 条定时任务导入失败",
         "cronSkippedOnly": "有 {count} 条定时任务已跳过（原因见预览页）",
-        "cronResumeHint": "请在设置中的「定时任务」查看并恢复已导入的任务。",
         "readinessSummary": "导入后运行就绪检查",
         "readinessResolveBeforeChat": "请先修复严重就绪问题，再开始对话。",
         "vaultBind": {

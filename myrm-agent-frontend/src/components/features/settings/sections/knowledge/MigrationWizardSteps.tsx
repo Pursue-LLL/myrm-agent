@@ -893,11 +893,6 @@ export function ResultStep({
                 {t('result.cronSkippedOnly', { count: result.cron_import_summary.skipped_count })}
               </p>
             )}
-            {result.cron_import_summary.imported_count > 0 && (
-              <p className="text-xs text-muted-foreground/80">
-                {t('result.cronResumeHint')}
-              </p>
-            )}
           </>
         )}
         <div
@@ -986,6 +981,11 @@ export function ResultStep({
         <Button asChild size="sm" variant="outline" className="h-8 text-xs">
           <Link href="/settings/mcp">{t('result.configureMcp')}</Link>
         </Button>
+        {(result.cron_import_summary?.imported_count ?? 0) > 0 && (
+          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+            <Link href="/settings/cron">{t('result.configureCron')}</Link>
+          </Button>
+        )}
         <Button asChild size="sm" variant="outline" className="h-8 text-xs">
           <Link href="/settings/channels">{t('result.configureChannels')}</Link>
         </Button>

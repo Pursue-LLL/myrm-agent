@@ -48,7 +48,6 @@ class HermesCronMigrationJobSpec:
     schedule_interval_ms: int | None = None
     schedule_run_at: str | None = None
     prompt: str | None = None
-    model: str | None = None
     max_fires: int | None = None
     source_hermes_id: str = ""
     source_profile: str | None = None
@@ -63,7 +62,6 @@ class HermesCronMigrationJobSpec:
             "schedule_interval_ms": self.schedule_interval_ms,
             "schedule_run_at": self.schedule_run_at,
             "prompt": self.prompt,
-            "model": self.model,
             "max_fires": self.max_fires,
             "source_hermes_id": self.source_hermes_id,
             "source_profile": self.source_profile,
@@ -94,7 +92,6 @@ class HermesCronMigrationJobSpec:
             ),
             schedule_run_at=str(raw["schedule_run_at"]) if isinstance(raw.get("schedule_run_at"), str) else None,
             prompt=str(raw["prompt"]) if isinstance(raw.get("prompt"), str) else None,
-            model=str(raw["model"]) if isinstance(raw.get("model"), str) else None,
             max_fires=max_fires,
             source_hermes_id=str(raw.get("source_hermes_id", "")),
             source_profile=str(raw["source_profile"]) if isinstance(raw.get("source_profile"), str) else None,
@@ -336,7 +333,6 @@ def convert_hermes_job(job: dict[str, object]) -> tuple[HermesCronMigrationJobSp
         schedule_interval_ms=schedule.interval_ms,
         schedule_run_at=run_at_iso,
         prompt=prompt,
-        model=None,
         max_fires=max_fires,
         source_hermes_id=source_id,
         source_profile=profile,
