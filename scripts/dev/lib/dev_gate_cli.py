@@ -520,6 +520,9 @@ def _simple_operation(args: argparse.Namespace) -> int:
         if "TerminalConflictError" in message or "cannot finish succeeded" in message:
             print(message, file=sys.stderr)
             return 1
+        if "CleanupUnsealedError" in message or "cleanup not sealed" in message:
+            print(message, file=sys.stderr)
+            return 1
         raise
     # cleanup/finish run inside test.sh EXIT trap; stdout would pollute detach pytest logs.
     json_stream = sys.stderr if args.command in {"cleanup", "finish"} else sys.stdout

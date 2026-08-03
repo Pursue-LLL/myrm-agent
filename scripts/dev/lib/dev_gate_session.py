@@ -44,6 +44,10 @@ class TerminalConflictError(ValueError):
     """Raised when finish would contradict an existing terminal session state."""
 
 
+class CleanupUnsealedError(ValueError):
+    """Raised when finish(succeeded=True) is requested before observed cleanup seal."""
+
+
 _TRANSITIONS: dict[SessionState, frozenset[SessionState]] = {
     SessionState.SUBMITTED: frozenset(
         {SessionState.PRIVATE_ADMIT, SessionState.PREPARING, SessionState.CANCELLED}

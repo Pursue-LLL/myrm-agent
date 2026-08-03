@@ -11,6 +11,7 @@ from pathlib import Path
 from dev_gate_session import (
     AccessScope,
     CleanupReceipt,
+    CleanupUnsealedError,
     ExecutionMode,
     SessionOwnership,
     SessionPolicy,
@@ -22,6 +23,24 @@ from dev_gate_session import (
     assert_transition,
     initial_state,
 )
+
+
+def _cleanup_dict_from_row(row: sqlite3.Row) -> dict[str, object]:
+    try:
+        cleanup = json.loads(str(row["cleanup_json"] or "{}"))
+    except json.JSONDecodeError:
+        cleanup = {}
+    return cleanup if isinstance(cleanup, dict) else {}
+
+
+def _require_cleanup_sealed_for_success(row: sqlite3.Row) -> None:
+    cleanup = _cleanup_dict_from_row(row)
+    if cleanup.get("sealed") is True:
+        return
+    session_id = str(row["session_id"])
+    raise CleanupUnsealedError(
+        f"cannot finish succeeded: cleanup not sealed for session {session_id}"
+    )
 
 
 def _begin_immediate(connection: sqlite3.Connection) -> None:
@@ -704,10 +723,7 @@ class DevGateStore:
             if current in TERMINAL_STATES:
                 if succeeded and current is SessionState.FAILED:
                     prior_token = str(row["failure_token"] or "")
-                    try:
-                        cleanup = json.loads(str(row["cleanup_json"] or "{}"))
-                    except json.JSONDecodeError:
-                        cleanup = {}
+                    cleanup = _cleanup_dict_from_row(row)
                     if prior_token == "OWNER_EXITED" and cleanup.get("sealed") is True:
                         version = int(row["version"]) + 1
                         connection.execute(
@@ -744,6 +760,8 @@ class DevGateStore:
                         f"cannot finish failed: session already {current.value}"
                     )
                 return self._record(row)
+            if succeeded:
+                _require_cleanup_sealed_for_success(row)
             version = int(row["version"]) + 1
             outcome = "PASSED" if succeeded else "FAILED"
             connection.execute(

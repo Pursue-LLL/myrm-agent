@@ -26,6 +26,7 @@ from dev_gate_async_queue import (
 from dev_gate_session import (
     AccessScope,
     CleanupReceipt,
+    CleanupUnsealedError,
     ExecutionMode,
     SessionOwnership,
     SessionPolicy,
@@ -482,6 +483,7 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
             PermissionError,
             json.JSONDecodeError,
             TerminalConflictError,
+            CleanupUnsealedError,
         ) as exc:
             response = {
                 "ok": False,
