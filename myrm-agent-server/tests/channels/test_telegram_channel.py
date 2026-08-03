@@ -2272,6 +2272,39 @@ class TestSendMediaAttachment:
         await send_media_attachment(client, "123", att, None)
         client.send_voice.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_send_image_from_path(self) -> None:
+        client = MagicMock(spec=TelegramClient)
+        client.send_photo = AsyncMock()
+        att = MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/photo.jpg")
+        with patch(
+            "app.channels.providers.telegram.helpers.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value=b"fake-jpeg",
+        ) as mock_to_thread:
+            await send_media_attachment(client, "123", att, None)
+            mock_to_thread.assert_awaited_once()
+        client.send_photo.assert_called_once()
+        assert client.send_photo.call_args[0][1] == b"fake-jpeg"
+
+    @pytest.mark.asyncio
+    async def test_send_image_url_preferred_over_path(self) -> None:
+        client = MagicMock(spec=TelegramClient)
+        client.send_photo = AsyncMock()
+        att = MediaAttachment(
+            media_type=MediaType.IMAGE,
+            url="https://img.com/a.png",
+            path="/tmp/photo.jpg",
+        )
+        with patch(
+            "app.channels.providers.telegram.helpers.asyncio.to_thread",
+            new_callable=AsyncMock,
+        ) as mock_to_thread:
+            await send_media_attachment(client, "123", att, None)
+            mock_to_thread.assert_not_awaited()
+        client.send_photo.assert_called_once()
+        assert client.send_photo.call_args[0][1] == "https://img.com/a.png"
+
 
 # ══════════════════════════════════════════════════════════════════
 # Forum Topic Management
