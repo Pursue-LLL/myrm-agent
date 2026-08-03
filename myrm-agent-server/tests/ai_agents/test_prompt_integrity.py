@@ -215,3 +215,49 @@ class TestMemoryRulesConditionalInjection:
         )
         expected = get_core_system_prompt("full", enable_memory=False)
         assert result is expected
+
+
+class TestPromptTokenBudgetGate:
+    """Prevents prompt bloat regression via absolute token caps and ratio locks.
+
+    If any assertion fails, the prompt has grown beyond the budget — review
+    the change and either trim back or deliberately raise the cap with a PR
+    comment explaining the token cost / benefit.
+    """
+
+    _ENCODING_NAME = "cl100k_base"
+    _FULL_TOKEN_CAP = 2000
+    _LEAN_TOKEN_CAP = 1200
+    _LEAN_FULL_RATIO_CAP = 0.70
+
+    @staticmethod
+    def _token_count(text: str) -> int:
+        import tiktoken
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+
+    def test_full_mode_prompt_token_cap(self) -> None:
+        """Full prompt must stay within budget to control Turn1 cost."""
+        full = get_core_system_prompt("full")
+        tokens = self._token_count(full)
+        assert tokens <= self._FULL_TOKEN_CAP, (
+            f"full prompt {tokens} tokens exceeds cap {self._FULL_TOKEN_CAP}"
+        )
+
+    def test_lean_mode_prompt_token_cap(self) -> None:
+        """Lean prompt must be materially smaller than full."""
+        lean = get_core_system_prompt("lean")
+        tokens = self._token_count(lean)
+        assert tokens <= self._LEAN_TOKEN_CAP, (
+            f"lean prompt {tokens} tokens exceeds cap {self._LEAN_TOKEN_CAP}"
+        )
+
+    def test_lean_full_ratio_within_budget(self) -> None:
+        """Lean must deliver genuine savings vs full — not creep toward parity."""
+        full_tokens = self._token_count(get_core_system_prompt("full"))
+        lean_tokens = self._token_count(get_core_system_prompt("lean"))
+        ratio = lean_tokens / full_tokens
+        assert ratio <= self._LEAN_FULL_RATIO_CAP, (
+            f"lean/full ratio {ratio:.3f} exceeds cap {self._LEAN_FULL_RATIO_CAP}"
+        )
