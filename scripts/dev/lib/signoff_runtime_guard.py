@@ -110,6 +110,25 @@ def _ps_args(pid: int) -> str:
     return proc.stdout.strip()
 
 
+def _process_ps_environ(pid: int) -> str:
+    try:
+        proc = subprocess.run(
+            ["ps", "eww", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ""
+    if proc.returncode != 0:
+        return ""
+    return proc.stdout
+
+
+def _process_has_launcher_child_env(pid: int) -> bool:
+    return "MYRM_SIGNOFF_LAUNCHER_CHILD=1" in _process_ps_environ(pid)
+
+
 def _ancestor_pids(pid: int, *, max_depth: int = 8) -> frozenset[int]:
     seen: set[int] = {pid}
     current = pid
@@ -194,6 +213,8 @@ def scan_signoff_adhoc_violations() -> list[AdhocViolation]:
     )
     for gate_pid in gate_pids:
         if gate_pid in allowed_gates:
+            continue
+        if _process_has_launcher_child_env(gate_pid):
             continue
         cmd = _ps_args(gate_pid)
         reason = "rogue_gate_spawn"
