@@ -250,6 +250,62 @@ def _reconcile_coordinator_singleton(
         pass
 
 
+def _eliminate_coordinator_herd(
+    *,
+    socket_target: Path,
+    database_target: Path,
+    pid_path: Path,
+) -> None:
+    """Drop orphan coordinator serve processes before spawning a replacement."""
+    _reconcile_coordinator_singleton(
+        socket_target=socket_target,
+        database_target=database_target,
+        pid_path=pid_path,
+    )
+    serve_pids = _list_coordinator_serve_pids(
+        socket_target=socket_target,
+        database_target=database_target,
+    )
+    if len(serve_pids) <= 1 and (
+        _ping(socket_target) or _wait_for_ping(socket_target, budget_sec=2.0)
+    ):
+        return
+    for pid in serve_pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            continue
+    time.sleep(0.5)
+    for pid in _list_coordinator_serve_pids(
+        socket_target=socket_target,
+        database_target=database_target,
+    ):
+        if not _pid_alive(pid):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            continue
+    _clear_stale_coordinator_pid(pid_path)
+    try:
+        socket_target.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _coordinator_herd_active(
+    *,
+    socket_target: Path,
+    database_target: Path,
+) -> bool:
+    return bool(
+        _list_coordinator_serve_pids(
+            socket_target=socket_target,
+            database_target=database_target,
+        )
+    )
+
+
 def ensure_coordinator(
     *,
     socket_path: Path | None = None,
@@ -309,10 +365,11 @@ def ensure_coordinator(
                 if _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC):
                     return socket_target
             # R273: stale socket blocks all waiters — remove and spawn one coordinator.
-            try:
-                socket_target.unlink(missing_ok=True)
-            except OSError:
-                return None
+            _eliminate_coordinator_herd(
+                socket_target=socket_target,
+                database_target=database_target,
+                pid_path=pid_path,
+            )
         log_path = database_target.with_name("coordinator.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("ab", buffering=0) as log_handle:
@@ -474,8 +531,20 @@ def send(payload: dict[str, object]) -> dict[str, object]:
                 )
                 socket_path = ensure_coordinator()
                 if socket_path is None:
+                    if _coordinator_herd_active(
+                        socket_target=socket_target,
+                        database_target=database_target,
+                    ):
+                        time.sleep(min(0.25 * float(attempt + 1), 1.0))
+                        continue
                     return _handle_in_process(payload)
                 if not _socket_live(socket_path):
+                    if _coordinator_herd_active(
+                        socket_target=socket_target,
+                        database_target=database_target,
+                    ):
+                        time.sleep(min(0.25 * float(attempt + 1), 1.0))
+                        continue
                     return _handle_in_process(payload)
                 try:
                     extended = timeout_sec * (1.0 + 0.25 * float(attempt))
