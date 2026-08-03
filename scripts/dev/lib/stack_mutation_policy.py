@@ -463,6 +463,8 @@ def run_command_with_backend_heal_flock(
 
 def _cmd_run_heal_flocked(args: argparse.Namespace) -> int:
     cmd = [str(part) for part in args.cmd if str(part)]
+    while cmd and cmd[0] == "--":
+        cmd.pop(0)
     return run_command_with_backend_heal_flock(
         cmd=cmd,
         lock_file=Path(args.lock_file),

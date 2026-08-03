@@ -102,7 +102,11 @@ def _write_session(session: BootstrapSession) -> None:
 def begin_session(*, active_leases: int) -> BootstrapSession:
     existing = load_session()
     if existing is not None:
-        return existing
+        left = remaining_sec(existing)
+        if left > 0:
+            return existing
+        # Exhausted monotonic budget — allow a fresh ADMIT attempt (same holder).
+        clear_session()
     from dev_gate_contract import attach_parallel_wait_sec  # noqa: PLC0415
 
     budget = attach_parallel_wait_sec(active_leases, base=_attach_base_sec())
