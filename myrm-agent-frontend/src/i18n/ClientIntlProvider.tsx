@@ -21,6 +21,7 @@ import { mergeMessages } from '@/i18n/merge-messages';
 
 const DEFERRED_FETCH_MAX_ATTEMPTS = 3;
 const DEFERRED_FETCH_RETRY_BASE_MS = 400;
+const DEFERRED_FETCH_TIMEOUT_MS = 8_000;
 
 interface ClientIntlProviderProps {
   locale: Locale;
@@ -35,11 +36,25 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function fetchDeferredMessages(): Promise<Partial<Messages>> {
-  const response = await fetch('/api/i18n/deferred', { credentials: 'same-origin' });
-  if (!response.ok) {
-    throw new Error(`Deferred locale fetch failed: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFERRED_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch('/api/i18n/deferred', {
+      credentials: 'same-origin',
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Deferred locale fetch failed: ${response.status}`);
+    }
+    return (await response.json()) as Partial<Messages>;
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`Deferred locale fetch timed out after ${DEFERRED_FETCH_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return (await response.json()) as Partial<Messages>;
 }
 
 export default function ClientIntlProvider({ locale, shellMessages, children }: ClientIntlProviderProps) {

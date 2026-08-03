@@ -339,7 +339,11 @@ function SettingsLayout() {
   const deferredLocaleReady = useDeferredLocaleReady();
   if (!deferredLocaleReady) {
     return (
-      <div className="h-full w-full flex items-center justify-center p-8">
+      <div
+        className="h-full w-full flex items-center justify-center p-8"
+        data-testid="settings-deferred-loading"
+        aria-busy="true"
+      >
         <SettingsSkeleton />
       </div>
     );

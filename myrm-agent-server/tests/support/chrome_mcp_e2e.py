@@ -673,6 +673,9 @@ _SETTINGS_LAYOUT_READY_JS = """(() => ({
         (document.body?.innerText?.length ?? 0) > 40
       )
     ),
+  deferredLoading:
+    !!document.querySelector('[data-testid="settings-deferred-loading"]') ||
+    !!document.querySelector('[data-testid="settings-route-loading"]'),
   pathname: location.pathname,
   title: document.title,
   bodyLen: document.body?.innerText?.length ?? 0,
@@ -711,33 +714,42 @@ def _wait_for_app_layout_open(
     """Wait for page shell (AppLayout or SettingsLayout); signoff reload-heals stale mux tabs."""
     shell_ready_js = _page_shell_ready_js_for_url(url)
     layout_timeout = _open_page_layout_wait_sec()
-    client.set_tool_wall_deadline(None)
-    try:
-        wait_for_state(
-            client,
-            page,
-            shell_ready_js,
-            timeout_sec=layout_timeout,
+    signoff = is_e2e_signoff_runtime()
+    heal_passes = 3 if signoff else 2
+    last_exc: AssertionError | None = None
+
+    for attempt in range(heal_passes):
+        client.set_tool_wall_deadline(None)
+        if attempt > 0:
+            reload_mcp_page(client, page, target_url=url, timeout_ms=timeout_ms)
+            if signoff:
+                ensure_desktop_viewport(client, page)
+                dismiss_blocking_modals(client, page)
+            client.set_tool_wall_deadline(None)
+        attempt_timeout = layout_timeout if signoff or attempt == 0 else min(
+            120.0, layout_timeout * 0.5
         )
-        return
-    except AssertionError:
-        # SHPOIB settings routes block on deferred locale; reload-heal stale mux tabs (R267).
-        if not is_e2e_signoff_runtime() and e2e_runtime_binding() is None:
-            raise
-    client.set_tool_wall_deadline(None)
-    reload_mcp_page(client, page, target_url=url, timeout_ms=timeout_ms)
-    client.set_tool_wall_deadline(None)
-    try:
-        wait_for_state(
-            client,
-            page,
-            shell_ready_js,
-            timeout_sec=min(120.0, layout_timeout * 0.5),
-        )
-    except AssertionError as retry_exc:
-        raise AssertionError(
-            f"Page shell did not hydrate after reload: {retry_exc.args[0]}"
-        ) from retry_exc
+        try:
+            wait_for_state(
+                client,
+                page,
+                shell_ready_js,
+                timeout_sec=attempt_timeout,
+            )
+            return
+        except AssertionError as exc:
+            last_exc = exc
+            if (
+                not signoff
+                and attempt == 0
+                and e2e_runtime_binding() is None
+            ):
+                raise
+
+    detail = last_exc.args[0] if last_exc is not None else "unknown"
+    raise AssertionError(
+        f"Page shell did not hydrate after {heal_passes} reload-heal attempt(s): {detail}"
+    ) from last_exc
 
 
 def _shpoib_rebind_location_wait_cap() -> float:

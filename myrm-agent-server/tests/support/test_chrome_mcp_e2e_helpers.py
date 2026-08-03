@@ -31,6 +31,7 @@ def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> No
         == _SETTINGS_LAYOUT_READY_JS
     )
     assert "settings-layout" in _SETTINGS_LAYOUT_READY_JS
+    assert "settings-deferred-loading" in _SETTINGS_LAYOUT_READY_JS
     assert "app-layout" not in _SETTINGS_LAYOUT_READY_JS
 
 

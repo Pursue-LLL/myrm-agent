@@ -39,7 +39,12 @@ export default function RouteSegmentLoading({
 
   if (variant === 'settings') {
     return (
-      <div className={cn('flex min-h-[50vh] w-full px-6 py-8', className)} aria-busy="true" aria-live="polite">
+      <div
+        className={cn('flex min-h-[50vh] w-full px-6 py-8', className)}
+        aria-busy="true"
+        aria-live="polite"
+        data-testid="settings-route-loading"
+      >
         <SettingsSkeleton />
       </div>
     );
