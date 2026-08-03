@@ -44,6 +44,17 @@ def _myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
     return [str(monorepo_root / "myrm"), *parts]
 
 
+def shared_stack_ports_reachable() -> bool:
+    """True when shared :8080 health + :3000 UI respond — attach-safe without full heal."""
+    from runtime_identity import api_health_errors, classify_ui_endpoint_error
+
+    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
+    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
+    if api_health_errors(api_base):
+        return False
+    return classify_ui_endpoint_error(ui_base) is None
+
+
 def read_stack_hot_snapshot() -> StackHotSnapshot:
     from e2e_api_verify import resolve_e2e_api_context
     from runtime_identity import collect_runtime_parts, read_frontend_hot_state
@@ -69,15 +80,18 @@ def choose_signoff_ready_mode(
     solo: SoloSnapshot,
     hot: StackHotSnapshot,
 ) -> SignoffReadyMode:
+    if solo.peers > 0 or solo.mux_peers > 1:
+        return SignoffReadyMode.BOUNDED_HEAL
     if (
-        solo.peers == 0
-        and solo.mux_peers <= 1
-        and hot.epoch_match
+        hot.epoch_match
         and not hot.blocked
         and hot.backend_healthy
         and hot.shell_hot
         and hot.client_hot
     ):
+        return SignoffReadyMode.HOT_ATTACH
+    # Solo + ports live + shell already hot → fast attach (≤60s).
+    if shared_stack_ports_reachable() and hot.shell_hot:
         return SignoffReadyMode.HOT_ATTACH
     return SignoffReadyMode.BOUNDED_HEAL
 
@@ -128,10 +142,22 @@ def run_signoff_ready_under_flock(
         attach_wall = min(60, max(15, wall_sec))
         os.environ["MYRM_CHROME_E2E_ATTACH"] = "1"
         os.environ["MYRM_READY_CHROME_SOLO_WALL_SEC"] = str(attach_wall)
+        full_hot = (
+            hot.epoch_match
+            and not hot.blocked
+            and hot.backend_healthy
+            and hot.shell_hot
+            and hot.client_hot
+        )
+        token = (
+            "SIGNOFF_PREFLIGHT_HOT_ATTACH"
+            if full_hot
+            else "SIGNOFF_PREFLIGHT_SOLO_PORTS_ATTACH"
+        )
         _emit(
-            "SIGNOFF_PREFLIGHT_HOT_ATTACH: "
+            f"{token}: "
             f"shell_hot={hot.shell_hot} client_hot={hot.client_hot} "
-            f"epoch_match={hot.epoch_match} wall={attach_wall}s"
+            f"epoch_match={hot.epoch_match} blocked={hot.blocked} wall={attach_wall}s"
         )
         cmd = _myrm_cmd(monorepo_root, "ready", "--attach", "--chrome")
         flock_wait = float(min(90, attach_wall + 30))
