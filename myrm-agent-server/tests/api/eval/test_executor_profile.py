@@ -30,6 +30,9 @@ class MockResolvedProfile:
         self.enabled_builtin_tools = ("web_search",)
         self.auto_restore_domains = ()
         self.memory_decay_profile = None
+        self.memory_extraction_preset = None
+        self.mcp_ids: list[str] | None = None
+        self.mcp_tool_selections: dict[str, list[str]] | None = None
 
 
 @pytest.mark.asyncio

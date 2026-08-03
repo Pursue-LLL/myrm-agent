@@ -186,7 +186,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
   }
 
   if (type === 'word_document' && preview_url) {
-    return <DocxPreviewDynamic previewUrl={preview_url} />;
+    return <DocxPreviewDynamic previewUrl={preview_url} artifactId={artifact.id} />;
   }
 
   if (type === 'presentation' && preview_url) {

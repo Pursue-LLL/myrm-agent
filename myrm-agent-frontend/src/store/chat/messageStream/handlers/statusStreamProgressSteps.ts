@@ -311,7 +311,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
           ? 'settings.defaultModel.moaPreset.skippedNoReferenceLlms'
           : reason === 'budget_pressure'
             ? 'settings.defaultModel.moaPreset.skippedBudgetPressure'
-            : 'settings.defaultModel.moaPreset.skippedGeneric';
+            : reason === 'insufficient_refs'
+              ? 'settings.defaultModel.moaPreset.skippedInsufficientRefs'
+              : 'settings.defaultModel.moaPreset.skippedGeneric';
     showI18nToast(reasonKey, undefined, { type: 'warning', duration: 8000 });
   }
 }

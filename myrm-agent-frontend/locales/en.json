@@ -1631,6 +1631,7 @@
         "skippedNoReferenceConfigs": "Mixture of Agents is on, but no reference models are configured. Advisor overlay was skipped — check Agent capabilities settings.",
         "skippedNoReferenceLlms": "Mixture of Agents is on, but reference models could not be loaded (check API keys or provider settings). Advisor overlay was skipped.",
         "skippedBudgetPressure": "Mixture of Agents advisor overlay was skipped because the session budget is under pressure.",
+        "skippedInsufficientRefs": "Mixture of Agents is on, but not enough advisor models succeeded. Advisor injection was skipped — check reference model availability.",
         "skippedGeneric": "Mixture of Agents advisor overlay was skipped for this message."
       },
       "temperature": "Temperature",
@@ -5830,6 +5831,9 @@
     "moaOverlayTitle": "Agent-Loop Advisor Overlay",
     "moaOverlayDesc": "Configure advisor reference models for the chat model picker. Session activation happens from the Mixture of Agents group — not on every message by default.",
     "moaOverlayPickerHint": "When enabled, this preset appears in the chat model picker. Select it per session to run the advisor overlay.",
+    "moaOverlayPresetDefaultTab": "Standard refs",
+    "moaOverlayPresetReviewTab": "Deep review refs",
+    "moaOverlayPresetFastTab": "Fast refs",
     "moaOverlayFanout": "Fan-out Policy",
     "moaOverlayFanoutUserTurn": "Once per user turn",
     "moaOverlayFanoutPerIteration": "Every model call",

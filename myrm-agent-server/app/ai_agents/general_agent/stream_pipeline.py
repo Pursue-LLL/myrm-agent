@@ -218,12 +218,17 @@ async def execute_stream_pipeline(
             resolve_moa_overlay_models,
         )
 
-        overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(agent_wrapper.engine_params)
+        overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(
+            agent_wrapper.engine_params
+        )
         moa_skip_reason: str | None = None
         if overlay_cfg is not None:
             if not ref_cfgs:
                 moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
-            elif agent_wrapper.moa_overlay_skip_reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS:
+            elif (
+                agent_wrapper.moa_overlay_skip_reason
+                == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
+            ):
                 moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
         if moa_skip_reason:
             yield {
@@ -400,7 +405,10 @@ async def execute_stream_pipeline(
                         await mark_thread_failed(agent_wrapper._current_thread_id)
                     raise
                 finally:
-                    for _var, _tok in ((session_id_var, token), (resolved_skill_versions_var, version_token)):
+                    for _var, _tok in (
+                        (session_id_var, token),
+                        (resolved_skill_versions_var, version_token),
+                    ):
                         try:
                             _var.reset(_tok)
                         except ValueError:

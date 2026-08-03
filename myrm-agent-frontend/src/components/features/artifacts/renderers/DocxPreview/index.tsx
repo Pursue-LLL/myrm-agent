@@ -3,29 +3,33 @@
 /**
  * [INPUT]
  * docx-preview::renderAsync (POS: DOCX 二进制解析与 HTML 渲染);
- * @/lib/api::getStorageUrl (POS: 存储 URL 构建).
+ * @/lib/api::getStorageUrl (POS: 存储 URL 构建);
+ * portal/DocumentSelectionToolbar (POS: 文档预览 DOM 选中文本悬浮操作栏).
  * [OUTPUT] DocxPreview: Word 文档高保真预览渲染器。
- * [POS] 通过 docx-preview 库将 .docx 二进制文件解析并渲染为带样式的 HTML DOM。
+ * [POS] 通过 docx-preview 库将 .docx 二进制文件解析并渲染为带样式的 HTML DOM，集成选中文本→AI 操作工具栏。
  */
 
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { getStorageUrl } from '@/lib/api';
+import DocumentSelectionToolbar from '../../portal/DocumentSelectionToolbar';
 
 interface DocxPreviewProps {
   previewUrl: string;
+  artifactId?: string;
 }
 
-const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl }) => {
+const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl, artifactId }) => {
   const t = useTranslations('artifacts');
   const containerRef = useRef<HTMLDivElement>(null);
+  const renderRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const container = containerRef.current;
-    if (!container) return;
+    const renderTarget = renderRef.current;
+    if (!renderTarget) return;
 
     const render = async () => {
       setLoading(true);
@@ -39,9 +43,9 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl }) => {
         if (cancelled) return;
 
         const { renderAsync } = await import('docx-preview');
-        container.innerHTML = '';
+        renderTarget.innerHTML = '';
 
-        await renderAsync(blob, container, container, {
+        await renderAsync(blob, renderTarget, renderTarget, {
           inWrapper: true,
           ignoreWidth: false,
           ignoreHeight: false,
@@ -63,7 +67,7 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl }) => {
     render();
     return () => {
       cancelled = true;
-      if (container) container.innerHTML = '';
+      if (renderTarget) renderTarget.innerHTML = '';
     };
   }, [previewUrl]);
 
@@ -77,17 +81,20 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl }) => {
   }
 
   return (
-    <div className="h-full overflow-auto bg-muted/30">
+    <div ref={containerRef} className="h-full overflow-auto bg-muted/30 relative">
       {loading && (
         <div className="h-full flex items-center justify-center">
           <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
         </div>
       )}
       <div
-        ref={containerRef}
+        ref={renderRef}
         className="docx-preview-container mx-auto"
         style={{ display: loading ? 'none' : 'block' }}
       />
+      {artifactId && (
+        <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />
+      )}
     </div>
   );
 });

@@ -380,8 +380,13 @@ async def build_general_agent(
 
     extraction_preset = agent_wrapper.memory_extraction_preset
     if extraction_preset == "auto":
-        from myrm_agent_harness.toolkits.memory.strategies.extraction_domain import auto_detect_preset
-        extraction_preset = auto_detect_preset(agent_wrapper.user_instructions or "").value
+        from myrm_agent_harness.toolkits.memory.strategies.extraction_domain import (
+            auto_detect_preset,
+        )
+
+        extraction_preset = auto_detect_preset(
+            agent_wrapper.user_instructions or ""
+        ).value
 
     memory_ext = ZeroCostMemoryExtension(
         enable_memory_auto_extraction=agent_wrapper.enable_memory_auto_extraction,
@@ -511,12 +516,13 @@ async def build_general_agent(
     moa_middleware = await build_moa_overlay_middleware(
         agent_wrapper.engine_params,
         unattended=bool(getattr(agent_wrapper, "unattended_mode", False)),
-        action_mode=str(getattr(agent_wrapper, "action_mode", "agent") or "agent"),
     )
     if moa_middleware is not None:
         middlewares_list.append(moa_middleware)
         agent_wrapper.moa_overlay_skip_reason = None
-        logger.info("MoA advisor overlay middleware mounted (chat_id=%s)", effective_chat_id)
+        logger.info(
+            "MoA advisor overlay middleware mounted (chat_id=%s)", effective_chat_id
+        )
     else:
         from app.services.agent.stream_session.moa_overlay_setup import (
             resolve_moa_overlay_skip_reason,
@@ -666,7 +672,11 @@ async def build_general_agent(
                 agent_wrapper.mcp_config,
             )
         except Exception as e:
-            logger.warning("Failed to prepare MCP configs for agent %s: %s", agent_wrapper.agent_id, e)
+            logger.warning(
+                "Failed to prepare MCP configs for agent %s: %s",
+                agent_wrapper.agent_id,
+                e,
+            )
 
     state_manager = None
     default_skill_instances: dict[str, str] = {}
@@ -1258,18 +1268,16 @@ def _collect_moa_reference_model_names(
     engine_params: dict[str, object] | None,
 ) -> set[str]:
     """Collect MoA overlay reference model names from agent engine_params."""
-    if not engine_params:
-        return set()
-    overlay = engine_params.get("moa_overlay")
-    if not isinstance(overlay, dict):
-        return set()
-    refs = overlay.get("reference_model_selections")
-    if not isinstance(refs, list):
+    from app.services.agent.moa_preset_resolver import (
+        iter_all_reference_selections,
+        moa_overlay_from_engine_params,
+    )
+
+    overlay = moa_overlay_from_engine_params(engine_params)
+    if overlay is None:
         return set()
     names: set[str] = set()
-    for item in refs:
-        if not isinstance(item, dict):
-            continue
+    for item in iter_all_reference_selections(overlay):
         model = item.get("model")
         if isinstance(model, str) and model:
             names.add(model)

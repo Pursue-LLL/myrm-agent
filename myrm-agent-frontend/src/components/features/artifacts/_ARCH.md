@@ -32,6 +32,8 @@
 | `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取指令栏 |
 | `renderers/DocumentPreview.tsx` | 核心 | 文档/Markdown 渲染预览（集成 DocumentSelectionToolbar） |
 | `renderers/DiffPreview.tsx` | 核心 | 版本间差异对比渲染器（Monaco DiffEditor，inline/side-by-side 双模式） |
+| `renderers/DocxPreview/` | 辅助 | Word (.docx) 高保真预览（docx-preview 库渲染，集成 DocumentSelectionToolbar） |
+| `renderers/PptxPreview/` | 辅助 | PowerPoint (.pptx) 幻灯片预览（@aiden0z/pptx-renderer 库渲染） |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 表格只读预览 |
 | `renderers/SpreadsheetEditor/` | 辅助 | XLSX Live 编辑器（Univer Sheet SDK，Edit 模式下可编辑，SheetJS 双向 XLSX 转换） |
 | `__tests__/largeFileInlinePreview.test.ts` | 测试 | large-file inline preview 文案与阈值回归守卫 |

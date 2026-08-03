@@ -212,6 +212,32 @@ class PendingDriftApplyResult:
     detail: str = ""
 
 
+def ensure_lock_active(state_dir: Path) -> bool:
+    """True when dev-stack ensure holds ensure.lock.d (parallel drift apply must defer)."""
+    owner_file = state_dir / "ensure.lock.d" / "pid"
+    if not owner_file.is_file():
+        return False
+    try:
+        raw = owner_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    if not raw.isdigit():
+        return False
+    try:
+        os.kill(int(raw), 0)
+    except OSError:
+        return False
+    return True
+
+
+def _api_health_url() -> str:
+    base = os.environ.get("E2E_API_BASE", "").strip()
+    if base:
+        return f"{base.rstrip('/')}/api/v1/health"
+    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or "8080"
+    return f"http://127.0.0.1:{port}/api/v1/health"
+
+
 def apply_pending_drift_if_idle(
     *,
     monorepo_root: Path,
@@ -229,6 +255,8 @@ def apply_pending_drift_if_idle(
             "skipped",
             f"active_leases={active_leases}",
         )
+    if ensure_lock_active(resolved_state):
+        return PendingDriftApplyResult("skipped", "ensure_in_progress")
     if not pending_drift_exists(resolved_state):
         return PendingDriftApplyResult("noop")
     if not dev_stack.is_file():
@@ -296,10 +324,7 @@ def apply_pending_drift_if_idle(
 
 def shared_api_http_ok() -> bool:
     try:
-        urllib.request.urlopen(
-            "http://127.0.0.1:8080/api/v1/health",
-            timeout=5,
-        )
+        urllib.request.urlopen(_api_health_url(), timeout=5)
         return True
     except (urllib.error.URLError, TimeoutError, OSError):
         return False

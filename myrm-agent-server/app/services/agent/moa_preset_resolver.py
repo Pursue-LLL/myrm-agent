@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - ``apply_moa_preset_activation``: returns engine_params with overlay enabled only for active preset
+- ``resolve_preset_reference_selections``: refs for a preset id (strict per-preset when ``presets`` exists)
 
 [POS]
 Business-layer resolver. Profile ``moa_overlay.enabled`` means preset is configured and
@@ -37,14 +38,98 @@ _PRESET_PARAM_OVERRIDES: dict[str, dict[str, object]] = {
     },
 }
 
+_PRESET_OVERRIDE_KEYS: frozenset[str] = frozenset(
+    {
+        "reference_reasoning_effort",
+        "reference_max_tokens",
+        "reference_temperature",
+        "min_successful",
+    }
+)
 
-def _moa_overlay_block(engine_params: dict[str, object] | None) -> dict[str, object] | None:
+
+def _moa_overlay_block(
+    engine_params: dict[str, object] | None,
+) -> dict[str, object] | None:
     if not engine_params:
         return None
     raw = engine_params.get("moa_overlay")
     if not isinstance(raw, dict):
         return None
     return raw
+
+
+def moa_overlay_from_engine_params(
+    engine_params: dict[str, object] | None,
+) -> dict[str, object] | None:
+    """Return the ``moa_overlay`` block from agent engine_params when present."""
+    return _moa_overlay_block(engine_params)
+
+
+def _top_level_reference_selections(overlay: dict[str, object]) -> list[object]:
+    refs = overlay.get("reference_model_selections")
+    return refs if isinstance(refs, list) else []
+
+
+def _preset_blocks(overlay: dict[str, object]) -> dict[str, dict[str, object]]:
+    raw = overlay.get("presets")
+    if not isinstance(raw, dict):
+        return {}
+    blocks: dict[str, dict[str, object]] = {}
+    for preset_id, block in raw.items():
+        if preset_id in VALID_MOA_PRESET_IDS and isinstance(block, dict):
+            blocks[preset_id] = block
+    return blocks
+
+
+def _has_presets_key(overlay: dict[str, object]) -> bool:
+    return "presets" in overlay
+
+
+def resolve_preset_reference_selections(
+    overlay: dict[str, object],
+    preset_id: str,
+) -> list[object]:
+    """Return reference_model_selections for a preset.
+
+    When ``presets`` exists, each preset block is authoritative (empty list = no refs).
+    Top-level ``reference_model_selections`` is fallback only for legacy profiles without ``presets``.
+    """
+    if _has_presets_key(overlay):
+        block = _preset_blocks(overlay).get(preset_id)
+        if block is None:
+            return []
+        refs = block.get("reference_model_selections")
+        return refs if isinstance(refs, list) else []
+    return _top_level_reference_selections(overlay)
+
+
+def iter_all_reference_selections(
+    overlay: dict[str, object],
+) -> list[dict[str, object]]:
+    """Collect unique reference selections across presets and top-level (org-policy)."""
+    seen: set[tuple[str, str]] = set()
+    collected: list[dict[str, object]] = []
+
+    def _add(item: object) -> None:
+        if not isinstance(item, dict):
+            return
+        provider_id = item.get("providerId")
+        model = item.get("model")
+        if not isinstance(provider_id, str) or not isinstance(model, str):
+            return
+        key = (provider_id, model)
+        if key in seen:
+            return
+        seen.add(key)
+        collected.append(item)
+
+    for preset_id in VALID_MOA_PRESET_IDS:
+        for item in resolve_preset_reference_selections(overlay, preset_id):
+            _add(item)
+    for item in _top_level_reference_selections(overlay):
+        _add(item)
+    return collected
 
 
 def is_moa_preset_configured(engine_params: dict[str, object] | None) -> bool:
@@ -54,8 +139,13 @@ def is_moa_preset_configured(engine_params: dict[str, object] | None) -> bool:
         return False
     if not overlay.get("enabled"):
         return False
-    refs = overlay.get("reference_model_selections")
-    return isinstance(refs, list) and len(refs) > 0
+    has_preset_refs = any(
+        len(resolve_preset_reference_selections(overlay, preset_id)) > 0
+        for preset_id in VALID_MOA_PRESET_IDS
+    )
+    if _has_presets_key(overlay):
+        return has_preset_refs
+    return has_preset_refs or len(_top_level_reference_selections(overlay)) > 0
 
 
 def apply_moa_preset_activation(
@@ -81,8 +171,19 @@ def apply_moa_preset_activation(
     )
     overlay_copy["enabled"] = activate
     if activate and active_moa_preset_id is not None:
+        preset_block = _preset_blocks(overlay_copy).get(active_moa_preset_id)
+        refs = resolve_preset_reference_selections(overlay_copy, active_moa_preset_id)
+        overlay_copy["reference_model_selections"] = list(refs)
+
+        if preset_block is not None:
+            for key in _PRESET_OVERRIDE_KEYS:
+                if key in preset_block:
+                    overlay_copy[key] = preset_block[key]
+
         preset_overrides = _PRESET_PARAM_OVERRIDES.get(active_moa_preset_id, {})
         for key, value in preset_overrides.items():
-            overlay_copy[key] = value
+            if preset_block is None or key not in preset_block:
+                overlay_copy[key] = value
+
     params["moa_overlay"] = overlay_copy
     return params

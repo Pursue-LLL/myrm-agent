@@ -55,6 +55,9 @@ _smp_apply_pending_drift_if_idle() {
   if [[ "${active_leases}" != "0" ]]; then
     return 0
   fi
+  if _smp_ensure_lock_active "${state_dir}"; then
+    return 0
+  fi
   if ! python3 "${policy_py}" pending-exists --state-dir "${state_dir}" | grep -q '^1$'; then
     return 0
   fi
@@ -63,7 +66,18 @@ _smp_apply_pending_drift_if_idle() {
 }
 
 _smp_shared_api_http_ok() {
-  curl -sf --max-time 5 "http://127.0.0.1:8080/api/v1/health" >/dev/null 2>&1
+  local health_url="${API_HEALTH:-http://127.0.0.1:${MYRM_BACKEND_PORT:-${PORT:-8080}}/api/v1/health}"
+  curl -sf --max-time 5 "${health_url}" >/dev/null 2>&1
+}
+
+_smp_ensure_lock_active() {
+  local state_dir="${1:?}"
+  local lockdir="${state_dir}/ensure.lock.d"
+  local owner_file="${lockdir}/pid"
+  local owner=""
+  [[ -f "${owner_file}" ]] || return 1
+  owner="$(tr -d '[:space:]' <"${owner_file}")"
+  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
 }
 
 _smp_run_backend_crash_ensure() {

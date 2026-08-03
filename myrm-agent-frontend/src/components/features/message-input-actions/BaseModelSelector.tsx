@@ -29,6 +29,7 @@ import {
   listMoaPresetOptions,
   isMoaPresetConfigured,
   resolveMoaPresetLabelKey,
+  isActiveMoaPresetAvailable,
 } from '@/lib/moaPresetUtils';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
@@ -100,6 +101,15 @@ const BaseModelSelector = () => {
       refCount: preset.refCount,
     }));
   }, [showMoaPresets, agentConfig?.engineParams, moaPresetT]);
+
+  useEffect(() => {
+    if (!showMoaPresets || !activeMoaPresetId) {
+      return;
+    }
+    if (!isActiveMoaPresetAvailable(agentConfig?.engineParams, activeMoaPresetId)) {
+      setActiveMoaPresetId(null);
+    }
+  }, [showMoaPresets, activeMoaPresetId, agentConfig?.engineParams, setActiveMoaPresetId]);
 
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
 

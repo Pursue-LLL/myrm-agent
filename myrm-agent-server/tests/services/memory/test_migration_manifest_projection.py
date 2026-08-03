@@ -50,7 +50,7 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
         migration = await insights.build_migration()
 
     assert migration.source_manifest_authoritative is True
-    assert len(migration.source_manifest) == 5
+    assert len(migration.source_manifest) == 7
     assert migration.source_manifest[0].import_source == "hermes"
     assert {item.id for item in migration.source_manifest} == {
         "hermes",
@@ -58,6 +58,8 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
         "claude",
         "codex",
         "chatgpt",
+        "gbrain",
+        "pi",
     }
     chatgpt_entry = next(item for item in migration.source_manifest if item.id == "chatgpt")
     assert chatgpt_entry.discover_modes == ["zip_upload"]

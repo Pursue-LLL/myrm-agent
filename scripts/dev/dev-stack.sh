@@ -47,7 +47,7 @@ ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-$((ENSURE_FRONTEND_WAIT_SEC + 60)
 mkdir -p "${STATE_DIR}"
 export_myrm_next_dist_dir
 if [[ "${STATE_DIR}" != "${HOME}/.local/state/myrm-dev" ]]; then
-  export MYRM_FRONTEND_DEV_WEBPACK=1
+  export MYRM_FRONTEND_DEV_WEBPACK="${MYRM_FRONTEND_DEV_WEBPACK:-0}"
 fi
 mkdir -p "${FRONTEND_DIR}/${MYRM_NEXT_DIST_DIR}"
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
@@ -170,6 +170,12 @@ _wait_frontend_http_200() {
     code="$(_frontend_http_status)"
     if [[ "${code}" == "200" ]]; then
       return 0
+    fi
+    if ! _api_healthy 3; then
+      if [[ "${i}" -eq 1 || $((i % 10)) -eq 0 ]]; then
+        echo "STACK_HEAL: backend down during frontend wait (${i}/${max}s) — re-ensure backend" >&2
+        _ensure_backend || true
+      fi
     fi
     if [[ -f "${FRONTEND_PID}" ]]; then
       local supervisor_pid

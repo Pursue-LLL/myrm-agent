@@ -2,7 +2,10 @@
 /**
  * [POS] MoA overlay E2E — API prepare (agent with overlay + SSE moa_ref_done).
  * [OUTPUT] stdout: E2E_PREPARE_JSON={ agentId, chatId, uiUrl, moaOverlayActive, moaRefDoneCount, apiBase }
- * UI phase: MCP chrome-devtools on real Chrome :3000 (not Playwright).
+ * UI phase: MCP chrome-devtools on real Chrome (not Playwright).
+ *
+ * Env: E2E_API_BASE (default http://127.0.0.1:8080), E2E_UI_BASE, E2E_MOA_PRESET_ID (default),
+ * E2E_MOA_STREAM_TIMEOUT_MS, BASIC_* from myrm-agent-server/.env.test
  */
 
 import { randomUUID } from 'node:crypto';
@@ -10,6 +13,7 @@ import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-
 
 const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
+const moaPresetId = process.env.E2E_MOA_PRESET_ID ?? 'default';
 const streamTimeoutMs = Number(process.env.E2E_MOA_STREAM_TIMEOUT_MS ?? 120_000);
 
 const MOA_QUERY =
@@ -140,7 +144,7 @@ async function createMoaAgent(providerId, modelId) {
 async function deleteAgent(agentId) {
   const res = await apiFetch(`/api/v1/user-agents/${agentId}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) {
-    throw new Error(`delete agent failed: ${await res.text()}`);
+    console.warn(`delete agent failed: ${(await res.text()).slice(0, 400)}`);
   }
 }
 
@@ -160,6 +164,16 @@ async function createChat(agentId) {
     throw new Error(`seed chat failed: ${await res.text()}`);
   }
   return chatId;
+}
+
+async function activateChatMoaPreset(chatId, presetId) {
+  const res = await apiFetch(`/api/v1/chats/${chatId}/active-moa-preset`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active_moa_preset_id: presetId }),
+  });
+  if (!res.ok) {
+    throw new Error(`PATCH active-moa-preset failed: ${await res.text()}`);
+  }
 }
 
 function consumeSseBuffer(buffer) {
@@ -195,7 +209,7 @@ function countMoaEvents(events) {
   return { moaOverlayActive, moaRefDoneCount };
 }
 
-async function runAgentStreamUntilMoa(chatId, agentId, providerId, modelId) {
+async function runAgentStreamUntilMoa(chatId, agentId, providerId, modelId, presetId) {
   const messageId = randomUUID();
   const payload = {
     query: MOA_QUERY,
@@ -203,6 +217,7 @@ async function runAgentStreamUntilMoa(chatId, agentId, providerId, modelId) {
     chatId,
     agentId,
     actionMode: 'agent',
+    active_moa_preset_id: presetId,
     modelSelection: {
       providerId,
       model: modelId,
@@ -263,8 +278,18 @@ async function runAgentStreamUntilMoa(chatId, agentId, providerId, modelId) {
     }
     return counts;
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError' && countMoaEvents(events).moaRefDoneCount >= 1) {
-      return countMoaEvents(events);
+    if (error instanceof Error && error.name === 'AbortError') {
+      const counts = countMoaEvents(events);
+      if (counts.moaRefDoneCount >= 1) {
+        return counts;
+      }
+      const steps = events
+        .filter((e) => e?.type === 'status')
+        .map((e) => e.step_key)
+        .join(',');
+      throw new Error(
+        `moa-stream-timeout (active=${counts.moaOverlayActive}, refDone=${counts.moaRefDoneCount}; steps=${steps || 'none'})`,
+      );
     }
     throw error;
   } finally {
@@ -285,11 +310,13 @@ async function main() {
     const { providerId, modelId } = await seedProviders();
     agentId = await createMoaAgent(providerId, modelId);
     const chatId = await createChat(agentId);
+    await activateChatMoaPreset(chatId, moaPresetId);
     const { moaOverlayActive, moaRefDoneCount } = await runAgentStreamUntilMoa(
       chatId,
       agentId,
       providerId,
       modelId,
+      moaPresetId,
     );
 
     const result = {
@@ -297,6 +324,7 @@ async function main() {
       chatId,
       uiUrl: `${uiBase}/${chatId}`,
       apiBase,
+      activeMoaPresetId: moaPresetId,
       moaOverlayActive,
       moaRefDoneCount,
     };

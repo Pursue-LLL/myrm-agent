@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS = "no_reference_configs"
 MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS = "no_reference_llms"
 MOA_OVERLAY_SKIP_BUDGET_PRESSURE = "budget_pressure"
+MOA_OVERLAY_SKIP_INSUFFICIENT_REFS = "insufficient_refs"
 
 
 def _cfg_float(raw: dict[str, object], key: str, default: float) -> float:
@@ -131,7 +132,6 @@ async def build_moa_overlay_middleware(
     engine_params: dict[str, object] | None,
     *,
     unattended: bool = False,
-    action_mode: str = "agent",
 ) -> Any | None:
     overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(engine_params)
     if overlay_cfg is None:
@@ -161,7 +161,11 @@ async def build_moa_overlay_middleware(
     )
 
     fanout_raw = _cfg_str(overlay_cfg, "fanout", "user_turn")
-    fanout = fanout_raw if fanout_raw in ("user_turn", "per_iteration", "every_n") else "user_turn"
+    fanout = (
+        fanout_raw
+        if fanout_raw in ("user_turn", "per_iteration", "every_n")
+        else "user_turn"
+    )
     privacy_raw = _cfg_str(overlay_cfg, "privacy_filter", "off")
     privacy: PrivacyFilterMode = (
         privacy_raw if privacy_raw in ("off", "display", "full") else "off"
@@ -176,7 +180,9 @@ async def build_moa_overlay_middleware(
         timeout_total=_cfg_float(overlay_cfg, "timeout_total", 300.0),
         max_retries_per_model=_cfg_int(overlay_cfg, "max_retries_per_model", 2),
         reference_max_tokens=_cfg_int_or_none(overlay_cfg, "reference_max_tokens"),
-        reference_reasoning_effort=_cfg_str_or_none(overlay_cfg, "reference_reasoning_effort"),
+        reference_reasoning_effort=_cfg_str_or_none(
+            overlay_cfg, "reference_reasoning_effort"
+        ),
         privacy_filter=privacy,
     )
 
@@ -184,5 +190,4 @@ async def build_moa_overlay_middleware(
         reference_llms,
         config=config,
         unattended=unattended,
-        action_mode=action_mode,
     )

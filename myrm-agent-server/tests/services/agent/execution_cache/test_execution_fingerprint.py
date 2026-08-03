@@ -16,7 +16,9 @@ from app.services.agent.moa_preset_resolver import (
 
 def test_execution_fingerprint_changes_when_skill_version_bumps() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
     )
     with patch(
@@ -34,7 +36,9 @@ def test_execution_fingerprint_changes_when_skill_version_bumps() -> None:
 
 def test_execution_fingerprint_changes_when_security_config_changes() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
     )
     wrapper.security_config_raw = {"yoloModeEnabled": True}
@@ -62,7 +66,9 @@ def _moa_profile_engine_params() -> dict[str, object]:
 def test_execution_fingerprint_changes_when_moa_preset_activated() -> None:
     """POOLED cache must rebuild when chat picker toggles MoA preset on/off."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
         engine_params=apply_moa_preset_activation(_moa_profile_engine_params(), None),
     )
@@ -78,7 +84,9 @@ def test_execution_fingerprint_changes_when_moa_preset_activated() -> None:
 def test_execution_fingerprint_changes_when_moa_preset_strength_changes() -> None:
     """Preset param overrides (review vs default) must bust execution pool fingerprint."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
         engine_params=apply_moa_preset_activation(
             _moa_profile_engine_params(),

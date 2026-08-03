@@ -25,7 +25,9 @@ def _sample_engine_params(*, overlay_enabled: bool = True) -> dict[str, object]:
 
 def test_is_moa_preset_configured_requires_enabled_and_refs() -> None:
     assert is_moa_preset_configured(_sample_engine_params()) is True
-    assert is_moa_preset_configured(_sample_engine_params(overlay_enabled=False)) is False
+    assert (
+        is_moa_preset_configured(_sample_engine_params(overlay_enabled=False)) is False
+    )
     assert is_moa_preset_configured({"moa_overlay": {"enabled": True}}) is False
     assert is_moa_preset_configured(None) is False
 
@@ -76,7 +78,112 @@ def test_apply_activation_ignores_unknown_preset_id() -> None:
     assert overlay["enabled"] is False
 
 
+def test_apply_activation_uses_preset_specific_refs() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "reference_model_selections": [
+                {"providerId": "openai", "model": "gpt-4o-mini"},
+            ],
+            "presets": {
+                MOA_PRESET_REVIEW_ID: {
+                    "reference_model_selections": [
+                        {"providerId": "anthropic", "model": "claude-3-5-sonnet"},
+                    ],
+                },
+            },
+        },
+    }
+    result = apply_moa_preset_activation(params, MOA_PRESET_REVIEW_ID)
+    assert result is not None
+    overlay = result["moa_overlay"]
+    assert isinstance(overlay, dict)
+    refs = overlay["reference_model_selections"]
+    assert isinstance(refs, list)
+    assert refs[0]["model"] == "claude-3-5-sonnet"
+    assert overlay["reference_reasoning_effort"] == "high"
+
+
+def test_is_moa_preset_configured_with_preset_only_refs() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "presets": {
+                MOA_PRESET_FAST_ID: {
+                    "reference_model_selections": [
+                        {"providerId": "openai", "model": "gpt-4o-mini"},
+                    ],
+                },
+            },
+        },
+    }
+    assert is_moa_preset_configured(params) is True
+
+
 def test_apply_activation_no_op_without_overlay_block() -> None:
-    assert apply_moa_preset_activation({"consensus": {"enabled": True}}, MOA_PRESET_DEFAULT_ID) == {
+    assert apply_moa_preset_activation(
+        {"consensus": {"enabled": True}}, MOA_PRESET_DEFAULT_ID
+    ) == {
         "consensus": {"enabled": True},
     }
+
+
+def test_resolve_preset_refs_strict_when_presets_key_exists() -> None:
+    from app.services.agent.moa_preset_resolver import (
+        resolve_preset_reference_selections,
+    )
+
+    overlay = {
+        "reference_model_selections": [
+            {"providerId": "openai", "model": "gpt-4o"},
+        ],
+        "presets": {
+            MOA_PRESET_FAST_ID: {"reference_model_selections": []},
+            MOA_PRESET_REVIEW_ID: {
+                "reference_model_selections": [
+                    {"providerId": "anthropic", "model": "claude-3-5-sonnet"},
+                ],
+            },
+        },
+    }
+    assert resolve_preset_reference_selections(overlay, MOA_PRESET_FAST_ID) == []
+    review_refs = resolve_preset_reference_selections(overlay, MOA_PRESET_REVIEW_ID)
+    assert isinstance(review_refs, list)
+    assert review_refs[0]["model"] == "claude-3-5-sonnet"
+
+
+def test_apply_activation_clears_top_level_refs_for_empty_preset() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "reference_model_selections": [
+                {"providerId": "openai", "model": "gpt-4o"},
+            ],
+            "presets": {
+                MOA_PRESET_FAST_ID: {"reference_model_selections": []},
+            },
+        },
+    }
+    result = apply_moa_preset_activation(params, MOA_PRESET_FAST_ID)
+    assert result is not None
+    overlay = result["moa_overlay"]
+    assert isinstance(overlay, dict)
+    assert overlay["enabled"] is True
+    assert overlay["reference_model_selections"] == []
+
+
+def test_is_moa_preset_configured_strict_when_presets_key_exists() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "reference_model_selections": [
+                {"providerId": "openai", "model": "gpt-4o-mini"},
+            ],
+            "presets": {
+                MOA_PRESET_DEFAULT_ID: {"reference_model_selections": []},
+                MOA_PRESET_REVIEW_ID: {"reference_model_selections": []},
+                MOA_PRESET_FAST_ID: {"reference_model_selections": []},
+            },
+        },
+    }
+    assert is_moa_preset_configured(params) is False

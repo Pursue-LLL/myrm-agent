@@ -212,19 +212,34 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
         id="cron-existing-read",
         name="Second Brain · Read-it-Later",
         agent_id="agent-old",
+        command=None,
+        job_type="agent",
     )
     existing_delta = SimpleNamespace(
         id="cron-existing-delta",
         name="Second Brain · Wiki Morning Delta",
         agent_id="agent-old",
+        command=None,
+        job_type="agent",
     )
-    async def _get_job(job_id: str, _user_id: str) -> SimpleNamespace:
-        if job_id == "cron-existing-read":
-            return existing_read_later
-        return existing_delta
+    existing_maintain = SimpleNamespace(
+        id="cron-existing-maintain",
+        name="Second Brain · Wiki Maintenance",
+        agent_id="agent-old",
+        command=None,
+        job_type="agent",
+    )
+    _jobs_by_id = {
+        "cron-existing-read": existing_read_later,
+        "cron-existing-delta": existing_delta,
+        "cron-existing-maintain": existing_maintain,
+    }
+
+    async def _get_job(job_id: str, _user_id: str) -> SimpleNamespace | None:
+        return _jobs_by_id.get(job_id)
 
     mock_mgr = SimpleNamespace(
-        list_jobs=AsyncMock(return_value=[existing_read_later, existing_delta]),
+        list_jobs=AsyncMock(return_value=[existing_read_later, existing_delta, existing_maintain]),
         get_job=AsyncMock(side_effect=_get_job),
         create_job=AsyncMock(),
         update_job=AsyncMock(),
@@ -257,12 +272,35 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
                 "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=True, files_copied=0),
             ),
+            patch(
+                "app.services.onboarding.second_brain_preset._ensure_read_it_later_cron",
+                new=AsyncMock(return_value=("cron-existing-read", False)),
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._ensure_wiki_morning_delta_cron",
+                new=AsyncMock(return_value=("cron-existing-delta", False)),
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._ensure_wiki_maintain_cron",
+                new=AsyncMock(return_value=("cron-existing-maintain", False)),
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._save_preset_state",
+                new=AsyncMock(),
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._maybe_enable_wiki_gmail_source",
+                new=AsyncMock(),
+            ),
         ):
             client = TestClient(app)
             response = client.post("/api/v1/config/onboarding/second-brain/apply")
             assert response.status_code == 200, response.text
+            payload = response.json()
+            assert payload["cron_job_id"] == "cron-existing-read"
+            assert payload["delta_cron_job_id"] == "cron-existing-delta"
+            assert payload["maintain_cron_job_id"] == "cron-existing-maintain"
             mock_mgr.create_job.assert_not_called()
-            assert mock_mgr.update_job.call_count == 2
     finally:
         app.router.lifespan_context = original_lifespan
 

@@ -26,11 +26,25 @@ from typing import Any
 from app.database.dto import AgentUpdate
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.agent_service import AgentService
+from app.services.agent.moa_preset_resolver import (
+    MOA_PRESET_DEFAULT_ID,
+    MOA_PRESET_FAST_ID,
+    MOA_PRESET_REVIEW_ID,
+)
 from app.services.agent.profile_snapshot_service import ProfileSnapshotService
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PRESET_NAME = "default"
+DEFAULT_PRESET_NAME = MOA_PRESET_DEFAULT_ID
+
+_HERMES_PRESET_TO_MYRM: dict[str, str] = {
+    "default": MOA_PRESET_DEFAULT_ID,
+    "standard": MOA_PRESET_DEFAULT_ID,
+    "review": MOA_PRESET_REVIEW_ID,
+    "deep_review": MOA_PRESET_REVIEW_ID,
+    "fast": MOA_PRESET_FAST_ID,
+    "quick": MOA_PRESET_FAST_ID,
+}
 
 _HERMES_PROVIDER_TO_MYRM_ID: dict[str, str] = {
     "openai": "openai",
@@ -235,32 +249,90 @@ def _resolve_reasoning_effort(
     return None
 
 
+def _map_hermes_preset_name(name: str) -> str:
+    normalized = name.strip().lower()
+    mapped = _HERMES_PRESET_TO_MYRM.get(normalized)
+    if mapped is not None:
+        return mapped
+    return MOA_PRESET_DEFAULT_ID
+
+
+def _build_preset_block_from_hermes(preset: dict[str, Any]) -> dict[str, object] | None:
+    selections = _parse_reference_models(preset)
+    if not selections:
+        return None
+    block: dict[str, object] = {"reference_model_selections": selections}
+    ref_max = _coerce_int_or_none(preset.get("reference_max_tokens"))
+    if ref_max is not None:
+        block["reference_max_tokens"] = ref_max
+    refs_raw = preset.get("reference_models")
+    if not isinstance(refs_raw, list):
+        refs_raw = [refs_raw] if isinstance(refs_raw, dict) else []
+    reasoning = _resolve_reasoning_effort(preset, refs_raw)
+    if reasoning and reasoning != "none":
+        block["reference_reasoning_effort"] = reasoning
+    return block
+
+
+def _collect_hermes_preset_blocks(
+    moa_raw: dict[str, Any],
+) -> dict[str, dict[str, object]]:
+    blocks: dict[str, dict[str, object]] = {}
+    presets_raw = moa_raw.get("presets")
+    if isinstance(presets_raw, dict):
+        for name, preset in presets_raw.items():
+            if not isinstance(preset, dict):
+                continue
+            if not preset.get("enabled", True):
+                continue
+            block = _build_preset_block_from_hermes(preset)
+            if block is None:
+                continue
+            myrm_id = _map_hermes_preset_name(str(name))
+            if myrm_id in blocks:
+                existing_refs = blocks[myrm_id].get("reference_model_selections")
+                new_refs = block.get("reference_model_selections")
+                if isinstance(existing_refs, list) and isinstance(new_refs, list):
+                    blocks[myrm_id]["reference_model_selections"] = (
+                        existing_refs + new_refs
+                    )
+            else:
+                blocks[myrm_id] = block
+        return blocks
+
+    if moa_raw.get("reference_models") is not None:
+        block = _build_preset_block_from_hermes(moa_raw)
+        if block is not None:
+            blocks[MOA_PRESET_DEFAULT_ID] = block
+    return blocks
+
+
 def build_moa_overlay_from_hermes_config(
     moa_raw: dict[str, Any],
 ) -> dict[str, object] | None:
     """Build Myrm ``engine_params.moa_overlay`` from Hermes ``moa`` config."""
+    preset_blocks = _collect_hermes_preset_blocks(moa_raw)
+    if not preset_blocks:
+        return None
+
     resolved = resolve_hermes_moa_preset(moa_raw)
     if resolved is None:
         return None
     _preset_name, preset = resolved
 
-    refs_raw = preset.get("reference_models")
-    if isinstance(refs_raw, str):
-        try:
-            refs_raw = json.loads(refs_raw)
-        except (json.JSONDecodeError, ValueError):
-            refs_raw = []
-    if not isinstance(refs_raw, list):
-        refs_raw = [refs_raw] if isinstance(refs_raw, dict) else []
+    default_block = preset_blocks.get(MOA_PRESET_DEFAULT_ID)
+    if default_block is None:
+        default_block = next(iter(preset_blocks.values()))
 
-    selections = _parse_reference_models(preset)
-    if not selections:
+    default_refs = default_block.get("reference_model_selections")
+    if not isinstance(default_refs, list) or not default_refs:
         return None
 
     fanout, every_n = _parse_fanout(preset.get("fanout", moa_raw.get("fanout")))
     overlay: dict[str, object] = {
         "enabled": True,
-        "reference_model_selections": selections,
+        "presets": preset_blocks,
+        "reference_model_selections": list(default_refs),
         "fanout": fanout,
         "min_successful": 1,
         "reference_temperature": _coerce_float(
@@ -278,6 +350,9 @@ def build_moa_overlay_from_hermes_config(
     if ref_max is not None:
         overlay["reference_max_tokens"] = ref_max
 
+    refs_raw = preset.get("reference_models")
+    if not isinstance(refs_raw, list):
+        refs_raw = [refs_raw] if isinstance(refs_raw, dict) else []
     reasoning = _resolve_reasoning_effort(preset, refs_raw)
     if reasoning and reasoning != "none":
         overlay["reference_reasoning_effort"] = reasoning
@@ -325,12 +400,20 @@ async def _filter_valid_reference_selections(
 
 
 def agent_has_moa_overlay_refs(engine_params: dict[str, object] | None) -> bool:
-    """True when agent profile already defines MoA reference models."""
+    """True when agent profile already defines MoA reference models (regardless of enabled state)."""
     if not engine_params:
         return False
     overlay = engine_params.get("moa_overlay")
     if not isinstance(overlay, dict):
         return False
+    from app.services.agent.moa_preset_resolver import (
+        VALID_MOA_PRESET_IDS,
+        resolve_preset_reference_selections,
+    )
+
+    for preset_id in VALID_MOA_PRESET_IDS:
+        if len(resolve_preset_reference_selections(overlay, preset_id)) > 0:
+            return True
     refs = overlay.get("reference_model_selections")
     return isinstance(refs, list) and len(refs) > 0
 
@@ -372,6 +455,33 @@ async def migrate_hermes_moa_overlay(
             result.skipped_reason = "no_resolvable_providers"
             return result
         overlay["reference_model_selections"] = filtered
+
+    presets_raw = overlay.get("presets")
+    if isinstance(presets_raw, dict):
+        filtered_presets: dict[str, dict[str, object]] = {}
+        for preset_id, block in presets_raw.items():
+            if not isinstance(block, dict):
+                continue
+            preset_refs = block.get("reference_model_selections")
+            if not isinstance(preset_refs, list):
+                filtered_presets[str(preset_id)] = block
+                continue
+            filtered_preset_refs, preset_skipped = (
+                await _filter_valid_reference_selections(preset_refs)
+            )
+            already_skipped = set(result.skipped_refs)
+            result.skipped_refs.extend(
+                s for s in preset_skipped if s not in already_skipped
+            )
+            if filtered_preset_refs:
+                filtered_presets[str(preset_id)] = {
+                    **block,
+                    "reference_model_selections": filtered_preset_refs,
+                }
+        overlay["presets"] = filtered_presets
+        if not filtered_presets and not overlay.get("reference_model_selections"):
+            result.skipped_reason = "no_resolvable_providers"
+            return result
 
     agent = await AgentService.get_agent_by_id(target_agent_id)
     if agent is None:
