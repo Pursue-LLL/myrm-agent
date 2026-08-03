@@ -213,7 +213,8 @@ def _scan_foreign_chrome_e2e_pytest_violations(
         if _process_has_signoff_env(pid):
             continue
         chain = _ancestor_pids(pid)
-        if chain & allowed_roots:
+        protected = {root for root in allowed_roots if root > 1}
+        if chain & protected:
             continue
         violations.append(
             AdhocViolation(
