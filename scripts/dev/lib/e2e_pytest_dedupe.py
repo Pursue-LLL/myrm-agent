@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+import fcntl
 from pathlib import Path
 from typing import TypedDict
 
@@ -272,11 +273,18 @@ def acquire_session_lock(
         )
         raise SystemExit(2)
     batch_key = file_batch_key(argv)
+    batch_flock_handle = None
     if batch_key is not None:
+        batch_root = _file_batch_root()
+        batch_root.mkdir(parents=True, exist_ok=True)
+        batch_flock_handle = open(batch_root / ".claim.lock", "a+", encoding="utf-8")
+        fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_EX)
         batch_duplicate = find_file_batch_duplicate(
             batch_key, exclude_pids=(resolved_pid, os.getppid())
         )
         if batch_duplicate is not None:
+            fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_UN)
+            batch_flock_handle.close()
             print(
                 f"E2E_FILE_BATCH_DEDUPE_DENIED: batch_key={batch_key} "
                 f"holder_pid={batch_duplicate} — "
@@ -284,39 +292,42 @@ def acquire_session_lock(
                 file=sys.stderr,
             )
             raise SystemExit(2)
-    now = time.time()
-    lane = os.environ.get("MYRM_E2E_LANE", "")
-    record: _DedupeRecord = {
-        "fingerprint": fingerprint,
-        "holderPid": resolved_pid,
-        "parentPid": os.getppid(),
-        "argv": list(_normalize_argv(argv)),
-        "acquiredAt": now,
-        "heartbeatAt": now,
-    }
-    if lane in {"READ", "LIVE_AGENT"}:
-        record["lane"] = lane
-    path = _record_path(fingerprint)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
-    tmp.replace(path)
-    if batch_key is not None:
-        batch_root = _file_batch_root()
-        batch_root.mkdir(parents=True, exist_ok=True)
-        batch_record: _DedupeRecord = {
-            "fingerprint": batch_key,
+    try:
+        now = time.time()
+        lane = os.environ.get("MYRM_E2E_LANE", "")
+        record: _DedupeRecord = {
+            "fingerprint": fingerprint,
             "holderPid": resolved_pid,
             "parentPid": os.getppid(),
             "argv": list(_normalize_argv(argv)),
             "acquiredAt": now,
             "heartbeatAt": now,
         }
-        batch_path = _file_batch_record_path(batch_key)
-        batch_tmp = batch_path.with_suffix(".json.tmp")
-        batch_tmp.write_text(
-            json.dumps(batch_record, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        batch_tmp.replace(batch_path)
+        if lane in {"READ", "LIVE_AGENT"}:
+            record["lane"] = lane
+        path = _record_path(fingerprint)
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(path)
+        if batch_key is not None:
+            batch_record: _DedupeRecord = {
+                "fingerprint": batch_key,
+                "holderPid": resolved_pid,
+                "parentPid": os.getppid(),
+                "argv": list(_normalize_argv(argv)),
+                "acquiredAt": now,
+                "heartbeatAt": now,
+            }
+            batch_path = _file_batch_record_path(batch_key)
+            batch_tmp = batch_path.with_suffix(".json.tmp")
+            batch_tmp.write_text(
+                json.dumps(batch_record, indent=2, sort_keys=True), encoding="utf-8"
+            )
+            batch_tmp.replace(batch_path)
+    finally:
+        if batch_flock_handle is not None:
+            fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_UN)
+            batch_flock_handle.close()
 
 
 def release_session_lock(fingerprint: str, *, holder_pid: int | None = None) -> None:
