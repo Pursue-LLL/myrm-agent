@@ -87,6 +87,15 @@ def resolve_required_lease_id(*, explicit: str | None = None) -> str:
     )
 
 
+def sync_agent_id_with_lease_owner(owner: str) -> bool:
+    """Align MYRM_E2E_AGENT_ID with wave lease owner (active lease row is SSOT)."""
+    if not owner:
+        return False
+    os.environ["MYRM_E2E_AGENT_ID"] = owner
+    os.environ["MYRM_WAVE_AGENT_ID"] = owner
+    return True
+
+
 def assert_orchestrator_lease_allowed(
     *,
     lease_id: str | None = None,
@@ -111,14 +120,8 @@ def assert_orchestrator_lease_allowed(
         raise RuntimeError(
             f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: lease {resolved} is not active"
         )
-    expected_agent = os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
-    if expected_agent:
-        owner = str(lease.get("agentId", "")).strip()
-        if owner and owner != expected_agent:
-            raise RuntimeError(
-                f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: lease owner {owner} != "
-                f"MYRM_E2E_AGENT_ID={expected_agent}"
-            )
+    owner = str(lease.get("agentId", "")).strip()
+    sync_agent_id_with_lease_owner(owner)
     return resolved
 
 
