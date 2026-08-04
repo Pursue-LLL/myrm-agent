@@ -112,12 +112,48 @@ def _count_active_backend_only() -> int:
     return count
 
 
+def _seed_health_wait_sec() -> float:
+    raw = os.environ.get("MYRM_VERIFY_SEED_HEALTH_WAIT_SEC", "").strip()
+    if raw:
+        try:
+            return max(30.0, float(raw))
+        except ValueError:
+            pass
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+
+        if parallel_active_test_count_ssot() > 0:
+            return 240.0
+    except ImportError:
+        pass
+    return SEED_HEALTH_WAIT_SEC
+
+
+def _health_source_fingerprint(api_base: str) -> str:
+    url = f"{api_base.rstrip('/')}/api/v1/health"
+    try:
+        with urllib.request.urlopen(url, timeout=3.0) as resp:  # noqa: S310
+            raw = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return ""
+    if not isinstance(raw, dict):
+        return ""
+    stack_epoch = raw.get("stack_epoch")
+    if not isinstance(stack_epoch, dict):
+        return ""
+    source_fp = stack_epoch.get("source_fingerprint")
+    return source_fp.strip() if isinstance(source_fp, str) else ""
+
+
 def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) -> bool:
     workspace_fp = _backend_source_fingerprint()
     while time.monotonic() < deadline:
         if not _health_ok(api_base):
             time.sleep(0.5)
             continue
+        health_fp = _health_source_fingerprint(api_base)
+        if workspace_fp and health_fp and health_fp == workspace_fp:
+            return True
         stored_fp = _read_stored_fingerprint(state_dir)
         if stored_fp and workspace_fp and stored_fp == workspace_fp:
             return True
@@ -295,7 +331,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         record_backend_process(runtime_id, owner_token)
 
         state_dir = Path(record["stateDir"])
-        deadline = time.monotonic() + SEED_HEALTH_WAIT_SEC
+        deadline = time.monotonic() + _seed_health_wait_sec()
         if not _wait_backend_healthy(api_base, state_dir, deadline=deadline):
             raise RuntimeError("seed backend health or epoch match timeout")
 
