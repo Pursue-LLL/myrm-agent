@@ -303,6 +303,7 @@ def test_secrets():
 
 # Ensure schema is created since TestClient bypasses lifespan
 _INIT_DB_LOCK = Path(tempfile.gettempdir()) / "myrm-server-pytest-init-db.lock"
+_LIVE_CHROME_E2E_LANES = frozenset({"READ", "LIVE_AGENT", "RESOURCE_WRITE", "GLOBAL_WRITE"})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -310,7 +311,7 @@ def init_test_database():
     """Initialize database schema for isolated test DBs."""
     # Formal chrome_e2e runs against the live server stack; parallel pytest
     # processes must not race init_database() on the shared SQLite file.
-    if os.environ.get("MYRM_E2E_LANE", "").strip() in {"READ", "LIVE_AGENT"}:
+    if os.environ.get("MYRM_E2E_LANE", "").strip() in _LIVE_CHROME_E2E_LANES:
         return
 
     from app.database.connection import init_database
@@ -324,6 +325,10 @@ def init_test_database():
             print(f"Warning: init_database failed: {e}")
         finally:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    from app.services.chat.compact.compression_streak import register_chat_compression_streak_store
+
+    register_chat_compression_streak_store()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -399,6 +404,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     where held leases block system restart which would resolve the epoch drift.
 
     P0-DGR-6: SHARED+NAMESPACE_WRITE+LIVE uses EpochPin instead of skip.
+    P0-F: SHARED+NAMESPACE_WRITE+STANDARD defers when shared :8080 is healthy.
     """
     if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
         return
@@ -419,7 +425,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     profile = _chrome_e2e_profile(request.node)
     if profile is None:
         return
-    execution_mode = profile[0]
+    execution_mode, access_scope, workload = profile
     if execution_mode == "PRIVATE":
         return
 
@@ -435,6 +441,16 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
 
     if ctx.epoch_match or not ctx.blocked:
         return
+
+    # P0-F / R287-R289: STANDARD SHARED tests defer verify pin when shared :8080 is healthy.
+    if workload.strip().upper() == "STANDARD":
+        shared_healthy = any(
+            getattr(item, "source", "") == "shared"
+            and getattr(item, "health_ok", False)
+            for item in getattr(ctx, "candidates", ())
+        )
+        if shared_healthy:
+            return
 
     pytest.skip(
         f"epoch drift entry gate: shared backend epoch mismatch "
@@ -477,16 +493,23 @@ def _chrome_e2e_epoch_pin(
     if not decision.eligible:
         yield
         return
-    monorepo = _SERVER_ROOT.parents[2]
+    monorepo = _SERVER_ROOT.parents[1]
     outcome = apply_epoch_pin_for_shared_live(
         monorepo=monorepo,
         node_id=request.node.nodeid,
+        workload=profile[2],
+    )
+    _EPOCH_PIN_DEFER_DETAILS = frozenset(
+        {"shared_epoch_aligned", "shared_healthy_defer_verify_pin"}
     )
     if not outcome.applied:
-        if outcome.detail != "shared_epoch_aligned":
+        if outcome.detail not in _EPOCH_PIN_DEFER_DETAILS:
             pytest.fail(
                 f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}"
             )
+        if outcome.api_base:
+            monkeypatch.setenv("E2E_API_BASE", outcome.api_base.rstrip("/"))
+        monkeypatch.delenv("MYRM_E2E_EPOCH_PIN", raising=False)
         yield
         return
     for key, value in outcome.environment.items():
