@@ -451,7 +451,10 @@ class CoordinatorService:
             succeeded=request.get("succeeded") is True,
             failure_token=_optional_text(request, "failure_token"),
         )
-        return {"session": record.to_dict()}
+        from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+
+        hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_teardown_finish")
+        return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
 
 
 class _CoordinatorServer(socketserver.ThreadingUnixStreamServer):
