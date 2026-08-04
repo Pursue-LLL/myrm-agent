@@ -10,6 +10,7 @@ from app.channels.media.sticker_vision import (
     describe_sticker_inbound,
 )
 from app.channels.types import InboundMessage
+from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionDescriptionError
 
 
 class _FakeEngine:
@@ -204,9 +205,13 @@ class TestStickerVisionService:
 
     @pytest.mark.asyncio
     async def test_vision_analysis_failed_returns_none(self) -> None:
-        """Vision returning failure prefix should not cache and returns None."""
-        engine = _FakeEngine(response="[Vision Analysis Failed: timeout]")
-        svc = StickerVisionService(engine)  # type: ignore[arg-type]
+        """VisionDescriptionError should not cache and returns None."""
+
+        class _RaisingEngine:
+            async def describe_image_b64(self, *_a: object, **_kw: object) -> str:
+                raise VisionDescriptionError("timeout")
+
+        svc = StickerVisionService(_RaisingEngine())  # type: ignore[arg-type]
         result = await svc.describe("f1", "u1", downloader=_FakeDownloader())  # type: ignore[arg-type]
         assert result is None
         assert svc.cache_size == 0

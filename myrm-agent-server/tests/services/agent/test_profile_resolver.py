@@ -727,7 +727,7 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
         assert flags["enable_wiki"] is False
-        assert flags["enable_render_ui"] is False
+        assert flags["enable_render_ui"] is True
         assert flags["enable_structured_clarify"] is True
 
     def test_all_tools_enabled(self):

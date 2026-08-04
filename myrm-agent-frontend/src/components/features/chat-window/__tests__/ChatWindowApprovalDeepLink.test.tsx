@@ -38,14 +38,33 @@ vi.mock('../Chat', () => ({ default: () => <div data-testid="chat" /> }));
 vi.mock('../EmptyChat', () => ({ default: () => null }));
 vi.mock('../MessageListSkeleton', () => ({ default: () => null }));
 vi.mock('../ToolApprovalDialog', () => ({ default: () => null }));
+vi.mock('../ToolApprovalExpiryWatcher', () => ({ default: () => null }));
 vi.mock('../AgentInfoBanner', () => ({ default: () => null }));
+vi.mock('../YoloModeBanner', () => ({ default: () => null }));
+vi.mock('../EStopBanner', () => ({ default: () => null }));
+vi.mock('../ExtensionDisconnectedBanner', () => ({ default: () => null }));
+vi.mock('../ExtensionTakeoverBanner', () => ({ default: () => null }));
+vi.mock('../ChatWindowSatellites', () => ({
+  default: () => null,
+  GoalControlPlane: () => null,
+  GoalStatusCard: () => null,
+  LifeStatusCapsule: () => null,
+}));
+vi.mock('../ParentChatLink', () => ({ ParentChatLink: () => null }));
+vi.mock('../ChatCronLink', () => ({ ChatCronLink: () => null }));
+vi.mock('../WorkingStateBadge', () => ({ default: () => null }));
 vi.mock('../SubagentPromptButton', () => ({ default: () => null }));
 vi.mock('../SubagentDashboard', () => ({ default: () => null }));
-vi.mock('../goals/GoalStatusCard', () => ({ GoalStatusCard: () => null }));
 vi.mock('../artifacts/ArtifactPortal', () => ({ default: () => null }));
 vi.mock('@/components/features/cli-agent/PermissionDialog', () => ({ PermissionDialog: () => null }));
 vi.mock('@/components/features/app-shell/VisualDesktopToggle', () => ({ VisualDesktopToggle: () => null }));
-vi.mock('../LifeStatusCapsule', () => ({ LifeStatusCapsule: () => null }));
+vi.mock('@/components/features/message-actions/SessionRevertButton', () => ({ default: () => null }));
+vi.mock('@/components/features/copilot/RunStatusChip', () => ({ default: () => null }));
+vi.mock('@/components/features/copilot/SessionAdvisorPanel', () => ({ default: () => null }));
+vi.mock('@/components/features/memory', () => ({
+  PendingMemoryBadge: () => null,
+  PendingMemoryDialog: () => null,
+}));
 
 const originalSendMessage = useChatStore.getState().sendMessage;
 

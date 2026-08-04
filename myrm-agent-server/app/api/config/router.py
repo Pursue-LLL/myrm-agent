@@ -890,29 +890,32 @@ async def vision_health_check() -> VisionHealthResult:
                 error="Vision fallback model is not configured",
             )
         from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
-            VISION_ANALYSIS_FAILED_PREFIX,
+            VisionDescriptionError,
         )
 
         start = time.monotonic()
-        probe_result = await engine.describe_image_b64(
-            _TINY_VISION_HEALTH_PNG_B64,
-            "image/png",
-            prompt="Health check",
-        )
-        latency_ms = int((time.monotonic() - start) * 1000)
-        resolved_model = engine.last_success_model or model_cfg.model
-        if probe_result.startswith(VISION_ANALYSIS_FAILED_PREFIX):
+        try:
+            probe_result = await engine.describe_image_b64(
+                _TINY_VISION_HEALTH_PNG_B64,
+                "image/png",
+                prompt="Health check",
+            )
+        except VisionDescriptionError as exc:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            resolved_model = engine.last_success_model or model_cfg.model
             return VisionHealthResult(
                 configured=True,
                 healthy=False,
                 latency_ms=latency_ms,
-                error=probe_result,
+                error=str(exc),
                 model=model_cfg.model,
                 resolved_model=(
                     resolved_model if resolved_model != model_cfg.model else None
                 ),
                 base_url=model_cfg.base_url,
             )
+        latency_ms = int((time.monotonic() - start) * 1000)
+        resolved_model = engine.last_success_model or model_cfg.model
         return VisionHealthResult(
             configured=True,
             healthy=True,

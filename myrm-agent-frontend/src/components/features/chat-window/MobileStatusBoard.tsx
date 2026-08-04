@@ -110,6 +110,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, []);
 
   useEffect(() => {
+    if (!isMessagesLoaded || loading || autoStartFired.current) return;
     const pendingMessage = sessionStorage.getItem('myrm_mobile_autostart_message');
     if (!pendingMessage) return;
     autoStartFired.current = true;

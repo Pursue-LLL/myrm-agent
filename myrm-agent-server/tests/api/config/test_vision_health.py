@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionDescriptionError
+
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="config")
@@ -127,7 +129,7 @@ def test_vision_health_failure_string_is_unhealthy(client: TestClient) -> None:
 
     mock_engine = MagicMock()
     mock_engine.describe_image_b64 = AsyncMock(
-        return_value="[Vision Analysis Failed: 402 Payment Required]",
+        side_effect=VisionDescriptionError("402 Payment Required"),
     )
     mock_engine.last_success_model = None
 
@@ -151,7 +153,7 @@ def test_vision_health_failure_string_is_unhealthy(client: TestClient) -> None:
     body = response.json()
     assert body["configured"] is True
     assert body["healthy"] is False
-    assert "Vision Analysis Failed" in (body["error"] or "")
+    assert "402 Payment Required" in (body["error"] or "")
 
 
 def test_vision_health_failure_includes_endpoint(client: TestClient) -> None:

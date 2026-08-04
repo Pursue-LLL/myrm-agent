@@ -136,7 +136,7 @@ class StickerVisionService:
             logger.warning("Sticker vision failed for %s: %s", file_unique_id, exc)
             return None
 
-        if description and not description.startswith("[Vision Analysis Failed"):
+        if description:
             self._put_cache(file_unique_id, description)
             return description
 

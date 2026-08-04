@@ -68,4 +68,9 @@
 - `@dnd-kit/core` — 拖拽基础设施（传感器 / 碰撞检测 / DragOverlay）
 - `@/components/features/app-shell/confirm-dialog` — 通用确认弹窗
 - `@/hooks/agent/useAgentName` — 智能体名称映射
-- `next-intl` — 国际化（`kanban` namespace）
+- `next-intl` — 国际化（`kanban` namespace；`status.verifying`、`staleRunningCount` 六语言 en/zh/de/ko/ja/zh-TW）
+
+## Completion intent UI
+
+- `KanbanTaskCard` / `KanbanTaskDrawerDetails`：`metadata.completion_intent` 且 `status=running` 时显示 `kanban.status.verifying`（验收中），替代 progress_note
+- `KanbanBoardView`：`board_summary.stale_running_count > 0` 时显示红色 pill（`kanban.staleRunningCount`）

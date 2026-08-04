@@ -5,7 +5,7 @@
 - app.services.event.app_event_bus (POS: Global SSE event bus.)
 
 [OUTPUT]
-- publish_kanban_event, emit_btw_done, emit_source_chat_done
+- publish_kanban_event, emit_btw_done, emit_source_chat_done (completed/failed/blocked for source_chat; skips scheduled blocks)
 
 [POS]
 SSE event publishing for kanban task updates and BTW terminal events.
