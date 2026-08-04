@@ -24,7 +24,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -94,6 +93,19 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
 
 
+def _messages_from_payload(payload: object) -> list[object]:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, dict) and isinstance(data.get("messages"), list):
+            return data["messages"]
+        raw_messages = payload.get("messages")
+        if isinstance(raw_messages, list):
+            return raw_messages
+    return []
+
+
 def _seed_fixture(api_url: str, *, variant: str) -> dict[str, str]:
     seeded = http_json(
         "POST",
@@ -102,7 +114,25 @@ def _seed_fixture(api_url: str, *, variant: str) -> dict[str, str]:
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     assert chat_id.startswith("e2eguard")
+    payload = http_json("GET", f"{api_url}/api/v1/chats/{chat_id}/messages")
+    messages = _messages_from_payload(payload)
+    assert len(messages) >= 2, payload
     return {"chat_id": chat_id, "variant": variant}
+
+
+def _api_binding_ready_js(expected_api_base: str) -> str:
+    expected_json = json.dumps(expected_api_base.rstrip("/"))
+    return f"""(() => {{
+  const probe = {{
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+    runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
+  }};
+  const actual = String(probe.apiBase || '').replace(/\\/+$/, '');
+  return {{
+    ready: actual === {expected_json},
+    probe,
+  }};
+}})()"""
 
 
 _GUARDRAIL_CATEGORY_JS = """(() => {
@@ -184,16 +214,6 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
-_BRIDGE_READY_JS = """(() => {
-  const bridge = window.__MYRM_E2E_CHAT__;
-  return {
-    ready: typeof bridge?.attachToChat === 'function',
-    hasBridge: !!bridge,
-    hasAttach: typeof bridge?.attachToChat === 'function',
-  };
-})()"""
-
-
 def _attach_chat_probe(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
     return f"""(async () => {{
@@ -210,38 +230,41 @@ def _attach_chat_probe(chat_id: str) -> str:
 }})()"""
 
 
-def _kick_attach_chat(chat_id: str) -> str:
-    chat_id_json = json.dumps(chat_id)
-    return f"""(() => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat) {{
-    return {{ ok: false, err: 'no-bridge' }};
-  }}
-  void bridge.attachToChat({chat_id_json});
-  return {{ ok: true, kicked: true }};
-}})()"""
-
-
-def _attach_chat_ready_js(chat_id: str) -> str:
-    chat_id_json = json.dumps(chat_id)
-    return f"""(() => {{
-  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null;
-  const store = window.__myrmChatStore?.getState?.();
-  const msgCount = store?.messages?.length ?? 0;
-  return {{
-    ready:
-      snap !== null
-      && snap.chatId === {chat_id_json}
-      && (
-        (snap.userCount ?? 0) >= 1
-        || msgCount > 0
-        || Boolean(store?.isMessagesLoaded)
-      ),
-    snap,
-    msgCount,
-    isMessagesLoaded: Boolean(store?.isMessagesLoaded),
-  }};
-}})()"""
+def _ensure_fixture_assistant_ready(
+    api_url: str, chat_id: str, *, timeout_sec: float = 45.0
+) -> None:
+    """Poll private API before Chrome — SHPOIB backend may lag seed under parallel mux."""
+    deadline = time.monotonic() + timeout_sec
+    last_error = "timeout"
+    while time.monotonic() < deadline:
+        try:
+            payload = http_json("GET", f"{api_url}/api/v1/chats/{chat_id}/messages")
+            messages = _messages_from_payload(payload)
+            assistant = next(
+                (
+                    msg
+                    for msg in messages
+                    if isinstance(msg, dict) and msg.get("role") == "assistant"
+                ),
+                None,
+            )
+            if isinstance(assistant, dict):
+                content = str(assistant.get("content") or "")
+                if _FIXTURE_ANSWER not in content:
+                    last_error = f"assistant content missing target; len={len(content)}"
+                else:
+                    metadata = assistant.get("metadata")
+                    meta = metadata if isinstance(metadata, dict) else {}
+                    steps = meta.get("progressSteps")
+                    if isinstance(steps, list) and len(steps) >= 1:
+                        return
+                    last_error = f"metadata missing progressSteps: {meta!r}"
+            else:
+                last_error = f"assistant missing; count={len(messages)}"
+        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
+            last_error = str(exc)
+        time.sleep(0.3)
+    raise AssertionError(f"guardrail fixture not ready chat={chat_id}: {last_error}")
 
 
 def _assert_variant_ui(
@@ -262,32 +285,23 @@ def _assert_variant_ui(
       return {{ ready: !!msg, count: store?.messages?.length ?? 0 }};
     }})()"""
 
-    bridge_ready = wait_for_react_e2e_bridge(
+    api_base = get_e2e_api_url().rstrip("/")
+    binding_ready = wait_for_state(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
-        timeout_sec=_bridge_ready_timeout_sec(),
-        page_url=page_url,
+        _api_binding_ready_js(api_base),
+        timeout_sec=60.0,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
+    assert binding_ready.get("ready") is True, json.dumps(
+        binding_ready, ensure_ascii=False
     )
 
-    kicked = client.evaluate(  # type: ignore[attr-defined]
+    attached = client.evaluate(  # type: ignore[attr-defined]
         page,
-        _kick_attach_chat(chat_id),
-        timeout_sec=30.0,
-    )
-    assert isinstance(kicked, dict) and kicked.get("ok") is True, kicked
-
-    attach_state = wait_for_state(
-        client,  # type: ignore[arg-type]
-        page,  # type: ignore[arg-type]
-        _attach_chat_ready_js(chat_id),
+        _attach_chat_probe(chat_id),
         timeout_sec=_attach_eval_timeout_sec(),
     )
-    assert attach_state.get("ready") is True, json.dumps(
-        attach_state, ensure_ascii=False
-    )
+    assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
     dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
 
@@ -342,6 +356,7 @@ def _run_single_variant_ui_assertions(
 ) -> None:
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
+    _ensure_fixture_assistant_ready(api_url, chat_id)
     if warm_route:
         warm_ui_route("/")
         warm_ui_route(f"/{chat_id}")
