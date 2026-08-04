@@ -67,11 +67,7 @@ def idle_prune_self_owned_blanks_if_safe(
 
     wave_snapshot = load_wave_snapshot_observation()
     counts = wave_lease_counts(wave_snapshot)
-    effective_raw = counts.get("effective", counts.get("waveLeasesEffective", 0))
-    try:
-        effective = int(effective_raw or 0)
-    except (TypeError, ValueError):
-        effective = -1
+    effective = counts.effective_total
     if effective < 0:
         return {
             "ok": False,
