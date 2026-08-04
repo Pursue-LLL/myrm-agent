@@ -291,6 +291,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
       return 1
     fi
     if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
+      && [[ "${MYRM_E2E_EPOCH_PIN:-0}" != "1" ]] \
       && [[ "${errors}" == *"api=unreachable"* ]] \
       && [[ "${waited}" -ge "${api_heal_next_at}" ]] \
       && [[ "${heal_during_wait}" -lt 2 ]] \

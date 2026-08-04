@@ -148,11 +148,13 @@ def apply_epoch_pin_for_shared_live(
     verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
     if verify_base and not bool(getattr(ctx, "blocked", True)):
         port = urlsplit(verify_base).port
-        return _outcome_from_api_base(
+        reused = _outcome_from_api_base(
             api_base=verify_base,
             detail=f"reused_verify_candidate port={port or '?'}",
             seeded=False,
         )
+        if reused.applied:
+            return reused
 
     from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
 
