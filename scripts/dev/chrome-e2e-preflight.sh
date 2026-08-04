@@ -18,6 +18,26 @@ _attach_api_base() {
   fi
 }
 
+_epoch_pin_reseed_verify_api() {
+  local new_api=""
+  new_api="$(
+    PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+      "${PREFLIGHT_PY}" -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from verify_backend_seed import ensure_verify_backend_seed
+seed = ensure_verify_backend_seed(monorepo=Path('${MONOREPO_ROOT}'))
+if not seed.ok:
+    raise SystemExit(1)
+print(seed.api_base.rstrip('/'))
+" 2>/dev/null
+  )" || return 1
+  export E2E_API_BASE="${new_api}"
+  echo "CHROME_E2E_ATTACH_HEAL: epoch pin verify-api reseeded api=${new_api}" >&2
+  return 0
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
@@ -273,6 +293,7 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
   fi
   local attach_api
   attach_api="$(_attach_api_base)"
+  local epoch_pin_reseed=0
   while true; do
     waited=$((SECONDS - wait_started))
     errors="$("${PREFLIGHT_PY}" -c "
@@ -289,6 +310,15 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
         echo "E2E_ATTACH_UI_HALF_DEAD_QUEUE: attach ADMIT waited ${wait_sec}s — shared UI still half_dead; leases=${active_leases} (do not stop other pytest; pending heal when idle)" >&2
       fi
       return 1
+    fi
+    if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]] \
+      && [[ "${errors}" == *"api=unreachable"* ]] \
+      && [[ "${epoch_pin_reseed}" -lt 1 ]]; then
+      epoch_pin_reseed=1
+      if _epoch_pin_reseed_verify_api; then
+        attach_api="$(_attach_api_base)"
+        continue
+      fi
     fi
     if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
       && [[ "${MYRM_E2E_EPOCH_PIN:-0}" != "1" ]] \

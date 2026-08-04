@@ -1,4 +1,14 @@
-"""Compaction result types."""
+"""Compaction result types.
+
+[INPUT]
+(none — stdlib only)
+
+[OUTPUT]
+- CompactResult: Immutable dataclass for compaction attempt outcome
+
+[POS]
+Compaction 结果值对象。被 service.py、summarize_guard.py 等引用。
+"""
 
 from __future__ import annotations
 

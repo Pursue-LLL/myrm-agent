@@ -1,4 +1,17 @@
-"""Shared constants for chat context compaction."""
+"""Shared constants for chat context compaction.
+
+[INPUT]
+(none — leaf constants module)
+
+[OUTPUT]
+- MIN_MESSAGES_TO_COMPACT, MIN_INCREMENTAL_MESSAGES_TO_COMPACT: Thresholds
+- IDLE_SUMMARY_TARGET_RATIO, COMPACTION_FAILURE_COOLDOWN_SECONDS: Tuning
+- DEFAULT_TOOL_SCHEMA_TOKEN_RESERVE, MAX_TOOL_OVERHEAD_TOKENS: Token budgets
+- COMPACT_INACTIVITY_TIMEOUT_S, COMPACT_TOTAL_CEILING_S: Timeout guards
+
+[POS]
+Compaction 子包共享常量。被 service.py、idle_estimate.py 等引用。
+"""
 
 from __future__ import annotations
 

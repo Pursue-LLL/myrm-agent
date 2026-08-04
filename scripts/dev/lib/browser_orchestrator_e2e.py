@@ -19,6 +19,7 @@ from cdp_chat_support import (
     e2e_api_base_inject_js,
     e2e_runtime_binding_source,
     get_e2e_api_url,
+    get_open_page_api_url,
     wait_e2e_provider_ready,
 )
 
@@ -162,7 +163,7 @@ def _apply_orchestrator_shpoib_binding(
     session_id: str,
 ) -> None:
     """Seed window.name then navigate so e2e-runtime-bootstrap.js binds private API."""
-    api_base = get_e2e_api_url().rstrip("/")
+    api_base = get_open_page_api_url().rstrip("/")
     if not api_base or api_base == "http://127.0.0.1:8080":
         daemon.navigate_page(session_id, page.target_id, url)
         page.url = url
@@ -215,7 +216,7 @@ def open_orchestrator_mcp_page(
                 binding_expression=binding_expression,
             )
         else:
-            api_base = get_e2e_api_url().rstrip("/")
+            api_base = get_open_page_api_url().rstrip("/")
             if api_base and api_base != "http://127.0.0.1:8080":
                 if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=60.0):
                     raise RuntimeError(

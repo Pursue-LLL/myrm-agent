@@ -54,6 +54,15 @@ def get_e2e_api_url() -> str:
     )
 
 
+def get_open_page_api_url() -> str:
+    """Orchestrator page-open API base — SHARED hot attach ignores peer epoch pin."""
+    mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    if mode == "SHARED" and lane == "RESOURCE_WRITE":
+        return "http://127.0.0.1:8080"
+    return get_e2e_api_url()
+
+
 def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None:
     """Create a chat session on the active E2E API base (signoff clarify API leg)."""
     resolved = resolve_e2e_api_base(api_url or get_e2e_api_url())

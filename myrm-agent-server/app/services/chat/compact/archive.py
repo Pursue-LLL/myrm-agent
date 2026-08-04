@@ -1,4 +1,14 @@
-"""Archived compaction backup retrieval."""
+"""Archived compaction backup retrieval.
+
+[INPUT]
+- app.platform_utils::get_storage_provider (POS: 平台存储抽象)
+
+[OUTPUT]
+- get_archived_messages: Retrieve deduplicated archived messages from backup files
+
+[POS]
+从 workspace 备份文件恢复被 compact 截断的历史消息。
+"""
 
 from __future__ import annotations
 
