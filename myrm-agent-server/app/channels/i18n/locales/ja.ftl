@@ -107,6 +107,9 @@ background_completed =
 background_failed =
     ❌ バックグラウンドタスク失敗："{ $title }"
     { $result }
+background_blocked =
+    ⚠️ バックグラウンドタスクがブロックされました："{ $title }"
+    { $result }
 bash_bg_finish_title = バックグラウンドタスク完了
 bash_bg_finish_success =
     バックグラウンドタスクが完了しました (pid={ $pid })。

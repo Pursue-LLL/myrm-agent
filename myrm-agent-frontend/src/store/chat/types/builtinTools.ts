@@ -56,6 +56,7 @@ export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
   'web_search',
   'memory',
   'structured_clarify',
+  'render_ui',
 ];
 
 const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);

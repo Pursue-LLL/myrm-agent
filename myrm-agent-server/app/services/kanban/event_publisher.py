@@ -13,11 +13,18 @@ SSE event publishing for kanban task updates and BTW terminal events.
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, extract_source_chat_id
+from myrm_agent_harness.toolkits.kanban.types import (
+    BlockKind,
+    KanbanTask,
+    extract_source_chat_id,
+)
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 _BTW_TERMINAL_EVENTS = frozenset({"task_completed", "task_failed"})
+_SOURCE_CHAT_TERMINAL_EVENTS = frozenset(
+    {"task_completed", "task_failed", "task_blocked"}
+)
 
 
 def publish_kanban_event(
@@ -78,9 +85,31 @@ def emit_btw_done(event_type: str, task: KanbanTask) -> None:
     )
 
 
+def _source_chat_terminal_status(event_type: str, task: KanbanTask) -> str | None:
+    """Map dispatcher terminal events to IM notification status."""
+    if event_type == "task_completed":
+        return "completed"
+    if event_type == "task_failed":
+        return "failed"
+    if event_type == "task_blocked":
+        if task.block_kind == BlockKind.SCHEDULED:
+            return None
+        return "blocked"
+    return None
+
+
+def _source_chat_terminal_result(task: KanbanTask, status: str) -> str:
+    if status == "blocked":
+        return task.blocked_reason or task.error or ""
+    return task.result or task.error or ""
+
+
 def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:
     """Publish BACKGROUND_TASK_DONE when a kanban task with source_chat_id terminates."""
-    if event_type not in _BTW_TERMINAL_EVENTS:
+    if event_type not in _SOURCE_CHAT_TERMINAL_EVENTS:
+        return
+    status = _source_chat_terminal_status(event_type, task)
+    if status is None:
         return
     meta = task.metadata or {}
     if meta.get("background_source") == "btw":
@@ -95,9 +124,9 @@ def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:
             event_type=AppEventType.BACKGROUND_TASK_DONE,
             data={
                 "task_id": task.task_id,
-                "status": "completed" if event_type == "task_completed" else "failed",
+                "status": status,
                 "title": task.title,
-                "result": task.result or task.error or "",
+                "result": _source_chat_terminal_result(task, status),
                 "chat_id": source_chat_id,
                 "source_chat_id": source_chat_id,
                 "thread_id": "",

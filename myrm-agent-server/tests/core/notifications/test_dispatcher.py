@@ -139,6 +139,8 @@ class TestFormatMessage:
                 "status": "complete",
                 "objective": "Analyze user feedback",
                 "files_modified": 3,
+                "turns_used": 7,
+                "execution_duration_s": 42.5,
                 "total_tokens": 12450,
                 "total_cost_usd": 0.0832,
             },
@@ -147,6 +149,8 @@ class TestFormatMessage:
         assert result is not None
         assert "[Myrm AI] Goal complete: Analyze user feedback" in result
         assert "3 files" in result
+        assert "7 turns" in result
+        assert "42s" in result
         assert "12,450 tokens" in result
         assert "$0.08" in result
 
@@ -159,6 +163,8 @@ class TestFormatMessage:
                 "status": "cancelled",
                 "objective": "Deploy service",
                 "files_modified": 0,
+                "turns_used": 2,
+                "execution_duration_s": 8.0,
                 "total_tokens": 500,
                 "total_cost_usd": 0.0,
             },
@@ -167,6 +173,8 @@ class TestFormatMessage:
         assert result is not None
         assert "Goal cancelled" in result
         assert "0 files" in result
+        assert "2 turns" in result
+        assert "8s" in result
         assert "500 tokens" in result
         assert "$0.00" in result
 
@@ -179,6 +187,8 @@ class TestFormatMessage:
                 "status": "budget_limited",
                 "objective": "Large analysis",
                 "files_modified": 10,
+                "turns_used": 25,
+                "execution_duration_s": 180.3,
                 "total_tokens": 100000,
                 "total_cost_usd": 5.1234,
             },
@@ -187,6 +197,8 @@ class TestFormatMessage:
         assert result is not None
         assert "Goal budget_limited" in result
         assert "10 files" in result
+        assert "25 turns" in result
+        assert "180s" in result
         assert "100,000 tokens" in result
         assert "$5.12" in result
 

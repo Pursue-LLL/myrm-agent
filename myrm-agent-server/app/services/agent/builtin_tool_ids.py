@@ -27,6 +27,7 @@ DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
     "web_search",
     "memory",
     "structured_clarify",
+    "render_ui",
 )
 """Default togglable tools when no explicit list is stored (UI-visible switches)."""
 

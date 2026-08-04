@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * [POS] MoA overlay E2E — API prepare (agent with overlay + SSE moa_ref_done).
- * [OUTPUT] stdout: E2E_PREPARE_JSON={ agentId, chatId, uiUrl, moaOverlayActive, moaRefDoneCount, apiBase }
+ * [OUTPUT] stdout: E2E_PREPARE_JSON={ agentId, chatId, uiUrl, activeMoaPresetId, moaOverlayActive, moaRefDoneCount, apiBase }
  * UI phase: MCP chrome-devtools on real Chrome (not Playwright).
  *
  * Env: E2E_API_BASE (default http://127.0.0.1:8080), E2E_UI_BASE, E2E_MOA_PRESET_ID (default),

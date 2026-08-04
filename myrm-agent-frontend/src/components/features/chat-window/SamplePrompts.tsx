@@ -3,30 +3,31 @@
 import React, { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Search,
-  Scale,
-  Lightbulb,
-  Brain,
-  PenTool,
-  GitCompare,
-  Newspaper,
-  Link2,
-  Code2,
-  HeartPulse,
+  BarChart3,
   BookMarked,
-  Container,
-  Timer,
-  Cpu,
-  FileText,
+  Brain,
   CalendarDays,
-  Zap,
-  FileEdit,
+  Compass,
+  Cpu,
+  FileSpreadsheet,
+  FileText,
+  GraduationCap,
+  HeartPulse,
+  Lightbulb,
+  MapPin,
+  Newspaper,
+  PenLine,
+  PenTool,
+  Plane,
+  Radar,
+  Salad,
+  Search,
   Target,
-  ClipboardList,
-  Database,
-  Megaphone,
+  Timer,
   TrendingUp,
   Users,
+  Workflow,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
@@ -38,27 +39,27 @@ const DISPLAY_COUNT = 4;
 
 const PROMPT_ICONS: Record<string, LucideIcon> = {
   fast_0: Search,
-  fast_1: Scale,
+  fast_1: Salad,
   fast_2: Lightbulb,
   fast_3: Newspaper,
-  fast_4: Link2,
-  fast_5: Code2,
+  fast_4: Compass,
+  fast_5: GraduationCap,
   fast_6: HeartPulse,
   fast_7: BookMarked,
-  fast_8: Container,
+  fast_8: MapPin,
   fast_9: Timer,
   fast_10: Cpu,
   fast_11: FileText,
-  agent_0: Brain,
+  agent_0: Workflow,
   agent_1: PenTool,
-  agent_2: GitCompare,
+  agent_2: PenLine,
   agent_3: CalendarDays,
   agent_4: Zap,
-  agent_5: FileEdit,
+  agent_5: BarChart3,
   agent_6: Target,
-  agent_7: ClipboardList,
-  agent_8: Database,
-  agent_9: Megaphone,
+  agent_7: Plane,
+  agent_8: FileSpreadsheet,
+  agent_9: Radar,
   agent_10: TrendingUp,
   agent_11: Users,
 };
@@ -68,10 +69,11 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
  * Lower-level users still see all prompts but with different shuffle priority.
  */
 const PROMPT_LEVEL_AFFINITY: Record<string, number> = {
+  agent_0: 2, // architecture flowchart (visualization)
   agent_3: 3, // cron/scheduling
-  agent_7: 3, // checklists/planning
-  agent_8: 4, // database/vector
+  agent_5: 2, // data analytics dashboard
   agent_6: 4, // competitor analysis
+  agent_9: 2, // radar chart (visualization)
   agent_10: 3, // industry research
   agent_11: 4, // feedback collection
 };

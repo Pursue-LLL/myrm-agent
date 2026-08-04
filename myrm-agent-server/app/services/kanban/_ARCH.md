@@ -17,7 +17,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `service_ai_mixin.py` | ✅ 核心 | specify/decompose 工作流薄壳（直连 orchestrator） | ❌ |
 | `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
 | `service_types.py` | ✅ 核心 | DTO/异常/常量 | ❌ |
-| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done` | ❌ |
+| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done`（completed/failed/blocked，scheduled block 跳过） | ❌ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定 | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete | ❌ |
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排 | ❌ |

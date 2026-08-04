@@ -285,3 +285,62 @@ def test_stream_collector_persists_tool_stdout_chunks_on_progress_step() -> None
     steps = extra.get("progressSteps")
     assert isinstance(steps, list) and steps
     assert steps[-1].get("stdout") == "line-1\nline-2\n"
+
+
+def test_stream_collector_persists_guardrail_blocked_error_category_on_tasks_steps() -> None:
+    """Regression: bash myrm_tools preflight must keep error_category for ProgressSteps Badge."""
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_guardrail_1",
+            "status": "error",
+            "error": "Command blocked: import myrm_tools",
+            "error_category": "guardrail_blocked",
+            "data": [{"code": "import myrm_tools"}],
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and len(steps) == 1
+    step = steps[0]
+    assert step.get("tool_call_id") == "call_guardrail_1"
+    assert step.get("status") == "error"
+    assert step.get("error_category") == "guardrail_blocked"
+
+
+def test_stream_collector_merges_guardrail_error_category_by_tool_call_id() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_guardrail_merge",
+            "status": "running",
+            "data": [{"code": "import myrm_tools"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_guardrail_merge",
+            "status": "error",
+            "error": "Command blocked: import myrm_tools",
+            "error_category": "guardrail_blocked",
+            "data": [{"code": "import myrm_tools"}],
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and len(steps) == 1
+    assert steps[0].get("error_category") == "guardrail_blocked"
+    assert steps[0].get("status") == "error"

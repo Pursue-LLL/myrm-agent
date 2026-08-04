@@ -107,6 +107,9 @@ background_completed =
 background_failed =
     ❌ 后台任务失败："{ $title }"
     { $result }
+background_blocked =
+    ⚠️ 后台任务已阻塞："{ $title }"
+    { $result }
 bash_bg_finish_title = 后台任务已完成
 bash_bg_finish_success =
     后台任务已完成 (pid={ $pid })。

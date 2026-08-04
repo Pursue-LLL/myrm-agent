@@ -106,7 +106,9 @@ class BtwTaskNotifier:
         if task_id:
             try:
                 from app.channels.routing.router_keys import routing_session_key
-                from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+                from app.remote_access.mobile_deep_link import (
+                    resolve_web_handoff_components,
+                )
                 from app.services.chat.chat_service import ChatService
 
                 session_key = routing_session_key(channel_name, chat_id)
@@ -117,7 +119,9 @@ class BtwTaskNotifier:
                         locale=locale,
                     )
             except Exception:
-                logger.debug("Failed to resolve web handoff for btw notification, skipping")
+                logger.debug(
+                    "Failed to resolve web handoff for btw notification, skipping"
+                )
 
         msg = OutboundMessage(
             channel=channel_name,
@@ -130,10 +134,16 @@ class BtwTaskNotifier:
 
         channel = channel_gateway.bus.channels.get(channel_name)
         if not channel:
-            logger.debug("BtwTaskNotifier: channel '%s' not registered, skipping", channel_name)
+            logger.debug(
+                "BtwTaskNotifier: channel '%s' not registered, skipping", channel_name
+            )
             return
         if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            logger.debug("BtwTaskNotifier: channel '%s' is %s, skipping", channel_name, channel.status)
+            logger.debug(
+                "BtwTaskNotifier: channel '%s' is %s, skipping",
+                channel_name,
+                channel.status,
+            )
             return
 
         msg = downgrade_components(msg, channel)
@@ -151,14 +161,22 @@ class BtwTaskNotifier:
             logger.info("Btw task result delivered to %s/%s", channel_name, chat_id)
         except Exception as exc:
             channel.activity.record_error()
-            logger.warning("Failed to deliver btw result to %s/%s: %s", channel_name, chat_id, exc, exc_info=True)
+            logger.warning(
+                "Failed to deliver btw result to %s/%s: %s",
+                channel_name,
+                chat_id,
+                exc,
+                exc_info=True,
+            )
 
     async def _resolve_im_target(
         self,
         data: dict[str, object],
     ) -> tuple[str, str, str | None, str] | None:
         """Resolve IM channel delivery target from source_chat_id when channel metadata is absent."""
-        source_chat_id = str(data.get("source_chat_id", "") or data.get("chat_id", "")).strip()
+        source_chat_id = str(
+            data.get("source_chat_id", "") or data.get("chat_id", "")
+        ).strip()
         if not source_chat_id:
             return None
 
@@ -189,9 +207,16 @@ class BtwTaskNotifier:
             return None
 
 
-def _format_notification(status: str, title: str, result: str, locale: str = "en") -> str:
+def _format_notification(
+    status: str, title: str, result: str, locale: str = "en"
+) -> str:
     preview = title[:80] if title else "background task"
     summary = result[:300] if result else ""
 
-    key = "background_completed" if status == "completed" else "background_failed"
+    if status == "completed":
+        key = "background_completed"
+    elif status == "blocked":
+        key = "background_blocked"
+    else:
+        key = "background_failed"
     return channel_t(locale, key, title=preview, result=summary).strip()

@@ -39,12 +39,12 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         suggestion_prompts=(
             "Help me draft a professional self-introduction for a new team",
             "Summarize the pros and cons of remote work vs office work",
-            "Create a weekly meal plan for a busy professional",
+            "Draw a project architecture flowchart for me",
             "Explain how compound interest works with a simple example",
-            "Help me brainstorm gift ideas for a friend's birthday",
-            "Write a polite message to decline a meeting invitation",
-            "Compare the latest flagship phones and recommend one for me",
-            "Plan a productive morning routine for better focus",
+            "Help me generate an Excel sales data report",
+            "Draw a team capability radar chart for me",
+            "Create a weekly meal plan for a busy professional",
+            "Help me build a data analytics dashboard",
         ),
     ),
     _BuiltInAgentSpec(
@@ -144,9 +144,9 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         suggestion_prompts=(
             "Summarize this article into a structured markdown brief",
             "Extract action items from my meeting notes and add them to the task board",
-            "Draft a short reply to this email",
-            "Organize my research notes into a deliverable outline",
-            "Rewrite this paragraph to be shorter and clearer",
+            "Help me create a weekly work summary report",
+            "Generate an Excel data report from these figures",
+            "Draw an org-chart diagram for my team",
         ),
     ),
 )

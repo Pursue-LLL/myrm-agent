@@ -32,10 +32,19 @@ async def test_kanban_task_runner_uses_unattended_mode():
     mock_model_cfg = ModelConfig(model="test-model", api_key="test-key")
 
     with (
-        patch("app.ai_agents.agents.AgentFactory.create_general_agent") as mock_create_agent,
-        patch("app.services.kanban.task_runner.build_task_context", new_callable=AsyncMock) as mock_build_context,
-        patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
-        patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock) as mock_load_user_configs,
+        patch(
+            "app.ai_agents.agents.AgentFactory.create_general_agent"
+        ) as mock_create_agent,
+        patch(
+            "app.services.kanban.task_runner.build_task_context", new_callable=AsyncMock
+        ) as mock_build_context,
+        patch.object(
+            runner, "_resolve_profile", new_callable=AsyncMock
+        ) as mock_resolve_profile,
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new_callable=AsyncMock,
+        ) as mock_load_user_configs,
         patch(
             "app.core.channel_bridge.model_resolver.resolve_model_config",
             return_value=mock_model_cfg,
@@ -74,7 +83,9 @@ async def test_kanban_task_runner_uses_unattended_mode():
         params = mock_create_agent.call_args[0][0]
 
         assert isinstance(params, GeneralAgentParams)
-        assert params.unattended_mode is True, "Kanban tasks must run in unattended_mode to prevent blocking"
+        assert (
+            params.unattended_mode is True
+        ), "Kanban tasks must run in unattended_mode to prevent blocking"
 
 
 class TestResolvedProfile:
@@ -134,7 +145,11 @@ class TestClassifyContentType:
             ("application/octet-stream", "diagram.webp", "image"),
             ("application/pdf", "doc.pdf", "pdf"),
             ("application/octet-stream", "report.pdf", "pdf"),
-            ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "report.docx", "document"),
+            (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "report.docx",
+                "document",
+            ),
             ("application/octet-stream", "slides.pptx", "document"),
             ("text/plain", "notes.txt", "other"),
             ("application/json", "config.json", "other"),
@@ -204,7 +219,9 @@ class TestBuildMultimodalQuery:
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
-            patch.object(runner, "_extract_pdf_text", return_value="extracted pdf content"),
+            patch.object(
+                runner, "_extract_pdf_text", return_value="extracted pdf content"
+            ),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -223,7 +240,9 @@ class TestBuildMultimodalQuery:
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
 
         mock_file = MagicMock()
-        mock_file.content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        mock_file.content_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         mock_file.filename = "spec.docx"
 
         mock_fs = MagicMock()
@@ -235,7 +254,9 @@ class TestBuildMultimodalQuery:
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
-            patch.object(runner, "_extract_document_text", return_value="document text here"),
+            patch.object(
+                runner, "_extract_document_text", return_value="document text here"
+            ),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -257,7 +278,9 @@ class TestBuildMultimodalQuery:
         pdf_file = MagicMock(content_type="application/pdf", filename="notes.pdf")
 
         mock_fs = MagicMock()
-        mock_fs.get_file = AsyncMock(side_effect=lambda fid: img_file if fid == "img1" else pdf_file)
+        mock_fs.get_file = AsyncMock(
+            side_effect=lambda fid: img_file if fid == "img1" else pdf_file
+        )
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": True}
@@ -432,7 +455,9 @@ class TestBuildMultimodalRealExtraction:
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
 
         mock_file = MagicMock()
-        mock_file.content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        mock_file.content_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         mock_file.filename = "spec.docx"
 
         mock_fs = MagicMock()
@@ -570,7 +595,9 @@ class TestResolveRunOutcome:
         mock_store.get_task.return_value = task
         runner = KanbanTaskRunner(mock_store)
 
-        ok, msg = await runner._resolve_run_outcome("t-violation", (True, "forgot kanban_complete"))
+        ok, msg = await runner._resolve_run_outcome(
+            "t-violation", (True, "forgot kanban_complete")
+        )
 
         assert ok is False
         assert msg == _PROTOCOL_VIOLATION_MSG
