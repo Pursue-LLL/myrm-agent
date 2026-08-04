@@ -208,6 +208,25 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
     }
 
 
+def _wait_daemon_operation_credit(*, budget_sec: float) -> None:
+    deadline = time.time() + max(0.1, budget_sec)
+    while time.time() < deadline:
+        snap = _try_daemon_snapshot()
+        if snap is None:
+            raise RuntimeError(
+                "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+            )
+        available_raw = snap.get("operation_credits_available", 0)
+        available = available_raw if isinstance(available_raw, int) else 0
+        if available > 0:
+            return
+        time.sleep(0.05)
+    raise TimeoutError(
+        f"daemon operation credit unavailable within {budget_sec:.1f}s"
+    )
+
+
 @contextmanager
 def browser_operation_credit_slot(
     *,
@@ -215,7 +234,11 @@ def browser_operation_credit_slot(
     current_node: str = "unknown",
 ) -> Generator[None, None, None]:
     """Acquire one browser operation credit, blocking until available."""
-    del budget_sec, current_node
+    if _browser_orchestrator_daemon_required():
+        _wait_daemon_operation_credit(budget_sec=budget_sec)
+        yield
+        return
+    del current_node
     from mux_upstream_admission import upstream_cold_attach_slot  # noqa: PLC0415
 
     with upstream_cold_attach_slot():
@@ -226,6 +249,9 @@ def wait_for_operation_credit(
     *, budget_sec: float = 180.0, current_node: str = "unknown"
 ) -> None:
     """Block until no peer holds an upstream operation credit (fair queue SSOT)."""
+    if _browser_orchestrator_daemon_required():
+        _wait_daemon_operation_credit(budget_sec=budget_sec)
+        return
     from e2e_mux_transport_queue import wait_mux_transport_turn  # noqa: PLC0415
 
     wait_mux_transport_turn(budget_sec=budget_sec, current_node=current_node)
