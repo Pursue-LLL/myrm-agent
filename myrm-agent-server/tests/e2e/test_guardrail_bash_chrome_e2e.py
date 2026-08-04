@@ -18,11 +18,13 @@ if _LIB not in sys.path:
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -34,6 +36,9 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "open_mcp_page",
     "MUX",
     "CDP",
+    "Runtime.evaluate",
+    "Browser Orchestrator",
+    "CDP request timeout",
     "Chrome MCP",
     "connection reset",
     "wait_for_state",
@@ -51,9 +56,27 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "LEASE_NOT_ACTIVE",
     "no-panel",
     "no-bridge",
+    "React E2E bridge",
     "E2E_ORCHESTRATOR_LEASE_DENIED",
     "ORCHESTRATOR_LEASE_DENIED",
+    "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
 )
+
+
+def _bridge_ready_timeout_sec() -> float:
+    try:
+        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+        if parallel_shared_ui_hydrate_queue_enabled():
+            return 180.0
+    except ImportError:
+        pass
+    return 90.0
+
+
+def _attach_eval_timeout_sec() -> float:
+    """Scale attachToChat evaluate under parallel mux (R138 parity)."""
+    return _bridge_ready_timeout_sec()
 
 
 def _force_mux_heal_before_retry() -> None:
@@ -187,12 +210,47 @@ def _attach_chat_probe(chat_id: str) -> str:
 }})()"""
 
 
+def _kick_attach_chat(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(() => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  void bridge.attachToChat({chat_id_json});
+  return {{ ok: true, kicked: true }};
+}})()"""
+
+
+def _attach_chat_ready_js(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(() => {{
+  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null;
+  const store = window.__myrmChatStore?.getState?.();
+  const msgCount = store?.messages?.length ?? 0;
+  return {{
+    ready:
+      snap !== null
+      && snap.chatId === {chat_id_json}
+      && (
+        (snap.userCount ?? 0) >= 1
+        || msgCount > 0
+        || Boolean(store?.isMessagesLoaded)
+      ),
+    snap,
+    msgCount,
+    isMessagesLoaded: Boolean(store?.isMessagesLoaded),
+  }};
+}})()"""
+
+
 def _assert_variant_ui(
     client: object,
     page: object,
     *,
     chat_id: str,
     variant: str,
+    page_url: str,
 ) -> None:
     answer_json = json.dumps(_FIXTURE_ANSWER)
     message_ready_js = f"""(() => {{
@@ -204,18 +262,32 @@ def _assert_variant_ui(
       return {{ ready: !!msg, count: store?.messages?.length ?? 0 }};
     }})()"""
 
-    bridge_ready = wait_for_state(
+    bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
-        _BRIDGE_READY_JS,
-        timeout_sec=90.0,
+        timeout_sec=_bridge_ready_timeout_sec(),
+        page_url=page_url,
     )
     assert bridge_ready.get("ready") is True, json.dumps(
         bridge_ready, ensure_ascii=False
     )
 
-    attached = client.evaluate(page, _attach_chat_probe(chat_id), timeout_sec=90.0)  # type: ignore[attr-defined]
-    assert isinstance(attached, dict) and attached.get("ok") is True, attached
+    kicked = client.evaluate(  # type: ignore[attr-defined]
+        page,
+        _kick_attach_chat(chat_id),
+        timeout_sec=30.0,
+    )
+    assert isinstance(kicked, dict) and kicked.get("ok") is True, kicked
+
+    attach_state = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        _attach_chat_ready_js(chat_id),
+        timeout_sec=_attach_eval_timeout_sec(),
+    )
+    assert attach_state.get("ready") is True, json.dumps(
+        attach_state, ensure_ascii=False
+    )
 
     dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
 
@@ -240,21 +312,18 @@ def _assert_variant_ui(
         f"{json.dumps(category_state, ensure_ascii=False)}"
     )
 
+    client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+
     dom_ready = wait_for_state(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         _PROGRESS_DOM_READY_JS,
-        timeout_sec=45.0,
+        timeout_sec=60.0,
     )
     assert dom_ready.get("ready") is True, (
         f"variant={variant} progress UI not mounted: "
         f"{json.dumps(dom_ready, ensure_ascii=False)}"
     )
-
-    expanded = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-    if not (isinstance(expanded, dict) and expanded.get("ok") is True):
-        # Toggle/panel may mount late under parallel mux; badge poll expands inline.
-        pass
 
     badge_state = wait_for_state(
         client,  # type: ignore[arg-type]
@@ -274,17 +343,24 @@ def _run_single_variant_ui_assertions(
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
     if warm_route:
+        warm_ui_route("/")
         warm_ui_route(f"/{chat_id}")
 
-    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
+    target_url = f"{ui_url.rstrip('/')}/{chat_id}"
+    with open_mcp_page(target_url, timeout_ms=120_000) as (client, page):
+        ensure_desktop_viewport(client, page)
+        dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        _assert_variant_ui(client, page, chat_id=chat_id, variant=variant)
+        _assert_variant_ui(
+            client, page, chat_id=chat_id, variant=variant, page_url=target_url
+        )
 
 
 @pytest.mark.parametrize("variant", _VARIANTS)
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_guardrail_bash_progress_step_and_safety_badge_render(variant: str) -> None:
