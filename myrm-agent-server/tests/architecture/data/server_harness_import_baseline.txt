@@ -64,6 +64,7 @@ myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec
 myrm_agent_harness.agent.meta_tools.interaction.inline_ui_capability
 myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
 myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool
+myrm_agent_harness.agent.meta_tools.mount_policy
 myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
 myrm_agent_harness.agent.meta_tools.session_access.request_directory
