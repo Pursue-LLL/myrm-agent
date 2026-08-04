@@ -13,6 +13,16 @@ if TYPE_CHECKING:
     from dev_gate_coordinator import CoordinatorService
 
 DEFAULT_MAX_QUEUE = 1000
+# Admission ops stay on the handler thread: they are short SQLite transactions and
+# must not queue behind submit/cleanup/idle_tab_hygiene (illegal PRIVATE wait).
+_ADMIT_OPERATIONS = frozenset(
+    {
+        "private_admit",
+        "private_release",
+        "desktop_admit",
+        "desktop_release",
+    }
+)
 _WRITE_OPERATIONS = frozenset(
     {
         "submit",
@@ -21,10 +31,6 @@ _WRITE_OPERATIONS = frozenset(
         "ownership",
         "cleanup",
         "finish",
-        "private_admit",
-        "private_release",
-        "desktop_admit",
-        "desktop_release",
         "reap",
     }
 )
@@ -80,6 +86,8 @@ class DevGateAsyncWriter:
         timeout_sec: float = 10.0,
     ) -> dict[str, object]:
         operation = request.get("operation")
+        if isinstance(operation, str) and operation in _ADMIT_OPERATIONS:
+            return self._service.handle(request)
         if isinstance(operation, str) and operation in _WRITE_OPERATIONS:
             timeout_sec = max(timeout_sec, 30.0)
         if not isinstance(operation, str) or operation not in _WRITE_OPERATIONS:

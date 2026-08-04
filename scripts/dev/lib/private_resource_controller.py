@@ -264,6 +264,34 @@ class PrivateResourceController:
             """,
             (now,),
         )
+        from owner_identity import owner_process_matches
+
+        active_rows = connection.execute(
+            """
+            SELECT pa.session_id, s.owner_pid, s.owner_process_start, s.state
+            FROM private_admission pa
+            JOIN sessions s ON s.session_id = pa.session_id
+            WHERE pa.granted_at IS NOT NULL
+              AND pa.released_at IS NULL
+              AND s.state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')
+            """
+        ).fetchall()
+        abandoned: list[str] = []
+        for row in active_rows:
+            owner_pid = int(row["owner_pid"])
+            owner_start = str(row["owner_process_start"])
+            if owner_process_matches(pid=owner_pid, expected_start=owner_start):
+                continue
+            abandoned.append(str(row["session_id"]))
+        if abandoned:
+            placeholders = ",".join("?" for _ in abandoned)
+            connection.execute(
+                f"""
+                UPDATE private_admission SET released_at=?
+                WHERE released_at IS NULL AND session_id IN ({placeholders})
+                """,
+                (now, *abandoned),
+            )
 
     @staticmethod
     def _queue_row(

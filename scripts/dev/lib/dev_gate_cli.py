@@ -316,10 +316,14 @@ def ensure_coordinator(
     disabled_path = database_target.with_suffix(".socket-disabled")
     pid_path = _coordinator_pid_path(database_target)
     if disabled_path.is_file():
-        disabled_age = time.time() - disabled_path.stat().st_mtime
-        if disabled_age < 60.0:
-            return None
-        disabled_path.unlink(missing_ok=True)
+        # Stale .socket-disabled must not block a live coordinator (R274).
+        if _ping(socket_target):
+            disabled_path.unlink(missing_ok=True)
+        else:
+            disabled_age = time.time() - disabled_path.stat().st_mtime
+            if disabled_age < 60.0:
+                return None
+            disabled_path.unlink(missing_ok=True)
     _reconcile_coordinator_singleton(
         socket_target=socket_target,
         database_target=database_target,
@@ -474,6 +478,9 @@ def send(payload: dict[str, object]) -> dict[str, object]:
     if isinstance(operation, str) and operation in {
         "private_admit",
         "desktop_admit",
+    }:
+        timeout_sec = 90.0
+    if isinstance(operation, str) and operation in {
         "reap",
         "heartbeat",
         "finish",
