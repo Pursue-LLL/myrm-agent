@@ -729,6 +729,7 @@ class ChromeMcpClient:
                 arguments: dict[str, object] = {
                     "url": initial_url,
                     "timeout": resolved_timeout_ms,
+                    "background": True,
                 }
                 if isolated_context is not None:
                     arguments["isolatedContext"] = context_id

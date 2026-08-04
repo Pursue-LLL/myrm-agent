@@ -666,33 +666,7 @@ if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
   bash "${CHROME_E2E_CLI_EARLY}" ensure-surface >/dev/null 2>&1 || true
 fi
 
-PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
-if [[ -f "${PRUNE_SCRIPT}" ]]; then
-  export MYRM_CHROME_E2E_PORT
-  _preflight_blank_tab_prune_allowed() {
-    # P0-A: safe-side-down — block prune unless we can positively confirm zero peers
-    [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && return 1
-    local contexts active_leases
-    contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
-    active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo unknown)"
-    # If detection failed (non-numeric), refuse prune to protect peers
-    [[ ! "${contexts}" =~ ^[0-9]+$ ]] && return 1
-    [[ ! "${active_leases}" =~ ^[0-9]+$ ]] && return 1
-    [[ "${contexts}" -gt 0 ]] && return 1
-    [[ "${active_leases}" -gt 0 ]] && return 1
-    return 0
-  }
-  if _preflight_blank_tab_prune_allowed; then
-    if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
-      echo "${prune_out}"
-      ok "stale infra-owned tabs pruned"
-    else
-      echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
-    fi
-  else
-    echo "CHROME_E2E_WARN: blank-tab prune skipped — attach mode or parallel mux contexts/wave leases active" >&2
-  fi
-fi
+# G4/R271: heuristic blank prune removed — idle hygiene via coordinator reap (SSOT §18.7.2).
 
 ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
