@@ -10,6 +10,14 @@ export MYRM_CHROME_E2E_ATTACH
 MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
 
+_attach_api_base() {
+  if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && -n "${E2E_API_BASE:-}" ]]; then
+    echo "${E2E_API_BASE}"
+  else
+    echo "${API_BASE}"
+  fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
@@ -263,13 +271,15 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
     [[ "${ui_heal_timeout_sec}" =~ ^[0-9]+$ ]] || ui_heal_timeout_sec=300
     [[ "${ui_heal_post_ensure_max_sec}" =~ ^[0-9]+$ ]] || ui_heal_post_ensure_max_sec=120
   fi
+  local attach_api
+  attach_api="$(_attach_api_base)"
   while true; do
     waited=$((SECONDS - wait_started))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from runtime_identity import attach_wait_errors
-print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
+print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
 ")"
     [[ -z "${errors}" ]] && return 0
     wait_sec="$(_bootstrap_attach_remaining_sec)"
@@ -621,11 +631,15 @@ _preflight_readiness_gate
 # R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" && "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" != "1" ]]; then
   _bootstrap_attach_begin "$(_parallel_attach_active_leases)"
+  _attach_api="$(_attach_api_base)"
+  if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]]; then
+    echo "CHROME_E2E_ATTACH: epoch pin ADMIT wait uses api=${_attach_api} (skip shared :8080 unreachable gate)" >&2
+  fi
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from runtime_identity import attach_wait_errors
-print(', '.join(attach_wait_errors('${UI_BASE}', '${API_BASE}')))
+print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
 ")"
   if [[ -n "${attach_errors}" ]]; then
     if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
