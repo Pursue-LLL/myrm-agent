@@ -4,7 +4,7 @@
 - myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager)
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - myrm_agent_harness.runtime.maintenance.scheduler::GlobalAdaptiveScheduler (POS: Load-aware capacity)
-- app.database.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
+- app.database.operations.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
 - app.services.agent.gateway::AgentGateway (POS: Active session tracking)
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
@@ -498,7 +498,7 @@ def _run_sqlite_backup() -> None:
     and never raises — failures are logged but do not block the guardian.
     """
     try:
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         manager = get_sqlite_backup_manager()
         if manager is not None:

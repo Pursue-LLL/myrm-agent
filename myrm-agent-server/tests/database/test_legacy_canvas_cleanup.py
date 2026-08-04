@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.database import legacy_canvas_cleanup as cleanup_mod
+from app.database.operations import legacy_canvas_cleanup as cleanup_mod
 
 
 def test_remove_retired_canvas_data_dir_deletes_tree(

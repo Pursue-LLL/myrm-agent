@@ -105,9 +105,10 @@ async def get_dependabot_prs() -> list[DependabotPR]:
         repo = monitored[0] if monitored else DEFAULT_REPO
         return await fetch_dependabot_prs_for_repo(repo, token)
     except httpx.HTTPStatusError as exc:
+        logger.warning("GitHub API error (status %s): %s", exc.response.status_code, exc.response.text)
         raise HTTPException(
             status_code=exc.response.status_code,
-            detail=f"GitHub API error: {exc.response.text}",
+            detail="GitHub API error",
         ) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to fetch Dependabot PRs") from exc

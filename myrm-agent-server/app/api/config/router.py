@@ -26,7 +26,7 @@ from typing import get_args
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from filelock import FileLock, Timeout
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
@@ -462,13 +462,25 @@ def _validate_config_value(
 
     try:
         validated_data = model_class.model_validate(value)
+    except ValidationError as exc:
+        logger.warning(
+            "Omni-Config %s validation failed for %s: %s", operation, config_key, exc
+        )
+        field_errors = [
+            {"field": ".".join(str(s) for s in err["loc"]), "message": err["msg"]}
+            for err in exc.errors()
+        ]
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Configuration validation failed", "errors": field_errors},
+        ) from exc
     except Exception as exc:
         logger.warning(
             "Omni-Config %s validation failed for %s: %s", operation, config_key, exc
         )
         raise HTTPException(
             status_code=422,
-            detail=f"Configuration validation failed: {str(exc)}",
+            detail="Configuration validation failed",
         ) from exc
     return validated_data.model_dump(exclude_unset=False)
 
@@ -697,7 +709,8 @@ async def apply_second_brain_onboarding(request: Request) -> dict[str, object]:
         try:
             result = await apply_second_brain_preset(accept_language=accept_lang)
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            logger.warning("Second Brain preset file not found: %s", exc)
+            raise HTTPException(status_code=500, detail="Preset file not found") from exc
         except SecondBrainPresetError as exc:
             raise HTTPException(status_code=500, detail=exc.message) from exc
         except Exception as exc:
@@ -1281,6 +1294,25 @@ class TestLocalModelResponse(BaseModel):
     latency_ms: int
 
 
+def _classify_local_model_error(exc: Exception) -> str:
+    """Map internal exceptions to user-friendly connection test messages."""
+    name = type(exc).__name__.lower()
+    msg = str(exc).lower()
+    if "refused" in msg or "connectionrefused" in name:
+        return "Connection refused — is the model server running?"
+    if "timeout" in msg or "timed out" in msg or "timeout" in name:
+        return "Connection timed out — check the server address"
+    if "401" in msg or "unauthorized" in msg or "auth" in name:
+        return "Authentication failed — check your API key"
+    if "404" in msg or "not found" in msg:
+        return "Model not found — check the model name"
+    if "dns" in msg or "name resolution" in msg or "getaddrinfo" in msg:
+        return "DNS resolution failed — check the base URL"
+    if "ssl" in msg or "certificate" in msg:
+        return "SSL/TLS error — check your server's certificate"
+    return "Connection test failed"
+
+
 @router.post("/test-local-model", response_model=TestLocalModelResponse)
 async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResponse:
     """Test connectivity to a local LLM (e.g. Ollama).
@@ -1307,9 +1339,11 @@ async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResp
         return TestLocalModelResponse(success=True, message="OK", latency_ms=elapsed)
     except Exception as exc:
         elapsed = int((time.monotonic() - start) * 1000)
+        logger.warning("Local model test failed: %s", exc)
+        user_msg = _classify_local_model_error(exc)
         return TestLocalModelResponse(
             success=False,
-            message=f"{type(exc).__name__}: {exc}",
+            message=user_msg,
             latency_ms=elapsed,
         )
 

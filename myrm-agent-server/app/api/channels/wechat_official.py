@@ -91,12 +91,13 @@ async def push_wechat_official_draft(body: WeChatDraftRequest) -> WeChatDraftRes
             cover_path=cover_path,
         )
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        logger.warning("WeChat draft publish cover not found: %s", exc)
+        raise HTTPException(status_code=404, detail="Cover file not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("WeChat draft publish failed: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="WeChat API call failed") from exc
     finally:
         await client.close()
 

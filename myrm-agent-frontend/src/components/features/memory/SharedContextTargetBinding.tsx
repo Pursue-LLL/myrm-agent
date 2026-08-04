@@ -5,7 +5,7 @@
  * @/services/memorySharedContexts (POS: Frontend Shared Context API client)
  *
  * [OUTPUT]
- * SharedContextTargetBinding: Reusable runtime-target Shared Context binding UI.
+ * SharedContextTargetBinding: Reusable runtime-target Shared Context binding UI with optional onBindingsChanged callback.
  *
  * [POS]
  * Shared Context runtime binding component. It lets settings pages inspect, bind, and unbind
@@ -37,6 +37,8 @@ interface SharedContextTargetBindingProps {
   disabledMessage?: string;
   compact?: boolean;
   className?: string;
+  id?: string;
+  onBindingsChanged?: () => void;
 }
 
 interface BoundContextView {
@@ -52,6 +54,8 @@ export function SharedContextTargetBinding({
   disabledMessage,
   compact = false,
   className,
+  id,
+  onBindingsChanged,
 }: SharedContextTargetBindingProps) {
   const t = useTranslations('sharedContextTargetBinding');
   const resolvedTargetLabel = targetLabel ?? t(`targets.${targetType}`);
@@ -128,6 +132,7 @@ export function SharedContextTargetBinding({
       });
       setBindings((items) => [binding, ...items.filter((item) => item.id !== binding.id)]);
       toast({ title: t('toasts.bound') });
+      onBindingsChanged?.();
     } catch (error) {
       toast({
         title: t('errors.bind'),
@@ -137,7 +142,7 @@ export function SharedContextTargetBinding({
     } finally {
       setActionId(null);
     }
-  }, [disabled, selectedContextId, targetId, targetType, t]);
+  }, [disabled, onBindingsChanged, selectedContextId, targetId, targetType, t]);
 
   const handleUnbind = useCallback(
     async (binding: SharedContextBinding) => {
@@ -146,6 +151,7 @@ export function SharedContextTargetBinding({
         await deleteSharedContextBinding(binding.context_id, binding.id);
         setBindings((items) => items.filter((item) => item.id !== binding.id));
         toast({ title: t('toasts.unbound') });
+        onBindingsChanged?.();
       } catch (error) {
         toast({
           title: t('errors.unbind'),
@@ -156,11 +162,12 @@ export function SharedContextTargetBinding({
         setActionId(null);
       }
     },
-    [t],
+    [onBindingsChanged, t],
   );
 
   return (
     <section
+      id={id}
       className={cn(
         'rounded-xl border border-border bg-card p-4',
         compact && 'rounded-lg border-border/60 bg-muted/20 p-3',

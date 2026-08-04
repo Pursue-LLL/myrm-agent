@@ -226,7 +226,8 @@ async def get_specific_report(filename: str) -> dict[str, object]:
                         data["cases"].append(json.loads(line))
                 return {"status": "success", "summary": data}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.error("Eval result retrieval failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Eval result retrieval failed") from exc
 
     return {"status": "error"}
 

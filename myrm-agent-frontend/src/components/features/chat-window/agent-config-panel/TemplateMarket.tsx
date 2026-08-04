@@ -33,6 +33,7 @@ import {
   recordExpertSummonSurfaceViewed,
 } from '@/services/expertSummonMetrics';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
+import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 
 interface TemplateMarketProps {
   className?: string;
@@ -124,8 +125,10 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       toast.success(t('instantiateSuccess') || 'Agent created from template!');
       if (onInstantiated) {
         onInstantiated(newAgent.id);
+      } else if (template.agent_type === 'team') {
+        router.push(teamAssetsHubHref());
       } else {
-        router.push(`/?agent_id=${newAgent.id}`);
+        router.push(agentSettingsHref(newAgent.id));
       }
     } catch (e) {
       console.error(e);

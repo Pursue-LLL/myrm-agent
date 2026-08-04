@@ -1,4 +1,16 @@
-"""Detect SQLite lock/busy errors from SQLAlchemy (and optional raw sqlite3) exceptions."""
+"""Detect SQLite lock/busy errors from SQLAlchemy (and optional raw sqlite3) exceptions.
+
+[INPUT]
+- app.database.factory::get_sqlite_busy_timeout_ms (POS: SQLite 引擎与会话工厂)
+
+[OUTPUT]
+- is_sqlite_busy_error: Predicate for SQLite busy/lock exceptions
+- is_sqlite_storage_busy: Alias for is_sqlite_busy_error
+- sqlite_busy_retry_after_seconds: Compute Retry-After from PRAGMA busy_timeout
+
+[POS]
+SQLite 忙/锁异常识别与 Retry-After 计算。供 FastAPI 异常处理器使用。
+"""
 
 from __future__ import annotations
 

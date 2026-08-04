@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { AgentEditForm } from '@/components/agent/AgentEditForm';
@@ -16,8 +17,10 @@ import {
   Activity,
   Coins,
   Zap,
+  Layers,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { agentSettingsHref } from '@/components/features/loadout/loadoutDeepLinks';
 import {
   listAgents,
   deleteAgent,
@@ -243,6 +246,7 @@ function AgentCard({
   onEdit: (agent: AgentListItem) => void;
   onDelete: (id: string) => void;
 }) {
+  const tLoadout = useTranslations('loadout');
   const status = stats?.status ?? 'idle';
 
   return (
@@ -304,6 +308,12 @@ function AgentCard({
       </div>
 
       <div className="bg-muted/50 p-4 flex items-center justify-end gap-2 border-t">
+        <Button asChild variant="outline" size="sm" className="h-8">
+          <Link href={agentSettingsHref(agent.id)}>
+            <Layers className="mr-2 h-4 w-4" />
+            {tLoadout('openLoadout')}
+          </Link>
+        </Button>
         <Button
           variant="outline"
           size="sm"

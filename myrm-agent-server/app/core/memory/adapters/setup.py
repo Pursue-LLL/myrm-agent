@@ -198,6 +198,7 @@ async def create_memory_tools_for_user(
     on_conflict: ConflictCallback | None = None,
     search_policy: object | None = None,
     search_backends: object | None = None,
+    description_locale: str | None = None,
 ) -> tuple[MemoryManager, list[object]]:
     """Create a MemoryManager and its agent tools in one call."""
     from myrm_agent_harness.toolkits import create_memory_tools
@@ -217,6 +218,8 @@ async def create_memory_tools_for_user(
         tool_kwargs["search_policy"] = search_policy
     if search_backends is not None:
         tool_kwargs["search_backends"] = search_backends
+    if description_locale is not None:
+        tool_kwargs["description_locale"] = description_locale
     tools = create_memory_tools_fn(manager, **tool_kwargs)
     return manager, tools
 

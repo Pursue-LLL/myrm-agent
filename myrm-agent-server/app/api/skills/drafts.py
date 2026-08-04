@@ -524,8 +524,8 @@ async def _materialize_semantic_memory(draft: SkillDraftRecord) -> dict[str, str
             "memory_id": str(memory.id),
         }
     except Exception as e:
-        logger.error("Failed to materialize semantic memory from draft %s: %s", draft.id, e)
-        return {"materialized": False, "error": str(e)}
+        logger.error("Failed to materialize semantic memory from draft %s: %s", draft.id, e, exc_info=True)
+        return {"materialized": False, "error": "Semantic memory materialization failed"}
 
 
 def _slugify_skill_name(raw: str) -> str:

@@ -35,29 +35,20 @@ def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> No
     assert "app-layout" not in _SETTINGS_LAYOUT_READY_JS
 
 
-def test_open_mcp_page_applies_shpoib_bootstrap_without_initial_reload() -> None:
+def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
+    """TAB-FINAL: open_mcp_page must delegate to orchestrator, not mux blocking."""
     source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
     block = source.split("def open_mcp_page", 1)[1].split("\ndef ", 1)[0]
-    assert "_reapply_shpoib_runtime_after_reload" in block
-    assert "client.reload" not in block
+    assert "_require_orchestrator_for_formal_e2e" in block
+    assert "open_orchestrator_mcp_page" in block
+    assert "BROWSER_ORCHESTRATOR_REQUIRED" in block
+    assert "open_mcp_page_blocking" not in block
+    assert "ChromeMcpClient(request_timeout_sec=" not in block
     reload_block = source.split("def reload_mcp_page", 1)[1].split("\ndef ", 1)[0]
     assert "client.reload" in reload_block
     assert "_reapply_shpoib_runtime_after_reload" in reload_block
     assert reload_block.index("client.reload") < reload_block.index(
         "_reapply_shpoib_runtime_after_reload"
-    )
-    assert "_blocking_progress_loop" in block
-    assert "open_mcp_page_blocking" in block
-    assert "wait_for_operation_credit" in block
-    assert "mux_upstream_wait_cap" in block
-    assert block.index("wait_for_operation_credit") < block.index(
-        "transport_session_started = time.monotonic()"
-    )
-    assert "R156: runtime inject must not share sliced tool wall" in block
-    assert block.index("set_tool_wall_deadline(None)") < block.index("binding_source")
-    assert (
-        "connection reset"
-        in source.split("def _retryable_open_page_error", 1)[1].split("\ndef ", 1)[0]
     )
 
 

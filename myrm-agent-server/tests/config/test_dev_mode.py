@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from app.config.env import is_debug_mode
 from app.config.logging import configure_logging
 from app.core.utils.errors import MyrmError, register_exception_handlers
-from app.database.standard_responses import BusinessCode
+from app.schemas.responses import BusinessCode
 
 
 def test_debug_mode_detection() -> None:

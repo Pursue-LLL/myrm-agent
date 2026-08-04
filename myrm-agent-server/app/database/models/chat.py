@@ -32,6 +32,10 @@ class Chat(Base):
     compacted_before_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     compacted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     compacted_tokens_saved: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    compaction_failure_cooldown_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    compaction_failure_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     session_notes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 

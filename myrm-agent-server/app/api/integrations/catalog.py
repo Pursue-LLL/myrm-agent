@@ -16,7 +16,7 @@ from pydantic.config import ConfigDict
 from app.core.integrations.catalog import CatalogEntry, CatalogRegistry
 from app.core.integrations.catalog.models import DeploymentScope
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 
 logger = logging.getLogger(__name__)
 

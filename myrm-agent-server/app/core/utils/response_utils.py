@@ -1,7 +1,7 @@
 """Response utility classes for standardized API responses.
 
 [INPUT]
-app.database.standard_responses (POS: 标准响应模型和构造函数)
+app.schemas.responses (POS: 统一 API 响应格式定义)
 
 [OUTPUT]
 ResponseUtils: 标准响应工具类
@@ -13,7 +13,7 @@ success_response / list_response / paginated_response / error_response: 快捷�
 
 from fastapi.responses import JSONResponse
 
-from app.database.standard_responses import (
+from app.schemas.responses import (
     PaginationInfo,
     create_error_response,
     create_list_response,

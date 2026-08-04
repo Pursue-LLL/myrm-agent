@@ -20,7 +20,7 @@ from myrm_agent_harness.toolkits.memory.types import PendingRecord
 from app.api.memory.utils import get_memory_manager
 from app.database.connection import get_session
 from app.database.models import PendingMemory
-from app.database.standard_responses import StandardSuccessResponse, create_success_response
+from app.schemas.responses import StandardSuccessResponse, create_success_response
 from app.schemas.memory.crud import (
     ApproveMemoryRequest,
     BatchMemoryRequest,

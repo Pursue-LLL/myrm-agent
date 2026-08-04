@@ -326,7 +326,7 @@ async def yield_stream_exception_chunks(
     else:
         session.had_fatal_error = True
         logger.error("Agent stream error: %s", exc, exc_info=True)
-        yield error_sse(f"Agent execution error: {exc}", session.params.message_id)
+        yield error_sse("Agent execution error", session.params.message_id)
         await _record_turn_capability_failed_once(
             session,
             classify_turn_capability_failure_reason(exc),

@@ -693,5 +693,30 @@ describe('ContextUsageIndicator', () => {
       const progressCircle = circles[1];
       expect(progressCircle?.getAttribute('stroke')).toBe('#ef4444');
     });
+
+    it('shows context breakdown when breakdown fields are present', async () => {
+      const user = userEvent.setup();
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 118000,
+            max_context_tokens: 128000,
+            usage_percent: 92.2,
+            health_status: 'critical' as const,
+            messages_estimated_tokens: 112000,
+            bound_tools_overhead_tokens: 6000,
+            other_tokens: 0,
+          },
+        },
+      ];
+      render(<ContextUsageIndicator />);
+      await user.click(screen.getByRole('status'));
+      expect(await screen.findByText('breakdownTitle')).toBeInTheDocument();
+      expect(screen.getByTestId('context-budget-breakdown')).toBeInTheDocument();
+      expect(screen.getByText('breakdownMessages')).toBeInTheDocument();
+      expect(screen.getByText('breakdownTools')).toBeInTheDocument();
+      expect(screen.getByText('breakdownTotal')).toBeInTheDocument();
+    });
   });
 });

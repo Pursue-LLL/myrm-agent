@@ -117,7 +117,7 @@ async def start_feishu_qr_register() -> QRRegisterResponse:
         )
     except RuntimeError as exc:
         logger.warning("Feishu QR registration init failed: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Feishu registration service unavailable") from exc
     except Exception as exc:
         logger.error("Feishu QR registration unexpected error: %s", exc)
         raise HTTPException(

@@ -594,7 +594,7 @@ async def reset_database() -> dict[str, str]:
 
     from app.config.settings import settings
     from app.database.connection import init_database
-    from app.database.recovery import _cleanup_wal_files
+    from app.database.operations.recovery import _cleanup_wal_files
     from app.platform_utils import reset_database_engine
     from app.server.status import system_status
 

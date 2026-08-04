@@ -37,7 +37,7 @@ from myrm_agent_harness.toolkits.mcp.security import (
 
 from app.core.types import MCPServerConfig
 from app.core.utils.errors import validation_error
-from app.database.standard_responses import ErrorDetail
+from app.schemas.responses import ErrorDetail
 
 logger = logging.getLogger(__name__)
 

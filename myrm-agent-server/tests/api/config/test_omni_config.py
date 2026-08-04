@@ -96,7 +96,9 @@ async def test_set_config_with_validation():
     }
     response = client.put("/api/v1/config/personalSettings", json=invalid_payload)
     assert response.status_code == 422
-    assert "validation failed" in response.json()["detail"].lower()
+    detail = response.json()["detail"]
+    assert detail["message"] == "Configuration validation failed"
+    assert any(e["field"] == "fetchRawWebpage" for e in detail["errors"])
 
 
 @pytest.mark.asyncio

@@ -84,6 +84,30 @@ def _browser_orchestrator_daemon_required() -> bool:
     return os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
 
 
+def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
+    """Fail-fast when MYRM_BROWSER_ORCHESTRATOR=1 but daemon is unreachable."""
+    if not _browser_orchestrator_daemon_required():
+        return
+    try:
+        from browser_orchestrator_client import BrowserOrchestratorClient  # noqa: PLC0415
+    except ImportError as exc:
+        raise RuntimeError(
+            "BROWSER_ORCHESTRATOR_REQUIRED: browser_orchestrator_client unavailable"
+        ) from exc
+    client = BrowserOrchestratorClient()
+    deadline = time.time() + max(0.0, wait_sec)
+    while True:
+        if client.is_alive():
+            return
+        if time.time() >= deadline:
+            break
+        time.sleep(0.25)
+    raise RuntimeError(
+        f"BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+    )
+
+
 def _scheduler_int(scheduler: dict[str, object], key: str) -> int:
     raw = scheduler.get(key)
     return raw if isinstance(raw, int) else 0

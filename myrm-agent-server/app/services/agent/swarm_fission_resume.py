@@ -231,9 +231,10 @@ async def stream_with_swarm_fission_resume(
         step_status = _fission_step_status(fission_result, task_count)
 
         if not fission_result.get("success") and fission_result.get("error"):
+            logger.error("Swarm fission error: %s", fission_result["error"])
             yield {
                 "type": "error",
-                "error": str(fission_result["error"]),
+                "error": "Parallel task execution failed",
                 "error_type": "swarm_fission",
             }
 

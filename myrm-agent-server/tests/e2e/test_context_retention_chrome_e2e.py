@@ -7,6 +7,7 @@ import json
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
     ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -48,6 +49,10 @@ _CHAT_HYDRATED_JS = """(() => {
     ready: msgCount > 0 && typeof summary === 'string' && summary.length > 0,
     msgCount,
     summaryHead: String(summary).slice(0, 120),
+    isMessagesLoaded: Boolean(store?.isMessagesLoaded),
+    loadError: Boolean(store?.loadError),
+    notFound: Boolean(store?.notFound),
+    chatId: store?.chatId ?? null,
   };
 })()"""
 
@@ -134,6 +139,52 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
+def _attach_chat_ready_js(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (bridge?.attachToChat) {{
+    await bridge.attachToChat({chat_id_json});
+    const snap = bridge.turnSnapshot?.() ?? {{}};
+    return {{
+      ready: snap.chatId === {chat_id_json} && (snap.userCount ?? 0) >= 1,
+      via: 'bridge',
+      snap,
+    }};
+  }}
+  const store = window.__myrmChatStore?.getState?.();
+  if (!store?.loadMessages) {{
+    return {{ ready: false, err: 'no-bridge-or-store', hasBridge: !!bridge, hasStore: !!store }};
+  }}
+  await store.loadMessages({chat_id_json});
+  const after = window.__myrmChatStore?.getState?.();
+  const msgCount = after?.messages?.length ?? 0;
+  const summary = after?.compactedSummary ?? '';
+  return {{
+    ready:
+      after?.chatId === {chat_id_json}
+      && msgCount > 0
+      && typeof summary === 'string'
+      && summary.length > 0,
+    via: 'store.loadMessages',
+    msgCount,
+    summaryHead: String(summary).slice(0, 120),
+  }};
+}})()"""
+
+
+_APP_LAYOUT_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="app-layout"]'),
+  pathname: location.pathname,
+  title: document.title,
+}))()"""
+
+_STORE_READY_JS = """(() => ({
+  ready: typeof window.__myrmChatStore?.getState === 'function',
+  hasBridge: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+}))()"""
+
+
 _CLOSE_CONTEXT_USAGE_PANEL_JS = """(() => {
   const panel = document.querySelector('[data-testid="context-usage-panel"]');
   if (!panel) {
@@ -142,6 +193,33 @@ _CLOSE_CONTEXT_USAGE_PANEL_JS = """(() => {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   const stillOpen = document.querySelector('[data-testid="context-usage-panel"]');
   return { ok: true, closed: !stillOpen };
+})()"""
+
+
+_BREAKDOWN_PANEL_JS = """(() => {
+  const indicator = document.querySelector('[data-testid="context-usage-indicator"]');
+  if (indicator) {
+    indicator.click();
+  }
+  const breakdown = document.querySelector('[data-testid="context-budget-breakdown"]');
+  const store = window.__myrmChatStore?.getState?.();
+  let budget = null;
+  const msgs = Array.isArray(store?.messages) ? store.messages : [];
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const msg = msgs[i];
+    if (msg?.role === 'assistant' && msg?.contextBudget) {
+      budget = msg.contextBudget;
+      break;
+    }
+  }
+  const tools = Number(budget?.bound_tools_overhead_tokens ?? 0);
+  const messagesEst = Number(budget?.messages_estimated_tokens ?? 0);
+  return {
+    ready: Boolean(breakdown) && tools > 0 && messagesEst > 0,
+    hasBreakdown: Boolean(breakdown),
+    toolsOverhead: tools,
+    messagesEst,
+  };
 })()"""
 
 
@@ -225,7 +303,7 @@ def _fork_navigated_js(parent_chat_id: str) -> str:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -239,11 +317,37 @@ def test_context_retention_summary_bookmarks_and_pins_render() -> None:
 
     warm_ui_route(f"/{chat_id}")
 
-    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
-        hydrated = wait_for_state(client, page, _CHAT_HYDRATED_JS, timeout_sec=90.0)
+        layout_ready = wait_for_state(
+            client,
+            page,
+            _APP_LAYOUT_READY_JS,
+            timeout_sec=60.0,
+        )
+        assert layout_ready.get("ready") is True, layout_ready
+
+        store_ready = wait_for_state(
+            client,
+            page,
+            _STORE_READY_JS,
+            timeout_sec=120.0,
+        )
+        assert store_ready.get("ready") is True, store_ready
+
+        attached = wait_for_state(
+            client,
+            page,
+            _attach_chat_ready_js(chat_id),
+            timeout_sec=120.0,
+        )
+        assert attached.get("ready") is True, attached
+
+        dismiss_blocking_modals(client, page)
+
+        hydrated = wait_for_state(client, page, _CHAT_HYDRATED_JS, timeout_sec=60.0)
         assert hydrated.get("ready") is True, hydrated
 
         summary_state = wait_for_state(
@@ -259,6 +363,14 @@ def test_context_retention_summary_bookmarks_and_pins_render() -> None:
 
         pin_state = wait_for_state(client, page, _PINS_PANEL_JS, timeout_sec=45.0)
         assert pin_state.get("ready") is True, pin_state
+
+        breakdown_state = wait_for_state(
+            client,
+            page,
+            _BREAKDOWN_PANEL_JS,
+            timeout_sec=45.0,
+        )
+        assert breakdown_state.get("ready") is True, breakdown_state
 
         client.evaluate(page, _CLOSE_CONTEXT_USAGE_PANEL_JS, timeout_sec=15.0)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)

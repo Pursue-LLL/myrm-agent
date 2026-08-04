@@ -69,7 +69,9 @@
     ".next-isolated-e2e-parent-58516-63733-2996f72c/types/**/*.ts",
     ".next-isolated-e2e-parent-58516-63733-2996f72c/dev/types/**/*.ts",
     ".next-isolated-e2e-copilot/types/**/*.ts",
-    ".next-isolated-e2e-copilot/dev/types/**/*.ts"
+    ".next-isolated-e2e-copilot/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-71099-71121-7de8156d/types/**/*.ts",
+    ".next-isolated-e2e-parent-71099-71121-7de8156d/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

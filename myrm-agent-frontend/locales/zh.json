@@ -331,6 +331,7 @@
       "companion": "宠物伙伴",
       "usageStatistics": "用量统计",
       "memory-backup": "记忆备份",
+      "memory-team-hub": "团队资产",
       "memory-cloud-backup": "云端同步",
       "memory-archival": "记忆归档",
       "memory-migration": "数据迁移",
@@ -351,11 +352,13 @@
     },
     "memoryCenter": {
       "tabs": {
-        "followUps": "智能跟进"
+        "followUps": "智能跟进",
+        "teamHub": "团队资产"
       },
       "tabDescriptions": {
         "followUps": "查看并管理从对话中自动提取的隐式跟进事项，可忽略或延后",
-        "migration": "扫描 Hermes、OpenClaw、Claude Code、Codex — 预览导入；技能需审核；MCP 与渠道需手动配置"
+        "migration": "扫描 Hermes、OpenClaw、Claude Code、Codex — 预览导入；技能需审核；MCP 与渠道需手动配置",
+        "teamHub": "共享上下文、Wiki、技能与记忆 — 团队配置一屏入口"
       },
       "migrationUnavailable": {
         "title": "助手导入仅支持本地与桌面版",
@@ -5633,6 +5636,51 @@
     "unsaved": "未保存",
     "discardConfirm": "你有未保存的修改，确定要放弃吗？"
   },
+  "loadout": {
+    "title": "智能体配装",
+    "subtitle": "一瞥该智能体继承的团队记忆、Wiki、技能与记忆策略。",
+    "loading": "正在加载配装…",
+    "saveAgentFirst": "请先保存智能体后再查看配装。",
+    "fix": "修复",
+    "openTeamAssets": "团队资产",
+    "openWiki": "Wiki",
+    "openSkills": "技能",
+    "openMemory": "记忆",
+    "openLoadout": "配装",
+    "readiness": {
+      "ready": "就绪",
+      "warning": "需关注",
+      "blocked": "已阻塞"
+    },
+    "tiles": {
+      "sharedContexts": "共享上下文",
+      "skills": "技能",
+      "skillsCount": "已挂载 {count} 个",
+      "wiki": "Wiki",
+      "wikiOn": "已启用",
+      "wikiOff": "未启用",
+      "memoryPolicy": "记忆策略"
+    },
+    "sharedContexts": {
+      "none": "未绑定",
+      "unavailable": "暂时无法加载"
+    },
+    "memoryPolicy": {
+      "on": "记忆已开启",
+      "off": "记忆已关闭",
+      "onWithPreCompact": "已开启 · 预压缩 {tokens} tok"
+    },
+    "teamHub": {
+      "title": "团队资产",
+      "subtitle": "共享上下文、Wiki、技能与对话记忆 — 团队配置与审核的一站式入口。",
+      "wikiTitle": "Wiki",
+      "wikiDesc": "知识库与智能体作用域笔记",
+      "skillsTitle": "技能",
+      "skillsDesc": "已挂载能力与进化待审队列",
+      "memoryTitle": "记忆",
+      "memoryDesc": "个人大脑、策略与命令中心"
+    }
+  },
   "agent": {
     "title": "智能体",
     "description": "创建专属 AI 助手，定制行为和能力",
@@ -7080,6 +7128,11 @@
       "currentSession": "本轮调用",
       "warning": "接近上下文压缩点，建议 Fork（分支）新话题。",
       "criticalWarning": "系统正在自动精简早期记忆，建议对新话题使用 Fork（分支）。",
+      "breakdownTitle": "上下文构成",
+      "breakdownMessages": "消息（估算）",
+      "breakdownTools": "工具 schema（估算）",
+      "breakdownOther": "系统及其他（估算）",
+      "breakdownTotal": "Provider 总计",
       "strategy": {
         "title": "记忆策略",
         "noData": "暂无策略数据。",
@@ -9158,6 +9211,8 @@
         "retryingSkillsSubmit": "正在重试...",
         "skillsRetrySuccess": "技能已重新提交审核",
         "reviewSkills": "审核技能",
+        "reviewTeamAssets": "查看团队资产",
+        "reviewAgentLoadout": "查看智能体配装",
         "configureMcp": "配置 MCP",
         "configureCron": "查看定时任务",
         "configureChannels": "配置渠道",

@@ -6,8 +6,10 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `orchestrator.py` | 核心 | 流式会话主编排：入口 **`_reject_legacy_consensus_request`**（removed `consensus` → 400）；**`ChatSessionReservation.try_reserve` 在 persist 前**（零 TOCTOU）；非 resume 且 `chat_id` 存在时 **`run_pre_reply_stale_compact_gate`**（`engine_params.idle_compact_after_seconds`）并将结果挂到 `AgentStreamSession.pre_reply_compact_result`；busy → `agent_busy_streaming_response`；persist 后 **`apply_migration_bound_project`**；非 resume 路径经 `TurnPrewarmCoordinator.join_for_turn` 并行 join agent cache + memory brief；成功路径 `transfer_to_stream` + `launch_buffered_stream`；`finally` release 预占 | ✅ |
-| `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`）；`pre_reply_compact_result` 供 pre-reply idle compact 成功后 SSE 刷新前端 CompactedSummaryView | ✅ |
+| `orchestrator.py` | 核心 | 流式会话主编排：校验 → **`try_reserve` → E1 early `StreamingResponse`**（`orchestrator_turn_body.launch_early_buffered_stream`）；busy → `agent_busy_streaming_response`；`finally` release 预占 | ✅ |
+| `orchestrator_turn_body.py` | 核心 | E1 后台 turn：`run_pre_reply_compact_with_sse` → persist → prewarm → **`pump_to_buffer`**；multiplexed → JSON accepted；校验失败 → buffer error SSE | ✅ |
+| `pre_reply_compact_sse.py` | 核心 | Web pre-reply idle compact SSE 生命周期（active → gate → completed/failure；gate exception → failure SSE；复用 frontend `context_compaction` progress steps） | ✅ |
+| `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`）；`pre_reply_compact_result` + `pre_reply_compact_sse_sent` 供 pump 去重 SSE | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |
 | `memory_brief.py` | 核心 | 发送后首 token 前的记忆简报预计算（同源 snapshot + 预览 payload） | ✅ |
 | `_memory_status_helpers.py` | 辅助 | Memory brief 状态组装 SSOT：统一构建 `memory_brief_status`（`ready/skipped` + `source(preflight/runtime_fallback)` + `injection`）供 `stream_loop` 与 `stream_finalize` 复用，避免双实现漂移；injection 校验复用 harness 公共契约，并导出 brief 状态契约供前端同构测试；内置 Prometheus 观测（含 `not_applied` 原因聚合）与 unknown 枚举告警 | ✅ |
@@ -19,7 +21,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `migration_readiness_anchor.py` | 辅助 | 迁移 readiness 双锚记录助手：消费 `migration_readiness_anchor`（import_batch_id），按 stream finalize 信号归类首轮结果（success/failed/no_output）；preflight 未写入 live 状态时 finalize 再 live-resolve 一次，永不用 anchor 快照作 truth；函数内 lazy import `get_session_factory`（与 conftest patch 一致） | ✅ |
 | `migration_bound_project.py` | 辅助 | 迁移 vault bind 同窗 handoff：persist 后、convert 前消费 `migration_bound_project_id`，`move_chat_to_project` 写 SSOT；chat 已有 project_id 或 resume 时跳过 | ✅ |
 | `migration_readiness_preflight.py` | 辅助 | 迁移 readiness 软门禁：anchor 携带 batch_id 时 live-resolve readiness，在 stream 早期对 warning/critical 发射 issue-aware `capability_gap`（含 settings_path）；生产仅 async `resolve_and_build_*`；函数内 lazy import `get_session_factory`；不阻断执行、不改 Turn1 工具绑定 | ✅ |
-| `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer；pre-reply idle compact 成功时在 stream 首帧发射 `context_compaction` completed STATUS（复用前端 refreshCompactionState）；**multiplexed 成功 → JSON accepted**；非 multiplex → `StreamingResponse`；离线长任务 SystemNotification | ✅ |
+| `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer；orchestrator 未发送时补发 pre-reply compact SSE；`pump_to_buffer` 供 E1 后台 turn；离线长任务 SystemNotification | ✅ |
 | `session_reservation.py` | 辅助 | `ChatSessionReservation`：orchestrator persist 前 gateway 预占/early exit release/transfer 至 execute_stream | ✅ |
 | `stream_busy.py` | 辅助 | `agent_busy_streaming_response`：HTTP 200 + SSE `{type:error, error_type:AgentBusyError, status_code:409}` SSOT | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |

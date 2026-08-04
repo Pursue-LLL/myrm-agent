@@ -45,7 +45,7 @@ from app.config.logging import configure_logging
 from app.config.settings import settings
 from app.core.security.integration_write_patterns import register_server_integration_write_patterns
 from app.core.utils.errors import register_exception_handlers
-from app.database.db_operational_handlers import register_database_operational_handlers
+from app.database.operations.db_operational_handlers import register_database_operational_handlers
 from app.server.exceptions import general_exception_handler, not_found_handler
 from app.server.lifespan import optimized_lifespan
 from app.server.middlewares import register_middlewares

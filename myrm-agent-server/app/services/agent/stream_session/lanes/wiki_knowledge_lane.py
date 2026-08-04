@@ -64,7 +64,7 @@ async def create_wiki_knowledge_lane_stream(
             "messageId": message_id,
             "step_key": "wiki_knowledge_lane_clear",
             "status": "failed",
-            "data": {"error": str(exc)},
+            "data": {"error": "Wiki knowledge query failed"},
         }
         yield {
             "type": AgentEventType.MESSAGE.value,

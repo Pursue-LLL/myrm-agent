@@ -53,7 +53,7 @@ async def list_credentials() -> list[VaultCredentialResponse]:
         return [VaultCredentialResponse.from_orm(c) for c in creds]
     except Exception as e:
         logger.error(f"Failed to list vault credentials: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to list vault credentials") from e
 
 
 @router.post("", response_model=VaultCredentialResponse, status_code=status.HTTP_201_CREATED)
@@ -81,7 +81,7 @@ async def create_credential(req: VaultCredentialCreate) -> VaultCredentialRespon
         raise
     except Exception as e:
         logger.error(f"Failed to create vault credential: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create vault credential") from e
 
 
 @router.put("/{label}", response_model=VaultCredentialResponse)
@@ -104,7 +104,7 @@ async def update_credential(label: str, req: VaultCredentialUpdate) -> VaultCred
         raise
     except Exception as e:
         logger.error(f"Failed to update vault credential '{label}': {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update vault credential") from e
 
 
 @router.delete("/{label}", status_code=status.HTTP_204_NO_CONTENT)
@@ -119,4 +119,4 @@ async def delete_credential(label: str) -> None:
         raise
     except Exception as e:
         logger.error(f"Failed to delete vault credential '{label}': {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete vault credential") from e

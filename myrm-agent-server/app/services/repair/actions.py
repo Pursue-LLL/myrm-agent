@@ -323,7 +323,7 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
 
 
 def _get_sqlite_backup_manager() -> "SQLiteBackupManager | None":
-    from app.database.backup import get_sqlite_backup_manager
+    from app.database.operations.backup import get_sqlite_backup_manager
 
     return get_sqlite_backup_manager()
 

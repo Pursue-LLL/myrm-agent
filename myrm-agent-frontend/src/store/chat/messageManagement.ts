@@ -261,6 +261,11 @@ function parseMessages(raw: Message[]): Message[] {
       }
     }
 
+    const rawBudget = metadata.contextBudget ?? metadata.context_budget;
+    if (rawBudget && typeof rawBudget === 'object' && !parsed.contextBudget) {
+      parsed.contextBudget = rawBudget as Message['contextBudget'];
+    }
+
     return parsed;
   });
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import AgentConfigCards from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
@@ -7,6 +8,8 @@ import { AgentOpenAPIServicesTab } from './AgentOpenAPIServicesTab';
 import { AgentSubagentBinding } from './AgentSubagentBinding';
 import { AgentSharedContextBinding } from './AgentSharedContextBinding';
 import { AgentNotifyTargets } from './AgentNotifyTargets';
+import { AgentLoadoutSummary } from '@/components/features/loadout/AgentLoadoutSummary';
+import { agentSharedContextBindingAnchor } from '@/components/features/loadout/loadoutDeepLinks';
 import { AgentBrowserConfigSection } from './AgentBrowserConfigSection';
 import {
   ModelBindingSection,
@@ -79,6 +82,7 @@ export interface AgentCapabilitiesTabProps {
 
 export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabilitiesTabProps) {
   const t = useTranslations();
+  const [loadoutRefreshKey, setLoadoutRefreshKey] = useState(0);
 
   return (
     <div
@@ -113,6 +117,16 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
 
       <SessionPolicySection editor={editor} t={t} />
 
+      {!isNew && agentId && (
+        <AgentLoadoutSummary
+          agentId={agentId}
+          skillCount={editor.selectedSkillDetails.length}
+          refreshKey={loadoutRefreshKey}
+          sharedContextTileHref={agentSharedContextBindingAnchor()}
+          className="rounded-xl border border-border/50 bg-secondary/20 p-4 sm:p-5"
+        />
+      )}
+
       <AgentConfigCards
         selectedSkills={editor.selectedSkillDetails}
         selectedMcps={editor.selectedMcpDetails}
@@ -140,7 +154,11 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         onDismissRebindHint={editor.dismissSubagentRebindHint}
       />
 
-      <AgentSharedContextBinding agentId={agentId} isNew={isNew} />
+      <AgentSharedContextBinding
+        agentId={agentId}
+        isNew={isNew}
+        onBindingsChanged={() => setLoadoutRefreshKey((key) => key + 1)}
+      />
 
       <AgentNotifyTargets
         targets={editor.notifyTargets}

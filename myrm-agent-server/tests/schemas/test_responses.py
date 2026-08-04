@@ -1,6 +1,6 @@
-"""Tests for standard_responses.py — verify ListData[Any] type fix and factory functions."""
+"""Tests for schemas/responses.py — verify ListData[Any] type fix and factory functions."""
 
-from app.database.standard_responses import (
+from app.schemas.responses import (
     BusinessCode,
     ListData,
     StandardErrorResponse,

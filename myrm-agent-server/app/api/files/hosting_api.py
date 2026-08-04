@@ -323,8 +323,8 @@ async def publication_status_ws(
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for publication %s", publication_id)
     except Exception as exc:
-        logger.error("Publication status poll error: %s", exc)
-        await websocket.send_json({"status": "ERROR", "error": str(exc)})
+        logger.error("Publication status poll error: %s", exc, exc_info=True)
+        await websocket.send_json({"status": "ERROR", "error": "Publication status check failed"})
     finally:
         try:
             await websocket.close()

@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.core.utils.errors import external_service_error, validation_error
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
 from app.services.web_fetch.providers.jina import JinaEscalationProvider
 

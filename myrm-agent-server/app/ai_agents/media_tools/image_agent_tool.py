@@ -166,8 +166,9 @@ def create_image_generation_tool(
                     allow_private_networks=allow_private_networks,
                 )
             except Exception as exc:
+                logger.warning("Failed to fetch image_url: %s", exc)
                 return json.dumps(
-                    {"error": f"Failed to fetch image_url: {type(exc).__name__}: {exc}"},
+                    {"error": "Failed to fetch image_url"},
                     ensure_ascii=False,
                 )
             mask_bytes = None
@@ -178,8 +179,9 @@ def create_image_generation_tool(
                         allow_private_networks=allow_private_networks,
                     )
                 except Exception as exc:
+                    logger.warning("Failed to fetch mask_url: %s", exc)
                     return json.dumps(
-                        {"error": f"Failed to fetch mask_url: {type(exc).__name__}: {exc}"},
+                        {"error": "Failed to fetch mask_url"},
                         ensure_ascii=False,
                     )
             return await engine.edit_image(

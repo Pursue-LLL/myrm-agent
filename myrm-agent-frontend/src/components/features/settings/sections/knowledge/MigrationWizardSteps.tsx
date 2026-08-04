@@ -20,6 +20,7 @@ import {
 
 import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import { exportMemoryArchive, recheckImportReadiness } from '@/services/memoryArchive';
+import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -976,6 +977,14 @@ export function ResultStep({
         {skillSubmitResult && (
           <Button asChild size="sm" variant="secondary" className="h-8 text-xs">
             <Link href="/settings/memory?sub=migration">{t('result.reviewSkills')}</Link>
+          </Button>
+        )}
+        <Button asChild size="sm" variant="secondary" className="h-8 text-xs">
+          <Link href={teamAssetsHubHref()}>{t('result.reviewTeamAssets')}</Link>
+        </Button>
+        {result.target_agent_id && (
+          <Button asChild size="sm" variant="secondary" className="h-8 text-xs">
+            <Link href={agentSettingsHref(result.target_agent_id)}>{t('result.reviewAgentLoadout')}</Link>
           </Button>
         )}
         <Button asChild size="sm" variant="outline" className="h-8 text-xs">

@@ -21,7 +21,7 @@ from app.database.dto import (
     PaginationMeta,
 )
 from app.database.models.fission import FissionTaskRecord
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
 from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
 

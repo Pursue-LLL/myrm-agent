@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models.agent import Agent
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 
 router = APIRouter()
 

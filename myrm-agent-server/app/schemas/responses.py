@@ -1,9 +1,12 @@
 """Standardized API response models and builders.
 
+[INPUT]
+- (none — leaf module, depends only on pydantic/stdlib)
+
 [OUTPUT]
-StandardSuccessResponse, StandardErrorResponse: Pydantic response models
-PaginationInfo, BusinessCode: Common data structures
-create_success_response, create_list_response, create_error_response: Factory functions
+- StandardSuccessResponse, StandardErrorResponse: Pydantic response envelope models
+- PaginationInfo, BusinessCode: Common pagination and business-code structures
+- create_success_response, create_list_response, create_error_response: Factory functions
 
 [POS]
 统一 API 响应格式定义。所有端点的响应结构通过此模块标准化。

@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
 from app.database.dto import AgentCreate
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
 from app.services.agent.template_utils import (
     PREBUILT_AGENTS_DIR,
@@ -254,9 +254,10 @@ async def _instantiate_team_template(
 
         if isinstance(e, HTTPException):
             raise
+        logger.error("Team creation failed: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Team creation failed, all changes rolled back. Error: {e!s}",
+            detail="Team creation failed, all changes rolled back",
         ) from e
 
 

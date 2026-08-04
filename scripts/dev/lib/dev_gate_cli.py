@@ -613,25 +613,60 @@ def _private_admit_event_wait_enabled() -> bool:
     }
 
 
+def _private_admit_wall_sec() -> float:
+    from private_resource_controller import PRIVATE_ADMIT_TIMEOUT_SEC
+
+    override = os.environ.get("MYRM_PRIVATE_ADMIT_WALL_SEC", "").strip()
+    if override:
+        return max(1.0, float(override))
+    return PRIVATE_ADMIT_TIMEOUT_SEC
+
+
+def _private_admit_terminal_error(exc: BaseException) -> bool:
+    message = str(exc)
+    terminal_markers = (
+        "session is not admissible",
+        "PRIVATE_ADMIT_TIMEOUT",
+        "session owner mismatch",
+        "session not found",
+        "shared session cannot enter private admission",
+    )
+    return any(marker in message for marker in terminal_markers)
+
+
 def _private_admit(args: argparse.Namespace) -> int:
     started = time.monotonic()
+    wall_sec = _private_admit_wall_sec()
     next_progress = 0.0
     after_event_id = 0
     while True:
-        response = send(
-            {
-                "operation": "private_admit",
-                "session_id": args.session_id,
-                "owner_token": args.owner_token,
-            }
-        )
+        elapsed = time.monotonic() - started
+        if elapsed >= wall_sec:
+            raise TimeoutError(
+                f"PRIVATE_ADMIT_WALL_TIMEOUT: session={args.session_id} "
+                f"waited={int(elapsed)}s wall={int(wall_sec)}s"
+            )
+        try:
+            response = send(
+                {
+                    "operation": "private_admit",
+                    "session_id": args.session_id,
+                    "owner_token": args.owner_token,
+                }
+            )
+        except (RuntimeError, TimeoutError, OSError, ConnectionError) as exc:
+            if _private_admit_terminal_error(exc):
+                raise
+            raise RuntimeError(
+                f"PRIVATE_ADMIT_COORDINATOR_ERROR: session={args.session_id} "
+                f"elapsed={int(elapsed)}s detail={exc}"
+            ) from exc
         admission = response.get("admission")
         if not isinstance(admission, dict):
             raise RuntimeError("private admission response missing")
         if admission.get("granted") is True:
             print(json.dumps(admission, separators=(",", ":"), sort_keys=True))
             return 0
-        elapsed = time.monotonic() - started
         if elapsed >= next_progress:
             print(
                 "E2E_PRIVATE_ADMIT_WAIT: "
@@ -645,15 +680,27 @@ def _private_admit(args: argparse.Namespace) -> int:
         if _private_admit_event_wait_enabled():
             wait_budget = float(admission.get("next_progress_sec", 30.0))
             wait_budget = max(1.0, min(wait_budget, 30.0))
-            waited = send(
-                {
-                    "operation": "wait_event",
-                    "session_id": args.session_id,
-                    "event_types": ["PRIVATE_ADMIT_GRANTED"],
-                    "after_event_id": after_event_id,
-                    "budget_sec": wait_budget,
-                }
-            )
+            try:
+                waited = send(
+                    {
+                        "operation": "wait_event",
+                        "session_id": args.session_id,
+                        "event_types": ["PRIVATE_ADMIT_GRANTED"],
+                        "after_event_id": after_event_id,
+                        "budget_sec": wait_budget,
+                    }
+                )
+            except (RuntimeError, TimeoutError, OSError, ConnectionError) as exc:
+                if _private_admit_terminal_error(exc):
+                    raise
+                print(
+                    "E2E_PRIVATE_ADMIT_WAIT_EVENT_RETRY: "
+                    f"session={args.session_id} elapsed={int(elapsed)}s detail={exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(min(1.0, wait_budget))
+                continue
             event = waited.get("event")
             if isinstance(event, dict):
                 event_id = event.get("event_id")

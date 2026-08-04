@@ -15,7 +15,7 @@ from app.core.utils.errors import not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import RiskHit, RiskRule
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.risk.detection import get_detection_service
 from app.services.risk.rule_service import RiskRuleService, RuleValidationError
 

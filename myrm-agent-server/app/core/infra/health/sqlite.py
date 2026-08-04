@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.infra.health::HealthChecker (POS: 健康检查抽象基类)
-- app.database.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
+- app.database.operations.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
 - app.config.settings::settings (POS: 应用配置)
 
 [OUTPUT]
@@ -29,7 +29,7 @@ from myrm_agent_harness.infra.health.health_checker import (
 )
 
 from app.config.settings import settings
-from app.database.backup import get_sqlite_backup_manager
+from app.database.operations.backup import get_sqlite_backup_manager
 
 logger = logging.getLogger(__name__)
 

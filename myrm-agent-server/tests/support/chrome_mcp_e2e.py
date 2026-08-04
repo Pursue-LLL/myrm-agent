@@ -784,6 +784,13 @@ def _restart_open_page_mux_budget(
     """Reset open_mcp_page clocks after mux restart for signoff retry."""
     heartbeat_e2e_lease()
     touch_wall_progress(current_node="open_mcp_page_mux_retry")
+    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
+        transport_session_started = time.monotonic()
+        return (
+            transport_session_started,
+            transport_session_started + open_page_wall_budget_sec,
+            transport_session_started + open_page_total_budget_sec,
+        )
     _force_mux_attach_restart_after_new_page_timeout()
     try:
         ChromeMcpClient().recover_mux_transport()
@@ -1356,6 +1363,20 @@ def _refresh_signoff_open_nav_tool_wall(
     client.set_tool_wall_deadline(now + budget)
 
 
+def _require_orchestrator_for_formal_e2e() -> None:
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip()
+    if not lane:
+        return
+    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
+        return
+    from dev_gate_contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN  # noqa: PLC0415
+
+    raise RuntimeError(
+        f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: formal chrome_e2e requires "
+        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm test, not raw pytest/mux"
+    )
+
+
 @contextmanager
 def open_mcp_page(
     url: str,
@@ -1363,7 +1384,7 @@ def open_mcp_page(
     timeout_ms: int | None = None,
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
-    shpoib_active = e2e_runtime_binding() is not None
+    _require_orchestrator_for_formal_e2e()
     resolved_timeout_ms = timeout_ms if timeout_ms is not None else 90_000
     if is_e2e_signoff_runtime():
         resolved_timeout_ms = min(resolved_timeout_ms, 90_000)
@@ -1376,397 +1397,12 @@ def open_mcp_page(
         ) as (client, page):
             yield client, page  # type: ignore[misc]
         return
-    new_page_timeout_ms = min(resolved_timeout_ms, _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS)
-    (
-        client_timeout_sec,
-        new_page_timeout_ms,
-        open_page_wall_budget_sec,
-        open_page_total_budget_sec,
-        open_page_attempts,
-    ) = _open_page_parallel_budgets(
-        request_timeout_sec,
-        new_page_timeout_ms=new_page_timeout_ms,
+    from dev_gate_contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN
+
+    raise RuntimeError(
+        f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: Dev Gate chrome_e2e requires "
+        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm test -m chrome_e2e"
     )
-    heartbeat_e2e_lease()
-    touch_wall_progress(current_node="open_mcp_page_attempt")
-    parallel_transport = _open_page_parallel_total_wall_only()
-    boot_mux_gate_ok = os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
-    transport_session_started = time.monotonic()
-    wall_deadline = transport_session_started + open_page_wall_budget_sec
-    total_deadline = transport_session_started + open_page_total_budget_sec
-    if _parallel_open_page_peer_count() >= 2:
-        from transport_supervisor import mux_upstream_wait_cap
-
-        if boot_mux_gate_ok:
-            probe_budget = (
-                _signoff_mux_drain_budget_sec() if is_e2e_signoff_runtime() else 15.0
-            )
-            probe_budget = min(probe_budget, 45.0)
-        else:
-            probe_budget = float(mux_upstream_wait_cap())
-        transport_session_started, wall_deadline, total_deadline = (
-            _wait_open_page_mux_turn(
-                budget_sec=probe_budget,
-                current_node="open_mcp_page_boot_gate",
-                transport_session_started=transport_session_started,
-                wall_deadline=wall_deadline,
-                total_deadline=total_deadline,
-            )
-        )
-    last_exc: BaseException | None = None
-    mux_restarted = False
-    if is_e2e_signoff_runtime():
-        _force_mux_attach_restart_after_new_page_timeout()
-        try:
-            ChromeMcpClient(
-                request_timeout_sec=client_timeout_sec
-            ).recover_mux_transport()
-        except RuntimeError:
-            pass
-        try:
-            _signoff_wait_mux_before_new_page()
-        except RuntimeError:
-            pass
-        time.sleep(2.0)
-        transport_session_started = time.monotonic()
-        wall_deadline = transport_session_started + open_page_wall_budget_sec
-        total_deadline = transport_session_started + open_page_total_budget_sec
-    for attempt in range(open_page_attempts):
-        if is_e2e_signoff_runtime() and attempt > 0:
-            _force_mux_attach_restart_after_new_page_timeout()
-            transport_session_started, wall_deadline, total_deadline = (
-                _restart_open_page_mux_budget(
-                    open_page_wall_budget_sec=open_page_wall_budget_sec,
-                    open_page_total_budget_sec=open_page_total_budget_sec,
-                )
-            )
-            mux_restarted = False
-            touch_wall_progress(current_node="open_mcp_page_signoff_retry")
-            try:
-                _signoff_wait_mux_before_new_page(
-                    budget_sec=max(30.0, _signoff_mux_drain_budget_sec() * 0.5)
-                )
-            except RuntimeError:
-                pass
-            time.sleep(2.0)
-        if time.monotonic() >= total_deadline:
-            signoff_budget_retry = (
-                is_e2e_signoff_runtime()
-                and attempt < open_page_attempts - 1
-                and _open_page_allow_mux_budget_extension()
-            )
-            if signoff_budget_retry:
-                if last_exc is None:
-                    last_exc = RuntimeError(
-                        f"{MUX_RECLAIM_STALL_TOKEN}: open_mcp_page total budget "
-                        f"{open_page_total_budget_sec:.0f}s exhausted on attempt {attempt + 1}"
-                    )
-                transport_session_started, wall_deadline, total_deadline = (
-                    _restart_open_page_mux_budget(
-                        open_page_wall_budget_sec=open_page_wall_budget_sec,
-                        open_page_total_budget_sec=open_page_total_budget_sec,
-                    )
-                )
-                mux_restarted = False
-                continue
-            if (
-                _open_page_allow_mux_budget_extension()
-                and not mux_restarted
-                and last_exc is not None
-            ):
-                transport_session_started, wall_deadline, total_deadline = (
-                    _restart_open_page_mux_budget(
-                        open_page_wall_budget_sec=open_page_wall_budget_sec,
-                        open_page_total_budget_sec=open_page_total_budget_sec,
-                    )
-                )
-                mux_restarted = True
-                continue
-            raise RuntimeError(
-                f"open_mcp_page total budget {open_page_total_budget_sec:.0f}s exhausted "
-                f"after {attempt} attempt(s): {last_exc!r}"
-            )
-        if time.monotonic() >= wall_deadline:
-            if (
-                _open_page_allow_mux_budget_extension()
-                and not mux_restarted
-                and last_exc is not None
-                and _retryable_open_page_error(last_exc)
-            ):
-                _force_mux_attach_restart_after_new_page_timeout()
-                mux_restarted = True
-                wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                total_deadline = time.monotonic() + open_page_total_budget_sec
-                continue
-        heartbeat_e2e_lease()
-        touch_wall_progress(current_node="open_mcp_page_attempt")
-        if _parallel_open_page_peer_count() >= 2:
-            transport_session_started, wall_deadline, total_deadline = (
-                _wait_open_page_mux_turn(
-                    budget_sec=_mux_transport_wait_budget_sec(),
-                    current_node="open_mcp_page_pre_attempt",
-                    transport_session_started=transport_session_started,
-                    wall_deadline=wall_deadline,
-                    total_deadline=total_deadline,
-                )
-            )
-        attempt_mono = time.monotonic()
-        attempt_wall_deadline = attempt_mono + open_page_wall_budget_sec
-        attempt_total_deadline = attempt_mono + open_page_total_budget_sec
-        client = ChromeMcpClient(request_timeout_sec=client_timeout_sec)
-        try:
-            with _blocking_progress_loop(
-                current_node="open_mcp_page_blocking",
-                transport_session_started=transport_session_started,
-            ):
-                heartbeat_e2e_lease()
-                touch_wall_progress(current_node="open_mcp_page_blocking")
-                _require_e2e_cdp_ready()
-                wall_deadline = attempt_wall_deadline
-                total_deadline = attempt_total_deadline
-                client.start()
-                # R184: signoff SHPOIB — client.new_page injects runtime binding; skip duplicate blank→nav.
-                if is_e2e_signoff_runtime():
-                    shpoib_blank_nav = False
-                else:
-                    shpoib_blank_nav = (
-                        shpoib_active and _parallel_open_page_peer_count() < 2
-                    )
-                open_steps = 4 if shpoib_blank_nav else 2
-                if shpoib_blank_nav:
-                    client.set_tool_wall_deadline(None)
-                    page = _open_page_new_page(
-                        client,
-                        "about:blank",
-                        timeout_ms=new_page_timeout_ms,
-                        attempt_wall_deadline=attempt_wall_deadline,
-                    )
-                    ensure_desktop_viewport(client, page)
-                    open_steps -= 1
-                    _sync_open_page_tool_wall(
-                        client,
-                        wall_deadline=wall_deadline,
-                        total_deadline=total_deadline,
-                        steps_remaining=open_steps,
-                    )
-                    binding_source = e2e_runtime_binding_source()
-                    if binding_source:
-                        # R156: runtime inject must not share sliced tool wall under parallel mux.
-                        client.set_tool_wall_deadline(None)
-                        client.evaluate(
-                            page,
-                            f"(() => {{{binding_source} return true; }})()",
-                        )
-                        _sync_open_page_tool_wall(
-                            client,
-                            wall_deadline=wall_deadline,
-                            total_deadline=total_deadline,
-                            steps_remaining=open_steps,
-                        )
-                    client.navigate(page, url, timeout_ms=resolved_timeout_ms)
-                    open_steps -= 1
-                    _sync_open_page_tool_wall(
-                        client,
-                        wall_deadline=wall_deadline,
-                        total_deadline=total_deadline,
-                        steps_remaining=open_steps,
-                    )
-                    _reapply_shpoib_runtime_after_reload(client, page, target_url=url)
-                    open_steps -= 1
-                else:
-                    page = _open_page_new_page(
-                        client,
-                        url,
-                        timeout_ms=new_page_timeout_ms,
-                        attempt_wall_deadline=attempt_wall_deadline,
-                    )
-                    if is_e2e_signoff_runtime():
-                        # R266: mux-delayed new_page retries exhaust attempt-local tool wall.
-                        wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                        total_deadline = time.monotonic() + open_page_total_budget_sec
-                        client.set_tool_wall_deadline(None)
-                    ensure_desktop_viewport(client, page)
-                    if is_e2e_signoff_runtime():
-                        # R265: mux-delayed new_page may return before document paints — re-nav heal.
-                        client.navigate(page, url, timeout_ms=resolved_timeout_ms)
-                        wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                        total_deadline = time.monotonic() + open_page_total_budget_sec
-                        client.set_tool_wall_deadline(None)
-                        wait_for_state(
-                            client,
-                            page,
-                            _LOCALHOST_PAGE_JS,
-                            timeout_sec=min(90.0, _open_page_layout_wait_sec() * 0.35),
-                        )
-                        binding_source = e2e_runtime_binding_source()
-                        if binding_source:
-                            client.set_tool_wall_deadline(None)
-                            client.evaluate(
-                                page,
-                                f"(() => {{{binding_source} return true; }})()",
-                            )
-                        dismiss_blocking_modals(client, page)
-                    open_steps -= 1
-                open_steps -= 1
-                _sync_open_page_tool_wall(
-                    client,
-                    wall_deadline=wall_deadline,
-                    total_deadline=total_deadline,
-                    steps_remaining=max(1, open_steps),
-                )
-                _refresh_signoff_open_nav_tool_wall(
-                    client,
-                    wall_deadline=wall_deadline,
-                    total_deadline=total_deadline,
-                )
-                if is_e2e_signoff_runtime() or _parallel_open_page_peer_count() >= 2:
-                    # R171/R266: layout poll must not inherit exhausted mux-queue tool wall.
-                    client.set_tool_wall_deadline(None)
-                _wait_for_app_layout_open(
-                    client,
-                    page,
-                    url=url,
-                    timeout_ms=resolved_timeout_ms,
-                )
-                client.set_tool_wall_deadline(None)
-            from e2e_session_lifecycle import current_phase, seal_page_open_body_budget
-
-            if current_phase() == "bootstrap":
-                seal_page_open_body_budget(phase_label="open_mcp_page")
-            try:
-                yield client, page
-            finally:
-                client.close()
-            return
-        except KeyboardInterrupt:
-            last_exc = RuntimeError(
-                f"{MUX_RECLAIM_STALL_TOKEN}: open_mcp_page transport stall tripwire"
-            )
-            try:
-                client.abandon_inflight_requests(cdp_drift=True)
-            except RuntimeError:
-                pass
-            try:
-                client.close()
-            except RuntimeError:
-                pass
-            if attempt >= open_page_attempts - 1:
-                raise last_exc from None
-            if is_e2e_signoff_runtime() and attempt + 1 < open_page_attempts:
-                transport_session_started, wall_deadline, total_deadline = (
-                    _restart_open_page_mux_budget(
-                        open_page_wall_budget_sec=open_page_wall_budget_sec,
-                        open_page_total_budget_sec=open_page_total_budget_sec,
-                    )
-                )
-                mux_restarted = False
-                touch_wall_progress(current_node="open_mcp_page_mux_retry")
-            elif _open_page_allow_mux_budget_extension():
-                if not mux_restarted:
-                    _force_mux_attach_restart_after_new_page_timeout()
-                    mux_restarted = True
-                try:
-                    ChromeMcpClient(
-                        request_timeout_sec=client_timeout_sec
-                    ).recover_mux_transport()
-                except RuntimeError:
-                    pass
-                _require_e2e_cdp_ready(budget_sec=30.0)
-                wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                total_deadline = time.monotonic() + open_page_total_budget_sec
-                time.sleep(5.0)
-                try:
-                    _wait_mux_cold_attach_drain(
-                        budget_sec=_mux_cold_attach_drain_budget_sec()
-                    )
-                except RuntimeError:
-                    pass
-            time.sleep(3.0 * (attempt + 1))
-            continue
-        except (RuntimeError, TimeoutError) as exc:
-            last_exc = exc
-            exc_message = str(exc).lower()
-            cdp_drift = (
-                "could not connect to chrome" in exc_message
-                or "unexpected server response: 404" in exc_message
-            )
-            try:
-                client.abandon_inflight_requests(cdp_drift=cdp_drift)
-            except RuntimeError:
-                pass
-            try:
-                client.close()
-            except RuntimeError:
-                pass
-            if (
-                isinstance(exc, TimeoutError)
-                or MUX_RECLAIM_STALL_TOKEN.lower() in exc_message
-                or "not owned by this shim" in exc_message
-                or "response timed out" in exc_message
-                or "wall budget exhausted" in exc_message
-                or "connection reset" in exc_message
-                or "could not connect to chrome" in exc_message
-                or "unexpected server response: 404" in exc_message
-                or "cdp/mux endpoint not ready" in exc_message
-                or "cdp endpoint not ready" in exc_message
-            ):
-                if (
-                    _open_page_allow_mux_budget_extension()
-                    or _open_page_parallel_retry_allowed()
-                ):
-                    if not mux_restarted and _open_page_parallel_retry_allowed():
-                        transport_session_started, wall_deadline, total_deadline = (
-                            _restart_open_page_mux_budget(
-                                open_page_wall_budget_sec=open_page_wall_budget_sec,
-                                open_page_total_budget_sec=open_page_total_budget_sec,
-                            )
-                        )
-                        mux_restarted = True
-                    elif not mux_restarted:
-                        _force_mux_attach_restart_after_new_page_timeout()
-                        mux_restarted = True
-                    try:
-                        ChromeMcpClient(
-                            request_timeout_sec=client_timeout_sec
-                        ).recover_mux_transport()
-                    except RuntimeError:
-                        pass
-                    _require_e2e_cdp_ready(budget_sec=30.0)
-                    wall_deadline = time.monotonic() + open_page_wall_budget_sec
-                    total_deadline = time.monotonic() + open_page_total_budget_sec
-                    time.sleep(5.0)
-                    try:
-                        _wait_mux_cold_attach_drain(
-                            budget_sec=_mux_cold_attach_drain_budget_sec()
-                        )
-                    except RuntimeError:
-                        pass
-                else:
-                    try:
-                        ChromeMcpClient(
-                            request_timeout_sec=client_timeout_sec
-                        ).recover_mux_transport()
-                    except RuntimeError:
-                        pass
-            if parallel_transport and not (
-                _open_page_parallel_retry_allowed()
-                and _retryable_open_page_error(exc)
-                and attempt < open_page_attempts - 1
-            ):
-                raise
-            if attempt >= open_page_attempts - 1 or not _retryable_open_page_error(exc):
-                raise
-            if _open_page_parallel_retry_allowed() and attempt + 1 < open_page_attempts:
-                transport_session_started, wall_deadline, total_deadline = (
-                    _restart_open_page_mux_budget(
-                        open_page_wall_budget_sec=open_page_wall_budget_sec,
-                        open_page_total_budget_sec=open_page_total_budget_sec,
-                    )
-                )
-                mux_restarted = False
-            time.sleep(3.0 * (attempt + 1))
-            continue
-    raise last_exc or RuntimeError("open_mcp_page failed without exception")
 
 
 @dataclass(slots=True)

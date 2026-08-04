@@ -290,6 +290,7 @@
       "companion": "宠物伙伴",
       "usageStatistics": "使用量統計",
       "memory-backup": "メモリバックアップ",
+      "memory-team-hub": "チーム資産",
       "memory-cloud-backup": "云端同期",
       "memory-archival": "メモリアーカイブ",
       "memory-migration": "データ移行",
@@ -310,11 +311,13 @@
     },
     "memoryCenter": {
       "tabs": {
-        "followUps": "フォローアップ"
+        "followUps": "フォローアップ",
+        "teamHub": "チーム資産"
       },
       "tabDescriptions": {
         "followUps": "会話から抽出された能動のフォローアップを表示・管理",
-        "migration": "スキャン Hermes、OpenClaw、Claude Code、Codex — プレビューインポート；スキルが必須レビュー；MCP とチャンネルが必須手動設定"
+        "migration": "スキャン Hermes、OpenClaw、Claude Code、Codex — プレビューインポート；スキルが必須レビュー；MCP とチャンネルが必須手動設定",
+        "teamHub": "共有コンテキスト、Wiki、スキル、メモリ — チーム設定を一画面で確認"
       },
       "migrationUnavailable": {
         "title": "助手インポートのみ支持本にと桌面版",
@@ -6144,6 +6147,11 @@
       "currentSession": "本轮调使用",
       "warning": "接近コンテキスト圧縮点，推奨 Fork（ブランチ）新規トピック。",
       "criticalWarning": "システム中自動精简早期メモリ，推奨に対する新規トピック使用 Fork（ブランチ）。",
+      "breakdownTitle": "コンテキスト内訳",
+      "breakdownMessages": "メッセージ（推定）",
+      "breakdownTools": "ツール schema（推定）",
+      "breakdownOther": "システムその他（推定）",
+      "breakdownTotal": "Provider 合計",
       "strategy": {
         "title": "メモリポリシー",
         "noData": "暂なしポリシーデータ。",
@@ -13573,5 +13581,50 @@
     "algorithm": "計算法",
     "fingerprint": "指纹",
     "sessionId": "セッション"
+  },
+  "loadout": {
+    "title": "エージェント配装",
+    "subtitle": "What this agent inherits — team memory, wiki, skills, and memory policy at a glance.",
+    "loading": "Loading loadout…",
+    "saveAgentFirst": "Save the agent first to review its loadout.",
+    "fix": "Fix",
+    "openTeamAssets": "チーム資産",
+    "openWiki": "Wiki",
+    "openSkills": "Skills",
+    "openMemory": "Memory",
+    "openLoadout": "配装",
+    "readiness": {
+      "ready": "Ready",
+      "warning": "Needs attention",
+      "blocked": "Blocked"
+    },
+    "tiles": {
+      "sharedContexts": "Shared contexts",
+      "skills": "Skills",
+      "skillsCount": "{count} mounted",
+      "wiki": "Wiki",
+      "wikiOn": "Enabled",
+      "wikiOff": "Off",
+      "memoryPolicy": "Memory policy"
+    },
+    "sharedContexts": {
+      "none": "None bound",
+      "unavailable": "Unavailable"
+    },
+    "memoryPolicy": {
+      "on": "Memory on",
+      "off": "Memory off",
+      "onWithPreCompact": "On · pre-compact {tokens} tok"
+    },
+    "teamHub": {
+      "title": "チーム資産",
+      "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "wikiTitle": "Wiki",
+      "wikiDesc": "Knowledge base and agent-scoped notes",
+      "skillsTitle": "Skills",
+      "skillsDesc": "Mounted capabilities and evolution queue",
+      "memoryTitle": "Memory",
+      "memoryDesc": "Personal brain, policies, and command center"
+    }
   }
 }

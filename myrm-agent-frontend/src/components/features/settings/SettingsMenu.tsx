@@ -162,6 +162,7 @@ const subMenuItems: Partial<Record<SettingsTab, SubMenuItem[]>> = {
     { id: 'stability', labelKey: 'toolStability' },
   ],
   memory: [
+    { id: 'team-hub', labelKey: 'memory-team-hub' },
     { id: 'backup', labelKey: 'memory-backup' },
     { id: 'cloud-backup', labelKey: 'memory-cloud-backup' },
     { id: 'archival', labelKey: 'memory-archival' },

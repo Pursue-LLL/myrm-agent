@@ -45,7 +45,7 @@ async def get_vault_object_content(
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve vault object {obj_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to retrieve vault object") from e
 
 
 @router.get("/{obj_id}/meta")
@@ -70,4 +70,4 @@ async def get_vault_object_meta(
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve vault object meta {obj_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to retrieve vault object metadata") from e

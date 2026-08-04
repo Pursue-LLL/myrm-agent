@@ -24,6 +24,7 @@ class IdleHygieneSchedulerResult(TypedDict, total=False):
     infra_closed: int
     orphan_closed: int
     trigger: str
+    orphan_budget: str
 
 
 def run_idle_tab_hygiene_if_safe(*, trigger: str) -> IdleHygieneSchedulerResult:
@@ -32,6 +33,19 @@ def run_idle_tab_hygiene_if_safe(*, trigger: str) -> IdleHygieneSchedulerResult:
 
     result = idle_prune_self_owned_blanks_if_safe()
     payload: IdleHygieneSchedulerResult = {"trigger": trigger, **result}
+    try:
+        from chrome_e2e.gates.orphan_budget import evaluate_orphan_budget  # noqa: PLC0415
+
+        budget = evaluate_orphan_budget()
+        payload["orphan_budget"] = budget.get("detail", "")
+        if not budget.get("ok"):
+            print(
+                "ORPHAN_BUDGET_WARN: "
+                f"{json.dumps(budget, sort_keys=True)}",
+                flush=True,
+            )
+    except ImportError:
+        pass
     if result.get("ok"):
         print(
             "IDLE_HYGIENE_SCHEDULER: "

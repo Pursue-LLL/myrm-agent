@@ -43,5 +43,5 @@ async def unlock_vault(req: VaultUnlockRequest) -> VaultUnlockResponse:
         MasterKeyProvider.unlock_vault(req.password)
         return VaultUnlockResponse(status="success", message="Vault unlocked successfully.")
     except Exception as e:
-        logger.error(f"Failed to unlock vault: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to unlock vault: {str(e)}") from e
+        logger.error("Failed to unlock vault: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to unlock vault") from e

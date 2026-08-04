@@ -305,7 +305,7 @@ async def execute_realtime_tool(
         logger.warning("Realtime tool execution failed: %s(%s)", req.tool_name, exc)
         return RealtimeToolExecResponse(
             result=None,
-            error=f"Tool execution failed: {exc}",
+            error="Tool execution failed",
         )
 
 
@@ -337,7 +337,7 @@ async def persist_realtime_transcript(
         return {"ok": True}
     except Exception as exc:
         logger.warning("Transcript persistence failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Transcript persistence failed") from exc
 
 
 def _find_openai_provider(providers: dict[str, object]) -> dict[str, object] | None:

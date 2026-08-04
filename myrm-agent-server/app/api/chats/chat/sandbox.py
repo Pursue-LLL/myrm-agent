@@ -212,7 +212,8 @@ async def sandbox_diff(chat_id: str):
         )
 
         if diff_result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"git diff failed: {diff_result.stderr.strip()}")
+            logger.error("git diff failed (rc=%d): %s", diff_result.returncode, diff_result.stderr.strip())
+            raise HTTPException(status_code=500, detail="git diff failed")
 
         return success_response({
             "stat": stat_result.stdout if stat_result.returncode == 0 else "",

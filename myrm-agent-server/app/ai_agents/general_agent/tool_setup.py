@@ -311,6 +311,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
         from app.config.deploy_mode import is_local_mode as _is_local
+        from app.core.agent.tool_description_locale import resolve_tool_description_locale
+
+        tool_description_locale = resolve_tool_description_locale(
+            agent_locale=getattr(self, "locale", None),
+            channel=getattr(self, "channel_name", None),
+        )
 
         if getattr(self, "enable_web_fetch", True):
             tools.append(
@@ -334,6 +340,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     reranker_config=reranker_cfg,
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
+                    description_locale=tool_description_locale,
                 )
             )
 
@@ -892,6 +899,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 MemorySearchBackends,
                 MemorySearchPolicy,
             )
+            from app.core.agent.tool_description_locale import resolve_tool_description_locale
+
+            tool_description_locale = resolve_tool_description_locale(
+                agent_locale=getattr(self, "locale", None),
+                channel=getattr(self, "channel_name", None),
+            )
 
             search_policy = MemorySearchPolicy(
                 allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
@@ -937,6 +950,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 manager,
                 search_policy=search_policy,
                 search_backends=search_backends,
+                description_locale=tool_description_locale,
             )
             # Memory tools are high frequency for a personal assistant, keep them in tools
             tools.extend(memory_tools)

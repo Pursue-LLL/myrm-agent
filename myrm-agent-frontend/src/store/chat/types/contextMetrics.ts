@@ -15,4 +15,7 @@ export type ContextBudget = {
   max_context_tokens: number;
   usage_percent: number;
   health_status: ContextHealthStatus;
+  messages_estimated_tokens?: number;
+  bound_tools_overhead_tokens?: number;
+  other_tokens?: number;
 };

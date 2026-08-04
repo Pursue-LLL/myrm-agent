@@ -91,7 +91,10 @@ describe('SharedContextTargetBinding', () => {
     memoryApi.createSharedContextBinding.mockResolvedValue(binding({ id: 'bind-ops', context_id: 'ops' }));
 
     const user = userEvent.setup();
-    render(<SharedContextTargetBinding targetType="agent" targetId="agent-1" />);
+    const onBindingsChanged = vi.fn();
+    render(
+      <SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />,
+    );
 
     const select = await screen.findByRole('combobox');
     await waitFor(() => {
@@ -107,6 +110,7 @@ describe('SharedContextTargetBinding', () => {
         target_id: 'agent-1',
       });
     });
+    expect(onBindingsChanged).toHaveBeenCalledTimes(1);
     expect(await screen.findByText('Ops')).toBeInTheDocument();
     expect(within(select).queryByRole('option', { name: 'Ops' })).not.toBeInTheDocument();
   });
@@ -124,7 +128,10 @@ describe('SharedContextTargetBinding', () => {
     });
 
     const user = userEvent.setup();
-    render(<SharedContextTargetBinding targetType="agent" targetId="agent-1" />);
+    const onBindingsChanged = vi.fn();
+    render(
+      <SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />,
+    );
 
     expect(await screen.findByText('Customer A')).toBeInTheDocument();
     expect(screen.getByText('Ops')).toBeInTheDocument();
@@ -135,6 +142,7 @@ describe('SharedContextTargetBinding', () => {
     await waitFor(() => {
       expect(memoryApi.deleteSharedContextBinding).toHaveBeenCalledWith('customer-a', 'bind-1');
     });
+    expect(onBindingsChanged).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Customer support operating context')).not.toBeInTheDocument();
     expect(screen.getByText('Ops')).toBeInTheDocument();
   });

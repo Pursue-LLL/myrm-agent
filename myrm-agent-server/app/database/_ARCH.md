@@ -15,17 +15,12 @@
 |------|------|------|-------|
 | `models/` | ✅ 核心 | SQLAlchemy ORM 模型包，按业务域拆分为子模块（chat/agent/memory/config/agent_event/cron/channel/media/security/skill/notification/message_filter），`chat.py` 的 `Chat` 含会话级 JSON：`ephemeral_subagents`、`session_loaded_skill_names`（已加载技能名 SSOT，供 harness rehydrate）；`memory.py` 包含 Shared Context 上下文/绑定/写入提案、记忆操作账本、导入 dry-run 审查会话模型、导入批次账本和导入条目账本，`agent.py` 包含 Agent 基础配置（含 `mcp_tool_selections` per-server 工具白名单 JSON 列）与 WebUI rollback 快照 (`AgentProfileSnapshot`)，`agent_history.py` 为乐观锁审计与 Prompt 浏览，`__init__.py` 统一 re-export |
 | `repositories/` | ✅ 核心 | 领域仓储层（Repository Pattern），封装 Agent/Chat 等聚合的读写与 ORM 映射 | ✅ |
-| `schemas.py` | ✅ 核心 | Pydantic Schema（API 响应模型） |
-| `backup.py` | ✅ 核心 | SQLite 备份管理器工厂。`get_sqlite_backup_manager()` 返回配置好的 `SQLiteBackupManager` 实例（含 `:memory:` 安全检查），所有备份/恢复调用方统一使用 |
+| `operations/` | ✅ 辅助 | 数据库运维工具子包：备份工厂、容灾恢复、SQLite 忙/锁检测、FastAPI 异常处理器、遗留数据清理 |
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前通过 `get_sqlite_backup_manager()` 执行 fail-closed pre-migration safety snapshot：备份失败时阻断迁移（raise），由上层 lifespan 3 级恢复体系兜底 |
-| `recovery.py` | ✅ 核心 | 数据库容灾层。提供 dump-based `rescue_database()` 用于严重损坏时的数据抢救（.iterdump 逐行导出）；常规热备份与快照恢复由 `SQLiteBackupManager` 负责（通过 `backup.py` 工厂获取） |
 | `factory.py` | ✅ 核心 | SQLite 数据库引擎和会话工厂创建。`PRAGMA foreign_keys=ON` + WAL + 异步连接池（`SQLITE_POOL_SIZE` 默认 5，`max_overflow=0`）+ `PRAGMA busy_timeout`（`get_sqlite_busy_timeout_ms()` / `SQLITE_BUSY_TIMEOUT_MS`）+ mmap。Sandbox 模式下 `settings.database.sqlite_path` 指向 CP 挂载卷 |
-| `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。尾部含 `calendar_events` 与 legacy `canvas` 表 DROP（无 ORM）。包含记忆导入 dry-run 审查会话表、导入批次账本表和导入条目账本表；新增 Wiki evidence `context_key` 列与复合索引迁移；新增专家召唤漏斗事件表 `expert_summon_metric_events` 与索引；`CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 清空历史假 `projects.workspace_path`（`/persistent/workspace/project_%`），用户需通过 Mount Wizard 重新绑定。支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
-| `legacy_canvas_cleanup.py` | ✅ 辅助 | 删除 legacy 本地目录 `~/.myrm/canvas/`（tldraw snapshot）；由 `init_database` 在迁移后调用 |
+| `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
 | `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` param per protocol. Provides load/save/remove operations with UUID primary keys |
-| `standard_responses.py` | ✅ 辅助 | 标准化响应模型；业务码含 `DB_STORAGE_BUSY`（51005）等 |
-| `sqlite_storage_busy.py` | ✅ 辅助 | 识别 SQLite 忙/锁异常；`sqlite_busy_retry_after_seconds()` 基于 `get_sqlite_busy_timeout_ms()` |
-| `db_operational_handlers.py` | ✅ 辅助 | `register_database_operational_handlers(app)`：`sqlite3` 与 SQLAlchemy `OperationalError` → SQLite 忙 **503/51005**、其余 **500/51002** |
+| `dto.py` | ✅ 核心 | 数据传输对象（DTO）定义 |
 
 ---
 
@@ -39,7 +34,7 @@
 
 - 环境变量：`SQLITE_POOL_SIZE`、`SQLITE_BUSY_TIMEOUT_MS`（解析与上下限见 `factory.py`）。
 - HTTP：`app/main.py` 调用 `register_database_operational_handlers(app)`。SQLite 忙/锁 → **503**，`code=51005`；`Retry-After` 由 `sqlite_busy_retry_after_seconds()` 换算，与 `PRAGMA busy_timeout` 同源，秒数上限 60。
-- 契约测试：`tests/integration/test_db_operational_http.py`。
+- 契约测试：`tests/database/test_db_operational_handlers.py`（ASGI 传输层集成验证）。
 - 脚本均在仓库 `myrm-agent-server/` 下执行：`uv run python scripts/sqlite_pool_smoke.py`、`uv run python scripts/sqlite_write_contention_smoke.py`。输出为**本机单次运行**测量值，非 SLA，也不覆盖全部 API 路径。
 
 ## 🔍 SQLite 高级特性与调优

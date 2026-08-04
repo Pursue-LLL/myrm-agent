@@ -28,5 +28,5 @@
 
 ## 依赖关系
 
-- **内部**：`fastapi`、`PIL`、`langchain_core`、`app/database`（standard_responses）
+- **内部**：`fastapi`、`PIL`、`langchain_core`、`app/schemas`（responses）
 - **被依赖**：`app/api/`、`app/services/`、`app/ai_agents/`、`app/core/*`

@@ -336,7 +336,7 @@ async def get_browser_snapshot() -> JSONResponse:
         logger.error("Browser snapshot failed: %s", exc, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "snapshot_failed", "message": str(exc)},
+            content={"error": "snapshot_failed", "message": "Browser snapshot failed"},
         )
 
     return JSONResponse(content=payload)
@@ -371,7 +371,7 @@ async def get_desktop_permissions() -> JSONResponse:
         logger.error("Desktop permissions check failed: %s", e, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "permissions_check_failed", "message": str(e)},
+            content={"error": "permissions_check_failed", "message": "Desktop permissions check failed"},
         )
     finally:
         if session is not None:
@@ -472,7 +472,7 @@ async def get_desktop_snapshot(
         logger.error("Desktop snapshot failed: %s", e, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "snapshot_failed", "message": str(e)},
+            content={"error": "snapshot_failed", "message": "Desktop snapshot failed"},
         )
 
 

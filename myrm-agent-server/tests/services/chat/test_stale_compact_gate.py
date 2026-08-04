@@ -9,6 +9,7 @@ import pytest
 
 from app.services.chat.compact_service import CompactResult
 from app.services.chat.stale_compact_gate import (
+    ModelWindowUnavailableError,
     maybe_compact_stale_chat_before_turn,
     parse_idle_compact_after_seconds,
     resolve_idle_compact_after_seconds,
@@ -56,7 +57,6 @@ async def test_gate_compacts_when_idle_threshold_and_tokens_above_floor() -> Non
     db.execute = AsyncMock(
         side_effect=[
             _scalar_result("chat-1"),
-            _scalar_result(None),
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
@@ -64,7 +64,11 @@ async def test_gate_compacts_when_idle_threshold_and_tokens_above_floor() -> Non
 
     with (
         patch(
-            "app.services.chat.stale_compact_gate.estimate_compactable_context_tokens",
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
             AsyncMock(return_value=(50_000, 20)),
         ),
         patch(
@@ -80,11 +84,15 @@ async def test_gate_compacts_when_idle_threshold_and_tokens_above_floor() -> Non
             db,
             "chat-1",
             idle_after_seconds=1800,
+            max_context_tokens=128_000,
         )
 
     assert result.compacted is True
     assert result.tokens_saved == 1200
-    mock_compact.assert_awaited_once()
+    assert result.attempted is True
+    mock_compact.assert_awaited_once_with(
+        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=50_000
+    )
 
 
 @pytest.mark.asyncio
@@ -93,14 +101,17 @@ async def test_gate_skips_when_context_below_floor() -> None:
     db.execute = AsyncMock(
         side_effect=[
             _scalar_result("chat-1"),
-            _scalar_result(None),
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
 
     with (
         patch(
-            "app.services.chat.stale_compact_gate.estimate_compactable_context_tokens",
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
             AsyncMock(return_value=(2_000, 12)),
         ),
         patch(
@@ -116,6 +127,7 @@ async def test_gate_skips_when_context_below_floor() -> None:
             db,
             "chat-1",
             idle_after_seconds=1800,
+            max_context_tokens=128_000,
         )
 
     assert result.compacted is False
@@ -130,14 +142,17 @@ async def test_gate_skips_large_window_small_context_via_model_floor() -> None:
     db.execute = AsyncMock(
         side_effect=[
             _scalar_result("chat-1"),
-            _scalar_result(None),
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
 
     with (
         patch(
-            "app.services.chat.stale_compact_gate.estimate_compactable_context_tokens",
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
             AsyncMock(return_value=(40_000, 20)),
         ),
         patch(
@@ -159,20 +174,72 @@ async def test_gate_skips_large_window_small_context_via_model_floor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gate_skips_when_too_few_messages() -> None:
+async def test_gate_compacts_when_eight_messages_above_floor() -> None:
+    """Idle gate uses Hermes predicate (tokens>floor); no min message count."""
     db = AsyncMock()
     db.execute = AsyncMock(
         side_effect=[
             _scalar_result("chat-1"),
-            _scalar_result(None),
+            _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
+        ]
+    )
+    compact_result = CompactResult(compacted=True, tokens_saved=800, message_count=8)
+
+    with (
+        patch(
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
+            AsyncMock(return_value=(45_000, 8)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.resolve_idle_compact_token_floor",
+            return_value=12_800,
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.compact_chat",
+            AsyncMock(return_value=compact_result),
+        ) as mock_compact,
+    ):
+        result = await maybe_compact_stale_chat_before_turn(
+            db,
+            "chat-1",
+            idle_after_seconds=1800,
+            max_context_tokens=128_000,
+        )
+
+    assert result.compacted is True
+    assert result.message_count == 8
+    mock_compact.assert_awaited_once_with(
+        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
+    )
+
+
+@pytest.mark.asyncio
+async def test_gate_skips_when_context_below_floor_despite_few_messages() -> None:
+    """Few messages but tokens below floor still skip (Hermes floor semantics)."""
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[
+            _scalar_result("chat-1"),
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
 
     with (
         patch(
-            "app.services.chat.stale_compact_gate.estimate_compactable_context_tokens",
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
             AsyncMock(return_value=(500, 3)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.resolve_idle_compact_token_floor",
+            return_value=12_800,
         ),
         patch(
             "app.services.chat.stale_compact_gate.compact_chat",
@@ -183,11 +250,12 @@ async def test_gate_skips_when_too_few_messages() -> None:
             db,
             "chat-1",
             idle_after_seconds=1800,
+            max_context_tokens=128_000,
         )
 
     assert result.compacted is False
     assert result.reason is not None
-    assert "too_few_messages" in result.reason
+    assert "context_below_floor" in result.reason
     mock_compact.assert_not_called()
 
 
@@ -218,6 +286,162 @@ async def test_run_pre_reply_stale_compact_gate_delegates_with_profile() -> None
     assert result is gate_result
     mock_gate.assert_awaited_once()
     assert mock_gate.await_args.kwargs["idle_after_seconds"] == 1800
+
+
+@pytest.mark.asyncio
+async def test_gate_skips_when_model_window_unavailable_fail_closed() -> None:
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[
+            _scalar_result("chat-1"),
+            _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
+        ]
+    )
+
+    with (
+        patch(
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
+            AsyncMock(return_value=(100_000, 20)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate._resolve_max_context_tokens",
+            AsyncMock(side_effect=ModelWindowUnavailableError("config incomplete")),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.compact_chat",
+            AsyncMock(),
+        ) as mock_compact,
+    ):
+        result = await maybe_compact_stale_chat_before_turn(
+            db,
+            "chat-1",
+            idle_after_seconds=1800,
+        )
+
+    assert result.compacted is False
+    assert result.reason == "model_window_unavailable_fail_closed"
+    mock_compact.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_gate_skips_when_model_window_resolves_to_none_fail_closed() -> None:
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[
+            _scalar_result("chat-1"),
+            _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
+        ]
+    )
+
+    with (
+        patch(
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
+            AsyncMock(return_value=(100_000, 20)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate._resolve_max_context_tokens",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.compact_chat",
+            AsyncMock(),
+        ) as mock_compact,
+    ):
+        result = await maybe_compact_stale_chat_before_turn(
+            db,
+            "chat-1",
+            idle_after_seconds=1800,
+        )
+
+    assert result.compacted is False
+    assert result.reason == "model_window_unavailable_fail_closed"
+    mock_compact.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_gate_skips_when_compaction_failure_cooldown_active() -> None:
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[
+            _scalar_result("chat-1"),
+            _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
+        ]
+    )
+
+    with (
+        patch(
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(True, "timeout: summarize failed")),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.compact_chat",
+            AsyncMock(),
+        ) as mock_compact,
+    ):
+        result = await maybe_compact_stale_chat_before_turn(
+            db,
+            "chat-1",
+            idle_after_seconds=1800,
+            max_context_tokens=128_000,
+        )
+
+    assert result.compacted is False
+    assert result.reason is not None
+    assert "compression_failure_cooldown_active" in result.reason
+    mock_compact.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead() -> None:
+    """Summary+overhead can exceed floor while compactable tail is empty."""
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[
+            _scalar_result("chat-1"),
+            _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
+        ]
+    )
+    compact_result = CompactResult(compacted=False, message_count=0, reason="no_compactable_messages")
+
+    with (
+        patch(
+            "app.services.chat.stale_compact_gate.is_compaction_failure_cooldown_active",
+            AsyncMock(return_value=(False, None)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.estimate_idle_compact_request_tokens",
+            AsyncMock(return_value=(45_000, 0)),
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.resolve_idle_compact_token_floor",
+            return_value=12_800,
+        ),
+        patch(
+            "app.services.chat.stale_compact_gate.compact_chat",
+            AsyncMock(return_value=compact_result),
+        ) as mock_compact,
+    ):
+        result = await maybe_compact_stale_chat_before_turn(
+            db,
+            "chat-1",
+            idle_after_seconds=1800,
+            max_context_tokens=128_000,
+        )
+
+    assert result.compacted is False
+    assert result.reason == "no_compactable_messages"
+    assert result.attempted is True
+    mock_compact.assert_awaited_once_with(
+        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
+    )
 
 
 def _scalar_result(value: object) -> object:

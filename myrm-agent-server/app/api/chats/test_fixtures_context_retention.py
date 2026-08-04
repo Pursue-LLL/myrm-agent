@@ -69,10 +69,13 @@ def _build_assistant_extra_data() -> dict[str, object]:
             "total_tokens": 52_800,
         },
         "contextBudget": {
-            "current_tokens": 52_000,
+            "current_tokens": 118_000,
             "max_context_tokens": 128_000,
-            "usage_percent": 40.6,
-            "health_status": "healthy",
+            "usage_percent": 92.2,
+            "health_status": "critical",
+            "messages_estimated_tokens": 112_000,
+            "bound_tools_overhead_tokens": 6_000,
+            "other_tokens": 0,
         },
     }
 

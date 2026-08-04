@@ -154,6 +154,7 @@ def _rebind_subagent_memory_search_tool(
     allow_wiki: bool,
     query_wiki: Callable[[str], Awaitable[str]] | None,
     wiki_structure: WikiStructure | None = None,
+    description_locale: str | None = None,
 ) -> None:
     """Replace inherited memory_search_tool with subagent-scoped policy/backends."""
     from myrm_agent_harness.toolkits import create_memory_tools
@@ -193,6 +194,7 @@ def _rebind_subagent_memory_search_tool(
         memory_manager,
         search_policy=search_policy,
         search_backends=search_backends,
+        description_locale=description_locale,
     )
     rebuilt_search = next(
         (tool for tool in rebuilt if getattr(tool, "name", "") == "memory_search_tool"),
@@ -236,6 +238,12 @@ def _apply_subagent_memory_search_rebind(
             wiki_structure = get_wiki_archiver(
                 lite_llm, memory_manager, agent_id=agent_id
             )._structure
+    from app.core.agent.tool_description_locale import resolve_tool_description_locale
+
+    tool_description_locale = resolve_tool_description_locale(
+        agent_locale=getattr(parent_agent, "locale", None),
+        channel=getattr(parent_agent, "channel_name", None),
+    )
     _rebind_subagent_memory_search_tool(
         tools,
         memory_manager=memory_manager,
@@ -245,6 +253,7 @@ def _apply_subagent_memory_search_rebind(
         allow_wiki=allow_wiki,
         query_wiki=wiki_query,
         wiki_structure=wiki_structure,
+        description_locale=tool_description_locale,
     )
 
 

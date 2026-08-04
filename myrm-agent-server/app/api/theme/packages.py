@@ -30,7 +30,7 @@ from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.schemas.theme_profile import ThemeProfileRecipeModel
 from app.services.theme.package.export_service import ThemePackageExportError, export_theme_package
 from app.services.theme.package.inspect_service import ThemePackageInspectError, inspect_theme_package

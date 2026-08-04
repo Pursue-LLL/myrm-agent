@@ -19,7 +19,7 @@ ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义�
 |----------|------|------|-------|
 | `__init__.py` | 📄 占位 | 模块声明 | ❌ |
 | `_ARCH.md` | 📄 文档 | 本架构文档 | ❌ |
-| `setup.py` | ✅ 核心 | 解析 `ResolvedContextBinding` 并创建/缓存 `MemoryManager`；`create_conflict_callback` 工厂提供冲突持久化回调 | ✅ |
+| `setup.py` | ✅ 核心 | 解析 `ResolvedContextBinding` 并创建/缓存 `MemoryManager`；`create_memory_tools_for_user` 支持 `description_locale`；`create_conflict_callback` 工厂提供冲突持久化回调 | ✅ |
 | `policy.py` | ✅ 核心 | AgentProfile `memory_policy` 与 namespace 派生 | ✅ |
 | `types.py` | ✅ 核心 | `ResolvedContextBinding` — Server 到 Harness 的上下文运行时合同 | ✅ |
 

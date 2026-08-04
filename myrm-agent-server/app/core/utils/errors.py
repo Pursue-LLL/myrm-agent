@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason
 
-from app.database.standard_responses import (
+from app.schemas.responses import (
     BusinessCode,
     ErrorDetail,
     create_error_response,

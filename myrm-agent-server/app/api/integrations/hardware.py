@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.api.integrations.model_specs import get_dynamic_model_specs
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -95,9 +95,13 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
             if response.status_code == 200:
                 return success_response(data={"success": True})
             else:
-                raise HTTPException(status_code=response.status_code, detail=f"Ollama error: {response.text}")
+                logger.warning("Ollama delete failed (status %s): %s", response.status_code, response.text)
+                raise HTTPException(status_code=response.status_code, detail="Ollama model deletion failed")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Ollama delete request failed: %s", e)
+        raise HTTPException(status_code=500, detail="Ollama service unavailable") from e
 
 
 @router.post("/ollama/pull")
@@ -120,7 +124,8 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
                     async for chunk in response.aiter_bytes():
                         yield chunk
         except Exception as e:
-            yield f'{{"error": "{str(e)}"}}\n'.encode("utf-8")
+            logger.error("Ollama model pull failed: %s", e)
+            yield b'{"error": "Ollama model pull failed"}\n'
 
     return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
 

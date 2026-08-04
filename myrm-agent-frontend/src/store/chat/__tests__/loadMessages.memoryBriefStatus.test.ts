@@ -160,4 +160,64 @@ describe('loadMessages memoryBriefStatus hydration', () => {
 
     expect(state.messages[0]?.reasoning).toBe('historical reasoning');
   });
+
+  it('restores persisted contextBudget from metadata payload', async () => {
+    getMessagesMock.mockResolvedValueOnce({
+      messages: [
+        {
+          messageId: 'msg-budget',
+          chatId: 'chat-budget',
+          createdAt: new Date('2026-08-04T00:00:00.000Z'),
+          role: 'assistant',
+          content: 'answer',
+          metadata: {
+            contextBudget: {
+              current_tokens: 118_000,
+              max_context_tokens: 128_000,
+              usage_percent: 92.2,
+              health_status: 'critical',
+              messages_estimated_tokens: 112_000,
+              bound_tools_overhead_tokens: 6_000,
+              other_tokens: 0,
+            },
+          },
+        } as unknown as Message,
+      ],
+      has_more: false,
+      next_cursor: null,
+    });
+
+    const state = {
+      chatId: '',
+      messages: [],
+      loading: false,
+      isMessagesLoaded: false,
+      notFound: false,
+      loadError: false,
+      actionMode: 'agent',
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      sessionSkillOverrides: null,
+      incognitoMode: false,
+      hasMoreMessages: false,
+      nextCursor: null,
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (draft: ChatState) => void) => updater(state),
+    } as unknown as Parameters<typeof loadMessages>[1];
+
+    await loadMessages('chat-budget', actions);
+
+    expect(state.messages[0]?.contextBudget).toEqual({
+      current_tokens: 118_000,
+      max_context_tokens: 128_000,
+      usage_percent: 92.2,
+      health_status: 'critical',
+      messages_estimated_tokens: 112_000,
+      bound_tools_overhead_tokens: 6_000,
+      other_tokens: 0,
+    });
+  });
 });

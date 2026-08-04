@@ -384,7 +384,7 @@ async def verify_artifact_hash(
         raise HTTPException(status_code=404, detail="Physical file missing from vault") from e
     except Exception as e:
         logger.error(f"Hash verification failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Hash verification failed") from e
 
 
 class BundleDownloadRequest(BaseModel):

@@ -239,7 +239,7 @@ async def _phase_1a_sequential() -> None:
         logger.error("[Startup] Database initialization failed: %s", e)
 
         from app.config.settings import settings
-        from app.database.recovery import rescue_database
+        from app.database.operations.recovery import rescue_database
         from app.platform_utils import reset_database_engine
         from app.server.status import system_status
 
@@ -255,7 +255,7 @@ async def _phase_1a_sequential() -> None:
             # 2. Try multi-snapshot integrity-verified restore
             restored = False
             try:
-                from app.database.backup import get_sqlite_backup_manager
+                from app.database.operations.backup import get_sqlite_backup_manager
 
                 manager = get_sqlite_backup_manager()
                 if manager is not None:
@@ -662,7 +662,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         await engine.dispose()
         logger.info("[Shutdown] Database engine disposed")
 
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         manager = get_sqlite_backup_manager()
         if manager is not None:

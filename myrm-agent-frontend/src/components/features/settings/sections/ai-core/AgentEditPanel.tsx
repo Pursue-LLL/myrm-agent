@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { HelpCircle, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { IconArrowRight, IconFileText, IconZap, IconBot, IconShield } from '@/components/features/icons/PremiumIcons';
@@ -40,6 +40,13 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isNew) return;
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash !== 'loadout') return;
+    setActiveTab('capabilities');
+  }, [agentId, isNew]);
 
   const fetchMarketSkills = useSkillStore((state) => state.fetchMarketSkills);
   const fetchLocalSkills = useSkillStore((state) => state.fetchLocalSkills);

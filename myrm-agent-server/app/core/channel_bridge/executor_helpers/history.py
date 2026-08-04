@@ -2,13 +2,14 @@
 
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: Chat history persistence)
+- app.services.chat.stale_compact_gate::run_pre_reply_stale_compact_gate (POS: pre-reply idle stale compaction gate)
 
 [OUTPUT]
 - build_chat_history_with_metadata, persist_and_load_history, load_history_without_persist
 - persist_assistant_message, generate_channel_title
 
 [POS]
-Channel executor 辅助：入站/出站消息持久化与频道标题生成。
+Channel executor 辅助：入站/出站消息持久化、频道标题生成；新 turn 入站前 best-effort idle stale compact。
 """
 
 from __future__ import annotations

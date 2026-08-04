@@ -578,7 +578,7 @@ async def query_wiki(
         )
     except Exception as e:
         logger.error(f"Wiki query failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Wiki query failed") from e
 
 
 @router.get("/assets/{filename}")
@@ -637,7 +637,7 @@ async def compile_wiki(
         )
     except Exception as e:
         logger.error(f"Wiki compilation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Wiki compilation failed") from e
 
 
 @router.post("/maintain", response_model=WikiMaintenanceResponse)
@@ -677,7 +677,7 @@ async def maintain_wiki(
         raise
     except Exception as e:
         logger.error(f"Wiki maintenance failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Wiki maintenance failed") from e
 
 
 @router.get("/stats", response_model=WikiStatsResponse)
@@ -762,7 +762,8 @@ async def get_wiki_stats(
             asset_index=asset_index,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Wiki full state retrieval failed: %s", e)
+        raise HTTPException(status_code=500, detail="Wiki state retrieval failed") from e
 
 
 @router.get("/stale-summary", response_model=WikiStaleSummaryResponse)
@@ -951,7 +952,8 @@ async def create_wiki_folder(
         folder_path.mkdir(parents=True, exist_ok=True)
         return OperationResult(success=True, message=f"Folder {safe_path} created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Wiki folder creation failed: %s", e)
+        raise HTTPException(status_code=500, detail="Folder creation failed") from e
 
 
 @router.put("/tree/move", response_model=OperationResult)
@@ -1017,7 +1019,8 @@ async def move_wiki_node(
         await _after_wiki_vault_mutation(archiver, "move concept")
         return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Wiki node move failed: %s", e)
+        raise HTTPException(status_code=500, detail="Move operation failed") from e
 
 
 @router.delete("/tree/folder", response_model=OperationResult)
@@ -1031,7 +1034,8 @@ async def delete_wiki_folder(
         await _after_wiki_vault_mutation(archiver, "delete folder")
         return OperationResult(success=True, message=f"Folder deleted. Unindexed {deleted_count} files.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Wiki folder deletion failed: %s", e)
+        raise HTTPException(status_code=500, detail="Folder deletion failed") from e
 
 
 @router.get("/concepts/{name:path}", response_model=ConceptResponse)
@@ -1130,7 +1134,8 @@ async def apply_wiki_mutation_endpoint(
             detail={"code": exc.code, "message": exc.message},
         ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.error("Wiki mutation apply failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Wiki mutation failed") from exc
 
     await _after_wiki_vault_mutation(archiver, "apply mutation")
     return WikiApplyResponse(
@@ -1156,7 +1161,8 @@ async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, De
         await _after_wiki_vault_mutation(archiver, "delete concept")
         return OperationResult(success=True, message=f"Concept {name} deleted")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Wiki concept deletion failed: %s", e)
+        raise HTTPException(status_code=500, detail="Concept deletion failed") from e
 
 
 class DeleteRawRequest(BaseModel):
@@ -1459,7 +1465,7 @@ def get_graph_insights(
         return GraphInsightsResponse(**insights)
     except Exception as e:
         logger.error(f"Graph insights failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Graph insights failed") from e
 
 
 class DeepResearchRequest(BaseModel):
@@ -1519,7 +1525,7 @@ async def deep_research(
         return OperationResult(success=False, message="Web search toolkit not configured")
     except Exception as e:
         logger.error(f"Deep research failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Deep research failed") from e
 
 
 class IngestArtifactRequest(BaseModel):
@@ -1591,7 +1597,7 @@ async def ingest_artifact(
         raise
     except Exception as e:
         logger.error(f"Artifact ingest failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Artifact ingest failed") from e
 
 
 @router.get("/graph", response_model=WikiGraphResponse)
@@ -1609,7 +1615,7 @@ def get_wiki_graph(
         return WikiGraphResponse(nodes=graph["nodes"], edges=graph["edges"])
     except Exception as e:
         logger.error(f"Wiki graph retrieval failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Wiki graph retrieval failed") from e
 
 
 # --- Batch Import Endpoints ---
@@ -1853,10 +1859,11 @@ async def import_folder(
             ),
         )
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        logger.warning("Folder import source not found: %s", e)
+        raise HTTPException(status_code=404, detail="Source folder not found") from e
     except Exception as e:
         logger.error(f"Folder import failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Folder import failed") from e
 
 
 @router.post("/import/zip", response_model=ImportResultResponse)
@@ -1984,7 +1991,7 @@ async def import_zip(
         raise
     except Exception as e:
         logger.error(f"ZIP import failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="ZIP import failed") from e
 
 
 async def _process_obsidian_vault(
@@ -2127,7 +2134,7 @@ async def import_obsidian_vault(
         raise
     except Exception as e:
         logger.error("Obsidian vault import failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Obsidian vault import failed") from e
 
 
 @router.post("/import/obsidian-zip", response_model=ObsidianImportResultResponse)
@@ -2183,7 +2190,7 @@ async def import_obsidian_zip(
         raise
     except Exception as e:
         logger.error("Obsidian ZIP import failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Obsidian ZIP import failed") from e
 
 
 @router.post("/vault/reveal", response_model=OperationResult)
@@ -2257,7 +2264,7 @@ async def export_wiki_vault(
         )
     except Exception as e:
         logger.error("Wiki vault export failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Wiki vault export failed") from e
 
 
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402

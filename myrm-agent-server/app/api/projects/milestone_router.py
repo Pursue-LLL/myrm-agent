@@ -18,7 +18,7 @@ from app.core.utils.errors import (
     validation_error,
 )
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import ErrorDetail, StandardSuccessResponse
+from app.schemas.responses import ErrorDetail, StandardSuccessResponse
 from app.services.project.assessment_import_service import (
     ERROR_ARTIFACT_VERSION_ALREADY_IMPORTED,
     ERROR_NO_ACTIONABLE_TASKS,

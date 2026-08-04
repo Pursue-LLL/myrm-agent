@@ -306,14 +306,9 @@ def _cmd_emit(_args: argparse.Namespace) -> int:
 
 
 def _launch_check_wall_sec() -> float:
-    raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
-    if not raw:
-        return 30.0
-    try:
-        parsed = float(raw)
-    except ValueError:
-        return 30.0
-    return parsed if parsed > 0 else 30.0
+    from dev_gate_contract import e2e_launch_check_wall_sec
+
+    return e2e_launch_check_wall_sec()
 
 
 def _readiness_subprocess_env() -> dict[str, str]:

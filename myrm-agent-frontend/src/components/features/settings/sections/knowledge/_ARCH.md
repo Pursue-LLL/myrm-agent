@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `MemoryCenterSection.tsx` | 容器 | 记忆 Tab 路由（explorer / backup / archival / follow-ups / migration） | — |
+| `MemoryCenterSection.tsx` | 容器 | 记忆 Tab 路由（explorer / backup / archival / follow-ups / **team-hub** / migration） | — |
 | `FollowUpsPanel.tsx` | 核心 | 智能跟进列表（list / dismiss / snooze）；Vitest：`__tests__/FollowUpsPanel.test.tsx` | — |
 | `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD；JSON 导入 confirm 后展示 readiness toast（非 ready 时 issue 文案 + 设置深链） | — |
 | `MigrationWizardSection.tsx` | 核心 | 五源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview；Pi/ChatGPT 永远包含 episodic 记忆，OpenClaw 用户可选；Settings 路径 Result 内嵌 vault bind handoff | — |
@@ -40,6 +40,7 @@
 
 ## 依赖
 
+- `@/components/features/loadout/TeamAssetsHub` — Memory Center `team-hub` Tab
 - `@/services/migrationDiscovery.ts` — discover API 客户端
 - `@/services/memoryArchive.ts` — dry-run / confirm import
 - [sections/_ARCH.md](../_ARCH.md)

@@ -7,15 +7,16 @@ does not implement a separate summarize pipeline.
 [INPUT]
 - app.services.agent.profile_resolver::AgentProfileResolver.resolve (POS: engine_params SSOT)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: model window for idle floor)
-- app.services.chat.compact_service::compact_chat (POS: lossless compaction SSOT)
-- app.services.chat.compact_service::estimate_compactable_context_tokens (POS: idle gate token estimate)
-- app.services.chat.compact_service::resolve_idle_compact_token_floor (POS: idle gate skip floor)
+- app.services.chat.compact_service::compact_chat (POS: lossless compaction SSOT; honors anti-thrash via harness guard; idle path receives request-level ``request_tokens_for_guard``)
+- app.services.chat.compact_service::estimate_idle_compact_request_tokens (POS: idle gate request-level token estimate incl. compacted_summary)
+- app.services.chat.compact_service::is_compaction_failure_cooldown_active (POS: post-failure cooldown guard)
 
 [OUTPUT]
 - parse_idle_compact_after_seconds: engine_params → seconds (0 = disabled)
 - resolve_idle_compact_after_seconds: profile + request merge → seconds
 - maybe_compact_stale_chat_before_turn: best-effort pre-reply compaction
-- run_pre_reply_stale_compact_gate: Web/Channel entry with DB session
+- run_pre_reply_stale_compact_gate: Web/Channel entry with DB session (optional `on_before_compact` for Web SSE active)
+- ModelWindowUnavailableError: fail-closed signal when model window cannot be resolved
 
 [POS]
 Server product-layer timing gate (Hermes ``idle_compact_after_seconds`` semantics).
@@ -26,7 +27,10 @@ Complements harness idle worker post-turn compaction — this covers resume-befo
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+
+from dataclasses import replace
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,13 +38,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Chat, Message
 from app.services.chat.compact_service import (
     CompactResult,
-    _MIN_MESSAGES_TO_COMPACT,
     compact_chat,
-    estimate_compactable_context_tokens,
+    estimate_idle_compact_request_tokens,
+    is_compaction_failure_cooldown_active,
     resolve_idle_compact_token_floor,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ModelWindowUnavailableError(Exception):
+    """User model window could not be loaded for idle compact floor evaluation."""
 
 
 def _ensure_utc(value: datetime) -> datetime:
@@ -100,8 +108,11 @@ async def _resolve_max_context_tokens() -> int | None:
             return None
         return window
     except Exception as exc:
-        logger.debug("Idle compact gate: failed to resolve model window: %s", exc)
-        return None
+        logger.warning(
+            "Idle compact gate: model window unavailable, skipping compact (fail-closed): %s",
+            exc,
+        )
+        raise ModelWindowUnavailableError(str(exc)) from exc
 
 
 async def maybe_compact_stale_chat_before_turn(
@@ -110,6 +121,8 @@ async def maybe_compact_stale_chat_before_turn(
     *,
     idle_after_seconds: int,
     max_context_tokens: int | None = None,
+    agent_id: str | None = None,
+    on_before_compact: Callable[[], Awaitable[None]] | None = None,
 ) -> CompactResult:
     """Compact idle stale context before the next agent turn when configured."""
     if idle_after_seconds <= 0:
@@ -118,11 +131,6 @@ async def maybe_compact_stale_chat_before_turn(
     chat_exists = await db.execute(select(Chat.id).where(Chat.id == chat_id))
     if chat_exists.scalar_one_or_none() is None:
         return CompactResult(compacted=False, reason="chat_not_found")
-
-    compacted_row = await db.execute(
-        select(Chat.compacted_before_id).where(Chat.id == chat_id)
-    )
-    compacted_before_id = compacted_row.scalar_one_or_none()
 
     last_message_at = await _load_last_message_at(db, chat_id)
     if last_message_at is None:
@@ -135,20 +143,40 @@ async def maybe_compact_stale_chat_before_turn(
             reason=f"idle_below_threshold ({idle_seconds:.0f}s < {idle_after_seconds}s)",
         )
 
-    if compacted_before_id is not None and idle_seconds < idle_after_seconds * 2:
-        return CompactResult(compacted=False, reason="recent_compaction_cooldown")
-
-    estimated_tokens, message_count = await estimate_compactable_context_tokens(db, chat_id)
-    if message_count < _MIN_MESSAGES_TO_COMPACT:
+    cooldown_active, cooldown_error = await is_compaction_failure_cooldown_active(db, chat_id)
+    if cooldown_active:
         return CompactResult(
             compacted=False,
-            message_count=message_count,
-            reason=f"too_few_messages ({message_count} < {_MIN_MESSAGES_TO_COMPACT})",
+            reason=f"compression_failure_cooldown_active ({cooldown_error or 'recent failure'})",
         )
+
+    estimated_tokens, message_count = await estimate_idle_compact_request_tokens(
+        db,
+        chat_id,
+        agent_id=agent_id,
+    )
 
     model_window = max_context_tokens
     if model_window is None:
-        model_window = await _resolve_max_context_tokens()
+        try:
+            model_window = await _resolve_max_context_tokens()
+        except ModelWindowUnavailableError:
+            return CompactResult(
+                compacted=False,
+                original_tokens=estimated_tokens,
+                message_count=message_count,
+                reason="model_window_unavailable_fail_closed",
+            )
+    if model_window is None:
+        logger.warning(
+            "Idle compact gate: model window unset after resolve, skipping compact (fail-closed)",
+        )
+        return CompactResult(
+            compacted=False,
+            original_tokens=estimated_tokens,
+            message_count=message_count,
+            reason="model_window_unavailable_fail_closed",
+        )
     token_floor = resolve_idle_compact_token_floor(max_context_tokens=model_window)
     if estimated_tokens <= token_floor:
         return CompactResult(
@@ -158,7 +186,16 @@ async def maybe_compact_stale_chat_before_turn(
             reason=f"context_below_floor ({estimated_tokens} <= {token_floor})",
         )
 
-    result = await compact_chat(db, chat_id)
+    if on_before_compact is not None:
+        await on_before_compact()
+
+    result = await compact_chat(
+        db,
+        chat_id,
+        for_idle_stale=True,
+        request_tokens_for_guard=estimated_tokens,
+    )
+    result = replace(result, attempted=True)
     if result.compacted:
         logger.info(
             "Pre-reply stale compact for chat %s after %.0fs idle (~%d tokens, saved ~%d)",
@@ -181,6 +218,7 @@ async def run_pre_reply_stale_compact_gate(
     *,
     agent_id: str | None,
     request_engine_params: dict[str, object] | None = None,
+    on_before_compact: Callable[[], Awaitable[None]] | None = None,
 ) -> CompactResult:
     """Run stale compact gate inside a DB session (Web + Channel SSOT)."""
     idle_after = await resolve_idle_compact_after_seconds(agent_id, request_engine_params)
@@ -191,4 +229,6 @@ async def run_pre_reply_stale_compact_gate(
             db,
             chat_id,
             idle_after_seconds=idle_after,
+            on_before_compact=on_before_compact,
+            agent_id=agent_id,
         )

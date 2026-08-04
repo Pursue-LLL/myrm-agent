@@ -90,7 +90,8 @@ class TTSTool(BaseTool):
 
             return json.dumps(out, ensure_ascii=False)
         except Exception as e:
-            return json.dumps({"status": "error", "error": str(e)}, ensure_ascii=False)
+            logger.error("TTS generation failed: %s", e)
+            return json.dumps({"status": "error", "error": "TTS generation failed"}, ensure_ascii=False)
 
     def _push_artifact(self, result: Any) -> None:
         """Notify caller about the generated artifact via callback."""

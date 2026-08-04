@@ -1,4 +1,4 @@
-"""Tests for app.database.backup — SQLite backup manager factory."""
+"""Tests for app.database.operations.backup — SQLite backup manager factory."""
 
 import sqlite3
 from pathlib import Path
@@ -15,9 +15,9 @@ def test_factory_returns_manager_for_valid_db(tmp_path: Path) -> None:
     conn.commit()
     conn.close()
 
-    with patch("app.database.backup.settings") as mock_settings:
+    with patch("app.database.operations.backup.settings") as mock_settings:
         mock_settings.database.sqlite_path = str(db)
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         mgr = get_sqlite_backup_manager()
 
@@ -27,9 +27,9 @@ def test_factory_returns_manager_for_valid_db(tmp_path: Path) -> None:
 
 def test_factory_returns_none_for_memory_db() -> None:
     """get_sqlite_backup_manager() returns None for :memory: databases."""
-    with patch("app.database.backup.settings") as mock_settings:
+    with patch("app.database.operations.backup.settings") as mock_settings:
         mock_settings.database.sqlite_path = ":memory:"
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         mgr = get_sqlite_backup_manager()
 
@@ -40,9 +40,9 @@ def test_factory_returns_none_for_nonexistent_db(tmp_path: Path) -> None:
     """get_sqlite_backup_manager() returns None when the DB file doesn't exist."""
     db = tmp_path / "nonexistent.db"
 
-    with patch("app.database.backup.settings") as mock_settings:
+    with patch("app.database.operations.backup.settings") as mock_settings:
         mock_settings.database.sqlite_path = str(db)
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         mgr = get_sqlite_backup_manager()
 
@@ -58,9 +58,9 @@ def test_factory_backup_dir_convention(tmp_path: Path) -> None:
     conn.commit()
     conn.close()
 
-    with patch("app.database.backup.settings") as mock_settings:
+    with patch("app.database.operations.backup.settings") as mock_settings:
         mock_settings.database.sqlite_path = str(db)
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         mgr = get_sqlite_backup_manager()
 

@@ -880,6 +880,8 @@ INDEX_STATEMENTS = [
     "ALTER TABLE kanban_tasks ADD COLUMN goal_max_turns INTEGER",
     "ALTER TABLE chats ADD COLUMN active_moa_preset_id VARCHAR(50)",
     "UPDATE chats SET action_mode = 'agent' WHERE action_mode = 'consensus'",
+    "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",
+    "ALTER TABLE chats ADD COLUMN compaction_failure_error VARCHAR(500)",
 ]
 
 

@@ -1,4 +1,15 @@
-"""FastAPI handlers for database operational errors (SQLite busy/lock)."""
+"""FastAPI handlers for database operational errors (SQLite busy/lock).
+
+[INPUT]
+- app.database.operations.sqlite_storage_busy::is_sqlite_storage_busy (POS: SQLite 忙/锁异常识别)
+- app.schemas.responses::BusinessCode, create_error_response (POS: 统一 API 响应格式定义)
+
+[OUTPUT]
+- register_database_operational_handlers: Register FastAPI exception handlers for SQLite errors
+
+[POS]
+数据库运维 HTTP 异常处理器。将 sqlite3/SQLAlchemy OperationalError 映射为标准化 API 响应。
+"""
 
 from __future__ import annotations
 
@@ -9,8 +20,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 
-from app.database.sqlite_storage_busy import is_sqlite_storage_busy, sqlite_busy_retry_after_seconds
-from app.database.standard_responses import BusinessCode, create_error_response
+from app.database.operations.sqlite_storage_busy import is_sqlite_storage_busy, sqlite_busy_retry_after_seconds
+from app.schemas.responses import BusinessCode, create_error_response
 
 logger = logging.getLogger(__name__)
 

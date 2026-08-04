@@ -35,7 +35,7 @@ async def test_init_database_calls_backup_before_migrations():
         patch("app.database.connection.get_database_engine", return_value=fake_engine),
         patch("app.database.migrations.run_migrations", side_effect=fake_run_migrations),
         patch("app.database.migrations.create_indexes", side_effect=fake_create_indexes),
-        patch("app.database.backup.get_sqlite_backup_manager", return_value=mock_manager),
+        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=mock_manager),
     ):
         from app.database.connection import init_database
 
@@ -71,7 +71,7 @@ async def test_init_database_aborts_when_backup_fails_with_manager():
         patch("app.database.connection.get_database_engine", return_value=fake_engine),
         patch("app.database.migrations.run_migrations", mock_run_migrations),
         patch("app.database.migrations.create_indexes", new_callable=AsyncMock),
-        patch("app.database.backup.get_sqlite_backup_manager", return_value=mock_manager),
+        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=mock_manager),
     ):
         from app.database.connection import init_database
 
@@ -102,7 +102,7 @@ async def test_init_database_skips_backup_when_manager_is_none():
         patch("app.database.connection.get_database_engine", return_value=fake_engine),
         patch("app.database.migrations.run_migrations", side_effect=fake_run_migrations),
         patch("app.database.migrations.create_indexes", side_effect=fake_create_indexes),
-        patch("app.database.backup.get_sqlite_backup_manager", return_value=None),
+        patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=None),
     ):
         from app.database.connection import init_database
 

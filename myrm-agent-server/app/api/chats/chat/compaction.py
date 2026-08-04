@@ -11,7 +11,7 @@ from app.database.connection import get_db
 from app.database.dto import (
     UpdateSummaryRequest,
 )
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
 
 router = APIRouter()

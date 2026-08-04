@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
-from app.database.recovery import rescue_database
+from app.database.operations.recovery import rescue_database
 from app.server.status import system_status
 
 

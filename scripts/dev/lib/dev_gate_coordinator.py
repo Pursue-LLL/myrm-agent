@@ -536,9 +536,13 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 "error": type(exc).__name__,
                 "detail": str(exc),
             }
-        connection.sendall(
-            json.dumps(response, separators=(",", ":"), sort_keys=True).encode() + b"\n"
-        )
+        try:
+            connection.sendall(
+                json.dumps(response, separators=(",", ":"), sort_keys=True).encode()
+                + b"\n"
+            )
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
 
 
 def request(

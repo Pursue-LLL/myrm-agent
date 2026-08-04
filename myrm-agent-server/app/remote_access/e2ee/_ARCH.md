@@ -18,7 +18,7 @@ Mobile remote E2EE 域：Curve25519 NaCl box 原语、daemon 持久密钥、内�
 ## 模块依赖
 
 - 依赖 `app.config.settings`：keystore 持久化路径
-- 依赖 `app.database.standard_responses`：response 标准 envelope
+- 依赖 `app.schemas.responses`：response 标准 envelope
 - 被 `app/middleware/e2ee.py` 消费（HTTP 解密层，留于 middleware 根）
 - 被 `app/api/remote_access/router.py` 与 `app/api/agents/general_agent/active_sessions.py` 消费
 

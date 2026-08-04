@@ -153,6 +153,44 @@ async def test_build_agent_returns_search_not_configured_when_missing_service() 
     assert "搜索" in outcome.early_reply.content
 
 
+@pytest.mark.asyncio
+async def test_build_agent_passes_message_locale_to_general_agent_params() -> None:
+    msg = _inbound_message(locale="en")
+    captured: dict[str, object] = {}
+
+    def _capture_create_agent(params: object) -> MagicMock:
+        captured["locale"] = getattr(params, "locale", None)
+        return MagicMock()
+
+    with (
+        patch(
+            "app.services.memory.shared_context.resolve_shared_context_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory.create_general_agent",
+            side_effect=_capture_create_agent,
+        ),
+        patch(
+            "app.services.agent.session_credential_assembler.assemble_session_credentials",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        outcome = await build_channel_execution_agent(
+            **_agent_build_kwargs(
+                msg,
+                is_resume=False,
+                configs=_minimal_user_configs(),
+                enabled_builtin_tools=["code_execution"],
+            ),
+        )
+
+    assert outcome.result is not None
+    assert captured["locale"] == "en"
+
+
 def test_channel_agent_build_outcome_rejects_invalid_xor_states() -> None:
     with pytest.raises(ValueError, match="exactly one of result or early_reply"):
         ChannelAgentBuildOutcome()

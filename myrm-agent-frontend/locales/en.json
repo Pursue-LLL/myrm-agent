@@ -331,6 +331,7 @@
       "companion": "Companion",
       "usageStatistics": "Usage Statistics",
       "memory-backup": "Memory Backup",
+      "memory-team-hub": "Team Assets",
       "memory-cloud-backup": "Cloud Sync",
       "memory-archival": "Memory Archival",
       "memory-migration": "Migration",
@@ -351,11 +352,13 @@
     },
     "memoryCenter": {
       "tabs": {
-        "followUps": "Follow-ups"
+        "followUps": "Follow-ups",
+        "teamHub": "Team assets"
       },
       "tabDescriptions": {
         "followUps": "View and manage proactive follow-ups extracted from conversations / 查看并管理从对话中提取的智能跟进",
-        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
+        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual",
+        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place / 共享上下文、Wiki、技能与记忆 — 团队配置一屏入口"
       },
       "migrationUnavailable": {
         "title": "Assistant import requires Local or Desktop",
@@ -5633,6 +5636,51 @@
     "unsaved": "Unsaved",
     "discardConfirm": "You have unsaved changes. Discard them?"
   },
+  "loadout": {
+    "title": "Agent loadout",
+    "subtitle": "What this agent inherits — team memory, wiki, skills, and memory policy at a glance.",
+    "loading": "Loading loadout…",
+    "saveAgentFirst": "Save the agent first to review its loadout.",
+    "fix": "Fix",
+    "openTeamAssets": "Team assets",
+    "openWiki": "Wiki",
+    "openSkills": "Skills",
+    "openMemory": "Memory",
+    "openLoadout": "Loadout",
+    "readiness": {
+      "ready": "Ready",
+      "warning": "Needs attention",
+      "blocked": "Blocked"
+    },
+    "tiles": {
+      "sharedContexts": "Shared contexts",
+      "skills": "Skills",
+      "skillsCount": "{count} mounted",
+      "wiki": "Wiki",
+      "wikiOn": "Enabled",
+      "wikiOff": "Off",
+      "memoryPolicy": "Memory policy"
+    },
+    "sharedContexts": {
+      "none": "None bound",
+      "unavailable": "Unavailable"
+    },
+    "memoryPolicy": {
+      "on": "Memory on",
+      "off": "Memory off",
+      "onWithPreCompact": "On · pre-compact {tokens} tok"
+    },
+    "teamHub": {
+      "title": "Team assets",
+      "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "wikiTitle": "Wiki",
+      "wikiDesc": "Knowledge base and agent-scoped notes",
+      "skillsTitle": "Skills",
+      "skillsDesc": "Mounted capabilities and evolution queue",
+      "memoryTitle": "Memory",
+      "memoryDesc": "Personal brain, policies, and command center"
+    }
+  },
   "agent": {
     "title": "Agents",
     "description": "Create your own AI assistants with custom behaviors and capabilities",
@@ -7081,6 +7129,11 @@
       "currentSession": "Current Session",
       "warning": "Approaching compression point. Consider Forking a new topic.",
       "criticalWarning": "System is automatically compressing early memory. Consider Forking a new topic.",
+      "breakdownTitle": "Context breakdown",
+      "breakdownMessages": "Messages (est.)",
+      "breakdownTools": "Tool schemas (est.)",
+      "breakdownOther": "System & other (est.)",
+      "breakdownTotal": "Provider total",
       "strategy": {
         "title": "Memory Strategy",
         "noData": "No strategy data available yet.",
@@ -9155,6 +9208,8 @@
         "retryingSkillsSubmit": "Retrying...",
         "skillsRetrySuccess": "Skills resubmitted for review",
         "reviewSkills": "Review skills",
+        "reviewTeamAssets": "Review team assets",
+        "reviewAgentLoadout": "Review agent loadout",
         "configureMcp": "Configure MCP",
         "configureCron": "Review scheduled tasks",
         "configureChannels": "Configure channels",

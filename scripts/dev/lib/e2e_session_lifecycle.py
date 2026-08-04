@@ -96,20 +96,19 @@ def resolve_budget_policy() -> BudgetPolicy:
     bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "dev":
         try:
+            from dev_gate_contract import boot_mux_body_transport_gate_required
             from transport_supervisor import (
-                bootstrap_wall_cap_sec,
-                mux_upstream_wait_cap,
+                MUX_BOOTSTRAP_WALL_MAX_SEC,
+                MUX_UPSTREAM_WAIT_MAX_SEC,
             )
 
-            bootstrap_sec = bootstrap_wall_cap_sec()
-            from dev_gate_contract import boot_mux_body_transport_gate_required
-
-            if boot_mux_body_transport_gate_required():
-                bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
-                bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
-            elif _private_shpoib_bootstrap_lane(lane):
-                bootstrap_sec = bootstrap_wall_cap_sec(pessimistic=True)
-                bootstrap_sec += mux_upstream_wait_cap(pessimistic=True)
+            # R250: hot-path progress snapshots must not live-probe mux/coordinator.
+            if boot_mux_body_transport_gate_required() or _private_shpoib_bootstrap_lane(
+                lane
+            ):
+                bootstrap_sec = int(
+                    MUX_BOOTSTRAP_WALL_MAX_SEC + MUX_UPSTREAM_WAIT_MAX_SEC
+                )
         except ImportError:
             bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "signoff":

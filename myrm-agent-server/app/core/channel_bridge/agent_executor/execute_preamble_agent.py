@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingCon
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
-from app.channels.i18n import get_text
+from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.types import InboundMessage, ProgressUpdate
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
@@ -250,6 +250,7 @@ async def build_channel_execution_agent(
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
         force_skill_manage=is_learn_skill_authoring_prompt(query),
+        locale=resolve_message_locale(msg),
     )
 
     approval_peer = msg.chat_id or msg.sender_id

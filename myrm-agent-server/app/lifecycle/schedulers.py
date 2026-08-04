@@ -386,7 +386,7 @@ async def _db_maintenance_job() -> None:
 
     # Database Backup (integrity-verified rotated snapshot)
     try:
-        from app.database.backup import get_sqlite_backup_manager
+        from app.database.operations.backup import get_sqlite_backup_manager
 
         manager = get_sqlite_backup_manager()
         if manager is not None:

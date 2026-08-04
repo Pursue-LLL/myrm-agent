@@ -26,7 +26,7 @@ from app.core.infra.limiter import limiter
 from app.core.storage import files_service
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 
 logger = logging.getLogger(__name__)
 

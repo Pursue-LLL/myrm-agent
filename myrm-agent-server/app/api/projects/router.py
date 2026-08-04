@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.project.project_service import ProjectService
 
 router = APIRouter()

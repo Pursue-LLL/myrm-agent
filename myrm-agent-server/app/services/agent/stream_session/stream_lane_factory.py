@@ -160,10 +160,18 @@ async def create_deep_research_stream(
     from myrm_agent_harness.toolkits import create_web_search_tool
     from myrm_agent_harness.toolkits.llms import llm_manager
 
+    from app.core.agent.tool_description_locale import resolve_tool_description_locale
     from app.core.utils.chat_utils import convert_chat_history
 
     llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
-    search_tool = create_web_search_tool(search_service_cfg=params.search_service_cfg)
+    tool_description_locale = resolve_tool_description_locale(
+        agent_locale=params.locale,
+        channel=params.channel_name,
+    )
+    search_tool = create_web_search_tool(
+        search_service_cfg=params.search_service_cfg,
+        description_locale=tool_description_locale,
+    )
 
     research_agent_llm = None
     if research_model_cfg:

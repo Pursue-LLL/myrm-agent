@@ -17,26 +17,17 @@ logger = logging.getLogger(__name__)
 
 async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     from app.schemas.streaming import SSEEnvelope
+    from app.services.agent.stream_session.pre_reply_compact_sse import (
+        append_pre_reply_compact_sse,
+    )
     from app.services.project.orchestrator import project_orchestrator
 
-    pre_reply_result = session.pre_reply_compact_result
-    if (
-        pre_reply_result is not None
-        and pre_reply_result.compacted
-        and pre_reply_result.tokens_saved > 0
-    ):
-        compact_event = SSEEnvelope.from_any(
-            {
-                "type": "status",
-                "messageId": session.params.message_id,
-                "step_key": "context_compaction",
-                "status": "success",
-                "tokens_saved": pre_reply_result.tokens_saved,
-                "snapshot_path": pre_reply_result.backup_path,
-                "data": {"phase": "completed"},
-            }
-        ).to_sse_chunk()
-        await buffer.append(compact_event)
+    if not session.pre_reply_compact_sse_sent:
+        await append_pre_reply_compact_sse(
+            buffer,
+            session.params.message_id,
+            session.pre_reply_compact_result,
+        )
 
     project_id = getattr(session.params, "project_id", None)
 
@@ -77,7 +68,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     except Exception as e:
         stream_had_error = True
         logger.error("Error pumping stream to buffer: %s", e, exc_info=True)
-        await buffer.append(error_sse(f"Stream interrupted: {e}", session.params.message_id))
+        await buffer.append(error_sse("Stream interrupted", session.params.message_id))
     finally:
         if project_id:
             project_orchestrator.release(project_id)

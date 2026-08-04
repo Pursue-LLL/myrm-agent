@@ -42,4 +42,4 @@ async def get_agent_history(
         return success_response(data=history_list)
     except Exception as e:
         logger.error(f"Failed to fetch agent history: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to fetch agent history") from e

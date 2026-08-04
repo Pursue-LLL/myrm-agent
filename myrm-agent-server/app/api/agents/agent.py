@@ -54,7 +54,7 @@ from app.database.dto import (
     PersonalityStyleLiteral,
     WorkspacePolicyLiteral,
 )
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import HIDDEN_SYSTEM_PROMPT, AgentService
 from app.services.agent.backends import DatabaseSecretBackend
 from app.services.agent.builtin_tool_validation import RequiredBuiltinTools

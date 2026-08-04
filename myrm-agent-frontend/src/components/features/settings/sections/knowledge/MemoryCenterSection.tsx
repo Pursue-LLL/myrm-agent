@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import dynamic from 'next/dynamic';
-import { Brain, Archive, Database, Cloud, ArrowRightLeft, MessageCircle } from 'lucide-react';
+import { Brain, Archive, Database, Cloud, ArrowRightLeft, MessageCircle, Users } from 'lucide-react';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import { isLocalMode } from '@/lib/deploy-mode';
 import MemorySection from './MemorySection';
@@ -14,6 +14,7 @@ import MemoryArchivalSection from './MemoryArchivalSection';
 import RemoteBackupSection from './RemoteBackupSection';
 import { SettingsSkeleton } from '../../common/SettingsSkeleton';
 import { Button } from '@/components/primitives/button';
+import { TeamAssetsHub } from '@/components/features/loadout/TeamAssetsHub';
 
 const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'), {
   loading: () => <SettingsSkeleton />,
@@ -50,6 +51,8 @@ const MemoryCenterSection = memo(() => {
       setActiveTab('archival');
     } else if (sub === 'follow-ups' || sub === 'followups') {
       setActiveTab('follow-ups');
+    } else if (sub === 'team-hub' || sub === 'teamHub') {
+      setActiveTab('team-hub');
     } else if (sub === 'migration') {
       setActiveTab(showMigration ? 'migration' : 'explorer');
     } else {
@@ -73,6 +76,8 @@ const MemoryCenterSection = memo(() => {
         return '配置归档策略、运行自动归档，维持高性能的大脑索引 / Manage criteria and run older memory archival';
       case 'follow-ups':
         return t('memoryCenter.tabDescriptions.followUps');
+      case 'team-hub':
+        return t('memoryCenter.tabDescriptions.teamHub');
       case 'migration':
         return t('memoryCenter.tabDescriptions.migration');
       default:
@@ -108,7 +113,7 @@ const MemoryCenterSection = memo(() => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList
-          className={`grid w-full max-w-3xl ${showMigration ? 'grid-cols-2 sm:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} h-auto bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6 gap-1`}
+          className={`grid w-full max-w-4xl ${showMigration ? 'grid-cols-2 sm:grid-cols-7' : 'grid-cols-2 sm:grid-cols-6'} h-auto bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6 gap-1`}
         >
           <TabsTrigger
             value="explorer"
@@ -145,6 +150,13 @@ const MemoryCenterSection = memo(() => {
             <MessageCircle className="h-4 w-4 shrink-0" />
             <span className="truncate">{t('memoryCenter.tabs.followUps')}</span>
           </TabsTrigger>
+          <TabsTrigger
+            value="team-hub"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('memoryCenter.tabs.teamHub')}</span>
+          </TabsTrigger>
           {showMigration && (
             <TabsTrigger
               value="migration"
@@ -170,6 +182,9 @@ const MemoryCenterSection = memo(() => {
         </TabsContent>
         <TabsContent value="follow-ups" className="focus-visible:outline-none focus-visible:ring-0">
           <FollowUpsPanel />
+        </TabsContent>
+        <TabsContent value="team-hub" className="focus-visible:outline-none focus-visible:ring-0">
+          <TeamAssetsHub />
         </TabsContent>
         {showMigration && (
           <TabsContent value="migration" className="focus-visible:outline-none focus-visible:ring-0 space-y-6">

@@ -30,6 +30,7 @@ import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { getSessionAnalytics } from '@/services/statistics';
 import { compactChat, getContextPins, setContextPins } from '@/services/chat';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';
+import type { ContextBudget } from '@/store/chat/types';
 
 const STATUS_DOT_COLORS: Record<HealthStatus, string> = {
   inactive: 'bg-muted-foreground/40',
@@ -57,6 +58,78 @@ function budgetStatusToHealth(status: BudgetHealthStatus | undefined): HealthSta
   return status;
 }
 
+function hasContextBreakdown(budget: ContextBudget): boolean {
+  return (
+    budget.messages_estimated_tokens != null
+    || budget.bound_tools_overhead_tokens != null
+    || budget.other_tokens != null
+  );
+}
+
+interface ContextBreakdownProps {
+  budget: ContextBudget;
+  className?: string;
+}
+
+function ContextBreakdown({ budget, className }: ContextBreakdownProps) {
+  const t = useTranslations('chat.contextUsage');
+
+  if (!hasContextBreakdown(budget)) {
+    return null;
+  }
+
+  const rows = [
+    {
+      key: 'messages',
+      label: t('breakdownMessages'),
+      value: budget.messages_estimated_tokens ?? 0,
+      color: 'bg-primary-dark/70 dark:bg-primary-light/70',
+    },
+    {
+      key: 'tools',
+      label: t('breakdownTools'),
+      value: budget.bound_tools_overhead_tokens ?? 0,
+      color: 'bg-amber-500/80',
+    },
+    {
+      key: 'other',
+      label: t('breakdownOther'),
+      value: budget.other_tokens ?? 0,
+      color: 'bg-muted-foreground/50',
+    },
+  ].filter((row) => row.value > 0);
+
+  const segmentTotal = rows.reduce((sum, row) => sum + row.value, 0) || budget.current_tokens;
+
+  return (
+    <div data-testid="context-budget-breakdown" className={className}>
+      <div className="text-[10px] font-medium text-muted-foreground mb-1.5">{t('breakdownTitle')}</div>
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/40 mb-2">
+        {rows.map((row) => (
+          <span
+            key={row.key}
+            className={`${row.color} h-full`}
+            style={{ width: `${Math.max(0, Math.min(100, (row.value / segmentTotal) * 100))}%` }}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        {rows.map((row) => (
+          <div key={row.key} className="flex items-center justify-between gap-3 text-[10px] tabular-nums">
+            <span className="text-muted-foreground">{row.label}</span>
+            <span className="text-foreground font-medium">{formatTokens(row.value)}</span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3 text-[10px] tabular-nums pt-1 border-t border-border/40">
+          <span className="text-muted-foreground">{t('breakdownTotal')}</span>
+          <span className="text-foreground font-semibold">{formatTokens(budget.current_tokens)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function resolveDisplayStatus(health: ContextHealth | null): HealthStatus {
   if (!health) return 'inactive';
   if (health.status !== 'inactive') return health.status;
@@ -72,11 +145,12 @@ interface MiniPanelContentProps {
   loading: boolean;
   chatId: string | null;
   usagePercent: number;
+  contextBudget: ContextBudget | null;
   onNavigateDetails: () => void;
   onRefreshHealth: () => void;
 }
 
-function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails, onRefreshHealth }: MiniPanelContentProps) {
+function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget, onNavigateDetails, onRefreshHealth }: MiniPanelContentProps) {
   const t = useTranslations('chat.contextUsage.strategy');
   const contextPinnedFiles = useChatStore((state) => state.contextPinnedFiles);
   const contextPinnedFilesLoadError = useChatStore((state) => state.contextPinnedFilesLoadError);
@@ -223,6 +297,9 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
 
   return (
     <div data-testid="context-usage-panel" className="flex flex-col gap-2.5 p-3 min-w-[220px]">
+      {contextBudget && hasContextBreakdown(contextBudget) ? (
+        <ContextBreakdown budget={contextBudget} className="pb-2 border-b border-border/40" />
+      ) : null}
       {health ? (
         <>
           <div className="flex items-center justify-between">
@@ -522,6 +599,7 @@ export default function ContextUsageIndicator() {
       loading={loadingHealth}
       chatId={chatId}
       usagePercent={percentage}
+      contextBudget={contextBudget}
       onNavigateDetails={handleNavigateDetails}
       onRefreshHealth={fetchHealth}
     />
@@ -535,6 +613,9 @@ export default function ContextUsageIndicator() {
           {percentage.toFixed(1)}% &bull; {displayUsage}
         </span>
       </div>
+      {contextBudget && hasContextBreakdown(contextBudget) ? (
+        <ContextBreakdown budget={contextBudget} className="pt-1 border-t border-border/40" />
+      ) : null}
       {warningText && (
         <div className={`mt-1 pt-1.5 border-t border-border/50 text-[11px] leading-relaxed ${textColor}`}>
           {warningText}

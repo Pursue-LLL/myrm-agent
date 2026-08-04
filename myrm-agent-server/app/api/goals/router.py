@@ -127,7 +127,7 @@ async def add_goal_subgoal(session_id: str, request: SubgoalAddRequest) -> dict[
         return {"status": "success", "subgoal": subgoal}
     except Exception as e:
         logger.error(f"Failed to add subgoal: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to add subgoal") from e
 
 
 @router.delete("/{session_id}/subgoals/{index}")
@@ -152,7 +152,7 @@ async def remove_goal_subgoal(session_id: str, index: int) -> dict[str, object]:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to remove subgoal: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to remove subgoal") from e
 
 
 @router.delete("/{session_id}/subgoals")
@@ -175,7 +175,7 @@ async def clear_goal_subgoals(session_id: str) -> dict[str, object]:
         return {"status": "success", "cleared_count": count}
     except Exception as e:
         logger.error(f"Failed to clear subgoals: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to clear subgoals") from e
 
 
 @router.get("/{session_id}/status")
@@ -273,7 +273,8 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Goal action failed: %s", e)
+        raise HTTPException(status_code=500, detail="Goal action failed") from e
 
 
 @router.post("/draft", response_model=GoalDraftResponse)
@@ -329,7 +330,7 @@ async def get_goal_plan(session_id: str) -> dict[str, object]:
         return {"plan": store.to_plan_compat()}
     except Exception as e:
         logger.error("Failed to get goal progress: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to get goal progress") from e
 
 
 @router.post("/{session_id}/budget")
@@ -370,10 +371,8 @@ async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) 
             ),
         }
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.exception("Failed to update goal budget")
+        raise HTTPException(status_code=500, detail="Failed to update goal budget") from e
 
 
 @router.get("/{session_id}/dag")
@@ -414,7 +413,7 @@ async def get_goal_dag(session_id: str) -> dict[str, object]:
         return {"nodes": nodes, "edges": []}
     except Exception as e:
         logger.error("Failed to get goal DAG: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to get goal DAG") from e
 
 
 # ---------------------------------------------------------------------------

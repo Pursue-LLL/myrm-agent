@@ -90,7 +90,8 @@ async def import_archive(request: Request, body: ImportArchiveRequest) -> Import
 
         if proc.returncode != 0:
             err_msg = stderr.decode().strip() if stderr else "Unknown extraction error"
-            raise HTTPException(status_code=500, detail=f"Archive extraction failed: {err_msg}")
+            logger.error("Archive extraction failed (rc=%d): %s", proc.returncode, err_msg)
+            raise HTTPException(status_code=500, detail="Archive extraction failed")
 
         file_count = sum(1 for _ in PERSISTENT_DIR.rglob("*") if _.is_file())
 

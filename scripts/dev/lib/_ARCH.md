@@ -4,6 +4,8 @@
 
 `scripts/dev/` 专用 Bash 辅助。与根级 [scripts/lib/_ARCH.md](../../lib/_ARCH.md) 区分：根 `lib/` 供 `myrm` 主 CLI 使用；本目录供 `dev.sh` / `start.sh` source。
 
+**Chrome E2E 域**（§19.10）已收编至 [chrome_e2e/_ARCH.md](chrome_e2e/_ARCH.md)：`gates/` · `mux/` · orchestrator 门面。
+
 ## 文件清单
 
 | 文件 | 职责 |
@@ -11,6 +13,7 @@
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
 | `frontend-client-warmup.py` | Unix | CDP `Target.createTarget(background=true)` 预热 `:3000/` 直至 `[data-testid="app-layout"]` + `[data-chat-input]`；注册 `infra-browser-targets.json` |
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
+| `chrome_e2e/` | Unix | **§19.10 Chrome E2E 域**：`gates/`（entry · lease · orphan · diagnostic policy）· `mux/diagnostic_recovery.py` |
 | `browser_orchestrator_client.py` | Unix | Browser Orchestrator daemon 的 Python Unix socket JSON-RPC 客户端；session/page lifecycle 操作路由到 daemon |
 | `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`MYRM_BROWSER_ORCHESTRATOR=1` 时条件分发到 daemon client；每 session 稳定 isolated context；page/lease 精确所有权同步到协调器；有界 transport 恢复与 exact-target 清理 |
 | `transport_recovery_core.py` | Unix | **R79 TRSM SSOT**：`solo_full` / `parallel_page_reclaim` / `parallel_local_respawn`；`DEV_GATE_CHROME_MCP_ROADMAP.md` §55 |

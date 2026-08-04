@@ -18,7 +18,7 @@ from app.config.deploy_mode import is_local_mode
 from app.core.types import ModelConfig
 from app.core.utils.errors import handle_llm_exception
 from app.core.utils.response_utils import success_response
-from app.database.standard_responses import StandardSuccessResponse
+from app.schemas.responses import StandardSuccessResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

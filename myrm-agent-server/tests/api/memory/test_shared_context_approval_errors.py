@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.memory.operations.shared_contexts import approve_shared_context_write_proposal
 from app.core.utils.errors import MyrmError
-from app.database.standard_responses import BusinessCode
+from app.schemas.responses import BusinessCode
 from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
 
 

@@ -74,7 +74,7 @@ async def init_database() -> None:
     # an inconsistent state if interrupted mid-sequence.
     # Fail-closed: abort migration if backup fails when manager is available,
     # to prevent destructive DDL without a recovery safety net.
-    from app.database.backup import get_sqlite_backup_manager
+    from app.database.operations.backup import get_sqlite_backup_manager
 
     manager = get_sqlite_backup_manager()
     if manager is not None:
@@ -90,7 +90,7 @@ async def init_database() -> None:
         logger.error("Database migration failed: %s", e)
         raise
 
-    from app.database.legacy_canvas_cleanup import remove_retired_canvas_data_dir
+    from app.database.operations.legacy_canvas_cleanup import remove_retired_canvas_data_dir
 
     remove_retired_canvas_data_dir()
 
