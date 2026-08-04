@@ -251,7 +251,16 @@ class ChromeMcpClient:
         assert session_id is not None
         lease_id = self._acquire_page_lease()
         try:
-            result = client.create_page(session_id, url=url)
+            runtime_binding = self._runtime_binding_source_for(url)
+            if runtime_binding:
+                binding_expression = f"(() => {{{runtime_binding} return true; }})()"
+                result = client.open_page_transaction(
+                    session_id,
+                    url=url,
+                    binding_expression=binding_expression,
+                )
+            else:
+                result = client.open_page_transaction(session_id, url=url)
             page_id = result["pageId"]
             target_id = result["targetId"]
             page = McpPage(
@@ -259,7 +268,7 @@ class ChromeMcpClient:
                 target_id=target_id,
                 lease_id=lease_id,
                 context_id=session_id,
-                url=url,
+                url=result.get("url", url),
             )
             self._pages[page_id] = page
             self._page_lease_heartbeat.track(lease_id)
@@ -523,6 +532,9 @@ class ChromeMcpClient:
             client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
             self._require_daemon_alive(client)
             return
+        from chrome_e2e.gates.entry_guard import assert_chrome_mcp_mux_entry_allowed
+
+        assert_chrome_mcp_mux_entry_allowed()
         process = self._process
         if process is not None and process.poll() is None:
             return
@@ -1346,89 +1358,19 @@ class ChromeMcpClient:
                 self._reclaim_in_progress = False
 
     def _reopen_owned_page_inner(self, page: McpPage) -> McpPage:
-        reclaim_deadline = _reclaim_wall_deadline()
-        reclaim_started = time.monotonic()
-        self._ensure_shim_transport()
-        _check_mux_reclaim_deadline(
-            reclaim_deadline, "reopen_start", started=reclaim_started
-        )
-        reopen_url = (page.url or "http://127.0.0.1:3000").strip()
-        runtime_binding = self._runtime_binding_source_for(reopen_url)
-        old_target_id = page.target_id.strip()
-        if old_target_id and not _http_close_exact_target(old_target_id):
+        if self._use_daemon:
+            from dev_gate_contract import E2E_USER_CLOSED_TAB_TOKEN
+
             raise RuntimeError(
-                f"Chrome MCP reopen failed: could not close previous targetId={old_target_id}"
+                f"{E2E_USER_CLOSED_TAB_TOKEN}: orchestrator path does not reopen tabs "
+                "(external close or transport loss is terminal)"
             )
-        self._pages.pop(page.page_id, None)
-        initial_url = "about:blank" if runtime_binding is not None else reopen_url
-        arguments: dict[str, object] = {"url": initial_url, "timeout": 120_000}
-        if page.context_id is not None:
-            arguments["isolatedContext"] = page.context_id
-        remaining = _remaining_reclaim_sec(reclaim_deadline)
-        _check_mux_reclaim_deadline(
-            reclaim_deadline, "new_page", started=reclaim_started
-        )
-        with browser_operation_credit_slot():
-            result = self.call_tool(
-                "new_page",
-                arguments,
-                timeout_sec=min(
-                    125.0,
-                    self._request_timeout_sec,
-                    remaining,
-                ),
-            )
-        page_id, target_id = parse_new_page(result)
-        lease_id = page.lease_id
-        reopened = McpPage(
-            page_id=page_id,
-            target_id=target_id,
-            lease_id=lease_id,
-            context_id=page.context_id,
-            url=reopen_url,
-        )
-        self._heartbeat_lease(lease_id)
-        try:
-            _check_mux_reclaim_deadline(
-                reclaim_deadline, "bind_lease", started=reclaim_started
-            )
-            self._bind_page_lease(reopened)
-        except RuntimeError as exc:
-            if MUX_RECLAIM_STALL_TOKEN in str(exc):
-                raise
-            if "LEASE_NOT_ACTIVE" not in str(exc):
-                raise
-            self._page_lease_heartbeat.untrack(lease_id)
-            lease_id = self._acquire_page_lease()
-            reopened = McpPage(
-                page_id=page_id,
-                target_id=target_id,
-                lease_id=lease_id,
-                context_id=page.context_id,
-                url=reopen_url,
-            )
-            self._heartbeat_lease(lease_id)
-            _check_mux_reclaim_deadline(
-                reclaim_deadline, "bind_lease_retry", started=reclaim_started
-            )
-            self._bind_page_lease(reopened)
-        self._pages[page_id] = reopened
-        self._page_lease_heartbeat.track(lease_id)
-        if runtime_binding is not None:
-            remaining = _remaining_reclaim_sec(reclaim_deadline)
-            _check_mux_reclaim_deadline(
-                reclaim_deadline, "runtime_bind", started=reclaim_started
-            )
-            self._bind_and_navigate_runtime_page(
-                reopened,
-                reopen_url,
-                runtime_binding,
-                timeout_ms=min(
-                    120_000,
-                    int(max(5_000, remaining * 1000)),
-                ),
-            )
-        return reopened
+        from chrome_e2e.gates.diagnostic_policy import assert_mux_diagnostic_only
+
+        assert_mux_diagnostic_only(operation="page reopen")
+        from chrome_e2e.mux.diagnostic_recovery import reopen_owned_page_inner
+
+        return reopen_owned_page_inner(self, page)
 
     def _call_tool_direct(
         self,
@@ -1646,6 +1588,17 @@ class ChromeMcpClient:
         _respawn_cold_shim_local()
 
     def _recover_mux_transport(self, *, start_generation: int | None = None) -> None:
+        from chrome_e2e.gates.diagnostic_policy import assert_mux_diagnostic_only
+
+        if self._use_daemon:
+            return
+        assert_mux_diagnostic_only(operation="transport recovery")
+        try:
+            from chrome_e2e.gates.orphan_budget import assert_orphan_budget_invariant  # noqa: PLC0415
+
+            assert_orphan_budget_invariant()
+        except ImportError:
+            pass
         if not self._pages and not self._disconnected_pages:
             self._restart_cold_shim()
             return
@@ -1657,81 +1610,12 @@ class ChromeMcpClient:
     def _recover_mux_transport_inner(
         self, *, start_generation: int | None = None
     ) -> None:
-        held_lock = self._acquire_request_lock()
-        try:
-            _LOGGER.warning(
-                "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
-                start_generation,
-                len(self._pages),
-                len(self._disconnected_pages),
-            )
-            reclaim_deadline = _reclaim_wall_deadline()
-            saved_pages = self._collapse_pages_for_recovery(
-                {**self._disconnected_pages, **self._pages}
-            )
-            from transport_recovery_core import (
-                TRSM_MODE_TOKEN,
-                TransportRecoveryMode,
-            )
+        from chrome_e2e.gates.diagnostic_policy import assert_mux_diagnostic_only
 
-            trsm_mode = self._resolve_trsm_mode()
-            peer_count = _parallel_mux_peer_count()
-            _LOGGER.warning(
-                "%s=%s parallel_mux_peers=%d pages=%d",
-                TRSM_MODE_TOKEN,
-                trsm_mode.value,
-                peer_count,
-                len(saved_pages),
-            )
-            if trsm_mode == TransportRecoveryMode.PARALLEL_PAGE_RECLAIM and saved_pages:
-                self._reclaim_pages_parallel_safe(saved_pages, reclaim_deadline)
-                return
-            self._teardown_shim_process()
-            last_error: RuntimeError | None = None
-            for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
-                if (
-                    start_generation is not None
-                    and start_generation != self._request_generation
-                ):
-                    raise RuntimeError(
-                        f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned during "
-                        f"transport recovery (orphan recovery in progress)"
-                    )
-                _check_mux_reclaim_deadline(
-                    reclaim_deadline,
-                    "recover_mux_transport",
-                    started=reclaim_deadline
-                    - float(mux_page_reclaim_hard_timeout_sec()),
-                )
-                try:
-                    self._spawn_shim_process()
-                    self._initialize_shim_session()
-                    break
-                except RuntimeError as exc:
-                    last_error = exc
-                    self._teardown_shim_process()
-                    if attempt + 1 < _TRANSPORT_RECOVER_ATTEMPTS:
-                        time.sleep(
-                            min(
-                                0.75 * (attempt + 1),
-                                _remaining_reclaim_sec(reclaim_deadline),
-                            )
-                        )
-            else:
-                if last_error is not None:
-                    raise last_error
-                _check_mux_reclaim_deadline(
-                    reclaim_deadline,
-                    "recover_mux_transport",
-                    started=reclaim_deadline
-                    - float(mux_page_reclaim_hard_timeout_sec()),
-                )
-                return
-            if not saved_pages:
-                return
-            self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
-        finally:
-            self._release_request_lock(held_lock)
+        assert_mux_diagnostic_only(operation="transport recovery inner")
+        from chrome_e2e.mux.diagnostic_recovery import recover_mux_transport_inner
+
+        recover_mux_transport_inner(self, start_generation=start_generation)
 
     def _rebuild_disconnected_pages(
         self,
@@ -1749,104 +1633,12 @@ class ChromeMcpClient:
         parallel test runtime), the page is immediately closed and the old page
         remains in ``_disconnected_pages`` so callers get a clear error.
         """
-        page_items = list(saved_pages.items())
-        for idx, (old_page_id, old_page) in enumerate(page_items):
-            remaining = _remaining_reclaim_sec(reclaim_deadline)
-            if remaining < 5.0:
-                _LOGGER.warning(
-                    "page rebuild budget exhausted; %d pages remain disconnected",
-                    len(page_items) - idx,
-                )
-                break
-            new_page_id: int | None = None
-            for rebuild_attempt in range(2):
-                remaining = _remaining_reclaim_sec(reclaim_deadline)
-                if remaining < 5.0:
-                    break
-                try:
-                    old_target = old_page.target_id.strip()
-                    if old_target and rebuild_attempt == 0:
-                        _http_close_exact_target(old_target)
-                    reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
-                    runtime_binding = self._runtime_binding_source_for(reopen_url)
-                    initial_url = (
-                        "about:blank" if runtime_binding is not None else reopen_url
-                    )
-                    arguments: dict[str, object] = {
-                        "url": initial_url,
-                        "timeout": 60_000,
-                    }
-                    if old_page.context_id is not None:
-                        arguments["isolatedContext"] = old_page.context_id
-                    with browser_operation_credit_slot():
-                        result = self._call_tool_direct(
-                            "new_page", arguments, timeout_sec=min(65.0, remaining)
-                        )
-                    page_id, target_id = parse_new_page(result)
-                    new_page_id = page_id
-                    self._call_tool_direct(
-                        "evaluate_script",
-                        {
-                            "pageId": page_id,
-                            "function": "async () => document.readyState",
-                        },
-                        timeout_sec=min(10.0, remaining),
-                    )
-                    rebuilt = McpPage(
-                        page_id=page_id,
-                        target_id=target_id,
-                        lease_id=old_page.lease_id,
-                        context_id=old_page.context_id,
-                        url=reopen_url,
-                    )
-                    self._heartbeat_lease(old_page.lease_id)
-                    self._bind_page_lease(rebuilt)
-                    if runtime_binding is not None:
-                        self._bind_and_navigate_runtime_page(
-                            rebuilt,
-                            reopen_url,
-                            runtime_binding,
-                            timeout_ms=min(60_000, int(remaining * 1000)),
-                        )
-                    self._pages[page_id] = rebuilt
-                    self._disconnected_pages.pop(old_page_id, None)
-                    self._page_lease_heartbeat.track(old_page.lease_id)
-                    _LOGGER.info(
-                        "rebuilt page %d→%d (url=%s) after transport recovery",
-                        old_page_id,
-                        page_id,
-                        reopen_url,
-                    )
-                    break
-                except Exception as exc:
-                    if new_page_id is not None:
-                        self._pages.pop(new_page_id, None)
-                        try:
-                            self._call_tool_direct(
-                                "close_page",
-                                {"pageId": new_page_id},
-                                timeout_sec=10.0,
-                            )
-                        except Exception:
-                            pass
-                        new_page_id = None
-                    if rebuild_attempt + 1 >= 2 or not _is_page_ownership_error(
-                        str(exc)
-                    ):
-                        _LOGGER.warning(
-                            "failed to rebuild page %d after transport recovery: %s",
-                            old_page_id,
-                            exc,
-                        )
-                        self._disconnected_pages.pop(old_page_id, None)
-                        break
-                    _LOGGER.warning(
-                        "rebuild page %d ownership probe failed (attempt %d): %s",
-                        old_page_id,
-                        rebuild_attempt + 1,
-                        exc,
-                    )
-                    time.sleep(min(1.0, _remaining_reclaim_sec(reclaim_deadline)))
+        from chrome_e2e.gates.diagnostic_policy import assert_mux_diagnostic_only
+
+        assert_mux_diagnostic_only(operation="page rebuild")
+        from chrome_e2e.mux.diagnostic_recovery import rebuild_disconnected_pages
+
+        rebuild_disconnected_pages(self, saved_pages, reclaim_deadline)
 
     def _reclaim_pages_parallel_safe(
         self,

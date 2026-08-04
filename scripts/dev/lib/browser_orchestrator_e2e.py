@@ -91,10 +91,21 @@ class OrchestratorChromeClient:
 
 
 def _resolve_session_id() -> str:
+    from dev_gate_contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
+    from chrome_e2e.gates.entry_guard import is_e2e_chrome_mcp_diagnostic_mode
+
     run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
     if run_id:
         return run_id
-    return f"orchestrator-e2e-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    agent_id = os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
+    if agent_id:
+        return agent_id
+    if is_e2e_chrome_mcp_diagnostic_mode():
+        return f"orchestrator-diagnostic-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    raise RuntimeError(
+        f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: MYRM_E2E_RUN_ID or "
+        "MYRM_E2E_AGENT_ID required — launch via ./myrm test -m chrome_e2e"
+    )
 
 
 def _monorepo_root() -> Path:
@@ -195,9 +206,38 @@ def open_orchestrator_mcp_page(
         request_timeout_sec=request_timeout_sec,
     )
     try:
-        created = daemon.create_page(session_id, url)
+        binding_source = e2e_runtime_binding_source()
+        if binding_source:
+            binding_expression = f"(() => {{{binding_source} return true; }})()"
+            created = daemon.open_page_transaction(
+                session_id,
+                url=url,
+                binding_expression=binding_expression,
+            )
+        else:
+            api_base = get_e2e_api_url().rstrip("/")
+            if api_base and api_base != "http://127.0.0.1:8080":
+                if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=60.0):
+                    raise RuntimeError(
+                        f"E2E_RUNTIME_BINDING_FAILED: private API not ready: {api_base}"
+                    )
+                inject = e2e_api_base_inject_js(api_base)
+                created = daemon.open_page_transaction(
+                    session_id,
+                    url=url,
+                    binding_expression=f"(() => {{{inject} return true; }})()",
+                )
+            else:
+                created = daemon.open_page_transaction(session_id, url=url)
+        page.page_id = int(created["pageId"])
         page.target_id = str(created["targetId"])
-        page.url = url
+        page.url = str(created.get("url", url))
+        try:
+            from chrome_e2e.gates.orphan_budget import assert_orphan_budget_invariant  # noqa: PLC0415
+
+            assert_orphan_budget_invariant()
+        except ImportError:
+            pass
         yield client, page
     finally:
         daemon.destroy_session(session_id)

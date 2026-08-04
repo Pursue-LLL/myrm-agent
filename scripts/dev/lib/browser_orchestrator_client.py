@@ -48,6 +48,12 @@ class PageResult(TypedDict):
     targetId: str
 
 
+class OpenPageTransactionResult(TypedDict):
+    pageId: int
+    targetId: str
+    url: str
+
+
 class CloseResult(TypedDict):
     closed: bool
 
@@ -82,7 +88,13 @@ class BrowserOrchestratorClient:
 
     def create_session(self, session_id: str) -> SessionResult:
         """Create a new isolated BrowserContext for the given session."""
-        result = self._request("session/create", {"sessionId": session_id})
+        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+
+        lease_id = assert_orchestrator_lease_allowed()
+        params: dict[str, object] = {"sessionId": session_id}
+        if lease_id:
+            params["leaseId"] = lease_id
+        result = self._request("session/create", params)
         return SessionResult(contextId=result["contextId"])
 
     def destroy_session(self, session_id: str) -> CleanupSealResult:
@@ -98,8 +110,37 @@ class BrowserOrchestratorClient:
 
     def create_page(self, session_id: str, url: str = "") -> PageResult:
         """Create a new page in the session's BrowserContext."""
-        result = self._request("page/create", {"sessionId": session_id, "url": url})
+        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+
+        lease_id = assert_orchestrator_lease_allowed()
+        params: dict[str, object] = {"sessionId": session_id, "url": url}
+        if lease_id:
+            params["leaseId"] = lease_id
+        result = self._request("page/create", params)
         return PageResult(pageId=result["pageId"], targetId=result["targetId"])
+
+    def open_page_transaction(
+        self,
+        session_id: str,
+        *,
+        url: str,
+        binding_expression: str | None = None,
+    ) -> OpenPageTransactionResult:
+        """Atomically open a page: background create → optional inject → navigate."""
+        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+
+        lease_id = assert_orchestrator_lease_allowed()
+        params: dict[str, object] = {"sessionId": session_id, "url": url}
+        if lease_id:
+            params["leaseId"] = lease_id
+        if binding_expression is not None:
+            params["bindingExpression"] = binding_expression
+        result = self._request("page/openTransaction", params)
+        return OpenPageTransactionResult(
+            pageId=int(result["pageId"]),
+            targetId=str(result["targetId"]),
+            url=str(result.get("url", url)),
+        )
 
     def close_page(self, session_id: str, target_id: str) -> CloseResult:
         """Close a specific page by target ID."""
