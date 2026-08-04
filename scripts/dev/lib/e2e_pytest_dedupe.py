@@ -78,26 +78,134 @@ def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(normalized)
 
 
-def file_batch_key(argv: tuple[str, ...]) -> str | None:
-    """Normalized tests/e2e/*.py path when invoked as whole-file batch (no ::node)."""
+def e2e_file_scope_key(argv: tuple[str, ...]) -> str | None:
+    """Normalized tests/e2e/*.py for any chrome_e2e invocation (whole-file or ::node)."""
     joined = " ".join(_normalize_argv(argv))
-    if "::" in joined:
+    if "-m" not in joined or "chrome_e2e" not in joined:
         return None
     import re
 
-    match = re.search(r"((?:myrm-agent/myrm-agent-server/)?tests/e2e/[^\s]+\.py)", joined)
+    match = re.search(
+        r"((?:myrm-agent/myrm-agent-server/)?tests/e2e/[^\s:]+\.py)",
+        joined,
+    )
     if match is None:
         return None
     path = match.group(1)
     if path.startswith("myrm-agent/myrm-agent-server/"):
         path = path.removeprefix("myrm-agent/myrm-agent-server/")
-    if "-m" not in joined or "chrome_e2e" not in joined:
-        return None
     return path
+
+
+def file_batch_key(argv: tuple[str, ...]) -> str | None:
+    """Normalized tests/e2e/*.py path when invoked as whole-file batch (no ::node)."""
+    if "::" in " ".join(_normalize_argv(argv)):
+        return None
+    return e2e_file_scope_key(argv)
 
 
 def _file_batch_root() -> Path:
     return _dev_state_dir() / "pytest-chrome-e2e-file-batch"
+
+
+def _file_scope_bootstrap_stall_sec() -> float:
+    """Max bootstrap-only hold before file-scope lock is reapable (R276)."""
+    return 180.0
+
+
+def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
+    """True when holder's process tree includes a pytest invocation."""
+    try:
+        import subprocess
+
+        proc = subprocess.run(
+            ["pgrep", "-P", str(holder_pid)],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+        child_pids = [
+            int(token)
+            for token in proc.stdout.split()
+            if token.strip().isdigit()
+        ]
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        child_pids = []
+    stack = list(child_pids)
+    seen: set[int] = set()
+    while stack:
+        pid = stack.pop()
+        if pid in seen or pid <= 0:
+            continue
+        seen.add(pid)
+        try:
+            cmd = subprocess.run(
+                ["ps", "-o", "command=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        command = cmd.stdout.strip()
+        if "pytest" in command and "chrome_e2e" in command:
+            return True
+        try:
+            child_proc = subprocess.run(
+                ["pgrep", "-P", str(pid)],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            stack.extend(
+                int(token)
+                for token in child_proc.stdout.split()
+                if token.strip().isdigit()
+            )
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            continue
+    return False
+
+
+def _file_scope_record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
+    if _record_is_stale(record, now=now):
+        return True
+    holder_pid = record.get("holderPid")
+    if not isinstance(holder_pid, int) or not _pid_alive(holder_pid):
+        return True
+    acquired_at = record.get("acquiredAt")
+    if not isinstance(acquired_at, (int, float)):
+        return True
+    held_sec = now - float(acquired_at)
+    if held_sec <= _file_scope_bootstrap_stall_sec():
+        return False
+    if _holder_process_tree_has_pytest(holder_pid):
+        return False
+    return True
+
+
+def _prune_stale_file_batch_records(root: Path) -> None:
+    if not root.is_dir():
+        return
+    now = time.time()
+    for path in root.glob("*.json"):
+        if path.name == ".claim.lock":
+            continue
+        record = _load_record(path)
+        if record is None:
+            path.unlink(missing_ok=True)
+            continue
+        if _file_scope_record_is_stale(record, now=now):
+            stale_pid = record.get("holderPid")
+            print(
+                f"E2E_FILE_SCOPE_DEDUPE_REAP: scope_key={record.get('fingerprint')} "
+                f"holder_pid={stale_pid} reason=bootstrap_stall",
+                file=sys.stderr,
+            )
+            path.unlink(missing_ok=True)
 
 
 def _file_batch_record_path(batch_key: str) -> Path:
@@ -105,10 +213,13 @@ def _file_batch_record_path(batch_key: str) -> Path:
     return _file_batch_root() / f"{digest}.json"
 
 
-def find_file_batch_duplicate(batch_key: str, *, exclude_pids: tuple[int, ...] = ()) -> int | None:
+def find_file_batch_duplicate(
+    batch_key: str, *, exclude_pids: tuple[int, ...] = ()
+) -> int | None:
     root = _file_batch_root()
     if not batch_key.strip():
         return None
+    _prune_stale_file_batch_records(root)
     path = _file_batch_record_path(batch_key)
     record = _load_record(path)
     if record is None:
@@ -127,6 +238,13 @@ def find_file_batch_duplicate(batch_key: str, *, exclude_pids: tuple[int, ...] =
         path.unlink(missing_ok=True)
         return None
     return holder_pid
+
+
+def find_file_scope_duplicate(
+    scope_key: str, *, exclude_pids: tuple[int, ...] = ()
+) -> int | None:
+    """Return live holder pid for the same tests/e2e/*.py scope, if any."""
+    return find_file_batch_duplicate(scope_key, exclude_pids=exclude_pids)
 
 
 def fingerprint_argv(argv: tuple[str, ...]) -> str:
@@ -273,22 +391,30 @@ def acquire_session_lock(
         )
         raise SystemExit(2)
     batch_key = file_batch_key(argv)
+    scope_key = e2e_file_scope_key(argv)
+    execution_mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
+    if execution_mode == "SHARED":
+        # P1: SHARED logical sessions must not whole-file dedupe block peers.
+        scope_key = None
+        batch_key = None
     batch_flock_handle = None
-    if batch_key is not None:
+    lock_key = scope_key or batch_key
+    if lock_key is not None:
         batch_root = _file_batch_root()
         batch_root.mkdir(parents=True, exist_ok=True)
         batch_flock_handle = open(batch_root / ".claim.lock", "a+", encoding="utf-8")
         fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_EX)
-        batch_duplicate = find_file_batch_duplicate(
-            batch_key, exclude_pids=(resolved_pid, os.getppid())
+        scope_duplicate = find_file_scope_duplicate(
+            lock_key, exclude_pids=(resolved_pid, os.getppid())
         )
-        if batch_duplicate is not None:
+        if scope_duplicate is not None:
             fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_UN)
             batch_flock_handle.close()
             print(
-                f"E2E_FILE_BATCH_DEDUPE_DENIED: batch_key={batch_key} "
-                f"holder_pid={batch_duplicate} — "
-                "whole-file chrome_e2e already running; use path::test_name or wait",
+                f"E2E_FILE_SCOPE_DEDUPE_DENIED: scope_key={lock_key} "
+                f"holder_pid={scope_duplicate} — "
+                "another chrome_e2e run targets the same e2e file; "
+                "wait for it to finish (do not launch whole-file and ::node in parallel)",
                 file=sys.stderr,
             )
             raise SystemExit(2)
@@ -309,16 +435,16 @@ def acquire_session_lock(
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(path)
-        if batch_key is not None:
+        if lock_key is not None:
             batch_record: _DedupeRecord = {
-                "fingerprint": batch_key,
+                "fingerprint": lock_key,
                 "holderPid": resolved_pid,
                 "parentPid": os.getppid(),
                 "argv": list(_normalize_argv(argv)),
                 "acquiredAt": now,
                 "heartbeatAt": now,
             }
-            batch_path = _file_batch_record_path(batch_key)
+            batch_path = _file_batch_record_path(lock_key)
             batch_tmp = batch_path.with_suffix(".json.tmp")
             batch_tmp.write_text(
                 json.dumps(batch_record, indent=2, sort_keys=True), encoding="utf-8"
