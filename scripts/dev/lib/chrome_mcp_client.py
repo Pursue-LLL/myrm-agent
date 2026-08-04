@@ -176,8 +176,31 @@ class ChromeMcpClient:
         )
         self._daemon_client: BrowserOrchestratorClient | None = None
         self._daemon_session_id: str | None = None
+        self._unpublished_target_ids: set[str] = set()
 
-    def _request_lock_is_held(self) -> bool:
+    def _track_unpublished_target(self, target_id: str) -> None:
+        tid = target_id.strip()
+        if tid:
+            self._unpublished_target_ids.add(tid)
+
+    def _commit_unpublished_target(self, target_id: str) -> None:
+        self._unpublished_target_ids.discard(target_id.strip())
+
+    def _abort_unpublished_targets(self, *, keep: frozenset[str] = frozenset()) -> None:
+        if not self._unpublished_target_ids:
+            return
+        from page_create_transaction import close_exact_unpublished_targets  # noqa: PLC0415
+
+        closed, failed = close_exact_unpublished_targets(
+            self._unpublished_target_ids,
+            keep=keep,
+        )
+        if closed or failed:
+            print(
+                f"PAGE_CREATE_ABORT: closed={closed} failed={failed} "
+                f"remaining={len(self._unpublished_target_ids)}",
+                flush=True,
+            )
         return self._request_lock.locked()
 
     def _require_daemon_alive(self, client: BrowserOrchestratorClient) -> None:
@@ -507,6 +530,7 @@ class ChromeMcpClient:
 
     def close(self) -> None:
         errors: list[Exception] = []
+        self._abort_unpublished_targets()
         if self._request_lock_is_held():
             _LOGGER.warning(
                 "Chrome MCP close detected held request lock; abandon in-flight requests first"
@@ -717,7 +741,11 @@ class ChromeMcpClient:
                         open_page_budget_active=True
                     )
                 mux_attach_restarted = False
+                last_parsed_target_id = ""
                 for parse_attempt in range(parse_attempts):
+                    if parse_attempt > 0 and last_parsed_target_id:
+                        self._abort_unpublished_targets()
+                        last_parsed_target_id = ""
                     self._check_tool_wall_deadline("new_page")
                     try:
                         new_page_result = self.call_tool(
@@ -728,6 +756,8 @@ class ChromeMcpClient:
                             ),
                         )
                         page_id, target_id = parse_new_page(new_page_result)
+                        last_parsed_target_id = target_id
+                        self._track_unpublished_target(target_id)
                         break
                     except (RuntimeError, TimeoutError) as exc:
                         if not _is_retryable_new_page_parse_exc(exc, new_page_result):
@@ -804,12 +834,14 @@ class ChromeMcpClient:
                         )
                     except (RuntimeError, TimeoutError):
                         _http_close_exact_target(page.target_id)
+                    self._commit_unpublished_target(page.target_id)
                     self._release_lease(lease_id, close_wave_if_idle=False)
                     raise RuntimeError(
                         "E2E_OWNERSHIP_REGISTER_FAILED: "
                         f"page={page_id} target={page.target_id} "
                         "compensating deletion executed"
                     )
+                self._commit_unpublished_target(page.target_id)
                 self._cold_shim_recover_streak = 0
                 self._page_lease_heartbeat.track(lease_id)
                 if runtime_binding is not None:
@@ -822,6 +854,7 @@ class ChromeMcpClient:
                 return page
             except Exception as exc:
                 cleanup_errors: list[str] = []
+                keep_target = frozenset({page.target_id.strip()}) if page is not None else frozenset()
                 if page is not None:
                     try:
                         self.call_tool(
@@ -843,6 +876,8 @@ class ChromeMcpClient:
                                 for item in cleanup_errors
                                 if not item.startswith("close_page:")
                             ]
+                    self._commit_unpublished_target(page.target_id)
+                self._abort_unpublished_targets(keep=keep_target)
                 try:
                     self._release_lease(lease_id, close_wave_if_idle=False)
                 except (RuntimeError, TimeoutError) as cleanup_exc:
@@ -1861,6 +1896,7 @@ class ChromeMcpClient:
 
     def abandon_inflight_requests(self, *, cdp_drift: bool = False) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
+        self._abort_unpublished_targets()
         _LOGGER.warning(
             "ABANDON_INFLIGHT: gen=%d→%d",
             self._request_generation,
