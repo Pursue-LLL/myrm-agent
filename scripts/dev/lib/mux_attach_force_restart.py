@@ -27,7 +27,7 @@ def _parallel_load_blocks_attach_restart() -> bool:
         from mux_load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
-        if load.mux_contexts >= 2:
+        if load.mux_contexts >= 3:
             return True
     except (ImportError, OSError, TypeError, ValueError):
         pass
