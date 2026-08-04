@@ -332,7 +332,47 @@ print(attach_parallel_wait_sec(${active_leases}, base=${base}))
   echo "${scaled}"
 }
 
+_attach_epoch_pin_fast_path() {
+  # P0-DGR-6: pinned verify-api must not wait monotonic shared-hot BOOTSTRAP (578s+).
+  if [[ "${MYRM_E2E_EPOCH_PIN:-0}" != "1" ]]; then
+    return 1
+  fi
+  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local pin_api="${E2E_API_BASE:-${API_BASE}}"
+  local health="" waited=0 poll_sec wait_sec
+  poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
+  wait_sec="${MYRM_E2E_EPOCH_PIN_ATTACH_WAIT_SEC:-90}"
+  [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  [[ "${wait_sec}" =~ ^[0-9]+$ && "${wait_sec}" -gt 0 ]] || wait_sec=90
+  echo "CHROME_E2E_ATTACH: epoch pin fast path api=${pin_api} wait≤${wait_sec}s (skip shared-hot monotonic BOOTSTRAP)" >&2
+  while [[ "${waited}" -lt "${wait_sec}" ]]; do
+    if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
+      --auto-probe \
+      --auto-hot \
+      --ui "${UI_BASE}" \
+      --api "${pin_api}" \
+      --attach-mode \
+      --require-attach-ready 2>&1)"; then
+      echo "CHROME_E2E_READY ui=${UI_BASE} api=${pin_api} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+      echo "${health}"
+      return 0
+    fi
+    if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
+      echo "CHROME_E2E_WAIT: epoch pin attach ${waited}s remaining=$((wait_sec - waited))s" >&2
+    fi
+    _admit_poll_touch "CHROME_E2E_EPOCH_PIN_ATTACH"
+    _admit_poll_budget_or_fail "CHROME_E2E_EPOCH_PIN_ATTACH" || return 1
+    sleep "${poll_sec}"
+    waited=$((waited + poll_sec))
+  done
+  echo "${health}" >&2
+  fail "epoch pin attach did not become ready within ${wait_sec}s — run ./myrm verify-api --ensure-backend"
+}
+
 _attach_fast_path() {
+  if _attach_epoch_pin_fast_path; then
+    return 0
+  fi
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
   local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
   local wait_sec poll_sec active_leases errors require_ready
@@ -1328,19 +1368,28 @@ fi
 export_myrm_next_dist_dir
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 
-_run_idle_tab_prune_if_safe() {
-  local py="${SCRIPT_DIR}/../myrm-agent-server/.venv/bin/python"
-  if [[ ! -x "${py}" ]]; then
-    py="python3"
+# TAB-5: idle blank prune SSOT is coordinator IdleHygieneScheduler (reap/finish/teardown).
+# Preflight must not run parallel prune hooks — they raced BODY leases and masked orphan storms.
+
+if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
+  orchestrator_ensure="${MONOREPO_ROOT}/scripts/dev/ensure-browser-orchestrator.sh"
+  if [[ -f "${orchestrator_ensure}" ]]; then
+    bash "${orchestrator_ensure}" || fail "browser-orchestrator daemon required for chrome_e2e (RPC-only TabCreateTransaction)"
   fi
-  PYTHONPATH="${SCRIPT_DIR}/lib:${MONOREPO_ROOT:-}/scripts/dev/lib" \
-    "${py}" "${SCRIPT_DIR}/lib/idle_tab_hygiene.py" 2>&1 || true
-}
+  if [[ "${MYRM_CHROME_E2E_ATTACH:-}" != "1" ]] && declare -f _mux_daemon_count >/dev/null 2>&1; then
+    mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
+    if [[ "${mux_count}" != "1" ]]; then
+      _restart_mux_safely "orchestrator preflight: expected one mux daemon, found ${mux_count}"
+      sleep 1
+      mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
+      [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm ready --chrome"
+    fi
+  fi
+fi
 
 health_attempt=0
 while [[ "${health_attempt}" -lt 3 ]]; do
   if _print_e2e_health_json 1; then
-    _run_idle_tab_prune_if_safe
     exit 0
   fi
   health_attempt=$((health_attempt + 1))

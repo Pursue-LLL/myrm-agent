@@ -54,8 +54,8 @@ def evaluate_epoch_pin_eligibility(
         return EpochPinEligibility(False, "execution_mode_not_shared")
     if scope != "NAMESPACE_WRITE":
         return EpochPinEligibility(False, "access_scope_not_namespace_write")
-    if load != "LIVE":
-        return EpochPinEligibility(False, "workload_not_live")
+    if load not in ("LIVE", "STANDARD"):
+        return EpochPinEligibility(False, "workload_not_pin_eligible")
     return EpochPinEligibility(True, "eligible")
 
 
