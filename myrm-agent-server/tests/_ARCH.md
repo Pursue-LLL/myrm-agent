@@ -71,6 +71,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
 | `e2e/test_file_write_empty_chrome_e2e.py` | 模块 | Empty file_write Chrome E2E（READ×2 SHPOIB：`seed-file-mutation-fixture?variant=empty_write` → FileMutationWarning 横幅 + `reload_mcp_page()` metadata 持久；LIVE×1：`test_file_write_empty_live_agent_webui` — 真实 LLM `file_write_tool(content='')` + mutation failure 横幅 + **磁盘无文件**；`@e2e_search_policy("empty")` + `seed-file-edit-batch-workspace` sandbox；**solo 签收** ~618s） |
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
+| `api/chats/test_workspace_merge_seed_fixture.py` | 模块 | HTTP：workspace-merge seed `batch_merge_fail` → persisted `metadata.workspaceMergeFailures` |
+| `e2e/test_workspace_merge_chrome_e2e.py` | 模块 | Chrome READ×2 SHPOIB：seed workspace merge fixture → WorkspaceMergeWarning + reload hydrate |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` / `workspace_merge_failed` → `extra_data.fileMutationFailures` / `workspaceMergeFailures` |
 | `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry |
 | `api/agent/test_reconnect_integration.py` | 模块 | ASGI Last-Event-ID 重连 + early busy 第二 turn 不双写 user row（mock agent） |

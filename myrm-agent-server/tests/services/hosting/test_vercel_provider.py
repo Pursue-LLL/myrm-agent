@@ -64,7 +64,7 @@ async def test_vercel_publish_handles_deploy_exception() -> None:
         )
 
     assert result.success is False
-    assert "deploy boom" in result.error
+    assert result.error == "Vercel deployment failed"
 
 
 @pytest.mark.asyncio
