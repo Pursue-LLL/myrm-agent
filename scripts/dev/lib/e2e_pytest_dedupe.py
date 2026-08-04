@@ -84,10 +84,12 @@ def file_batch_key(argv: tuple[str, ...]) -> str | None:
         return None
     import re
 
-    match = re.search(r"(tests/e2e/[^\s]+\.py)", joined)
+    match = re.search(r"((?:myrm-agent/myrm-agent-server/)?tests/e2e/[^\s]+\.py)", joined)
     if match is None:
         return None
     path = match.group(1)
+    if path.startswith("myrm-agent/myrm-agent-server/"):
+        path = path.removeprefix("myrm-agent/myrm-agent-server/")
     if "-m" not in joined or "chrome_e2e" not in joined:
         return None
     return path
