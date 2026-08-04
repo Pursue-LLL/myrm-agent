@@ -243,11 +243,12 @@ def _assert_variant_ui(
 
 
 def _run_single_variant_ui_assertions(
-    api_url: str, ui_url: str, *, variant: str
+    api_url: str, ui_url: str, *, variant: str, *, warm_route: bool = True
 ) -> None:
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
-    warm_ui_route(f"/{chat_id}")
+    if warm_route:
+        warm_ui_route(f"/{chat_id}")
 
     with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
@@ -269,7 +270,9 @@ def test_guardrail_bash_progress_step_and_safety_badge_render(variant: str) -> N
     last_error: BaseException | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            _run_single_variant_ui_assertions(api_url, ui_url, variant=variant)
+            _run_single_variant_ui_assertions(
+                api_url, ui_url, variant=variant, warm_route=(attempt == 1)
+            )
             return
         except Exception as exc:
             last_error = exc
