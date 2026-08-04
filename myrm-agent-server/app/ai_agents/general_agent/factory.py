@@ -841,8 +841,8 @@ async def build_general_agent(
     # PTC dependency auto-injection: MCP/PTC skills require bash + file_read
     from app.services.agent.tool_mount import apply_ptc_meta_mount
 
-    effective_enable_file, effective_enable_shell = apply_ptc_meta_mount(
-        agent_wrapper.enable_file_ops,
+    effective_file_access, effective_enable_shell = apply_ptc_meta_mount(
+        agent_wrapper.file_access_mode,
         agent_wrapper.enable_shell_tools,
         has_mcp=bool(agent_wrapper.mcp_config),
     )
@@ -918,8 +918,7 @@ async def build_general_agent(
         wiki_scope_id=agent_wrapper.agent_id,
         similarity_checker=sim_checker,
         model_resolver=subagent_model_resolver,
-        enable_file_tools=effective_enable_file,
-        enable_evicted_read=agent_wrapper.enable_evicted_read,
+        file_access_mode=effective_file_access,
         enable_shell_tools=effective_enable_shell,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,

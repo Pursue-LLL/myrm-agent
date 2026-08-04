@@ -16,7 +16,7 @@ Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.
 | Track | When | CORE file/bash | Primary SSOT |
 | --- | --- | --- | --- |
 | **General** | Default saved agent; Web non-fast; **Channel/IM**; Cron/Kanban | On | `tool_mount.resolve_agent_mount` → harness `get_meta_tools` |
-| **Search/Fast** | Web chat `action_mode=fast` only | UECD read-only (`enable_evicted_read`) | `params/converter.py` + `tool_mount.resolve_agent_mount(WEB_FAST)` |
+| **Search/Fast** | Web chat `action_mode=fast` only | UECD read-only (`FileAccessMode.SPILL_AND_UPLOADS`) | `params/converter.py` + `tool_mount.resolve_agent_mount(WEB_FAST)` |
 | **Cron narrow** | Job `tools_allowed` without baseline | Optional off | `core/cron/adapters/tools_policy.py` |
 
 Design notes:

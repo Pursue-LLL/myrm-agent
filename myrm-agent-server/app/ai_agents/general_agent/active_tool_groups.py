@@ -18,6 +18,8 @@ Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed t
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+
 from types import SimpleNamespace
 from typing import Protocol
 
@@ -25,7 +27,7 @@ from typing import Protocol
 class ActiveToolGroupSource(Protocol):
     enable_web_search: bool
     enable_browser: bool
-    enable_file_ops: bool
+    file_access_mode: FileAccessMode
     enable_shell_tools: bool
     enable_computer_use: bool
     enable_memory: bool
@@ -74,7 +76,7 @@ def derive_active_tool_groups(
     flag_to_group: list[tuple[str, bool]] = [
         ("web", agent.enable_web_search),
         ("browser", agent.enable_browser),
-        ("file_ops", agent.enable_file_ops),
+        ("file_ops", agent.file_access_mode == FileAccessMode.FULL),
         ("shell", agent.enable_shell_tools),
         ("computer_use", agent.enable_computer_use),
         ("memory", agent.enable_memory and not agent.incognito_mode),
@@ -104,7 +106,7 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
     adapter = SimpleNamespace(
         enable_web_search=bool(getattr(params, "enable_web_search", False)),
         enable_browser=bool(getattr(params, "enable_browser", False)),
-        enable_file_ops=bool(getattr(params, "enable_file_ops", True)),
+        file_access_mode=getattr(params, "file_access_mode", FileAccessMode.FULL),
         enable_shell_tools=bool(getattr(params, "enable_shell_tools", True)),
         enable_computer_use=bool(getattr(params, "enable_computer_use", False)),
         enable_memory=bool(getattr(params, "enable_memory", True)),

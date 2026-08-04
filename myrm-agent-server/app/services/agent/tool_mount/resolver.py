@@ -5,18 +5,20 @@
 - surfaces.ExecutionSurface (POS: product entry surface)
 
 [OUTPUT]
-- resolve_agent_mount: surface + profile flags → meta mount flags (incl. enable_evicted_read on WEB_FAST)
+- resolve_agent_mount: surface + profile flags → meta mount flags (FileAccessMode on WEB_FAST)
 - apply_ptc_meta_mount: MCP PTC dependency injection at factory time
 
 [POS]
 Server product-layer SSOT for when file/shell meta tools mount. Harness get_meta_tools
-assembles tools; this module decides enable_file_ops / enable_shell_tools per entry.
+assembles tools; this module decides FileAccessMode / shell per entry.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 
 from app.services.agent.tool_mount.surfaces import ExecutionSurface
 
@@ -42,62 +44,64 @@ def resolve_agent_mount(
     if surface == ExecutionSurface.WEB_FAST:
         return _with_meta_mount(
             profile_flags,
-            enable_file_ops=False,
+            file_access_mode=FileAccessMode.SPILL_AND_UPLOADS,
             enable_shell_tools=False,
-            enable_evicted_read=True,
         )
 
     if surface == ExecutionSurface.CRON and cron_job_tools_allowed is not None:
         return profile_flags
 
     return _with_meta_mount(
-        profile_flags, enable_file_ops=True, enable_shell_tools=True
+        profile_flags,
+        file_access_mode=FileAccessMode.FULL,
+        enable_shell_tools=True,
     )
 
 
 def apply_ptc_meta_mount(
-    enable_file_ops: bool,
+    file_access_mode: FileAccessMode,
     enable_shell_tools: bool,
     *,
     has_mcp: bool,
-) -> tuple[bool, bool]:
+) -> tuple[FileAccessMode, bool]:
     """PTC dependency injection at factory time.
 
     MCP/PTC skills require file + shell. Never override an explicit shell-off
     mount (Fast track or Cron ``tools_allowed`` without ``code_execute``).
     """
     if not has_mcp or not enable_shell_tools:
-        return enable_file_ops, enable_shell_tools
+        return file_access_mode, enable_shell_tools
 
-    if enable_file_ops and enable_shell_tools:
-        return enable_file_ops, enable_shell_tools
+    if file_access_mode == FileAccessMode.FULL and enable_shell_tools:
+        return file_access_mode, enable_shell_tools
 
     logger.info(
-        "PTC auto-inject: forcing file_tools=True, shell_tools=True (MCP skills present)"
+        "PTC auto-inject: forcing file_access_mode=FULL, shell_tools=True (MCP skills present)"
     )
-    return True, True
+    return FileAccessMode.FULL, True
 
 
 def _with_meta_mount(
     flags: BuiltinToolFlags,
     *,
-    enable_file_ops: bool,
-    enable_shell_tools: bool,
-    enable_evicted_read: bool | None = None,
+    file_access_mode: FileAccessMode | None = None,
+    enable_shell_tools: bool | None = None,
 ) -> BuiltinToolFlags:
     from app.services.agent.profile_resolver import BuiltinToolFlags
 
-    resolved_evicted_read = (
-        flags["enable_evicted_read"]
-        if enable_evicted_read is None
-        else enable_evicted_read
+    resolved_file_access = (
+        file_access_mode if file_access_mode is not None else flags["file_access_mode"]
+    )
+    resolved_shell = (
+        enable_shell_tools
+        if enable_shell_tools is not None
+        else flags["enable_shell_tools"]
     )
     return BuiltinToolFlags(
         enable_browser=flags["enable_browser"],
         enable_computer_use=flags["enable_computer_use"],
-        enable_file_ops=enable_file_ops,
-        enable_evicted_read=resolved_evicted_read,
-        enable_shell_tools=enable_shell_tools,
+        file_access_mode=resolved_file_access,
+        enable_shell_tools=resolved_shell,
         enable_wiki=flags["enable_wiki"],
         enable_kanban=flags["enable_kanban"],
         enable_cron_eager=flags["enable_cron_eager"],

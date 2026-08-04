@@ -274,7 +274,7 @@ async def fetch_platform_audit_logs(*, limit: int = 100) -> PlatformAuditLogsRes
     try:
         events = read_auth_audit_events()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Failed to read audit logs") from exc
 
     mapped = _map_auth_events(events, limit=limit)
     return PlatformAuditLogsResponse(events=mapped, total=len(mapped), is_live=True)
@@ -298,7 +298,7 @@ async def fetch_platform_audit_stats(*, hours: int = 24) -> PlatformAuditStatsRe
     try:
         events = read_auth_audit_events()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Failed to read audit logs") from exc
 
     return _build_auth_stats(events, hours=hours)
 

@@ -66,7 +66,7 @@ class VercelHostingProvider:
                 publication_id="",
                 project_ref=existing_project_ref or "",
                 status="ERROR",
-                error=str(exc),
+                error="Vercel deployment failed",
             )
         return PublicationResult(
             success=True,

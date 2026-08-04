@@ -26,6 +26,24 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.WORKSPACE_MERGE_FAILED) {
+    const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+    if (messageIndex !== -1 && data.data?.errors) {
+      actions.setMessages((s) => {
+        s.messages[messageIndex].workspaceMergeFailures = data.data.errors;
+        const failedCount = data.data.failed_count;
+        if (typeof failedCount === 'number' && failedCount > 0) {
+          s.messages[messageIndex].workspaceMergeFailedCount = failedCount;
+        }
+        const truncated = data.data.truncated;
+        if (typeof truncated === 'number' && truncated > 0) {
+          s.messages[messageIndex].workspaceMergeTruncated = truncated;
+        }
+      });
+    }
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.MESSAGE_END) {
     if (data.goal_status) {
       const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');

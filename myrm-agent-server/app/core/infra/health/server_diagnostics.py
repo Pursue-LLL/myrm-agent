@@ -61,7 +61,7 @@ class DLQDiagnostic(DiagnosticProtocol):
                 status="warn",
                 code="ERR_DLQ_CHECK_FAILED",
                 message="Message delivery check encountered an error.",
-                detail=f"DLQ health check error: {e}",
+                detail="DLQ health check error",
             )
 
 

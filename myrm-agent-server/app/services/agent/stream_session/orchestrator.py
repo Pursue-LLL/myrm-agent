@@ -68,6 +68,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     record_turn_capability_send_failed,
 )
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+from app.services.chat.compact_service import CompactResult
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,23 @@ async def run_agent_stream(
         )
         if busy_error is not None:
             return agent_busy_streaming_response(request.message_id)
+
+        pre_reply_compact_result: CompactResult | None = None
+        if request.resume_value is None and request.chat_id:
+            from app.services.chat.stale_compact_gate import run_pre_reply_stale_compact_gate
+
+            try:
+                pre_reply_compact_result = await run_pre_reply_stale_compact_gate(
+                    request.chat_id,
+                    agent_id=request.agent_id,
+                    request_engine_params=request.engine_params,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Pre-reply stale compact gate failed for chat %s: %s",
+                    request.chat_id,
+                    exc,
+                )
 
         chat_history = await persist_user_message_and_load_history(
             request,
@@ -464,6 +482,7 @@ async def run_agent_stream(
             entitlement_preflight_text=(
                 text_content if request.resume_value is None else None
             ),
+            pre_reply_compact_result=pre_reply_compact_result,
         )
         session.monitor = CancellationMonitor(
             token=cancel_token,

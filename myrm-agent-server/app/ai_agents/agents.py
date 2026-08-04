@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -120,8 +121,7 @@ class GeneralAgentParams(BaseAgentParams):
     dialog_policy: str | None = None
     session_recording: str | None = None
     enable_computer_use: bool = False
-    enable_file_ops: bool = True
-    enable_evicted_read: bool = False
+    file_access_mode: FileAccessMode = FileAccessMode.FULL
     enable_shell_tools: bool = True
     enable_wiki: bool = False
     enable_kanban: bool = False
@@ -294,8 +294,7 @@ class AgentFactory:
             dialog_policy=params.dialog_policy,
             session_recording=params.session_recording,
             enable_computer_use=params.enable_computer_use,
-            enable_file_ops=params.enable_file_ops,
-            enable_evicted_read=params.enable_evicted_read,
+            file_access_mode=params.file_access_mode,
             enable_shell_tools=params.enable_shell_tools,
             enable_wiki=params.enable_wiki,
             enable_kanban=params.enable_kanban,

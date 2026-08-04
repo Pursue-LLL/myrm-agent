@@ -31,6 +31,10 @@ async def test_persist_and_load_history_commits_chat() -> None:
             new_callable=AsyncMock,
         ) as mock_get_chat,
         patch(
+            "app.services.chat.stale_compact_gate.run_pre_reply_stale_compact_gate",
+            new_callable=AsyncMock,
+        ) as mock_stale_gate,
+        patch(
             "app.services.chat.chat_service.ChatService.append_message",
             new_callable=AsyncMock,
         ) as mock_append,
@@ -54,10 +58,15 @@ async def test_persist_and_load_history_commits_chat() -> None:
             "Hello",
             created,
             "UTC",
+            agent_id="agent-telegram",
         )
 
     assert chat_id == "chat-1"
     assert history == [history_entry]
+    mock_stale_gate.assert_awaited_once_with(
+        "chat-1",
+        agent_id="agent-telegram",
+    )
     mock_append.assert_awaited_once()
     mock_session.commit.assert_awaited_once()
 

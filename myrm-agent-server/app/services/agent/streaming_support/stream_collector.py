@@ -12,7 +12,7 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
 HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
-file mutation failures (`fileMutationFailures`), council phase progress (`councilPhases`),
+file mutation failures (`fileMutationFailures`), workspace merge failures (`workspaceMergeFailures`, `workspaceMergeFailedCount`, `workspaceMergeTruncated`), council phase progress (`councilPhases`),
 and reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`).
 
 [POS]
@@ -35,6 +35,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_directory_request_required,
     collect_cron_job_result,
     collect_file_mutation_failures,
+    collect_workspace_merge_failures,
     collect_kanban_task_created,
     collect_plan_confirmation_status,
     deep_merge_ui_data,
@@ -363,6 +364,9 @@ class StreamContentCollector:
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._file_mutation_failures: list[dict[str, object]] = []
+        self._workspace_merge_failures: list[dict[str, object]] = []
+        self._workspace_merge_failed_count: int | None = None
+        self._workspace_merge_truncated: int | None = None
         self._council_phases: list[dict[str, object]] = []
         self._pending_evicted: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
@@ -579,6 +583,15 @@ class StreamContentCollector:
             self._sources.extend(string_keyed_dicts(data))
         elif event_type == "file_mutation_failed":
             collect_file_mutation_failures(self._file_mutation_failures, data)
+        elif event_type == "workspace_merge_failed":
+            collect_workspace_merge_failures(self._workspace_merge_failures, data)
+            if isinstance(data, dict):
+                failed_count = data.get("failed_count")
+                if isinstance(failed_count, int) and failed_count > 0:
+                    self._workspace_merge_failed_count = failed_count
+                truncated = data.get("truncated")
+                if isinstance(truncated, int) and truncated > 0:
+                    self._workspace_merge_truncated = truncated
         elif event_type == "council_phase" and isinstance(data, dict):
             phase_entry = string_keyed_dict(data)
             if phase_entry is not None:
@@ -868,6 +881,12 @@ class StreamContentCollector:
             result["cron_job_result"] = self._cron_job_result
         if self._file_mutation_failures:
             result["fileMutationFailures"] = list(self._file_mutation_failures)
+        if self._workspace_merge_failures:
+            result["workspaceMergeFailures"] = list(self._workspace_merge_failures)
+        if self._workspace_merge_failed_count is not None:
+            result["workspaceMergeFailedCount"] = self._workspace_merge_failed_count
+        if self._workspace_merge_truncated is not None:
+            result["workspaceMergeTruncated"] = self._workspace_merge_truncated
         if self._council_phases:
             result["councilPhases"] = list(self._council_phases)
         if self.reasoning:

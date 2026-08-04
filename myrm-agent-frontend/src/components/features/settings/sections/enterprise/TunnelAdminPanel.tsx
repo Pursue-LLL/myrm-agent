@@ -1,7 +1,9 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatDistanceToNow } from 'date-fns';
+import { enUS, zhCN } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Copy, KeyRound, Plus, Shield, Trash2 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
@@ -9,6 +11,7 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
+import { Textarea } from '@/components/primitives/textarea';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +21,23 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 import {
+  buildTunnelDockerBuildCommand,
+  buildTunnelDockerRunCommand,
+} from '@/lib/tunnel-deploy';
+import {
   type Tunnel,
+  bindTunnelToOrgMcp,
   createTunnel,
   deleteTunnel,
   listTunnels,
   rotateTunnelToken,
 } from '@/services/enterprise-org';
+
+interface TunnelDeployContext {
+  tunnelId: string;
+  upstreamUrl: string;
+  authToken: string;
+}
 
 interface TunnelAdminPanelProps {
   orgId: string;
@@ -31,14 +45,18 @@ interface TunnelAdminPanelProps {
 
 const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   const t = useTranslations('settings.enterprise');
+  const locale = useLocale();
+  const dateFnsLocale = useMemo(() => (locale.startsWith('zh') ? zhCN : enUS), [locale]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [newToken, setNewToken] = useState<string | null>(null);
+  const [bindingMcp, setBindingMcp] = useState(false);
+  const [deployContext, setDeployContext] = useState<TunnelDeployContext | null>(null);
 
   const [name, setName] = useState('');
   const [upstreamUrl, setUpstreamUrl] = useState('');
+  const [upstreamAuth, setUpstreamAuth] = useState('');
   const [description, setDescription] = useState('');
 
   const loadTunnels = useCallback(async () => {
@@ -61,15 +79,24 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
     if (!name.trim() || !upstreamUrl.trim()) return;
     try {
       setSaving(true);
+      const upstreamHeaders = upstreamAuth.trim()
+        ? { Authorization: upstreamAuth.trim() }
+        : undefined;
       const result = await createTunnel(orgId, {
         name: name.trim(),
         upstream_url: upstreamUrl.trim(),
         description: description.trim(),
+        upstream_headers: upstreamHeaders,
       });
-      setNewToken(result.auth_token);
+      setDeployContext({
+        tunnelId: result.tunnel.id,
+        upstreamUrl: result.tunnel.upstream_url,
+        authToken: result.auth_token,
+      });
       setShowCreate(false);
       setName('');
       setUpstreamUrl('');
+      setUpstreamAuth('');
       setDescription('');
       await loadTunnels();
     } catch (e) {
@@ -77,7 +104,21 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
     } finally {
       setSaving(false);
     }
-  }, [orgId, name, upstreamUrl, description, t, loadTunnels]);
+  }, [orgId, name, upstreamUrl, upstreamAuth, description, t, loadTunnels]);
+
+  const handleBindOrgMcp = useCallback(async () => {
+    if (!deployContext) return;
+    try {
+      setBindingMcp(true);
+      await bindTunnelToOrgMcp(orgId, deployContext.tunnelId);
+      toast.success(t('tunnelBindMcpSuccess'));
+      setDeployContext(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('tunnelBindMcpFailed'));
+    } finally {
+      setBindingMcp(false);
+    }
+  }, [orgId, deployContext, t]);
 
   const handleDelete = useCallback(
     async (tunnel: Tunnel) => {
@@ -96,7 +137,11 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
     async (tunnel: Tunnel) => {
       try {
         const result = await rotateTunnelToken(orgId, tunnel.id);
-        setNewToken(result.auth_token);
+        setDeployContext({
+          tunnelId: result.tunnel.id,
+          upstreamUrl: result.tunnel.upstream_url,
+          authToken: result.auth_token,
+        });
         await loadTunnels();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t('tunnelRotateFailed'));
@@ -105,12 +150,29 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
     [orgId, t, loadTunnels],
   );
 
+  const dockerBuildCommand = buildTunnelDockerBuildCommand();
+  const dockerRunCommand = deployContext
+    ? buildTunnelDockerRunCommand(deployContext)
+    : '';
+
   const copyToken = useCallback(() => {
-    if (newToken) {
-      void navigator.clipboard.writeText(newToken);
+    if (deployContext) {
+      void navigator.clipboard.writeText(deployContext.authToken);
       toast.success(t('tunnelTokenCopied'));
     }
-  }, [newToken, t]);
+  }, [deployContext, t]);
+
+  const copyDockerBuild = useCallback(() => {
+    void navigator.clipboard.writeText(dockerBuildCommand);
+    toast.success(t('tunnelDockerBuildCopied'));
+  }, [dockerBuildCommand, t]);
+
+  const copyDockerRun = useCallback(() => {
+    if (dockerRunCommand) {
+      void navigator.clipboard.writeText(dockerRunCommand);
+      toast.success(t('tunnelDockerRunCopied'));
+    }
+  }, [dockerRunCommand, t]);
 
   return (
     <>
@@ -146,15 +208,40 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-sm">{tunnel.name}</span>
                     <Badge
-                      variant={tunnel.status === 'online' ? 'default' : 'outline'}
+                      variant={
+                        tunnel.status === 'online'
+                          ? 'default'
+                          : tunnel.status === 'degraded'
+                            ? 'secondary'
+                            : 'outline'
+                      }
                       className="text-xs"
                     >
-                      {tunnel.status === 'online' ? t('tunnelOnline') : t('tunnelOffline')}
+                      {tunnel.status === 'online'
+                        ? t('tunnelOnline')
+                        : tunnel.status === 'degraded'
+                          ? t('tunnelDegraded')
+                          : t('tunnelOffline')}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{tunnel.upstream_url}</p>
                   {tunnel.description && (
                     <p className="text-xs text-muted-foreground">{tunnel.description}</p>
+                  )}
+                  {tunnel.status === 'degraded' && tunnel.last_upstream_error && (
+                    <p className="text-xs text-destructive/90 break-words">
+                      {t('tunnelLastUpstreamError', { error: tunnel.last_upstream_error })}
+                    </p>
+                  )}
+                  {tunnel.status === 'degraded' && tunnel.last_error_at != null && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('tunnelLastErrorAt', {
+                        time: formatDistanceToNow(new Date(tunnel.last_error_at * 1000), {
+                          addSuffix: true,
+                          locale: dateFnsLocale,
+                        }),
+                      })}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -203,8 +290,19 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
               <Input
                 value={upstreamUrl}
                 onChange={(e) => setUpstreamUrl(e.target.value)}
-                placeholder="http://localhost:8080/mcp"
+                placeholder="http://host.docker.internal:8080/mcp"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('tunnelUpstreamAuthLabel')}</Label>
+              <Input
+                value={upstreamAuth}
+                onChange={(e) => setUpstreamAuth(e.target.value)}
+                placeholder={t('tunnelUpstreamAuthPlaceholder')}
+                type="password"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">{t('tunnelUpstreamAuthHint')}</p>
             </div>
             <div className="space-y-2">
               <Label>{t('mcpServerDescription')}</Label>
@@ -230,23 +328,77 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
       </Dialog>
 
       {/* Token Display Dialog */}
-      <Dialog open={newToken !== null} onOpenChange={() => setNewToken(null)}>
+      <Dialog open={deployContext !== null} onOpenChange={() => setDeployContext(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('tunnelTokenTitle')}</DialogTitle>
             <DialogDescription>{t('tunnelTokenDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="flex items-center gap-2">
-              <Input value={newToken ?? ''} readOnly className="font-mono text-xs" />
-              <Button size="sm" variant="outline" onClick={copyToken}>
-                <Copy className="h-4 w-4" />
-              </Button>
+            <div className="space-y-2">
+              <Label>{t('tunnelAuthTokenLabel')}</Label>
+              <div className="flex items-center gap-2">
+                <Input value={deployContext?.authToken ?? ''} readOnly className="font-mono text-xs" />
+                <Button size="sm" variant="outline" onClick={copyToken} title={t('tunnelTokenCopied')}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('tunnelDockerBuildLabel')}</Label>
+              <p className="text-xs text-muted-foreground">{t('tunnelDockerBuildDesc')}</p>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
+                <Textarea
+                  readOnly
+                  value={dockerBuildCommand}
+                  rows={2}
+                  className="font-mono text-xs bg-muted/40 resize-none min-h-[56px]"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={copyDockerBuild}
+                  title={t('tunnelDockerBuildCopied')}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('tunnelDockerRunLabel')}</Label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
+                <Textarea
+                  readOnly
+                  value={dockerRunCommand}
+                  rows={6}
+                  className="font-mono text-xs bg-muted/40 resize-none min-h-[120px]"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={copyDockerRun}
+                  title={t('tunnelDockerRunCopied')}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <p className="text-xs text-destructive font-medium">{t('tunnelTokenWarning')}</p>
           </div>
-          <DialogFooter>
-            <Button onClick={() => setNewToken(null)}>{t('confirm')}</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={bindingMcp}
+              onClick={() => void handleBindOrgMcp()}
+            >
+              {t('tunnelBindMcp')}
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={() => setDeployContext(null)}>
+              {t('confirm')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -476,7 +476,7 @@ async def handle_compact(
         logger.warning(
             "AgentRouter: /compact failed for %s/%s: %s", msg.channel, peer_id, exc
         )
-        content = get_text(msg, "compact_failed", error=str(exc))
+        content = get_text(msg, "compact_failed", error="internal error")
 
     reply = OutboundMessage(
         channel=msg.channel,
@@ -738,7 +738,7 @@ async def handle_topic_command(
                 msg,
                 "topic_command_failed",
                 scope=scope_name,
-                error=str(exc),
+                error="internal error",
             )
         reply = OutboundMessage(
             channel=msg.channel,
@@ -771,7 +771,7 @@ async def handle_topic_command(
                 msg,
                 "topic_command_failed",
                 scope=scope_name,
-                error=str(exc),
+                error="internal error",
             ),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
@@ -886,7 +886,7 @@ async def handle_retry(
         logger.warning(
             "AgentRouter: /retry failed for %s/%s: %s", msg.channel, peer_id, exc
         )
-        content = get_text(msg, "retry_failed_error", error=str(exc))
+        content = get_text(msg, "retry_failed_error", error="internal error")
 
     reply = OutboundMessage(
         channel=msg.channel,
@@ -964,7 +964,7 @@ async def handle_undo(
         logger.warning(
             "AgentRouter: /undo failed for %s/%s: %s", msg.channel, peer_id, exc
         )
-        content = get_text(msg, "undo_failed_error", error=str(exc))
+        content = get_text(msg, "undo_failed_error", error="internal error")
 
     reply = OutboundMessage(
         channel=msg.channel,

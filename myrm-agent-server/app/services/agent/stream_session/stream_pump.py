@@ -19,6 +19,25 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     from app.schemas.streaming import SSEEnvelope
     from app.services.project.orchestrator import project_orchestrator
 
+    pre_reply_result = session.pre_reply_compact_result
+    if (
+        pre_reply_result is not None
+        and pre_reply_result.compacted
+        and pre_reply_result.tokens_saved > 0
+    ):
+        compact_event = SSEEnvelope.from_any(
+            {
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "context_compaction",
+                "status": "success",
+                "tokens_saved": pre_reply_result.tokens_saved,
+                "snapshot_path": pre_reply_result.backup_path,
+                "data": {"phase": "completed"},
+            }
+        ).to_sse_chunk()
+        await buffer.append(compact_event)
+
     project_id = getattr(session.params, "project_id", None)
 
     if project_id and project_orchestrator.is_locked(project_id):

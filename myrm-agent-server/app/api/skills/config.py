@@ -297,7 +297,7 @@ async def toggle_evolution_lock(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to update evolution lock: {e}"
+            status_code=500, detail="Failed to update evolution lock"
         ) from e
 
     action = "evolution_lock" if locked else "evolution_unlock"

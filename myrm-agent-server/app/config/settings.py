@@ -599,19 +599,19 @@ class AppSettings(BaseSettings):
     def get_provider(self, model: str) -> LLMProvider:
         """识别 LLM 提供商"""
         m = model.lower()
-        if m.startswith(("openai/", "gpt-")):
+        if any(s in m for s in ("openai", "gpt-")):
             return LLMProvider.OPENAI
-        if m.startswith(("anthropic/", "claude-")):
+        if any(s in m for s in ("anthropic", "claude")):
             return LLMProvider.ANTHROPIC
-        if m.startswith(("deepseek/", "deepseek-")):
+        if "deepseek" in m:
             return LLMProvider.DEEPSEEK
-        if m.startswith(("google/", "gemini-")):
+        if any(s in m for s in ("google", "gemini")):
             return LLMProvider.GOOGLE
-        if m.startswith(("zhipu/", "glm-")):
+        if any(s in m for s in ("zhipu", "glm-")):
             return LLMProvider.ZHIPU
-        if m.startswith("yunshu/"):
+        if "yunshu" in m:
             return LLMProvider.YUNSHU
-        if m.startswith("xiaomi_mimo/"):
+        if "xiaomi_mimo" in m:
             return LLMProvider.XIAOMI
         return LLMProvider.OTHER
 

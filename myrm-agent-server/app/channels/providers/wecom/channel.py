@@ -226,7 +226,7 @@ class WeComChannel(BaseChannel):
                 status_code=403,
                 error_type="signature-invalid",
                 title="Invalid Signature",
-                detail=f"WeCom signature verification error: {exc}",
+                detail="WeCom signature verification error",
                 trace_id=trace_id,
             ) from exc
 

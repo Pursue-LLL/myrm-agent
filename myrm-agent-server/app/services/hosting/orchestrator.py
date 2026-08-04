@@ -86,13 +86,14 @@ async def publish_artifact_to_target(
     try:
         credentials = await resolve_target_credentials(db, hosting_target_id, request_token=request_token)
     except RuntimeError as exc:
+        logger.error("Credential resolution failed for target %s: %s", hosting_target_id, exc)
         return PublicationResult(
             success=False,
             url="",
             publication_id="",
             project_ref=existing_project_ref or "",
             status="ERROR",
-            error=str(exc),
+            error="Credential resolution failed",
         )
 
     provider = get_hosting_provider(target.provider_type)

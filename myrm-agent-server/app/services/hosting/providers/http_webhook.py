@@ -69,13 +69,14 @@ class HttpWebhookProvider:
             allow_http = target.config.get("allow_http", "").lower() == "true"
             safe_url = validate_webhook_url(webhook_url, allow_http=allow_http)
         except SSRFValidationError as exc:
+            logger.warning("Webhook URL validation failed: %s", exc)
             return PublicationResult(
                 success=False,
                 url="",
                 publication_id="",
                 project_ref="",
                 status="ERROR",
-                error=str(exc),
+                error="URL validation failed",
             )
         zip_bytes = self._build_zip(files)
         headers: dict[str, str] = {}

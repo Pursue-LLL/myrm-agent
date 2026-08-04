@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages import BaseMessage
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
@@ -94,8 +95,7 @@ class GeneralAgent(ToolSetupMixin):
         dialog_policy: str | None = None,
         session_recording: str | None = None,
         enable_computer_use: bool = False,
-        enable_file_ops: bool = True,
-        enable_evicted_read: bool = False,
+        file_access_mode: FileAccessMode = FileAccessMode.FULL,
         enable_shell_tools: bool = True,
         enable_wiki: bool = False,
         enable_kanban: bool = False,
@@ -204,8 +204,7 @@ class GeneralAgent(ToolSetupMixin):
         self.dialog_policy = dialog_policy
         self.session_recording = session_recording
         self.enable_computer_use = enable_computer_use
-        self.enable_file_ops = enable_file_ops
-        self.enable_evicted_read = enable_evicted_read
+        self.file_access_mode = file_access_mode
         self.enable_shell_tools = enable_shell_tools
         self.enable_wiki = enable_wiki
         self.enable_kanban = enable_kanban

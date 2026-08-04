@@ -2,6 +2,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
     collect_file_mutation_failures,
     collect_plan_confirmation_status,
+    collect_workspace_merge_failures,
 )
 
 
@@ -89,6 +90,40 @@ def test_collect_file_mutation_failures_skips_invalid_payload() -> None:
                 "not-a-row",
                 {"path": "", "tool": "file_write_tool"},
                 {"path": "ok.txt", "tool": ""},
+            ]
+        },
+    )
+    assert target == []
+
+
+def test_collect_workspace_merge_failures_normalizes_rows() -> None:
+    target: list[dict[str, object]] = []
+    collect_workspace_merge_failures(
+        target,
+        {
+            "failed_count": 2,
+            "errors": [
+                {"message": "task_a: disk full"},
+                {"message": "  task_b: conflict  "},
+            ],
+        },
+    )
+    assert len(target) == 2
+    assert target[0]["message"] == "task_a: disk full"
+    assert target[1]["message"] == "task_b: conflict"
+
+
+def test_collect_workspace_merge_failures_skips_invalid_payload() -> None:
+    target: list[dict[str, object]] = []
+    collect_workspace_merge_failures(target, "not-a-dict")
+    collect_workspace_merge_failures(target, {"errors": "bad"})
+    collect_workspace_merge_failures(
+        target,
+        {
+            "errors": [
+                "not-a-row",
+                {"message": ""},
+                {"message": "   "},
             ]
         },
     )

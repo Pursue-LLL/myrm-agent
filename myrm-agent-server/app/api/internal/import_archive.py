@@ -107,4 +107,4 @@ async def import_archive(request: Request, body: ImportArchiveRequest) -> Import
         raise
     except Exception as e:
         logger.error("Archive import failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Import failed: {e}") from e
+        raise HTTPException(status_code=500, detail="Import failed") from e

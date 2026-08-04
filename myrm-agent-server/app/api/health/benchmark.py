@@ -79,7 +79,7 @@ async def _execute_benchmarks() -> None:
                 component_name=hook_name,
                 status="fail",
                 message="Benchmark encountered an unexpected error.",
-                detail=f"Benchmark raised an uncaught exception: {e}",
+                detail="Benchmark raised an uncaught exception",
                 fix_suggestion="Check application logs for details.",
             )
             reports.append(report)

@@ -484,7 +484,7 @@ class RouterExecutionMixin:
                         get_text(
                             ctx.exec_msg,
                             "placeholder_execution_error",
-                            error=str(inner_exc)[:200],
+                            error="execution error",
                         ),
                     )
                 scratch.deferred_placeholder = None

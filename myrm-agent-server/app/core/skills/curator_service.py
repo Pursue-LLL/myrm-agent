@@ -349,7 +349,7 @@ async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, Sk
     except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail=f"Embedding not configured: {exc}",
+            detail="Embedding not configured",
         ) from exc
 
     try:
@@ -358,7 +358,7 @@ async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, Sk
     except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail=f"LLM not configured: {exc}",
+            detail="LLM not configured",
         ) from exc
 
     embedding_service = get_embedding_service(embedding_cfg)

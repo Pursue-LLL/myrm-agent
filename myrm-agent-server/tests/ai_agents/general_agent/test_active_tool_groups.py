@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+
 from app.ai_agents.general_agent.active_tool_groups import (
     ACTIVE_TOOL_GROUP_KEYS,
     derive_active_tool_groups,
@@ -14,7 +16,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
     base = dict(
         enable_web_search=True,
         enable_browser=False,
-        enable_file_ops=True,
+        file_access_mode=FileAccessMode.FULL,
         enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,

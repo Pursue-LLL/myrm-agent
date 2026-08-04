@@ -63,7 +63,7 @@ async def get_auth_audit_logs(
     try:
         events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to read audit logs") from e
 
     logs: list[AuthAuditLog] = []
     for event in events:
@@ -114,7 +114,7 @@ async def get_auth_audit_stats(
     try:
         events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to read audit logs") from e
 
     success_val = AuthEventType.AUTH_SUCCESS.value
     failure_val = AuthEventType.AUTH_FAILURE.value
@@ -154,7 +154,7 @@ async def export_auth_audit_logs(
     try:
         events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export audit logs: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to export audit logs") from e
 
     if not events:
         raise HTTPException(status_code=404, detail="No audit log entries found")

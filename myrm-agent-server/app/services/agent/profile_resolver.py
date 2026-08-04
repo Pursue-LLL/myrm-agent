@@ -29,6 +29,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Sequence, TypedDict
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
 from app.services.agent.builtin_tool_ids import (
@@ -45,10 +46,7 @@ class BuiltinToolFlags(TypedDict):
 
     enable_browser: bool
     enable_computer_use: bool
-    enable_file_ops: bool
-    enable_evicted_read: (
-        bool  # WEB_FAST: UECD read-only file_read without full file_ops
-    )
+    file_access_mode: FileAccessMode
     enable_shell_tools: bool
     enable_wiki: bool
     enable_kanban: bool
@@ -93,8 +91,11 @@ def resolve_builtin_tool_flags(
         enable_computer_use=(
             "computer_use" in effective_tools and deploy_supports_computer_use
         ),
-        enable_file_ops="file_ops" in effective_tools,
-        enable_evicted_read=False,
+        file_access_mode=(
+            FileAccessMode.FULL
+            if "file_ops" in effective_tools
+            else FileAccessMode.NONE
+        ),
         enable_shell_tools="code_execute" in effective_tools,
         enable_wiki="wiki" in effective_tools,
         enable_kanban="kanban" in effective_tools,

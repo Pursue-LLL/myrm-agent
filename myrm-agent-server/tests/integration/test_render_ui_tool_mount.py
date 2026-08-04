@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+
 from app.ai_agents.general_agent.tool_setup import (
     ToolSetupMixin,
     _should_mount_render_ui_tools,
@@ -121,7 +123,7 @@ def test_im_channel_entitlement_differs_from_mount() -> None:
     agent = SimpleNamespace(
         enable_web_search=False,
         enable_browser=False,
-        enable_file_ops=True,
+        file_access_mode=FileAccessMode.FULL,
         enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,

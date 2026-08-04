@@ -18,7 +18,7 @@
 | `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 `turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
 | `takeoverVncMessages.ts` | 辅助 | managed VNC takeover POST 失败 toast 文案（与 locales billing.vnc.takeoverVncOpenFailed 同步） | ✅ |
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
@@ -28,7 +28,7 @@
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |
-| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
+| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；FILE_MUTATION_FAILED / WORKSPACE_MERGE_FAILED 持久化到 message；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
 | `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast；`migration_readiness_critical|warning` → issue-aware settings CTA toast | ✅ |
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 web_search config gap CTA、loading 延迟重发） | ✅ |

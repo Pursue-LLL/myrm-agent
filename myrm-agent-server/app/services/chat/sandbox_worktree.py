@@ -320,7 +320,7 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
         else:
             return False, f"Merge conflict: {result.stderr.strip()}"
     except Exception as exc:
-        return False, f"Merge failed: {exc}"
+        return False, "Merge failed"
 
 
 async def prune_stale_sandboxes(base_dir: str) -> int:

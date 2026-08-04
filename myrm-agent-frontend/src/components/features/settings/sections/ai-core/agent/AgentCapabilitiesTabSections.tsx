@@ -186,6 +186,64 @@ export function ParallelFissionSection({ editor, t }: SectionProps) {
   );
 }
 
+export function IdleCompactSection({ editor, t }: SectionProps) {
+  const ep = editor.engineParams ?? {};
+  const idleSeconds =
+    typeof ep.idle_compact_after_seconds === 'number' ? ep.idle_compact_after_seconds : 0;
+  const enabled = idleSeconds > 0;
+  const idleMinutes = enabled ? Math.max(1, Math.round(idleSeconds / 60)) : 30;
+
+  const setEnabled = (nextEnabled: boolean) => {
+    if (!nextEnabled) {
+      const next: Record<string, unknown> = { ...ep };
+      delete next.idle_compact_after_seconds;
+      editor.setEngineParams(next);
+      return;
+    }
+    editor.setEngineParams({ ...ep, idle_compact_after_seconds: idleMinutes * 60 });
+  };
+
+  const setIdleMinutes = (minutes: number) => {
+    const clamped = Math.max(1, Math.min(1440, minutes));
+    editor.setEngineParams({ ...ep, idle_compact_after_seconds: clamped * 60 });
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium text-foreground">{t('agent.idleCompact.title')}</h3>
+          <p className="text-xs text-muted-foreground">{t('agent.idleCompact.desc')}</p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={setEnabled}
+          disabled={editor.isReadonly}
+          aria-label={t('agent.idleCompact.title')}
+        />
+      </div>
+      {enabled && (
+        <div className="mt-4">
+          <label className="text-sm font-medium text-foreground">{t('agent.idleCompact.minutes')}</label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-2">{t('agent.idleCompact.minutesDesc')}</p>
+          <Input
+            type="number"
+            min={1}
+            max={1440}
+            value={idleMinutes}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              setIdleMinutes(Number.isFinite(parsed) ? parsed : 30);
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground mt-3">{t('agent.idleCompact.hint')}</p>
+    </div>
+  );
+}
+
 export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
   const ep = editor.engineParams ?? {};
   const setEP = (key: string, val: unknown) => editor.setEngineParams({ ...ep, [key]: val });

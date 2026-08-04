@@ -56,7 +56,7 @@ async def stop_memory_profiling() -> dict[str, object]:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to stop profiling: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to stop profiling") from e
 
 
 @router.get("/conversation-recall")

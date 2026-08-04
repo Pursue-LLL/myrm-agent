@@ -127,7 +127,7 @@ class TestLlmMapWithdrawalConverterIntegration:
 
         params, _, _, _ = await convert_to_general_agent_params(request, [])
 
-        assert params.enable_file_ops is True
+        assert params.file_access_mode.value == "full"
         assert params.enable_browser is False
         assert not hasattr(params, "enable_llm_map")
 

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from langchain_core.tools import BaseTool
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability_tool import (
     sync_discover_capability_tool,
 )
@@ -555,7 +556,7 @@ def test_web_render_ui_form_query_preflight_no_gap_unit_parity() -> None:
     params = SimpleNamespace(
         enable_web_search=True,
         enable_browser=False,
-        enable_file_ops=True,
+        file_access_mode=FileAccessMode.FULL,
         enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,

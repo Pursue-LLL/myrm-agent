@@ -126,7 +126,7 @@ async def transcribe_audio(
         raise
     except Exception as exc:
         logger.exception("STT transcription failed for sandbox user")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Transcription failed") from exc
     finally:
         tmp_path.unlink(missing_ok=True)
 

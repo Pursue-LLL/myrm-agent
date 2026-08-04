@@ -14,7 +14,7 @@ import type { UIArtifact } from './interactiveUi';
 import type { CostStatus, ContextBudget } from './contextMetrics';
 import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
 import type { CompletionStatus, ToolCallInfo } from './toolApproval';
-import type { CitedMemoryReference, FileMutationFailure, Source } from './sources';
+import type { CitedMemoryReference, FileMutationFailure, Source, WorkspaceMergeFailure } from './sources';
 import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
 import type { ToolImageOutput } from './agentStream/part3';
@@ -130,6 +130,9 @@ export type Message = {
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
+  workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
+  workspaceMergeFailedCount?: number; // merge 失败总数（可大于 failures 列表长度）
+  workspaceMergeTruncated?: number; // 未展示的额外错误条数
   toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
   sessionRecording?: { filename: string; preview_url: string; content_type: string };

@@ -164,8 +164,10 @@ export interface Tunnel {
   name: string;
   upstream_url: string;
   description: string;
-  status: 'online' | 'offline';
+  status: 'online' | 'offline' | 'degraded';
   last_heartbeat_at: number | null;
+  last_upstream_error: string | null;
+  last_error_at: number | null;
   created_by: string;
   created_at: number;
   updated_at: number;
@@ -180,6 +182,7 @@ export interface CreateTunnelInput {
   name: string;
   upstream_url: string;
   description?: string;
+  upstream_headers?: Record<string, string>;
 }
 
 function tunnelUrl(orgId: string, tunnelId?: string): string {
@@ -219,6 +222,17 @@ export async function rotateTunnelToken(
     method: 'POST',
   });
   if (!res.ok) throw new Error(`Rotate tunnel token failed: ${res.status}`);
+  return res.json();
+}
+
+export async function bindTunnelToOrgMcp(
+  orgId: string,
+  tunnelId: string,
+): Promise<OrgMCPMutateResult> {
+  const res = await fetch(`${tunnelUrl(orgId, tunnelId)}/bind-mcp`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Bind tunnel to org MCP failed: ${res.status}`);
   return res.json();
 }
 

@@ -102,7 +102,7 @@ class SandboxedPythonCondition(PreFlightCondition):
             return False, f"Probe Timeout ({self.timeout_seconds}s)"
         except Exception as e:
             logger.error("Error executing pre-flight condition for job %s: %s", job.id, e)
-            return False, f"Probe Error: {e}"
+            return False, "Probe Error"
         finally:
             if script_path and script_path.exists():
                 script_path.unlink(missing_ok=True)

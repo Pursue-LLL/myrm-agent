@@ -79,7 +79,7 @@ async def test_media_config(
             return error_response(message="Connection timed out")
         except Exception as e:
             logger.warning("Media config test failed: %s", e)
-            return error_response(message=f"Connection test failed: {e}")
+            return error_response(message="Connection test failed")
 
     return error_response(message=f"Unknown media type: {request.media_type}")
 

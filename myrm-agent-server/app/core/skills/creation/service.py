@@ -134,7 +134,7 @@ class SkillCreationService:
 
         except Exception as e:
             logger.error("Failed to delete skill directory '%s': %s", target_dir, e)
-            return SkillDeleteResult(success=False, skill_name=name, error=f"Delete failed: {e}")
+            return SkillDeleteResult(success=False, skill_name=name, error="Delete failed")
 
         logger.warning("Deleted skill locally: %s -> %s", name, target_dir)
         return SkillDeleteResult(success=True, skill_name=name)

@@ -107,7 +107,7 @@ async def get_bash_audit_logs(
 
         return logs
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to query audit logs: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to query audit logs") from e
 
 
 @router.get("/stats", response_model=BashExecutionStatsResponse)
@@ -129,7 +129,7 @@ async def get_bash_execution_stats() -> BashExecutionStatsResponse:
 
         return BashExecutionStatsResponse(**stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get execution stats: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to get execution stats") from e
 
 
 @router.get("/export")
@@ -206,7 +206,7 @@ async def export_bash_audit_logs(
 
             return Response(content=output.getvalue(), media_type="text/csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export audit logs: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to export audit logs") from e
 
 
 @router.get("/anomalies")
@@ -286,4 +286,4 @@ async def detect_bash_anomalies(
             for alert in alerts
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to detect anomalies: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to detect anomalies") from e

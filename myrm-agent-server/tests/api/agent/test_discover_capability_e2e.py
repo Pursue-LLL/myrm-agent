@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
@@ -76,7 +77,7 @@ async def test_discover_capability_e2e_real_model() -> None:
     agent = SkillAgent(
         llm=llm,
         skill_backend=_StubSkillBackend([_sample_skill()]),
-        enable_file_tools=False,
+        file_access_mode=FileAccessMode.NONE,
         enable_shell_tools=False,
         enable_answer_tool=False,
         system_prompt=(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 
 from app.ai_agents.agents import AgentFactory
 from app.services.agent.params.converter import convert_to_general_agent_params
@@ -33,12 +34,12 @@ class TestToolMountConverterIntegration:
 
         params, _, _, _ = await convert_to_general_agent_params(request, [])
 
-        assert params.enable_file_ops is True
+        assert params.file_access_mode == FileAccessMode.FULL
         assert params.enable_shell_tools is True
         assert params.prompt_mode == "full"
 
         agent = AgentFactory.create_general_agent(params)
-        assert agent.enable_file_ops is True
+        assert agent.file_access_mode == FileAccessMode.FULL
         assert agent.enable_shell_tools is True
 
     @pytest.mark.asyncio
@@ -53,12 +54,10 @@ class TestToolMountConverterIntegration:
 
         params, _, _, _ = await convert_to_general_agent_params(request, [])
 
-        assert params.enable_file_ops is False
+        assert params.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
         assert params.enable_shell_tools is False
-        assert params.enable_evicted_read is True
         assert params.prompt_mode == "search"
 
         agent = AgentFactory.create_general_agent(params)
-        assert agent.enable_file_ops is False
+        assert agent.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
         assert agent.enable_shell_tools is False
-        assert agent.enable_evicted_read is True

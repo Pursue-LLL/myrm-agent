@@ -346,6 +346,9 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
             {t('addPin')}
           </button>
         </div>
+        <p className="text-[10px] text-muted-foreground leading-snug">
+          {t('archiveRestoreHint')}
+        </p>
         <input
           type="text"
           value={focusTopic}

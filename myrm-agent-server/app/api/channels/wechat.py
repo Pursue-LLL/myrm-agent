@@ -173,7 +173,7 @@ async def _trigger_wechat_instance_login(channel_name: str) -> dict[str, str]:
         except Exception as exc:
             logger.error("WeChat login background task error for '%s': %s", channel_name, exc)
             if not qr_ready.done():
-                qr_ready.set_exception(HTTPException(status_code=502, detail=f"Login error: {exc}"))
+                qr_ready.set_exception(HTTPException(status_code=502, detail="Login error"))
         finally:
             _login_tasks.pop(channel_name, None)
 

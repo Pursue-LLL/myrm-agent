@@ -5132,8 +5132,12 @@
       "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
       "contentFiltered": "Part of the response was filtered by content policy.",
       "budgetBlocked": "Execution blocked by daily budget policy. Adjust your budget limit in Settings to continue.",
+      "workflowMergeWarning": "Some workspace files could not be merged back. Check the tool output for details.",
       "fileMutationFailed": "{count, plural, one {# file modification failed} other {# file modifications failed}} — the changes were rolled back automatically.",
-      "fileMutationFailedTitle": "File Modification Failed"
+      "fileMutationFailedTitle": "File Modification Failed",
+      "workspaceMergeFailed": "{count, plural, one {# merge error} other {# merge errors}}",
+      "workspaceMergeFailedTitle": "Workspace Merge Failed",
+      "workspaceMergeFailedMore": "{count, plural, one {# more error not shown} other {# more errors not shown}}"
     },
     "toolImage": {
       "screenshotLabel": "원격 데스크톱 스크린샷"

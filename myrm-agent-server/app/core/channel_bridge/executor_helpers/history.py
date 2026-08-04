@@ -71,6 +71,19 @@ async def persist_and_load_history(
             agent_id=agent_id,
         )
         chat = await _sync_chat_workspace_from_topic(chat, topic_context)
+        from app.services.chat.stale_compact_gate import run_pre_reply_stale_compact_gate
+
+        try:
+            await run_pre_reply_stale_compact_gate(
+                chat.id,
+                agent_id=agent_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Pre-reply stale compact gate failed for channel chat %s: %s",
+                chat.id,
+                exc,
+            )
         await ChatService.append_message(chat.id, "user", content, sent_at, sent_timezone)
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()

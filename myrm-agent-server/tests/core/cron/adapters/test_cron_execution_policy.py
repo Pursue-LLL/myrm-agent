@@ -109,7 +109,7 @@ class TestToolsPolicy:
         )
         flags = resolve_cron_runtime_tool_flags(tools, ("web_search",))
         assert flags["enable_cron_eager"] is False
-        assert flags["enable_file_ops"] is False
+        assert flags["file_access_mode"].value == "none"
         assert flags["enable_shell_tools"] is False
 
     def test_restricted_file_ops_skips_baseline_code_execute(self) -> None:
@@ -118,13 +118,13 @@ class TestToolsPolicy:
             ("file_ops",),
         )
         flags = resolve_cron_runtime_tool_flags(tools, ("file_ops",))
-        assert flags["enable_file_ops"] is True
+        assert flags["file_access_mode"].value == "full"
         assert flags["enable_shell_tools"] is False
 
     def test_unrestricted_cron_keeps_agent_baseline(self) -> None:
         tools = intersect_cron_enabled_builtin_tools(["web_search", "memory"], None)
         flags = resolve_cron_runtime_tool_flags(tools, None)
-        assert flags["enable_file_ops"] is True
+        assert flags["file_access_mode"].value == "full"
         assert flags["enable_shell_tools"] is True
         assert flags["enable_cron_eager"] is False
 

@@ -52,6 +52,8 @@ from .test_fixtures_deliverable import router as deliverable_fixture_router
 from .test_fixtures_evicted import router as evicted_fixture_router
 from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
 from .test_fixtures_file_mutation import router as file_mutation_fixture_router
+from .test_fixtures_workspace_merge import router as workspace_merge_fixture_router
+from .test_fixtures_guardrail_bash import router as guardrail_bash_fixture_router
 from .test_fixtures_revert import router as revert_fixture_router
 from .test_fixtures_stream_retry_busy import router as stream_retry_busy_fixture_router
 
@@ -366,8 +368,10 @@ router.include_router(copilot_fixture_router)
 router.include_router(clarify_refresh_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
 router.include_router(file_mutation_fixture_router)
+router.include_router(workspace_merge_fixture_router)
 router.include_router(evicted_fixture_router)
 router.include_router(revert_fixture_router)
 router.include_router(stream_retry_busy_fixture_router)
 router.include_router(allowed_tools_recovery_fixture_router)
+router.include_router(guardrail_bash_fixture_router)
 router.include_router(context_retention_fixture_router)

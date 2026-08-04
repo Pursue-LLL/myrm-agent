@@ -730,7 +730,7 @@ async def apply_telegram_assistant_onboarding(
         bot_username = await _verify_telegram_token(bot_token)
     except Exception as exc:
         raise HTTPException(
-            status_code=400, detail=f"Telegram token verification failed: {exc}"
+            status_code=400, detail="Telegram token verification failed"
         ) from exc
 
     previous_telegram, previous_channels, previous_topics = await asyncio.gather(

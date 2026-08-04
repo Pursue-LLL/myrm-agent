@@ -716,13 +716,13 @@ class TestResolveBuiltinToolFlags:
     def test_resolve_agent_mount_forces_file_and_shell_on_web_chat(self):
         flags = resolve_builtin_tool_flags(["web_search", "memory"])
         mounted = resolve_agent_mount(ExecutionSurface.WEB_CHAT, flags)
-        assert mounted["enable_file_ops"] is True
+        assert mounted["file_access_mode"].value == "full"
         assert mounted["enable_shell_tools"] is True
         assert mounted["enable_browser"] is False
 
     def test_default_tools_enable_web_memory_and_structured_clarify(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
-        assert flags["enable_file_ops"] is False
+        assert flags["file_access_mode"].value == "none"
         assert flags["enable_shell_tools"] is False
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
@@ -748,8 +748,9 @@ class TestResolveBuiltinToolFlags:
             "skill_manage",
         )
         flags = resolve_builtin_tool_flags(tools, allow_answer_tool=True)
-        assert flags["enable_evicted_read"] is False
-        assert all(v for k, v in flags.items() if k != "enable_evicted_read")
+        assert flags["file_access_mode"].value == "full"
+        assert flags["enable_browser"] is True
+        assert flags["enable_shell_tools"] is True
 
     def test_computer_use_flag_false_when_deploy_unsupported(self):
         with patch(
@@ -780,14 +781,18 @@ class TestResolveBuiltinToolFlags:
 
     def test_selective_enabling(self):
         flags = resolve_builtin_tool_flags(["web_search", "memory", "wiki", "file_ops"])
-        assert flags["enable_wiki"] is True
-        assert flags["enable_file_ops"] is True
+        assert flags["file_access_mode"].value == "full"
         assert flags["enable_browser"] is False
         assert flags["enable_shell_tools"] is False
 
     def test_empty_list_disables_all(self):
         flags = resolve_builtin_tool_flags([])
-        assert not any(flags.values())
+        assert flags["file_access_mode"].value == "none"
+        assert all(
+            value is False
+            for key, value in flags.items()
+            if key != "file_access_mode"
+        )
 
     def test_accepts_tuple_input(self):
         flags = resolve_builtin_tool_flags(("browser",))
@@ -823,9 +828,9 @@ class TestResolveBuiltinToolFlags:
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
         assert flags["enable_structured_clarify"] is True
 
-    def test_enable_evicted_read_defaults_false(self):
+    def test_file_access_mode_defaults_none_without_file_ops(self):
         flags = resolve_builtin_tool_flags(["web_search", "answer_tool"])
-        assert flags["enable_evicted_read"] is False
+        assert flags["file_access_mode"].value == "none"
         assert flags["enable_answer_tool"] is False
 
     def test_answer_tool_requires_explicit_allow_flag(self):
@@ -837,8 +842,7 @@ class TestResolveBuiltinToolFlags:
         assert set(flags.keys()) == {
             "enable_browser",
             "enable_computer_use",
-            "enable_file_ops",
-            "enable_evicted_read",
+            "file_access_mode",
             "enable_shell_tools",
             "enable_wiki",
             "enable_kanban",

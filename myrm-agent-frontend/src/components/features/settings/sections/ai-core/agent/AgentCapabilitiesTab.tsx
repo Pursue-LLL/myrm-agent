@@ -15,6 +15,7 @@ import {
   MaxIterationsSection,
   WorkspacePolicySection,
   ParallelFissionSection,
+  IdleCompactSection,
   AdvancedEngineParamsSection,
   MoaOverlaySection,
   SessionPolicySection,
@@ -93,6 +94,7 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       <MaxIterationsSection editor={editor} t={t} />
       <WorkspacePolicySection editor={editor} t={t} />
       <ParallelFissionSection editor={editor} t={t} />
+      <IdleCompactSection editor={editor} t={t} />
       <AdvancedEngineParamsSection editor={editor} t={t} />
       <MoaOverlaySection editor={editor} t={t} />
 

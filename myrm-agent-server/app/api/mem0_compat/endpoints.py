@@ -159,7 +159,7 @@ async def update_memory(
         try:
             await manager.update_memory(memory_id, content=body.text)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to update memory: {e}") from e
+            raise HTTPException(status_code=500, detail="Failed to update memory") from e
 
     updated_item = await _find_memory_by_id(manager, memory_id)
     if updated_item is None:

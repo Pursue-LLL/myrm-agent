@@ -392,7 +392,7 @@ async def cleanup_browser_orphans(
         }
     except Exception as exc:
         raise HTTPException(
-            status_code=500, detail=f"Failed to process orphans: {exc}"
+            status_code=500, detail="Failed to process orphans"
         ) from exc
 
 
@@ -619,7 +619,7 @@ async def reset_database() -> dict[str, str]:
     except Exception as e:
         logger.error("Failed to reset database: %s", e)
         raise HTTPException(
-            status_code=500, detail=f"Failed to reset database: {e}"
+            status_code=500, detail="Failed to reset database"
         ) from e
 
 
@@ -692,5 +692,5 @@ async def resource_health_check(
     except Exception as exc:
         logger.error("Resource health check failed: %s", exc)
         raise HTTPException(
-            status_code=500, detail=f"Resource health check failed: {exc}"
+            status_code=500, detail="Resource health check failed"
         ) from exc

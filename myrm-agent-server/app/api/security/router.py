@@ -110,4 +110,4 @@ async def get_dependabot_prs() -> list[DependabotPR]:
             detail=f"GitHub API error: {exc.response.text}",
         ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch Dependabot PRs: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Failed to fetch Dependabot PRs") from exc

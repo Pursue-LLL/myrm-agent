@@ -16,7 +16,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 
 [POS]
 Server-side SSOT for enabled_builtin_tools IDs and legacy rejection.
-GUI-togglable IDs only; AGENT_BASELINE_BUILTIN_TOOLS (file_ops/code_execute) are stripped at persist and forced at runtime on General track via tool_mount.resolve_agent_mount. Search/Fast (Web `action_mode=fast`) mounts UECD read-only `file_read_tool` via `enable_evicted_read`; write/edit/glob/grep/bash stay off. Channel/IM is General-only.
+GUI-togglable IDs only; AGENT_BASELINE_BUILTIN_TOOLS (file_ops/code_execute) are stripped at persist and forced at runtime on General track via tool_mount.resolve_agent_mount. Search/Fast (Web `action_mode=fast`) mounts UECD read-only `file_read_tool` via `FileAccessMode.SPILL_AND_UPLOADS`; write/edit/glob/grep/bash stay off. Channel/IM is General-only.
 """
 
 from __future__ import annotations

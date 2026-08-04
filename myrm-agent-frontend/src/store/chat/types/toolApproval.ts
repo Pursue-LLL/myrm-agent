@@ -79,4 +79,4 @@ export interface ToolCallInfo {
   /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
   ptcAnnotations?: Record<string, boolean>;
 }
-export type CompletionStatus = 'complete' | 'truncated' | 'filtered' | 'budget_blocked';
+export type CompletionStatus = 'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'warning' | 'success' | 'error';

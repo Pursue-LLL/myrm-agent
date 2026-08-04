@@ -69,7 +69,7 @@ async def synthesize_text(
         audio_path = await synthesize(req.text, voice_config, output_format="mp3")
     except Exception as exc:
         logger.exception("TTS synthesis failed for sandbox user")
-        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="TTS synthesis failed") from exc
 
     if not audio_path or not audio_path.exists():
         raise HTTPException(status_code=422, detail="TTS synthesis returned no audio")
@@ -104,7 +104,7 @@ async def synthesize_text_stream(
             break
     except Exception as exc:
         logger.exception("TTS stream failed for sandbox user")
-        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="TTS synthesis failed") from exc
 
     if first_chunk is None:
         raise HTTPException(status_code=422, detail="TTS synthesis returned no audio")

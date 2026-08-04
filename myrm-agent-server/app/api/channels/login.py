@@ -142,7 +142,7 @@ async def start_login(
                     logger.error("Failed to start on-demand channel '%s': %s", channel_id, exc)
                     raise HTTPException(
                         status_code=503,
-                        detail=f"Channel {channel_id} failed to start: {exc}",
+                        detail=f"Channel {channel_id} failed to start",
                     ) from exc
 
     try:
@@ -364,7 +364,7 @@ async def oauth2_callback(
         logger.error("OAuth2 callback processing failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"OAuth2 callback processing failed: {exc}",
+            detail="OAuth2 callback processing failed",
         ) from exc
 
     return {

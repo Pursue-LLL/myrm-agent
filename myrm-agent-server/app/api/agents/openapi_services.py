@@ -136,7 +136,7 @@ async def parse_spec(request: ParseSpecRequest) -> ParseSpecResponse:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         logger.error("Failed to parse spec: %s", e)
-        raise HTTPException(status_code=500, detail=f"Spec parsing failed: {e}") from e
+        raise HTTPException(status_code=500, detail="Spec parsing failed") from e
 
     return ParseSpecResponse(
         title=spec.title,
@@ -159,7 +159,7 @@ async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
     try:
         spec = await _bridge.preview_spec(payload.service_config)
     except ValueError as e:
-        return TestRequestResponse(success=False, status_message=f"Spec error: {e}")
+        return TestRequestResponse(success=False, status_message="Spec validation failed")
 
     target_ep = None
     for ep in spec.endpoints:
@@ -208,4 +208,4 @@ async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
             response_body=result[:2000],
         )
     except Exception as e:
-        return TestRequestResponse(success=False, status_message=f"Request failed: {e}")
+        return TestRequestResponse(success=False, status_message="Request failed")

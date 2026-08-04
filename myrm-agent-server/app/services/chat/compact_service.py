@@ -21,6 +21,8 @@ and incremental merging support.
 [OUTPUT]
 - compact_chat: async entry point — returns CompactResult (transactional)
 - persist_compaction: SummaryPersistCallback implementation (fire-and-forget for Pipeline)
+- estimate_compactable_context_tokens: token estimate for incremental compactable slice
+- resolve_idle_compact_token_floor: Hermes-style idle compact skip floor
 - _do_persist_to_db: core DB operation (shared by both paths)
 - CompactResult: frozen dataclass describing compaction outcome
 
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _MIN_MESSAGES_TO_COMPACT = 10
+_IDLE_SUMMARY_TARGET_RATIO = 0.20
 _compaction_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
 
@@ -307,6 +310,38 @@ async def compact_chat(
                 message_count=len(db_messages),
                 reason=f"persist_failed: {exc}",
             )
+
+
+async def estimate_compactable_context_tokens(
+    db: AsyncSession,
+    chat_id: str,
+) -> tuple[int, int]:
+    """Estimate token count for the incremental compactable message slice."""
+    from myrm_agent_harness.utils.token_estimation import estimate_messages_tokens
+
+    chat = await _load_chat(db, chat_id)
+    if chat is None:
+        return 0, 0
+
+    db_messages = await _load_compactable_messages(db, chat)
+    if not db_messages:
+        return 0, 0
+
+    return estimate_messages_tokens(_db_messages_to_langchain(db_messages)), len(db_messages)
+
+
+def resolve_idle_compact_token_floor(
+    max_context_tokens: int | None = None,
+) -> int:
+    """Post-compaction target floor (Hermes threshold × summary_target_ratio semantics)."""
+    from myrm_agent_harness.agent.context_management.infra.schemas import (
+        DEFAULT_CONTEXT_CONFIG,
+        ContextConfig,
+    )
+
+    window = max_context_tokens or DEFAULT_CONTEXT_CONFIG.max_context_tokens
+    cfg = ContextConfig(max_context_tokens=window)
+    return int(cfg.compress_threshold * _IDLE_SUMMARY_TARGET_RATIO)
 
 
 # -- Internal helpers ----------------------------------------------------------

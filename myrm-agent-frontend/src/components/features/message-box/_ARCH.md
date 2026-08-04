@@ -17,7 +17,8 @@
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/focus/Pin CRUD/Fork 新话题） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（创建/更新摘要 + 内嵌 CronJobAuditPanel） | ✅ |
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
-| `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
+| `FileMutationWarning.tsx` | 组件 | 文件变更失败可折叠面板（mutation verifier 回滚提示） | ✅ |
+| `WorkspaceMergeWarning.tsx` | 组件 | ISOLATED_COPY workspace merge 失败可折叠错误列表 | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation）；KB citation → SourceChunkDrawer；非 streaming 时 inline `` `workspace/...` `` / `artifact:` → DeliverableReferenceLink。 | ✅ |
 | `DeliverableReferenceLink.tsx` | 组件 | 内联 deliverable 引用点击 → ArtifactPortal（`workspace/`、`artifact:`、`@file_NNN` via `short_file_id`） | ✅ |
 | `__tests__/DeliverableReferenceLink.test.tsx` | 测试 | `@file` short_file_id 打开 Portal + 未同步 disabled | ✅ |

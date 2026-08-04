@@ -384,6 +384,9 @@ class ChromeMcpClient:
             # threads still hold the previous lock instance.
             pass
 
+    def _request_lock_is_held(self) -> bool:
+        return self._request_lock.locked()
+
     def _read_wave_status(self) -> dict[str, object] | None:
         try:
             result = subprocess.run(

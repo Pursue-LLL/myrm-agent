@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+
 from app.ai_agents.general_agent.active_tool_groups import (
     derive_active_tool_groups_from_params,
 )
@@ -23,7 +25,7 @@ def _params(**overrides: object) -> SimpleNamespace:
     base = dict(
         enable_web_search=True,
         enable_browser=False,
-        enable_file_ops=True,
+        file_access_mode=FileAccessMode.FULL,
         enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,

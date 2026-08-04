@@ -225,4 +225,4 @@ async def sandbox_diff(chat_id: str):
         raise
     except Exception as exc:
         logger.warning("Failed to get sandbox diff for chat %s: %s", chat_id[:8], exc)
-        raise HTTPException(status_code=500, detail=f"Failed to get diff: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Failed to get diff") from exc

@@ -89,7 +89,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "dialog_policy": getattr(agent_wrapper, "dialog_policy", None),
         "session_recording": getattr(agent_wrapper, "session_recording", None),
         "enable_computer_use": agent_wrapper.enable_computer_use,
-        "enable_file_ops": agent_wrapper.enable_file_ops,
+        "file_access_mode": agent_wrapper.file_access_mode.value,
         "enable_shell_tools": agent_wrapper.enable_shell_tools,
         "enable_memory": agent_wrapper.enable_memory,
         "incognito_mode": agent_wrapper.incognito_mode,

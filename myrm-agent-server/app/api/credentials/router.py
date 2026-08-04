@@ -102,7 +102,7 @@ async def upload_credential(
         logger.error("Failed to upload credential file %s: %s", target_filename, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload file: {e}",
+            detail="Failed to upload file",
         ) from e
 
 
@@ -178,5 +178,5 @@ async def delete_credential(
         logger.error("Failed to delete credential file %s: %s", filename, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete file: {e}",
+            detail="Failed to delete file",
         ) from e

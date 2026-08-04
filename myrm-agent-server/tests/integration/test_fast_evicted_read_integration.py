@@ -18,6 +18,7 @@ from myrm_agent_harness.agent.meta_tools import get_meta_tools
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
     create_file_read_tool,
 )
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -102,8 +103,7 @@ def test_web_fast_mount_resolves_evicted_read_only_meta_tools() -> None:
         ExecutionSurface.WEB_FAST,
         resolve_builtin_tool_flags(["answer_tool"]),
     )
-    assert flags["enable_file_ops"] is False
-    assert flags["enable_evicted_read"] is True
+    assert flags["file_access_mode"] == FileAccessMode.SPILL_AND_UPLOADS
     assert flags["enable_shell_tools"] is False
 
     registry = ToolRegistry()
@@ -111,8 +111,7 @@ def test_web_fast_mount_resolves_evicted_read_only_meta_tools() -> None:
         [],
         skill_backend=None,
         registry=registry,
-        enable_file_tools=flags["enable_file_ops"],
-        enable_evicted_read=flags["enable_evicted_read"],
+        file_access_mode=flags["file_access_mode"],
         enable_shell_tools=flags["enable_shell_tools"],
         enable_answer_tool=flags["enable_answer_tool"],
     )
@@ -190,7 +189,7 @@ async def test_fast_evicted_file_read_blocks_workspace_source_on_disk(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_converter_fast_request_wires_enable_evicted_read_on_agent(
+async def test_converter_fast_request_wires_spill_and_uploads_on_agent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -215,15 +214,13 @@ async def test_converter_fast_request_wires_enable_evicted_read_on_agent(
     ):
         params, _, _, _ = await convert_to_general_agent_params(request, [])
 
-    assert params.enable_file_ops is False
+    assert params.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
     assert params.enable_shell_tools is False
-    assert params.enable_evicted_read is True
     assert params.prompt_mode == "search"
 
     agent = AgentFactory.create_general_agent(params)
-    assert agent.enable_file_ops is False
+    assert agent.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
     assert agent.enable_shell_tools is False
-    assert agent.enable_evicted_read is True
 
 
 @pytest.mark.integration
@@ -268,8 +265,7 @@ async def test_skill_agent_build_tools_mounts_evicted_read_at_turn1() -> None:
 
     agent = SkillAgent(
         llm=AsyncMock(),
-        enable_file_tools=False,
-        enable_evicted_read=True,
+        file_access_mode=FileAccessMode.SPILL_AND_UPLOADS,
         enable_shell_tools=False,
     )
     agent.skill_backend = AsyncMock()

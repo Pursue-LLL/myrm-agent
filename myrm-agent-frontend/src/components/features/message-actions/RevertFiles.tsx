@@ -1,7 +1,7 @@
 'use client';
 
 import { Undo2, Check, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { createPatch } from 'diff';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -42,6 +42,10 @@ function buildUnifiedDiff(item: FileDiffItem): string | null {
   return createPatch(filename, item.original ?? '', item.current ?? '', '', '', { context: 3 });
 }
 
+function countRevertibleChanges(changes: FileChange[]): number {
+  return changes.filter((change) => change.revertible !== false).length;
+}
+
 const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const t = useTranslations('messageActions');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -50,6 +54,8 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [triggerLoading, setTriggerLoading] = useState(false);
+  const [changeCount, setChangeCount] = useState<number | null>(null);
+  const [prefetchedChanges, setPrefetchedChanges] = useState<FileChange[] | null>(null);
 
   const fetchChanges = useCallback(async (): Promise<FileChange[] | 'error'> => {
     try {
@@ -63,6 +69,24 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       return 'error';
     }
   }, [chatId, messageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setChangeCount(null);
+
+    void (async () => {
+      const result = await fetchChanges();
+      if (cancelled || result === 'error') {
+        return;
+      }
+      setPrefetchedChanges(result);
+      setChangeCount(countRevertibleChanges(result));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, messageId, fetchChanges]);
 
   const fetchDiffs = useCallback(async () => {
     try {
@@ -94,6 +118,18 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     setPopoverOpen(false);
   }, []);
 
+  const openRevertPopover = useCallback(
+    async (fileChanges: FileChange[]) => {
+      const fileDiffs = await fetchDiffs();
+      setChanges(fileChanges);
+      setDiffs(fileDiffs);
+      setChangeCount(countRevertibleChanges(fileChanges));
+      setPrefetchedChanges(fileChanges);
+      setPopoverOpen(true);
+    },
+    [fetchDiffs],
+  );
+
   const resolveNonRevertibleToast = useCallback(
     (changes: FileChange[]) => {
       const reason = changes.find((c) => c.skip_reason)?.skip_reason;
@@ -112,7 +148,12 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     if (triggerLoading) return;
     setTriggerLoading(true);
     try {
-      const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
+      let fileChanges: FileChange[] | 'error';
+      if (prefetchedChanges !== null) {
+        fileChanges = prefetchedChanges;
+      } else {
+        fileChanges = await fetchChanges();
+      }
       if (fileChanges === 'error') {
         toast({ title: t('revertMessageFetchError'), variant: 'destructive' });
         return;
@@ -126,13 +167,11 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
         toast({ title: resolveNonRevertibleToast(fileChanges), variant: 'default' });
         return;
       }
-      setChanges(fileChanges);
-      setDiffs(fileDiffs);
-      setPopoverOpen(true);
+      await openRevertPopover(fileChanges);
     } finally {
       setTriggerLoading(false);
     }
-  }, [fetchChanges, fetchDiffs, resolveNonRevertibleToast, t, triggerLoading]);
+  }, [fetchChanges, openRevertPopover, prefetchedChanges, resolveNonRevertibleToast, t, triggerLoading]);
 
   const handleConfirmRevert = useCallback(async () => {
     const nonRevertibleCount = changes?.filter((c) => c.revertible === false).length ?? 0;
@@ -221,9 +260,13 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
             void handleTriggerClick();
           }}
           disabled={status === 'loading' || triggerLoading}
-          title={t('revertFiles')}
+          title={
+            changeCount && changeCount > 0
+              ? t('revertFilesWithCount', { count: changeCount })
+              : t('revertFiles')
+          }
           className={cn(
-            'p-2 rounded-xl transition duration-200',
+            'relative p-2 rounded-xl transition duration-200',
             popoverOpen
               ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50'
               : 'text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary hover:text-black dark:hover:text-white',
@@ -231,6 +274,14 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
           )}
         >
           <Undo2 size={18} className={triggerLoading ? 'animate-spin' : undefined} />
+          {changeCount !== null && changeCount > 0 && (
+            <span
+              aria-label={t('revertFilesBadgeAria', { count: changeCount })}
+              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-medium leading-none text-white"
+            >
+              {changeCount > 99 ? '99+' : changeCount}
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent

@@ -6226,8 +6226,12 @@
       "truncated": "返信因长度制限された截断，続行対話可获取完整内容。",
       "contentFiltered": "部分返信された内容ポリシーフィルター。",
       "budgetBlocked": "済み达每日予算上限，実行された拦截。してくださいで設定中调整予算限度額后続行使用。",
+      "workflowMergeWarning": "一部の workspace ファイルをマージできませんでした。ツール出力で詳細を確認してください。",
       "fileMutationFailed": "{count, plural, one {# 個ファイル修変更失敗} other {# 個ファイル修変更失敗}} — 变更済み自動回滚。",
-      "fileMutationFailedTitle": "ファイル修変更失敗"
+      "fileMutationFailedTitle": "ファイル修変更失敗",
+      "workspaceMergeFailed": "{count, plural, one {# 件のマージエラー} other {# 件のマージエラー}}",
+      "workspaceMergeFailedTitle": "ワークスペースマージ失敗",
+      "workspaceMergeFailedMore": "{count, plural, one {他 # 件のエラーは非表示} other {他 # 件のエラーは非表示}}"
     },
     "toolImage": {
       "screenshotLabel": "リモートデスクトップスクリーンショット"

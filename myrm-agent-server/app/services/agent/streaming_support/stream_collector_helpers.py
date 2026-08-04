@@ -8,6 +8,7 @@
 - collect_kanban_task_created, collect_cron_job_result
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
+- collect_workspace_merge_failures
 - string_keyed_dict, string_keyed_dicts
 
 [POS]
@@ -273,3 +274,22 @@ def collect_file_mutation_failures(
                 "error_preview": preview if isinstance(preview, str) else "",
             }
         )
+
+
+def collect_workspace_merge_failures(
+    target: list[dict[str, object]],
+    data: object,
+) -> None:
+    """Append normalized workspace merge failures from a workspace_merge_failed SSE payload."""
+    if not isinstance(data, dict):
+        return
+    errors = data.get("errors")
+    if not isinstance(errors, list):
+        return
+    for item in errors:
+        if not isinstance(item, dict):
+            continue
+        message = item.get("message")
+        if not isinstance(message, str) or not message.strip():
+            continue
+        target.append({"message": message.strip()})

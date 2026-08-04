@@ -115,7 +115,7 @@ async def build_security_dashboard() -> SecurityDashboard:
             detail=f"GitHub API error: {exc.response.text}",
         ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch security data: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Failed to fetch security data") from exc
 
 
 async def build_setup_hints() -> SecuritySetupHints:

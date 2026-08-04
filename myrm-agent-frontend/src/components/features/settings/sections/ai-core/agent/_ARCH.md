@@ -10,7 +10,7 @@
 |------|------|
 | `AgentBasicInfoTab.tsx` | 名称、描述、头像等基础信息 |
 | `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口 |
-| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/路由覆盖/迭代/工作区/引擎参数） |
+| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/路由覆盖/迭代/工作区/Idle 自动压缩/engine 参数） |
 | `AgentCapabilitiesConsensusSection.tsx` | MoA overlay 参考模型选择器（`ConsensusRefModels`，供 MoaOverlaySection 复用） |
 | `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型） |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |

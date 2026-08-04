@@ -96,7 +96,7 @@ async def generate_policy(req: GeneratePolicyRequest) -> GeneratePolicyResponse:
         logger.error("Policy generation LLM call failed: %s", exc)
         raise HTTPException(
             status_code=502,
-            detail=f"LLM call failed: {type(exc).__name__}: {exc}",
+            detail="LLM call failed",
         ) from exc
 
     try:
@@ -105,7 +105,7 @@ async def generate_policy(req: GeneratePolicyRequest) -> GeneratePolicyResponse:
         logger.warning("Policy generation parse failed: %s", exc)
         raise HTTPException(
             status_code=422,
-            detail=f"Failed to parse LLM response: {exc}",
+            detail="Failed to parse LLM response",
         ) from exc
 
     is_valid, warnings = validate_generated_policy(generated, req.current_config)
@@ -146,5 +146,5 @@ async def _resolve_model(selection: dict[str, str] | None) -> "ModelConfig":
     except Exception as exc:
         raise HTTPException(
             status_code=400,
-            detail=f"No available LLM model: {exc}",
+            detail="No available LLM model",
         ) from exc

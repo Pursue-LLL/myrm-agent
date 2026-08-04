@@ -65,6 +65,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'captcha_timeout',
   'model_escalated',
   'file_mutation_failed',
+  'workspace_merge_failed',
   'tool_image_output',
   'browser_view_update',
   'desktop_view_update',

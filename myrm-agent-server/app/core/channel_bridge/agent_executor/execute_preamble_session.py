@@ -118,9 +118,10 @@ async def resolve_channel_session_context(
                 topic_context=topic_context,
             )
         except ChannelWorkspaceSyncError as exc:
+            logger.warning("Workspace sync failed for channel session: %s", exc)
             pre_events.append(
                 msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "topic_workspace_unavailable", error=str(exc)),
+                    content=get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
                 )
             )
             return ChannelSessionContext(
@@ -145,9 +146,10 @@ async def resolve_channel_session_context(
                 topic_context=topic_context,
             )
         except ChannelWorkspaceSyncError as exc:
+            logger.warning("Workspace sync failed for channel session: %s", exc)
             pre_events.append(
                 msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "topic_workspace_unavailable", error=str(exc)),
+                    content=get_text(msg, "topic_workspace_unavailable", error="workspace sync failed"),
                 )
             )
             return ChannelSessionContext(

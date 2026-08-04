@@ -571,7 +571,7 @@ async def _process_image_item(
                 logger.warning(f"Vision fallback failed: {e}")
                 return {
                     "type": "text",
-                    "text": f"[Image Analysis Failed: {e}]",
+                    "text": "[Image could not be analyzed]",
                 }
 
         return {"type": "image_url", "image_url": {"url": data_url}}
@@ -685,7 +685,7 @@ async def _process_video_item(
                 logger.warning("Video analysis fallback failed: %s", e)
                 return {
                     "type": "text",
-                    "text": f"[Video Analysis Failed: {e}]",
+                    "text": "[Video could not be analyzed]",
                 }
 
         return {

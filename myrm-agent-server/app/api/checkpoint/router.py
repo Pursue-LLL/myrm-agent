@@ -101,7 +101,7 @@ async def list_checkpoints(
             total=len(checkpoint_infos),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list checkpoints: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to list checkpoints") from e
 
 
 @router.post("/resume", response_model=CheckpointResumeResponse)
@@ -149,7 +149,7 @@ async def resume_from_checkpoint(request: CheckpointResumeRequest) -> Checkpoint
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to resume from checkpoint: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to resume from checkpoint") from e
 
 
 @router.delete("/{task_id}")
@@ -175,7 +175,7 @@ async def delete_checkpoint(task_id: str) -> dict[str, str]:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete checkpoint: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to delete checkpoint") from e
 
 
 @router.post("/cleanup")
@@ -200,7 +200,7 @@ async def cleanup_old_checkpoints(
             "ttl_days": ttl_days,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup checkpoints: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to cleanup checkpoints") from e
 
 
 # ============================================================================
@@ -242,7 +242,7 @@ async def list_file_snapshots(
             )
         return FileSnapshotListResponse(snapshots=items, total=len(items))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list file snapshots: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to list file snapshots") from e
 
 
 @router.post("/file-snapshot/restore", response_model=FileSnapshotRestoreResponse)
@@ -269,7 +269,7 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
             error=result.error,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to restore file snapshot: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to restore file snapshot") from e
 
 
 @router.get("/file-snapshot/{snapshot_id}/diff", response_model=FileDiffResponse)
@@ -295,7 +295,7 @@ async def get_file_snapshot_diff(snapshot_id: str) -> FileDiffResponse:
             total_changes=diff.total_changes,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get file diff: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to get file diff") from e
 
 
 @router.delete("/file-snapshot/{snapshot_id}")
@@ -310,7 +310,7 @@ async def delete_file_snapshot(snapshot_id: str) -> dict[str, str]:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete file snapshot: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to delete file snapshot") from e
 
 
 @router.post("/file-snapshot/cleanup")
@@ -328,4 +328,4 @@ async def cleanup_file_snapshots(
             "max_snapshots": max_snapshots,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup file snapshots: {e}") from e
+        raise HTTPException(status_code=500, detail="Failed to cleanup file snapshots") from e

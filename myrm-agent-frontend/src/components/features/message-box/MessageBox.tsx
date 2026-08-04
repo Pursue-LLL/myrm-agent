@@ -55,6 +55,7 @@ import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
 import { FileMutationWarning } from './FileMutationWarning';
+import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
 import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
@@ -836,6 +837,14 @@ const MessageBox = ({
               <FileMutationWarning failures={message.fileMutationFailures} />
             )}
 
+            {!(isLast && loading) && message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0 && (
+              <WorkspaceMergeWarning
+                failures={message.workspaceMergeFailures}
+                failedCount={message.workspaceMergeFailedCount}
+                truncated={message.workspaceMergeTruncated}
+              />
+            )}
+
             {/* 完成状态提示 */}
             {!(isLast && loading) && message.completionStatus === 'truncated' && (
               <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
@@ -853,6 +862,12 @@ const MessageBox = ({
               <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg text-sm">
                 <Ban className="w-4 h-4 text-orange-500 shrink-0" />
                 <span className="text-orange-700 dark:text-orange-300">{t('message.budgetBlocked')}</span>
+              </div>
+            )}
+            {!(isLast && loading) && message.completionStatus === 'warning' && (
+              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>
               </div>
             )}
 
