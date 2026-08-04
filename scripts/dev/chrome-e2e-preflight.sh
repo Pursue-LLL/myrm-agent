@@ -58,6 +58,13 @@ _attach_health_require_args() {
     echo "--require-signoff-stream-ready"
     return 0
   fi
+  local active_leases
+  active_leases="$(_parallel_attach_active_leases)"
+  # R284: parallel SHARED with live UI/API must not block on clientHot monotonic BOOTSTRAP.
+  if [[ "${active_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
+    echo "--require-read-attach-ready"
+    return 0
+  fi
   if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
     echo "--require-read-attach-ready"
     return 0

@@ -712,6 +712,9 @@ def _compute_next_action(
     if headroom.get("parallelQueueExpected") is True:
         return "QUEUE"
     if ctx.blocked and admit_active > 0:
+        # R284: epoch-aligned SHARED must launch while peers ADMIT — not heal-wait 900s.
+        if ctx.epoch_match and str(getattr(ctx, "verify_api_base", "") or ctx.shared_api_base or "").strip():
+            return "PARALLEL_OK" if active_tests else "READY"
         return "ADMIT_STACK_HEAL_WAIT"
     if ctx.blocked and not ctx.epoch_match:
         return "SHPOIB_OR_VERIFY_API"
