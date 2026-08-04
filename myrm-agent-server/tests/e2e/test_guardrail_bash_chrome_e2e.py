@@ -295,7 +295,7 @@ def _assert_variant_ui(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         message_ready_js,
-        timeout_sec=90.0,
+        timeout_sec=_attach_eval_timeout_sec(),
     )
     assert message_ready.get("ready") is True, json.dumps(
         message_ready, ensure_ascii=False
