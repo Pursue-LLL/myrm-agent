@@ -22,12 +22,12 @@ def _desktop_soak_signoff_parallel_attach_restart_ok() -> bool:
 
 
 def _parallel_load_blocks_attach_restart() -> bool:
-    """P0-B: active mux contexts / wave leases block global daemon restart."""
+    """P0-B: block global mux daemon restart only when multiple mux contexts are active."""
     try:
         from mux_load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
-        if max(0, load.mux_contexts, load.wave_leases) > 0:
+        if load.mux_contexts >= 2:
             return True
     except (ImportError, OSError, TypeError, ValueError):
         pass

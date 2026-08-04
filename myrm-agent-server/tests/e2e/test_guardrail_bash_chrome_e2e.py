@@ -24,6 +24,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -56,6 +57,8 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "no-panel",
     "no-bridge",
     "React E2E bridge",
+    "apiBase': None",
+    "apiBase\": None",
     "E2E_ORCHESTRATOR_LEASE_DENIED",
     "ORCHESTRATOR_LEASE_DENIED",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
@@ -120,21 +123,6 @@ def _seed_fixture(api_url: str, *, variant: str) -> dict[str, str]:
     return {"chat_id": chat_id, "variant": variant}
 
 
-def _api_binding_ready_js(expected_api_base: str) -> str:
-    expected_json = json.dumps(expected_api_base.rstrip("/"))
-    return f"""(() => {{
-  const probe = {{
-    apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
-    runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
-  }};
-  const actual = String(probe.apiBase || '').replace(/\\/+$/, '');
-  return {{
-    ready: actual === {expected_json},
-    probe,
-  }};
-}})()"""
-
-
 _GUARDRAIL_CATEGORY_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -158,6 +146,7 @@ _GUARDRAIL_CATEGORY_JS = """(() => {
 
 
 _GUARDRAIL_BADGE_JS = """(() => {
+  window.scrollTo(0, document.body.scrollHeight);
   const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
   if (toggle && toggle.getAttribute('data-expanded') !== 'true') {
     toggle.click();
@@ -170,18 +159,22 @@ _GUARDRAIL_BADGE_JS = """(() => {
     ready: hasBadge,
     hasBadge,
     hasPanel: !!panel,
+    hasToggle: !!toggle,
     text_head: text.slice(0, 600),
   };
 })()"""
 
 
 _PROGRESS_DOM_READY_JS = """(() => {
+  window.scrollTo(0, document.body.scrollHeight);
   const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
   const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+  const assistants = document.querySelectorAll('[data-test-id="assistant-message"]').length;
   return {
-    ready: !!(toggle || panel),
+    ready: assistants >= 1 && !!(toggle || panel),
     hasToggle: !!toggle,
     hasPanel: !!panel,
+    assistants,
   };
 })()"""
 
@@ -267,6 +260,82 @@ def _ensure_fixture_assistant_ready(
     raise AssertionError(f"guardrail fixture not ready chat={chat_id}: {last_error}")
 
 
+def _ensure_shpoib_api_binding(
+    client: object,
+    page: object,
+    api_base: str,
+    *,
+    timeout_sec: float = 90.0,
+) -> None:
+    """Inject and wait for private SHPOIB API binding on shared :3000 UI."""
+    from cdp_chat_support import (  # type: ignore[import-not-found]
+        E2E_API_BINDING_PROBE_JS,
+        e2e_api_base_inject_js,
+        e2e_runtime_binding_source,
+        e2e_runtime_bootstrap_apply_js,
+        wait_e2e_provider_ready,
+    )
+
+    expected = api_base.rstrip("/")
+    if not wait_e2e_provider_ready(api_url=expected, timeout_sec=min(30.0, timeout_sec)):
+        raise AssertionError(f"private API not ready before SHPOIB bind: {expected!r}")
+
+    bootstrap_js = e2e_runtime_bootstrap_apply_js(expected)
+    deadline = time.monotonic() + timeout_sec
+    last_probe: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            E2E_API_BINDING_PROBE_JS,
+            timeout_sec=15.0,
+        )
+        last_probe = raw if isinstance(raw, dict) else {"value": raw}
+        actual = str(last_probe.get("apiBase") or "").rstrip("/")
+        if actual == expected:
+            return
+        remaining = max(0.0, deadline - time.monotonic())
+        if bootstrap_js:
+            client.evaluate(  # type: ignore[attr-defined]
+                page,
+                bootstrap_js,
+                timeout_sec=min(45.0, max(5.0, remaining)),
+            )
+            wait_for_state(
+                client,  # type: ignore[arg-type]
+                page,  # type: ignore[arg-type]
+                """(async () => {
+                  if (typeof window.__MYRM_E2E_RUNTIME_READY__ === 'undefined') {
+                    return { ready: false, phase: 'missing' };
+                  }
+                  try {
+                    await window.__MYRM_E2E_RUNTIME_READY__;
+                    return { ready: true };
+                  } catch (error) {
+                    return { ready: false, phase: 'error', error: String(error) };
+                  }
+                })()""",
+                timeout_sec=min(45.0, max(5.0, remaining)),
+            )
+        else:
+            source = e2e_runtime_binding_source(expected)
+            if source:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    f"(() => {{{source} return true; }})()",
+                    timeout_sec=min(15.0, max(5.0, remaining)),
+                )
+            else:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    e2e_api_base_inject_js(expected),
+                    timeout_sec=min(15.0, max(5.0, remaining)),
+                )
+        time.sleep(0.5)
+    raise AssertionError(
+        f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}"
+    )
+
+
 def _assert_variant_ui(
     client: object,
     page: object,
@@ -286,14 +355,22 @@ def _assert_variant_ui(
     }})()"""
 
     api_base = get_e2e_api_url().rstrip("/")
-    binding_ready = wait_for_state(
+
+    bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
-        _api_binding_ready_js(api_base),
-        timeout_sec=60.0,
+        timeout_sec=_bridge_ready_timeout_sec(),
+        page_url=page_url,
     )
-    assert binding_ready.get("ready") is True, json.dumps(
-        binding_ready, ensure_ascii=False
+    assert bridge_ready.get("ready") is True, json.dumps(
+        bridge_ready, ensure_ascii=False
+    )
+
+    _ensure_shpoib_api_binding(
+        client,
+        page,
+        api_base,
+        timeout_sec=_attach_eval_timeout_sec(),
     )
 
     attached = client.evaluate(  # type: ignore[attr-defined]
@@ -326,13 +403,32 @@ def _assert_variant_ui(
         f"{json.dumps(category_state, ensure_ascii=False)}"
     )
 
+    answer_json = json.dumps(_FIXTURE_ANSWER)
+    dom_answer_js = f"""(() => {{
+      window.scrollTo(0, document.body.scrollHeight);
+      const bodyText = document.body?.innerText || '';
+      return {{
+        ready: bodyText.includes({answer_json}),
+        sample: bodyText.slice(0, 400),
+      }};
+    }})()"""
+    dom_answer = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        dom_answer_js,
+        timeout_sec=_attach_eval_timeout_sec(),
+    )
+    assert dom_answer.get("ready") is True, json.dumps(
+        dom_answer, ensure_ascii=False
+    )
+
     client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
 
     dom_ready = wait_for_state(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         _PROGRESS_DOM_READY_JS,
-        timeout_sec=60.0,
+        timeout_sec=_attach_eval_timeout_sec(),
     )
     assert dom_ready.get("ready") is True, (
         f"variant={variant} progress UI not mounted: "
@@ -343,7 +439,7 @@ def _assert_variant_ui(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         _GUARDRAIL_BADGE_JS,
-        timeout_sec=45.0,
+        timeout_sec=_attach_eval_timeout_sec(),
     )
     assert badge_state.get("ready") is True, (
         f"variant={variant} missing 安全拦截/Safety Blocked badge: "
