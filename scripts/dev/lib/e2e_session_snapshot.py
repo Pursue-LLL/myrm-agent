@@ -96,7 +96,7 @@ def write_holder_session_snapshot(
         "holderPid": holder_pid,
         "testId": test_id.strip(),
         "currentNode": current_node,
-        "phase": "body" if current_node == "E2E_PYTEST_SUBPROCESS" else "admit",
+        "phase": "delegated" if current_node == "E2E_PYTEST_SUBPROCESS" else "admit",
         "lane": lane.strip(),
         "shpoib": bool(shpoib),
         "sessionStartedMonotonic": started,

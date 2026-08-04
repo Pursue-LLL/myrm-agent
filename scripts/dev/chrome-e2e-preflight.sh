@@ -1353,9 +1353,20 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
 fi
 export_myrm_next_dist_dir
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
+
+_run_idle_tab_prune_if_safe() {
+  local py="${SCRIPT_DIR}/../myrm-agent-server/.venv/bin/python"
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  PYTHONPATH="${SCRIPT_DIR}/lib:${MONOREPO_ROOT:-}/scripts/dev/lib" \
+    "${py}" "${SCRIPT_DIR}/lib/idle_tab_hygiene.py" 2>&1 || true
+}
+
 health_attempt=0
 while [[ "${health_attempt}" -lt 3 ]]; do
   if _print_e2e_health_json 1; then
+    _run_idle_tab_prune_if_safe
     exit 0
   fi
   health_attempt=$((health_attempt + 1))

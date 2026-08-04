@@ -182,6 +182,8 @@ def _hung_reason_for_row(
     snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
     if snapshot is not None:
         phase = str(snapshot.get("phase") or "").strip().lower()
+        if phase == "delegated":
+            return None
         if phase == "admit":
             admit_elapsed = phase_elapsed_from_snapshot(snapshot)
             elapsed_for_cap = (
@@ -195,7 +197,7 @@ def _hung_reason_for_row(
                 child_match = read_session_snapshot_by_test_id(row.test_id)
                 if child_match is not None:
                     child_phase = str(child_match[1].get("phase") or "").strip().lower()
-                    if child_phase in ("bootstrap", "body"):
+                    if child_phase in ("bootstrap", "body", "delegated"):
                         return None
             admit_cap = _admit_wall_cap_for_pid(row.pid)
             if elapsed_for_cap >= admit_cap:
@@ -392,6 +394,8 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
             bootstrap_elapsed = row.elapsed_sec
         if float(bootstrap_elapsed) >= bootstrap_cap:
             return f"bootstrap_elapsed={int(bootstrap_elapsed)}s>={int(bootstrap_cap)}s"
+    if row.phase == "delegated":
+        return None
     if row.phase != "admit":
         return None
 

@@ -102,7 +102,7 @@ def _is_batch_file_invocation(test_id: str) -> bool:
 
 
 def _phase_rank(phase: str) -> int:
-    order = {"admit": 0, "bootstrap": 1, "body": 2, "teardown": 3}
+    order = {"admit": 0, "delegated": 1, "bootstrap": 2, "body": 3, "teardown": 4}
     return order.get(phase.strip().lower(), -1)
 
 
@@ -137,6 +137,22 @@ def _coordinator_has_sessions() -> bool:
         return isinstance(result.get("sessions"), list)
     except (ImportError, OSError, RuntimeError, ValueError):
         return False
+
+
+def _batch_has_inner_pytest(test_id: str) -> bool:
+    """True when a file-batch test.sh already spawned an inner pytest for this file."""
+    if "::" in test_id:
+        return False
+    file_prefix = test_id.split(" -m ", 1)[0].strip()
+    if not file_prefix.endswith(".py"):
+        return False
+    from e2e_live_chrome_pytest_scan import list_live_chrome_e2e_pytest_rows  # noqa: PLC0415
+
+    for row in list_live_chrome_e2e_pytest_rows():
+        inner_id = row.test_id.strip()
+        if inner_id.startswith(f"{file_prefix}::"):
+            return True
+    return False
 
 
 def _list_test_sh_admit_fallback(
@@ -181,6 +197,8 @@ def _list_test_sh_admit_fallback(
         if test_id is None:
             continue
         if test_id in covered_test_ids:
+            continue
+        if _is_batch_file_invocation(test_id) and _batch_has_inner_pytest(test_id):
             continue
         rows.append(
             LiveE2ESessionRow(

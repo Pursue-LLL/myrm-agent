@@ -77,6 +77,55 @@ def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(normalized)
 
 
+def file_batch_key(argv: tuple[str, ...]) -> str | None:
+    """Normalized tests/e2e/*.py path when invoked as whole-file batch (no ::node)."""
+    joined = " ".join(_normalize_argv(argv))
+    if "::" in joined:
+        return None
+    import re
+
+    match = re.search(r"(tests/e2e/[^\s]+\.py)", joined)
+    if match is None:
+        return None
+    path = match.group(1)
+    if "-m" not in joined or "chrome_e2e" not in joined:
+        return None
+    return path
+
+
+def _file_batch_root() -> Path:
+    return _dev_state_dir() / "pytest-chrome-e2e-file-batch"
+
+
+def _file_batch_record_path(batch_key: str) -> Path:
+    digest = hashlib.sha256(batch_key.encode("utf-8")).hexdigest()[:16]
+    return _file_batch_root() / f"{digest}.json"
+
+
+def find_file_batch_duplicate(batch_key: str, *, exclude_pids: tuple[int, ...] = ()) -> int | None:
+    root = _file_batch_root()
+    if not batch_key.strip():
+        return None
+    path = _file_batch_record_path(batch_key)
+    record = _load_record(path)
+    if record is None:
+        return None
+    holder_pid = record.get("holderPid")
+    if not isinstance(holder_pid, int):
+        path.unlink(missing_ok=True)
+        return None
+    if holder_pid in exclude_pids:
+        return None
+    if not _pid_alive(holder_pid):
+        path.unlink(missing_ok=True)
+        return None
+    now = time.time()
+    if _record_is_stale(record, now=now):
+        path.unlink(missing_ok=True)
+        return None
+    return holder_pid
+
+
 def fingerprint_argv(argv: tuple[str, ...]) -> str:
     """Stable hash for chrome_e2e submission idempotency."""
     run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
@@ -220,6 +269,19 @@ def acquire_session_lock(
             file=sys.stderr,
         )
         raise SystemExit(2)
+    batch_key = file_batch_key(argv)
+    if batch_key is not None:
+        batch_duplicate = find_file_batch_duplicate(
+            batch_key, exclude_pids=(resolved_pid, os.getppid())
+        )
+        if batch_duplicate is not None:
+            print(
+                f"E2E_FILE_BATCH_DEDUPE_DENIED: batch_key={batch_key} "
+                f"holder_pid={batch_duplicate} — "
+                "whole-file chrome_e2e already running; use path::test_name or wait",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
     now = time.time()
     lane = os.environ.get("MYRM_E2E_LANE", "")
     record: _DedupeRecord = {
@@ -236,6 +298,23 @@ def acquire_session_lock(
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(path)
+    if batch_key is not None:
+        batch_root = _file_batch_root()
+        batch_root.mkdir(parents=True, exist_ok=True)
+        batch_record: _DedupeRecord = {
+            "fingerprint": batch_key,
+            "holderPid": resolved_pid,
+            "parentPid": os.getppid(),
+            "argv": list(_normalize_argv(argv)),
+            "acquiredAt": now,
+            "heartbeatAt": now,
+        }
+        batch_path = _file_batch_record_path(batch_key)
+        batch_tmp = batch_path.with_suffix(".json.tmp")
+        batch_tmp.write_text(
+            json.dumps(batch_record, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        batch_tmp.replace(batch_path)
 
 
 def release_session_lock(fingerprint: str, *, holder_pid: int | None = None) -> None:
@@ -247,3 +326,12 @@ def release_session_lock(fingerprint: str, *, holder_pid: int | None = None) -> 
     if record.get("holderPid") != resolved_pid:
         return
     path.unlink(missing_ok=True)
+    batch_root = _file_batch_root()
+    if batch_root.is_dir():
+        for batch_path in batch_root.glob("*.json"):
+            batch_record = _load_record(batch_path)
+            if batch_record is None:
+                batch_path.unlink(missing_ok=True)
+                continue
+            if batch_record.get("holderPid") == resolved_pid:
+                batch_path.unlink(missing_ok=True)

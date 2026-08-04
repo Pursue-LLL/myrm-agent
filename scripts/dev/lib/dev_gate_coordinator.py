@@ -108,9 +108,13 @@ class CoordinatorService:
             reaped = list(self.store.reap_abandoned())
             reaped.extend(self.store.reap_expired_deadlines())
             compacted = self.store.compact_journal()
+            from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+
+            hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_reap")
             return {
                 "reaped_session_ids": reaped,
                 "journal_events_compacted": compacted,
+                "idle_tab_hygiene": hygiene,
             }
         if operation == "submit":
             return self._submit(request)
