@@ -48,7 +48,11 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "chrome-error",
     "PARENT_LEASE_NOT_ACTIVE",
     "E2E_LEASE_INVALID",
+    "LEASE_NOT_ACTIVE",
     "no-panel",
+    "no-bridge",
+    "E2E_ORCHESTRATOR_LEASE_DENIED",
+    "ORCHESTRATOR_LEASE_DENIED",
 )
 
 
@@ -62,6 +66,8 @@ def _force_mux_heal_before_retry() -> None:
 
 def _is_transport_retryable(exc: BaseException) -> bool:
     text = str(exc)
+    if "E2E_USER_CLOSED_TAB" in text:
+        return False
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
 
 
@@ -155,6 +161,16 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
+_BRIDGE_READY_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  return {
+    ready: typeof bridge?.attachToChat === 'function',
+    hasBridge: !!bridge,
+    hasAttach: typeof bridge?.attachToChat === 'function',
+  };
+})()"""
+
+
 def _attach_chat_probe(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
     return f"""(async () => {{
@@ -187,6 +203,16 @@ def _assert_variant_ui(
       );
       return {{ ready: !!msg, count: store?.messages?.length ?? 0 }};
     }})()"""
+
+    bridge_ready = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        _BRIDGE_READY_JS,
+        timeout_sec=90.0,
+    )
+    assert bridge_ready.get("ready") is True, json.dumps(
+        bridge_ready, ensure_ascii=False
+    )
 
     attached = client.evaluate(page, _attach_chat_probe(chat_id), timeout_sec=90.0)  # type: ignore[attr-defined]
     assert isinstance(attached, dict) and attached.get("ok") is True, attached
@@ -243,7 +269,7 @@ def _assert_variant_ui(
 
 
 def _run_single_variant_ui_assertions(
-    api_url: str, ui_url: str, *, variant: str, *, warm_route: bool = True
+    api_url: str, ui_url: str, *, variant: str, warm_route: bool = True
 ) -> None:
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
@@ -257,7 +283,7 @@ def _run_single_variant_ui_assertions(
 
 @pytest.mark.parametrize("variant", _VARIANTS)
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
