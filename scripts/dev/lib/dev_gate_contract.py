@@ -103,6 +103,10 @@ MUX_RESPONSIVE_PROBE_BASE_SEC: Final[float] = 8.0
 MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC: Final[float] = 3.0
 MUX_RESPONSIVE_PROBE_MAX_SEC: Final[float] = 45.0
 MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
+# R275: launch-check / test.sh readiness subprocess wall — scales under parallel attach.
+E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
+E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
+E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
 # R210: signoff attach mux probe — after retry exhaustion under parallel, WAIT not fail-closed.
 SIGNOFF_MUX_PROBE_PARALLEL_WAIT_BASE_SEC: Final[float] = 60.0
 SIGNOFF_MUX_PROBE_PARALLEL_WAIT_LEASE_SCALE_SEC: Final[float] = 15.0
@@ -409,6 +413,34 @@ def _parallel_chrome_e2e_pressure() -> int:
     return max(0, pressure)
 
 
+def e2e_launch_check_wall_sec(*, active_leases: int | None = None) -> float:
+    """Readiness emit subprocess budget for launch-check and test.sh gate (R275).
+
+    Solo 45s; under parallel chrome_e2e pressure min(120, 45+peers×15)s so
+    ``e2e_readiness emit`` is not falsely denied while peers hold the stack.
+    """
+    raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
+    if raw:
+        try:
+            parsed = float(raw)
+        except ValueError:
+            parsed = 0.0
+        if parsed > 0:
+            return parsed
+    pressure = (
+        active_leases
+        if active_leases is not None
+        else _parallel_chrome_e2e_pressure()
+    )
+    if pressure <= 0:
+        return E2E_LAUNCH_CHECK_WALL_SOLO_SEC
+    scaled = (
+        E2E_LAUNCH_CHECK_WALL_SOLO_SEC
+        + pressure * E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC
+    )
+    return min(E2E_LAUNCH_CHECK_WALL_MAX_SEC, scaled)
+
+
 def mux_responsive_probe_timeout_sec(*, active_leases: int | None = None) -> float:
     """tools/list probe budget for mux stamp validation (preflight + test.sh SSOT).
 
@@ -709,17 +741,20 @@ def dev_gate_post_admit_hard_timeout_sec() -> int:
 
     tools_panel log-8: grant used now+600 while bootstrap cap=990 + BODY=660 remained;
     HARD_DEADLINE @ ~709s from submit → PARENT_LEASE_NOT_ACTIVE during mux recovery.
+
+    Submit/ADMIT paths must not call live mux snapshot (snapshot_mux_load force=True)
+    — parallel chrome_e2e blocks on mux RPC and stalls dev_gate submit wrapper (R250).
     """
     bootstrap_sec = int(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     try:
-        from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
-
-        bootstrap_sec = int(
-            bootstrap_wall_cap_sec(pessimistic=True)
-            + mux_upstream_wait_cap(pessimistic=True)
+        from transport_supervisor import (
+            MUX_BOOTSTRAP_WALL_MAX_SEC,
+            MUX_UPSTREAM_WAIT_MAX_SEC,
         )
+
+        bootstrap_sec = int(MUX_BOOTSTRAP_WALL_MAX_SEC + MUX_UPSTREAM_WAIT_MAX_SEC)
     except ImportError:
-        pass
+        bootstrap_sec = int(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV + MUX_UPSTREAM_WAIT_SEC)
     return (
         bootstrap_sec
         + LIVE_SINGLE_TEST_WALL_CLOCK_SEC

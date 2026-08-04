@@ -20,15 +20,11 @@ import sys
 from pathlib import Path
 
 
+from dev_gate_contract import e2e_launch_check_wall_sec
+
+
 def _launch_gate_wall_sec() -> float:
-    raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
-    if not raw:
-        return 45.0
-    try:
-        parsed = float(raw)
-    except ValueError:
-        return 45.0
-    return parsed if parsed > 0 else 45.0
+    return e2e_launch_check_wall_sec()
 
 
 def _launch_gate_subprocess_env() -> dict[str, str]:
@@ -48,7 +44,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         return None
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return None
-    if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "1") != "1":
+    if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "0") == "1":
         from e2e_readiness import (  # noqa: PLC0415
             launch_denial_line,
             resolve_chrome_e2e_readiness,
