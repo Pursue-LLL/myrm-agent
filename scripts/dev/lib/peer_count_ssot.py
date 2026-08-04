@@ -117,8 +117,16 @@ def solo_gate_active_mux_peer_count() -> int:
 def parallel_active_test_count_ssot() -> int:
     """Parallel chrome_e2e count for recovery mutex scaling."""
     pytest_peers = chrome_e2e_pytest_peer_count()
-    if pytest_peers > 0:
-        return pytest_peers
+    session_peers = 0
+    try:
+        from e2e_session_registry import list_live_e2e_sessions
+
+        session_peers = len(list_live_e2e_sessions())
+    except ImportError:
+        session_peers = 0
+    combined = max(pytest_peers, session_peers)
+    if combined > 0:
+        return combined
     raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
     if raw.isdigit():
         return max(1, int(raw))

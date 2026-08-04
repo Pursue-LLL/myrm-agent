@@ -17,10 +17,16 @@ from __future__ import annotations
 import time
 
 from dev_gate_contract import (
+    E2E_ADMIT_NODE_STUCK_TOKEN,
+    E2E_ADMISSION_WALL_CLOCK_SEC,
     E2E_NODE_STUCK_TOKEN,
     MUX_RECLAIM_STALL_TOKEN,
     NODE_STUCK_FAIL_FAST_SEC,
     TRANSPORT_STALL_NODE_PREFIXES,
+    admit_semantic_node_stall_cap_sec,
+    admit_wall_clock_sec,
+    is_admit_semantic_stall_node,
+    is_e2e_signoff_runtime,
 )
 
 
@@ -69,6 +75,42 @@ def _resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     except ImportError:
         pass
     return _transport_stall_cap_sec()
+
+
+def admit_node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
+    """ADMIT node stall below process wall — E2E_ADMIT_TEST_SH / batch parent holders."""
+    phase = str(snapshot.get("phase") or "").strip().lower()
+    if phase != "admit":
+        return None
+    node = str(snapshot.get("currentNode") or "").strip()
+    if not is_admit_semantic_stall_node(node):
+        return None
+    elapsed = node_elapsed_from_snapshot(snapshot)
+    if elapsed is None:
+        try:
+            from e2e_session_snapshot import phase_elapsed_from_snapshot
+        except ImportError:
+            return None
+        elapsed = phase_elapsed_from_snapshot(snapshot)
+    if elapsed is None:
+        return None
+    signoff = is_e2e_signoff_runtime()
+    cap = admit_semantic_node_stall_cap_sec(
+        current_node=node,
+        batch_mode=False,
+        signoff=signoff,
+    )
+    process_cap = float(admit_wall_clock_sec()) if signoff else float(
+        E2E_ADMISSION_WALL_CLOCK_SEC
+    )
+    if cap >= process_cap:
+        return None
+    if float(elapsed) >= cap:
+        return (
+            f"{E2E_ADMIT_NODE_STUCK_TOKEN}: node={node!r} "
+            f"node_elapsed={int(elapsed)}s>={int(cap)}s"
+        )
+    return None
 
 
 def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:

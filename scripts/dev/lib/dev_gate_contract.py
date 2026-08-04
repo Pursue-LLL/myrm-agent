@@ -1054,6 +1054,52 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
     return min(base + float(peers) * 25.0, body_cap * 0.45)
 
 
+def is_admit_semantic_stall_node(node: str) -> bool:
+    """True for ADMIT phase nodes eligible for node-level stall (below admit process wall)."""
+    text = node.strip()
+    if not text:
+        return False
+    return any(text.startswith(prefix) for prefix in ADMIT_SEMANTIC_STALL_NODE_PREFIXES)
+
+
+def admit_semantic_node_stall_cap_sec(
+    *,
+    current_node: str,
+    batch_mode: bool = False,
+    signoff: bool = False,
+) -> float:
+    """Node-level ADMIT stall cap — releases credit before 900s process wall when stuck.
+
+    E2E_ADMIT_TEST_SH (no sidecar) and batch parent holders must not block parallel
+    queue for the full dev ADMIT wall while test.sh never writes a snapshot.
+    """
+    node = current_node.strip()
+    if not is_admit_semantic_stall_node(node):
+        return float(E2E_ADMISSION_WALL_CLOCK_SEC)
+    uses_tight_cap = node == E2E_ADMIT_TEST_SH_NODE or (
+        batch_mode and node.startswith("E2E_ADMIT_")
+    )
+    if not uses_tight_cap:
+        if signoff:
+            return float(admit_wall_clock_sec())
+        return float(E2E_ADMISSION_WALL_CLOCK_SEC)
+    base = float(
+        ADMIT_BATCH_PARENT_STALL_CAP_DEV_SEC
+        if batch_mode
+        else ADMIT_TEST_SH_STALL_CAP_DEV_SEC
+    )
+    if signoff:
+        peers = max(0, _parallel_signoff_pressure_peers())
+        if peers >= 2:
+            scaled = _scaled_parallel_admit_wait_sec(solo_base=int(base))
+            return min(float(SIGNOFF_ATTACH_PARALLEL_CAP_SEC), scaled)
+        return min(float(SIGNOFF_ATTACH_PARALLEL_CAP_SEC), base + 60.0)
+    active_leases = _wave_active_lease_count_for_mux()
+    if active_leases >= 2:
+        return min(360.0, base + float(active_leases) * 30.0)
+    return base
+
+
 def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     """R170 SSOT: hung-reap / open_mcp NODE_STUCK cap (import fresh after reload)."""
     try:
@@ -1324,6 +1370,12 @@ TRANSPORT_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = (
     "bridge_",
     "E2E_BOOTSTRAP",
 )
+# R282: ADMIT semantic nodes — node-level stall below process admit_wall (900s dev).
+ADMIT_SEMANTIC_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = ("E2E_ADMIT_",)
+E2E_ADMIT_TEST_SH_NODE: Final[str] = "E2E_ADMIT_TEST_SH"
+ADMIT_TEST_SH_STALL_CAP_DEV_SEC: Final[int] = 180
+ADMIT_BATCH_PARENT_STALL_CAP_DEV_SEC: Final[int] = 180
+E2E_ADMIT_NODE_STUCK_TOKEN: Final[str] = "E2E_ADMIT_NODE_STUCK"
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 E2E_USER_CLOSED_TAB_TOKEN: Final[str] = "E2E_USER_CLOSED_TAB"

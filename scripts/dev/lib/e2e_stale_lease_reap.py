@@ -199,6 +199,13 @@ def _hung_reason_for_row(
                     child_phase = str(child_match[1].get("phase") or "").strip().lower()
                     if child_phase in ("bootstrap", "body", "delegated"):
                         return None
+            from e2e_stall_guard import (  # noqa: PLC0415
+                admit_node_stuck_reason_from_snapshot,
+            )
+
+            admit_node_stuck = admit_node_stuck_reason_from_snapshot(snapshot)
+            if admit_node_stuck is not None:
+                return admit_node_stuck
             admit_cap = _admit_wall_cap_for_pid(row.pid)
             if elapsed_for_cap >= admit_cap:
                 return (
@@ -310,6 +317,40 @@ def _hung_reason_for_row(
     return None
 
 
+def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
+    """Node-level ADMIT stall for sidecar-less test.sh holders and batch parents."""
+    from dev_gate_contract import (  # noqa: PLC0415
+        E2E_ADMIT_NODE_STUCK_TOKEN,
+        admit_semantic_node_stall_cap_sec,
+        is_admit_semantic_stall_node,
+    )
+
+    current_node = str(row.current_node or "").strip()
+    if not is_admit_semantic_stall_node(current_node):
+        return None
+    node_elapsed = row.node_elapsed_sec
+    if node_elapsed is None:
+        node_elapsed = row.admit_elapsed_sec
+    if node_elapsed is None:
+        node_elapsed = row.elapsed_sec
+    signoff = _process_has_signoff_env(row.pid)
+    cap = admit_semantic_node_stall_cap_sec(
+        current_node=current_node,
+        batch_mode=row.batch_mode,
+        signoff=signoff,
+    )
+    admit_wall = _admit_wall_cap_for_pid(row.pid)
+    if cap >= admit_wall:
+        return None
+    elapsed_f = float(node_elapsed)
+    if elapsed_f >= cap:
+        return (
+            f"{E2E_ADMIT_NODE_STUCK_TOKEN}: node={current_node!r} "
+            f"node_elapsed={int(elapsed_f)}s>={int(cap)}s"
+        )
+    return None
+
+
 def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     """Align hung-reap with e2e-context FAIL_FAST when sidecar snapshot lags."""
     node_elapsed = row.node_elapsed_sec
@@ -325,6 +366,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     elapsed_f = float(node_elapsed)
     wall = str(row.wall_phase or row.phase or "").strip().lower()
     if wall == "admit":
+        admit_semantic = _admit_semantic_node_stuck_reason(row)
+        if admit_semantic is not None:
+            return admit_semantic
         if elapsed_f < _admit_wall_cap_for_pid(row.pid):
             return None
     if wall == "body":
@@ -396,6 +440,9 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
             return f"bootstrap_elapsed={int(bootstrap_elapsed)}s>={int(bootstrap_cap)}s"
     if row.phase == "delegated":
         return None
+    admit_semantic = _admit_semantic_node_stuck_reason(row)
+    if admit_semantic is not None:
+        return admit_semantic
     if row.phase != "admit":
         return None
 
@@ -630,6 +677,10 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
     # R198: hard-cap ADMIT/BOOTSTRAP breaches must reap even during signoff.
     if reason.startswith(("bootstrap_elapsed=", "admit_elapsed=")):
         return False
+    from dev_gate_contract import E2E_ADMIT_NODE_STUCK_TOKEN  # noqa: PLC0415
+
+    if reason.startswith(E2E_ADMIT_NODE_STUCK_TOKEN):
+        return False
     if reason.startswith("E2E_NODE_STUCK"):
         return False
     if _parallel_node_stuck_reason(row) is not None:
@@ -687,10 +738,14 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
             file=sys.stderr,
             flush=True,
         )
-        from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+        from dev_gate_contract import (  # noqa: PLC0415
+            E2E_ADMIT_NODE_STUCK_TOKEN,
+            E2E_BODY_WALL_EXCEEDED_TOKEN,
+        )
 
         force_kill = (
             "E2E_ADMIT_STALL" in reason
+            or reason.startswith(E2E_ADMIT_NODE_STUCK_TOKEN)
             or E2E_BODY_WALL_EXCEEDED_TOKEN in reason
             or reason.startswith("bootstrap_elapsed=")
         )
