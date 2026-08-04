@@ -89,16 +89,12 @@ def _health_runtime_id(api_base: str) -> str:
 
 
 def _runtime_identity_env(*, runtime_id: str, api_base: str) -> dict[str, str]:
+    """API-only epoch pin env — no isolated runtime bind (P0-DGR-6)."""
+    _ = runtime_id  # health identity only; not an allocator-owned runtime
     return {
         "E2E_API_BASE": api_base.rstrip("/"),
-        "MYRM_E2E_PRIVATE_RUNTIME_ID": runtime_id,
-        "MYRM_E2E_PRIVATE_BACKEND": "1",
-        "MYRM_PRIVATE_BACKEND": "1",
-        "MYRM_E2E_SHPOIB": "1",
         _EPOCH_PIN_ENV: "1",
         "MYRM_E2E_FORCE_MODEL_SEED": "1",
-        "MYRM_E2E_RUN_ID": runtime_id,
-        "MYRM_E2E_RUNTIME_ID": runtime_id,
     }
 
 
