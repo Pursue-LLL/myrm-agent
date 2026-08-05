@@ -4,18 +4,22 @@
 
 运行方式：
 -----------
-   pytest tests/api/agent/test_mcp.py -v -s
+   ./myrm test -m e2e tests/api/agent/test_mcp.py -v -s
+   # 单测例：./myrm test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
 
 注意事项：
 -----------
-- 需要正确配置 .env 文件中的模型和搜索服务配置
-- 需要 MCP 服务器可用（如 amap-maps）
+- 禁止 `uv run pytest`；monorepo 根目录用 `./myrm test`
+- 需要 `.env.test` 中 BASIC_*（及可选 LITE_*、搜索服务配置）
+- 12306 MCP 须 Node `12306-mcp`（`npm install -g 12306-mcp`）；禁止 uvx 版 Python mcp-server-12306
+- 其他 MCP 服务器可用（如 amap-maps）
 - 沙箱模式自动跟随 DEPLOY_MODE 环境变量（local 或 sandbox）
-- 使用 live_client fixture（实际运行在端口上，支持 MCP HTTP 回调）
+- 使用 TestClient fixture（进程内 FastAPI；stdio MCP 不需 live :8080）
 """
 
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -35,6 +39,38 @@ from tests.support.test_secrets import resolve_test_env
 _MCP_12306_INDEX = Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
 
 _UVX_PATH = os.environ.get("UVX_PATH") or shutil.which("uvx") or "uvx"
+_NPX_PATH = os.environ.get("NPX_PATH") or shutil.which("npx") or "npx"
+_NODE_PATH = os.environ.get("NODE_PATH") or shutil.which("node") or "node"
+
+
+def _resolve_12306_mcp_stdio() -> tuple[str, list[str], str, float]:
+    """Resolve a fast stdio launch for Joooook/12306-mcp (avoid npx cold download).
+
+    Priority: MCP_12306_INDEX env → repo-local build → global ``12306-mcp`` bin →
+    node + global module path → npx (slow; needs higher connect_timeout).
+    """
+    env_index = os.environ.get("MCP_12306_INDEX")
+    if env_index and Path(env_index).is_file():
+        return _NODE_PATH, [env_index], f"node {env_index}", 15.0
+
+    if _MCP_12306_INDEX.is_file():
+        return _NODE_PATH, [str(_MCP_12306_INDEX)], f"node {_MCP_12306_INDEX}", 15.0
+
+    global_bin = shutil.which("12306-mcp")
+    if global_bin:
+        return global_bin, [], f"12306-mcp ({global_bin})", 15.0
+
+    node = shutil.which("node")
+    if node:
+        candidate = Path(node).resolve().parent.parent / "lib/node_modules/12306-mcp/build/index.js"
+        if candidate.is_file():
+            return node, [str(candidate)], f"node {candidate}", 15.0
+
+    npx_cmd = _NPX_PATH if Path(_NPX_PATH).exists() else shutil.which("npx")
+    if npx_cmd:
+        return npx_cmd, ["-y", "12306-mcp"], f"npx -y 12306-mcp ({npx_cmd})", 90.0
+
+    raise RuntimeError("No Node 12306 MCP launcher found (install: npm install -g 12306-mcp)")
 
 _TEST_WALL_CLOCK_LIMIT = 300
 _STREAM_TIMEOUT = 300
@@ -69,6 +105,162 @@ def _mcp_skill_was_invoked(collected_data: list[dict[str, object]], marker: str)
             if tool_name == "file_read_tool" and marker in str(item.get("file_path", "")).lower():
                 return True
     return False
+
+
+def _mcp_ptc_bash_was_engaged(collected_data: list[dict[str, object]], marker: str) -> bool:
+    """Return True when bash executed PTC import path (success preferred, attempt required).
+
+    Prevents Goodhart pass on skill_select alone while tolerating LLM syntax errors on
+    otherwise-correct ``from skills.mcp_*`` scripts.
+    """
+    marker = marker.lower()
+    saw_attempt = False
+    for event in collected_data:
+        if event.get("type") != "tasks_steps":
+            continue
+        if event.get("tool_name") != "bash_code_execute_tool":
+            continue
+        items = event.get("data")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("code", "")).lower()
+            if "skills.mcp_" not in code or marker not in code:
+                continue
+            if event.get("status") == "success":
+                return True
+            saw_attempt = True
+    return saw_attempt
+
+
+_GET_TICKETS_TOKENS = ("get_tickets", "get-tickets")
+_ITERATION_LIMIT_MARKERS = (
+    "iteration limit",
+    "iterations limit",
+    "max iteration",
+    "迭代次数",
+    "达到最大迭代",
+    "iteration_limit",
+)
+
+
+def _code_mentions_get_tickets(code: str) -> bool:
+    normalized = code.lower().replace("-", "_")
+    return "get_tickets" in normalized
+
+
+def _path_mentions_get_tickets(path: str) -> bool:
+    lowered = path.lower()
+    return any(token in lowered for token in _GET_TICKETS_TOKENS)
+
+
+def _mcp_ptc_get_tickets_engaged(collected_data: list[dict[str, object]], marker: str) -> bool:
+    """True when PTC chain reached get_tickets docs or bash import (not date/station-only)."""
+    marker = marker.lower()
+    for event in collected_data:
+        if event.get("type") != "tasks_steps":
+            continue
+        tool_name = event.get("tool_name")
+        items = event.get("data")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if tool_name == "file_read_tool":
+                path = str(item.get("file_path", ""))
+                if marker in path.lower() and _path_mentions_get_tickets(path):
+                    return True
+            if tool_name == "bash_code_execute_tool":
+                code = str(item.get("code", ""))
+                if marker in code.lower() and _code_mentions_get_tickets(code):
+                    return True
+    return False
+
+
+def _mcp_bash_get_tickets_succeeded(collected_data: list[dict[str, object]], marker: str) -> bool:
+    """True when bash successfully executed code that imports/calls get_tickets for the MCP skill."""
+    marker = marker.lower()
+    for event in collected_data:
+        if event.get("type") != "tasks_steps":
+            continue
+        if event.get("tool_name") != "bash_code_execute_tool":
+            continue
+        if event.get("status") != "success":
+            continue
+        items = event.get("data")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("code", ""))
+            if marker in code.lower() and _code_mentions_get_tickets(code):
+                return True
+        stdout = event.get("stdout")
+        if isinstance(stdout, str) and _answer_looks_like_ticket_result(stdout):
+            return True
+    return False
+
+
+def _answer_looks_like_ticket_result(full_answer: str) -> bool:
+    """Heuristic guard: final answer should look like a ticket listing, not iteration-limit boilerplate."""
+    text = full_answer.strip()
+    if len(text) < 80:
+        return False
+    lowered = text.lower()
+    if any(marker in lowered for marker in _ITERATION_LIMIT_MARKERS):
+        return False
+    if re.search(r"[GDC]\d{1,4}", text):
+        return True
+    if "车次" in text and ("出发" in text or "到达" in text or "历时" in text):
+        return True
+    if re.search(r"\d{1,2}:\d{2}", text) and "北京" in text and "上海" in text:
+        return True
+    return False
+
+
+def _print_tasks_steps_payload(tool_name: str, step_data_list: object) -> None:
+    """Print tool input payloads from a tasks_steps event (pytest -s live stream)."""
+    if not isinstance(step_data_list, list):
+        return
+    for idx, item in enumerate(step_data_list):
+        if not isinstance(item, dict):
+            continue
+        if tool_name == "file_read_tool":
+            print(f"   [{idx}] file_path={item.get('file_path')}")
+        elif tool_name == "bash_code_execute_tool":
+            code = str(item.get("code", ""))
+            preview = code if len(code) <= 3000 else code[:3000] + "\n   ... [truncated]"
+            print(f"   [{idx}] code ({len(code)} chars):\n{preview}")
+        elif tool_name == "skill_select_tool":
+            print(f"   [{idx}] skill_name={item.get('skill_name')}")
+        else:
+            print(f"   [{idx}] {json.dumps(item, ensure_ascii=False)[:500]}")
+
+
+def _has_final_answer(collected_data: list[dict[str, object]]) -> bool:
+    """True when message+message_end exist and no tool approval is still pending."""
+    if not any(d.get("type") == "message" for d in collected_data):
+        return False
+    if not any(d.get("type") == "message_end" for d in collected_data):
+        return False
+
+    last_approval_idx = -1
+    for i, event in enumerate(collected_data):
+        if event.get("type") in ("approval_required", "tool_approval_request"):
+            last_approval_idx = i
+
+    if last_approval_idx < 0:
+        return True
+
+    post_approval = collected_data[last_approval_idx + 1 :]
+    return any(
+        event.get("type") == "tasks_steps" and event.get("status") == "success"
+        for event in post_approval
+    )
 
 
 def _preflight_llm_check() -> bool:
@@ -245,6 +437,7 @@ class TestAgentMCP:
                 print(f"\n{status_icon} 工具调用: {tool_name}")
                 if step_data_list:
                     print(f"   步骤数据: {len(step_data_list)} 项")
+                    _print_tasks_steps_payload(tool_name, step_data_list)
             elif data_type == "progress":
                 status = data.get("data", {})
                 pct = status.get("progress_pct", "") if isinstance(status, dict) else ""
@@ -320,13 +513,8 @@ class TestAgentMCP:
         line_count = 0
         _stream_request(search_request)
 
-        def _has_final_answer() -> bool:
-            has_message = any(d.get("type") == "message" for d in collected_data)
-            has_end = any(d.get("type") == "message_end" for d in collected_data)
-            return has_message and has_end
-
         for round_idx in range(10):
-            if _has_final_answer():
+            if _has_final_answer(collected_data):
                 log("已收到完整回答，停止后续 resume")
                 break
 
@@ -465,15 +653,19 @@ class TestAgentMCP:
 
     @pytest.mark.timeout(360)
     def test_agent_with_12306_python_mcp(self, client: TestClient) -> None:
-        """测试 Agent 使用 Python 版 12306 MCP (drfccv/mcp-server-12306) 查询车票
+        """测试 Agent 使用 12306 MCP (Joooook/12306-mcp via Node stdio) 查询车票
 
-        验证 PTC 在 stdio 类型 MCP 下正常工作（Python 版，更稳定）。
+        验证 PTC 在 stdio 类型 MCP 下正常工作。
+
+        Note: Python ``mcp-server-12306`` (uvx) is incompatible with MCP SDK 2.x
+        (``Server.list_tools`` decorator removed). Use Node ``12306-mcp`` instead.
+        Prefer ``npm install -g 12306-mcp`` — ``npx -y`` cold download exceeds the
+        default 51s MCP connect budget.
         """
-        import shutil
-
-        uvx_cmd = _UVX_PATH if Path(_UVX_PATH).exists() else shutil.which("uvx")
-        if not uvx_cmd:
-            pytest.skip("uvx not found, cannot run Python 12306 MCP")
+        try:
+            mcp_cmd, mcp_args, mcp_label, connect_timeout = _resolve_12306_mcp_stdio()
+        except RuntimeError as exc:
+            pytest.skip(str(exc))
 
         if not _preflight_llm_check():
             pytest.skip("LLM API preflight check failed (connectivity / timeout)")
@@ -485,7 +677,7 @@ class TestAgentMCP:
             print(f"[{elapsed:.1f}s] {msg}", flush=True)
 
         log("=" * 60)
-        log("开始测试：Agent + Python 12306 MCP (uvx stdio)")
+        log(f"开始测试：Agent + 12306 MCP (stdio, {mcp_label})")
         log("=" * 60)
 
         search_request: dict[str, object] = {
@@ -501,15 +693,16 @@ class TestAgentMCP:
                 {
                     "name": "12306",
                     "type": "stdio",
-                    "command": uvx_cmd,
-                    "args": ["mcp-server-12306"],
-                    "description": "12306火车票查询服务（Python版），提供实时余票查询、车站信息、经停站、中转换乘等功能",
+                    "command": mcp_cmd,
+                    "args": mcp_args,
+                    "connect_timeout": connect_timeout,
+                    "description": "12306火车票查询服务，提供实时余票查询、车站信息、经停站、中转换乘等功能",
                 },
             ],
         }
 
         log(f"🔍 查询: {search_request['query']}")
-        log(f"🔌 MCP配置: 12306 (uvx stdio, cmd={uvx_cmd})")
+        log(f"🔌 MCP配置: 12306 (stdio, cmd={mcp_cmd}, args={mcp_args}, timeout={connect_timeout}s)")
         log("=" * 60)
 
         collected_data: list[dict[str, object]] = []
@@ -571,6 +764,7 @@ class TestAgentMCP:
                 print(f"\n{status_icon} 工具调用: {tool_name}")
                 if step_data_list:
                     print(f"   步骤数据: {len(step_data_list)} 项")
+                    _print_tasks_steps_payload(tool_name, step_data_list)
             elif data_type == "progress":
                 status = data.get("data", {})
                 pct = status.get("progress_pct", "") if isinstance(status, dict) else ""
@@ -646,13 +840,8 @@ class TestAgentMCP:
         line_count = 0
         _stream_request(search_request)
 
-        def _has_final_answer() -> bool:
-            has_message = any(d.get("type") == "message" for d in collected_data)
-            has_end = any(d.get("type") == "message_end" for d in collected_data)
-            return has_message and has_end
-
         for round_idx in range(10):
-            if _has_final_answer():
+            if _has_final_answer(collected_data):
                 log("已收到完整回答，停止后续 resume")
                 break
 
@@ -771,12 +960,17 @@ class TestAgentMCP:
             "12306 MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
         )
 
+        assert _mcp_ptc_bash_was_engaged(collected_data, "12306"), (
+            "12306 MCP PTC bash path was not engaged — skill_select alone is insufficient (Goodhart guard)"
+        )
+
+        assert _mcp_ptc_get_tickets_engaged(collected_data, "12306"), (
+            "12306 PTC did not reach get_tickets — date/station-only lookup is insufficient (Goodhart guard)"
+        )
+
         if len(message_chunks) == 0:
-            bash_succeeded = any(
-                d.get("type") == "tasks_steps" and d.get("tool_name") == "bash_code_execute_tool" and d.get("status") == "success"
-                for d in collected_data
-            )
-            if bash_succeeded:
+            if _mcp_bash_get_tickets_succeeded(collected_data, "12306"):
+                print("\n12306 MCP integration test passed (bash get_tickets succeeded, no final answer)")
                 return
 
             if error_events:
@@ -787,4 +981,11 @@ class TestAgentMCP:
 
         assert len(message_chunks) > 0, "Agent should produce a final answer"
 
-        print("\n12306 Python MCP integration test passed")
+        assert _answer_looks_like_ticket_result(full_answer) or _mcp_bash_get_tickets_succeeded(
+            collected_data, "12306"
+        ), (
+            "12306 ticket query did not deliver ticket evidence in final answer or successful get_tickets bash "
+            "(Goodhart guard against iteration_limit boilerplate)"
+        )
+
+        print("\n12306 MCP integration test passed")

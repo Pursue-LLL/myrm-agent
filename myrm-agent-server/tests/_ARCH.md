@@ -28,6 +28,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
+| `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（READ×1：`/chats/test/seed-wiki-dedup-fixture` → `/settings/wiki` Duplicate Review exact group） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume（R73 solo PASS；并行 m3-signoff 待补） |
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |
@@ -90,6 +91,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
+| `api/agent/test_mcp.py` | 模块 | Agent MCP 集成（`@pytest.mark.e2e`）：amap · 12306 Node stdio PTC；TestClient 进程内；须 `-m e2e` |
 | `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
@@ -117,6 +119,34 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 2. `tests/conftest.py` 调用 `apply_test_secrets_to_environ()` 供 legacy `skipif(os.getenv(...))` 兼容
 3. 新测试优先使用 `test_secrets` fixture 或 `resolve_test_env()`，禁止在源码中硬编码密钥
 4. 权威变量索引：`.env.example`（[P/O]）、`.env.sandbox.example`（[S]）、`.env.test.example`（[T]）
+
+---
+
+## 测试分层决策
+
+profile「集成测试」是工作流概念；pytest marker 是收集过滤器。四层金字塔（server 侧）：
+
+| 层级 | marker | 职责 | LLM | Chrome | 默认 `addopts` | monorepo 命令 |
+|------|--------|------|-----|--------|----------------|---------------|
+| 单元 | 无 / 快测 | 单模块逻辑 | 否 | 否 | 收集 | `./myrm test -n0 <路径>` |
+| integration | `@pytest.mark.integration` | 跨模块 wiring（registry、mount、converter、HTTP 契约） | 通常否 | 否 | 收集 | `./myrm test -n0 <路径>` |
+| e2e | `@pytest.mark.e2e` | Agent-stream 全回合（SSE、MCP stdio、工具链） | 是（`.env.test`） | 否 | **排除** | `./myrm test -m e2e <路径>` |
+| chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（`:3000` + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
+
+- 入口统一 **`./myrm test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
+- **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必 `:8080` live server。
+- **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm test -m integration …`。
+- `-m e2e` 与 `-m chrome_e2e` 互不包含；缺 marker 时带 e2e 标签的 node 会 deselect。
+
+示例：
+
+```bash
+# integration（默认收集）
+./myrm test -n0 tests/integration/test_chat_runtime_pool_live_integration.py
+
+# e2e（须 -m e2e）
+./myrm test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
+```
 
 ---
 
