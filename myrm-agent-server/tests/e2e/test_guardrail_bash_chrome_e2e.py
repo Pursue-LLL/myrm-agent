@@ -58,7 +58,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "no-bridge",
     "React E2E bridge",
     "apiBase': None",
-    "apiBase\": None",
+    'apiBase": None',
     "E2E_ORCHESTRATOR_LEASE_DENIED",
     "ORCHESTRATOR_LEASE_DENIED",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
@@ -79,6 +79,11 @@ def _bridge_ready_timeout_sec() -> float:
 def _attach_eval_timeout_sec() -> float:
     """Scale attachToChat evaluate under parallel mux (R138 parity)."""
     return _bridge_ready_timeout_sec()
+
+
+def _progress_dom_timeout_sec() -> float:
+    """Cap ProgressSteps DOM wait — batch must finish within ~10 min (3 variants)."""
+    return min(_attach_eval_timeout_sec(), 60.0)
 
 
 def _force_mux_heal_before_retry() -> None:
@@ -179,6 +184,28 @@ _PROGRESS_DOM_READY_JS = """(() => {
 })()"""
 
 
+def _wait_progress_ui_mounted(
+    client: object,
+    page: object,
+    chat_id: str,
+    *,
+    timeout_sec: float,
+) -> None:
+    """Wait for ProgressSteps DOM after store category is confirmed."""
+    client.evaluate(  # type: ignore[attr-defined]
+        page,
+        _attach_chat_probe(chat_id, answer=_FIXTURE_ANSWER),
+        timeout_sec=min(90.0, timeout_sec),
+    )
+    dom_ready = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        _PROGRESS_DOM_READY_JS,
+        timeout_sec=timeout_sec,
+    )
+    assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
+
+
 _EXPAND_PROGRESS_JS = """(() => {
   const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
   if (toggle) {
@@ -207,8 +234,9 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
-def _attach_chat_probe(chat_id: str) -> str:
+def _attach_chat_probe(chat_id: str, *, answer: str | None = None) -> str:
     chat_id_json = json.dumps(chat_id)
+    answer_json = json.dumps(answer) if answer else "null"
     return f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.attachToChat) {{
@@ -216,9 +244,18 @@ def _attach_chat_probe(chat_id: str) -> str:
   }}
   await bridge.attachToChat({chat_id_json});
   const snap = bridge.turnSnapshot?.() ?? {{}};
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  const target = {answer_json};
+  const hasAssistant = target
+    ? msgs.some(
+        (m) => m.role === 'assistant' && String(m.content || '').includes(target),
+      )
+    : msgs.some((m) => m.role === 'assistant');
   return {{
-    ok: snap.chatId === {chat_id_json} && (snap.userCount ?? 0) >= 1,
-    snap,
+    ok: snap.chatId === {chat_id_json} && hasAssistant,
+    snap: {{ ...snap, msgCount: msgs.length }},
+    hasAssistant,
   }};
 }})()"""
 
@@ -226,7 +263,7 @@ def _attach_chat_probe(chat_id: str) -> str:
 def _ensure_fixture_assistant_ready(
     api_url: str, chat_id: str, *, timeout_sec: float = 45.0
 ) -> None:
-    """Poll private API before Chrome — SHPOIB backend may lag seed under parallel mux."""
+    """Poll API before Chrome — backend may lag seed under parallel mux."""
     deadline = time.monotonic() + timeout_sec
     last_error = "timeout"
     while time.monotonic() < deadline:
@@ -260,82 +297,6 @@ def _ensure_fixture_assistant_ready(
     raise AssertionError(f"guardrail fixture not ready chat={chat_id}: {last_error}")
 
 
-def _ensure_shpoib_api_binding(
-    client: object,
-    page: object,
-    api_base: str,
-    *,
-    timeout_sec: float = 90.0,
-) -> None:
-    """Inject and wait for private SHPOIB API binding on shared :3000 UI."""
-    from cdp_chat_support import (  # type: ignore[import-not-found]
-        E2E_API_BINDING_PROBE_JS,
-        e2e_api_base_inject_js,
-        e2e_runtime_binding_source,
-        e2e_runtime_bootstrap_apply_js,
-        wait_e2e_provider_ready,
-    )
-
-    expected = api_base.rstrip("/")
-    if not wait_e2e_provider_ready(api_url=expected, timeout_sec=min(30.0, timeout_sec)):
-        raise AssertionError(f"private API not ready before SHPOIB bind: {expected!r}")
-
-    bootstrap_js = e2e_runtime_bootstrap_apply_js(expected)
-    deadline = time.monotonic() + timeout_sec
-    last_probe: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        raw = client.evaluate(  # type: ignore[attr-defined]
-            page,
-            E2E_API_BINDING_PROBE_JS,
-            timeout_sec=15.0,
-        )
-        last_probe = raw if isinstance(raw, dict) else {"value": raw}
-        actual = str(last_probe.get("apiBase") or "").rstrip("/")
-        if actual == expected:
-            return
-        remaining = max(0.0, deadline - time.monotonic())
-        if bootstrap_js:
-            client.evaluate(  # type: ignore[attr-defined]
-                page,
-                bootstrap_js,
-                timeout_sec=min(45.0, max(5.0, remaining)),
-            )
-            wait_for_state(
-                client,  # type: ignore[arg-type]
-                page,  # type: ignore[arg-type]
-                """(async () => {
-                  if (typeof window.__MYRM_E2E_RUNTIME_READY__ === 'undefined') {
-                    return { ready: false, phase: 'missing' };
-                  }
-                  try {
-                    await window.__MYRM_E2E_RUNTIME_READY__;
-                    return { ready: true };
-                  } catch (error) {
-                    return { ready: false, phase: 'error', error: String(error) };
-                  }
-                })()""",
-                timeout_sec=min(45.0, max(5.0, remaining)),
-            )
-        else:
-            source = e2e_runtime_binding_source(expected)
-            if source:
-                client.evaluate(  # type: ignore[attr-defined]
-                    page,
-                    f"(() => {{{source} return true; }})()",
-                    timeout_sec=min(15.0, max(5.0, remaining)),
-                )
-            else:
-                client.evaluate(  # type: ignore[attr-defined]
-                    page,
-                    e2e_api_base_inject_js(expected),
-                    timeout_sec=min(15.0, max(5.0, remaining)),
-                )
-        time.sleep(0.5)
-    raise AssertionError(
-        f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}"
-    )
-
-
 def _assert_variant_ui(
     client: object,
     page: object,
@@ -354,8 +315,6 @@ def _assert_variant_ui(
       return {{ ready: !!msg, count: store?.messages?.length ?? 0 }};
     }})()"""
 
-    api_base = get_e2e_api_url().rstrip("/")
-
     bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
@@ -366,16 +325,9 @@ def _assert_variant_ui(
         bridge_ready, ensure_ascii=False
     )
 
-    _ensure_shpoib_api_binding(
-        client,
-        page,
-        api_base,
-        timeout_sec=_attach_eval_timeout_sec(),
-    )
-
     attached = client.evaluate(  # type: ignore[attr-defined]
         page,
-        _attach_chat_probe(chat_id),
+        _attach_chat_probe(chat_id, answer=_FIXTURE_ANSWER),
         timeout_sec=_attach_eval_timeout_sec(),
     )
     assert isinstance(attached, dict) and attached.get("ok") is True, attached
@@ -386,7 +338,7 @@ def _assert_variant_ui(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         message_ready_js,
-        timeout_sec=_attach_eval_timeout_sec(),
+        timeout_sec=45.0,
     )
     assert message_ready.get("ready") is True, json.dumps(
         message_ready, ensure_ascii=False
@@ -403,37 +355,14 @@ def _assert_variant_ui(
         f"{json.dumps(category_state, ensure_ascii=False)}"
     )
 
-    answer_json = json.dumps(_FIXTURE_ANSWER)
-    dom_answer_js = f"""(() => {{
-      window.scrollTo(0, document.body.scrollHeight);
-      const bodyText = document.body?.innerText || '';
-      return {{
-        ready: bodyText.includes({answer_json}),
-        sample: bodyText.slice(0, 400),
-      }};
-    }})()"""
-    dom_answer = wait_for_state(
-        client,  # type: ignore[arg-type]
-        page,  # type: ignore[arg-type]
-        dom_answer_js,
-        timeout_sec=_attach_eval_timeout_sec(),
-    )
-    assert dom_answer.get("ready") is True, json.dumps(
-        dom_answer, ensure_ascii=False
+    _wait_progress_ui_mounted(
+        client,
+        page,
+        chat_id,
+        timeout_sec=_progress_dom_timeout_sec(),
     )
 
     client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-
-    dom_ready = wait_for_state(
-        client,  # type: ignore[arg-type]
-        page,  # type: ignore[arg-type]
-        _PROGRESS_DOM_READY_JS,
-        timeout_sec=_attach_eval_timeout_sec(),
-    )
-    assert dom_ready.get("ready") is True, (
-        f"variant={variant} progress UI not mounted: "
-        f"{json.dumps(dom_ready, ensure_ascii=False)}"
-    )
 
     badge_state = wait_for_state(
         client,  # type: ignore[arg-type]
