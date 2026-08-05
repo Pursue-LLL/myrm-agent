@@ -39,6 +39,8 @@ _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "private_resource_controller.py",
     "dev_gate_store.py",
     "e2e_stale_lease_reap.py",
+    "e2e_pytest_dedupe.py",
+    "e2e_session_registry.py",
 )
 
 
@@ -320,7 +322,10 @@ def ensure_coordinator(
         if _ping(socket_target):
             disabled_path.unlink(missing_ok=True)
         else:
-            disabled_age = time.time() - disabled_path.stat().st_mtime
+            try:
+                disabled_age = time.time() - disabled_path.stat().st_mtime
+            except FileNotFoundError:
+                disabled_age = 60.0
             if disabled_age < 60.0:
                 return None
             disabled_path.unlink(missing_ok=True)
@@ -492,7 +497,9 @@ def send(payload: dict[str, object]) -> dict[str, object]:
     }:
         timeout_sec = 30.0
     if isinstance(operation, str) and operation in {"cleanup", "teardown_finish"}:
-        timeout_sec = 60.0
+        from dev_gate_contract import dev_gate_teardown_finish_client_timeout_sec
+
+        timeout_sec = float(dev_gate_teardown_finish_client_timeout_sec())
     if operation == "wait_event":
         budget_raw = payload.get("budget_sec")
         if isinstance(budget_raw, (int, float)):
@@ -526,7 +533,11 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         decode_or_empty = "DEV_GATE_COORDINATOR_ERROR" in message and (
             "Expecting value" in message or "empty coordinator response" in message
         )
-        if decode_or_empty or "timeout" in message.lower() or "timed out" in message.lower():
+        if (
+            decode_or_empty
+            or "timeout" in message.lower()
+            or "timed out" in message.lower()
+        ):
             database_target = default_store_path().resolve()
             socket_target = normalized_socket_path(default_socket_path())
             pid_path = _coordinator_pid_path(database_target)
@@ -817,11 +828,16 @@ def _simple_operation(args: argparse.Namespace) -> int:
             return 1
         raise
     # cleanup/finish run inside test.sh EXIT trap; stdout would pollute detach pytest logs.
-    json_stream = sys.stderr if args.command in {
-        "cleanup",
-        "finish",
-        "teardown-finish",
-    } else sys.stdout
+    json_stream = (
+        sys.stderr
+        if args.command
+        in {
+            "cleanup",
+            "finish",
+            "teardown-finish",
+        }
+        else sys.stdout
+    )
     print(json.dumps(response, separators=(",", ":"), sort_keys=True), file=json_stream)
     if args.command == "cleanup":
         if os.environ.get("MYRM_E2E_RELAX_DEV_GATE_TERMINAL", "").strip() == "1":
@@ -844,7 +860,10 @@ def _simple_operation(args: argparse.Namespace) -> int:
             if not isinstance(cleanup, dict) or cleanup.get("sealed") is not True:
                 print("E2E_DEV_GATE_TEARDOWN_FINISH_UNSEALED", file=sys.stderr)
                 return 1
-            if session.get("state") != "SUCCEEDED" or session.get("outcome") != "PASSED":
+            if (
+                session.get("state") != "SUCCEEDED"
+                or session.get("outcome") != "PASSED"
+            ):
                 print(
                     "E2E_DEV_GATE_TEARDOWN_FINISH_TERMINAL_MISMATCH: "
                     f"state={session.get('state')} outcome={session.get('outcome')}",

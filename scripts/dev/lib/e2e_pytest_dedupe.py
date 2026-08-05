@@ -136,8 +136,6 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
             check=False,
         )
         holder_command = holder_cmd.stdout.strip()
-        if "test.sh" in holder_command and "test_guardrail_bash_chrome_e2e.py" in holder_command:
-            return True
         if "run_pytest_safe" in holder_command:
             return True
 
@@ -417,8 +415,9 @@ def acquire_session_lock(
     batch_key = file_batch_key(argv)
     scope_key = e2e_file_scope_key(argv)
     execution_mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
-    if execution_mode == "SHARED":
+    if execution_mode == "SHARED" and not _is_guardrail_file_scope(scope_key):
         # P1: SHARED logical sessions must not whole-file dedupe block peers.
+        # Exception: guardrail bash signoff is a maintenance singleton (Epic A §20 / R297).
         scope_key = None
         batch_key = None
     batch_flock_handle = None
