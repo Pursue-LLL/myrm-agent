@@ -12,6 +12,8 @@ interface Window {
   __MYRM_E2E_DIRECT_SSE__?: boolean;
   /** Chrome E2E: block outbound ConfigSync for searchServices (gap toast tests). */
   __MYRM_E2E_BLOCK_SEARCH_SYNC__?: boolean;
+  /** Chrome E2E: attachToChat poll deadline (ms); scaled under parallel load. */
+  __MYRM_E2E_ATTACH_TIMEOUT_MS__?: number;
   /** SHPOIB E2E: last attach fallback diagnostics from streamConsumer. */
   __MYRM_E2E_ATTACH_DIAG__?: {
     attached: boolean;

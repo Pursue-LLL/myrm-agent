@@ -428,4 +428,30 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
+    "wiki_corpus_dedup": {
+        "title": {
+            "ja": "Wiki コーパス重複スキャン",
+            "de": "Wiki-Korpus-Duplikat-Scan",
+            "ko": "위키 코퍼스 중복 스캔",
+        },
+        "description": {
+            "ja": "raw ソースの完全/正規化/近似重複を定期スキャンし、レビュー待ちキューに書き込み",
+            "de": "Geplanter Scan auf exakte, normalisierte und annähernde Duplikate mit Review-Warteschlange",
+            "ko": "raw 소스의 정확/정규화/유사 중복을 정기 스캔하여 검토 대기열에 등록",
+        },
+        "prompt_template": {
+            "ja": (
+                "Wiki コーパス重複排除ジョブ（router モード）。サーバー生成の要約をそのまま配信。"
+                "レビュー対象がなければ [SILENT] のみ。"
+            ),
+            "de": (
+                "Wiki-Korpus-Deduplizierungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Bei keinen Duplikatgruppen nur [SILENT]."
+            ),
+            "ko": (
+                "위키 코퍼스 중복 제거 작업(router 모드). 서버 요약을 그대로 전달. "
+                "검토 대상 중복 그룹 없으면 [SILENT]만 반환."
+            ),
+        },
+    },
 }

@@ -6,6 +6,8 @@
 
 [OUTPUT]
 - decide_drift_heal / pending-stack-drift.json persistence
+- ensure_lock_active / apply_pending_drift_if_idle (defer while ensure.lock.d held)
+- shared_api_http_ok via E2E_API_BASE / MYRM_BACKEND_PORT SSOT
 - CLI: decide-drift, record-pending, clear-pending, session-safe-timeout
 
 [POS]
@@ -101,10 +103,10 @@ def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAc
     if active_leases > 0:
         return DriftHealAction.DEFER
     try:
-        from e2e_session_registry import body_active_count, list_live_e2e_sessions
+        from e2e_session_registry import list_live_e2e_sessions
 
         sessions = list_live_e2e_sessions()
-        if body_active_count(sessions) > 0:
+        if len(sessions) > 0:
             return DriftHealAction.DEFER
     except (ImportError, OSError, RuntimeError, ValueError):
         pass

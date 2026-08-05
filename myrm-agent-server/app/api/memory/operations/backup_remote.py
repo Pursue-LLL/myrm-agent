@@ -168,7 +168,7 @@ async def trigger_backup(request: RemoteBackupRequest) -> RemoteBackupResponse:
         logger.exception("Remote backup trigger failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Remote backup failed: {e!s}",
+            detail="Remote backup failed",
         ) from e
 
 
@@ -195,7 +195,7 @@ async def list_remote_backups(request: RemoteBackupListRequest) -> RemoteBackupL
         logger.exception("Remote backup list failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list remote backups: {e!s}",
+            detail="Failed to list remote backups",
         ) from e
 
 
@@ -220,7 +220,7 @@ async def restore_remote_backup(request: RemoteRestoreRequest) -> RemoteBackupRe
         logger.exception("Remote restore failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Remote restore failed: {e!s}",
+            detail="Remote restore failed",
         ) from e
 
 
@@ -237,7 +237,7 @@ async def delete_remote_backup(request: RemoteRestoreRequest) -> dict[str, bool]
         logger.exception("Remote delete failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Remote delete failed: {e!s}",
+            detail="Remote delete failed",
         ) from e
 
 

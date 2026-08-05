@@ -50,10 +50,18 @@ def _write_seed_snapshot(chat_id: str) -> str:
     )
     abs_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        json.dumps({"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False),
-        json.dumps({"type": "human", "content": "Context retention E2E fixture question"}, ensure_ascii=False),
         json.dumps(
-            {"type": "ai", "content": "Context retention E2E fixture answer with context budget metadata."},
+            {"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False
+        ),
+        json.dumps(
+            {"type": "human", "content": "Context retention E2E fixture question"},
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "type": "ai",
+                "content": "Context retention E2E fixture answer with context budget metadata.",
+            },
             ensure_ascii=False,
         ),
     ]
@@ -96,7 +104,9 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
     agent_id = agent.id
 
     chat_id = f"e2econtextret{uuid4().hex[:8]}"
-    seed_workspace = str(Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention")
+    seed_workspace = str(
+        Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention"
+    )
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=chat_id,

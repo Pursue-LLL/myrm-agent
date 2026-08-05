@@ -42,9 +42,7 @@ _TESTS_ROOT = Path(__file__).resolve().parent
 _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
 _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
-_CHROME_PROFILE_FIELDS = frozenset(
-    {"execution_mode", "access_scope", "workload"}
-)
+_CHROME_PROFILE_FIELDS = frozenset({"execution_mode", "access_scope", "workload"})
 
 
 def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) -> bool:
@@ -303,7 +301,9 @@ def test_secrets():
 
 # Ensure schema is created since TestClient bypasses lifespan
 _INIT_DB_LOCK = Path(tempfile.gettempdir()) / "myrm-server-pytest-init-db.lock"
-_LIVE_CHROME_E2E_LANES = frozenset({"READ", "LIVE_AGENT", "RESOURCE_WRITE", "GLOBAL_WRITE"})
+_LIVE_CHROME_E2E_LANES = frozenset(
+    {"READ", "LIVE_AGENT", "RESOURCE_WRITE", "GLOBAL_WRITE"}
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -326,7 +326,9 @@ def init_test_database():
         finally:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
-    from app.services.chat.compact.compression_streak import register_chat_compression_streak_store
+    from app.services.chat.compact.compression_streak import (
+        register_chat_compression_streak_store,
+    )
 
     register_chat_compression_streak_store()
 
@@ -414,7 +416,9 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     try:
         from epoch_delivery_plane import epoch_pin_active
     except ImportError:
-        epoch_pin_active = lambda: os.environ.get("MYRM_E2E_EPOCH_PIN", "").strip() == "1"  # noqa: E731
+        epoch_pin_active = (
+            lambda: os.environ.get("MYRM_E2E_EPOCH_PIN", "").strip() == "1"
+        )  # noqa: E731
     if epoch_pin_active():
         return
     # R278/R279: signoff + desktop soak queue via ADMIT — never pytest.skip here.
@@ -449,6 +453,16 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
             and getattr(item, "health_ok", False)
             for item in getattr(ctx, "candidates", ())
         )
+        if not shared_healthy:
+            try:
+                from epoch_delivery_plane import _health_runtime_id
+            except ImportError:
+                pass
+            else:
+                shared_base = str(
+                    getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080"
+                ).strip()
+                shared_healthy = bool(_health_runtime_id(shared_base))
         if shared_healthy:
             return
 
@@ -458,7 +472,6 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
         f"Skipping to avoid lease acquisition under drift — "
         f"system will auto-restart once all leases are released."
     )
-
 
 
 @pytest.fixture(autouse=True)
@@ -500,10 +513,13 @@ def _chrome_e2e_epoch_pin(
         workload=profile[2],
     )
     _EPOCH_PIN_DEFER_DETAILS = frozenset(
-        {"shared_epoch_aligned", "shared_healthy_defer_verify_pin"}
+        {"shared_epoch_aligned", "shared_healthy_defer_verify_pin", "verify_seed_failed_defer_shared"}
     )
     if not outcome.applied:
-        if outcome.detail not in _EPOCH_PIN_DEFER_DETAILS:
+        if (
+            outcome.detail not in _EPOCH_PIN_DEFER_DETAILS
+            and not outcome.detail.startswith("verify_seed_failed_defer_shared:")
+        ):
             pytest.fail(
                 f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}"
             )

@@ -170,7 +170,7 @@ def run_signoff_ready_under_flock(
         cmd = _myrm_cmd(monorepo_root, "ready", "--attach", "--chrome")
         flock_wait = float(min(90, attach_wall + 30))
     else:
-        heal_wall = min(120, max(30, wall_sec))
+        heal_wall = max(30, min(wall_sec, 300))
         os.environ.pop("MYRM_CHROME_E2E_ATTACH", None)
         os.environ["MYRM_READY_CHROME_SOLO_WALL_SEC"] = str(heal_wall)
         _emit(
@@ -179,7 +179,7 @@ def run_signoff_ready_under_flock(
             f"epoch_match={hot.epoch_match} blocked={hot.blocked} wall={heal_wall}s"
         )
         cmd = _myrm_cmd(monorepo_root, "ready", "--chrome")
-        flock_wait = float(min(150, heal_wall + 30))
+        flock_wait = float(min(330, heal_wall + 30))
 
     try:
         return _run_heal_flocked(cmd, wait_sec=flock_wait, cwd=monorepo_root)

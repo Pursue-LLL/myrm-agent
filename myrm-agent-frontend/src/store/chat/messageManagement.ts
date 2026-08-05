@@ -26,6 +26,7 @@ import useChatStore from '@/store/useChatStore';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
+import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
 import useAgentStore from '@/store/useAgentStore';
 import { useSkillStore } from '@/store/skill';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
@@ -239,9 +240,18 @@ function parseMessages(raw: Message[]): Message[] {
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
 
+    const createdAtMs = resolveMessageCreatedAtMs(
+      (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as
+        | Date
+        | string
+        | number
+        | undefined,
+    );
+
     const parsed = {
       ...msg,
       ...metadata,
+      createdAt: createdAtMs != null ? new Date(createdAtMs) : new Date(),
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
     } as Message;
@@ -289,6 +299,11 @@ function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
   return refs.length > 0 ? refs : undefined;
 }
 
+export interface InitializeChatOptions {
+  /** Re-fetch messages even when `state.chatId` already matches (E2E attach / error recovery). */
+  forceReload?: boolean;
+}
+
 /**
  * 初始化聊天
  */
@@ -296,6 +311,7 @@ export const initializeChat = (
   id: string | undefined,
   state: { messages: Message[]; chatId?: string },
   actions: ChatActionsMethods,
+  options?: InitializeChatOptions,
 ): void => {
   // 如果没有ID，重置为新聊天状态
   if (!id) {
@@ -327,9 +343,35 @@ export const initializeChat = (
     });
     actions.clearCurrentSessionMessageId();
   }
-  // 如果有ID且与当前chatId不同，加载聊天
-  else if (state.chatId !== id) {
+  // 如果有ID且与当前chatId不同，或强制刷新，加载聊天
+  else if (state.chatId !== id || options?.forceReload) {
     abortCurrentUpload();
+
+    if (options?.forceReload && state.chatId === id) {
+      actions.setMessages((draft) => {
+        draft.messages = [];
+        draft.isMessagesLoaded = false;
+        draft.notFound = false;
+        draft.loadError = false;
+        draft.loading = true;
+        draft.messageAppeared = false;
+        draft.compactedSummary = null;
+        draft.compactedBeforeId = null;
+        draft.contextBranches = [];
+        draft.contextPinnedFiles = [];
+        draft.contextBranchesLoadError = null;
+        draft.contextPinnedFilesLoadError = null;
+        draft.lastCompactionMeta = null;
+        draft.workspaceDir = null;
+        draft.incognitoMode = false;
+        draft.sandboxMode = false;
+        draft.activeMoaPresetId = null;
+        draft.chatId = id;
+      });
+      actions.clearCurrentSessionMessageId();
+      loadMessages(id, actions);
+      return;
+    }
 
     const snapshot = resolveInstantChatSnapshot(id);
 

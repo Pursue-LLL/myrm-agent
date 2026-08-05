@@ -277,9 +277,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     dev_stack = root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     ready_sh = root / "scripts" / "dev" / "ready.sh"
 
-    if not claim_bootstrap_slot(
-        runtime_id, owner_token, LIVE_SHPOIB_MAX_CONCURRENT
-    ):
+    if not claim_bootstrap_slot(runtime_id, owner_token, LIVE_SHPOIB_MAX_CONCURRENT):
         _mark_runtime_cleaning(runtime_id)
         return VerifyBackendSeedResult(
             ok=False,

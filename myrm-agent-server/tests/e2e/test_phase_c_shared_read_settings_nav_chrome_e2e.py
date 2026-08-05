@@ -11,6 +11,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -44,6 +45,12 @@ def test_phase_c_shared_read_settings_nav_smoke() -> None:
     settings_url = f"{ui_url}/settings/search"
     with open_mcp_page(settings_url, timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=settings_url,
+        )
         client.navigate(page, settings_url, timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
         state = wait_for_state(
@@ -51,6 +58,7 @@ def test_phase_c_shared_read_settings_nav_smoke() -> None:
             page,
             _SETTINGS_NAV_STATE,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            page_url=settings_url,
         )
         assert state.get("ready") is True, state
         assert state.get("fetchErrorVisible") is not True, state

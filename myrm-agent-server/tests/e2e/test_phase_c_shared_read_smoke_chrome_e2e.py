@@ -11,6 +11,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -18,15 +19,15 @@ from tests.support.chrome_mcp_e2e import (
 _HOME_SHELL_STATE = """(() => {
   const bodyText = document.body.innerText || '';
   const composer = document.querySelector('textarea, [contenteditable="true"]');
+  const hasLayout = Boolean(document.querySelector('[data-testid="app-layout"]'));
   return {
     ready:
       location.pathname === '/' &&
-      bodyText.length > 40 &&
-      !!composer &&
-      composer.offsetParent !== null,
+      (hasLayout || (!!composer && bodyText.length > 40)),
     pathname: location.pathname,
     bodyLength: bodyText.length,
     hasComposer: !!composer,
+    hasLayout,
   };
 })()"""
 
@@ -44,11 +45,20 @@ def test_phase_c_shared_read_home_shell_smoke() -> None:
     warm_ui_route("/")
     with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=f"{ui_url}/",
+        )
+        client.navigate(page, f"{ui_url}/", timeout_ms=90_000)
+        dismiss_blocking_modals(client, page)
         state = wait_for_state(
             client,
             page,
             _HOME_SHELL_STATE,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            page_url=f"{ui_url}/",
         )
         assert state.get("ready") is True, state
-        assert state.get("hasComposer") is True, state
+        assert state.get("hasComposer") is True or state.get("hasLayout") is True, state

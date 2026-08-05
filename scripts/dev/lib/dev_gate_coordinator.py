@@ -104,6 +104,8 @@ class CoordinatorService:
 
     def handle(self, request: dict[str, object]) -> dict[str, object]:
         operation = _required_text(request, "operation")
+        if operation == "list_active":
+            operation = "snapshot"
         if operation == "reap":
             reaped = list(self.store.reap_abandoned())
             reaped.extend(self.store.reap_expired_deadlines())

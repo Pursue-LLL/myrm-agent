@@ -25,9 +25,14 @@ from app.database.connection import get_session
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
 from app.services.wiki.source_sync.gdrive import sync_gdrive_folder_to_wiki
 from app.services.wiki.source_sync.gmail import sync_gmail_label_to_wiki
-from app.services.wiki.source_sync.integration_mirror import mirror_integration_sync_results_to_wiki
+from app.services.wiki.source_sync.integration_mirror import (
+    mirror_integration_sync_results_to_wiki,
+)
 from app.services.wiki.source_sync.rss import sync_rss_feeds_to_wiki
-from app.services.wiki.source_sync.schemas import WikiSourceSyncConfig, WikiSourceSyncRunSummary
+from app.services.wiki.source_sync.schemas import (
+    WikiSourceSyncConfig,
+    WikiSourceSyncRunSummary,
+)
 from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
 logger = logging.getLogger(__name__)
@@ -42,7 +47,9 @@ async def run_wiki_source_sync(
     sync_gmail_rss: bool = True,
 ) -> WikiSourceSyncRunSummary:
     async with get_session() as db:
-        effective_config = config or await load_wiki_source_sync_config(db, agent_id=agent_id)
+        effective_config = config or await load_wiki_source_sync_config(
+            db, agent_id=agent_id
+        )
 
     structure = WikiStructure(resolve_wiki_vault_path(agent_id))
     compiler_enqueue: object | None = None
@@ -57,7 +64,9 @@ async def run_wiki_source_sync(
         if auto_compile:
             compiler_enqueue = archiver._compiler
     elif effective_config.auto_compile:
-        logger.warning("Wiki source sync: auto_compile requested but no LLM configured; raw-only mode")
+        logger.warning(
+            "Wiki source sync: auto_compile requested but no LLM configured; raw-only mode"
+        )
 
     max_items = effective_config.max_items_per_run
     run = WikiSourceSyncRunSummary()
@@ -92,10 +101,18 @@ async def run_wiki_source_sync(
         )
         run.results.append(gdrive_result)
 
-    if effective_config.mirror_integrations_to_wiki and integration_sync_results and llm is not None:
-        from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
+    if (
+        effective_config.mirror_integrations_to_wiki
+        and integration_sync_results
+        and llm is not None
+    ):
+        from myrm_agent_harness.toolkits.memory.integration.types import (
+            IntegrationSyncResult,
+        )
 
-        typed_results = [r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)]
+        typed_results = [
+            r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)
+        ]
         if typed_results:
             mirror_result = await mirror_integration_sync_results_to_wiki(
                 typed_results,
@@ -114,6 +131,14 @@ async def run_wiki_source_sync(
 
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
 
+    if run.total_published > 0:
+        try:
+            from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
+
+            await run_wiki_dedup_scan_job(agent_id=agent_id, incremental=True)
+        except Exception as exc:
+            logger.warning("Post source-sync wiki dedup scan failed: %s", exc)
+
     logger.info(
         "Wiki source sync finished: published=%d skipped=%d failed=%d",
         run.total_published,
@@ -128,7 +153,9 @@ async def run_wiki_source_sync(
         )
 
         async with get_session() as db:
-            await save_wiki_source_sync_state(db, state_from_run_summary(run), agent_id=agent_id)
+            await save_wiki_source_sync_state(
+                db, state_from_run_summary(run), agent_id=agent_id
+            )
     except Exception as exc:
         logger.warning("Failed to persist wiki source sync state: %s", exc)
 

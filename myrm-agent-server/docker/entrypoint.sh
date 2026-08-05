@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Named Docker volumes mount as root:root; ensure myrm can write state under /persistent.
+if [ -d /persistent ]; then
+    chown -R myrm:myrm /persistent 2>/dev/null || true
+    chmod -R u+rwX /persistent 2>/dev/null || true
+fi
+
 # Start Visual Desktop if enabled
 if [ "$VISUAL_DESKTOP" = "1" ]; then
     echo "Starting Visual Desktop Streaming..."
@@ -34,4 +40,7 @@ if [ "$VISUAL_DESKTOP" = "1" ]; then
 fi
 
 # Execute the main command (e.g., python run.py)
+if [ "$(id -u)" = "0" ]; then
+    exec gosu myrm "$@"
+fi
 exec "$@"

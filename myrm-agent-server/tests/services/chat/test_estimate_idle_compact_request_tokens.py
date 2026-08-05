@@ -8,12 +8,17 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.database.models import Chat
-from app.services.chat.compact_service import CompactResult, estimate_idle_compact_request_tokens
+from app.services.chat.compact_service import (
+    CompactResult,
+    estimate_idle_compact_request_tokens,
+)
 from app.services.chat.stale_compact_gate import maybe_compact_stale_chat_before_turn
 
 
 @pytest.mark.asyncio
-async def test_estimate_idle_compact_request_tokens_includes_compacted_summary() -> None:
+async def test_estimate_idle_compact_request_tokens_includes_compacted_summary() -> (
+    None
+):
     summary_text = '{"user_goal":"resume auth refactor","completed_actions":["setup"]}'
     db = AsyncMock()
     chat = Chat(id="chat-summary", compacted_summary=summary_text)

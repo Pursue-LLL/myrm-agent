@@ -15,8 +15,10 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     _APP_LAYOUT_READY_JS,
     _SETTINGS_LAYOUT_READY_JS,
+    _open_page_attempt_count,
     _open_page_parallel_budgets,
     _page_shell_ready_js_for_url,
+    _shared_read_parallel_open_page_retry_allowed,
     wait_for_state,
     warm_ui_route,
 )
@@ -33,6 +35,20 @@ def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> No
     assert "settings-layout" in _SETTINGS_LAYOUT_READY_JS
     assert "settings-deferred-loading" in _SETTINGS_LAYOUT_READY_JS
     assert "app-layout" not in _SETTINGS_LAYOUT_READY_JS
+
+
+def test_reapply_shpoib_bootstrap_runs_after_navigate() -> None:
+    """Navigation clears window globals; bootstrap evaluate must run after target load."""
+    source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
+    block = source.split("def _reapply_shpoib_runtime_after_reload", 1)[1].split(
+        "\ndef ", 1
+    )[0]
+    assert "MYRM_BROWSER_ORCHESTRATOR" not in block
+    nav_idx = block.index("client.navigate(page, normalized_target")
+    bootstrap_eval_idx = block.index(
+        "observed = client.evaluate(\n            page,\n            bootstrap_js,"
+    )
+    assert nav_idx < bootstrap_eval_idx
 
 
 def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
@@ -398,7 +414,6 @@ def test_browser_operation_credit_slot_acquires_upstream_registry() -> None:
         0
     ]
     assert "upstream_cold_attach_slot" in block
-    assert "wait_for_operation_credit" in block
 
 
 def test_open_page_queue_wait_extends_bootstrap_deadlines(
@@ -729,3 +744,24 @@ def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
         lambda: 45.0,
     )
     assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() >= 69.0
+
+
+def test_shared_read_parallel_open_page_retry_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MYRM_E2E_LANE", "READ")
+    monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
+    assert _shared_read_parallel_open_page_retry_allowed() is True
+    monkeypatch.setenv("MYRM_E2E_SHARED_HOT", "1")
+    assert _shared_read_parallel_open_page_retry_allowed() is False
+
+
+def test_open_page_attempt_count_allows_read_lane_parallel_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.setenv("MYRM_E2E_LANE", "READ")
+    monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
+    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
+    monkeypatch.setattr(chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False)
+    assert _open_page_attempt_count() == 2

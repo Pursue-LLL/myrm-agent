@@ -78,19 +78,23 @@ def _heartbeat_dev_gate_session(*, current_node: str | None = None) -> None:
     token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
     if not run_id or not token:
         return
-    from dev_gate_cli import send
-
     node = current_node or os.environ.get("E2E_ADMIT_NODE", "E2E_BODY")
     try:
-        send(
+        from dev_gate_cli import default_socket_path, normalized_socket_path  # noqa: PLC0415
+        from dev_gate_coordinator import request  # noqa: PLC0415
+
+        socket_path = normalized_socket_path(default_socket_path())
+        request(
             {
                 "operation": "heartbeat",
                 "session_id": run_id,
                 "owner_token": token,
                 "current_node": node,
-            }
+            },
+            socket_path=socket_path,
+            timeout_sec=3.0,
         )
-    except (ConnectionError, OSError, RuntimeError, TimeoutError):
+    except (ConnectionError, OSError, RuntimeError, TimeoutError, ValueError):
         return
 
 

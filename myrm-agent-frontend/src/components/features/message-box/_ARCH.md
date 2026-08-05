@@ -19,11 +19,21 @@
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更失败可折叠面板（mutation verifier 回滚提示） | ✅ |
 | `WorkspaceMergeWarning.tsx` | 组件 | ISOLATED_COPY workspace merge 失败可折叠错误列表 | ✅ |
+| `__tests__/WorkspaceMergeWarning.test.tsx` | 测试 | 折叠/展开、truncated 文案 | ✅ |
+| `__tests__/MessageBox.workspaceMerge.test.tsx` | 测试 | MessageBox 生产路径渲染 merge panel（非 E2E fallback）；loading 时仍可见 | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation）；KB citation → SourceChunkDrawer；非 streaming 时 inline `` `workspace/...` `` / `artifact:` → DeliverableReferenceLink。 | ✅ |
 | `DeliverableReferenceLink.tsx` | 组件 | 内联 deliverable 引用点击 → ArtifactPortal（`workspace/`、`artifact:`、`@file_NNN` via `short_file_id`） | ✅ |
 | `__tests__/DeliverableReferenceLink.test.tsx` | 测试 | `@file` short_file_id 打开 Portal + 未同步 disabled | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 统一依据 Sheet（记忆引用 + web/mcp/历史会话来源） | ✅ |
-| `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏（发送前 Memory Brief + 结束后 budget/citation + brief 降级可见提示）；`brief` 缺失时根据 `injection` 状态与 `not_applied` 原因映射可执行文案（已注入/未注入/工具模式/系统回退），并显式展示 `source=preflight/runtime_fallback` 语义；移动端额外渲染非 hover 的说明文案，避免触屏端诊断信息不可达 | ✅ |
+| `MemoryInsightPanel.tsx` | 组件 | 消息记忆洞察：Memory Brief · budget/citation · brief 降级说明 · **write→extract→recall 三阶段条**（SSE + recall 推导；extract error 重试 → `retryChatMemoryExtract` · 成功 optimistic pending · `already_in_flight` info toast · ApiError message toast） | ✅ |
+| `MemoryLifecycleTimeline.tsx` | 组件 | 三阶段 lifecycle 条 UI（mobile 单列 / sm+ 三列；extract success 展示 stored_count + durationMs；extract error + `onRetryExtract` 时显示重试） | ✅ |
+| `memoryLifecyclePhases.ts` | 辅助 | lifecycle 阶段推导纯函数；`messageCreatedAtMs` 过滤（无 timestamp 事件 reject）；`storedCount`/`verbatimCount` from metadata；`markExtractPhasePending` · `mergeRecallSeedIntoPhases` | ✅ |
+| `useMessageMemoryLifecycle.ts` | 辅助 | isLast 且非 streaming 时 SSE + trace hydrate write/extract（按 createdAt 过滤）；历史消息仅 recall；暴露 `markExtractRetryPending` | ✅ |
+| `MemoryRecallDegradedBanner.tsx` | 组件 | 向量/embedding 不可用时 Chat + Memory 顶栏降级横幅（仅 degraded 时显示） | ✅ |
+| `__tests__/memoryLifecyclePhases.test.ts` | 测试 | lifecycle 推导 + stored_count + createdAt 过滤 | — |
+| `__tests__/MemoryLifecycleTimeline.test.tsx` | 测试 | extract error 重试按钮 · stored_count 展示 | — |
+| `__tests__/MemoryInsightPanel.retry.test.tsx` | 测试 | Panel retry scheduled pending · already_in_flight toast | — |
+| `__tests__/MemoryRecallDegradedBanner.test.tsx` | 测试 | 降级 banner 显示/隐藏 | — |
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
 | `WorkflowSuggestionCard.tsx` | 组件 | 非阻塞式 Workflow 建议内联卡片：检测到复杂可拆分任务时显示，提供 Enable（激活工作流模式）和 Dismiss（忽略）操作。不阻塞标准 Agent 流 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存/统一依据按钮 | ✅ |

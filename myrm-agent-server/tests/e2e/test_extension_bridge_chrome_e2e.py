@@ -7,11 +7,14 @@ from urllib.parse import urlparse
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -72,15 +75,26 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
     assert "cdp_endpoint_discovered" in hints
 
     warm_ui_route("/settings/extensionBridge")
+    bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
 
-    with open_mcp_page(f"{ui_url}/settings/extensionBridge") as (client, page):
+    prepare_e2e_ui_session(api_url)
+
+    with open_mcp_page(bridge_url, timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        client.navigate(page, f"{ui_url}/settings/extensionBridge", timeout_ms=90_000)
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=bridge_url,
+        )
+        client.navigate(page, bridge_url, timeout_ms=90_000)
+        dismiss_blocking_modals(client, page)
         state = wait_for_state(
             client,
             page,
             _EXTENSION_BRIDGE_STATE,
-            timeout_sec=90.0,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=bridge_url,
         )
         assert state.get("fetchErrorVisible") is not True, state
         assert state.get("hasActiveSection") is True, state
@@ -143,15 +157,24 @@ def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None
         }
 
         warm_ui_route("/settings/extensionBridge")
+        bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
 
-        with open_mcp_page(f"{ui_url}/settings/extensionBridge") as (client, page):
+        with open_mcp_page(bridge_url, timeout_ms=90_000) as (client, page):
             dismiss_blocking_modals(client, page)
-            client.navigate(page, f"{ui_url}/settings/extensionBridge", timeout_ms=90_000)
+            wait_for_react_e2e_bridge(
+                client,
+                page,
+                timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+                page_url=bridge_url,
+            )
+            client.navigate(page, bridge_url, timeout_ms=90_000)
+            dismiss_blocking_modals(client, page)
             state = wait_for_state(
                 client,
                 page,
                 _CONNECTED_BRIDGE_STATE,
-                timeout_sec=90.0,
+                timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+                page_url=bridge_url,
             )
             assert state.get("fetchErrorVisible") is not True, state
             assert state.get("hasActiveSection") is True, state

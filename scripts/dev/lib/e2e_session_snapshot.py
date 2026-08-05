@@ -166,7 +166,28 @@ def write_session_snapshot(
         from e2e_session_lifecycle import phase_cap_sec
 
         if resolved_phase in {"admit", "bootstrap", "body", "teardown"}:
-            payload["phaseCapSec"] = phase_cap_sec(resolved_phase)  # type: ignore[arg-type]
+            existing_cap = existing.get("phaseCapSec") if existing is not None else None
+            existing_phase = (
+                str(existing.get("phase") or "").strip().lower()
+                if existing is not None
+                else ""
+            )
+            if (
+                existing_cap is not None
+                and isinstance(existing_cap, (int, float))
+                and existing_phase == resolved_phase
+            ):
+                payload["phaseCapSec"] = float(existing_cap)
+            else:
+                try:
+                    payload["phaseCapSec"] = phase_cap_sec(resolved_phase)  # type: ignore[arg-type]
+                except (OSError, RuntimeError, TimeoutError, ValueError):
+                    # Progress stamps must never block CDP evaluate under parallel coordinator load.
+                    fallback = os.environ.get("MYRM_E2E_BOOTSTRAP_CAP_SEC", "180")
+                    try:
+                        payload["phaseCapSec"] = float(fallback)
+                    except ValueError:
+                        payload["phaseCapSec"] = 180.0
     except ImportError:
         pass
     if existing is not None and existing.get("holderPid") is not None:

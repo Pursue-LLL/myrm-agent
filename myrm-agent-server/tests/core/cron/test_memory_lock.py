@@ -11,7 +11,9 @@ from app.core.cron.adapters.memory_lock import CrossProcessCronLock
 
 
 def test_constructor_default_uses_myrm_data_dir() -> None:
-    expected = Path(os.environ["MYRM_DATA_DIR"]).expanduser().resolve() / "locks" / "cron"
+    from app.config.settings import get_settings
+
+    expected = Path(get_settings().database.state_dir) / "locks" / "cron"
     lock = CrossProcessCronLock()
     assert lock.lock_dir == expected
 

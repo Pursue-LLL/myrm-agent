@@ -1,10 +1,11 @@
+'use client';
+
 import ChatWindowNew from '@/components/features/chat-window/ChatWindow';
-import React from 'react';
+import { useParams } from 'next/navigation';
 
-export const prefetch = 'allow-runtime';
-
-const Page = ({ params }: { params: Promise<{ chatId: string }> }) => {
-  const { chatId } = React.use(params);
+const Page = () => {
+  const params = useParams();
+  const chatId = typeof params.chatId === 'string' ? params.chatId : undefined;
   return <ChatWindowNew id={chatId} />;
 };
 

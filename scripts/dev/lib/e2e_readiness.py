@@ -119,6 +119,11 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
     return "cluster ready for chrome_e2e launch"
 
 
+def _shpoib_launch_bypass_enabled() -> bool:
+    """PRIVATE chrome_e2e sets MYRM_E2E_SHPOIB before launch gate — bootstrap owns backend epoch."""
+    return os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+
+
 def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
     if next_action == "FAIL_FAST":
         return False
@@ -126,6 +131,9 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
         return True
     # R219-D: blocked epoch + parallel peers must enter ADMIT/queue in test.sh — not hard deny.
     if next_action == "ADMIT_STACK_HEAL_WAIT":
+        return True
+    # R298: SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
+    if next_action == "SHPOIB_OR_VERIFY_API" and _shpoib_launch_bypass_enabled():
         return True
     if ctx.blocked:
         return False

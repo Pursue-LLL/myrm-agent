@@ -35,6 +35,26 @@ EXPECTED_GENERAL_AGENT_PARAMS_MODEL_VALIDATE: frozenset[str] = frozenset(
     }
 )
 
+# Production callsites that construct GeneralAgentParams must pass ``locale=`` for
+# harness tool description SSOT (memory/web_search). Eval is intentionally excluded.
+LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES: frozenset[str] = frozenset(
+    {
+        "app/api/voice/agent_bridge.py",
+        "app/api/voice/realtime.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
+        "app/core/cron/adapters/agent_runner.py",
+        "app/services/agent/goal_stream_trigger.py",
+        "app/services/agent/params/converter.py",
+        "app/services/kanban/task_runner.py",
+    }
+)
+
+LOCALE_EXCLUDED_GENERAL_AGENT_PARAMS_CALLSITES: frozenset[str] = frozenset(
+    {
+        "app/core/eval/executor.py",
+    }
+)
+
 
 def _discover_callsites() -> tuple[set[str], set[str]]:
     direct: set[str] = set()
@@ -76,4 +96,24 @@ def test_general_agent_params_model_validate_callsites_match_allowlist() -> None
         f"Got: {sorted(model_validate)}\n"
         f"Expected: {sorted(EXPECTED_GENERAL_AGENT_PARAMS_MODEL_VALIDATE)}\n"
         f"Update EXPECTED_* in {Path(__file__).name}."
+    )
+
+
+def test_production_general_agent_params_pass_locale() -> None:
+    missing: list[str] = []
+    for rel in sorted(LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES):
+        path = SERVER_ROOT / rel
+        text = path.read_text(encoding="utf-8")
+        idx = text.find("GeneralAgentParams(")
+        assert idx != -1, f"{rel} has no GeneralAgentParams("
+        snippet = text[idx : idx + 5000]
+        if "locale=" not in snippet:
+            missing.append(rel)
+    assert not missing, (
+        "GeneralAgentParams construction missing locale= in:\n"
+        + "\n".join(f"  - {rel}" for rel in missing)
+        + f"\nUpdate LOCALE_REQUIRED_* in {Path(__file__).name} or pass locale=."
+    )
+    assert LOCALE_EXCLUDED_GENERAL_AGENT_PARAMS_CALLSITES.isdisjoint(
+        LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES
     )

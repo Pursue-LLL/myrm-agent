@@ -195,6 +195,18 @@ def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
         return False
 
 
+def _shared_client_hot_ok() -> bool:
+    """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
+    try:
+        from runtime_identity import read_frontend_epoch, read_frontend_hot_state
+
+        frontend = read_frontend_epoch()
+        _, client_hot = read_frontend_hot_state(frontend)
+        return client_hot
+    except (ImportError, OSError, TypeError, ValueError):
+        return False
+
+
 def heal_shared_frontend_attach(
     monorepo_root: Path,
     *,
@@ -221,7 +233,7 @@ def heal_shared_frontend_attach(
                 _write_attach_leader_meta(os.getpid())
                 break
             except BlockingIOError:
-                if _shared_ui_probe_ok():
+                if _shared_ui_probe_ok() and _shared_client_hot_ok():
                     return "follower_ok"
                 leader_pid, _leader_started = _read_attach_leader_meta()
                 leader_alive = _leader_process_alive(leader_pid)

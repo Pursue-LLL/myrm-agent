@@ -262,6 +262,7 @@ async def execute_realtime_tool(
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
 
         from app.ai_agents.agents import GeneralAgentParams
+        from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         _ensure_model_rebuild_for_tool_exec()
@@ -291,6 +292,10 @@ async def execute_realtime_tool(
                 memory_settings.get("enableMemoryAutoExtraction", True)
             ),
             agent_security_raw=agent_security_raw,
+            locale=resolve_agent_params_locale(
+                personal_settings=memory_settings,
+                channel="realtime_voice",
+            ),
         )
 
         result_parts: list[str] = []
@@ -337,7 +342,9 @@ async def persist_realtime_transcript(
         return {"ok": True}
     except Exception as exc:
         logger.warning("Transcript persistence failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Transcript persistence failed") from exc
+        raise HTTPException(
+            status_code=500, detail="Transcript persistence failed"
+        ) from exc
 
 
 def _find_openai_provider(providers: dict[str, object]) -> dict[str, object] | None:

@@ -31,9 +31,10 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存；`_after_wiki_vault_mutation` SSOT 在 compile/maintain/repair-types/repair-publication/move/import/apply/delete concept/delete folder/pending approve/delete raw 等变更后失效 | ✅ |
 | `knowledge_query_service.py` | SSOT | `execute_wiki_knowledge_query` — Settings POST /query 与 Chat Wiki Knowledge Lane 共用零 LLM 检索 + citations | ✅ |
 | `maintain_runner.py` | SSOT | `run_wiki_maintain_job` — POST /maintain?mode= 与 Cron `__wiki_maintain__` 共用；compile 进行中 skip | ✅ |
+| `dedup_runner.py` | SSOT | `schedule_wiki_dedup_scan` (202 background) / `run_wiki_dedup_scan_job` (cron blocking) / `apply_wiki_dedup_disposition` / `wiki_dedup_checklist_ready` — POST /dedup/* 与 Cron `__wiki_dedup__` 共用；compile 进行中 skip scan | ✅ |
 | `maintain_state_store.py` | 持久化 | UserConfig `wikiMaintainState` 上次维护 observability（按 agent） | ✅ |
 | `wiki_query_intent.py` | 辅助 | Chat Wiki Knowledge Lane 确定性准入闸门（`should_use_wiki_knowledge_lane`） | ✅ |
 | `asset_index_service.py` | 核心 | Obsidian wiki/assets vision caption 索引；`build_vision_fallback_engine_from_providers` 有序视觉链；import 后 `schedule_wiki_asset_index` 后台运行并在完成后 publish ingest snapshot；compile/maintain 同步 `run_wiki_asset_index` | ✅ |
 | `obsidian_adapter.py` | 适配器 | Obsidian Vault 导入：`prepare_obsidian_file()` 转换 frontmatter/inline tags/images；`adapt_obsidian_file()` 仅测试/legacy 直写；生产 import 经 `router` → harness `publish_raw` | ✅ |
 | `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；snapshot stats 含 **`synthesis_pending_count`**；**tree_sync_required** / **stats_refresh_required** 信号 → FE REST 刷新 | ✅ |
-| `source_sync/` | 核心 | Gmail/GDrive/RSS 确定性 pull → `publish_raw` + compile enqueue；Integration mirror；Cron router；闭包：HTML2Markdown、Cron hygiene、sync state、Second Brain Gmail 默认 | ✅ |
+| `source_sync/` | 核心 | Gmail/GDrive/RSS 确定性 pull → `publish_raw` + compile enqueue + post-sync dedup scan；Integration mirror；Cron router；闭包：HTML2Markdown、Cron hygiene、sync state、Second Brain Gmail 默认 | ✅ |

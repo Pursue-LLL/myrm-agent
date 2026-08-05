@@ -17,5 +17,5 @@ agentic grep/glob via FilesystemFileSearchMiddleware; no vector index service.
 
 | File | Role |
 |------|------|
-| `context_assembly.py` | Single facade+binding assembly for agent factory |
+| `context_assembly.py` | Single facade+binding assembly for agent factory and chat manual retry |
 | `context_bundle_service.py` | Health probes, migration |

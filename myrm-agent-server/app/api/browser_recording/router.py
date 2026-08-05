@@ -107,7 +107,8 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
         description=req.description or f"Browser skill from recording {req.session_id}",
     )
     if not save_result.success:
-        raise HTTPException(status_code=500, detail=f"Failed to save skill: {save_result.error}")
+        logger.error("Failed to save skill from recording %s: %s", req.session_id, save_result.error)
+        raise HTTPException(status_code=500, detail="Failed to save skill")
 
     return GenerateSkillResponse(
         skill_id=skill_id,

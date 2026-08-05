@@ -1,13 +1,14 @@
-"""Tests for config helpers in stream_lane_factory."""
+"""Tests for config helpers (moved to moa_overlay_setup) and stream_lane_factory."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from app.services.agent.stream_session.stream_lane_factory import (
+from app.services.agent.stream_session.moa_overlay_setup import (
     _cfg_int_or_none,
-    _cfg_privacy_filter,
     _cfg_str_or_none,
+)
+from app.services.agent.stream_session.stream_lane_factory import (
     _inject_wu_consumed,
 )
 
@@ -18,17 +19,14 @@ class TestCfgIntOrNone:
     def test_valid_positive_int(self):
         assert _cfg_int_or_none({"k": 600}, "k") == 600
 
-    def test_valid_positive_str(self):
-        assert _cfg_int_or_none({"k": "800"}, "k") == 800
+    def test_string_returns_none(self):
+        assert _cfg_int_or_none({"k": "800"}, "k") is None
 
     def test_zero_returns_none(self):
         assert _cfg_int_or_none({"k": 0}, "k") is None
 
     def test_negative_returns_none(self):
         assert _cfg_int_or_none({"k": -100}, "k") is None
-
-    def test_empty_string_returns_none(self):
-        assert _cfg_int_or_none({"k": ""}, "k") is None
 
     def test_missing_key_returns_none(self):
         assert _cfg_int_or_none({}, "k") is None
@@ -39,8 +37,8 @@ class TestCfgIntOrNone:
     def test_non_numeric_string_returns_none(self):
         assert _cfg_int_or_none({"k": "abc"}, "k") is None
 
-    def test_float_truncates_to_int(self):
-        assert _cfg_int_or_none({"k": 600.9}, "k") == 600
+    def test_float_returns_none(self):
+        assert _cfg_int_or_none({"k": 600.9}, "k") is None
 
     def test_boundary_one(self):
         assert _cfg_int_or_none({"k": 1}, "k") == 1
@@ -109,11 +107,3 @@ class TestInjectWuConsumed:
         assert "wu_consumed" not in chunk
 
 
-class TestCfgPrivacyFilter:
-    def test_valid_modes(self):
-        assert _cfg_privacy_filter({"privacy_filter": "display"}, "privacy_filter") == "display"
-        assert _cfg_privacy_filter({"privacy_filter": "full"}, "privacy_filter") == "full"
-
-    def test_invalid_falls_back_to_off(self):
-        assert _cfg_privacy_filter({"privacy_filter": "bogus"}, "privacy_filter") == "off"
-        assert _cfg_privacy_filter({}, "privacy_filter") == "off"

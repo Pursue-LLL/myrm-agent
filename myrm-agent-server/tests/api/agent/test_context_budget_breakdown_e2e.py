@@ -14,7 +14,11 @@ from typing import Final
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import build_approval_resume_value, check_e2e_errors, get_model_selection
+from tests.api.agent.utils import (
+    build_approval_resume_value,
+    check_e2e_errors,
+    get_model_selection,
+)
 
 pytestmark = [
     pytest.mark.e2e,
@@ -39,7 +43,9 @@ def _build_payload(chat_id: str) -> dict[str, object]:
     }
 
 
-def _stream_turn(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
+def _stream_turn(
+    client: TestClient, payload: dict[str, object]
+) -> list[dict[str, object]]:
     events: list[dict[str, object]] = []
     with client.stream(
         "POST", "/api/v1/agents/agent-stream", json=payload, timeout=180.0
@@ -99,7 +105,9 @@ def test_message_end_context_budget_includes_provider_total_and_breakdown(
 
     message_end = _find_message_end(events)
     budget = message_end.get("context_budget")
-    assert isinstance(budget, dict), f"context_budget missing on message_end: {message_end.keys()}"
+    assert isinstance(
+        budget, dict
+    ), f"context_budget missing on message_end: {message_end.keys()}"
 
     current_tokens = budget.get("current_tokens")
     assert isinstance(current_tokens, int) and current_tokens > 0
@@ -108,9 +116,9 @@ def test_message_end_context_budget_includes_provider_total_and_breakdown(
     assert budget.get("health_status") in {"healthy", "warning", "critical"}
 
     tools_overhead = budget.get("bound_tools_overhead_tokens")
-    assert isinstance(tools_overhead, int) and tools_overhead > 0, (
-        "bound_tools_overhead_tokens should be present for default agent tool bind"
-    )
+    assert (
+        isinstance(tools_overhead, int) and tools_overhead > 0
+    ), "bound_tools_overhead_tokens should be present for default agent tool bind"
 
     messages_est = budget.get("messages_estimated_tokens")
     assert isinstance(messages_est, int) and messages_est >= 0

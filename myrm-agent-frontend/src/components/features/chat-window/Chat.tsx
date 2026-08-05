@@ -30,7 +30,7 @@
 
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { Fragment, useEffect, useRef, useState, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MessageInput from './MessageInput';
 import CompanionWidget from '../companion/CompanionWidget';
@@ -57,6 +57,7 @@ import AgentWorkMap from './AgentWorkMap';
 import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
 import VisualApprovalOsOverlaySync from './VisualApprovalOsOverlaySync';
 import ScrollToBottomButton from './ScrollToBottomButton';
+import type { Message } from '@/store/chat/types/messages';
 
 /**
  * 虚拟滚动开关
@@ -72,7 +73,15 @@ const ENABLE_VIRTUAL_SCROLL = true;
 /** 消息数量阈值，超过此值自动启用虚拟滚动 */
 const VIRTUAL_SCROLL_THRESHOLD = 20;
 
-const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared: boolean }) => {
+const Chat = ({
+  loading,
+  messageAppeared,
+  messagesOverride,
+}: {
+  loading: boolean;
+  messageAppeared: boolean;
+  messagesOverride?: Message[];
+}) => {
   const t = useTranslations('chat.jumpBar');
   const tMeta = useTranslations('metadata');
   const messageEnd = useRef<HTMLDivElement | null>(null);
@@ -87,7 +96,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
 
   const {
-    messages: rawMessages,
+    messages: rawMessagesFromSelector,
     chatId,
     compactedSummary,
     activeSessionAnalyticsId,
@@ -103,6 +112,17 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
       setActiveSessionAnalyticsMessageId: state.setActiveSessionAnalyticsMessageId,
     })),
   );
+
+  const rawMessagesFromSync = useSyncExternalStore(
+    (onStoreChange) => useChatStore.subscribe(onStoreChange),
+    () => useChatStore.getState().messages,
+    () => [] as typeof rawMessagesFromSelector,
+  );
+
+  const rawMessages =
+    rawMessagesFromSelector.length > 0
+      ? rawMessagesFromSelector
+      : (messagesOverride?.length ? messagesOverride : rawMessagesFromSync);
 
   const messages = useMemo(() => {
     const safeMessages = Array.isArray(rawMessages) ? rawMessages : [];
@@ -216,7 +236,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
       if (msg.isCompactedSummaryView) {
         return (
           <Fragment key={`${msg.messageId}-${i}`}>
-            <div data-message-id={msg.messageId}>
+            <div data-message-id={msg.messageId} data-testid="compacted-summary-view">
               <CompactedSummaryView />
             </div>
           </Fragment>

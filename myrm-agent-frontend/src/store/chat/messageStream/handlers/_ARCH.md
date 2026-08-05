@@ -33,6 +33,7 @@
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 web_search config gap CTA、loading 延迟重发） | ✅ |
 | `__tests__/completionEvents.pendingGapRetry.test.ts` | 测试 | MESSAGE_END 后 flush pending gap | ✅ |
+| `__tests__/completionEvents.workspaceMerge.test.ts` | 测试 | WORKSPACE_MERGE_FAILED → message workspaceMergeFailures/count/truncated | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |

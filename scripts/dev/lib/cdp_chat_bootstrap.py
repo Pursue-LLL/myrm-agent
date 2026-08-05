@@ -89,10 +89,10 @@ def _shell_probe_stall_cap_sec() -> float:
 
 
 def _shell_probe_ready(probe: dict[str, object]) -> bool:
-    if probe.get("skeleton"):
-        return False
     if probe.get("hasInput"):
         return True
+    if probe.get("skeleton"):
+        return False
     return bool(
         probe.get("hasBridge")
         and probe.get("clientHydrated")

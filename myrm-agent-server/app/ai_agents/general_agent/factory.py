@@ -137,34 +137,13 @@ async def build_general_agent(
     )
     if not signoff_contract_active:
         if agent_wrapper._lite_llm is not None:
-            from myrm_agent_harness.toolkits.llms.utils.model_utils import (
-                get_model_context_limit,
+            from app.ai_agents.general_agent.llm_factory import apply_lite_context_downgrade
+
+            agent_wrapper._lite_llm = await apply_lite_context_downgrade(
+                llm,
+                agent_wrapper._lite_llm,
+                agent_wrapper.model_cfg,
             )
-
-            main_limit = get_model_context_limit(llm) or 128000
-            lite_limit = get_model_context_limit(agent_wrapper._lite_llm)
-
-            if lite_limit and main_limit:
-                # Dynamic Ratio Shield: If the auxiliary model's context is smaller than 85% of the main model,
-                # it will crash when receiving the almost-full context during compression.
-                if lite_limit < main_limit * 0.85:
-                    logger.warning(
-                        f"Context capacity mismatch: Main model {agent_wrapper.model_cfg.model} ({main_limit} tokens) "
-                        f"vs Lite model ({lite_limit} tokens). "
-                        "Gracefully degrading _lite_llm to main llm to prevent memory evaporation 400 Bad Request."
-                    )
-                    from myrm_agent_harness.toolkits.llms import llm_manager as _llm_mgr
-
-                    from .llm_factory import _inject_low_reasoning_effort
-
-                    fallback_lite_cfg = _inject_low_reasoning_effort(
-                        agent_wrapper.model_cfg
-                    )
-                    main_api_keys = getattr(agent_wrapper.model_cfg, "api_keys", None)
-                    agent_wrapper._lite_llm = await _llm_mgr.get_llm_from_config(
-                        fallback_lite_cfg,
-                        api_keys=main_api_keys,
-                    )
 
         # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
         escalation_target_llm = None
@@ -863,6 +842,10 @@ async def build_general_agent(
             auxiliary_llm=fallback_llm or llm,
         )
 
+    from app.ai_agents.extensions.extraction_lifecycle import (
+        make_extraction_lifecycle_observer,
+    )
+
     agent = await create_skill_agent(
         spec=spec,
         llm=llm,
@@ -901,6 +884,13 @@ async def build_general_agent(
             None
             if agent_wrapper.incognito_mode
             else make_loaded_skills_persist_callback()
+        ),
+        extraction_lifecycle_observer=(
+            make_extraction_lifecycle_observer(effective_chat_id)
+            if agent_wrapper.enable_memory
+            and agent_wrapper.enable_memory_auto_extraction
+            and not agent_wrapper.incognito_mode
+            else None
         ),
         wiki_base_dir=(
             agent_wrapper._resolve_wiki_base_dir()

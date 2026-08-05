@@ -326,3 +326,36 @@ def seal_auth_template(
     )
     os.replace(temporary, path)
     return auth_template_status(workspace_fingerprint=workspace_fingerprint)
+
+
+def reseal_auth_template_for_current_runtime(
+    *,
+    origin: str,
+    workspace_fingerprint: str = "",
+) -> AuthTemplateStatus:
+    """Re-stamp sealed auth metadata when runtime fingerprint drifted (P0-C).
+
+    Preserves cookies/probe metadata from the prior template when present so
+    SHARED READ tests can hydrate without manual auth setup after ready --chrome.
+    """
+    workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()
+    status = auth_template_status(workspace_fingerprint=workspace)
+    if status["next_action"] == "READY":
+        return status
+    template = _load_template()
+    cookies = _resolve_template_cookies(template) if template is not None else None
+    test_account = (
+        str(template.get("testAccount", "")).strip() if template is not None else ""
+    )
+    probe_path = (
+        str(template.get("probePath", "/")).strip() or "/"
+        if template is not None
+        else "/"
+    )
+    return seal_auth_template(
+        origin=origin.strip(),
+        test_account=test_account,
+        workspace_fingerprint=workspace,
+        cookies=cookies or None,
+        probe_path=probe_path,
+    )

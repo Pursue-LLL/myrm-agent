@@ -13,6 +13,7 @@ import { defaultLocale } from '@/i18n/config';
 import { LocalizedProviders } from '@/i18n/LocalizedProviders';
 import { cn } from '@/lib/utils/classnameUtils';
 import AppShellSkeleton from '@/components/features/app-shell/AppShellSkeleton';
+import E2eBridgeLoader from '@/components/dev/E2eBridgeLoader';
 import { WebVitals } from './web-vitals';
 import { getBuildTimeMetadataMessages } from '@/lib/metadata/static-metadata';
 import { fontSans, fontMono } from '@/lib/fonts';
@@ -56,7 +57,10 @@ export default function LocaleLayout({ children }: { children: React.ReactNode }
         />
         <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <WebVitals />
-        <Suspense fallback={<AppShellSkeleton />}>
+        <E2eBridgeLoader />
+        <Suspense
+          fallback={process.env.NODE_ENV === 'development' ? null : <AppShellSkeleton />}
+        >
           <LocalizedProviders>{children}</LocalizedProviders>
         </Suspense>
       </body>

@@ -18,7 +18,7 @@ import asyncio
 import logging
 from dataclasses import replace
 
-from myrm_agent_harness.agent.middlewares.completion_guard import is_mutating_tool
+from myrm_agent_harness.agent.middlewares.completion import is_mutating_tool
 from myrm_agent_harness.agent.sub_agents.orchestrator import verify_worker_output
 from myrm_agent_harness.agent.sub_agents.types import WorkspacePolicy
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
@@ -148,7 +148,9 @@ async def apply_cron_post_run_verification(
                 summary=f"Verifier preset '{_DEFAULT_VERIFIER_TYPE}' not found",
             )
 
-        readonly_verifier = replace(verifier_config, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
+        readonly_verifier = replace(
+            verifier_config, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX
+        )
         verdict = await asyncio.wait_for(
             verify_worker_output(
                 manager,
@@ -166,7 +168,11 @@ async def apply_cron_post_run_verification(
             timeout=verify_timeout,
         )
     except TimeoutError:
-        logger.warning("Cron job %s post-run verification timed out after %ss", job.id, verify_timeout)
+        logger.warning(
+            "Cron job %s post-run verification timed out after %ss",
+            job.id,
+            verify_timeout,
+        )
         return _attach_verification_metadata(
             result,
             status="error",
@@ -193,7 +199,9 @@ async def apply_cron_post_run_verification(
         return annotated
 
     fail_note = f"[Delivery verification: FAIL] {verdict.summary}"
-    combined_output = f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
+    combined_output = (
+        f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
+    )
     return JobResult(
         success=result.success,
         output=combined_output,

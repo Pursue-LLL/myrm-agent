@@ -103,8 +103,9 @@ def resolve_budget_policy() -> BudgetPolicy:
             )
 
             # R250: hot-path progress snapshots must not live-probe mux/coordinator.
-            if boot_mux_body_transport_gate_required() or _private_shpoib_bootstrap_lane(
-                lane
+            if (
+                boot_mux_body_transport_gate_required()
+                or _private_shpoib_bootstrap_lane(lane)
             ):
                 bootstrap_sec = int(
                     MUX_BOOTSTRAP_WALL_MAX_SEC + MUX_UPSTREAM_WAIT_MAX_SEC

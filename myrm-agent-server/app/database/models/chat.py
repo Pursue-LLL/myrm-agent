@@ -6,7 +6,19 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -25,17 +37,28 @@ class Chat(Base):
     action_mode: Mapped[str] = mapped_column(String(50), default="fast", nullable=False)
     active_moa_preset_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    source: Mapped[str] = mapped_column(String(50), default="web", nullable=False, index=True)
-    channel_session_key: Mapped[str | None] = mapped_column(String(500), nullable=True, index=True)
+    source: Mapped[str] = mapped_column(
+        String(50), default="web", nullable=False, index=True
+    )
+    channel_session_key: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, index=True
+    )
 
     compacted_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     compacted_before_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    compacted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    compacted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     compacted_tokens_saved: Mapped[int | None] = mapped_column(Integer, nullable=True)
     compaction_failure_cooldown_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    compaction_failure_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    compaction_failure_error: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )
+    compression_ineffective_streak: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     session_notes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -43,7 +66,9 @@ class Chat(Base):
     ephemeral_subagents: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Persisted loaded skill names for session skill contract (survives compaction / history trim)
-    session_loaded_skill_names: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    session_loaded_skill_names: Mapped[list[str] | None] = mapped_column(
+        JSON, nullable=True
+    )
 
     # Per-chat working directory: agent CWD and sandbox boundary
     workspace_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -56,7 +81,10 @@ class Chat(Base):
 
     # Project grouping: organize chats into user-defined projects
     project_id: Mapped[str | None] = mapped_column(
-        String(255), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+        String(255),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Pinned thread support: user can pin up to 9 chats for quick access
@@ -64,28 +92,42 @@ class Chat(Base):
     pin_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Incognito mode: hide from sidebar, do not persist to memory
-    is_incognito: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
+    is_incognito: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="0"
+    )
 
     # Usage Analytics Summary (Updated by Server on session end/sync)
     total_calls: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    last_read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Share: NULL = not revoked (share link active if token valid), non-NULL = revoked at
-    share_revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    share_revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Soft-delete: NULL = active, non-NULL = trashed at this timestamp
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
     messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="chat", cascade="all, delete-orphan", lazy="selectin"
     )
 
-    __table_args__ = (UniqueConstraint("channel_session_key", name="uq_chat_channel_session"),)
+    __table_args__ = (
+        UniqueConstraint("channel_session_key", name="uq_chat_channel_session"),
+    )
 
 
 class Message(Base):
@@ -98,15 +140,23 @@ class Message(Base):
     )
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    chat_id: Mapped[str] = mapped_column(String(255), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
+    chat_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False
+    )
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=False
+    )
     sent_timezone: Mapped[str] = mapped_column(String(64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    sibling_group_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    sibling_group_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
     chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
@@ -134,7 +184,9 @@ class ConversationFork(Base):
     )
     fork_checkpoint_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     fork_message_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class OfflineDurableTask(Base):
@@ -147,10 +199,17 @@ class OfflineDurableTask(Base):
     __tablename__ = "offline_durable_tasks"
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    chat_id: Mapped[str] = mapped_column(String(255), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False, index=True)
+    chat_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False)
     serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class InterruptedTurnMarker(Base):
@@ -165,11 +224,16 @@ class InterruptedTurnMarker(Base):
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     chat_id: Mapped[str] = mapped_column(
-        String(255), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False, unique=True
+        String(255),
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
     user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="fast")
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

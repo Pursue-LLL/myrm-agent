@@ -9,6 +9,8 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_ui_url,
     open_mcp_page,
+    reload_mcp_page,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -92,6 +94,10 @@ _SPRITE_ERROR_CTA_READY_JS = """(() => {
   return { ready: Boolean(button), hasButton: Boolean(button) };
 })()"""
 
+_COMPANION_BRIDGE_READY_JS = """(() => ({
+  ready: typeof window.__MYRM_E2E_COMPANION__?.openHealthCheck === 'function',
+}))()"""
+
 
 def _assert_health_check_ui(client, page) -> None:
     state = wait_for_state(
@@ -116,7 +122,35 @@ def test_companion_health_check_store_and_sprite_error_paths() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
+        dismiss_blocking_modals(client, page, recover_url=f"{ui_url}/")
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=f"{ui_url}/",
+        )
+        client.navigate(page, f"{ui_url}/", timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
+
+        bridge_ready: dict[str, object] = {}
+        for attempt in range(3):
+            try:
+                bridge_ready = wait_for_state(
+                    client,
+                    page,
+                    _COMPANION_BRIDGE_READY_JS,
+                    timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+                )
+                if bridge_ready.get("ready") is True:
+                    break
+            except AssertionError:
+                if attempt >= 2:
+                    raise
+            if attempt < 2:
+                reload_mcp_page(client, page, target_url=f"{ui_url}/", timeout_ms=90_000)
+                dismiss_blocking_modals(client, page)
+
+        assert bridge_ready.get("ready") is True, bridge_ready
 
         opened = client.evaluate(page, _OPEN_HEALTH_CHECK_JS)
         assert opened.get("ok") is True, opened

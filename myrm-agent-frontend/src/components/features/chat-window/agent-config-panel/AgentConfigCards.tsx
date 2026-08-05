@@ -117,6 +117,8 @@ const AgentConfigCards = ({
         return (
           <button
             key={item.type}
+            type="button"
+            data-testid={`agent-config-card-${item.type}`}
             onClick={() => onCardClick(item.type)}
             className={cn(
               'group relative flex flex-col p-3 rounded-lg',

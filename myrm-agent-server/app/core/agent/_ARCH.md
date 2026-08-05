@@ -8,7 +8,7 @@ Server-side agent runtime helpers that bridge harness framework APIs with sessio
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `tool_description_locale.py` | Core | Resolves BCP-47 locale for harness LLM tool description SSOT (`memory_*`, `web_search_tool`). | ✅ |
+| `tool_description_locale.py` | Core | `resolve_agent_params_locale` for `GeneralAgentParams.locale`; `resolve_tool_description_locale` for harness LLM tool description SSOT (`memory_*`, `web_search_tool`). | ✅ |
 
 ## Dependencies
 

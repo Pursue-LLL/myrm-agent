@@ -800,7 +800,7 @@ const useChatStore = create<ChatState>()(
       },
 
       // 初始化聊天
-      initializeChat: (id) => {
+      initializeChat: (id, options) => {
         const state = get();
 
         if (state.chatId && state.chatId !== id) {
@@ -846,7 +846,7 @@ const useChatStore = create<ChatState>()(
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
         };
-        initializeChat(id, { messages: state.messages, chatId: state.chatId }, actions);
+        initializeChat(id, { messages: state.messages, chatId: state.chatId }, actions, options);
       },
 
       // 分页聊天历史管理

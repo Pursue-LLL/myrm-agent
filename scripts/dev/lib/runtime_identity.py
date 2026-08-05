@@ -153,8 +153,8 @@ def signoff_stream_holder_health_errors(payload: HealthJsonPayload) -> list[str]
 
 
 def read_attach_health_errors(payload: HealthJsonPayload) -> list[str]:
-    """READ lane attach without shared_hot — mux/epochs live; no clientHot compile gate."""
-    return stack_core_health_errors(payload)
+    """READ lane attach without shared_hot — mux/backend/chrome live; SMP may defer frontendEpoch."""
+    return signoff_stream_holder_health_errors(payload)
 
 
 def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:

@@ -311,7 +311,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
         from app.config.deploy_mode import is_local_mode as _is_local
-        from app.core.agent.tool_description_locale import resolve_tool_description_locale
+        from app.core.agent.tool_description_locale import (
+            resolve_tool_description_locale,
+        )
 
         tool_description_locale = resolve_tool_description_locale(
             agent_locale=getattr(self, "locale", None),
@@ -490,9 +492,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
                         grant_session_access_root(
                             AccessRoot(
                                 path=normalized_grant,
-                                writable=bool(writable_obj)
-                                if isinstance(writable_obj, bool)
-                                else form.writable,
+                                writable=(
+                                    bool(writable_obj)
+                                    if isinstance(writable_obj, bool)
+                                    else form.writable
+                                ),
                                 source="hitl_grant",
                             ),
                             policy=_default_path_policy(),
@@ -899,7 +903,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 MemorySearchBackends,
                 MemorySearchPolicy,
             )
-            from app.core.agent.tool_description_locale import resolve_tool_description_locale
+            from app.core.agent.tool_description_locale import (
+                resolve_tool_description_locale,
+            )
 
             tool_description_locale = resolve_tool_description_locale(
                 agent_locale=getattr(self, "locale", None),

@@ -16,8 +16,18 @@ import httpx
 import pytest
 
 from app.database.dto import MessageDTO
+from app.services.agent.execution_cache.prewarm.types import TurnPrewarmJoinResult
 from app.services.chat.chat_service import ChatService
 from tests.api.agent.utils import get_lite_model_selection
+
+_SKIP_PREWARM = TurnPrewarmJoinResult(
+    preview=None,
+    snapshot=None,
+    brief_status={"state": "skipped", "reason": "test"},
+    prewarm_hit=False,
+    prewarm_ms=None,
+    still_warming=False,
+)
 
 
 class _SessionRegisteredSet(set[str]):
@@ -104,6 +114,9 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
         "enable_memory": False,
     }
 
+    mock_coordinator = MagicMock()
+    mock_coordinator.join_for_turn = AsyncMock(return_value=_SKIP_PREWARM)
+
     try:
         with (
             patch(
@@ -118,6 +131,10 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                 "app.services.chat.conversation_recall_index_service.ConversationRecallIndexService.append_message",
                 new=AsyncMock(),
             ),
+            patch(
+                    "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
+                    return_value=mock_coordinator,
+                ),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),

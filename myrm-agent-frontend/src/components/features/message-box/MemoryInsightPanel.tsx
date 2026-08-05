@@ -10,8 +10,17 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/primitives/hover-card';
+import { MemoryLifecycleTimeline } from '@/components/features/message-box/MemoryLifecycleTimeline';
+import { hasVisibleLifecycle } from '@/components/features/message-box/memoryLifecyclePhases';
+import { useMessageMemoryLifecycle } from '@/components/features/message-box/useMessageMemoryLifecycle';
+import { retryChatMemoryExtract } from '@/services/chat';
+import { ApiError } from '@/lib/api';
 
 interface MemoryInsightPanelProps {
+  chatId?: string | null;
+  isLast?: boolean;
+  isStreaming?: boolean;
+  messageCreatedAtMs?: number;
   memoryBrief?: MemoryBriefData;
   memoryBriefStatus?: MemoryBriefStatus;
   memoryBudget?: { used: number; total: number };
@@ -84,6 +93,10 @@ export function resolveBriefStatusSourceKey(
 }
 
 export default function MemoryInsightPanel({
+  chatId,
+  isLast = false,
+  isStreaming = false,
+  messageCreatedAtMs,
   memoryBrief,
   memoryBriefStatus,
   memoryBudget,
@@ -91,8 +104,20 @@ export default function MemoryInsightPanel({
   className,
 }: MemoryInsightPanelProps) {
   const t = useTranslations('memoryInsight');
+  const { phases, markExtractRetryPending } = useMessageMemoryLifecycle({
+    chatId,
+    messageCreatedAtMs,
+    memoryBrief,
+    memoryBriefStatus,
+    citations,
+    trackWriteExtract: Boolean(chatId) && isLast && !isStreaming,
+  });
+
+  const showWriteExtractTimeline = isLast && hasVisibleLifecycle(phases, { writeExtractOnly: true });
 
   if (
+    !showWriteExtractTimeline &&
+    !hasVisibleLifecycle(phases) &&
     !memoryBrief &&
     memoryBriefStatus?.state !== 'skipped' &&
     !memoryBudget &&
@@ -108,7 +133,36 @@ export default function MemoryInsightPanel({
   const briefNamespaceLabels = memoryBrief ? memoryBrief.namespaces.slice(0, 4).map((namespace) => formatNamespaceLabel(namespace, t)) : [];
   
   return (
-    <div className={cn("flex flex-wrap items-center gap-2 mt-2", className)}>
+    <div className={cn("flex flex-col gap-2 mt-2", className)}>
+      {showWriteExtractTimeline && (
+        <MemoryLifecycleTimeline
+          phases={phases}
+          showRecall={false}
+          onRetryExtract={
+            chatId
+              ? async () => {
+                  try {
+                    const result = await retryChatMemoryExtract(chatId);
+                    if (result.status === 'already_in_flight') {
+                      const { toast } = await import('@/lib/utils/toast');
+                      toast.info(t('lifecycleRetryAlreadyInFlight'));
+                      return;
+                    }
+                    markExtractRetryPending();
+                  } catch (error) {
+                    const { toast } = await import('@/lib/utils/toast');
+                    const detail =
+                      error instanceof ApiError && error.message.trim()
+                        ? error.message.trim()
+                        : t('lifecycleRetryFailed');
+                    toast.warning(detail);
+                  }
+                }
+              : undefined
+          }
+        />
+      )}
+      <div className="flex flex-wrap items-center gap-2">
       {/* Memory Brief Unavailable Pill */}
       {memoryBriefUnavailable && (
         <>
@@ -279,6 +333,7 @@ export default function MemoryInsightPanel({
           </HoverCardContent>
         </HoverCard>
       )}
+      </div>
     </div>
   );
 }

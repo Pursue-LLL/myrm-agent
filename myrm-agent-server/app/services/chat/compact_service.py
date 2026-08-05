@@ -39,7 +39,9 @@ from app.services.chat.compact.persist import (
     record_compaction_failure_cooldown as _record_compaction_failure_cooldown,
 )
 from app.services.chat.compact.service import compact_chat
-from app.services.chat.compact.summarize_guard import guarded_compact_summarize as _guarded_compact_summarize
+from app.services.chat.compact.summarize_guard import (
+    guarded_compact_summarize as _guarded_compact_summarize,
+)
 
 # Idle estimate internal helper kept for tests patching compact_service namespace.
 from app.services.chat.compact.idle_estimate import (

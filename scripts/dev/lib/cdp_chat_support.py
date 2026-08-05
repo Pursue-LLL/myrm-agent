@@ -19,6 +19,44 @@ _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 
 
+def _is_shared_dev_api_url(url: str) -> bool:
+    parsed = urlsplit(url)
+    hostname = (parsed.hostname or "").strip().lower()
+    if hostname not in _LOOPBACK_HOSTS:
+        return False
+    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
+    port = int(port_raw) if port_raw.isdigit() else 8080
+    return (parsed.port or 80) == port
+
+
+def _connection_refused(exc: BaseException) -> bool:
+    if isinstance(exc, ConnectionRefusedError):
+        return True
+    if isinstance(exc, urllib.error.URLError):
+        reason = exc.reason
+        if isinstance(reason, ConnectionRefusedError):
+            return True
+        if isinstance(reason, OSError) and reason.errno == 61:
+            return True
+    if isinstance(exc, OSError) and exc.errno == 61:
+        return True
+    return False
+
+
+def _maybe_heal_shared_api_on_refused() -> None:
+    """One-shot shared :8080 crash heal when parallel E2E reloads the dev backend."""
+    try:
+        from stack_mutation_policy import attach_backend_crash_heal_inner
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
+        attach_backend_crash_heal_inner(
+            monorepo_root=monorepo_root, dev_stack=dev_stack
+        )
+    except Exception:
+        return
+
+
 def _normalize_loopback_http_origin(origin: str, *, env_name: str) -> str:
     trimmed = origin.strip().rstrip("/")
     if not trimmed:
@@ -55,7 +93,14 @@ def get_e2e_api_url() -> str:
 
 
 def get_open_page_api_url() -> str:
-    """Orchestrator page-open API base — SHARED hot attach ignores peer epoch pin."""
+    """Orchestrator page-open API base — epoch pin uses E2E_API_BASE; else SHARED hot :8080."""
+    try:
+        from epoch_delivery_plane import epoch_pin_active
+
+        if epoch_pin_active():
+            return get_e2e_api_url()
+    except ImportError:
+        pass
     mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
     lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
     if mode == "SHARED" and lane == "RESOURCE_WRITE":
@@ -164,6 +209,58 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
         scaled = floor + load * 22.0 + 120.0
         cap = max(cap, 780.0)
     return min(scaled, cap)
+
+
+def e2e_attach_timeout_ms(base_ms: int = 60_000) -> int:
+    """Scale attachToChat poll deadline under parallel chrome_e2e load."""
+    active_leases = 0
+    parallel_tests = 0
+    mux_peers = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import (
+            parallel_active_test_count,
+            parallel_mux_peer_count,
+        )
+
+        parallel_tests = parallel_active_test_count()
+        mux_peers = parallel_mux_peer_count()
+    except Exception:
+        parallel_tests = 0
+        mux_peers = 0
+    load = max(active_leases, parallel_tests, mux_peers)
+    if load <= 1:
+        return base_ms
+    scaled = base_ms + load * 15_000
+    return min(int(scaled), 180_000)
+
+
+def e2e_private_api_ready_timeout_sec(base_sec: float = 60.0) -> float:
+    """Poll budget for epoch-pinned private pool API before page binding (parallel SHPOIB)."""
+    active_leases = 0
+    parallel_tests = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    try:
+        from transport_supervisor import parallel_active_test_count
+
+        parallel_tests = parallel_active_test_count()
+    except Exception:
+        parallel_tests = 0
+    load = max(active_leases, parallel_tests)
+    scaled = max(base_sec, 60.0 + load * 25.0)
+    return min(scaled, 180.0)
 
 
 def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
@@ -326,6 +423,47 @@ def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
     return min(remaining_sec, 60.0)
 
 
+def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
+    """Block until shared dev :8080 accepts health probes (parallel E2E may reload it)."""
+    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
+    api = f"http://127.0.0.1:{port_raw if port_raw.isdigit() else 8080}".rstrip("/")
+    health = f"{api}/api/v1/health"
+    resolved_attempts = max_attempts
+    if resolved_attempts is None:
+        resolved_attempts = 8
+        try:
+            from dev_gate_contract import shared_ui_hydrate_wait_sec
+            from stack_mutation_policy import wave_active_lease_count
+            from transport_supervisor import parallel_active_test_count
+
+            monorepo_root = Path(__file__).resolve().parents[4]
+            parallel_load = max(
+                wave_active_lease_count(monorepo_root),
+                parallel_active_test_count(),
+            )
+            if parallel_load > 0:
+                resolved_attempts = min(
+                    24,
+                    8 + parallel_load * 4,
+                )
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+    last_error: BaseException | None = None
+    for attempt in range(resolved_attempts):
+        try:
+            with urllib.request.urlopen(health, timeout=5.0) as resp:  # noqa: S310
+                if 200 <= resp.status < 300:
+                    return api
+        except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            last_error = exc
+            if attempt + 1 >= resolved_attempts:
+                break
+            _maybe_heal_shared_api_on_refused()
+            time.sleep(min(2.0 * (attempt + 1), 8.0))
+    detail = str(last_error) if last_error is not None else "unknown"
+    raise RuntimeError(f"E2E_SHARED_API_UNAVAILABLE: {api} ({detail})")
+
+
 def get_e2e_ui_url() -> str:
     return _normalize_loopback_http_origin(
         os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000"),
@@ -371,6 +509,11 @@ def _e2e_api_urlopen(
             raise
         except (TimeoutError, OSError, urllib.error.URLError) as exc:
             last_error = exc
+            if _connection_refused(exc) and _is_shared_dev_api_url(req.full_url):
+                _maybe_heal_shared_api_on_refused()
+                if attempt + 1 < max_attempts:
+                    time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
+                    continue
             if attempt + 1 >= max_attempts:
                 raise
             time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
@@ -468,11 +611,13 @@ def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
     if binding is None:
         return None
     name = _E2E_RUNTIME_BINDING_PREFIX + json.dumps(binding, separators=(",", ":"))
+    attach_ms = e2e_attach_timeout_ms()
     return (
         f"window.name = {json.dumps(name)};"
         f"window.__MYRM_E2E_RUNTIME__ = Object.freeze({json.dumps(binding)});"
         f"window.__MYRM_E2E_API_BASE__ = {json.dumps(binding['apiBase'])};"
         f"window.__MYRM_E2E_DIRECT_SSE__ = true;"
+        f"window.__MYRM_E2E_ATTACH_TIMEOUT_MS__ = {attach_ms};"
     )
 
 
@@ -483,6 +628,7 @@ def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
         return None
     binding_json = json.dumps(binding)
     prefix = json.dumps(_E2E_RUNTIME_BINDING_PREFIX)
+    attach_ms = e2e_attach_timeout_ms()
     return f"""(async () => {{
   const binding = Object.freeze({binding_json});
   const prefix = {prefix};
@@ -490,6 +636,7 @@ def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
   window.__MYRM_E2E_RUNTIME__ = binding;
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
   window.__MYRM_E2E_DIRECT_SSE__ = true;
+  window.__MYRM_E2E_ATTACH_TIMEOUT_MS__ = {attach_ms};
   const nativeFetch = window.fetch.bind(window);
   const healthUrl = `${{binding.apiBase}}/api/v1/health`;
   window.__MYRM_E2E_RUNTIME_READY__ = nativeFetch(healthUrl, {{ cache: 'no-store' }})
@@ -920,6 +1067,7 @@ DISMISS_MODALS_JS = """
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
     sessionStorage.setItem('competitor_migration_dismissed', 'true');
     localStorage.setItem('myrm_onboarding_complete', 'true');
+    localStorage.setItem('myrm_boot_shown', '1');
   } catch (err) {
     return { ok: false, err: String(err), href: location.href };
   }

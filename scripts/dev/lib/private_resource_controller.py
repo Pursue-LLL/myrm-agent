@@ -388,7 +388,9 @@ class PrivateResourceController:
             # Preserve submit wall budget: grant must cover remaining bootstrap+BODY after
             # queue wait (log-8: flat now+600 caused HARD_DEADLINE mid mux recovery).
             existing_deadline = float(session["hard_deadline"])
-            from dev_gate_contract import dev_gate_post_admit_hard_timeout_sec  # noqa: PLC0415
+            from dev_gate_contract import (
+                dev_gate_post_admit_hard_timeout_sec,
+            )  # noqa: PLC0415
 
             post_admit_budget = float(dev_gate_post_admit_hard_timeout_sec())
             new_hard_deadline = max(existing_deadline, now + post_admit_budget)

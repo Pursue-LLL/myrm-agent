@@ -31,6 +31,7 @@ export default function RouteSegmentLoading({
         className={cn('flex h-full min-h-[50vh] w-full flex-col px-4 pt-6', className)}
         aria-busy="true"
         aria-live="polite"
+        data-testid="chat-route-loading"
       >
         <MessageListSkeleton />
       </div>

@@ -363,6 +363,7 @@ const MessageRow = memo<MessageRowProps>(({ message, messageIndex, loading, isLa
     <div
       ref={rowRef}
       className={highlighted ? 'ring-2 ring-primary/40 rounded-lg transition-all duration-1000' : undefined}
+      {...(message.isCompactedSummaryView ? { 'data-testid': 'compacted-summary-view' } : {})}
     >
       {message.isCompactedSummaryView ? (
         <CompactedSummaryView />

@@ -24,7 +24,7 @@ Wiki 外部来源确定性同步：Gmail 标签 / Google Drive 文件夹 / RSS /
 | `integration_mirror.py` | 钩子 | IntegrationSyncResult.new_items → raw/integrations/ | ✅ |
 | `read_it_later_hygiene.py` | 迁移 | 存量 agent-type read-it-later Cron → router `__wiki_source_sync__` | ✅ |
 | `defaults.py` | 默认 | Google OAuth / Second Brain apply 默认开 Gmail read-later | ✅ |
-| `runner.py` | 编排 | `run_wiki_source_sync` SSOT（Gmail/GDrive/RSS/mirror + scoped state） | ✅ |
+| `runner.py` | 编排 | `run_wiki_source_sync` SSOT（Gmail/GDrive/RSS/mirror + scoped state + post-sync dedup scan when published > 0） | ✅ |
 
 ## 测试
 

@@ -2151,9 +2151,11 @@
           "agentTools": "Agent has wiki, memory, and cron tools",
           "cronJob": "Daily read-it-later (6:00) and wiki morning delta (7:00) cron jobs",
           "vaultContent": "Knowledge vault has content",
+          "corpusDedup": "Raw corpus dedup scan complete with no blocking duplicates",
           "providerReady": "Model provider configured"
         },
         "goImport": "Import knowledge",
+        "goDuplicateReview": "Review duplicates",
         "goProviders": "Configure models"
       },
       "sources": {
@@ -2258,7 +2260,8 @@
         "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
         "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
         "assetsVisionHint": "Images were imported but are not searchable yet. Configure a Vision Fallback Model under Settings → Models to index them.",
-        "synthesisPending": "{count, plural, one {# evolution synthesis pending review} other {# evolution syntheses pending review}}"
+        "synthesisPending": "{count, plural, one {# evolution synthesis pending review} other {# evolution syntheses pending review}}",
+        "duplicateGroupsPending": "{count, plural, one {# duplicate group pending review} other {# duplicate groups pending review}}"
       },
       "query": {
         "title": "Query Wiki",
@@ -2330,6 +2333,7 @@
         "purposeSaveFailed": "Failed to save knowledge direction",
         "queryFailed": "Failed to query wiki",
         "compileFailed": "Failed to compile wiki",
+        "compileBlockedByDedup": "Resolve exact or normalized duplicate groups before compiling",
         "maintainFailed": "Failed to maintain wiki",
         "maintainCompileBusy": "Wiki is compiling. Try maintenance again after compile finishes.",
         "repairTypesFailed": "Failed to repair page types",
@@ -2357,6 +2361,7 @@
         "obsidianZip": "Upload Vault ZIP",
         "selectObsidianVault": "Select Obsidian vault folder",
         "obsidianResult": "Imported {processed} notes ({tags} tags, {images} images), {skipped} skipped",
+        "dedupScanStarted": "Duplicate scan started in the background — review results in Duplicate Review",
         "conflictTitle": "Import conflicts detected",
         "conflictDescription": "{count} raw source file(s) already exist with different content. Keep the existing copies or supersede them with the imported versions.",
         "conflictMore": "...and {count} more",
@@ -2375,6 +2380,7 @@
         "overview": "Overview",
         "concepts": "Concepts",
         "pendingEdits": "Pending Edits",
+        "duplicateReview": "Duplicate Review",
         "queue": "Queue"
       },
       "queue": {
@@ -2566,6 +2572,88 @@
         "searchPlaceholder": "Search concepts...",
         "noConcepts": "No concepts found",
         "loadMore": "Load More"
+      },
+      "duplicateReview": {
+        "title": "Duplicate Corpus Review",
+        "description": "Review duplicate raw sources before they affect compilation. Exact and normalized matches block compile until resolved.",
+        "empty": "No duplicate groups need review",
+        "emptyFiltered": "No groups match this filter",
+        "groupLabel": "Group #{id}",
+        "recommendedKeep": "Recommended keep:",
+        "memberModified": "Modified {time}",
+        "reasonPlaceholder": "Reason for trash/exclude (required for audit log)",
+        "filters": {
+          "all": "All tiers",
+          "exact": "Exact",
+          "normalized": "Normalized",
+          "near": "Near"
+        },
+        "tiers": {
+          "exact": "Exact duplicate",
+          "normalized": "Normalized duplicate",
+          "near": "Near duplicate"
+        },
+        "status": {
+          "open": "open",
+          "deferred": "Deferred",
+          "blocksCompile": "blocks compile"
+        },
+        "scan": {
+          "run": "Run dedup scan",
+          "running": "Scanning…",
+          "accepted": "Dedup scan queued — waiting for completion",
+          "alreadyRunning": "A dedup scan is already running",
+          "stillRunning": "Scan is still running — refresh groups manually when ready",
+          "skipped": "Scan skipped (compilation in progress)",
+          "complete": "Scan complete: {open} open group(s) from {scanned} file(s)"
+        },
+        "actions": {
+          "refresh": "Refresh",
+          "trash": "Trash duplicates",
+          "exclude": "Exclude from compile",
+          "dismiss": "Not a duplicate",
+          "defer": "Defer",
+          "cancel": "Cancel",
+          "confirm": "Apply",
+          "applying": "Applying…"
+        },
+        "hints": {
+          "compileBlocked": "Exact or normalized duplicate groups must be resolved before wiki compilation can proceed."
+        },
+        "errors": {
+          "loadFailed": "Failed to load duplicate groups",
+          "scanFailed": "Dedup scan failed",
+          "scanCompileBusy": "Compilation is in progress; try again later",
+          "dispositionFailed": "Failed to apply disposition",
+          "reasonRequired": "Reason is required for trash/exclude",
+          "snippetsFailed": "Failed to load body previews"
+        },
+        "snippets": {
+          "show": "Compare bodies",
+          "hide": "Hide bodies",
+          "loading": "Loading previews…",
+          "empty": "No readable body text"
+        },
+        "success": {
+          "disposition": "{action}: {count, plural, one {# path updated} other {# paths updated}}"
+        },
+        "vaultHygiene": {
+          "title": "Vault hygiene",
+          "description": "Restore raw files moved to corpus trash or undo compile exclusions from duplicate review.",
+          "trashedTitle": "Corpus trash",
+          "excludedTitle": "Compile exclusions",
+          "restoreTrash": "Restore to raw",
+          "restoreExclude": "Undo exclude",
+          "restoring": "Restoring…",
+          "success": {
+            "restoredTrash": "Restored raw file from corpus trash",
+            "restoredExclude": "Removed compile exclusion for raw file"
+          },
+          "errors": {
+            "loadFailed": "Failed to load vault hygiene entries",
+            "restoreFailed": "Failed to restore raw file"
+          }
+        }
       },
       "pendingEdits": {
         "title": "Pending Edits Review",
@@ -15080,7 +15168,35 @@
     "namespaceChannel": "Channel · {value}",
     "namespaceConversation": "Current Chat",
     "namespaceTask": "Current Task",
-    "namespaceShared": "Shared · {value}"
+    "namespaceShared": "Shared · {value}",
+    "lifecycleTitle": "Memory pipeline",
+    "lifecycleCommandCenter": "Command Center",
+    "lifecycleWrite": "Write",
+    "lifecycleExtract": "Extract",
+    "lifecycleRecall": "Recall",
+    "lifecyclePending": "In progress",
+    "lifecycleExtractPending": "Generating cards…",
+    "lifecycleDurationMs": "{ms}ms",
+    "lifecycleStoredCount": "{count} cards stored",
+    "lifecycleStoredCountNone": "No new cards",
+    "lifecycleVerbatimStored": "{count} verbatim chunks saved",
+    "lifecycleSuccess": "Done",
+    "lifecycleSkipped": "Skipped",
+    "lifecycleError": "Failed",
+    "lifecycleIdle": "—",
+    "lifecycleRetryExtract": "Retry extraction",
+    "lifecycleRetrying": "Retrying…",
+    "lifecycleRetryFailed": "Retry failed — try again later",
+    "lifecycleRetryAlreadyInFlight": "Extraction retry already in progress"
+  },
+  "memoryRecallDegraded": {
+    "title": "Semantic recall unavailable",
+    "description": "Vector search is degraded. Replies may miss related memories until embedding is restored.",
+    "actionDoctor": "Open Memory Doctor",
+    "actionSettings": "Memory settings",
+    "unavailable": "Could not check memory recall health",
+    "retry": "Retry",
+    "dismiss": "Dismiss for this chat"
   },
   "e2ee": {
     "secured": "E2EE",

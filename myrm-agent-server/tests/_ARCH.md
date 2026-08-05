@@ -28,7 +28,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
-| `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（READ×1：`/chats/test/seed-wiki-dedup-fixture` → `/settings/wiki` Duplicate Review exact group） |
+| `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（SHARED+READ×1：seed-after-warm → duplicateReview exact group panel） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume（R73 solo PASS；并行 m3-signoff 待补） |
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |
@@ -92,6 +92,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
 | `api/agent/test_mcp.py` | 模块 | Agent MCP 集成（`@pytest.mark.e2e`）：amap · 12306 Node stdio PTC；TestClient 进程内；须 `-m e2e` |
+| `api/agent/mcp_e2e_helpers.py` | 辅助 | MCP E2E 启动/preflight：12306 stdio 解析、LLM preflight、shared venv prewarm |
+| `api/agent/mcp_e2e_goodhart.py` | 辅助 | MCP E2E Goodhart 锚点：skill/PTC/get_tickets deliver 断言 |
+| `api/agent/mcp_e2e_stream.py` | 辅助 | MCP E2E SSE runner：`run_mcp_agent_stream`、approval resume、iteration_limit 旗标 |
 | `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |

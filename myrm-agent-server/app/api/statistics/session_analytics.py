@@ -50,6 +50,7 @@ async def _build_session_memory_events(db: AsyncSession, session_id: str) -> lis
     return [
         {
             "id": row.id,
+            "kind": row.kind,
             "phase": event_phase(row.kind),
             "status": row.status,
             "timestamp": row.occurred_at.timestamp(),
@@ -58,6 +59,7 @@ async def _build_session_memory_events(db: AsyncSession, session_id: str) -> lis
             "target_kind": row.target_kind,
             "target_id": row.target_id,
             "influence_count": len(row.influence_refs_json or []),
+            "metadata": row.metadata_json or {},
         }
         for row in rows
     ]

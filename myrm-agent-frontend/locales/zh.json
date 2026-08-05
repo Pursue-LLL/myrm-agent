@@ -2151,9 +2151,11 @@
           "agentTools": "智能体已开启 Wiki、记忆与定时任务工具",
           "cronJob": "每日稍后读（6:00）与知识库晨间摘要（7:00）定时任务",
           "vaultContent": "知识库已有内容",
+          "corpusDedup": "Raw 语料去重扫描已完成且无阻塞性重复",
           "providerReady": "模型服务已配置"
         },
         "goImport": "导入知识库",
+        "goDuplicateReview": "审核重复",
         "goProviders": "配置模型"
       },
       "sources": {
@@ -2258,7 +2260,8 @@
         "indexedAssets": "已索引 {count} 张图片",
         "failedAssets": "{count} 张图片索引失败",
         "assetsVisionHint": "图片已导入但尚不可搜索。请在「设置 → 模型」中配置视觉降级模型以建立索引。",
-        "synthesisPending": "{count, plural, other {# 条演化合成待审核}}"
+        "synthesisPending": "{count, plural, other {# 条演化合成待审核}}",
+        "duplicateGroupsPending": "{count, plural, other {# 组重复待审核}}"
       },
       "query": {
         "title": "查询 Wiki",
@@ -2330,6 +2333,7 @@
         "purposeSaveFailed": "保存知识方向失败",
         "queryFailed": "查询 Wiki 失败",
         "compileFailed": "编译 Wiki 失败",
+        "compileBlockedByDedup": "请先处理精确或归一化重复组，再执行编译",
         "maintainFailed": "维护 Wiki 失败",
         "maintainCompileBusy": "Wiki 正在编译中，请编译完成后再试。",
         "repairTypesFailed": "修复页面类型失败",
@@ -2357,6 +2361,7 @@
         "obsidianZip": "上传仓库 ZIP",
         "selectObsidianVault": "选择 Obsidian 仓库文件夹",
         "obsidianResult": "已导入 {processed} 篇笔记（{tags} 个标签、{images} 张图片），跳过 {skipped} 个",
+        "dedupScanStarted": "已在后台启动重复扫描 — 请在「重复审核」查看结果",
         "conflictTitle": "检测到导入冲突",
         "conflictDescription": "有 {count} 个 raw 源文件已存在且内容不同。可保留现有文件，或用导入版本覆盖。",
         "conflictMore": "……另有 {count} 个",
@@ -2375,6 +2380,7 @@
         "overview": "总览",
         "concepts": "词条管理",
         "pendingEdits": "草稿审核",
+        "duplicateReview": "重复审核",
         "queue": "处理队列"
       },
       "queue": {
@@ -2566,6 +2572,88 @@
         "searchPlaceholder": "搜索词条...",
         "noConcepts": "未找到词条",
         "loadMore": "加载更多"
+      },
+      "duplicateReview": {
+        "title": "语料重复审核",
+        "description": "在重复 raw 源影响编译前进行审核。精确与归一化匹配会在处理完成前阻止编译。",
+        "empty": "暂无待审核重复组",
+        "emptyFiltered": "当前筛选下无匹配组",
+        "groupLabel": "组 #{id}",
+        "recommendedKeep": "建议保留：",
+        "memberModified": "修改于 {time}",
+        "reasonPlaceholder": "移入回收站/排除原因（必填，写入审计日志）",
+        "filters": {
+          "all": "全部层级",
+          "exact": "精确",
+          "normalized": "归一化",
+          "near": "近似"
+        },
+        "tiers": {
+          "exact": "精确重复",
+          "normalized": "归一化重复",
+          "near": "近似重复"
+        },
+        "status": {
+          "open": "待处理",
+          "deferred": "已延期",
+          "blocksCompile": "阻止编译"
+        },
+        "scan": {
+          "run": "运行去重扫描",
+          "running": "扫描中…",
+          "accepted": "去重扫描已排队 — 等待完成",
+          "alreadyRunning": "去重扫描已在进行中",
+          "stillRunning": "扫描仍在进行 — 完成后请手动刷新列表",
+          "skipped": "扫描已跳过（编译进行中）",
+          "complete": "扫描完成：{scanned} 个文件中 {open} 组待审核"
+        },
+        "actions": {
+          "refresh": "刷新",
+          "trash": "移入回收站",
+          "exclude": "排除编译",
+          "dismiss": "非重复",
+          "defer": "延期",
+          "cancel": "取消",
+          "confirm": "确认",
+          "applying": "处理中…"
+        },
+        "hints": {
+          "compileBlocked": "必须先处理精确或归一化重复组，才能继续 Wiki 编译。"
+        },
+        "errors": {
+          "loadFailed": "加载重复组失败",
+          "scanFailed": "去重扫描失败",
+          "scanCompileBusy": "编译进行中，请稍后再试",
+          "dispositionFailed": "处置操作失败",
+          "reasonRequired": "移入回收站/排除必须填写原因",
+          "snippetsFailed": "加载正文预览失败"
+        },
+        "snippets": {
+          "show": "对比正文",
+          "hide": "收起正文",
+          "loading": "加载预览中…",
+          "empty": "无可读正文"
+        },
+        "success": {
+          "disposition": "{action}：已更新 {count} 个路径"
+        },
+        "vaultHygiene": {
+          "title": "语料卫生",
+          "description": "恢复已移入语料回收站的 raw 文件，或撤销重复审核中的编译排除。",
+          "trashedTitle": "语料回收站",
+          "excludedTitle": "编译排除",
+          "restoreTrash": "恢复到 raw",
+          "restoreExclude": "撤销排除",
+          "restoring": "恢复中…",
+          "success": {
+            "restoredTrash": "已从语料回收站恢复 raw 文件",
+            "restoredExclude": "已撤销该 raw 文件的编译排除"
+          },
+          "errors": {
+            "loadFailed": "加载语料卫生条目失败",
+            "restoreFailed": "恢复 raw 文件失败"
+          }
+        }
       },
       "pendingEdits": {
         "title": "草稿审核队列",
@@ -15080,7 +15168,35 @@
     "namespaceChannel": "渠道 · {value}",
     "namespaceConversation": "当前会话",
     "namespaceTask": "当前任务",
-    "namespaceShared": "共享 · {value}"
+    "namespaceShared": "共享 · {value}",
+    "lifecycleTitle": "记忆流水线",
+    "lifecycleCommandCenter": "指挥中心",
+    "lifecycleWrite": "写入",
+    "lifecycleExtract": "提炼",
+    "lifecycleRecall": "召回",
+    "lifecyclePending": "进行中",
+    "lifecycleExtractPending": "卡片生成中…",
+    "lifecycleDurationMs": "{ms}毫秒",
+    "lifecycleStoredCount": "已生成 {count} 张卡片",
+    "lifecycleStoredCountNone": "未生成新卡片",
+    "lifecycleVerbatimStored": "已保存 {count} 段原文",
+    "lifecycleSuccess": "完成",
+    "lifecycleSkipped": "已跳过",
+    "lifecycleError": "失败",
+    "lifecycleIdle": "—",
+    "lifecycleRetryExtract": "重试提取",
+    "lifecycleRetrying": "重试中…",
+    "lifecycleRetryFailed": "重试失败，请稍后再试",
+    "lifecycleRetryAlreadyInFlight": "记忆提取重试已在进行中"
+  },
+  "memoryRecallDegraded": {
+    "title": "语义召回不可用",
+    "description": "向量检索已降级，回复可能遗漏相关记忆，请检查 embedding 配置。",
+    "actionDoctor": "打开 Memory Doctor",
+    "actionSettings": "记忆设置",
+    "unavailable": "无法检查记忆召回健康状态",
+    "retry": "重试",
+    "dismiss": "本会话不再提示"
   },
   "e2ee": {
     "secured": "端到端加密",

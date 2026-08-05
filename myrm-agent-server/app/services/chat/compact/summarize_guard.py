@@ -20,7 +20,10 @@ import time as time_module
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 
-from app.services.chat.compact._constants import COMPACT_INACTIVITY_TIMEOUT_S, COMPACT_TOTAL_CEILING_S
+from app.services.chat.compact._constants import (
+    COMPACT_INACTIVITY_TIMEOUT_S,
+    COMPACT_TOTAL_CEILING_S,
+)
 
 logger = logging.getLogger(__name__)
 

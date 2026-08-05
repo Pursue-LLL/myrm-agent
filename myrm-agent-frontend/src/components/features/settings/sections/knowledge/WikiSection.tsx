@@ -38,6 +38,7 @@ import { WikiImportConflictDialog } from './wiki/WikiImportConflictDialog';
 import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
 import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
+import { WikiDuplicateReviewPanel } from './WikiDuplicateReviewPanel';
 import { WikiQueuePanel } from './WikiQueuePanel';
 import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
 import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
@@ -82,6 +83,14 @@ interface WikiStats {
     last_duration_ms: number;
     last_skipped_reason: string | null;
   };
+  dedup_stats?: {
+    duplicate_groups_pending: number;
+    compile_jobs_prevented: number;
+    eligible_raw_count: number;
+    excluded_raw_count: number;
+    trashed_raw_count: number;
+    blocks_compile: boolean;
+  };
 }
 
 function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string): string {
@@ -116,6 +125,13 @@ function normalizeWikiLevel(level: string | undefined): WikiSourceLevel | undefi
     return level;
   }
   return undefined;
+}
+
+const WIKI_TABS = ['overview', 'concepts', 'pendingEdits', 'duplicateReview', 'queue'] as const;
+type WikiTab = (typeof WIKI_TABS)[number];
+
+function isWikiTab(value: string): value is WikiTab {
+  return (WIKI_TABS as readonly string[]).includes(value);
 }
 
 interface PendingImportRetry {
@@ -189,6 +205,42 @@ export function WikiSection() {
   const [importSecurityRedactedPaths, setImportSecurityRedactedPaths] = useState<string[]>([]);
   const [pendingImportRetry, setPendingImportRetry] = useState<PendingImportRetry | null>(null);
 
+  const syncWikiTabToUrl = useCallback(
+    (tab: WikiTab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === 'overview') {
+        params.delete('wikiTab');
+      } else {
+        params.set('wikiTab', tab);
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, router, pathname],
+  );
+
+  const handleWikiTabChange = useCallback(
+    (tab: string) => {
+      if (!isWikiTab(tab)) {
+        return;
+      }
+      setActiveTab(tab);
+      syncWikiTabToUrl(tab);
+    },
+    [syncWikiTabToUrl],
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('wikiTab');
+    if (tab && isWikiTab(tab)) {
+      setActiveTab(tab);
+      return;
+    }
+    if (!tab) {
+      setActiveTab('overview');
+    }
+  }, [searchParams]);
+
   const isTauriEnv = isTauri();
 
   const scopeLabel = agentScopeId
@@ -233,7 +285,8 @@ export function WikiSection() {
       } else {
         toast.success(result.message);
       }
-      setActiveTab('queue');
+      toast.message(t('import.dedupScanStarted'));
+      handleWikiTabChange('duplicateReview');
       await loadStats();
       const blocked = result.security_blocked_paths ?? [];
       const redacted = result.security_redacted_paths ?? [];
@@ -561,8 +614,15 @@ export function WikiSection() {
 
   const handleOpenSynthesisPending = () => {
     setPendingEditsInitialFilter('synthesis');
-    setActiveTab('pendingEdits');
+    handleWikiTabChange('pendingEdits');
   };
+
+  const handleOpenDuplicateReview = () => {
+    handleWikiTabChange('duplicateReview');
+  };
+
+  const duplicateGroupsPending = stats?.dedup_stats?.duplicate_groups_pending ?? 0;
+  const dedupBlocksCompile = stats?.dedup_stats?.blocks_compile ?? false;
 
   const synthesisPendingCount =
     (typeof ingestSnapshot?.synthesis_pending_count === 'number'
@@ -611,7 +671,7 @@ export function WikiSection() {
       setCompileRun(result.compile_run ?? null);
       if (result.compile_run?.state === 'paused') {
         toast.warning(result.compile_run.pause_reason || t('compileRun.pausedDefaultReason'));
-        setActiveTab('queue');
+        handleWikiTabChange('queue');
       } else {
         const synthesisCount = result.synthesis_pending ?? 0;
         toast.success(
@@ -630,12 +690,17 @@ export function WikiSection() {
         );
         if (result.articles_pending > 0 || synthesisCount > 0) {
           setPendingEditsInitialFilter(synthesisCount > 0 ? 'synthesis' : 'all');
-          setActiveTab('pendingEdits');
+          handleWikiTabChange('pendingEdits');
         }
       }
       await loadStats();
     } catch (error) {
       console.error('Compile failed:', error);
+      if (error instanceof ApiError && error.code === 409) {
+        toast.error(t('errors.compileBlockedByDedup'));
+        handleWikiTabChange('duplicateReview');
+        return;
+      }
       toast.error(t('errors.compileFailed'));
     } finally {
       setIsCompiling(false);
@@ -793,11 +858,14 @@ export function WikiSection() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 space-y-6">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={handleWikiTabChange} className="flex flex-col flex-1 min-h-0 space-y-6">
+        <TabsList className="flex flex-wrap h-auto w-full bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 gap-1">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="concepts">{t('tabs.concepts')}</TabsTrigger>
           <TabsTrigger value="pendingEdits">{t('tabs.pendingEdits')}</TabsTrigger>
+          <TabsTrigger value="duplicateReview" data-testid="wiki-dedup-tab">
+            {t('tabs.duplicateReview')}
+          </TabsTrigger>
           <TabsTrigger value="queue">{t('tabs.queue')}</TabsTrigger>
         </TabsList>
 
@@ -813,6 +881,7 @@ export function WikiSection() {
               document.getElementById('wiki-obsidian-import')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
             onGoToProviders={() => router.push('/settings/models')}
+            onGoToDuplicateReview={handleOpenDuplicateReview}
           />
 
           <WikiSourceSyncPanel onGoToIntegrations={() => router.push('/settings/credentials')} />
@@ -925,6 +994,19 @@ export function WikiSection() {
                         className="inline-flex items-center rounded-full bg-violet-500/10 px-3 py-1 text-violet-700 transition-colors hover:bg-violet-500/20 dark:text-violet-300"
                       >
                         {t('stats.synthesisPending', { count: synthesisPendingCount })}
+                      </button>
+                    )}
+                    {duplicateGroupsPending > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleOpenDuplicateReview}
+                        className={
+                          dedupBlocksCompile
+                            ? 'inline-flex items-center rounded-full bg-rose-500/10 px-3 py-1 text-rose-700 transition-colors hover:bg-rose-500/20 dark:text-rose-300'
+                            : 'inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300'
+                        }
+                      >
+                        {t('stats.duplicateGroupsPending', { count: duplicateGroupsPending })}
                       </button>
                     )}
                     {stats.maintain_state?.last_run_at ? (
@@ -1336,7 +1418,7 @@ export function WikiSection() {
                     <Button size="sm" variant="outline" disabled={isResumingCompile} onClick={() => void handleResumeCompile()}>
                       {isResumingCompile ? t('compileRun.resuming') : t('compileRun.resume')}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setActiveTab('queue')}>
+                    <Button size="sm" variant="ghost" onClick={() => handleWikiTabChange('queue')}>
                       {t('compileRun.viewQueue')}
                     </Button>
                   </div>
@@ -1520,6 +1602,16 @@ export function WikiSection() {
             agentScopeId={agentScopeId}
             scopeLabel={scopeLabel}
             initialFilter={pendingEditsInitialFilter}
+            onVaultMutated={() => {
+              void loadStats();
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="duplicateReview" className="space-y-6">
+          <WikiDuplicateReviewPanel
+            agentScopeId={agentScopeId}
+            scopeLabel={scopeLabel}
             onVaultMutated={() => {
               void loadStats();
             }}

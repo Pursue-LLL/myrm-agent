@@ -57,3 +57,5 @@
 | `integration_memory.py` | 核心 | Integration Memory 业务服务。封装框架层 IntegrationFetcher/TreeManager/Summariser，提供 sync/browse/status/remove facade 和类型安全 DTO（IntegrationStatusSnapshot/IntegrationTreeNodeDTO）供 API 层消费 | ✅ |
 | `mcp_bridge_provider.py` | 核心 | MCPBridgeProvider — 将任意 MCP Server 桥接为 IntegrationProvider。通过 DI 注入 MCPConnection，自动探测 fetch 工具并将结果转换为 IntegrationLeaf | ✅ |
 | `integration_sync_daemon.py` | 核心 | Integration Sync Daemon — 基于 APScheduler 的后台定时同步守护进程。每次触发时动态加载用户 MCP 配置，将符合条件的 MCP Server 注册为 MCPBridgeProvider，然后调用 IntegrationMemoryService.sync_all() 保持知识源新鲜 | ✅ |
+| `retry_chat_memory_extract.py` | 核心 | 对指定 chat 最近一轮 user/assistant 重新调度 `auto_extract_memories`；`ContextAssemblyService.resolve_binding_for_chat` + dedup_llm · incognito 拒绝 · in-flight dedup | ✅ |
+| `resolve_chat_extraction_llm.py` | 核心 | chat→agent→`create_agent_llms` + `apply_lite_context_downgrade` 解析 extraction LLM（与 auto-extract SSOT 对齐；不 replay  per-turn privacy_routing） | ✅ |

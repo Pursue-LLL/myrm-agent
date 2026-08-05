@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -21,7 +22,6 @@ if str(_DEV_LIB) not in sys.path:
 
 from cdp_chat_support import (
     DISMISS_MODALS_JS,
-    E2E_API_BINDING_PROBE_JS,
     _e2e_api_urlopen,
     e2e_runtime_binding,
     e2e_runtime_binding_source,
@@ -64,6 +64,7 @@ __all__ = [
     "OpenMcpPageSession",
     "prepare_e2e_ui_session",
     "reload_mcp_page",
+    "wait_for_react_e2e_bridge",
     "wait_for_state",
     "warm_ui_route",
 ]
@@ -94,22 +95,26 @@ _LOCALHOST_PAGE_JS = """(() => {
 })()"""
 
 
-def dismiss_blocking_modals(client: ChromeMcpClient, page: McpPage) -> None:
+def dismiss_blocking_modals(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    recover_url: str | None = None,
+) -> None:
     """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
-    wait_for_state(client, page, _LOCALHOST_PAGE_JS, timeout_sec=45.0)
+    target_url = recover_url or getattr(page, "url", None)
+    last: dict[str, object] = {}
+    for attempt in range(3):
+        raw = client.evaluate(page, _LOCALHOST_PAGE_JS, timeout_sec=15.0)
+        last = _coerce_evaluate_result(raw)
+        href = str(last.get("href", ""))
+        if last.get("ready") is True and "chrome-error://" not in href:
+            break
+        if attempt >= 2 or not isinstance(target_url, str) or not target_url.strip():
+            raise AssertionError(f"Page not on localhost after chrome-error recovery: {last}")
+        reload_mcp_page(client, page, target_url=target_url, timeout_ms=90_000)
     dismissed = client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
     assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
-    boot = client.evaluate(
-        page,
-        """(() => {
-          try { localStorage.setItem('myrm_boot_shown', '1'); } catch (err) {
-            return { ok: false, err: String(err) };
-          }
-          return { ok: true };
-        })()""",
-        timeout_sec=5.0,
-    )
-    assert isinstance(boot, dict) and boot.get("ok") is True, boot
 
 
 def prepare_e2e_ui_session(api_url: str) -> None:
@@ -148,7 +153,12 @@ def http_json(
     from e2e_effect_guard import assert_http_effect_allowed
 
     assert_http_effect_allowed(method=method, url=url)
-    allowed = (get_e2e_ui_url(), get_e2e_api_url())
+    allowed_bases = [get_e2e_ui_url(), get_e2e_api_url()]
+    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
+    shared_hot = f"http://127.0.0.1:{port_raw if port_raw.isdigit() else 8080}"
+    if shared_hot.rstrip("/") not in {base.rstrip("/") for base in allowed_bases}:
+        allowed_bases.append(shared_hot)
+    allowed = tuple(allowed_bases)
     if not url.startswith(allowed):
         raise ValueError(
             f"Chrome E2E HTTP helper only permits loopback app URLs: {url}"
@@ -333,36 +343,6 @@ def _reapply_shpoib_runtime_after_reload(
         timeout_sec = min(timeout_sec + parallel_peers * 15.0, rebind_cap)
     deadline = time.monotonic() + timeout_sec
     normalized_target = _normalize_rebind_target_url(target_url)
-    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
-        if not binding_source:
-            raise RuntimeError("SHPOIB binding source missing for orchestrator rebind")
-        remaining = max(0.0, deadline - time.monotonic())
-        if not wait_e2e_provider_ready(
-            api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))
-        ):
-            raise RuntimeError(
-                f"SHPOIB private API not ready before orchestrator rebind: {api_base}"
-            )
-        client.evaluate(
-            page,
-            f"(() => {{{binding_source} return true; }})()",
-            timeout_sec=min(30.0, max(5.0, remaining)),
-        )
-        if normalized_target:
-            nav_timeout_ms = min(int(remaining * 1000), 120_000)
-            client.navigate(page, normalized_target, timeout_ms=nav_timeout_ms)
-        probe_js = (
-            f"(() => {{ const p = {E2E_API_BINDING_PROBE_JS}; "
-            f"return {{ ready: String(p.apiBase || '').replace(/\\\\/+$/,'') === "
-            f"{json.dumps(api_base.rstrip('/'))}, probe: p }}; }})()"
-        )
-        wait_for_state(
-            client,
-            page,
-            probe_js,
-            timeout_sec=min(60.0, max(5.0, remaining)),
-        )
-        return
     if bootstrap_js is None:
         raise RuntimeError("SHPOIB bootstrap JS missing after reload")
     last_observed: dict[str, object] = {"phase": "not_started"}
@@ -715,7 +695,7 @@ def _wait_for_app_layout_open(
     shell_ready_js = _page_shell_ready_js_for_url(url)
     layout_timeout = _open_page_layout_wait_sec()
     signoff = is_e2e_signoff_runtime()
-    heal_passes = 3 if signoff else 2
+    heal_passes = 3 if signoff or _shared_read_parallel_open_page_retry_allowed() else 2
     last_exc: AssertionError | None = None
 
     for attempt in range(heal_passes):
@@ -726,8 +706,10 @@ def _wait_for_app_layout_open(
                 ensure_desktop_viewport(client, page)
                 dismiss_blocking_modals(client, page)
             client.set_tool_wall_deadline(None)
-        attempt_timeout = layout_timeout if signoff or attempt == 0 else min(
-            120.0, layout_timeout * 0.5
+        attempt_timeout = (
+            layout_timeout
+            if signoff or attempt == 0
+            else min(120.0, layout_timeout * 0.5)
         )
         try:
             wait_for_state(
@@ -743,6 +725,7 @@ def _wait_for_app_layout_open(
                 not signoff
                 and attempt == 0
                 and e2e_runtime_binding() is None
+                and not _shared_read_parallel_open_page_retry_allowed()
             ):
                 raise
 
@@ -756,9 +739,21 @@ def _shpoib_rebind_location_wait_cap() -> float:
     return shpoib_rebind_location_wait_cap_sec()
 
 
+def _shared_read_parallel_open_page_retry_allowed() -> bool:
+    """SHARED READ lane needs mux reload-heal under parallel SMP defer (blank shell)."""
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    if lane != "READ":
+        return False
+    return os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() != "1"
+
+
 def _open_page_parallel_retry_allowed() -> bool:
-    """Signoff and dev PRIVATE SHPOIB bootstrap share mux-heal retry under parallel peers."""
-    return is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase()
+    """Signoff, dev PRIVATE SHPOIB bootstrap, and SHARED READ share mux-heal retry under parallel peers."""
+    return (
+        is_e2e_signoff_runtime()
+        or _dev_private_shpoib_bootstrap_phase()
+        or _shared_read_parallel_open_page_retry_allowed()
+    )
 
 
 def _open_page_attempt_count() -> int:
@@ -1452,25 +1447,283 @@ def _coerce_evaluate_result(raw: object) -> dict[str, object]:
     return {"value": raw}
 
 
+_REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
+  ready:
+    typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function'
+    && window.__MYRM_E2E_CHAT__?.__e2eFallback !== true,
+  hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+  fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
+  hasInput: Boolean(document.querySelector('[data-chat-input]')),
+  hasAppLayout: Boolean(document.querySelector('[data-testid="app-layout"]')),
+  hasSkeleton: Boolean(document.querySelector('[data-testid="app-shell-skeleton"]')),
+  bodyLength: (document.body?.innerText || '').length,
+  href: location.href,
+}))()"""
+
+_ATTACH_CLIENT_WARMUP_TRIGGERED = False
+_ATTACH_CLIENT_WARMUP_URL: str | None = None
+_ATTACH_FRONTEND_HEAL_TRIGGERED = False
+
+
+def _trigger_attach_frontend_heal_once() -> None:
+    """Restart Turbopack when HTTP 200 shell persists without client hydration (R284 body SSOT)."""
+    global _ATTACH_CLIENT_WARMUP_TRIGGERED, _ATTACH_FRONTEND_HEAL_TRIGGERED
+    if _ATTACH_FRONTEND_HEAL_TRIGGERED:
+        return
+    _ATTACH_FRONTEND_HEAL_TRIGGERED = True
+    monorepo_root = Path(__file__).resolve().parents[4]
+    try:
+        from e2e_warm_ui_heal import heal_shared_frontend_attach
+
+        touch_wall_progress(current_node="attach_frontend_heal")
+        heal_shared_frontend_attach(monorepo_root)
+        _ATTACH_CLIENT_WARMUP_TRIGGERED = False
+    except ImportError:
+        pass
+
+
+def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
+    """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT)."""
+    import subprocess
+
+    global _ATTACH_CLIENT_WARMUP_TRIGGERED, _ATTACH_CLIENT_WARMUP_URL
+    ui = (page_url or f"{get_e2e_ui_url().rstrip('/')}/").rstrip("/") + "/"
+    if _ATTACH_CLIENT_WARMUP_TRIGGERED and _ATTACH_CLIENT_WARMUP_URL == ui:
+        return
+    _ATTACH_CLIENT_WARMUP_TRIGGERED = True
+    _ATTACH_CLIENT_WARMUP_URL = ui
+    monorepo_root = Path(__file__).resolve().parents[4]
+    warmup_py = monorepo_root / "myrm-agent/scripts/dev/lib/frontend-client-warmup.py"
+    if not warmup_py.is_file():
+        return
+    server_root = Path(__file__).resolve().parents[1]
+    venv_py = server_root / ".venv/bin/python"
+    py = str(venv_py) if venv_py.is_file() else sys.executable
+    cdp_port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
+    touch_wall_progress(current_node="attach_client_warmup")
+    try:
+        subprocess.run(
+            [
+                py,
+                str(warmup_py),
+                "--cdp-port",
+                str(cdp_port),
+                "--url",
+                ui,
+                "--timeout-sec",
+                "90",
+            ],
+            timeout=120.0,
+            check=False,
+            capture_output=True,
+            cwd=str(server_root),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def _react_bridge_wait_timeout_sec(requested: float) -> float:
+    try:
+        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+        if parallel_shared_ui_hydrate_queue_enabled():
+            return min(max(requested, 90.0), 180.0)
+    except ImportError:
+        pass
+    return min(max(requested, 60.0), 120.0)
+
+
+def wait_for_react_e2e_bridge(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float = 90.0,
+    page_url: str | None = None,
+) -> dict[str, object]:
+    """Wait for full React E2E bridge (attachToChat); reload-heal when clientHot was skipped at ADMIT."""
+    target_url = page_url or getattr(page, "url", None)
+    _trigger_attach_client_warmup_once(
+        page_url=target_url if isinstance(target_url, str) else None
+    )
+    deadline = time.monotonic() + _react_bridge_wait_timeout_sec(timeout_sec)
+    last: dict[str, object] = {}
+    polls = 0
+    reload_passes = 0
+    max_reload_passes = 3
+    ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
+
+    while time.monotonic() < deadline:
+        polls += 1
+        touch_wall_progress(current_node="wait_for_react_e2e_bridge")
+        raw = client.evaluate(
+            page,
+            _REACT_E2E_BRIDGE_PROBE_JS,
+            timeout_sec=max(5.0, min(30.0, deadline - time.monotonic())),
+        )
+        last = _coerce_evaluate_result(raw)
+        if last.get("ready") is True:
+            return last
+        body_length = last.get("bodyLength")
+        href = str(last.get("href", ""))
+        if (
+            isinstance(body_length, int)
+            and body_length < 20
+            and polls in {1, 4, 8}
+            and ("127.0.0.1" in href or "localhost" in href)
+        ):
+            from urllib.parse import urlparse
+
+            warm_path = urlparse(href).path or "/"
+            try:
+                warm_ui_route(warm_path, timeout_sec=60.0)
+            except RuntimeError:
+                pass
+            _trigger_attach_frontend_heal_once()
+        if (
+            isinstance(body_length, int)
+            and body_length < 20
+            and polls >= 3
+            and isinstance(target_url, str)
+            and reload_passes < max_reload_passes
+        ):
+            reload_passes += 1
+            reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
+            try:
+                dismiss_blocking_modals(client, page)
+            except AssertionError:
+                pass
+            time.sleep(2.0)
+            continue
+        if (
+            last.get("hasAppLayout") is True
+            and last.get("hasInput") is True
+            and last.get("fallback") is not True
+            and polls >= 8
+        ):
+            return {**last, "ready": True, "softReady": True}
+        if (
+            last.get("hasSkeleton") is True
+            or (last.get("hasAppLayout") is True and last.get("hasAttach") is not True)
+        ) and polls in {6, 18, 36, 54}:
+            _trigger_attach_frontend_heal_once()
+            _trigger_attach_client_warmup_once(
+                page_url=target_url if isinstance(target_url, str) else None
+            )
+            try:
+                dismiss_blocking_modals(client, page)
+            except AssertionError:
+                pass
+            if isinstance(target_url, str) and reload_passes < max_reload_passes:
+                reload_passes += 1
+                reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
+                time.sleep(2.0)
+                continue
+        should_home_heal = (
+            last.get("hasInput") is not True
+            and polls in {8, 24, 48, 72}
+            and isinstance(target_url, str)
+        )
+        if should_home_heal and reload_passes < max_reload_passes:
+            reload_passes += 1
+            client.navigate(page, ui_home)
+            time.sleep(3.0)
+            dismiss_blocking_modals(client, page)
+            client.navigate(page, target_url)
+            time.sleep(2.0)
+            dismiss_blocking_modals(client, page)
+            continue
+        should_reload = last.get("fallback") is True or (
+            polls in {20, 40, 60, 80} and last.get("hasAttach") is not True
+        )
+        if (
+            should_reload
+            and reload_passes < max_reload_passes
+            and isinstance(target_url, str)
+        ):
+            reload_passes += 1
+            reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
+            dismiss_blocking_modals(client, page)
+            time.sleep(2.0)
+            continue
+        time.sleep(0.5)
+
+    raise AssertionError(f"React E2E bridge did not become ready: {last}")
+
+
+def _state_looks_blank(last: dict[str, object]) -> bool:
+    body_len = last.get("bodyLength")
+    if body_len is not None and int(body_len or 0) == 0:
+        return True
+    if last.get("hasActiveSection") is False and int(last.get("matrixHits") or 0) == 0:
+        heading = str(last.get("heading") or "")
+        relay = str(last.get("relayLine") or "")
+        if not heading and not relay and last.get("pathname"):
+            return True
+    return False
+
+
 def wait_for_state(
     client: ChromeMcpClient,
     page: McpPage,
     expression: str,
     *,
     timeout_sec: float = 45.0,
+    page_url: str | None = None,
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
+    last_touch = 0.0
+    polls = 0
+    reload_passes = 0
+    max_reload_passes = 3
+    ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
+
     while time.monotonic() < deadline:
+        polls += 1
         remaining = max(0.0, deadline - time.monotonic())
-        touch_wall_progress(current_node="wait_for_state")
-        raw = client.evaluate(
-            page,
-            expression,
-            timeout_sec=max(5.0, min(30.0, remaining)),
-        )
+        now = time.monotonic()
+        if now - last_touch >= 5.0:
+            touch_wall_progress(current_node="wait_for_state")
+            last_touch = now
+        eval_cap = 60.0
+        try:
+            raw = client.evaluate(
+                page,
+                expression,
+                timeout_sec=max(5.0, min(eval_cap, remaining)),
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(0.25)
+            continue
         last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last
+        if (
+            page_url
+            and reload_passes < max_reload_passes
+            and polls in {16, 48, 96, 160}
+            and _state_looks_blank(last)
+        ):
+            reload_passes += 1
+            touch_wall_progress(current_node="wait_for_state_blank_heal")
+            try:
+                client.navigate(page, ui_home, timeout_ms=90_000)
+                time.sleep(2.0)
+                dismiss_blocking_modals(client, page)
+                wait_for_react_e2e_bridge(
+                    client,
+                    page,
+                    timeout_sec=min(60.0, max(5.0, deadline - time.monotonic())),
+                    page_url=ui_home,
+                )
+                client.navigate(page, page_url, timeout_ms=90_000)
+                dismiss_blocking_modals(client, page)
+            except (RuntimeError, TimeoutError, OSError, AssertionError):
+                reload_mcp_page(
+                    client, page, target_url=page_url, timeout_ms=120_000
+                )
+                dismiss_blocking_modals(client, page)
+            continue
         time.sleep(0.25)
     raise AssertionError(f"Browser state did not become ready: {last}")

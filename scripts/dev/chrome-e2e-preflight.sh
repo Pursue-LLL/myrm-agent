@@ -84,6 +84,35 @@ _admit_poll_budget_or_fail() {
     "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" assert-budget --node "${node}"
 }
 
+_epoch_drift_shared_attach_cap_sec() {
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+import os
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_api_verify import resolve_e2e_api_context
+cap = int(os.environ.get('MYRM_E2E_EPOCH_DRIFT_ATTACH_CAP_SEC', '120'))
+if os.environ.get('MYRM_E2E_SHPOIB', '').strip() == '1':
+    print(0)
+    raise SystemExit(0)
+if os.environ.get('MYRM_E2E_EPOCH_PIN', '').strip() == '1':
+    print(0)
+    raise SystemExit(0)
+if os.environ.get('E2E_SIGNOFF', '').strip() == '1':
+    print(0)
+    raise SystemExit(0)
+try:
+    ctx = resolve_e2e_api_context(retry_after_apply=False)
+except Exception:
+    print(0)
+    raise SystemExit(0)
+if ctx.blocked and not ctx.epoch_match:
+    print(cap)
+else:
+    print(0)
+" 2>/dev/null || echo 0
+}
+
 _attach_health_require_args() {
   if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
     echo "--require-signoff-stream-ready"
@@ -91,6 +120,10 @@ _attach_health_require_args() {
   fi
   local active_leases
   active_leases="$(_parallel_attach_active_leases)"
+  # R150/R289: registry peer count can lag wave leases during parallel ADMIT.
+  if [[ "${active_leases}" -le 0 && "${E2E_SIGNOFF:-}" != "1" ]]; then
+    active_leases=1
+  fi
   # R290: parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
   if [[ "${active_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
     echo "--require-signoff-stream-ready"
@@ -470,6 +503,24 @@ _attach_epoch_pin_fast_path() {
   fail "epoch pin attach did not become ready within ${wait_sec}s — run ./myrm verify-api --ensure-backend"
 }
 
+_maybe_reseal_auth_template_after_attach() {
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_auth_provisioner import reseal_auth_template_for_current_runtime
+from e2e_api_verify import workspace_backend_fingerprint
+origin = '${UI_BASE:-http://127.0.0.1:3000}'
+ws = workspace_backend_fingerprint()
+status = reseal_auth_template_for_current_runtime(origin=origin, workspace_fingerprint=ws)
+print(
+    f'CHROME_E2E_AUTH_RESEAL: status={status[\"status\"]} '
+    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}',
+    flush=True,
+)
+" 2>/dev/null || true
+}
+
 _attach_fast_path() {
   if _attach_epoch_pin_fast_path; then
     return 0
@@ -489,9 +540,37 @@ _attach_fast_path() {
   if [[ "${wait_sec}" -le 0 ]]; then
     fail "BOOTSTRAP attach budget exhausted before stack-core gate — do not stop other pytest; run ./myrm e2e-context"
   fi
-  local wait_started=$SECONDS
+  local wait_started=$SECONDS drift_cap=0
+  drift_cap="$(_epoch_drift_shared_attach_cap_sec)"
+  [[ "${drift_cap}" =~ ^[0-9]+$ ]] || drift_cap=0
+  if [[ "${drift_cap}" -gt 0 ]]; then
+    echo "CHROME_E2E_ATTACH: epoch drift SHARED attach cap=${drift_cap}s (R289; monotonic BOOTSTRAP may be higher)" >&2
+  fi
+  _attach_drift_cap_exceeded() {
+    [[ "${drift_cap}" -gt 0 ]] || return 1
+    local admit_elapsed
+    admit_elapsed="$(
+      PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+        "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_session_lifecycle import elapsed_wall_sec
+print(int(elapsed_wall_sec()))
+" 2>/dev/null || echo 0
+    )"
+    [[ "${admit_elapsed}" =~ ^[0-9]+$ ]] || admit_elapsed=0
+    [[ "${admit_elapsed}" -ge "${drift_cap}" || "${waited}" -ge "${drift_cap}" ]]
+  }
+  if _attach_drift_cap_exceeded; then
+    echo "${health}" >&2
+    fail "epoch drift attach cap ${drift_cap}s exceeded — run ./myrm verify-api when wave idle; do not stop other pytest"
+  fi
   while true; do
     wait_sec="$(_bootstrap_attach_remaining_sec)"
+    if _attach_drift_cap_exceeded; then
+      echo "${health}" >&2
+      fail "epoch drift attach cap ${drift_cap}s exceeded — run ./myrm verify-api when wave idle; do not stop other pytest"
+    fi
     if [[ "${wait_sec}" -le 0 ]]; then
       echo "${health}" >&2
       fail "parallel attach health snapshot did not recover within monotonic BOOTSTRAP budget — wait for shared hot recovery; do not stop other pytest; solo warmup: ./myrm ready --chrome"
@@ -505,6 +584,7 @@ _attach_fast_path() {
       "${require_ready}" 2>&1)"; then
       echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
       echo "${health}"
+      _maybe_reseal_auth_template_after_attach
       return 0
     fi
     errors="$("${PREFLIGHT_PY}" -c "

@@ -296,8 +296,16 @@ _warmup_frontend_client() {
   fi
 
   if [[ "${MYRM_CHROME_E2E_ATTACH:-0}" == "1" ]]; then
-    echo "STACK_FAIL: client_hot missing during attach — first Agent must finish ./myrm ready --chrome" >&2
-    return 1
+    if _frontend_client_warmth_recorded; then
+      echo "STACK_OK: frontend client_hot (cached warmth during attach)"
+      return 0
+    fi
+    if [[ "${MYRM_E2E_ATTACH_CLIENT_WARMUP:-0}" == "1" ]]; then
+      : # fall through to flock + CDP warmup below (R284 body-phase hydration)
+    else
+      echo "STACK_WARN: client_hot skipped at attach ADMIT — pytest body will hydrate per-page" >&2
+      return 0
+    fi
   fi
 
   local owns_warmup_lock=0

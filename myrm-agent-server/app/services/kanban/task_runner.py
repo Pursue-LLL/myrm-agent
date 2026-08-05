@@ -35,7 +35,12 @@ from myrm_agent_harness.api import KanbanStore
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus, TaskTimeoutError, has_completion_intent
+from myrm_agent_harness.toolkits.kanban.types import (
+    KanbanTask,
+    TaskStatus,
+    TaskTimeoutError,
+    has_completion_intent,
+)
 
 from app.services.agent.goal_registry import GoalRegistry
 from app.services.agent.profile_resolver import (
@@ -94,13 +99,21 @@ class KanbanTaskRunner:
         )
         effective_timeout = task.max_runtime_seconds or default_timeout
 
-        goal_provider = await self._setup_goal_provider(task) if task.goal_mode else None
+        goal_provider = (
+            await self._setup_goal_provider(task) if task.goal_mode else None
+        )
 
         self._register_background_tokens(task)
         t0 = time.monotonic()
         try:
             result = await asyncio.wait_for(
-                self._execute_agent(task, query_input, profile, workspace_root, goal_provider=goal_provider),
+                self._execute_agent(
+                    task,
+                    query_input,
+                    profile,
+                    workspace_root,
+                    goal_provider=goal_provider,
+                ),
                 timeout=effective_timeout,
             )
             if goal_provider:
@@ -228,7 +241,11 @@ class KanbanTaskRunner:
             acceptance_criteria=acceptance,
             ui_summary=task.title[:120],
         )
-        logger.info("Goal created for kanban task %s (max_turns=%s)", task.task_id[:8], budget.max_turns)
+        logger.info(
+            "Goal created for kanban task %s (max_turns=%s)",
+            task.task_id[:8],
+            budget.max_turns,
+        )
         return provider
 
     async def _map_goal_outcome(
@@ -257,7 +274,10 @@ class KanbanTaskRunner:
             return False, f"Budget exhausted after {goal.turns_used} turns"
 
         if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW):
-            return False, f"Goal paused: {goal.metadata.get('pause_reason', 'needs review')}"
+            return (
+                False,
+                f"Goal paused: {goal.metadata.get('pause_reason', 'needs review')}",
+            )
 
         return agent_result
 
@@ -347,9 +367,11 @@ class KanbanTaskRunner:
         model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
         model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
 
-        vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-            user_cfgs.providers_dict,
-            main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+        vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+            resolve_vision_fallback_chain_for_agent(
+                user_cfgs.providers_dict,
+                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+            )
         )
 
         memory_shared_context_ids: list[str] = []
@@ -401,9 +423,11 @@ class KanbanTaskRunner:
         from app.core.memory.proactive.settings import (
             resolve_conversation_search_enabled,
         )
+        from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         kanban_agent_security_raw = profile.security_overrides if profile else None
+        memory_settings = user_cfgs.personal_settings_dict or {}
 
         params = GeneralAgentParams(
             query=context,
@@ -448,11 +472,17 @@ class KanbanTaskRunner:
             max_iterations=profile.max_iterations if profile else None,
             memory_policy=profile.memory_policy if profile else None,
             memory_decay_profile=profile.memory_decay_profile if profile else None,
-            memory_extraction_preset=profile.memory_extraction_preset if profile else None,
+            memory_extraction_preset=(
+                profile.memory_extraction_preset if profile else None
+            ),
             engine_params=profile.engine_params if profile else None,
             memory_shared_context_ids=memory_shared_context_ids,
             enable_conversation_search=resolve_conversation_search_enabled(
-                user_cfgs.personal_settings_dict,
+                memory_settings,
+            ),
+            locale=resolve_agent_params_locale(
+                personal_settings=memory_settings,
+                channel=_CHANNEL_NAME,
             ),
         )
 
@@ -511,4 +541,9 @@ class KanbanTaskRunner:
 
                 return acc.to_result()
             finally:
-                await finalize_agent_session(agent, chat_id=task.task_id, agent_id=params.agent_id, extra_context=runtime_context)
+                await finalize_agent_session(
+                    agent,
+                    chat_id=task.task_id,
+                    agent_id=params.agent_id,
+                    extra_context=runtime_context,
+                )

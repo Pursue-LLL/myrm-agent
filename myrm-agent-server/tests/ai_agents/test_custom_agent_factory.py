@@ -167,7 +167,11 @@ async def test_custom_agent_factory_ensure_initialized(monkeypatch) -> None:
         lambda: SimpleNamespace(),
     )
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
-        return SimpleNamespace(enabled_prebuilt_ids=["alpha-skill"])
+        return SimpleNamespace(
+            enabled_prebuilt_ids=["alpha-skill"],
+            local_skill_paths=[],
+            enabled_local_skill_ids=[],
+        )
 
     monkeypatch.setattr(
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",
@@ -208,7 +212,11 @@ async def test_custom_agent_factory_ensure_initialized_loads_mcp_configs(monkeyp
         lambda: SimpleNamespace(),
     )
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
-        return SimpleNamespace(enabled_prebuilt_ids=["mcp-skill"])
+        return SimpleNamespace(
+            enabled_prebuilt_ids=["mcp-skill"],
+            local_skill_paths=[],
+            enabled_local_skill_ids=[],
+        )
 
     monkeypatch.setattr(
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",
@@ -257,7 +265,11 @@ async def test_custom_agent_factory_ensure_initialized_tolerates_malformed_prebu
     )
 
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
-        return SimpleNamespace(enabled_prebuilt_ids="not-a-list")
+        return SimpleNamespace(
+            enabled_prebuilt_ids="not-a-list",
+            local_skill_paths=[],
+            enabled_local_skill_ids=[],
+        )
 
     monkeypatch.setattr(
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",
@@ -318,6 +330,7 @@ def test_rebind_subagent_memory_search_tool_replaces_inherited_tool(monkeypatch)
         *,
         search_policy: object = None,
         search_backends: object = None,
+        description_locale: str | None = None,
     ) -> list[object]:
         captured["manager"] = manager
         captured["search_policy"] = search_policy
@@ -370,6 +383,7 @@ def test_rebind_subagent_memory_search_tool_skips_sessions_when_opt_in_off(monke
         *,
         search_policy: object = None,
         search_backends: object = None,
+        description_locale: str | None = None,
     ) -> list[object]:
         assert search_policy.allow_sessions is False
         assert search_backends.conversation_provider is None
@@ -438,6 +452,7 @@ async def test_ephemeral_agent_factory_rebinds_memory_search_tool(monkeypatch) -
         *,
         search_policy: object = None,
         search_backends: object = None,
+        description_locale: str | None = None,
     ) -> list[object]:
         return [SimpleNamespace(name="memory_search_tool", marker="rebound")]
 
@@ -676,6 +691,7 @@ async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch
         *,
         search_policy: object = None,
         search_backends: object = None,
+        description_locale: str | None = None,
     ) -> list[object]:
         return [SimpleNamespace(name="memory_search_tool", marker="rebound")]
 
@@ -932,7 +948,11 @@ async def test_custom_agent_factory_ensure_initialized_concurrent_inner_skip(mon
         lambda: SimpleNamespace(),
     )
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
-        return SimpleNamespace(enabled_prebuilt_ids=["concurrent-skill"])
+        return SimpleNamespace(
+            enabled_prebuilt_ids=["concurrent-skill"],
+            local_skill_paths=[],
+            enabled_local_skill_ids=[],
+        )
 
     monkeypatch.setattr(
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",
@@ -966,7 +986,11 @@ async def test_custom_agent_factory_ensure_initialized_mcp_failure_is_non_fatal(
         lambda: SimpleNamespace(),
     )
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
-        return SimpleNamespace(enabled_prebuilt_ids=["safe-default"])
+        return SimpleNamespace(
+            enabled_prebuilt_ids=["safe-default"],
+            local_skill_paths=[],
+            enabled_local_skill_ids=[],
+        )
 
     monkeypatch.setattr(
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",

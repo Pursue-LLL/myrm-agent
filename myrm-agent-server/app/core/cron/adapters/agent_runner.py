@@ -645,9 +645,11 @@ class AgentJobRunner:
             )
             model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
             model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
-            vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-                user_cfgs.providers_dict,
-                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+            vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+                resolve_vision_fallback_chain_for_agent(
+                    user_cfgs.providers_dict,
+                    main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+                )
             )
 
             memory_shared_context_ids: list[str] = []
@@ -673,6 +675,9 @@ class AgentJobRunner:
             memory_settings = user_cfgs.personal_settings_dict or {}
             from app.core.memory.proactive.settings import (
                 resolve_conversation_search_enabled,
+            )
+            from app.core.agent.tool_description_locale import (
+                resolve_agent_params_locale,
             )
             from app.services.agent.resolve_enable_web_fetch import (
                 resolve_enable_web_fetch,
@@ -716,6 +721,10 @@ class AgentJobRunner:
                 memory_shared_context_ids=memory_shared_context_ids,
                 enable_conversation_search=resolve_conversation_search_enabled(
                     memory_settings
+                ),
+                locale=resolve_agent_params_locale(
+                    personal_settings=memory_settings,
+                    channel="cron",
                 ),
                 notify_targets=(resolved.notify_targets if resolved else ()),
             )
@@ -774,7 +783,9 @@ class AgentJobRunner:
                         elapsed = time.monotonic() - run_started_at
                         remaining = max(0.0, float(timeout) - elapsed)
                         result = await apply_acceptance_criteria_verification(
-                            job, result, timeout_seconds=remaining,
+                            job,
+                            result,
+                            timeout_seconds=remaining,
                         )
                 finally:
                     await finalize_agent_session(

@@ -85,7 +85,7 @@ def _target_from_list(cdp_port: int, target_id: str) -> dict[str, object]:
 
 
 async def _target_from_list_retry(
-    cdp_port: int, target_id: str, *, attempts: int = 15, delay_sec: float = 0.2
+    cdp_port: int, target_id: str, *, attempts: int = 25, delay_sec: float = 0.3
 ) -> dict[str, object]:
     last_error = "unknown"
     for attempt in range(1, attempts + 1):
@@ -98,7 +98,9 @@ async def _target_from_list_retry(
     raise RuntimeError(last_error)
 
 
-async def _create_background_target(cdp_port: int, *, initial_url: str = "about:blank") -> dict[str, object]:
+async def _create_background_target(
+    cdp_port: int, *, initial_url: str = "about:blank"
+) -> dict[str, object]:
     try:
         import websockets
     except ImportError as exc:
@@ -117,42 +119,97 @@ async def _create_background_target(cdp_port: int, *, initial_url: str = "about:
     target_id: str | None = None
     deadline = time.monotonic() + 15.0
 
-    async with websockets.connect(browser_ws, open_timeout=15, max_size=8 * 1024 * 1024) as ws:
-        await ws.send(
-            json.dumps(
-                {
-                    "id": msg_id,
-                    "method": "Target.createTarget",
-                    "params": {"url": initial_url, "background": True},
-                }
+    try:
+        async with websockets.connect(
+            browser_ws, open_timeout=15, max_size=8 * 1024 * 1024
+        ) as ws:
+            await ws.send(
+                json.dumps(
+                    {
+                        "id": msg_id,
+                        "method": "Target.createTarget",
+                        "params": {"url": initial_url, "background": True},
+                    }
+                )
             )
-        )
-        while time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            raw = await asyncio.wait_for(ws.recv(), timeout=min(5.0, remaining))
-            response = json.loads(raw)
-            if not isinstance(response, dict):
-                continue
-            if response.get("id") != msg_id:
-                continue
-            if "error" in response:
-                err = response["error"]
-                detail = err.get("message", err) if isinstance(err, dict) else err
-                raise RuntimeError(f"Target.createTarget failed: {detail}")
-            result = response.get("result")
-            if not isinstance(result, dict):
-                raise RuntimeError("Target.createTarget missing result")
-            candidate = result.get("targetId")
-            if isinstance(candidate, str) and candidate:
-                target_id = candidate
-                break
+            while time.monotonic() < deadline:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                raw = await asyncio.wait_for(ws.recv(), timeout=min(5.0, remaining))
+                response = json.loads(raw)
+                if not isinstance(response, dict):
+                    continue
+                if response.get("id") != msg_id:
+                    continue
+                if "error" in response:
+                    err = response["error"]
+                    detail = err.get("message", err) if isinstance(err, dict) else err
+                    raise RuntimeError(f"Target.createTarget failed: {detail}")
+                result = response.get("result")
+                if not isinstance(result, dict):
+                    raise RuntimeError("Target.createTarget missing result")
+                candidate = result.get("targetId")
+                if isinstance(candidate, str) and candidate:
+                    target_id = candidate
+                    break
+    except Exception as exc:
+        fallback = _pick_existing_page_target(cdp_port)
+        if fallback is not None:
+            return fallback
+        raise
 
     if target_id is None:
+        fallback = _pick_existing_page_target(cdp_port)
+        if fallback is not None:
+            return fallback
         raise RuntimeError("Target.createTarget timed out waiting for targetId")
 
-    return await _target_from_list_retry(cdp_port, target_id)
+    try:
+        return await _target_from_list_retry(cdp_port, target_id)
+    except RuntimeError:
+        fallback = _pick_existing_page_target(cdp_port)
+        if fallback is not None:
+            return fallback
+        raise
+
+
+def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
+    """Parallel mux load can reject browser-level WebSocket (HTTP 500); reuse a live page."""
+    try:
+        targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
+    except (urllib.error.URLError, TimeoutError, OSError, RuntimeError):
+        return None
+    if not isinstance(targets, list):
+        return None
+    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "").strip().rstrip("/")
+    if not ui_base:
+        ui_base = os.environ.get("APP_URL", "http://127.0.0.1:3000").strip().rstrip("/")
+    ui_host = ui_base or "http://127.0.0.1:3000"
+    preferred: dict[str, object] | None = None
+    fallback: dict[str, object] | None = None
+    for entry in targets:
+        if not isinstance(entry, dict) or entry.get("type") != "page":
+            continue
+        url = entry.get("url")
+        if not isinstance(url, str):
+            continue
+        if url.startswith("chrome://") or url.startswith("devtools://"):
+            continue
+        ws_url = entry.get("webSocketDebuggerUrl")
+        if not isinstance(ws_url, str) or not ws_url.startswith("ws://"):
+            continue
+        if url == f"{ui_host}/" or url.startswith(f"{ui_host}/"):
+            preferred = entry
+            break
+        if fallback is None and ("127.0.0.1" in url or "localhost" in url):
+            fallback = entry
+    chosen = preferred or fallback
+    if chosen is None:
+        return None
+    chosen = dict(chosen)
+    chosen["__warmup_owned_target"] = False
+    return chosen
 
 
 async def _cdp_request(
@@ -209,7 +266,9 @@ def _chrome_e2e_lifecycle(event: str) -> None:
         pass
 
 
-async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float, poll_ms: int) -> bool:
+async def _wait_for_hydration(
+    ws_url: str, page_url: str, *, timeout_sec: float, poll_ms: int
+) -> bool:
     try:
         import websockets
     except ImportError as exc:
@@ -220,7 +279,9 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
     deadline = time.monotonic() + timeout_sec
 
     try:
-        async with websockets.connect(ws_url, open_timeout=15, max_size=8 * 1024 * 1024) as ws:
+        async with websockets.connect(
+            ws_url, open_timeout=15, max_size=8 * 1024 * 1024
+        ) as ws:
             msg_id = 0
 
             async def next_id() -> int:
@@ -256,7 +317,10 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                             ws,
                             await next_id(),
                             "Runtime.evaluate",
-                            {"expression": E2E_BRIDGE_INSTALL_JS, "returnByValue": True},
+                            {
+                                "expression": E2E_BRIDGE_INSTALL_JS,
+                                "returnByValue": True,
+                            },
                             deadline=deadline,
                         )
                     result = await _cdp_request(
@@ -271,8 +335,16 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                     continue
 
                 outer_result = result.get("result")
-                inner_result = outer_result.get("result") if isinstance(outer_result, dict) else None
-                value = inner_result.get("value") if isinstance(inner_result, dict) else None
+                inner_result = (
+                    outer_result.get("result")
+                    if isinstance(outer_result, dict)
+                    else None
+                )
+                value = (
+                    inner_result.get("value")
+                    if isinstance(inner_result, dict)
+                    else None
+                )
                 if value is True:
                     return True
                 if poll_count % 10 == 0:
@@ -282,7 +354,10 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                             ws,
                             await next_id(),
                             "Runtime.evaluate",
-                            {"expression": _RESET_CHAT_EXPRESSION, "returnByValue": True},
+                            {
+                                "expression": _RESET_CHAT_EXPRESSION,
+                                "returnByValue": True,
+                            },
                             deadline=deadline,
                         )
                     except (TimeoutError, RuntimeError):
@@ -311,7 +386,11 @@ async def _close_target(cdp_port: int, target_id: str) -> bool:
         async with websockets.connect(browser_ws, open_timeout=5) as ws:
             await ws.send(
                 json.dumps(
-                    {"id": 1, "method": "Target.closeTarget", "params": {"targetId": target_id}}
+                    {
+                        "id": 1,
+                        "method": "Target.closeTarget",
+                        "params": {"targetId": target_id},
+                    }
                 )
             )
             raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
@@ -344,11 +423,18 @@ async def _run_warmup(
     poll_ms: int,
 ) -> None:
     last_error = "unknown"
-    max_attempts = 4
+    max_attempts = max(
+        1,
+        int(os.environ.get("MYRM_CLIENT_WARMUP_MAX_ATTEMPTS", "4") or "4"),
+    )
+    retry_sleep_sec = float(
+        os.environ.get("MYRM_CLIENT_WARMUP_RETRY_SLEEP_SEC", "2.0") or "2.0"
+    )
     for attempt in range(1, max_attempts + 1):
         target = await _create_background_target(cdp_port)
         ws_url = str(target["webSocketDebuggerUrl"])
         target_id = target.get("id")
+        owned_target = target.get("__warmup_owned_target") is not False
         if not isinstance(target_id, str) or not target_id:
             raise RuntimeError("CDP target missing id")
         register_infra_target(target_id, page_url)
@@ -359,23 +445,30 @@ async def _run_warmup(
                 ws_url, page_url, timeout_sec=timeout_sec, poll_ms=poll_ms
             )
             if not ready:
-                last_error = f"hydration timeout after {timeout_sec:.0f}s (attempt {attempt})"
+                last_error = (
+                    f"hydration timeout after {timeout_sec:.0f}s (attempt {attempt})"
+                )
         except TimeoutError:
             last_error = f"CDP session timeout (attempt {attempt})"
         except Exception as exc:
-            last_error = f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+            last_error = (
+                f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+            )
         finally:
-            try:
-                closed = await _close_target(cdp_port, target_id)
-            finally:
-                if closed:
-                    unregister_infra_target(target_id)
+            if owned_target:
+                try:
+                    closed = await _close_target(cdp_port, target_id)
+                finally:
+                    if closed:
+                        unregister_infra_target(target_id)
+            else:
+                closed = True
         if ready and closed:
             return
         if ready:
             last_error = f"hydrated target {target_id} could not be closed"
         if attempt < max_attempts:
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(retry_sleep_sec)
 
     raise RuntimeError(last_error)
 
@@ -398,7 +491,10 @@ def main() -> int:
             )
         )
     except urllib.error.URLError as exc:
-        print(f"CLIENT_WARMUP_FAIL: CDP unreachable on :{args.cdp_port} — {exc}", file=sys.stderr)
+        print(
+            f"CLIENT_WARMUP_FAIL: CDP unreachable on :{args.cdp_port} — {exc}",
+            file=sys.stderr,
+        )
         return 1
     except RuntimeError as exc:
         print(f"CLIENT_WARMUP_FAIL: {exc}", file=sys.stderr)

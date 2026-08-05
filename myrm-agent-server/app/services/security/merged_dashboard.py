@@ -110,9 +110,10 @@ async def build_security_dashboard() -> SecurityDashboard:
     try:
         return await build_github_dashboard(primary_repo, token, supplement_repos=repos)
     except httpx.HTTPStatusError as exc:
+        logger.error("GitHub API error (%s): %s", exc.response.status_code, exc.response.text)
         raise HTTPException(
             status_code=exc.response.status_code,
-            detail=f"GitHub API error: {exc.response.text}",
+            detail="GitHub API error",
         ) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to fetch security data") from exc

@@ -21,3 +21,4 @@
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |
 | `turn.py` | 模块 | Turn lifecycle: retry, regenerate, sibling switch, truncate-after (edit-resend), undo, rewind. | ✅ |
+| `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |

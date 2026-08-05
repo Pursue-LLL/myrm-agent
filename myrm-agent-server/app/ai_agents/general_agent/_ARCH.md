@@ -49,7 +49,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `goal_learnings.py` | ✅ 核心 | Goal 终态回调工厂：`build_goal_terminal_callback` 在 Goal 终态时提取 learnings 存入 SemanticMemory，发布 `GOAL_TERMINAL` ServerEventBus 事件（触发 IM 通知），并 dequeue 下一个排队 Goal。`retrieve_relevant_learnings` 为新 Goal 检索历史经验。 | ✅ |
 | `tool_setup.py` | ✅ 核心 | GeneralAgent 工具装配；`_create_memory_tools` 绑定 `memory_search_tool` sessions/wiki ACL。 | ✅ |
 | `checkpoint_helpers.py` | ✅ 辅助 | Browser checkpoint 生命周期辅助函数 | ✅ |
-| `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback LLM 创建；主模型会优先切换到支持 function calling 的候选模型；lite LLM 自动注入 `reasoning_effort='low'` 降低辅助任务推理开销） | ✅ |
+| `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback 创建；主模型优先选 function calling 候选；lite 注入 `reasoning_effort='low'`；`apply_lite_context_downgrade` Dynamic Ratio Shield SSOT） | ✅ |
 | `mcp_vault_handler.py` | ✅ 辅助 | Server 层 MCP 大结果 vault spill handler 工厂。`build_mcp_vault_handler(workspace_root)` 返回 `OversizedResultHandler` 闭包，在 `factory.py` 注入到 MCP 配置，使 harness `_timeout_wrapper` 将超量结果持久化至 ArtifactVault 而非截断丢弃。 | ✅ |
 | `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/lean 模式跳过注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |

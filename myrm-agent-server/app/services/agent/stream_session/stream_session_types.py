@@ -6,7 +6,10 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from fastapi import Request
-from myrm_agent_harness.utils.runtime.cancellation import CancellationMonitor, CancellationToken
+from myrm_agent_harness.utils.runtime.cancellation import (
+    CancellationMonitor,
+    CancellationToken,
+)
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.ai_agents import GeneralAgentParams
@@ -42,6 +45,8 @@ class AgentStreamSession:
     turn_capability_terminal_recorded: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
     entitlement_preflight_text: str | None = field(default=None)
-    migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)
+    migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = (
+        field(default=None)
+    )
     pre_reply_compact_result: CompactResult | None = field(default=None)
     pre_reply_compact_sse_sent: bool = field(default=False)

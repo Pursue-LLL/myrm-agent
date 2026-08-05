@@ -25,7 +25,6 @@ import LocalBackendUnavailableBanner, {
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
-import E2EChatBridge from '@/components/dev/E2EChatBridge';
 import E2ECompanionBridge from '@/components/dev/E2ECompanionBridge';
 
 const CronPushPoller = lazy(() =>
@@ -184,7 +183,6 @@ function AppLayout({
       </Suspense>
       <BudgetExceededDialog />
       <UpgradeNudgeDialog />
-      <E2EChatBridge />
       <E2ECompanionBridge />
     </>
   );

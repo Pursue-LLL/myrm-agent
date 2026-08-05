@@ -220,7 +220,9 @@ async def convert_to_general_agent_params(
                 "Failed to resolve vision fallback model, proceeding without it"
             )
     if vision_fallback_model_cfg is None:
-        from app.core.channel_bridge.config_parsers import extract_vision_fallback_model_config
+        from app.core.channel_bridge.config_parsers import (
+            extract_vision_fallback_model_config,
+        )
 
         vision_fallback_model_cfg = extract_vision_fallback_model_config(providers_dict)
 
@@ -683,10 +685,13 @@ async def convert_to_general_agent_params(
 
     code_exec_allow_network = _extract_code_execution_network(ps_dict)
 
-    locale = request.locale
-    if not locale and ps_dict:
-        locale = str(ps_dict.get("language", "en"))
-    locale = locale or "en"
+    from app.core.agent.tool_description_locale import resolve_agent_params_locale
+
+    locale = resolve_agent_params_locale(
+        explicit=request.locale,
+        personal_settings=ps_dict if isinstance(ps_dict, dict) else None,
+        channel="web_chat",
+    )
 
     reasoning_display_mode = request.reasoning_display_mode
     if reasoning_display_mode is None and isinstance(ps_dict, dict):
@@ -775,12 +780,16 @@ async def convert_to_general_agent_params(
             vision_fallback_model_cfg, providers_dict
         )
 
-    from app.core.channel_bridge.config_parsers import resolve_vision_fallback_chain_for_agent
+    from app.core.channel_bridge.config_parsers import (
+        resolve_vision_fallback_chain_for_agent,
+    )
 
-    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-        providers_dict,
-        primary_override=vision_fallback_model_cfg,
-        main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+        resolve_vision_fallback_chain_for_agent(
+            providers_dict,
+            primary_override=vision_fallback_model_cfg,
+            main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+        )
     )
 
     jit_subagents = request.ephemeral_subagents
@@ -1010,7 +1019,10 @@ async def convert_to_general_agent_params(
 
             invalidate_user_configs_cache()
             refreshed_configs = await reload_user_configs()
-            if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
+            if (
+                refreshed_configs is not None
+                and refreshed_configs.search_cfg is not None
+            ):
                 search_cfg = refreshed_configs.search_cfg
         # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
         # not browser — deep workflow is web_search → web_fetch → answer self-review.
@@ -1126,7 +1138,9 @@ async def convert_to_general_agent_params(
         memory_policy=agent_memory_policy,
         memory_decay_profile=agent_memory_decay_profile,
         memory_extraction_preset=agent_memory_extraction_preset,
-        engine_params=apply_moa_preset_activation(engine_params, request.active_moa_preset_id),
+        engine_params=apply_moa_preset_activation(
+            engine_params, request.active_moa_preset_id
+        ),
         memory_shared_context_ids=memory_shared_context_ids,
         quote=request.quote,
         jit_subagents=jit_subagents if not is_fast_search else None,

@@ -22,11 +22,15 @@ def _desktop_soak_signoff_parallel_attach_restart_ok() -> bool:
 
 
 def _parallel_load_blocks_attach_restart() -> bool:
-    """P0-B: block global mux daemon restart only when multiple mux contexts are active."""
+    """P0-B: block global mux daemon restart only when multiple wave leases are active."""
     try:
         from mux_load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
+        if load.wave_leases <= 1:
+            return False
+        if load.wave_leases >= 3:
+            return True
         if load.mux_contexts >= 3:
             return True
     except (ImportError, OSError, TypeError, ValueError):
@@ -34,7 +38,7 @@ def _parallel_load_blocks_attach_restart() -> bool:
     try:
         from chrome_mcp_client import _parallel_mux_peer_count
 
-        return _parallel_mux_peer_count() >= 2
+        return _parallel_mux_peer_count() >= 3
     except (ImportError, OSError, TypeError, ValueError):
         return False
 

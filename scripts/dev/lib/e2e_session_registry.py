@@ -129,13 +129,29 @@ def _row_from_snapshot(pid: int, payload: dict[str, object]) -> LiveE2ESessionRo
 
 
 def _coordinator_has_sessions() -> bool:
-    """Check if the Dev Gate coordinator is active and tracking sessions."""
-    try:
-        from dev_gate_cli import send  # noqa: PLC0415
+    """Check if the Dev Gate coordinator is active and tracking sessions.
 
-        result = send({"operation": "list_active"})
+    Uses a short direct socket RPC (``snapshot``) instead of ``dev_gate_cli.send`` so
+    a congested coordinator cannot trigger send()'s extended timeout-recovery loop
+    (~300s+) during orphan-budget / parallel snapshot reads.
+    """
+    try:
+        from dev_gate_cli import (  # noqa: PLC0415
+            default_socket_path,
+            normalized_socket_path,
+        )
+        from dev_gate_coordinator import request  # noqa: PLC0415
+
+        socket_path = normalized_socket_path(default_socket_path())
+        if not socket_path.exists():
+            return False
+        result = request(
+            {"operation": "snapshot"},
+            socket_path=socket_path,
+            timeout_sec=3.0,
+        )
         return isinstance(result.get("sessions"), list)
-    except (ImportError, OSError, RuntimeError, ValueError):
+    except (ImportError, OSError, RuntimeError, ValueError, TimeoutError):
         return False
 
 

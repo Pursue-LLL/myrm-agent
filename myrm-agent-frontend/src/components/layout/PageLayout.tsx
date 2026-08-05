@@ -13,6 +13,19 @@ import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
 const READINESS_GATE_TIMEOUT_MS = 3_000;
 
+function localhostSuspenseFallback(): React.ReactNode {
+  if (process.env.NODE_ENV === 'development') {
+    return null;
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === '127.0.0.1' || host === 'localhost') {
+      return null;
+    }
+  }
+  return <AppShellSkeleton />;
+}
+
 const BootScreen = lazy(() =>
   import('../features/app-shell/boot-screen').then((mod) => ({ default: mod.default })),
 );
@@ -116,13 +129,13 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
       </AppLayout>
 
       {needsOnboarding && (
-        <Suspense fallback={<AppShellSkeleton />}>
+        <Suspense fallback={localhostSuspenseFallback()}>
           <OnboardingWizard onComplete={handleOnboardingComplete} />
         </Suspense>
       )}
 
       {showNormalBoot && !needsOnboarding && (
-        <Suspense fallback={<AppShellSkeleton />}>
+        <Suspense fallback={localhostSuspenseFallback()}>
           <BootScreen onComplete={handleBootComplete} />
         </Suspense>
       )}

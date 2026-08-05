@@ -46,7 +46,9 @@ def build_chat_history_with_metadata(
     history: list[list[str | object]] = []
     for entry in entries:
         if entry.role == "human":
-            history.append(["human", entry.content, {"ts": entry.created_at.isoformat()}])
+            history.append(
+                ["human", entry.content, {"ts": entry.created_at.isoformat()}]
+            )
         else:
             history.append(["assistant", entry.content])
     return history
@@ -72,7 +74,9 @@ async def persist_and_load_history(
             agent_id=agent_id,
         )
         chat = await _sync_chat_workspace_from_topic(chat, topic_context)
-        from app.services.chat.stale_compact_gate import run_pre_reply_stale_compact_gate
+        from app.services.chat.stale_compact_gate import (
+            run_pre_reply_stale_compact_gate,
+        )
 
         try:
             await run_pre_reply_stale_compact_gate(
@@ -85,7 +89,9 @@ async def persist_and_load_history(
                 chat.id,
                 exc,
             )
-        await ChatService.append_message(chat.id, "user", content, sent_at, sent_timezone)
+        await ChatService.append_message(
+            chat.id, "user", content, sent_at, sent_timezone
+        )
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
         logger.warning(
@@ -139,8 +145,13 @@ async def persist_assistant_message(
         sent_at = datetime.now(tz=tz_module.utc)
         sent_timezone = timezone or "UTC"
         await ChatService.append_message(
-            chat_id, "assistant", content, sent_at, sent_timezone,
-            message_id=message_id, extra_data=extra_data,
+            chat_id,
+            "assistant",
+            content,
+            sent_at,
+            sent_timezone,
+            message_id=message_id,
+            extra_data=extra_data,
         )
         await session.commit()
 
@@ -170,7 +181,9 @@ async def generate_channel_title(
                 )
 
         if title_model:
-            title = await ChatService._call_llm_for_title(first_message[:200], title_model)
+            title = await ChatService._call_llm_for_title(
+                first_message[:200], title_model
+            )
         else:
             title = ChatService._generate_fallback_title(first_message)
 

@@ -183,7 +183,13 @@ def _rebind_subagent_memory_search_tool(
         allow_wiki=allow_wiki, allow_sessions=allow_sessions
     )
     wiki_query = query_wiki if allow_wiki and callable(query_wiki) else None
-    resolved_structure = wiki_structure if isinstance(wiki_structure, WikiStructure) else None
+    from myrm_agent_harness.toolkits.wiki.core.structure import (
+        WikiStructure as _WikiStructure,
+    )
+
+    resolved_structure = (
+        wiki_structure if isinstance(wiki_structure, _WikiStructure) else None
+    )
     search_backends = MemorySearchBackends(
         query_wiki=wiki_query,
         wiki_agent_id=agent_id,

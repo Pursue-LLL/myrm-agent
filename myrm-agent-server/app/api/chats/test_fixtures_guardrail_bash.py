@@ -97,10 +97,10 @@ async def seed_guardrail_bash_fixture(
                 "step_key": "bash_code_execute_tool",
                 "tool_name": "bash_code_execute_tool",
                 "status": "error",
+                "error": True,
                 "error_category": "guardrail_blocked",
-                "reason": "E2E fixture: myrm_tools preflight block",
+                "reason": spec["error"],
                 "items": [{"code": spec["command"]}],
-                "error": spec["error"],
             },
         ]
     }

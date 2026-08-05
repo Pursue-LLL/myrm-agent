@@ -20,6 +20,7 @@ interface SecondBrainSetupCardProps {
   onApplied?: (agentId: string) => void;
   onGoToImport?: () => void;
   onGoToProviders?: () => void;
+  onGoToDuplicateReview?: () => void;
 }
 
 function ChecklistRow({ item, label }: { item: SecondBrainChecklistItem; label: string }) {
@@ -41,6 +42,7 @@ export default function SecondBrainSetupCard({
   onApplied,
   onGoToImport,
   onGoToProviders,
+  onGoToDuplicateReview,
 }: SecondBrainSetupCardProps) {
   const t = useTranslations('settings.wiki.secondBrain');
   const [status, setStatus] = useState<SecondBrainPresetStatus | null>(null);
@@ -103,10 +105,12 @@ export default function SecondBrainSetupCard({
     agent_tools: t('checklist.agentTools'),
     cron_job: t('checklist.cronJob'),
     vault_content: t('checklist.vaultContent'),
+    corpus_dedup: t('checklist.corpusDedup'),
     provider_ready: t('checklist.providerReady'),
   };
 
   const vaultReady = status?.checklist.find((item) => item.id === 'vault_content')?.ready ?? false;
+  const corpusDedupReady = status?.checklist.find((item) => item.id === 'corpus_dedup')?.ready ?? false;
   const providerReady = status?.checklist.find((item) => item.id === 'provider_ready')?.ready ?? false;
 
   return (
@@ -145,6 +149,11 @@ export default function SecondBrainSetupCard({
               {!vaultReady && onGoToImport ? (
                 <Button variant="outline" onClick={onGoToImport}>
                   {t('goImport')}
+                </Button>
+              ) : null}
+              {!corpusDedupReady && onGoToDuplicateReview ? (
+                <Button variant="outline" onClick={onGoToDuplicateReview}>
+                  {t('goDuplicateReview')}
                 </Button>
               ) : null}
               {!providerReady && onGoToProviders ? (

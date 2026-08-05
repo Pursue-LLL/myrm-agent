@@ -18,11 +18,16 @@ from cdp_chat_support import wait_e2e_provider_ready  # noqa: E402
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
+    warm_ui_route,
+    _warm_ui_parallel_wait_sec,
 )
 
 _FETCH_HOOK_JS = """(() => {
@@ -51,25 +56,24 @@ _FETCH_HOOK_JS = """(() => {
 
 _AGENT_EDITOR_READY_JS = """(() => ({
   ready:
-    !!document.querySelector('[data-testid="app-layout"]') &&
+    !!document.querySelector('[data-testid="settings-layout"]') &&
     !!document.querySelector('[data-testid="agent-tab-capabilities"]'),
   url: location.href,
 }))()"""
 
 _CLICK_CAPABILITIES_JS = """(() => {
   const capTab = document.querySelector('[data-testid="agent-tab-capabilities"]');
-  if (capTab && capTab.getAttribute('aria-selected') !== 'true') {
-    capTab.click();
+  if (!capTab) {
+    return { clicked: false, reason: 'missing-tab' };
   }
+  capTab.click();
   return { clicked: true };
 })()"""
 
 _OPEN_BUILTIN_DIALOG_JS = """(() => {
-  const builtinCard = Array.from(document.querySelectorAll('button')).find((btn) =>
-    /Built-in Tools|内置工具/i.test(btn.textContent || ''),
-  );
+  const builtinCard = document.querySelector('[data-testid="agent-config-card-builtin_tools"]');
   if (!builtinCard) {
-    return { clicked: false };
+    return { clicked: false, reason: 'builtin-config-card-not-found' };
   }
   builtinCard.click();
   return { clicked: true };
@@ -77,7 +81,7 @@ _OPEN_BUILTIN_DIALOG_JS = """(() => {
 
 _BUILTIN_DIALOG_READY_JS = """(() => ({
   ready:
-    !!document.querySelector('[role="dialog"]') &&
+    !!document.querySelector('[data-testid="agent-config-edit-dialog"]') &&
     !!document.querySelector('[data-testid="builtin-render_ui"]'),
 }))()"""
 
@@ -296,12 +300,34 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
     agent_id = _create_editable_agent(api_url)
-    agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}"
+    agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}#loadout"
 
     try:
+        warm_ui_route("/settings/agents")
         with open_mcp_page(agent_settings_url, timeout_ms=120_000) as (client, page):
-            wait_for_state(client, page, _AGENT_EDITOR_READY_JS, timeout_sec=90.0)
+            dismiss_blocking_modals(client, page, recover_url=agent_settings_url)
+            editor_ready: dict[str, object] = {}
+            for attempt in range(3):
+                try:
+                    editor_ready = wait_for_state(
+                        client,
+                        page,
+                        _AGENT_EDITOR_READY_JS,
+                        timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+                    )
+                    if editor_ready.get("ready") is True:
+                        break
+                except AssertionError:
+                    if attempt >= 2:
+                        raise
+                if attempt < 2:
+                    reload_mcp_page(
+                        client, page, target_url=agent_settings_url, timeout_ms=120_000
+                    )
+                    dismiss_blocking_modals(client, page, recover_url=agent_settings_url)
+            assert editor_ready.get("ready") is True, editor_ready
             client.evaluate(page, _CLICK_CAPABILITIES_JS, timeout_sec=10.0)
             wait_for_state(
                 client,

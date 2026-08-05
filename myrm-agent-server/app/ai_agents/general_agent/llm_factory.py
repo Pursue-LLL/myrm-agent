@@ -6,7 +6,8 @@
 [OUTPUT]
 - select_tool_capable_model_cfg(): 在 GeneralAgent 启动时选择支持 function calling 的主模型
 - create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
-- _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 factory.py Dynamic Ratio Shield 降级复用
+- apply_lite_context_downgrade(): Dynamic Ratio Shield — lite context 不足时降级到 main 配置
+- _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 Dynamic Ratio Shield 降级复用
 
 [POS]
 LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例，
@@ -278,3 +279,31 @@ async def create_agent_llms(
     else:
         # 无备用模型，返回原始 LLM
         return raw_main_llm, lite_llm, None, safety_fallback_llm
+
+
+async def apply_lite_context_downgrade(
+    main_llm: BaseChatModel,
+    lite_llm: BaseChatModel,
+    model_cfg: ModelConfig,
+) -> BaseChatModel:
+    """Degrade lite LLM to main model when lite context window is too small (Dynamic Ratio Shield)."""
+    from myrm_agent_harness.toolkits.llms.utils.model_utils import get_model_context_limit
+
+    main_limit = get_model_context_limit(main_llm) or 128000
+    lite_limit = get_model_context_limit(lite_llm)
+    if not lite_limit or not main_limit:
+        return lite_llm
+
+    if lite_limit >= main_limit * 0.85:
+        return lite_llm
+
+    logger.warning(
+        "Context capacity mismatch: main model %s (%s tokens) vs lite (%s tokens). "
+        "Degrading lite LLM to main model.",
+        model_cfg.model,
+        main_limit,
+        lite_limit,
+    )
+    main_api_keys = getattr(model_cfg, "api_keys", None)
+    fallback_lite_cfg = _inject_low_reasoning_effort(model_cfg)
+    return await llm_manager.get_llm_from_config(fallback_lite_cfg, api_keys=main_api_keys)

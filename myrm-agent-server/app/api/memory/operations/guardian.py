@@ -202,7 +202,7 @@ async def trigger_maintenance(payload: MemoryGuardianTriggerRequest | None = Non
         logger.error("Manual maintenance trigger failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Maintenance trigger failed: {exc!s}",
+            detail="Maintenance trigger failed",
         ) from exc
 
 
@@ -274,5 +274,5 @@ async def trigger_pattern_discovery() -> dict[str, object]:
         logger.error("Pattern discovery trigger failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pattern discovery trigger failed: {exc!s}",
+            detail="Pattern discovery trigger failed",
         ) from exc

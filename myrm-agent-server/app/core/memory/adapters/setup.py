@@ -50,7 +50,9 @@ _memory_manager_cache_lock = asyncio.Lock()
 
 
 class _CreateMemoryTools(Protocol):
-    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode) -> list[object]: ...
+    def __call__(
+        self, manager: MemoryManager, *, recall_mode: RecallMode
+    ) -> list[object]: ...
 
 
 def _memory_policy_signature(
@@ -58,7 +60,11 @@ def _memory_policy_signature(
 ) -> tuple[object, ...] | None:
     if memory_policy is None:
         return None
-    read_scopes = tuple(scope.value for scope in memory_policy.read_scopes) if memory_policy.read_scopes else ()
+    read_scopes = (
+        tuple(scope.value for scope in memory_policy.read_scopes)
+        if memory_policy.read_scopes
+        else ()
+    )
     return (
         memory_policy.agent_id,
         memory_policy.channel_id,
@@ -271,10 +277,14 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
 
             logger.info(
                 "Conflict persisted as PendingMemory %s (old=%s, auto_resolve=%s)",
-                conflict_id, ctx.old_memory_id, auto_resolve_at,
+                conflict_id,
+                ctx.old_memory_id,
+                auto_resolve_at,
             )
         except Exception:
-            logger.warning("Failed to persist conflict, falling back to KEEP_OLD", exc_info=True)
+            logger.warning(
+                "Failed to persist conflict, falling back to KEEP_OLD", exc_info=True
+            )
             return ConflictResolution.KEEP_OLD
 
         return ConflictResolution.PENDING
@@ -297,7 +307,11 @@ def resolve_context_binding(
     from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
 
     normalized_shared_context_ids = list(
-        dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
+        dict.fromkeys(
+            context_id.strip()
+            for context_id in (shared_context_ids or [])
+            if context_id.strip()
+        )
     )
     (
         resolved_agent_id,
@@ -312,7 +326,11 @@ def resolve_context_binding(
         memory_policy=memory_policy,
     )
     overlay = (
-        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True) if task_workspace_root else None
+        AgentContextOverlay(
+            task_workspace_root=task_workspace_root, memory_scenes_pinned=True
+        )
+        if task_workspace_root
+        else None
     )
     return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
@@ -348,7 +366,9 @@ async def shutdown_cached_memory_managers() -> None:
     if not managers:
         return
 
-    results = await asyncio.gather(*(manager.close() for manager in managers), return_exceptions=True)
+    results = await asyncio.gather(
+        *(manager.close() for manager in managers), return_exceptions=True
+    )
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close cached MemoryManager: %s", result)

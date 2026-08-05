@@ -29,6 +29,15 @@ def _make_messages(chat_id: str, count: int) -> list[Message]:
     return messages
 
 
+@pytest.fixture(autouse=True)
+def _mock_hydrate_compression_streak():
+    with patch(
+        "app.services.chat.compact.compression_streak.hydrate_compression_streak_from_db",
+        AsyncMock(return_value=0),
+    ):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_compact_chat_skips_when_summarize_circuit_open() -> None:
     db = AsyncMock()
@@ -197,7 +206,19 @@ async def test_compact_chat_idle_stale_uses_request_tokens_for_anti_thrash() -> 
     metrics = create_task_metrics(chat_id)
     metrics.compression_ineffective_streak = ANTI_THRASHING_STREAK_LIMIT
 
+    async def _hydrate_streak(_db: AsyncMock, cid: str) -> int:
+        from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+            get_compression_streak_store,
+        )
+
+        get_compression_streak_store().set_streak(cid, ANTI_THRASHING_STREAK_LIMIT)
+        return ANTI_THRASHING_STREAK_LIMIT
+
     with (
+        patch(
+            "app.services.chat.compact.compression_streak.hydrate_compression_streak_from_db",
+            AsyncMock(side_effect=_hydrate_streak),
+        ),
         patch(
             "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,

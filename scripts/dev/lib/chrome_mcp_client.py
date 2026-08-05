@@ -252,36 +252,61 @@ class ChromeMcpClient:
         lease_id = self._acquire_page_lease()
         try:
             runtime_binding = self._runtime_binding_source_for(url)
-            if runtime_binding:
-                binding_expression = f"(() => {{{runtime_binding} return true; }})()"
-                result = client.open_page_transaction(
-                    session_id,
-                    url=url,
-                    binding_expression=binding_expression,
-                )
-            else:
-                result = client.open_page_transaction(session_id, url=url)
-            page_id = result["pageId"]
-            target_id = result["targetId"]
-            page = McpPage(
-                page_id=page_id,
-                target_id=target_id,
-                lease_id=lease_id,
-                context_id=session_id,
-                url=result.get("url", url),
-            )
-            self._pages[page_id] = page
-            self._page_lease_heartbeat.track(lease_id)
-            return page
+            last_exc: BaseException | None = None
+            for attempt in range(1, 4):
+                try:
+                    if runtime_binding:
+                        source, _expected = runtime_binding
+                        binding_expression = f"(() => {{{source} return true; }})()"
+                        result = client.open_page_transaction(
+                            session_id,
+                            url=url,
+                            binding_expression=binding_expression,
+                        )
+                    else:
+                        result = client.open_page_transaction(session_id, url=url)
+                    page_id = result["pageId"]
+                    target_id = result["targetId"]
+                    page = McpPage(
+                        page_id=page_id,
+                        target_id=target_id,
+                        lease_id=lease_id,
+                        context_id=session_id,
+                        url=result.get("url", url),
+                    )
+                    self._pages[page_id] = page
+                    self._page_lease_heartbeat.track(lease_id)
+                    return page
+                except (TimeoutError, OSError, RuntimeError) as exc:
+                    last_exc = exc
+                    message = str(exc).lower()
+                    retryable = (
+                        "cdp evaluate failed" in message
+                        or "cdp request timeout" in message
+                        or "browser orchestrator response timeout" in message
+                    )
+                    if not retryable or attempt >= 3:
+                        raise
+                    time.sleep(min(2.0 * float(attempt), 4.0))
+            if last_exc is not None:
+                raise last_exc
+            raise RuntimeError("daemon new_page failed without exception")
         except Exception:
             self._release_lease(lease_id, close_wave_if_idle=False)
             raise
 
-    def _daemon_evaluate(self, page: McpPage, expression: str) -> object:
+    def _daemon_evaluate(
+        self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
+    ) -> object:
         client = self._ensure_daemon_session()
         session_id = self._daemon_session_id
         assert session_id is not None
-        result = client.evaluate_page(session_id, page.target_id, expression)
+        result = client.evaluate_page(
+            session_id,
+            page.target_id,
+            expression,
+            timeout_sec=timeout_sec,
+        )
         return result.get("value")
 
     def _daemon_navigate(self, page: McpPage, url: str) -> None:
@@ -1184,7 +1209,7 @@ class ChromeMcpClient:
         self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
         if self._use_daemon:
-            return self._daemon_evaluate(page, expression)
+            return self._daemon_evaluate(page, expression, timeout_sec=timeout_sec)
         resolved = self._resolve_page(page)
         self._ensure_page_tracked_for_recovery(resolved)
         function = f"async () => await (0, eval)({json.dumps(expression)})"

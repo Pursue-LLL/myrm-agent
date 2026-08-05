@@ -20,7 +20,9 @@ from app.services.chat.stale_compact_gate import (
 def test_parse_idle_compact_after_seconds_defaults_to_zero() -> None:
     assert parse_idle_compact_after_seconds(None) == 0
     assert parse_idle_compact_after_seconds({}) == 0
-    assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": 1800}) == 1800
+    assert (
+        parse_idle_compact_after_seconds({"idle_compact_after_seconds": 1800}) == 1800
+    )
     assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": -5}) == 0
     assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": "bad"}) == 0
 
@@ -400,7 +402,9 @@ async def test_gate_skips_when_compaction_failure_cooldown_active() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead() -> None:
+async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead() -> (
+    None
+):
     """Summary+overhead can exceed floor while compactable tail is empty."""
     db = AsyncMock()
     db.execute = AsyncMock(
@@ -409,7 +413,9 @@ async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead(
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
-    compact_result = CompactResult(compacted=False, message_count=0, reason="no_compactable_messages")
+    compact_result = CompactResult(
+        compacted=False, message_count=0, reason="no_compactable_messages"
+    )
 
     with (
         patch(

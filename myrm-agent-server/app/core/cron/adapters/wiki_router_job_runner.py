@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 WIKI_SOURCE_SYNC_COMMAND = "__wiki_source_sync__"
 WIKI_MAINTAIN_COMMAND_PREFIX = "__wiki_maintain__"
+WIKI_DEDUP_COMMAND = "__wiki_dedup__"
 
 
 def parse_wiki_maintain_mode(command: str | None) -> MaintainMode | None:
@@ -50,6 +51,9 @@ class WikiRouterJobRunner:
 
         if job.command == WIKI_SOURCE_SYNC_COMMAND:
             return await self._run_source_sync(job, context=context)
+
+        if job.command == WIKI_DEDUP_COMMAND:
+            return await self._run_dedup(job, context=context)
 
         return await self._passthrough.run(job, context=context)
 
@@ -81,7 +85,9 @@ class WikiRouterJobRunner:
             from app.services.wiki.maintain_runner import run_wiki_maintain_job
 
             llm = await get_optional_llm_for_user()
-            result = await run_wiki_maintain_job(llm=llm, agent_id=job.agent_id, mode=mode)
+            result = await run_wiki_maintain_job(
+                llm=llm, agent_id=job.agent_id, mode=mode
+            )
             output = result.summary_text
             if context.strip() and output != "[SILENT]":
                 output = f"{context.strip()}\n{output}"
@@ -89,4 +95,20 @@ class WikiRouterJobRunner:
             return JobResult(success=True, output=output, exit_code=exit_code)
         except Exception as exc:
             logger.error("Wiki maintain cron failed for job %s: %s", job.id, exc)
+            return JobResult(success=False, error=str(exc), exit_code=1)
+
+    async def _run_dedup(self, job: CronJob, *, context: str = "") -> JobResult:
+        try:
+            from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
+
+            result = await run_wiki_dedup_scan_job(
+                agent_id=job.agent_id, incremental=False
+            )
+            output = result.summary_text
+            if context.strip() and output != "[SILENT]":
+                output = f"{context.strip()}\n{output}"
+            exit_code = 0 if output == "[SILENT]" else 1
+            return JobResult(success=True, output=output, exit_code=exit_code)
+        except Exception as exc:
+            logger.error("Wiki dedup cron failed for job %s: %s", job.id, exc)
             return JobResult(success=False, error=str(exc), exit_code=1)

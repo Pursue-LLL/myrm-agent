@@ -47,9 +47,13 @@ async def _resolve_user_locale() -> str:
         if not raw_locale and ps:
             raw_locale = ps.get("language")
         locale_str = str(raw_locale) if raw_locale else None
-        return resolve_locale(metadata_locale=locale_str, platform_locale=None, channel=None)
+        return resolve_locale(
+            metadata_locale=locale_str, platform_locale=None, channel=None
+        )
     except Exception:
-        logger.debug("Failed to load user locale for goal stream failure", exc_info=True)
+        logger.debug(
+            "Failed to load user locale for goal stream failure", exc_info=True
+        )
         return normalize_locale(None)
 
 
@@ -78,7 +82,9 @@ async def publish_goal_needs_review_notification(session_id: str, goal_id: str) 
     )
 
 
-async def _publish_goal_needs_review_notification(session_id: str, goal_id: str) -> None:
+async def _publish_goal_needs_review_notification(
+    session_id: str, goal_id: str
+) -> None:
     await publish_goal_needs_review_notification(session_id, goal_id)
 
 
@@ -160,10 +166,14 @@ async def trigger_goal_stream(
     model_cfg = resolve_model_config(user_cfgs.providers_dict)
     model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
     model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
-    fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
-    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-        user_cfgs.providers_dict,
-        main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+    fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
+        user_cfgs.providers_dict
+    )
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+        resolve_vision_fallback_chain_for_agent(
+            user_cfgs.providers_dict,
+            main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+        )
     )
     embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
 
@@ -183,6 +193,10 @@ async def trigger_goal_stream(
         security_config_raw["yolo_mode_enabled_at"] = time.time()
         security_config_raw["yolo_mode_timeout"] = None
 
+    from app.core.agent.tool_description_locale import resolve_agent_params_locale
+
+    memory_settings = user_cfgs.personal_settings_dict or {}
+
     params = GeneralAgentParams(
         query=goal.objective,
         chat_id=session_id,
@@ -196,7 +210,12 @@ async def trigger_goal_stream(
         reranker_config=reranker_cfg,
         security_config_raw=security_config_raw,
         unattended_mode=True,
-        enable_web_search=user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg),
+        enable_web_search=user_cfgs.search_is_user_configured
+        and await verify_search_service_available(user_cfgs.search_cfg),
+        locale=resolve_agent_params_locale(
+            personal_settings=memory_settings,
+            channel="goal_stream",
+        ),
     )
 
     async def _run_stream() -> None:

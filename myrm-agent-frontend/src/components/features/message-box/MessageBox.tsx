@@ -54,6 +54,7 @@ import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTas
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
+import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
 import ToolImageGallery from './ToolImageGallery';
@@ -813,6 +814,10 @@ const MessageBox = ({
             />
 
             <MemoryInsightPanel 
+              chatId={chatId}
+              isLast={isLast}
+              isStreaming={isLast && loading}
+              messageCreatedAtMs={resolveMessageCreatedAtMs(message.createdAt)}
               memoryBrief={message.memoryBrief}
               memoryBriefStatus={message.memoryBriefStatus}
               memoryBudget={message.memoryBudget} 
@@ -837,7 +842,8 @@ const MessageBox = ({
               <FileMutationWarning failures={message.fileMutationFailures} />
             )}
 
-            {!(isLast && loading) && message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0 && (
+            {/* Workspace merge failures are post-turn metadata — show even while last message loading */}
+            {message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0 && (
               <WorkspaceMergeWarning
                 failures={message.workspaceMergeFailures}
                 failedCount={message.workspaceMergeFailedCount}
@@ -864,7 +870,8 @@ const MessageBox = ({
                 <span className="text-orange-700 dark:text-orange-300">{t('message.budgetBlocked')}</span>
               </div>
             )}
-            {!(isLast && loading) && message.completionStatus === 'warning' && (
+            {!(isLast && loading) && message.completionStatus === 'warning'
+              && !(message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0) && (
               <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                 <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>

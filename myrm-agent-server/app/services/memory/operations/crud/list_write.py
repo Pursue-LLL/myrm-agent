@@ -294,7 +294,8 @@ async def correct_memory(
             raise HTTPException(status_code=404, detail=error_msg) from e
         if "only supports" in error_msg.lower():
             raise HTTPException(status_code=400, detail=error_msg) from e
-        raise HTTPException(status_code=500, detail=f"Correction failed: {error_msg}") from e
+        logger.error("Memory correction failed: %s", error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail="Correction failed") from e
 
 
 async def delete_all_memories(

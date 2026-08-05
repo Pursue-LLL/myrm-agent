@@ -157,7 +157,9 @@ def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
         icon=bp.icon,
         title=_merge_locale_dict(bp.title, supplement["title"]),
         description=_merge_locale_dict(bp.description, supplement["description"]),
-        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
+        prompt_template=_merge_locale_dict(
+            bp.prompt_template, supplement["prompt_template"]
+        ),
         slots=bp.slots,
         category=bp.category,
         tags=bp.tags,
@@ -184,7 +186,9 @@ def _time_to_cron_weekday(time_str: str, day: str) -> str:
 def _time_to_cron_with_weekdays(time_str: str, weekdays: str) -> str:
     parts = time_str.split(":")
     h, m = int(parts[0]), int(parts[1])
-    dow = "1-5" if weekdays == "weekdays" else ("0,6" if weekdays == "weekends" else "*")
+    dow = (
+        "1-5" if weekdays == "weekdays" else ("0,6" if weekdays == "weekends" else "*")
+    )
     return f"{m} {h} * * {dow}"
 
 
@@ -612,8 +616,12 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 default="usd",
                 options=("usd", "usdt", "eur", "cny"),
             ),
-            BlueprintSlot(name="lower_bound", type="text", label="lower_bound", default="58000"),
-            BlueprintSlot(name="upper_bound", type="text", label="upper_bound", default="68000"),
+            BlueprintSlot(
+                name="lower_bound", type="text", label="lower_bound", default="58000"
+            ),
+            BlueprintSlot(
+                name="upper_bound", type="text", label="upper_bound", default="68000"
+            ),
             BlueprintSlot(
                 name="source",
                 type="enum",
@@ -631,7 +639,9 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             deduplicate=True,
             skip_if_active=True,
             timeout_seconds=90,
-            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
+            failure_alert=BlueprintFailureAlertDefaults(
+                enabled=True, after=2, cooldown_seconds=900
+            ),
             pre_condition_script_template={
                 "en": (
                     "import json\n"
@@ -815,7 +825,9 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 default="weekdays",
                 options=("everyday", "weekdays", "weekends"),
             ),
-            BlueprintSlot(name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"),
+            BlueprintSlot(
+                name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"
+            ),
             BlueprintSlot(
                 name="signal_rules",
                 type="text",
@@ -841,8 +853,12 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             deduplicate=True,
             skip_if_active=True,
             timeout_seconds=240,
-            monitor_config=BlueprintMonitorDefaults(monitor_type="hash", ttl_days=14, enabled=True),
-            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
+            monitor_config=BlueprintMonitorDefaults(
+                monitor_type="hash", ttl_days=14, enabled=True
+            ),
+            failure_alert=BlueprintFailureAlertDefaults(
+                enabled=True, after=2, cooldown_seconds=900
+            ),
         ),
         _schedule_builder="time_weekdays",
     ),
@@ -984,6 +1000,49 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="wiki_corpus_dedup",
+        icon="Copy",
+        title={"en": "Wiki Corpus Dedup Scan", "zh": "知识库语料去重扫描"},
+        description={
+            "en": "Scheduled scan for exact, normalized, and near-duplicate raw sources with review queue",
+            "zh": "定时扫描 raw 语料的精确/归一化/近似重复，并写入待审核队列",
+        },
+        prompt_template={
+            "en": (
+                "Wiki corpus dedup job (router mode). The dedup summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when no duplicate groups need review."
+            ),
+            "zh": (
+                "知识库语料去重任务（router 模式）。去重摘要由服务端生成，请原样投递。"
+                "若无待审核重复组则回复 [SILENT]。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="04:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekends",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "dedup", "hygiene", "automation", "second-brain"),
+        sort_order=15,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=600,
+            command="__wiki_dedup__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(
@@ -1021,7 +1080,9 @@ def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str
             and not str(raw).strip()
             and not slot.optional
         ):
-            raise BlueprintFillError(f"missing required value: {slot.name} ({slot.label})")
+            raise BlueprintFillError(
+                f"missing required value: {slot.name} ({slot.label})"
+            )
         if slot.type == "enum" and slot.options and str(raw) not in slot.options:
             raise BlueprintFillError(
                 f"{slot.name}={raw!r} not allowed — one of {', '.join(slot.options)}"
@@ -1058,7 +1119,9 @@ def fill_blueprint(
     if bp.id == "wiki_maintain":
         mode = effective_values.get("mode", "structural")
         if mode not in ("structural", "full"):
-            raise BlueprintFillError(f"mode={mode!r} not allowed — one of structural, full")
+            raise BlueprintFillError(
+                f"mode={mode!r} not allowed — one of structural, full"
+            )
         command = f"__wiki_maintain__:{mode}"
 
     return BlueprintFillResult(
@@ -1161,7 +1224,9 @@ def _normalize_simple_financial_script_values(values: dict[str, str]) -> dict[st
 
     source = values["source"].strip().lower()
     if source not in {"coingecko", "binance"}:
-        raise BlueprintFillError(f"source must be coingecko or binance, got {values['source']!r}")
+        raise BlueprintFillError(
+            f"source must be coingecko or binance, got {values['source']!r}"
+        )
 
     return {
         **values,
@@ -1194,7 +1259,9 @@ def _build_pre_condition_script(
     try:
         return template.format(**fmt_values)
     except KeyError as exc:
-        raise BlueprintFillError(f"blueprint pre-condition script missing value for {exc}") from exc
+        raise BlueprintFillError(
+            f"blueprint pre-condition script missing value for {exc}"
+        ) from exc
 
 
 def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:
@@ -1207,7 +1274,9 @@ def get_blueprints_for_tool_description(locale: str = "en") -> str:
 
     Kept short to avoid bloating the tool schema and harming prompt cache.
     """
-    lines: list[str] = ["Available blueprints (use blueprint param for pre-tuned prompts):"]
+    lines: list[str] = [
+        "Available blueprints (use blueprint param for pre-tuned prompts):"
+    ]
     for bp in BUILTIN_BLUEPRINTS:
         lang = locale if locale in bp.title else "en"
         title = bp.title.get(lang, bp.title.get("en", bp.id))

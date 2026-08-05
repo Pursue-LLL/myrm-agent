@@ -21,10 +21,15 @@ import os
 import socket
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import TypedDict
+from typing import Iterator, TypedDict
 
 _LOGGER = logging.getLogger(__name__)
+
+# Socket read budget = CDP timeout + fair-scheduler queue slack (R298).
+_ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
+_ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC = 210.0
 
 
 def _default_socket_path() -> str:
@@ -85,6 +90,16 @@ class BrowserOrchestratorClient:
         self._socket_path = socket_path or _SOCKET_PATH
         self._timeout_sec = timeout_sec
         self._next_id = 1
+
+    @contextmanager
+    def bounded_request_timeout(self, timeout_sec: float) -> Iterator[None]:
+        """Temporarily cap socket read budget (orphan recovery must not block 180s+)."""
+        prior = self._timeout_sec
+        self._timeout_sec = min(prior, max(5.0, timeout_sec))
+        try:
+            yield
+        finally:
+            self._timeout_sec = prior
 
     def create_session(self, session_id: str) -> SessionResult:
         """Create a new isolated BrowserContext for the given session."""
@@ -169,16 +184,24 @@ class BrowserOrchestratorClient:
     ) -> dict[str, object]:
         """Evaluate JavaScript in an owned page."""
         prior_timeout = self._timeout_sec
+        cdp_sec: float | None = None
         if timeout_sec is not None:
-            self._timeout_sec = timeout_sec
+            cdp_sec = min(max(5.0, timeout_sec), 180.0)
+            self._timeout_sec = min(
+                _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
+                cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC,
+            )
         try:
+            payload: dict[str, object] = {
+                "sessionId": session_id,
+                "targetId": target_id,
+                "expression": expression,
+            }
+            if cdp_sec is not None:
+                payload["timeoutMs"] = int(cdp_sec * 1000)
             result = self._request(
                 "page/evaluate",
-                {
-                    "sessionId": session_id,
-                    "targetId": target_id,
-                    "expression": expression,
-                },
+                payload,
             )
         finally:
             self._timeout_sec = prior_timeout

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -14,6 +13,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat_support import get_e2e_ui_url  # noqa: E402
 from cdp_chat_ui import (  # noqa: E402
     chat_id_from_path,
     chat_user_message_count,
@@ -27,9 +27,12 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 E2E_PROMPT = "只回复 OK"
 TURN_WAIT_SEC = 300.0
+
+
+def _base_url() -> str:
+    return get_e2e_ui_url().rstrip("/")
 
 
 def _extract_chat_id(url: str) -> str | None:
@@ -50,7 +53,7 @@ async def _resolve_chat_id(
         return chat_id
     href = await chat.evaluate(
         f"""(() => {{
-          const base = {json.dumps(BASE_URL)};
+          const base = {json.dumps(_base_url())};
           const links = Array.from(document.querySelectorAll('aside a[href]'))
             .map((anchor) => anchor.href)
             .filter((url) => url.startsWith(base) && !url.endsWith('/') && !url.includes('/settings'));
@@ -62,6 +65,7 @@ async def _resolve_chat_id(
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
@@ -75,7 +79,8 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         )
 
     async def run_chat_flow(chat: McpChatSession) -> int:
-        await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
+        ui_base = _base_url()
+        await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
         log_offset = snapshot_backend_log_offset()
         await chat.send_message(E2E_PROMPT, E2E_PROMPT)
@@ -91,7 +96,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         await chat.wait_input_empty(chat_id_hint=chat_id)
         heartbeat_e2e_lease()
         await chat.send_message(
-            E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=BASE_URL
+            E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=_base_url()
         )
         after_second = await chat.wait_turn_done(
             E2E_PROMPT,
@@ -116,14 +121,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         try:
             page = await asyncio.to_thread(
                 client.new_page,
-                BASE_URL,
+                _base_url(),
                 timeout_ms=120_000,
             )
         except TimeoutError:
             await asyncio.sleep(2.0)
             page = await asyncio.to_thread(
                 client.new_page,
-                BASE_URL,
+                _base_url(),
                 timeout_ms=120_000,
             )
         if page is None:

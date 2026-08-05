@@ -9,7 +9,7 @@
 
 [OUTPUT]
 - apply_second_brain_preset(): create/reuse agent + read-it-later + wiki-morning-delta + wiki-maintain crons, persist checklist state
-- get_second_brain_preset_status(): honest 4-item readiness checklist; clears stale preset when stored agent was deleted
+- get_second_brain_preset_status(): honest 5-item readiness checklist; clears stale preset when stored agent was deleted
 - _apply_success_message(): localized apply toast copy
 - _clear_preset_state(): delete persisted secondBrainPreset config
 
@@ -28,7 +28,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import yaml
-from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType, Schedule, ScheduleKind, SessionTarget
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJobPatch,
+    JobType,
+    Schedule,
+    ScheduleKind,
+    SessionTarget,
+)
 
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
@@ -36,7 +42,11 @@ from app.core.cron.adapters.setup import get_cron_manager
 from app.core.cron.blueprints import fill_blueprint
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.agent_service import AgentService
-from app.services.agent.template_utils import PREBUILT_AGENTS_DIR, ensure_skills_enabled, resolve_i18n
+from app.services.agent.template_utils import (
+    PREBUILT_AGENTS_DIR,
+    ensure_skills_enabled,
+    resolve_i18n,
+)
 from app.services.config.service import config_service
 from app.services.onboarding.schemas import (
     ChecklistItem,
@@ -44,7 +54,10 @@ from app.services.onboarding.schemas import (
     SecondBrainPresetState,
     SecondBrainStatusResponse,
 )
-from app.services.wiki.vault_resolver import seed_agent_vault_from_default, vault_has_wiki_content
+from app.services.wiki.vault_resolver import (
+    seed_agent_vault_from_default,
+    vault_has_wiki_content,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,9 +134,15 @@ async def reconcile_second_brain_cron_ids(id_remaps: dict[str, str]) -> None:
     state = await _load_preset_state()
     if state is None:
         return
-    cron_job_id = id_remaps.get(state.cron_job_id, state.cron_job_id) if state.cron_job_id else None
+    cron_job_id = (
+        id_remaps.get(state.cron_job_id, state.cron_job_id)
+        if state.cron_job_id
+        else None
+    )
     delta_cron_job_id = (
-        id_remaps.get(state.delta_cron_job_id, state.delta_cron_job_id) if state.delta_cron_job_id else None
+        id_remaps.get(state.delta_cron_job_id, state.delta_cron_job_id)
+        if state.delta_cron_job_id
+        else None
     )
     maintain_cron_job_id = (
         id_remaps.get(state.maintain_cron_job_id, state.maintain_cron_job_id)
@@ -148,16 +167,22 @@ async def reconcile_second_brain_cron_ids(id_remaps: dict[str, str]) -> None:
 
 
 async def _run_read_it_later_hygiene() -> None:
-    from app.services.wiki.source_sync.read_it_later_hygiene import migrate_stale_read_it_later_jobs
+    from app.services.wiki.source_sync.read_it_later_hygiene import (
+        migrate_stale_read_it_later_jobs,
+    )
 
     result = await migrate_stale_read_it_later_jobs()
     if result.migrated_count:
-        logger.info("Read-it-later cron hygiene migrated %d job(s)", result.migrated_count)
+        logger.info(
+            "Read-it-later cron hygiene migrated %d job(s)", result.migrated_count
+        )
     await reconcile_second_brain_cron_ids(result.id_remaps)
 
 
 async def _maybe_enable_wiki_gmail_source() -> None:
-    from app.services.wiki.source_sync.defaults import maybe_enable_wiki_gmail_on_google_connect
+    from app.services.wiki.source_sync.defaults import (
+        maybe_enable_wiki_gmail_on_google_connect,
+    )
 
     await maybe_enable_wiki_gmail_on_google_connect(respect_existing_config=False)
 
@@ -165,7 +190,9 @@ async def _maybe_enable_wiki_gmail_source() -> None:
 def _apply_success_message(*, locale: str, vault_files_seeded: int) -> str:
     if vault_files_seeded > 0:
         if locale == "en":
-            return f"Second Brain preset applied; synced {vault_files_seeded} wiki files"
+            return (
+                f"Second Brain preset applied; synced {vault_files_seeded} wiki files"
+            )
         return f"第二大脑预设已应用，已同步 {vault_files_seeded} 个 wiki 文件"
     if locale == "en":
         return "Second Brain preset applied successfully"
@@ -204,14 +231,22 @@ async def _resolve_agent(
         profile = await AgentService.get_agent_by_id(existing_state.agent_id)
         if profile is not None and not profile.built_in:
             if _agent_has_required_tools(profile.tools_allowed):
-                name = profile.display_name or existing_state.agent_name or "Second Brain"
+                name = (
+                    profile.display_name or existing_state.agent_name or "Second Brain"
+                )
                 return profile.id, name, False
             await AgentService.update_agent(
                 profile.id,
-                AgentUpdate(enabled_builtin_tools=list(_REQUIRED_TOOLS | {"web_search", "structured_clarify"})),
+                AgentUpdate(
+                    enabled_builtin_tools=list(
+                        _REQUIRED_TOOLS | {"web_search", "structured_clarify"}
+                    )
+                ),
             )
             updated = await AgentService.get_agent_by_id(profile.id)
-            name = (updated.display_name if updated else profile.display_name) or "Second Brain"
+            name = (
+                updated.display_name if updated else profile.display_name
+            ) or "Second Brain"
             return profile.id, name, False
 
     template_data = _load_template_data()
@@ -231,7 +266,11 @@ async def _resolve_agent(
 
     data = deepcopy(template_data)
     prebuilt_skill_ids_raw = data.pop("prebuilt_skill_ids", [])
-    prebuilt_skill_ids = [str(s) for s in prebuilt_skill_ids_raw] if isinstance(prebuilt_skill_ids_raw, list) else []
+    prebuilt_skill_ids = (
+        [str(s) for s in prebuilt_skill_ids_raw]
+        if isinstance(prebuilt_skill_ids_raw, list)
+        else []
+    )
     await ensure_skills_enabled(prebuilt_skill_ids, _TEMPLATE_ID)
 
     if data.get("name"):
@@ -258,7 +297,9 @@ async def _resolve_agent(
     return created.id, created.display_name or str(data["name"]), True
 
 
-async def _find_preset_cron_job(*, job_name: str, stored_job_id: str | None) -> str | None:
+async def _find_preset_cron_job(
+    *, job_name: str, stored_job_id: str | None
+) -> str | None:
     mgr = get_cron_manager()
     jobs = await mgr.list_jobs(_USER_ID)
     for job in jobs:
@@ -280,13 +321,17 @@ async def _find_read_it_later_cron_job() -> str | None:
 async def _find_wiki_morning_delta_cron_job() -> str | None:
     state = await _load_preset_state()
     stored_id = state.delta_cron_job_id if state else None
-    return await _find_preset_cron_job(job_name=_CRON_DELTA_JOB_NAME, stored_job_id=stored_id)
+    return await _find_preset_cron_job(
+        job_name=_CRON_DELTA_JOB_NAME, stored_job_id=stored_id
+    )
 
 
 async def _find_wiki_maintain_cron_job() -> str | None:
     state = await _load_preset_state()
     stored_id = state.maintain_cron_job_id if state else None
-    return await _find_preset_cron_job(job_name=_CRON_MAINTAIN_JOB_NAME, stored_job_id=stored_id)
+    return await _find_preset_cron_job(
+        job_name=_CRON_MAINTAIN_JOB_NAME, stored_job_id=stored_id
+    )
 
 
 async def _ensure_blueprint_cron(
@@ -314,7 +359,9 @@ async def _ensure_blueprint_cron(
                 await mgr.delete_job(existing_id, _USER_ID)
                 existing_id = None
             elif job.agent_id != agent_id:
-                await mgr.update_job(existing_id, _USER_ID, CronJobPatch(agent_id=agent_id))
+                await mgr.update_job(
+                    existing_id, _USER_ID, CronJobPatch(agent_id=agent_id)
+                )
                 return existing_id, False
             else:
                 return existing_id, False
@@ -343,7 +390,9 @@ async def _ensure_blueprint_cron(
     return job.id, True
 
 
-async def _ensure_read_it_later_cron(*, agent_id: str, locale: str) -> tuple[str | None, bool]:
+async def _ensure_read_it_later_cron(
+    *, agent_id: str, locale: str
+) -> tuple[str | None, bool]:
     return await _ensure_blueprint_cron(
         blueprint_id="read_it_later",
         job_name=_CRON_JOB_NAME,
@@ -354,7 +403,9 @@ async def _ensure_read_it_later_cron(*, agent_id: str, locale: str) -> tuple[str
     )
 
 
-async def _ensure_wiki_morning_delta_cron(*, agent_id: str, locale: str) -> tuple[str | None, bool]:
+async def _ensure_wiki_morning_delta_cron(
+    *, agent_id: str, locale: str
+) -> tuple[str | None, bool]:
     return await _ensure_blueprint_cron(
         blueprint_id="wiki_morning_delta",
         job_name=_CRON_DELTA_JOB_NAME,
@@ -365,7 +416,9 @@ async def _ensure_wiki_morning_delta_cron(*, agent_id: str, locale: str) -> tupl
     )
 
 
-async def _ensure_wiki_maintain_cron(*, agent_id: str, locale: str) -> tuple[str | None, bool]:
+async def _ensure_wiki_maintain_cron(
+    *, agent_id: str, locale: str
+) -> tuple[str | None, bool]:
     return await _ensure_blueprint_cron(
         blueprint_id="wiki_maintain",
         job_name=_CRON_MAINTAIN_JOB_NAME,
@@ -383,12 +436,16 @@ async def _rollback_apply(mutation: _ApplyMutation) -> None:
             try:
                 await mgr.delete_job(cron_job_id, _USER_ID)
             except Exception as exc:
-                logger.warning("Rollback failed to delete cron job %s: %s", cron_job_id, exc)
+                logger.warning(
+                    "Rollback failed to delete cron job %s: %s", cron_job_id, exc
+                )
     if mutation.created_agent_id:
         try:
             await AgentService.delete_agent(mutation.created_agent_id)
         except Exception as exc:
-            logger.warning("Rollback failed to delete agent %s: %s", mutation.created_agent_id, exc)
+            logger.warning(
+                "Rollback failed to delete agent %s: %s", mutation.created_agent_id, exc
+            )
 
 
 async def _build_checklist(
@@ -411,21 +468,29 @@ async def _build_checklist(
         delta_job = await mgr.get_job(delta_cron_job_id, _USER_ID)
         maintain_job = await mgr.get_job(maintain_cron_job_id, _USER_ID)
         cron_ready = (
-            read_later_job is not None and delta_job is not None and maintain_job is not None
+            read_later_job is not None
+            and delta_job is not None
+            and maintain_job is not None
         )
 
     vault_ready = _wiki_has_content(agent_id)
     provider_ready = await _provider_is_ready()
+    from app.services.wiki.dedup_runner import wiki_dedup_checklist_ready
+
+    corpus_dedup_ready = wiki_dedup_checklist_ready(agent_id=agent_id)
 
     return [
         ChecklistItem(id="agent_tools", ready=agent_ready),
         ChecklistItem(id="cron_job", ready=cron_ready),
         ChecklistItem(id="vault_content", ready=vault_ready),
+        ChecklistItem(id="corpus_dedup", ready=corpus_dedup_ready),
         ChecklistItem(id="provider_ready", ready=provider_ready),
     ]
 
 
-async def get_second_brain_preset_status(*, accept_language: str | None = None) -> SecondBrainStatusResponse:
+async def get_second_brain_preset_status(
+    *, accept_language: str | None = None
+) -> SecondBrainStatusResponse:
     await _run_read_it_later_hygiene()
     state = await _load_preset_state()
     if state is None or not state.agent_id:
@@ -482,10 +547,14 @@ async def get_second_brain_preset_status(*, accept_language: str | None = None) 
     )
 
 
-async def apply_second_brain_preset(*, accept_language: str | None = None) -> SecondBrainApplyResponse:
+async def apply_second_brain_preset(
+    *, accept_language: str | None = None
+) -> SecondBrainApplyResponse:
     locale = _normalize_locale(accept_language)
     previous_state = await _load_preset_state()
-    previous_snapshot = deepcopy(previous_state.model_dump(mode="json")) if previous_state else None
+    previous_snapshot = (
+        deepcopy(previous_state.model_dump(mode="json")) if previous_state else None
+    )
     mutation = _ApplyMutation()
 
     try:
@@ -504,23 +573,34 @@ async def apply_second_brain_preset(*, accept_language: str | None = None) -> Se
                 agent_id,
             )
 
-        cron_job_id, cron_created = await _ensure_read_it_later_cron(agent_id=agent_id, locale=locale)
+        cron_job_id, cron_created = await _ensure_read_it_later_cron(
+            agent_id=agent_id, locale=locale
+        )
         if cron_created and cron_job_id:
-            mutation.created_cron_job_ids = (*mutation.created_cron_job_ids, cron_job_id)
+            mutation.created_cron_job_ids = (
+                *mutation.created_cron_job_ids,
+                cron_job_id,
+            )
 
         delta_cron_job_id, delta_cron_created = await _ensure_wiki_morning_delta_cron(
             agent_id=agent_id,
             locale=locale,
         )
         if delta_cron_created and delta_cron_job_id:
-            mutation.created_cron_job_ids = (*mutation.created_cron_job_ids, delta_cron_job_id)
+            mutation.created_cron_job_ids = (
+                *mutation.created_cron_job_ids,
+                delta_cron_job_id,
+            )
 
         maintain_cron_job_id, maintain_cron_created = await _ensure_wiki_maintain_cron(
             agent_id=agent_id,
             locale=locale,
         )
         if maintain_cron_created and maintain_cron_job_id:
-            mutation.created_cron_job_ids = (*mutation.created_cron_job_ids, maintain_cron_job_id)
+            mutation.created_cron_job_ids = (
+                *mutation.created_cron_job_ids,
+                maintain_cron_job_id,
+            )
 
         await _maybe_enable_wiki_gmail_source()
 

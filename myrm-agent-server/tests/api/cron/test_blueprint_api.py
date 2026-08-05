@@ -147,10 +147,13 @@ class TestFillBlueprint:
         data = resp.json()
         assert data["schedule"]["kind"] == "cron"
         assert data["schedule"]["expr"] == "0 6 * * *"
-        assert "read-it-later" in data["prompt"].lower()
+        assert "wiki source sync" in data["prompt"].lower()
+        assert "[silent]" in data["prompt"].lower()
         assert data["name"]
-        assert data["required_capabilities"] == ["net_fetch", "file_read"]
-        assert data["tools_allowed"] == ["file_ops"]
+        assert data["job_type"] == "router"
+        assert data["command"] == "__wiki_source_sync__"
+        assert data["required_capabilities"] == []
+        assert data["tools_allowed"] == []
 
     def test_fill_news_digest_includes_web_defaults(self, client: TestClient) -> None:
         resp = client.post(
@@ -365,7 +368,7 @@ class TestFillBlueprint:
             json={"blueprint_id": "read_it_later", "values": {}, "locale": "fr"},
         )
         assert resp.status_code == 200
-        assert "read-it-later" in resp.json()["prompt"].lower()
+        assert "wiki source sync" in resp.json()["prompt"].lower()
 
     def test_fill_japanese_locale(self, client: TestClient) -> None:
         resp = client.post(

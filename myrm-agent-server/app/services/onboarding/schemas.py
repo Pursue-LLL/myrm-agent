@@ -4,7 +4,7 @@
 - None (self-contained schema definitions)
 
 [OUTPUT]
-- ChecklistItem: 4-item readiness checklist item model
+- ChecklistItem: 5-item readiness checklist item model
 - SecondBrainPresetState: persistent state (agent + read-it-later + wiki-morning-delta + wiki-maintain cron ids)
 - SecondBrainApplyResponse: API response after applying preset
 - SecondBrainStatusResponse: API response for preset status query
@@ -24,7 +24,9 @@ _ORIGIN = "second_brain_preset"
 
 
 class ChecklistItem(BaseModel):
-    id: Literal["agent_tools", "cron_job", "vault_content", "provider_ready"]
+    id: Literal[
+        "agent_tools", "cron_job", "vault_content", "corpus_dedup", "provider_ready"
+    ]
     ready: bool
 
 

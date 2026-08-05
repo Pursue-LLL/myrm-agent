@@ -548,6 +548,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE wiki_evidence_metric_events ADD COLUMN context_key VARCHAR(128)",
     CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL,
     "ALTER TABLE agents ADD COLUMN memory_extraction_preset VARCHAR(32) NOT NULL DEFAULT 'auto'",
+    # V182: forward-fix for baselined DBs that predated session_access_roots at V128 insert.
+    "ALTER TABLE chats ADD COLUMN session_access_roots JSON",
 ]
 
 # 创建索引的SQL语句列表
@@ -882,6 +884,7 @@ INDEX_STATEMENTS = [
     "UPDATE chats SET action_mode = 'agent' WHERE action_mode = 'consensus'",
     "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",
     "ALTER TABLE chats ADD COLUMN compaction_failure_error VARCHAR(500)",
+    "ALTER TABLE chats ADD COLUMN compression_ineffective_streak INTEGER NOT NULL DEFAULT 0",
 ]
 
 

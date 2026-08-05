@@ -139,6 +139,8 @@ E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 240
 E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC: Final[float] = 90.0
 E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
 E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
+# R285: parallel burst SQLite lock + observed seal can exceed 60s; client must wait.
+E2E_TEARDOWN_FINISH_CLIENT_TIMEOUT_SEC: Final[int] = 120
 # Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
 SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # R81: pytest-timeout spans ADMIT+BOOTSTRAP fixtures + BODY (func_only=False); must not
@@ -428,9 +430,7 @@ def e2e_launch_check_wall_sec(*, active_leases: int | None = None) -> float:
         if parsed > 0:
             return parsed
     pressure = (
-        active_leases
-        if active_leases is not None
-        else _parallel_chrome_e2e_pressure()
+        active_leases if active_leases is not None else _parallel_chrome_e2e_pressure()
     )
     if pressure <= 0:
         return E2E_LAUNCH_CHECK_WALL_SOLO_SEC
@@ -786,6 +786,11 @@ def dev_gate_submit_hard_timeout_sec() -> int:
     return admit_wall_clock_sec() + dev_gate_post_admit_hard_timeout_sec()
 
 
+def dev_gate_teardown_finish_client_timeout_sec() -> int:
+    """Socket + subprocess budget for teardown-finish under parallel SQLite contention."""
+    return E2E_TEARDOWN_FINISH_CLIENT_TIMEOUT_SEC
+
+
 def parallel_mux_cold_attach_drain_sec(*, parallel_peers: int | None = None) -> float:
     """Peers-scaled mux cold-attach drain budget (open_mcp_page + infra_retry SSOT).
 
@@ -1080,7 +1085,9 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
         body_cap = float(live_agent_body_wall_cap_sec())
     except ImportError:
         body_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
-    body_frac = max(_OPEN_PAGE_BODY_FRACTION_FLOOR_SEC, body_cap * _OPEN_PAGE_BODY_FRACTION)
+    body_frac = max(
+        _OPEN_PAGE_BODY_FRACTION_FLOOR_SEC, body_cap * _OPEN_PAGE_BODY_FRACTION
+    )
     drain_floor = float(parallel_mux_cold_attach_drain_sec(parallel_peers=peers))
     solo_floor = max(body_frac, drain_floor, float(NODE_STUCK_FAIL_FAST_SEC))
     if peers < 2:
@@ -1129,9 +1136,9 @@ def admit_semantic_node_stall_cap_sec(
             scaled = _scaled_parallel_admit_wait_sec(solo_base=int(base))
             return min(float(SIGNOFF_ATTACH_PARALLEL_CAP_SEC), scaled)
         return min(float(SIGNOFF_ATTACH_PARALLEL_CAP_SEC), base + 60.0)
-    active_leases = _wave_active_lease_count_for_mux()
-    if active_leases >= 2:
-        return min(360.0, base + float(active_leases) * 30.0)
+    pressure = _parallel_chrome_e2e_pressure()
+    if pressure >= 2:
+        return min(480.0, base + float(pressure) * 45.0)
     return base
 
 
@@ -1411,6 +1418,17 @@ E2E_ADMIT_TEST_SH_NODE: Final[str] = "E2E_ADMIT_TEST_SH"
 ADMIT_TEST_SH_STALL_CAP_DEV_SEC: Final[int] = 180
 ADMIT_BATCH_PARENT_STALL_CAP_DEV_SEC: Final[int] = 180
 E2E_ADMIT_NODE_STUCK_TOKEN: Final[str] = "E2E_ADMIT_NODE_STUCK"
+E2E_BOOTSTRAP_CREDIT_HOG_TOKEN: Final[str] = "E2E_BOOTSTRAP_CREDIT_HOG"
+# Process-level cap: bootstrap holder blocks private_credit_queue (node hops reset node_elapsed).
+BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC: Final[int] = 300
+BOOTSTRAP_CREDIT_HOG_NODE_NAMES: Final[frozenset[str]] = frozenset(
+    {
+        "wait_for_state",
+        "wait_for_react_e2e_bridge",
+        "wait_for_shell_layout",
+        "wait_for_shell_ready",
+    }
+)
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 E2E_USER_CLOSED_TAB_TOKEN: Final[str] = "E2E_USER_CLOSED_TAB"

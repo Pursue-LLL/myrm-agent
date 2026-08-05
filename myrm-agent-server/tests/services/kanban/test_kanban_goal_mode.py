@@ -123,10 +123,19 @@ class TestGoalOutcomeMapping:
     @pytest.mark.asyncio
     async def test_complete_goal_maps_to_success(self):
         from myrm_agent_harness.agent.goals.types import GoalStatus
+        from myrm_agent_harness.toolkits.kanban.types import (
+            KANBAN_COMPLETION_INTENT_KEY,
+        )
 
         from app.services.kanban.task_runner import KanbanTaskRunner
 
         mock_store = AsyncMock()
+        fresh_task = _make_task(
+            goal_mode=True,
+            metadata={KANBAN_COMPLETION_INTENT_KEY: True},
+            result="Goal completed",
+        )
+        mock_store.get_task = AsyncMock(return_value=fresh_task)
         runner = KanbanTaskRunner(mock_store)
         task = _make_task(goal_mode=True)
 

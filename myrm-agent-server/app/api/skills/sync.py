@@ -67,8 +67,8 @@ async def export_user_skills() -> StreamingResponse:
             headers={"Content-Disposition": "attachment; filename=myrm_skills_backup_default.zip"},
         )
     except Exception as e:
-        logger.error("Failed to export skills: %s", e)
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}") from e
+        logger.error("Failed to export skills: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Export failed") from e
 
 
 async def _process_import_zip(zip_data: bytes) -> tuple[int, list[str]]:
@@ -165,8 +165,8 @@ async def import_user_skills(
         # Security scan failed or other validation error
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error("Failed to import skills: %s", e)
-        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}") from e
+        logger.error("Failed to import skills: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Import failed") from e
 
     if import_count > 0:
         from app.core.skills.config_version import bump_skill_config_version

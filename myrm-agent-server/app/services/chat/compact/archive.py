@@ -58,5 +58,7 @@ async def get_archived_messages(chat_id: str) -> list[dict[str, object]]:
 
         return unique_messages
     except Exception as exc:
-        logger.warning("Failed to retrieve archived messages for chat %s: %s", chat_id, exc)
+        logger.warning(
+            "Failed to retrieve archived messages for chat %s: %s", chat_id, exc
+        )
         return []

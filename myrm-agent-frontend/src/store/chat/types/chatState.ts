@@ -275,7 +275,7 @@ export interface ChatState {
   // 初始化方法
   loadMessages: (chatId: string) => Promise<void>;
   loadOlderMessages: () => Promise<void>;
-  initializeChat: (id?: string, initialMessage?: string | null) => void;
+  initializeChat: (id?: string, options?: { forceReload?: boolean }) => void;
   scheduleAutoSave: () => void;
 
   // 分页聊天历史管理

@@ -761,9 +761,27 @@ cmd_backend_only_stop() {
 }
 
 cmd_frontend_only_ensure() {
+  local needs_client_hot=0
+  if [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" || "${MYRM_CHROME_E2E_FRONTEND_HEAL:-}" == "1" ]]; then
+    needs_client_hot=1
+  fi
   if _frontend_healthy; then
-    echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT}"
-    exit 0
+    if [[ "${needs_client_hot}" -eq 0 ]] || [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
+      echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT}"
+      exit 0
+    fi
+    echo "STACK_HEAL: frontend HTTP 200 but client_hot=no — clean restart (attach frontend heal)" >&2
+    _frontend_clear_warmth || true
+    if _frontend_heal_stack_write_allowed; then
+      _kill_frontend_supervisor || true
+      _repair_orphan_frontend || true
+      if _try_frontend_start_with_clean_fallback; then
+        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot_heal=clean_retry"
+        exit 0
+      fi
+    fi
+    echo "STACK_FAIL: frontend client_hot heal failed within attach frontend heal" >&2
+    exit 1
   fi
   if _frontend_port_listening; then
     if _wait_frontend_http_200 "${ATTACH_WAIT_SEC}"; then

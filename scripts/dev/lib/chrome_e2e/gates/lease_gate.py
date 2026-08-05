@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -96,6 +97,67 @@ def sync_agent_id_with_lease_owner(owner: str) -> bool:
     return True
 
 
+def _resolve_wave_reap_script() -> Path | None:
+    candidates: list[Path] = []
+    root = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
+    if root:
+        candidates.append(Path(root) / "myrm-agent/scripts/dev/wave.sh")
+    candidates.append(Path(__file__).resolve().parents[3] / "wave.sh")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _try_heal_drifted_wave() -> bool:
+    """Restore drifted/closed formal chrome E2E wave (SSOT: wave_orchestrator.core.reap/open)."""
+    script = _resolve_wave_reap_script()
+    if script is None:
+        return False
+    path = resolve_wave_state_file()
+    try:
+        payload = _load_wave_payload(path)
+    except RuntimeError:
+        return False
+    wave = payload.get("wave")
+    if not isinstance(wave, dict):
+        return False
+    status = str(wave.get("status", "")).strip()
+    if status == "drifted":
+        cmd = ["bash", str(script), "reap"]
+    elif status == "closed":
+        agent = os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
+        cmd = (
+            ["bash", str(script), "open"]
+            if not agent
+            else [
+                "bash",
+                str(script),
+                "--agent",
+                agent,
+                "open",
+            ]
+        )
+    else:
+        return False
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+            env=os.environ.copy(),
+        )
+        return proc.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def _wave_is_open(wave: object) -> bool:
+    return isinstance(wave, dict) and str(wave.get("status", "")).strip() == "open"
+
+
 def assert_orchestrator_lease_allowed(
     *,
     lease_id: str | None = None,
@@ -107,10 +169,18 @@ def assert_orchestrator_lease_allowed(
     path = state_file or resolve_wave_state_file()
     payload = _load_wave_payload(path)
     wave = payload.get("wave")
-    if not isinstance(wave, dict) or str(wave.get("status", "")).strip() != "open":
-        raise RuntimeError(
-            f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: wave is not open ({path})"
-        )
+    if not _wave_is_open(wave):
+        if isinstance(wave, dict) and str(wave.get("status", "")).strip() in {
+            "drifted",
+            "closed",
+        }:
+            _try_heal_drifted_wave()
+            payload = _load_wave_payload(path)
+            wave = payload.get("wave")
+        if not _wave_is_open(wave):
+            raise RuntimeError(
+                f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: wave is not open ({path})"
+            )
     lease = _active_lease(payload, resolved)
     if lease is None:
         raise RuntimeError(

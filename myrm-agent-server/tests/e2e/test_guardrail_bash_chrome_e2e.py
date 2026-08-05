@@ -15,6 +15,7 @@ _LIB = os.path.join(
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
+from guardrail_e2e_ssot import CHROME_E2E_MARKER_KWARGS  # noqa: E402
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
@@ -50,6 +51,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "transport unavailable",
     "recover_mux_transport",
     "recover_mux",
+    "warm_ui_route",
     "chrome-error",
     "PARENT_LEASE_NOT_ACTIVE",
     "E2E_LEASE_INVALID",
@@ -62,6 +64,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "E2E_ORCHESTRATOR_LEASE_DENIED",
     "ORCHESTRATOR_LEASE_DENIED",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
+    "E2E_USER_CLOSED_TAB",
 )
 
 
@@ -96,9 +99,17 @@ def _force_mux_heal_before_retry() -> None:
 
 def _is_transport_retryable(exc: BaseException) -> bool:
     text = str(exc)
-    if "E2E_USER_CLOSED_TAB" in text:
+    if any(marker in text for marker in _TRANSPORT_RETRY_MARKERS):
+        return True
+    if "SHPOIB API binding failed" in text:
         return False
-    return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
+    if "Chat attach did not become ready" in text and "msgCount" in text:
+        return False
+    if "Browser state did not become ready" in text:
+        return False
+    if "empty-probe-payload" in text:
+        return False
+    return False
 
 
 def _messages_from_payload(payload: object) -> list[object]:
@@ -112,6 +123,23 @@ def _messages_from_payload(payload: object) -> list[object]:
         if isinstance(raw_messages, list):
             return raw_messages
     return []
+
+
+def _ensure_private_api_ready(api_url: str, *, timeout_sec: float = 90.0) -> None:
+    """Wait for E2E API before seed/attach; SHPOIB provider gate only on isolated ports."""
+    from cdp_chat_support import (  # type: ignore[import-not-found]
+        wait_e2e_backend_ready,
+        wait_e2e_provider_ready,
+    )
+
+    base = api_url.rstrip("/")
+    if not wait_e2e_backend_ready(api_url=base, timeout_sec=timeout_sec):
+        raise AssertionError(f"E2E backend not healthy: {base}")
+    shared_base = _shared_hot_api_base()
+    if base == shared_base:
+        return
+    if not wait_e2e_provider_ready(api_url=base, timeout_sec=timeout_sec):
+        raise AssertionError(f"SHPOIB provider not ready: {base}")
 
 
 def _seed_fixture(api_url: str, *, variant: str) -> dict[str, str]:
@@ -184,25 +212,110 @@ _PROGRESS_DOM_READY_JS = """(() => {
 })()"""
 
 
+def _ensure_page_on_chat(
+    client: object,
+    page: object,
+    *,
+    page_url: str,
+    chat_id: str,
+    timeout_sec: float = 45.0,
+) -> None:
+    """Re-navigate when mux reclaim left the tab on about:blank."""
+    chat_id_json = json.dumps(chat_id)
+    probe_js = f"""(() => {{
+      const href = window.location.href || '';
+      const onChat = href.includes({chat_id_json}) && href !== 'about:blank';
+      return {{ ready: onChat, href }};
+    }})()"""
+    try:
+        state = wait_for_state(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            probe_js,
+            timeout_sec=min(15.0, timeout_sec),
+        )
+        if state.get("ready") is True:
+            return
+    except AssertionError:
+        pass
+    client.navigate(page, page_url)  # type: ignore[attr-defined]
+    time.sleep(2.0)
+    dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+    state = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        probe_js,
+        timeout_sec=timeout_sec,
+    )
+    assert state.get("ready") is True, json.dumps(state, ensure_ascii=False)
+
+
 def _wait_progress_ui_mounted(
     client: object,
     page: object,
     chat_id: str,
     *,
+    page_url: str,
+    api_url: str,
     timeout_sec: float,
 ) -> None:
     """Wait for ProgressSteps DOM after store category is confirmed."""
-    client.evaluate(  # type: ignore[attr-defined]
+    _ensure_page_on_chat(
+        client,
         page,
-        _attach_chat_probe(chat_id, answer=_FIXTURE_ANSWER),
-        timeout_sec=min(90.0, timeout_sec),
+        page_url=page_url,
+        chat_id=chat_id,
+        timeout_sec=min(15.0, timeout_sec),
     )
-    dom_ready = wait_for_state(
+
+    def _dom_wait(*, budget: float) -> dict[str, object]:
+        return wait_for_state(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            _PROGRESS_DOM_READY_JS,
+            timeout_sec=budget,
+        )
+
+    try:
+        dom_ready = _dom_wait(budget=timeout_sec)
+    except AssertionError:
+        dom_ready = {"ready": False}
+
+    if dom_ready.get("ready") is True:
+        return
+
+    client.navigate(page, page_url)  # type: ignore[attr-defined]
+    time.sleep(2.0)
+    dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+    client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+
+    bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
-        _PROGRESS_DOM_READY_JS,
-        timeout_sec=timeout_sec,
+        timeout_sec=min(90.0, timeout_sec),
+        page_url=page_url,
     )
+    assert bridge_ready.get("ready") is True, json.dumps(
+        bridge_ready, ensure_ascii=False
+    )
+    _ensure_shpoib_api_binding(
+        client,
+        page,
+        api_url.rstrip("/"),
+        timeout_sec=min(45.0, timeout_sec),
+    )
+    attached = _wait_chat_attached(
+        client,
+        page,
+        chat_id,
+        answer=_FIXTURE_ANSWER,
+        timeout_sec=min(_attach_eval_timeout_sec(), timeout_sec),
+        page_url=page_url,
+        api_url=api_url,
+    )
+    assert attached.get("ok") is True, attached
+
+    dom_ready = _dom_wait(budget=timeout_sec)
     assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
 
 
@@ -234,15 +347,27 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
-def _attach_chat_probe(chat_id: str, *, answer: str | None = None) -> str:
+def _chat_surface_ready_js() -> str:
+    return """(() => {
+  const hasMessageEnd = Boolean(document.querySelector('[data-message-end]'));
+  const hasChatInput = Boolean(document.querySelector('[data-chat-input]'));
+  return {
+    ready: hasMessageEnd || hasChatInput,
+    hasMessageEnd,
+    hasChatInput,
+  };
+})()"""
+
+
+def _attach_chat_status_js(chat_id: str, *, answer: str | None = None) -> str:
+    """Sync probe: chat attached and assistant visible (no attachToChat call)."""
     chat_id_json = json.dumps(chat_id)
     answer_json = json.dumps(answer) if answer else "null"
-    return f"""(async () => {{
+    return f"""(() => {{
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.attachToChat) {{
-    return {{ ok: false, err: 'no-bridge' }};
+    return {{ ok: false, ready: false, err: 'no-bridge' }};
   }}
-  await bridge.attachToChat({chat_id_json});
   const snap = bridge.turnSnapshot?.() ?? {{}};
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -252,12 +377,194 @@ def _attach_chat_probe(chat_id: str, *, answer: str | None = None) -> str:
         (m) => m.role === 'assistant' && String(m.content || '').includes(target),
       )
     : msgs.some((m) => m.role === 'assistant');
+  const hasChatSurface = Boolean(
+    document.querySelector('[data-message-end]')
+    || document.querySelector('[data-chat-input]'),
+  );
+  const ok = snap.chatId === {chat_id_json} && hasAssistant && hasChatSurface;
   return {{
-    ok: snap.chatId === {chat_id_json} && hasAssistant,
+    ok,
+    ready: ok,
     snap: {{ ...snap, msgCount: msgs.length }},
     hasAssistant,
+    hasChatSurface,
   }};
 }})()"""
+
+
+def _attach_chat_invoke_js(chat_id: str) -> str:
+    """Short async invoke: attachToChat only (status checked separately)."""
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, ready: false, err: 'no-bridge' }};
+  }}
+  try {{
+    await bridge.attachToChat({chat_id_json});
+    const domDeadline = Date.now() + 30_000;
+    while (Date.now() < domDeadline) {{
+      if (
+        document.querySelector('[data-message-end]')
+        || document.querySelector('[data-chat-input]')
+      ) {{
+        break;
+      }}
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }}
+    const hasChatSurface = Boolean(
+      document.querySelector('[data-message-end]')
+      || document.querySelector('[data-chat-input]'),
+    );
+    return {{ ok: true, ready: hasChatSurface, hasChatSurface }};
+  }} catch (err) {{
+    return {{ ok: false, ready: false, err: String(err) }};
+  }}
+}})()"""
+
+
+def _poll_page_eval(
+    client: object,
+    page: object,
+    expression: str,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """Evaluate once per poll; return last payload without requiring ready=true."""
+    from tests.support.chrome_mcp_e2e import _coerce_evaluate_result  # noqa: PLC0415
+
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {"ready": False}
+    while time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        try:
+            raw = client.evaluate(  # type: ignore[attr-defined]
+                page,
+                expression,
+                timeout_sec=max(5.0, min(30.0, remaining)),
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(0.25)
+            continue
+        last = _coerce_evaluate_result(raw)
+        return last
+    return last
+
+
+def _navigate_attach_retry(
+    client: object,
+    page: object,
+    *,
+    page_url: str,
+    api_url: str,
+    timeout_sec: float,
+) -> None:
+    """One bounded navigate + SHPOIB rebind before final attach failure."""
+    from tests.support.chrome_mcp_e2e import (  # noqa: PLC0415
+        _reapply_shpoib_runtime_after_reload,
+        e2e_runtime_binding,
+    )
+
+    if e2e_runtime_binding() is not None:
+        _reapply_shpoib_runtime_after_reload(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            target_url=page_url,
+            timeout_sec=min(90.0, timeout_sec),
+        )
+        return
+    client.navigate(page, page_url)  # type: ignore[attr-defined]
+    time.sleep(2.0)
+    dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+    client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+    bridge_ready = wait_for_react_e2e_bridge(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        timeout_sec=min(90.0, timeout_sec),
+        page_url=page_url,
+    )
+    assert bridge_ready.get("ready") is True, json.dumps(
+        bridge_ready, ensure_ascii=False
+    )
+    _ensure_shpoib_api_binding(
+        client,
+        page,
+        api_url.rstrip("/"),
+        timeout_sec=min(45.0, timeout_sec),
+    )
+
+
+def _wait_chat_attached(
+    client: object,
+    page: object,
+    chat_id: str,
+    *,
+    answer: str,
+    timeout_sec: float,
+    page_url: str | None = None,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    """Poll sync status; invoke attachToChat in short bursts to avoid CDP hang."""
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {"ready": False}
+    surface_retries = 0
+    while time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        status = _poll_page_eval(
+            client,
+            page,
+            _attach_chat_status_js(chat_id, answer=answer),
+            timeout_sec=min(12.0, remaining),
+        )
+        if status.get("ok") is True:
+            return status
+        last = status
+        if (
+            page_url
+            and status.get("hasAssistant") is True
+            and status.get("hasChatSurface") is not True
+            and surface_retries < 2
+        ):
+            surface_retries += 1
+            _ensure_page_on_chat(
+                client,
+                page,
+                page_url=page_url,
+                chat_id=chat_id,
+                timeout_sec=min(30.0, remaining),
+            )
+        remaining = max(0.0, deadline - time.monotonic())
+        if remaining <= 2.0:
+            break
+        invoke = _poll_page_eval(
+            client,
+            page,
+            _attach_chat_invoke_js(chat_id),
+            timeout_sec=min(20.0, remaining),
+        )
+        if isinstance(invoke, dict) and invoke.get("err"):
+            last = {**last, "invokeErr": invoke.get("err")}
+        time.sleep(0.3)
+    if page_url and api_url:
+        retry_budget = min(90.0, max(60.0, timeout_sec * 0.5))
+        _navigate_attach_retry(
+            client,
+            page,
+            page_url=page_url,
+            api_url=api_url,
+            timeout_sec=retry_budget,
+        )
+        return _wait_chat_attached(
+            client,
+            page,
+            chat_id,
+            answer=answer,
+            timeout_sec=retry_budget,
+        )
+    raise AssertionError(
+        f"Chat attach did not become ready: {json.dumps(last, ensure_ascii=False)}"
+    )
 
 
 def _ensure_fixture_assistant_ready(
@@ -297,10 +604,74 @@ def _ensure_fixture_assistant_ready(
     raise AssertionError(f"guardrail fixture not ready chat={chat_id}: {last_error}")
 
 
+def _shared_hot_api_base() -> str:
+    shared_port = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
+    port = shared_port if shared_port.isdigit() else "8080"
+    return f"http://127.0.0.1:{port}".rstrip("/")
+
+
+def _ensure_shpoib_api_binding(
+    client: object,
+    page: object,
+    api_base: str,
+    *,
+    timeout_sec: float = 45.0,
+) -> None:
+    """Inject and wait for SHPOIB API binding on shared :3000 UI."""
+    from cdp_chat_support import (  # type: ignore[import-not-found]
+        E2E_API_BINDING_PROBE_JS,
+        e2e_api_base_inject_js,
+        e2e_runtime_binding_source,
+        wait_e2e_provider_ready,
+    )
+
+    expected = api_base.rstrip("/")
+    shared_base = _shared_hot_api_base()
+    deadline = time.monotonic() + timeout_sec
+    last_probe: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            E2E_API_BINDING_PROBE_JS,
+            timeout_sec=15.0,
+        )
+        last_probe = raw if isinstance(raw, dict) else {"value": raw}
+        actual = str(last_probe.get("apiBase") or "").rstrip("/")
+        if actual == expected:
+            return
+        should_inject = not actual or expected == shared_base
+        if not should_inject:
+            try:
+                should_inject = wait_e2e_provider_ready(
+                    api_url=expected, timeout_sec=5.0
+                )
+            except (OSError, TimeoutError, RuntimeError, ValueError):
+                should_inject = False
+        if should_inject:
+            source = e2e_runtime_binding_source()
+            if source:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    f"(() => {{{source} return true; }})()",
+                    timeout_sec=15.0,
+                )
+            else:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    e2e_api_base_inject_js(expected),
+                    timeout_sec=15.0,
+                )
+        time.sleep(0.5)
+    raise AssertionError(
+        f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}"
+    )
+
+
 def _assert_variant_ui(
     client: object,
     page: object,
     *,
+    api_url: str,
     chat_id: str,
     variant: str,
     page_url: str,
@@ -325,14 +696,39 @@ def _assert_variant_ui(
         bridge_ready, ensure_ascii=False
     )
 
-    attached = client.evaluate(  # type: ignore[attr-defined]
-        page,
-        _attach_chat_probe(chat_id, answer=_FIXTURE_ANSWER),
-        timeout_sec=_attach_eval_timeout_sec(),
+    _ensure_page_on_chat(
+        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
     )
-    assert isinstance(attached, dict) and attached.get("ok") is True, attached
+
+    _ensure_shpoib_api_binding(
+        client,
+        page,
+        api_url.rstrip("/"),
+        timeout_sec=min(45.0, _attach_eval_timeout_sec()),
+    )
+
+    attached = _wait_chat_attached(
+        client,
+        page,
+        chat_id,
+        answer=_FIXTURE_ANSWER,
+        timeout_sec=_attach_eval_timeout_sec(),
+        page_url=page_url,
+        api_url=api_url,
+    )
+    assert attached.get("ok") is True, attached
 
     dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+
+    surface_state = wait_for_state(
+        client,  # type: ignore[arg-type]
+        page,  # type: ignore[arg-type]
+        _chat_surface_ready_js(),
+        timeout_sec=_attach_eval_timeout_sec(),
+    )
+    assert surface_state.get("ready") is True, json.dumps(
+        surface_state, ensure_ascii=False
+    )
 
     message_ready = wait_for_state(
         client,  # type: ignore[arg-type]
@@ -359,11 +755,19 @@ def _assert_variant_ui(
         client,
         page,
         chat_id,
+        page_url=page_url,
+        api_url=api_url,
         timeout_sec=_progress_dom_timeout_sec(),
     )
 
+    _ensure_page_on_chat(
+        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
+    )
     client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
 
+    _ensure_page_on_chat(
+        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
+    )
     badge_state = wait_for_state(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
@@ -379,27 +783,45 @@ def _assert_variant_ui(
 def _run_single_variant_ui_assertions(
     api_url: str, ui_url: str, *, variant: str, warm_route: bool = True
 ) -> None:
+    _ensure_private_api_ready(api_url)
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
     _ensure_fixture_assistant_ready(api_url, chat_id)
     if warm_route:
         warm_ui_route("/")
-        warm_ui_route(f"/{chat_id}")
 
     target_url = f"{ui_url.rstrip('/')}/{chat_id}"
     with open_mcp_page(target_url, timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
+        bridge_ready = wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=90.0,
+            page_url=target_url,
+        )
+        assert bridge_ready.get("ready") is True, json.dumps(
+            bridge_ready, ensure_ascii=False
+        )
+        _ensure_shpoib_api_binding(
+            client,
+            page,
+            api_url.rstrip("/"),
+            timeout_sec=45.0,
+        )
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         _assert_variant_ui(
-            client, page, chat_id=chat_id, variant=variant, page_url=target_url
+            client,
+            page,
+            api_url=api_url,
+            chat_id=chat_id,
+            variant=variant,
+            page_url=target_url,
         )
 
 
 @pytest.mark.parametrize("variant", _VARIANTS)
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(**CHROME_E2E_MARKER_KWARGS)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

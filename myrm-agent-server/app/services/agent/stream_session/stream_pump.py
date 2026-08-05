@@ -38,7 +38,9 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                 "messageId": session.params.message_id,
                 "step_key": "waiting_for_turn",
                 "status": "waiting",
-                "data": {"message": "Waiting for other agents in the project to finish..."},
+                "data": {
+                    "message": "Waiting for other agents in the project to finish..."
+                },
             }
         ).to_sse_chunk()
         await buffer.append(waiting_msg)
@@ -47,7 +49,12 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         await project_orchestrator.acquire(project_id)
 
         cleared_msg = SSEEnvelope.from_any(
-            {"type": "status", "messageId": session.params.message_id, "step_key": "waiting_for_turn_clear", "status": "success"}
+            {
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "waiting_for_turn_clear",
+                "status": "success",
+            }
         ).to_sse_chunk()
         await buffer.append(cleared_msg)
 
@@ -58,10 +65,14 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                 if not stream_had_error and '"type": "error"' in chunk:
                     stream_had_error = True
                 await buffer.append(chunk)
-                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+                from app.services.agent.streaming_support.multiplexer import (
+                    WorkspaceMultiplexer,
+                )
 
                 await WorkspaceMultiplexer.get().publish(
-                    chat_id=session.request.chat_id, message_id=session.params.message_id, chunk=chunk
+                    chat_id=session.request.chat_id,
+                    message_id=session.params.message_id,
+                    chunk=chunk,
                 )
     except asyncio.CancelledError:
         pass
@@ -87,7 +98,10 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                         session_factory = get_session_factory()
                         async with session_factory() as db:
                             await db.execute(
-                                delete(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
+                                delete(OfflineDurableTask).where(
+                                    OfflineDurableTask.chat_id
+                                    == session.request.chat_id
+                                )
                             )
                             await db.commit()
                             logger.info(
@@ -103,7 +117,9 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
 
             if session.is_long_running_task and not session.cancel_token.is_cancelled:
                 if await session.http_request.is_disconnected():
-                    from app.services.infra.system_notification import SystemNotificationService
+                    from app.services.infra.system_notification import (
+                        SystemNotificationService,
+                    )
 
                     if stream_had_error or session.had_fatal_error:
                         await SystemNotificationService.create_notification(
@@ -117,7 +133,10 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                                 "action_url": f"/{session.request.chat_id}",
                             },
                         )
-                        logger.info("Offline Guardian error notification sent for: %s", session.params.message_id)
+                        logger.info(
+                            "Offline Guardian error notification sent for: %s",
+                            session.params.message_id,
+                        )
                     else:
                         await SystemNotificationService.create_notification(
                             title="Task Completed",
@@ -130,7 +149,10 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                                 "action_url": f"/{session.request.chat_id}",
                             },
                         )
-                        logger.info("Offline Guardian notification sent for: %s", session.params.message_id)
+                        logger.info(
+                            "Offline Guardian notification sent for: %s",
+                            session.params.message_id,
+                        )
         except Exception as e:
             logger.error("Offline Guardian notification error: %s", e)
 
@@ -145,17 +167,24 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
             _delayed_remove(),
             name=f"buffer_cleanup_{session.params.message_id}",
         )
-        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+        task.add_done_callback(
+            lambda t: t.exception() if not t.cancelled() and t.exception() else None
+        )
 
 
-async def launch_buffered_stream(session: AgentStreamSession) -> StreamingResponse | JSONResponse:
+async def launch_buffered_stream(
+    session: AgentStreamSession,
+) -> StreamingResponse | JSONResponse:
     buffer = await session.registry.get_or_create(session.params.message_id)
     asyncio.create_task(pump_to_buffer(session, buffer))
-    
+
     if getattr(session.request, "multiplexed", False):
         from fastapi.responses import JSONResponse
-        return JSONResponse(content={"status": "accepted", "message_id": session.params.message_id})
-        
+
+        return JSONResponse(
+            content={"status": "accepted", "message_id": session.params.message_id}
+        )
+
     return StreamingResponse(
         content=buffer.subscribe(),
         media_type="text/event-stream",

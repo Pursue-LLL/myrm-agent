@@ -15,7 +15,7 @@
  * [POS]
  * App shell dev bridge。在 MessageInput 水合前挂载，供 CDP/MCP E2E 驱动聊天与 Goal 模式（非终端用户功能）。
  */
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
@@ -688,6 +688,24 @@ async function submitAndObserveTurn(
   }
 }
 
+function isE2eChatSurfaceDomReady(requireCompactedSummary = false): boolean {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  const hasSummaryDom = Boolean(
+    document.querySelector('[data-testid="compacted-summary-view"]')
+    || document.querySelector('[data-message-id="compacted-summary-view"]'),
+  );
+  if (requireCompactedSummary) {
+    return hasSummaryDom;
+  }
+  return Boolean(
+    document.querySelector('[data-message-end]')
+    || document.querySelector('[data-chat-input]')
+    || hasSummaryDom,
+  );
+}
+
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) return;
@@ -796,27 +814,89 @@ export default function E2EChatBridge() {
             state.chatId === id && (state.notFound || state.loadError || !state.isMessagesLoaded || state.loading);
           if (needsForcedReload) {
             useChatStore.setState({
-              chatId: '',
               notFound: false,
               loadError: false,
               isMessagesLoaded: false,
               loading: false,
             });
           }
-          useChatStore.getState().initializeChat(id);
+          useChatStore.getState().initializeChat(id, { forceReload: needsForcedReload });
         });
-        const deadline = Date.now() + 60_000;
+        const configuredAttachMs = Number(window.__MYRM_E2E_ATTACH_TIMEOUT_MS__);
+        const attachMs =
+          Number.isFinite(configuredAttachMs) && configuredAttachMs >= 60_000
+            ? configuredAttachMs
+            : 60_000;
+        const deadline = Date.now() + attachMs;
         while (Date.now() < deadline) {
           const state = useChatStore.getState();
           if (state.chatId === id && state.isMessagesLoaded && !state.notFound && !state.loadError && !state.loading) {
+            flushSync(() => {
+              useChatStore.setState({
+                messages: [...state.messages],
+                isMessagesLoaded: true,
+                loading: false,
+                messageAppeared: true,
+              });
+            });
+            window.dispatchEvent(
+              new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
+            );
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
         const finalState = useChatStore.getState();
+        if (
+          finalState.chatId === id
+          && finalState.isMessagesLoaded
+          && !finalState.notFound
+          && !finalState.loadError
+          && !finalState.loading
+        ) {
+          window.dispatchEvent(
+            new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
+          );
+          return;
+        }
         throw new Error(
           `attach-timeout chatId=${finalState.chatId} notFound=${finalState.notFound} loadError=${finalState.loadError} loaded=${finalState.isMessagesLoaded}`,
         );
+      },
+      pokeChatRouteRender: (chatId: string) => {
+        const id = chatId.trim();
+        if (!id) {
+          return { ok: false, err: 'empty-chat-id' };
+        }
+        flushSync(() => {
+          const state = useChatStore.getState();
+          useChatStore.setState({
+            chatId: id,
+            isMessagesLoaded: true,
+            loading: false,
+            messageAppeared: true,
+            notFound: false,
+            loadError: false,
+            messages: Array.isArray(state.messages) ? [...state.messages] : [],
+          });
+        });
+        window.dispatchEvent(
+          new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
+        );
+        const next = useChatStore.getState();
+        const routeReady =
+          next.chatId === id
+          && next.isMessagesLoaded
+          && (next.messages.length > 0 || Boolean(next.compactedSummary?.trim()));
+        return {
+          ok: true,
+          routeReady,
+          msgCount: next.messages.length,
+          hasSkeleton: Boolean(
+            typeof document !== 'undefined'
+            && document.querySelector('[data-testid="message-list-skeleton"]'),
+          ),
+        };
       },
       recoverHitlStream: async (chatId: string) => {
         const id = chatId.trim();

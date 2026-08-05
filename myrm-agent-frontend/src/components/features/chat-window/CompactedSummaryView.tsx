@@ -318,7 +318,6 @@ export const CompactedSummaryView = () => {
 
       <div
         ref={summaryViewRef}
-        data-testid="compacted-summary-view"
         className="w-full relative group rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm transition-all hover:border-primary/40"
       >
         <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">

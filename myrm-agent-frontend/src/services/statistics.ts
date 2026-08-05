@@ -348,6 +348,7 @@ export interface TraceLLMCall {
 
 export interface TraceMemoryEvent {
   id: string;
+  kind?: string;
   phase: string;
   status: string;
   timestamp: number;
@@ -356,6 +357,7 @@ export interface TraceMemoryEvent {
   target_kind: string | null;
   target_id: string | null;
   influence_count: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface TraceError {

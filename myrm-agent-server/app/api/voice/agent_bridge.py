@@ -243,9 +243,13 @@ class VoiceAgentBridge:
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
             configs.providers_dict
         )
-        vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-            configs.providers_dict,
-            main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
+        vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+            resolve_vision_fallback_chain_for_agent(
+                configs.providers_dict,
+                main_model_cfg=(
+                    agent_model_cfg if agent_model_cfg.supports_vision else None
+                ),
+            )
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
@@ -285,6 +289,7 @@ class VoiceAgentBridge:
         memory_settings = configs.personal_settings_dict or {}
 
         from app.api.voice.voice_memory_context import voice_memory_context_from
+        from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             resolve_builtin_tool_flags,
@@ -343,6 +348,10 @@ class VoiceAgentBridge:
             subagent_ids=subagent_ids,
             agent_security_raw=agent_security_raw,
             channel_name="voice_bridge",
+            locale=resolve_agent_params_locale(
+                personal_settings=memory_settings,
+                channel="voice_bridge",
+            ),
             providers_dict=configs.providers_dict,
         )
 

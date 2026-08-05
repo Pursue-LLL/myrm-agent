@@ -17,9 +17,11 @@ seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文�
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
 
 [POS]
-Chats API 本地测试 fixture。为 Wiki citation / Kanban closure Chrome E2E 提供可重复、无 LLM 的 DB 与 workspace 种子数据。
+Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup review Chrome E2E 提供可重复、无 LLM 的种子数据。
 RevertFiles fixture 见 test_fixtures_revert.py。
 clarify refresh / file_edit batch / UECD evicted seed 见子模块 test_fixtures_*（子路由挂载）。
+seed_guardrail_bash_fixture: 见 test_fixtures_guardrail_bash.py（Chrome guardrail bash Badge E2E）
+seed_wiki_dedup_fixture: 见 test_fixtures_wiki_dedup.py（duplicate raw + sync scan · Wiki Duplicate Review Chrome E2E）
 """
 
 from __future__ import annotations
@@ -54,8 +56,12 @@ from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_rou
 from .test_fixtures_file_mutation import router as file_mutation_fixture_router
 from .test_fixtures_workspace_merge import router as workspace_merge_fixture_router
 from .test_fixtures_guardrail_bash import router as guardrail_bash_fixture_router
+from .test_fixtures_wiki_dedup import router as wiki_dedup_fixture_router
 from .test_fixtures_revert import router as revert_fixture_router
-from .test_fixtures_stream_retry_busy import router as stream_retry_busy_fixture_router
+from .test_fixtures_stream_retry_busy import (
+    router as stream_retry_busy_fixture_router,
+)
+from .test_fixtures_memory_lifecycle import router as memory_lifecycle_fixture_router
 
 router = APIRouter()
 
@@ -374,4 +380,6 @@ router.include_router(revert_fixture_router)
 router.include_router(stream_retry_busy_fixture_router)
 router.include_router(allowed_tools_recovery_fixture_router)
 router.include_router(guardrail_bash_fixture_router)
+router.include_router(wiki_dedup_fixture_router)
 router.include_router(context_retention_fixture_router)
+router.include_router(memory_lifecycle_fixture_router)

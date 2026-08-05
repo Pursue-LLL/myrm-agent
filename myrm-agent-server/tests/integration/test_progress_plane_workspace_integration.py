@@ -5,14 +5,21 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
+from myrm_agent_harness.agent.meta_tools.progress.schemas import (
+    TodoItem,
+    TodoStatus,
+    TodoStore,
+)
 from myrm_agent_harness.agent.meta_tools.progress.storage import (
     read_todos_sync_from_workspace,
     workspace_todos_exist,
     write_todos_sync_to_workspace,
 )
-from myrm_agent_harness.agent.middlewares.completion_guard import _build_checklist
-from myrm_agent_harness.agent.security.guards.loop_guard_types import CallRecord, SuccessLevel
+from myrm_agent_harness.agent.middlewares.completion import build_checklist
+from myrm_agent_harness.agent.security.guards.loop_guard_types import (
+    CallRecord,
+    SuccessLevel,
+)
 from myrm_agent_harness.core.security.tool_registry import TOOL_GROUP_MAP
 
 from app.services.agent.profile_resolver import resolve_builtin_tool_flags
@@ -68,7 +75,7 @@ def test_todos_write_matches_guard_read_path(tmp_path: Path) -> None:
             success_level=SuccessLevel.FULL_SUCCESS,
         )
     ]
-    checklist, has_critical = _build_checklist(records, workspace_root=str(workspace))
+    checklist, has_critical = build_checklist(records, workspace_root=str(workspace))
     assert has_critical
     assert "incomplete todos" in checklist
 
@@ -82,6 +89,6 @@ def test_completed_todos_do_not_block_guard(tmp_path: Path) -> None:
     )
     write_todos_sync_to_workspace(str(workspace), store)
 
-    checklist, has_critical = _build_checklist([], workspace_root=str(workspace))
+    checklist, has_critical = build_checklist([], workspace_root=str(workspace))
     assert not has_critical
     assert "incomplete todos" not in checklist

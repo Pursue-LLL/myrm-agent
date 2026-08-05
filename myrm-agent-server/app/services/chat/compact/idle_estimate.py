@@ -56,7 +56,9 @@ async def estimate_compactable_context_tokens(
     if not db_messages:
         return 0, 0
 
-    return estimate_messages_tokens(db_messages_to_langchain(db_messages)), len(db_messages)
+    return estimate_messages_tokens(db_messages_to_langchain(db_messages)), len(
+        db_messages
+    )
 
 
 async def estimate_idle_compact_request_tokens(
@@ -66,7 +68,9 @@ async def estimate_idle_compact_request_tokens(
     agent_id: str | None = None,
 ) -> tuple[int, int]:
     """Estimate request-level tokens for idle gate floor (summary + messages + agent overhead)."""
-    message_tokens, message_count = await estimate_compactable_context_tokens(db, chat_id)
+    message_tokens, message_count = await estimate_compactable_context_tokens(
+        db, chat_id
+    )
     summary_tokens = 0
     chat = await load_chat(db, chat_id)
     if chat is not None and chat.compacted_summary:
@@ -86,7 +90,9 @@ async def estimate_idle_compact_request_overhead(agent_id: str | None) -> int:
     if resolved.system_prompt:
         overhead += get_token_count(resolved.system_prompt)
     tool_count = len(resolved.enabled_builtin_tools)
-    overhead += min(tool_count * TOOL_OVERHEAD_TOKENS_PER_BUILTIN, MAX_TOOL_OVERHEAD_TOKENS)
+    overhead += min(
+        tool_count * TOOL_OVERHEAD_TOKENS_PER_BUILTIN, MAX_TOOL_OVERHEAD_TOKENS
+    )
     overhead += min(len(resolved.mcp_ids) * 600, 12_000)
     return overhead
 

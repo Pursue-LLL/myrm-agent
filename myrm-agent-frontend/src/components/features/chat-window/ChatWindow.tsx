@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, memo, useRef, useCallback, useState } from 'react';
+import { useEffect, useLayoutEffect, memo, useRef, useCallback, useState, useSyncExternalStore } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import EmptyChat from './EmptyChat';
@@ -25,6 +25,7 @@ import YoloModeBanner from './YoloModeBanner';
 import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
+import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 import ChatWindowSatellites, {
   GoalControlPlane,
   GoalStatusCard,
@@ -45,11 +46,7 @@ import useApprovalStore from '@/store/useApprovalStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
-
-const Chat = dynamic(() => import('./Chat'), {
-  ssr: false,
-  loading: () => <MessageListSkeleton />,
-});
+import Chat from './Chat';
 
 const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
   ssr: false,
@@ -82,6 +79,34 @@ interface ChatWindowProps {
   id?: string;
 }
 
+function isChatRouteHydratedForId(chatId: string | undefined): boolean {
+  if (!chatId) {
+    return false;
+  }
+  const state = useChatStore.getState();
+  return (
+    state.chatId === chatId
+    && state.isMessagesLoaded
+    && (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
+  );
+}
+
+function subscribeChatRouteHydrated(chatId: string | undefined, onStoreChange: () => void): () => void {
+  if (!chatId) {
+    return () => {};
+  }
+  return useChatStore.subscribe((state, prevState) => {
+    const nextReady = isChatRouteHydratedForId(chatId);
+    const prevReady =
+      prevState.chatId === chatId
+      && prevState.isMessagesLoaded
+      && (prevState.messages.length > 0 || Boolean(prevState.compactedSummary?.trim()));
+    if (nextReady !== prevReady) {
+      onStoreChange();
+    }
+  });
+}
+
 const ChatWindow = ({ id }: ChatWindowProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -99,6 +124,37 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [advisorQuestion, setAdvisorQuestion] = useState('');
   const [advisorSelection, setAdvisorSelection] = useState<string | undefined>();
+  const [routeHydrationEpoch, setRouteHydrationEpoch] = useState(0);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    return useChatStore.subscribe((state) => {
+      if (
+        state.chatId === id
+        && state.isMessagesLoaded
+        && (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
+      ) {
+        setRouteHydrationEpoch((epoch) => epoch + 1);
+      }
+    });
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ chatId?: string }>).detail;
+      if (detail?.chatId !== id) {
+        return;
+      }
+      setRouteHydrationEpoch((epoch) => epoch + 1);
+    };
+    window.addEventListener('myrm-e2e-chat-route-hydrated', handler);
+    return () => window.removeEventListener('myrm-e2e-chat-route-hydrated', handler);
+  }, [id]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -113,6 +169,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   const {
     messages,
+    compactedSummary,
+    chatId: storeChatId,
     loading,
     messageAppeared,
     notFound,
@@ -127,6 +185,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   } = useChatStore(
     useShallow((state) => ({
       messages: state.messages,
+      compactedSummary: state.compactedSummary,
+      chatId: state.chatId,
       loading: state.loading,
       messageAppeared: state.messageAppeared,
       notFound: state.notFound,
@@ -140,6 +200,49 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       agentConfig: state.agentConfig,
     })),
   );
+
+  const chatRouteHydratedFromSelector =
+    Boolean(id)
+    && storeChatId === id
+    && isMessagesLoaded
+    && (messages.length > 0 || Boolean(compactedSummary?.trim()));
+
+  const chatRouteHydratedDirect = Boolean(id) && isChatRouteHydratedForId(id);
+
+  const chatRouteHydratedSync = useSyncExternalStore(
+    (onStoreChange) => subscribeChatRouteHydrated(id, onStoreChange),
+    () => isChatRouteHydratedForId(id),
+    () => false,
+  );
+
+  const storeMessageCountDirect =
+    id && useChatStore.getState().chatId === id
+      ? useChatStore.getState().messages.length
+      : 0;
+
+  const storeMessageCountSync = useSyncExternalStore(
+    (onStoreChange) => useChatStore.subscribe(onStoreChange),
+    () => (id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0),
+    () => 0,
+  );
+
+  const storeMessagesDirect =
+    id && useChatStore.getState().chatId === id
+      ? useChatStore.getState().messages
+      : [];
+
+  const chatMessagesForRender =
+    messages.length > 0 ? messages : storeMessagesDirect;
+
+  const chatRouteHydrated =
+    chatRouteHydratedFromSelector || chatRouteHydratedSync || chatRouteHydratedDirect;
+  const storeMessageCount = Math.max(storeMessageCountSync, storeMessageCountDirect);
+  void routeHydrationEpoch;
+
+  const hasChatContent =
+    messages.length > 0
+    || (Boolean(compactedSummary?.trim()) && Boolean(id) && isMessagesLoaded)
+    || chatRouteHydrated;
 
   const initConfig = useConfigStore((state) => state.initConfig);
   const mcpConfigs = useConfigStore((state) => state.mcpConfigs);
@@ -433,19 +536,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     }
   }, [pendingMemories, openConfirmDialog]);
 
-  if (!isMessagesLoaded && id) {
-    return (
-      <>
-        <ChatWindowSatellites
-          chatId={id}
-          onInspectorInstruction={handleInspectorInstruction}
-          onDesktopInspectorInstruction={handleDesktopInspectorInstruction}
-        />
-        <MessageListSkeleton />
-      </>
-    );
-  }
-
   if (notFound) {
     return <NextError statusCode={404} />;
   }
@@ -454,7 +544,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     return <ErrorView message={commonT('connectionFailed')} />;
   }
 
-  if (messages.length > 0) {
+  const showChatRouteLayout = Boolean(id) || hasChatContent;
+
+  if (showChatRouteLayout) {
     return (
       <>
         {/* CLI Agent 权限对话框 */}
@@ -480,6 +572,11 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <EStopBanner />
             <ExtensionDisconnectedBanner />
             <ExtensionTakeoverBanner />
+            <MemoryRecallDegradedBanner
+              compact
+              dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}
+              className="mx-1 mb-1"
+            />
 
             {/* 待审批记忆徽章 */}
             <PendingMemoryBadge
@@ -487,9 +584,27 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               className="fixed top-3 right-14 z-40 max-sm:top-2 max-sm:right-12"
             />
 
-            {/* 聊天内容 */}
-            <div className="flex-1 min-h-0">
-              <Chat loading={loading} messageAppeared={messageAppeared} />
+            {/* 聊天内容：路由 hydrate 前 skeleton 覆盖，Chat 始终挂载以便 store 更新后立即渲染消息 */}
+            <div className="relative flex-1 min-h-0">
+              {id && !chatRouteHydrated ? (
+                <div className="absolute inset-0 z-10 bg-background">
+                  <MessageListSkeleton />
+                </div>
+              ) : null}
+              <div
+                className="flex h-full min-h-0"
+                key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
+              >
+                <Chat
+                  loading={loading}
+                  messageAppeared={messageAppeared}
+                  messagesOverride={
+                    chatMessagesForRender.length > messages.length
+                      ? chatMessagesForRender
+                      : undefined
+                  }
+                />
+              </div>
             </div>
           </div>
 
@@ -532,6 +647,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <EStopBanner />
       <ExtensionDisconnectedBanner />
       <ExtensionTakeoverBanner />
+      <MemoryRecallDegradedBanner compact className="mx-2 mt-2" />
       <div className="flex h-full w-full">
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />

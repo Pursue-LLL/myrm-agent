@@ -72,7 +72,7 @@ async def create_backup(
         logger.exception("Backup creation failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Backup creation failed: {e!s}",
+            detail="Backup creation failed",
         ) from e
 
 
@@ -107,7 +107,7 @@ async def list_backups(
         logger.exception("Failed to list backups: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list backups: {e!s}",
+            detail="Failed to list backups",
         ) from e
 
 
@@ -142,7 +142,7 @@ async def restore_backup(
         logger.exception("Backup restoration failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Backup restoration failed: {e!s}",
+            detail="Backup restoration failed",
         ) from e
 
 
@@ -179,5 +179,5 @@ async def delete_backup(
         logger.exception("Backup deletion failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Backup deletion failed: {e!s}",
+            detail="Backup deletion failed",
         ) from e

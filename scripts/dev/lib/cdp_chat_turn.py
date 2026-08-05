@@ -444,23 +444,37 @@ class CdpChatTurn(CdpChatSubmit):
                       if (!bridge?.attachToChat) {{
                         return {{ ok: false, err: 'no attachToChat' }};
                       }}
-                      return Promise.resolve(bridge.attachToChat({payload})).then(() => ({{ ok: true }}));
+                      return Promise.resolve(bridge.attachToChat({payload}))
+                        .then(() => ({{ ok: true }}))
+                        .catch((err) => ({{ ok: false, err: String(err) }}));
                     }})()""",
                     await_promise=True,
                     recv_timeout=attach_recv_timeout,
                 )
             except RuntimeError as exc:
                 message = str(exc)
-                if "e2e-private-backend-not-ready" in message and attempt < 11:
+                if attempt < 11 and (
+                    "e2e-private-backend-not-ready" in message
+                    or "attach-timeout" in message
+                ):
+                    if "attach-timeout" in message:
+                        await self.navigate_to_chat(
+                            chat_id, ui_base, timeout_sec=90.0
+                        )
                     await asyncio.sleep(2.0 + attempt)
                     continue
                 raise
             last = result
             if isinstance(result, dict) and result.get("ok"):
                 return
+            err_text = str(result.get("err") or "") if isinstance(result, dict) else ""
             if isinstance(result, dict) and result.get("err") == "no attachToChat":
                 await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
                 await asyncio.sleep(1.0)
+                continue
+            if "attach-timeout" in err_text and attempt < 11:
+                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                await asyncio.sleep(2.0 + attempt)
                 continue
             await asyncio.sleep(1.0 + attempt)
         raise RuntimeError(f"E2E bridge attachToChat failed: {last}")

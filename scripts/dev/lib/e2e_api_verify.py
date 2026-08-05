@@ -710,10 +710,25 @@ def _compute_next_action(
                 if not cluster_fail_fast_suppressed_for_active_test(row):
                     return "FAIL_FAST"
     if headroom.get("parallelQueueExpected") is True:
-        return "QUEUE"
+        reasons = headroom.get("queueReasons", [])
+        reason_list = (
+            [str(item) for item in reasons] if isinstance(reasons, list) else []
+        )
+        # R289: private_credit_queue is PRIVATE session-layer only — must not
+        # downgrade cluster next_action to QUEUE for SHARED launches.
+        operation_queue = [
+            item for item in reason_list if item != "private_credit_queue"
+        ]
+        if operation_queue or mux_fields.get("muxColdAttachSaturated") is True:
+            return "QUEUE"
     if ctx.blocked and admit_active > 0:
         # R284: epoch-aligned SHARED must launch while peers ADMIT — not heal-wait 900s.
-        if ctx.epoch_match and str(getattr(ctx, "verify_api_base", "") or ctx.shared_api_base or "").strip():
+        if (
+            ctx.epoch_match
+            and str(
+                getattr(ctx, "verify_api_base", "") or ctx.shared_api_base or ""
+            ).strip()
+        ):
             return "PARALLEL_OK" if active_tests else "READY"
         return "ADMIT_STACK_HEAL_WAIT"
     if ctx.blocked and not ctx.epoch_match:

@@ -519,10 +519,10 @@ async def remove_allowlist_entry(permission: str) -> dict[str, object]:
         logger.info(f"Removed from allowlist: permission={permission}, user={LOCAL_USER_ID}")
         return {"success": True, "message": f"Rule for {permission} removed"}
     except Exception as e:
-        logger.error(f"Failed to remove from allowlist: {e}", exc_info=True)
+        logger.error("Failed to remove from allowlist: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to remove allowlist entry: {str(e)}",
+            detail="Failed to remove allowlist entry",
         ) from e
 
 

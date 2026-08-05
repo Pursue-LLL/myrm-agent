@@ -16,6 +16,8 @@ import hashlib
 import json
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     from app.ai_agents.general_agent.agent import GeneralAgent
 
@@ -30,7 +32,7 @@ def _stable_json(value: object) -> object:
         }
     if isinstance(value, (list, tuple)):
         return [_stable_json(v) for v in value]
-    if hasattr(value, "model_dump"):
+    if isinstance(value, BaseModel):
         dumped = value.model_dump(mode="json")
         return _stable_json(dumped)
     return str(value)
@@ -39,7 +41,7 @@ def _stable_json(value: object) -> object:
 def _serialize_mcp_configs(agent_wrapper: GeneralAgent) -> list[dict[str, object]]:
     configs: list[dict[str, object]] = []
     for cfg in agent_wrapper.mcp_config or []:
-        if hasattr(cfg, "model_dump"):
+        if isinstance(cfg, BaseModel):
             dumped = cfg.model_dump(mode="json")
             if isinstance(dumped, dict):
                 configs.append(

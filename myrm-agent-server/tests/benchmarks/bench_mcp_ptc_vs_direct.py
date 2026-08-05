@@ -6,7 +6,7 @@
 
 前置条件:
     - .env.test 配置 BASIC_*（可选 LITE_*）；禁止在仓库内硬编码 API Key
-    - uvx 可用 (用于 stdio MCP)
+    - Node ``12306-mcp`` 可用（推荐 ``npm install -g 12306-mcp``；Python uvx 包与 MCP SDK 2.x 不兼容）
     - 网络可达 LLM API
 """
 
@@ -25,7 +25,27 @@ sys.path.insert(0, str(_SERVER_ROOT))
 
 
 _UVX_PATH = os.environ.get("UVX_PATH") or shutil.which("uvx") or "uvx"
+_NODE_PATH = os.environ.get("NODE_PATH") or shutil.which("node") or "node"
 QUERY = "查询明天从北京到上海的高铁车票"
+
+
+def _resolve_12306_mcp_stdio() -> tuple[str, list[str]]:
+    """Prefer global ``12306-mcp`` bin; Python ``mcp-server-12306`` is broken on MCP SDK 2.x."""
+    global_bin = shutil.which("12306-mcp")
+    if global_bin:
+        return global_bin, []
+    node = shutil.which("node")
+    if node:
+        candidate = (
+            Path(node).resolve().parent.parent
+            / "lib/node_modules/12306-mcp/build/index.js"
+        )
+        if candidate.is_file():
+            return node, [str(candidate)]
+    npx_cmd = shutil.which("npx")
+    if npx_cmd:
+        return npx_cmd, ["-y", "12306-mcp"]
+    return _UVX_PATH, ["mcp-server-12306"]
 
 
 RUNS_PER_MODEL = 3
@@ -55,7 +75,9 @@ def _load_model_configs() -> list[dict[str, str]]:
             }
         )
     if not configs:
-        raise RuntimeError("No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL (and optionally LITE_*).")
+        raise RuntimeError(
+            "No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL (and optionally LITE_*)."
+        )
     return configs
 
 
@@ -73,7 +95,10 @@ async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
     uvx_cmd = _resolve_uvx()
-    client = MultiServerMCPClient({"12306": {"command": uvx_cmd, "args": ["mcp-server-12306"], "transport": "stdio"}})
+    mcp_cmd, mcp_args = _resolve_12306_mcp_stdio()
+    client = MultiServerMCPClient(
+        {"12306": {"command": mcp_cmd, "args": mcp_args, "transport": "stdio"}}
+    )
     tools = await client.get_tools()
 
     tool_defs = []
@@ -101,7 +126,11 @@ async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
 
 
 def _llm_call(
-    api_key: str, base_url: str, model: str, messages: list[dict[str, object]], tools: list[dict[str, object]] | None = None
+    api_key: str,
+    base_url: str,
+    model: str,
+    messages: list[dict[str, object]],
+    tools: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     import httpx
 
@@ -124,7 +153,12 @@ def _llm_call(
 
 
 async def bench_direct(
-    api_key: str, base_url: str, model: str, tools: list[object], tool_defs: list[dict[str, object]], schema_tokens: int
+    api_key: str,
+    base_url: str,
+    model: str,
+    tools: list[object],
+    tool_defs: list[dict[str, object]],
+    schema_tokens: int,
 ) -> dict[str, object]:
     """直连模式基准测试"""
     messages: list[dict[str, object]] = [{"role": "user", "content": QUERY}]
@@ -156,12 +190,24 @@ async def bench_direct(
             args = json.loads(tc["function"]["arguments"])
             target = next((t for t in tools if t.name == fn), None)
             if not target:
-                messages.append({"role": "tool", "tool_call_id": tc["id"], "content": f"Error: {fn} not found"})
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": f"Error: {fn} not found",
+                    }
+                )
                 continue
             t1 = time.monotonic()
             result = await target.ainvoke(args)
             total_exec += time.monotonic() - t1
-            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": str(result)[:1000]})
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": str(result)[:1000],
+                }
+            )
 
     return {
         "rounds": rnd,
@@ -170,7 +216,10 @@ async def bench_direct(
         "mcp_time": total_exec,
         "total_input": sum(u.get("prompt_tokens", 0) for u in all_usages),
         "total_output": sum(u.get("completion_tokens", 0) for u in all_usages),
-        "cached": sum(u.get("prompt_tokens_details", {}).get("cached_tokens", 0) for u in all_usages),
+        "cached": sum(
+            u.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            for u in all_usages
+        ),
         "schema_per_round": schema_tokens,
     }
 
@@ -186,7 +235,10 @@ async def bench_ptc(api_key: str, base_url: str, model: str) -> dict[str, object
                 "parameters": {
                     "type": "object",
                     "required": ["skill_names", "reason"],
-                    "properties": {"skill_names": {"type": "array", "items": {"type": "string"}}, "reason": {"type": "string"}},
+                    "properties": {
+                        "skill_names": {"type": "array", "items": {"type": "string"}},
+                        "reason": {"type": "string"},
+                    },
                 },
             },
         },
@@ -195,7 +247,11 @@ async def bench_ptc(api_key: str, base_url: str, model: str) -> dict[str, object
             "function": {
                 "name": "file_read_tool",
                 "description": "Read file. Path: /mcp/{skill_name}/{function_name}.md",
-                "parameters": {"type": "object", "required": ["file_path"], "properties": {"file_path": {"type": "string"}}},
+                "parameters": {
+                    "type": "object",
+                    "required": ["file_path"],
+                    "properties": {"file_path": {"type": "string"}},
+                },
             },
         },
         {
@@ -203,7 +259,11 @@ async def bench_ptc(api_key: str, base_url: str, model: str) -> dict[str, object
             "function": {
                 "name": "bash_code_execute_tool",
                 "description": "Execute Python code. Use 'from skills.xxx import func' for MCP.",
-                "parameters": {"type": "object", "required": ["code"], "properties": {"code": {"type": "string"}}},
+                "parameters": {
+                    "type": "object",
+                    "required": ["code"],
+                    "properties": {"code": {"type": "string"}},
+                },
             },
         },
     ]
@@ -242,7 +302,11 @@ G5 北京南-上海虹桥 08:00-12:32 4h32m 二等座¥553 有票
 G7 北京南-上海虹桥 09:00-13:28 4h28m 二等座¥553 有票
 G9 北京南-上海虹桥 10:00-14:32 4h32m 二等座¥553 有票"""
 
-    mock_responses = {"skill_select_tool": skill_md, "file_read_tool": tool_doc, "bash_code_execute_tool": bash_result}
+    mock_responses = {
+        "skill_select_tool": skill_md,
+        "file_read_tool": tool_doc,
+        "bash_code_execute_tool": bash_result,
+    }
 
     messages: list[dict[str, object]] = [{"role": "user", "content": QUERY}]
     all_usages: list[dict[str, object]] = []
@@ -270,7 +334,13 @@ G9 北京南-上海虹桥 10:00-14:32 4h32m 二等座¥553 有票"""
         for tc in tcs:
             fn = tc["function"]["name"]
             content = mock_responses.get(fn, "[ok]")
-            messages.append({"role": "tool", "tool_call_id": tc.get("id", f"tc{rnd}"), "content": content})
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.get("id", f"tc{rnd}"),
+                    "content": content,
+                }
+            )
 
     return {
         "rounds": rnd,
@@ -279,7 +349,10 @@ G9 北京南-上海虹桥 10:00-14:32 4h32m 二等座¥553 有票"""
         "mcp_time": 0,
         "total_input": sum(u.get("prompt_tokens", 0) for u in all_usages),
         "total_output": sum(u.get("completion_tokens", 0) for u in all_usages),
-        "cached": sum(u.get("prompt_tokens_details", {}).get("cached_tokens", 0) for u in all_usages),
+        "cached": sum(
+            u.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            for u in all_usages
+        ),
         "schema_per_round": schema_tokens,
     }
 
@@ -316,7 +389,9 @@ async def main() -> None:
             try:
                 # 每次新建 MCP 连接以模拟真实场景
                 fresh_tools, fresh_defs, fresh_schema = await _get_mcp_tools()
-                d = await bench_direct(api_key, base_url, model, fresh_tools, fresh_defs, fresh_schema)
+                d = await bench_direct(
+                    api_key, base_url, model, fresh_tools, fresh_defs, fresh_schema
+                )
                 print(
                     f"  [直连] {d['rounds']}轮 | {d['total_time']:.1f}s | in={d['total_input']} out={d['total_output']} cached={d['cached']}"
                 )
@@ -408,7 +483,9 @@ async def main() -> None:
                 d_str = f"{d_avg:.0f}"
                 p_str = f"{p_avg:.0f}"
 
-            winner = "PTC更优" if ratio < 0.95 else ("直连更优" if ratio > 1.05 else "持平")
+            winner = (
+                "PTC更优" if ratio < 0.95 else ("直连更优" if ratio > 1.05 else "持平")
+            )
             print(f"  {mlabel:<22} {d_str:<18} {p_str:<18} {ratio:.2f}x ({winner})")
 
         # 每轮明细
@@ -429,16 +506,32 @@ async def main() -> None:
     print("                         📋 总结论")
     print(f"{'=' * 80}")
 
-    total_d_input = sum(r["direct"]["total_input"] for r in all_results if not r["direct"].get("error"))
-    total_p_input = sum(r["ptc"]["total_input"] for r in all_results if not r["ptc"].get("error"))
-    total_d_time = sum(r["direct"]["total_time"] for r in all_results if not r["direct"].get("error"))
-    total_p_time = sum(r["ptc"]["total_time"] for r in all_results if not r["ptc"].get("error"))
-    n_valid = sum(1 for r in all_results if not r["direct"].get("error") and not r["ptc"].get("error"))
+    total_d_input = sum(
+        r["direct"]["total_input"] for r in all_results if not r["direct"].get("error")
+    )
+    total_p_input = sum(
+        r["ptc"]["total_input"] for r in all_results if not r["ptc"].get("error")
+    )
+    total_d_time = sum(
+        r["direct"]["total_time"] for r in all_results if not r["direct"].get("error")
+    )
+    total_p_time = sum(
+        r["ptc"]["total_time"] for r in all_results if not r["ptc"].get("error")
+    )
+    n_valid = sum(
+        1
+        for r in all_results
+        if not r["direct"].get("error") and not r["ptc"].get("error")
+    )
 
     if n_valid > 0:
         print(f"\n  有效测试: {n_valid} 次")
-        print(f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input / total_d_input:.2f}x)")
-        print(f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time / total_d_time:.2f}x)")
+        print(
+            f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input / total_d_input:.2f}x)"
+        )
+        print(
+            f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time / total_d_time:.2f}x)"
+        )
 
         if total_p_input < total_d_input:
             pct = (1 - total_p_input / total_d_input) * 100

@@ -115,12 +115,16 @@ async def build_channel_execution_agent(
     else:
         agent_model_cfg = configs.model_cfg
 
-    from app.core.channel_bridge.config_parsers import resolve_vision_fallback_chain_for_agent
+    from app.core.channel_bridge.config_parsers import (
+        resolve_vision_fallback_chain_for_agent,
+    )
 
-    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-        configs.providers_dict,
-        primary_override=vision_fallback_model_cfg,
-        main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+        resolve_vision_fallback_chain_for_agent(
+            configs.providers_dict,
+            primary_override=vision_fallback_model_cfg,
+            main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
+        )
     )
 
     pre_events: tuple[ProgressUpdate, ...] = ()

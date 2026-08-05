@@ -23,7 +23,9 @@ from typing import TYPE_CHECKING
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.middlewares.approval.scheduler import (
+    ApprovalTimeoutScheduler,
+)
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationMonitor,
     CancellationRegistry,
@@ -124,9 +126,9 @@ async def launch_early_buffered_stream(
         name=f"agent_turn_{request.message_id or 'unknown'}",
     )
     task.add_done_callback(
-        lambda t: t.exception()
-        if not t.cancelled() and t.exception() is not None
-        else None
+        lambda t: (
+            t.exception() if not t.cancelled() and t.exception() is not None else None
+        )
     )
     session_reservation.transfer_to_stream()
     if getattr(request, "multiplexed", False):
@@ -168,7 +170,10 @@ async def execute_agent_turn_after_reserve(
         pre_reply_compact_sse_sent = bool(
             pre_reply_compact_result
             and (
-                (pre_reply_compact_result.compacted and pre_reply_compact_result.tokens_saved > 0)
+                (
+                    pre_reply_compact_result.compacted
+                    and pre_reply_compact_result.tokens_saved > 0
+                )
                 or pre_reply_compact_result.attempted
             )
         )
@@ -236,7 +241,9 @@ async def execute_agent_turn_after_reserve(
                         "Failed to load sandbox state for resume grant: %s", exc
                     )
 
-            from app.services.agent.session_access_service import apply_directory_resume_grant
+            from app.services.agent.session_access_service import (
+                apply_directory_resume_grant,
+            )
 
             await apply_directory_resume_grant(
                 request.chat_id,
@@ -316,7 +323,10 @@ async def execute_agent_turn_after_reserve(
     if steering_token and request.chat_id:
         SteeringRegistry.register(request.chat_id, steering_token)
 
-    from app.services.agent.goal_registry import GoalRegistry, check_and_handle_branch_stash
+    from app.services.agent.goal_registry import (
+        GoalRegistry,
+        check_and_handle_branch_stash,
+    )
 
     goal_provider = None
     if request.chat_id:
@@ -349,7 +359,9 @@ async def execute_agent_turn_after_reserve(
                     else "none"
                 )
                 goal_objective = text_content.strip() or "User requested goal"
-                resolved_ui_summary = ui_summary.strip() if ui_summary else goal_objective[:120]
+                resolved_ui_summary = (
+                    ui_summary.strip() if ui_summary else goal_objective[:120]
+                )
 
                 await goal_provider.create_goal(
                     session_id=request.chat_id,
@@ -441,7 +453,9 @@ async def execute_agent_turn_after_reserve(
         goal_provider=goal_provider,
         extra_context=extra_context or {},
         stream_started_at_monotonic=stream_started_at_monotonic,
-        entitlement_preflight_text=text_content if request.resume_value is None else None,
+        entitlement_preflight_text=(
+            text_content if request.resume_value is None else None
+        ),
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
     )

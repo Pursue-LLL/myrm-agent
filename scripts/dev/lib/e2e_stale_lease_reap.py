@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -232,26 +233,28 @@ def _hung_reason_for_row(
             if node_stuck is not None:
                 return node_stuck
         if phase == "bootstrap":
+            from dev_gate_contract import (  # noqa: PLC0415
+                dev_bootstrap_wall_cap_for_hung_reap,
+            )
+
+            lane = str(snapshot.get("lane") or "").strip().upper() or "RESOURCE_WRITE"
+            shpoib = snapshot.get("shpoib") is True
+            bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
+                lane=lane,
+                shpoib=shpoib,
+            )
+            if signoff:
+                from dev_gate_contract import (  # noqa: PLC0415
+                    signoff_effective_bootstrap_wall_sec,
+                )
+
+                bootstrap_cap = max(
+                    bootstrap_cap,
+                    signoff_effective_bootstrap_wall_sec(),
+                )
             snapshot_cap = snapshot.get("phaseCapSec")
             if isinstance(snapshot_cap, (int, float)) and float(snapshot_cap) > 0:
-                bootstrap_cap = float(snapshot_cap)
-            elif signoff:
-                from dev_gate_contract import (
-                    signoff_effective_bootstrap_wall_sec,
-                )  # noqa: PLC0415
-
-                bootstrap_cap = signoff_effective_bootstrap_wall_sec()
-            else:
-                from dev_gate_contract import (
-                    dev_bootstrap_wall_cap_for_hung_reap,
-                )  # noqa: PLC0415
-
-                lane = str(snapshot.get("lane") or "").strip().upper()
-                shpoib = snapshot.get("shpoib") is True
-                bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
-                    lane=lane,
-                    shpoib=shpoib,
-                )
+                bootstrap_cap = max(bootstrap_cap, float(snapshot_cap))
             bootstrap_elapsed = phase_elapsed_from_snapshot(snapshot)
             elapsed_for_cap = (
                 bootstrap_elapsed if bootstrap_elapsed is not None else row.elapsed_sec
@@ -317,6 +320,120 @@ def _hung_reason_for_row(
     return None
 
 
+def _private_admit_row_for_owner_pid(pid: int) -> sqlite3.Row | None:
+    try:
+        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+    except ImportError:
+        return None
+    try:
+        store = DevGateStore(default_store_path())
+        with store._connect() as connection:
+            return connection.execute(
+                """
+                SELECT pa.granted_at, pa.released_at, s.state
+                FROM sessions s
+                JOIN private_admission pa ON pa.session_id = s.session_id
+                WHERE s.owner_pid = ?
+                  AND pa.released_at IS NULL
+                ORDER BY pa.enqueued_at DESC
+                LIMIT 1
+                """,
+                (pid,),
+            ).fetchone()
+    except (OSError, sqlite3.Error):
+        return None
+
+
+def _private_credit_queue_has_waiters() -> bool:
+    try:
+        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+    except ImportError:
+        return False
+    try:
+        store = DevGateStore(default_store_path())
+        with store._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS waiting
+                FROM private_admission
+                WHERE granted_at IS NULL
+                  AND released_at IS NULL
+                """
+            ).fetchone()
+    except (OSError, sqlite3.Error):
+        return False
+    if row is None:
+        return False
+    return int(row["waiting"]) > 0
+
+
+def _holder_waiting_private_admit_credit(pid: int) -> bool:
+    """True when holder is queued for PRIVATE credit (granted_at unset), not stuck holding it."""
+    row = _private_admit_row_for_owner_pid(pid)
+    if row is None:
+        return False
+    from dev_gate_session import SessionState  # noqa: PLC0415
+
+    state = str(row["state"])
+    return state == SessionState.PRIVATE_ADMIT.value and row["granted_at"] is None
+
+
+def _private_credit_granted_owner_pids() -> frozenset[int]:
+    """Owner pids for sessions holding granted (unreleased) private admission credit."""
+    try:
+        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+    except ImportError:
+        return frozenset()
+    try:
+        store = DevGateStore(default_store_path())
+        with store._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT s.owner_pid
+                FROM private_admission pa
+                JOIN sessions s ON s.session_id = pa.session_id
+                WHERE pa.granted_at IS NOT NULL
+                  AND pa.released_at IS NULL
+                  AND s.state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')
+                """
+            ).fetchall()
+    except (OSError, sqlite3.Error):
+        return frozenset()
+    owners: set[int] = set()
+    for row in rows:
+        owner_pid = row["owner_pid"]
+        if isinstance(owner_pid, int) and owner_pid > 0:
+            owners.add(owner_pid)
+    return frozenset(owners)
+
+
+def _pid_in_private_credit_holder_tree(pid: int) -> bool:
+    """True when pid is the credit owner or lives under an owner process tree."""
+    owners = _private_credit_granted_owner_pids()
+    if not owners:
+        return False
+    if pid in owners:
+        return True
+    try:
+        from process_identity import _descendant_pids  # noqa: PLC0415
+    except ImportError:
+        return False
+    for owner_pid in owners:
+        if pid in _descendant_pids(owner_pid):
+            return True
+        if owner_pid in _descendant_pids(pid):
+            return True
+    return False
+
+
+def _holder_holds_private_admit_credit(pid: int) -> bool:
+    """True when holder was granted PRIVATE credit and has not released it."""
+    row = _private_admit_row_for_owner_pid(pid)
+    if row is not None and row["granted_at"] is not None:
+        return True
+    return _pid_in_private_credit_holder_tree(pid)
+
+
 def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     """Node-level ADMIT stall for sidecar-less test.sh holders and batch parents."""
     from dev_gate_contract import (  # noqa: PLC0415
@@ -325,7 +442,38 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         is_admit_semantic_stall_node,
     )
 
+    try:
+        from e2e_pytest_dedupe import _holder_process_tree_has_pytest  # noqa: PLC0415
+    except ImportError:
+        pass
+    else:
+        if _holder_process_tree_has_pytest(row.pid):
+            return None
+
     current_node = str(row.current_node or "").strip()
+    try:
+        from e2e_session_snapshot import (  # noqa: PLC0415
+            progress_stale_sec,
+            resolve_session_snapshot,
+        )
+    except ImportError:
+        pass
+    else:
+        snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
+        if snapshot is not None:
+            snap_phase = str(snapshot.get("phase") or "").strip().lower()
+            if snap_phase == "delegated":
+                return None
+            stale = progress_stale_sec(snapshot)
+            if stale is not None and stale < 180.0:
+                return None
+            snap_node = str(snapshot.get("currentNode") or "").strip()
+            if snap_node:
+                current_node = snap_node
+            if current_node == "E2E_PYTEST_SUBPROCESS" or current_node.startswith(
+                "E2E_PYTEST"
+            ):
+                return None
     if not is_admit_semantic_stall_node(current_node):
         return None
     node_elapsed = row.node_elapsed_sec
@@ -342,6 +490,22 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     admit_wall = _admit_wall_cap_for_pid(row.pid)
     if cap >= admit_wall:
         return None
+    if _holder_waiting_private_admit_credit(row.pid):
+        return None
+    if (
+        not _holder_holds_private_admit_credit(row.pid)
+        and _private_credit_queue_has_waiters()
+    ):
+        from dev_gate_contract import E2E_ADMISSION_WALL_CLOCK_SEC  # noqa: PLC0415
+
+        admit_wall = float(E2E_ADMISSION_WALL_CLOCK_SEC)
+        elapsed_for_wall = row.admit_elapsed_sec
+        if elapsed_for_wall is None:
+            elapsed_for_wall = row.node_elapsed_sec
+        if elapsed_for_wall is None:
+            elapsed_for_wall = row.elapsed_sec
+        if float(elapsed_for_wall) < admit_wall:
+            return None
     elapsed_f = float(node_elapsed)
     if elapsed_f >= cap:
         return (
@@ -375,6 +539,28 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None
     if wall == "bootstrap":
+        from dev_gate_contract import (  # noqa: PLC0415
+            BOOTSTRAP_CREDIT_HOG_NODE_NAMES,
+            BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC,
+            E2E_BOOTSTRAP_CREDIT_HOG_TOKEN,
+            NODE_STUCK_FAIL_FAST_SEC,
+        )
+
+        if _holder_holds_private_admit_credit(row.pid) and _private_credit_queue_has_waiters():
+            process_elapsed = float(row.elapsed_sec)
+            hog_by_process = process_elapsed >= float(BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC)
+            hog_by_node = (
+                current_node in BOOTSTRAP_CREDIT_HOG_NODE_NAMES
+                and elapsed_f >= float(NODE_STUCK_FAIL_FAST_SEC)
+            )
+            if hog_by_process or hog_by_node:
+                hog_kind = "process_elapsed" if hog_by_process else "node_elapsed"
+                hog_value = int(process_elapsed) if hog_by_process else int(elapsed_f)
+                return (
+                    f"{E2E_BOOTSTRAP_CREDIT_HOG_TOKEN}: holder pid={row.pid} "
+                    f"node={current_node!r} {hog_kind}={hog_value}s "
+                    f"while private_credit_queue waiting"
+                )
         if _process_has_signoff_env(row.pid):
             from dev_gate_contract import (
                 signoff_effective_bootstrap_wall_sec,
@@ -382,9 +568,23 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
         else:
-            from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
+            from dev_gate_contract import (
+                dev_bootstrap_wall_cap_for_hung_reap,
+            )  # noqa: PLC0415
 
-            bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
+            lane = str(row.lane or "RESOURCE_WRITE").strip().upper() or "RESOURCE_WRITE"
+            bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
+                lane=lane,
+                shpoib=bool(row.shpoib),
+            )
+        if current_node and is_transport_stall_node(current_node):
+            stall_cap = float(resolve_transport_stall_cap_sec(current_node=current_node))
+            if elapsed_f >= stall_cap:
+                return (
+                    f"E2E_NODE_STUCK: parallel node={current_node!r} "
+                    f"node_elapsed={int(elapsed_f)}s>={int(stall_cap)}s"
+                )
+            return None
         if elapsed_f < bootstrap_cap:
             return None
     if current_node and is_transport_stall_node(current_node):
@@ -394,6 +594,8 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                 f"E2E_NODE_STUCK: parallel node={current_node!r} "
                 f"node_elapsed={int(elapsed_f)}s>={int(stall_cap)}s"
             )
+        return None
+    if wall == "delegated" or current_node == "E2E_PYTEST_SUBPROCESS":
         return None
     if elapsed_f >= float(NODE_STUCK_FAIL_FAST_SEC):
         node_label = current_node or "?"
@@ -405,6 +607,18 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
 
 
 def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
+    if row.phase == "delegated":
+        return None
+    try:
+        from e2e_pytest_dedupe import _holder_process_tree_has_pytest
+    except ImportError:
+        pass
+    else:
+        if _holder_process_tree_has_pytest(row.pid):
+            parallel_stuck = _parallel_node_stuck_reason(row)
+            if parallel_stuck is not None:
+                return parallel_stuck
+            return None
     chrome_row = LiveChromeE2ERow(
         pid=row.pid,
         elapsed_sec=row.elapsed_sec,
@@ -423,23 +637,55 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
         return parallel_stuck
     wall = str(row.wall_phase or row.phase or "").strip().lower()
     if wall == "bootstrap":
+        from e2e_session_snapshot import (  # noqa: PLC0415
+            phase_elapsed_from_snapshot,
+            resolve_session_snapshot,
+        )
+
+        snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
         if _process_has_signoff_env(row.pid):
             from dev_gate_contract import (
                 signoff_effective_bootstrap_wall_sec,
             )  # noqa: PLC0415
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
-        else:
-            from transport_supervisor import bootstrap_wall_cap_sec  # noqa: PLC0415
+        elif snapshot is not None:
+            from dev_gate_contract import (  # noqa: PLC0415
+                dev_bootstrap_wall_cap_for_hung_reap,
+            )
 
-            bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
-        bootstrap_elapsed = row.node_elapsed_sec
+            lane = (
+                str(snapshot.get("lane") or row.lane or "RESOURCE_WRITE")
+                .strip()
+                .upper()
+                or "RESOURCE_WRITE"
+            )
+            shpoib = snapshot.get("shpoib") is True or bool(row.shpoib)
+            bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
+                lane=lane,
+                shpoib=shpoib,
+            )
+            snapshot_cap = snapshot.get("phaseCapSec")
+            if isinstance(snapshot_cap, (int, float)) and float(snapshot_cap) > 0:
+                bootstrap_cap = max(bootstrap_cap, float(snapshot_cap))
+            bootstrap_elapsed = phase_elapsed_from_snapshot(snapshot)
+        else:
+            from dev_gate_contract import (
+                dev_bootstrap_wall_cap_for_hung_reap,
+            )  # noqa: PLC0415
+
+            lane = str(row.lane or "RESOURCE_WRITE").strip().upper() or "RESOURCE_WRITE"
+            bootstrap_cap = dev_bootstrap_wall_cap_for_hung_reap(
+                lane=lane,
+                shpoib=bool(row.shpoib),
+            )
+            bootstrap_elapsed = row.node_elapsed_sec
+        if bootstrap_elapsed is None:
+            bootstrap_elapsed = row.node_elapsed_sec
         if bootstrap_elapsed is None:
             bootstrap_elapsed = row.elapsed_sec
-        if float(bootstrap_elapsed) >= bootstrap_cap:
+        if float(bootstrap_elapsed) >= float(bootstrap_cap):
             return f"bootstrap_elapsed={int(bootstrap_elapsed)}s>={int(bootstrap_cap)}s"
-    if row.phase == "delegated":
-        return None
     admit_semantic = _admit_semantic_node_stuck_reason(row)
     if admit_semantic is not None:
         return admit_semantic

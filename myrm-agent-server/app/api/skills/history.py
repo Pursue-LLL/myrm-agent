@@ -155,8 +155,8 @@ async def get_skill_history(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get skill history for {skill_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}") from e
+        logger.error("Failed to get skill history for %s: %s", skill_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get history") from e
 
 
 @router.post("/{skill_id}/rollback", response_model=SkillRollbackResponse)
@@ -214,5 +214,5 @@ async def rollback_skill(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to rollback skill {skill_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to rollback: {str(e)}") from e
+        logger.error("Failed to rollback skill %s: %s", skill_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to rollback") from e

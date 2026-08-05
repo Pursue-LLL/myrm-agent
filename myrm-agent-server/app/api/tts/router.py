@@ -48,9 +48,10 @@ def _ensure_edge_tts_if_needed(voice_config: VoiceConfig) -> None:
     from app.channels.voice.tts import EDGE_TTS_INSTALL_HINT, is_edge_tts_available
 
     if not is_edge_tts_available():
+        logger.warning("Edge TTS is not available: %s", EDGE_TTS_INSTALL_HINT)
         raise HTTPException(
             status_code=503,
-            detail=f"Edge TTS is not installed. Install with: {EDGE_TTS_INSTALL_HINT}",
+            detail="Edge TTS is not available",
         )
 
 

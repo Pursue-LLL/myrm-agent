@@ -28,9 +28,11 @@ from app.services.agent.execution_cache.types import BuiltExecutionUnit, Executi
 
 
 def test_stable_json_nested_and_model_dump() -> None:
-    class Dumpable:
-        def model_dump(self, *, mode: str = "json") -> dict[str, object]:
-            return {"z": 1, "nested": {"a": 2}}
+    from pydantic import BaseModel as PydanticBaseModel
+
+    class Dumpable(PydanticBaseModel):
+        z: int = 1
+        nested: dict[str, int] = {"a": 2}
 
     assert _stable_json({"b": 1, "a": [Dumpable()]}) == {"a": [{"nested": {"a": 2}, "z": 1}], "b": 1}
 
@@ -48,17 +50,25 @@ def test_build_execution_scope_key_edge_cases() -> None:
 
 
 def test_compute_execution_fingerprint_includes_mcp() -> None:
-    mcp_cfg = MagicMock()
-    mcp_cfg.model_dump.return_value = {"name": "github", "url": "http://mcp"}
-    wrapper = GeneralAgent(
+    from app.core.types.business import MCPServerConfig
+
+    cfg_a = MCPServerConfig(name="github", type="sse", url="http://mcp")
+    wrapper_a = GeneralAgent(
         model_cfg=ModelConfig(model="m", api_key="k", base_url="http://x"),
-        mcp_config=[mcp_cfg],
+        mcp_config=[cfg_a],
         engine_params={"nested": {"x": 1}},
         skill_configs={"s1": {"k": "v"}},
     )
-    first = compute_execution_fingerprint(wrapper)
-    mcp_cfg.model_dump.return_value = {"name": "github", "url": "http://other"}
-    second = compute_execution_fingerprint(wrapper)
+    first = compute_execution_fingerprint(wrapper_a)
+
+    cfg_b = MCPServerConfig(name="github", type="sse", url="http://other")
+    wrapper_b = GeneralAgent(
+        model_cfg=ModelConfig(model="m", api_key="k", base_url="http://x"),
+        mcp_config=[cfg_b],
+        engine_params={"nested": {"x": 1}},
+        skill_configs={"s1": {"k": "v"}},
+    )
+    second = compute_execution_fingerprint(wrapper_b)
     assert first != second
 
 

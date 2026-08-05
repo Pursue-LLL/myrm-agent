@@ -205,6 +205,19 @@ def _file_scope_record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     if held_sec <= _file_scope_bootstrap_stall_sec(scope_key):
         return False
     if _holder_process_tree_has_pytest(holder_pid):
+        if _is_guardrail_file_scope(scope_key):
+            try:
+                from dev_gate_contract import _parallel_chrome_e2e_pressure
+                from e2e_stale_lease_reap import _private_credit_queue_has_waiters
+
+                if (
+                    _parallel_chrome_e2e_pressure() >= 2
+                    and _private_credit_queue_has_waiters()
+                    and held_sec >= 300.0
+                ):
+                    return True
+            except ImportError:
+                pass
         return False
     return True
 

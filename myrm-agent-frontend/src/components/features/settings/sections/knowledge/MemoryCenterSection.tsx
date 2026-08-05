@@ -15,6 +15,7 @@ import RemoteBackupSection from './RemoteBackupSection';
 import { SettingsSkeleton } from '../../common/SettingsSkeleton';
 import { Button } from '@/components/primitives/button';
 import { TeamAssetsHub } from '@/components/features/loadout/TeamAssetsHub';
+import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 
 const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'), {
   loading: () => <SettingsSkeleton />,
@@ -91,6 +92,8 @@ const MemoryCenterSection = memo(() => {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.memory')}</h1>
         <p className="text-sm text-muted-foreground">{getDescription()}</p>
       </div>
+
+      <MemoryRecallDegradedBanner className="max-w-4xl" />
 
       {migrationUnavailable && (
         <div

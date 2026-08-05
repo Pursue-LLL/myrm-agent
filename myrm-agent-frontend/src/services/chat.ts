@@ -189,6 +189,15 @@ export const updateChatWorkspaceDir = async (
   });
 };
 
+/** Re-run memory extraction for the latest user/assistant turn in a chat. */
+export const retryChatMemoryExtract = async (
+  chatId: string,
+): Promise<{ status: 'scheduled' | 'already_in_flight'; chat_id: string }> => {
+  return apiRequest(`/chats/${chatId}/memory/retry-extract`, {
+    method: 'POST',
+  });
+};
+
 export const revokeSessionAccessRoot = async (
   chatId: string,
   path: string,

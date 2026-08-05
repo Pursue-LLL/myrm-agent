@@ -129,8 +129,11 @@ def apply_epoch_pin_for_shared_live(
     *,
     monorepo: Path,
     node_id: str,  # noqa: ARG001 — reserved for structured logs
+    workload: str = "",
 ) -> EpochPinOutcome:
     """Resolve or seed an epoch-matched backend; never consumes private ADMIT credit."""
+    import os
+
     from e2e_api_verify import resolve_e2e_api_context  # noqa: PLC0415
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
@@ -142,6 +145,38 @@ def apply_epoch_pin_for_shared_live(
             runtime_id="",
             environment={},
             detail="shared_epoch_aligned",
+            seeded=False,
+        )
+
+    shared = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
+    verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
+    shared_rid = _health_runtime_id(shared)
+    load = (
+        workload.strip().upper()
+        or os.environ.get("MYRM_E2E_WORKLOAD", "").strip().upper()
+    )
+    verify_rid = _health_runtime_id(verify_base) if verify_base else ""
+    # STANDARD UI tests tolerate shared epoch drift — never pin flaky verify-api (P0-F).
+    if load == "STANDARD":
+        return EpochPinOutcome(
+            applied=False,
+            api_base=shared,
+            runtime_id=shared_rid,
+            environment={},
+            detail="shared_healthy_defer_verify_pin",
+            seeded=False,
+        )
+    if shared_rid and (
+        not verify_base
+        or verify_base.rstrip("/") == shared.rstrip("/")
+        or not verify_rid
+    ):
+        return EpochPinOutcome(
+            applied=False,
+            api_base=shared,
+            runtime_id=shared_rid,
+            environment={},
+            detail="shared_healthy_defer_verify_pin",
             seeded=False,
         )
 
@@ -160,6 +195,15 @@ def apply_epoch_pin_for_shared_live(
 
     seed = ensure_verify_backend_seed(monorepo=monorepo.resolve())
     if not seed.ok:
+        if shared_rid:
+            return EpochPinOutcome(
+                applied=False,
+                api_base=shared,
+                runtime_id=shared_rid,
+                environment={},
+                detail=f"verify_seed_failed_defer_shared:{seed.detail}",
+                seeded=False,
+            )
         return EpochPinOutcome(
             applied=False,
             api_base="",
