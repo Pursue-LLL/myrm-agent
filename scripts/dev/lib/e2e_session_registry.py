@@ -218,6 +218,40 @@ def _list_test_sh_admit_fallback(
     return tuple(rows)
 
 
+def _list_pytest_scan_fallback(
+    covered_test_ids: set[str],
+) -> tuple[LiveE2ESessionRow, ...]:
+    """Live inner pytest rows not yet written to session sidecars (bootstrap/admit gap).
+
+    Closes active_test_count=0 while chrome_e2e pytest is alive but coordinator
+    snapshots are not yet visible to e2e-context.
+    """
+    from e2e_live_chrome_pytest_scan import list_live_chrome_e2e_pytest_rows  # noqa: PLC0415
+
+    rows: list[LiveE2ESessionRow] = []
+    for prow in list_live_chrome_e2e_pytest_rows():
+        if prow.is_wrapper:
+            continue
+        if prow.test_id in covered_test_ids:
+            continue
+        if read_session_snapshot(prow.pid) is not None:
+            continue
+        rows.append(
+            LiveE2ESessionRow(
+                pid=prow.pid,
+                test_id=prow.test_id,
+                elapsed_sec=prow.elapsed_sec,
+                state=prow.state,
+                phase="bootstrap",
+                current_node="E2E_PYTEST_BOOTSTRAP",
+                wall_phase="bootstrap",
+                admit_elapsed_sec=prow.elapsed_sec,
+                batch_mode=_is_batch_file_invocation(prow.test_id),
+            )
+        )
+    return tuple(rows)
+
+
 def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
     """Live chrome_e2e sessions from sidecar registry (ADMIT + BODY)."""
     from e2e_session_snapshot import _load_all_session_snapshots  # noqa: PLC0415
@@ -240,6 +274,9 @@ def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
             grouped[key] = row
     covered = set(grouped.keys())
     for row in _list_test_sh_admit_fallback(covered):
+        grouped.setdefault(row.test_id, row)
+        covered.add(row.test_id)
+    for row in _list_pytest_scan_fallback(covered):
         grouped.setdefault(row.test_id, row)
     return tuple(sorted(grouped.values(), key=lambda item: (item.test_id, item.pid)))
 
