@@ -108,8 +108,18 @@ def _file_batch_root() -> Path:
     return _dev_state_dir() / "pytest-chrome-e2e-file-batch"
 
 
-def _file_scope_bootstrap_stall_sec() -> float:
-    """Max bootstrap-only hold before file-scope lock is reapable (R276)."""
+def _is_guardrail_file_scope(scope_key: str | None) -> bool:
+    return bool(scope_key and "test_guardrail_bash_chrome_e2e.py" in scope_key)
+
+
+def _file_scope_bootstrap_stall_sec(scope_key: str | None = None) -> float:
+    """Max bootstrap-only hold before file-scope lock is reapable (R276).
+
+    Guardrail PRIVATE SHPOIB can sit in ADMIT/bootstrap >180s before pytest spawns;
+    use PRIVATE ADMIT cap (900s) so duplicate whole-file guardrail cannot slip in.
+    """
+    if _is_guardrail_file_scope(scope_key):
+        return 900.0
     return 180.0
 
 
@@ -117,6 +127,19 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
     """True when holder's process tree includes a pytest invocation."""
     try:
         import subprocess
+
+        holder_cmd = subprocess.run(
+            ["ps", "-o", "command=", "-p", str(holder_pid)],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+        holder_command = holder_cmd.stdout.strip()
+        if "test.sh" in holder_command and "test_guardrail_bash_chrome_e2e.py" in holder_command:
+            return True
+        if "run_pytest_safe" in holder_command:
+            return True
 
         proc = subprocess.run(
             ["pgrep", "-P", str(holder_pid)],
@@ -126,9 +149,7 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
             check=False,
         )
         child_pids = [
-            int(token)
-            for token in proc.stdout.split()
-            if token.strip().isdigit()
+            int(token) for token in proc.stdout.split() if token.strip().isdigit()
         ]
     except (OSError, subprocess.TimeoutExpired, ValueError):
         child_pids = []
@@ -150,6 +171,8 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
         except (OSError, subprocess.TimeoutExpired):
             continue
         command = cmd.stdout.strip()
+        if "run_pytest_safe" in command:
+            return True
         if "pytest" in command and "chrome_e2e" in command:
             return True
         try:
@@ -180,7 +203,8 @@ def _file_scope_record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     if not isinstance(acquired_at, (int, float)):
         return True
     held_sec = now - float(acquired_at)
-    if held_sec <= _file_scope_bootstrap_stall_sec():
+    scope_key = str(record.get("fingerprint", "")).strip() or None
+    if held_sec <= _file_scope_bootstrap_stall_sec(scope_key):
         return False
     if _holder_process_tree_has_pytest(holder_pid):
         return False
