@@ -13,6 +13,7 @@ Path resolver for wave orchestrator. Keeps state under ~/.local/state/myrm-dev/.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,16 +27,66 @@ class WavePaths:
     server_python: Path
 
 
+def _wave_is_open(state_dir: Path) -> bool:
+    state_file = state_dir / "wave-orchestrator.json"
+    if not state_file.is_file():
+        return False
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    wave = payload.get("wave")
+    return isinstance(wave, dict) and str(wave.get("status", "")).strip() == "open"
+
+
+def _real_user_home() -> Path:
+    home = os.environ.get("HOME", "").strip()
+    if home and "/.cursor2" not in home:
+        return Path(home).expanduser().resolve()
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+    except (ImportError, KeyError, OSError):
+        return Path.home().expanduser().resolve()
+
+
+def _default_state_dir() -> Path:
+    return _real_user_home() / ".local/state/myrm-dev"
+
+
+def _state_dir_candidates() -> tuple[Path, ...]:
+    ordered: list[Path] = []
+    seen: set[str] = set()
+    for raw in (
+        os.environ.get("MYRM_WAVE_STATE_DIR", "").strip(),
+        os.environ.get("MYRM_DEV_STATE_DIR", "").strip(),
+    ):
+        if not raw:
+            continue
+        path = Path(raw).expanduser().resolve()
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(path)
+    for fallback in (_default_state_dir(), Path.home().expanduser().resolve() / ".local/state/myrm-dev"):
+        key = str(fallback)
+        if key not in seen:
+            seen.add(key)
+            ordered.append(fallback)
+    return tuple(ordered)
+
+
 def resolve_wave_paths() -> WavePaths:
     dev_dir = Path(__file__).resolve().parent.parent
     agent_root = dev_dir.parent
-    wave_override = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
-    if wave_override:
-        state_dir = Path(wave_override).resolve()
-    else:
-        state_dir = Path(
-            os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
-        ).resolve()
+    candidates = _state_dir_candidates()
+    state_dir = candidates[0] if candidates else _default_state_dir()
+    for candidate in candidates:
+        if _wave_is_open(candidate):
+            state_dir = candidate
+            break
     server_python = agent_root / "myrm-agent-server" / ".venv" / "bin" / "python"
     return WavePaths(
         state_dir=state_dir,
