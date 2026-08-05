@@ -4,11 +4,14 @@
 set -euo pipefail
 
 UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
-API_BASE="${E2E_API_BASE:-http://127.0.0.1:8080}"
+SHARED_API_BASE="${MYRM_SHARED_API_BASE:-http://127.0.0.1:8080}"
+API_BASE="${E2E_API_BASE:-${SHARED_API_BASE}}"
 MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 export MYRM_CHROME_E2E_ATTACH
 MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
+# R286: python -m e2e_bootstrap_deadline must share one holder key across subprocesses.
+export MYRM_E2E_DEDUPE_HOLDER_PID="${MYRM_E2E_DEDUPE_HOLDER_PID:-$$}"
 
 _attach_api_base() {
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && -n "${E2E_API_BASE:-}" ]]; then
@@ -88,9 +91,9 @@ _attach_health_require_args() {
   fi
   local active_leases
   active_leases="$(_parallel_attach_active_leases)"
-  # R284: parallel SHARED with live UI/API must not block on clientHot monotonic BOOTSTRAP.
+  # R290: parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
   if [[ "${active_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
-    echo "--require-read-attach-ready"
+    echo "--require-signoff-stream-ready"
     return 0
   fi
   if [[ "${MYRM_E2E_LANE:-}" == "READ" && "${MYRM_E2E_SHARED_HOT:-0}" != "1" ]]; then
@@ -293,7 +296,7 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
   fi
   local attach_api
   attach_api="$(_attach_api_base)"
-  local epoch_pin_reseed=0
+  local epoch_pin_reseed=0 epoch_pin_reseed_max=3
   while true; do
     waited=$((SECONDS - wait_started))
     errors="$("${PREFLIGHT_PY}" -c "
@@ -313,12 +316,22 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
     fi
     if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]] \
       && [[ "${errors}" == *"api=unreachable"* ]] \
-      && [[ "${epoch_pin_reseed}" -lt 1 ]]; then
-      epoch_pin_reseed=1
+      && [[ "${epoch_pin_reseed}" -lt "${epoch_pin_reseed_max}" ]]; then
+      epoch_pin_reseed=$((epoch_pin_reseed + 1))
       if _epoch_pin_reseed_verify_api; then
         attach_api="$(_attach_api_base)"
         continue
       fi
+    fi
+    if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]] \
+      && [[ "${attach_api}" != "${SHARED_API_BASE}" ]] \
+      && [[ "${errors}" == *"api=unreachable"* ]] \
+      && curl -sf --max-time 5 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1; then
+      echo "CHROME_E2E_ATTACH: epoch pin shared fallback during ADMIT wait api=${SHARED_API_BASE} (isolated ${attach_api} unreachable)" >&2
+      unset MYRM_E2E_EPOCH_PIN
+      export E2E_API_BASE="${SHARED_API_BASE}"
+      attach_api="${SHARED_API_BASE}"
+      continue
     fi
     if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
       && [[ "${MYRM_E2E_EPOCH_PIN:-0}" != "1" ]] \
@@ -380,9 +393,28 @@ print(attach_parallel_wait_sec(${active_leases}, base=${base}))
   echo "${scaled}"
 }
 
+_attach_epoch_pin_drop_stale_when_shared_aligned() {
+  # R280: test.sh may pin a verify-api port before shared :8080 heals; drop stale pin when aligned.
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_api_verify import resolve_e2e_api_context
+from epoch_delivery_plane import needs_epoch_pin_backend
+ctx = resolve_e2e_api_context(retry_after_apply=False)
+raise SystemExit(0 if not needs_epoch_pin_backend(ctx) else 1)
+" 2>/dev/null
+}
+
 _attach_epoch_pin_fast_path() {
   # P0-DGR-6: pinned verify-api must not wait monotonic shared-hot BOOTSTRAP (578s+).
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" != "1" ]]; then
+    return 1
+  fi
+  if _attach_epoch_pin_drop_stale_when_shared_aligned; then
+    echo "CHROME_E2E_ATTACH: shared epoch aligned — drop stale epoch pin api=${API_BASE}" >&2
+    unset MYRM_E2E_EPOCH_PIN
+    export E2E_API_BASE="${API_BASE}"
     return 1
   fi
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
@@ -394,13 +426,26 @@ _attach_epoch_pin_fast_path() {
   [[ "${wait_sec}" =~ ^[0-9]+$ && "${wait_sec}" -gt 0 ]] || wait_sec=90
   echo "CHROME_E2E_ATTACH: epoch pin fast path api=${pin_api} wait≤${wait_sec}s (skip shared-hot monotonic BOOTSTRAP)" >&2
   while [[ "${waited}" -lt "${wait_sec}" ]]; do
+    if _attach_epoch_pin_drop_stale_when_shared_aligned; then
+      echo "CHROME_E2E_ATTACH: shared epoch aligned during pin wait — drop stale epoch pin api=${API_BASE}" >&2
+      unset MYRM_E2E_EPOCH_PIN
+      export E2E_API_BASE="${API_BASE}"
+      return 1
+    fi
+    if [[ "${pin_api}" != "${SHARED_API_BASE}" ]] \
+      && curl -sf --max-time 5 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1; then
+      echo "CHROME_E2E_ATTACH: epoch pin early fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
+      unset MYRM_E2E_EPOCH_PIN
+      export E2E_API_BASE="${SHARED_API_BASE}"
+      return 1
+    fi
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
       --auto-probe \
       --auto-hot \
       --ui "${UI_BASE}" \
       --api "${pin_api}" \
       --attach-mode \
-      --require-attach-ready 2>&1)"; then
+      --require-read-attach-ready 2>&1)"; then
       echo "CHROME_E2E_READY ui=${UI_BASE} api=${pin_api} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
       echo "${health}"
       return 0
@@ -414,6 +459,14 @@ _attach_epoch_pin_fast_path() {
     waited=$((waited + poll_sec))
   done
   echo "${health}" >&2
+  # R277: isolated verify-api flaked under parallel attach — fall back to shared when healthy.
+  if [[ "${pin_api}" != "${SHARED_API_BASE}" ]] \
+    && curl -sf --max-time 5 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1; then
+    echo "CHROME_E2E_ATTACH: epoch pin fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
+    unset MYRM_E2E_EPOCH_PIN
+    export E2E_API_BASE="${SHARED_API_BASE}"
+    return 1
+  fi
   fail "epoch pin attach did not become ready within ${wait_sec}s — run ./myrm verify-api --ensure-backend"
 }
 
@@ -538,7 +591,7 @@ _heal_dead_shared_ui_port() {
 _shared_stack_endpoints_ok() {
   local shared_ui="${E2E_UI_BASE:-${UI_BASE:-http://127.0.0.1:3000}}"
   curl -sf --max-time 10 "${shared_ui}/" >/dev/null \
-    && curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null
+    && curl -sf --max-time 10 "${SHARED_API_BASE}/api/v1/health" >/dev/null
 }
 
 _shared_stack_recovery_required() {
@@ -662,6 +715,11 @@ _preflight_readiness_gate
 # R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" && "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" != "1" ]]; then
   _bootstrap_attach_begin "$(_parallel_attach_active_leases)"
+  if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]] && _attach_epoch_pin_drop_stale_when_shared_aligned; then
+    echo "CHROME_E2E_ATTACH: shared epoch aligned — drop stale epoch pin api=${API_BASE}" >&2
+    unset MYRM_E2E_EPOCH_PIN
+    export E2E_API_BASE="${API_BASE}"
+  fi
   _attach_api="$(_attach_api_base)"
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]]; then
     echo "CHROME_E2E_ATTACH: epoch pin ADMIT wait uses api=${_attach_api} (skip shared :8080 unreachable gate)" >&2
@@ -672,6 +730,22 @@ sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from runtime_identity import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
 ")"
+  if [[ -n "${attach_errors}" && "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && "${attach_errors}" == *"api=unreachable"* ]]; then
+    _epoch_pin_reseed_verify_api && _attach_api="$(_attach_api_base)" || true
+    if [[ "${_attach_api}" != "${SHARED_API_BASE}" ]] \
+      && curl -sf --max-time 8 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1 \
+      && curl -sf --max-time 8 "${UI_BASE}/" >/dev/null 2>&1; then
+      echo "CHROME_E2E_ATTACH: epoch pin early fallback to shared api=${SHARED_API_BASE} (isolated ${_attach_api} unreachable)" >&2
+      unset MYRM_E2E_EPOCH_PIN
+      export E2E_API_BASE="${SHARED_API_BASE}"
+      _attach_api="${SHARED_API_BASE}"
+      attach_errors=""
+    elif curl -sf --max-time 8 "${_attach_api%/}/api/v1/health" >/dev/null 2>&1 \
+      && curl -sf --max-time 8 "${UI_BASE}/" >/dev/null 2>&1; then
+      echo "CHROME_E2E_ATTACH: epoch pin fast ADMIT — pin api + UI reachable (skip BOOTSTRAP api wait)" >&2
+      attach_errors=""
+    fi
+  fi
   if [[ -n "${attach_errors}" ]]; then
     if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
       attach_msg="$("${PREFLIGHT_PY}" -c "
