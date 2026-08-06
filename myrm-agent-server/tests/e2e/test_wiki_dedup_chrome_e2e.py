@@ -193,13 +193,19 @@ def _parse_probe_from_error(err: str) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _client_navigate(client, page, url: str) -> None:
+    """In-page navigation — avoids CDP Page.navigate stalls under parallel Chrome load."""
+    client.evaluate(
+        page,
+        f"(() => {{ window.location.href = {json.dumps(url)}; return location.href; }})()",
+        timeout_sec=15.0,
+    )
+
+
 def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
     wiki_url = f"{ui_url.rstrip('/')}/settings/wiki"
-    settings_url = f"{ui_url.rstrip('/')}/settings"
 
-    # Page already opened on wiki_url; dismiss overlays then activate dedup tab.
-    dismiss_blocking_modals(client, page, recover_url=wiki_url)
-
+    _client_navigate(client, page, wiki_url)
     wiki_shell = wait_for_state(
         client,
         page,
@@ -207,6 +213,7 @@ def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
         timeout_sec=_warm_ui_parallel_wait_sec(_WIKI_SHELL_WAIT_SEC),
     )
     assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
+    dismiss_blocking_modals(client, page, recover_url=wiki_url)
 
     tab_state = client.evaluate(page, _ACTIVATE_DEDUP_TAB_JS, timeout_sec=15.0)
     assert isinstance(tab_state, dict) and tab_state.get("ok") is True, tab_state
@@ -249,8 +256,8 @@ def _run_duplicate_review_assertions(
             timeout_sec=_warm_ui_parallel_wait_sec(_WARM_ROUTE_TIMEOUT_SEC),
         )
 
-    wiki_url = f"{ui_url.rstrip('/')}/settings/wiki"
-    with open_mcp_page(wiki_url, timeout_ms=90_000) as (client, page):
+    # about:blank — orchestrator skips CDP navigate; client-nav to pre-warmed wiki route.
+    with open_mcp_page("about:blank", timeout_ms=60_000) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         _navigate_to_duplicate_review(client, page, ui_url)
         _assert_duplicate_review_panel(client, page, api_url=api_url)

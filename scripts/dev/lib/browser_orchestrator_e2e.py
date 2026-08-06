@@ -462,6 +462,9 @@ def _open_page_transaction_with_retry(
     last_exc: BaseException | None = None
     for attempt in range(1, attempts + 1):
         try:
+            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+
+            touch_wall_progress(current_node="open_page_transaction")
             with daemon.elevated_request_timeout(open_timeout_sec):
                 if binding_expression is not None:
                     created = daemon.open_page_transaction(
