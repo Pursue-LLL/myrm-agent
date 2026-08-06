@@ -1,4 +1,15 @@
-"""Pydantic schemas for workflow template library API."""
+"""Pydantic schemas for workflow template library API.
+
+[INPUT]
+- (none — leaf module, depends only on pydantic/stdlib)
+
+[OUTPUT]
+- WorkflowTemplateSummary: Summary model for template listing
+- WorkflowTemplateListResponse: Paginated list wrapper
+- SaveWorkflowTemplateRequest: Create/update request body
+- SaveWorkflowTemplateFromRunRequest: Save template from an existing run
+- WorkflowTemplateDetailResponse: Full template detail with script code
+"""
 
 from __future__ import annotations
 
