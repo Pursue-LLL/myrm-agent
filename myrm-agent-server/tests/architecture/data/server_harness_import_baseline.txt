@@ -449,6 +449,7 @@ myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint
 myrm_agent_harness.toolkits.wiki.maintenance.modes
 myrm_agent_harness.toolkits.wiki.maintenance.stale_summary
 myrm_agent_harness.toolkits.wiki.pipeline.apply
+myrm_agent_harness.toolkits.wiki.pipeline.chat_compound
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.schema_writer
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup
