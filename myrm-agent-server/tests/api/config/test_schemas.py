@@ -37,6 +37,12 @@ def test_all_credentials_keys_present() -> None:
         assert key in config_keys, f"{key} must be in ConfigKey enum"
 
 
+def test_extension_clip_agent_config_key_present() -> None:
+    """extensionClipAgent must be a valid ConfigKey for clip-agent REST persistence."""
+    config_keys = typing.get_args(ConfigKey)
+    assert "extensionClipAgent" in config_keys
+
+
 # ---------------------------------------------------------------------------
 # PersonalSettingsConfigValue — suggestWorkflowMode defaults & schema metadata
 # ---------------------------------------------------------------------------

@@ -111,9 +111,7 @@ async def create_agent_secret(
         raise internal_error(operation="Create agent secret", exception=e) from e
 
 
-@router.delete(
-    "/{agent_id}/secrets/{key_name}", response_model=StandardSuccessResponse
-)
+@router.delete("/{agent_id}/secrets/{key_name}", response_model=StandardSuccessResponse)
 async def delete_agent_secret(
     agent_id: str,
     key_name: str,
@@ -213,7 +211,9 @@ async def _build_catalog_preview(
         try:
             name = normalize_skill_name(skill.name)
         except ValueError:
-            logger.warning("Skipping skill with invalid name for catalog preview: %s", skill.name)
+            logger.warning(
+                "Skipping skill with invalid name for catalog preview: %s", skill.name
+            )
             continue
         metadata_list.append(
             SkillMetadata(

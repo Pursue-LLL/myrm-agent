@@ -3,11 +3,12 @@
  */
 
 import { buildWikiClipPostUrl, wikiHttpBaseFromServerUrl } from "./deep_links.js";
+import { msg } from "../i18n.js";
 
 async function ensureClipContentScript(tabId) {
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ["src/content/clip.js"],
+    files: ["src/content/clip_image_urls.js", "src/content/clip.js"],
   });
 }
 
@@ -15,13 +16,13 @@ export async function pollClipJob(baseUrl, token, jobId) {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   for (let i = 0; i < 60; i += 1) {
     const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/wiki/clip/${jobId}`, { headers });
-    if (!resp.ok) throw new Error(`Clip status failed (${resp.status})`);
+    if (!resp.ok) throw new Error(msg("errClipStatusFailed", resp.status));
     const data = await resp.json();
     if (data.state === "succeeded") return data;
-    if (data.state === "failed") throw new Error(data.error_message || "Clip failed");
+    if (data.state === "failed") throw new Error(data.error_message || msg("errClipFailed"));
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error("Clip timed out");
+  throw new Error(msg("errClipTimedOut"));
 }
 
 /**
@@ -30,12 +31,12 @@ export async function pollClipJob(baseUrl, token, jobId) {
 export async function submitClipToWiki(tab, mode, clipConfig) {
   const { serverUrl, authToken, clipAgentId } = clipConfig;
   if (!serverUrl) {
-    return { ok: false, error: "Configure server URL in extension popup" };
+    return { ok: false, error: msg("errConfigureServerUrl") };
   }
   try {
     await ensureClipContentScript(tab.id);
     const captured = await chrome.tabs.sendMessage(tab.id, { type: "clip_to_wiki", mode });
-    if (!captured?.ok) throw new Error(captured?.error || "Capture failed");
+    if (!captured?.ok) throw new Error(captured?.error || msg("errCaptureFailed"));
     const payload = captured.payload;
     const form = new FormData();
     form.append("source_url", payload.source_url);
@@ -59,7 +60,7 @@ export async function submitClipToWiki(tab, mode, clipConfig) {
     });
     if (!postResp.ok) {
       const text = await postResp.text();
-      throw new Error(text || `Clip upload failed (${postResp.status})`);
+      throw new Error(text || msg("errClipUploadFailed", postResp.status));
     }
     const accepted = await postResp.json();
     const result = await pollClipJob(
@@ -68,10 +69,10 @@ export async function submitClipToWiki(tab, mode, clipConfig) {
       accepted.job_id,
     );
     if (result.conflict) {
-      return { ok: false, conflict: true, error: "Already clipped — open Duplicate Review in Settings Wiki" };
+      return { ok: false, conflict: true, error: msg("errAlreadyClipped") };
     }
     if (result.security_blocked) {
-      return { ok: false, security_blocked: true, error: "Clip blocked by security scan" };
+      return { ok: false, security_blocked: true, error: msg("errSecurityBlocked") };
     }
     return { ok: true, relative_path: result.relative_path || "" };
   } catch (err) {

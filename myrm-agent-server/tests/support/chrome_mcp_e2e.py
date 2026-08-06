@@ -870,9 +870,25 @@ def _mux_transport_wait_budget_sec() -> float:
         return float(mux_upstream_wait_cap())
 
 
+def _shared_read_bootstrap_phase() -> bool:
+    """Dev SHARED READ bootstrap — mux queue must not consume open_mcp_page attempt budget."""
+    if os.environ.get("MYRM_E2E_LANE", "").strip().upper() != "READ":
+        return False
+    if os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper() != "SHARED":
+        return False
+    try:
+        from e2e_session_lifecycle import current_phase
+
+        return current_phase() == "bootstrap"
+    except ImportError:
+        return False
+
+
 def _open_page_queue_wait_extends_deadlines() -> bool:
     """P0-C: bootstrap mux fair-queue wait must not consume open_mcp_page attempt budget."""
     if _dev_private_shpoib_bootstrap_phase():
+        return True
+    if _shared_read_bootstrap_phase():
         return True
     if is_e2e_signoff_runtime():
         try:

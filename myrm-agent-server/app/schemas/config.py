@@ -57,6 +57,7 @@ ConfigKey = Literal[
     "captchaSolverConfig",
     "webFetchEscalation",
     "orgModelPolicy",
+    "extensionClipAgent",
 ]
 
 # ============================================================================

@@ -1,11 +1,17 @@
 # chat-window/approval/
 
-可视化工具审批（HITL）子视图：Shell、浏览器会话、编辑/移交模式与屏幕高亮。
+可视化工具审批（HITL）子视图：截图审批卡片、Shell/浏览器上下文、编辑/移交模式与屏幕高亮。
 
 | 文件 | 职责 |
 |------|------|
-| `VisualApprovalRequestRenderer.tsx` | 审批请求主渲染 |
+| `VisualApprovalInlineSection.tsx` | 桌面聊天 inline 审批入口（消息级挂载） |
+| `VisualApprovalRequestRenderer.tsx` | loading/ready/unavailable 三态路由渲染 |
+| `VisualApprovalArtifactCard.tsx` | 截图 + BBox + 审批操作主卡片 |
+| `VisualApprovalPendingCard.tsx` | snapshot loading 占位卡 |
+| `VisualApprovalUnavailableCard.tsx` | snapshot 失败降级 + 重试 |
+| `VisualApprovalHighlight.tsx` | 红框 overlay 高亮 |
+| `VisualApprovalAttentionBar.tsx` | 滚动区外 pending 可达条 |
+| `VisualApprovalOsOverlaySync.tsx` | Tauri OS overlay 生命周期同步 |
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx` | 浏览器/命令上下文 |
 | `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览） |
-| `VisualApprovalHighlight.tsx` / `VisualApprovalAttentionBar.tsx` | 屏幕高亮与注意力条 |
 | `AllowAlwaysConfirmDialog.tsx` | 「始终允许」确认（含 pattern 预览） |

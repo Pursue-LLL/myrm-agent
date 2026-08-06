@@ -56,7 +56,7 @@ vi.mock('@/components/features/message-box/progress-steps/ProgressSteps', () => 
 vi.mock('@/components/features/message-box/ConsensusThinkingPanel', () => ({
   default: () => null,
 }));
-vi.mock('@/components/features/chat-window/VisualApprovalInlineSection', () => ({
+vi.mock('@/components/features/chat-window/approval/VisualApprovalInlineSection', () => ({
   default: () => null,
 }));
 vi.mock('@/components/features/artifacts/ArtifactsDisplay', () => ({

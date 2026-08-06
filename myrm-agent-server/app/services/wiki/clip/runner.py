@@ -8,7 +8,7 @@
 [OUTPUT]
 - schedule_wiki_clip / get_wiki_clip_job (POS: async clip job orchestration)
 
-[POS] server.services.wiki.clip — browser clip async job orchestration
+[POS] app.services.wiki.clip — browser clip async job orchestration
 """
 
 from __future__ import annotations

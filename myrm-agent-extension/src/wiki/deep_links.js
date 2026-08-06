@@ -1,5 +1,5 @@
 /**
- * Wiki Settings deep-link builders for extension popup.
+ * Wiki Settings deep-link builders (popup, notifications, clip REST client).
  */
 
 export function wikiHttpBaseFromServerUrl(url) {

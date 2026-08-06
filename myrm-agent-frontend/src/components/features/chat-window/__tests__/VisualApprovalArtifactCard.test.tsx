@@ -3,7 +3,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import VisualApprovalArtifactCard from '@/components/features/chat-window/VisualApprovalArtifactCard';
+import VisualApprovalArtifactCard from '@/components/features/chat-window/approval/VisualApprovalArtifactCard';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 

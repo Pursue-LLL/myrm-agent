@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Myrm Agent Bridge",
+  "default_locale": "en",
+  "name": "__MSG_extName__",
   "version": "1.1.0",
-  "description": "Connect your browser to Myrm Agent for intelligent automation with your real login sessions.",
+  "description": "__MSG_extDescription__",
   "permissions": [
     "debugger",
     "tabs",
@@ -11,6 +12,7 @@
     "storage",
     "sidePanel",
     "contextMenus",
+    "notifications",
     "scripting"
   ],
   "host_permissions": ["<all_urls>"],
@@ -49,7 +51,7 @@
         "default": "Ctrl+Shift+M",
         "mac": "Command+Shift+M"
       },
-      "description": "Toggle Myrm Agent Side Panel"
+      "description": "__MSG_cmdToggleSidepanel__"
     }
   }
 }

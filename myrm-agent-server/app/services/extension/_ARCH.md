@@ -9,8 +9,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `ExtensionBridgeService`、`get_extension_bridge` | — |
-| `bridge.py` | 核心 | WebSocket 生命周期、心跳、能力握手门禁（`hello.capabilities`）、浏览器连接、域名授权（`*.example.com` 匹配根域+子域）、域名策略告警分析、CDP 探测缓存、Wiki 剪藏 agent 推送（`clip_agent_update`） | ✅ |
-| `clip_agent_config.py` | 核心 | UserConfig `extensionClipAgent` — WebUI 与 MV3 扩展 Wiki 剪藏 vault 范围 SSOT | ✅ |
+| `bridge.py` | 核心 | WebSocket 生命周期、心跳、能力握手门禁、浏览器连接、域名授权、CDP 探测缓存、Wiki 剪藏 agent WS 推送（`clip_agent_update`） | ✅ |
+| `clip/` | 子包 | Wiki clip UserConfig SSOT — 见 [clip/_ARCH.md](clip/_ARCH.md) | ✅ |
 
 ## 设计要点
 
@@ -33,3 +33,4 @@
 - PyPI `myrm-agent-harness` — `ExtensionBridge` Protocol、`BrowserInstance`
 - `patchright.async_api`、`starlette.websockets`
 - `app.services.event` — `AppEvent`、`AppEventType`、`get_event_bus`
+- `app.services.extension.clip` — Wiki clip agent UserConfig SSOT

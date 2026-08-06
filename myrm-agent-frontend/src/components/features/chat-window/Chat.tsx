@@ -55,7 +55,7 @@ import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import AgentWorkMap from './AgentWorkMap';
 import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
-import VisualApprovalOsOverlaySync from './VisualApprovalOsOverlaySync';
+import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync';
 import ScrollToBottomButton from './ScrollToBottomButton';
 import type { Message } from '@/store/chat/types/messages';
 

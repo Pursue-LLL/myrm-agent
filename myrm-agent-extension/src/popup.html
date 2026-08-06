@@ -84,6 +84,12 @@
       color: #818cf8;
       text-decoration: underline;
     }
+    .clip-success-hint {
+      font-size: 11px;
+      color: #4CAF50;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
     .tabs-list {
       max-height: 120px;
       overflow-y: auto;
@@ -101,47 +107,48 @@
 </head>
 <body>
   <div class="header">
-    <h1>Myrm Agent Bridge</h1>
+    <h1 data-i18n="extName">Myrm Agent Bridge</h1>
   </div>
 
   <div id="status-container">
     <div class="status-badge disconnected" id="status-badge">
       <span class="status-dot"></span>
-      <span id="status-text">Disconnected</span>
+      <span id="status-text" data-i18n="statusDisconnected">Disconnected</span>
     </div>
     <div id="error-hint" style="display:none; font-size:11px; color:#ef4444; margin-top:4px;"></div>
     <div id="error-link-wrap" style="display:none; margin-top:6px;">
-      <a id="error-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:#818cf8;">Open Duplicate Review</a>
+      <a id="error-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:#818cf8;" data-i18n="openDuplicateReview">Open Duplicate Review</a>
     </div>
+    <div id="clip-success-hint" class="clip-success-hint" style="display:none;"></div>
     <div id="clip-target-row" class="hint" style="display:none; margin-top:8px;">
-      Clip target: <span id="clip-target-label">Default</span>
+      <span data-i18n="clipTargetPrefix">Clip target:</span> <span id="clip-target-label" data-i18n="defaultAgent">Default</span>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Server WebSocket URL</div>
-    <input type="text" id="server-url" placeholder="ws://localhost:25808/api/v1/ws/extension" />
+    <div class="section-title" data-i18n="sectionServerWsUrl">Server WebSocket URL</div>
+    <input type="text" id="server-url" data-i18n-placeholder="placeholderServerUrl" placeholder="ws://localhost:25808/api/v1/ws/extension" />
   </div>
 
   <div class="section">
-    <div class="section-title">Auth Token (optional)</div>
-    <input type="password" id="auth-token" placeholder="Extension authentication token" />
+    <div class="section-title" data-i18n="sectionAuthToken">Auth Token (optional)</div>
+    <input type="password" id="auth-token" data-i18n-placeholder="placeholderAuthToken" placeholder="Extension authentication token" />
   </div>
 
   <div class="section">
-    <div class="section-title">Authorized Domains (one per line)</div>
-    <textarea id="domains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
-    <div class="hint">Only tabs matching these domains can be controlled by the Agent.</div>
+    <div class="section-title" data-i18n="sectionAuthorizedDomains">Authorized Domains (one per line)</div>
+    <textarea id="domains" data-i18n-placeholder="placeholderDomains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
+    <div class="hint" data-i18n="hintAuthorizedDomains">Only tabs matching these domains can be controlled by the Agent.</div>
   </div>
 
-  <button class="btn btn-primary" id="btn-connect">Connect</button>
-  <button class="btn btn-danger" id="btn-disconnect" style="display:none;">Disconnect</button>
+  <button class="btn btn-primary" id="btn-connect" data-i18n="btnConnect">Connect</button>
+  <button class="btn btn-danger" id="btn-disconnect" style="display:none;" data-i18n="btnDisconnect">Disconnect</button>
 
   <div class="section" id="tabs-section" style="display:none; margin-top: 14px;">
-    <div class="section-title">Available Tabs</div>
+    <div class="section-title" data-i18n="sectionAvailableTabs">Available Tabs</div>
     <div class="tabs-list" id="tabs-list"></div>
   </div>
 
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

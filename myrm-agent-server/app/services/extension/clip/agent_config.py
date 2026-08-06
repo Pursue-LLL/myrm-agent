@@ -6,7 +6,8 @@
 [OUTPUT]
 - get_extension_clip_agent_config / set_extension_clip_agent_config
 
-[POS] server.services.extension — sync clip target agent between WebUI and MV3 extension
+[POS]
+app.services.extension.clip — sync clip target agent between WebUI and MV3 extension.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from dataclasses import dataclass
 from app.services.config.service import ConfigService
 
 _CONFIG_KEY = "extensionClipAgent"
+_CLIP_AGENT_DEVICE_ID = "webui"
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,9 +58,9 @@ async def set_extension_clip_agent_config(
         if web_ui_origin and web_ui_origin.strip()
         else None,
     )
-    payload: dict[str, str | None] = {
+    payload: dict[str, object] = {
         "agent_id": normalized.agent_id,
         "web_ui_origin": normalized.web_ui_origin,
     }
-    await service.set(_CONFIG_KEY, payload)
+    await service.set(_CONFIG_KEY, payload, _CLIP_AGENT_DEVICE_ID)
     return normalized

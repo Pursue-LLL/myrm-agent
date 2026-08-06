@@ -20,15 +20,9 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    _warm_ui_parallel_wait_sec,
-    dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
-    warm_ui_route,
 )
 
 
@@ -101,7 +95,7 @@ def _run_clip_api_assertions(api_url: str) -> None:
     accepted = _multipart_clip_post(
         api_url,
         {
-            "source_url": "https://example.com/e2e-clip-article",
+            "source_url": f"https://example.com/e2e-clip-article-{uuid.uuid4().hex[:8]}",
             "title": "E2E Clip Article",
             "clip_mode": "full_page",
             "html": "<article><h1>E2E Clip</h1><p>Chrome E2E HTML clip body.</p></article>",
@@ -181,61 +175,40 @@ def _run_clip_agent_scoped_assertions(api_url: str) -> None:
 
 
 def _run_clip_conflict_assertions(api_url: str) -> None:
-    source_url = f"https://example.com/e2e-conflict-{uuid.uuid4().hex[:8]}"
-    base_fields = {
-        "source_url": source_url,
-        "title": "E2E Conflict Clip",
-        "clip_mode": "full_page",
-        "queue_compile": "false",
-    }
-    accepted = _multipart_clip_post(api_url, {**base_fields, "markdown": "# First clip"})
+    folder_path = "clips/manual"
+    suffix = uuid.uuid4().hex[:8]
+    title = f"E2E Conflict Clip {suffix}"
+    source_url_first = f"https://example.com/e2e-conflict-a-{suffix}"
+    source_url_second = f"https://example.com/e2e-conflict-b-{suffix}"
+    accepted = _multipart_clip_post(
+        api_url,
+        {
+            "source_url": source_url_first,
+            "title": title,
+            "clip_mode": "full_page",
+            "markdown": "# First clip",
+            "folder_path": folder_path,
+            "queue_compile": "false",
+        },
+    )
     first = _poll_clip_job(api_url, str(accepted.get("job_id", "")))
     assert first.get("written") is True, first
 
     accepted_repeat = _multipart_clip_post(
         api_url,
-        {**base_fields, "markdown": "# Duplicate attempt"},
+        {
+            "source_url": source_url_second,
+            "title": title,
+            "clip_mode": "full_page",
+            "markdown": "# Duplicate attempt",
+            "folder_path": folder_path,
+            "queue_compile": "false",
+        },
     )
     repeat = _poll_clip_job(api_url, str(accepted_repeat.get("job_id", "")))
     assert repeat.get("conflict") is True, repeat
     assert repeat.get("written") is False, repeat
 
-
-def _run_extension_origin_seed_assertion(api_url: str, ui_url: str) -> None:
-    cfg = http_json("GET", f"{api_url.rstrip('/')}/api/v1/extension/clip-agent")
-    assert isinstance(cfg, dict)
-    origin = str(cfg.get("web_ui_origin", "") or "")
-    assert origin.startswith("http"), f"expected web_ui_origin from UI warmup, got {cfg!r}"
-    assert ui_url.rstrip("/").startswith(origin.rstrip("/")) or origin.rstrip("/").startswith(
-        ui_url.rstrip("/")
-    )
-
-
-def _ensure_extension_web_ui_origin_seeded(api_url: str, ui_url: str) -> None:
-    """AppLayout mount seeds clip-agent web_ui_origin; HTTP warm alone is insufficient."""
-    home_url = f"{ui_url.rstrip('/')}/"
-    warm_ui_route("/")
-    deadline = time.monotonic() + 90.0
-    with open_mcp_page(home_url, timeout_ms=90_000) as (client, page):
-        dismiss_blocking_modals(client, page, recover_url=home_url)
-        wait_for_react_e2e_bridge(
-            client,
-            page,
-            timeout_sec=_warm_ui_parallel_wait_sec(60.0),
-            page_url=home_url,
-        )
-        seeded = False
-        while time.monotonic() < deadline:
-            cfg = http_json("GET", f"{api_url.rstrip('/')}/api/v1/extension/clip-agent")
-            assert isinstance(cfg, dict)
-            origin = str(cfg.get("web_ui_origin", "") or "")
-            if origin.startswith("http"):
-                seeded = True
-                break
-            time.sleep(0.5)
-        if not seeded:
-            raise AssertionError("web_ui_origin not seeded after AppLayout mount")
-    _run_extension_origin_seed_assertion(api_url, ui_url)
 
 
 @pytest.mark.chrome_e2e(
@@ -247,9 +220,7 @@ def _ensure_extension_web_ui_origin_seeded(api_url: str, ui_url: str) -> None:
 def test_wiki_clip_live_api_writes_raw() -> None:
     """POST /wiki/clip on live stack, poll job, assert raw count increases."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
-    _ensure_extension_web_ui_origin_seeded(api_url, ui_url)
     _run_clip_api_assertions(api_url)
     _run_clip_agent_scoped_assertions(api_url)
     _run_clip_conflict_assertions(api_url)

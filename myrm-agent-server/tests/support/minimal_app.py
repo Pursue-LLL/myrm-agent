@@ -121,6 +121,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "memory": _RouterMount("app.api.memory.router", prefix="/memory", tags=("memory",)),
     "context_bundle": _RouterMount("app.api.context.router", tags=("context-bundle",)),
     "wiki": _RouterMount("app.api.wiki", prefix="/wiki", tags=("wiki",)),
+    "extension": _RouterMount("app.api.extension.router", tags=("extension",)),
     "cron": _RouterMount("app.api.cron.routes", prefix="/cron", tags=("cron",)),
     "eval": _RouterMount("app.api.eval.router", tags=("eval",)),
     "integrations": _RouterMount(
@@ -264,6 +265,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "memory": ("memory",),
     "projects": ("projects", "chats"),
     "wiki": ("wiki",),
+    "extension": ("extension",),
     "connect": ("connect",),
     "companion": ("companion", "companion_doctor"),
     "client_logs": ("client_logs",),
@@ -426,6 +428,8 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "projects"
     if path.startswith("tests/api/wiki/"):
         return "wiki"
+    if path.startswith("tests/api/extension/"):
+        return "extension"
     if path.startswith("tests/api/webui/"):
         return "webui_only"
     if path.startswith("tests/api/connect/"):

@@ -193,7 +193,9 @@ class ChromeMcpClient:
     def _abort_unpublished_targets(self, *, keep: frozenset[str] = frozenset()) -> None:
         if not self._unpublished_target_ids:
             return
-        from page_create_transaction import close_exact_unpublished_targets  # noqa: PLC0415
+        from page_create_transaction import (
+            close_exact_unpublished_targets,
+        )  # noqa: PLC0415
 
         closed, failed = close_exact_unpublished_targets(
             self._unpublished_target_ids,
@@ -987,7 +989,11 @@ class ChromeMcpClient:
                 return page
             except Exception as exc:
                 cleanup_errors: list[str] = []
-                keep_target = frozenset({page.target_id.strip()}) if page is not None else frozenset()
+                keep_target = (
+                    frozenset({page.target_id.strip()})
+                    if page is not None
+                    else frozenset()
+                )
                 if page is not None:
                     try:
                         self.call_tool(
@@ -1148,9 +1154,7 @@ class ChromeMcpClient:
                             "owner_token": owner_token,
                             "ownership": {
                                 "browser_context_id": self._browser_context_id,
-                                "page_ids": [
-                                    str(pid) for pid in sorted(self._pages)
-                                ],
+                                "page_ids": [str(pid) for pid in sorted(self._pages)],
                                 "lease_id": self._parent_lease_id,
                                 "runtime_id": os.environ.get(
                                     "MYRM_E2E_RUNTIME_ID", ""
@@ -1711,7 +1715,9 @@ class ChromeMcpClient:
             return
         assert_mux_diagnostic_only(operation="transport recovery")
         try:
-            from chrome_e2e.gates.orphan_budget import assert_orphan_budget_invariant  # noqa: PLC0415
+            from chrome_e2e.gates.orphan_budget import (
+                assert_orphan_budget_invariant,
+            )  # noqa: PLC0415
 
             assert_orphan_budget_invariant()
         except ImportError:

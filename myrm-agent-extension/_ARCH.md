@@ -10,18 +10,22 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `manifest.json` | 核心 | MV3 清单：权限（debugger/tabs/storage/alarms/sidePanel/contextMenus/scripting）、Service Worker、popup、side_panel、content_scripts、keyboard commands | — |
-| `src/background.js` | 核心 | Service Worker 入口：WebSocket/CDP/上下文菜单编排；Wiki clip 委托 `src/wiki/*` | ✅ |
+| `manifest.json` | 核心 | MV3 清单：权限、Service Worker、popup、side_panel；`default_locale` + `_locales/` 中英双语 | — |
+| `src/i18n.js` | 辅助 | `msg()` / `applyDocumentI18n()` — Chrome `_locales` SSOT | ✅ |
+| `_locales/en/messages.json` | 辅助 | 英文 UI 文案 | — |
+| `_locales/zh_CN/messages.json` | 辅助 | 简体中文 UI 文案 | — |
+| `src/background.js` | 核心 | Service Worker：WebSocket/CDP/上下文菜单（`chrome.i18n`）；Wiki clip 委托 `src/wiki/*`；`lastClipErrorKind` 供 popup 深链；clip 结果 `chrome.notifications` | ✅ |
 | `src/wiki/deep_links.js` | 辅助 | Settings Wiki 深链 builder | ✅ |
-| `src/wiki/clip_client.js` | 核心 | Wiki clip REST 客户端 | ✅ |
-| `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 | ✅ |
-| `src/popup.html` | 辅助 | Popup 页面结构（服务器 URL、Token、域名列表；clip 冲突时 Duplicate Review 深链） | — |
-| `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链 | ✅ |
+| `src/wiki/clip_client.js` | 核心 | Wiki clip REST 客户端；错误文案 `chrome.i18n` | ✅ |
+| `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 — 见 [src/wiki/_ARCH.md](src/wiki/_ARCH.md) | ✅ |
+| `src/popup.html` | 辅助 | Popup 结构；静态文案 `data-i18n` + 运行时 `applyDocumentI18n` | — |
+| `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；`chrome.i18n` 双语 | ✅ |
 | `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面：Chat UI 结构（SVG 图标、语义化 HTML） | — |
 | `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题、消息气泡、工具进度、审批弹窗、流式指示器、输入区 | — |
-| `src/sidepanel/sidepanel.js` | 核心 | Side Panel 控制器：通过 HTTP+SSE 与 server chat API 通信、SSE 流消费（对齐 `AgentEventType`）、消息渲染、工具进度可视化、取消流、上下文自动附加（当前标签页信息）、选中文本引用、工具审批 UI、Glow 控制、新建聊天 | ✅ |
+| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat（英文 UI；对话文案由 server/WebUI i18n 覆盖） | ✅ |
 | `src/content/selection.js` | 辅助 | Content Script（manifest 注入）：监听 mouseup 捕获用户选中文本，转发至 Side Panel | ✅ |
-| `src/content/clip.js` | 核心 | Content Script（`scripting.executeScript` 动态注入）：捕获 page/selection HTML + credentialed 图片 fetch；响应 `clip_to_wiki` 消息 | ✅ |
+| `src/content/clip_image_urls.js` | 核心 | srcset/lazy/picture 图片 URL 解析（`MyrmClipImageUrls` SSOT） | ✅ |
+| `src/content/clip.js` | 核心 | Content Script（动态注入）：捕获 page/selection HTML + credentialed 图片 fetch | ✅ |
 | `src/content/glow.js` | 辅助 | Content Script（动态注入）：Agent 工作时在网页视口边缘显示发光效果 | ✅ |
 | `icons/icon{16,32,48,128}.png` | 辅助 | 扩展图标（16/32/48/128） | — |
 
@@ -47,7 +51,29 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | `/api/v1/approvals/{approvalId}/resolve` | POST | 响应工具审批（`{decision: "approve"|"deny"}`） |
 | `/api/v1/health` | GET | 连接状态检测 |
 | `/api/v1/extension/clip-agent` | GET/PUT | Wiki 剪藏目标 agent + WebUI origin（与 Settings → Extension Bridge 同步） |
-| `/api/v1/wiki/clip` | POST | 浏览器剪藏 multipart 上传（可选 `?agent_id=`） |
+| `/api/v1/wiki/clip` | POST | 浏览器剪藏 multipart 上传（可选 `?agent_id=`；`folder_path=""` 默认月分目录；`queue_compile=false` 零 LLM） |
+
+## Wiki clip 产品默认
+
+Extension `src/content/clip.js` 固定 `folder_path=""`、`queue_compile=false`：
+
+- 空 `folder_path` → server/harness 写入 `raw/clips/{YYYY-MM}/web_{sha12(source_url)}.md`（URL 稳定路径）
+- `queue_compile=false` → 剪藏不触发 LLM；用户在 WebUI Settings → Wiki 点击 Compile
+- clip ingress：extension 上传图（srcset 最高分辨率 + credentialed fetch）+ server Track B 拉剩余远程 markdown 图片
+- 同 `source_url` 再剪 → **conflict**（`RawConflictPolicy.FAIL`）→ popup/通知引导 Duplicate Review；非静默覆盖
+- REST API 仍接受自定义 `folder_path` 与 `queue_compile=true`（高级/集成调用）
+
+Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension/clip-agent` SSOT）。
+
+## Extension i18n 范围
+
+| 表面 | 语言 | 机制 |
+|------|------|------|
+| Popup + clip 错误 + 右键剪藏菜单 + clip 系统通知 | en / zh_CN | `_locales` + `chrome.i18n` |
+| Side Panel Chat chrome | en | Agent 回复与 WebUI 设置语言由 server SSE 提供 |
+| WebUI Settings → Extension Bridge | 五语 | `myrm-agent-frontend` next-intl |
+
+**Degraded deep links:** When `web_ui_origin` is not yet seeded from WebUI, clip still writes to Wiki; popup shows a success hint (`clipSavedWithoutOrigin`) until origin syncs.
 
 认证通过 `Authorization: Bearer <authToken>`（从 `chrome.storage.local` 读取）。跨域请求由 `host_permissions: ["<all_urls>"]` 授权。
 

@@ -1,0 +1,161 @@
+{
+  "extName": {
+    "message": "Myrm Agent Bridge"
+  },
+  "extDescription": {
+    "message": "Connect your browser to Myrm Agent for intelligent automation with your real login sessions."
+  },
+  "cmdToggleSidepanel": {
+    "message": "Toggle Myrm Agent Side Panel"
+  },
+  "statusDisconnected": {
+    "message": "Disconnected"
+  },
+  "statusConnected": {
+    "message": "Connected"
+  },
+  "statusConnecting": {
+    "message": "Connecting…"
+  },
+  "openDuplicateReview": {
+    "message": "Open Duplicate Review"
+  },
+  "openWikiIgnoreRules": {
+    "message": "Open Wiki Ignore Rules"
+  },
+  "openClippedRaw": {
+    "message": "Open clipped raw in Wiki"
+  },
+  "clipSavedWithoutOrigin": {
+    "message": "Saved to Wiki. Open WebUI → Settings → Wiki to view."
+  },
+  "clipTargetPrefix": {
+    "message": "Clip target:"
+  },
+  "defaultAgent": {
+    "message": "Default"
+  },
+  "sectionServerWsUrl": {
+    "message": "Server WebSocket URL"
+  },
+  "sectionAuthToken": {
+    "message": "Auth Token (optional)"
+  },
+  "sectionAuthorizedDomains": {
+    "message": "Authorized Domains (one per line)"
+  },
+  "placeholderServerUrl": {
+    "message": "ws://localhost:25808/api/v1/ws/extension"
+  },
+  "placeholderAuthToken": {
+    "message": "Extension authentication token"
+  },
+  "placeholderDomains": {
+    "message": "github.com\n*.google.com\nmail.example.com"
+  },
+  "hintAuthorizedDomains": {
+    "message": "Only tabs matching these domains can be controlled by the Agent."
+  },
+  "btnConnect": {
+    "message": "Connect"
+  },
+  "btnDisconnect": {
+    "message": "Disconnect"
+  },
+  "sectionAvailableTabs": {
+    "message": "Available Tabs"
+  },
+  "tabItemLabel": {
+    "message": "Tab #$TAB_ID$",
+    "placeholders": {
+      "tab_id": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "errConfigureServerUrl": {
+    "message": "Configure server URL in extension popup"
+  },
+  "errCaptureFailed": {
+    "message": "Capture failed"
+  },
+  "errClipStatusFailed": {
+    "message": "Clip status failed ($STATUS$)",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errClipFailed": {
+    "message": "Clip failed"
+  },
+  "errClipTimedOut": {
+    "message": "Clip timed out"
+  },
+  "errAlreadyClipped": {
+    "message": "Already clipped — open Duplicate Review in Settings Wiki"
+  },
+  "errSecurityBlocked": {
+    "message": "Clip blocked by security scan"
+  },
+  "errClipUploadFailed": {
+    "message": "Clip upload failed ($STATUS$)",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errInvalidWebSocketUrl": {
+    "message": "Invalid WebSocket URL"
+  },
+  "errConnectionClosed": {
+    "message": "Connection closed"
+  },
+  "errConnectionRefused": {
+    "message": "Connection refused — server not running?"
+  },
+  "ctxAskMyrmAgent": {
+    "message": "Ask Myrm Agent"
+  },
+  "ctxAskMyrmAgentPage": {
+    "message": "Ask Myrm Agent about this page"
+  },
+  "ctxClipWikiSelection": {
+    "message": "Clip selection to Wiki"
+  },
+  "ctxClipWikiPage": {
+    "message": "Clip page to Wiki"
+  },
+  "notifyClipSuccessTitle": {
+    "message": "Saved to Wiki"
+  },
+  "notifyClipSuccessBody": {
+    "message": "Clip saved to raw/. Click to open in Wiki settings."
+  },
+  "notifyClipDuplicateTitle": {
+    "message": "Already clipped"
+  },
+  "notifyClipDuplicateBody": {
+    "message": "This page was clipped before. Click to open Duplicate Review."
+  },
+  "notifyClipDuplicateBodyNoLink": {
+    "message": "This page was clipped before. Open WebUI → Settings → Wiki → Duplicate Review."
+  },
+  "notifyClipSecurityTitle": {
+    "message": "Clip blocked"
+  },
+  "notifyClipSecurityBody": {
+    "message": "Security scan blocked this clip. Click to review Wiki ignore rules."
+  },
+  "notifyClipSecurityBodyNoLink": {
+    "message": "Security scan blocked this clip. Open WebUI → Settings → Wiki to review ignore rules."
+  },
+  "notifyClipErrorTitle": {
+    "message": "Clip failed"
+  }
+}

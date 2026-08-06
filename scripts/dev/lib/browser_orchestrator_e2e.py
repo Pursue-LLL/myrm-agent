@@ -523,7 +523,10 @@ def _parallel_open_page_max_attempts() -> int:
     try:
         from peer_count_ssot import parallel_active_test_count_ssot
 
-        if parallel_active_test_count_ssot() > 0:
+        peers = parallel_active_test_count_ssot()
+        if peers <= 1:
+            return 1
+        if peers > 0:
             return 6
     except ImportError:
         pass
@@ -580,17 +583,14 @@ def _open_page_fast_create_with_retry(
 
             touch_wall_progress(current_node="open_page_fast_create")
             target_url = url.strip() or "about:blank"
+            # Single RPC: orchestrator createPage runs create+navigate in one daemon
+            # transaction — avoids client round-trip window (§19.11 TAB-6b).
             with daemon.elevated_request_timeout(open_timeout_sec):
-                created = daemon.create_page(session_id, url="about:blank")
+                created = daemon.create_page(session_id, url=target_url)
             payload = dict(created)
-            target_id = str(payload["targetId"])
-            page_id = int(payload["pageId"])
-            if target_url != "about:blank":
-                with daemon.elevated_request_timeout(open_timeout_sec):
-                    daemon.navigate_page(session_id, target_id, target_url)
             return {
-                "pageId": page_id,
-                "targetId": target_id,
+                "pageId": int(payload["pageId"]),
+                "targetId": str(payload["targetId"]),
                 "url": target_url,
             }
         except (TimeoutError, OSError, RuntimeError) as exc:

@@ -137,7 +137,7 @@ vi.mock('@/components/primitives/button', () => ({
   ),
 }));
 
-import MobileStatusBoard from '../MobileStatusBoard';
+import MobileStatusBoard from '../mobile/MobileStatusBoard';
 
 describe('MobileStatusBoard Live Preview', () => {
   beforeEach(() => {

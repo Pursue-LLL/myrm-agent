@@ -88,9 +88,9 @@ def _assert_discover_miss_query_disjoint_from_fixture_names() -> None:
         shared = query_tokens & doc_tokens
         if shared:
             overlaps.append((skill.name, shared))
-    assert not overlaps, (
-        f"_DISCOVER_MISS_QUERY shares BM25 tokens with fixture index docs: {overlaps}"
-    )
+    assert (
+        not overlaps
+    ), f"_DISCOVER_MISS_QUERY shares BM25 tokens with fixture index docs: {overlaps}"
 
     engine = SkillSearchEngine(_discover_gateway_skills(), enable_query_expansion=False)
     assert engine.search_bm25(_DISCOVER_MISS_QUERY) == []
@@ -550,9 +550,9 @@ def test_agent_stream_discover_miss_does_not_emit_capability_gap_sse(
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert not gaps and "<CapabilityGap>" not in blob, (
-        "discover miss must not emit capability_gap SSE or CapabilityGap blocks"
-    )
+    assert (
+        not gaps and "<CapabilityGap>" not in blob
+    ), "discover miss must not emit capability_gap SSE or CapabilityGap blocks"
 
 
 @pytest.mark.integration
@@ -882,9 +882,9 @@ def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
         and event["data"].get("tool_id") == "migration_import"
         and event["data"].get("reason") == "migration_readiness_warning"
     ]
-    assert migration_gaps, (
-        "expected migration readiness capability_gap SSE before agent execution"
-    )
+    assert (
+        migration_gaps
+    ), "expected migration readiness capability_gap SSE before agent execution"
     assistant_text = _message_text_from_stream_events(events).strip()
     assert len(assistant_text) > 5, (
         "soft gate must not block assistant output; "
@@ -1055,6 +1055,6 @@ def test_agent_stream_discover_miss_does_not_emit_cron_capability_gap_sse(
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert not gaps and "<CapabilityGap>" not in blob, (
-        "discover miss must not emit cron capability_gap SSE or CapabilityGap blocks"
-    )
+    assert (
+        not gaps and "<CapabilityGap>" not in blob
+    ), "discover miss must not emit cron capability_gap SSE or CapabilityGap blocks"

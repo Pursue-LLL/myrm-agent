@@ -8,7 +8,7 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
-import VisualApprovalRequestRenderer from './approval/VisualApprovalRequestRenderer';
+import VisualApprovalRequestRenderer from './VisualApprovalRequestRenderer';
 
 interface VisualApprovalInlineSectionProps {
   messageId: string;

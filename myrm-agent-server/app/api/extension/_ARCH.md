@@ -9,11 +9,13 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `router`、`ws_router` | — |
-| `router.py` | 核心 | `ws://…/api/v1/ws/extension`（origin 守卫 + token 校验）；REST `/extension/status|domains|tabs|disconnect|clip-agent|setup-hints`（status 含 `handshake_ready` 与 extension capabilities 矩阵，setup-hints 含 remote token required 与 CDP 可发现性提示；clip-agent 为 Wiki 剪藏 agent 范围 SSOT） | ✅ |
+| `router.py` | 核心 | `ws://…/api/v1/ws/extension`（origin 守卫 + token 校验）；REST `/extension/status|domains|tabs|disconnect|setup-hints` | ✅ |
+| `routes/clip_agent.py` | 路由 | **GET/PUT /extension/clip-agent** — Wiki 剪藏 agent 范围 SSOT | ✅ |
 
 ## 依赖
 
 - `app.services.extension.bridge::get_extension_bridge`
+- `app.services.extension.clip` — clip agent UserConfig get/set
 - `app.config.settings` — `extension_auth_token`
 - `app.config.deploy_mode` — `is_webui_remote_mode`（remote 模式 token 强制）
 - `setup-hints` 返回三类非敏感提示：`auth_token_configured`、`auth_token_required`、`cdp_endpoint_discovered`

@@ -108,15 +108,15 @@ vi.mock('@/components/primitives/button', () => ({
   },
 }));
 
-vi.mock('@/components/features/chat-window/MobileStatusApprovalsSection', () => ({
+vi.mock('@/components/features/chat-window/mobile/MobileStatusApprovalsSection', () => ({
   MobileStatusApprovalsSection: () => null,
 }));
 
-vi.mock('@/components/features/chat-window/MobileStatusMessageBody', () => ({
+vi.mock('@/components/features/chat-window/mobile/MobileStatusMessageBody', () => ({
   MobileStatusMessageBody: () => null,
 }));
 
-import MobileStatusBoard from '../MobileStatusBoard';
+import MobileStatusBoard from '../mobile/MobileStatusBoard';
 
 describe('MobileStatusBoard autoStart', () => {
   beforeEach(() => {

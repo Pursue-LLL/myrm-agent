@@ -13,6 +13,8 @@ import {
   wikiHttpBaseFromServerUrl,
 } from "./wiki/deep_links.js";
 import { submitClipToWiki as runClipToWiki } from "./wiki/clip_client.js";
+import { notifyClipOutcome } from "./wiki/clip_notify.js";
+import { msg } from "./i18n.js";
 
 const ALARM_NAME = "myrm-keepalive";
 const RECONNECT_DELAY_MS = 3000;
@@ -36,6 +38,8 @@ let authorizedDomains = [];
 let attachedTabs = new Map(); // tabId -> debugger target
 let backgroundWindowId = null; // Isolated background window for non-disruptive automation
 let lastClipSuccessUrl = "";
+let clipSavedWithoutOrigin = false;
+let lastClipErrorKind = "";
 
 // --- Lifecycle ---
 
@@ -59,7 +63,10 @@ chrome.runtime.onInstalled.addListener(() => {
   restoreState();
 });
 
-chrome.runtime.onStartup.addListener(restoreState);
+chrome.runtime.onStartup.addListener(() => {
+  setupContextMenu();
+  restoreState();
+});
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) {
@@ -74,6 +81,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 function applyClipAgentConfig(agentId, origin) {
   clipAgentId = agentId || "";
   webUiOrigin = origin || "";
+  if (webUiOrigin) {
+    clipSavedWithoutOrigin = false;
+  }
   chrome.storage.local.set({ clipAgentId, webUiOrigin });
 }
 
@@ -105,7 +115,7 @@ function connect() {
     ws = new WebSocket(url);
   } catch (e) {
     isConnecting = false;
-    lastError = "Invalid WebSocket URL";
+    lastError = msg("errInvalidWebSocketUrl");
     updateBadge("error");
     return;
   }
@@ -140,7 +150,7 @@ function connect() {
   ws.onclose = (event) => {
     ws = null;
     isConnecting = false;
-    if (!lastError) lastError = event.reason || "Connection closed";
+    if (!lastError) lastError = event.reason || msg("errConnectionClosed");
     updateBadge("disconnected");
     detachAllDebuggers();
     scheduleReconnect();
@@ -149,7 +159,7 @@ function connect() {
   ws.onerror = () => {
     ws = null;
     isConnecting = false;
-    lastError = "Connection refused — server not running?";
+    lastError = msg("errConnectionRefused");
     updateBadge("error");
   };
 }
@@ -558,14 +568,32 @@ async function submitClipToWiki(tab, mode) {
   const result = await runClipToWiki(tab, mode, { serverUrl, authToken, clipAgentId });
   if (result.ok) {
     lastError = "";
+    lastClipErrorKind = "";
     lastClipSuccessUrl = buildClipRawUrl(webUiOrigin, clipAgentId, result.relative_path || "");
+    clipSavedWithoutOrigin = !webUiOrigin.trim();
     chrome.action.setBadgeText({ text: "OK" });
     setTimeout(() => updateBadge(ws && ws.readyState === WebSocket.OPEN ? "connected" : "disconnected"), 2000);
+    if (clipSavedWithoutOrigin) {
+      void notifyClipOutcome("success_no_origin");
+    } else {
+      void notifyClipOutcome("success", { openUrl: lastClipSuccessUrl });
+    }
     return;
   }
   lastClipSuccessUrl = "";
-  lastError = result.error || "Clip failed";
-  if (!result.conflict && !result.security_blocked) {
+  clipSavedWithoutOrigin = false;
+  lastClipErrorKind = result.conflict ? "duplicate" : result.security_blocked ? "security" : "generic";
+  lastError = result.error || msg("errClipFailed");
+  if (result.conflict) {
+    void notifyClipOutcome("duplicate", {
+      openUrl: buildDuplicateReviewUrl(webUiOrigin, clipAgentId),
+    });
+  } else if (result.security_blocked) {
+    void notifyClipOutcome("security", {
+      openUrl: buildWikiIgnoreUrl(webUiOrigin, clipAgentId),
+    });
+  } else {
+    void notifyClipOutcome("error", { errorMessage: lastError });
     updateBadge("error");
   }
 }
@@ -574,10 +602,10 @@ async function submitClipToWiki(tab, mode) {
 
 function setupContextMenu() {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: "ask-myrm-agent", title: "Ask Myrm Agent", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "ask-myrm-agent-page", title: "Ask Myrm Agent about this page", contexts: ["page"] });
-    chrome.contextMenus.create({ id: "clip-wiki-selection", title: "Clip selection to Wiki", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "clip-wiki-page", title: "Clip page to Wiki", contexts: ["page"] });
+    chrome.contextMenus.create({ id: "ask-myrm-agent", title: msg("ctxAskMyrmAgent"), contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "ask-myrm-agent-page", title: msg("ctxAskMyrmAgentPage"), contexts: ["page"] });
+    chrome.contextMenus.create({ id: "clip-wiki-selection", title: msg("ctxClipWikiSelection"), contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "clip-wiki-page", title: msg("ctxClipWikiPage"), contexts: ["page"] });
   });
 }
 
@@ -631,6 +659,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       connected: ws && ws.readyState === WebSocket.OPEN,
       connecting: isConnecting,
       lastError,
+      lastClipErrorKind,
       serverUrl,
       authorizedDomains,
       attachedTabs: Array.from(attachedTabs.keys()),
@@ -640,6 +669,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       duplicateReviewUrl: buildDuplicateReviewUrl(webUiOrigin, clipAgentId),
       wikiIgnoreUrl: buildWikiIgnoreUrl(webUiOrigin, clipAgentId),
       clipSuccessUrl: lastClipSuccessUrl,
+      clipSavedWithoutOrigin,
     });
     return true;
   }

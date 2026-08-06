@@ -12,7 +12,7 @@
 | `../../app/mobile/page.tsx` | Hub 路由页 |
 | `../../app/mobile/status/[chatId]/page.tsx` | StatusBoard 路由页 |
 | `../../app/mobile/takeover/[chatId]/page.tsx` | takeover 专用路由页（签名链接入口） |
-| `../chat-window/MobileStatusBoard.tsx` | 单会话控制 UI（SSE attach、HITL、steer、语音、**Stop** → `cancelActiveChatAgent` + toast 反馈、**Live Preview** — Browser/Desktop 截图实时预览 + Lightbox 全屏放大、**Artifact Deliverables** — 交付物列表预览/下载、**autoStart** — sessionStorage 消费初始消息自动 sendMessage、run 中 **查看完整对话** → 主 Chat 划词旁路；localhost dev **`window.__MYRM_E2E_MOBILE_CC__.setLoading`** Chrome E2E 桥） |
+| `../chat-window/mobile/MobileStatusBoard.tsx` | 单会话控制 UI（SSE attach、HITL、steer、语音、**Stop** → `cancelActiveChatAgent` + toast 反馈、**Live Preview** — Browser/Desktop 截图实时预览 + Lightbox 全屏放大、**Artifact Deliverables** — 交付物列表预览/下载、**autoStart** — sessionStorage 消费初始消息自动 sendMessage、run 中 **查看完整对话** → 主 Chat 划词旁路；localhost dev **`window.__MYRM_E2E_MOBILE_CC__.setLoading`** Chrome E2E 桥） |
 | `MobileTakeoverBoard.tsx` | takeover 专用轻量面板（读取 `mid/reason/page/pair` 签名参数，轮询 `/api/v1/remote-access/mobile/takeover/{chatId}/snapshot` 实时预览，Done/Skip resume + 会话跳转） |
 
 ## 依赖

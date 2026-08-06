@@ -1129,11 +1129,11 @@ class TestExtensionRouterClipAgent:
 
     @pytest.mark.asyncio
     async def test_get_clip_agent_returns_config(self) -> None:
-        from app.api.extension.router import get_extension_clip_agent
-        from app.services.extension.clip_agent_config import ExtensionClipAgentConfig
+        from app.api.extension.routes.clip_agent import get_extension_clip_agent
+        from app.services.extension.clip import ExtensionClipAgentConfig
 
         with patch(
-            "app.services.extension.clip_agent_config.get_extension_clip_agent_config",
+            "app.api.extension.routes.clip_agent.get_extension_clip_agent_config",
             new_callable=AsyncMock,
             return_value=ExtensionClipAgentConfig(
                 agent_id="agent-1",
@@ -1147,18 +1147,18 @@ class TestExtensionRouterClipAgent:
 
     @pytest.mark.asyncio
     async def test_update_clip_agent_persists_and_notifies_extension(self) -> None:
-        from app.api.extension.router import (
+        from app.api.extension.routes.clip_agent import (
             ExtensionClipAgentUpdateRequest,
             update_extension_clip_agent,
         )
-        from app.services.extension.clip_agent_config import ExtensionClipAgentConfig
+        from app.services.extension.clip import ExtensionClipAgentConfig
 
         bridge = MagicMock()
         bridge.notify_clip_agent_config = AsyncMock()
 
         with (
             patch(
-                "app.services.extension.clip_agent_config.set_extension_clip_agent_config",
+                "app.api.extension.routes.clip_agent.set_extension_clip_agent_config",
                 new_callable=AsyncMock,
                 return_value=ExtensionClipAgentConfig(
                     agent_id="writer",
@@ -1166,7 +1166,7 @@ class TestExtensionRouterClipAgent:
                 ),
             ),
             patch(
-                "app.api.extension.router.get_extension_bridge",
+                "app.api.extension.routes.clip_agent.get_extension_bridge",
                 return_value=bridge,
             ),
         ):

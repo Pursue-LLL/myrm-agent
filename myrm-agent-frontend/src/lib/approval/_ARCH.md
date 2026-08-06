@@ -37,15 +37,15 @@
 
 ## UI 入口
 
-- `chat-window/VisualApprovalInlineSection.tsx`：桌面聊天 inline artifact
-- `chat-window/VisualApprovalOsOverlaySync.tsx`：Tauri OS overlay 生命周期同步
+- `chat-window/approval/VisualApprovalInlineSection.tsx`：桌面聊天 inline artifact
+- `chat-window/approval/VisualApprovalOsOverlaySync.tsx`：Tauri OS overlay 生命周期同步
 - `chat-window/approval/VisualApprovalRequestRenderer.tsx`：loading/ready/unavailable 三态渲染
 - `chat-window/approval/VisualApprovalUnavailableCard.tsx`：snapshot 失败降级 + 重试
 - `chat-window/approval/VisualApprovalAttentionBar.tsx`：滚动区外 pending 可达条（Chat 输入框上）
-- `chat-window/VisualApprovalPendingCard.tsx`：snapshot loading 占位
-- `chat-window/VisualApprovalArtifactCard.tsx`：截图 + BBox + 审批操作
+- `chat-window/approval/VisualApprovalPendingCard.tsx`：snapshot loading 占位
+- `chat-window/approval/VisualApprovalArtifactCard.tsx`：截图 + BBox + 审批操作
 - `chat-window/ToolApprovalDialog.tsx`：modal 审批（非 visual / handover）
 - `chat-window/approval/ShellCommandDisplay.tsx`：shell 命令终端展示 + pipeline span 高亮 + unknown 段 risk reason tooltip
 - `components/approval/PolymorphicApprovalCard.tsx`：SubAgent 批量审批（ShellCommandDisplay + EditModeView 单 shell 编辑 + allow_always）
 - `components/approval/ApprovalDrawer.tsx`：全局 Drawer（resume 先于 resolve；batch 逐条 resume）
-- `chat-window/MobileStatusBoard.tsx`：移动端复用同一 surface 规则
+- `chat-window/mobile/MobileStatusBoard.tsx`：移动端复用同一 surface 规则

@@ -11,8 +11,8 @@ import {
 } from '@/lib/approval/visualApprovalContext';
 import { formatSnapshotAgeSeconds } from '@/lib/approval/visualApprovalRenderState';
 import type { ToolApprovalRequest } from '@/store/chat/types';
-import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
-import SingleApprovalCard from './SingleApprovalCard';
+import VisualApprovalHighlight from './VisualApprovalHighlight';
+import SingleApprovalCard from '../SingleApprovalCard';
 import type { ToolApprovalResolveExtra } from '@/hooks/approval/useToolApprovalResolve';
 
 type DecisionType = 'approve' | 'edit' | 'reject';

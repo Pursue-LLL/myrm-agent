@@ -1,0 +1,161 @@
+{
+  "extName": {
+    "message": "Myrm Agent 桥接"
+  },
+  "extDescription": {
+    "message": "将浏览器连接到 Myrm Agent，在真实登录会话中实现智能自动化。"
+  },
+  "cmdToggleSidepanel": {
+    "message": "打开/关闭 Myrm Agent 侧栏"
+  },
+  "statusDisconnected": {
+    "message": "未连接"
+  },
+  "statusConnected": {
+    "message": "已连接"
+  },
+  "statusConnecting": {
+    "message": "连接中…"
+  },
+  "openDuplicateReview": {
+    "message": "打开重复审核"
+  },
+  "openWikiIgnoreRules": {
+    "message": "打开 Wiki 忽略规则"
+  },
+  "openClippedRaw": {
+    "message": "在 Wiki 中打开剪藏原文"
+  },
+  "clipSavedWithoutOrigin": {
+    "message": "已保存到 Wiki。请打开 WebUI → 设置 → Wiki 查看。"
+  },
+  "clipTargetPrefix": {
+    "message": "剪藏目标："
+  },
+  "defaultAgent": {
+    "message": "默认"
+  },
+  "sectionServerWsUrl": {
+    "message": "服务器 WebSocket 地址"
+  },
+  "sectionAuthToken": {
+    "message": "认证令牌（可选）"
+  },
+  "sectionAuthorizedDomains": {
+    "message": "授权域名（每行一个）"
+  },
+  "placeholderServerUrl": {
+    "message": "ws://localhost:25808/api/v1/ws/extension"
+  },
+  "placeholderAuthToken": {
+    "message": "扩展认证令牌"
+  },
+  "placeholderDomains": {
+    "message": "github.com\n*.google.com\nmail.example.com"
+  },
+  "hintAuthorizedDomains": {
+    "message": "仅匹配这些域名的标签页可被 Agent 控制。"
+  },
+  "btnConnect": {
+    "message": "连接"
+  },
+  "btnDisconnect": {
+    "message": "断开"
+  },
+  "sectionAvailableTabs": {
+    "message": "可用标签页"
+  },
+  "tabItemLabel": {
+    "message": "标签页 #$TAB_ID$",
+    "placeholders": {
+      "tab_id": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "errConfigureServerUrl": {
+    "message": "请在扩展弹窗中配置服务器地址"
+  },
+  "errCaptureFailed": {
+    "message": "页面捕获失败"
+  },
+  "errClipStatusFailed": {
+    "message": "剪藏状态查询失败（$STATUS$）",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errClipFailed": {
+    "message": "剪藏失败"
+  },
+  "errClipTimedOut": {
+    "message": "剪藏超时"
+  },
+  "errAlreadyClipped": {
+    "message": "已剪藏过 — 请在设置 Wiki 中打开重复审核"
+  },
+  "errSecurityBlocked": {
+    "message": "剪藏被安全扫描拦截"
+  },
+  "errClipUploadFailed": {
+    "message": "剪藏上传失败（$STATUS$）",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errInvalidWebSocketUrl": {
+    "message": "WebSocket 地址无效"
+  },
+  "errConnectionClosed": {
+    "message": "连接已关闭"
+  },
+  "errConnectionRefused": {
+    "message": "连接被拒绝 — 服务器是否在运行？"
+  },
+  "ctxAskMyrmAgent": {
+    "message": "询问 Myrm Agent"
+  },
+  "ctxAskMyrmAgentPage": {
+    "message": "就本页询问 Myrm Agent"
+  },
+  "ctxClipWikiSelection": {
+    "message": "剪藏选中内容到 Wiki"
+  },
+  "ctxClipWikiPage": {
+    "message": "剪藏整页到 Wiki"
+  },
+  "notifyClipSuccessTitle": {
+    "message": "已保存到 Wiki"
+  },
+  "notifyClipSuccessBody": {
+    "message": "剪藏已写入 raw/。点击在 Wiki 设置中打开。"
+  },
+  "notifyClipDuplicateTitle": {
+    "message": "已剪藏过"
+  },
+  "notifyClipDuplicateBody": {
+    "message": "此页面之前已剪藏。点击打开重复审核。"
+  },
+  "notifyClipDuplicateBodyNoLink": {
+    "message": "此页面之前已剪藏。请打开 WebUI → 设置 → Wiki → 重复审核。"
+  },
+  "notifyClipSecurityTitle": {
+    "message": "剪藏被拦截"
+  },
+  "notifyClipSecurityBody": {
+    "message": "安全扫描拦截了此次剪藏。点击查看 Wiki 忽略规则。"
+  },
+  "notifyClipSecurityBodyNoLink": {
+    "message": "安全扫描拦截了此次剪藏。请打开 WebUI → 设置 → Wiki 查看忽略规则。"
+  },
+  "notifyClipErrorTitle": {
+    "message": "剪藏失败"
+  }
+}

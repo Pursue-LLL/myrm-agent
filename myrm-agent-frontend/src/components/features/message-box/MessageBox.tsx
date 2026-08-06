@@ -60,7 +60,7 @@ import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
-import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
+import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';

@@ -164,6 +164,33 @@ def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
         _cleanup_wiki_client(client)
 
 
+def test_wiki_clip_queue_compile_true_enqueues_raw(tmp_path: Path) -> None:
+    client, archiver, _structure = _build_wiki_client(tmp_path)
+    try:
+        with (
+            patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None),
+            patch.object(archiver._compiler, "start_background_worker") as start_worker,
+        ):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/auto-compile",
+                    "title": "Auto Compile",
+                    "clip_mode": "full_page",
+                    "markdown": "# Auto compile\n\nQueue compile after clip.",
+                    "queue_compile": "true",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is True
+        assert archiver._queue.get_stats()["pending"] == 1
+        start_worker.assert_called_once()
+    finally:
+        _cleanup_wiki_client(client)
+
+
 def test_wiki_clip_payload_too_large(tmp_path: Path) -> None:
     client, _, _ = _build_wiki_client(tmp_path)
     try:
@@ -234,6 +261,35 @@ def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
         raw_path = structure.get_raw_file_path(rel_path)
         content = raw_path.read_text(encoding="utf-8")
         assert "Body from HTML path." in content
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_custom_folder_path_writes_raw(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/custom-folder",
+                    "title": "Custom Folder Clip",
+                    "clip_mode": "full_page",
+                    "markdown": "# Custom folder\n\nWritten under clips/manual.",
+                    "folder_path": "clips/manual",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is True
+        rel_path = str(final["relative_path"])
+        assert rel_path.startswith("clips/manual/")
+        assert rel_path.endswith(".md")
+        raw_path = structure.get_raw_file_path(rel_path)
+        assert raw_path.is_file()
+        assert "Custom folder" in raw_path.read_text(encoding="utf-8")
     finally:
         _cleanup_wiki_client(client)
 
@@ -348,5 +404,47 @@ def test_wiki_clip_multipart_assets(tmp_path: Path) -> None:
         rel_path = str(final["relative_path"])
         content = structure.get_raw_file_path(rel_path).read_text(encoding="utf-8")
         assert "wiki/assets/" in content or "assets/" in content
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    source_url = "https://example.com/reclip-api"
+    try:
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            first = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": source_url,
+                    "title": "Reclip API",
+                    "clip_mode": "full_page",
+                    "markdown": "# Version 1\n",
+                    "queue_compile": "false",
+                },
+            )
+        assert first.status_code == 202
+        first_final = _poll_clip_job(client, first.json()["job_id"])
+        assert first_final["written"] is True
+        rel_path = str(first_final["relative_path"])
+
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            second = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": source_url,
+                    "title": "Reclip API",
+                    "clip_mode": "full_page",
+                    "markdown": "# Version 2\n",
+                    "queue_compile": "false",
+                },
+            )
+        assert second.status_code == 202
+        second_final = _poll_clip_job(client, second.json()["job_id"])
+        assert second_final["written"] is True
+        assert second_final.get("conflict") is not True
+        assert str(second_final["relative_path"]) == rel_path
+        content = structure.get_raw_file_path(rel_path).read_text(encoding="utf-8")
+        assert "Version 2" in content
     finally:
         _cleanup_wiki_client(client)

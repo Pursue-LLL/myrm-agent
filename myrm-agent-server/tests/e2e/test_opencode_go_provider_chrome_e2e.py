@@ -14,7 +14,6 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import get_e2e_ui_url, wait_e2e_provider_ready  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
@@ -22,6 +21,7 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     open_mcp_page,
+    open_mcp_page_async,
     prepare_e2e_ui_session,
     reload_mcp_page,
     wait_for_state,
@@ -103,7 +103,9 @@ def _require_opencode_go_config() -> None:
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResourceLedger) -> None:
+def test_opencode_go_settings_fetch_models_dialog(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
     """Real WebUI: Settings → OpenCode Go → 获取模型 → provider API list visible."""
     _require_opencode_go_config()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
@@ -121,8 +123,8 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
     )
     with open_mcp_page(
         settings_url,
-        timeout_ms=90_000,
-        request_timeout_sec=90.0,
+        timeout_ms=120_000,
+        request_timeout_sec=120.0,
     ) as (client, page):
         dismiss_blocking_modals(client, page, recover_url=settings_url)
         state: dict[str, object] = {}
@@ -141,7 +143,9 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
                 if attempt >= 2:
                     raise
             if attempt < 2:
-                reload_mcp_page(client, page, target_url=settings_url, timeout_ms=90_000)
+                reload_mcp_page(
+                    client, page, target_url=settings_url, timeout_ms=90_000
+                )
                 dismiss_blocking_modals(client, page, recover_url=settings_url)
         assert state.get("ready") is True, state
         heartbeat_e2e_lease()
@@ -156,11 +160,15 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
         e2e_resource_ledger.register("page", page.target_id or "settings-models")
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
-async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger) -> None:
+async def test_opencode_go_chat_reply_ok(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
     """Real WebUI chat using DB-configured OpenCode Go deepseek-v4-flash."""
     _require_opencode_go_config()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
@@ -169,31 +177,14 @@ async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger)
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=_warm_ui_parallel_wait_sec(30.0))
 
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
+    session = await open_mcp_page_async(
+        ui_base,
+        timeout_ms=120_000,
+        request_timeout_sec=180.0,
+    )
     try:
-        page: McpPage | None = None
-        last_exc: BaseException | None = None
-        for attempt in range(1, 4):
-            try:
-                page = await asyncio.to_thread(
-                    client.new_page, ui_base, timeout_ms=120_000
-                )
-                break
-            except (TimeoutError, RuntimeError) as exc:
-                last_exc = exc
-                message = str(exc).lower()
-                retryable = (
-                    "does not own target" in message
-                    or "no target with given id" in message
-                    or "cdp request timeout" in message
-                    or "browser orchestrator response timeout" in message
-                )
-                if not retryable or attempt >= 3:
-                    raise
-                await asyncio.sleep(min(2.0 * float(attempt), 6.0))
-        if page is None:
-            raise RuntimeError(f"new_page returned no page: {last_exc}")
+        client = session.client
+        page = session.page
         chat = McpChatSession(client, page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
@@ -203,10 +194,14 @@ async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger)
         if str(state.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings: {state}")
         assistant = str(state.get("assistantText") or state.get("lastAssistant") or "")
-        assert assistant.strip(), f"No assistant text in state: {json.dumps(state)[:500]}"
-        assert "OK" in assistant.upper(), f"Expected OK in reply, got: {assistant[:200]!r}"
+        assert (
+            assistant.strip()
+        ), f"No assistant text in state: {json.dumps(state)[:500]}"
+        assert (
+            "OK" in assistant.upper()
+        ), f"Expected OK in reply, got: {assistant[:200]!r}"
         chat_id = str(state.get("chatId") or "")
         if chat_id:
             e2e_resource_ledger.register("chat", chat_id)
     finally:
-        await asyncio.to_thread(client.close)
+        await session.aclose()

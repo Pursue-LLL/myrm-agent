@@ -3,7 +3,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { MobileActionSheet, type MobileActionSheetEntry } from '../MobileActionSheet';
+import { MobileActionSheet, type MobileActionSheetEntry } from '../mobile/MobileActionSheet';
 
 function makeEntries(overrides: Partial<MobileActionSheetEntry>[] = []): MobileActionSheetEntry[] {
   const defaults: MobileActionSheetEntry[] = [

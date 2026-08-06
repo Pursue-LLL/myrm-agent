@@ -1,10 +1,15 @@
 /**
- * Content script — capture page/selection HTML and same-origin images for wiki clip.
+ * Content script — capture page/selection HTML and remote images (credentialed fetch) for wiki clip.
  */
 
 (() => {
   const MAX_ASSETS = 20;
   const MAX_ASSET_BYTES = 5 * 1024 * 1024;
+  const collectImageUrls =
+    globalThis.MyrmClipImageUrls?.collectImageUrls ||
+    ((_html, _base, _max) => {
+      throw new Error("MyrmClipImageUrls not loaded");
+    });
 
   function selectionHtml() {
     const sel = window.getSelection();
@@ -20,22 +25,6 @@
     const main = document.querySelector("main");
     const node = article || main || document.body;
     return node ? node.innerHTML : document.documentElement.outerHTML;
-  }
-
-  function collectImageUrls(rootHtml) {
-    const doc = new DOMParser().parseFromString(rootHtml, "text/html");
-    const urls = [];
-    doc.querySelectorAll("img[src]").forEach((img) => {
-      try {
-        const abs = new URL(img.getAttribute("src") || "", location.href).href;
-        if (abs.startsWith("http://") || abs.startsWith("https://")) {
-          urls.push(abs);
-        }
-      } catch {
-        /* skip invalid */
-      }
-    });
-    return [...new Set(urls)].slice(0, MAX_ASSETS);
   }
 
   async function fetchAsset(url) {
@@ -56,7 +45,7 @@
     if (mode === "selection" && !html.trim()) {
       throw new Error("Empty selection");
     }
-    const imageUrls = collectImageUrls(html);
+    const imageUrls = collectImageUrls(html, location.href, MAX_ASSETS);
     const assets = [];
     for (const url of imageUrls) {
       try {
