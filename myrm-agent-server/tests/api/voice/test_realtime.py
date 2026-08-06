@@ -991,6 +991,7 @@ async def test_get_background_tasks_status_success() -> None:
                 status="completed",
                 created_at=1717000100.0,
                 completed_at=1717000200.0,
+                result_preview="Report generated successfully",
             ),
         ]
     )
@@ -1011,7 +1012,16 @@ async def test_get_background_tasks_status_success() -> None:
     payload = json.loads(str(result.result))
     assert payload["count"] == 2
     assert len(payload["tasks"]) == 2
-    assert payload["tasks"][0]["task_id"] == "t1"
+
+    t1 = payload["tasks"][0]
+    assert t1["task_id"] == "t1"
+    assert t1["completed_at"] is None
+    assert t1["result_preview"] is None
+
+    t2 = payload["tasks"][1]
+    assert t2["task_id"] == "t2"
+    assert t2["completed_at"] == 1717000200.0
+    assert t2["result_preview"] == "Report generated successfully"
 
 
 @pytest.mark.asyncio

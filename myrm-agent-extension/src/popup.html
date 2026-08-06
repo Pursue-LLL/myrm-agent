@@ -80,6 +80,10 @@
       color: #666;
       margin-top: 4px;
     }
+    .hint a {
+      color: #818cf8;
+      text-decoration: underline;
+    }
     .tabs-list {
       max-height: 120px;
       overflow-y: auto;
@@ -106,6 +110,12 @@
       <span id="status-text">Disconnected</span>
     </div>
     <div id="error-hint" style="display:none; font-size:11px; color:#ef4444; margin-top:4px;"></div>
+    <div id="error-link-wrap" style="display:none; margin-top:6px;">
+      <a id="error-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:#818cf8;">Open Duplicate Review</a>
+    </div>
+    <div id="clip-target-row" class="hint" style="display:none; margin-top:8px;">
+      Clip target: <span id="clip-target-label">Default</span>
+    </div>
   </div>
 
   <div class="section">

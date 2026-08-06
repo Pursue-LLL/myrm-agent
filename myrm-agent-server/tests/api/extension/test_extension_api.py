@@ -1124,6 +1124,92 @@ class TestExtensionRouterStatus:
         ]
 
 
+class TestExtensionRouterClipAgent:
+    """Test wiki clip agent sync REST endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_get_clip_agent_returns_config(self) -> None:
+        from app.api.extension.router import get_extension_clip_agent
+        from app.services.extension.clip_agent_config import ExtensionClipAgentConfig
+
+        with patch(
+            "app.services.extension.clip_agent_config.get_extension_clip_agent_config",
+            new_callable=AsyncMock,
+            return_value=ExtensionClipAgentConfig(
+                agent_id="agent-1",
+                web_ui_origin="http://localhost:3000",
+            ),
+        ):
+            response = await get_extension_clip_agent()
+
+        assert response.agent_id == "agent-1"
+        assert response.web_ui_origin == "http://localhost:3000"
+
+    @pytest.mark.asyncio
+    async def test_update_clip_agent_persists_and_notifies_extension(self) -> None:
+        from app.api.extension.router import (
+            ExtensionClipAgentUpdateRequest,
+            update_extension_clip_agent,
+        )
+        from app.services.extension.clip_agent_config import ExtensionClipAgentConfig
+
+        bridge = MagicMock()
+        bridge.notify_clip_agent_config = AsyncMock()
+
+        with (
+            patch(
+                "app.services.extension.clip_agent_config.set_extension_clip_agent_config",
+                new_callable=AsyncMock,
+                return_value=ExtensionClipAgentConfig(
+                    agent_id="writer",
+                    web_ui_origin="http://localhost:3000",
+                ),
+            ),
+            patch(
+                "app.api.extension.router.get_extension_bridge",
+                return_value=bridge,
+            ),
+        ):
+            response = await update_extension_clip_agent(
+                ExtensionClipAgentUpdateRequest(
+                    agent_id="writer",
+                    web_ui_origin="http://localhost:3000",
+                )
+            )
+
+        assert response.agent_id == "writer"
+        bridge.notify_clip_agent_config.assert_awaited_once_with(
+            "writer",
+            "http://localhost:3000",
+        )
+
+
+class TestExtensionBridgeClipAgentNotify:
+    @pytest.mark.asyncio
+    async def test_notify_clip_agent_config_sends_ws_message(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        mock_ws = MagicMock()
+        mock_ws.send_text = AsyncMock()
+        bridge._ws = mock_ws
+
+        await bridge.notify_clip_agent_config("agent-9", "http://localhost:3000")
+
+        mock_ws.send_text.assert_awaited_once()
+        sent = json.loads(mock_ws.send_text.call_args[0][0])
+        assert sent["type"] == "clip_agent_update"
+        assert sent["agent_id"] == "agent-9"
+        assert sent["web_ui_origin"] == "http://localhost:3000"
+
+    @pytest.mark.asyncio
+    async def test_notify_clip_agent_config_skips_when_disconnected(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = False
+        bridge._ws = None
+
+        await bridge.notify_clip_agent_config("agent-9", "http://localhost:3000")
+
+
 class TestMatchDomainEdgeCases:
     """Cover wildcard and empty-input branches in _match_domain."""
 

@@ -6,15 +6,16 @@
 - app.services.wiki.dedup_runner (POS: incremental dedup after clip)
 
 [OUTPUT]
-- WikiClipJobRecord (POS: async job status for clip operations)
+- schedule_wiki_clip / get_wiki_clip_job (POS: async clip job orchestration)
 
-[POS] server.services.wiki — browser clip async job orchestration
+[POS] server.services.wiki.clip — browser clip async job orchestration
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum
@@ -28,6 +29,9 @@ from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
 )
 
 logger = logging.getLogger(__name__)
+
+_JOB_TTL_SEC = 3600.0
+_MAX_JOBS = 500
 
 
 class WikiClipJobState(StrEnum):
@@ -44,14 +48,41 @@ class WikiClipJobRecord:
     agent_id: str | None = None
     result: ClipIngressResult | None = None
     error_message: str = ""
+    finished_at: float | None = None
 
 
 _jobs: dict[str, WikiClipJobRecord] = {}
 _lock = asyncio.Lock()
 
 
-def _scope_key(agent_id: str | None) -> str:
-    return agent_id or "__default__"
+async def _purge_stale_jobs() -> None:
+    async with _lock:
+        now = time.monotonic()
+        terminal = {WikiClipJobState.SUCCEEDED, WikiClipJobState.FAILED}
+        stale_ids = [
+            job_id
+            for job_id, record in _jobs.items()
+            if record.state in terminal
+            and record.finished_at is not None
+            and now - record.finished_at > _JOB_TTL_SEC
+        ]
+        for job_id in stale_ids:
+            del _jobs[job_id]
+
+        if len(_jobs) <= _MAX_JOBS:
+            return
+
+        finished = sorted(
+            (
+                (record.finished_at or 0.0, job_id)
+                for job_id, record in _jobs.items()
+                if record.state in terminal
+            ),
+            key=lambda item: item[0],
+        )
+        overflow = len(_jobs) - _MAX_JOBS
+        for _, job_id in finished[:overflow]:
+            _jobs.pop(job_id, None)
 
 
 async def schedule_wiki_clip(
@@ -66,6 +97,7 @@ async def schedule_wiki_clip(
     assets: tuple[ClipAssetInput, ...],
     queue_compile: bool,
 ) -> str:
+    await _purge_stale_jobs()
     job_id = uuid.uuid4().hex
     record = WikiClipJobRecord(job_id=job_id, state=WikiClipJobState.PENDING, agent_id=agent_id)
     async with _lock:
@@ -98,13 +130,18 @@ async def schedule_wiki_clip(
                     archiver._compiler.start_background_worker()
             if ingress_result.written:
                 from app.services.wiki.dedup_runner import schedule_wiki_dedup_scan
+                from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
                 await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
+                await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
             record.state = WikiClipJobState.SUCCEEDED
         except Exception as exc:
             logger.error("Wiki clip job %s failed: %s", job_id, exc)
             record.state = WikiClipJobState.FAILED
             record.error_message = str(exc)
+        finally:
+            record.finished_at = time.monotonic()
+            await _purge_stale_jobs()
 
     asyncio.create_task(_run())
     return job_id

@@ -242,6 +242,15 @@ export function WikiSection() {
     }
   }, [searchParams]);
 
+  const rawPathFromUrl = searchParams.get('rawPath');
+
+  useEffect(() => {
+    const focus = searchParams.get('focus');
+    if (focus === 'wikiignore') {
+      document.getElementById('wiki-wikiignore-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [searchParams]);
+
   const isTauriEnv = isTauri();
 
   const scopeLabel = agentScopeId
@@ -1115,6 +1124,7 @@ export function WikiSection() {
                       treeData={rawTreeData}
                       isLoading={isLoadingRawTree}
                       agentScopeId={agentScopeId}
+                      highlightPath={rawPathFromUrl}
                       onRawDeleted={() => void refreshIngestTreesSilently()}
                     />
                   </div>

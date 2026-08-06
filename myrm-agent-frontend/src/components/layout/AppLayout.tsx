@@ -25,6 +25,7 @@ import LocalBackendUnavailableBanner, {
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
+import { useExtensionWebUiOriginSeed } from '@/hooks/extension/useExtensionWebUiOriginSeed';
 import E2ECompanionBridge from '@/components/dev/E2ECompanionBridge';
 
 const CronPushPoller = lazy(() =>
@@ -47,6 +48,8 @@ function AppLayout({
   const [dismissedReadinessDegraded, setDismissedReadinessDegraded] = useState(false);
 
   const layout = useAppLayoutState();
+
+  useExtensionWebUiOriginSeed();
 
   useEffect(() => {
     initAuth();

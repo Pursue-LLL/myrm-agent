@@ -6,13 +6,13 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-from app.services.wiki.clip_form import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
+from app.services.wiki.clip import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
 
 from app.core.security.auth.identity import LOCAL_USER_ID
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
@@ -89,6 +89,18 @@ def test_wikiignore_get_and_put(tmp_path: Path) -> None:
         _cleanup_wiki_client(client)
 
 
+def _poll_clip_job(client: TestClient, job_id: str) -> dict[str, object]:
+    final: dict[str, object] | None = None
+    for _ in range(40):
+        status = client.get(f"/api/v1/wiki/clip/{job_id}")
+        assert status.status_code == 200
+        final = status.json()
+        if final["state"] in {"succeeded", "failed"}:
+            return final
+        time.sleep(0.05)
+    raise AssertionError(f"clip job timed out: {final}")
+
+
 def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
@@ -107,16 +119,8 @@ def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
         job_id = response.json()["job_id"]
         assert job_id
 
-        final = None
-        for _ in range(40):
-            status = client.get(f"/api/v1/wiki/clip/{job_id}")
-            assert status.status_code == 200
-            final = status.json()
-            if final["state"] in {"succeeded", "failed"}:
-                break
-            time.sleep(0.05)
+        final = _poll_clip_job(client, job_id)
 
-        assert final is not None
         assert final["state"] == "succeeded"
         assert final["written"] is True
         rel_path = final["relative_path"]
@@ -203,5 +207,146 @@ def test_wiki_clip_job_not_found(tmp_path: Path) -> None:
     try:
         response = client.get("/api/v1/wiki/clip/does-not-exist")
         assert response.status_code == 404
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/html-article",
+                    "title": "HTML Article",
+                    "clip_mode": "full_page",
+                    "html": "<article><h1>HTML Title</h1><p>Body from HTML path.</p></article>",
+                    "markdown": "",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is True
+        rel_path = str(final["relative_path"])
+        raw_path = structure.get_raw_file_path(rel_path)
+        content = raw_path.read_text(encoding="utf-8")
+        assert "Body from HTML path." in content
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_conflict_job_response(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        rel = "clips/manual/existing.md"
+        existing = structure.get_raw_file_path(rel)
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_text("existing content", encoding="utf-8")
+
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/conflict",
+                    "title": "Existing",
+                    "clip_mode": "selection",
+                    "markdown": "# New clip",
+                    "folder_path": "clips/manual",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is False
+        assert final["conflict"] is True
+        assert existing.read_text(encoding="utf-8") == "existing content"
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_publishes_ingest_snapshot_on_write(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        with (
+            patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None),
+            patch(
+                "app.services.wiki.ingest_events.publish_wiki_ingest_snapshot",
+                new_callable=AsyncMock,
+            ) as publish_snapshot,
+        ):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/sse-refresh",
+                    "title": "SSE Refresh",
+                    "clip_mode": "full_page",
+                    "markdown": "# SSE\n\nClip should publish ingest snapshot.",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is True
+        publish_snapshot.assert_awaited_once()
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_security_blocked_job_response(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
+    try:
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/credential-block",
+                    "title": "Credential Block",
+                    "clip_mode": "full_page",
+                    "markdown": f"# Secret\n\nOPENAI_API_KEY={secret}\n",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is False
+        assert final["security_blocked"] is True
+        rel_path = str(final.get("relative_path", ""))
+        if rel_path:
+            assert not structure.get_raw_file_path(rel_path).exists()
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_multipart_assets(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/with-asset",
+                    "title": "Asset Clip",
+                    "clip_mode": "full_page",
+                    "markdown": "![alt](https://example.com/img.png)",
+                    "asset_urls": json.dumps(["https://example.com/img.png"]),
+                    "queue_compile": "false",
+                },
+                files=[("asset_files", ("asset.bin", png_bytes, "image/png"))],
+            )
+        assert response.status_code == 202
+        final = _poll_clip_job(client, response.json()["job_id"])
+        assert final["state"] == "succeeded"
+        assert final["written"] is True
+        rel_path = str(final["relative_path"])
+        content = structure.get_raw_file_path(rel_path).read_text(encoding="utf-8")
+        assert "wiki/assets/" in content or "assets/" in content
     finally:
         _cleanup_wiki_client(client)

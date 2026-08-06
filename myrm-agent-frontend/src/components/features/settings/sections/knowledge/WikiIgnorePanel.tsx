@@ -45,7 +45,7 @@ export function WikiIgnorePanel() {
   };
 
   return (
-    <Card>
+    <Card id="wiki-wikiignore-panel">
       <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
         <CardDescription>{t('description')}</CardDescription>

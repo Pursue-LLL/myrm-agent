@@ -10,7 +10,8 @@
 [POS]
 API layer for the browser extension bridge. Provides:
 1. WebSocket endpoint for the extension to connect and maintain persistent connection
-2. REST APIs for frontend to manage authorized domains and view connection status
+2. REST APIs for frontend to manage authorized domains and view connection status,
+   plus wiki clip agent scope sync for the browser extension.
 """
 
 from __future__ import annotations
@@ -227,6 +228,63 @@ class ExtensionSetupHintsResponse(BaseModel):
     )
     cdp_endpoint_discovered: bool = Field(
         description="True when server can discover a direct local Chrome CDP endpoint",
+    )
+
+
+class ExtensionClipAgentResponse(BaseModel):
+    """Wiki clip target agent synced between WebUI and MV3 extension."""
+
+    agent_id: str | None = Field(
+        default=None,
+        description="Agent whose wiki vault receives browser clips",
+    )
+    web_ui_origin: str | None = Field(
+        default=None,
+        description="WebUI origin for extension deep links (e.g. duplicate review)",
+    )
+
+
+class ExtensionClipAgentUpdateRequest(BaseModel):
+    """Update wiki clip agent scope for the browser extension."""
+
+    agent_id: str | None = Field(
+        default=None,
+        description="Agent whose wiki vault receives browser clips",
+    )
+    web_ui_origin: str | None = Field(
+        default=None,
+        description="WebUI origin for extension deep links",
+    )
+
+
+@router.get("/extension/clip-agent", response_model=ExtensionClipAgentResponse)
+async def get_extension_clip_agent() -> ExtensionClipAgentResponse:
+    """Return wiki clip agent scope stored in UserConfig (extension sync SSOT)."""
+    from app.services.extension.clip_agent_config import get_extension_clip_agent_config
+
+    cfg = await get_extension_clip_agent_config()
+    return ExtensionClipAgentResponse(
+        agent_id=cfg.agent_id,
+        web_ui_origin=cfg.web_ui_origin,
+    )
+
+
+@router.put("/extension/clip-agent", response_model=ExtensionClipAgentResponse)
+async def update_extension_clip_agent(
+    body: ExtensionClipAgentUpdateRequest,
+) -> ExtensionClipAgentResponse:
+    """Persist wiki clip agent scope and push to connected extension."""
+    from app.services.extension.clip_agent_config import set_extension_clip_agent_config
+
+    cfg = await set_extension_clip_agent_config(
+        agent_id=body.agent_id,
+        web_ui_origin=body.web_ui_origin,
+    )
+    bridge = get_extension_bridge()
+    await bridge.notify_clip_agent_config(cfg.agent_id, cfg.web_ui_origin)
+    return ExtensionClipAgentResponse(
+        agent_id=cfg.agent_id,
+        web_ui_origin=cfg.web_ui_origin,
     )
 
 

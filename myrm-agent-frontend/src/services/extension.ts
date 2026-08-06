@@ -10,6 +10,7 @@
  * - listExtensionTabs: List available tabs from extension
  * - disconnectExtension: Manually disconnect extension
  * - getExtensionWebSocketUrl: Absolute WS URL for extension popup (all deploy modes)
+ * - getExtensionClipAgentConfig / updateExtensionClipAgentConfig: Wiki clip agent scope SSOT
  * - getExtensionSetupHints: Non-secret setup hints (token required/configured + CDP discoverability)
  *
  * [POS]
@@ -49,6 +50,11 @@ export interface DomainPolicyWarning {
   code: 'wildcard_includes_root';
   pattern: string;
   root_domain: string;
+}
+
+export interface ExtensionClipAgentConfig {
+  agent_id: string | null;
+  web_ui_origin: string | null;
 }
 
 /**
@@ -101,4 +107,18 @@ export async function listExtensionTabs(): Promise<ExtensionTab[]> {
 
 export async function disconnectExtension(): Promise<void> {
   await apiRequest('/extension/disconnect', { method: 'POST' });
+}
+
+export async function getExtensionClipAgentConfig(): Promise<ExtensionClipAgentConfig> {
+  return apiRequest<ExtensionClipAgentConfig>('/extension/clip-agent');
+}
+
+export async function updateExtensionClipAgentConfig(
+  agentId: string | null,
+  webUiOrigin: string | null,
+): Promise<ExtensionClipAgentConfig> {
+  return apiRequest<ExtensionClipAgentConfig>('/extension/clip-agent', {
+    method: 'PUT',
+    body: JSON.stringify({ agent_id: agentId, web_ui_origin: webUiOrigin }),
+  });
 }

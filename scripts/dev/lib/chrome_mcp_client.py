@@ -249,6 +249,69 @@ class ChromeMcpClient:
             self._daemon_client = None
             self._daemon_session_id = None
 
+    @staticmethod
+    def _daemon_open_page_retryable(message: str) -> bool:
+        lowered = message.lower()
+        return (
+            "cdp evaluate failed" in lowered
+            or "cdp request timeout" in lowered
+            or "browser orchestrator response timeout" in lowered
+            or "does not own target" in lowered
+            or "no target with given id" in lowered
+            or "no context for session" in lowered
+            or "e2e_user_closed_tab" in lowered
+            or "openpagetransaction wall timeout" in lowered
+            or "session with given id not found" in lowered
+        )
+
+    def _daemon_open_page_fast_create(
+        self,
+        client: BrowserOrchestratorClient,
+        session_id: str,
+        url: str,
+        *,
+        binding_expression: str | None = None,
+        max_attempts: int = 3,
+    ) -> dict[str, object]:
+        """create blank → optional SHPOIB inject → navigate (avoids openPageTransaction queue stalls)."""
+        last_exc: BaseException | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if attempt > 1:
+                    self._destroy_daemon_session()
+                    client = self._ensure_daemon_session()
+                    session_id = self._daemon_session_id
+                    assert session_id is not None
+                created = client.create_page(session_id, url="about:blank")
+                target_id = str(created["targetId"])
+                page_id = int(created["pageId"])
+                if binding_expression:
+                    client.evaluate_page(
+                        session_id,
+                        target_id,
+                        binding_expression,
+                        timeout_sec=30.0,
+                    )
+                target_url = url.strip()
+                if target_url and target_url != "about:blank":
+                    client.navigate_page(session_id, target_id, target_url)
+                return {
+                    "pageId": page_id,
+                    "targetId": target_id,
+                    "url": target_url or url,
+                }
+            except (TimeoutError, OSError, RuntimeError) as exc:
+                last_exc = exc
+                if (
+                    not self._daemon_open_page_retryable(str(exc))
+                    or attempt >= max_attempts
+                ):
+                    break
+                time.sleep(min(2.0 * float(attempt), 6.0))
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("daemon open page fast create failed without exception")
+
     def _daemon_new_page(self, url: str) -> McpPage:
         client = self._ensure_daemon_session()
         session_id = self._daemon_session_id
@@ -262,13 +325,25 @@ class ChromeMcpClient:
                     if runtime_binding:
                         source, _expected = runtime_binding
                         binding_expression = f"(() => {{{source} return true; }})()"
+                    else:
+                        binding_expression = None
+                    try:
+                        result = self._daemon_open_page_fast_create(
+                            client,
+                            session_id,
+                            url,
+                            binding_expression=binding_expression,
+                        )
+                    except (TimeoutError, OSError, RuntimeError) as fast_exc:
+                        if not self._daemon_open_page_retryable(str(fast_exc)):
+                            raise
+                        if binding_expression is None:
+                            raise
                         result = client.open_page_transaction(
                             session_id,
                             url=url,
                             binding_expression=binding_expression,
                         )
-                    else:
-                        result = client.open_page_transaction(session_id, url=url)
                     page_id = result["pageId"]
                     target_id = result["targetId"]
                     page = McpPage(
@@ -284,20 +359,14 @@ class ChromeMcpClient:
                 except (TimeoutError, OSError, RuntimeError) as exc:
                     last_exc = exc
                     message = str(exc).lower()
-                    retryable = (
-                        "cdp evaluate failed" in message
-                        or "cdp request timeout" in message
-                        or "browser orchestrator response timeout" in message
-                        or "does not own target" in message
-                        or "no target with given id" in message
-                        or "no context for session" in message
-                    )
+                    retryable = self._daemon_open_page_retryable(message)
                     if not retryable or attempt >= 3:
                         raise
                     if (
                         "does not own target" in message
                         or "no target with given id" in message
                         or "no context for session" in message
+                        or "e2e_user_closed_tab" in message
                     ):
                         self._destroy_daemon_session()
                         client = self._ensure_daemon_session()

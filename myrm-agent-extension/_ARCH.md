@@ -11,9 +11,12 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `manifest.json` | 核心 | MV3 清单：权限（debugger/tabs/storage/alarms/sidePanel/contextMenus/scripting）、Service Worker、popup、side_panel、content_scripts、keyboard commands | — |
-| `src/background.js` | 核心 | Service Worker：WebSocket 连接（四态 badge：ON/…/空/!）、心跳保活、debugger attach/detach 管理、标签页生命周期、智能 Tab 选择（同 domain 多 tab 优先 active + tabId 直传）、`navigate_url` 私网导航动作（URL 主机授权与 domain 一致性校验，无需直接 CDP 暴露）、`hello.capabilities` 能力握手、断线原因追踪、后台窗口隔离（`ensureBackgroundWindow` 非聚焦窗口管理、持久化/复用/自动清理）、**右键菜单**（Ask Myrm Agent + **Clip to Wiki**）、**Wiki clip REST upload + job poll**、**Glow 消息转发**、**键盘快捷键处理** | ✅ |
-| `src/popup.html` | 辅助 | Popup 页面结构（服务器 URL、Token、域名列表） | — |
-| `src/popup.js` | 辅助 | Popup 控制器：读写 `chrome.storage.local`、连接/断开、状态展示；**clip conflict/error 提示**（`lastError` 在已连接时也可见） | ✅ |
+| `src/background.js` | 核心 | Service Worker 入口：WebSocket/CDP/上下文菜单编排；Wiki clip 委托 `src/wiki/*` | ✅ |
+| `src/wiki/deep_links.js` | 辅助 | Settings Wiki 深链 builder | ✅ |
+| `src/wiki/clip_client.js` | 核心 | Wiki clip REST 客户端 | ✅ |
+| `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 | ✅ |
+| `src/popup.html` | 辅助 | Popup 页面结构（服务器 URL、Token、域名列表；clip 冲突时 Duplicate Review 深链） | — |
+| `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链 | ✅ |
 | `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面：Chat UI 结构（SVG 图标、语义化 HTML） | — |
 | `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题、消息气泡、工具进度、审批弹窗、流式指示器、输入区 | — |
 | `src/sidepanel/sidepanel.js` | 核心 | Side Panel 控制器：通过 HTTP+SSE 与 server chat API 通信、SSE 流消费（对齐 `AgentEventType`）、消息渲染、工具进度可视化、取消流、上下文自动附加（当前标签页信息）、选中文本引用、工具审批 UI、Glow 控制、新建聊天 | ✅ |
@@ -43,6 +46,8 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | `/api/v1/agents/chat/{chatId}/attach` | GET | 重新附加到活跃流 |
 | `/api/v1/approvals/{approvalId}/resolve` | POST | 响应工具审批（`{decision: "approve"|"deny"}`） |
 | `/api/v1/health` | GET | 连接状态检测 |
+| `/api/v1/extension/clip-agent` | GET/PUT | Wiki 剪藏目标 agent + WebUI origin（与 Settings → Extension Bridge 同步） |
+| `/api/v1/wiki/clip` | POST | 浏览器剪藏 multipart 上传（可选 `?agent_id=`） |
 
 认证通过 `Authorization: Bearer <authToken>`（从 `chrome.storage.local` 读取）。跨域请求由 `host_permissions: ["<all_urls>"]` 授权。
 

@@ -90,6 +90,8 @@ async def _execute_get_background_tasks_status(req: RealtimeToolExecRequest) -> 
             "prompt": t.prompt[:80],
             "status": t.status,
             "created_at": t.created_at,
+            "completed_at": t.completed_at,
+            "result_preview": t.result_preview,
         }
         for t in task_infos
     ]

@@ -6,11 +6,13 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `ConnectSection.tsx` | Connect Wizard：外部 AI Agent（Cursor/Claude Code 等）连接记忆 MCP 的配置生成、Token 签发、健康检查与撤销 |
-| `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token/CDP setup-hints、握手三态、relay 四行能力矩阵（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、直连 CDP 风险提示、**Wiki 剪藏说明**、连接状态、授权域名、可用标签页 |
-| `CredentialsSection.tsx` | 凭证管理（re-export → `credentials/CredentialsSection`） |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `ConnectSection.tsx` | 核心 | Connect Wizard | ✅ |
+| `ExtensionBridgeSection.tsx` | 核心 | 浏览器扩展桥 UI | ✅ |
+| `extension/ExtensionClipAgentField.tsx` | 组件 | Wiki 剪藏目标 Agent 下拉 | ✅ |
+| `extension/` | 子模块 | 见 [`extension/_ARCH.md`](extension/_ARCH.md) | ✅ |
+| `CredentialsSection.tsx` | re-export | 凭证管理 | — |
 | `credentials/` | Vault / 文件 / OAuth 凭证子模块 · [credentials/_ARCH.md](credentials/_ARCH.md) |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |
 | `OpenAIApiSection.tsx` | Agent API 设置（OpenAI 兼容端点，仅 Agent 执行） |
@@ -43,6 +45,7 @@
 
 ## 依赖
 
+- `@/hooks/extension/useExtensionWebUiOriginSeed` — App mount 写入 clip `web_ui_origin`
 - `@/services/connect` — Connect Wizard REST
 - `@/services/extension` — 扩展桥 REST
 - `@/services/channels` — 渠道配置

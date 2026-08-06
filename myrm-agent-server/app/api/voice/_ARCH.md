@@ -10,7 +10,7 @@
 
 **Agent Security net_fetch**：`agent_bridge.py` 与 `realtime.py`（tool-exec 代理）均通过 `resolve_enable_web_fetch(profile.security_overrides)` 设置 `enable_web_fetch`，与 Web/Channel/Cron 入口一致。
 
-**Background work**：`run_background_task` / `cancel_background_task` / `get_background_tasks_status` / `steer_background_task` 在 `realtime-tool-exec` 中短路处理，经 `ChannelBackgroundTaskHandler` 操作 Kanban；`run_background_task` 要求 `chat_id` 非空，否则返回 error；完成通知见 `webui_voice_work_notifier.py`。
+**Background work**：`run_background_task` / `cancel_background_task` / `get_background_tasks_status` / `steer_background_task` 四个后台任务工具在 OpenAI Realtime 和 Gemini Live 中均注册为 always-available。工具执行统一经 `realtime-tool-exec` 端点短路处理，经 `ChannelBackgroundTaskHandler` 操作 Kanban；`run_background_task` 要求 `chat_id` 非空，否则返回 error；完成通知见 `webui_voice_work_notifier.py`。
 
 **测试**：`tests/api/voice/test_voice_memory_context.py`（SSOT 矩阵）、`tests/api/voice/test_voice_memory_acl_api_integration.py`（HTTP token/tool-exec）、`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（Settings UI → `personalSettings` READ E2E）。
 

@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `router`、`ws_router` | — |
-| `router.py` | 核心 | `ws://…/api/v1/ws/extension`（origin 守卫 + token 校验）；REST `/extension/status|domains|tabs|disconnect|setup-hints`（status 含 `handshake_ready` 与 extension capabilities 矩阵，setup-hints 含 remote token required 与 CDP 可发现性提示） | ✅ |
+| `router.py` | 核心 | `ws://…/api/v1/ws/extension`（origin 守卫 + token 校验）；REST `/extension/status|domains|tabs|disconnect|clip-agent|setup-hints`（status 含 `handshake_ready` 与 extension capabilities 矩阵，setup-hints 含 remote token required 与 CDP 可发现性提示；clip-agent 为 Wiki 剪藏 agent 范围 SSOT） | ✅ |
 
 ## 依赖
 

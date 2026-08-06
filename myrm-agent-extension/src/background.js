@@ -4,14 +4,15 @@
  * Maintains a persistent WebSocket connection to the Myrm Agent Server,
  * handles CDP proxy requests, manages tab lifecycle, context menus,
  * keyboard shortcuts, and Side Panel ↔ content script communication.
- *
- * Architecture:
- * - WebSocket: Extension ↔ server for CDP proxy and tab management
- * - Side Panel: Communicates directly with server via HTTP+SSE (not through this worker)
- * - Context Menu: "Ask Myrm Agent" right-click opens Side Panel with selected text
- * - Glow: Forwards glow state from Side Panel to content script on active tab
- * - Heartbeat: chrome.alarms ensures Service Worker stays alive
  */
+
+import {
+  buildClipRawUrl,
+  buildDuplicateReviewUrl,
+  buildWikiIgnoreUrl,
+  wikiHttpBaseFromServerUrl,
+} from "./wiki/deep_links.js";
+import { submitClipToWiki as runClipToWiki } from "./wiki/clip_client.js";
 
 const ALARM_NAME = "myrm-keepalive";
 const RECONNECT_DELAY_MS = 3000;
@@ -26,21 +27,28 @@ const EXTENSION_CAPABILITIES = Object.freeze([
 let ws = null;
 let serverUrl = "";
 let authToken = "";
+let clipAgentId = "";
+let webUiOrigin = "";
 let reconnectDelay = RECONNECT_DELAY_MS;
 let isConnecting = false;
 let lastError = "";
 let authorizedDomains = [];
 let attachedTabs = new Map(); // tabId -> debugger target
 let backgroundWindowId = null; // Isolated background window for non-disruptive automation
+let lastClipSuccessUrl = "";
 
 // --- Lifecycle ---
 
 function restoreState() {
-  chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains", "backgroundWindowId"], (data) => {
+  chrome.storage.local.get(
+    ["serverUrl", "authToken", "authorizedDomains", "backgroundWindowId", "clipAgentId", "webUiOrigin"],
+    (data) => {
     serverUrl = data.serverUrl || "";
     authToken = data.authToken || "";
     authorizedDomains = data.authorizedDomains || [];
     backgroundWindowId = data.backgroundWindowId || null;
+    clipAgentId = data.clipAgentId || "";
+    webUiOrigin = data.webUiOrigin || "";
     if (serverUrl) connect();
   });
 }
@@ -60,6 +68,28 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
   }
 });
+
+// --- Wiki clip config sync ---
+
+function applyClipAgentConfig(agentId, origin) {
+  clipAgentId = agentId || "";
+  webUiOrigin = origin || "";
+  chrome.storage.local.set({ clipAgentId, webUiOrigin });
+}
+
+async function syncClipAgentConfig() {
+  const httpBase = wikiHttpBaseFromServerUrl(serverUrl);
+  if (!httpBase) return;
+  try {
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    const resp = await fetch(`${httpBase.replace(/\/$/, "")}/api/v1/extension/clip-agent`, { headers });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    applyClipAgentConfig(data.agent_id, data.web_ui_origin);
+  } catch (_) {
+    // Non-fatal: clip falls back to default vault when sync fails.
+  }
+}
 
 // --- WebSocket Connection ---
 
@@ -95,6 +125,7 @@ function connect() {
 
     sendTabsUpdate();
     sendDomainsUpdate();
+    syncClipAgentConfig();
   };
 
   ws.onmessage = async (event) => {
@@ -154,6 +185,11 @@ async function handleServerMessage(msg) {
     authorizedDomains = domains || [];
     chrome.storage.local.set({ authorizedDomains });
     send({ type: "domains_update", domains: authorizedDomains });
+    return;
+  }
+
+  if (type === "clip_agent_update") {
+    applyClipAgentConfig(msg.agent_id, msg.web_ui_origin);
     return;
   }
 
@@ -518,73 +554,18 @@ function updateBadge(status) {
 
 // --- Wiki clip (extension → server REST, zero LLM) ---
 
-async function ensureClipContentScript(tabId) {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["src/content/clip.js"],
-  });
-}
-
-async function pollClipJob(baseUrl, token, jobId) {
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  for (let i = 0; i < 60; i += 1) {
-    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/wiki/clip/${jobId}`, { headers });
-    if (!resp.ok) throw new Error(`Clip status failed (${resp.status})`);
-    const data = await resp.json();
-    if (data.state === "succeeded") return data;
-    if (data.state === "failed") throw new Error(data.error_message || "Clip failed");
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error("Clip timed out");
-}
-
 async function submitClipToWiki(tab, mode) {
-  if (!serverUrl) {
-    lastError = "Configure server URL in extension popup";
+  const result = await runClipToWiki(tab, mode, { serverUrl, authToken, clipAgentId });
+  if (result.ok) {
+    lastError = "";
+    lastClipSuccessUrl = buildClipRawUrl(webUiOrigin, clipAgentId, result.relative_path || "");
+    chrome.action.setBadgeText({ text: "OK" });
+    setTimeout(() => updateBadge(ws && ws.readyState === WebSocket.OPEN ? "connected" : "disconnected"), 2000);
     return;
   }
-  try {
-    await ensureClipContentScript(tab.id);
-    const captured = await chrome.tabs.sendMessage(tab.id, { type: "clip_to_wiki", mode });
-    if (!captured?.ok) throw new Error(captured?.error || "Capture failed");
-    const payload = captured.payload;
-    const form = new FormData();
-    form.append("source_url", payload.source_url);
-    form.append("title", payload.title);
-    form.append("clip_mode", payload.clip_mode);
-    form.append("html", payload.html);
-    form.append("markdown", payload.markdown || "");
-    form.append("folder_path", payload.folder_path || "");
-    form.append("queue_compile", payload.queue_compile ? "true" : "false");
-    const assetUrls = (payload.assets || []).map((a) => a.source_url);
-    form.append("asset_urls", JSON.stringify(assetUrls));
-    for (const asset of payload.assets || []) {
-      const blob = new Blob([asset.data], { type: asset.content_type });
-      form.append("asset_files", blob, "asset.bin");
-    }
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-    const postResp = await fetch(`${serverUrl.replace(/\/$/, "")}/api/v1/wiki/clip`, {
-      method: "POST",
-      headers,
-      body: form,
-    });
-    if (!postResp.ok) {
-      const text = await postResp.text();
-      throw new Error(text || `Clip upload failed (${postResp.status})`);
-    }
-    const accepted = await postResp.json();
-    const result = await pollClipJob(serverUrl, authToken, accepted.job_id);
-    if (result.conflict) {
-      lastError = "Already clipped — check Duplicate Review in Settings Wiki";
-    } else if (result.security_blocked) {
-      lastError = "Clip blocked by security scan";
-    } else {
-      lastError = "";
-      chrome.action.setBadgeText({ text: "OK" });
-      setTimeout(() => updateBadge(ws && ws.readyState === WebSocket.OPEN ? "connected" : "disconnected"), 2000);
-    }
-  } catch (err) {
-    lastError = err?.message || String(err);
+  lastClipSuccessUrl = "";
+  lastError = result.error || "Clip failed";
+  if (!result.conflict && !result.security_blocked) {
     updateBadge("error");
   }
 }
@@ -654,6 +635,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       authorizedDomains,
       attachedTabs: Array.from(attachedTabs.keys()),
       capabilities: Array.from(EXTENSION_CAPABILITIES),
+      clipAgentId,
+      webUiOrigin,
+      duplicateReviewUrl: buildDuplicateReviewUrl(webUiOrigin, clipAgentId),
+      wikiIgnoreUrl: buildWikiIgnoreUrl(webUiOrigin, clipAgentId),
+      clipSuccessUrl: lastClipSuccessUrl,
     });
     return true;
   }

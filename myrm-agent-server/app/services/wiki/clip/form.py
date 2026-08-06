@@ -7,7 +7,7 @@
 - MAX_CLIP_PAYLOAD_BYTES: int — 8MB multipart cap for POST /wiki/clip
 - clip_form_payload_bytes: measure all form text fields + uploaded asset bytes
 
-[POS] server.services.wiki — clip upload size guard (extension multipart)
+[POS] server.services.wiki.clip — clip upload size guard (extension multipart)
 """
 
 from __future__ import annotations

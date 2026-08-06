@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, ChevronDown, Folder, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ interface WikiRawSourceTreeProps {
   treeData: TreeNode[];
   isLoading: boolean;
   agentScopeId?: string | null;
+  highlightPath?: string | null;
   onRawDeleted?: () => void;
 }
 
@@ -57,19 +58,34 @@ function IngestStatusDot({ status }: { status: TreeNode['ingest_status'] }) {
   );
 }
 
+function nodePathMatches(node: TreeNode, targetPath: string): boolean {
+  if (node.is_dir) {
+    return (node.children ?? []).some((child) => nodePathMatches(child, targetPath));
+  }
+  const displayPath = node.id.endsWith('.md') ? node.id : `${node.id}.md`;
+  return displayPath === targetPath || node.id === targetPath;
+}
+
 function RawTreeNode({
   node,
   depth,
+  highlightPath,
   onRequestForget,
 }: {
   node: TreeNode;
   depth: number;
+  highlightPath?: string | null;
   onRequestForget: (path: string) => void;
 }) {
   const [open, setOpen] = useState(depth < 1);
   const t = useTranslations('settings.wiki.concepts');
+  const normalizedHighlight = highlightPath?.replace(/^\//, '') ?? null;
 
   if (node.is_dir) {
+    const childMatches = normalizedHighlight
+      ? (node.children ?? []).some((child) => nodePathMatches(child, normalizedHighlight))
+      : false;
+    const shouldOpen = open || childMatches;
     return (
       <div>
         <button
@@ -78,7 +94,7 @@ function RawTreeNode({
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? (
+          {shouldOpen ? (
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           ) : (
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -87,19 +103,32 @@ function RawTreeNode({
           {node.ingest_status && <IngestStatusDot status={node.ingest_status} />}
           <span className="truncate font-medium">{node.name}</span>
         </button>
-        {open &&
+        {shouldOpen &&
           (node.children ?? []).map((child) => (
-            <RawTreeNode key={child.id} node={child} depth={depth + 1} onRequestForget={onRequestForget} />
+            <RawTreeNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              highlightPath={highlightPath}
+              onRequestForget={onRequestForget}
+            />
           ))}
       </div>
     );
   }
 
   const displayPath = node.id.endsWith('.md') ? node.id : `${node.id}.md`;
+  const isHighlighted =
+    normalizedHighlight !== null &&
+    (displayPath === normalizedHighlight || node.id === normalizedHighlight);
 
   return (
     <div
-      className="group flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground hover:bg-muted/40"
+      data-raw-path={displayPath}
+      className={cn(
+        'group flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground hover:bg-muted/40',
+        isHighlighted && 'bg-primary/10 ring-1 ring-primary/40',
+      )}
       style={{ paddingLeft: `${depth * 12 + 28}px` }}
     >
       <FileText className="h-4 w-4 shrink-0" />
@@ -121,12 +150,20 @@ export function WikiRawSourceTree({
   treeData,
   isLoading,
   agentScopeId,
+  highlightPath,
   onRawDeleted,
 }: WikiRawSourceTreeProps) {
   const t = useTranslations('settings.wiki.concepts');
   const [forgetPath, setForgetPath] = useState<string | null>(null);
   const [forgetReason, setForgetReason] = useState('');
   const [isForgetting, setIsForgetting] = useState(false);
+
+  useEffect(() => {
+    if (!highlightPath) return;
+    const normalized = highlightPath.replace(/^\//, '');
+    const target = document.querySelector(`[data-raw-path="${normalized}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightPath, treeData]);
 
   if (isLoading) {
     return (
@@ -160,7 +197,13 @@ export function WikiRawSourceTree({
     <>
       <div className={cn('max-h-48 overflow-y-auto rounded-lg border border-border/60 bg-muted/10')}>
         {treeData.map((node) => (
-          <RawTreeNode key={node.id} node={node} depth={0} onRequestForget={setForgetPath} />
+          <RawTreeNode
+            key={node.id}
+            node={node}
+            depth={0}
+            highlightPath={highlightPath}
+            onRequestForget={setForgetPath}
+          />
         ))}
       </div>
       <AlertDialog open={forgetPath !== null} onOpenChange={(open) => !open && setForgetPath(null)}>

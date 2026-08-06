@@ -24,6 +24,7 @@ import {
   type ExtensionStatus,
   type ExtensionTab,
 } from '@/services/extension';
+import ExtensionClipAgentField from './extension/ExtensionClipAgentField';
 
 const EMPTY_STATUS: ExtensionStatus = {
   connected: false,
@@ -355,6 +356,8 @@ const ExtensionBridgeSection = memo(() => {
         <h4 className="text-sm font-medium">{t('extension.wikiClipHintTitle')}</h4>
         <p className="text-xs text-muted-foreground">{t('extension.wikiClipHintDescription')}</p>
       </div>
+
+      <ExtensionClipAgentField />
 
       {/* Authorized Domains */}
       <div className="space-y-3">

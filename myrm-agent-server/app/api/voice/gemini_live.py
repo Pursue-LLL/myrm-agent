@@ -173,11 +173,28 @@ _GEMINI_TOOL_CATALOG: dict[str, GeminiFunctionDeclaration] = {
     ),
 }
 
-_ALWAYS_AVAILABLE_TOOL = GeminiFunctionDeclaration(
-    name="run_background_task",
-    description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation.",
-    parameters={"type": "object", "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}}, "required": ["task"]},
-)
+_ALWAYS_AVAILABLE_TOOLS: list[GeminiFunctionDeclaration] = [
+    GeminiFunctionDeclaration(
+        name="run_background_task",
+        description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation.",
+        parameters={"type": "object", "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}}, "required": ["task"]},
+    ),
+    GeminiFunctionDeclaration(
+        name="get_background_tasks_status",
+        description="Check the status of background tasks. Use when the user asks about task progress or whether a task is done.",
+        parameters={"type": "object", "properties": {}},
+    ),
+    GeminiFunctionDeclaration(
+        name="cancel_background_task",
+        description="Cancel a running background task by its task_id.",
+        parameters={"type": "object", "properties": {"task_id": {"type": "string", "description": "ID of the background task to cancel"}}, "required": ["task_id"]},
+    ),
+    GeminiFunctionDeclaration(
+        name="steer_background_task",
+        description="Send a new instruction to redirect a running background task.",
+        parameters={"type": "object", "properties": {"task_id": {"type": "string", "description": "ID of the background task to steer"}, "instruction": {"type": "string", "description": "New instruction to apply to the task"}}, "required": ["task_id", "instruction"]},
+    ),
+]
 
 
 def _build_gemini_tools(
@@ -190,7 +207,7 @@ def _build_gemini_tools(
         include_memory_search_in_voice_catalog,
     )
 
-    tools: list[GeminiFunctionDeclaration] = [_ALWAYS_AVAILABLE_TOOL]
+    tools: list[GeminiFunctionDeclaration] = list(_ALWAYS_AVAILABLE_TOOLS)
     for tool_key in enabled_builtin_tools:
         if tool_key == "memory":
             if include_memory_search_in_voice_catalog(memory_context, enabled_builtin_tools):

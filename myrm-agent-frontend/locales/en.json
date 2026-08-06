@@ -1845,7 +1845,12 @@
       "fetchError": "Cannot reach the server. Check that the backend is running.",
       "retry": "Retry",
       "wikiClipHintTitle": "Clip pages to Wiki",
-      "wikiClipHintDescription": "Right-click any page or selection and choose Clip to Wiki. Content lands in raw/ for dedup review — no LLM cost. Configure ignore patterns in Settings → Wiki."
+      "wikiClipHintDescription": "Right-click any page or selection and choose Clip to Wiki. Content lands in raw/ for dedup review — no LLM cost. Configure ignore patterns in Settings → Wiki.",
+      "clipAgentLabel": "Wiki clip target agent",
+      "clipAgentHint": "Browser clips are saved to this agent's wiki vault. The extension syncs automatically when connected.",
+      "clipAgentDefault": "Default agent",
+      "clipAgentSaved": "Wiki clip agent updated",
+      "clipAgentSaveFailed": "Failed to update wiki clip agent"
     },
     "credentials": {
       "title": "Credentials Management",

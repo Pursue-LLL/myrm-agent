@@ -16,7 +16,7 @@ from myrm_agent_harness.agent.meta_tools.progress.storage import (
     write_todos_sync_to_workspace,
 )
 from myrm_agent_harness.agent.middlewares.completion import build_checklist
-from myrm_agent_harness.agent.security.guards.loop_guard_types import (
+from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,
 )

@@ -13,6 +13,10 @@ const btnDisconnect = document.getElementById("btn-disconnect");
 const statusBadge = document.getElementById("status-badge");
 const statusText = document.getElementById("status-text");
 const errorHint = document.getElementById("error-hint");
+const errorLinkWrap = document.getElementById("error-link-wrap");
+const errorLink = document.getElementById("error-link");
+const clipTargetRow = document.getElementById("clip-target-row");
+const clipTargetLabel = document.getElementById("clip-target-label");
 const tabsSection = document.getElementById("tabs-section");
 const tabsList = document.getElementById("tabs-list");
 
@@ -42,9 +46,37 @@ function refreshStatus() {
     if (lastError) {
       errorHint.textContent = lastError;
       errorHint.style.display = "block";
+      const reviewUrl = response.duplicateReviewUrl || "";
+      const ignoreUrl = response.wikiIgnoreUrl || "";
+      const isDuplicateConflict = /duplicate review|already clipped/i.test(lastError);
+      const isSecurityBlocked = /security scan|blocked by security/i.test(lastError);
+      if (isDuplicateConflict && reviewUrl) {
+        errorLink.href = reviewUrl;
+        errorLink.textContent = "Open Duplicate Review";
+        errorLinkWrap.style.display = "block";
+      } else if (isSecurityBlocked && ignoreUrl) {
+        errorLink.href = ignoreUrl;
+        errorLink.textContent = "Open Wiki Ignore Rules";
+        errorLinkWrap.style.display = "block";
+      } else {
+        errorLinkWrap.style.display = "none";
+      }
+    } else if (response.clipSuccessUrl) {
+      errorHint.textContent = "";
+      errorHint.style.display = "none";
+      errorLink.href = response.clipSuccessUrl;
+      errorLink.textContent = "Open clipped raw in Wiki";
+      errorLinkWrap.style.display = "block";
     } else {
       errorHint.textContent = "";
       errorHint.style.display = "none";
+      errorLinkWrap.style.display = "none";
+    }
+
+    const clipLabel = response.clipAgentId?.trim() || "Default";
+    if (clipTargetRow && clipTargetLabel) {
+      clipTargetLabel.textContent = clipLabel;
+      clipTargetRow.style.display = "block";
     }
 
     if (connected && response.attachedTabs && response.attachedTabs.length > 0) {

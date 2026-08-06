@@ -1845,7 +1845,12 @@
       "fetchError": "无法连接服务器，请确认后端已启动。",
       "retry": "重试",
       "wikiClipHintTitle": "剪藏页面到 Wiki",
-      "wikiClipHintDescription": "在任意页面或选中文字上右键，选择「Clip to Wiki」。内容写入 raw/ 并进入去重审核，零 LLM 成本。可在设置 → Wiki 中配置忽略规则。"
+      "wikiClipHintDescription": "在任意页面或选中文字上右键，选择「Clip to Wiki」。内容写入 raw/ 并进入去重审核，零 LLM 成本。可在设置 → Wiki 中配置忽略规则。",
+      "clipAgentLabel": "Wiki 剪藏目标 Agent",
+      "clipAgentHint": "浏览器剪藏将写入该 Agent 的 Wiki 知识库。扩展连接后会自动同步此设置。",
+      "clipAgentDefault": "默认 Agent",
+      "clipAgentSaved": "Wiki 剪藏 Agent 已更新",
+      "clipAgentSaveFailed": "更新 Wiki 剪藏 Agent 失败"
     },
     "credentials": {
       "title": "凭据管理",
