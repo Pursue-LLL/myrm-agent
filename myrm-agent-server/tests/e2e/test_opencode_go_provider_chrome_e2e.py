@@ -21,7 +21,6 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_react_e2e_bridge,
     warm_ui_route,
@@ -92,8 +91,11 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
     warm_ui_route("/")
     warm_ui_route("/settings/models")
     settings_url = f"{ui_url}/settings/models"
-    # about:blank avoids CDP Page.navigate during open_page_transaction (turbopack/heavy routes).
-    with open_mcp_page("about:blank", timeout_ms=60_000) as (client, page):
+    home_url = f"{ui_url}/"
+    client = ChromeMcpClient(request_timeout_sec=180.0)
+    client.start()
+    try:
+        page = client.new_page(home_url, timeout_ms=120_000)
         client.navigate(page, settings_url, timeout_ms=180_000)
         dismiss_blocking_modals(client, page, recover_url=settings_url)
         wait_for_react_e2e_bridge(
@@ -112,6 +114,8 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
         assert isinstance(result, dict), result
         assert result.get("ok") is True, result
         e2e_resource_ledger.register("page", page.target_id or "settings-models")
+    finally:
+        client.close()
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
