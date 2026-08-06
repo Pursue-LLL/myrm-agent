@@ -132,8 +132,8 @@ async def schedule_wiki_clip(
                 from app.services.wiki.dedup_runner import schedule_wiki_dedup_scan
                 from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
-                await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
                 await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+                await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
             record.state = WikiClipJobState.SUCCEEDED
         except Exception as exc:
             logger.error("Wiki clip job %s failed: %s", job_id, exc)

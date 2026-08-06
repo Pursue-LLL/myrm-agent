@@ -224,13 +224,17 @@ def _ensure_extension_web_ui_origin_seeded(api_url: str, ui_url: str) -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             page_url=home_url,
         )
+        seeded = False
         while time.monotonic() < deadline:
             cfg = http_json("GET", f"{api_url.rstrip('/')}/api/v1/extension/clip-agent")
             assert isinstance(cfg, dict)
             origin = str(cfg.get("web_ui_origin", "") or "")
             if origin.startswith("http"):
+                seeded = True
                 break
             time.sleep(0.5)
+        if not seeded:
+            raise AssertionError("web_ui_origin not seeded after AppLayout mount")
     _run_extension_origin_seed_assertion(api_url, ui_url)
 
 
