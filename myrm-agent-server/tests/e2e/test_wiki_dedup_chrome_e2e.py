@@ -32,7 +32,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 
-_MAX_ATTEMPTS = 4
+_MAX_ATTEMPTS = 2
 # Post-warm budgets — keep total body < parallel bootstrap hung-reap cap (~240s).
 _PANEL_WAIT_SEC = 45.0
 _WIKI_SHELL_WAIT_SEC = 45.0

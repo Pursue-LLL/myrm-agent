@@ -159,7 +159,7 @@ def _await_attach_memory_chat(
                 )
             client.navigate(page, chat_url)  # type: ignore[attr-defined]
             time.sleep(1.5)
-            dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+            dismiss_blocking_modals(client, page, recover_url=chat_url)  # type: ignore[arg-type]
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
         last = raw if isinstance(raw, dict) else {"value": raw}
         time.sleep(2.0)
@@ -173,7 +173,7 @@ def _ensure_react_bridge_on_home(
     ui_url: str,
 ) -> dict[str, object]:
     home_url = f"{ui_url.rstrip('/')}/"
-    dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
+    dismiss_blocking_modals(client, page, recover_url=home_url)  # type: ignore[arg-type]
     client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
     bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
@@ -478,7 +478,7 @@ def _run_lifecycle_assertions(
         warm_ui_route("/")
         warm_ui_route(f"/{chat_id}")
 
-    with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
+    with open_mcp_page(home_url, timeout_ms=90_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page, recover_url=home_url)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
@@ -490,7 +490,7 @@ def _run_lifecycle_assertions(
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
         attached = _await_attach_memory_chat(
-            client, page, chat_id, timeout_sec=90.0, ui_url=ui_url
+            client, page, chat_id, timeout_sec=45.0, ui_url=ui_url
         )
         assert attached.get("ok") is True, json.dumps(attached, ensure_ascii=False)
 
@@ -516,14 +516,14 @@ def _run_lifecycle_assertions(
             client,
             page,
             _CHAT_UI_READY_JS,
-            timeout_sec=120.0,
+            timeout_sec=60.0,
         )
 
         route_ready = wait_for_state(
             client,
             page,
             _ROUTE_SEGMENT_CLEARED_JS,
-            timeout_sec=45.0,
+            timeout_sec=30.0,
         )
         assert route_ready.get("ready") is True, route_ready
 
@@ -531,7 +531,7 @@ def _run_lifecycle_assertions(
             client,
             page,
             _CHAT_HYDRATED_JS,
-            timeout_sec=45.0,
+            timeout_sec=30.0,
         )
         assert hydrated.get("ready") is True, hydrated
 
@@ -539,7 +539,7 @@ def _run_lifecycle_assertions(
             client,
             page,
             _CHAT_UI_READY_JS,
-            timeout_sec=90.0,
+            timeout_sec=45.0,
         )
         assert chat_ui_probe.get("ready") is True, json.dumps(
             chat_ui_probe, ensure_ascii=False
@@ -552,7 +552,7 @@ def _run_lifecycle_assertions(
             client,
             page,
             _MEMORY_LIFECYCLE_PROBE_JS,
-            timeout_sec=90.0,
+            timeout_sec=45.0,
         )
         assert state.get("ready") is True, json.dumps(
             state, indent=2, ensure_ascii=False

@@ -238,6 +238,9 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
         return HotPathDecision(False, "off_platform_origin", needs_binding)
 
     route = _normalize_route(parsed.path or "/")
+    if route.startswith("/settings/") and route != "/settings":
+        return HotPathDecision(False, "heavy_settings_route", needs_binding)
+
     if not platform_shell_fresh(route_path=route):
         if not epoch_aligned():
             return HotPathDecision(False, "epoch_drift", needs_binding)

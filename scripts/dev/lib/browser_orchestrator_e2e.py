@@ -580,15 +580,17 @@ def _open_page_fast_create_with_retry(
 
             touch_wall_progress(current_node="open_page_fast_create")
             target_url = url.strip() or "about:blank"
-            # Single RPC: orchestrator createPage runs create+navigate in one daemon
-            # transaction — avoids client round-trip window where background blank tabs
-            # get E2E_USER_CLOSED_TAB before navigate (§19.11 TAB-6b).
             with daemon.elevated_request_timeout(open_timeout_sec):
-                created = daemon.create_page(session_id, url=target_url)
+                created = daemon.create_page(session_id, url="about:blank")
             payload = dict(created)
+            target_id = str(payload["targetId"])
+            page_id = int(payload["pageId"])
+            if target_url != "about:blank":
+                with daemon.elevated_request_timeout(open_timeout_sec):
+                    daemon.navigate_page(session_id, target_id, target_url)
             return {
-                "pageId": int(payload["pageId"]),
-                "targetId": str(payload["targetId"]),
+                "pageId": page_id,
+                "targetId": target_id,
                 "url": target_url,
             }
         except (TimeoutError, OSError, RuntimeError) as exc:
