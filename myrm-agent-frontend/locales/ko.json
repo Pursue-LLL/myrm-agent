@@ -5287,7 +5287,8 @@
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",
-      "error": "Failed to pin chat"
+      "error": "Failed to pin chat",
+      "reorderHandle": "고정된 대화 순서를 변경하려면 드래그"
     },
     "unpin": {
       "action": "Unpin",
@@ -5341,7 +5342,9 @@
     },
     "dragDrop": {
       "title": "Drop files here",
-      "description": "Supports images and PDF files, up to 10 files"
+      "description": "Supports images and PDF files, up to 10 files",
+      "sessionTitle": "대화를 여기에 놓으세요",
+      "sessionDescription": "놓으면 입력창에 이 채팅을 인용합니다"
     },
     "desktopInspector": {
       "title": "Desktop Live View",

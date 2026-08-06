@@ -42,6 +42,10 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     """Return human+machine denial line when a new chrome_e2e launch must abort."""
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return None
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return None
+    if os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1":
+        return None
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return None
     if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "0") == "1":

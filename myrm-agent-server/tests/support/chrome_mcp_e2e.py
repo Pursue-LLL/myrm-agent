@@ -190,16 +190,28 @@ def http_json(
 
 def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
     """Extend warm budget when wave leases or parallel chrome_e2e peers contend for shared UI."""
+    try:
+        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+        if parallel_shared_ui_hydrate_queue_enabled():
+            # Flock serializes compile bursts — do not multiply per-lane wall by peer count.
+            return base_wait_sec
+    except ImportError:
+        pass
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
-        from dev_gate_contract import shared_ui_hydrate_wait_sec
+        from dev_gate_contract import phase_c_burst_lane_count, shared_ui_hydrate_wait_sec
         from stack_mutation_policy import wave_active_lease_count
         from transport_supervisor import parallel_active_test_count
 
-        active = max(
-            wave_active_lease_count(monorepo_root),
-            parallel_active_test_count(),
-        )
+        burst_lanes = phase_c_burst_lane_count()
+        wave_leases = wave_active_lease_count(monorepo_root)
+        active_tests = parallel_active_test_count()
+        if burst_lanes >= 2:
+            # Phase C burst: scale by declared lane width, not foreign daily peers.
+            active = max(burst_lanes, min(wave_leases, burst_lanes + 1))
+        else:
+            active = max(wave_leases, active_tests)
         if active > 0:
             cap = float(shared_ui_hydrate_wait_sec())
             return min(base_wait_sec + active * 45.0, cap)
@@ -939,6 +951,18 @@ def _open_page_parallel_budgets(
         from dev_gate_contract import signoff_bootstrap_open_mcp_budgets
 
         budgets = signoff_bootstrap_open_mcp_budgets(parallel_peers=parallel_peers)
+        return (
+            min(request_timeout_sec, _OPEN_PAGE_REQUEST_TIMEOUT_SEC),
+            capped_ms,
+            budgets.wall_budget_sec,
+            budgets.total_budget_sec,
+            budgets.attempt_count,
+        )
+    burst_raw = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
+    if burst_raw.isdigit() and int(burst_raw) >= 4:
+        from dev_gate_contract import signoff_open_mcp_budgets
+
+        budgets = signoff_open_mcp_budgets(parallel_peers=int(burst_raw))
         return (
             min(request_timeout_sec, _OPEN_PAGE_REQUEST_TIMEOUT_SEC),
             capped_ms,

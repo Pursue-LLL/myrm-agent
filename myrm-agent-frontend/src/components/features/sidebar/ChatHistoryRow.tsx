@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, type DragEvent } from 'react';
 import Link from 'next/link';
 import type { useTranslations } from 'next-intl';
 import type { ChatItem } from '@/services/chat';
@@ -24,6 +24,7 @@ import {
   FolderX,
   ExternalLink,
   GitFork,
+  GripVertical,
   Share2,
 } from 'lucide-react';
 import {
@@ -90,6 +91,8 @@ export interface ChatHistoryRowProps {
   onHandoff?: (chatId: string, chatTitle: string, source?: string) => void;
   onFork?: (chatId: string) => void;
   onOpenInNewWindow?: (chatId: string) => void;
+  sessionDragEnabled?: boolean;
+  onSessionDragStart?: (chat: ChatItem, event: DragEvent<HTMLElement>) => void;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -122,6 +125,8 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onHandoff,
     onFork,
     onOpenInNewWindow,
+    sessionDragEnabled = false,
+    onSessionDragStart,
     t,
   }) => (
     <div className="relative flex items-start">
@@ -156,6 +161,13 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
       <div className="flex-1 min-w-0">
         <Link
           href={batchMode ? '#' : `/${chat.id}`}
+          draggable={sessionDragEnabled && !batchMode && renameId !== chat.id}
+          onDragStart={(event) => {
+            if (!sessionDragEnabled || batchMode || renameId === chat.id) {
+              return;
+            }
+            onSessionDragStart?.(chat, event);
+          }}
           onClick={(e) => {
             if (batchMode) {
               e.preventDefault();
@@ -170,7 +182,9 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
             isActive && !batchMode && 'brand-selected-surface',
             batchMode && isSelected && 'bg-primary/8 dark:bg-primary/12',
             chat.projectId && 'border-l-2',
+            sessionDragEnabled && !batchMode && 'cursor-grab active:cursor-grabbing',
           )}
+          title={sessionDragEnabled && !batchMode ? t('chat.dragDrop.sessionDescription') : undefined}
           style={chat.projectId ? { borderLeftColor: getProjectColor(chat.projectId) } : undefined}
         >
           {chat.source && chat.source !== 'web' ? (
@@ -418,7 +432,15 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
 ChatHistoryRow.displayName = 'ChatHistoryRow';
 
 export const SortablePinnedRow = memo<ChatHistoryRowProps>(({ chat, ...rest }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: chat.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: chat.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -426,8 +448,27 @@ export const SortablePinnedRow = memo<ChatHistoryRowProps>(({ chat, ...rest }) =
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ChatHistoryRow chat={chat} {...rest} />
+    <div ref={setNodeRef} style={style} className="flex items-start gap-0.5">
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        className={cn(
+          'mt-2 flex-shrink-0 rounded text-black/30 hover:text-black/50 dark:text-white/30 dark:hover:text-white/50',
+          'cursor-grab active:cursor-grabbing touch-none',
+          rest.isMobile
+            ? 'flex min-h-[44px] min-w-[44px] items-center justify-center p-2'
+            : 'p-1',
+        )}
+        aria-label={rest.t('chat.pin.reorderHandle')}
+        onClick={(event) => event.preventDefault()}
+      >
+        <GripVertical size={rest.isMobile ? 14 : 12} aria-hidden />
+      </button>
+      <div className="min-w-0 flex-1">
+        <ChatHistoryRow chat={chat} {...rest} />
+      </div>
     </div>
   );
 });

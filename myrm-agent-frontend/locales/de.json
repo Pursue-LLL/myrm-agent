@@ -5287,7 +5287,8 @@
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",
-      "error": "Failed to pin chat"
+      "error": "Failed to pin chat",
+      "reorderHandle": "Ziehen, um angeheftete Chats neu zu ordnen"
     },
     "unpin": {
       "action": "Unpin",
@@ -5340,8 +5341,10 @@
       "awaitingArtifact": "Artefakt wird synchronisiert — Link wird in Kürze aktiv"
     },
     "dragDrop": {
-      "title": "Drop files here",
-      "description": "Supports images and PDF files, up to 10 files"
+      "title": "Dateien hier ablegen",
+      "description": "Unterstützt Bilder und PDF-Dateien, bis zu 10 Dateien",
+      "sessionTitle": "Unterhaltung hier ablegen",
+      "sessionDescription": "Loslassen, um diesen Chat in der Eingabe zu zitieren"
     },
     "desktopInspector": {
       "title": "Desktop Live View",

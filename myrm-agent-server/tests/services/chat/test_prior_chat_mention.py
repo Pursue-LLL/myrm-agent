@@ -57,6 +57,33 @@ async def test_prior_chat_reference_rejects_incognito(fts_db: AsyncSession) -> N
 
 
 @pytest.mark.asyncio
+async def test_prior_chat_reference_inlines_without_workspace_dir(
+    fts_db: AsyncSession,
+) -> None:
+    from app.services.agent.params.mention import (
+        _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
+        _build_mention_reference_context,
+    )
+
+    chat_id = await seed_chat_and_messages(fts_db)
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="prior_chat",
+                path=chat_id,
+                label="@chat:Docker deployment",
+            )
+        ],
+        _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
+    )
+
+    assert 'type="prior-chat"' in context
+    assert "Docker deployment discussion" in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
 async def test_ensure_chat_source_only_upgrades_web(fts_db: AsyncSession) -> None:
     from app.database.models import Chat
 

@@ -5874,7 +5874,8 @@
     "pin": {
       "action": "置頂",
       "section": "置頂",
-      "error": "置頂失敗"
+      "error": "置頂失敗",
+      "reorderHandle": "拖動以調整置頂會話順序"
     },
     "unpin": {
       "action": "取消置頂",
@@ -6231,7 +6232,9 @@
     },
     "dragDrop": {
       "title": "拖放檔案到這裡",
-      "description": "支援圖片和 PDF 檔案，最多 10 個"
+      "description": "支援圖片和 PDF 檔案，最多 10 個",
+      "sessionTitle": "拖放會話到這裡",
+      "sessionDescription": "鬆開後將在輸入框引用該會話"
     },
     "compact": {
       "badge": "已精簡",

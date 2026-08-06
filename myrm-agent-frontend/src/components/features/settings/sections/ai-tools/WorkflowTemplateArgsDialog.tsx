@@ -17,6 +17,7 @@ export interface WorkflowTemplateArgsDialogProps {
   open: boolean;
   templateName: string;
   placeholders: string[];
+  initialArgs?: Record<string, string> | null;
   onOpenChange: (open: boolean) => void;
   onConfirm: (args: Record<string, string>) => void;
 }
@@ -26,6 +27,7 @@ const WorkflowTemplateArgsDialog = memo(
     open,
     templateName,
     placeholders,
+    initialArgs,
     onOpenChange,
     onConfirm,
   }: WorkflowTemplateArgsDialogProps) => {
@@ -38,8 +40,12 @@ const WorkflowTemplateArgsDialog = memo(
       if (!open) {
         return;
       }
-      setValues(Object.fromEntries(sortedPlaceholders.map((key) => [key, ''])));
-    }, [open, sortedPlaceholders]);
+      setValues(
+        Object.fromEntries(
+          sortedPlaceholders.map((key) => [key, initialArgs?.[key]?.trim() ?? '']),
+        ),
+      );
+    }, [initialArgs, open, sortedPlaceholders]);
 
     const allFilled = sortedPlaceholders.every((key) => values[key]?.trim());
 

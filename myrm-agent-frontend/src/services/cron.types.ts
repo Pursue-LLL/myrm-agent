@@ -90,6 +90,7 @@ export interface CronJob {
   agent_id?: string | null;
   workflow_template_id?: string | null;
   workflow_template_args?: Record<string, string> | null;
+  workflow_template_display_name?: string | null;
   command?: string;
   delivery?: CronDelivery;
   failure_delivery?: CronDelivery | null;

@@ -168,9 +168,7 @@ def _gate_allowed_pids(
         if launcher_pid is not None and launcher_pid in chain:
             allowed.add(gate_pid)
             continue
-        if holder_pid is not None and (
-            gate_pid == holder_pid or holder_pid in chain
-        ):
+        if holder_pid is not None and (gate_pid == holder_pid or holder_pid in chain):
             allowed.add(gate_pid)
     if not allowed and len(gate_pids) == 1 and holder_pid is not None:
         if gate_pids[0] == holder_pid:
@@ -290,6 +288,43 @@ def scan_signoff_adhoc_violations() -> list[AdhocViolation]:
     )
 
     return violations
+
+
+def reap_foreign_chrome_e2e_for_provisional_holder(holder_pid: int) -> int:
+    """Reap non-signoff chrome_e2e peers before SAO admit (P0-A Step1 gate).
+
+    Closes chicken-egg: foreign reap normally requires RUNNING episode in DB,
+    but admit_or_defer requires solo first. Provisional holder_pid enables
+    one-shot foreign reap without inserting the episode row.
+    """
+    if holder_pid <= 1:
+        return 0
+    launcher_pid = _read_launcher_pid()
+    self_pid = os.getpid()
+    gate_pids = [
+        pid
+        for pid in _pgrep_pids(GATE_SCRIPT_MARKER)
+        if pid not in {self_pid, os.getppid()}
+    ]
+    allowed_gates = _gate_allowed_pids(
+        gate_pids,
+        launcher_pid=launcher_pid,
+        holder_pid=holder_pid,
+    )
+    violations = _scan_foreign_chrome_e2e_pytest_violations(
+        holder_pid=holder_pid,
+        launcher_pid=launcher_pid,
+        gate_pids=gate_pids,
+        allowed_gates=allowed_gates,
+        self_pid=self_pid,
+    )
+    if not violations:
+        return 0
+    print(
+        f"SIGNOFF_PROVISIONAL_REAP: count={len(violations)} " f"holder_pid={holder_pid}"
+    )
+    _reap_violations(violations)
+    return len(violations)
 
 
 def _reap_violations(violations: list[AdhocViolation]) -> None:

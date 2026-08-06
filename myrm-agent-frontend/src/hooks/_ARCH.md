@@ -15,7 +15,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `settings/` | System/Personal/MCP 配置与安全门禁 | [_ARCH.md](settings/_ARCH.md) |
 | `billing/` | 订阅、entitlements、配额、ingress | [_ARCH.md](billing/_ARCH.md) |
 | `agent/` | 智能体编辑/配置面板/预设/gallery（含 `config-panel/` 子模块） | [_ARCH.md](agent/_ARCH.md) |
-| `chat/` | 会话级 UX hook：`useChatTurnPrewarm`（EmptyChat/focus/agent 切换；module dedupe；autoOnMount 不 unmount cancel） | — |
+| `chat/` | 会话级 UX：`useChatTurnPrewarm`；Tauri composer drop `usePriorChatComposerDrop`（prior_chat cite） | — |
 | `shell/` | 全局 liveness、tab badge、nav badge、快捷键、crash guard | [_ARCH.md](shell/_ARCH.md) |
 | `globalEvents/` | SSE 全局事件编排 + toast 子模块（含 `run_digest_updated` → `run-digest-updated`） | [_ARCH.md](globalEvents/_ARCH.md) |
 | `copilot/` | Run digest hook（SSE + GET） | [_ARCH.md](copilot/_ARCH.md) |

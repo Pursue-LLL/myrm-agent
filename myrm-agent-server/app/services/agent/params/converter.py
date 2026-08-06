@@ -39,6 +39,7 @@ from .archive_restore import (
 from .helpers import _extract_code_execution_network
 from .media import _extract_media_generation_params
 from .mention import (
+    _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
     _build_mention_reference_context,
     _inject_mentioned_files_into_query,
 )
@@ -907,25 +908,49 @@ async def convert_to_general_agent_params(
     mention_warnings.extend(restore_materialization.warnings)
     archive_restore_results.extend(restore_materialization.results)
 
-    if request.mention_references and chat_workspace_dir:
+    if request.mention_references:
         max_ctx_tokens = model_cfg.max_context_tokens if model_cfg else None
-        mention_ctx, mention_context_warnings, mention_tokens = (
-            await _build_mention_reference_context(
-                request.mention_references,
-                chat_workspace_dir,
-                max_ctx_tokens,
-                request.agent_id,
+        prior_chat_refs = [
+            ref
+            for ref in request.mention_references
+            if ref.type == "prior_chat"
+        ]
+        workspace_refs = [
+            ref
+            for ref in request.mention_references
+            if ref.type != "prior_chat"
+        ]
+        if workspace_refs and not chat_workspace_dir:
+            mention_warnings.append(
+                "Workspace unavailable; file and workspace references were skipped"
             )
-        )
-        mention_warnings.extend(mention_context_warnings)
-        if mention_ctx:
-            final_query = _inject_mentioned_files_into_query(final_query, mention_ctx)
-            logger.info(
-                "Injected %d context references (%d tokens, %d warnings)",
-                len(request.mention_references),
-                mention_tokens,
-                len(mention_warnings),
+        refs_to_inject = [
+            *prior_chat_refs,
+            *(workspace_refs if chat_workspace_dir else []),
+        ]
+        if refs_to_inject:
+            mention_workspace_dir = (
+                chat_workspace_dir or _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE
             )
+            mention_ctx, mention_context_warnings, mention_tokens = (
+                await _build_mention_reference_context(
+                    refs_to_inject,
+                    mention_workspace_dir,
+                    max_ctx_tokens,
+                    request.agent_id,
+                )
+            )
+            mention_warnings.extend(mention_context_warnings)
+            if mention_ctx:
+                final_query = _inject_mentioned_files_into_query(
+                    final_query, mention_ctx
+                )
+                logger.info(
+                    "Injected %d context references (%d tokens, %d warnings)",
+                    len(refs_to_inject),
+                    mention_tokens,
+                    len(mention_warnings),
+                )
 
     if request.uploaded_file_ids and chat_workspace_dir:
         try:

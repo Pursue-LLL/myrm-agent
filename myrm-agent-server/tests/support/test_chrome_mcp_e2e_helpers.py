@@ -297,6 +297,23 @@ def test_open_page_parallel_budgets_scale_with_live_peer_count(
     assert loaded[4] == 1
 
 
+def test_phase_c_burst_open_mcp_uses_signoff_parallel_budgets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from dev_gate_contract import signoff_open_mcp_budgets
+    from tests.support import chrome_mcp_e2e
+
+    monkeypatch.delenv("E2E_SIGNOFF", raising=False)
+    monkeypatch.setenv("MYRM_E2E_PHASE_C_BURST_LANES", "4")
+    monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
+    monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
+    expected = signoff_open_mcp_budgets(parallel_peers=4)
+    result = _open_page_parallel_budgets(300.0, new_page_timeout_ms=120_000, peers=0)
+    assert result[2] == expected.wall_budget_sec
+    assert result[3] == expected.total_budget_sec
+    assert result[4] == expected.attempt_count
+
+
 def test_open_page_body_fraction_cap_scales_with_live_body_wall(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -544,9 +561,22 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
 
     class _FakeContract:
         @staticmethod
+        def phase_c_burst_lane_count() -> int:
+            return 0
+
+        @staticmethod
         def shared_ui_hydrate_wait_sec() -> int:
             return 900
 
+    monkeypatch.setitem(
+        sys.modules,
+        "e2e_shared_ui_hydrate",
+        type(
+            "_FakeHydrate",
+            (),
+            {"parallel_shared_ui_hydrate_queue_enabled": staticmethod(lambda: False)},
+        )(),
+    )
     monkeypatch.setitem(
         sys.modules,
         "dev_gate_contract",
@@ -581,15 +611,87 @@ def test_warm_ui_parallel_wait_sec_uses_parallel_active_test_count(
 
     class _FakeContract:
         @staticmethod
+        def phase_c_burst_lane_count() -> int:
+            return 0
+
+        @staticmethod
         def shared_ui_hydrate_wait_sec() -> int:
             return 900
 
     monkeypatch.setitem(sys.modules, "stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
     monkeypatch.setitem(sys.modules, "transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
+    monkeypatch.setitem(
+        sys.modules,
+        "e2e_shared_ui_hydrate",
+        type(
+            "_FakeHydrate",
+            (),
+            {"parallel_shared_ui_hydrate_queue_enabled": staticmethod(lambda: False)},
+        )(),
+    )
     monkeypatch.setitem(sys.modules, "dev_gate_contract", _FakeContract())  # type: ignore[arg-type]
     from tests.support import chrome_mcp_e2e
 
     assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(120.0) == 480.0
+
+
+def test_warm_ui_parallel_wait_sec_skips_peer_scale_when_hydrate_queue_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MYRM_E2E_PHASE_C_BURST_LANES", "4")
+
+    class _FakeHydrate:
+        @staticmethod
+        def parallel_shared_ui_hydrate_queue_enabled() -> bool:
+            return True
+
+    monkeypatch.setitem(
+        sys.modules,
+        "e2e_shared_ui_hydrate",
+        _FakeHydrate(),  # type: ignore[arg-type]
+    )
+    from tests.support import chrome_mcp_e2e
+
+    assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(30.0) == 30.0
+
+
+def test_warm_ui_parallel_wait_sec_burst_uses_lane_width_not_foreign_peers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MYRM_E2E_PHASE_C_BURST_LANES", "4")
+
+    class _FakeHydrate:
+        @staticmethod
+        def parallel_shared_ui_hydrate_queue_enabled() -> bool:
+            return False
+
+    class _FakePolicy:
+        @staticmethod
+        def wave_active_lease_count(_root: Path) -> int:
+            return 2
+
+    class _FakeTransport:
+        @staticmethod
+        def parallel_active_test_count() -> int:
+            return 8
+
+    class _FakeContract:
+        @staticmethod
+        def phase_c_burst_lane_count() -> int:
+            return 4
+
+        @staticmethod
+        def shared_ui_hydrate_wait_sec() -> int:
+            return 900
+
+    monkeypatch.setitem(sys.modules, "e2e_shared_ui_hydrate", _FakeHydrate())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "dev_gate_contract", _FakeContract())  # type: ignore[arg-type]
+    from tests.support import chrome_mcp_e2e
+
+    # 30 + 4*45 = 210 (burst lanes), not 30 + 8*45 = 390 (foreign peers)
+    assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(30.0) == 210.0
 
 
 def test_open_page_attempt_count_is_one_under_parallel_peers(

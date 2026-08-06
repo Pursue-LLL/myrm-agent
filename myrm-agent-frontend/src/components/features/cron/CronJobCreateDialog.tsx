@@ -37,6 +37,7 @@ import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
 import { fetchWorkflowTemplates, type WorkflowTemplateSummary } from '@/services/workflowTemplates';
+import WorkflowTemplateArgsDialog from '@/components/features/settings/sections/ai-tools/WorkflowTemplateArgsDialog';
 
 type JobType = 'agent' | 'shell' | 'router' | 'reminder';
 type UIJobMode = 'agent' | 'shell' | 'script' | 'reminder';
@@ -90,6 +91,13 @@ export default function CronJobCreateDialog({
   const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
   const [workflowTemplateId, setWorkflowTemplateId] = useState('__none__');
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSummary[]>([]);
+  const [workflowTemplateArgs, setWorkflowTemplateArgs] = useState<Record<string, string> | null>(null);
+  const [workflowArgsDialogOpen, setWorkflowArgsDialogOpen] = useState(false);
+
+  const selectedWorkflowTemplate = useMemo(
+    () => workflowTemplates.find((template) => template.template_id === workflowTemplateId) ?? null,
+    [workflowTemplates, workflowTemplateId],
+  );
 
   useEffect(() => {
     if (open) {
@@ -109,7 +117,9 @@ export default function CronJobCreateDialog({
   useEffect(() => {
     if (open && uiMode === 'agent') {
       void fetchWorkflowTemplates()
-        .then((response) => setWorkflowTemplates(response.templates))
+        .then((response) =>
+          setWorkflowTemplates(response.templates.filter((template) => template.trust_latch)),
+        )
         .catch(() => setWorkflowTemplates([]));
     }
   }, [open, uiMode]);
@@ -150,6 +160,9 @@ export default function CronJobCreateDialog({
     setSelectedBlueprint(null);
     setAcceptanceCriteria([]);
     setCreatedJob(null);
+    setWorkflowTemplateId('__none__');
+    setWorkflowTemplateArgs(null);
+    setWorkflowArgsDialogOpen(false);
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -209,82 +222,104 @@ export default function CronJobCreateDialog({
   const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
   const canSubmit = contentValid && schedule !== null && sessionValid;
 
-  const handleSubmit = useCallback(async () => {
-    if (!canSubmit || !schedule) return;
-    setSaving(true);
-    try {
-      const taskName =
-        name.trim() ||
-        (uiMode === 'agent' ? prompt.trim().slice(0, 30) : uiMode === 'shell' ? command.trim().slice(0, 30) : scriptCode.trim().slice(0, 30));
-
-      const payload: Parameters<typeof createJob>[0] = {
-        name: taskName,
-        job_type: jobType,
-        schedule,
-        session_target: sessionTarget,
-        ...(sessionTarget === 'main' && effectiveChatId ? { chat_id: effectiveChatId } : {}),
-      };
-
-      if (uiMode === 'agent') {
-        payload.prompt = prompt.trim();
-        if (agentId !== '__default__') payload.agent_id = agentId;
-        if (workflowTemplateId !== '__none__') {
-          payload.workflow_template_id = workflowTemplateId;
-        }
-      } else if (uiMode === 'reminder') {
-        payload.prompt = prompt.trim();
-      } else if (uiMode === 'shell') {
-        payload.command = command.trim();
-      } else {
-        payload.pre_condition_script = scriptCode.trim();
-      }
-
-      if (deliveryChannel !== 'chat') {
-        const target = deliveryTarget.trim() || undefined;
-        payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
-      }
-
-      const validCriteria = acceptanceCriteria.filter((c) => c.description.trim());
-      if (validCriteria.length > 0) {
-        payload.acceptance_criteria = validCriteria.map((c) => ({
-          type: c.type,
-          description: c.description.trim(),
-        }));
-      }
-
-      const job = await createJob(payload);
+  const executeCreate = useCallback(
+    async (templateArgs: Record<string, string> | null) => {
+      if (!canSubmit || !schedule) return;
+      setSaving(true);
       try {
-        const auditJob = await prepareJobForSettingsAudit(job);
-        setCreatedJob(auditJob);
-        toast.success(t('createSuccess'));
+        const taskName =
+          name.trim() ||
+          (uiMode === 'agent'
+            ? prompt.trim().slice(0, 30)
+            : uiMode === 'shell'
+              ? command.trim().slice(0, 30)
+              : scriptCode.trim().slice(0, 30));
+
+        const payload: Parameters<typeof createJob>[0] = {
+          name: taskName,
+          job_type: jobType,
+          schedule,
+          session_target: sessionTarget,
+          ...(sessionTarget === 'main' && effectiveChatId ? { chat_id: effectiveChatId } : {}),
+        };
+
+        if (uiMode === 'agent') {
+          payload.prompt = prompt.trim();
+          if (agentId !== '__default__') payload.agent_id = agentId;
+          if (workflowTemplateId !== '__none__') {
+            payload.workflow_template_id = workflowTemplateId;
+            if (templateArgs && Object.keys(templateArgs).length > 0) {
+              payload.workflow_template_args = templateArgs;
+            }
+          }
+        } else if (uiMode === 'reminder') {
+          payload.prompt = prompt.trim();
+        } else if (uiMode === 'shell') {
+          payload.command = command.trim();
+        } else {
+          payload.pre_condition_script = scriptCode.trim();
+        }
+
+        if (deliveryChannel !== 'chat') {
+          const target = deliveryTarget.trim() || undefined;
+          payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
+        }
+
+        const validCriteria = acceptanceCriteria.filter((c) => c.description.trim());
+        if (validCriteria.length > 0) {
+          payload.acceptance_criteria = validCriteria.map((c) => ({
+            type: c.type,
+            description: c.description.trim(),
+          }));
+        }
+
+        const job = await createJob(payload);
+        try {
+          const auditJob = await prepareJobForSettingsAudit(job);
+          setCreatedJob(auditJob);
+          toast.success(t('createSuccess'));
+        } catch {
+          toast.error(t('auditPauseFail'));
+        }
       } catch {
-        toast.error(t('auditPauseFail'));
+        toast.error(t('actionFail'));
+      } finally {
+        setSaving(false);
       }
-    } catch {
-      toast.error(t('actionFail'));
-    } finally {
-      setSaving(false);
+    },
+    [
+      canSubmit,
+      schedule,
+      name,
+      uiMode,
+      jobType,
+      prompt,
+      command,
+      scriptCode,
+      agentId,
+      workflowTemplateId,
+      sessionTarget,
+      effectiveChatId,
+      deliveryChannel,
+      deliveryTarget,
+      acceptanceCriteria,
+      createJob,
+      t,
+    ],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (
+      uiMode === 'agent' &&
+      selectedWorkflowTemplate &&
+      selectedWorkflowTemplate.placeholders.length > 0 &&
+      !workflowTemplateArgs
+    ) {
+      setWorkflowArgsDialogOpen(true);
+      return;
     }
-  }, [
-    canSubmit,
-    schedule,
-    name,
-    uiMode,
-    jobType,
-    prompt,
-    command,
-    scriptCode,
-    agentId,
-    sessionTarget,
-    effectiveChatId,
-    deliveryChannel,
-    deliveryTarget,
-    acceptanceCriteria,
-    createJob,
-    t,
-    reset,
-    onOpenChange,
-  ]);
+    await executeCreate(workflowTemplateArgs);
+  }, [executeCreate, selectedWorkflowTemplate, uiMode, workflowTemplateArgs]);
 
   return (
     <Dialog
@@ -434,7 +469,13 @@ export default function CronJobCreateDialog({
               {uiMode === 'agent' ? (
                 <div className="space-y-1.5 pt-1">
                   <Label className="text-xs">{t('createWorkflowTemplateLabel')}</Label>
-                  <Select value={workflowTemplateId} onValueChange={setWorkflowTemplateId}>
+                  <Select
+                    value={workflowTemplateId}
+                    onValueChange={(value) => {
+                      setWorkflowTemplateId(value);
+                      setWorkflowTemplateArgs(null);
+                    }}
+                  >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -767,7 +808,7 @@ export default function CronJobCreateDialog({
             </Button>
             <Button
               size="sm"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={!canSubmit || saving}
               className={cn('gap-1.5', saving && 'opacity-70')}
             >
@@ -779,6 +820,18 @@ export default function CronJobCreateDialog({
         </div>
         )}
       </DialogContent>
+      {selectedWorkflowTemplate ? (
+        <WorkflowTemplateArgsDialog
+          open={workflowArgsDialogOpen}
+          templateName={selectedWorkflowTemplate.display_name}
+          placeholders={selectedWorkflowTemplate.placeholders}
+          onOpenChange={setWorkflowArgsDialogOpen}
+          onConfirm={(args) => {
+            setWorkflowTemplateArgs(args);
+            void executeCreate(args);
+          }}
+        />
+      ) : null}
     </Dialog>
   );
 }

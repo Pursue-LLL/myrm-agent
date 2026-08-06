@@ -223,3 +223,64 @@ def test_prior_chat_cmdk_cite_chrome_e2e() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(30.0),
         )
         assert state.get("ready") is True, state
+
+
+_EMPTY_CHAT_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-chat-input]'),
+  hasComposerBridge: !!window.__MYRM_E2E_CHAT__,
+  chatId: window.__myrmChatStore?.getState?.()?.chatId ?? null,
+}))()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_prior_chat_mention_empty_chat_home_chrome_e2e() -> None:
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+    _seed_prior_chat_fixture(api_url)
+    warm_ui_route("/")
+
+    with open_mcp_page(f"{ui_url}/") as (client, page):
+        empty_state = wait_for_state(
+            client,
+            page,
+            _EMPTY_CHAT_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
+        assert empty_state.get("ready") is True, empty_state
+
+        focused = client.evaluate(
+            page,
+            """(() => {
+  const el = document.querySelector('[data-chat-input]');
+  if (!el) return { ok: false };
+  el.focus();
+  return { ok: true };
+})()""",
+            timeout_sec=10.0,
+        )
+        assert isinstance(focused, dict) and focused.get("ok") is True
+
+        client.type_text(page, "@chat:Alpha")
+        wait_for_state(
+            client,
+            page,
+            _MENTION_ITEM_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+        )
+
+        clicked = client.evaluate(page, _CLICK_MENTION_ITEM_JS, timeout_sec=15.0)
+        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+
+        state = wait_for_state(
+            client,
+            page,
+            _MENTION_CHIP_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+        )
+        assert state.get("ready") is True, state

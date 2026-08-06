@@ -36,6 +36,7 @@ from .models import MentionReferenceRequest, MultimodalQuery
 logger = logging.getLogger(__name__)
 
 _MENTION_MAX_FILES = 10
+_MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE = "/tmp"
 _LINE_RANGE_PATTERN = re.compile(r"^(.+?):(\d+)(?:-(\d+))?$")
 _MENTION_MAX_INLINE_BYTES = 100 * 1024  # 100KB per file
 _MENTION_MAX_TOTAL_BYTES = 500 * 1024  # 500KB total

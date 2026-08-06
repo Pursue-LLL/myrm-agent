@@ -6954,7 +6954,8 @@
     "pin": {
       "action": "置顶",
       "section": "置顶",
-      "error": "置顶失败"
+      "error": "置顶失败",
+      "reorderHandle": "拖动以调整置顶会话顺序"
     },
     "unpin": {
       "action": "取消置顶",
@@ -7323,7 +7324,9 @@
     },
     "dragDrop": {
       "title": "拖放文件到这里",
-      "description": "支持图片和 PDF 文件，最多 10 个"
+      "description": "支持图片和 PDF 文件，最多 10 个",
+      "sessionTitle": "拖放会话到这里",
+      "sessionDescription": "松开后将在输入框引用该会话"
     },
     "compact": {
       "badge": "已精简",
@@ -10951,7 +10954,21 @@
     "createPromptPlaceholder": "Agent 应该做什么？例如：总结今天的科技新闻",
     "createWorkflowTemplateLabel": "工作流模板",
     "createWorkflowTemplateNone": "无 — 仅自然语言",
-    "createWorkflowTemplateHint": "按计划运行已保存的动态工作流脚本（上方提示词作为本次任务 query）。",
+    "createWorkflowTemplateHint": "按计划运行已信任（trust latch）的动态工作流模板；上方提示词作为本次任务 query。",
+    "workflowTemplateDetailTitle": "工作流模板",
+    "workflowTemplateArgsLabel": "模板参数",
+    "workflowTemplateOpenLibrary": "在库中打开",
+    "workflowTemplateTooltip": "动态工作流模板：{template}",
+    "workflowTemplateTooltipWithArgs": "模板 {template} · {args}",
+    "workflowTemplateEditorTitle": "工作流模板",
+    "workflowTemplateEditorHint": "仅可选择已信任模板。保存后对下次定时运行生效。",
+    "workflowTemplateEditorSave": "保存模板绑定",
+    "workflowTemplateEditArgs": "编辑参数",
+    "workflowTemplateUpdated": "工作流模板绑定已更新",
+    "workflowTemplateMissingWarning": "该模板在库中已不可用。在解除绑定或选择其他已信任模板之前，定时运行将会失败。",
+    "workflowTemplateUnbind": "解除绑定",
+    "workflowTemplateLoadFailed": "工作流模板列表加载失败。",
+    "workflowTemplateRetryLoad": "重试",
     "createCommandLabel": "Shell 命令",
     "createCommandPlaceholder": "例如：python backup.py",
     "createScheduleLabel": "调度方式",

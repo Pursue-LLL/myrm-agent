@@ -6954,7 +6954,8 @@
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",
-      "error": "Failed to pin chat"
+      "error": "Failed to pin chat",
+      "reorderHandle": "Drag to reorder pinned chats"
     },
     "unpin": {
       "action": "Unpin",
@@ -7324,7 +7325,9 @@
     },
     "dragDrop": {
       "title": "Drop files here",
-      "description": "Supports images and PDF files, up to 10 files"
+      "description": "Supports images and PDF files, up to 10 files",
+      "sessionTitle": "Drop conversation here",
+      "sessionDescription": "Release to cite this chat in your message"
     },
     "compact": {
       "badge": "Compacted",
@@ -10951,7 +10954,21 @@
     "createPromptPlaceholder": "What should the agent do? e.g. Summarize today's tech news",
     "createWorkflowTemplateLabel": "Workflow template",
     "createWorkflowTemplateNone": "None — natural language only",
-    "createWorkflowTemplateHint": "Run a saved Dynamic Workflow script on schedule (uses the prompt above as the task query).",
+    "createWorkflowTemplateHint": "Run a trusted Dynamic Workflow template on schedule (trusted templates only). Uses the prompt above as the task query.",
+    "workflowTemplateDetailTitle": "Workflow template",
+    "workflowTemplateArgsLabel": "Template arguments",
+    "workflowTemplateOpenLibrary": "Open in Library",
+    "workflowTemplateTooltip": "Dynamic Workflow template: {template}",
+    "workflowTemplateTooltipWithArgs": "Template {template} · {args}",
+    "workflowTemplateEditorTitle": "Workflow template",
+    "workflowTemplateEditorHint": "Trusted templates only. Saving updates the next scheduled run.",
+    "workflowTemplateEditorSave": "Save template binding",
+    "workflowTemplateEditArgs": "Edit arguments",
+    "workflowTemplateUpdated": "Workflow template binding updated",
+    "workflowTemplateMissingWarning": "This template is no longer available in the Library. Scheduled runs will fail until you unbind or choose another trusted template.",
+    "workflowTemplateUnbind": "Unbind template",
+    "workflowTemplateLoadFailed": "Failed to load workflow templates.",
+    "workflowTemplateRetryLoad": "Retry",
     "createCommandLabel": "Shell Command",
     "createCommandPlaceholder": "e.g. python backup.py",
     "createScheduleLabel": "Schedule",

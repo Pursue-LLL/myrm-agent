@@ -14,14 +14,16 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import get_e2e_ui_url, wait_e2e_provider_ready  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
-    open_mcp_page_async,
+    open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     warm_ui_route,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -29,7 +31,6 @@ from tests.support.test_secrets import resolve_test_env
 
 E2E_PROMPT = "只回复 OK"
 TURN_WAIT_SEC = 300.0
-_PROVIDER_NAME = "OpenCode Go"
 _EXPECTED_MODEL = "deepseek-v4-flash"
 
 _FETCH_MODELS_JS = """async () => {
@@ -77,41 +78,45 @@ def _require_opencode_go_config() -> None:
     execution_mode="SHARED", access_scope="READ", workload="STANDARD"
 )
 @pytest.mark.integration
-@pytest.mark.timeout(420)
-@pytest.mark.asyncio
-async def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResourceLedger) -> None:
+@pytest.mark.timeout(600)
+def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResourceLedger) -> None:
     """Real WebUI: Settings → OpenCode Go → 获取模型 → provider API list visible."""
     _require_opencode_go_config()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
 
     api_base = get_e2e_api_url()
+    ui_url = get_e2e_ui_url().rstrip("/")
     prepare_e2e_ui_session(api_base)
 
-    ui_base = get_e2e_ui_url().rstrip("/")
-    settings_url = f"{ui_base}/settings/models"
+    warm_ui_route("/")
     warm_ui_route("/settings/models")
-
-    session = await open_mcp_page_async(settings_url, timeout_ms=120_000)
-    try:
-        dismiss_blocking_modals(session.client, session.page)
+    settings_url = f"{ui_url}/settings/models"
+    # about:blank avoids CDP Page.navigate during open_page_transaction (turbopack/heavy routes).
+    with open_mcp_page("about:blank", timeout_ms=60_000) as (client, page):
+        client.navigate(page, settings_url, timeout_ms=180_000)
+        dismiss_blocking_modals(client, page, recover_url=settings_url)
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=settings_url,
+        )
         heartbeat_e2e_lease()
-        result = session.client.evaluate(
-            session.page,
+        result = client.evaluate(
+            page,
             _FETCH_MODELS_JS,
             timeout_sec=120.0,
             await_promise=True,
         )
         assert isinstance(result, dict), result
         assert result.get("ok") is True, result
-        e2e_resource_ledger.register("page", session.page.target_id or "settings-models")
-    finally:
-        await session.aclose()
+        e2e_resource_ledger.register("page", page.target_id or "settings-models")
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
 @pytest.mark.integration
-@pytest.mark.timeout(420)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger) -> None:
     """Real WebUI chat using DB-configured OpenCode Go deepseek-v4-flash."""
@@ -122,9 +127,11 @@ async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger)
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/")
 
-    session = await open_mcp_page_async(ui_base, timeout_ms=120_000)
+    client = ChromeMcpClient(request_timeout_sec=180.0)
+    await asyncio.to_thread(client.start)
     try:
-        chat = McpChatSession(session.client, session.page)
+        page = await asyncio.to_thread(client.new_page, ui_base, timeout_ms=120_000)
+        chat = McpChatSession(client, page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
         heartbeat_e2e_lease()
@@ -139,4 +146,4 @@ async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger)
         if chat_id:
             e2e_resource_ledger.register("chat", chat_id)
     finally:
-        await session.aclose()
+        await asyncio.to_thread(client.close)

@@ -206,6 +206,8 @@ class CronJobUpdate(BaseModel):
     acceptance_criteria: list[dict[str, object]] | None = Field(
         default=None, max_length=20, description="Structured acceptance criteria for post-run verification"
     )
+    workflow_template_id: str | None = Field(default=None, max_length=64)
+    workflow_template_args: dict[str, str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +287,7 @@ class CronJobResponse(BaseModel):
     agent_id: str | None = None
     workflow_template_id: str | None = Field(default=None, max_length=64)
     workflow_template_args: dict[str, str] | None = None
+    workflow_template_display_name: str | None = None
     command: str | None = None
 
     delivery: DeliveryResponse = DeliveryResponse()

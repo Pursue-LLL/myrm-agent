@@ -259,7 +259,6 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       results: specialResults,
     }));
 
-    if (!chatId) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
@@ -274,7 +273,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             .filter((item) => {
               if (seen.has(item.chat_id)) return false;
               seen.add(item.chat_id);
-              return item.chat_id !== chatId;
+              return !chatId || item.chat_id !== chatId;
             })
             .map(historyResultToSuggestion);
           setState((prev) => ({
@@ -291,6 +290,8 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         if (debounceRef.current) clearTimeout(debounceRef.current);
       };
     }
+
+    if (!chatId) return;
 
     debounceRef.current = setTimeout(async () => {
       try {

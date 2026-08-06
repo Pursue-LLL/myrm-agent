@@ -17,7 +17,7 @@ vi.mock('@/store/useAgentStore', () => ({
 
 const chatStoreRef = vi.hoisted(() => ({
   state: {
-    chatId: 'composer-chat',
+    chatId: 'composer-chat' as string | undefined,
     fetchAgents: vi.fn(),
     setInputMessage: vi.fn(),
     addMentionReference: vi.fn(),
@@ -99,5 +99,29 @@ describe('useReferenceMention chat mode', () => {
         fileId: 'prior-chat-1',
       }),
     );
+  });
+
+  it('loads prior chat suggestions on EmptyChat when chatId is undefined', async () => {
+    chatStoreRef.state.chatId = undefined;
+    searchChatHistoryMock.mockResolvedValue({
+      items: [
+        {
+          chat_id: 'prior-chat-1',
+          chat_title: 'Alpha planning',
+          snippet: 'Redis caching decision',
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useReferenceMention('@chat:Alpha', '@chat:Alpha'.length));
+
+    await waitFor(() => {
+      expect(result.current.results.some((item) => item.reference_type === 'prior_chat')).toBe(
+        true,
+      );
+    });
+
+    expect(searchChatHistoryMock).toHaveBeenCalledWith('Alpha', 20, 0);
+    expect(suggestReferencesMock).not.toHaveBeenCalled();
   });
 });

@@ -21,7 +21,9 @@
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobAuditPanel.tsx` | 组件 | Hermes 六字段 Cron 创建审计 + Confirm 门禁（聊天/创建弹窗/详情页复用） | ✅ |
 | `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/下次运行/快捷操作） | ✅ |
-| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；创建成功后展示审计面板） | ✅ |
+| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；Agent 模式可选 **trust_latch** DW 模板 + ArgsDialog；创建成功后展示审计面板） | ✅ |
+| `CronWorkflowTemplateBinding.tsx` | 组件 | Cron 卡片/详情展示绑定的 DW 模板名、args 与 Library 链接 | ✅ |
+| `WorkflowTemplateEditor.tsx` | 组件 | Cron 详情编辑 workflow 模板绑定与 args（PATCH + ArgsDialog）；缺失模板 amber 警告 + 解除绑定；加载失败重试 | ✅ |
 | `CronJobList.tsx` | 核心 | 任务列表；`?chat_id=` 过滤；`?job=` 深链打开详情 | ✅ |
 | `CronMonitorEditors.tsx` | 组件 | 监控/告警阈值编辑 | ✅ |
 | `CronPushPoller.tsx` | 组件 | 客户端 push 通知轮询注册（Web Push） | ✅ |

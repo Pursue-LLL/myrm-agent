@@ -5859,7 +5859,8 @@
     "pin": {
       "action": "ピン留め",
       "section": "ピン留め",
-      "error": "ピン留め失敗"
+      "error": "ピン留め失敗",
+      "reorderHandle": "ドラッグしてピン留め順を変更"
     },
     "unpin": {
       "action": "キャンセルピン留め",
@@ -6183,7 +6184,9 @@
     },
     "dragDrop": {
       "title": "拖放ファイルまでここ",
-      "description": "支持画像と PDF ファイル，最多 10 個"
+      "description": "支持画像と PDF ファイル，最多 10 個",
+      "sessionTitle": "会話をここにドロップ",
+      "sessionDescription": "離すと入力欄にこのチャットを引用します"
     },
     "compact": {
       "badge": "済み精简",

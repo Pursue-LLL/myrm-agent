@@ -768,6 +768,22 @@ class AgentJobRunner:
                         from app.services.agent.stream_session.stream_lane_factory import (
                             create_dynamic_workflow_stream,
                         )
+                        from app.services.workflow_templates.validation import (
+                            validate_cron_template_at_execution,
+                        )
+
+                        template_error = validate_cron_template_at_execution(
+                            job.workflow_template_id,
+                            job.workflow_template_args,
+                        )
+                        if template_error:
+                            logger.warning(
+                                "Cron agent job %s blocked by workflow template "
+                                "execution guard: %s",
+                                job.id,
+                                template_error,
+                            )
+                            return JobResult(success=False, error=template_error)
 
                         params.message_id = f"cron-{job.id}-{secrets.token_urlsafe(6)}"
                         dw_stream = create_dynamic_workflow_stream(

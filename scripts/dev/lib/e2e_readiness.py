@@ -158,8 +158,10 @@ def _ready_chrome_full(
 
 
 def _launch_force_bypass_enabled() -> bool:
-    return os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1" or (
-        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+    return (
+        os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
+        or os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        or os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1"
     )
 
 

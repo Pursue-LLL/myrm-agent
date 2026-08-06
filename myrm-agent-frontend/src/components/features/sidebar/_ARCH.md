@@ -9,8 +9,9 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `BatchOperationBar.tsx` | 组件 | 批量操作栏：会话批量选择、移动、删除、导出 ZIP（MD/JSON/HTML 格式选择 + 进度条 + 取消） | ✅ |
-| `ChatHistoryList.tsx` | 核心 | 会话历史列表：搜索过滤、日期分组、无限滚动、DnD pin 排序、Fork/Handoff/自动化等操作编排 | ✅ |
-| `ChatHistoryRow.tsx` | 核心 | 单行会话条目：右键菜单（Pin/Fork/Handoff/Automation/MoveToProject/Rename/Export/Print/Delete） | ✅ |
+| `ChatHistoryList.tsx` | 核心 | 会话历史列表：搜索过滤、日期分组、无限滚动、DnD pin 排序（独立 grip）、Fork/Handoff/自动化等操作编排；**Tauri** 侧栏会话 drag→composer `@chat` cite（含 pinned，#5b） | ✅ |
+| `ChatHistoryRow.tsx` | 核心 | 单行会话条目：右键菜单（Pin/Fork/Handoff/Automation/MoveToProject/Rename/Export/Print/Delete）；Tauri 可 drag 到 composer 引用 prior_chat；`SortablePinnedRow` pin 排序 grip 与 cite drag 分离 | ✅ |
+| `__tests__/SortablePinnedRow.test.tsx` | 测试 | pinned 行：pin reorder grip 与 session cite draggable 分离 | ✅ |
 | `HandoffDialog.tsx` | 组件 | 会话 Handoff 到其他 Agent/设备的确认对话框 | ✅ |
 | `MobileDragButton.tsx` | 辅助 | 移动端侧栏拖拽排序手柄 | ✅ |
 | `ProjectBar.tsx` | 核心 | 项目切换与创建顶栏；右键菜单：重命名、颜色、工作目录、默认智能体 | ✅ |

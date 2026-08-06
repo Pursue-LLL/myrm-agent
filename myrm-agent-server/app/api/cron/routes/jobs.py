@@ -73,7 +73,7 @@ async def list_jobs(
     monitor_states = await mgr.batch_get_monitor_states(job_ids) if job_ids else {}
 
     return CronJobsListResponse(
-        items=[_h._to_response(j, monitor_states.get(j.id)) for j in jobs],
+        items=_h._jobs_to_responses(jobs, monitor_states),
         total=total,
         offset=offset,
         limit=limit,
@@ -84,9 +84,14 @@ async def list_jobs(
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
     from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
+    from app.services.workflow_templates.validation import validate_cron_workflow_template_binding
 
     mgr = _h._get_manager()
     try:
+        validate_cron_workflow_template_binding(
+            body.workflow_template_id,
+            body.workflow_template_args,
+        )
         tools_allowed = normalize_cron_tools_allowed(body.tools_allowed)
         job = await mgr.create_job(
             user_id=USER_ID,
@@ -145,9 +150,25 @@ async def get_job(job_id: str) -> CronJobResponse:
 @router.patch("/{job_id}", response_model=CronJobResponse)
 async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
     from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+    from app.services.workflow_templates.validation import validate_cron_workflow_template_binding
 
     mgr = _h._get_manager()
     try:
+        if body.workflow_template_id:
+            validate_cron_workflow_template_binding(
+                body.workflow_template_id,
+                body.workflow_template_args,
+            )
+        elif (
+            "workflow_template_args" in body.model_fields_set
+            and body.workflow_template_args is not None
+        ):
+            existing = await mgr.get_job(job_id, USER_ID)
+            if existing and existing.workflow_template_id:
+                validate_cron_workflow_template_binding(
+                    existing.workflow_template_id,
+                    body.workflow_template_args,
+                )
         tools_allowed: tuple[str, ...] | None = None
         clear_tools_allowed = False
         if "tools_allowed" in body.model_fields_set:

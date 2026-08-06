@@ -35,6 +35,7 @@
 | `search/` | SearXNG 预设 + Embedding/Reranker provider 目录 | [_ARCH.md](search/_ARCH.md) |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |
 | `channels/` | 渠道 Ingress 静态分类与凭证判定 | [_ARCH.md](channels/_ARCH.md) |
+| `chat/` | 会话 cite drag payload（Tauri sidebar→composer `#5b`） | `priorChatDrag.ts` |
 | `cron/` | Cron 审计字段与 Settings 创建门禁纯函数 | [_ARCH.md](cron/_ARCH.md) |
 | `intent-dispatcher/` | 意图分发 schema | [_ARCH.md](intent-dispatcher/_ARCH.md) |
 | `vision/` | 语音视觉会话纯函数 | [_ARCH.md](vision/_ARCH.md) |

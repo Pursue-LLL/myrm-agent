@@ -55,6 +55,7 @@ import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemo
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
+import { usePriorChatComposerDrop } from '@/hooks/chat/usePriorChatComposerDrop';
 import { LinkDetectionDialog } from './LinkDetectionDialog';
 import { MobileActionSheet } from './MobileActionSheet';
 import { useMobileSheetEntries } from './useMobileSheetEntries';
@@ -277,8 +278,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     handleKeyDown: handleReferenceMentionKeyDown,
   } = useReferenceMention(inputMessage, cursorPosition);
 
+  const dropDisabled = loading || actionMode === 'fast';
+
   // 拖拽上传
-  const { isDragging, dragHandlers } = useDragDrop({
+  const { isDragging: isFileDragging, dragHandlers: fileDragHandlers } = useDragDrop({
     onFilesSelected: (selectedFiles) => {
       void handleDroppedFiles(selectedFiles);
     },
@@ -298,8 +301,36 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
       'application/json',
     ],
     maxFiles: 20,
-    disabled: loading || actionMode === 'fast',
+    disabled: dropDisabled,
   });
+
+  const { isSessionDragging, dragHandlers: sessionDragHandlers } = usePriorChatComposerDrop({
+    disabled: dropDisabled,
+  });
+
+  const mergedDragHandlers = React.useMemo(
+    () => ({
+      onDragEnter: (event: React.DragEvent) => {
+        fileDragHandlers.onDragEnter(event);
+        sessionDragHandlers.onDragEnter(event);
+      },
+      onDragOver: (event: React.DragEvent) => {
+        fileDragHandlers.onDragOver(event);
+        sessionDragHandlers.onDragOver(event);
+      },
+      onDragLeave: (event: React.DragEvent) => {
+        fileDragHandlers.onDragLeave(event);
+        sessionDragHandlers.onDragLeave(event);
+      },
+      onDrop: (event: React.DragEvent) => {
+        fileDragHandlers.onDrop(event);
+        sessionDragHandlers.onDrop(event);
+      },
+    }),
+    [fileDragHandlers, sessionDragHandlers],
+  );
+
+  const isDragging = isFileDragging || isSessionDragging;
 
   return (
     <>
@@ -356,7 +387,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
             }
           }}
           className="w-full"
-          {...dragHandlers}
+          {...mergedDragHandlers}
         >
           {/* 快捷指令面板 */}
           <CommandPalette
@@ -381,8 +412,12 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
           {isDragging && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg pointer-events-none">
               <div className="text-center">
-                <div className="text-2xl font-semibold text-primary mb-2">{chatT('dragDrop.title')}</div>
-                <div className="text-sm text-muted-foreground">{chatT('dragDrop.description')}</div>
+                <div className="text-2xl font-semibold text-primary mb-2">
+                  {isSessionDragging ? chatT('dragDrop.sessionTitle') : chatT('dragDrop.title')}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {isSessionDragging ? chatT('dragDrop.sessionDescription') : chatT('dragDrop.description')}
+                </div>
               </div>
             </div>
           )}

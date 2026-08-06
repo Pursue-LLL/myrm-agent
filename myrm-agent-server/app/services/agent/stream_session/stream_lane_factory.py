@@ -94,6 +94,29 @@ async def create_dynamic_workflow_stream(
         }
         return
 
+    message_id = params.message_id or "default_msg"
+
+    if workflow_template_id:
+        from app.services.workflow_templates.validation import validate_pinned_template_run
+
+        template_error = validate_pinned_template_run(
+            workflow_template_id,
+            workflow_template_args,
+        )
+        if template_error:
+            yield {
+                "type": AgentEventType.MESSAGE.value,
+                "messageId": message_id,
+                "data": template_error,
+            }
+            yield {
+                "type": AgentEventType.MESSAGE_END.value,
+                "messageId": message_id,
+                "usage": {},
+                "completion_status": "error",
+            }
+            return
+
     reset_session_budget(chat_id=params.chat_id)
 
     from app.ai_agents.general_agent.factory import build_general_agent
@@ -119,8 +142,6 @@ async def create_dynamic_workflow_stream(
         text_query = str(raw_q)
 
     init_token_tracker()
-
-    message_id = params.message_id or "default_msg"
 
     async def _dw_approval_gate(review: WorkflowPlanReview) -> bool:
         from app.services.agent.streaming import PhaseWaiter

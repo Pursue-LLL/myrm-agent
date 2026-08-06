@@ -44,6 +44,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
+import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
 
 interface CronJobCardProps {
   job: CronJob;
@@ -270,6 +271,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
           )}
           <ScheduleLabel job={job} t={t} />
           <AgentLabel agentId={job.agent_id} />
+          <CronWorkflowTemplateBadge job={job} />
           {job.session_target === 'main' && <ThreadBadge chatId={job.chat_id} t={t} />}
           {job.delivery?.channel && job.delivery.channel !== 'chat' && job.delivery.channel !== 'none' && (
             <Tooltip>

@@ -25,6 +25,7 @@ Settings 记忆与知识子系统：全局/归档记忆、Wiki、Checkpoint、�
 | `WikiConceptsList.tsx` | 组件 | Wiki 概念列表 | ✅ |
 | `MigrationWizardSection.tsx` | 核心 | 外部助手迁移 Wizard 容器与步骤路由 | ✅ |
 | `MigrationWizardSteps.tsx` | 核心 | Wizard 各步骤 UI；**ResultStep** 含迁移完成后的 **一键开启历史会话搜索**（`enableConversationSearch`） | ✅ |
+| `MigrationWizardReadiness.ts` | 辅助 | 导入 readiness 状态样式与 issue 格式化 | ✅ |
 | `MigrationVaultBindPanel.tsx` | 组件 | 迁移完成后 workspace vault 绑定候选 UI | ✅ |
 | `MigrationPendingReviewSection.tsx` | 组件 | 迁移后待审资产 | ✅ |
 | `wiki/` | 子模块 | Wiki 树/概念详情；见 [`wiki/_ARCH.md`](wiki/_ARCH.md) | ✅ |

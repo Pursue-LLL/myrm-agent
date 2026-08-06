@@ -7,7 +7,7 @@ import { zhCN, enUS } from 'date-fns/locale';
 import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks, Loader2, Search, X } from 'lucide-react';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { useCallback, useEffect, memo, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, memo, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -32,6 +32,7 @@ import { useBatchMode } from './useBatchMode';
 import { useChatActions } from './useChatActions';
 import { useProjectStore } from '@/store/useProjectStore';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { createPriorChatDragStartHandler } from '@/lib/chat/priorChatDrag';
 
 interface ChatHistoryListProps {
   isExpanded: boolean;
@@ -76,6 +77,11 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     } catch (err) {
       console.error('Failed to open session in new window:', err);
     }
+  }, []);
+
+  const sessionDragEnabled = isTauriRuntime();
+  const handleSessionDragStart = useCallback((chat: ChatItem, event: DragEvent<HTMLElement>) => {
+    createPriorChatDragStartHandler({ id: chat.id, title: chat.title })(event);
   }, []);
 
   const handleFork = useCallback(async (chatId: string) => {
@@ -253,6 +259,8 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     onHandoff: actions.handleHandoff,
     onFork: handleFork,
     onOpenInNewWindow: isTauriRuntime() ? handleOpenInNewWindow : undefined,
+    sessionDragEnabled,
+    onSessionDragStart: sessionDragEnabled ? handleSessionDragStart : undefined,
     t,
   });
 
@@ -405,7 +413,11 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
               <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={pinnedChats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                   {pinnedChats.map((chat, idx) => (
-                    <SortablePinnedRow key={chat.id} pinIndex={idx + 1} {...rowProps(chat)} />
+                    <SortablePinnedRow
+                      key={chat.id}
+                      pinIndex={idx + 1}
+                      {...rowProps(chat)}
+                    />
                   ))}
                 </SortableContext>
               </DndContext>

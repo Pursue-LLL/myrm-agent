@@ -45,6 +45,8 @@ import { CapabilityEditor } from './CapabilityEditor';
 import { AllowedRootsEditor } from './AllowedRootsEditor';
 import { TriggerEditor } from './CronTriggerEditor';
 import { SharedContextTargetBinding } from '@/components/features/memory/SharedContextTargetBinding';
+import { CronWorkflowTemplateDetail } from './CronWorkflowTemplateBinding';
+import { WorkflowTemplateEditor } from './WorkflowTemplateEditor';
 
 interface CronRunHistoryProps {
   job: CronJob;
@@ -172,6 +174,12 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
         enforceSettingsGate={needsSettingsAuditGate(job)}
         onJobChange={onJobUpdated}
       />
+
+      {job.job_type === 'agent' ? <WorkflowTemplateEditor job={job} onUpdated={handleEditorUpdated} /> : null}
+
+      {job.job_type !== 'agent' && job.workflow_template_id ? (
+        <CronWorkflowTemplateDetail job={job} />
+      ) : null}
 
       {job.job_type === 'agent' && (
         <AcceptanceCriteriaEditor job={job} onUpdated={handleEditorUpdated} />

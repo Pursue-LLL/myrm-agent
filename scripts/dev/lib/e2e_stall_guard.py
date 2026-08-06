@@ -166,22 +166,32 @@ def _transport_stall_cap_sec() -> float:
     cap = float(NODE_STUCK_FAIL_FAST_SEC)
     peers = 0
     try:
-        from mux_load import (
-            active_mux_context_count,
-            read_mux_status,
-            snapshot_mux_load,
-        )
+        from dev_gate_contract import phase_c_burst_lane_count
 
-        mux_status = read_mux_status()
-        load = snapshot_mux_load()
-        peers = max(
-            int(load.wave_leases),
-            active_mux_context_count(mux_status),
-        )
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
-        peers = 0
+        burst_lanes = phase_c_burst_lane_count()
+        if burst_lanes >= 2:
+            peers = burst_lanes
+    except ImportError:
+        burst_lanes = 0
+    if peers < 2:
+        try:
+            from mux_load import (
+                active_mux_context_count,
+                read_mux_status,
+                snapshot_mux_load,
+            )
+
+            mux_status = read_mux_status()
+            load = snapshot_mux_load()
+            peers = max(
+                int(load.wave_leases),
+                active_mux_context_count(mux_status),
+            )
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+            peers = 0
     if peers >= 2:
-        return min(cap + peers * 22.0, 300.0)
+        burst_floor = 360.0 if burst_lanes >= 4 else 0.0
+        return min(max(cap + peers * 22.0, burst_floor), 480.0)
     return cap
 
 

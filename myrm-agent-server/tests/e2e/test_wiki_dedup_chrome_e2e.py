@@ -27,13 +27,14 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
+    warm_ui_route,
 )
 
 _MAX_ATTEMPTS = 2
-_PANEL_WAIT_SEC = 120.0
-_SETTINGS_WAIT_SEC = 90.0
-# Instant CDP navigate (unlike :3000/) and not counted as orphan about:blank.
-_FAST_OPEN_PAGE_URL = "data:text/html,<html><body></body></html>"
+# Post-warm budgets — keep total body < parallel bootstrap hung-reap cap (~240s).
+_PANEL_WAIT_SEC = 45.0
+_WIKI_SHELL_WAIT_SEC = 45.0
+_WARM_ROUTE_TIMEOUT_SEC = 45.0
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "open_mcp_page",
     "MUX",
@@ -61,6 +62,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "E2E_LEASE_INVALID",
     "LEASE_NOT_ACTIVE",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
+    "No target with given id",
 )
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -108,18 +110,6 @@ _TRIGGER_DEDUP_SCAN_JS = """(() => {
   const scanBtn = document.querySelector('[data-testid="wiki-dedup-scan-btn"]');
   scanBtn?.click();
   return { triggered: Boolean(scanBtn), reason: 'clicked_scan' };
-})()"""
-
-_SETTINGS_SHELL_JS = """(() => {
-  const bodyText = document.body.innerText || '';
-  return {
-    ready:
-      location.pathname.startsWith('/settings') &&
-      bodyText.length > 20 &&
-      !!document.querySelector('[data-testid="settings-layout"]'),
-    pathname: location.pathname,
-    bodyLength: bodyText.length,
-  };
 })()"""
 
 _DEDUP_PANEL_READY_JS = """(() => {
@@ -203,35 +193,18 @@ def _parse_probe_from_error(err: str) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _client_navigate(client, page, url: str) -> None:
-    """In-page navigation — avoids CDP Page.navigate stalls under parallel Chrome load."""
-    client.evaluate(
-        page,
-        f"(() => {{ window.location.href = {json.dumps(url)}; return location.href; }})()",
-        timeout_sec=15.0,
-    )
-
-
 def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
-    settings_url = f"{ui_url.rstrip('/')}/settings"
     wiki_url = f"{ui_url.rstrip('/')}/settings/wiki"
+    settings_url = f"{ui_url.rstrip('/')}/settings"
 
-    _client_navigate(client, page, settings_url)
-    shell = wait_for_state(
-        client,
-        page,
-        _SETTINGS_SHELL_JS,
-        timeout_sec=_warm_ui_parallel_wait_sec(_SETTINGS_WAIT_SEC),
-    )
-    assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
-    dismiss_blocking_modals(client, page, recover_url=settings_url)
+    # Page already opened on wiki_url; dismiss overlays then activate dedup tab.
+    dismiss_blocking_modals(client, page, recover_url=wiki_url)
 
-    _client_navigate(client, page, wiki_url)
     wiki_shell = wait_for_state(
         client,
         page,
         _WIKI_SHELL_JS,
-        timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        timeout_sec=_warm_ui_parallel_wait_sec(_WIKI_SHELL_WAIT_SEC),
     )
     assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
 
@@ -242,7 +215,7 @@ def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
 
 def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
     last_state: dict[str, object] = {}
-    wait_budgets = (_PANEL_WAIT_SEC, 90.0)
+    wait_budgets = (_PANEL_WAIT_SEC, 30.0)
     for attempt, wait_sec in enumerate(wait_budgets):
         try:
             last_state = wait_for_state(
@@ -268,13 +241,16 @@ def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
 def _run_duplicate_review_assertions(
     api_url: str, ui_url: str, *, warm_route: bool = True
 ) -> None:
-    del warm_route  # smoke pool + open_mcp_page(/) compile shared routes on demand
-
     _seed_wiki_dedup_fixture(api_url)
     _verify_open_exact_groups_via_api(api_url)
+    if warm_route:
+        warm_ui_route(
+            "/settings/wiki",
+            timeout_sec=_warm_ui_parallel_wait_sec(_WARM_ROUTE_TIMEOUT_SEC),
+        )
 
-    # data: URL — instant openTransaction navigate; client-nav reaches :3000/settings.
-    with open_mcp_page(_FAST_OPEN_PAGE_URL, timeout_ms=90_000) as (client, page):
+    wiki_url = f"{ui_url.rstrip('/')}/settings/wiki"
+    with open_mcp_page(wiki_url, timeout_ms=90_000) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         _navigate_to_duplicate_review(client, page, ui_url)
         _assert_duplicate_review_panel(client, page, api_url=api_url)
@@ -305,7 +281,7 @@ def _run_with_transport_retry(
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(300)
 def test_wiki_duplicate_review_panel_shows_exact_group() -> None:
     """Seed duplicate raw files, open Wiki duplicate review tab, assert exact group UI."""
     api_url = get_e2e_api_url()

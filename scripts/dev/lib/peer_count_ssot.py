@@ -17,6 +17,12 @@ _PEER_COUNT_CACHE_TTL_SEC = 2.0
 _pytest_peer_count_cache: tuple[float, int] | None = None
 
 
+def clear_pytest_peer_count_cache() -> None:
+    """Invalidate cached pgrep peer count after signoff reap."""
+    global _pytest_peer_count_cache
+    _pytest_peer_count_cache = None
+
+
 def _run_subprocess_probe(args: list[str]) -> subprocess.CompletedProcess[str] | None:
     """Bounded pgrep/ps probe — must not block mux request-lock hot path under load."""
     try:
@@ -58,7 +64,9 @@ def _active_session_owner_pids() -> frozenset[int] | None:
         from dev_gate_store import DevGateStore, default_store_path
 
         store = DevGateStore(default_store_path())
-        owners = {record.owner_pid for record in store.list_active() if record.owner_pid > 0}
+        owners = {
+            record.owner_pid for record in store.list_active() if record.owner_pid > 0
+        }
         return frozenset(owners)
     except OSError:
         return None
