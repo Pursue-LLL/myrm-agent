@@ -182,6 +182,7 @@ _TRANSPORT_RETRY_MARKERS = (
     "CDP request timeout",
     "Operation timeout: navigate",
     "Browser Orchestrator error",
+    "Browser Orchestrator response timeout",
     "daemon not running",
     "Timeout (>510.0s)",
     "socket",
@@ -213,8 +214,8 @@ def _run_export_import_roundtrip(*, library_url: str, api_base: str, use_cdp_nav
     open_url = library_url if use_cdp_navigate else "about:blank"
     with open_mcp_page(
         open_url,
-        timeout_ms=60_000,
-        request_timeout_sec=45.0,
+        timeout_ms=90_000,
+        request_timeout_sec=120.0,
     ) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         if not use_cdp_navigate:

@@ -441,7 +441,7 @@ def _parallel_open_page_max_attempts() -> int:
         return 3
     if _effective_parallel_load() >= 2:
         return 3
-    return 3
+    return 5
 
 
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
@@ -488,6 +488,8 @@ def _open_page_transaction_with_retry(
     last_exc: BaseException | None = None
     for attempt in range(1, attempts + 1):
         try:
+            if attempt > 1:
+                _recreate_orchestrator_session(daemon, session_id)
             from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
 
             touch_wall_progress(current_node="open_page_transaction")

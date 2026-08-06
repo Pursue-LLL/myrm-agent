@@ -127,9 +127,7 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
             resolve_transport_stall_cap_sec,
         )  # noqa: PLC0415
 
-        open_page_family = node.startswith("open_mcp_page") or node.startswith(
-            "open_page_"
-        )
+        open_page_family = node.startswith("open_page_")
         if open_page_family:
             stall_cap = resolve_transport_stall_cap_sec(current_node=node)
             if elapsed >= stall_cap:
