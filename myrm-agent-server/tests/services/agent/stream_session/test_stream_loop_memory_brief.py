@@ -23,6 +23,8 @@ def _make_session(
     session.request.chat_id = "chat-1"
     session.request.action_mode = "general"
     session.request.use_workflow = False
+    session.request.workflow_template_id = None
+    session.request.workflow_template_args = None
     session.request.blueprint_id = None
     session.request.mention_references = None
     session.request.resume_value = None

@@ -24,6 +24,8 @@ def _session(*, enable_web_search: bool) -> SimpleNamespace:
             resume_value=None,
             ephemeral_subagents=None,
             use_workflow=False,
+            workflow_template_id=None,
+            workflow_template_args=None,
             chat_id=None,
         ),
         routing_tier="simple",
