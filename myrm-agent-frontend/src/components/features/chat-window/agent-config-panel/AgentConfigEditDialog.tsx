@@ -16,7 +16,7 @@ import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/shared/useToast';
 import { runCuratorSweep } from '@/services/skill';
 import type { ConfigCardType } from './AgentConfigCards';
-import { ActionSpaceAccuracyRadar } from './ActionSpaceAccuracyRadar';
+import { ActionSpaceAccuracyRadar, type Turn1CatalogPreview } from './ActionSpaceAccuracyRadar';
 import { AddMoreButton, SelectableCard } from './AgentConfigSelectableCard';
 import { SkillsSectionPanel } from './SkillsSectionPanel';
 import { BuiltinToolsPanel } from './BuiltinToolsPanel';
@@ -249,6 +249,7 @@ const AgentConfigEditDialog = ({
 
   /* ─── action space evaluation ─── */
   const [accuracyData, setAccuracyData] = useState({ accuracyLevel: 100, actionSpaceScore: 0, maxSafeScore: 1500, isNoiseHigh: false, isNoiseCritical: false });
+  const [catalogPreview, setCatalogPreview] = useState<Turn1CatalogPreview | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
   useEffect(() => {
@@ -270,6 +271,18 @@ const AgentConfigEditDialog = ({
               isNoiseHigh: resData.data.is_high,
               isNoiseCritical: resData.data.is_critical,
             });
+            const preview = resData.data.catalog_preview;
+            if (
+              preview &&
+              typeof preview.inline_count === 'number' &&
+              typeof preview.hidden_count === 'number' &&
+              typeof preview.search_mounted === 'boolean' &&
+              typeof preview.inline_cap === 'number'
+            ) {
+              setCatalogPreview(preview as Turn1CatalogPreview);
+            } else {
+              setCatalogPreview(null);
+            }
           }
         }
       } catch (e) { console.error('Failed to evaluate action space', e); }
@@ -517,6 +530,8 @@ const AgentConfigEditDialog = ({
                 staleCoreSkillCount={staleCoreSkills.length}
                 isSmartPruning={isSmartPruning}
                 onSmartPrune={handleSmartPrune}
+                catalogPreview={catalogPreview}
+                showTurn1Catalog={type === 'skills'}
               />
             )}
             {renderContent()}

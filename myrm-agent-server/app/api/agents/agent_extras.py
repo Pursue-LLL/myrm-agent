@@ -192,6 +192,56 @@ class ActionSpaceEvalRequest(BaseModel):
     enabled_builtin_tools: RequiredBuiltinTools
 
 
+async def _build_catalog_preview(
+    skill_ids: list[str],
+    skill_configs: dict[str, dict],
+) -> dict[str, int | bool]:
+    """Turn1 bound-skill catalog preview — harness SSOT for inline/hidden/search gate."""
+    from myrm_agent_harness.agent.skills.runtime.catalog_display import (
+        SKILL_SELECT_INLINE_MAX,
+        resolve_catalog_display_skills,
+        should_mount_skill_search_tool,
+    )
+    from myrm_agent_harness.backends.skills.types import SkillMetadata
+
+    from app.core.skills.store.service import SkillsService
+    from app.core.skills.utils import normalize_skill_name
+
+    stored_skills = await SkillsService.get_skills_by_ids(skill_ids=skill_ids)
+    metadata_list: list[SkillMetadata] = []
+    for skill in stored_skills:
+        try:
+            name = normalize_skill_name(skill.name)
+        except ValueError:
+            logger.warning("Skipping skill with invalid name for catalog preview: %s", skill.name)
+            continue
+        metadata_list.append(
+            SkillMetadata(
+                name=name,
+                description=skill.description or "",
+                storage_skill_id=skill.id,
+                storage_path=skill.storage_path,
+                token_cost=skill.token_cost,
+                always=skill.always,
+                model_invocable=skill.model_invocable,
+                available=skill.available,
+            )
+        )
+
+    configs = skill_configs or None
+    resolution = resolve_catalog_display_skills(metadata_list, skill_configs=configs)
+    search_mounted = bool(metadata_list) and should_mount_skill_search_tool(
+        metadata_list,
+        skill_configs=configs,
+    )
+    return {
+        "inline_count": len(resolution.display_skills),
+        "hidden_count": resolution.hidden_skill_count,
+        "search_mounted": search_mounted,
+        "inline_cap": SKILL_SELECT_INLINE_MAX,
+    }
+
+
 @router.post("/evaluate-action-space")
 async def evaluate_action_space(
     req: ActionSpaceEvalRequest,
@@ -226,6 +276,8 @@ async def evaluate_action_space(
         noise_level = min(100, round((total_score / max_safe_score) * 100))
         accuracy_level = 100 - noise_level
 
+        catalog_preview = await _build_catalog_preview(req.skill_ids, req.skill_configs)
+
         return success_response(
             data={
                 "ascs_score": total_score,
@@ -233,6 +285,7 @@ async def evaluate_action_space(
                 "accuracy_level": accuracy_level,
                 "is_critical": noise_level >= 80,
                 "is_high": noise_level > 50,
+                "catalog_preview": catalog_preview,
             }
         )
     except Exception as e:

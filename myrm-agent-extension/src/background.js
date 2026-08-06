@@ -516,16 +516,100 @@ function updateBadge(status) {
   chrome.action.setBadgeText({ text: texts[status] || "" });
 }
 
+// --- Wiki clip (extension → server REST, zero LLM) ---
+
+async function ensureClipContentScript(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["src/content/clip.js"],
+  });
+}
+
+async function pollClipJob(baseUrl, token, jobId) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  for (let i = 0; i < 60; i += 1) {
+    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/wiki/clip/${jobId}`, { headers });
+    if (!resp.ok) throw new Error(`Clip status failed (${resp.status})`);
+    const data = await resp.json();
+    if (data.state === "succeeded") return data;
+    if (data.state === "failed") throw new Error(data.error_message || "Clip failed");
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error("Clip timed out");
+}
+
+async function submitClipToWiki(tab, mode) {
+  if (!serverUrl) {
+    lastError = "Configure server URL in extension popup";
+    return;
+  }
+  try {
+    await ensureClipContentScript(tab.id);
+    const captured = await chrome.tabs.sendMessage(tab.id, { type: "clip_to_wiki", mode });
+    if (!captured?.ok) throw new Error(captured?.error || "Capture failed");
+    const payload = captured.payload;
+    const form = new FormData();
+    form.append("source_url", payload.source_url);
+    form.append("title", payload.title);
+    form.append("clip_mode", payload.clip_mode);
+    form.append("html", payload.html);
+    form.append("markdown", payload.markdown || "");
+    form.append("folder_path", payload.folder_path || "");
+    form.append("queue_compile", payload.queue_compile ? "true" : "false");
+    const assetUrls = (payload.assets || []).map((a) => a.source_url);
+    form.append("asset_urls", JSON.stringify(assetUrls));
+    for (const asset of payload.assets || []) {
+      const blob = new Blob([asset.data], { type: asset.content_type });
+      form.append("asset_files", blob, "asset.bin");
+    }
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    const postResp = await fetch(`${serverUrl.replace(/\/$/, "")}/api/v1/wiki/clip`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    if (!postResp.ok) {
+      const text = await postResp.text();
+      throw new Error(text || `Clip upload failed (${postResp.status})`);
+    }
+    const accepted = await postResp.json();
+    const result = await pollClipJob(serverUrl, authToken, accepted.job_id);
+    if (result.conflict) {
+      lastError = "Already clipped — check Duplicate Review in Settings Wiki";
+    } else if (result.security_blocked) {
+      lastError = "Clip blocked by security scan";
+    } else {
+      lastError = "";
+      chrome.action.setBadgeText({ text: "✓" });
+      setTimeout(() => updateBadge(ws && ws.readyState === WebSocket.OPEN ? "connected" : "disconnected"), 2000);
+    }
+  } catch (err) {
+    lastError = err?.message || String(err);
+    updateBadge("error");
+  }
+}
+
 // --- Context Menu + Keyboard Shortcut + Glow ---
 
 function setupContextMenu() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: "ask-myrm-agent", title: "Ask Myrm Agent", contexts: ["selection"] });
     chrome.contextMenus.create({ id: "ask-myrm-agent-page", title: "Ask Myrm Agent about this page", contexts: ["page"] });
+    chrome.contextMenus.create({ id: "clip-wiki-selection", title: "Clip selection to Wiki", contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "clip-wiki-page", title: "Clip page to Wiki", contexts: ["page"] });
   });
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (!tab?.id) return;
+  if (info.menuItemId === "clip-wiki-selection") {
+    submitClipToWiki(tab, "selection");
+    return;
+  }
+  if (info.menuItemId === "clip-wiki-page") {
+    submitClipToWiki(tab, "full_page");
+    return;
+  }
   if (info.menuItemId === "ask-myrm-agent" && info.selectionText) {
     chrome.sidePanel.open({ tabId: tab.id }).then(() => {
       setTimeout(() => {

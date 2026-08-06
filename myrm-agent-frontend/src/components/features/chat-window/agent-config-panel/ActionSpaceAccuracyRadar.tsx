@@ -4,6 +4,13 @@ import { Wand2, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 
+export interface Turn1CatalogPreview {
+  inline_count: number;
+  hidden_count: number;
+  search_mounted: boolean;
+  inline_cap: number;
+}
+
 export interface ActionSpaceAccuracyRadarProps {
   isEvaluating: boolean;
   accuracyLevel: number;
@@ -12,6 +19,8 @@ export interface ActionSpaceAccuracyRadarProps {
   staleCoreSkillCount: number;
   isSmartPruning?: boolean;
   onSmartPrune: () => void;
+  catalogPreview?: Turn1CatalogPreview | null;
+  showTurn1Catalog?: boolean;
 }
 
 export function ActionSpaceAccuracyRadar({
@@ -22,6 +31,8 @@ export function ActionSpaceAccuracyRadar({
   staleCoreSkillCount,
   isSmartPruning = false,
   onSmartPrune,
+  catalogPreview = null,
+  showTurn1Catalog = false,
 }: ActionSpaceAccuracyRadarProps) {
   const t = useTranslations('agent.configEditor.actionSpaceRadar');
 
@@ -79,6 +90,26 @@ export function ActionSpaceAccuracyRadar({
       >
         {statusMessage}
       </p>
+
+      {showTurn1Catalog && catalogPreview && !isEvaluating && (
+        <div className="mt-2 p-2 rounded-lg bg-muted/40 border border-border/60 space-y-1">
+          <p className="text-xs font-medium text-foreground">{t('turn1CatalogTitle')}</p>
+          <p className="text-xs font-mono text-muted-foreground">
+            {t('turn1CatalogSummary', {
+              inline: catalogPreview.inline_count,
+              hidden: catalogPreview.hidden_count,
+              searchState: catalogPreview.search_mounted
+                ? t('turn1CatalogSearchOn')
+                : t('turn1CatalogSearchOff'),
+            })}
+          </p>
+          {catalogPreview.hidden_count > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t('turn1CatalogOverCapHint', { cap: catalogPreview.inline_cap })}
+            </p>
+          )}
+        </div>
+      )}
 
       {staleCoreSkillCount > 0 && !isEvaluating && (
         <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-start gap-2">

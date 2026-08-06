@@ -1843,7 +1843,9 @@
       "copyUrl": "Copy URL",
       "copied": "Copied to clipboard",
       "fetchError": "Cannot reach the server. Check that the backend is running.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "wikiClipHintTitle": "Clip pages to Wiki",
+      "wikiClipHintDescription": "Right-click any page or selection and choose Clip to Wiki. Content lands in raw/ for dedup review — no LLM cost. Configure ignore patterns in Settings → Wiki."
     },
     "credentials": {
       "title": "Credentials Management",
@@ -2572,6 +2574,16 @@
         "searchPlaceholder": "Search concepts...",
         "noConcepts": "No concepts found",
         "loadMore": "Load More"
+      },
+      "wikiignore": {
+        "title": "Import ignore rules",
+        "description": "Gitignore-style patterns for folder import and dedup scans. One pattern per line; # starts a comment.",
+        "placeholder": "drafts/**\n*.tmp\nprivate-notes/",
+        "save": "Save rules",
+        "saving": "Saving…",
+        "saved": "Ignore rules saved",
+        "loadFailed": "Could not load ignore rules",
+        "saveFailed": "Could not save ignore rules"
       },
       "duplicateReview": {
         "title": "Duplicate Corpus Review",
@@ -6464,7 +6476,12 @@
         "smartPrune": "Prune dormant skills to free action space",
         "smartPruneRunning": "Running curator sweep…",
         "smartPruneSuccess": "Curator sweep complete — {stale} marked stale, {archived} archived",
-        "smartPruneFailed": "Curator sweep failed"
+        "smartPruneFailed": "Curator sweep failed",
+        "turn1CatalogTitle": "Turn 1 skill catalog",
+        "turn1CatalogSummary": "{inline} inline · {hidden} hidden · search {searchState}",
+        "turn1CatalogSearchOn": "ON",
+        "turn1CatalogSearchOff": "OFF",
+        "turn1CatalogOverCapHint": "Only the first {cap} Core skills (alphabetical) appear inline at conversation start. Move rarely used skills to Peripheral to disable search and save ~203 tokens per turn."
       },
       "skillsZone": {
         "coreTitle": "Core skills",

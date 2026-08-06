@@ -25,13 +25,15 @@ Artifact 内容写入接口
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
@@ -805,6 +807,30 @@ class WikiDedupPathActionRequest(BaseModel):
     relative_path: str = Field(min_length=1, max_length=2048)
 
 
+class WikiClipAcceptResponse(BaseModel):
+    job_id: str
+    accepted: bool = True
+
+
+class WikiClipJobResponse(BaseModel):
+    job_id: str
+    state: str
+    relative_path: str | None = None
+    written: bool | None = None
+    conflict: bool | None = None
+    security_blocked: bool | None = None
+    assets_localized: str | None = None
+    error_message: str = ""
+
+
+class WikiIgnoreContentResponse(BaseModel):
+    content: str
+
+
+class WikiIgnoreUpdateRequest(BaseModel):
+    content: str = ""
+
+
 async def _schedule_post_import_dedup_scan(agent_id: str | None) -> None:
     try:
         from app.services.wiki.dedup_runner import schedule_wiki_dedup_scan
@@ -812,6 +838,119 @@ async def _schedule_post_import_dedup_scan(agent_id: str | None) -> None:
         await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
     except Exception as exc:
         logger.warning("Post-import wiki dedup scan failed: %s", exc)
+
+
+@router.post("/clip", response_model=WikiClipAcceptResponse, status_code=202)
+async def clip_page_to_wiki(
+    source_url: Annotated[str, Form(min_length=1, max_length=4096)],
+    title: Annotated[str, Form(max_length=512)] = "",
+    clip_mode: Annotated[str, Form(pattern="^(full_page|selection)$")] = "full_page",
+    html: Annotated[str, Form()] = "",
+    markdown: Annotated[str, Form()] = "",
+    folder_path: Annotated[str, Form(max_length=512)] = "",
+    queue_compile: Annotated[bool, Form()] = False,
+    asset_urls: Annotated[str, Form()] = "[]",
+    asset_files: Annotated[list[UploadFile], File()] = [],
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
+) -> WikiClipAcceptResponse:
+    from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
+        ClipAssetInput,
+        ClipMode,
+    )
+
+    from app.services.wiki.clip_runner import schedule_wiki_clip
+
+    try:
+        url_list: list[str] = json.loads(asset_urls) if asset_urls.strip() else []
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="Invalid asset_urls JSON") from exc
+    if not isinstance(url_list, list):
+        raise HTTPException(status_code=422, detail="asset_urls must be a JSON array")
+    if len(url_list) != len(asset_files):
+        raise HTTPException(
+            status_code=422,
+            detail="asset_urls length must match uploaded asset_files count",
+        )
+
+    assets: list[ClipAssetInput] = []
+    for idx, upload in enumerate(asset_files):
+        data = await upload.read()
+        content_type = upload.content_type or "application/octet-stream"
+        source = str(url_list[idx]) if idx < len(url_list) else upload.filename or ""
+        assets.append(
+            ClipAssetInput(source_url=source, content_type=content_type, data=data)
+        )
+
+    mode = ClipMode.FULL_PAGE if clip_mode == "full_page" else ClipMode.SELECTION
+    job_id = await schedule_wiki_clip(
+        agent_id=agent_id,
+        source_url=source_url,
+        title=title or source_url,
+        clip_mode=mode,
+        html=html,
+        markdown=markdown,
+        folder_path=folder_path,
+        assets=tuple(assets),
+        queue_compile=queue_compile,
+    )
+    return WikiClipAcceptResponse(job_id=job_id)
+
+
+@router.get("/clip/{job_id}", response_model=WikiClipJobResponse)
+async def get_wiki_clip_job(job_id: str) -> WikiClipJobResponse:
+    from app.services.wiki.clip_runner import get_wiki_clip_job
+
+    record = get_wiki_clip_job(job_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Clip job not found")
+    response = WikiClipJobResponse(job_id=record.job_id, state=record.state.value)
+    if record.error_message:
+        response.error_message = record.error_message
+    if record.result is not None:
+        response.relative_path = record.result.relative_path
+        response.written = record.result.written
+        response.conflict = record.result.conflict
+        response.security_blocked = record.result.security_blocked
+        response.assets_localized = record.result.assets_localized
+    return response
+
+
+@router.get("/wikiignore", response_model=WikiIgnoreContentResponse)
+async def get_wiki_ignore_rules(
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
+) -> WikiIgnoreContentResponse:
+    from myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore import (
+        wikiignore_path,
+    )
+
+    from app.services.wiki.vault_service import get_wiki_archiver
+
+    archiver = get_wiki_archiver(None, agent_id=agent_id)
+    path = wikiignore_path(archiver._structure)
+    content = path.read_text(encoding="utf-8") if path.is_file() else ""
+    return WikiIgnoreContentResponse(content=content)
+
+
+@router.put("/wikiignore", response_model=WikiIgnoreContentResponse)
+async def put_wiki_ignore_rules(
+    body: WikiIgnoreUpdateRequest,
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
+) -> WikiIgnoreContentResponse:
+    from myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore import (
+        write_wikiignore_patterns,
+    )
+
+    from app.services.wiki.vault_service import get_wiki_archiver
+
+    archiver = get_wiki_archiver(None, agent_id=agent_id)
+    write_wikiignore_patterns(archiver._structure, body.content)
+    return WikiIgnoreContentResponse(content=body.content)
 
 
 @router.post("/dedup/scan", response_model=WikiDedupScanResponse, status_code=202)

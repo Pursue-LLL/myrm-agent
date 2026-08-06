@@ -39,6 +39,7 @@ import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
 import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiDuplicateReviewPanel } from './WikiDuplicateReviewPanel';
+import { WikiIgnorePanel } from './WikiIgnorePanel';
 import { WikiQueuePanel } from './WikiQueuePanel';
 import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
 import { WikiAgentScopeProvider } from './WikiAgentScopeContext';
@@ -1544,6 +1545,8 @@ export function WikiSection() {
               )}
             </CardContent>
           </Card>
+
+          <WikiIgnorePanel />
 
           {/* Obsidian Vault Import */}
           <Card id="wiki-obsidian-import">

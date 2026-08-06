@@ -1843,7 +1843,9 @@
       "copyUrl": "复制地址",
       "copied": "已复制到剪贴板",
       "fetchError": "无法连接服务器，请确认后端已启动。",
-      "retry": "重试"
+      "retry": "重试",
+      "wikiClipHintTitle": "剪藏页面到 Wiki",
+      "wikiClipHintDescription": "在任意页面或选中文字上右键，选择「Clip to Wiki」。内容写入 raw/ 并进入去重审核，零 LLM 成本。可在设置 → Wiki 中配置忽略规则。"
     },
     "credentials": {
       "title": "凭据管理",
@@ -2572,6 +2574,16 @@
         "searchPlaceholder": "搜索词条...",
         "noConcepts": "未找到词条",
         "loadMore": "加载更多"
+      },
+      "wikiignore": {
+        "title": "导入忽略规则",
+        "description": "类 gitignore 模式，用于文件夹导入与去重扫描。每行一条规则；# 开头为注释。",
+        "placeholder": "drafts/**\n*.tmp\nprivate-notes/",
+        "save": "保存规则",
+        "saving": "保存中…",
+        "saved": "忽略规则已保存",
+        "loadFailed": "无法加载忽略规则",
+        "saveFailed": "无法保存忽略规则"
       },
       "duplicateReview": {
         "title": "语料重复审核",
@@ -6464,7 +6476,12 @@
         "smartPrune": "一键净化释放动作空间",
         "smartPruneRunning": "正在运行 Curator 清扫…",
         "smartPruneSuccess": "Curator 清扫完成 — {stale} 个标记为 stale，{archived} 个已归档",
-        "smartPruneFailed": "Curator 清扫失败"
+        "smartPruneFailed": "Curator 清扫失败",
+        "turn1CatalogTitle": "Turn 1 技能目录",
+        "turn1CatalogSummary": "{inline} 内联 · {hidden} 隐藏 · search {searchState}",
+        "turn1CatalogSearchOn": "开启",
+        "turn1CatalogSearchOff": "关闭",
+        "turn1CatalogOverCapHint": "对话开始时 Turn 1 最多内联 {cap} 个 Core 技能（按名称排序）。将少用技能改为 Peripheral 可关闭 search，每轮约省 203 token。"
       },
       "skillsZone": {
         "coreTitle": "核心常驻技能",

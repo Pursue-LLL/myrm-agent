@@ -572,4 +572,15 @@ export const wikiService = {
       method: 'POST',
     });
   },
+
+  getWikiIgnore: async (agentId?: string | null): Promise<{ content: string }> => {
+    return apiRequest<{ content: string }>(buildWikiApiPath('/wiki/wikiignore', agentId));
+  },
+
+  putWikiIgnore: async (content: string, agentId?: string | null): Promise<{ content: string }> => {
+    return apiRequest<{ content: string }>(buildWikiApiPath('/wiki/wikiignore', agentId), {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
 };

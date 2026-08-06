@@ -351,6 +351,11 @@ const ExtensionBridgeSection = memo(() => {
         </div>
       )}
 
+      <div className="p-4 rounded-lg border border-border/50 bg-muted/20 space-y-1">
+        <h4 className="text-sm font-medium">{t('extension.wikiClipHintTitle')}</h4>
+        <p className="text-xs text-muted-foreground">{t('extension.wikiClipHintDescription')}</p>
+      </div>
+
       {/* Authorized Domains */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium flex items-center gap-2">
