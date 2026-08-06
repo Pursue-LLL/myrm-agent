@@ -18,28 +18,34 @@ from typing import Protocol
 from infra_browser_registry import register_infra_target, unregister_infra_target
 
 try:
-    from cdp_chat_support import E2E_BRIDGE_INSTALL_JS, e2e_api_base_inject_js
+    from cdp_chat_support import (
+        E2E_BRIDGE_INSTALL_JS,
+        PAGE_PROBE_JS,
+        e2e_api_base_inject_js,
+    )
 except ImportError:
     E2E_BRIDGE_INSTALL_JS = ""
+    PAGE_PROBE_JS = ""
     e2e_api_base_inject_js = None  # type: ignore[assignment]
 
-_HYDRATED_EXPRESSION = """
+_HYDRATED_EXPRESSION = PAGE_PROBE_JS or """
 (() => {
-  const layout = document.querySelector('[data-testid="app-layout"]');
-  if (!layout) {
-    const shellSkeleton = document.querySelector('[data-testid="app-shell-skeleton"]');
-    if (shellSkeleton) return false;
-    if (document.readyState === 'loading') return false;
-    return false;
-  }
-  const listSkeleton = document.querySelector('[aria-label="Loading messages"]');
-  if (listSkeleton) return false;
   const input = document.querySelector('[data-chat-input]');
-  if (!input) return false;
+  const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
+  if (skeleton || !input) return false;
   const fiberKey = Object.keys(input).find((k) => k.startsWith('__reactFiber$'));
   return !!fiberKey || !!(window.__MYRM_E2E_CHAT__?.setInputMessage);
 })()
 """.strip()
+
+def _probe_hydrated(probe_value: object) -> bool:
+    if not isinstance(probe_value, dict):
+        return probe_value is True
+    if probe_value.get("skeleton"):
+        return False
+    if probe_value.get("hasInput") and probe_value.get("clientHydrated"):
+        return True
+    return False
 
 _RESET_CHAT_EXPRESSION = """
 (() => {
@@ -355,7 +361,7 @@ async def _wait_for_hydration(
                     if isinstance(inner_result, dict)
                     else None
                 )
-                if value is True:
+                if _probe_hydrated(value):
                     return True
                 if poll_count % 10 == 0:
                     _chrome_e2e_lifecycle("warmup-navigate")
@@ -442,7 +448,10 @@ async def _run_warmup(
     retry_sleep_sec = float(
         os.environ.get("MYRM_CLIENT_WARMUP_RETRY_SLEEP_SEC", "2.0") or "2.0"
     )
-    per_target_timeout = min(15.0, max(8.0, timeout_sec / max(1, max_attempts * 2)))
+    per_target_timeout = min(
+        60.0,
+        max(20.0, timeout_sec / max(1, max_attempts)),
+    )
     for attempt in range(1, max_attempts + 1):
         candidates: list[dict[str, object]] = []
         if attempt <= 2:
