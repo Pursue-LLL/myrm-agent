@@ -1610,6 +1610,26 @@ def chrome_e2e_pytest_safe_timeout_sec(
     return min(raw, wave_cap) + PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC + queue_buffer
 
 
+def parallel_ramp_pytest_timeout_override_sec() -> int | None:
+    """Phase C parallel ramp raises READ solo floor (510s) for mux queue depth."""
+    raw = os.environ.get("E2E_PARALLEL_RAMP_PYTEST_TIMEOUT_SEC", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    burst = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
+    if not burst.isdigit():
+        return None
+    lanes = int(burst)
+    if lanes >= 16:
+        return 1200
+    if lanes >= 8:
+        return 1200
+    if lanes >= 4:
+        return 1140
+    if lanes >= 2:
+        return 600
+    return None
+
+
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     """Lane floor with marker-aware overrides; SHPOIB admission runs inside pytest fixture."""
     if resolve_e2e_wall_profile() == "signoff":
@@ -1621,9 +1641,12 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     normalized_lane = lane.strip().upper()
     shpoib = private_shpoib_runtime_active()
     if private_mode and normalized_lane in {"LIVE_AGENT", "READ"}:
-        return max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
-    if private_mode and shpoib and normalized_lane == "RESOURCE_WRITE":
-        return max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+        floor = max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+    elif private_mode and shpoib and normalized_lane == "RESOURCE_WRITE":
+        floor = max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+    ramp_override = parallel_ramp_pytest_timeout_override_sec()
+    if ramp_override is not None:
+        floor = max(floor, ramp_override)
     return floor
 
 

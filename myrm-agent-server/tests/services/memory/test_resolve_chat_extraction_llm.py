@@ -40,7 +40,9 @@ async def test_resolve_main_model_cfg_applies_agent_override() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_chat_extraction_llm_uses_create_agent_llms() -> None:
-    from app.services.memory.resolve_chat_extraction_llm import resolve_chat_extraction_llm
+    from app.services.memory.resolve_chat_extraction_llm import (
+        resolve_chat_extraction_llm,
+    )
 
     main_llm = object()
     lite_llm = object()

@@ -34,6 +34,10 @@ from app.channels.protocols.background_task import (
     BackgroundTaskInfo,
 )
 from app.channels.types import InboundMessage
+from app.core.channel_bridge.persistent_background import (
+    BACKGROUND_SOURCE_BTW,
+    BACKGROUND_SOURCE_VOICE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,11 +99,21 @@ class ChannelBackgroundTaskHandler:
         self,
         msg: InboundMessage,
         prompt: str,
+        *,
+        background_source: str = BACKGROUND_SOURCE_BTW,
+        agent_id: str | None = None,
     ) -> str:
         """Spawn a new background task as a persistent KanbanTask."""
-        from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
+        from myrm_agent_harness.toolkits.kanban.types import (
+            KANBAN_SOURCE_CHAT_METADATA_KEY,
+            TaskPriority,
+            TaskStatus,
+        )
 
         from app.services.kanban import KanbanService
+
+        if background_source not in (BACKGROUND_SOURCE_BTW, BACKGROUND_SOURCE_VOICE):
+            raise ValueError(f"Unsupported background_source: {background_source}")
 
         svc = KanbanService.get_instance()
         board_id = await self._ensure_system_board()
@@ -120,15 +134,17 @@ class ChannelBackgroundTaskHandler:
             description=prompt,
             priority=TaskPriority.NORMAL,
             initial_status=TaskStatus.READY,
-            agent_id=None,
+            agent_id=agent_id,
         )
 
         task.metadata = task.metadata or {}
-        task.metadata["background_source"] = "btw"
+        task.metadata["background_source"] = background_source
         task.metadata["channel"] = msg.channel
         task.metadata["chat_id"] = chat_id
         task.metadata["user_id"] = user_id
         task.metadata["thread_id"] = msg.thread_id
+        if chat_id and background_source == BACKGROUND_SOURCE_VOICE:
+            task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY] = chat_id
         meta = msg.metadata or {}
         task.metadata["locale"] = meta.get("locale") or meta.get("platform_locale") or "en"
         await svc.store.save_task(task)

@@ -5141,11 +5141,11 @@
       "contentFiltered": "Part of the response was filtered by content policy.",
       "budgetBlocked": "Execution blocked by daily budget policy. Adjust your budget limit in Settings to continue.",
       "workflowMergeWarning": "Some workspace files could not be merged back. Check the tool output for details.",
-      "fileMutationFailed": "{count, plural, one {# file modification failed} other {# file modifications failed}} — the changes were rolled back automatically.",
-      "fileMutationFailedTitle": "File Modification Failed",
-      "workspaceMergeFailed": "{count, plural, one {# merge error} other {# merge errors}}",
-      "workspaceMergeFailedTitle": "Workspace Merge Failed",
-      "workspaceMergeFailedMore": "{count, plural, one {# more error not shown} other {# more errors not shown}}"
+      "fileMutationFailed": "{count, plural, one {파일 수정 실패 #건} other {파일 수정 실패 #건}} — 변경 사항이 자동으로 롤백되었습니다.",
+      "fileMutationFailedTitle": "파일 수정 실패",
+      "workspaceMergeFailed": "{count, plural, one {병합 오류 #건} other {병합 오류 #건}}",
+      "workspaceMergeFailedTitle": "워크스페이스 병합 실패",
+      "workspaceMergeFailedMore": "{count, plural, one {표시되지 않은 오류 #건 더 있음} other {표시되지 않은 오류 #건 더 있음}}"
     },
     "toolImage": {
       "screenshotLabel": "원격 데스크톱 스크린샷"

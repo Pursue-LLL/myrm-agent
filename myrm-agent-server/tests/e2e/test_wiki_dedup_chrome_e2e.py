@@ -8,6 +8,7 @@ import re
 import sys
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
@@ -40,6 +41,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "Runtime.evaluate",
     "Browser Orchestrator",
     "CDP request timeout",
+    "Page.navigate",
     "Chrome MCP",
     "connection reset",
     "Page shell did not hydrate",
@@ -69,6 +71,32 @@ _DISMISS_MIGRATION_JS = """(() => {
     return { ok: false, err: String(err) };
   }
   return { ok: true };
+})()"""
+
+_ACTIVATE_DEDUP_TAB_JS = """(() => {
+  const tab = document.querySelector('[data-testid="wiki-dedup-tab"]');
+  if (!tab) {
+    return { ok: false, reason: 'missing_tab' };
+  }
+  if (tab.getAttribute('data-state') !== 'active') {
+    tab.click();
+  }
+  return {
+    ok: true,
+    active: tab.getAttribute('data-state') === 'active',
+  };
+})()"""
+
+_WIKI_SHELL_JS = """(() => {
+  const bodyText = document.body.innerText || '';
+  return {
+    ready:
+      location.pathname.endsWith('/settings/wiki') &&
+      bodyText.length > 20 &&
+      !!document.querySelector('[data-testid="wiki-dedup-tab"]'),
+    pathname: location.pathname,
+    bodyLength: bodyText.length,
+  };
 })()"""
 
 _TRIGGER_DEDUP_SCAN_JS = """(() => {
@@ -175,7 +203,34 @@ def _parse_probe_from_error(err: str) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
+def _parallel_warm_ui_route() -> bool:
+    """Skip redundant warm when parallel lanes already compile shared :3000."""
+    try:
+        monorepo_root = Path(__file__).resolve().parents[4]
+        scripts_lib = monorepo_root / "myrm-agent" / "scripts" / "dev" / "lib"
+        if str(scripts_lib) not in sys.path:
+            sys.path.insert(0, str(scripts_lib))
+        from stack_mutation_policy import wave_active_lease_count
+
+        return wave_active_lease_count(monorepo_root) <= 1
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return True
+
+
+def _client_navigate(client, page, url: str) -> None:
+    """In-page navigation — avoids CDP Page.navigate stalls under parallel Chrome load."""
+    client.evaluate(
+        page,
+        f"(() => {{ window.location.href = {json.dumps(url)}; return location.href; }})()",
+        timeout_sec=15.0,
+    )
+
+
+def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
+    settings_url = f"{ui_url.rstrip('/')}/settings"
+    wiki_url = f"{ui_url.rstrip('/')}/settings/wiki"
+
+    _client_navigate(client, page, settings_url)
     shell = wait_for_state(
         client,
         page,
@@ -184,6 +239,21 @@ def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
     )
     assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
 
+    _client_navigate(client, page, wiki_url)
+    wiki_shell = wait_for_state(
+        client,
+        page,
+        _WIKI_SHELL_JS,
+        timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+    )
+    assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
+
+    tab_state = client.evaluate(page, _ACTIVATE_DEDUP_TAB_JS, timeout_sec=15.0)
+    assert isinstance(tab_state, dict) and tab_state.get("ok") is True, tab_state
+    time.sleep(1.0)
+
+
+def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
     last_state: dict[str, object] = {}
     wait_budgets = (_PANEL_WAIT_SEC, 90.0)
     for attempt, wait_sec in enumerate(wait_budgets):
@@ -211,20 +281,17 @@ def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
 def _run_duplicate_review_assertions(
     api_url: str, ui_url: str, *, warm_route: bool = True
 ) -> None:
-    ui_path = "/settings/wiki?wikiTab=duplicateReview"
+    if warm_route and _parallel_warm_ui_route():
+        warm_ui_route("/settings/wiki", timeout_sec=_warm_ui_parallel_wait_sec(60.0))
 
-    if warm_route:
-        warm_ui_route("/settings")
-        warm_ui_route(ui_path, timeout_sec=_warm_ui_parallel_wait_sec(120.0))
-
-    seed = _seed_wiki_dedup_fixture(api_url)
+    _seed_wiki_dedup_fixture(api_url)
     _verify_open_exact_groups_via_api(api_url)
-    ui_path = str(seed.get("ui_path", ui_path))
-    target_url = f"{ui_url.rstrip('/')}{ui_path}"
+    home_url = f"{ui_url.rstrip('/')}/"
 
-    with open_mcp_page(target_url, timeout_ms=120_000) as (client, page):
+    with open_mcp_page(home_url, timeout_ms=90_000) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page)
+        _navigate_to_duplicate_review(client, page, ui_url)
         _assert_duplicate_review_panel(client, page, api_url=api_url)
 
 

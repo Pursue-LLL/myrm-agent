@@ -45,6 +45,27 @@ ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
 ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-$((ENSURE_FRONTEND_WAIT_SEC + 60))}"
 
 mkdir -p "${STATE_DIR}"
+
+_resolve_bun() {
+  if command -v bun >/dev/null 2>&1; then
+    command -v bun
+    return 0
+  fi
+  local candidate
+  for candidate in "${HOME}/.bun/bin/bun" /opt/homebrew/bin/bun /usr/local/bin/bun; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+MYRM_BUN="$(_resolve_bun || true)"
+if [[ -n "${MYRM_BUN}" ]]; then
+  export PATH="$(dirname "${MYRM_BUN}"):${PATH}"
+fi
+
 export_myrm_next_dist_dir
 if [[ "${STATE_DIR}" != "${HOME}/.local/state/myrm-dev" ]]; then
   export MYRM_FRONTEND_DEV_WEBPACK="${MYRM_FRONTEND_DEV_WEBPACK:-0}"
@@ -375,9 +396,9 @@ _launch_frontend_supervisor() {
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" bun run "${dev_script}" --clean "${webpack_args[@]}"
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
   else
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" bun run "${dev_script}" "${webpack_args[@]}"
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
   fi
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
@@ -437,7 +458,7 @@ _start_frontend_supervisor() {
 
   _repair_orphan_frontend
 
-  if ! command -v bun >/dev/null 2>&1; then
+  if [[ -z "${MYRM_BUN}" ]]; then
     echo "STACK_FAIL: bun not found — run: myrm setup" >&2
     return 1
   fi

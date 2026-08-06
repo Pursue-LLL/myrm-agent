@@ -58,7 +58,9 @@ def test_find_last_turn_raises_when_assistant_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_schedule_retry_skips_when_already_in_flight(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_schedule_retry_skips_when_already_in_flight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     retry_module._in_flight_retries.add("chat-1")
     mock_get_messages = AsyncMock()
     monkeypatch.setattr(
@@ -86,7 +88,9 @@ def _chat_dto(*, chat_id: str = "chat-1", is_incognito: bool = False):
 
 
 @pytest.mark.asyncio
-async def test_schedule_retry_rejects_incognito_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_schedule_retry_rejects_incognito_chat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         "app.services.memory.retry_chat_memory_extract.ChatService.get_chat_metadata",
         AsyncMock(return_value=_chat_dto(chat_id="chat-incognito", is_incognito=True)),
@@ -158,7 +162,9 @@ async def test_run_retry_extract_uses_chat_binding_and_dedup_llm(
 
 
 @pytest.mark.asyncio
-async def test_schedule_retry_runs_extract_in_background(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_schedule_retry_runs_extract_in_background(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     messages = [
         _message(message_id="u1", role="user", content="question"),
         _message(message_id="a1", role="assistant", content="answer"),
@@ -178,7 +184,9 @@ async def test_schedule_retry_runs_extract_in_background(monkeypatch: pytest.Mon
         run_mock,
     )
 
-    with patch("app.services.memory.retry_chat_memory_extract.asyncio.create_task") as create_task:
+    with patch(
+        "app.services.memory.retry_chat_memory_extract.asyncio.create_task"
+    ) as create_task:
         status = await schedule_retry_chat_memory_extract("chat-1")
 
     assert status == "scheduled"

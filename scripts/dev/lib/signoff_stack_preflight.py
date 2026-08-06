@@ -64,7 +64,11 @@ def read_stack_hot_snapshot() -> StackHotSnapshot:
     shell_hot, client_hot = read_frontend_hot_state(parts.get("frontend_epoch"))
     backend_healthy = bool(ctx.epoch_match and not ctx.blocked)
     for candidate in ctx.candidates:
-        if candidate.source == "shared" and candidate.epoch_match and candidate.health_ok:
+        if (
+            candidate.source == "shared"
+            and candidate.epoch_match
+            and candidate.health_ok
+        ):
             backend_healthy = True
             break
     return StackHotSnapshot(

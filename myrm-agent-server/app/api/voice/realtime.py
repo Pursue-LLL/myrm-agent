@@ -8,7 +8,8 @@ via WebRTC (RTCPeerConnection), bypassing the server for audio streaming.
 The server's role is limited to:
   1. Securely generating ephemeral client tokens (API key never exposed)
   2. Executing tool calls proxied from the Realtime session
-  3. Persisting conversation transcripts to chat history
+  3. Non-blocking `run_background_task` accept → Kanban spawn (see channel_bridge)
+  4. Persisting conversation transcripts to chat history
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
@@ -26,6 +27,7 @@ by connecting browser directly to OpenAI via WebRTC.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Sequence
 
@@ -212,6 +214,54 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     )
 
 
+_RUN_BACKGROUND_TASK_NAME = "run_background_task"
+
+
+async def _execute_run_background_task(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
+    """Non-blocking accept: spawn Kanban work and return immediately."""
+    from app.channels.types import InboundMessage
+    from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
+    from app.core.channel_bridge.setup import get_background_task_handler
+
+    task_text = str(req.arguments.get("task", "")).strip()
+    if not task_text:
+        return RealtimeToolExecResponse(result=None, error="Task description is required")
+
+    handler = get_background_task_handler()
+    if handler is None:
+        return RealtimeToolExecResponse(
+            result=None,
+            error="Background task handler not available",
+        )
+
+    agent_id = req.agent_id or "builtin-general"
+    chat_id = req.chat_id or "realtime-voice"
+    msg = InboundMessage(
+        channel="realtime_voice",
+        sender_id=chat_id,
+        chat_id=chat_id,
+        content=task_text,
+        user_id="local-user",
+    )
+
+    try:
+        task_id = await handler.spawn_background(
+            msg,
+            task_text,
+            background_source=BACKGROUND_SOURCE_VOICE,
+            agent_id=agent_id,
+        )
+    except RuntimeError as exc:
+        return RealtimeToolExecResponse(result=None, error=str(exc))
+
+    payload = {
+        "accepted": True,
+        "work_id": task_id,
+        "message": "Background task accepted. Continue the conversation; results will appear in chat when done.",
+    }
+    return RealtimeToolExecResponse(result=json.dumps(payload))
+
+
 @router.post("/realtime-tool-exec", response_model=RealtimeToolExecResponse)
 async def execute_realtime_tool(
     req: RealtimeToolExecRequest,
@@ -222,6 +272,9 @@ async def execute_realtime_tool(
     Uses a lightweight Agent invocation (single-tool mode) to execute the tool
     within the Agent's security and permission context.
     """
+    if req.tool_name == _RUN_BACKGROUND_TASK_NAME:
+        return await _execute_run_background_task(req)
+
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.services.agent.streaming import ai_agent_service_stream
 

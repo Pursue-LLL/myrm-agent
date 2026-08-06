@@ -211,7 +211,9 @@ async def create_agent_llms(
     # 1. 创建主模型
     try:
         main_api_keys = getattr(model_cfg, "api_keys", None)
-        raw_main_llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=main_api_keys)
+        raw_main_llm = await llm_manager.get_llm_from_config(
+            model_cfg, api_keys=main_api_keys
+        )
         pool_info = f" (pool={len(main_api_keys)} keys)" if main_api_keys else ""
         logger.info("Main model: %s%s", model_cfg.model, pool_info)
     except Exception as e:
@@ -226,9 +228,13 @@ async def create_agent_llms(
             filter_api_keys = getattr(lite_model_cfg, "api_keys", None)
             lite_cfg_with_low_effort = _inject_low_reasoning_effort(lite_model_cfg)
             lite_llm = await llm_manager.get_llm_from_config(
-                lite_cfg_with_low_effort, api_keys=filter_api_keys,
+                lite_cfg_with_low_effort,
+                api_keys=filter_api_keys,
             )
-            logger.info("Lite model: %s (independent, reasoning_effort=low)", lite_model_cfg.model)
+            logger.info(
+                "Lite model: %s (independent, reasoning_effort=low)",
+                lite_model_cfg.model,
+            )
         except Exception as e:
             raise ValueError(
                 f"Failed to create lite LLM with model '{lite_model_cfg.model}': {e}. "
@@ -238,25 +244,34 @@ async def create_agent_llms(
         lite_cfg_with_low_effort = _inject_low_reasoning_effort(model_cfg)
         main_api_keys = getattr(model_cfg, "api_keys", None)
         lite_llm = await llm_manager.get_llm_from_config(
-            lite_cfg_with_low_effort, api_keys=main_api_keys,
+            lite_cfg_with_low_effort,
+            api_keys=main_api_keys,
         )
-        logger.info("Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model)
+        logger.info(
+            "Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model
+        )
 
     # 4. 创建安全审核拦截降级模型
     safety_fallback_llm = None
     if safety_fallback_model_cfg is not None:
         try:
             safety_api_keys = getattr(safety_fallback_model_cfg, "api_keys", None)
-            safety_fallback_llm = await llm_manager.get_llm_from_config(safety_fallback_model_cfg, api_keys=safety_api_keys)
+            safety_fallback_llm = await llm_manager.get_llm_from_config(
+                safety_fallback_model_cfg, api_keys=safety_api_keys
+            )
             logger.info("Safety Fallback model: %s", safety_fallback_model_cfg.model)
         except Exception as e:
-            logger.warning(f"Failed to create safety fallback LLM: {e}, proceeding without safety failover")
+            logger.warning(
+                f"Failed to create safety fallback LLM: {e}, proceeding without safety failover"
+            )
 
     # 3. 创建备用主模型并集成 ModelFallbackManager
     if fallback_model_cfg is not None:
         try:
             fallback_api_keys = getattr(fallback_model_cfg, "api_keys", None)
-            raw_fallback_llm = await llm_manager.get_llm_from_config(fallback_model_cfg, api_keys=fallback_api_keys)
+            raw_fallback_llm = await llm_manager.get_llm_from_config(
+                fallback_model_cfg, api_keys=fallback_api_keys
+            )
             logger.info("Fallback model: %s", fallback_model_cfg.model)
 
             # 创建 ManagedLLM 包装器，集成智能降级管理
@@ -267,13 +282,19 @@ async def create_agent_llms(
                 fallback_model_name=fallback_model_cfg.model,
                 scenario=ScenarioType.BALANCED,
             )
-            logger.info("ModelFallbackManager active: main=%s, fallback=%s", model_cfg.model, fallback_model_cfg.model)
+            logger.info(
+                "ModelFallbackManager active: main=%s, fallback=%s",
+                model_cfg.model,
+                fallback_model_cfg.model,
+            )
 
             # 返回 ManagedLLM 作为主模型，fallback_llm=None（已集成）
             return managed_llm, lite_llm, None, safety_fallback_llm
 
         except Exception as e:
-            logger.warning(f"Failed to create fallback LLM: {e}, proceeding without failover")
+            logger.warning(
+                f"Failed to create fallback LLM: {e}, proceeding without failover"
+            )
             # 降级处理失败，返回原始 LLM
             return raw_main_llm, lite_llm, None, safety_fallback_llm
     else:
@@ -287,7 +308,9 @@ async def apply_lite_context_downgrade(
     model_cfg: ModelConfig,
 ) -> BaseChatModel:
     """Degrade lite LLM to main model when lite context window is too small (Dynamic Ratio Shield)."""
-    from myrm_agent_harness.toolkits.llms.utils.model_utils import get_model_context_limit
+    from myrm_agent_harness.toolkits.llms.utils.model_utils import (
+        get_model_context_limit,
+    )
 
     main_limit = get_model_context_limit(main_llm) or 128000
     lite_limit = get_model_context_limit(lite_llm)
@@ -306,4 +329,6 @@ async def apply_lite_context_downgrade(
     )
     main_api_keys = getattr(model_cfg, "api_keys", None)
     fallback_lite_cfg = _inject_low_reasoning_effort(model_cfg)
-    return await llm_manager.get_llm_from_config(fallback_lite_cfg, api_keys=main_api_keys)
+    return await llm_manager.get_llm_from_config(
+        fallback_lite_cfg, api_keys=main_api_keys
+    )

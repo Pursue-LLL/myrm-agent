@@ -43,7 +43,9 @@ def _time_decay_half_life_days(memory_decay_profile: str | None) -> float:
     return 90.0
 
 
-def _find_last_turn(messages: list[MessageDTO]) -> tuple[MessageDTO, MessageDTO, ChatHistoryReq]:
+def _find_last_turn(
+    messages: list[MessageDTO],
+) -> tuple[MessageDTO, MessageDTO, ChatHistoryReq]:
     active = [message for message in messages if message.is_active]
     last_user_index = -1
     for index, message in enumerate(active):
@@ -55,7 +57,11 @@ def _find_last_turn(messages: list[MessageDTO]) -> tuple[MessageDTO, MessageDTO,
 
     last_user = active[last_user_index]
     last_assistant = next(
-        (message for message in active[last_user_index + 1 :] if message.role == "assistant"),
+        (
+            message
+            for message in active[last_user_index + 1 :]
+            if message.role == "assistant"
+        ),
         None,
     )
     if last_assistant is None:
@@ -69,15 +75,26 @@ def _find_last_turn(messages: list[MessageDTO]) -> tuple[MessageDTO, MessageDTO,
     return last_user, last_assistant, history
 
 
-async def _run_retry_extract(chat_id: str, query: str, history: ChatHistoryReq, assistant_reply: str) -> None:
+async def _run_retry_extract(
+    chat_id: str, query: str, history: ChatHistoryReq, assistant_reply: str
+) -> None:
     try:
-        from myrm_agent_harness.agent._internals.memory_extraction import auto_extract_memories
+        from myrm_agent_harness.agent._internals.memory_extraction import (
+            auto_extract_memories,
+        )
 
-        from app.ai_agents.extensions.extraction_lifecycle import make_extraction_lifecycle_observer
-        from app.core.memory.adapters.setup import create_conflict_callback, create_memory_manager
+        from app.ai_agents.extensions.extraction_lifecycle import (
+            make_extraction_lifecycle_observer,
+        )
+        from app.core.memory.adapters.setup import (
+            create_conflict_callback,
+            create_memory_manager,
+        )
         from app.services.agent.platform_config import require_platform_embedding_config
         from app.services.context.context_assembly import ContextAssemblyService
-        from app.services.memory.resolve_chat_extraction_llm import resolve_chat_extraction_llm
+        from app.services.memory.resolve_chat_extraction_llm import (
+            resolve_chat_extraction_llm,
+        )
 
         binding_context = await ContextAssemblyService.resolve_binding_for_chat(chat_id)
         llm, extraction_llm = await resolve_chat_extraction_llm(chat_id)
@@ -109,7 +126,9 @@ async def _run_retry_extract(chat_id: str, query: str, history: ChatHistoryReq, 
             ),
         )
     except Exception as exc:
-        logger.warning("Manual memory extract retry failed for chat %s: %s", chat_id, exc)
+        logger.warning(
+            "Manual memory extract retry failed for chat %s: %s", chat_id, exc
+        )
 
 
 async def schedule_retry_chat_memory_extract(chat_id: str) -> RetryScheduleStatus:
@@ -120,7 +139,9 @@ async def schedule_retry_chat_memory_extract(chat_id: str) -> RetryScheduleStatu
 
     async with _in_flight_lock:
         if resolved_chat_id in _in_flight_retries:
-            logger.info("Memory extract retry already in flight for chat %s", resolved_chat_id)
+            logger.info(
+                "Memory extract retry already in flight for chat %s", resolved_chat_id
+            )
             return "already_in_flight"
 
     chat = await ChatService.get_chat_metadata(resolved_chat_id)

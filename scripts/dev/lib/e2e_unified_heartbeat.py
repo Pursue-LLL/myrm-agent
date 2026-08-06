@@ -80,7 +80,10 @@ def _heartbeat_dev_gate_session(*, current_node: str | None = None) -> None:
         return
     node = current_node or os.environ.get("E2E_ADMIT_NODE", "E2E_BODY")
     try:
-        from dev_gate_cli import default_socket_path, normalized_socket_path  # noqa: PLC0415
+        from dev_gate_cli import (
+            default_socket_path,
+            normalized_socket_path,
+        )  # noqa: PLC0415
         from dev_gate_coordinator import request  # noqa: PLC0415
 
         socket_path = normalized_socket_path(default_socket_path())

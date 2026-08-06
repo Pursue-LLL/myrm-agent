@@ -20,7 +20,7 @@
 | `FileMutationWarning.tsx` | 组件 | 文件变更失败可折叠面板（mutation verifier 回滚提示） | ✅ |
 | `WorkspaceMergeWarning.tsx` | 组件 | ISOLATED_COPY workspace merge 失败可折叠错误列表 | ✅ |
 | `__tests__/WorkspaceMergeWarning.test.tsx` | 测试 | 折叠/展开、truncated 文案 | ✅ |
-| `__tests__/MessageBox.workspaceMerge.test.tsx` | 测试 | MessageBox 生产路径渲染 merge panel（非 E2E fallback）；loading 时仍可见 | ✅ |
+| `__tests__/MessageBox.workspaceMerge.test.tsx` | 测试 | MessageBox 生产路径渲染 merge panel；loading 时仍可见 | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation）；KB citation → SourceChunkDrawer；非 streaming 时 inline `` `workspace/...` `` / `artifact:` → DeliverableReferenceLink。 | ✅ |
 | `DeliverableReferenceLink.tsx` | 组件 | 内联 deliverable 引用点击 → ArtifactPortal（`workspace/`、`artifact:`、`@file_NNN` via `short_file_id`） | ✅ |
 | `__tests__/DeliverableReferenceLink.test.tsx` | 测试 | `@file` short_file_id 打开 Portal + 未同步 disabled | ✅ |

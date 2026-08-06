@@ -14,6 +14,21 @@ _smp_state_dir() {
   printf '%s' "${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 }
 
+_smp_python() {
+  if [[ -n "${VENV_PY:-}" && -x "${VENV_PY}" ]]; then
+    printf '%s' "${VENV_PY}"
+    return 0
+  fi
+  if [[ -n "${MONOREPO_ROOT:-}" ]]; then
+    local candidate="${MONOREPO_ROOT}/myrm-agent/myrm-agent-server/.venv/bin/python"
+    if [[ -x "${candidate}" ]]; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  fi
+  printf '%s' "python3"
+}
+
 _smp_apply_backend_drift_ensure() {
   local dev_stack="${1:?}" policy_py="${2:?}" state_dir="${3:?}"
   local attempt max_attempts backoff_sec flock_wait_sec
@@ -23,14 +38,14 @@ _smp_apply_backend_drift_ensure() {
   for attempt in $(seq 1 "${max_attempts}"); do
     if _smp_with_backend_heal_flock "${flock_wait_sec}" \
       env MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure; then
-      python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+      "$(_smp_python)" "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
       return 0
     fi
     # backend-only ensure can return early while shared api is still converging;
     # treat immediate post-failure recovery as success to avoid false fail-fast.
     if _smp_shared_api_http_ok; then
       echo "CHROME_E2E_ATTACH_HEAL: backend drift ensure failed but api recovered (attempt ${attempt}/${max_attempts})" >&2
-      python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+      "$(_smp_python)" "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
       return 0
     fi
     if [[ "${attempt}" -lt "${max_attempts}" ]]; then
@@ -58,7 +73,7 @@ _smp_apply_pending_drift_if_idle() {
   if _smp_ensure_lock_active "${state_dir}"; then
     return 0
   fi
-  if ! python3 "${policy_py}" pending-exists --state-dir "${state_dir}" | grep -q '^1$'; then
+  if ! "$(_smp_python)" "${policy_py}" pending-exists --state-dir "${state_dir}" | grep -q '^1$'; then
     return 0
   fi
   echo "CHROME_E2E_ATTACH_HEAL: apply pending stack drift (0 active wave leases)" >&2
@@ -97,7 +112,7 @@ _smp_with_backend_heal_flock() {
   local policy_py flock_file
   policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
   flock_file="$(_smp_backend_heal_flock_file)"
-  python3 "${policy_py}" run-heal-flocked \
+  "$(_smp_python)" "${policy_py}" run-heal-flocked \
     --lock-file "${flock_file}" \
     --wait-sec "${wait_sec}" \
     -- "$@"
@@ -141,7 +156,7 @@ _smp_attach_backend_crash_heal() {
   policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
   flock_file="$(_smp_backend_heal_flock_file)"
   # R99: fcntl.flock via Python SSOT — macOS has no GNU flock(1).
-  python3 "${policy_py}" attach-crash-heal \
+  "$(_smp_python)" "${policy_py}" attach-crash-heal \
     --monorepo-root "${monorepo_root}" \
     --dev-stack "${dev_stack}" \
     --lock-file "${flock_file}" \
@@ -164,12 +179,12 @@ _smp_attach_backend_drift_heal() {
     fi
     return 0
   fi
-  action="$(python3 "${policy_py}" decide-drift \
+  action="$("$(_smp_python)" "${policy_py}" decide-drift \
     --active-leases "${active_leases}" \
     --drift-pending 1)"
   case "${action}" in
     defer)
-      python3 "${policy_py}" record-pending \
+      "$(_smp_python)" "${policy_py}" record-pending \
         --state-dir "${state_dir}" \
         --reason backend_source_drift \
         --server-dir "${server_dir}" >/dev/null
@@ -192,7 +207,7 @@ _smp_should_defer_harness_install() {
   source "${stack_epoch_lib}"
   active_leases="$(_wave_active_lease_count "${monorepo_root}")"
   policy_py="$(dirname "${BASH_SOURCE[0]}")/stack_mutation_policy.py"
-  python3 -c "
+  "$(_smp_python)" -c "
 import sys
 sys.path.insert(0, '$(dirname "${BASH_SOURCE[0]}")')
 from stack_mutation_policy import should_defer_harness_install

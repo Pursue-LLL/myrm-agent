@@ -136,6 +136,34 @@ class TestSpawnBackground:
         assert mock_task.metadata["user_id"] == "tg_user"
         mock_kanban_svc.store.save_task.assert_called_once_with(mock_task)
 
+    @pytest.mark.asyncio
+    async def test_spawn_voice_sets_source_chat_and_agent(self, handler, mock_kanban_svc) -> None:
+        from myrm_agent_harness.toolkits.kanban.types import KANBAN_SOURCE_CHAT_METADATA_KEY
+
+        from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
+
+        msg = _make_msg(channel="realtime_voice", chat_id="web-chat-1", user_id="u1")
+
+        mock_task = _mock_kanban_task(task_id="voice001")
+        mock_task.metadata = {}
+        mock_kanban_svc.add_task = AsyncMock(return_value=mock_task)
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[])
+
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            with patch.object(handler, "_count_running", new_callable=AsyncMock, return_value=0):
+                await handler.spawn_background(
+                    msg,
+                    "voice background work",
+                    background_source=BACKGROUND_SOURCE_VOICE,
+                    agent_id="agent-custom",
+                )
+
+        assert mock_task.metadata["background_source"] == BACKGROUND_SOURCE_VOICE
+        assert mock_task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY] == "web-chat-1"
+        mock_kanban_svc.add_task.assert_awaited_once()
+        assert mock_kanban_svc.add_task.await_args.kwargs.get("agent_id") == "agent-custom"
+
 
 class TestCancelBackground:
     """Tests for cancel_background."""

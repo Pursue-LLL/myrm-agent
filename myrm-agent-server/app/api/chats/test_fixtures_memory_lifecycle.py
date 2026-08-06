@@ -17,7 +17,10 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
+from myrm_agent_harness.toolkits.memory import (
+    MemoryOperationKind,
+    MemoryOperationStatus,
+)
 
 from app.config.deploy_mode import is_local_mode
 from app.database.connection import get_session
@@ -40,7 +43,9 @@ async def seed_memory_lifecycle_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(status_code=500, detail="No agents available for memory lifecycle E2E seed")
+        raise HTTPException(
+            status_code=500, detail="No agents available for memory lifecycle E2E seed"
+        )
 
     agent = agents[0]
     chat_id = f"e2ememlife{uuid4().hex[:8]}"
@@ -60,7 +65,9 @@ async def seed_memory_lifecycle_fixture() -> dict[str, str]:
             messages=[],
         ),
     )
-    await ChatService.append_message(chat_id, "user", _FIXTURE_USER, user_time, timezone)
+    await ChatService.append_message(
+        chat_id, "user", _FIXTURE_USER, user_time, timezone
+    )
     await ChatService.append_message(
         chat_id,
         "assistant",

@@ -124,7 +124,9 @@ async def _resolve_lite_model_cfg(
     try:
         return await _resolve_model_config(lite_selection, providers_dict)
     except ValueError:
-        logger.warning("Failed to resolve lite model for chat extraction, proceeding without it")
+        logger.warning(
+            "Failed to resolve lite model for chat extraction, proceeding without it"
+        )
         return None
 
 

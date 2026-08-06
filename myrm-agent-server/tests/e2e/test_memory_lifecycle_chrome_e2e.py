@@ -414,9 +414,10 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
 
 
-
 def _seed_memory_lifecycle_fixture(api_url: str) -> dict[str, str]:
-    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-memory-lifecycle-fixture")
+    seeded = http_json(
+        "POST", f"{api_url}/api/v1/chats/test/seed-memory-lifecycle-fixture"
+    )
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     message_id = str(seeded.get("message_id") or "")
@@ -454,7 +455,9 @@ def _ensure_seeded_chat_ready(
             )
             if len(messages) >= 2 and has_assistant:
                 return
-            last_error = f"messages not ready; count={len(messages)} assistant={has_assistant}"
+            last_error = (
+                f"messages not ready; count={len(messages)} assistant={has_assistant}"
+            )
         except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
             last_error = str(exc)
         time.sleep(0.3)
@@ -463,7 +466,9 @@ def _ensure_seeded_chat_ready(
     )
 
 
-def _run_lifecycle_assertions(api_url: str, ui_url: str, *, warm_route: bool = True) -> None:
+def _run_lifecycle_assertions(
+    api_url: str, ui_url: str, *, warm_route: bool = True
+) -> None:
     seeded = _seed_memory_lifecycle_fixture(api_url)
     chat_id = seeded["chat_id"]
     chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
@@ -549,7 +554,9 @@ def _run_lifecycle_assertions(api_url: str, ui_url: str, *, warm_route: bool = T
             _MEMORY_LIFECYCLE_PROBE_JS,
             timeout_sec=90.0,
         )
-        assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
+        assert state.get("ready") is True, json.dumps(
+            state, indent=2, ensure_ascii=False
+        )
         assert state.get("hasTimeline") is True
         assert state.get("hasRetry") is True
 

@@ -44,7 +44,9 @@ async def _create_chat(chat_id: str, *, is_incognito: bool = False) -> None:
 
 
 @pytest.mark.asyncio
-async def test_retry_extract_rejects_incognito_chat(async_client: httpx.AsyncClient) -> None:
+async def test_retry_extract_rejects_incognito_chat(
+    async_client: httpx.AsyncClient,
+) -> None:
     chat_id = "chat-retry-incognito"
     await _create_chat(chat_id, is_incognito=True)
 
@@ -55,22 +57,30 @@ async def test_retry_extract_rejects_incognito_chat(async_client: httpx.AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_retry_extract_returns_400_when_no_assistant_reply(async_client: httpx.AsyncClient) -> None:
+async def test_retry_extract_returns_400_when_no_assistant_reply(
+    async_client: httpx.AsyncClient,
+) -> None:
     chat_id = "chat-retry-no-assistant"
     await _create_chat(chat_id, is_incognito=False)
 
     with patch(
         "app.api.chats.chat.memory_extract.schedule_retry_chat_memory_extract",
-        new=AsyncMock(side_effect=ValueError("No assistant reply found for memory retry")),
+        new=AsyncMock(
+            side_effect=ValueError("No assistant reply found for memory retry")
+        ),
     ):
-        response = await async_client.post(f"/api/v1/chats/{chat_id}/memory/retry-extract")
+        response = await async_client.post(
+            f"/api/v1/chats/{chat_id}/memory/retry-extract"
+        )
 
     assert response.status_code == 400
     assert "No assistant reply" in str(response.json())
 
 
 @pytest.mark.asyncio
-async def test_retry_extract_schedules_for_normal_chat(async_client: httpx.AsyncClient) -> None:
+async def test_retry_extract_schedules_for_normal_chat(
+    async_client: httpx.AsyncClient,
+) -> None:
     chat_id = "chat-retry-normal"
     await _create_chat(chat_id, is_incognito=False)
 
@@ -78,7 +88,9 @@ async def test_retry_extract_schedules_for_normal_chat(async_client: httpx.Async
         "app.api.chats.chat.memory_extract.schedule_retry_chat_memory_extract",
         new=AsyncMock(return_value="scheduled"),
     ) as schedule_mock:
-        response = await async_client.post(f"/api/v1/chats/{chat_id}/memory/retry-extract")
+        response = await async_client.post(
+            f"/api/v1/chats/{chat_id}/memory/retry-extract"
+        )
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "scheduled"

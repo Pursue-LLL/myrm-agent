@@ -20,7 +20,9 @@ from app.core.utils.errors import not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
-from app.services.memory.retry_chat_memory_extract import schedule_retry_chat_memory_extract
+from app.services.memory.retry_chat_memory_extract import (
+    schedule_retry_chat_memory_extract,
+)
 
 router = APIRouter()
 

@@ -19,6 +19,10 @@ from myrm_agent_harness.toolkits.kanban.types import (
     extract_source_chat_id,
 )
 
+from app.core.channel_bridge.persistent_background import (
+    BACKGROUND_SOURCE_BTW,
+    BACKGROUND_SOURCE_VOICE,
+)
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 _BTW_TERMINAL_EVENTS = frozenset({"task_completed", "task_failed"})
@@ -61,7 +65,7 @@ def emit_btw_done(event_type: str, task: KanbanTask) -> None:
     if event_type not in _BTW_TERMINAL_EVENTS:
         return
     meta = task.metadata or {}
-    if meta.get("background_source") != "btw":
+    if meta.get("background_source") != BACKGROUND_SOURCE_BTW:
         return
     channel = meta.get("channel")
     chat_id = meta.get("chat_id")
@@ -112,7 +116,7 @@ def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:
     if status is None:
         return
     meta = task.metadata or {}
-    if meta.get("background_source") == "btw":
+    if meta.get("background_source") == BACKGROUND_SOURCE_BTW:
         return
     source_chat_id = extract_source_chat_id(meta)
     if not source_chat_id:
@@ -130,8 +134,9 @@ def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:
                 "chat_id": source_chat_id,
                 "source_chat_id": source_chat_id,
                 "thread_id": "",
-                "user_id": "",
+                "user_id": str(meta.get("user_id", "") or ""),
                 "locale": locale,
+                "background_source": str(meta.get("background_source", "") or ""),
             },
         )
     )

@@ -20,7 +20,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade, ContextBundleSpec
+from myrm_agent_harness.toolkits.context_bundle import (
+    ContextBundleFacade,
+    ContextBundleSpec,
+)
 
 from app.config.settings import settings
 from app.core.memory.adapters.setup import resolve_context_binding
@@ -66,7 +69,11 @@ class ContextAssemblyService:
         facade = ContextAssemblyService.build_facade(ensure_layout=False)
         binding: ResolvedContextBinding | None = None
         if enable_memory:
-            task_root = agent.declared_allowed_roots[0] if agent.declared_allowed_roots else None
+            task_root = (
+                agent.declared_allowed_roots[0]
+                if agent.declared_allowed_roots
+                else None
+            )
             binding = resolve_context_binding(
                 namespaces=None,
                 agent_id=agent.agent_id or "default",

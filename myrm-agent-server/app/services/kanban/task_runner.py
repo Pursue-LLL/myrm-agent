@@ -48,6 +48,7 @@ from app.services.agent.profile_resolver import (
     resolve_builtin_tool_flags,
 )
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
+from app.core.channel_bridge.persistent_background import is_persistent_background
 from app.services.kanban.task_runner_profile import (
     _ResolvedProfile,
     resolve_agent_profile,
@@ -91,7 +92,7 @@ class KanbanTaskRunner:
         query_input = await build_multimodal_query(task, context)
         workspace_root = await resolve_workspace(self._store, task)
 
-        is_background_task = (task.metadata or {}).get("background_source") == "btw"
+        is_background_task = is_persistent_background(task.metadata)
         default_timeout = (
             _BACKGROUND_TASK_TIMEOUT_SECONDS
             if is_background_task
@@ -141,7 +142,7 @@ class KanbanTaskRunner:
                 GoalRegistry.unregister(f"kanban:{task.task_id}")
 
     def _register_background_tokens(self, task: KanbanTask) -> None:
-        if (task.metadata or {}).get("background_source") != "btw":
+        if not is_persistent_background(task.metadata):
             return
         try:
             from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -162,7 +163,7 @@ class KanbanTaskRunner:
             )
 
     def _unregister_background_tokens(self, task: KanbanTask) -> None:
-        if (task.metadata or {}).get("background_source") != "btw":
+        if not is_persistent_background(task.metadata):
             return
         try:
             from app.core.channel_bridge.setup import get_background_task_handler

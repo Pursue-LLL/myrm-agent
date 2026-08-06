@@ -53,7 +53,9 @@ _EXTENSION_BRIDGE_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
@@ -135,7 +137,9 @@ _CONNECTED_BRIDGE_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None:

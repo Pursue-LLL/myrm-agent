@@ -137,7 +137,9 @@ async def build_general_agent(
     )
     if not signoff_contract_active:
         if agent_wrapper._lite_llm is not None:
-            from app.ai_agents.general_agent.llm_factory import apply_lite_context_downgrade
+            from app.ai_agents.general_agent.llm_factory import (
+                apply_lite_context_downgrade,
+            )
 
             agent_wrapper._lite_llm = await apply_lite_context_downgrade(
                 llm,

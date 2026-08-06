@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -806,6 +807,56 @@ async def test_execute_tool_failure() -> None:
 
     assert result.error is not None
     assert "Config error" in result.error
+
+
+@pytest.mark.asyncio
+async def test_run_background_task_spawns_without_agent_stream() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.spawn_background = AsyncMock(return_value="voice-task-abc")
+
+    with (
+        patch(
+            "app.core.channel_bridge.setup.get_background_task_handler",
+            return_value=mock_handler,
+        ),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            AsyncMock(side_effect=AssertionError("must not invoke agent stream")),
+        ),
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="run_background_task",
+                arguments={"task": "Research competitor pricing"},
+                agent_id="builtin-general",
+                chat_id="chat-voice-1",
+            )
+        )
+
+    assert result.error is None
+    assert result.result is not None
+    payload = json.loads(str(result.result))
+    assert payload["accepted"] is True
+    assert payload["work_id"] == "voice-task-abc"
+    mock_handler.spawn_background.assert_awaited_once()
+    _args, kwargs = mock_handler.spawn_background.await_args
+    assert kwargs.get("background_source") == "voice"
+    assert kwargs.get("agent_id") == "builtin-general"
+
+
+@pytest.mark.asyncio
+async def test_run_background_task_requires_task_text() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    result = await execute_realtime_tool(
+        RealtimeToolExecRequest(
+            tool_name="run_background_task",
+            arguments={"task": "   "},
+        )
+    )
+    assert result.error == "Task description is required"
 
 
 @pytest.mark.asyncio

@@ -241,6 +241,7 @@ class CoordinatorService:
                         budget_sec=budget_sec,
                     )
             except SessionEventTimeoutError:
+                self.private_controller.sweep_stale_credits()
                 return {"event": None, "timed_out": True}
             return {"event": event, "timed_out": False}
         if operation == "snapshot":

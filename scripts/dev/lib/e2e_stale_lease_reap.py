@@ -546,9 +546,14 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             NODE_STUCK_FAIL_FAST_SEC,
         )
 
-        if _holder_holds_private_admit_credit(row.pid) and _private_credit_queue_has_waiters():
+        if (
+            _holder_holds_private_admit_credit(row.pid)
+            and _private_credit_queue_has_waiters()
+        ):
             process_elapsed = float(row.elapsed_sec)
-            hog_by_process = process_elapsed >= float(BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC)
+            hog_by_process = process_elapsed >= float(
+                BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC
+            )
             hog_by_node = (
                 current_node in BOOTSTRAP_CREDIT_HOG_NODE_NAMES
                 and elapsed_f >= float(NODE_STUCK_FAIL_FAST_SEC)
@@ -578,7 +583,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                 shpoib=bool(row.shpoib),
             )
         if current_node and is_transport_stall_node(current_node):
-            stall_cap = float(resolve_transport_stall_cap_sec(current_node=current_node))
+            stall_cap = float(
+                resolve_transport_stall_cap_sec(current_node=current_node)
+            )
             if elapsed_f >= stall_cap:
                 return (
                     f"E2E_NODE_STUCK: parallel node={current_node!r} "

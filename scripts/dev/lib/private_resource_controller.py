@@ -132,6 +132,7 @@ class PrivateResourceController:
                     available_credits=max(0, self.capacity_credits - active),
                     waiting_rows=self._ordered_waiters(connection, admitted_at),
                 )
+                connection.commit()
                 return PrivateAdmission(
                     granted=True,
                     queue_position=0,
@@ -151,6 +152,7 @@ class PrivateResourceController:
                 available_credits=max(0, self.capacity_credits - active),
                 waiting_rows=self._ordered_waiters(connection, admitted_at),
             )
+            connection.commit()
             return PrivateAdmission(
                 granted=False,
                 queue_position=position,
@@ -182,7 +184,9 @@ class PrivateResourceController:
                 """,
                 (released_at, session_id),
             )
-            return self._grant_waiters(connection, released_at)
+            granted = self._grant_waiters(connection, released_at)
+            connection.commit()
+            return granted
 
     def snapshot(self, *, now: float | None = None) -> dict[str, object]:
         captured_at = time.time() if now is None else now
@@ -232,6 +236,16 @@ class PrivateResourceController:
                 for row in waiting
             ],
         }
+
+    def sweep_stale_credits(self, *, now: float | None = None) -> tuple[str, ...]:
+        """Release terminal/abandoned credits and grant waiters (ADMIT wait loop tick)."""
+        captured_at = time.time() if now is None else now
+        with self._connect() as connection:
+            _begin_immediate(connection)
+            self._release_terminal_sessions(connection, captured_at)
+            granted = self._grant_waiters(connection, captured_at)
+            connection.commit()
+            return granted
 
     @staticmethod
     def _credit_idle_reason(

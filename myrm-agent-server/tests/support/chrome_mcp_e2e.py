@@ -111,7 +111,9 @@ def dismiss_blocking_modals(
         if last.get("ready") is True and "chrome-error://" not in href:
             break
         if attempt >= 2 or not isinstance(target_url, str) or not target_url.strip():
-            raise AssertionError(f"Page not on localhost after chrome-error recovery: {last}")
+            raise AssertionError(
+                f"Page not on localhost after chrome-error recovery: {last}"
+            )
         reload_mcp_page(client, page, target_url=target_url, timeout_ms=90_000)
     dismissed = client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
     assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
@@ -237,42 +239,56 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             subprocess_timeout_sec=60.0,
         )
 
-    def _warm_ui_poll_loop() -> None:
+    def _attempt_warm_get() -> bool:
+        """Single GET attempt; True when HTTP 200."""
         nonlocal last_error, next_heal_at
-        while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
-            touch_wall_progress(current_node="warm_ui_route")
-            if time.monotonic() >= next_heal_at:
-                next_heal_at = time.monotonic() + heal_interval
-                _heal_shared_frontend()
-            request = urllib.request.Request(  # noqa: S310 - loopback only
-                url, method="GET"
+        heartbeat_e2e_lease()
+        touch_wall_progress(current_node="warm_ui_route")
+        if time.monotonic() >= next_heal_at:
+            next_heal_at = time.monotonic() + heal_interval
+            _heal_shared_frontend()
+        request = urllib.request.Request(  # noqa: S310 - loopback only
+            url, method="GET"
+        )
+        per_attempt = max(3.0, min(10.0, deadline - time.monotonic()))
+
+        def _do_get() -> int:
+            with urllib.request.urlopen(  # noqa: S310
+                request, timeout=per_attempt
+            ) as response:
+                return int(response.status)
+
+        try:
+            if parallel_shared_ui_hydrate_queue_enabled():
+                with shared_ui_hydrate_slot():
+                    status = _do_get()
+            else:
+                status = _do_get()
+            if status == 200:
+                return True
+            last_error = RuntimeError(
+                f"warm_ui_route GET {url} returned HTTP {status}"
             )
-            per_attempt = max(3.0, min(10.0, deadline - time.monotonic()))
-            try:
-                with urllib.request.urlopen(  # noqa: S310
-                    request, timeout=per_attempt
-                ) as response:
-                    if response.status == 200:
-                        return
-                    last_error = RuntimeError(
-                        f"warm_ui_route GET {url} returned HTTP {response.status}"
-                    )
-                    if response.status in {404, 502, 503}:
-                        _heal_shared_frontend()
-                        next_heal_at = time.monotonic() + heal_interval
-            except urllib.error.HTTPError as exc:
-                # Next.js cold compile often returns 404 before routes are ready.
-                if exc.code in {404, 502, 503}:
-                    last_error = exc
-                    _heal_shared_frontend()
-                    next_heal_at = time.monotonic() + heal_interval
-                else:
-                    last_error = exc
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            if status in {404, 502, 503}:
+                _heal_shared_frontend()
+                next_heal_at = time.monotonic() + heal_interval
+        except urllib.error.HTTPError as exc:
+            if exc.code in {404, 502, 503}:
                 last_error = exc
                 _heal_shared_frontend()
                 next_heal_at = time.monotonic() + heal_interval
+            else:
+                last_error = exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            _heal_shared_frontend()
+            next_heal_at = time.monotonic() + heal_interval
+        return False
+
+    def _warm_ui_poll_loop() -> None:
+        while time.monotonic() < deadline:
+            if _attempt_warm_get():
+                return
             time.sleep(poll_sec)
         warm_error = RuntimeError(
             f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}"
@@ -287,12 +303,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             return
         raise warm_error
 
-    # R148: SHPOIB parallel must serialize shared :3000 compile bursts (same flock as navigate).
-    if parallel_shared_ui_hydrate_queue_enabled():
-        with shared_ui_hydrate_slot():
-            _warm_ui_poll_loop()
-    else:
-        _warm_ui_poll_loop()
+    _warm_ui_poll_loop()
 
 
 def _wait_for_shpoib_runtime_ready(
@@ -1720,9 +1731,7 @@ def wait_for_state(
                 client.navigate(page, page_url, timeout_ms=90_000)
                 dismiss_blocking_modals(client, page)
             except (RuntimeError, TimeoutError, OSError, AssertionError):
-                reload_mcp_page(
-                    client, page, target_url=page_url, timeout_ms=120_000
-                )
+                reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
                 dismiss_blocking_modals(client, page)
             continue
         time.sleep(0.25)

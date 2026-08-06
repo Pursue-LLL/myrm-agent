@@ -162,7 +162,9 @@ def _batch_has_inner_pytest(test_id: str) -> bool:
     file_prefix = test_id.split(" -m ", 1)[0].strip()
     if not file_prefix.endswith(".py"):
         return False
-    from e2e_live_chrome_pytest_scan import list_live_chrome_e2e_pytest_rows  # noqa: PLC0415
+    from e2e_live_chrome_pytest_scan import (
+        list_live_chrome_e2e_pytest_rows,
+    )  # noqa: PLC0415
 
     for row in list_live_chrome_e2e_pytest_rows():
         inner_id = row.test_id.strip()
@@ -242,7 +244,9 @@ def _list_pytest_scan_fallback(
     Closes active_test_count=0 while chrome_e2e pytest is alive but coordinator
     snapshots are not yet visible to e2e-context.
     """
-    from e2e_live_chrome_pytest_scan import list_live_chrome_e2e_pytest_rows  # noqa: PLC0415
+    from e2e_live_chrome_pytest_scan import (
+        list_live_chrome_e2e_pytest_rows,
+    )  # noqa: PLC0415
 
     rows: list[LiveE2ESessionRow] = []
     for prow in list_live_chrome_e2e_pytest_rows():

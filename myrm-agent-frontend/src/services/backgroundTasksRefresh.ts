@@ -29,3 +29,13 @@ export function notifyBackgroundTasksChangedForShellJobFinish(
   }
   notifyBackgroundTasksChanged();
 }
+
+/** Refresh panel when a voice-spawned Kanban background task completes. */
+export function notifyBackgroundTasksChangedForVoiceJobFinish(
+  meta: Record<string, unknown>,
+): void {
+  if (meta.kind !== 'voice_background_task_done') {
+    return;
+  }
+  notifyBackgroundTasksChanged();
+}

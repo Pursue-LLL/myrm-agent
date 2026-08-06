@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -42,7 +44,11 @@ def test_phase_c_shared_read_home_shell_smoke() -> None:
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(get_e2e_api_url())
 
-    warm_ui_route("/")
+    burst_lanes = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
+    if burst_lanes.isdigit() and int(burst_lanes) >= 2:
+        warm_ui_route("/", timeout_sec=30.0)
+    else:
+        warm_ui_route("/")
     with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
         wait_for_react_e2e_bridge(

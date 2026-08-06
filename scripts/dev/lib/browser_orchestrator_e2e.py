@@ -404,7 +404,38 @@ def _is_retryable_open_page_error(message: str) -> bool:
         or "no context for session" in lowered
         or "mux_context_disconnected" in lowered
         or "cdp evaluate failed" in lowered
+        or "page.navigate" in lowered
     )
+
+
+def _effective_parallel_load() -> int:
+    for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
+        raw = os.environ.get(key, "").strip()
+        try:
+            count = int(raw)
+        except ValueError:
+            continue
+        if count >= 2:
+            return count
+    return 0
+
+
+def _parallel_open_page_max_attempts() -> int:
+    if _effective_parallel_load() >= 2:
+        return 5
+    return 3
+
+
+def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
+    from browser_orchestrator_client import _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
+
+    daemon_budget = float(daemon._timeout_sec)
+    if _effective_parallel_load() >= 2:
+        return min(
+            _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
+            max(120.0, daemon_budget),
+        )
+    return min(130.0, daemon_budget)
 
 
 def _open_page_transaction_with_retry(
@@ -413,12 +444,13 @@ def _open_page_transaction_with_retry(
     *,
     url: str,
     binding_expression: str | None = None,
-    max_attempts: int = 3,
+    max_attempts: int | None = None,
 ) -> dict[str, object]:
     """Open page via orchestrator; retry transient CDP/mux stalls under parallel load."""
-    open_timeout_sec = min(45.0, float(daemon._timeout_sec))
+    attempts = max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
+    open_timeout_sec = _parallel_open_page_timeout_sec(daemon)
     last_exc: BaseException | None = None
-    for attempt in range(1, max_attempts + 1):
+    for attempt in range(1, attempts + 1):
         try:
             with daemon.bounded_request_timeout(open_timeout_sec):
                 if binding_expression is not None:
@@ -438,9 +470,9 @@ def _open_page_transaction_with_retry(
             if "daemon not running" in message.lower():
                 _spawn_ensure_orchestrator()
                 _wait_orchestrator_daemon_ready(daemon, wall_sec=45.0)
-            if attempt >= max_attempts:
+            if attempt >= attempts:
                 break
-            time.sleep(min(2.0 * float(attempt), 4.0))
+            time.sleep(min(3.0 * float(attempt), 8.0))
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("open_page_transaction failed without exception")
@@ -512,7 +544,15 @@ def open_orchestrator_mcp_page(
     *,
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
-    daemon = BrowserOrchestratorClient(timeout_sec=max(request_timeout_sec, 90.0))
+    effective_timeout = request_timeout_sec
+    if _effective_parallel_load() >= 2:
+        from browser_orchestrator_client import _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
+
+        effective_timeout = max(
+            request_timeout_sec,
+            _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
+        )
+    daemon = BrowserOrchestratorClient(timeout_sec=max(effective_timeout, 90.0))
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
     session_id = _resolve_session_id()
@@ -521,7 +561,7 @@ def open_orchestrator_mcp_page(
     client = OrchestratorChromeClient(
         session_id=session_id,
         daemon=daemon,
-        request_timeout_sec=request_timeout_sec,
+        request_timeout_sec=effective_timeout,
     )
     try:
         binding_source = e2e_runtime_binding_source()

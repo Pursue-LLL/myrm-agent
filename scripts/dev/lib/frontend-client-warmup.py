@@ -18,8 +18,7 @@ from typing import Protocol
 from infra_browser_registry import register_infra_target, unregister_infra_target
 
 try:
-    from cdp_chat_ui import E2E_BRIDGE_INSTALL_JS
-    from cdp_chat_support import e2e_api_base_inject_js
+    from cdp_chat_support import E2E_BRIDGE_INSTALL_JS, e2e_api_base_inject_js
 except ImportError:
     E2E_BRIDGE_INSTALL_JS = ""
     e2e_api_base_inject_js = None  # type: ignore[assignment]
@@ -174,20 +173,22 @@ async def _create_background_target(
         raise
 
 
-def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
-    """Parallel mux load can reject browser-level WebSocket (HTTP 500); reuse a live page."""
+def _collect_page_targets(cdp_port: int) -> list[dict[str, object]]:
+    """Prefer reusing live page targets — browser-level Target.createTarget fails under mux load."""
     try:
         targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
     except (urllib.error.URLError, TimeoutError, OSError, RuntimeError):
-        return None
+        return []
     if not isinstance(targets, list):
-        return None
+        return []
+
     ui_base = os.environ.get("MYRM_E2E_UI_BASE", "").strip().rstrip("/")
     if not ui_base:
         ui_base = os.environ.get("APP_URL", "http://127.0.0.1:3000").strip().rstrip("/")
     ui_host = ui_base or "http://127.0.0.1:3000"
-    preferred: dict[str, object] | None = None
-    fallback: dict[str, object] | None = None
+
+    preferred: list[dict[str, object]] = []
+    localhost: list[dict[str, object]] = []
     for entry in targets:
         if not isinstance(entry, dict) or entry.get("type") != "page":
             continue
@@ -199,17 +200,20 @@ def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
         ws_url = entry.get("webSocketDebuggerUrl")
         if not isinstance(ws_url, str) or not ws_url.startswith("ws://"):
             continue
+        item = dict(entry)
+        item["__warmup_owned_target"] = False
         if url == f"{ui_host}/" or url.startswith(f"{ui_host}/"):
-            preferred = entry
-            break
-        if fallback is None and ("127.0.0.1" in url or "localhost" in url):
-            fallback = entry
-    chosen = preferred or fallback
-    if chosen is None:
-        return None
-    chosen = dict(chosen)
-    chosen["__warmup_owned_target"] = False
-    return chosen
+            preferred.append(item)
+        elif "127.0.0.1" in url or "localhost" in url:
+            localhost.append(item)
+
+    return preferred + localhost
+
+
+def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
+    """Parallel mux load can reject browser-level WebSocket (HTTP 500); reuse a live page."""
+    candidates = _collect_page_targets(cdp_port)
+    return candidates[0] if candidates else None
 
 
 async def _cdp_request(
@@ -267,7 +271,12 @@ def _chrome_e2e_lifecycle(event: str) -> None:
 
 
 async def _wait_for_hydration(
-    ws_url: str, page_url: str, *, timeout_sec: float, poll_ms: int
+    ws_url: str,
+    page_url: str,
+    *,
+    timeout_sec: float,
+    poll_ms: int,
+    skip_navigate: bool = False,
 ) -> bool:
     try:
         import websockets
@@ -280,7 +289,7 @@ async def _wait_for_hydration(
 
     try:
         async with websockets.connect(
-            ws_url, open_timeout=15, max_size=8 * 1024 * 1024
+            ws_url, open_timeout=10, max_size=8 * 1024 * 1024
         ) as ws:
             msg_id = 0
 
@@ -299,14 +308,15 @@ async def _wait_for_hydration(
                     {"expression": e2e_api_base_inject_js(), "returnByValue": True},
                     deadline=deadline,
                 )
-            await _cdp_request(
-                ws,
-                await next_id(),
-                "Page.navigate",
-                {"url": page_url},
-                deadline=deadline,
-            )
-            _chrome_e2e_lifecycle("warmup-navigate")
+            if not skip_navigate:
+                await _cdp_request(
+                    ws,
+                    await next_id(),
+                    "Page.navigate",
+                    {"url": page_url},
+                    deadline=deadline,
+                )
+                _chrome_e2e_lifecycle("warmup-navigate")
 
             poll_count = 0
             while time.monotonic() < deadline:
@@ -364,6 +374,8 @@ async def _wait_for_hydration(
                         pass
                 await asyncio.sleep(poll_ms / 1000.0)
     except TimeoutError:
+        return False
+    except Exception:
         return False
 
     return False
@@ -430,43 +442,79 @@ async def _run_warmup(
     retry_sleep_sec = float(
         os.environ.get("MYRM_CLIENT_WARMUP_RETRY_SLEEP_SEC", "2.0") or "2.0"
     )
+    per_target_timeout = min(15.0, max(8.0, timeout_sec / max(1, max_attempts * 2)))
     for attempt in range(1, max_attempts + 1):
-        target = await _create_background_target(cdp_port)
-        ws_url = str(target["webSocketDebuggerUrl"])
-        target_id = target.get("id")
-        owned_target = target.get("__warmup_owned_target") is not False
-        if not isinstance(target_id, str) or not target_id:
-            raise RuntimeError("CDP target missing id")
-        register_infra_target(target_id, page_url)
-        ready = False
-        closed = False
-        try:
-            ready = await _wait_for_hydration(
-                ws_url, page_url, timeout_sec=timeout_sec, poll_ms=poll_ms
-            )
-            if not ready:
-                last_error = (
-                    f"hydration timeout after {timeout_sec:.0f}s (attempt {attempt})"
+        candidates: list[dict[str, object]] = []
+        if attempt <= 2:
+            candidates = _collect_page_targets(cdp_port)[:1]
+        if not candidates:
+            try:
+                candidates = [await _create_background_target(cdp_port)]
+            except Exception as exc:
+                last_error = f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+                if attempt < max_attempts:
+                    await asyncio.sleep(retry_sleep_sec)
+                continue
+
+        hydrated = False
+        for target in candidates:
+            ws_url = str(target["webSocketDebuggerUrl"])
+            target_id = target.get("id")
+            owned_target = target.get("__warmup_owned_target") is not False
+            if not isinstance(target_id, str) or not target_id:
+                continue
+            target_url = str(target.get("url") or "")
+            skip_navigate = (
+                not owned_target
+                and (
+                    target_url == page_url.rstrip("/")
+                    or target_url.startswith(page_url.rstrip("/") + "/")
+                    or target_url.rstrip("/") == page_url.rstrip("/")
                 )
-        except TimeoutError:
-            last_error = f"CDP session timeout (attempt {attempt})"
-        except Exception as exc:
-            last_error = (
-                f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
             )
-        finally:
-            if owned_target:
-                try:
-                    closed = await _close_target(cdp_port, target_id)
-                finally:
-                    if closed:
-                        unregister_infra_target(target_id)
-            else:
-                closed = True
-        if ready and closed:
-            return
-        if ready:
-            last_error = f"hydrated target {target_id} could not be closed"
+            register_infra_target(target_id, page_url)
+            ready = False
+            closed = False
+            try:
+                ready = await _wait_for_hydration(
+                    ws_url,
+                    page_url,
+                    timeout_sec=per_target_timeout,
+                    poll_ms=poll_ms,
+                    skip_navigate=skip_navigate,
+                )
+                if not ready:
+                    last_error = (
+                        f"hydration timeout after {per_target_timeout:.0f}s "
+                        f"(attempt {attempt}, target {target_id[:8]})"
+                    )
+            except TimeoutError:
+                last_error = f"CDP session timeout (attempt {attempt})"
+            except Exception as exc:
+                last_error = (
+                    f"{type(exc).__name__}: {exc or 'no message'} "
+                    f"(attempt {attempt}, target {target_id[:8]})"
+                )
+            finally:
+                if owned_target:
+                    try:
+                        closed = await _close_target(cdp_port, target_id)
+                    finally:
+                        if closed:
+                            unregister_infra_target(target_id)
+                else:
+                    closed = True
+                    unregister_infra_target(target_id)
+
+            if ready and closed:
+                return
+            if ready:
+                last_error = f"hydrated target {target_id} could not be closed"
+                hydrated = True
+                break
+
+        if hydrated:
+            break
         if attempt < max_attempts:
             await asyncio.sleep(retry_sleep_sec)
 

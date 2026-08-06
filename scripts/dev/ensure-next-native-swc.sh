@@ -8,9 +8,26 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
+_resolve_bun() {
+  if command -v bun >/dev/null 2>&1; then
+    command -v bun
+    return 0
+  fi
+  local candidate
+  for candidate in "${HOME}/.bun/bin/bun" /opt/homebrew/bin/bun /usr/local/bin/bun; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+MYRM_BUN="$(_resolve_bun || true)"
+
 _swc_pkg=""
-if command -v bun >/dev/null 2>&1; then
-  _runtime_platform="$(bun -e 'process.stdout.write(`${process.platform}-${process.arch}`)')"
+if [[ -n "${MYRM_BUN}" ]]; then
+  _runtime_platform="$("${MYRM_BUN}" -e 'process.stdout.write(`${process.platform}-${process.arch}`)')"
 else
   _runtime_platform="$(uname -s)-$(uname -m)"
 fi
@@ -37,12 +54,12 @@ if [[ -d "node_modules/${_swc_pkg}" ]]; then
   rm -rf "node_modules/${_swc_pkg}"
 fi
 
-if ! command -v bun >/dev/null 2>&1; then
+if [[ -z "${MYRM_BUN}" ]]; then
   echo "WARN: bun not found; cannot install ${_swc_pkg}" >&2
   exit 0
 fi
 
-_next_ver="$(bun -e "process.stdout.write(require('./package.json').dependencies.next.replace(/^\\^|~/, ''))")"
+_next_ver="$("${MYRM_BUN}" -e "process.stdout.write(require('./package.json').dependencies.next.replace(/^\\^|~/, ''))")"
 echo "📦 Installing ${_swc_pkg}@${_next_ver} (Next.js native SWC — avoids WASM slow compile)..."
-bun install "${_swc_pkg}@${_next_ver}" --no-save
+"${MYRM_BUN}" install "${_swc_pkg}@${_next_ver}" --no-save
 echo "✓ ${_swc_pkg} installed"

@@ -5,9 +5,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
+from myrm_agent_harness.toolkits.memory import (
+    MemoryOperationKind,
+    MemoryOperationStatus,
+)
 
-from app.ai_agents.extensions.extraction_lifecycle import make_extraction_lifecycle_observer
+from app.ai_agents.extensions.extraction_lifecycle import (
+    make_extraction_lifecycle_observer,
+)
 
 
 @pytest.mark.asyncio
