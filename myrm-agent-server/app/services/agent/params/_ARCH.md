@@ -39,7 +39,8 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## prior_chat (@chat:) Mention
 
 - 前端 `@chat:` 经 `MentionReferenceRequest(type="prior_chat")` 进入 `mention.py::_prior_chat_part`，从 FTS recall 索引注入 summary+snippet。
-- `@chat:` picker 走全局 `searchChatHistory`，不依赖 composer `chatId`（EmptyChat 可用）；workspace/file 类 mention 仍依赖 chat workspace。
+- `@chat:` picker 走 `GET /chats/recall/search`（conversation_recall SSOT，与 inject 同索引）；Cmd+K 仍走 `/chats/search` 消息级发现。
+- `mention.py::_prior_chat_part` 在 recall doc 缺失时 lazy `rebuild_chat`；错误码区分 unavailable / excluded / incognito。
 - `converter.py` 在 workspace 尚未就绪时仍注入 `prior_chat`；file/workspace 引用跳过并写入 warning。prior_chat 路径不使用 workspace 内容，fallback 见 `mention.py::_MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE`。
 - 注入 append 到 user query 的 `<mentioned_files>`，不修改 system prompt / tool schema（prompt cache 安全）。
 

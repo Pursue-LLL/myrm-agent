@@ -241,3 +241,89 @@ def test_cron_patch_workflow_template_args(
     body = patch_resp.json()
     assert body["workflow_template_args"] == {"topic": "finance"}
     assert body["workflow_template_display_name"] == "Trusted Flow"
+
+
+def test_cron_display_name_null_when_template_deleted(
+    client: TestClient,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    _seed_templates(db_path)
+
+    from app.services.workflow_templates import service as workflow_templates_service
+
+    monkeypatch.setattr(
+        workflow_templates_service,
+        "resolve_workflow_db_path",
+        lambda: db_path,
+    )
+
+    create_resp = client.post(
+        "/cron",
+        json={
+            "name": "orphan-after-delete",
+            "job_type": "agent",
+            "schedule": {"kind": "interval", "interval_ms": 300_000},
+            "prompt": "run audit",
+            "workflow_template_id": "trusted-flow",
+            "workflow_template_args": {"topic": "billing"},
+        },
+    )
+    assert create_resp.status_code == 201
+    job_id = create_resp.json()["id"]
+
+    WorkflowTemplateStore(db_path).delete_template("trusted-flow")
+
+    get_resp = client.get(f"/cron/{job_id}")
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert body["workflow_template_id"] == "trusted-flow"
+    assert body["workflow_template_display_name"] is None
+
+
+def test_cron_display_name_null_when_template_untrusted(
+    client: TestClient,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    _seed_templates(db_path)
+
+    from app.services.workflow_templates import service as workflow_templates_service
+
+    monkeypatch.setattr(
+        workflow_templates_service,
+        "resolve_workflow_db_path",
+        lambda: db_path,
+    )
+
+    create_resp = client.post(
+        "/cron",
+        json={
+            "name": "orphan-after-untrust",
+            "job_type": "agent",
+            "schedule": {"kind": "interval", "interval_ms": 300_000},
+            "prompt": "run audit",
+            "workflow_template_id": "trusted-flow",
+            "workflow_template_args": {"topic": "billing"},
+        },
+    )
+    assert create_resp.status_code == 201
+    job_id = create_resp.json()["id"]
+
+    store = WorkflowTemplateStore(db_path)
+    record = store.get_template("trusted-flow")
+    assert record is not None
+    store.save_template(
+        template_id="trusted-flow",
+        display_name=record.display_name,
+        script_code=record.script_code,
+        trust_latch=False,
+    )
+
+    get_resp = client.get(f"/cron/{job_id}")
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert body["workflow_template_id"] == "trusted-flow"
+    assert body["workflow_template_display_name"] is None

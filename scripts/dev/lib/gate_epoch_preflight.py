@@ -86,6 +86,69 @@ def solo_cluster_clear(snapshot: SoloSnapshot) -> bool:
     )
 
 
+SIGNOFF_GATE_CDP_PAGE_CEILING = 8
+
+
+def attach_parallel_leases() -> int:
+    """Match e2e_bootstrap.sh _e2e_parallel_active_leases (wave first, then live sessions)."""
+    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts
+
+    effective = wave_lease_counts(load_wave_snapshot()).effective_total
+    if effective > 0:
+        return effective
+    from e2e_session_registry import list_live_e2e_sessions
+
+    return len(list_live_e2e_sessions())
+
+
+def signoff_lane_spawn_clear(snapshot: SoloSnapshot) -> bool:
+    """Step1 gate lane spawn SSOT — align with chrome attach parallel lease accounting."""
+    return solo_cluster_clear(snapshot) and attach_parallel_leases() == 0
+
+
+def signoff_gate_cluster_clear() -> bool:
+    return signoff_lane_spawn_clear(read_solo_snapshot())
+
+
+def count_cdp_page_targets() -> int | None:
+    from browser_tab_hygiene import _chrome_port, _count_cdp_targets
+
+    count = _count_cdp_targets(_chrome_port())
+    return count if count >= 0 else None
+
+
+def restart_chrome_if_cdp_page_surge(
+    monorepo_root: Path,
+    *,
+    ceiling: int = SIGNOFF_GATE_CDP_PAGE_CEILING,
+) -> bool:
+    """Solo signoff heal when CDP page targets exceed gate ceiling (Aug4 PASS had ~3)."""
+    count = count_cdp_page_targets()
+    if count is None or count <= ceiling:
+        return False
+    _emit(
+        "GATE_CDP_SURGE_HEAL: "
+        f"pages={count} ceiling={ceiling} — restart --chrome (solo; no peer kill)"
+    )
+    rc = _run_heal_flocked(
+        _myrm_cmd(monorepo_root, "restart", "--chrome"),
+        wait_sec=180.0,
+    )
+    if rc == 0:
+        _emit("GATE_CDP_SURGE_HEAL_OK: restart --chrome")
+        return True
+    _emit(f"GATE_CDP_SURGE_HEAL_WARN: restart rc={rc}")
+    return False
+
+
+def run_signoff_solo_chrome_heals(monorepo_root: Path) -> None:
+    """Orphan budget + CDP surge heal when signoff gate holds solo cluster."""
+    if not signoff_gate_cluster_clear():
+        return
+    restart_chrome_if_orphan_budget_exceeded(monorepo_root)
+    restart_chrome_if_cdp_page_surge(monorepo_root)
+
+
 def epoch_ready(snapshot: SoloSnapshot) -> bool:
     return snapshot.epoch_match and snapshot.active_leases == 0
 
@@ -137,7 +200,8 @@ def restart_chrome_if_orphan_budget_exceeded(monorepo_root: Path) -> bool:
 
 def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
     """Mux reap + optional wave restart under solo constraints."""
-    _emit(f"=== GATE_MUX_HEAL start ===")
+    _emit("=== GATE_MUX_HEAL start ===")
+    run_signoff_solo_chrome_heals(monorepo_root)
     from mux_load import (
         active_mux_context_count,
         heal_mux_for_solo_gate,

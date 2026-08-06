@@ -11,6 +11,7 @@ import GlobalRunHistory from '@/components/features/cron/GlobalRunHistory';
 import HeartbeatSection from './HeartbeatSection';
 import CronEntitlementGate from '@/components/billing/CronEntitlementGate';
 import type { CronJob } from '@/services/cron';
+import { getCronJob } from '@/services/cron';
 
 const CronUsageStats = lazy(() => import('@/components/features/cron/CronUsageStats'));
 
@@ -65,8 +66,15 @@ export default function CronSection() {
           {view === 'list' && (
             <CronJobList
               onSelectJob={(job) => {
-                setSelectedJob(job);
-                setView('history');
+                void getCronJob(job.id)
+                  .then((fresh) => {
+                    setSelectedJob(fresh);
+                    setView('history');
+                  })
+                  .catch(() => {
+                    setSelectedJob(job);
+                    setView('history');
+                  });
               }}
             />
           )}

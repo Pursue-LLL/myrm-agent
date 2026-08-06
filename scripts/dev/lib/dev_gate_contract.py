@@ -1151,8 +1151,11 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     transport = transport_stall_cap_sec()
     if not is_transport_stall_node(current_node):
         return transport
+    open_page_family = current_node.startswith("open_mcp_page") or current_node.startswith(
+        "open_page_"
+    )
     if is_e2e_signoff_runtime():
-        if current_node.startswith("open_mcp_page"):
+        if open_page_family:
             try:
                 from mux_load import parallel_open_page_peer_count
 
@@ -1165,7 +1168,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
             body_cap = signoff_open_page_transport_stall_cap_sec()
             return max(transport, bootstrap_cap, body_cap)
         return max(transport, signoff_open_page_transport_stall_cap_sec())
-    if current_node.startswith("open_mcp_page"):
+    if open_page_family:
         live = live_open_page_transport_stall_cap_sec()
         try:
             from transport_supervisor import live_agent_body_wall_cap_sec
@@ -1395,6 +1398,8 @@ SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
 # R96-B6: transport infra nodes stuck without semantic progress (parallel mux hog).
 NODE_STUCK_FAIL_FAST_SEC: Final[int] = GATE_MUX_STALL_FAIL_FAST_SEC
+# R299: dev openPageTransaction whole-RPC wall — orchestrator daemon + client socket + hung-reap SSOT.
+DEV_OPEN_PAGE_TRANSACTION_WALL_SEC: Final[float] = float(NODE_STUCK_FAIL_FAST_SEC)
 E2E_NODE_STUCK_TOKEN: Final[str] = "E2E_NODE_STUCK"
 E2E_BODY_WALL_EXCEEDED_TOKEN: Final[str] = "E2E_BODY_WALL_EXCEEDED"
 E2E_TRANSPORT_PROGRESS_TOKEN: Final[str] = "E2E_TRANSPORT_PROGRESS"
@@ -1406,6 +1411,7 @@ SIGNOFF_ATTACH_WAIT_SEC: Final[int] = 120
 SIGNOFF_ATTACH_PARALLEL_CAP_SEC: Final[int] = 420
 TRANSPORT_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = (
     "open_mcp_page_",
+    "open_page_",
     "force_chat_shell_",
     "mux_",
     "bootstrap_",
@@ -1427,6 +1433,7 @@ BOOTSTRAP_CREDIT_HOG_NODE_NAMES: Final[frozenset[str]] = frozenset(
         "wait_for_react_e2e_bridge",
         "wait_for_shell_layout",
         "wait_for_shell_ready",
+        "open_page_transaction",
     }
 )
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"

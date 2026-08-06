@@ -10,6 +10,7 @@ Thin server adapter over harness `WorkflowTemplateStore`. Shares `{harness_path}
 | --- | --- | --- |
 | `service.py` | DB path resolution, record mapping (`placeholders` via harness SSOT) | ✅ |
 | `validation.py` | Pinned/Cron bind guards + Cron execution-time template gate (harness SSOT) | ✅ |
+| `cron_binding.py` | Read-only Cron job counts per template (`list_jobs` scan; delete confirm) | ✅ |
 | `__init__.py` | Package marker | — |
 
 ## 模块依赖

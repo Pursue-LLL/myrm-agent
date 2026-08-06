@@ -244,6 +244,7 @@ placeholder_retrying =
     
     
     [重試中... { $attempt }/{ $max_retries }]
+durable_outbound_recovered = 已恢復投遞，您可能會收到重複訊息。
 error_rate_limit = API 速率限制 — 模型暫時無法生成回覆，請稍後再試。
 error_overloaded = AI 服務暫時過載，請稍後再試。
 error_billing = 因配置問題服務暫時不可用，請聯絡管理員。

@@ -14,6 +14,7 @@ export interface WorkflowTemplateSummary {
 export interface WorkflowTemplateDetailResponse {
   template: WorkflowTemplateSummary;
   script_code: string;
+  bound_cron_count: number;
 }
 
 export interface WorkflowTemplateListResponse {
@@ -25,6 +26,12 @@ export interface SaveWorkflowTemplateFromRunPayload {
   message_id: string;
   template_id: string;
   display_name: string;
+  trust_latch?: boolean;
+}
+
+export interface UpsertWorkflowTemplatePayload {
+  display_name: string;
+  script_code: string;
   trust_latch?: boolean;
 }
 
@@ -44,6 +51,20 @@ export async function saveWorkflowTemplateFromRun(
   return apiRequest('/workflow-templates/from-run', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function upsertWorkflowTemplate(
+  templateId: string,
+  payload: UpsertWorkflowTemplatePayload,
+): Promise<WorkflowTemplateSummary> {
+  return apiRequest(`/workflow-templates/${encodeURIComponent(templateId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      displayName: payload.display_name,
+      scriptCode: payload.script_code,
+      trustLatch: payload.trust_latch ?? false,
+    }),
   });
 }
 

@@ -8,7 +8,7 @@
 - WorkflowTemplateListResponse: Paginated list wrapper
 - SaveWorkflowTemplateRequest: Create/update request body
 - SaveWorkflowTemplateFromRunRequest: Save template from an existing run
-- WorkflowTemplateDetailResponse: Full template detail with script code
+- WorkflowTemplateDetailResponse: Full template detail with script code and bound Cron count
 """
 
 from __future__ import annotations
@@ -65,6 +65,7 @@ class SaveWorkflowTemplateFromRunRequest(BaseModel):
 class WorkflowTemplateDetailResponse(BaseModel):
     template: WorkflowTemplateSummary
     script_code: str
+    bound_cron_count: int = Field(default=0, ge=0)
 
     class Config:
         alias_generator = to_camel

@@ -4,7 +4,7 @@
 - Agent reply messages destined for external channels
 
 [OUTPUT]
-- HTTP POST to Control Plane egress endpoint for channel delivery
+- send_via_control_plane: POST to CP egress; returns platform message_id or None on failure
 
 [POS]
 Sandbox-to-CP outbound bridge for delivering agent replies to external channels.
@@ -80,7 +80,10 @@ async def send_via_control_plane(
             return None
         data = resp.json()
         msg_id = data.get("message_id")
-        return str(msg_id) if msg_id else "sent"
+        if not msg_id:
+            logger.error("CP egress returned no message_id: %s", data)
+            return None
+        return str(msg_id)
     except Exception as exc:
         logger.error("CP egress request error: %s", exc)
         return None

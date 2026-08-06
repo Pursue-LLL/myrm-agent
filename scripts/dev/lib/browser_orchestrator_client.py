@@ -27,23 +27,53 @@ from typing import Iterator, TypedDict
 
 _LOGGER = logging.getLogger(__name__)
 
-# Socket read budget = CDP timeout + fair-scheduler queue slack (R298).
+# Socket read budget = openPageTransaction wall + fair-scheduler grace (R299).
 _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
-_ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC = 210.0
-_ORCHESTRATOR_BURST_SOCKET_TIMEOUT_CAP_SEC = 360.0
+_SIGNOFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def orchestrator_open_tx_wall_sec() -> float:
+    """Whole-RPC openPageTransaction wall — must match browser-orchestrator daemon default."""
+    from dev_gate_contract import (  # noqa: PLC0415
+        DEV_OPEN_PAGE_TRANSACTION_WALL_SEC,
+        SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
+    )
+
+    if os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY:
+        return float(SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC)
+    raw_ms = os.environ.get("BROWSER_ORCHESTRATOR_OPEN_TX_WALL_MS", "").strip()
+    if raw_ms:
+        try:
+            parsed_ms = int(raw_ms)
+        except ValueError:
+            parsed_ms = 0
+        if parsed_ms > 0:
+            return float(parsed_ms) / 1000.0
+    raw_sec = os.environ.get("BROWSER_ORCHESTRATOR_OPEN_TX_WALL_SEC", "").strip()
+    if raw_sec:
+        try:
+            parsed_sec = float(raw_sec)
+        except ValueError:
+            parsed_sec = 0.0
+        if parsed_sec > 0:
+            return parsed_sec
+    return float(DEV_OPEN_PAGE_TRANSACTION_WALL_SEC)
 
 
 def orchestrator_socket_timeout_cap_sec() -> float:
-    """Return socket read cap; 4-lane burst needs mux queue headroom beyond 210s."""
+    """Return socket read cap aligned with openPageTransaction wall (no 480s retry storm)."""
+    wall = orchestrator_open_tx_wall_sec()
+    burst_lanes = 0
     for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
         raw = os.environ.get(key, "").strip()
         try:
             count = int(raw)
         except ValueError:
             continue
-        if count >= 4:
-            return _ORCHESTRATOR_BURST_SOCKET_TIMEOUT_CAP_SEC
-    return _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
+        if count >= 2:
+            burst_lanes = max(burst_lanes, count)
+    queue_headroom = 15.0 * float(max(0, burst_lanes - 1))
+    return wall + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + queue_headroom
 
 
 def _default_socket_path() -> str:

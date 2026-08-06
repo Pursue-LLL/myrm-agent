@@ -78,6 +78,15 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   }, [fetchJobs, chatIdFilter]);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void fetchJobs(true, chatIdFilter);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchJobs, chatIdFilter]);
+
+  useEffect(() => {
     openedJobRef.current = null;
   }, [jobIdFilter]);
 

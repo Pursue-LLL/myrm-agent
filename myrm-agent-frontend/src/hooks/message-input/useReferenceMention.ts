@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { suggestReferences, searchChatHistory, type ReferenceSuggestion, type SearchResult } from '@/services/chat';
+import { suggestReferences, searchCitableChats, type ReferenceSuggestion, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import type { MentionReference } from '@/store/chat/types';
@@ -266,7 +266,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     if (chatMode) {
       debounceRef.current = setTimeout(async () => {
         try {
-          const data = await searchChatHistory(query, 20, 0);
+          const data = await searchCitableChats(query, 20, 0, chatId ?? undefined);
           if (requestSeqRef.current !== requestSeq) return;
           const seen = new Set<string>();
           const chatResults = data.items

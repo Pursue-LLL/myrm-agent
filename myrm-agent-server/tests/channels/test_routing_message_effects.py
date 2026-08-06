@@ -15,9 +15,17 @@ from app.channels.types import InboundMessage, OutboundMessage
 
 
 def _make_bus(channel_mock: MagicMock | None = None) -> MagicMock:
+    async def _passthrough_msg(msg: OutboundMessage) -> OutboundMessage:
+        return msg
+
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=channel_mock)
     bus.publish_outbound = AsyncMock()
+    durable = MagicMock()
+    durable.persist_direct_send = AsyncMock(side_effect=_passthrough_msg)
+    durable.mark_attempting = AsyncMock()
+    durable.ack = AsyncMock()
+    bus.durable_outbound = durable
     return bus
 
 

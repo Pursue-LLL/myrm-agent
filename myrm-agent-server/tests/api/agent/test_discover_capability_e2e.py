@@ -46,13 +46,36 @@ def _sample_skill() -> SkillMetadata:
     )
 
 
+def _skills_for_search_mount(*, featured: SkillMetadata | None = None) -> list[SkillMetadata]:
+    """21 bound skills → hidden_count > 0 → skill_search_tool mounts (catalog_display SSOT)."""
+    skills = [
+        SkillMetadata(
+            name=f"bound_skill_{index:02d}",
+            description=f"Bound skill {index} for discover e2e",
+            model_invocable=True,
+            available=True,
+        )
+        for index in range(21)
+    ]
+    if featured is not None:
+        featured_inline = SkillMetadata(
+            name=featured.name,
+            description=featured.description,
+            model_invocable=featured.model_invocable,
+            available=featured.available,
+            always=True,
+        )
+        skills[0] = featured_inline
+    return skills
+
+
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_discover_capability_e2e_real_model() -> None:
-    """Real-model E2E: agent invokes skill_search_tool to search bound skills.
+    """Real-model E2E: agent invokes skill_search_tool when hidden bound skills exist.
 
-    skill_search_tool mounts only when searchable skills exist
-    (``sync_discover_capability_tool``); deferred-tool AutoMount is no longer in scope.
+    skill_search_tool mounts only when ``hidden_skill_count > 0``
+    (``sync_discover_capability_tool`` + ``should_mount_skill_search_tool``).
     """
     api_key = os.environ.get("BASIC_API_KEY", "").strip()
     if not api_key:
@@ -76,7 +99,7 @@ async def test_discover_capability_e2e_real_model() -> None:
 
     agent = SkillAgent(
         llm=llm,
-        skill_backend=_StubSkillBackend([_sample_skill()]),
+        skill_backend=_StubSkillBackend(_skills_for_search_mount(featured=_sample_skill())),
         file_access_mode=FileAccessMode.NONE,
         enable_shell_tools=False,
         enable_answer_tool=False,

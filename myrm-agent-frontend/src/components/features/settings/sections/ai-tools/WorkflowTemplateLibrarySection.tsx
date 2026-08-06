@@ -3,18 +3,21 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Loader2, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { Download, Loader2, Play, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   deleteWorkflowTemplate,
+  fetchWorkflowTemplateDetail,
   fetchWorkflowTemplates,
   type WorkflowTemplateSummary,
 } from '@/services/workflowTemplates';
+import { useWorkflowTemplateTransfer } from '@/lib/workflow/useWorkflowTemplateTransfer';
 import { submitWorkflowTemplateRun } from '@/lib/workflow/submitWorkflowTemplateRun';
 import { useToast } from '@/hooks/shared/useToast';
+import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import WorkflowTemplateScriptPreview from './WorkflowTemplateScriptPreview';
 import WorkflowTemplateArgsDialog from './WorkflowTemplateArgsDialog';
 
@@ -33,6 +36,9 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
   const [runningTemplateId, setRunningTemplateId] = useState<string | null>(null);
   const [argsDialogOpen, setArgsDialogOpen] = useState(false);
   const [pendingRunTemplate, setPendingRunTemplate] = useState<WorkflowTemplateSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorkflowTemplateSummary | null>(null);
+  const [deleteBoundCronCount, setDeleteBoundCronCount] = useState(0);
+  const [deleteDetailLoading, setDeleteDetailLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +56,22 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
   useEffect(() => {
     void load();
   }, [load]);
+
+  const {
+    importInputRef,
+    exportingTemplateId,
+    importing,
+    importOverwriteTarget,
+    handleExport,
+    handleImportInputChange,
+    openImportPicker,
+    dismissImportOverwrite,
+    confirmImportOverwrite,
+  } = useWorkflowTemplateTransfer({
+    templates,
+    reloadTemplates: load,
+    toast,
+  });
 
   const sortedTemplates = useMemo(
     () => [...templates].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
@@ -109,22 +131,44 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
     [executeRun, runQuery, t, toast],
   );
 
-  const handleDelete = useCallback(
-    async (templateId: string) => {
+  const handleDeleteRequest = useCallback(
+    async (template: WorkflowTemplateSummary) => {
+      setDeleteDetailLoading(true);
       try {
-        await deleteWorkflowTemplate(templateId);
-        setTemplates((prev) => prev.filter((item) => item.template_id !== templateId));
-        toast({ title: t('deleted') });
+        const detail = await fetchWorkflowTemplateDetail(template.template_id);
+        setDeleteBoundCronCount(detail.bound_cron_count);
+        setDeleteTarget(template);
       } catch (err) {
         toast({
           title: t('deleteFailed'),
           description: err instanceof Error ? err.message : undefined,
           variant: 'destructive',
         });
+      } finally {
+        setDeleteDetailLoading(false);
       }
     },
     [t, toast],
   );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    const templateId = deleteTarget.template_id;
+    try {
+      await deleteWorkflowTemplate(templateId);
+      setTemplates((prev) => prev.filter((item) => item.template_id !== templateId));
+      toast({ title: t('deleted') });
+      setDeleteTarget(null);
+      setDeleteBoundCronCount(0);
+    } catch (err) {
+      toast({
+        title: t('deleteFailed'),
+        description: err instanceof Error ? err.message : undefined,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [deleteTarget, t, toast]);
 
   return (
     <div className={cn('space-y-5', className)}>
@@ -139,6 +183,23 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {t('refresh')}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 shrink-0"
+          disabled={importing}
+          onClick={openImportPicker}
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {t('import')}
+        </Button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImportInputChange}
+        />
       </div>
 
       {loading && (
@@ -186,7 +247,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
               </div>
               <WorkflowTemplateScriptPreview templateId={template.template_id} />
             </div>
-            <div className="flex items-center gap-2 shrink-0 sm:pt-0.5">
+            <div className="flex flex-wrap items-center gap-2 shrink-0 sm:pt-0.5">
               <Button
                 size="sm"
                 className="gap-1.5"
@@ -203,8 +264,23 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
               <Button
                 size="sm"
                 variant="outline"
+                className="gap-1.5"
+                onClick={() => void handleExport(template)}
+                disabled={exportingTemplateId === template.template_id}
+              >
+                {exportingTemplateId === template.template_id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                {t('export')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 className="gap-1.5 text-destructive hover:text-destructive"
-                onClick={() => void handleDelete(template.template_id)}
+                onClick={() => void handleDeleteRequest(template)}
+                disabled={deleteDetailLoading && deleteTarget?.template_id === template.template_id}
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 {t('delete')}
@@ -231,6 +307,50 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteBoundCronCount(0);
+          }
+        }}
+        title={t('deleteConfirmTitle')}
+        description={
+          deleteTarget
+            ? deleteBoundCronCount > 0
+              ? t('deleteConfirmWithCron', {
+                  name: deleteTarget.display_name,
+                  count: deleteBoundCronCount,
+                })
+              : t('deleteConfirm', { name: deleteTarget.display_name })
+            : ''
+        }
+        confirmText={t('delete')}
+        cancelText={t('deleteCancel')}
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <ConfirmDialog
+        open={!!importOverwriteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            dismissImportOverwrite();
+          }
+        }}
+        title={t('importOverwriteTitle')}
+        description={
+          importOverwriteTarget
+            ? t('importOverwriteConfirm', { name: importOverwriteTarget.displayName })
+            : ''
+        }
+        confirmText={t('importOverwriteAction')}
+        cancelText={t('deleteCancel')}
+        variant="destructive"
+        onConfirm={confirmImportOverwrite}
+      />
     </div>
   );
 });

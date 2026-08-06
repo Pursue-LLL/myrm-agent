@@ -22,9 +22,9 @@
 | `CronJobAuditPanel.tsx` | 组件 | Hermes 六字段 Cron 创建审计 + Confirm 门禁（聊天/创建弹窗/详情页复用） | ✅ |
 | `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/下次运行/快捷操作） | ✅ |
 | `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；Agent 模式可选 **trust_latch** DW 模板 + ArgsDialog；创建成功后展示审计面板） | ✅ |
-| `CronWorkflowTemplateBinding.tsx` | 组件 | Cron 卡片/详情展示绑定的 DW 模板名、args 与 Library 链接 | ✅ |
-| `WorkflowTemplateEditor.tsx` | 组件 | Cron 详情编辑 workflow 模板绑定与 args（PATCH + ArgsDialog）；缺失模板 amber 警告 + 解除绑定；加载失败重试 | ✅ |
-| `CronJobList.tsx` | 核心 | 任务列表；`?chat_id=` 过滤；`?job=` 深链打开详情 | ✅ |
+| `CronWorkflowTemplateBinding.tsx` | 组件 | Cron 卡片/详情展示绑定的 DW 模板名、args 与 Library 链接；invalid 绑定 amber Badge | ✅ |
+| `WorkflowTemplateEditor.tsx` | 组件 | Cron 详情编辑 workflow 模板绑定与 args（PATCH + ArgsDialog）；server display_name 驱动 missing 警告 + 解除绑定 | ✅ |
+| `CronJobList.tsx` | 核心 | 任务列表；`?chat_id=` 过滤；`?job=` 深链打开详情；`visibilitychange` 时 refetch 保持 template binding Badge 与 server enrich 一致 | ✅ |
 | `CronMonitorEditors.tsx` | 组件 | 监控/告警阈值编辑 | ✅ |
 | `CronPushPoller.tsx` | 组件 | 客户端 push 通知轮询注册（Web Push） | ✅ |
 | `CronRunHistory.tsx` | 组件 | 单任务详情：六字段审计 + 运行历史 + per-job 编辑器 + Shared Context 绑定 | ✅ |

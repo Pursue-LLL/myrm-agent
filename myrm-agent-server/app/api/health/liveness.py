@@ -6,7 +6,7 @@
 @lifecycle.monitors::get_memory_pressure_monitor_instance (POS: 内存压力监控)
 
 [OUTPUT]
-GET /api/v1/health/liveness — aggregated agent liveness state
+GET /api/v1/health/liveness — aggregated agent liveness state (includes pendingOutboundCount)
 
 [POS]
 Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、排空状态、渠道健康摘要、
@@ -54,6 +54,7 @@ async def agent_liveness() -> dict[str, object]:
 
     channels_summary = _build_channels_summary()
     memory = _build_memory_summary()
+    pending_outbound = await _count_pending_outbound()
 
     has_degraded_channel = any(
         ch.get("status") in ("degraded", "error")
@@ -79,6 +80,7 @@ async def agent_liveness() -> dict[str, object]:
         },
         "channels": channels_summary,
         "memory": memory,
+        "pendingOutboundCount": pending_outbound,
         "uptimeSeconds": round(time.monotonic() - _BOOT_MONOTONIC, 1),
     }
 
@@ -112,3 +114,13 @@ def _build_memory_summary() -> dict[str, object]:
     except Exception:
         pass
     return {"level": "unknown", "percent": 0.0}
+
+
+async def _count_pending_outbound() -> int:
+    """Count disk-persisted outbound deliveries awaiting send."""
+    try:
+        from app.core.channel_bridge import get_channel_gateway
+
+        return await get_channel_gateway().bus.durable_outbound.count_pending()
+    except Exception:
+        return 0

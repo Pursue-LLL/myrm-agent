@@ -241,6 +241,7 @@ placeholder_retrying =
     
     
     [リトライ中... { $attempt }/{ $max_retries }]
+durable_outbound_recovered = 配信を復旧しました。重複メッセージが届く場合があります。
 error_rate_limit = API レート制限に達しました — モデルが応答を生成できませんでした。しばらくしてから再試行してください。
 error_overloaded = AI サービスが一時的に過負荷状態です。しばらくしてから再試行してください。
 error_billing = 設定の問題によりサービスが一時的に利用できません。管理者にお問い合わせください。

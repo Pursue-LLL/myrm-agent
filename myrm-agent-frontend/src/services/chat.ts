@@ -119,6 +119,19 @@ export const searchChatHistory = async (
   return { items: data.items || [], total: data.total || 0 };
 };
 
+/** Recall-index SSOT search for @chat: composer citation (matches server inject path). */
+export const searchCitableChats = async (
+  query: string,
+  limit: number = 20,
+  offset: number = 0,
+  excludeChatId?: string,
+): Promise<SearchResponse> => {
+  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
+  if (excludeChatId) params.set('exclude_chat_id', excludeChatId);
+  const data = (await apiRequest(`/chats/recall/search?${params}`)) as SearchResponse;
+  return { items: data.items || [], total: data.total || 0 };
+};
+
 /**
  * 获取聊天元数据（不含消息）
  */

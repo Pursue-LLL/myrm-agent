@@ -27,6 +27,9 @@ from pydantic import BaseModel, Field
 
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
+_SEARCH_MOUNT_SKILL_COUNT = 21
+_DISCOVER_MISS_QUERY = "zzz_nonexistent_qwerty_9847261"
+
 
 class _DummyInput(BaseModel):
     arg1: str = Field(default="")
@@ -42,15 +45,60 @@ class _DummyDeferredTool(BaseTool):
 
 
 def _discover_gateway_skills() -> list:
-    """Minimal searchable skill so sync_discover_capability_tool binds in tests."""
+    """21 searchable bound skills so sync_discover_capability_tool mounts (hidden_count > 0)."""
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-    return [
+    featured = SkillMetadata(
+        name="cap_integration_skill",
+        description="Integration test skill to enable discover gateway binding.",
+        model_invocable=True,
+        available=True,
+        always=True,
+    )
+    skills = [
         SkillMetadata(
-            name="gap_integration_skill",
-            description="Integration test skill to enable discover gateway binding.",
+            name=f"cap_bound_skill_{index:02d}",
+            description=f"Capability integration bound skill {index}",
+            model_invocable=True,
+            available=True,
         )
+        for index in range(_SEARCH_MOUNT_SKILL_COUNT)
     ]
+    skills[0] = featured
+    return skills
+
+
+def _bm25_tokens(text: str) -> set[str]:
+    from myrm_agent_harness.toolkits.retriever.bm25_retrieval import preprocess_text
+
+    return set(preprocess_text(text))
+
+
+def _assert_discover_miss_query_disjoint_from_fixture_names() -> None:
+    """Miss query must not BM25-token-overlap fixture index docs (prevents false PASS/FAIL)."""
+    from myrm_agent_harness.agent.meta_tools.skills.search.engine import (
+        SkillSearchEngine,
+        _build_skill_index_document,
+    )
+
+    query_tokens = _bm25_tokens(_DISCOVER_MISS_QUERY)
+    overlaps: list[tuple[str, set[str]]] = []
+    for skill in _discover_gateway_skills():
+        doc_tokens = _bm25_tokens(_build_skill_index_document(skill))
+        shared = query_tokens & doc_tokens
+        if shared:
+            overlaps.append((skill.name, shared))
+    assert not overlaps, (
+        f"_DISCOVER_MISS_QUERY shares BM25 tokens with fixture index docs: {overlaps}"
+    )
+
+    engine = SkillSearchEngine(_discover_gateway_skills(), enable_query_expansion=False)
+    assert engine.search_bm25(_DISCOVER_MISS_QUERY) == []
+
+
+def test_discover_miss_query_disjoint_from_fixture_skill_names() -> None:
+    """Regression guard: miss query must not accidentally BM25-match bound skill fixtures."""
+    _assert_discover_miss_query_disjoint_from_fixture_names()
 
 
 def _collect_agent_stream(
@@ -185,8 +233,8 @@ async def test_discover_miss_returns_not_found_without_gap_block_or_sse(
         _capture,
     )
 
-    gap_query = "zzz_gap_browser_selenium_website_7742"
-    result = await discover.ainvoke({"query": gap_query})
+    miss_query = _DISCOVER_MISS_QUERY
+    result = await discover.ainvoke({"query": miss_query})
     assert "No capabilities found" in result
     assert "<CapabilityGap>" not in result
     assert "<SkillGap>" not in result
@@ -465,7 +513,7 @@ def test_agent_stream_discover_miss_does_not_emit_capability_gap_sse(
     client: TestClient,
 ) -> None:
     """Real agent-stream: discover miss must not emit discover-driven capability_gap SSE."""
-    gap_query = "zzz_gap_browser_selenium_website_7742"
+    miss_query = _DISCOVER_MISS_QUERY
     chat_id = f"test_cap_gap_{uuid.uuid4().hex[:8]}"
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
     assert create_response.status_code == 200
@@ -475,7 +523,7 @@ def test_agent_stream_discover_miss_does_not_emit_capability_gap_sse(
         "chat_id": chat_id,
         "query": (
             "You MUST call skill_search_tool exactly once with query "
-            f"'{gap_query}'. Do not call any other tool. "
+            f"'{miss_query}'. Do not call any other tool. "
             "After the tool returns, reply with the single word DONE."
         ),
         "action_mode": "agent",

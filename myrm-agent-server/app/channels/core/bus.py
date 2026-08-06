@@ -14,7 +14,9 @@ priority-based dispatch with back-pressure.
 
 [OUTPUT]
 - MessageBus: async message bus managing outbound/inbound queues and channel registration
-- MessageBus.send_tracked(): bypasses queue for direct send, returns message_id; on failure persists to DLQ and invokes on_permanent_failure
+- MessageBus.publish_outbound(): enqueues with DurableOutboundGate disk persist (IM channels)
+- MessageBus.send_tracked(): bypasses queue for direct send, returns message_id; null-send guard; on failure persists to DLQ and invokes on_permanent_failure
+- MessageBus._maybe_recover_durable_outbound(): re-injects disk-pending when outbound queue has capacity
 - MessageBus._record_outbound_failure(): shared DLQ + permanent-failure callback for sync and async send paths
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
 - downgrade_components: interactive component downgrade (appends text fallback when channel lacks support)
@@ -52,6 +54,7 @@ from myrm_agent_harness.infra.delivery.storage import (
 from app.channels.core.base import BaseChannel
 from app.channels.core.events import EventEmitter
 from app.channels.i18n import channel_t, get_locale_from_metadata
+from app.channels.reliability.durable_outbound import DurableOutboundGate
 from app.channels.reliability.rate_limiter import (
     TokenBucket,
     create_limiter,
@@ -339,6 +342,11 @@ class MessageBus:
         self.on_permanent_failure = on_permanent_failure
         self._notification_ledger = notification_ledger
         self._presync_notified_delivery_ids: set[str] = set()
+        self._durable_outbound = DurableOutboundGate(dlq_dir)
+
+    @property
+    def durable_outbound(self) -> DurableOutboundGate:
+        return self._durable_outbound
 
     def _is_permanent_failure_already_notified(self, delivery_id: str) -> bool:
         if delivery_id in self._presync_notified_delivery_ids:
@@ -410,6 +418,8 @@ class MessageBus:
         retries_exhausted: bool,
     ) -> None:
         """Persist a failed outbound send to DLQ and optionally notify permanent failure."""
+        await self._durable_outbound.ack(msg)
+
         if self._dlq_dir is None and self.on_permanent_failure is None:
             return
 
@@ -489,16 +499,25 @@ class MessageBus:
         """Read-only access to registered channels (used by Gateway)."""
         return self._channels
 
-    async def publish_outbound(self, msg: OutboundMessage) -> None:
+    async def publish_outbound(
+        self,
+        msg: OutboundMessage,
+        *,
+        _skip_durable_persist: bool = False,
+    ) -> None:
         """Enqueue an outbound message for priority-based delivery."""
         self._ensure_queues()
         assert self._outbound is not None
         msg = _apply_correlation_context(msg)
+        if not _skip_durable_persist:
+            msg = await self._durable_outbound.prepare_enqueue(msg)
         try:
             self._outbound_seq += 1
             self._outbound.put_nowait((msg.priority, self._outbound_seq, msg))
+            self._durable_outbound.track_enqueued(msg)
         except asyncio.QueueFull:
             logger.warning("Outbound queue full, dropping message for channel '%s'", msg.channel)
+            self._durable_outbound.release_inflight(msg)
 
     async def send_tracked(self, msg: OutboundMessage) -> str | None:
         """Send a message directly (bypassing the queue) and return its platform message_id.
@@ -515,8 +534,12 @@ class MessageBus:
         if channel.status == ChannelStatus.DISABLED:
             logger.debug("Channel '%s' is disabled, cannot send_tracked", msg.channel)
             return None
+        if channel.status == ChannelStatus.STOPPED:
+            logger.debug("Channel '%s' is stopped, cannot send_tracked", msg.channel)
+            return None
         msg = downgrade_components(msg, channel)
         msg = _apply_outbound_risk_gate(msg)
+        msg = await self._durable_outbound.persist_direct_send(msg)
 
         rate_limit = channel.capabilities.send_rate_limit
         if rate_limit > 0:
@@ -527,7 +550,9 @@ class MessageBus:
 
         t0 = time.monotonic()
         try:
+            await self._durable_outbound.mark_attempting(msg)
             if await self._try_cp_egress(msg):
+                await self._durable_outbound.ack(msg)
                 latency_ms = (time.monotonic() - t0) * 1000
                 channel.activity.record_outbound(latency_ms=latency_ms)
                 if rate_limit > 0:
@@ -542,6 +567,14 @@ class MessageBus:
                 extract_retry_after=channel.extract_retry_after,
                 label=f"send_tracked:{msg.channel}",
             )
+            if result is None:
+                await self._record_outbound_failure(
+                    msg,
+                    "channel send returned no message_id",
+                    retries_exhausted=True,
+                )
+                return None
+            await self._durable_outbound.ack(msg)
             latency_ms = (time.monotonic() - t0) * 1000
             channel.activity.record_outbound(latency_ms=latency_ms)
             if rate_limit > 0:
@@ -637,6 +670,7 @@ class MessageBus:
                 self._dlq.mark_permanent_failure_notified(delivery_id)
             self._presync_notified_delivery_ids.clear()
             await self._dlq.start()
+            await self._durable_outbound.recover_into_bus(self)
         logger.info("MessageBus started (channels: %s)", ", ".join(self._channels) or "none")
 
     async def stop(self) -> None:
@@ -687,6 +721,14 @@ class MessageBus:
         )
         return result is not None
 
+    async def _maybe_recover_durable_outbound(self) -> None:
+        """Re-inject disk-pending deliveries when the in-memory queue has capacity."""
+        if not self._durable_outbound.is_enabled() or self._outbound is None:
+            return
+        if self._outbound.qsize() >= self._max_queue_size:
+            return
+        await self._durable_outbound.recover_into_bus(self)
+
     async def _dispatch_loop(self) -> None:
         """Continuously dequeue outbound messages and route to channels (priority order)."""
         self._ensure_queues()
@@ -695,6 +737,7 @@ class MessageBus:
             try:
                 _priority, _seq, msg = await asyncio.wait_for(self._outbound.get(), timeout=1.0)
             except TimeoutError:
+                await self._maybe_recover_durable_outbound()
                 continue
             except asyncio.CancelledError:
                 break
@@ -702,11 +745,21 @@ class MessageBus:
             channel = self._channels.get(msg.channel)
             if not channel:
                 if await self._try_cp_egress(msg):
+                    await self._durable_outbound.ack(msg)
                     continue
-                logger.warning("No channel registered for '%s', dropping message", msg.channel)
+                logger.warning(
+                    "No channel registered for '%s', retaining durable outbound obligation",
+                    msg.channel,
+                )
+                self._durable_outbound.release_inflight(msg)
                 continue
-            if channel.status == ChannelStatus.DISABLED:
-                logger.debug("Channel '%s' is disabled, dropping message", msg.channel)
+            if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
+                logger.debug(
+                    "Channel '%s' is %s, retaining durable outbound obligation",
+                    msg.channel,
+                    channel.status.value,
+                )
+                self._durable_outbound.release_inflight(msg)
                 continue
 
             if channel.health.circuit_open:
@@ -737,7 +790,9 @@ class MessageBus:
 
             t0 = time.monotonic()
             try:
+                await self._durable_outbound.mark_attempting(msg)
                 if await self._try_cp_egress(msg):
+                    await self._durable_outbound.ack(msg)
                     latency_ms = (time.monotonic() - t0) * 1000
                     channel.activity.record_outbound(latency_ms=latency_ms)
                     channel.health.record_success()
@@ -745,7 +800,7 @@ class MessageBus:
                         self._last_send_times[msg.channel] = time.monotonic()
                     continue
 
-                await send_with_retry(
+                send_result = await send_with_retry(
                     channel.send,
                     msg,
                     config=channel.retry_config,
@@ -753,6 +808,14 @@ class MessageBus:
                     extract_retry_after=channel.extract_retry_after,
                     label=f"send:{msg.channel}",
                 )
+                if send_result is None:
+                    await self._record_outbound_failure(
+                        msg,
+                        "channel send returned no message_id",
+                        retries_exhausted=True,
+                    )
+                    continue
+                await self._durable_outbound.ack(msg)
                 latency_ms = (time.monotonic() - t0) * 1000
                 channel.activity.record_outbound(latency_ms=latency_ms)
                 channel.health.record_success()

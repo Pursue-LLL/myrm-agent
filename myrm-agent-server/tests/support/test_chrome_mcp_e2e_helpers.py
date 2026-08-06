@@ -848,7 +848,9 @@ def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
     assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() >= 69.0
 
 
-def test_shared_read_parallel_open_page_retry_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_shared_read_parallel_open_page_retry_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MYRM_E2E_LANE", "READ")
     monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
     assert _shared_read_parallel_open_page_retry_allowed() is True
@@ -865,5 +867,7 @@ def test_open_page_attempt_count_allows_read_lane_parallel_retry(
     monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
     monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    monkeypatch.setattr(chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False)
+    monkeypatch.setattr(
+        chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False
+    )
     assert _open_page_attempt_count() == 2

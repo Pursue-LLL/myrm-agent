@@ -786,6 +786,22 @@ async def _wiki_concept_part(
         return _xml_error(f"@wiki:{concept_name}", "read failed"), 0
 
 
+async def _load_prior_chat_document(chat_id: str):
+    from app.database.repositories.uow import UnitOfWork
+    from app.database.repositories.conversation_recall.lookup_repo import (
+        ConversationRecallLookupRepository,
+    )
+
+    async with UnitOfWork() as uow:
+        session = uow.session
+        if session is None:
+            return None
+        return await ConversationRecallLookupRepository.fetch_prior_chat_document(
+            session,
+            chat_id=chat_id,
+        )
+
+
 async def _prior_chat_part(
     chat_id: str,
     display: str,
@@ -802,6 +818,9 @@ async def _prior_chat_part(
         ConversationRecallLookupRepository,
     )
     from app.services.chat.chat_crud import _ChatCrudMixin
+    from app.services.chat.conversation_recall_index_service import (
+        ConversationRecallIndexService,
+    )
 
     chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
     if chat is None:
@@ -809,16 +828,17 @@ async def _prior_chat_part(
     if chat.is_incognito:
         return _xml_error(display, "incognito chats cannot be referenced"), 0
 
-    async with UnitOfWork() as uow:
-        session = uow.session
-        if session is None:
-            return _xml_error(display, "recall unavailable"), 0
-        row = await ConversationRecallLookupRepository.fetch_prior_chat_document(
-            session,
-            chat_id=chat_id,
-        )
+    row = await _load_prior_chat_document(chat_id)
+    if row is None:
+        async with UnitOfWork() as uow:
+            session = uow.session
+            if session is not None:
+                await ConversationRecallIndexService.rebuild_chat(session, chat_id)
+        row = await _load_prior_chat_document(chat_id)
 
-    if row is None or row.is_excluded:
+    if row is None:
+        return _xml_error(display, "recall index unavailable"), 0
+    if row.is_excluded:
         return _xml_error(display, "chat is excluded from recall"), 0
 
     title = row.title or chat.title or "Untitled conversation"

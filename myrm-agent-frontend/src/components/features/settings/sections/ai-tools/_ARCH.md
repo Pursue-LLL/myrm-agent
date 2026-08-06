@@ -14,7 +14,7 @@ Settings「AI Tools」分组：MCP、技能与工具质量仪表盘 Section。
 | `CompoundingChecklistSection.tsx` | MSC 复利四行 checklist + SkillsLearnPanel 入口 |
 | `WorkflowTemplateScriptPreview.tsx` | 库页只读脚本预览（GET detail） |
 | `WorkflowTemplateArgsDialog.tsx` | Run 前 `{placeholder}` 参数表单（Library Run + Cron 创建复用） |
-| `WorkflowTemplateLibrarySection.tsx` | DW 命名模板库列表、Run（自动 send + 跳转 chat）、Delete |
+| `WorkflowTemplateLibrarySection.tsx` | DW 命名模板库列表、Run、Export/Import（`lib/workflow/useWorkflowTemplateTransfer`）、Delete | ✅ |
 | `ToolStabilitySection.tsx` | 工具稳定性统计 |
 | `ToolQualitySection.tsx` | 工具质量概览 |
 | `SkillQualitySection.tsx` | 技能质量详情 |

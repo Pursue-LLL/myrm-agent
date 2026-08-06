@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - ConversationRecallIndexService: Server business service for recall index lifecycle and management queries.
+- search_citable_chats: GUI @chat: recall-index search (SSOT with prior_chat inject).
 
 [POS]
 Conversation Recall 索引生命周期服务。统一编排索引回填、重建、增量追加、排除/恢复、删除、健康检查和前端管理列表。
@@ -14,15 +15,23 @@ Conversation Recall 索引生命周期服务。统一编排索引回填、重建
 
 from __future__ import annotations
 
+import logging
+import re
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models.chat import Chat
 from app.database.repositories.conversation_recall import (
     ConversationRecallDocumentRow,
     ConversationRecallRepository,
 )
 from app.database.repositories.uow import UnitOfWork
+
+logger = logging.getLogger(__name__)
+
+_MARK_TAG_RE = re.compile(r"</?mark>", re.IGNORECASE)
 
 
 class ConversationRecallIndexService:
@@ -65,7 +74,9 @@ class ConversationRecallIndexService:
             session = uow.session
             if session is None:
                 return False
-            return await ConversationRecallRepository.set_excluded(session, chat_id, excluded)
+            return await ConversationRecallRepository.set_excluded(
+                session, chat_id, excluded
+            )
 
     @staticmethod
     async def list_documents(
@@ -112,5 +123,88 @@ class ConversationRecallIndexService:
                 "missing_segments": health.missing_segments,
                 "fts_ready": health.fts_ready,
                 "segments_fts_ready": health.segments_fts_ready,
-                "last_indexed_at": health.last_indexed_at.isoformat() if health.last_indexed_at else None,
+                "last_indexed_at": (
+                    health.last_indexed_at.isoformat()
+                    if health.last_indexed_at
+                    else None
+                ),
             }
+
+    @staticmethod
+    async def search_citable_chats(
+        query: str,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        exclude_chat_id: str | None = None,
+    ) -> tuple[list[dict[str, object]], int]:
+        """Search indexed conversations for GUI @chat: citation (recall SSOT)."""
+        from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
+
+        safe_query = sanitize_fts5_query(query.strip())
+        if not safe_query:
+            return [], 0
+
+        safe_limit = min(max(limit, 1), 100)
+        safe_offset = max(offset, 0)
+        candidate_limit = min(max(safe_limit + safe_offset, safe_limit) * 3, 100)
+
+        async with UnitOfWork() as uow:
+            session = uow.session
+            if session is None:
+                return [], 0
+            rows = await ConversationRecallRepository.search(
+                session,
+                safe_query=safe_query,
+                limit=candidate_limit,
+                current_chat_id=exclude_chat_id,
+                agent_id=None,
+                current_source=None,
+                scope="all",
+                lineage_chat_ids=[],
+                since=None,
+                until=None,
+            )
+            visible_chat_ids = await _public_chat_ids(
+                session, [row.chat_id for row in rows]
+            )
+
+            items: list[dict[str, object]] = []
+            for row in rows:
+                if row.chat_id not in visible_chat_ids:
+                    continue
+                snippet = _MARK_TAG_RE.sub("", row.snippet or "").strip()
+                sent_at = (
+                    row.last_message_at.isoformat() if row.last_message_at else None
+                )
+                title = row.title or "Untitled conversation"
+                items.append(
+                    {
+                        "id": row.message_id or row.chat_id,
+                        "chat_id": row.chat_id,
+                        "role": "assistant",
+                        "content": snippet,
+                        "sent_at": sent_at,
+                        "chat_title": title,
+                        "snippet": snippet,
+                    }
+                )
+
+        total = len(items)
+        page = items[safe_offset : safe_offset + safe_limit]
+        return page, total
+
+
+async def _public_chat_ids(session: AsyncSession, chat_ids: list[str]) -> set[str]:
+    unique_ids = list(dict.fromkeys(chat_ids))
+    if not unique_ids:
+        return set()
+    rows = (
+        await session.execute(
+            select(Chat.id).where(
+                Chat.id.in_(unique_ids),
+                Chat.is_incognito.is_(False),
+            )
+        )
+    ).scalars()
+    return {str(chat_id) for chat_id in rows}

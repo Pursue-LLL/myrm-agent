@@ -48,27 +48,25 @@ def _get_manager() -> CronManager:
     return get_cron_manager()
 
 
-def _workflow_template_display_names(template_ids: frozenset[str]) -> dict[str, str]:
-    if not template_ids:
-        return {}
-    from app.services.workflow_templates.service import get_template_store
-
-    store = get_template_store()
-    names: dict[str, str] = {}
-    for template_id in template_ids:
-        record = store.get_template(template_id)
-        if record is not None:
-            names[template_id] = record.display_name
-    return names
-
-
-def _resolve_workflow_template_display_name(template_id: str | None) -> str | None:
+def _resolve_cron_workflow_template_display_name(
+    template_id: str | None,
+    template_args: dict[str, str] | None,
+) -> str | None:
+    """Return display name only when the Cron binding passes execution-time validation."""
     if not template_id:
         return None
     normalized = template_id.strip()
     if not normalized:
         return None
-    return _workflow_template_display_names(frozenset({normalized})).get(normalized)
+    from app.services.workflow_templates.service import get_template_store
+    from app.services.workflow_templates.validation import validate_cron_template_at_execution
+
+    if validate_cron_template_at_execution(normalized, template_args):
+        return None
+    record = get_template_store().get_template(normalized)
+    if record is None:
+        return None
+    return record.display_name
 
 
 def _to_response(
@@ -78,8 +76,9 @@ def _to_response(
     workflow_template_display_name: str | None = None,
 ) -> CronJobResponse:
     if workflow_template_display_name is None:
-        workflow_template_display_name = _resolve_workflow_template_display_name(
+        workflow_template_display_name = _resolve_cron_workflow_template_display_name(
             job.workflow_template_id,
+            job.workflow_template_args,
         )
     return CronJobResponse(
         id=job.id,
@@ -142,20 +141,13 @@ def _jobs_to_responses(
     jobs: list[CronJob],
     monitor_states: dict[str, MonitorState],
 ) -> list[CronJobResponse]:
-    template_ids = frozenset(
-        job.workflow_template_id.strip()
-        for job in jobs
-        if job.workflow_template_id and job.workflow_template_id.strip()
-    )
-    display_names = _workflow_template_display_names(template_ids)
     return [
         _to_response(
             job,
             monitor_states.get(job.id),
-            workflow_template_display_name=(
-                display_names.get(job.workflow_template_id.strip())
-                if job.workflow_template_id and job.workflow_template_id.strip()
-                else None
+            workflow_template_display_name=_resolve_cron_workflow_template_display_name(
+                job.workflow_template_id,
+                job.workflow_template_args,
             ),
         )
         for job in jobs

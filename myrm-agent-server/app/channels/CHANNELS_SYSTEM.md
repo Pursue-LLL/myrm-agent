@@ -398,6 +398,7 @@ AgentRouter.consume()
 Agent/Cron → OutboundMessage
     ↓
 MessageBus 出站分发
+    ├── DurableOutboundGate.save (IM 渠道，web/chat 跳过)
     ├── [DISABLED 检查]
     ├── 自动重试 (指数退避)
     ├── 持久化死信队列 (DeadLetterQueue)
@@ -407,7 +408,11 @@ MessageBus 出站分发
         ├── send_with_retry(chunk) (指数退避)
         ├── [媒体附件] safe_download_media() → SSRF 验证 → 下载 → 上传到平台
         └── activity.record_outbound()
+            └── ack_delivery (成功后删除磁盘队列条目)
 ```
+
+进程重启时 `DurableOutboundGate.recover_into_bus` 自动重注入未送达消息；`attempting` 阶段中断恢复时前缀 i18n 提示。
+
 
 **出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），
 所有出站媒体下载通过 `channels.media.MediaDownloader` 执行（内置 `SSRFValidator`），
@@ -465,6 +470,17 @@ StreamCoordinator
 - `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
 - 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，GPLv3 SILK→WAV）、`voice-tts`（edge-tts）、`local-stt`（faster-whisper）；官方 Docker 镜像 `--all-extras` 含上述 optional；Desktop 商业包不含 GPL extras
 - **WeChat Official 草稿（HITL）**：`POST /channels/manage/wechat-official/draft`（`htmlPath` + `title` + 可选 `coverPath` → WebUI 文内首图自动预填 + workspace 图片 suggest + 手动路径 → `relative_to` 路径校验 + workspace 未知 fail-closed → formatter 块级 inline style（SSOT 生成 head CSS + img/h2 等）+ inline 图先于 thumb + **draft content 为 body 片段并内嵌 style** → uploadimg + draft/add）；Settings 含 IP 白名单指引；凭证键 `wechatOfficialCredentials`；与 personal `wechat` iLink 独立；Agent 不持 draft tool
+
+### 7.5 出站持久化（Durable Outbound Gate）
+
+- IM 渠道（非 web/chat/silent）在 `MessageBus.publish_outbound` 前写入 harness `delivery-queue` 磁盘
+- 发送成功 `ack_delivery`；永久失败移交 DLQ 后 ack 磁盘条目
+- 进程重启 `recover_into_bus` 重注入内存队列；dispatch 空闲时亦自动 recover（QueueFull 后无需重启）；`attempting` 中断恢复带 i18n 前缀
+- 渠道 DISABLED / STOPPED 或未注册（非 CP egress）时 **保留** 磁盘 obligation（不 ack）；`enable_channel` 触发 recover
+- `channel.send` / CP egress 未返回 `message_id` 时 **不得 ack**（dispatch → DLQ；cron → 抛错留盘）
+- `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
+- 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重
+- 云托管 CP egress：`cp_egress_client` 仅在 CP 返回 `message_id` 时视为成功
 
 ---
 

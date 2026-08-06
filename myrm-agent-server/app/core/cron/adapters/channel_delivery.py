@@ -93,9 +93,11 @@ class ChannelResultDelivery:
             raise RuntimeError(f"Channel '{msg.channel}' is {channel.status}")
 
         msg = downgrade_components(msg, channel)
+        msg = await channel_gateway.bus.durable_outbound.persist_direct_send(msg)
         t0 = time.monotonic()
         try:
-            await send_with_retry(
+            await channel_gateway.bus.durable_outbound.mark_attempting(msg)
+            send_result = await send_with_retry(
                 channel.send,
                 msg,
                 config=channel.retry_config,
@@ -103,6 +105,9 @@ class ChannelResultDelivery:
                 extract_retry_after=channel.extract_retry_after,
                 label=f"cron-delivery:{msg.channel}",
             )
+            if send_result is None:
+                raise RuntimeError("channel send returned no message_id")
+            await channel_gateway.bus.durable_outbound.ack(msg)
             channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
         except BaseException:
             channel.activity.record_error()

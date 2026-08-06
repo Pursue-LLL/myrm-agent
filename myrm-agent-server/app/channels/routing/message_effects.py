@@ -213,9 +213,13 @@ class MessageEffects:
         max_len = ch.capabilities.max_text_length or 4096
         chunks = split_message(result.content, max_len)
 
+        meta = dict(result.metadata) if isinstance(result.metadata, dict) else {}
+        first_result = dataclasses.replace(result, content=chunks[0], metadata=meta)
+        first_result = await self._bus.durable_outbound.persist_direct_send(first_result)
+
         try:
             logger.debug("editing placeholder with %d chars", len(chunks[0]))
-            first_result = dataclasses.replace(result, content=chunks[0])
+            await self._bus.durable_outbound.mark_attempting(first_result)
             await send_with_retry(
                 ch.edit_placeholder_message,
                 chat_id,
@@ -226,11 +230,13 @@ class MessageEffects:
                 extract_retry_after=ch.extract_retry_after,
                 label=f"edit:{channel}",
             )
+            await self._bus.durable_outbound.ack(first_result)
             for extra_chunk in chunks[1:]:
                 extra = dataclasses.replace(result, content=extra_chunk)
                 await self._bus.publish_outbound(extra)
         except Exception as exc:
             logger.warning("placeholder edit failed, sending normally: %s", exc)
+            await self._bus.durable_outbound.ack(first_result)
             await self._bus.publish_outbound(result)
 
     async def cleanup_placeholder(

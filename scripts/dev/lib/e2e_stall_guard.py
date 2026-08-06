@@ -124,7 +124,20 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
     if phase == "bootstrap":
         from dev_gate_contract import (
             E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN,
+            resolve_transport_stall_cap_sec,
         )  # noqa: PLC0415
+
+        open_page_family = node.startswith("open_mcp_page") or node.startswith(
+            "open_page_"
+        )
+        if open_page_family:
+            stall_cap = resolve_transport_stall_cap_sec(current_node=node)
+            if elapsed >= stall_cap:
+                return (
+                    f"{E2E_NODE_STUCK_TOKEN}: node={node!r} "
+                    f"node_elapsed={int(elapsed)}s>={int(stall_cap)}s"
+                )
+            return None
 
         try:
             from transport_supervisor import bootstrap_wall_cap_sec

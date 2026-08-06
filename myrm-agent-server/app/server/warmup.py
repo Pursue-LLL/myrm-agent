@@ -24,6 +24,7 @@ from collections.abc import Awaitable
 from myrm_agent_harness.utils.runtime.wakeup_registry import set_global_wakeup_handler
 
 from app.config.settings import settings
+from app.database.repositories.uow import UnitOfWork
 from app.lifecycle import (
     auto_continue_interrupted_turns,
     cleanup_browser_threads,
@@ -230,6 +231,23 @@ async def run_async_warmup() -> None:
     warmup_tasks: list[Awaitable[object]] = []
 
     _ensure_context_bundle_layout()
+
+    async def _bootstrap_conversation_recall_index() -> None:
+        from app.services.chat.conversation_recall_index_service import (
+            ConversationRecallIndexService,
+        )
+
+        try:
+            async with UnitOfWork() as uow:
+                session = uow.session
+                if session is None:
+                    return
+                await ConversationRecallIndexService.bootstrap_missing(session)
+            logger.info("[Startup] Conversation recall bootstrap_missing completed")
+        except Exception as exc:
+            logger.warning("[Startup] Conversation recall bootstrap failed: %s", exc)
+
+    await _bootstrap_conversation_recall_index()
 
     await start_memory_pressure_monitor()
 

@@ -250,6 +250,7 @@ placeholder_retrying =
     
     
     [Retrying... { $attempt }/{ $max_retries }]
+durable_outbound_recovered = Recovered delivery — you may receive a duplicate message.
 error_rate_limit = API rate limit reached — the model couldn't generate a response. Please try again in a moment.
 error_overloaded = The AI service is temporarily overloaded. Please try again in a moment.
 error_billing = Service temporarily unavailable due to a configuration issue. Please contact the administrator.

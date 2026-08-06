@@ -9,7 +9,7 @@
  *
  * [OUTPUT]
  * WorkflowTemplateEditor: edit Cron job workflow template binding and args via PATCH;
- * missing-template amber warning with unbind; load-failure retry surface.
+ * missing-template amber warning with unbind; invalid binding follows server display_name.
  *
  * [POS]
  * CronRunHistory per-job editor. Mirrors create-dialog trust-latch template picker.
@@ -102,13 +102,12 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
     [templateId, templates],
   );
 
-  const templateMissing =
-    templateId !== '__none__' &&
-    !loadingTemplates &&
-    !templatesLoadFailed &&
-    selectedTemplate === null;
-
   const serverTemplateId = normalizeTemplateId(job.workflow_template_id);
+  const serverBindingInvalid =
+    serverTemplateId !== '__none__' && !job.workflow_template_display_name?.trim();
+
+  const templateMissing = serverBindingInvalid && templateId === serverTemplateId;
+
   const dirty =
     templateId !== serverTemplateId ||
     !argsEqual(templateArgs, job.workflow_template_args);
@@ -142,7 +141,10 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
   );
 
   const handleSave = useCallback(() => {
-    if (templateId !== '__none__' && !selectedTemplate) {
+    if (templateId !== '__none__' && templateMissing && templateId === serverTemplateId) {
+      return;
+    }
+    if (templateId !== '__none__' && !selectedTemplate && !templateMissing) {
       return;
     }
     if (
@@ -155,18 +157,34 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
       return;
     }
     void persistBinding(templateId, templateArgs);
-  }, [persistBinding, selectedTemplate, templateArgs, templateId]);
+  }, [persistBinding, selectedTemplate, templateArgs, templateId, templateMissing, serverTemplateId]);
 
-  const handleUnbind = useCallback(() => {
+  const handleUnbind = useCallback(async () => {
+    const previousTemplateId = templateId;
+    const previousTemplateArgs = templateArgs;
     setTemplateId('__none__');
     setTemplateArgs(null);
-    void persistBinding('__none__', null);
-  }, [persistBinding]);
+    setSaving(true);
+    try {
+      await updateCronJob(job.id, {
+        workflow_template_id: null,
+        workflow_template_args: null,
+      });
+      onUpdated();
+      toast.success(t('workflowTemplateUpdated'));
+    } catch {
+      setTemplateId(previousTemplateId);
+      setTemplateArgs(previousTemplateArgs);
+      toast.error(t('actionFail'));
+    } finally {
+      setSaving(false);
+    }
+  }, [job.id, onUpdated, t, templateArgs, templateId]);
 
   const displayLabel =
     job.workflow_template_display_name?.trim() ||
     selectedTemplate?.display_name ||
-    (job.workflow_template_id?.trim() ?? '');
+    (templateMissing ? templateId : job.workflow_template_id?.trim() ?? '');
 
   return (
     <div className="rounded-lg border border-border/60 bg-card/60 px-4 py-3 space-y-3">

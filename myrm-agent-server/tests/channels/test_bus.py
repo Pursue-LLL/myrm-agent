@@ -431,6 +431,19 @@ class TestMessageBusEdgeCases:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_send_tracked_stopped_channel_returns_none(self, tmp_path) -> None:
+        from app.channels.types import ChannelStatus
+        from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+        bus = MessageBus(dlq_dir=tmp_path)
+        ch = FakeChannel()
+        bus.register_channel(ch)
+        ch._status = ChannelStatus.STOPPED
+        result = await bus.send_tracked(_make_out())
+        assert result is None
+        assert await load_pending_deliveries(base_dir=tmp_path) == []
+
+    @pytest.mark.asyncio
     async def test_send_tracked_send_failure_returns_none(self) -> None:
         class FailSendChannel(FakeChannel):
             async def send(self, msg: OutboundMessage) -> str | None:
@@ -441,6 +454,54 @@ class TestMessageBusEdgeCases:
         bus.register_channel(ch)
         result = await bus.send_tracked(_make_out())
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_send_tracked_null_send_no_false_ack(self, tmp_path) -> None:
+        class NullSendChannel(FakeChannel):
+            async def send(self, msg: OutboundMessage) -> str | None:
+                self.sent.append(msg)
+                return None
+
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        bus = MessageBus(dlq_dir=dlq_dir)
+        bus.register_channel(NullSendChannel())
+        await bus.start()
+        try:
+            result = await bus.send_tracked(_make_out(content="null guard"))
+            assert result is None
+            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+            assert await load_pending_deliveries(base_dir=dlq_dir) == []
+            dlq = await bus.get_dlq_messages()
+            assert len(dlq) == 1
+        finally:
+            await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_null_send_moves_to_dlq(self, tmp_path) -> None:
+        class NullSendChannel(FakeChannel):
+            async def send(self, msg: OutboundMessage) -> str | None:
+                self.sent.append(msg)
+                return None
+
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        bus = MessageBus(dlq_dir=dlq_dir)
+        ch = NullSendChannel()
+        bus.register_channel(ch)
+        await bus.start()
+        try:
+            await bus.publish_outbound(_make_out(content="dispatch null"))
+            await asyncio.sleep(2.0)
+            assert len(ch.sent) == 1
+            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+            assert await load_pending_deliveries(base_dir=dlq_dir) == []
+            dlq = await bus.get_dlq_messages()
+            assert len(dlq) == 1
+        finally:
+            await bus.stop()
 
     @pytest.mark.asyncio
     async def test_send_tracked_failure_invokes_permanent_failure_callback(self, tmp_path) -> None:
@@ -744,3 +805,76 @@ class TestOutboundRiskGate:
         assert msg_id is not None
         assert len(ch.sent) == 1
         assert "sk-abc123def456" not in ch.sent[0].content
+
+
+class TestCpEgressDispatch:
+    @pytest.mark.asyncio
+    async def test_dispatch_uses_cp_egress_when_routed(self, tmp_path) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        bus = MessageBus(dlq_dir=tmp_path)
+        ch = FakeChannel()
+        bus.register_channel(ch)
+        await bus.start()
+        try:
+            with (
+                patch(
+                    "app.services.channels.cp_egress_client.should_route_via_control_plane",
+                    return_value=True,
+                ),
+                patch(
+                    "app.services.channels.cp_egress_client.send_via_control_plane",
+                    new_callable=AsyncMock,
+                    return_value="cp-msg-1",
+                ),
+            ):
+                await bus.publish_outbound(_make_out(channel="feishu", content="via cp"))
+                await asyncio.sleep(0.5)
+            assert len(ch.sent) == 0
+            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+            assert await load_pending_deliveries(base_dir=tmp_path) == []
+        finally:
+            await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_stopped_channel_retains_disk(self, tmp_path) -> None:
+        from app.channels.types import ChannelStatus
+        from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+        bus = MessageBus(dlq_dir=tmp_path)
+        ch = FakeChannel()
+        ch._status = ChannelStatus.STOPPED
+        bus.register_channel(ch)
+        await bus.start()
+        try:
+            await bus.publish_outbound(_make_out(content="stopped retain"))
+            await asyncio.sleep(0.4)
+            assert len(ch.sent) == 0
+            assert len(await load_pending_deliveries(base_dir=tmp_path)) == 1
+        finally:
+            await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_unregistered_channel_cp_egress_acks(self, tmp_path) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        bus = MessageBus(dlq_dir=tmp_path)
+        await bus.start()
+        try:
+            with (
+                patch(
+                    "app.services.channels.cp_egress_client.should_route_via_control_plane",
+                    return_value=True,
+                ),
+                patch(
+                    "app.services.channels.cp_egress_client.send_via_control_plane",
+                    new_callable=AsyncMock,
+                    return_value="cp-msg-2",
+                ),
+            ):
+                await bus.publish_outbound(_make_out(channel="feishu", content="orphan cp"))
+                await asyncio.sleep(0.5)
+            assert await bus.durable_outbound.count_pending() == 0
+        finally:
+            await bus.stop()

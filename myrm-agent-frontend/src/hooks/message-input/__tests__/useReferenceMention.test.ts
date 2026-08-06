@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-const searchChatHistoryMock = vi.hoisted(() => vi.fn());
+const searchCitableChatsMock = vi.hoisted(() => vi.fn());
 const suggestReferencesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/chat', () => ({
-  searchChatHistory: (...args: unknown[]) => searchChatHistoryMock(...args),
+  searchCitableChats: (...args: unknown[]) => searchCitableChatsMock(...args),
   suggestReferences: (...args: unknown[]) => suggestReferencesMock(...args),
 }));
 
@@ -38,14 +38,14 @@ import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 
 describe('useReferenceMention chat mode', () => {
   beforeEach(() => {
-    searchChatHistoryMock.mockReset();
+    searchCitableChatsMock.mockReset();
     suggestReferencesMock.mockReset();
     chatStoreRef.state.chatId = 'composer-chat';
     chatStoreRef.state.addMentionReference = vi.fn();
   });
 
   it('loads prior chat suggestions for @chat: queries', async () => {
-    searchChatHistoryMock.mockResolvedValue({
+    searchCitableChatsMock.mockResolvedValue({
       items: [
         {
           chat_id: 'prior-chat-1',
@@ -65,14 +65,14 @@ describe('useReferenceMention chat mode', () => {
       expect(result.current.results.some((item) => item.reference_type === 'prior_chat')).toBe(true);
     });
 
-    expect(searchChatHistoryMock).toHaveBeenCalledWith('Alpha', 20, 0);
+    expect(searchCitableChatsMock).toHaveBeenCalledWith('Alpha', 20, 0, 'composer-chat');
     expect(suggestReferencesMock).not.toHaveBeenCalled();
 
     rerender({ message: '@chat:Alpha', cursor: '@chat:Alpha'.length });
   });
 
   it('adds prior_chat mention reference on select', async () => {
-    searchChatHistoryMock.mockResolvedValue({
+    searchCitableChatsMock.mockResolvedValue({
       items: [
         {
           chat_id: 'prior-chat-1',
@@ -103,7 +103,7 @@ describe('useReferenceMention chat mode', () => {
 
   it('loads prior chat suggestions on EmptyChat when chatId is undefined', async () => {
     chatStoreRef.state.chatId = undefined;
-    searchChatHistoryMock.mockResolvedValue({
+    searchCitableChatsMock.mockResolvedValue({
       items: [
         {
           chat_id: 'prior-chat-1',
@@ -121,7 +121,7 @@ describe('useReferenceMention chat mode', () => {
       );
     });
 
-    expect(searchChatHistoryMock).toHaveBeenCalledWith('Alpha', 20, 0);
+    expect(searchCitableChatsMock).toHaveBeenCalledWith('Alpha', 20, 0, undefined);
     expect(suggestReferencesMock).not.toHaveBeenCalled();
   });
 });

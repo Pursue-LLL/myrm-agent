@@ -95,8 +95,7 @@ class OrchestratorChromeClient:
     def _is_missing_session_context(self, message: str) -> bool:
         lowered = message.lower()
         return (
-            "no context for session" in lowered
-            or "mux_context_disconnected" in lowered
+            "no context for session" in lowered or "mux_context_disconnected" in lowered
         )
 
     def _ensure_session_context(self) -> None:
@@ -381,6 +380,8 @@ def _spawn_ensure_orchestrator() -> None:
         return
     env = os.environ.copy()
     env["MYRM_BROWSER_ORCHESTRATOR"] = "1"
+    if _effective_parallel_load() >= 2:
+        env["MYRM_BROWSER_ORCHESTRATOR_ENSURE_DONE"] = "1"
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
@@ -401,7 +402,8 @@ def _spawn_ensure_orchestrator() -> None:
 def _is_retryable_open_page_error(message: str) -> bool:
     lowered = message.lower()
     return (
-        "browser orchestrator response timeout" in lowered
+        "openpagetransaction wall timeout" in lowered
+        or "browser orchestrator response timeout" in lowered
         or "cdp request timeout" in lowered
         or "daemon not running" in lowered
         or "connection reset" in lowered
@@ -411,7 +413,13 @@ def _is_retryable_open_page_error(message: str) -> bool:
         or "cdp evaluate failed" in lowered
         or "page.navigate" in lowered
         or "connection refused" in lowered
-        or "daemon not running" in lowered
+        or "no such file or directory" in lowered
+        or "errno 2" in lowered
+        or "operation timeout: navigate" in lowered
+        or "operation queue timeout: navigate" in lowered
+        or "operation timeout: new_page" in lowered
+        or "operation queue timeout: new_page" in lowered
+        or "does not own target" in lowered
     )
 
 
@@ -428,24 +436,40 @@ def _effective_parallel_load() -> int:
 
 
 def _parallel_open_page_max_attempts() -> int:
+    """R299: cap retries — orchestrator fail-fast wall makes 8×480s storms pointless."""
     if _effective_parallel_load() >= 4:
-        return 8
+        return 3
     if _effective_parallel_load() >= 2:
-        return 5
+        return 3
     return 3
 
 
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
-    from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
+    from browser_orchestrator_client import (
+        orchestrator_open_tx_wall_sec,
+        orchestrator_socket_timeout_cap_sec,
+    )
 
     cap = orchestrator_socket_timeout_cap_sec()
+    wall = orchestrator_open_tx_wall_sec() + 30.0
     daemon_budget = float(daemon._timeout_sec)
-    burst_lanes = _effective_parallel_load()
-    if burst_lanes >= 4:
-        return min(cap, max(360.0, daemon_budget))
-    if burst_lanes >= 2:
-        return min(cap, max(120.0, daemon_budget))
-    return min(130.0, daemon_budget)
+    return min(cap, wall, daemon_budget)
+
+
+def _recreate_orchestrator_session(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+) -> None:
+    """Best-effort destroy stale mux context, then create a fresh BrowserContext."""
+    try:
+        daemon.destroy_session(session_id)
+    except (RuntimeError, TimeoutError, OSError):
+        pass
+    try:
+        daemon.create_session(session_id)
+    except RuntimeError as create_exc:
+        if "already" not in str(create_exc).lower():
+            raise
 
 
 def _open_page_transaction_with_retry(
@@ -457,7 +481,9 @@ def _open_page_transaction_with_retry(
     max_attempts: int | None = None,
 ) -> dict[str, object]:
     """Open page via orchestrator; retry transient CDP/mux stalls under parallel load."""
-    attempts = max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
+    attempts = (
+        max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
+    )
     open_timeout_sec = _parallel_open_page_timeout_sec(daemon)
     last_exc: BaseException | None = None
     for attempt in range(1, attempts + 1):
@@ -483,6 +509,12 @@ def _open_page_transaction_with_retry(
             if "daemon not running" in message.lower():
                 _spawn_ensure_orchestrator()
                 _wait_orchestrator_daemon_ready(daemon, wall_sec=45.0)
+            elif (
+                "no context for session" in message.lower()
+                or "mux_context_disconnected" in message.lower()
+                or "does not own target" in message.lower()
+            ):
+                _recreate_orchestrator_session(daemon, session_id)
             if attempt >= attempts:
                 break
             time.sleep(min(3.0 * float(attempt), 8.0))

@@ -6,7 +6,7 @@
  * next/link (POS: client navigation to Settings workflow library)
  *
  * [OUTPUT]
- * CronWorkflowTemplateBadge, CronWorkflowTemplateDetail: read-only template binding display.
+ * CronWorkflowTemplateBadge, CronWorkflowTemplateDetail: read-only template binding display; invalid bindings use amber Badge.
  *
  * [POS]
  * Cron list cards and compact surfaces. Links to Settings workflow template library.
@@ -35,6 +35,12 @@ function formatTemplateArgs(args: Record<string, string> | null | undefined): st
     .join(', ');
 }
 
+function isCronWorkflowTemplateBindingInvalid(job: CronWorkflowTemplateJob): boolean {
+  const templateId = job.workflow_template_id?.trim();
+  if (!templateId) return false;
+  return !job.workflow_template_display_name?.trim();
+}
+
 function resolveTemplateLabel(job: CronWorkflowTemplateJob): string {
   const templateId = job.workflow_template_id?.trim();
   if (!templateId) return '';
@@ -46,8 +52,26 @@ export function CronWorkflowTemplateBadge({ job }: { job: CronWorkflowTemplateJo
   const templateId = job.workflow_template_id?.trim();
   if (!templateId) return null;
 
+  const bindingInvalid = isCronWorkflowTemplateBindingInvalid(job);
   const label = resolveTemplateLabel(job);
   const argsSummary = formatTemplateArgs(job.workflow_template_args);
+
+  if (bindingInvalid) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Route className="h-3 w-3 shrink-0" />
+            <span className="truncate max-w-[120px]">{templateId}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{t('workflowTemplateUnavailable')}</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip>

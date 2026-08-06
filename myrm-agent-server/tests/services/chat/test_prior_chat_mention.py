@@ -35,6 +35,17 @@ async def test_prior_chat_reference_inlines_recall_document(
     assert warnings == []
     assert tokens > 0
 
+    from app.services.chat.conversation_recall_index_service import (
+        ConversationRecallIndexService,
+    )
+
+    items, total = await ConversationRecallIndexService.search_citable_chats(
+        "Docker",
+        limit=10,
+    )
+    assert total >= 1
+    assert any(item["chat_id"] == chat_id for item in items)
+
 
 @pytest.mark.asyncio
 async def test_prior_chat_reference_rejects_incognito(fts_db: AsyncSession) -> None:
@@ -146,3 +157,33 @@ async def test_ensure_chat_source_syncs_recall_document_source(
     ).first()
     assert row is not None
     assert row[0] == "cron"
+
+
+@pytest.mark.asyncio
+async def test_prior_chat_reference_rebuilds_missing_recall_document(
+    fts_db: AsyncSession,
+) -> None:
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    chat_id = await seed_chat_and_messages(fts_db)
+    await fts_db.execute(
+        text("DELETE FROM conversation_recall_documents WHERE chat_id = :chat_id"),
+        {"chat_id": chat_id},
+    )
+    await fts_db.commit()
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="prior_chat",
+                path=chat_id,
+                label="@chat:Docker deployment",
+            )
+        ],
+        "/tmp/workspace",
+    )
+
+    assert 'type="prior-chat"' in context
+    assert "Docker deployment discussion" in context
+    assert warnings == []
+    assert tokens > 0

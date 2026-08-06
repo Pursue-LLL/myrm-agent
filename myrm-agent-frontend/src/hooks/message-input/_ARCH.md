@@ -12,7 +12,7 @@
 | `useInputFileUpload.ts` | 粘贴/拖拽上传、Office 文本优先智能识别、SHA-256 去重、分级大小校验 |
 | `useInputHistory.ts` | ArrowUp 空框输入历史（per-agent localStorage） |
 | `useMessageInputWikiEvidenceCore.ts` | Wiki 证据复问口径与 steer success 挂起确认 |
-| `useReferenceMention.ts` | `@` 引用 autocomplete（workspace/wiki/**@chat: prior_chat**；`@chat:` 走全局 FTS，**不依赖** composer `chatId`，EmptyChat 可用） |
+| `useReferenceMention.ts` | `@` 引用 autocomplete（workspace/wiki/**@chat: prior_chat**；`@chat:` 走 **`searchCitableChats` → `/chats/recall/search`** recall SSOT，**不依赖** composer `chatId`，EmptyChat 可用） |
 | `useSlashCommand.ts` | `/` Slash 命令面板；skill 选中写入 pendingExplicitSkillActivation + chip |
 | `useSmoothStream.ts` | 流式 markdown 平滑渲染（message-box 消费） |
 

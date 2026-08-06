@@ -200,7 +200,10 @@ def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
         pass
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
-        from dev_gate_contract import phase_c_burst_lane_count, shared_ui_hydrate_wait_sec
+        from dev_gate_contract import (
+            phase_c_burst_lane_count,
+            shared_ui_hydrate_wait_sec,
+        )
         from stack_mutation_policy import wave_active_lease_count
         from transport_supervisor import parallel_active_test_count
 
@@ -278,9 +281,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
                 status = _do_get()
             if status == 200:
                 return True
-            last_error = RuntimeError(
-                f"warm_ui_route GET {url} returned HTTP {status}"
-            )
+            last_error = RuntimeError(f"warm_ui_route GET {url} returned HTTP {status}")
             if status in {404, 502, 503}:
                 _heal_shared_frontend()
                 next_heal_at = time.monotonic() + heal_interval
@@ -1694,7 +1695,27 @@ def _state_looks_blank(last: dict[str, object]) -> bool:
         relay = str(last.get("relayLine") or "")
         if not heading and not relay and last.get("pathname"):
             return True
+    pathname = str(last.get("pathname") or "")
+    if pathname in {"", "/"} or "blank" in pathname.lower():
+        return True
     return False
+
+
+def _looks_like_cdp_transport_error(message: str) -> bool:
+    lowered = message.lower()
+    return (
+        "browser orchestrator error" in lowered
+        or "browser orchestrator response timeout" in lowered
+        or "operation queue timeout" in lowered
+        or "operation timeout:" in lowered
+        or "cdp request timeout" in lowered
+        or "cdp not connected" in lowered
+        or "cdp connection closed" in lowered
+        or "cdp websocket closed" in lowered
+        or "no target with given id" in lowered
+        or "connection reset" in lowered
+        or "broken pipe" in lowered
+    )
 
 
 def wait_for_state(
@@ -1711,6 +1732,7 @@ def wait_for_state(
     polls = 0
     reload_passes = 0
     max_reload_passes = 3
+    transport_streak = 0
     ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
 
     while time.monotonic() < deadline:
@@ -1728,9 +1750,17 @@ def wait_for_state(
                 timeout_sec=max(5.0, min(eval_cap, remaining)),
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
-            last = {"ready": False, "err": str(exc)}
+            err_text = str(exc)
+            last = {"ready": False, "err": err_text}
+            if _looks_like_cdp_transport_error(err_text):
+                transport_streak += 1
+                if transport_streak >= 3:
+                    raise RuntimeError(err_text) from exc
+            else:
+                transport_streak = 0
             time.sleep(0.25)
             continue
+        transport_streak = 0
         last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last

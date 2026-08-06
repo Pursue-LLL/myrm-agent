@@ -398,6 +398,14 @@ class ChannelGateway:
             name=f"channel-{name}",
         )
         logger.info("Channel '%s' enabled", name)
+        if self.bus.durable_outbound.is_enabled():
+            recovered = await self.bus.durable_outbound.recover_into_bus(self.bus)
+            if recovered:
+                logger.info(
+                    "Recovered %d durable outbound deliveries after enabling channel '%s'",
+                    recovered,
+                    name,
+                )
         return True
 
     _MAX_INSTANCES_PER_TYPE = 5

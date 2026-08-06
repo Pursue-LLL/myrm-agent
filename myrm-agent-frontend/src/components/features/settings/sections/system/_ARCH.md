@@ -115,7 +115,7 @@
 |------|------|
 | `HeartbeatSection.tsx` | 心跳巡检配置（含 Agent 绑定 + 模型继承显示） |
 | `CompanionSection.tsx` | 伴侣模式配置 |
-| `CronSection.tsx` | 定时任务管理 |
+| `CronSection.tsx` | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich |
 | `DLQSection.tsx` | 死信队列管理 |
 | `KanbanSection.tsx` | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化） |
 | `MediaGenerationSection.tsx` | 媒体生成配置 |

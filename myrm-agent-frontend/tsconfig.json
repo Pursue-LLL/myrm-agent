@@ -87,7 +87,9 @@
     ".next-isolated-chrome-test_chrome_ui_memory_lifecycle_timeline-335b7095-80189-15ee879d/types/**/*.ts",
     ".next-isolated-chrome-test_chrome_ui_memory_lifecycle_timeline-335b7095-80189-15ee879d/dev/types/**/*.ts",
     ".next-isolated-e2e-parent-1-28250-df29f121/types/**/*.ts",
-    ".next-isolated-e2e-parent-1-28250-df29f121/dev/types/**/*.ts"
+    ".next-isolated-e2e-parent-1-28250-df29f121/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_skill_market_and_manage_builtin_car-4c6a0413-70279-65ce239d/types/**/*.ts",
+    ".next-isolated-chrome-test_skill_market_and_manage_builtin_car-4c6a0413-70279-65ce239d/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

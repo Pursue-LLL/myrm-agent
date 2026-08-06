@@ -55,6 +55,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
+| `api/chats/test_prior_chat_recall_integration.py` | 模块 | prior_chat seed → GET `/recall/search` SSOT + mention inject 集成（真 DB，无 mock） |
 | `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；选择器与分页探针统一来自 `support/evicted_drawer_selectors.py`；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
@@ -84,6 +85,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
 | `integration/test_project_workspace_bind_file_write_integration.py` | 模块 | Project bind → `convert_to_general_agent_params.declared_allowed_roots` → `file_write_tool` 磁盘断言（无 LLM） |
+| `integration/test_durable_outbound_integration.py` | 模块 | Durable outbound 全链路集成（15 cases：含 QueueFull 自动 recover、edit_placeholder、send_tracked、edit fallback、null-send→DLQ） |
+| `api/health/test_liveness_pending_outbound.py` | 模块 | GET `/health/liveness` 返回 `pendingOutboundCount` |
+| `e2e/test_liveness_pending_outbound_chrome_e2e.py` | 模块 | Chrome READ：浏览器同源 fetch + API 双路径断言 `pendingOutboundCount` |
 | `api/chats/test_effective_workspace_ssot.py` | 模块 | SSOT：GET chat / suggest / browse(chat_id) / PATCH 409 — project.workspace_path 优先于 stale chat.workspace_dir |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED` |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
@@ -178,6 +182,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
 - **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
+- **Prior chat recall SSOT 集成单测**：`tests/api/chats/test_prior_chat_recall_integration.py`（seed-prior-chat-fixture → GET `/recall/search` → mention inject；默认 CI，不依赖 Chrome）
 - **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ×2：Settings hint + `client_surface=web|tauri` + `__TAURI__`→`tauri`；submit+capture 3× mux 重试、`timeout=600`、`open_mcp_page timeout_ms=120_000`；LIVE inline 见 `test_render_ui_inline_card_chrome_e2e.py`；LIVE 按钮点击 → `ui_action` 见 `test_render_ui_inline_interaction_chrome_e2e.py`；LIVE `update_ui_data` 增量刷新 + **reload DB 持久**见 `test_render_ui_update_data_chrome_e2e.py`）
 - **A2UI surface_unavailable 单测**：`tests/services/agent/stream_session/test_entitlement_gap_preflight.py`（IM + render_ui ON + UI 意图 → `reason=surface_unavailable`；Web 可挂载 → None；dedup）；`tests/core/channel_bridge/test_stream_events.py`（`capability_gap` surface_unavailable + web_search config gap → ProgressUpdate）；frontend `gapEvents.test.ts`（info-only toast，无 enable/resend）；`tests/api/agent/test_capability_gap_integration.py`（discover miss 不 emit gap；web preflight render_ui ON → 无 gap）
 - **web_search 未配置 gap 单测/集成**：`test_entitlement_gap_preflight.py`（`build_web_search_config_gap_sse_event` unit）；`test_stream_chunks_web_search_preflight.py`（config gap 独立于 entitlement preflight text / resume 边界）；`tests/api/agent/test_capability_gap_integration.py::test_agent_stream_emits_web_search_config_gap_sse`（agent-stream preflight SSE：`reason=not_configured` + `settings_path=/settings/search`）；`tests/api/agent/test_capability_gap_integration.py::test_migration_readiness_live_resolve_emits_gap_after_db_seed`（live DB seed + resolve migration readiness → `tool_id=migration_import` + `settings_path=/settings/mcp`）；`tests/core/channel_bridge/test_stream_events.py`（IM web_search gap + empty display_message fallback）；frontend `gapEvents.test.ts` + `webSearchConfigGap.test.ts`（`not_configured|unreachable` → i18n CTA / local 一键启用）

@@ -272,6 +272,11 @@ def _hung_reason_for_row(
                 if node_stuck is not None:
                     return node_stuck
                 return None
+            from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+
+            node_stuck = node_stuck_reason_from_snapshot(snapshot)
+            if node_stuck is not None:
+                return node_stuck
             return None
         if signoff:
             # Signoff: defer progress_stale only — bootstrap/body caps handled above (R187).

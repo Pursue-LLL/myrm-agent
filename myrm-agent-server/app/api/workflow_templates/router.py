@@ -22,6 +22,7 @@ from app.schemas.workflow_templates import (
     WorkflowTemplateListResponse,
     WorkflowTemplateSummary,
 )
+from app.services.workflow_templates.cron_binding import count_cron_jobs_bound_to_template
 from app.services.workflow_templates.service import get_template_store, record_to_summary
 
 router = APIRouter(prefix="/workflow-templates", tags=["workflow-templates"])
@@ -40,9 +41,11 @@ async def get_workflow_template(template_id: str) -> WorkflowTemplateDetailRespo
     record = store.get_template(template_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Workflow template not found.")
+    bound_cron_count = await count_cron_jobs_bound_to_template(template_id)
     return WorkflowTemplateDetailResponse(
         template=record_to_summary(record),
         script_code=record.script_code,
+        bound_cron_count=bound_cron_count,
     )
 
 
