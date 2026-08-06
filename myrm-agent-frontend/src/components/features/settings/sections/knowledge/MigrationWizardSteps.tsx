@@ -21,6 +21,7 @@ import {
 import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import { exportMemoryArchive, recheckImportReadiness } from '@/services/memoryArchive';
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
+import useConfigStore from '@/store/useConfigStore';
 
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -777,8 +778,17 @@ export function ResultStep({
   t: TranslationFn;
 }) {
   const router = useRouter();
+  const memoryEnableConversationSearch = useConfigStore((s) => s.memoryEnableConversationSearch);
+  const setMemoryEnableConversationSearch = useConfigStore(
+    (s) => s.setMemoryEnableConversationSearch,
+  );
   const [readinessOverride, setReadinessOverride] = useState<MemoryImportReadiness | null>(null);
   const [startingChat, setStartingChat] = useState(false);
+
+  const handleEnableConversationSearch = useCallback(() => {
+    setMemoryEnableConversationSearch(true);
+    toast.success(t('result.conversationSearchEnabled'));
+  }, [setMemoryEnableConversationSearch, t]);
   const effectiveResult: MemoryImportConfirmResponse = readinessOverride
     ? { ...result, readiness: readinessOverride }
     : result;
@@ -982,6 +992,16 @@ export function ResultStep({
         <Button asChild size="sm" variant="secondary" className="h-8 text-xs">
           <Link href={teamAssetsHubHref()}>{t('result.reviewTeamAssets')}</Link>
         </Button>
+        {!memoryEnableConversationSearch && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 text-xs"
+            onClick={handleEnableConversationSearch}
+          >
+            {t('result.enableConversationSearch')}
+          </Button>
+        )}
         {result.target_agent_id && (
           <Button asChild size="sm" variant="secondary" className="h-8 text-xs">
             <Link href={agentSettingsHref(result.target_agent_id)}>{t('result.reviewAgentLoadout')}</Link>

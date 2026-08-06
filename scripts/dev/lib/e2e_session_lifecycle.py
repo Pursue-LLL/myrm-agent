@@ -29,6 +29,7 @@ from dev_gate_contract import (
     LIVE_AGENT_BODY_WALL_CLOCK_SEC,
     LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     is_e2e_signoff_runtime,
+    phase_c_burst_read_bootstrap_wall_sec,
 )
 
 SessionPhase = Literal["admit", "bootstrap", "body", "teardown"]
@@ -112,6 +113,9 @@ def resolve_budget_policy() -> BudgetPolicy:
                 )
         except ImportError:
             bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+        burst_bootstrap = phase_c_burst_read_bootstrap_wall_sec()
+        if burst_bootstrap is not None:
+            bootstrap_sec = max(bootstrap_sec, burst_bootstrap)
     if profile == "signoff":
         from dev_gate_contract import signoff_effective_body_wall_sec
 

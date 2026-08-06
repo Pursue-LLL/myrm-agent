@@ -166,10 +166,8 @@ def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
 def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
     """Scale mux cold-attach queue wait under parallel wave/mux peers (R101)."""
     peers = _mux_peer_count(pessimistic=pessimistic)
-    if peers <= 3:
-        return int(MUX_UPSTREAM_WAIT_BASE_SEC)
-    scaled = MUX_UPSTREAM_WAIT_BASE_SEC + ((peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC)
-    cap = min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled)
+    _, mux_wait = caps_for_explicit_peer_count(peers, pessimistic=pessimistic)
+    cap = float(mux_wait)
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
         "MYRM_E2E_DESKTOP_SOAK", ""
     ).strip() in ("1", "true", "yes"):
@@ -177,15 +175,58 @@ def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
     return int(cap)
 
 
+def _effective_peer_count_for_caps(
+    peers: int,
+    *,
+    pessimistic: bool,
+) -> int:
+    effective = max(0, int(peers))
+    if pessimistic:
+        from dev_gate_contract import (  # noqa: PLC0415
+            DEFAULT_BOOTSTRAP_SLOTS,
+            SHARED_BROWSER_WORKERS,
+        )
+
+        floor = SHARED_BROWSER_WORKERS + DEFAULT_BOOTSTRAP_SLOTS + 1
+        effective = max(effective, floor)
+    return effective
+
+
+def caps_for_explicit_peer_count(
+    peers: int,
+    *,
+    pessimistic: bool = False,
+) -> tuple[int, int]:
+    """Bootstrap + mux wait caps for a known peer load (Phase C burst SSOT)."""
+    effective = _effective_peer_count_for_caps(peers, pessimistic=pessimistic)
+    if effective <= 3:
+        bootstrap = int(MUX_BOOTSTRAP_WALL_BASE_SEC)
+    else:
+        bootstrap = int(
+            min(
+                MUX_BOOTSTRAP_WALL_MAX_SEC,
+                MUX_BOOTSTRAP_WALL_BASE_SEC
+                + (effective - 3) * MUX_BOOTSTRAP_WALL_PER_PEER_SEC,
+            )
+        )
+    if effective <= 3:
+        mux_wait = int(MUX_UPSTREAM_WAIT_BASE_SEC)
+    else:
+        mux_wait = int(
+            min(
+                MUX_UPSTREAM_WAIT_MAX_SEC,
+                MUX_UPSTREAM_WAIT_BASE_SEC
+                + (effective - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC,
+            )
+        )
+    return bootstrap, mux_wait
+
+
 def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
     """Scale SHPOIB bootstrap wall under parallel wave/mux peers (R102)."""
     peers = _mux_peer_count(pessimistic=pessimistic)
-    if peers <= 3:
-        return int(MUX_BOOTSTRAP_WALL_BASE_SEC)
-    scaled = MUX_BOOTSTRAP_WALL_BASE_SEC + (
-        (peers - 3) * MUX_BOOTSTRAP_WALL_PER_PEER_SEC
-    )
-    return int(min(MUX_BOOTSTRAP_WALL_MAX_SEC, scaled))
+    bootstrap, _ = caps_for_explicit_peer_count(peers, pessimistic=pessimistic)
+    return bootstrap
 
 
 def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:

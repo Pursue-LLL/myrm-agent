@@ -5742,7 +5742,8 @@
     "from": "시작",
     "to": "종료",
     "clearTimeFilter": "초기화",
-    "citeToComposer": "입력창에 인용"
+    "citeToComposer": "입력창에 인용",
+    "citeSameChat": "이 결과는 현재 대화에서 나온 것입니다 — 인용할 필요 없음"
   },
   "images": {
     "search": "Search images",
@@ -7096,6 +7097,8 @@
         "retryingSkillsSubmit": "Retrying...",
         "skillsRetrySuccess": "Skills resubmitted for review",
         "reviewSkills": "Review skills",
+        "enableConversationSearch": "대화 기록 검색 켜기",
+        "conversationSearchEnabled": "대화 기록 검색이 켜졌습니다",
         "configureMcp": "Configure MCP",
         "configureChannels": "Configure channels",
         "configureProviders": "Configure API keys",

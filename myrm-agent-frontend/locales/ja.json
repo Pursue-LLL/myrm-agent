@@ -6907,7 +6907,8 @@
     "from": "起始",
     "to": "截止",
     "clearTimeFilter": "クリア",
-    "citeToComposer": "入力欄に引用"
+    "citeToComposer": "入力欄に引用",
+    "citeSameChat": "この結果は現在のチャットのものです — 引用する必要はありません"
   },
   "images": {
     "search": "検索画像",
@@ -8142,6 +8143,8 @@
         "retryingSkillsSubmit": "中再試行...",
         "skillsRetrySuccess": "スキル済み重新規送信レビュー",
         "reviewSkills": "レビュースキル",
+        "enableConversationSearch": "会話履歴検索を有効にする",
+        "conversationSearchEnabled": "会話履歴検索をオンにしました",
         "configureMcp": "設定 MCP",
         "configureChannels": "設定チャンネル",
         "configureProviders": "設定 API Key",

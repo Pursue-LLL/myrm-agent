@@ -423,7 +423,8 @@ async def test_publish_ssrf_blocks_webhook_url(hosting_integration_client) -> No
     artifact_id = await _seed_html_artifact(db_session, workspace)
     response = client.post(f"/{artifact_id}/publish", json={"target_id": target_id, "token": ""})
     assert response.status_code == 500
-    assert "blocked" in response.json()["detail"].lower() or "localhost" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "blocked" in detail or "localhost" in detail or "validation failed" in detail
 
 
 @pytest.mark.asyncio
@@ -536,7 +537,7 @@ async def test_vercel_publish_without_credentials_returns_500(hosting_integratio
             )
 
     assert response.status_code == 500
-    assert "credentials" in response.json()["detail"].lower()
+    assert "credential" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

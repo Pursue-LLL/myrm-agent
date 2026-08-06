@@ -1501,6 +1501,42 @@ def boot_mux_body_transport_gate_required() -> bool:
     return False
 
 
+def phase_c_burst_lane_count() -> int:
+    """Declared Phase C parallel burst width (MYRM_E2E_PHASE_C_BURST_LANES)."""
+    raw = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
+    if not raw.isdigit():
+        return 0
+    return max(0, int(raw))
+
+
+def phase_c_burst_read_bootstrap_wall_sec() -> int | None:
+    """READ dev bootstrap wall when Phase C burst lanes declare parallel mux pressure."""
+    burst_lanes = phase_c_burst_lane_count()
+    if burst_lanes < 2:
+        return None
+    from transport_supervisor import caps_for_explicit_peer_count
+
+    pessimistic = burst_lanes >= 4
+    bootstrap, mux_wait = caps_for_explicit_peer_count(
+        burst_lanes,
+        pessimistic=pessimistic,
+    )
+    if burst_lanes >= 4:
+        return bootstrap + mux_wait
+    return bootstrap
+
+
+def phase_c_burst_read_queue_buffer_sec() -> int:
+    """run_pytest_safe queue buffer for Phase C READ burst (mux open_mcp_page queue)."""
+    burst_lanes = phase_c_burst_lane_count()
+    if burst_lanes < 4:
+        return 0
+    from transport_supervisor import caps_for_explicit_peer_count
+
+    _, mux_wait = caps_for_explicit_peer_count(burst_lanes, pessimistic=True)
+    return mux_wait
+
+
 def chrome_e2e_pytest_safe_queue_buffer_sec(
     lane: str,
     joined_argv: str,
@@ -1517,7 +1553,10 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     )
     if private_mode:
         return E2E_ADMISSION_WALL_CLOCK_SEC
-    del lane, joined_argv
+    burst_buffer = phase_c_burst_read_queue_buffer_sec()
+    if burst_buffer > 0 and lane.strip().upper() == "READ":
+        return burst_buffer
+    del joined_argv
     return 0
 
 

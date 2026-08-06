@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Search, X, Loader2, MessageSquare, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import { searchChatHistory, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
@@ -164,6 +165,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
       const composerChatId = useChatStore.getState().chatId;
       if (composerChatId && composerChatId === item.chat_id) {
         onOpenChange(false);
+        toast.info(t('search.citeSameChat'));
         return;
       }
       useChatStore.getState().addMentionReference({

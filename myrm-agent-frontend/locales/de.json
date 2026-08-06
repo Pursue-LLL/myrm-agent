@@ -5742,7 +5742,8 @@
     "from": "Von",
     "to": "Bis",
     "clearTimeFilter": "Löschen",
-    "citeToComposer": "In Eingabe zitieren"
+    "citeToComposer": "In Eingabe zitieren",
+    "citeSameChat": "Dieses Ergebnis stammt aus dem aktuellen Chat — nichts zu zitieren"
   },
   "images": {
     "search": "Search images",
@@ -7096,6 +7097,8 @@
         "retryingSkillsSubmit": "Retrying...",
         "skillsRetrySuccess": "Skills resubmitted for review",
         "reviewSkills": "Review skills",
+        "enableConversationSearch": "Verlaufssuche aktivieren",
+        "conversationSearchEnabled": "Verlaufssuche ist jetzt aktiv",
         "configureMcp": "Configure MCP",
         "configureChannels": "Configure channels",
         "configureProviders": "Configure API keys",

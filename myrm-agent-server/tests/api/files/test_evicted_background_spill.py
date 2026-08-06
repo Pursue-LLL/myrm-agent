@@ -9,6 +9,21 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 
+@pytest.fixture(autouse=True)
+def _evicted_api_prefer_env_workspace(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip DB chat workspace resolution; force MYRM_WORKSPACE_ROOT fallback."""
+
+    async def _skip_chat_workspace(
+        _chat_id: str, *, persist_workspace: bool = False
+    ) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+        _skip_chat_workspace,
+    )
+
+
 @pytest.mark.asyncio
 async def test_read_evicted_background_spill_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     chat_id = "chat-spill-read"

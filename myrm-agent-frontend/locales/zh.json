@@ -8079,7 +8079,8 @@
     "from": "起始",
     "to": "截止",
     "clearTimeFilter": "清除",
-    "citeToComposer": "引用到输入框"
+    "citeToComposer": "引用到输入框",
+    "citeSameChat": "该结果来自当前会话，无需引用"
   },
   "images": {
     "search": "搜索图片",
@@ -9357,6 +9358,8 @@
         "reviewSkills": "审核技能",
         "reviewTeamAssets": "查看团队资产",
         "reviewAgentLoadout": "查看智能体配装",
+        "enableConversationSearch": "开启历史会话搜索",
+        "conversationSearchEnabled": "已开启历史会话搜索",
         "configureMcp": "配置 MCP",
         "configureCron": "查看定时任务",
         "configureChannels": "配置渠道",

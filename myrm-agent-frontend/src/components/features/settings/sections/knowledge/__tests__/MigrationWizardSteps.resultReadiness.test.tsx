@@ -26,6 +26,35 @@ vi.mock('@/services/memoryArchive', async (importOriginal) => {
   };
 });
 
+const mockConfigState = vi.hoisted(() => ({
+  memoryEnableConversationSearch: false,
+  setMemoryEnableConversationSearch: vi.fn(),
+}));
+
+const mockToastSuccess = vi.hoisted(() => vi.fn());
+
+const mockSonnerToast = vi.hoisted(() => {
+  const fn = vi.fn();
+  return Object.assign(fn, {
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    promise: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    message: vi.fn(),
+  });
+});
+
+vi.mock('@/store/useConfigStore', () => ({
+  default: (selector: (state: typeof mockConfigState) => unknown) => selector(mockConfigState),
+}));
+
+vi.mock('sonner', () => ({
+  toast: mockSonnerToast,
+}));
+
 const t: TranslationFn = (key, values) => (values ? `${key}:${JSON.stringify(values)}` : key);
 
 const baseResult = {
@@ -180,5 +209,57 @@ describe('ResultStep readiness gating', () => {
 
     const link = screen.getByRole('link', { name: 'result.readinessAction.configureMcp' });
     expect(link).toHaveAttribute('href', '/settings/mcp');
+  });
+});
+
+describe('ResultStep conversation search opt-in', () => {
+  beforeEach(() => {
+    mockConfigState.memoryEnableConversationSearch = false;
+    mockConfigState.setMemoryEnableConversationSearch.mockReset();
+    mockToastSuccess.mockReset();
+  });
+
+  it('shows enable button when conversation search is off and enables on click', () => {
+    render(
+      <ResultStep
+        result={baseResult}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'result.enableConversationSearch' });
+    fireEvent.click(button);
+
+    expect(mockConfigState.setMemoryEnableConversationSearch).toHaveBeenCalledWith(true);
+    expect(mockToastSuccess).toHaveBeenCalledWith('result.conversationSearchEnabled');
+  });
+
+  it('hides enable button when conversation search is already on', () => {
+    mockConfigState.memoryEnableConversationSearch = true;
+
+    render(
+      <ResultStep
+        result={baseResult}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'result.enableConversationSearch' })).not.toBeInTheDocument();
   });
 });

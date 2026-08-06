@@ -6955,7 +6955,8 @@
     "from": "起始",
     "to": "截止",
     "clearTimeFilter": "清除",
-    "citeToComposer": "引用到輸入框"
+    "citeToComposer": "引用到輸入框",
+    "citeSameChat": "此結果來自目前對話，無需引用"
   },
   "images": {
     "search": "搜尋圖片",
@@ -8193,6 +8194,8 @@
         "retryingSkillsSubmit": "正在重試...",
         "skillsRetrySuccess": "技能已重新提交稽核",
         "reviewSkills": "稽核技能",
+        "enableConversationSearch": "開啟歷史會話搜尋",
+        "conversationSearchEnabled": "已開啟歷史會話搜尋",
         "configureMcp": "配置 MCP",
         "configureChannels": "配置渠道",
         "configureProviders": "配置 API Key",

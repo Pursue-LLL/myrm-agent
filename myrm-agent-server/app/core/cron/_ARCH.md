@@ -25,7 +25,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `user_id`/`chat_id`/`name_filter`，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
-| `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
+| `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；可选 `workflow_template_id` 走 pinned DW（`create_dynamic_workflow_stream` unattended）；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
 | `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
 | `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | — |
 | `adapters/delivery_resolver.py` | 核心 | Cron 工具 webhook URL → `DeliveryConfig`（非空 → `webhook`；格式化在投递层） | — |

@@ -107,14 +107,17 @@ export default function CronJobCreateDialog({
   }, [open]);
 
   useEffect(() => {
+    if (open && uiMode === 'agent') {
+      void fetchWorkflowTemplates()
+        .then((response) => setWorkflowTemplates(response.templates))
+        .catch(() => setWorkflowTemplates([]));
+    }
+  }, [open, uiMode]);
+
+  useEffect(() => {
     if (open) {
       fetchAgents();
       if (presetChatId) setSessionTarget('main');
-      if (uiMode === 'agent') {
-        void fetchWorkflowTemplates()
-          .then((response) => setWorkflowTemplates(response.templates))
-          .catch(() => setWorkflowTemplates([]));
-      }
       apiRequest<{ deploy_mode: string }>('/health/info')
         .then((info) => {
           const enabled = info.deploy_mode !== 'sandbox';
