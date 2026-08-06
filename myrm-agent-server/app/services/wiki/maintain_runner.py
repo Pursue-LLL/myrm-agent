@@ -101,14 +101,41 @@ async def run_wiki_maintain_job(
         await run_wiki_asset_index(archiver)
         await after_wiki_vault_mutation(archiver, "maintain")
 
+        from myrm_agent_harness.toolkits.wiki.maintenance.issue_kind import count_open_actions
+
+        from app.services.wiki.health_report_service import (
+            persist_wiki_health_snapshot,
+            report_from_lint_issues,
+        )
+
+        health_report = report_from_lint_issues(
+            mode="full" if mode_literal == "full" else "structural",
+            issues=list(lint_result.issues),
+        )
+        persist_wiki_health_snapshot(archiver._structure, health_report)
+
+        lint_issue_payloads = [
+            {
+                "issue_type": item.issue_type,
+                "severity": item.severity,
+                "location": item.location,
+                "description": item.description,
+                "action_kind": item.action_kind,
+                "suggested_fix": item.suggested_fix,
+            }
+            for item in lint_result.issues[:200]
+        ]
+
         result = WikiMaintainRunResult(
             mode=mode_literal,
             issues_found=lint_result.issues_found,
             issues_fixed=lint_result.issues_fixed,
             connections_discovered=lint_result.connections_discovered,
             duration_ms=lint_result.duration_ms,
+            open_actions_count=count_open_actions(lint_result.issues),
             raw_security_removed=lint_result.raw_security_removed,
             raw_security_removed_paths=list(lint_result.raw_security_removed_paths),
+            lint_issues=lint_issue_payloads,
         )
         result.summary_text = _build_summary_text(result=result)
         async with get_session() as db:

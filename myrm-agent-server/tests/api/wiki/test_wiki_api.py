@@ -188,6 +188,9 @@ def test_wiki_maintain_endpoint(client: TestClient) -> None:
         assert "issues_found" in data
         assert "issues_fixed" in data
         assert "connections_discovered" in data
+        assert "open_actions_count" in data
+        assert "issues" in data
+        assert isinstance(data["issues"], list)
     elif response.status_code in [401, 403]:
         print("⚠️ Authentication/Authorization required (expected)")
     else:

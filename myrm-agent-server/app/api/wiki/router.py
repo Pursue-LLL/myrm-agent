@@ -203,13 +203,35 @@ class CompileRunResponse(BaseModel):
     survey_skipped: bool = False
 
 
+class WikiHealthIssueResponse(BaseModel):
+    issue_type: str
+    severity: str
+    location: str
+    description: str
+    action_kind: str
+    suggested_fix: str | None = None
+
+
 class WikiMaintenanceResponse(BaseModel):
     issues_found: int
     issues_fixed: int
     connections_discovered: int
     duration_ms: int
+    open_actions_count: int = 0
     raw_security_removed: int = 0
     raw_security_removed_paths: list[str] = Field(default_factory=list)
+    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
+
+
+class WikiHealthReportResponse(BaseModel):
+    mode: Literal["structural", "full"]
+    generated_at: str
+    open_actions_count: int
+    issues_found: int
+    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
+    drift_sampled: bool = False
+    duplicate_groups_pending: int = 0
+    synthesis_pending: int = 0
 
 
 class WikiStructuralIssuesResponse(BaseModel):
@@ -734,14 +756,53 @@ async def maintain_wiki(
             issues_fixed=result.issues_fixed,
             connections_discovered=result.connections_discovered,
             duration_ms=result.duration_ms,
+            open_actions_count=result.open_actions_count,
             raw_security_removed=result.raw_security_removed,
             raw_security_removed_paths=list(result.raw_security_removed_paths),
+            issues=[
+                WikiHealthIssueResponse(
+                    issue_type=str(item["issue_type"]),
+                    severity=str(item["severity"]),
+                    location=str(item["location"]),
+                    description=str(item["description"]),
+                    action_kind=str(item["action_kind"]),
+                    suggested_fix=(
+                        str(item["suggested_fix"]) if item.get("suggested_fix") is not None else None
+                    ),
+                )
+                for item in result.lint_issues
+            ],
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Wiki maintenance failed: {e}")
         raise HTTPException(status_code=500, detail="Wiki maintenance failed") from e
+
+
+@router.get("/health-report", response_model=WikiHealthReportResponse)
+async def get_wiki_health_report(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
+) -> WikiHealthReportResponse:
+    """Return a zero-LLM structural health report with actionable lint issues."""
+    try:
+        from app.services.wiki.dedup_runner import get_wiki_dedup_stats
+        from app.services.wiki.health_report_service import build_wiki_health_report
+
+        dedup = get_wiki_dedup_stats(agent_id=agent_id)
+        return await build_wiki_health_report(
+            linter=archiver._linter,
+            structure=archiver._structure,
+            mode="structural",
+            duplicate_groups_pending=dedup.duplicate_groups_pending,
+            synthesis_pending=archiver._pending_mgr.count_synthesis_pending(),
+        )
+    except Exception as e:
+        logger.error(f"Wiki health report failed: {e}")
+        raise HTTPException(status_code=500, detail="Wiki health report failed") from e
 
 
 class WikiDedupMemberResponse(BaseModel):

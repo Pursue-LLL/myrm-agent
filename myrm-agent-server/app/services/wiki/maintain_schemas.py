@@ -33,6 +33,8 @@ class WikiMaintainRunResult(BaseModel):
     issues_fixed: int = 0
     connections_discovered: int = 0
     duration_ms: int = 0
+    open_actions_count: int = 0
     raw_security_removed: int = 0
     raw_security_removed_paths: list[str] = Field(default_factory=list)
     summary_text: str = "[SILENT]"
+    lint_issues: list[dict[str, object]] = Field(default_factory=list)

@@ -24,7 +24,7 @@ import {
   type WikiRetrievalTrace,
   type WikiSourceLevel,
   type WikiSourceSnippet,
-  type WikiStaleSummary,
+  type WikiHealthReport,
   type TreeNode,
 } from '@/services/wikiService';
 import { formatClaimConfidence } from '@/lib/wiki/claimStatusDisplay';
@@ -39,6 +39,7 @@ import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
 import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiDuplicateReviewPanel } from './WikiDuplicateReviewPanel';
+import { WikiHealthIssuesSection } from './WikiHealthIssuesSection';
 import { WikiIgnorePanel } from './WikiIgnorePanel';
 import { WikiQueuePanel } from './WikiQueuePanel';
 import { WikiCompilePhaseBar } from './WikiCompilePhaseBar';
@@ -175,7 +176,9 @@ export function WikiSection() {
     thumbnailUrl?: string | null;
   }>({ open: false, title: '', snippet: '' });
   const [stats, setStats] = useState<WikiStats | null>(null);
-  const [staleSummary, setStaleSummary] = useState<WikiStaleSummary | null>(null);
+  const [healthReport, setHealthReport] = useState<WikiHealthReport | null>(null);
+  const [healthReportExpanded, setHealthReportExpanded] = useState(false);
+  const [isLoadingHealthReport, setIsLoadingHealthReport] = useState(false);
   const [rawTreeData, setRawTreeData] = useState<TreeNode[]>([]);
   const [treeSyncNonce, setTreeSyncNonce] = useState(0);
   const [isLoadingRawTree, setIsLoadingRawTree] = useState(false);
@@ -558,20 +561,34 @@ export function WikiSection() {
     }
   };
 
+  const loadHealthReport = useCallback(async () => {
+    setIsLoadingHealthReport(true);
+    try {
+      const report = await wikiService.getHealthReport(agentScopeId);
+      setHealthReport(report);
+      if (report.open_actions_count > 0) {
+        setHealthReportExpanded(true);
+      }
+    } catch (error) {
+      console.error('Failed to load wiki health report:', error);
+    } finally {
+      setIsLoadingHealthReport(false);
+    }
+  }, [agentScopeId]);
+
   const loadStats = async () => {
     setIsLoadingStats(true);
     setIsLoadingRawTree(true);
     try {
-      const [data, stale, rawTree, queueStatus] = await Promise.all([
+      const [data, rawTree, queueStatus] = await Promise.all([
         apiRequest<WikiStats>(buildWikiApiPath('/wiki/stats', agentScopeId)),
-        wikiService.getStaleSummary(agentScopeId),
         wikiService.getRawTree(agentScopeId),
         wikiService.getQueueStatus(agentScopeId),
       ]);
       setStats(data);
-      setStaleSummary(stale);
       setRawTreeData(rawTree);
       setCompileRun(queueStatus.compile_run ?? null);
+      await loadHealthReport();
     } catch (error) {
       console.error('Failed to load Wiki stats:', error);
       toast.error(t('errors.loadStatsFailed'));
@@ -734,16 +751,7 @@ export function WikiSection() {
   const handleMaintain = async () => {
     setIsMaintaining(true);
     try {
-      const maintainParams = new URLSearchParams({ mode: maintainMode });
-      const result = await apiRequest<{
-        issues_found?: number;
-        issues_fixed?: number;
-        connections_discovered?: number;
-        raw_security_removed?: number;
-        raw_security_removed_paths?: string[];
-      }>(buildWikiApiPath(`/wiki/maintain?${maintainParams.toString()}`, agentScopeId), {
-        method: 'POST',
-      });
+      const result = await wikiService.maintainWiki(maintainMode, agentScopeId);
       const removed = result.raw_security_removed ?? 0;
       if (removed > 0) {
         const pathsJoined = (result.raw_security_removed_paths ?? []).join(', ');
@@ -756,19 +764,29 @@ export function WikiSection() {
           }),
         );
       } else {
-        const found = result.issues_found ?? 0;
+        const openActions = result.open_actions_count ?? 0;
         const fixed = result.issues_fixed ?? 0;
-        const connections = result.connections_discovered ?? 0;
-        if (found > 0 || fixed > 0 || connections > 0) {
-          toast.success(
-            connections > 0
-              ? t('success.maintainSummaryWithLinks', { found, fixed, connections })
-              : t('success.maintainSummary', { found, fixed }),
+        if (openActions > 0) {
+          toast.message(
+            t('healthReport.maintainToastOpen', { open: openActions, fixed }),
           );
+        } else if (fixed > 0) {
+          toast.success(t('success.maintainSummary', { found: result.issues_found, fixed }));
         } else {
           toast.success(t('success.maintainComplete'));
         }
       }
+      setHealthReport({
+        mode: maintainMode,
+        generated_at: new Date().toISOString(),
+        open_actions_count: result.open_actions_count,
+        issues_found: result.issues_found,
+        issues: result.issues,
+        drift_sampled: maintainMode === 'full',
+        duplicate_groups_pending: healthReport?.duplicate_groups_pending ?? 0,
+        synthesis_pending: healthReport?.synthesis_pending ?? 0,
+      });
+      setHealthReportExpanded(true);
       await loadStats();
       setTreeSyncNonce((value) => value + 1);
     } catch (error) {
@@ -1055,6 +1073,18 @@ export function WikiSection() {
                       {t('stats.structuralHint')}
                     </p>
                   ) : null}
+                  <WikiHealthIssuesSection
+                    report={healthReport}
+                    isLoading={isLoadingHealthReport}
+                    expanded={healthReportExpanded}
+                    onToggleExpanded={() => setHealthReportExpanded((value) => !value)}
+                    onRecompile={() => void handleCompile()}
+                    isRecompiling={isCompiling}
+                    onOpenDuplicateReview={handleOpenDuplicateReview}
+                    onOpenConcepts={() => handleWikiTabChange('concepts')}
+                    onOpenPendingEdits={() => handleWikiTabChange('pendingEdits')}
+                    onRefresh={() => void loadHealthReport()}
+                  />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
                       <div className="text-xs text-muted-foreground">{t('stats.cognitiveIndex')}</div>
@@ -1393,30 +1423,6 @@ export function WikiSection() {
               <CardDescription>{t('actions.description')}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {staleSummary && staleSummary.stale_count > 0 && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
-                  <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    {t('stale.bannerTitle')}
-                  </div>
-                  <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
-                    {t('stale.bannerDescription', { count: staleSummary.stale_count })}
-                  </p>
-                  {staleSummary.stale_files.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium text-amber-800/90 dark:text-amber-200/90">
-                        {t('stale.fileListTitle')}
-                      </div>
-                      <ul className="max-h-24 overflow-y-auto text-xs font-mono text-amber-900/70 dark:text-amber-100/70 space-y-0.5">
-                        {staleSummary.stale_files.slice(0, 8).map((file) => (
-                          <li key={file.relative_path} className="truncate">
-                            {file.relative_path}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
               {compileRun?.state === 'paused' && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
                   <div className="text-sm font-medium text-amber-800 dark:text-amber-200">

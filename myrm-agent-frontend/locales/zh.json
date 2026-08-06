@@ -2270,6 +2270,33 @@
         "synthesisPending": "{count, plural, other {# 条演化合成待审核}}",
         "duplicateGroupsPending": "{count, plural, other {# 组重复待审核}}"
       },
+      "healthReport": {
+        "title": "知识库健康",
+        "summary": "{open, plural, =0 {无待处理项} other {# 项待处理}} · 已检查 {total} 项",
+        "loading": "正在检查知识库健康…",
+        "allClear": "暂无待处理健康问题，知识库状态良好。",
+        "refresh": "刷新",
+        "expand": "展开问题",
+        "collapse": "收起问题",
+        "reviewDuplicates": "审核重复 ({count})",
+        "reviewPending": "审核待发布 ({count})",
+        "actionRecompile": "重新编译",
+        "actionRepair": "修复元数据",
+        "actionOpen": "打开词条",
+        "driftSampleHint": "完整维护最多抽样 5 篇文章检测漂移，并非全量审计。",
+        "maintainToastOpen": "仍有 {open} 项需您处理 · 已自动修复 {fixed} 项",
+        "issueType": {
+          "broken_link": "断链",
+          "broken_wikilink": "无效双向链接",
+          "invalid_frontmatter_type": "页面类型无效",
+          "stale": "源文件过期",
+          "drift": "可能漂移",
+          "incomplete": "内容不完整",
+          "knowledge_gap": "图谱缺口",
+          "security_redacted": "内容已脱敏",
+          "security_removed": "内容已移除"
+        }
+      },
       "query": {
         "title": "查询 Wiki",
         "description": "从知识库中获取答案",

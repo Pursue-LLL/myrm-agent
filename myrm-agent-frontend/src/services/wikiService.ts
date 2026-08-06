@@ -80,6 +80,39 @@ export interface WikiStaleSummary {
   stale_files: Array<{ relative_path: string }>;
 }
 
+export type WikiHealthIssueActionKind = 'repair' | 'recompile' | 'navigate' | 'info';
+
+export interface WikiHealthIssue {
+  issue_type: string;
+  severity: string;
+  location: string;
+  description: string;
+  action_kind: WikiHealthIssueActionKind;
+  suggested_fix?: string | null;
+}
+
+export interface WikiHealthReport {
+  mode: 'structural' | 'full';
+  generated_at: string;
+  open_actions_count: number;
+  issues_found: number;
+  issues: WikiHealthIssue[];
+  drift_sampled: boolean;
+  duplicate_groups_pending: number;
+  synthesis_pending: number;
+}
+
+export interface WikiMaintainResponse {
+  issues_found: number;
+  issues_fixed: number;
+  connections_discovered: number;
+  duration_ms: number;
+  open_actions_count: number;
+  raw_security_removed: number;
+  raw_security_removed_paths: string[];
+  issues: WikiHealthIssue[];
+}
+
 export type WikiQueryMode = 'auto' | 'raw_claim';
 
 export interface WikiQueryRequestBody {
@@ -574,6 +607,21 @@ export const wikiService = {
     return apiRequest<RepairPublicationResponse>(buildWikiApiPath('/wiki/repair-publication', agentId), {
       method: 'POST',
     });
+  },
+
+  getHealthReport: async (agentId?: string | null): Promise<WikiHealthReport> => {
+    return apiRequest<WikiHealthReport>(buildWikiApiPath('/wiki/health-report', agentId));
+  },
+
+  maintainWiki: async (
+    mode: 'structural' | 'full',
+    agentId?: string | null,
+  ): Promise<WikiMaintainResponse> => {
+    const params = new URLSearchParams({ mode });
+    return apiRequest<WikiMaintainResponse>(
+      buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId),
+      { method: 'POST' },
+    );
   },
 
   getStaleSummary: async (agentId?: string | null): Promise<WikiStaleSummary> => {

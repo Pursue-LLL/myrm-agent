@@ -2270,6 +2270,33 @@
         "synthesisPending": "{count, plural, one {# evolution synthesis pending review} other {# evolution syntheses pending review}}",
         "duplicateGroupsPending": "{count, plural, one {# duplicate group pending review} other {# duplicate groups pending review}}"
       },
+      "healthReport": {
+        "title": "Knowledge health",
+        "summary": "{open, plural, =0 {No open actions} one {# open action} other {# open actions}} · {total} checked",
+        "loading": "Checking knowledge health…",
+        "allClear": "No open health actions — your vault looks good.",
+        "refresh": "Refresh",
+        "expand": "Show issues",
+        "collapse": "Hide issues",
+        "reviewDuplicates": "Review duplicates ({count})",
+        "reviewPending": "Review pending edits ({count})",
+        "actionRecompile": "Recompile",
+        "actionRepair": "Repair metadata",
+        "actionOpen": "Open concepts",
+        "driftSampleHint": "Full maintenance samples up to five articles for drift — not an exhaustive audit.",
+        "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
+        "issueType": {
+          "broken_link": "Broken link",
+          "broken_wikilink": "Broken wikilink",
+          "invalid_frontmatter_type": "Invalid page type",
+          "stale": "Stale source",
+          "drift": "Possible drift",
+          "incomplete": "Incomplete article",
+          "knowledge_gap": "Graph gap",
+          "security_redacted": "Redacted content",
+          "security_removed": "Removed content"
+        }
+      },
       "query": {
         "title": "Query Wiki",
         "description": "Ask questions and get answers from your knowledge base",
