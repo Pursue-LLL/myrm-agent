@@ -147,6 +147,7 @@ myrm_agent_harness.agent.skills.optimization.security
 myrm_agent_harness.agent.skills.optimization.types
 myrm_agent_harness.agent.skills.packaging
 myrm_agent_harness.agent.skills.packaging.validator
+myrm_agent_harness.agent.skills.runtime.catalog_display
 myrm_agent_harness.agent.skills.runtime.loader
 myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
 myrm_agent_harness.agent.skills.security.content_sanitizer
@@ -452,6 +453,8 @@ myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map
 myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.schema_writer
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.snippets
+myrm_agent_harness.toolkits.wiki.pipeline.ingress
+myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore
 myrm_agent_harness.toolkits.wiki.pipeline.publication
 myrm_agent_harness.toolkits.wiki.pipeline.raw_gate
 myrm_agent_harness.toolkits.wiki.portability

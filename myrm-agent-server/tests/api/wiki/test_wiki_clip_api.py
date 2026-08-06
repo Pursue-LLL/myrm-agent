@@ -47,7 +47,21 @@ def _build_wiki_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver
         return archiver
 
     app.dependency_overrides[_get_wiki_archiver] = _override_archiver
-    return TestClient(app), archiver, structure
+    patcher = patch(
+        "app.services.wiki.vault_service.get_wiki_archiver",
+        return_value=archiver,
+    )
+    patcher.start()
+    client = TestClient(app)
+    client._wiki_archiver_patcher = patcher  # type: ignore[attr-defined]
+    return client, archiver, structure
+
+
+def _cleanup_wiki_client(client: TestClient) -> None:
+    client.app.dependency_overrides.clear()
+    patcher = getattr(client, "_wiki_archiver_patcher", None)
+    if patcher is not None:
+        patcher.stop()
 
 
 def test_wikiignore_get_and_put(tmp_path: Path) -> None:
@@ -69,13 +83,13 @@ def test_wikiignore_get_and_put(tmp_path: Path) -> None:
         assert "drafts/**" in again.json()["content"]
         assert structure.load_wikiignore_patterns() == ("drafts/**", "*.tmp")
     finally:
-        client.app.dependency_overrides.clear()
+        _cleanup_wiki_client(client)
 
 
 def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
-        with patch("app.services.wiki.clip_runner.schedule_wiki_dedup_scan", return_value=None):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -108,7 +122,39 @@ def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
         assert raw_path.is_file()
         assert "Hello from clip." in raw_path.read_text(encoding="utf-8")
     finally:
-        client.app.dependency_overrides.clear()
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
+    client, archiver, structure = _build_wiki_client(tmp_path)
+    try:
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
+            response = client.post(
+                "/api/v1/wiki/clip",
+                data={
+                    "source_url": "https://example.com/no-compile",
+                    "title": "No Compile",
+                    "clip_mode": "full_page",
+                    "markdown": "# No compile",
+                    "queue_compile": "false",
+                },
+            )
+        assert response.status_code == 202
+        job_id = response.json()["job_id"]
+
+        final = None
+        for _ in range(40):
+            status = client.get(f"/api/v1/wiki/clip/{job_id}")
+            final = status.json()
+            if final["state"] in {"succeeded", "failed"}:
+                break
+            time.sleep(0.05)
+
+        assert final is not None
+        assert final["state"] == "succeeded"
+        assert archiver._queue.get_stats()["pending"] == 0
+    finally:
+        _cleanup_wiki_client(client)
 
 
 def test_wiki_clip_job_not_found(tmp_path: Path) -> None:
@@ -117,4 +163,4 @@ def test_wiki_clip_job_not_found(tmp_path: Path) -> None:
         response = client.get("/api/v1/wiki/clip/does-not-exist")
         assert response.status_code == 404
     finally:
-        client.app.dependency_overrides.clear()
+        _cleanup_wiki_client(client)

@@ -9,7 +9,7 @@
 | 文件 | 职责 |
 |------|------|
 | `ConnectSection.tsx` | Connect Wizard：外部 AI Agent（Cursor/Claude Code 等）连接记忆 MCP 的配置生成、Token 签发、健康检查与撤销 |
-| `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token/CDP setup-hints、握手三态、relay 四行能力矩阵（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、直连 CDP 风险提示、连接状态、授权域名、可用标签页 |
+| `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token/CDP setup-hints、握手三态、relay 四行能力矩阵（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、直连 CDP 风险提示、**Wiki 剪藏说明**、连接状态、授权域名、可用标签页 |
 | `CredentialsSection.tsx` | 凭证管理（re-export → `credentials/CredentialsSection`） |
 | `credentials/` | Vault / 文件 / OAuth 凭证子模块 · [credentials/_ARCH.md](credentials/_ARCH.md) |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |

@@ -848,7 +848,7 @@ async def clip_page_to_wiki(
     html: Annotated[str, Form()] = "",
     markdown: Annotated[str, Form()] = "",
     folder_path: Annotated[str, Form(max_length=512)] = "",
-    queue_compile: Annotated[bool, Form()] = False,
+    queue_compile: Annotated[str, Form()] = "false",
     asset_urls: Annotated[str, Form()] = "[]",
     asset_files: Annotated[list[UploadFile], File()] = [],
     agent_id: Annotated[
@@ -884,6 +884,7 @@ async def clip_page_to_wiki(
         )
 
     mode = ClipMode.FULL_PAGE if clip_mode == "full_page" else ClipMode.SELECTION
+    compile_after = queue_compile.strip().lower() in {"true", "1", "yes", "on"}
     job_id = await schedule_wiki_clip(
         agent_id=agent_id,
         source_url=source_url,
@@ -893,7 +894,7 @@ async def clip_page_to_wiki(
         markdown=markdown,
         folder_path=folder_path,
         assets=tuple(assets),
-        queue_compile=queue_compile,
+        queue_compile=compile_after,
     )
     return WikiClipAcceptResponse(job_id=job_id)
 
@@ -905,16 +906,17 @@ async def get_wiki_clip_job(job_id: str) -> WikiClipJobResponse:
     record = get_wiki_clip_job(job_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Clip job not found")
-    response = WikiClipJobResponse(job_id=record.job_id, state=record.state.value)
-    if record.error_message:
-        response.error_message = record.error_message
-    if record.result is not None:
-        response.relative_path = record.result.relative_path
-        response.written = record.result.written
-        response.conflict = record.result.conflict
-        response.security_blocked = record.result.security_blocked
-        response.assets_localized = record.result.assets_localized
-    return response
+    result = record.result
+    return WikiClipJobResponse(
+        job_id=record.job_id,
+        state=record.state.value,
+        error_message=record.error_message,
+        relative_path=result.relative_path if result else None,
+        written=result.written if result else None,
+        conflict=result.conflict if result else None,
+        security_blocked=result.security_blocked if result else None,
+        assets_localized=result.assets_localized if result else None,
+    )
 
 
 @router.get("/wikiignore", response_model=WikiIgnoreContentResponse)

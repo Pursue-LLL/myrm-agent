@@ -10,7 +10,7 @@ services.agent.builtin_tool_validation::RequiredBuiltinTools (POS: 内建工具�
 - POST   /{agent_id}/secrets: 创建/更新 Agent 机密
 - DELETE /{agent_id}/secrets/{key_name}: 删除 Agent 机密
 - GET    /{agent_id}/statistics: Agent 使用统计（会话/消息/最后使用）
-- POST   /evaluate-action-space: 动作空间复杂度 ASCS 评估
+- POST   /evaluate-action-space: 动作空间复杂度 ASCS 评估 + Turn1 catalog_preview（inline/hidden/search_mounted）
 
 [POS]
 Agent 辅助端点。Secrets 管理、使用统计、动作空间复杂度评估。
@@ -204,10 +204,10 @@ async def _build_catalog_preview(
     )
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-    from app.core.skills.store.service import SkillsService
+    from app.core.skills.store.service import skills_service
     from app.core.skills.utils import normalize_skill_name
 
-    stored_skills = await SkillsService.get_skills_by_ids(skill_ids=skill_ids)
+    stored_skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
     metadata_list: list[SkillMetadata] = []
     for skill in stored_skills:
         try:
@@ -252,13 +252,13 @@ async def evaluate_action_space(
             ActionSpaceProfiler,
         )
 
-        from app.core.skills.store.service import SkillsService
+        from app.core.skills.store.service import skills_service
 
         total_score = 0
 
         for skill_id in req.skill_ids:
             is_core = req.skill_configs.get(skill_id, {}).get("is_core", True)
-            skill = await SkillsService.get_skill_by_id(skill_id)
+            skill = await skills_service.get_skill_by_id(skill_id)
             if skill:
                 cost = ActionSpaceProfiler.BASE_TOOL_COST + (
                     len(skill.description or "") // 50
