@@ -126,8 +126,11 @@ _RERUN_TEMPLATE_JS = f"""(async () => {{
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_workflow_template_save_and_pinned_rerun_chrome_e2e() -> None:
+def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
     """Save orchestration script from a DW run, then rerun via pinned template_id."""
+    _ = e2e_resource_ledger
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail(
             "Provider not ready — run ./myrm ready --chrome then ./myrm test -m chrome_e2e "
@@ -138,50 +141,49 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e() -> None:
     ui_url = get_e2e_ui_url()
     api_base = get_e2e_api_url()
 
-    with E2EResourceLedger(label="workflow-template-save-rerun-chrome-e2e"):
-        with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
-            dismiss_blocking_modals(client, page)
-            client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
-            wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
+    with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
 
-            prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
-            assert isinstance(prepared, dict), prepared
-            assert prepared.get("ok") is True, f"Workflow mode prep failed: {prepared}"
+        prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
+        assert isinstance(prepared, dict), prepared
+        assert prepared.get("ok") is True, f"Workflow mode prep failed: {prepared}"
 
-            kickoff = client.evaluate(page, _KICKOFF_DW_JS, timeout_sec=120.0)
-            assert isinstance(kickoff, dict), kickoff
-            assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
+        kickoff = client.evaluate(page, _KICKOFF_DW_JS, timeout_sec=120.0)
+        assert isinstance(kickoff, dict), kickoff
+        assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
 
-            wait_for_state(client, page, _PLAN_CARD_WAITING_JS, timeout_sec=180.0)
+        wait_for_state(client, page, _PLAN_CARD_WAITING_JS, timeout_sec=180.0)
 
-            clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
-            assert isinstance(clicked, dict)
-            assert clicked.get("ok") is True, f"Run click failed: {clicked}"
+        clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
+        assert isinstance(clicked, dict)
+        assert clicked.get("ok") is True, f"Run click failed: {clicked}"
 
-            wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
+        wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
 
-            save_ctx = client.evaluate(page, _CAPTURE_SAVE_CONTEXT_JS, timeout_sec=15.0)
-            assert isinstance(save_ctx, dict), save_ctx
-            chat_id = save_ctx.get("chatId")
-            message_id = save_ctx.get("messageId")
-            assert isinstance(chat_id, str) and chat_id.strip(), f"Missing chatId: {save_ctx}"
-            assert isinstance(message_id, str) and message_id.strip(), f"Missing messageId: {save_ctx}"
+        save_ctx = client.evaluate(page, _CAPTURE_SAVE_CONTEXT_JS, timeout_sec=15.0)
+        assert isinstance(save_ctx, dict), save_ctx
+        chat_id = save_ctx.get("chatId")
+        message_id = save_ctx.get("messageId")
+        assert isinstance(chat_id, str) and chat_id.strip(), f"Missing chatId: {save_ctx}"
+        assert isinstance(message_id, str) and message_id.strip(), f"Missing messageId: {save_ctx}"
 
-            saved = http_json(
-                "POST",
-                f"{api_base}/api/v1/workflow-templates/from-run",
-                {
-                    "chatId": chat_id,
-                    "messageId": message_id,
-                    "templateId": "e2e-dw-rerun",
-                    "displayName": "E2E DW Rerun",
-                    "trustLatch": True,
-                },
-            )
-            assert saved.get("templateId") == "e2e-dw-rerun", saved
+        saved = http_json(
+            "POST",
+            f"{api_base}/api/v1/workflow-templates/from-run",
+            {
+                "chatId": chat_id,
+                "messageId": message_id,
+                "templateId": "e2e-dw-rerun",
+                "displayName": "E2E DW Rerun",
+                "trustLatch": True,
+            },
+        )
+        assert saved.get("templateId") == "e2e-dw-rerun", saved
 
-            rerun = client.evaluate(page, _RERUN_TEMPLATE_JS, timeout_sec=120.0)
-            assert isinstance(rerun, dict), rerun
-            assert rerun.get("ok") is True, f"Pinned rerun failed: {rerun}"
+        rerun = client.evaluate(page, _RERUN_TEMPLATE_JS, timeout_sec=120.0)
+        assert isinstance(rerun, dict), rerun
+        assert rerun.get("ok") is True, f"Pinned rerun failed: {rerun}"
 
-            wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
+        wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)

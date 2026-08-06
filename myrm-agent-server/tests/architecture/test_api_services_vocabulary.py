@@ -55,6 +55,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "theme",
         "webui",
         "wiki",
+        "workflow_templates",
         "workspace",
     }
 )
@@ -88,7 +89,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "voice",
         "web_push",
         "widget_storage",
-        "workspace",
     }
 )
 
