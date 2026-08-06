@@ -495,7 +495,7 @@ def send(payload: dict[str, object]) -> dict[str, object]:
         "snapshot",
         "transition",
     }:
-        timeout_sec = 30.0
+        timeout_sec = 60.0 if operation == "reap" else 30.0
     if isinstance(operation, str) and operation in {"cleanup", "teardown_finish"}:
         from dev_gate_contract import dev_gate_teardown_finish_client_timeout_sec
 

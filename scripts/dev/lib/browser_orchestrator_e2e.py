@@ -420,9 +420,10 @@ def _orchestrator_daemon_unreachable(message: str) -> bool:
     if "daemon not running" in lowered or "connection refused" in lowered:
         return True
     if "browser orchestrator response timeout" in lowered:
-        return _effective_parallel_load() >= 2 or not BrowserOrchestratorClient(
-            timeout_sec=3.0
-        ).is_alive()
+        return (
+            _effective_parallel_load() >= 2
+            or not BrowserOrchestratorClient(timeout_sec=3.0).is_alive()
+        )
     return False
 
 
@@ -785,9 +786,7 @@ def open_orchestrator_mcp_page(
             except RuntimeError as bind_exc:
                 if not _is_retryable_open_page_error(str(bind_exc)):
                     raise
-                binding_expression = (
-                    f"(() => {{{binding_source} return true; }})()"
-                )
+                binding_expression = f"(() => {{{binding_source} return true; }})()"
                 _recreate_orchestrator_session(daemon, session_id)
                 created = _open_page_transaction_with_retry(
                     daemon,

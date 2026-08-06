@@ -480,13 +480,13 @@ def _run_lifecycle_assertions(
 
     with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
-        dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page, recover_url=home_url)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         _ensure_react_bridge_on_home(client, page, ui_url=ui_url)
 
         client.navigate(page, chat_url)  # type: ignore[attr-defined]
         time.sleep(1.5)
-        dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page, recover_url=chat_url)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
         attached = _await_attach_memory_chat(
@@ -494,7 +494,7 @@ def _run_lifecycle_assertions(
         )
         assert attached.get("ok") is True, json.dumps(attached, ensure_ascii=False)
 
-        dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page, recover_url=chat_url)
         _poke_chat_route_render(client, page, chat_id)
 
         chat_ui_probe = _probe_chat_ui_state(client, page, timeout_sec=30.0)
@@ -504,7 +504,7 @@ def _run_lifecycle_assertions(
             _ensure_react_bridge_on_home(client, page, ui_url=ui_url)
             client.navigate(page, chat_url)  # type: ignore[attr-defined]
             time.sleep(1.5)
-            dismiss_blocking_modals(client, page)
+            dismiss_blocking_modals(client, page, recover_url=chat_url)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             attached = _await_attach_memory_chat(
                 client, page, chat_id, timeout_sec=60.0, ui_url=ui_url

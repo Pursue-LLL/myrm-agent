@@ -247,7 +247,9 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
         return HotPathDecision(True, "shared_read_hot", needs_binding)
     # Parallel SMP may defer shared backend reload while warm_ui_route already sealed
     # this READ route — fast_create avoids cold openPageTransaction queue storms.
-    return HotPathDecision(True, "shared_read_hot_shell_fresh_epoch_drift", needs_binding)
+    return HotPathDecision(
+        True, "shared_read_hot_shell_fresh_epoch_drift", needs_binding
+    )
 
 
 def set_bootstrap_hot_path(mode: BootstrapHotPath) -> None:
