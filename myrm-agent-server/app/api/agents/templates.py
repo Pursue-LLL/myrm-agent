@@ -199,7 +199,7 @@ async def _instantiate_individual_template(
 
     agent_data = AgentCreate.model_validate(data)
 
-    from app.api.agents.agent import _to_agent_response
+    from app.api.agents._agent_response import _to_agent_response
 
     agent = await AgentService.create_agent(agent_data)
     return success_response(data=_to_agent_response(agent).model_dump())
@@ -237,7 +237,7 @@ async def _instantiate_team_template(
         leader_data = _build_leader_agent_data(data, created_agent_ids, accept_lang, template_id)
         leader_agent = await AgentService.create_agent(leader_data)
 
-        from app.api.agents.agent import _to_agent_response
+        from app.api.agents._agent_response import _to_agent_response
 
         response_data = _to_agent_response(leader_agent).model_dump()
         response_data["team_member_ids"] = created_agent_ids

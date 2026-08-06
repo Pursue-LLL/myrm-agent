@@ -3,13 +3,25 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dto import MessageDTO
 from app.database.models import Chat
 from app.database.repositories.chat_repo import ChatRepository
 from app.services.chat.chat_service import ChatService
+
+
+@pytest.fixture(autouse=True)
+def _mock_checkpoint_sync():
+    """Checkpoint sync is not under test here — mock it to avoid RuntimeError."""
+    with patch(
+        "app.services.chat.chat_turn._ChatTurnMixin._sync_checkpoint_after_mutation",
+        new_callable=AsyncMock,
+    ):
+        yield
 
 
 def _make_chat(chat_id: str = "test-chat") -> Chat:

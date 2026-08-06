@@ -26,7 +26,9 @@ def test_liveness_includes_pending_outbound_count() -> None:
     mock_agent_gateway.is_draining = False
 
     with (
-        patch("app.api.health.liveness.get_agent_gateway", return_value=mock_agent_gateway),
+        patch(
+            "app.api.health.liveness.get_agent_gateway", return_value=mock_agent_gateway
+        ),
         patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway),
         patch(
             "app.api.health.liveness._build_memory_summary",

@@ -95,7 +95,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
             from myrm_agent_harness.agent.context_management.infra.schemas import (
                 ContextConfig,
             )
-            from myrm_agent_harness.agent.context_management.strategies.summarizer import (
+            from myrm_agent_harness.agent.context_management.strategies.summary.summarizer import (
                 generate_structured_summary,
             )
             from myrm_agent_harness.toolkits.llms import llm_manager

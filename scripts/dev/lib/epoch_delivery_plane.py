@@ -212,11 +212,20 @@ def apply_epoch_pin_for_shared_live(
             detail=seed.detail,
             seeded=False,
         )
-    return _outcome_from_api_base(
+    outcome = _outcome_from_api_base(
         api_base=seed.api_base,
         detail=seed.detail,
         seeded=True,
     )
+    if outcome.seeded:
+        try:
+            from cdp_chat_support import get_e2e_ui_url
+            from warm_shell_registry import seal_platform_shell
+
+            seal_platform_shell(ui_url=get_e2e_ui_url(), route_path="/")
+        except ImportError:
+            pass
+    return outcome
 
 
 def epoch_pin_active() -> bool:

@@ -1,3 +1,16 @@
+"""Agent profile version history API.
+
+[INPUT]
+- database.models.agent_history::AgentProfileHistory (POS: Agent profile snapshot model)
+
+[OUTPUT]
+- GET /{agent_id}/history: list of profile version snapshots (id, version, systemPrompt, createdAt)
+
+[POS]
+Per-agent profile history endpoint. Returns up to 50 most recent profile
+snapshots ordered by version descending.
+"""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException

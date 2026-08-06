@@ -15,6 +15,7 @@
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
 | `chrome_e2e/` | Unix | **§19.10 Chrome E2E 域**：`gates/`（entry · lease · orphan · diagnostic policy）· `mux/diagnostic_recovery.py` |
 | `browser_orchestrator_client.py` | Unix | Browser Orchestrator daemon 的 Python Unix socket JSON-RPC 客户端；session/page lifecycle 操作路由到 daemon |
+| `browser_orchestrator_e2e.py` | Unix | Orchestrator 路径 E2E page lifecycle（`MYRM_BROWSER_ORCHESTRATOR=1`）；parallel `open_page` 遇 `No context for session` 时 `_recreate_orchestrator_session` destroy→create 后重试 |
 | `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`MYRM_BROWSER_ORCHESTRATOR=1` 时条件分发到 daemon client；每 session 稳定 isolated context；page/lease 精确所有权同步到协调器；有界 transport 恢复与 exact-target 清理 |
 | `transport_recovery_core.py` | Unix | **R79 TRSM SSOT**：`solo_full` / `parallel_page_reclaim` / `parallel_local_respawn`；`DEV_GATE_CHROME_MCP_ROADMAP.md` §55 |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用；**R72-FINAL** `cdp_chat_submit.send_chat_message_atomic` 仅 `submitAndObserveTurn` fail-closed（无 legacy `submit()` pyramid）；`cdp_chat_turn.send_message` 强制 `sendTurnSealed`；**R50** `ensure_chat_surface` SHPOIB 缩放 + `_hydrate_chat_home_surface` + `ensure_react_e2e_bridge` fallback；**R67** `cdp_chat_bootstrap.bootstrap` 结束 `complete_bootstrap_phase()` 重置 BODY 墙钟；`cdp_chat_input._heal_empty_chat_shell_for_bridge` 走 `_shared_ui_burst`；`cdp_chat_input.ensure_react_e2e_bridge` 拒绝 DOM fallback，blank shell 时 heal 重导航；`cdp_chat_bootstrap._wait_providers_hydrated` 的 API readiness probe 走 `to_thread + wait_for` 非阻塞守门；computer_use/builtin-tools 须 React bridge |
@@ -26,6 +27,7 @@
 | `dev_gate_status.py` | Unix | registry-first shared/private/credits/session 状态快照 |
 | `e2e_browser_pool.py` | Unix | 单一专用 Chrome(:9333) + 默认 4 个 mux 物理 worker 环境 SSOT |
 | `e2e_stall_guard.py` | Unix | **R96-B6** Semantic Stall SSOT：`is_transport_stall_node` · `node_stuck_reason_from_snapshot` · `assert_transport_node_not_stuck`；hung reap + open_mcp_page + e2e-context 共用 |
+| `warm_shell_registry.py` | Unix | **§19.11 TAB-6** epoch platform shell seal/fresh · SHARED+READ hot bootstrap · `bootstrapHotPath` snapshot |
 | `e2e_session_snapshot.py` | Unix | per-pid session snapshot；**R96-B6** `nodeStartedMonotonic`（同 `currentNode` 不重置）· `body_elapsed` / `progress_stale` / `node_elapsed` |
 | `e2e_session_registry.py` | Unix | 统一 E2E session registry — ADMIT through BODY (R144 SSOT)；`list_live_e2e_sessions()` 去重 session 列表；P0-A: coordinator 活跃时禁用 ps fallback |
 | `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap + `maybe_reap_stale_empty_mux_contexts` + `maybe_reap_epoch_drift_stale_sessions`（coordinator-only）；body≥600 · epoch drift 兜底 reap（bootstrap/admit + epoch_match=no + >180s） |

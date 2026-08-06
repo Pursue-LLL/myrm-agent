@@ -29,6 +29,49 @@ from typing import Generator
 _LOGGER = logging.getLogger(__name__)
 
 MAX_OPERATION_CREDITS = 4
+OPERATION_QUEUE_SLO_SEC = 20.0
+_MEAN_OPERATION_TURNAROUND_SEC = 12.0
+
+
+def estimate_operation_wait_sec(
+    *,
+    queued: int,
+    effective_credits: int,
+) -> float:
+    """DRR-inspired wait estimate for queued browser operations (§19.11.3 TAB-7)."""
+    if queued <= 0:
+        return 0.0
+    credits = max(1, effective_credits)
+    batches = (queued + credits - 1) // credits
+    return min(900.0, float(batches) * _MEAN_OPERATION_TURNAROUND_SEC)
+
+
+def orchestrator_queue_observability(
+    snap: dict[str, object],
+) -> dict[str, object]:
+    """Operation queue fields for e2e-context / capHeadroom (TAB-7)."""
+    queued_raw = snap.get("operation_credits_queued", 0)
+    in_flight_raw = snap.get("operation_credits_in_flight", 0)
+    effective_raw = snap.get("operation_credits_effective", MAX_OPERATION_CREDITS)
+    queued = queued_raw if isinstance(queued_raw, int) else 0
+    in_flight = in_flight_raw if isinstance(in_flight_raw, int) else 0
+    effective = (
+        effective_raw if isinstance(effective_raw, int) else MAX_OPERATION_CREDITS
+    )
+    estimated = estimate_operation_wait_sec(
+        queued=queued,
+        effective_credits=effective,
+    )
+    saturated = queued > 0 or in_flight >= effective
+    return {
+        "queueDepth": queued,
+        "estimatedWaitSec": round(estimated, 1),
+        "operationSloSec": OPERATION_QUEUE_SLO_SEC,
+        "withinOperationSlo": estimated <= OPERATION_QUEUE_SLO_SEC,
+        "operationSaturated": saturated,
+        "activeOps": in_flight,
+        "effectiveCredits": effective,
+    }
 
 
 class BrowserPlaneHealth(enum.Enum):
@@ -89,7 +132,9 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
     if not _browser_orchestrator_daemon_required():
         return
     try:
-        from browser_orchestrator_client import BrowserOrchestratorClient  # noqa: PLC0415
+        from browser_orchestrator_client import (
+            BrowserOrchestratorClient,
+        )  # noqa: PLC0415
     except ImportError as exc:
         raise RuntimeError(
             "BROWSER_ORCHESTRATOR_REQUIRED: browser_orchestrator_client unavailable"
@@ -246,9 +291,7 @@ def _wait_daemon_operation_credit(*, budget_sec: float) -> None:
         if available > 0:
             return
         time.sleep(0.05)
-    raise TimeoutError(
-        f"daemon operation credit unavailable within {budget_sec:.1f}s"
-    )
+    raise TimeoutError(f"daemon operation credit unavailable within {budget_sec:.1f}s")
 
 
 @contextmanager

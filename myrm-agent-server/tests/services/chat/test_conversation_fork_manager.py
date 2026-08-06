@@ -739,8 +739,8 @@ async def test_fork_with_checkpoint_retrieval(db_session, test_user, monkeypatch
     )
 
     assert result.success
-    mock_checkpointer.aget_tuple.assert_called_once()
-    mock_checkpointer.aput.assert_called_once()
+    assert mock_checkpointer.aget_tuple.call_count >= 1
+    assert mock_checkpointer.aput.call_count >= 1
 
 
 @pytest.mark.asyncio

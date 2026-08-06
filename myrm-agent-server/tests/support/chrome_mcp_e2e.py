@@ -230,6 +230,27 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     if not path.startswith("/"):
         raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
     url = f"{get_e2e_ui_url()}{path}"
+    try:
+        from warm_shell_registry import platform_shell_fresh, seal_platform_shell
+
+        if platform_shell_fresh(route_path=path):
+            heartbeat_e2e_lease()
+            touch_wall_progress(current_node="warm_ui_route_skipped_registry_reuse")
+            request = urllib.request.Request(url, method="GET")  # noqa: S310
+            try:
+                with urllib.request.urlopen(request, timeout=5.0) as response:  # noqa: S310
+                    if int(response.status) == 200:
+                        seal_platform_shell(ui_url=url, route_path=path)
+                        return
+            except (
+                urllib.error.HTTPError,
+                urllib.error.URLError,
+                TimeoutError,
+                OSError,
+            ):
+                pass
+    except ImportError:
+        pass
     base_wait = (
         timeout_sec
         if timeout_sec is not None
@@ -280,6 +301,12 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             else:
                 status = _do_get()
             if status == 200:
+                try:
+                    from warm_shell_registry import seal_platform_shell
+
+                    seal_platform_shell(ui_url=url, route_path=path)
+                except ImportError:
+                    pass
                 return True
             last_error = RuntimeError(f"warm_ui_route GET {url} returned HTTP {status}")
             if status in {404, 502, 503}:

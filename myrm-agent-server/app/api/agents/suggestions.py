@@ -1,3 +1,18 @@
+"""Follow-up question suggestions API.
+
+[INPUT]
+- core.channel_bridge.config_loader::load_user_configs (POS: load merged user config bundles)
+- core.channel_bridge.config_parsers::extract_lite_model_config (POS: resolve lite/filter model)
+- myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
+
+[OUTPUT]
+- POST /agents/suggestions: JSON array of 3 concise follow-up questions
+
+[POS]
+Generates follow-up question suggestions from recent chat history using the
+configured lite/filter model. Falls back to default model if no lite model set.
+"""
+
 import asyncio
 import json
 import logging

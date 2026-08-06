@@ -100,7 +100,7 @@ async def test_guarded_compact_summarize_passes_config():
         )
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summarizer.generate_structured_summary",
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.generate_structured_summary",
         side_effect=fake_generate,
     ):
         from app.services.chat.compact_service import _guarded_compact_summarize
@@ -205,7 +205,7 @@ async def test_guarded_compact_summarize_default_128k():
         )
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summarizer.generate_structured_summary",
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.generate_structured_summary",
         side_effect=fake_generate,
     ):
         from app.services.chat.compact_service import _guarded_compact_summarize

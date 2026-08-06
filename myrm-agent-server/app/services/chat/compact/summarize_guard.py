@@ -38,12 +38,12 @@ async def guarded_compact_summarize(
 ) -> tuple[list[BaseMessage], object]:
     """Wrap generate_structured_summary with progress-aware timeout for the API path."""
     from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
-    from myrm_agent_harness.agent.context_management.strategies.progress_timeout import (
+    from myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout import (
         InactivityTimeoutError,
         ProgressClock,
         TotalCeilingTimeoutError,
     )
-    from myrm_agent_harness.agent.context_management.strategies.summarizer import (
+    from myrm_agent_harness.agent.context_management.strategies.summary.summarizer import (
         generate_structured_summary,
     )
 

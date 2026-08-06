@@ -31,7 +31,9 @@ class FakeChannel(BaseChannel):
         select_menus=True,
     )
 
-    def __init__(self, *, name: str = "fake", caps: ChannelCapabilities | None = None) -> None:
+    def __init__(
+        self, *, name: str = "fake", caps: ChannelCapabilities | None = None
+    ) -> None:
         super().__init__()
         if name != "fake":
             type(self).name = name  # type: ignore[assignment]
@@ -145,7 +147,9 @@ class TestDowngradeComponents:
         assert "回复数字选择" in result.content
         assert "Reply with a number" not in result.content
 
-    def test_downgrade_logs_info_message(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_downgrade_logs_info_message(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that downgrade events are logged at INFO level."""
         import logging
 
@@ -175,11 +179,15 @@ class TestDowngradeComponents:
     def test_url_button_downgrade_shows_link(self) -> None:
         """Test that URL buttons show the URL in fallback text."""
         ch = FakeChannel(caps=ChannelCapabilities(buttons=False))
-        url_button = ActionButton(label="View Details", action_id="view", url="https://example.com/details")
+        url_button = ActionButton(
+            label="View Details", action_id="view", url="https://example.com/details"
+        )
         msg = _make_out(components=((url_button,),))
         result = downgrade_components(msg, ch)
         assert "View Details → https://example.com/details" in result.content
-        assert "/view" not in result.content  # Should NOT show action_id for URL buttons
+        assert (
+            "/view" not in result.content
+        )  # Should NOT show action_id for URL buttons
 
     def test_select_menu_without_placeholder_uses_default(self) -> None:
         """Test that SelectMenu without placeholder uses localized default text."""
@@ -216,7 +224,9 @@ class TestDowngradeComponents:
         from app.channels.types import MediaAttachment, MediaType
 
         ch = FakeChannel(caps=ChannelCapabilities(media=False))
-        media1 = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        media1 = MediaAttachment(
+            media_type=MediaType.IMAGE, url="https://example.com/img.png"
+        )
         media2 = MediaAttachment(media_type=MediaType.VIDEO, path="/local/video.mp4")
         msg = _make_out(content="Look at this:")
         msg = dataclasses.replace(msg, media=(media1, media2))
@@ -231,7 +241,9 @@ class TestDowngradeComponents:
         from app.channels.types import MediaAttachment, MediaType
 
         ch = FakeChannel(caps=ChannelCapabilities(media=True))
-        media1 = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        media1 = MediaAttachment(
+            media_type=MediaType.IMAGE, url="https://example.com/img.png"
+        )
         msg = _make_out(content="Look at this:")
         msg = dataclasses.replace(msg, media=(media1,))
         result = downgrade_components(msg, ch)
@@ -246,7 +258,9 @@ class TestDowngradeComponents:
         # Channel supports buttons but NOT media
         ch = FakeChannel(caps=ChannelCapabilities(buttons=True, media=False))
         btn = ActionButton(label="OK", action_id="test:ok")
-        media1 = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        media1 = MediaAttachment(
+            media_type=MediaType.IMAGE, url="https://example.com/img.png"
+        )
 
         msg = _make_out(content="Choose:", components=((btn,),))
         msg = dataclasses.replace(msg, media=(media1,))
@@ -470,7 +484,9 @@ class TestMessageBusEdgeCases:
         try:
             result = await bus.send_tracked(_make_out(content="null guard"))
             assert result is None
-            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+            from myrm_agent_harness.infra.delivery.storage import (
+                load_pending_deliveries,
+            )
 
             assert await load_pending_deliveries(base_dir=dlq_dir) == []
             dlq = await bus.get_dlq_messages()
@@ -495,7 +511,9 @@ class TestMessageBusEdgeCases:
             await bus.publish_outbound(_make_out(content="dispatch null"))
             await asyncio.sleep(2.0)
             assert len(ch.sent) == 1
-            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+            from myrm_agent_harness.infra.delivery.storage import (
+                load_pending_deliveries,
+            )
 
             assert await load_pending_deliveries(base_dir=dlq_dir) == []
             dlq = await bus.get_dlq_messages()
@@ -504,7 +522,9 @@ class TestMessageBusEdgeCases:
             await bus.stop()
 
     @pytest.mark.asyncio
-    async def test_send_tracked_failure_invokes_permanent_failure_callback(self, tmp_path) -> None:
+    async def test_send_tracked_failure_invokes_permanent_failure_callback(
+        self, tmp_path
+    ) -> None:
         class FailSendChannel(FakeChannel):
             async def send(self, msg: OutboundMessage) -> str | None:
                 raise RuntimeError("send failed")
@@ -530,7 +550,9 @@ class TestMessageBusEdgeCases:
             await bus.stop()
 
     @pytest.mark.asyncio
-    async def test_send_tracked_failure_skips_duplicate_callback_with_ledger(self, tmp_path) -> None:
+    async def test_send_tracked_failure_skips_duplicate_callback_with_ledger(
+        self, tmp_path
+    ) -> None:
         class FailSendChannel(FakeChannel):
             async def send(self, msg: OutboundMessage) -> str | None:
                 raise RuntimeError("send failed")
@@ -539,7 +561,9 @@ class TestMessageBusEdgeCases:
         dlq_dir = tmp_path / "dlq"
         dlq_dir.mkdir()
         ledger_path = tmp_path / "ledger.db"
-        from app.channels.reliability.delivery_notify_ledger import SqliteDeliveryNotifyLedger
+        from app.channels.reliability.delivery_notify_ledger import (
+            SqliteDeliveryNotifyLedger,
+        )
 
         ledger = SqliteDeliveryNotifyLedger(ledger_path)
         bus = MessageBus(
@@ -574,7 +598,9 @@ class TestMessageBusEdgeCases:
             ledger.close()
 
     @pytest.mark.asyncio
-    async def test_send_tracked_failure_presync_notified_merged_on_start(self, tmp_path) -> None:
+    async def test_send_tracked_failure_presync_notified_merged_on_start(
+        self, tmp_path
+    ) -> None:
         class FailSendChannel(FakeChannel):
             async def send(self, msg: OutboundMessage) -> str | None:
                 raise RuntimeError("send failed")
@@ -599,24 +625,32 @@ class TestMessageBusEdgeCases:
     async def test_record_outbound_failure_callback_without_dlq_dir(self) -> None:
         callback = AsyncMock()
         bus = MessageBus(on_permanent_failure=callback)
-        await bus._record_outbound_failure(_make_out(), "send failed", retries_exhausted=True)
+        await bus._record_outbound_failure(
+            _make_out(), "send failed", retries_exhausted=True
+        )
         callback.assert_awaited_once()
         assert callback.await_args.args[1] == "send failed"
 
     @pytest.mark.asyncio
-    async def test_record_outbound_failure_callback_exception_does_not_raise(self, tmp_path) -> None:
+    async def test_record_outbound_failure_callback_exception_does_not_raise(
+        self, tmp_path
+    ) -> None:
         async def failing_callback(_delivery: object, _error: str) -> None:
             raise RuntimeError("callback failed")
 
         dlq_dir = tmp_path / "dlq"
         dlq_dir.mkdir()
         bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=failing_callback)
-        await bus._record_outbound_failure(_make_out(), "send failed", retries_exhausted=True)
+        await bus._record_outbound_failure(
+            _make_out(), "send failed", retries_exhausted=True
+        )
 
     @pytest.mark.asyncio
     async def test_edit_message_exception_returns_false(self) -> None:
         class FailEditChannel(FakeChannel):
-            async def edit_message(self, chat_id: str, message_id: str, content: str) -> None:
+            async def edit_message(
+                self, chat_id: str, message_id: str, content: str
+            ) -> None:
                 raise RuntimeError("edit failed")
 
         bus = MessageBus()
@@ -828,10 +862,14 @@ class TestCpEgressDispatch:
                     return_value="cp-msg-1",
                 ),
             ):
-                await bus.publish_outbound(_make_out(channel="feishu", content="via cp"))
+                await bus.publish_outbound(
+                    _make_out(channel="feishu", content="via cp")
+                )
                 await asyncio.sleep(0.5)
             assert len(ch.sent) == 0
-            from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+            from myrm_agent_harness.infra.delivery.storage import (
+                load_pending_deliveries,
+            )
 
             assert await load_pending_deliveries(base_dir=tmp_path) == []
         finally:
@@ -873,7 +911,9 @@ class TestCpEgressDispatch:
                     return_value="cp-msg-2",
                 ),
             ):
-                await bus.publish_outbound(_make_out(channel="feishu", content="orphan cp"))
+                await bus.publish_outbound(
+                    _make_out(channel="feishu", content="orphan cp")
+                )
                 await asyncio.sleep(0.5)
             assert await bus.durable_outbound.count_pending() == 0
         finally:

@@ -114,7 +114,7 @@ class ChatCompressionStreakStore:
 
 def register_chat_compression_streak_store() -> None:
     """Register DB-backed streak store for harness anti-thrash guard."""
-    from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
         register_compression_streak_store,
     )
 
@@ -146,7 +146,7 @@ async def save_compression_ineffective_streak(
     )
     await db.flush()
     ChatCompressionStreakStore._mirror_task_metrics(chat_id, normalized)
-    from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
         get_compression_streak_store,
     )
 
@@ -158,7 +158,7 @@ async def save_compression_ineffective_streak(
 async def hydrate_compression_streak_from_db(db: AsyncSession, chat_id: str) -> int:
     """Load DB streak into active store before anti-thrash evaluation."""
     streak = await load_compression_ineffective_streak(db, chat_id)
-    from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
         get_compression_streak_store,
     )
 

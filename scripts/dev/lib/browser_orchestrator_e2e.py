@@ -95,10 +95,18 @@ class OrchestratorChromeClient:
     def _is_missing_session_context(self, message: str) -> bool:
         lowered = message.lower()
         return (
-            "no context for session" in lowered or "mux_context_disconnected" in lowered
+            "no context for session" in lowered
+            or "mux_context_disconnected" in lowered
+            or "session with given id not found" in lowered
+            or "does not own target" in lowered
+            or "no target with given id" in lowered
         )
 
     def _ensure_session_context(self) -> None:
+        try:
+            self._daemon.destroy_session(self._session_id)
+        except (RuntimeError, TimeoutError, OSError):
+            pass
         try:
             self._daemon.create_session(self._session_id)
         except RuntimeError as exc:
@@ -110,14 +118,27 @@ class OrchestratorChromeClient:
     ) -> OrchestratorMcpPage:
         orphan_timeout_sec = min(45.0, self._request_timeout_sec)
         last_exc: BaseException | None = None
+        hot_eligible = False
+        try:
+            from warm_shell_registry import shared_read_hot_path_decision
+
+            hot_eligible = shared_read_hot_path_decision(url=url).eligible
+        except ImportError:
+            hot_eligible = False
         for attempt in range(1, 3):
             try:
                 self._ensure_session_context()
                 with self._daemon.bounded_request_timeout(orphan_timeout_sec):
-                    created = self._daemon.open_page_transaction(
-                        self._session_id,
-                        url=url,
-                    )
+                    if hot_eligible:
+                        created = self._daemon.create_page(
+                            self._session_id,
+                            url=url,
+                        )
+                    else:
+                        created = self._daemon.open_page_transaction(
+                            self._session_id,
+                            url=url,
+                        )
                 live = OrchestratorMcpPage(
                     page_id=int(created["pageId"]),
                     target_id=str(created["targetId"]),
@@ -204,11 +225,11 @@ class OrchestratorChromeClient:
         isolated_context: str | None = None,
     ) -> OrchestratorMcpPage:
         del timeout_ms, isolated_context
-        created = self._daemon.create_page(self._session_id, url)
+        created = self._daemon.open_page_transaction(self._session_id, url=url)
         page = OrchestratorMcpPage(
             page_id=int(created["pageId"]),
             target_id=str(created["targetId"]),
-            url=url,
+            url=str(created.get("url", url)),
         )
         self._primary_page = page
         return page
@@ -255,11 +276,7 @@ class OrchestratorChromeClient:
         )
 
     def _recover_daemon_if_needed(self, message: str) -> bool:
-        if "daemon not running" not in message.lower():
-            return False
-        _spawn_ensure_orchestrator()
-        _wait_orchestrator_daemon_ready(self._daemon, wall_sec=45.0)
-        return True
+        return _recover_orchestrator_daemon(self._daemon, message, wall_sec=45.0)
 
     def evaluate(
         self,
@@ -270,7 +287,7 @@ class OrchestratorChromeClient:
     ) -> object:
         effective = min(max(5.0, timeout_sec), self._request_timeout_sec)
         last_exc: BaseException | None = None
-        for attempt in range(1, 4):
+        for attempt in range(1, 6):
             try:
                 payload = self._daemon.evaluate_page(
                     self._session_id,
@@ -286,13 +303,18 @@ class OrchestratorChromeClient:
                     continue
                 if self._is_missing_session_context(message):
                     self._ensure_session_context()
+                    fallback_url = page.url or "http://127.0.0.1:3000/"
+                    self._reopen_primary_page(fallback_url, page=page)
                     continue
-                if self._is_terminal_tab_error(message) and attempt < 3:
+                if self._is_terminal_tab_error(message) and attempt < 5:
                     fallback = page.url or "http://127.0.0.1:3000/"
-                    self._reopen_primary_page(fallback, page=page)
+                    try:
+                        self._reopen_primary_page(fallback, page=page)
+                    except (RuntimeError, TimeoutError, OSError):
+                        pass
                     continue
                 retryable = self._is_retryable_transport_error(message)
-                if not retryable or attempt >= 3:
+                if not retryable or attempt >= 5:
                     raise
                 time.sleep(min(2.0 * float(attempt), 6.0))
         if last_exc is not None:
@@ -322,6 +344,21 @@ class OrchestratorChromeClient:
                     self._ensure_session_context()
                     continue
                 if self._is_terminal_tab_error(message) and attempt < 3:
+                    try:
+                        from warm_shell_registry import shared_read_hot_path_decision
+
+                        if shared_read_hot_path_decision(url=url).eligible:
+                            self._ensure_session_context()
+                            created = self._daemon.create_page(
+                                self._session_id,
+                                url=url,
+                            )
+                            page.page_id = int(created["pageId"])
+                            page.target_id = str(created["targetId"])
+                            page.url = url
+                            return
+                    except ImportError:
+                        pass
                     self._reopen_primary_page(url, page=page)
                     continue
                 if not self._is_retryable_transport_error(message) or attempt >= 3:
@@ -355,6 +392,10 @@ def _resolve_session_id() -> str:
     from dev_gate_contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
     from chrome_e2e.gates.entry_guard import is_e2e_chrome_mcp_diagnostic_mode
 
+    # Per-lease orch session isolates parallel chrome_e2e (shared MYRM_E2E_RUN_ID is parent-only).
+    lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
+    if lease_id:
+        return f"orch-{lease_id}"
     run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
     if run_id:
         return run_id
@@ -364,13 +405,39 @@ def _resolve_session_id() -> str:
     if is_e2e_chrome_mcp_diagnostic_mode():
         return f"orchestrator-diagnostic-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     raise RuntimeError(
-        f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: MYRM_E2E_RUN_ID or "
-        "MYRM_E2E_AGENT_ID required — launch via ./myrm test -m chrome_e2e"
+        f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: MYRM_E2E_LEASE_ID, "
+        "MYRM_E2E_AGENT_ID, or MYRM_E2E_RUN_ID required — launch via ./myrm test -m chrome_e2e"
     )
 
 
 def _monorepo_root() -> Path:
     return Path(__file__).resolve().parents[4]
+
+
+def _orchestrator_daemon_unreachable(message: str) -> bool:
+    """True when daemon socket is gone or hung under parallel burst (fix#14)."""
+    lowered = message.lower()
+    if "daemon not running" in lowered or "connection refused" in lowered:
+        return True
+    if "browser orchestrator response timeout" in lowered:
+        return _effective_parallel_load() >= 2 or not BrowserOrchestratorClient(
+            timeout_sec=3.0
+        ).is_alive()
+    return False
+
+
+def _recover_orchestrator_daemon(
+    daemon: BrowserOrchestratorClient,
+    message: str,
+    *,
+    wall_sec: float = 45.0,
+) -> bool:
+    if not _orchestrator_daemon_unreachable(message):
+        return False
+    if not daemon.is_alive():
+        _spawn_ensure_orchestrator()
+    _wait_orchestrator_daemon_ready(daemon, wall_sec=wall_sec)
+    return True
 
 
 def _spawn_ensure_orchestrator() -> None:
@@ -399,6 +466,18 @@ def _spawn_ensure_orchestrator() -> None:
         return
 
 
+def _open_page_error_needs_session_recreate(message: str) -> bool:
+    lowered = message.lower()
+    return (
+        "no context for session" in lowered
+        or "mux_context_disconnected" in lowered
+        or "does not own target" in lowered
+        or "session with given id not found" in lowered
+        or "no target with given id" in lowered
+        or "e2e_user_closed_tab" in lowered
+    )
+
+
 def _is_retryable_open_page_error(message: str) -> bool:
     lowered = message.lower()
     return (
@@ -420,6 +499,9 @@ def _is_retryable_open_page_error(message: str) -> bool:
         or "operation timeout: new_page" in lowered
         or "operation queue timeout: new_page" in lowered
         or "does not own target" in lowered
+        or "session with given id not found" in lowered
+        or "no target with given id" in lowered
+        or "e2e_user_closed_tab" in lowered
     )
 
 
@@ -437,11 +519,14 @@ def _effective_parallel_load() -> int:
 
 def _parallel_open_page_max_attempts() -> int:
     """R299: cap retries — orchestrator fail-fast wall makes 8×480s storms pointless."""
-    if _effective_parallel_load() >= 4:
-        return 3
-    if _effective_parallel_load() >= 2:
-        return 3
-    return 5
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot
+
+        if parallel_active_test_count_ssot() > 0:
+            return 6
+    except ImportError:
+        pass
+    return 3
 
 
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
@@ -470,6 +555,56 @@ def _recreate_orchestrator_session(
     except RuntimeError as create_exc:
         if "already" not in str(create_exc).lower():
             raise
+    time.sleep(0.15)
+
+
+def _open_page_fast_create_with_retry(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    *,
+    url: str,
+    max_attempts: int | None = None,
+) -> dict[str, object]:
+    """Single scheduler-op page open for SHARED+READ hot bootstrap (§19.11 TAB-6)."""
+    attempts = (
+        max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
+    )
+    open_timeout_sec = _parallel_open_page_timeout_sec(daemon)
+    last_exc: BaseException | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            if attempt > 1:
+                _recreate_orchestrator_session(daemon, session_id)
+            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+
+            touch_wall_progress(current_node="open_page_fast_create")
+            target_url = url.strip() or "about:blank"
+            # Single RPC: orchestrator createPage runs create+navigate in one daemon
+            # transaction — avoids client round-trip window where background blank tabs
+            # get E2E_USER_CLOSED_TAB before navigate (§19.11 TAB-6b).
+            with daemon.elevated_request_timeout(open_timeout_sec):
+                created = daemon.create_page(session_id, url=target_url)
+            payload = dict(created)
+            return {
+                "pageId": int(payload["pageId"]),
+                "targetId": str(payload["targetId"]),
+                "url": target_url,
+            }
+        except (TimeoutError, OSError, RuntimeError) as exc:
+            last_exc = exc
+            message = str(exc)
+            if not _is_retryable_open_page_error(message):
+                raise
+            if _recover_orchestrator_daemon(daemon, message):
+                _recreate_orchestrator_session(daemon, session_id)
+            elif _open_page_error_needs_session_recreate(message):
+                _recreate_orchestrator_session(daemon, session_id)
+            if attempt >= attempts:
+                break
+            time.sleep(min(3.0 * float(attempt), 8.0))
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("open_page_fast_create failed without exception")
 
 
 def _open_page_transaction_with_retry(
@@ -508,14 +643,9 @@ def _open_page_transaction_with_retry(
             message = str(exc)
             if not _is_retryable_open_page_error(message):
                 raise
-            if "daemon not running" in message.lower():
-                _spawn_ensure_orchestrator()
-                _wait_orchestrator_daemon_ready(daemon, wall_sec=45.0)
-            elif (
-                "no context for session" in message.lower()
-                or "mux_context_disconnected" in message.lower()
-                or "does not own target" in message.lower()
-            ):
+            if _recover_orchestrator_daemon(daemon, message):
+                _recreate_orchestrator_session(daemon, session_id)
+            elif _open_page_error_needs_session_recreate(message):
                 _recreate_orchestrator_session(daemon, session_id)
             if attempt >= attempts:
                 break
@@ -603,7 +733,10 @@ def open_orchestrator_mcp_page(
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
     session_id = _resolve_session_id()
-    daemon.create_session(session_id)
+    if _effective_parallel_load() >= 2:
+        _recreate_orchestrator_session(daemon, session_id)
+    else:
+        daemon.create_session(session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
     client = OrchestratorChromeClient(
         session_id=session_id,
@@ -611,15 +744,57 @@ def open_orchestrator_mcp_page(
         request_timeout_sec=effective_timeout,
     )
     try:
+        from warm_shell_registry import (  # noqa: PLC0415
+            seal_platform_shell,
+            set_bootstrap_hot_path,
+            shared_read_hot_path_decision,
+        )
+
+        hot = shared_read_hot_path_decision(url=url)
         binding_source = e2e_runtime_binding_source()
-        if binding_source:
-            binding_expression = f"(() => {{{binding_source} return true; }})()"
-            created = _open_page_transaction_with_retry(
-                daemon,
-                session_id,
-                url=url,
-                binding_expression=binding_expression,
-            )
+        pending_binding: str | None = None
+
+        if hot.eligible:
+            set_bootstrap_hot_path("fast_create")
+            # Hot path skips runtime binding — navigate directly (mirror cold post-bind navigate).
+            try:
+                created = _open_page_fast_create_with_retry(
+                    daemon,
+                    session_id,
+                    url=url,
+                )
+            except RuntimeError as hot_exc:
+                if not _is_retryable_open_page_error(str(hot_exc)):
+                    raise
+                set_bootstrap_hot_path("cold")
+                _recreate_orchestrator_session(daemon, session_id)
+                created = _open_page_transaction_with_retry(
+                    daemon,
+                    session_id,
+                    url=url,
+                )
+        elif binding_source:
+            set_bootstrap_hot_path("cold")
+            try:
+                created = _open_page_fast_create_with_retry(
+                    daemon,
+                    session_id,
+                    url=url,
+                )
+                pending_binding = binding_source
+            except RuntimeError as bind_exc:
+                if not _is_retryable_open_page_error(str(bind_exc)):
+                    raise
+                binding_expression = (
+                    f"(() => {{{binding_source} return true; }})()"
+                )
+                _recreate_orchestrator_session(daemon, session_id)
+                created = _open_page_transaction_with_retry(
+                    daemon,
+                    session_id,
+                    url=url,
+                    binding_expression=binding_expression,
+                )
         else:
             api_base = get_open_page_api_url().rstrip("/")
             if api_base and api_base != "http://127.0.0.1:8080":
@@ -631,22 +806,49 @@ def open_orchestrator_mcp_page(
                         f"E2E_RUNTIME_BINDING_FAILED: private API not ready: {api_base}"
                     )
                 inject = e2e_api_base_inject_js(api_base)
-                created = _open_page_transaction_with_retry(
-                    daemon,
-                    session_id,
-                    url=url,
-                    binding_expression=f"(() => {{{inject} return true; }})()",
-                )
+                set_bootstrap_hot_path("cold")
+                try:
+                    created = _open_page_fast_create_with_retry(
+                        daemon,
+                        session_id,
+                        url=url,
+                    )
+                    pending_binding = inject
+                except RuntimeError as inject_exc:
+                    if not _is_retryable_open_page_error(str(inject_exc)):
+                        raise
+                    _recreate_orchestrator_session(daemon, session_id)
+                    created = _open_page_transaction_with_retry(
+                        daemon,
+                        session_id,
+                        url=url,
+                        binding_expression=f"(() => {{{inject} return true; }})()",
+                    )
             else:
+                set_bootstrap_hot_path("cold")
                 created = _open_page_transaction_with_retry(
                     daemon,
                     session_id,
                     url=url,
                 )
+        seal_platform_shell(ui_url=url)
         page.page_id = int(created["pageId"])
         page.target_id = str(created["targetId"])
         page.url = str(created.get("url", url))
         client.bind_primary_page(page)
+        if pending_binding is not None:
+            client.evaluate(
+                page,
+                f"(() => {{{pending_binding} return true; }})()",
+                timeout_sec=min(30.0, effective_timeout),
+            )
+            target_url = url.strip()
+            if target_url and target_url != "about:blank":
+                with daemon.elevated_request_timeout(
+                    _parallel_open_page_timeout_sec(daemon)
+                ):
+                    daemon.navigate_page(session_id, page.target_id, target_url)
+                page.url = target_url
         try:
             from chrome_e2e.gates.orphan_budget import (
                 assert_orphan_budget_invariant,

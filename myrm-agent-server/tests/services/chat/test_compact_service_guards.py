@@ -43,7 +43,7 @@ async def test_compact_chat_skips_when_summarize_circuit_open() -> None:
     db = AsyncMock()
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
         return_value=True,
     ):
         result = await compact_chat(db, "chat-1")
@@ -74,7 +74,7 @@ async def test_compact_chat_for_idle_stale_skips_when_no_compactable_messages() 
 
     with (
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,
         ),
         patch(
@@ -108,7 +108,7 @@ async def test_compact_chat_for_idle_stale_compacts_five_messages() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,
         ),
         patch(
@@ -155,7 +155,7 @@ async def test_compact_chat_skips_when_anti_thrash_active() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,
         ),
         patch(
@@ -171,7 +171,7 @@ async def test_compact_chat_skips_when_anti_thrash_active() -> None:
             AsyncMock(return_value=(MagicMock(), 128_000)),
         ),
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.compression_anti_thrash_guard.should_block_automatic_compression",
+            "myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard.should_block_automatic_compression",
             return_value=True,
         ),
         patch(
@@ -196,7 +196,7 @@ async def test_compact_chat_idle_stale_uses_request_tokens_for_anti_thrash() -> 
     summary = MagicMock()
     summary.to_json.return_value = '{"user_goal":"merged"}'
 
-    from myrm_agent_harness.agent.context_management.strategies.compression_anti_thrash_guard import (
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
         ANTI_THRASHING_STREAK_LIMIT,
     )
     from myrm_agent_harness.agent.context_management.tracking.task_metrics import (
@@ -207,7 +207,7 @@ async def test_compact_chat_idle_stale_uses_request_tokens_for_anti_thrash() -> 
     metrics.compression_ineffective_streak = ANTI_THRASHING_STREAK_LIMIT
 
     async def _hydrate_streak(_db: AsyncMock, cid: str) -> int:
-        from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+        from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
             get_compression_streak_store,
         )
 
@@ -220,7 +220,7 @@ async def test_compact_chat_idle_stale_uses_request_tokens_for_anti_thrash() -> 
             AsyncMock(side_effect=_hydrate_streak),
         ),
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,
         ),
         patch(
@@ -278,7 +278,7 @@ async def test_compact_chat_default_enforces_min_messages_for_five_messages() ->
 
     with (
         patch(
-            "myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard.is_summarize_circuit_open",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard.is_summarize_circuit_open",
             return_value=False,
         ),
         patch(

@@ -10,7 +10,13 @@ from app.channels.core.base import BaseChannel
 from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
-from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    DeliveryConfig,
+    JobResult,
+    JobType,
+    Schedule,
+)
 
 
 @pytest.mark.asyncio
@@ -44,7 +50,9 @@ async def test_deliver_channel_null_send_retains_disk(tmp_path) -> None:
     channel_bridge.channel_gateway = gateway
     try:
         with pytest.raises(RuntimeError, match="no message_id"):
-            await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
+            await ChannelResultDelivery().deliver(
+                job, JobResult(success=True, output="body")
+            )
 
         pending = await load_pending_deliveries(base_dir=tmp_path)
         assert len(pending) == 1
@@ -88,7 +96,9 @@ async def test_deliver_disabled_channel_raises() -> None:
     channel_bridge.channel_gateway = gateway
     try:
         with pytest.raises(RuntimeError, match="disabled"):
-            await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
+            await ChannelResultDelivery().deliver(
+                job, JobResult(success=True, output="body")
+            )
     finally:
         channel_bridge.channel_gateway = previous
         await gateway.stop()
@@ -110,7 +120,9 @@ async def test_deliver_missing_channel_raises() -> None:
 
     gateway = channel_bridge.channel_gateway
     with pytest.raises(RuntimeError, match="No channel registered"):
-        await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
+        await ChannelResultDelivery().deliver(
+            job, JobResult(success=True, output="body")
+        )
 
 
 def test_resolve_recipient_requires_target() -> None:

@@ -64,7 +64,9 @@ async def test_send_via_control_plane_http_error() -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
-        patch.object(cp_egress_client.settings.control_plane, "url", "https://cp.example"),
+        patch.object(
+            cp_egress_client.settings.control_plane, "url", "https://cp.example"
+        ),
         patch.dict(
             "os.environ",
             {
@@ -72,7 +74,10 @@ async def test_send_via_control_plane_http_error() -> None:
                 "SANDBOX_ID": "sandbox-1",
             },
         ),
-        patch("app.services.channels.cp_egress_client.httpx.AsyncClient", return_value=mock_client),
+        patch(
+            "app.services.channels.cp_egress_client.httpx.AsyncClient",
+            return_value=mock_client,
+        ),
     ):
         result = await cp_egress_client.send_via_control_plane(
             channel="feishu",

@@ -167,6 +167,12 @@ def app() -> FastAPI:
     agent_management_module = import_module("app.api.agents.agent")
     app.include_router(agent_management_module.router, prefix="/api/agents", tags=["agent-management"])
 
+    agent_extras_module = import_module("app.api.agents.agent_extras")
+    app.include_router(agent_extras_module.router, prefix="/api/agents", tags=["agent-management"])
+
+    agent_portability_module = import_module("app.api.agents.agent_portability")
+    app.include_router(agent_portability_module.router, prefix="/api/agents", tags=["agent-management"])
+
     generate_prompt_module = import_module("app.api.agents.generate_prompt")
     app.include_router(generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"])
 

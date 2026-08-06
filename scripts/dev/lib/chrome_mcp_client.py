@@ -153,8 +153,12 @@ class ChromeMcpClient:
             self._heartbeat_lease,
             interval_sec=_PAGE_LEASE_HEARTBEAT_INTERVAL_SEC,
         )
+        lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
         self._browser_context_id = (
-            os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+            f"orch-{lease_id}"
+            if lease_id
+            else os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
+            or os.environ.get("MYRM_E2E_RUN_ID", "").strip()
             or f"myrm-{os.getpid()}-{uuid.uuid4().hex}"
         )
         self._agent_id = (
@@ -284,9 +288,21 @@ class ChromeMcpClient:
                         "cdp evaluate failed" in message
                         or "cdp request timeout" in message
                         or "browser orchestrator response timeout" in message
+                        or "does not own target" in message
+                        or "no target with given id" in message
+                        or "no context for session" in message
                     )
                     if not retryable or attempt >= 3:
                         raise
+                    if (
+                        "does not own target" in message
+                        or "no target with given id" in message
+                        or "no context for session" in message
+                    ):
+                        self._destroy_daemon_session()
+                        client = self._ensure_daemon_session()
+                        session_id = self._daemon_session_id
+                        assert session_id is not None
                     time.sleep(min(2.0 * float(attempt), 4.0))
             if last_exc is not None:
                 raise last_exc

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -110,7 +111,9 @@ class CoordinatorService:
             reaped = list(self.store.reap_abandoned())
             reaped.extend(self.store.reap_expired_deadlines())
             compacted = self.store.compact_journal()
-            from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+            from idle_hygiene_scheduler import (
+                run_idle_tab_hygiene_if_safe,
+            )  # noqa: PLC0415
 
             hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_reap")
             return {
@@ -142,7 +145,9 @@ class CoordinatorService:
                 succeeded=request.get("succeeded") is True,
                 failure_token=_optional_text(request, "failure_token"),
             )
-            from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+            from idle_hygiene_scheduler import (
+                run_idle_tab_hygiene_if_safe,
+            )  # noqa: PLC0415
 
             hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_finish")
             return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
@@ -724,9 +729,25 @@ class _BackgroundReaper:
             pass
 
 
+def _acquire_serve_singleton_lock(database_path: Path) -> int:
+    """Exclusive non-blocking flock — second serve exits immediately (TAB-8)."""
+    lock_path = database_path.with_name(f"{database_path.name}.serve.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        os.close(fd)
+        raise SystemExit(
+            "DEV_GATE_COORDINATOR_SINGLETON: another serve instance holds the lock"
+        ) from exc
+    return fd
+
+
 def serve(socket_path: Path, database_path: Path) -> None:
     socket_path = normalized_socket_path(socket_path)
     resolved_db = database_path.resolve()
+    lock_fd = _acquire_serve_singleton_lock(resolved_db)
     from dev_gate_cli import _write_coordinator_code_stamp  # noqa: PLC0415
 
     _write_coordinator_code_stamp(resolved_db)
@@ -743,6 +764,8 @@ def serve(socket_path: Path, database_path: Path) -> None:
         reaper.stop()
         server.server_close()
         socket_path.unlink(missing_ok=True)
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 def main() -> int:

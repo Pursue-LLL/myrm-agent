@@ -19,7 +19,13 @@ from myrm_agent_harness.infra.delivery.storage import (
     load_pending_deliveries,
     save_delivery,
 )
-from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    DeliveryConfig,
+    JobResult,
+    JobType,
+    Schedule,
+)
 
 
 class _FeishuStubChannel(BaseChannel):
@@ -68,7 +74,9 @@ class _EditPlaceholderChannel(_FeishuStubChannel):
         self.edited.append(msg)
 
 
-def _outbound(content: str = "integration reply", *, channel: str = "feishu") -> OutboundMessage:
+def _outbound(
+    content: str = "integration reply", *, channel: str = "feishu"
+) -> OutboundMessage:
     return OutboundMessage(
         channel=channel,
         recipient_id="user_integration",
@@ -187,7 +195,10 @@ async def test_attempting_recovery_prepends_honest_marker(tmp_path) -> None:
         await asyncio.sleep(0.4)
         assert len(channel.sent) == 1
         assert "body after marker" in channel.sent[0].content
-        assert "duplicate" in channel.sent[0].content.lower() or "重复" in channel.sent[0].content
+        assert (
+            "duplicate" in channel.sent[0].content.lower()
+            or "重复" in channel.sent[0].content
+        )
 
 
 @pytest.mark.integration
@@ -213,7 +224,9 @@ async def test_cron_im_delivery_clears_disk_obligation(tmp_path) -> None:
             schedule=Schedule(kind="cron", expr="0 9 * * *"),
             delivery=DeliveryConfig(channel="feishu", target="user_integration"),
         )
-        await ChannelResultDelivery().deliver(job, JobResult(success=True, output="Cron IM body"))
+        await ChannelResultDelivery().deliver(
+            job, JobResult(success=True, output="Cron IM body")
+        )
         await asyncio.sleep(0.2)
 
         assert len(channel.sent) == 1
@@ -302,7 +315,9 @@ async def test_cron_send_returns_none_retains_disk(tmp_path) -> None:
             delivery=DeliveryConfig(channel="feishu", target="user_integration"),
         )
         with pytest.raises(RuntimeError, match="no message_id"):
-            await ChannelResultDelivery().deliver(job, JobResult(success=True, output="Cron fail body"))
+            await ChannelResultDelivery().deliver(
+                job, JobResult(success=True, output="Cron fail body")
+            )
 
         pending = await load_pending_deliveries(base_dir=tmp_path)
         assert len(pending) == 1

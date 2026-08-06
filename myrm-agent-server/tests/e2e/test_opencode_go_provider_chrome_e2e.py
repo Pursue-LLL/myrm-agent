@@ -14,7 +14,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import get_e2e_ui_url, wait_e2e_provider_ready  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
@@ -122,13 +122,13 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
     with open_mcp_page(
         settings_url,
         timeout_ms=90_000,
-        request_timeout_sec=45.0,
+        request_timeout_sec=90.0,
     ) as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page, recover_url=settings_url)
         state: dict[str, object] = {}
         for attempt in range(3):
             try:
+                client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
                 state = wait_for_state(
                     client,
                     page,
@@ -137,7 +137,7 @@ def test_opencode_go_settings_fetch_models_dialog(e2e_resource_ledger: E2EResour
                 )
                 if state.get("ready") is True:
                     break
-            except AssertionError:
+            except (AssertionError, RuntimeError):
                 if attempt >= 2:
                     raise
             if attempt < 2:
@@ -172,7 +172,28 @@ async def test_opencode_go_chat_reply_ok(e2e_resource_ledger: E2EResourceLedger)
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
     try:
-        page = await asyncio.to_thread(client.new_page, ui_base, timeout_ms=120_000)
+        page: McpPage | None = None
+        last_exc: BaseException | None = None
+        for attempt in range(1, 4):
+            try:
+                page = await asyncio.to_thread(
+                    client.new_page, ui_base, timeout_ms=120_000
+                )
+                break
+            except (TimeoutError, RuntimeError) as exc:
+                last_exc = exc
+                message = str(exc).lower()
+                retryable = (
+                    "does not own target" in message
+                    or "no target with given id" in message
+                    or "cdp request timeout" in message
+                    or "browser orchestrator response timeout" in message
+                )
+                if not retryable or attempt >= 3:
+                    raise
+                await asyncio.sleep(min(2.0 * float(attempt), 6.0))
+        if page is None:
+            raise RuntimeError(f"new_page returned no page: {last_exc}")
         chat = McpChatSession(client, page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()

@@ -6,7 +6,7 @@
 
 import copy
 
-from app.api.agents.agent import _SENSITIVE_AUTH_FIELDS, _strip_sensitive_auth
+from app.api.agents.agent_portability import _SENSITIVE_AUTH_FIELDS, _strip_sensitive_auth
 
 
 class TestStripSensitiveAuth:

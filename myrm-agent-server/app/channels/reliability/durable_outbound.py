@@ -192,7 +192,9 @@ class DurableOutboundGate:
             recovered += 1
 
         if recovered:
-            logger.info("Recovered %d durable outbound deliveries after restart", recovered)
+            logger.info(
+                "Recovered %d durable outbound deliveries after restart", recovered
+            )
         return recovered
 
     def _delivery_to_outbound(self, delivery: QueuedDelivery) -> OutboundMessage:

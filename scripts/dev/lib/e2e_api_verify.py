@@ -622,6 +622,7 @@ def _mux_context_fields() -> dict[str, object]:
 
 from e2e_parallel_status import (
     load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,
+    resolve_parallel_runtime_snapshot as _resolve_parallel_runtime_snapshot,
     resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
     safe_active_test_count as _safe_active_test_count,
     compute_queue_state as _compute_queue_state,
@@ -629,6 +630,19 @@ from e2e_parallel_status import (
     format_cap_headroom_human as _format_cap_headroom_human,
     format_queue_human as _format_queue_human,
 )
+
+
+def _load_orchestrator_observability() -> tuple[dict[str, object], dict[str, object]]:
+    try:
+        from browser_orchestrator import (  # noqa: PLC0415
+            browser_orchestrator_snapshot,
+            orchestrator_queue_observability,
+        )
+
+        snap = browser_orchestrator_snapshot()
+        return snap, orchestrator_queue_observability(snap)
+    except ImportError:
+        return {"health": "UNKNOWN"}, {}
 
 
 def _compute_next_action(
@@ -838,7 +852,7 @@ def _context_to_dict(
     resolved_mux = mux_fields or _mux_context_fields()
     resolved_parallel = parallel_snapshot
     if resolved_parallel is None:
-        resolved_parallel, _ = _load_parallel_runtime_snapshot()
+        resolved_parallel, _ = _resolve_parallel_runtime_snapshot()
     resolved_wave = wave_snapshot or load_wave_snapshot()
     counts = wave_lease_counts(resolved_wave)
     active_tests_raw = resolved_parallel.get("active_tests")
@@ -861,12 +875,16 @@ def _context_to_dict(
             **resolved_parallel,
             "parallel_observability_mismatch": True,
         }
+    browser_orchestrator_payload: dict[str, object] = {"health": "UNKNOWN"}
+    orchestrator_obs: dict[str, object] = {}
+    browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
     headroom = _cap_headroom_fields(
         lease_counts=counts,
         mux_fields=resolved_mux,
         active_test_count=active_test_count,
         parallel_snapshot=resolved_parallel,
         observability_mismatch=observability_mismatch,
+        orchestrator_observability=orchestrator_obs,
     )
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
@@ -876,6 +894,15 @@ def _context_to_dict(
     payload["capHeadroom"] = headroom
     payload["leaseLiveness"] = lease_liveness_to_dict(liveness_rows)
     payload["devGate"] = dev_gate_payload
+    payload["browserOrchestrator"] = browser_orchestrator_payload
+    payload["orchestrator"] = {
+        "queueDepth": orchestrator_obs.get("queueDepth", 0),
+        "estimatedWaitSec": orchestrator_obs.get("estimatedWaitSec", 0),
+        "operationSloSec": orchestrator_obs.get("operationSloSec", 20),
+        "withinOperationSlo": orchestrator_obs.get("withinOperationSlo", True),
+        "activeOps": orchestrator_obs.get("activeOps", 0),
+        "effectiveCredits": orchestrator_obs.get("effectiveCredits", 4),
+    }
     observe_json = os.environ.get("MYRM_E2E_CONTEXT_JSON", "").strip() == "1"
     if not observe_json:
         try:
@@ -895,14 +922,6 @@ def _context_to_dict(
         except (ConnectionError, OSError, RuntimeError, TimeoutError, ImportError):
             pass
     if not observe_json:
-        try:
-            from browser_orchestrator import (
-                browser_orchestrator_snapshot,
-            )  # noqa: PLC0415
-
-            payload["browserOrchestrator"] = browser_orchestrator_snapshot()
-        except ImportError:
-            payload["browserOrchestrator"] = {"health": "UNKNOWN"}
         try:
             from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
 
@@ -965,6 +984,17 @@ def _context_to_dict(
             f"QUEUE_EXPECTED=yes reasons={reason_str}: read E2E_QUEUE_HUMAN; "
             "auto ADMIT queue ≤900s; do not stop/kill other pytest; "
             "do not pipe ./myrm test to tail|head."
+        )
+    if headroom.get("queueLayer") == "operation":
+        depth = headroom.get("operationQueueDepth", 0)
+        est_wait = headroom.get("estimatedOperationWaitSec", 0)
+        within_slo = headroom.get("operationWithinSlo", True)
+        slo_note = "normal_backpressure" if within_slo else "exceeds_slo_investigate"
+        payload["agent_rule"] = (
+            f"{payload.get('agent_rule', ctx.agent_rule)} "
+            f"OPERATION_BACKPRESSURE: queueDepth={depth} "
+            f"estimatedWaitSec={est_wait} ({slo_note}): continue launch; "
+            "do not kill peer; open_page>120s or node>10min no progress=bug."
         )
     stale_leases = [
         row
@@ -1068,7 +1098,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
                 "do not stop other tests.\n"
             )
     mux_fields = _mux_context_fields()
-    parallel_snapshot, parallel_lines = _load_parallel_runtime_snapshot()
+    parallel_snapshot, parallel_lines = _resolve_parallel_runtime_snapshot()
     from dev_gate_status import dev_gate_status as _dev_gate_status  # noqa: PLC0415
 
     dev_gate_payload = _dev_gate_status()
@@ -1082,6 +1112,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             **parallel_snapshot,
             "parallel_observability_mismatch": True,
         }
+    browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (
         [item for item in active_tests_raw if isinstance(item, dict)]
@@ -1108,6 +1139,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             mux_fields=mux_fields,
             active_test_count=active_test_count,
             parallel_snapshot=parallel_snapshot,
+            orchestrator_observability=orchestrator_obs,
         )
         + "\n"
     )
@@ -1131,6 +1163,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         mux_fields=mux_fields,
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
+        orchestrator_observability=orchestrator_obs,
     )
     if queue_human is not None:
         sys.stdout.write(f"{queue_human}\n")
@@ -1145,6 +1178,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
         observability_mismatch=observability_mismatch,
+        orchestrator_observability=orchestrator_obs,
     )
     for line in _format_agent_decision_human(
         ctx=ctx,

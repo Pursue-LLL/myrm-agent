@@ -196,6 +196,11 @@ def write_session_snapshot(
         payload["lane"] = existing["lane"]
     if existing is not None and existing.get("shpoib") is not None:
         payload["shpoib"] = existing["shpoib"]
+    hot_path = os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip()
+    if hot_path:
+        payload["bootstrapHotPath"] = hot_path
+    elif existing is not None and existing.get("bootstrapHotPath"):
+        payload["bootstrapHotPath"] = existing["bootstrapHotPath"]
     _write_snapshot_file(pid=os.getpid(), payload=payload)
     holder_raw = os.environ.get("MYRM_E2E_DEDUPE_HOLDER_PID", "").strip()
     if holder_raw.isdigit():
@@ -291,6 +296,22 @@ def progress_stale_sec(snapshot: dict[str, object]) -> float | None:
     if progress_at is None:
         return None
     return max(0.0, time.monotonic() - progress_at)
+
+
+def annotate_bootstrap_hot_path(mode: str) -> None:
+    """Persist bootstrap hot/cold path for e2e-context observers (§19.11 TAB-6)."""
+    text = mode.strip()
+    if not text:
+        return
+    os.environ["MYRM_E2E_BOOTSTRAP_HOT_PATH"] = text
+    existing = read_session_snapshot(os.getpid())
+    if existing is None:
+        return
+    payload = dict(existing)
+    payload["bootstrapHotPath"] = text
+    payload["progressAtMonotonic"] = time.monotonic()
+    payload["updatedAtEpoch"] = time.time()
+    _write_snapshot_file(pid=os.getpid(), payload=payload)
 
 
 def touch_session_progress(*, current_node: str | None = None) -> None:

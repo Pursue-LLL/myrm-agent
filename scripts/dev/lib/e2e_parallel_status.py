@@ -23,6 +23,7 @@ for Agent-facing e2e-context output.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Final
@@ -71,6 +72,57 @@ def load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
             sys.path.remove(support_text)
 
 
+def load_parallel_runtime_snapshot_lite() -> tuple[dict[str, object], list[str]]:
+    """Fast parallel snapshot for e2e-context json under load (skip pgrep/session scan)."""
+    try:
+        from dev_gate_status import dev_gate_status  # noqa: PLC0415
+        from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+
+        dev_gate = dev_gate_status()
+        wave = load_wave_snapshot()
+        counts = wave_lease_counts(wave)
+        shared = int(dev_gate.get("shared_active", 0))
+        private = int(dev_gate.get("private_active", 0))
+        active = max(counts.effective_total, shared + private)
+        payload: dict[str, object] = {
+            "agent_stream_lock": None,
+            "desktop_approval_lock": None,
+            "active_tests": [],
+            "active_test_count": active,
+            "admit_active_count": 0,
+            "body_active_count": active,
+            "snapshot_lite": True,
+            "snapshot_lite_source": "dev_gate+wave",
+        }
+        return payload, [
+            "E2E_PARALLEL_ACTIVE: "
+            f"lite_count={active} (full session scan skipped under parallel load)"
+        ]
+    except Exception as exc:
+        return load_parallel_runtime_snapshot()
+
+
+def should_use_lite_parallel_snapshot() -> bool:
+    """Auto-lite when parallel pressure is active unless explicitly disabled."""
+    raw = os.environ.get("MYRM_E2E_CONTEXT_LITE", "").strip().lower()
+    if raw in {"0", "false", "no"}:
+        return False
+    if raw in {"1", "true", "yes"}:
+        return True
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+
+        return parallel_active_test_count_ssot() > 0
+    except ImportError:
+        return False
+
+
+def resolve_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
+    if should_use_lite_parallel_snapshot():
+        return load_parallel_runtime_snapshot_lite()
+    return load_parallel_runtime_snapshot()
+
+
 def safe_active_test_count(snapshot: dict[str, object]) -> int:
     """Extract active_test_count; fail-closed returns 1 when UNKNOWN/invalid.
 
@@ -108,11 +160,7 @@ def resolve_cap_headroom_active_test_count(
     admit_count = int(snapshot.get("admit_active_count", 0) or 0)
     body_count = int(snapshot.get("body_active_count", 0) or 0)
     active_tests_raw = snapshot.get("active_tests")
-    listed = (
-        len(active_tests_raw)
-        if isinstance(active_tests_raw, list)
-        else 0
-    )
+    listed = len(active_tests_raw) if isinstance(active_tests_raw, list) else 0
     registry_live = max(registry_count, admit_count, body_count, listed)
 
     pytest_peers = 0
@@ -184,6 +232,7 @@ def cap_headroom_fields(
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
     observability_mismatch: bool = False,
+    orchestrator_observability: dict[str, object] | None = None,
 ) -> dict[str, object]:
     from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
     from dev_gate_status import dev_gate_status  # noqa: PLC0415
@@ -209,7 +258,10 @@ def cap_headroom_fields(
     )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", MUX_COLD_ATTACH_SLOTS))
-    mux_saturated = mux_fields.get("muxColdAttachSaturated") is True
+    mux_saturated_legacy = mux_fields.get("muxColdAttachSaturated") is True
+    orch = orchestrator_observability or {}
+    operation_saturated = orch.get("operationSaturated") is True
+    mux_saturated = mux_saturated_legacy or operation_saturated
     dev_gate = dev_gate_status()
     queue_expected, queue_reasons = compute_queue_state(
         live_agent_shpoib_count=counts.effective_live_agent_shpoib,
@@ -217,13 +269,19 @@ def cap_headroom_fields(
         parallel_snapshot=parallel_snapshot,
     )
     private_waiting = int(dev_gate["private_waiting"])
+    if operation_saturated:
+        queue_expected = True
+        if "orchestrator_operation_queue" not in queue_reasons:
+            queue_reasons = [*queue_reasons, "orchestrator_operation_queue"]
     queue_layer = compute_queue_layer(
         queue_expected=queue_expected,
         queue_reasons=queue_reasons,
         private_waiting=private_waiting,
         mux_saturated=mux_saturated,
     )
-    registry_unknown = dev_gate.get("registry_observability") == "unknown" or observability_mismatch
+    registry_unknown = (
+        dev_gate.get("registry_observability") == "unknown" or observability_mismatch
+    )
     return {
         "waveLeasesActive": counts.total,
         "waveLeasesEffective": counts.effective_total,
@@ -243,6 +301,10 @@ def cap_headroom_fields(
             dev_gate.get("private_credit_idle_reason", "unknown")
         ),
         "registryObservabilityUnknown": registry_unknown,
+        "operationQueueDepth": orch.get("queueDepth", 0),
+        "estimatedOperationWaitSec": orch.get("estimatedWaitSec", 0),
+        "operationWithinSlo": orch.get("withinOperationSlo", True),
+        "operationSloSec": orch.get("operationSloSec", 20),
     }
 
 
@@ -252,17 +314,21 @@ def format_cap_headroom_human(
     mux_fields: dict[str, object],
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
+    orchestrator_observability: dict[str, object] | None = None,
 ) -> str:
     headroom = cap_headroom_fields(
         lease_counts=lease_counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
+        orchestrator_observability=orchestrator_observability,
     )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", 0))
     saturated = "yes" if mux_fields.get("muxColdAttachSaturated") else "no"
     queue = "yes" if headroom["parallelQueueExpected"] else "no"
+    queue_layer = headroom.get("queueLayer", "none")
+    est_wait = headroom.get("estimatedOperationWaitSec", 0)
     reasons = headroom.get("queueReasons", [])
     reason_note = ""
     if isinstance(reasons, list) and reasons:
@@ -276,6 +342,8 @@ def format_cap_headroom_human(
         f"private_idle={headroom['privateCreditIdleReason']} "
         f"private_waiting={headroom['privateWaiting']} "
         f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
+        f"queue_layer={queue_layer} op_queue_depth={headroom.get('operationQueueDepth', 0)} "
+        f"estimated_op_wait_sec={est_wait} "
         f"active_tests={active_test_count} queue_expected={queue}{reason_note} "
         "(do not stop other pytest)"
     )
@@ -287,12 +355,14 @@ def format_queue_human(
     mux_fields: dict[str, object],
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
+    orchestrator_observability: dict[str, object] | None = None,
 ) -> str | None:
     headroom = cap_headroom_fields(
         lease_counts=lease_counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
+        orchestrator_observability=orchestrator_observability,
     )
     if not headroom["parallelQueueExpected"]:
         return None

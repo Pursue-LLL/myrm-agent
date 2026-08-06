@@ -16,11 +16,11 @@ from app.services.chat.compact.compression_streak import (
     register_chat_compression_streak_store,
     save_compression_ineffective_streak,
 )
-from myrm_agent_harness.agent.context_management.strategies.compression_anti_thrash_guard import (
+from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
     ANTI_THRASHING_STREAK_LIMIT,
     should_block_automatic_compression,
 )
-from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
     get_compression_streak_store,
     register_compression_streak_store,
 )
@@ -118,7 +118,7 @@ def test_guard_record_persists_via_chat_compression_streak_store(
 
     register_chat_compression_streak_store()
     try:
-        from myrm_agent_harness.agent.context_management.strategies.compression_anti_thrash_guard import (
+        from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
             record_compression_effectiveness,
         )
 

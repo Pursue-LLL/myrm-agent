@@ -13,8 +13,8 @@
 Exposes the memory system as a stateless Streamable HTTP MCP endpoint that
 external agents (Claude Code, Cursor, etc.) can connect to. Each Bearer
 token carries an agent_id; middleware dynamically binds the MemoryManager to
-the target Agent Profile + SharedContext via ContextVar, enabling per-agent
-memory scoping. Mounted at /mcp on the FastAPI application during startup.
+the target Agent Profile + SharedContext via ContextVar, and sets wiki boundary
+rejection for memory_store when the agent profile enables wiki. Mounted at /mcp on the FastAPI application during startup.
 
 Stateless mode (no Mcp-Session-Id tracking) is used because all four memory
 tools are inherently per-request — auth and agent scoping are handled
@@ -55,6 +55,19 @@ async def _require_embedding_config() -> EmbeddingConfig:
 
         _embedding_cfg = await require_platform_embedding_config()
     return _embedding_cfg
+
+
+async def _wiki_boundary_enabled_for_agent(agent_id: str) -> bool:
+    from app.services.agent.profile_resolver import (
+        get_agent_profile_resolver,
+        resolve_builtin_tool_flags,
+    )
+
+    resolved = await get_agent_profile_resolver().resolve(agent_id)
+    if resolved is None:
+        return False
+    flags = resolve_builtin_tool_flags(resolved.enabled_builtin_tools)
+    return bool(flags["enable_wiki"])
 
 
 async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
@@ -115,7 +128,9 @@ class _MCPTokenAuthMiddleware:
 
         from myrm_agent_harness.toolkits.memory.mcp_server import (
             reset_request_memory_manager,
+            reset_request_wiki_boundary_enabled,
             set_request_memory_manager,
+            set_request_wiki_boundary_enabled,
         )
 
         scope["state"] = scope.get("state", {})
@@ -123,9 +138,13 @@ class _MCPTokenAuthMiddleware:
         scope["state"]["mcp_agent_id"] = resolved.agent_id
 
         ctx_token = None
+        wiki_token = None
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
+            wiki_token = set_request_wiki_boundary_enabled(
+                await _wiki_boundary_enabled_for_agent(resolved.agent_id)
+            )
             service.mark_ready(resolved.profile_id)
             await self.app(scope, receive, send)
         except Exception:
@@ -140,6 +159,8 @@ class _MCPTokenAuthMiddleware:
             )
             await response(scope, receive, send)
         finally:
+            if wiki_token is not None:
+                reset_request_wiki_boundary_enabled(wiki_token)
             if ctx_token is not None:
                 reset_request_memory_manager(ctx_token)
 

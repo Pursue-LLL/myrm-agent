@@ -117,4 +117,6 @@ class ChannelResultDelivery:
     def _resolve_recipient(job: CronJob) -> str:
         if job.delivery.target:
             return str(job.delivery.target)
-        raise ValueError(f'Cron job {job.id}: delivery target is required for channel "{job.delivery.channel}"')
+        raise ValueError(
+            f'Cron job {job.id}: delivery target is required for channel "{job.delivery.channel}"'
+        )

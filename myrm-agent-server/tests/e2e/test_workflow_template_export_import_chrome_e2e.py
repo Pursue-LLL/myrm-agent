@@ -210,7 +210,9 @@ def _force_mux_heal_before_retry() -> None:
     time.sleep(2.0)
 
 
-def _run_export_import_roundtrip(*, library_url: str, api_base: str, use_cdp_navigate: bool) -> None:
+def _run_export_import_roundtrip(
+    *, library_url: str, api_base: str, use_cdp_navigate: bool
+) -> None:
     open_url = library_url if use_cdp_navigate else "about:blank"
     with open_mcp_page(
         open_url,
@@ -238,7 +240,9 @@ def _run_export_import_roundtrip(*, library_url: str, api_base: str, use_cdp_nav
             _LIBRARY_READY_JS,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
-        assert ready.get("ready") is True, json.dumps(ready, indent=2, ensure_ascii=False)
+        assert ready.get("ready") is True, json.dumps(
+            ready, indent=2, ensure_ascii=False
+        )
 
         export_click = client.evaluate(page, _CLICK_EXPORT_JS, timeout_sec=15.0)
         assert isinstance(export_click, dict)
@@ -262,7 +266,9 @@ def _run_export_import_roundtrip(*, library_url: str, api_base: str, use_cdp_nav
             _LIBRARY_ABSENT_JS,
             timeout_sec=60.0,
         )
-        assert absent.get("ready") is True, json.dumps(absent, indent=2, ensure_ascii=False)
+        assert absent.get("ready") is True, json.dumps(
+            absent, indent=2, ensure_ascii=False
+        )
 
         imported = client.evaluate(
             page,
@@ -278,7 +284,9 @@ def _run_export_import_roundtrip(*, library_url: str, api_base: str, use_cdp_nav
             _LIBRARY_READY_JS,
             timeout_sec=90.0,
         )
-        assert restored.get("ready") is True, json.dumps(restored, indent=2, ensure_ascii=False)
+        assert restored.get("ready") is True, json.dumps(
+            restored, indent=2, ensure_ascii=False
+        )
 
 
 def _run_with_transport_retry(*, library_url: str, api_base: str) -> None:
@@ -329,7 +337,9 @@ def test_workflow_template_export_import_roundtrip_chrome_e2e(
     try:
         _run_with_transport_retry(library_url=library_url, api_base=api_base)
 
-        detail = http_json("GET", f"{api_base}/api/v1/workflow-templates/{_TEMPLATE_ID}")
+        detail = http_json(
+            "GET", f"{api_base}/api/v1/workflow-templates/{_TEMPLATE_ID}"
+        )
         assert isinstance(detail, dict), detail
         script_code = str(detail.get("scriptCode", ""))
         assert _MARKER in script_code, detail

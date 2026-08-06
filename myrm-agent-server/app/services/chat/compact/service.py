@@ -62,11 +62,11 @@ async def compact_chat(
         )
 
     async with lock:
-        from myrm_agent_harness.agent.context_management.strategies.compression_anti_thrash_guard import (
+        from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
             record_compression_effectiveness,
             should_block_automatic_compression,
         )
-        from myrm_agent_harness.agent.context_management.strategies.summarize_circuit_guard import (
+        from myrm_agent_harness.agent.context_management.strategies.summary.summarize_circuit_guard import (
             is_summarize_circuit_open,
         )
         from myrm_agent_harness.utils.token_estimation import estimate_messages_tokens
@@ -174,7 +174,7 @@ async def compact_chat(
                 original_tokens=original_tokens,
                 tokens_saved=tokens_saved,
             )
-            from myrm_agent_harness.agent.context_management.strategies.compression_streak_store import (
+            from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
                 get_compression_streak_store,
             )
 

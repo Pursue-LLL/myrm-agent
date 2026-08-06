@@ -7,7 +7,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.agents.agent import _SENSITIVE_AUTH_FIELDS
+from app.api.agents.agent_portability import _SENSITIVE_AUTH_FIELDS
 
 
 @pytest.fixture

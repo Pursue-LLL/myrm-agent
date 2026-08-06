@@ -1,3 +1,20 @@
+"""Media generation configuration test API.
+
+[INPUT]
+- services.agent.params::_find_provider_api_key, _resolve_image_api_key_provider
+  (POS: provider API key resolution)
+- core.channel_bridge.config_loader::load_user_configs (POS: load merged user config bundles)
+- myrm_agent_harness.toolkits.llms.video (POS: video generation framework)
+
+[OUTPUT]
+- POST /agents/test-media-config: connectivity test for image/video provider
+- GET /agents/media-provider-status: availability status for all video providers
+
+[POS]
+Media configuration validation endpoints. Verifies API key presence and
+provider connectivity before saving media generation settings.
+"""
+
 import asyncio
 import logging
 

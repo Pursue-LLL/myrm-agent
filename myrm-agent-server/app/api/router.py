@@ -2,13 +2,14 @@ from fastapi import APIRouter
 
 from app.api.agents import agent as user_agent
 from app.api.agents import (
+    agent_extras,
     agent_history,
+    agent_portability,
     ai_build,
     general_agent,
     generate_prompt,
     media,
     providers,
-    session,
     subagents,
     suggestions,
     templates,
@@ -116,7 +117,6 @@ api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
 api_router.include_router(media.router, prefix="/agents", tags=["agents"])
-api_router.include_router(session.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
 api_router.include_router(
     user_agent.router, prefix="/user-agents", tags=["user-agents"]
@@ -125,6 +125,12 @@ api_router.include_router(
     generate_prompt.router, prefix="/user-agents", tags=["user-agents"]
 )
 api_router.include_router(ai_build.router, prefix="/user-agents", tags=["user-agents"])
+api_router.include_router(
+    agent_extras.router, prefix="/user-agents", tags=["user-agents"]
+)
+api_router.include_router(
+    agent_portability.router, prefix="/user-agents", tags=["user-agents"]
+)
 api_router.include_router(
     agent_history.router, prefix="/user-agents", tags=["user-agents"]
 )

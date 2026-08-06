@@ -32,8 +32,12 @@ from runtime_identity import _backend_source_fingerprint
 
 SEED_START_TIMEOUT_SEC: Final[int] = 180
 SEED_HEALTH_WAIT_SEC: Final[float] = 120.0
+SEED_PARALLEL_HEALTH_WAIT_SEC: Final[float] = 45.0
+SEED_PARALLEL_SPAWN_WALL_SEC: Final[float] = 60.0
 SEED_CAP_RETRY_BACKOFF_SEC: Final[float] = 5.0
+SEED_PARALLEL_CAP_RETRY_BACKOFF_SEC: Final[float] = 2.0
 SEED_CAP_MAX_ATTEMPTS: Final[int] = 2
+SEED_PROGRESS_EMIT_INTERVAL_SEC: Final[float] = 10.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,21 +116,53 @@ def _count_active_backend_only() -> int:
     return count
 
 
+def _parallel_pressure_active() -> bool:
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+
+        return parallel_active_test_count_ssot() > 0
+    except ImportError:
+        return False
+
+
 def _seed_health_wait_sec() -> float:
     raw = os.environ.get("MYRM_VERIFY_SEED_HEALTH_WAIT_SEC", "").strip()
     if raw:
         try:
-            return max(30.0, float(raw))
+            return max(5.0, min(SEED_HEALTH_WAIT_SEC, float(raw)))
         except ValueError:
             pass
-    try:
-        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
-
-        if parallel_active_test_count_ssot() > 0:
-            return 240.0
-    except ImportError:
-        pass
+    if _parallel_pressure_active():
+        return SEED_PARALLEL_HEALTH_WAIT_SEC
     return SEED_HEALTH_WAIT_SEC
+
+
+def _seed_spawn_timeout_sec() -> int:
+    if not _parallel_pressure_active():
+        return SEED_START_TIMEOUT_SEC
+    raw = os.environ.get("MYRM_VERIFY_SEED_PARALLEL_WALL_SEC", "").strip()
+    if raw:
+        try:
+            return max(15, int(float(raw)))
+        except ValueError:
+            pass
+    return int(SEED_PARALLEL_SPAWN_WALL_SEC)
+
+
+def _seed_cap_retry_backoff_sec() -> float:
+    if _parallel_pressure_active():
+        return SEED_PARALLEL_CAP_RETRY_BACKOFF_SEC
+    return SEED_CAP_RETRY_BACKOFF_SEC
+
+
+def _emit_seed_progress(*, started_mono: float, budget_sec: float, phase: str) -> None:
+    elapsed = max(0.0, time.monotonic() - started_mono)
+    sys.stderr.write(
+        "E2E_VERIFY_SEED_WAIT: "
+        f"phase={phase} elapsed={int(elapsed)}s budget={int(budget_sec)}s "
+        "(parallel-safe; do not stop other pytest)\n"
+    )
+    sys.stderr.flush()
 
 
 def _health_source_fingerprint(api_base: str) -> str:
@@ -147,7 +183,18 @@ def _health_source_fingerprint(api_base: str) -> str:
 
 def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) -> bool:
     workspace_fp = _backend_source_fingerprint()
+    started = time.monotonic()
+    budget = max(0.0, deadline - started)
+    last_emit = 0.0
     while time.monotonic() < deadline:
+        now = time.monotonic()
+        if now - last_emit >= SEED_PROGRESS_EMIT_INTERVAL_SEC:
+            _emit_seed_progress(
+                started_mono=started,
+                budget_sec=budget,
+                phase="health_epoch",
+            )
+            last_emit = now
         if not _health_ok(api_base):
             time.sleep(0.5)
             continue
@@ -195,7 +242,7 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         if active >= LIVE_SHPOIB_MAX_CONCURRENT:
             last_result = _cap_reached_result(active)
             if attempt + 1 < SEED_CAP_MAX_ATTEMPTS:
-                time.sleep(SEED_CAP_RETRY_BACKOFF_SEC)
+                time.sleep(_seed_cap_retry_backoff_sec())
                 continue
             return last_result
         result = _spawn_verify_backend_seed(monorepo=monorepo)
@@ -205,7 +252,7 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         if attempt + 1 < SEED_CAP_MAX_ATTEMPTS and _is_retriable_seed_detail(
             result.detail
         ):
-            time.sleep(SEED_CAP_RETRY_BACKOFF_SEC)
+            time.sleep(_seed_cap_retry_backoff_sec())
             continue
         return result
     if last_result is not None:
@@ -295,31 +342,45 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         {
             "MYRM_SUPERVISOR_BYPASS": "1",
             "MYRM_WAVE_GATE_BYPASS": "1",
-            "MYRM_BACKEND_HEALTH_WAIT_SEC": "120",
+            "MYRM_BACKEND_HEALTH_WAIT_SEC": str(
+                min(120, _seed_spawn_timeout_sec())
+            ),
         }
     )
 
+    spawn_wall = _seed_spawn_timeout_sec()
+    harness_wall = min(60, spawn_wall)
     try:
+        _emit_seed_progress(
+            started_mono=time.monotonic(),
+            budget_sec=float(spawn_wall),
+            phase="harness",
+        )
         harness = subprocess.run(
             ["bash", str(ready_sh), "--harness-only"],
             cwd=str(root),
             env=process_env,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=harness_wall,
             check=False,
         )
         if harness.returncode != 0:
             detail = (harness.stderr or harness.stdout).strip()[-500:]
             raise RuntimeError(f"harness ensure failed: {detail}")
 
+        _emit_seed_progress(
+            started_mono=time.monotonic(),
+            budget_sec=float(spawn_wall),
+            phase="backend_only",
+        )
         stack = subprocess.run(
             ["bash", str(dev_stack), "backend-only", "ensure"],
             cwd=str(root),
             env=process_env,
             capture_output=True,
             text=True,
-            timeout=SEED_START_TIMEOUT_SEC,
+            timeout=spawn_wall,
             check=False,
         )
         if stack.returncode != 0:
