@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+from app.services.wiki.clip_form import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
 
 from app.core.security.auth.identity import LOCAL_USER_ID
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
@@ -155,6 +158,44 @@ def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
         assert archiver._queue.get_stats()["pending"] == 0
     finally:
         _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_payload_too_large(tmp_path: Path) -> None:
+    client, _, _ = _build_wiki_client(tmp_path)
+    try:
+        huge = "x" * (MAX_CLIP_PAYLOAD_BYTES + 1)
+        response = client.post(
+            "/api/v1/wiki/clip",
+            data={
+                "source_url": "https://example.com/huge",
+                "title": "Huge",
+                "clip_mode": "full_page",
+                "markdown": huge,
+                "queue_compile": "false",
+            },
+        )
+        assert response.status_code == 413
+    finally:
+        _cleanup_wiki_client(client)
+
+
+def test_wiki_clip_payload_bytes_counts_asset_urls_field() -> None:
+    small_body = {
+        "source_url": "https://example.com/small-body",
+        "title": "Small",
+        "clip_mode": "full_page",
+        "html": "",
+        "markdown": "# Small",
+        "folder_path": "",
+        "queue_compile": "false",
+    }
+    huge_asset_urls = json.dumps([f"https://example.com/{'a' * (MAX_CLIP_PAYLOAD_BYTES + 1)}"])
+    payload_bytes = clip_form_payload_bytes(
+        **small_body,
+        asset_urls=huge_asset_urls,
+        asset_file_bytes=(b"x",),
+    )
+    assert payload_bytes > MAX_CLIP_PAYLOAD_BYTES
 
 
 def test_wiki_clip_job_not_found(tmp_path: Path) -> None:

@@ -48,6 +48,10 @@ from pydantic import BaseModel, Field
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.services.wiki import MemoryToWikiArchiver
+from app.services.wiki.clip_form import (
+    MAX_CLIP_PAYLOAD_BYTES as _MAX_CLIP_PAYLOAD_BYTES,
+    clip_form_payload_bytes,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
@@ -882,6 +886,20 @@ async def clip_page_to_wiki(
         assets.append(
             ClipAssetInput(source_url=source, content_type=content_type, data=data)
         )
+
+    payload_bytes = clip_form_payload_bytes(
+        source_url=source_url,
+        title=title,
+        clip_mode=clip_mode,
+        html=html,
+        markdown=markdown,
+        folder_path=folder_path,
+        queue_compile=queue_compile,
+        asset_urls=asset_urls,
+        asset_file_bytes=tuple(item.data for item in assets),
+    )
+    if payload_bytes > _MAX_CLIP_PAYLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Clip payload exceeds 8MB limit")
 
     mode = ClipMode.FULL_PAGE if clip_mode == "full_page" else ClipMode.SELECTION
     compile_after = queue_compile.strip().lower() in {"true", "1", "yes", "on"}

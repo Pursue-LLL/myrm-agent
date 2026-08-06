@@ -39,10 +39,11 @@ function refreshStatus() {
     btnConnect.style.display = connected || connecting ? "none" : "block";
     btnDisconnect.style.display = connected ? "block" : "none";
 
-    if (lastError && !connected && !connecting) {
+    if (lastError) {
       errorHint.textContent = lastError;
       errorHint.style.display = "block";
     } else {
+      errorHint.textContent = "";
       errorHint.style.display = "none";
     }
 

@@ -580,7 +580,7 @@ async function submitClipToWiki(tab, mode) {
       lastError = "Clip blocked by security scan";
     } else {
       lastError = "";
-      chrome.action.setBadgeText({ text: "✓" });
+      chrome.action.setBadgeText({ text: "OK" });
       setTimeout(() => updateBadge(ws && ws.readyState === WebSocket.OPEN ? "connected" : "disconnected"), 2000);
     }
   } catch (err) {
