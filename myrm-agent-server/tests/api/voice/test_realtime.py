@@ -177,10 +177,14 @@ class TestSafeJsonStr:
 
 
 class TestBuildRealtimeTools:
-    def test_always_includes_background_task(self) -> None:
+    def test_always_includes_background_lifecycle_tools(self) -> None:
         tools = _build_realtime_tools((), _MEMORY_ONLY)
-        assert len(tools) == 1
-        assert tools[0].name == "run_background_task"
+        names = {t.name for t in tools}
+        assert "run_background_task" in names
+        assert "get_background_tasks_status" in names
+        assert "cancel_background_task" in names
+        assert "steer_background_task" in names
+        assert len(tools) == 4
 
     def test_adds_known_tools(self) -> None:
         tools = _build_realtime_tools(("web_search", "memory"), _ALL_MEMORY)
@@ -188,7 +192,7 @@ class TestBuildRealtimeTools:
         assert "run_background_task" in names
         assert "web_search" in names
         assert "memory_search_tool" in names
-        assert len(tools) == 3
+        assert len(tools) == 6
 
     def test_memory_tool_omits_sessions_when_opt_in_off(self) -> None:
         tools = _build_realtime_tools(("memory",), _MEMORY_ONLY)
@@ -214,14 +218,14 @@ class TestBuildRealtimeTools:
 
     def test_ignores_unknown_tools(self) -> None:
         tools = _build_realtime_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
-        assert len(tools) == 2
+        assert len(tools) == 5
 
     def test_all_catalog_tools(self) -> None:
         tools = _build_realtime_tools(
             ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
             _ALL_MEMORY,
         )
-        assert len(tools) == 7
+        assert len(tools) == 10
 
     def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
         """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
@@ -345,8 +349,8 @@ async def test_create_realtime_token_no_profile_returns_default_tools() -> None:
     ):
         result = await create_realtime_token(RealtimeTokenRequest())
 
-    assert len(result.tools) == 1
-    assert result.tools[0].name == "run_background_task"
+    assert len(result.tools) == 4
+    assert any(t.name == "run_background_task" for t in result.tools)
     assert result.instructions is None
     assert result.voice == "verse"
 
@@ -486,7 +490,7 @@ async def test_create_realtime_token_tools_payload_format() -> None:
 
     posted_payload = mock_client.post.await_args.kwargs["json"]
     tools_payload = posted_payload["tools"]
-    assert len(tools_payload) == 3
+    assert len(tools_payload) == 6
     for tool in tools_payload:
         assert "type" in tool
         assert "name" in tool
@@ -806,7 +810,7 @@ async def test_execute_tool_failure() -> None:
         )
 
     assert result.error is not None
-    assert "Config error" in result.error
+    assert result.error == "Tool execution failed"
 
 
 @pytest.mark.asyncio
@@ -877,3 +881,224 @@ async def test_persist_transcript_error_raises() -> None:
                 )
             )
     assert exc_info.value.status_code == 500
+
+
+# ── chat_id empty defense (C) ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_run_background_task_rejects_empty_chat_id() -> None:
+    """When chat_id is None, the endpoint must return an error instead of using fallback."""
+    from app.api.voice.realtime import execute_realtime_tool
+
+    result = await execute_realtime_tool(
+        RealtimeToolExecRequest(
+            tool_name="run_background_task",
+            arguments={"task": "Do some research"},
+            chat_id=None,
+        )
+    )
+    assert result.error is not None
+    assert "chat" in result.error.lower()
+
+
+# ── cancel_background_task tool tests ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_cancel_background_task_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.cancel_background = AsyncMock(return_value=True)
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="cancel_background_task",
+                arguments={"task_id": "task-abc"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["cancelled"] is True
+    assert payload["task_id"] == "task-abc"
+
+
+@pytest.mark.asyncio
+async def test_cancel_background_task_not_found() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.cancel_background = AsyncMock(return_value=False)
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="cancel_background_task",
+                arguments={"task_id": "nonexist"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is not None
+    assert "not found" in result.error.lower() or "not cancellable" in result.error.lower()
+
+
+@pytest.mark.asyncio
+async def test_cancel_background_task_missing_task_id() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    result = await execute_realtime_tool(
+        RealtimeToolExecRequest(
+            tool_name="cancel_background_task",
+            arguments={},
+            chat_id="chat-1",
+        )
+    )
+    assert result.error is not None
+    assert "task_id" in result.error.lower()
+
+
+# ── get_background_tasks_status tool tests ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_background_tasks_status_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+    from app.channels.protocols.background_task import BackgroundTaskInfo
+
+    mock_handler = MagicMock()
+    mock_handler.list_background = AsyncMock(
+        return_value=[
+            BackgroundTaskInfo(
+                task_id="t1",
+                prompt="Research competitors",
+                status="running",
+                created_at=1717000000.0,
+            ),
+            BackgroundTaskInfo(
+                task_id="t2",
+                prompt="Write report",
+                status="completed",
+                created_at=1717000100.0,
+                completed_at=1717000200.0,
+            ),
+        ]
+    )
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="get_background_tasks_status",
+                arguments={},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["count"] == 2
+    assert len(payload["tasks"]) == 2
+    assert payload["tasks"][0]["task_id"] == "t1"
+
+
+@pytest.mark.asyncio
+async def test_get_background_tasks_status_empty() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.list_background = AsyncMock(return_value=[])
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="get_background_tasks_status",
+                arguments={},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["count"] == 0
+    assert payload["tasks"] == []
+
+
+# ── steer_background_task tool tests ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_steer_background_task_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.steer_background = AsyncMock(return_value=True)
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="steer_background_task",
+                arguments={"task_id": "task-abc", "instruction": "Focus on security"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["steered"] is True
+    assert payload["task_id"] == "task-abc"
+
+
+@pytest.mark.asyncio
+async def test_steer_background_task_not_found() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_handler = MagicMock()
+    mock_handler.steer_background = AsyncMock(return_value=False)
+
+    with patch(
+        "app.core.channel_bridge.setup.get_background_task_handler",
+        return_value=mock_handler,
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="steer_background_task",
+                arguments={"task_id": "nonexist", "instruction": "Redirect"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is not None
+
+
+@pytest.mark.asyncio
+async def test_steer_background_task_missing_args() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    result = await execute_realtime_tool(
+        RealtimeToolExecRequest(
+            tool_name="steer_background_task",
+            arguments={"task_id": "abc"},
+            chat_id="chat-1",
+        )
+    )
+    assert result.error is not None
+    assert "instruction" in result.error.lower()

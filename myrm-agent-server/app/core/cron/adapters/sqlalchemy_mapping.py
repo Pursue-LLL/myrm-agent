@@ -40,6 +40,22 @@ logger = logging.getLogger(__name__)
 _VALID_MONITOR_TYPES = {"set", "hash"}
 
 
+def _workflow_template_args_from_json(raw: object) -> dict[str, str] | None:
+    if not isinstance(raw, dict):
+        return None
+    parsed: dict[str, str] = {}
+    for key, value in raw.items():
+        if isinstance(key, str) and isinstance(value, str):
+            parsed[key] = value
+    return parsed or None
+
+
+def _workflow_template_args_to_json(args: dict[str, str] | None) -> dict[str, str] | None:
+    if not args:
+        return None
+    return {str(key): str(value) for key, value in args.items()}
+
+
 def run_to_domain(r: CronRunModel) -> CronRunRecord:
     """Map an ORM CronRunModel to a domain CronRunRecord."""
     return CronRunRecord(
@@ -152,6 +168,10 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         model=m.model,
         chat_id=m.chat_id,
         agent_id=getattr(m, "agent_id", None),
+        workflow_template_id=getattr(m, "workflow_template_id", None),
+        workflow_template_args=_workflow_template_args_from_json(
+            getattr(m, "workflow_template_args", None)
+        ),
         command=m.command,
         delivery=delivery,
         failure_delivery=failure_delivery,
@@ -202,6 +222,8 @@ def job_to_model(job: CronJob) -> CronJobModel:
         model=job.model,
         chat_id=job.chat_id,
         agent_id=job.agent_id,
+        workflow_template_id=job.workflow_template_id,
+        workflow_template_args=_workflow_template_args_to_json(job.workflow_template_args),
         command=job.command,
         delivery=delivery_to_dict(job.delivery) or {"channel": "chat"},
         failure_delivery=delivery_to_dict(job.failure_delivery),
@@ -248,6 +270,8 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.model = job.model
     m.chat_id = job.chat_id
     m.agent_id = job.agent_id
+    m.workflow_template_id = job.workflow_template_id
+    m.workflow_template_args = _workflow_template_args_to_json(job.workflow_template_args)
     m.command = job.command
     m.delivery = delivery_to_dict(job.delivery) or {"channel": "chat"}
     m.failure_delivery = delivery_to_dict(job.failure_delivery)

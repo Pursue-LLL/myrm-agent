@@ -57,6 +57,7 @@ import MemoryInsightPanel from './MemoryInsightPanel';
 import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
+import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
@@ -849,6 +850,10 @@ const MessageBox = ({
                 failedCount={message.workspaceMergeFailedCount}
                 truncated={message.workspaceMergeTruncated}
               />
+            )}
+
+            {!(isLast && loading) && chatId && message.role === 'assistant' && (
+              <WorkflowTemplateSaveCard message={message} chatId={chatId} />
             )}
 
             {/* 完成状态提示 */}

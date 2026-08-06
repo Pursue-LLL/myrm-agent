@@ -19,6 +19,8 @@
 | `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`）；含 Chrome E2E `data-testid` 钩子 | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更失败可折叠面板（mutation verifier 回滚提示） | ✅ |
 | `WorkspaceMergeWarning.tsx` | 组件 | ISOLATED_COPY workspace merge 失败可折叠错误列表 | ✅ |
+| `WorkflowTemplateSaveCard.tsx` | 组件 | DW 完成后保存为命名工作流模板（调用 `/workflow-templates/from-run`） | ✅ |
+| `__tests__/WorkflowTemplateSaveCard.test.tsx` | 测试 | DW progress step 可见性 | ✅ |
 | `__tests__/WorkspaceMergeWarning.test.tsx` | 测试 | 折叠/展开、truncated 文案 | ✅ |
 | `__tests__/MessageBox.workspaceMerge.test.tsx` | 测试 | MessageBox 生产路径渲染 merge panel；loading 时仍可见 | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation）；KB citation → SourceChunkDrawer；非 streaming 时 inline `` `workspace/...` `` / `artifact:` → DeliverableReferenceLink。 | ✅ |

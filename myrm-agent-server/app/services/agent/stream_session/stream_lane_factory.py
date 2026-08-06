@@ -51,6 +51,10 @@ async def create_dynamic_workflow_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",
     resume_value: dict[str, object] | None = None,
+    *,
+    workflow_template_id: str | None = None,
+    workflow_template_args: dict[str, str] | None = None,
+    unattended: bool = False,
 ) -> AsyncIterable[dict[str, object]]:
     """Build Dynamic Workflow SSE stream from GeneralAgentParams.
 
@@ -135,6 +139,11 @@ async def create_dynamic_workflow_stream(
             return False
         return True
 
+    async def _auto_approve_gate(_review: WorkflowPlanReview) -> bool:
+        return True
+
+    approval_gate = _auto_approve_gate if unattended else _dw_approval_gate
+
     try:
         async for chunk in run_dynamic_workflow_stream(
             parent_agent=base_agent,
@@ -144,8 +153,10 @@ async def create_dynamic_workflow_stream(
             message_id=message_id,
             cancel_token=cancel_token,
             catalog=catalog,
-            approval_gate=_dw_approval_gate,
+            approval_gate=approval_gate,
             resume_value=resume_value,
+            pinned_template_id=workflow_template_id,
+            template_args=workflow_template_args,
         ):
             if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                 tracker = get_token_tracker()

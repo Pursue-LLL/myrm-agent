@@ -159,12 +159,10 @@ _frontend_http_probe_timeout_sec() {
     echo "${raw}"
     return 0
   fi
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   local resolved=""
   resolved="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
-sys.path.insert(0, '${script_dir}/lib')
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from dev_gate_contract import attach_ui_probe_timeout_sec
 print(int(attach_ui_probe_timeout_sec()))
 " 2>/dev/null)" || true
@@ -396,9 +394,17 @@ _launch_frontend_supervisor() {
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
+    if ((${#webpack_args[@]} > 0)); then
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
+    else
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean
+    fi
   else
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
+    if ((${#webpack_args[@]} > 0)); then
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
+    else
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}"
+    fi
   fi
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"

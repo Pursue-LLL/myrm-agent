@@ -7,6 +7,7 @@ myrm_agent_harness.toolkits.web_fetch.engine::CrawlEngine (POS: 分层爬虫引�
 [OUTPUT]
 _build_mention_reference_context: 读取结构化 @ 引用并构建注入上下文
 _inject_mentioned_files_into_query: 将上下文追加到用户查询
+_prior_chat_part: 解析 prior_chat mention 并注入摘要片段
 _build_codebase_overview: 轻量扫描工作区文件统计（@codebase）
 _codebase_overview_part: 构建 @codebase XML 注入片段
 _read_file_lines: 读取文件的指定行范围
@@ -61,13 +62,30 @@ _BINARY_EXTENSIONS = {
     ".pdf",
 }
 _FOLDER_TREE_MAX_ENTRIES = 200
-_FOLDER_TREE_EXCLUDED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".pytest_cache", ".mypy_cache"}
-_CODEBASE_SCAN_EXCLUDED_DIRS = _FOLDER_TREE_EXCLUDED_DIRS | {".myrm", "dist", "build", ".next", "target", "coverage"}
+_FOLDER_TREE_EXCLUDED_DIRS = {
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".mypy_cache",
+}
+_CODEBASE_SCAN_EXCLUDED_DIRS = _FOLDER_TREE_EXCLUDED_DIRS | {
+    ".myrm",
+    "dist",
+    "build",
+    ".next",
+    "target",
+    "coverage",
+}
 _CODEBASE_SCAN_MAX_FILES = 10_000
 _URL_FETCH_TIMEOUT = 30
 
 
-def _read_file_lines(file_path: str, start_line: int | None, end_line: int | None) -> str:
+def _read_file_lines(
+    file_path: str, start_line: int | None, end_line: int | None
+) -> str:
     """Read specific lines from a file.
 
     Args:
@@ -100,7 +118,9 @@ def _text_reference_to_structured(ref: str) -> MentionReferenceRequest:
         return MentionReferenceRequest(type="codebase", label="@codebase")
     if ref.startswith("@folder:"):
         path = ref.removeprefix("@folder:")
-        return MentionReferenceRequest(type="workspace_folder", path=path or ".", label=ref)
+        return MentionReferenceRequest(
+            type="workspace_folder", path=path or ".", label=ref
+        )
     if ref.startswith("@url:"):
         url = ref.removeprefix("@url:")
         return MentionReferenceRequest(type="url", url=url, label=ref)
@@ -128,7 +148,9 @@ async def _build_mentioned_file_context(
     max_context_tokens: int | None = None,
 ) -> tuple[str, list[str], int]:
     structured = [_text_reference_to_structured(ref) for ref in mentioned_files]
-    return await _build_mention_reference_context(structured, workspace_dir, max_context_tokens)
+    return await _build_mention_reference_context(
+        structured, workspace_dir, max_context_tokens
+    )
 
 
 def _get_git_staged_diff(workspace_dir: str) -> str:
@@ -147,7 +169,9 @@ def _get_git_staged_diff(workspace_dir: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-        logger.debug("git diff --cached returned %d: %s", result.returncode, result.stderr)
+        logger.debug(
+            "git diff --cached returned %d: %s", result.returncode, result.stderr
+        )
     except subprocess.TimeoutExpired:
         logger.warning("git diff --cached timeout (30s) in %s", workspace_dir)
     except FileNotFoundError:
@@ -251,9 +275,17 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part("@staged", "git-diff", diff_content))
                     total_bytes += diff_bytes
                 else:
-                    parts.append(_xml_metadata("@staged", "git-diff", f"Diff too large ({_format_size(diff_bytes)})"))
+                    parts.append(
+                        _xml_metadata(
+                            "@staged",
+                            "git-diff",
+                            f"Diff too large ({_format_size(diff_bytes)})",
+                        )
+                    )
             else:
-                parts.append('<mentioned_file path="@staged" type="git-diff">No staged changes</mentioned_file>')
+                parts.append(
+                    '<mentioned_file path="@staged" type="git-diff">No staged changes</mentioned_file>'
+                )
             continue
 
         if ref.type == "git_diff":
@@ -273,9 +305,17 @@ async def _build_mention_reference_context(
                         parts.append(_xml_part("@diff", "git-diff", diff_content))
                         total_bytes += diff_bytes
                     else:
-                        parts.append(_xml_metadata("@diff", "git-diff", f"Diff too large ({_format_size(diff_bytes)})"))
+                        parts.append(
+                            _xml_metadata(
+                                "@diff",
+                                "git-diff",
+                                f"Diff too large ({_format_size(diff_bytes)})",
+                            )
+                        )
                 else:
-                    parts.append('<mentioned_file path="@diff" type="git-diff">No unstaged changes</mentioned_file>')
+                    parts.append(
+                        '<mentioned_file path="@diff" type="git-diff">No unstaged changes</mentioned_file>'
+                    )
             except Exception as e:
                 logger.debug("Failed to get git diff: %s", e)
                 parts.append('<mentioned_file path="@diff" error="git diff failed"/>')
@@ -301,7 +341,13 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part(display_path, "folder-tree", tree_content))
                     total_bytes += tree_bytes
                 else:
-                    parts.append(_xml_metadata(display_path, "folder-tree", f"Tree too large ({_format_size(tree_bytes)})"))
+                    parts.append(
+                        _xml_metadata(
+                            display_path,
+                            "folder-tree",
+                            f"Tree too large ({_format_size(tree_bytes)})",
+                        )
+                    )
             else:
                 parts.append(_xml_error(display_path, "folder not found or empty"))
             continue
@@ -316,7 +362,13 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part(display_path, "url", url_content))
                     total_bytes += url_bytes
                 else:
-                    parts.append(_xml_metadata(display_path, "url", f"Content too large ({_format_size(url_bytes)})"))
+                    parts.append(
+                        _xml_metadata(
+                            display_path,
+                            "url",
+                            f"Content too large ({_format_size(url_bytes)})",
+                        )
+                    )
             else:
                 parts.append(_xml_error(display_path, "failed to fetch URL"))
             continue
@@ -329,7 +381,9 @@ async def _build_mention_reference_context(
             try:
                 abs_path = safe_join_path(workspace_real, rel_path)
             except ValueError:
-                parts.append(_xml_error(ref.label or rel_path, "path outside workspace"))
+                parts.append(
+                    _xml_error(ref.label or rel_path, "path outside workspace")
+                )
                 continue
             display_path = ref.label or rel_path
             part, consumed_bytes = _workspace_file_part(
@@ -350,7 +404,9 @@ async def _build_mention_reference_context(
             continue
 
         if ref.type == "codebase":
-            codebase_part, codebase_bytes = await _codebase_overview_part(workspace_real, total_bytes)
+            codebase_part, codebase_bytes = await _codebase_overview_part(
+                workspace_real, total_bytes
+            )
             parts.append(codebase_part)
             total_bytes += codebase_bytes
             continue
@@ -360,7 +416,9 @@ async def _build_mention_reference_context(
             if not concept_name:
                 parts.append(_xml_error("@wiki", "missing concept_name"))
                 continue
-            part, consumed_bytes = await _wiki_concept_part(concept_name, total_bytes, agent_id)
+            part, consumed_bytes = await _wiki_concept_part(
+                concept_name, total_bytes, agent_id
+            )
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -371,7 +429,20 @@ async def _build_mention_reference_context(
             if not file_id:
                 parts.append(_xml_error(display, "missing file_id or path"))
                 continue
-            part, consumed_bytes = await _wiki_raw_file_part(file_id, display, total_bytes, agent_id)
+            part, consumed_bytes = await _wiki_raw_file_part(
+                file_id, display, total_bytes, agent_id
+            )
+            parts.append(part)
+            total_bytes += consumed_bytes
+            continue
+
+        if ref.type == "prior_chat":
+            chat_id = ref.path or ref.file_id or ""
+            display = ref.label or f"@chat:{chat_id}"
+            if not chat_id:
+                parts.append(_xml_error(display, "missing chat_id"))
+                continue
+            part, consumed_bytes = await _prior_chat_part(chat_id, display, total_bytes)
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -382,7 +453,9 @@ async def _build_mention_reference_context(
         return "", [], 0
 
     # Calculate total tokens
-    final_content = "\n\n<mentioned_files>\n" + "\n".join(parts) + "\n</mentioned_files>"
+    final_content = (
+        "\n\n<mentioned_files>\n" + "\n".join(parts) + "\n</mentioned_files>"
+    )
     total_tokens = get_token_count(final_content)
 
     # Check budget limits
@@ -391,7 +464,9 @@ async def _build_mention_reference_context(
             f"Context size {total_tokens} tokens exceeds 50% limit ({hard_limit} tokens), some references may have been truncated"
         )
     elif total_tokens > soft_limit:
-        warnings.append(f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)")
+        warnings.append(
+            f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)"
+        )
 
     return final_content, warnings, total_tokens
 
@@ -403,7 +478,10 @@ def _workspace_file_part(
     end_line: int | None,
     current_total_bytes: int,
 ) -> tuple[str, int]:
-    from myrm_agent_harness.agent.security.path_security import is_dangerous_path, is_sensitive_file
+    from myrm_agent_harness.agent.security.path_security import (
+        is_dangerous_path,
+        is_sensitive_file,
+    )
 
     if is_dangerous_path(abs_path) or is_sensitive_file(abs_path):
         return _xml_error(display_path, "access denied"), 0
@@ -428,13 +506,25 @@ def _workspace_file_part(
 
     if ext in _DOCUMENT_EXTENSIONS:
         if start_line is not None:
-            return _xml_error(display_path, "line range not supported for Office documents"), 0
+            return (
+                _xml_error(
+                    display_path, "line range not supported for Office documents"
+                ),
+                0,
+            )
         content = _parse_document(abs_path, ext)
         if content:
             content_bytes = len(content.encode("utf-8"))
             if _can_inline(content_bytes, current_total_bytes):
                 return _xml_part(display_path, "document", content), content_bytes
-        return _xml_metadata(display_path, "document", f"Document too large ({_format_size(file_size)})"), 0
+        return (
+            _xml_metadata(
+                display_path,
+                "document",
+                f"Document too large ({_format_size(file_size)})",
+            ),
+            0,
+        )
 
     try:
         content = _read_file_lines(abs_path, start_line, end_line)
@@ -444,12 +534,23 @@ def _workspace_file_part(
 
     content_bytes = len(content.encode("utf-8"))
     if _can_inline(content_bytes, current_total_bytes):
-        line_range = f" lines {start_line}-{end_line or start_line}" if start_line else ""
+        line_range = (
+            f" lines {start_line}-{end_line or start_line}" if start_line else ""
+        )
         return _xml_part(display_path, f"text{line_range}", content), content_bytes
-    return _xml_metadata(display_path, "text", f"Content too large to inline ({_format_size(content_bytes)})"), 0
+    return (
+        _xml_metadata(
+            display_path,
+            "text",
+            f"Content too large to inline ({_format_size(content_bytes)})",
+        ),
+        0,
+    )
 
 
-async def _stored_file_part(ref: MentionReferenceRequest, current_total_bytes: int) -> tuple[str, int]:
+async def _stored_file_part(
+    ref: MentionReferenceRequest, current_total_bytes: int
+) -> tuple[str, int]:
     from app.core.storage import files_service
 
     if not ref.file_id:
@@ -471,7 +572,14 @@ async def _stored_file_part(ref: MentionReferenceRequest, current_total_bytes: i
             parsed_bytes = len(parsed.encode("utf-8"))
             if _can_inline(parsed_bytes, current_total_bytes):
                 return _xml_part(display_path, "document", parsed), parsed_bytes
-        return _xml_metadata(display_path, "document", f"Document too large ({_format_size(file.size)})"), 0
+        return (
+            _xml_metadata(
+                display_path,
+                "document",
+                f"Document too large ({_format_size(file.size)})",
+            ),
+            0,
+        )
 
     if ext in _BINARY_EXTENSIONS:
         return (
@@ -486,12 +594,24 @@ async def _stored_file_part(ref: MentionReferenceRequest, current_total_bytes: i
     try:
         text = content.decode("utf-8", errors="replace")
     except Exception:
-        return _xml_metadata(display_path, "binary", f"Binary file ({_format_size(file.size)})"), 0
+        return (
+            _xml_metadata(
+                display_path, "binary", f"Binary file ({_format_size(file.size)})"
+            ),
+            0,
+        )
 
     text_bytes = len(text.encode("utf-8"))
     if _can_inline(text_bytes, current_total_bytes):
         return _xml_part(display_path, "stored-text", text), text_bytes
-    return _xml_metadata(display_path, "stored-text", f"Content too large to inline ({_format_size(text_bytes)})"), 0
+    return (
+        _xml_metadata(
+            display_path,
+            "stored-text",
+            f"Content too large to inline ({_format_size(text_bytes)})",
+        ),
+        0,
+    )
 
 
 async def _parse_stored_document(content: bytes, ext: str, filename: str) -> str | None:
@@ -504,7 +624,9 @@ async def _parse_stored_document(content: bytes, ext: str, filename: str) -> str
         if suffix == ".pdf":
             from myrm_agent_harness.toolkits.file_parsers import PDFPlumberParser
 
-            return await PDFPlumberParser(extract_tables=True, parallel=False).parse(temp_path)
+            return await PDFPlumberParser(extract_tables=True, parallel=False).parse(
+                temp_path
+            )
         return _parse_document(temp_path, suffix)
     except Exception as exc:
         logger.warning("Failed to parse stored document %s: %s", filename, exc)
@@ -566,24 +688,37 @@ def _build_codebase_overview(workspace_path: Path) -> str:
         overview_parts.append(f"(scan capped at {_CODEBASE_SCAN_MAX_FILES} files)")
     if ext_counts:
         ext_summary = ", ".join(
-            f"{ext}: {count}" for ext, count in sorted(ext_counts.items(), key=lambda item: (-item[1], item[0]))[:10]
+            f"{ext}: {count}"
+            for ext, count in sorted(
+                ext_counts.items(), key=lambda item: (-item[1], item[0])
+            )[:10]
         )
         overview_parts.append(f"Extensions: {ext_summary}")
     overview_parts.append("Use grep_tool / glob_tool for code exploration.")
     return "\n".join(overview_parts)
 
 
-async def _codebase_overview_part(workspace_dir: str, current_total_bytes: int) -> tuple[str, int]:
+async def _codebase_overview_part(
+    workspace_dir: str, current_total_bytes: int
+) -> tuple[str, int]:
     """Build a lightweight codebase overview for @codebase mention."""
     workspace_path = Path(workspace_dir)
     if not workspace_path.is_dir():
-        return _xml_metadata("@codebase", "codebase-overview", "Workspace unavailable"), 0
+        return (
+            _xml_metadata("@codebase", "codebase-overview", "Workspace unavailable"),
+            0,
+        )
 
     overview = await asyncio.to_thread(_build_codebase_overview, workspace_path)
     overview_bytes = len(overview.encode("utf-8"))
     if _can_inline(overview_bytes, current_total_bytes):
         return _xml_part("@codebase", "codebase-overview", overview), overview_bytes
-    return _xml_metadata("@codebase", "codebase-overview", overview.split("\n", maxsplit=1)[0]), 0
+    return (
+        _xml_metadata(
+            "@codebase", "codebase-overview", overview.split("\n", maxsplit=1)[0]
+        ),
+        0,
+    )
 
 
 def _format_size(size_bytes: int) -> str:
@@ -595,7 +730,10 @@ def _format_size(size_bytes: int) -> str:
 
 
 def _can_inline(content_bytes: int, current_total_bytes: int) -> bool:
-    return content_bytes <= _MENTION_MAX_INLINE_BYTES and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
+    return (
+        content_bytes <= _MENTION_MAX_INLINE_BYTES
+        and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
+    )
 
 
 def _xml_part(path: str, part_type: str, content: str) -> str:
@@ -630,11 +768,76 @@ async def _wiki_concept_part(
         content = concept_path.read_text(encoding="utf-8")
         content_bytes = len(content.encode("utf-8"))
         if _can_inline(content_bytes, current_total_bytes):
-            return _xml_part(f"@wiki:{concept_name}", "wiki-concept", content), content_bytes
-        return _xml_metadata(f"@wiki:{concept_name}", "wiki-concept", f"Concept too large ({_format_size(content_bytes)})"), 0
+            return (
+                _xml_part(f"@wiki:{concept_name}", "wiki-concept", content),
+                content_bytes,
+            )
+        return (
+            _xml_metadata(
+                f"@wiki:{concept_name}",
+                "wiki-concept",
+                f"Concept too large ({_format_size(content_bytes)})",
+            ),
+            0,
+        )
     except Exception as e:
         logger.warning("Failed to read wiki concept %s: %s", concept_name, e)
         return _xml_error(f"@wiki:{concept_name}", "read failed"), 0
+
+
+async def _prior_chat_part(
+    chat_id: str,
+    display: str,
+    current_total_bytes: int,
+) -> tuple[str, int]:
+    """Resolve a prior chat mention into summary + snippet context."""
+    from myrm_agent_harness.toolkits.memory.conversation_search.types import (
+        MAX_SNIPPET_CHARS,
+        MAX_SUMMARY_CHARS,
+    )
+
+    from app.database.repositories.uow import UnitOfWork
+    from app.database.repositories.conversation_recall.lookup_repo import (
+        ConversationRecallLookupRepository,
+    )
+    from app.services.chat.chat_crud import _ChatCrudMixin
+
+    chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
+    if chat is None:
+        return _xml_error(display, "chat not found"), 0
+    if chat.is_incognito:
+        return _xml_error(display, "incognito chats cannot be referenced"), 0
+
+    async with UnitOfWork() as uow:
+        session = uow.session
+        if session is None:
+            return _xml_error(display, "recall unavailable"), 0
+        row = await ConversationRecallLookupRepository.fetch_prior_chat_document(
+            session,
+            chat_id=chat_id,
+        )
+
+    if row is None or row.is_excluded:
+        return _xml_error(display, "chat is excluded from recall"), 0
+
+    title = row.title or chat.title or "Untitled conversation"
+    summary = row.summary[:MAX_SUMMARY_CHARS]
+    snippet = row.snippet[:MAX_SNIPPET_CHARS]
+    body_parts = [f"conversation_id: {chat_id}", f"title: {title}"]
+    if summary:
+        body_parts.append(f"summary: {summary}")
+    if snippet:
+        body_parts.append(f"snippet: {snippet}")
+    content = "\n".join(body_parts)
+    content_bytes = len(content.encode("utf-8"))
+    if _can_inline(content_bytes, current_total_bytes):
+        return _xml_part(display, "prior-chat", content), content_bytes
+    return (
+        _xml_metadata(
+            display, "prior-chat", f"Context too large ({_format_size(content_bytes)})"
+        ),
+        0,
+    )
 
 
 async def _wiki_raw_file_part(
@@ -659,7 +862,14 @@ async def _wiki_raw_file_part(
         content_bytes = len(content.encode("utf-8"))
         if _can_inline(content_bytes, current_total_bytes):
             return _xml_part(display, "wiki-raw-file", content), content_bytes
-        return _xml_metadata(display, "wiki-raw-file", f"File too large ({_format_size(content_bytes)})"), 0
+        return (
+            _xml_metadata(
+                display,
+                "wiki-raw-file",
+                f"File too large ({_format_size(content_bytes)})",
+            ),
+            0,
+        )
     except Exception as e:
         logger.warning("Failed to read wiki raw file %s: %s", file_id, e)
         return _xml_error(display, "read failed"), 0

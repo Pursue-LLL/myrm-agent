@@ -127,6 +127,9 @@ const useChatStore = create<ChatState>()(
       optimizationMode: 'speed',
       isGoalMode: false,
       isWorkflowMode: false,
+      pendingWorkflowTemplateId: null,
+      pendingWorkflowTemplateDisplayName: null,
+      pendingWorkflowTemplateArgs: null,
       incognitoMode: false,
       sandboxMode: false,
       securityPreset: 'hitl' as const,
@@ -323,6 +326,18 @@ const useChatStore = create<ChatState>()(
       setOptimizationMode: (mode) => set({ optimizationMode: mode }),
       setIsGoalMode: (isGoalMode) => set({ isGoalMode }),
       setIsWorkflowMode: (isWorkflowMode) => set({ isWorkflowMode }),
+      setPendingWorkflowTemplate: (templateId, args = null, displayName = null) =>
+        set({
+          pendingWorkflowTemplateId: templateId,
+          pendingWorkflowTemplateArgs: args,
+          pendingWorkflowTemplateDisplayName: displayName,
+        }),
+      clearPendingWorkflowTemplate: () =>
+        set({
+          pendingWorkflowTemplateId: null,
+          pendingWorkflowTemplateDisplayName: null,
+          pendingWorkflowTemplateArgs: null,
+        }),
       setIncognitoMode: (incognitoMode) => set({ incognitoMode }),
       setSessionSkillOverrides: (overrides) => set({ sessionSkillOverrides: overrides }),
       setSandboxMode: (sandboxMode) => set({ sandboxMode }),
@@ -756,6 +771,8 @@ const useChatStore = create<ChatState>()(
             setSelectedModels: (models) => set({ selectedModels: models }),
             setHasUserSelectedModel: (hasSelected) => set({ hasUserSelectedModel: hasSelected }),
             clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+            clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+            setIsWorkflowMode: (enabled) => set({ isWorkflowMode: enabled }),
             _processSuggestions: get()._processSuggestions,
             scheduleAutoSave: get().scheduleAutoSave,
             setInputMessage: (message) => set({ inputMessage: message }),

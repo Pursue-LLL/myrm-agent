@@ -17,6 +17,7 @@
 | `ChatCronLink.tsx` | 组件 | 会话内关联定时任务 Badge（计数 → `/settings/cron?chat_id=`） | ✅ |
 | `CompactedSummaryView.tsx` | 组件 | 上下文压缩摘要 + archive + 快照书签 list/fork（`forkContextBranch` + `router.push` 导航新会话，对齐 ForkDialog） | ✅ |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
+| `ConversationRecallHint.tsx` | 组件 | EmptyChat 历史会话搜索 opt-in 发现性横幅（Settings 深链） | ✅ |
 | `ConversationJumpBar.tsx` | 组件 | 消息跳转条；Goal 侧栏 xl+ 时 `xl:right-[340px]` 避让 | ✅ |
 | `DeleteChat.tsx` | 组件 | 删除当前会话按钮与确认流程 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：SamplePrompts + Companion + MessageInput + NoProviderBanner | ✅ |
@@ -27,7 +28,8 @@
 | `LifeStatusCapsule.tsx` | 组件 | Agent liveness 三态胶囊（busy/idle/degraded） | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
-| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash（含 `/ask`/`/side`）、语音、模式切换、队列与流式发送；run 进行中输入 `/btw`/`/bg` 时显示 Advisor 消歧提示 | ✅ |
+| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash（含 `/ask`/`/side`）、语音、模式切换、队列与流式发送；pinned workflow 模板武装条；run 进行中输入 `/btw`/`/bg` 时显示 Advisor 消歧提示 | ✅ |
+| `WorkflowTemplateArmedBar.tsx` | 组件 | Composer pinned 模板武装条（显示名/ID + 取消固定） | ✅ |
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + revoke）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列可视化与 DnD 拖拽排序（复用 @dnd-kit 模式） | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |

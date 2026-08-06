@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { searchChatHistory, type SearchResult } from '@/services/chat';
+import useChatStore from '@/store/useChatStore';
 
 type TimePreset = 'today' | 'week' | 'month' | 'quarter' | null;
 
@@ -146,6 +147,38 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
     [router, onOpenChange],
   );
 
+  const focusComposerInput = useCallback(() => {
+    window.setTimeout(() => {
+      const inputElement = document.querySelector('[data-chat-input]');
+      if (inputElement instanceof HTMLTextAreaElement) {
+        inputElement.focus();
+      }
+    }, 100);
+  }, []);
+
+  const handleCiteToComposer = useCallback(
+    (item: SearchResult, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const title = item.chat_title?.trim() || t('chat.newChat');
+      const composerChatId = useChatStore.getState().chatId;
+      if (composerChatId && composerChatId === item.chat_id) {
+        onOpenChange(false);
+        return;
+      }
+      useChatStore.getState().addMentionReference({
+        type: 'prior_chat',
+        label: `@chat:${title}`,
+        path: item.chat_id,
+        fileId: item.chat_id,
+        source: 'special',
+      });
+      onOpenChange(false);
+      focusComposerInput();
+    },
+    [focusComposerInput, onOpenChange, t],
+  );
+
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) onOpenChange(false);
@@ -181,6 +214,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
             <input
               ref={inputRef}
               type="text"
+              data-search-input
               value={query}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
@@ -272,19 +306,37 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
             ) : (
               <div className="space-y-0.5">
                 {results.map((item) => (
-                  <button
+                  <div
                     key={item.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleResultClick(item.chat_id, String(item.id))}
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex flex-col gap-1.5"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleResultClick(item.chat_id, String(item.id));
+                      }
+                    }}
+                    className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex flex-col gap-1.5 cursor-pointer"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-foreground truncate min-w-0">
                         <MessageSquare className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="truncate">{item.chat_title || t('chat.newChat')}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatDate(item.sent_at)}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          data-cite-to-composer
+                          onClick={(event) => handleCiteToComposer(item, event)}
+                          className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-medium rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                        >
+                          {t('search.citeToComposer')}
+                        </button>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDate(item.sent_at)}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground line-clamp-2 pl-5">
@@ -304,7 +356,15 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
                         }}
                       />
                     </div>
-                  </button>
+                    <button
+                      type="button"
+                      data-cite-to-composer
+                      onClick={(event) => handleCiteToComposer(item, event)}
+                      className="sm:hidden self-start ml-5 px-2 py-0.5 text-[11px] font-medium rounded-md border border-border/60 bg-background/80 text-muted-foreground"
+                    >
+                      {t('search.citeToComposer')}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -343,6 +403,7 @@ export const SearchTrigger = forwardRef<HTMLButtonElement, SearchTriggerProps>(
     return (
       <button
         ref={ref}
+        data-search-trigger
         onClick={onOpenDialog}
         className={cn(
           'flex items-center gap-2 px-3 h-9 rounded-full',

@@ -127,7 +127,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 ## 测试分层决策
 
-profile「集成测试」是工作流概念；pytest marker 是收集过滤器。四层金字塔（server 侧）：
+pytest marker 是收集过滤器。四层金字塔（server 侧）：
 
 | 层级 | marker | 职责 | LLM | Chrome | 默认 `addopts` | monorepo 命令 |
 |------|--------|------|-----|--------|----------------|---------------|
@@ -137,6 +137,7 @@ profile「集成测试」是工作流概念；pytest marker 是收集过滤器�
 | chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（`:3000` + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
 
 - 入口统一 **`./myrm test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
+- 维护者速查：`scripts/dev/MAINTAINER_QUICKSTART.md`「测试分层速查」。
 - **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必 `:8080` live server。
 - **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm test -m integration …`。
 - `-m e2e` 与 `-m chrome_e2e` 互不包含；缺 marker 时带 e2e 标签的 node 会 deselect。

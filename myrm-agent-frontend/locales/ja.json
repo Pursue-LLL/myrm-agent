@@ -6224,11 +6224,19 @@
     "fileMention": {
       "title": "ワークスペースファイル",
       "noResults": "一致するファイルが見つかりません",
+      "priorChatEmpty": "一致する過去の会話が見つかりません",
+      "priorChatsCategory": "過去の会話",
       "navigate": "ナビゲーション",
       "select": "選択",
       "dismiss": "閉じる",
-      "specialReferencesHint": "テストテスト特殊引使用：@staged 暂存区 / @diff ワークスペース / @codebase 概览 / @folder:パス 目录 / @url:リンク 网ページ / file:10-20 行范围",
+      "specialReferencesHint": "例: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
       "removeReference": "移除 {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "過去の会話を続ける",
+      "hintBody": "設定で履歴セッション検索を有効にすると、以前の会話について質問したり、入力欄で @chat: を使って特定の会話を引用できます。",
+      "openSettings": "メモリ設定",
+      "dismiss": "閉じる"
     },
     "message": {
       "truncated": "返信因长度制限された截断，続行対話可获取完整内容。",
@@ -6898,7 +6906,8 @@
     "presetQuarter": "直近3ヶ月",
     "from": "起始",
     "to": "截止",
-    "clearTimeFilter": "クリア"
+    "clearTimeFilter": "クリア",
+    "citeToComposer": "入力欄に引用"
   },
   "images": {
     "search": "検索画像",

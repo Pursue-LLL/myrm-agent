@@ -88,6 +88,7 @@ class ChannelBackgroundTaskHandler:
             name=_SYSTEM_BOARD_NAME,
             description=_SYSTEM_BOARD_DESCRIPTION,
             settings=BoardSettings(
+                max_concurrent_tasks=MAX_CONCURRENT_TASKS,
                 zombie_timeout_seconds=300,
                 auto_block_after_consecutive_failures=2,
             ),
@@ -177,7 +178,9 @@ class ChannelBackgroundTaskHandler:
         if tokens:
             tokens.cancel_token.cancel("user_cancelled")
 
-        await svc.move_task(task_id, TaskStatus.FAILED, error="Cancelled by user")
+        task.error = "Cancelled by user"
+        await svc.store.save_task(task)
+        await svc.move_task(task_id, TaskStatus.FAILED)
         await svc.cancel_task_execution(task_id)
         self._runtime_tokens.pop(task_id, None)
         logger.info("Background task %s cancelled", task_id)

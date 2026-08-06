@@ -16,11 +16,12 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
-| `router.py` | 路由 | 合并 Kanban + shell；暴露 `job_id` / `vault_log_ref` / `waiting_for_input` / `stdin_closed`；shell cancel 走 harness kill；`POST /{task_id}/stdin` GUI 手动 stdin | ✅ |
+| `router.py` | 路由 | 合并 Kanban + shell；Agent 任务直查 KanbanService + `is_persistent_background()` 过滤（含 `chat_id` 字段供 panel 导航）；暴露 `job_id` / `vault_log_ref` / `waiting_for_input` / `stdin_closed`；shell cancel 走 harness kill；`POST /{task_id}/stdin` GUI 手动 stdin | ✅ |
 | `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`；`mode=running` / **`running_stdin`** / **`running_stdin_waiting`** / failed / success / completed_with_vault） | ✅ |
 
 ## 依赖
 
 - `app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler` — Kanban agent 任务
+- `app.core.channel_bridge.persistent_background::is_persistent_background` — metadata SSOT
 - `app.services.agent.shell_background_tasks` — registry + Store 门面
-- `app.services.kanban::KanbanService` — Agent 任务持久化
+- `app.services.kanban::KanbanService` — Agent 任务持久化（直查 list）

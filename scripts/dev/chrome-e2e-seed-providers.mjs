@@ -63,10 +63,20 @@ function providerType(providerId) {
   return normalized;
 }
 
+function providerDisplayName(providerId, apiUrl) {
+  if (apiUrl.includes('opencode.ai')) {
+    return 'OpenCode Go';
+  }
+  if (providerId === 'minimax') {
+    return 'MiniMax';
+  }
+  return providerId;
+}
+
 function buildProviderEntry({ providerId, modelId, apiUrl, apiKey }) {
   return {
     id: providerId,
-    name: providerId === 'minimax' ? 'MiniMax' : providerId,
+    name: providerDisplayName(providerId, apiUrl),
     routingProfile: providerId,
     isBuiltIn: providerId === 'minimax',
     isEnabled: true,

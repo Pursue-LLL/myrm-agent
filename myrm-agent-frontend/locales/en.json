@@ -3353,6 +3353,38 @@
           }
         }
       },
+      "workflowTemplates": {
+        "tab": "Workflow Templates",
+        "subtitle": "Save orchestration scripts from Dynamic Workflow runs and rerun them without regenerating the planner.",
+        "loading": "Loading templates…",
+        "loadFailed": "Failed to load workflow templates",
+        "refresh": "Refresh",
+        "empty": "No saved workflow templates yet. Complete a Dynamic Workflow run and use Save as Template on the assistant message.",
+        "run": "Run",
+        "delete": "Delete",
+        "deleted": "Template deleted",
+        "deleteFailed": "Failed to delete template",
+        "runQueryPlaceholder": "Task query for the next pinned template run…",
+        "runQueryRequired": "Enter a task query before running a template",
+        "runStarted": "Pinned template run started",
+        "runStartedHint": "The orchestration script is running in chat.",
+        "runBusy": "Wait for the current message to finish before running a template",
+        "runNoChat": "Could not open a chat session for this run",
+        "runFailed": "Failed to start pinned template run",
+        "trustLatchOn": "Trust latch",
+        "trustLatchOff": "Confirm each run",
+        "trustLatch": "Trust latch (skip plan confirm for readonly spawns under cost threshold)",
+        "agentTypes": "Agent types: {types}",
+        "previewScript": "View script",
+        "previewLoading": "Loading script…",
+        "previewLoadFailed": "Failed to load script",
+        "placeholdersHint": "Parameters: {keys}",
+        "argsDialogTitle": "Parameters for {name}",
+        "argsDialogDescription": "Fill in template parameters before running.",
+        "argsFieldPlaceholder": "Value for {key}",
+        "argsCancel": "Cancel",
+        "argsConfirmRun": "Run"
+      },
       "learn": {
         "panelTitle": "Learn a Skill",
         "description": "Point the agent at a directory, URL, or workflow notes. It gathers sources in chat and saves a draft for review.",
@@ -6807,6 +6839,10 @@
     "skillActivation": {
       "remove": "Remove selected skills"
     },
+    "workflowTemplateArmed": {
+      "label": "Pinned template",
+      "disarm": "Disarm"
+    },
     "jumpBar": {
       "ariaLabel": "Conversation navigation",
       "title": "Message Navigation",
@@ -7333,11 +7369,19 @@
     "fileMention": {
       "title": "Workspace References",
       "noResults": "No matching references found",
+      "priorChatEmpty": "No matching prior conversations",
+      "priorChatsCategory": "Prior conversations",
       "navigate": "Navigate",
       "select": "Select",
       "dismiss": "Dismiss",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / @chat:title (prior chat) / file:10-20 (line range)",
       "removeReference": "Remove {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "Continue past conversations",
+      "hintBody": "Enable conversation history search in Settings to ask about earlier chats or use @chat: in the composer.",
+      "openSettings": "Memory settings",
+      "dismiss": "Dismiss"
     },
     "message": {
       "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
@@ -7348,7 +7392,18 @@
       "fileMutationFailedTitle": "File Modification Failed",
       "workspaceMergeFailed": "{count, plural, one {# merge error} other {# merge errors}}",
       "workspaceMergeFailedTitle": "Workspace Merge Failed",
-      "workspaceMergeFailedMore": "{count, plural, one {# more error not shown} other {# more errors not shown}}"
+      "workspaceMergeFailedMore": "{count, plural, one {# more error not shown} other {# more errors not shown}}",
+      "workflowTemplateSave": {
+        "title": "Save as Workflow Template",
+        "description": "Store this orchestration script for deterministic reruns without regenerating the planner.",
+        "displayNamePlaceholder": "Display name",
+        "templateIdPlaceholder": "Template slug (e.g. weekly-report)",
+        "trustLatch": "Trust latch",
+        "save": "Save template",
+        "success": "Workflow template saved",
+        "failed": "Failed to save workflow template",
+        "fieldsRequired": "Display name and template slug are required"
+      }
     },
     "toolImage": {
       "screenshotLabel": "Remote Desktop Screenshot"
@@ -8023,7 +8078,8 @@
     "presetQuarter": "Past 3 Months",
     "from": "From",
     "to": "To",
-    "clearTimeFilter": "Clear"
+    "clearTimeFilter": "Clear",
+    "citeToComposer": "Cite in composer"
   },
   "images": {
     "search": "Search images",
@@ -10890,6 +10946,9 @@
     "createNamePlaceholder": "Optional — auto-generated from content",
     "createPromptLabel": "Agent Prompt",
     "createPromptPlaceholder": "What should the agent do? e.g. Summarize today's tech news",
+    "createWorkflowTemplateLabel": "Workflow template",
+    "createWorkflowTemplateNone": "None — natural language only",
+    "createWorkflowTemplateHint": "Run a saved Dynamic Workflow script on schedule (uses the prompt above as the task query).",
     "createCommandLabel": "Shell Command",
     "createCommandPlaceholder": "e.g. python backup.py",
     "createScheduleLabel": "Schedule",

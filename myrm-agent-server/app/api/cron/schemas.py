@@ -121,6 +121,8 @@ class CronJobCreate(BaseModel):
     model: str | None = None
     chat_id: str | None = None
     agent_id: str | None = None
+    workflow_template_id: str | None = Field(default=None, max_length=64)
+    workflow_template_args: dict[str, str] | None = None
     command: str | None = None
 
     delivery: DeliveryCreate | None = None
@@ -281,6 +283,8 @@ class CronJobResponse(BaseModel):
     model: str | None = None
     chat_id: str | None = None
     agent_id: str | None = None
+    workflow_template_id: str | None = Field(default=None, max_length=64)
+    workflow_template_args: dict[str, str] | None = None
     command: str | None = None
 
     delivery: DeliveryResponse = DeliveryResponse()

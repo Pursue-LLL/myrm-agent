@@ -6271,11 +6271,19 @@
     "fileMention": {
       "title": "工作區引用",
       "noResults": "未找到匹配引用",
+      "priorChatEmpty": "未找到匹配的歷史會話",
+      "priorChatsCategory": "歷史會話",
       "navigate": "導航",
       "select": "選擇",
       "dismiss": "關閉",
-      "specialReferencesHint": "試試特殊引用：@staged 暫存區 / @diff 工作區 / @codebase 概覽 / @folder:路徑 目錄 / @url:連結 網頁 / file:10-20 行範圍",
+      "specialReferencesHint": "試試特殊引用：@staged 暫存區 / @diff 工作區 / @codebase 概覽 / @folder:路徑 目錄 / @url:連結 網頁 / @chat:標題 歷史會話 / file:10-20 行範圍",
       "removeReference": "移除 {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "接著聊以前的會話",
+      "hintBody": "在設定中開啟「歷史會話搜尋」，即可詢問此前聊過的內容，或在輸入框使用 @chat: 引用指定會話。",
+      "openSettings": "記憶設定",
+      "dismiss": "不再提示"
     },
     "message": {
       "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。",
@@ -6946,7 +6954,8 @@
     "presetQuarter": "最近三月",
     "from": "起始",
     "to": "截止",
-    "clearTimeFilter": "清除"
+    "clearTimeFilter": "清除",
+    "citeToComposer": "引用到輸入框"
   },
   "images": {
     "search": "搜尋圖片",

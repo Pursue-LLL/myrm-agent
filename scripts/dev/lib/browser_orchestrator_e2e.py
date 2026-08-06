@@ -381,6 +381,11 @@ def _spawn_ensure_orchestrator() -> None:
         return
     env = os.environ.copy()
     env["MYRM_BROWSER_ORCHESTRATOR"] = "1"
+    node_dir = "/opt/homebrew/bin"
+    path = env.get("PATH", "")
+    if node_dir not in path:
+        bun_bin = os.path.expanduser("~/.bun/bin")
+        env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
     try:
         subprocess.run(
             ["bash", str(script)],
@@ -405,6 +410,8 @@ def _is_retryable_open_page_error(message: str) -> bool:
         or "mux_context_disconnected" in lowered
         or "cdp evaluate failed" in lowered
         or "page.navigate" in lowered
+        or "connection refused" in lowered
+        or "daemon not running" in lowered
     )
 
 
@@ -421,20 +428,23 @@ def _effective_parallel_load() -> int:
 
 
 def _parallel_open_page_max_attempts() -> int:
+    if _effective_parallel_load() >= 4:
+        return 8
     if _effective_parallel_load() >= 2:
         return 5
     return 3
 
 
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
-    from browser_orchestrator_client import _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
+    from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
 
+    cap = orchestrator_socket_timeout_cap_sec()
     daemon_budget = float(daemon._timeout_sec)
-    if _effective_parallel_load() >= 2:
-        return min(
-            _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
-            max(120.0, daemon_budget),
-        )
+    burst_lanes = _effective_parallel_load()
+    if burst_lanes >= 4:
+        return min(cap, max(360.0, daemon_budget))
+    if burst_lanes >= 2:
+        return min(cap, max(120.0, daemon_budget))
     return min(130.0, daemon_budget)
 
 
@@ -452,7 +462,7 @@ def _open_page_transaction_with_retry(
     last_exc: BaseException | None = None
     for attempt in range(1, attempts + 1):
         try:
-            with daemon.bounded_request_timeout(open_timeout_sec):
+            with daemon.elevated_request_timeout(open_timeout_sec):
                 if binding_expression is not None:
                     created = daemon.open_page_transaction(
                         session_id,
@@ -546,11 +556,11 @@ def open_orchestrator_mcp_page(
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
     effective_timeout = request_timeout_sec
     if _effective_parallel_load() >= 2:
-        from browser_orchestrator_client import _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
+        from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
 
         effective_timeout = max(
             request_timeout_sec,
-            _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
+            orchestrator_socket_timeout_cap_sec(),
         )
     daemon = BrowserOrchestratorClient(timeout_sec=max(effective_timeout, 90.0))
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))

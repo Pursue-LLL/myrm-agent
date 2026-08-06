@@ -7,6 +7,8 @@ shell jobs merge in-process harness registry with durable BackgroundJobStore.
 [INPUT]
 - app.core.channel_bridge.setup::get_background_task_handler (POS: Channel gateway lifecycle)
 - app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Background task handler)
+- app.core.channel_bridge.persistent_background::is_persistent_background (POS: metadata SSOT)
+- app.services.kanban::KanbanService (POS: Kanban business service)
 - app.services.agent.shell_background_tasks (POS: registry + Store facade)
 
 [OUTPUT]
@@ -107,32 +109,61 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
 
 
 async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
+    """List all persistent background tasks (btw + voice) for the WebUI panel.
+
+    Queries KanbanService directly and filters by ``is_persistent_background``
+    so that *all* background-spawned tasks are visible regardless of originating
+    channel (webui, IM, realtime_voice).
+    """
+    from app.core.channel_bridge.background_task_handler import (
+        _kanban_status_to_bg_status,
+    )
+    from app.core.channel_bridge.persistent_background import is_persistent_background
+    from app.services.kanban import KanbanService
+
     handler = get_background_task_handler()
     if not handler:
         return []
 
-    from app.channels.types import InboundMessage
+    svc = KanbanService.get_instance()
+    board_id = await handler._ensure_system_board()
 
-    synthetic_msg = InboundMessage(
-        channel="webui",
-        sender_id="webui",
-        chat_id="webui",
-        content="",
-        user_id="webui",
-    )
-    task_infos = await handler.list_background(synthetic_msg)
-    return [
-        BackgroundTaskResponse(
-            kind="agent",
-            task_id=t.task_id,
-            prompt=t.prompt,
-            status=t.status,
-            created_at=t.created_at,
-            completed_at=t.completed_at,
-            result_preview=t.result_preview,
+    from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+    tasks = await svc.store.list_tasks(board_id)
+    results: list[BackgroundTaskResponse] = []
+    for task in tasks:
+        if not is_persistent_background(task.metadata):
+            continue
+
+        status = _kanban_status_to_bg_status(task.status, task.error)
+        completed_at = task.completed_at.timestamp() if task.completed_at else None
+        created_at = task.created_at.timestamp() if task.created_at else time.time()
+
+        result_text: str | None = None
+        if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+            events = await svc.store.list_events(task.task_id)
+            for ev in reversed(events):
+                if ev.payload and ev.payload.get("result_preview"):
+                    result_text = str(ev.payload["result_preview"])[:100]
+                    break
+
+        meta = task.metadata or {}
+        results.append(
+            BackgroundTaskResponse(
+                kind="agent",
+                task_id=task.task_id,
+                prompt=task.description or task.title,
+                status=status,
+                created_at=created_at,
+                completed_at=completed_at,
+                result_preview=result_text,
+                chat_id=meta.get("chat_id"),
+            )
         )
-        for t in task_infos
-    ]
+
+    results.sort(key=lambda t: t.created_at, reverse=True)
+    return results
 
 
 @router.get("")

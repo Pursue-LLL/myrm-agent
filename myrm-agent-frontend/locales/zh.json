@@ -3353,6 +3353,38 @@
           }
         }
       },
+      "workflowTemplates": {
+        "tab": "工作流模板",
+        "subtitle": "保存动态工作流的编排脚本，下次可直接复跑，无需 LLM 重新生成 planner。",
+        "loading": "加载模板中…",
+        "loadFailed": "加载工作流模板失败",
+        "refresh": "刷新",
+        "empty": "暂无已保存模板。完成一次动态工作流运行后，可在助手消息上使用「保存为模板」。",
+        "run": "运行",
+        "delete": "删除",
+        "deleted": "模板已删除",
+        "deleteFailed": "删除模板失败",
+        "runQueryPlaceholder": "输入本次 pinned 模板运行的任务描述…",
+        "runQueryRequired": "运行模板前请先输入任务描述",
+        "runStarted": "已启动固定模板运行",
+        "runStartedHint": "编排脚本正在对话中执行。",
+        "runBusy": "请等待当前消息完成后再运行模板",
+        "runNoChat": "无法打开对话会话以运行模板",
+        "runFailed": "启动固定模板运行失败",
+        "trustLatchOn": "信任锁",
+        "trustLatchOff": "每次需确认",
+        "trustLatch": "信任锁（只读 spawn 且成本低于阈值时跳过计划确认）",
+        "agentTypes": "Agent 类型：{types}",
+        "previewScript": "查看脚本",
+        "previewLoading": "加载脚本中…",
+        "previewLoadFailed": "加载脚本失败",
+        "placeholdersHint": "参数：{keys}",
+        "argsDialogTitle": "{name} 的参数",
+        "argsDialogDescription": "运行前请填写模板参数。",
+        "argsFieldPlaceholder": "{key} 的值",
+        "argsCancel": "取消",
+        "argsConfirmRun": "运行"
+      },
       "learn": {
         "panelTitle": "学习技能",
         "description": "指定目录、URL 或流程说明，智能体会在对话中收集素材并生成待审核草稿。",
@@ -6807,6 +6839,10 @@
     "skillActivation": {
       "remove": "移除已选技能"
     },
+    "workflowTemplateArmed": {
+      "label": "已固定模板",
+      "disarm": "取消固定"
+    },
     "jumpBar": {
       "ariaLabel": "对话导航",
       "title": "消息导航",
@@ -7332,11 +7368,19 @@
     "fileMention": {
       "title": "工作区引用",
       "noResults": "未找到匹配引用",
+      "priorChatEmpty": "未找到匹配的历史会话",
+      "priorChatsCategory": "历史会话",
       "navigate": "导航",
       "select": "选择",
       "dismiss": "关闭",
-      "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @codebase 概览 / @folder:路径 目录 / @url:链接 网页 / file:10-20 行范围",
+      "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @codebase 概览 / @folder:路径 目录 / @url:链接 网页 / @chat:标题 历史会话 / file:10-20 行范围",
       "removeReference": "移除 {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "接着聊以前的会话",
+      "hintBody": "在设置中开启「历史会话搜索」，即可询问此前聊过的内容，或在输入框使用 @chat: 引用指定会话。",
+      "openSettings": "记忆设置",
+      "dismiss": "不再提示"
     },
     "message": {
       "truncated": "回复因长度限制被截断，继续对话可获取完整内容。",
@@ -7347,7 +7391,18 @@
       "fileMutationFailedTitle": "文件修改失败",
       "workspaceMergeFailed": "{count, plural, one {# 条合并错误} other {# 条合并错误}}",
       "workspaceMergeFailedTitle": "工作区合并失败",
-      "workspaceMergeFailedMore": "{count, plural, one {还有 # 条错误未显示} other {还有 # 条错误未显示}}"
+      "workspaceMergeFailedMore": "{count, plural, one {还有 # 条错误未显示} other {还有 # 条错误未显示}}",
+      "workflowTemplateSave": {
+        "title": "保存为工作流模板",
+        "description": "保存本次编排脚本，下次可确定性复跑，无需 LLM 重新生成 planner。",
+        "displayNamePlaceholder": "显示名称",
+        "templateIdPlaceholder": "模板 slug（如 weekly-report）",
+        "trustLatch": "信任锁",
+        "save": "保存模板",
+        "success": "工作流模板已保存",
+        "failed": "保存工作流模板失败",
+        "fieldsRequired": "请填写显示名称和模板 slug"
+      }
     },
     "toolImage": {
       "screenshotLabel": "远程桌面截屏"
@@ -8023,7 +8078,8 @@
     "presetQuarter": "最近三月",
     "from": "起始",
     "to": "截止",
-    "clearTimeFilter": "清除"
+    "clearTimeFilter": "清除",
+    "citeToComposer": "引用到输入框"
   },
   "images": {
     "search": "搜索图片",
@@ -10890,6 +10946,9 @@
     "createNamePlaceholder": "可选 — 自动从内容生成",
     "createPromptLabel": "Agent 提示词",
     "createPromptPlaceholder": "Agent 应该做什么？例如：总结今天的科技新闻",
+    "createWorkflowTemplateLabel": "工作流模板",
+    "createWorkflowTemplateNone": "无 — 仅自然语言",
+    "createWorkflowTemplateHint": "按计划运行已保存的动态工作流脚本（上方提示词作为本次任务 query）。",
     "createCommandLabel": "Shell 命令",
     "createCommandPlaceholder": "例如：python backup.py",
     "createScheduleLabel": "调度方式",

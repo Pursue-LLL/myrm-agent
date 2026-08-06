@@ -23,7 +23,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 |------|------|------|-------|
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
-| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 清理 | ✅ |
+| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 清理、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
 | `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化、memory_search_tool 引用证据与 retrieval trace 分步事件写入记忆操作账本 + 用量同步 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
 | `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换、LLM 标题生成；突变后 checkpoint sync | ✅ |
@@ -33,7 +33,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
 | `stale_compact_gate.py` | ✅ 核心 | Pre-reply idle stale compaction gate（`engine_params.idle_compact_after_seconds`，默认 0；idle 锚点=最后消息时间；**Hermes predicate：tokens>floor only（无 min_messages）**；request-level token floor（summary+tail+overhead）；gate 向 `compact_chat` 传递 `request_tokens_for_guard` 与 anti-thrash 同口径；**compression failure cooldown** + **anti-thrash**；**模型窗口不可用 fail-closed**；Web 经 `pre_reply_compact_sse` 发 active/completed/failure SSE；Channel 入站前 best-effort 调用） | ✅ |
-| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；组合会话级 FTS5 索引、统一可见性策略、预计算摘要、semantic evidence hydration 与可选语义记忆结果。 | ✅ |
+| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5+semantic、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，并在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填、重建、增量追加、排除/恢复、删除、健康检查和管理列表。 | ✅ |
 | `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 DB→LangGraph checkpoint fail-closed 对齐；rewind 成功后 pause active Goal | ✅ |

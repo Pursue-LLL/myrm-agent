@@ -622,6 +622,7 @@ def _mux_context_fields() -> dict[str, object]:
 
 from e2e_parallel_status import (
     load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,
+    resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
     safe_active_test_count as _safe_active_test_count,
     compute_queue_state as _compute_queue_state,
     cap_headroom_fields as _cap_headroom_fields,
@@ -847,11 +848,25 @@ def _context_to_dict(
         else []
     )
     liveness_rows = build_lease_liveness(resolved_wave, active_tests=active_tests)
+    from dev_gate_status import dev_gate_status as _dev_gate_status  # noqa: PLC0415
+
+    dev_gate_payload = _dev_gate_status()
+    active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
+        resolved_parallel,
+        wave_leases_effective=counts.effective_total,
+        dev_gate=dev_gate_payload,
+    )
+    if observability_mismatch:
+        resolved_parallel = {
+            **resolved_parallel,
+            "parallel_observability_mismatch": True,
+        }
     headroom = _cap_headroom_fields(
         lease_counts=counts,
         mux_fields=resolved_mux,
-        active_test_count=_safe_active_test_count(resolved_parallel),
+        active_test_count=active_test_count,
         parallel_snapshot=resolved_parallel,
+        observability_mismatch=observability_mismatch,
     )
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
@@ -860,9 +875,7 @@ def _context_to_dict(
     payload["parallelSnapshot"] = resolved_parallel
     payload["capHeadroom"] = headroom
     payload["leaseLiveness"] = lease_liveness_to_dict(liveness_rows)
-    from dev_gate_status import dev_gate_status  # noqa: PLC0415
-
-    payload["devGate"] = dev_gate_status()
+    payload["devGate"] = dev_gate_payload
     observe_json = os.environ.get("MYRM_E2E_CONTEXT_JSON", "").strip() == "1"
     if not observe_json:
         try:
@@ -933,7 +946,7 @@ def _context_to_dict(
             "MUX_COLD_ATTACH_SATURATED: do not hand new_page/navigate; "
             "use verify-api or ./myrm test -m chrome_e2e (auto queue ≤900s)."
         )
-    active_count = _safe_active_test_count(resolved_parallel)
+    active_count = active_test_count
     if active_count > 0:
         payload["agent_rule"] = (
             f"{payload['agent_rule']} "
@@ -1056,7 +1069,19 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _load_parallel_runtime_snapshot()
-    active_test_count = _safe_active_test_count(parallel_snapshot)
+    from dev_gate_status import dev_gate_status as _dev_gate_status  # noqa: PLC0415
+
+    dev_gate_payload = _dev_gate_status()
+    active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
+        parallel_snapshot,
+        wave_leases_effective=counts.effective_total,
+        dev_gate=dev_gate_payload,
+    )
+    if observability_mismatch:
+        parallel_snapshot = {
+            **parallel_snapshot,
+            "parallel_observability_mismatch": True,
+        }
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (
         [item for item in active_tests_raw if isinstance(item, dict)]
@@ -1119,6 +1144,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         mux_fields=mux_fields,
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
+        observability_mismatch=observability_mismatch,
     )
     for line in _format_agent_decision_human(
         ctx=ctx,

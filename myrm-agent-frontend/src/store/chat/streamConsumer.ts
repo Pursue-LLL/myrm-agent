@@ -9,7 +9,7 @@
  * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流
  *
  * [POS]
- * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；multiplex 下 early-terminal SSE 直读 POST。
+ * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { parseSseEnvelope } from './schema';
@@ -281,7 +281,6 @@ export async function executeStreamWithRetry(
         archiveRestoreActions,
         turnCapabilityTelemetry,
       );
-
       if (!res.ok) {
         if (res.status === 409) {
           throw new AgentBusyError('Agent is busy processing another request for this session.');
@@ -303,6 +302,8 @@ export async function executeStreamWithRetry(
 
         throw new Error(`[TransientHTTP] ${res.status}: ${errorText}`);
       }
+
+      actions.clearPendingWorkflowTemplate();
 
       finalizeMigrationBoundProjectHandoff(state.chatId);
 

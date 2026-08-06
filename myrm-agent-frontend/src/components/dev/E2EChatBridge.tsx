@@ -756,6 +756,18 @@ export default function E2EChatBridge() {
         useChatStore.getState().setIsWorkflowMode(enabled);
       },
       isWorkflowMode: () => useChatStore.getState().isWorkflowMode,
+      getLastAssistantMessageId: () => {
+        const assistants = useChatStore.getState().messages.filter((message) => message.role === 'assistant');
+        return assistants[assistants.length - 1]?.messageId ?? null;
+      },
+      sendWorkflowTemplateRun: async (templateId: string, query: string, displayName?: string) => {
+        const { submitWorkflowTemplateRun } = await import('@/lib/workflow/submitWorkflowTemplateRun');
+        return submitWorkflowTemplateRun({
+          templateId,
+          query,
+          displayName,
+        });
+      },
       syncSearchServicesFromE2eApi: hydrateSearchServicesFromE2eApi,
       clearSearchServicesForE2e,
       debugSearchState: () => {

@@ -75,6 +75,7 @@ import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 import { SkillActivationChips } from '../message-box/SkillActivationChips';
+import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 
 const KEYTERM_PATTERN =
@@ -215,6 +216,12 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     useShallow((state) => ({
       pendingExplicitSkillActivation: state.pendingExplicitSkillActivation,
       setPendingExplicitSkillActivation: state.setPendingExplicitSkillActivation,
+    })),
+  );
+  const { pendingWorkflowTemplateId, pendingWorkflowTemplateDisplayName } = useChatStore(
+    useShallow((state) => ({
+      pendingWorkflowTemplateId: state.pendingWorkflowTemplateId,
+      pendingWorkflowTemplateDisplayName: state.pendingWorkflowTemplateDisplayName,
     })),
   );
 
@@ -456,6 +463,13 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               />
             ) : (
               <>
+            {pendingWorkflowTemplateId ? (
+              <WorkflowTemplateArmedBar
+                templateId={pendingWorkflowTemplateId}
+                displayName={pendingWorkflowTemplateDisplayName}
+                className="mb-2"
+              />
+            ) : null}
             {pendingExplicitSkillActivation ? (
               <SkillActivationChips
                 skillNames={pendingExplicitSkillActivation.skillNames}

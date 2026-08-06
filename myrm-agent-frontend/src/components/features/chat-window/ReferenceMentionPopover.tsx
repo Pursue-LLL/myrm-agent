@@ -12,7 +12,7 @@
  * Structured @ reference suggestion view. Shows workspace, stored-file and special reference candidates for MessageInput.
  */
 import * as React from 'react';
-import { FileText, Folder, FileCode, FileJson, Image, Lightbulb } from 'lucide-react';
+import { FileText, Folder, FileCode, FileJson, Image, Lightbulb, MessagesSquare } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/primitives/popover';
 import { useTranslations } from 'next-intl';
@@ -94,6 +94,8 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
 
   if (!open) return null;
 
+  const isChatMode = query.startsWith('chat:');
+
   return (
     <Popover open={open} modal={false}>
       {anchorEl && <PopoverAnchor virtualRef={{ current: anchorEl }} />}
@@ -134,6 +136,9 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                       @url:link
                     </code>
                     <code className="px-1.5 py-0.5 text-[10px] bg-background/60 rounded border border-border/40 text-primary/80">
+                      @chat:title
+                    </code>
+                    <code className="px-1.5 py-0.5 text-[10px] bg-background/60 rounded border border-border/40 text-primary/80">
                       file:10-20
                     </code>
                   </div>
@@ -146,26 +151,45 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
             {results.length === 0 ? (
               <div className="py-6 text-center">
                 <Folder className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">{t('noResults')}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isChatMode ? t('priorChatEmpty') : t('noResults')}
+                </p>
               </div>
             ) : (
               results.map((file, index) => {
                 const isSpecial = file.source === 'special';
+                const isPriorChat = file.reference_type === 'prior_chat';
                 const isAgent = file.source === 'agent';
                 const isSelected = index === selectedIndex;
                 const title = file.basename || file.label;
                 const subtitle = file.directory || file.description || file.relative_path || '';
-                const Icon = isAgent ? undefined : (isSpecial ? IconGlow : getFileIcon(title));
+                const Icon = isAgent
+                  ? undefined
+                  : isPriorChat
+                    ? MessagesSquare
+                    : isSpecial
+                      ? IconGlow
+                      : getFileIcon(title);
 
                 const prevFile = index > 0 ? results[index - 1] : null;
                 const isFirstAgent = isAgent && (!prevFile || prevFile.source !== 'agent');
-                const isFirstContext = !isAgent && (!prevFile || prevFile.source === 'agent');
+                const isFirstPriorChat =
+                  isPriorChat && (!prevFile || prevFile.reference_type !== 'prior_chat');
+                const isFirstContext =
+                  !isAgent &&
+                  !isPriorChat &&
+                  (!prevFile || prevFile.source === 'agent' || prevFile.reference_type === 'prior_chat');
 
                 return (
                   <React.Fragment key={`${file.reference_type}:${file.relative_path ?? file.file_id ?? file.label}`}>
                     {isFirstAgent && (
                       <div className="px-3 py-1.5 text-xs font-semibold text-primary/80 bg-primary/5 uppercase tracking-wider mt-1 first:mt-0">
                         {t('agentsCategory') || '召唤智能体 (Agents)'}
+                      </div>
+                    )}
+                    {isFirstPriorChat && (
+                      <div className="px-3 py-1.5 text-xs font-semibold text-primary/80 bg-primary/5 uppercase tracking-wider mt-1 first:mt-0">
+                        {t('priorChatsCategory')}
                       </div>
                     )}
                     {isFirstContext && (
@@ -181,6 +205,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                         'hover:bg-accent/50',
                         isSelected && 'bg-accent',
                         isSpecial && 'bg-primary/5',
+                        isPriorChat && 'bg-primary/5',
                         isAgent && 'bg-primary/10 hover:bg-primary/20'
                       )}
                       onClick={() => onSelect(file)}

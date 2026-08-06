@@ -124,6 +124,34 @@ def test_discover_models_reports_ssrf_block(client: TestClient) -> None:
     assert "SSRF blocked" in (payload.get("error") or "")
 
 
+def test_discover_models_external_https_provider(client: TestClient) -> None:
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"data": [{"id": "deepseek-v4-flash"}, {"id": "minimax-m3"}]},
+                url="https://93.184.216.34/zen/go/v1/models",
+            ),
+        ) as secure_request_mock,
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={
+                "api_url": "https://opencode.ai/zen/go/v1",
+                "api_key": "sk-test-opencode-go",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["normalized_api_url"] == "https://opencode.ai/zen/go/v1"
+    assert payload["models"] == ["deepseek-v4-flash", "minimax-m3"]
+    assert secure_request_mock.await_count >= 1
+
+
 def test_local_no_auth_marker_overrides_authorization_header() -> None:
     result = _apply_local_no_auth_marker_transport_overrides(
         {"extra_headers": {"X-Test": "1"}},

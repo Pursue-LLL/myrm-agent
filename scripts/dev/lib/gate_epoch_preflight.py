@@ -111,6 +111,30 @@ def _myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
     return [str(monorepo_root / "myrm"), *parts]
 
 
+def restart_chrome_if_orphan_budget_exceeded(monorepo_root: Path) -> bool:
+    """Solo signoff heal when blank tabs exceed orphan budget (TAB-5)."""
+    try:
+        from chrome_e2e.gates.orphan_budget import evaluate_orphan_budget
+    except ImportError:
+        return False
+    budget = evaluate_orphan_budget()
+    if budget.get("ok"):
+        return False
+    _emit(
+        "GATE_ORPHAN_BUDGET_HEAL: "
+        f"{json.dumps(budget, sort_keys=True)} — restart --chrome (solo; no peer kill)"
+    )
+    rc = _run_heal_flocked(
+        _myrm_cmd(monorepo_root, "restart", "--chrome"),
+        wait_sec=180.0,
+    )
+    if rc == 0:
+        _emit("GATE_ORPHAN_BUDGET_HEAL_OK: restart --chrome")
+        return True
+    _emit(f"GATE_ORPHAN_BUDGET_HEAL_WARN: restart rc={rc}")
+    return False
+
+
 def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
     """Mux reap + optional wave restart under solo constraints."""
     _emit(f"=== GATE_MUX_HEAL start ===")
@@ -168,6 +192,13 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
             snapshot=snap,
             tokens=("GATE_MUX_HEAL_DEFER",),
         )
+    try:
+        from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe
+
+        hygiene = run_idle_tab_hygiene_if_safe(trigger="signoff_gate_preflight")
+        _emit(f"GATE_IDLE_HYGIENE: {json.dumps(hygiene, sort_keys=True)}")
+    except ImportError:
+        pass
     return PreflightResult(
         outcome=PreflightOutcome.OK,
         reason="mux_heal_ok",

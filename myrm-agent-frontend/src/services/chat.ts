@@ -414,7 +414,8 @@ export type ReferenceSuggestionType =
   | 'git_staged'
   | 'url'
   | 'agent'
-  | 'wiki_concept';
+  | 'wiki_concept'
+  | 'prior_chat';
 
 export interface ReferenceSuggestion {
   source: ReferenceSuggestionSource;
@@ -440,7 +441,7 @@ export interface ReferenceSuggestResponse {
 }
 
 export interface MentionReferencePayload {
-  type: ReferenceSuggestionType | 'wiki_concept' | 'wiki_raw_file';
+  type: ReferenceSuggestionType | 'wiki_concept' | 'wiki_raw_file' | 'prior_chat';
   path?: string;
   file_id?: string;
   url?: string;

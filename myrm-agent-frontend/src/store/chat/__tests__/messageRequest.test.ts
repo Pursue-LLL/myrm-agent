@@ -816,4 +816,61 @@ describe('messageRequest - active moa preset', () => {
       active_moa_preset_id: 'default',
     });
   });
+
+  it('includes workflow_template_id while pending template is armed', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    useChatStore.setState({
+      pendingWorkflowTemplateId: 'demo-flow',
+      pendingWorkflowTemplateArgs: { topic: 'billing' },
+      pendingWorkflowTemplateDisplayName: 'Demo Flow',
+    });
+
+    const state = {
+      chatId: 'chat-template',
+      abortController: new AbortController(),
+      actionMode: 'agent',
+      searchDepth: 'normal',
+      agentConfig: null,
+      currentBuiltinTools: [],
+      isWorkflowMode: false,
+      loading: false,
+      messages: [],
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('pinned rerun', 'msg-template', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls.at(-1) ?? [];
+    expect(requestBody).toMatchObject({
+      use_workflow: true,
+      workflow_template_id: 'demo-flow',
+      workflow_template_args: { topic: 'billing' },
+    });
+  });
 });

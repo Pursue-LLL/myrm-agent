@@ -34,6 +34,7 @@ from app.api.client_logs import router as client_logs_router
 from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
 from app.api.compounding_playbook import router as compounding_playbook_router
+from app.api.workflow_templates import router as workflow_templates_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
@@ -307,6 +308,7 @@ api_router.include_router(
     companion_doctor_router, prefix="/companion", tags=["companion"]
 )
 api_router.include_router(compounding_playbook_router, tags=["compounding-playbook"])
+api_router.include_router(workflow_templates_router, tags=["workflow-templates"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 

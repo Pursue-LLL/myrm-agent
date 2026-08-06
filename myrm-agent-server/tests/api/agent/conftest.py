@@ -199,6 +199,9 @@ def app() -> FastAPI:
     kanban_module = import_module("app.api.kanban.router")
     app.include_router(kanban_module.router, prefix="/api/v1")
 
+    workflow_templates_module = import_module("app.api.workflow_templates.router")
+    app.include_router(workflow_templates_module.router, prefix="/api/v1")
+
     return app
 
 

@@ -18,6 +18,7 @@ const mockConsumePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockDecryptSseFrame = vi.hoisted(() => vi.fn());
 const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn(() => null));
 const mockCreateMultiplexReadableStream = vi.hoisted(() => vi.fn());
+const mockClearPendingWorkflowTemplate = vi.hoisted(() => vi.fn());
 const approvalState = vi.hoisted(() => ({
   queue: [] as unknown[],
 }));
@@ -113,6 +114,8 @@ function createActions(state: ChatActionsState): ChatActionsMethods {
     setSelectedModels: vi.fn(),
     setHasUserSelectedModel: vi.fn(),
     clearCurrentSessionMessageId: vi.fn(),
+    clearPendingWorkflowTemplate: mockClearPendingWorkflowTemplate,
+    setIsWorkflowMode: vi.fn(),
     _processSuggestions: vi.fn(async () => undefined),
     scheduleAutoSave: vi.fn(),
     setInputMessage: vi.fn(),
@@ -170,6 +173,7 @@ describe('streamConsumer resilience paths', () => {
     mockDecryptSseFrame.mockReset();
     mockLoadStoredE2EESession.mockReset();
     mockCreateMultiplexReadableStream.mockReset();
+    mockClearPendingWorkflowTemplate.mockReset();
     mockResolveE2eApiBase.mockReturnValue(null);
     mockResolveChatWikiEvidenceContext.mockReturnValue({ contextKey: 'chat:a-1', turnDistance: 0 });
     mockConsumePendingChatWikiQuerySuccess.mockReturnValue(undefined);
@@ -201,6 +205,19 @@ describe('streamConsumer resilience paths', () => {
     ).rejects.toBeInstanceOf(AgentBusyError);
 
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps pending workflow template armed when agent-stream POST fails', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    mockCreateMessageRequest.mockResolvedValue(new Response('busy', { status: 409 }));
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-template-armed', state, actions, null, abortController, false, ''),
+    ).rejects.toBeInstanceOf(AgentBusyError);
+
+    expect(mockClearPendingWorkflowTemplate).not.toHaveBeenCalled();
   });
 
   it('throws AgentBusyError on HTTP 200 SSE error_type AgentBusyError (production path)', async () => {

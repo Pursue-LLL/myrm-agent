@@ -292,7 +292,14 @@ class ChromeMcpClient:
                 raise last_exc
             raise RuntimeError("daemon new_page failed without exception")
         except Exception:
-            self._release_lease(lease_id, close_wave_if_idle=False)
+            try:
+                self._release_lease(lease_id, close_wave_if_idle=False)
+            except (RuntimeError, TimeoutError) as release_exc:
+                if not _is_benign_cleanup_error(str(release_exc)):
+                    _LOGGER.warning(
+                        "daemon new_page cleanup release failed: %s",
+                        release_exc,
+                    )
             raise
 
     def _daemon_evaluate(

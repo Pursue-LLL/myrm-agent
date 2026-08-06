@@ -834,7 +834,7 @@ def _signoff_open_page_parallel_total_cap() -> float:
     return cap
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SignoffOpenMcpBudgets:
     """SSOT for signoff open_mcp_page wall/total/attempts + hung-reap transport cap."""
 

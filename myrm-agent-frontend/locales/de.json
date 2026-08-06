@@ -5130,11 +5130,19 @@
     "fileMention": {
       "title": "Arbeitsbereich-Dateien",
       "noResults": "Keine passenden Dateien gefunden",
+      "priorChatEmpty": "Keine passenden früheren Chats gefunden",
+      "priorChatsCategory": "Frühere Chats",
       "navigate": "Navigieren",
       "select": "Auswählen",
       "dismiss": "Schließen",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
       "removeReference": "Remove {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "Continue past conversations",
+      "hintBody": "Enable conversation history search in Settings to ask about earlier chats or use @chat: in the composer.",
+      "openSettings": "Memory settings",
+      "dismiss": "Dismiss"
     },
     "message": {
       "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
@@ -5733,7 +5741,8 @@
     "presetQuarter": "Letztes Quartal",
     "from": "Von",
     "to": "Bis",
-    "clearTimeFilter": "Löschen"
+    "clearTimeFilter": "Löschen",
+    "citeToComposer": "In Eingabe zitieren"
   },
   "images": {
     "search": "Search images",

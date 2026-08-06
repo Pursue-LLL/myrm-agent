@@ -105,6 +105,7 @@ vi.mock('../messageStream/handlers/handlerDeps', () => ({
     getState: vi.fn(() => ({ unmarkProcessing: vi.fn() })),
   },
   playCompletionSound: vi.fn(() => false),
+  dispatchPetSurfaceAwayCompletion: vi.fn(),
 }));
 
 type StreamState = {

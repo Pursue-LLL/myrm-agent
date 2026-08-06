@@ -683,6 +683,11 @@ class AgentJobRunner:
                 resolve_enable_web_fetch,
             )
 
+            if job.chat_id and job.session_target != SessionTarget.MAIN:
+                from app.services.chat.chat_crud import _ChatCrudMixin
+
+                await _ChatCrudMixin.ensure_chat_source(job.chat_id, "cron")
+
             params = GeneralAgentParams(
                 query=effective_prompt,
                 model_cfg=model_cfg,
@@ -733,6 +738,7 @@ class AgentJobRunner:
             agent.approval_session_key = f"cron:{job.id}"
             timeout = job.timeout_seconds or 300
             run_started_at = time.monotonic()
+            model_name: str | None = getattr(agent.model_cfg, "model", None)
 
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
@@ -756,10 +762,30 @@ class AgentJobRunner:
             cred_ctx = user_credentials_ctx.set(session_credentials)
             try:
                 try:
-                    result = await asyncio.wait_for(
-                        _consume_stream(agent, job, effective_prompt, runtime_context),
-                        timeout=timeout,
-                    )
+                    if job.workflow_template_id:
+                        import secrets
+
+                        from app.services.agent.stream_session.stream_lane_factory import (
+                            create_dynamic_workflow_stream,
+                        )
+
+                        params.message_id = f"cron-{job.id}-{secrets.token_urlsafe(6)}"
+                        dw_stream = create_dynamic_workflow_stream(
+                            params,
+                            cancel_token=None,
+                            workflow_template_id=job.workflow_template_id,
+                            workflow_template_args=job.workflow_template_args,
+                            unattended=True,
+                        )
+                        result = await asyncio.wait_for(
+                            _consume_dynamic_workflow_stream(dw_stream, job, model_name),
+                            timeout=timeout,
+                        )
+                    else:
+                        result = await asyncio.wait_for(
+                            _consume_stream(agent, job, effective_prompt, runtime_context),
+                            timeout=timeout,
+                        )
                     if cron_post_run_verify:
                         from app.core.cron.adapters.post_run_verification import (
                             apply_cron_post_run_verification,
@@ -968,6 +994,60 @@ async def _consume_stream(
                     ),
                 }
             )
+        elif event_type == "sources" and isinstance(event.get("data"), list):
+            raw_list = event.get("data")
+            assert isinstance(raw_list, list)
+            src_items: list[dict[str, object]] = []
+            for el in raw_list:
+                if isinstance(el, dict):
+                    src_items.append({str(k): val for k, val in el.items()})
+            acc.add_sources(src_items)
+
+    return acc.to_result(model=model_name)
+
+
+async def _consume_dynamic_workflow_stream(
+    stream: object,
+    job: CronJob,
+    model_name: str | None,
+) -> JobResult:
+    from collections.abc import AsyncIterable
+
+    assert isinstance(stream, AsyncIterable)
+
+    acc = _StreamAccumulator()
+    async for event in stream:
+        if not isinstance(event, dict):
+            continue
+        event_type = event.get("type", "")
+        stop_reason = _derive_stop_reason_from_event(event)
+        if stop_reason is not None:
+            acc.set_stop_reason(stop_reason)
+
+        if event_type == "message" and isinstance(event.get("data"), str):
+            acc.chunks.append(str(event["data"]))
+        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
+            raw_u = event.get("usage")
+            assert isinstance(raw_u, dict)
+            acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
+        elif event_type == "error":
+            error_msg = event.get("error", "unknown agent error")
+            error_type = event.get("error_type", "")
+            acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+        elif event_type == "status":
+            data = event.get("data")
+            if isinstance(data, dict):
+                step_key = data.get("step_key") or data.get("phase")
+                if isinstance(step_key, str):
+                    acc.progress_steps.append(
+                        {
+                            "step_key": step_key,
+                            "tool_name": None,
+                            "items": data,
+                            "count": None,
+                            "error": None,
+                        }
+                    )
         elif event_type == "sources" and isinstance(event.get("data"), list):
             raw_list = event.get("data")
             assert isinstance(raw_list, list)

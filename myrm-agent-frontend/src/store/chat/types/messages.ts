@@ -197,7 +197,8 @@ export type MentionReferenceType =
   | 'url'
   | 'codebase'
   | 'wiki_concept'
-  | 'wiki_raw_file';
+  | 'wiki_raw_file'
+  | 'prior_chat';
 
 export interface MentionReference {
   type: MentionReferenceType;

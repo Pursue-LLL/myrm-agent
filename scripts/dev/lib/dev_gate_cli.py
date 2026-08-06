@@ -752,17 +752,30 @@ def _desktop_admit(args: argparse.Namespace) -> int:
         time.sleep(min(1.0, float(admission.get("next_progress_sec", 1.0))))
 
 
+def _load_session_ownership(session_id: str) -> tuple[tuple[str, ...], str]:
+    from dev_gate_store import DevGateStore, default_store_path
+
+    record = DevGateStore(default_store_path()).get(session_id.strip())
+    if record is None:
+        return (), ""
+    return record.ownership.page_ids, record.ownership.browser_context_id
+
+
 def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, object]:
     from cleanup_observed_seal import (
         collect_cdp_target_ids,
-        lease_bound_target_ids,
         lease_released,
-        physical_targets_absent,
+        observe_cleanup_seal,
         poll_physical_targets_absent,
+        physical_targets_absent,
     )
 
     requested_at = time.time()
     released_lease = args.released_lease_id.strip()
+    owned_pages, owned_context = _load_session_ownership(args.session_id)
+    if args.closed_context_id.strip():
+        owned_context = args.closed_context_id.strip()
+
     ledger_cleaned = lease_released(released_lease)
     if not ledger_cleaned:
         for _ in range(3):
@@ -770,19 +783,26 @@ def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, objec
             if lease_released(released_lease):
                 ledger_cleaned = True
                 break
-    bound = lease_bound_target_ids(released_lease)
-    if bound:
+
+    if released_lease:
         physical_released = poll_physical_targets_absent(
             lease_id=released_lease,
             timeout_sec=15.0,
         )
     else:
         physical_released = physical_targets_absent(lease_id=released_lease)
+
+    # Post-close seal: session row may still list ownership until teardown_finish
+    # clears it; physical + lease observability is the gate (P0-A).
+    ledger_cleaned, sealed = observe_cleanup_seal(
+        released_lease_id=released_lease,
+        owned_page_ids=(),
+        owned_context_id="",
+    )
     cdp_after = collect_cdp_target_ids()
-    sealed = ledger_cleaned and physical_released is True
     return {
-        "closed_page_ids": list(bound),
-        "closed_context_id": args.closed_context_id,
+        "closed_page_ids": list(owned_pages),
+        "closed_context_id": owned_context,
         "released_lease_id": released_lease,
         "released_runtime_id": args.released_runtime_id,
         "ledger_cleaned": ledger_cleaned,

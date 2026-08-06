@@ -8,11 +8,12 @@ via WebRTC (RTCPeerConnection), bypassing the server for audio streaming.
 The server's role is limited to:
   1. Securely generating ephemeral client tokens (API key never exposed)
   2. Executing tool calls proxied from the Realtime session
-  3. Non-blocking `run_background_task` accept → Kanban spawn (see channel_bridge)
+  3. Background task lifecycle (run/cancel/status/steer) → Kanban via channel_bridge
   4. Persisting conversation transcripts to chat history
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
+- app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task lifecycle)
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - app.api.voice.tool_catalog (POS: dynamic memory_search_tool voice declarations)
@@ -214,54 +215,6 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     )
 
 
-_RUN_BACKGROUND_TASK_NAME = "run_background_task"
-
-
-async def _execute_run_background_task(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
-    """Non-blocking accept: spawn Kanban work and return immediately."""
-    from app.channels.types import InboundMessage
-    from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
-    from app.core.channel_bridge.setup import get_background_task_handler
-
-    task_text = str(req.arguments.get("task", "")).strip()
-    if not task_text:
-        return RealtimeToolExecResponse(result=None, error="Task description is required")
-
-    handler = get_background_task_handler()
-    if handler is None:
-        return RealtimeToolExecResponse(
-            result=None,
-            error="Background task handler not available",
-        )
-
-    agent_id = req.agent_id or "builtin-general"
-    chat_id = req.chat_id or "realtime-voice"
-    msg = InboundMessage(
-        channel="realtime_voice",
-        sender_id=chat_id,
-        chat_id=chat_id,
-        content=task_text,
-        user_id="local-user",
-    )
-
-    try:
-        task_id = await handler.spawn_background(
-            msg,
-            task_text,
-            background_source=BACKGROUND_SOURCE_VOICE,
-            agent_id=agent_id,
-        )
-    except RuntimeError as exc:
-        return RealtimeToolExecResponse(result=None, error=str(exc))
-
-    payload = {
-        "accepted": True,
-        "work_id": task_id,
-        "message": "Background task accepted. Continue the conversation; results will appear in chat when done.",
-    }
-    return RealtimeToolExecResponse(result=json.dumps(payload))
-
-
 @router.post("/realtime-tool-exec", response_model=RealtimeToolExecResponse)
 async def execute_realtime_tool(
     req: RealtimeToolExecRequest,
@@ -272,8 +225,11 @@ async def execute_realtime_tool(
     Uses a lightweight Agent invocation (single-tool mode) to execute the tool
     within the Agent's security and permission context.
     """
-    if req.tool_name == _RUN_BACKGROUND_TASK_NAME:
-        return await _execute_run_background_task(req)
+    from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
+
+    bg_handler = BACKGROUND_TOOL_HANDLERS.get(req.tool_name)
+    if bg_handler is not None:
+        return await bg_handler(req)
 
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.services.agent.streaming import ai_agent_service_stream
@@ -536,20 +492,62 @@ _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
     ),
 }
 
-_ALWAYS_AVAILABLE_TOOL = RealtimeToolDef(
-    name="run_background_task",
-    description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation. The result will be available later.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "task": {
-                "type": "string",
-                "description": "Detailed description of the task to run",
-            }
+_ALWAYS_AVAILABLE_TOOLS: list[RealtimeToolDef] = [
+    RealtimeToolDef(
+        name="run_background_task",
+        description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation. The result will be available later.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Detailed description of the task to run",
+                }
+            },
+            "required": ["task"],
         },
-        "required": ["task"],
-    },
-)
+    ),
+    RealtimeToolDef(
+        name="get_background_tasks_status",
+        description="Check the status of background tasks. Use when the user asks about task progress or whether a task is done.",
+        parameters={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    RealtimeToolDef(
+        name="cancel_background_task",
+        description="Cancel a running background task by its task_id.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "ID of the background task to cancel",
+                }
+            },
+            "required": ["task_id"],
+        },
+    ),
+    RealtimeToolDef(
+        name="steer_background_task",
+        description="Send a new instruction to redirect a running background task.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "ID of the background task to steer",
+                },
+                "instruction": {
+                    "type": "string",
+                    "description": "New instruction to apply to the task",
+                },
+            },
+            "required": ["task_id", "instruction"],
+        },
+    ),
+]
 
 
 def _build_realtime_tools(
@@ -562,7 +560,7 @@ def _build_realtime_tools(
         include_memory_search_in_voice_catalog,
     )
 
-    tools: list[RealtimeToolDef] = [_ALWAYS_AVAILABLE_TOOL]
+    tools: list[RealtimeToolDef] = list(_ALWAYS_AVAILABLE_TOOLS)
     for tool_key in enabled_builtin_tools:
         if tool_key == "memory":
             if include_memory_search_in_voice_catalog(

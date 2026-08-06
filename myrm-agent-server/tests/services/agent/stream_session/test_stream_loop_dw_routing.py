@@ -15,7 +15,7 @@ from app.services.agent.stream_session.stream_loop import (
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 
-def _session(*, use_workflow: bool) -> SimpleNamespace:
+def _session(*, use_workflow: bool = False, workflow_template_id: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(
         request=SimpleNamespace(
             action_mode="agent",
@@ -24,6 +24,8 @@ def _session(*, use_workflow: bool) -> SimpleNamespace:
             resume_value=None,
             ephemeral_subagents=None,
             use_workflow=use_workflow,
+            workflow_template_id=workflow_template_id,
+            workflow_template_args=None,
             chat_id="chat-dw-route",
             incognito_mode=False,
         ),
@@ -118,3 +120,34 @@ async def test_use_workflow_false_does_not_route_to_dynamic_workflow_stream() ->
 
     dw_mock.assert_not_called()
     agent_stream_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_workflow_template_id_routes_to_dynamic_workflow_stream() -> None:
+    session = _session(use_workflow=False, workflow_template_id="weekly-report")
+
+    async def _fake_dw_stream(*_args, **_kwargs):
+        yield {"type": "message_end", "usage": {}}
+
+    with (
+        patch(
+            "app.services.agent.stream_session.stream_lane_factory.create_dynamic_workflow_stream",
+            side_effect=_fake_dw_stream,
+        ) as dw_mock,
+        patch(
+            "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+            new_callable=AsyncMock,
+        ) as agent_stream_mock,
+    ):
+        _ = [
+            chunk
+            async for chunk in iter_agent_stream_chunks(
+                session,
+                ApprovalTimeoutHolder(),
+                ClarificationTimeoutHolder(),
+            )
+        ]
+
+    dw_mock.assert_called_once()
+    assert dw_mock.call_args.kwargs["workflow_template_id"] == "weekly-report"
+    agent_stream_mock.assert_not_called()

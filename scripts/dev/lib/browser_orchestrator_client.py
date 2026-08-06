@@ -30,6 +30,20 @@ _LOGGER = logging.getLogger(__name__)
 # Socket read budget = CDP timeout + fair-scheduler queue slack (R298).
 _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
 _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC = 210.0
+_ORCHESTRATOR_BURST_SOCKET_TIMEOUT_CAP_SEC = 360.0
+
+
+def orchestrator_socket_timeout_cap_sec() -> float:
+    """Return socket read cap; 4-lane burst needs mux queue headroom beyond 210s."""
+    for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
+        raw = os.environ.get(key, "").strip()
+        try:
+            count = int(raw)
+        except ValueError:
+            continue
+        if count >= 4:
+            return _ORCHESTRATOR_BURST_SOCKET_TIMEOUT_CAP_SEC
+    return _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC
 
 
 def _default_socket_path() -> str:
@@ -96,6 +110,17 @@ class BrowserOrchestratorClient:
         """Temporarily cap socket read budget (orphan recovery must not block 180s+)."""
         prior = self._timeout_sec
         self._timeout_sec = min(prior, max(5.0, timeout_sec))
+        try:
+            yield
+        finally:
+            self._timeout_sec = prior
+
+    @contextmanager
+    def elevated_request_timeout(self, timeout_sec: float) -> Iterator[None]:
+        """Raise socket read budget up to orchestrator cap (parallel open_page queue)."""
+        prior = self._timeout_sec
+        cap = orchestrator_socket_timeout_cap_sec()
+        self._timeout_sec = min(cap, max(prior, max(5.0, timeout_sec)))
         try:
             yield
         finally:
@@ -188,7 +213,7 @@ class BrowserOrchestratorClient:
         if timeout_sec is not None:
             cdp_sec = min(max(5.0, timeout_sec), 180.0)
             self._timeout_sec = min(
-                _ORCHESTRATOR_SOCKET_TIMEOUT_CAP_SEC,
+                orchestrator_socket_timeout_cap_sec(),
                 cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC,
             )
         try:

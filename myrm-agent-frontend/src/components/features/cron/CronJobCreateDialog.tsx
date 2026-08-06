@@ -36,6 +36,7 @@ import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
+import { fetchWorkflowTemplates, type WorkflowTemplateSummary } from '@/services/workflowTemplates';
 
 type JobType = 'agent' | 'shell' | 'router' | 'reminder';
 type UIJobMode = 'agent' | 'shell' | 'script' | 'reminder';
@@ -87,6 +88,8 @@ export default function CronJobCreateDialog({
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<Array<{ type: string; description: string }>>([]);
   const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
+  const [workflowTemplateId, setWorkflowTemplateId] = useState('__none__');
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSummary[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -107,6 +110,11 @@ export default function CronJobCreateDialog({
     if (open) {
       fetchAgents();
       if (presetChatId) setSessionTarget('main');
+      if (uiMode === 'agent') {
+        void fetchWorkflowTemplates()
+          .then((response) => setWorkflowTemplates(response.templates))
+          .catch(() => setWorkflowTemplates([]));
+      }
       apiRequest<{ deploy_mode: string }>('/health/info')
         .then((info) => {
           const enabled = info.deploy_mode !== 'sandbox';
@@ -217,6 +225,9 @@ export default function CronJobCreateDialog({
       if (uiMode === 'agent') {
         payload.prompt = prompt.trim();
         if (agentId !== '__default__') payload.agent_id = agentId;
+        if (workflowTemplateId !== '__none__') {
+          payload.workflow_template_id = workflowTemplateId;
+        }
       } else if (uiMode === 'reminder') {
         payload.prompt = prompt.trim();
       } else if (uiMode === 'shell') {
@@ -416,6 +427,25 @@ export default function CronJobCreateDialog({
               />
               {uiMode === 'reminder' ? (
                 <p className="text-[11px] text-muted-foreground">{t('createReminderHint')}</p>
+              ) : null}
+              {uiMode === 'agent' ? (
+                <div className="space-y-1.5 pt-1">
+                  <Label className="text-xs">{t('createWorkflowTemplateLabel')}</Label>
+                  <Select value={workflowTemplateId} onValueChange={setWorkflowTemplateId}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t('createWorkflowTemplateNone')}</SelectItem>
+                      {workflowTemplates.map((template) => (
+                        <SelectItem key={template.template_id} value={template.template_id}>
+                          {template.display_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">{t('createWorkflowTemplateHint')}</p>
+                </div>
               ) : null}
             </div>
           )}

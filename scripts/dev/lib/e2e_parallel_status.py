@@ -9,6 +9,7 @@
 [OUTPUT]
 - load_parallel_runtime_snapshot: live E2E process snapshot (dict + human lines)
 - safe_active_test_count: fail-closed active test count
+- resolve_cap_headroom_active_test_count: merge registry + leases + dev_gate (observability)
 - cap_headroom_fields: dict of capacity/headroom metrics
 - format_cap_headroom_human: one-line cap status for Agent
 - format_queue_human: optional queue explanation when backpressure active
@@ -84,6 +85,60 @@ def safe_active_test_count(snapshot: dict[str, object]) -> int:
     return 1
 
 
+def resolve_cap_headroom_active_test_count(
+    snapshot: dict[str, object],
+    *,
+    wave_leases_effective: int,
+    dev_gate: dict[str, object],
+) -> tuple[int, bool]:
+    """Merge session registry, peer SSOT, Dev Gate, and wave leases for Agent headroom.
+
+    Returns (resolved_count, observability_mismatch). Mismatch is True when parallel
+    signals (leases, dev_gate activity, live pytest peers) exist but the session
+    registry reports zero — the historical active_test_count=0 drift case.
+    """
+    registry_raw = snapshot.get("active_test_count", 0)
+    if isinstance(registry_raw, int):
+        registry_count = registry_raw
+    elif isinstance(registry_raw, str) and registry_raw.isdigit():
+        registry_count = int(registry_raw)
+    else:
+        registry_count = safe_active_test_count(snapshot)
+
+    admit_count = int(snapshot.get("admit_active_count", 0) or 0)
+    body_count = int(snapshot.get("body_active_count", 0) or 0)
+    active_tests_raw = snapshot.get("active_tests")
+    listed = (
+        len(active_tests_raw)
+        if isinstance(active_tests_raw, list)
+        else 0
+    )
+    registry_live = max(registry_count, admit_count, body_count, listed)
+
+    pytest_peers = 0
+    try:
+        from peer_count_ssot import chrome_e2e_pytest_peer_count  # noqa: PLC0415
+
+        pytest_peers = chrome_e2e_pytest_peer_count()
+    except ImportError:
+        pytest_peers = 0
+
+    dev_gate_activity = int(dev_gate.get("shared_active", 0) or 0) + int(
+        dev_gate.get("private_active", 0) or 0
+    )
+    lease_signal = max(0, int(wave_leases_effective))
+
+    parallel_signals = max(pytest_peers, dev_gate_activity, lease_signal)
+    observability_mismatch = registry_live == 0 and parallel_signals > 0
+
+    if observability_mismatch:
+        resolved = max(parallel_signals, 1)
+    else:
+        resolved = max(registry_live, pytest_peers)
+
+    return resolved, observability_mismatch
+
+
 def compute_queue_state(
     *,
     live_agent_shpoib_count: int,
@@ -128,6 +183,7 @@ def cap_headroom_fields(
     mux_fields: dict[str, object],
     active_test_count: int,
     parallel_snapshot: dict[str, object] | None = None,
+    observability_mismatch: bool = False,
 ) -> dict[str, object]:
     from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
     from dev_gate_status import dev_gate_status  # noqa: PLC0415
@@ -167,7 +223,7 @@ def cap_headroom_fields(
         private_waiting=private_waiting,
         mux_saturated=mux_saturated,
     )
-    registry_unknown = dev_gate.get("registry_observability") == "unknown"
+    registry_unknown = dev_gate.get("registry_observability") == "unknown" or observability_mismatch
     return {
         "waveLeasesActive": counts.total,
         "waveLeasesEffective": counts.effective_total,

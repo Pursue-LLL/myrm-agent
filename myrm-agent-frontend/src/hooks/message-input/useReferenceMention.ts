@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { suggestReferences, type ReferenceSuggestion } from '@/services/chat';
+import { suggestReferences, searchChatHistory, type ReferenceSuggestion, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import type { MentionReference } from '@/store/chat/types';
@@ -104,6 +104,21 @@ const STATIC_SPECIAL_RESULTS: ReferenceSuggestion[] = [
     score: 960,
     match_ranges: [],
   },
+  {
+    source: 'special',
+    reference_type: 'prior_chat',
+    kind: 'reference',
+    label: '@chat:',
+    basename: '@chat:',
+    directory: '',
+    relative_path: null,
+    file_id: null,
+    description: 'Reference a prior conversation',
+    size: null,
+    score_tier: 'prefix',
+    score: 950,
+    match_ranges: [],
+  },
 ];
 
 function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
@@ -125,7 +140,38 @@ function staticSpecialMatches(query: string): ReferenceSuggestion[] {
   });
 }
 
+function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
+  const title = item.chat_title?.trim() || 'Untitled conversation';
+  return {
+    source: 'special',
+    reference_type: 'prior_chat',
+    kind: 'reference',
+    label: `@chat:${title}`,
+    basename: title,
+    directory: item.snippet?.slice(0, 120) || '',
+    relative_path: item.chat_id,
+    file_id: item.chat_id,
+    description: item.snippet?.slice(0, 160) || null,
+    size: null,
+    score_tier: 'content',
+    score: 800,
+    match_ranges: [],
+  };
+}
+
 function toMentionReference(item: ReferenceSuggestion): MentionReference | null {
+  if (item.reference_type === 'prior_chat') {
+    const chatId = item.file_id ?? item.relative_path;
+    if (!chatId) return null;
+    return {
+      type: 'prior_chat',
+      label: item.label.startsWith('@') ? item.label : `@chat:${item.basename}`,
+      path: chatId,
+      fileId: chatId,
+      source: 'special',
+      size: null,
+    };
+  }
   if (item.reference_type === 'url' && !item.label.startsWith('@url:http')) {
     return null;
   }
@@ -161,6 +207,10 @@ function replacementFor(item: ReferenceSuggestion, folderMode: boolean): string 
     if (item.concept_name) return `@wiki:${item.concept_name} `;
     return '@wiki:';
   }
+  if (item.reference_type === 'prior_chat') {
+    if (item.file_id) return `@chat:${item.basename} `;
+    return '@chat:';
+  }
   if (folderMode && item.relative_path) return `@folder:${item.relative_path} `;
   return `@${item.relative_path ?? item.label} `;
 }
@@ -190,12 +240,15 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
     const folderMode = mention.query.startsWith('folder:');
     const wikiMode = !folderMode && mention.query.startsWith('wiki:');
+    const chatMode = !folderMode && !wikiMode && mention.query.startsWith('chat:');
     const query = folderMode
       ? mention.query.slice('folder:'.length)
       : wikiMode
         ? mention.query.slice('wiki:'.length)
-        : mention.query;
-    const specialResults = folderMode || wikiMode ? [] : staticSpecialMatches(mention.query);
+        : chatMode
+          ? mention.query.slice('chat:'.length)
+          : mention.query;
+    const specialResults = folderMode || wikiMode || chatMode ? [] : staticSpecialMatches(mention.query);
 
     setState((prev) => ({
       ...prev,
@@ -211,6 +264,34 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
 
+    if (chatMode) {
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const data = await searchChatHistory(query, 20, 0);
+          if (requestSeqRef.current !== requestSeq) return;
+          const seen = new Set<string>();
+          const chatResults = data.items
+            .filter((item) => {
+              if (seen.has(item.chat_id)) return false;
+              seen.add(item.chat_id);
+              return item.chat_id !== chatId;
+            })
+            .map(historyResultToSuggestion);
+          setState((prev) => ({
+            ...prev,
+            results: chatResults,
+            selectedIndex: 0,
+          }));
+        } catch {
+          if (requestSeqRef.current !== requestSeq) return;
+          setState((prev) => ({ ...prev, results: [], selectedIndex: 0 }));
+        }
+      }, DEBOUNCE_MS);
+      return () => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      };
+    }
+
     debounceRef.current = setTimeout(async () => {
       try {
         const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
@@ -222,7 +303,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             : data.results.filter((item) => item.source !== 'special');
         
         let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode && !wikiMode) {
+        if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
             .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
@@ -253,7 +334,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         if (requestSeqRef.current !== requestSeq) return;
 
         let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode && !wikiMode) {
+        if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
             .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))

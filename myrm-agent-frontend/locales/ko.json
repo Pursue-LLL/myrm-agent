@@ -5130,11 +5130,19 @@
     "fileMention": {
       "title": "워크스페이스 파일",
       "noResults": "일치하는 파일을 찾을 수 없습니다",
+      "priorChatEmpty": "일치하는 이전 대화를 찾을 수 없습니다",
+      "priorChatsCategory": "이전 대화",
       "navigate": "이동",
       "select": "선택",
       "dismiss": "닫기",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
       "removeReference": "Remove {label}"
+    },
+    "conversationRecall": {
+      "hintTitle": "Continue past conversations",
+      "hintBody": "Enable conversation history search in Settings to ask about earlier chats or use @chat: in the composer.",
+      "openSettings": "Memory settings",
+      "dismiss": "Dismiss"
     },
     "message": {
       "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
@@ -5733,7 +5741,8 @@
     "presetQuarter": "최근 3개월",
     "from": "시작",
     "to": "종료",
-    "clearTimeFilter": "초기화"
+    "clearTimeFilter": "초기화",
+    "citeToComposer": "입력창에 인용"
   },
   "images": {
     "search": "Search images",

@@ -88,6 +88,8 @@ export interface CronJob {
   model?: string;
   chat_id?: string;
   agent_id?: string | null;
+  workflow_template_id?: string | null;
+  workflow_template_args?: Record<string, string> | null;
   command?: string;
   delivery?: CronDelivery;
   failure_delivery?: CronDelivery | null;
@@ -270,6 +272,8 @@ export interface CreateCronJobRequest {
   acceptance_criteria?: Array<Record<string, unknown>> | null;
   required_capabilities?: string[];
   tools_allowed?: string[];
+  workflow_template_id?: string;
+  workflow_template_args?: Record<string, string>;
 }
 
 export interface UpdateCronJobRequest {
@@ -279,6 +283,8 @@ export interface UpdateCronJobRequest {
   prompt?: string;
   model?: string;
   agent_id?: string | null;
+  workflow_template_id?: string | null;
+  workflow_template_args?: Record<string, string> | null;
   command?: string;
   delivery?: { channel: string; target?: string };
   failure_delivery?: { channel: string; target?: string } | null;

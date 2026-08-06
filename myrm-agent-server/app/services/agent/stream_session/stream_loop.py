@@ -215,14 +215,20 @@ async def iter_agent_stream_chunks(
     stream: AsyncIterable[str | dict[str, object]]
     if session.request.action_mode == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif session.request.use_workflow:
+    elif session.request.use_workflow or session.request.workflow_template_id:
         from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
 
-        logger.info(f"🚀 Dynamic Workflow Engine activated for message_id={session.params.message_id}")
+        logger.info(
+            "Dynamic Workflow Engine activated for message_id=%s template_id=%s",
+            session.params.message_id,
+            session.request.workflow_template_id,
+        )
         stream = create_dynamic_workflow_stream(
             session.params,
             session.cancel_token,
             session.request.resume_value if isinstance(session.request.resume_value, dict) else None,
+            workflow_template_id=session.request.workflow_template_id,
+            workflow_template_args=session.request.workflow_template_args,
         )
     elif (
         session.routing_tier == "simple"

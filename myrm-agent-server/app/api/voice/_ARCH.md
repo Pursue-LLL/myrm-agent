@@ -10,7 +10,7 @@
 
 **Agent Security net_fetch**：`agent_bridge.py` 与 `realtime.py`（tool-exec 代理）均通过 `resolve_enable_web_fetch(profile.security_overrides)` 设置 `enable_web_fetch`，与 Web/Channel/Cron 入口一致。
 
-**Background work**：`run_background_task` 在 `realtime-tool-exec` 中非阻塞受理，经 `ChannelBackgroundTaskHandler.spawn_background(background_source=voice)` 写入 Kanban；完成通知见 `webui_voice_work_notifier.py`。
+**Background work**：`run_background_task` / `cancel_background_task` / `get_background_tasks_status` / `steer_background_task` 在 `realtime-tool-exec` 中短路处理，经 `ChannelBackgroundTaskHandler` 操作 Kanban；`run_background_task` 要求 `chat_id` 非空，否则返回 error；完成通知见 `webui_voice_work_notifier.py`。
 
 **测试**：`tests/api/voice/test_voice_memory_context.py`（SSOT 矩阵）、`tests/api/voice/test_voice_memory_acl_api_integration.py`（HTTP token/tool-exec）、`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（Settings UI → `personalSettings` READ E2E）。
 
@@ -23,5 +23,6 @@
 | `tool_catalog.py` | 核心 | 动态 `memory_search_tool` 声明（Realtime + Gemini） | ✅ |
 | `agent_bridge.py` | 模块 | Voice STT→Agent bridge；`enable_web_fetch` 由 profile `net_fetch` 门控 | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live API integration (token + WebSocket URL + tool declarations). | ✅ |
-| `realtime.py` | 模块 | OpenAI Realtime token/tools；`run_background_task` Kanban 非阻塞 spawn；其余 tool-exec 走 Agent 代理 | ✅ |
+| `realtime.py` | 模块 | OpenAI Realtime token/tools；tool-exec 路由（background lifecycle 委托 `realtime_background`；其余走 Agent 代理） | ✅ |
+| `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint. | ✅ |

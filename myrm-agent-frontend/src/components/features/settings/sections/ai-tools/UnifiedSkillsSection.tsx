@@ -4,13 +4,14 @@ import { memo, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
-import { Clock3, ShieldAlert, Workflow } from 'lucide-react';
+import { Clock3, Layers3, ShieldAlert, Workflow } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import SkillsSection from './SkillsSection';
 import { PendingEvolutionsDashboard } from '@/components/features/skills/PendingEvolutionsDashboard';
 import { EvolutionRejectionDashboard } from '@/components/features/skills/EvolutionRejectionDashboard';
 import CompoundingChecklistSection from './CompoundingChecklistSection';
+import WorkflowTemplateLibrarySection from './WorkflowTemplateLibrarySection';
 
 const UnifiedSkillsSection = memo(() => {
   const t = useTranslations('settings');
@@ -27,6 +28,8 @@ const UnifiedSkillsSection = memo(() => {
       setActiveTab('rejections');
     } else if (sub === 'compounding') {
       setActiveTab('compounding');
+    } else if (sub === 'workflowTemplates') {
+      setActiveTab('workflowTemplates');
     } else {
       setActiveTab('inventory');
     }
@@ -37,7 +40,9 @@ const UnifiedSkillsSection = memo(() => {
   };
 
   const subtitle =
-    activeTab === 'compounding'
+    activeTab === 'workflowTemplates'
+      ? t('skills.workflowTemplates.subtitle')
+      : activeTab === 'compounding'
       ? t('skills.compounding.subtitle')
       : activeTab === 'inventory'
         ? '管理和发现智能体的核心技能与方法 / Manage and discover core agent capabilities'
@@ -53,7 +58,7 @@ const UnifiedSkillsSection = memo(() => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6">
+        <TabsList className="grid w-full max-w-3xl grid-cols-2 sm:grid-cols-5 bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6">
           <TabsTrigger
             value="inventory"
             className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
@@ -67,6 +72,13 @@ const UnifiedSkillsSection = memo(() => {
           >
             <Workflow className="h-4 w-4 shrink-0" />
             <span className="truncate">{t('skills.compounding.tab')}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="workflowTemplates"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Layers3 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('skills.workflowTemplates.tab')}</span>
           </TabsTrigger>
           <TabsTrigger
             value="pending"
@@ -89,6 +101,9 @@ const UnifiedSkillsSection = memo(() => {
         </TabsContent>
         <TabsContent value="compounding" className="focus-visible:outline-none focus-visible:ring-0">
           <CompoundingChecklistSection />
+        </TabsContent>
+        <TabsContent value="workflowTemplates" className="focus-visible:outline-none focus-visible:ring-0">
+          <WorkflowTemplateLibrarySection />
         </TabsContent>
         <TabsContent value="pending" className="focus-visible:outline-none focus-visible:ring-0">
           <PendingEvolutionsDashboard />

@@ -8,7 +8,6 @@ import re
 import sys
 import time
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 
@@ -28,12 +27,13 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
-    warm_ui_route,
 )
 
 _MAX_ATTEMPTS = 2
 _PANEL_WAIT_SEC = 120.0
 _SETTINGS_WAIT_SEC = 90.0
+# Instant CDP navigate (unlike :3000/) and not counted as orphan about:blank.
+_FAST_OPEN_PAGE_URL = "data:text/html,<html><body></body></html>"
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "open_mcp_page",
     "MUX",
@@ -203,20 +203,6 @@ def _parse_probe_from_error(err: str) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _parallel_warm_ui_route() -> bool:
-    """Skip redundant warm when parallel lanes already compile shared :3000."""
-    try:
-        monorepo_root = Path(__file__).resolve().parents[4]
-        scripts_lib = monorepo_root / "myrm-agent" / "scripts" / "dev" / "lib"
-        if str(scripts_lib) not in sys.path:
-            sys.path.insert(0, str(scripts_lib))
-        from stack_mutation_policy import wave_active_lease_count
-
-        return wave_active_lease_count(monorepo_root) <= 1
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return True
-
-
 def _client_navigate(client, page, url: str) -> None:
     """In-page navigation — avoids CDP Page.navigate stalls under parallel Chrome load."""
     client.evaluate(
@@ -238,6 +224,7 @@ def _navigate_to_duplicate_review(client, page, ui_url: str) -> None:
         timeout_sec=_warm_ui_parallel_wait_sec(_SETTINGS_WAIT_SEC),
     )
     assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
+    dismiss_blocking_modals(client, page, recover_url=settings_url)
 
     _client_navigate(client, page, wiki_url)
     wiki_shell = wait_for_state(
@@ -281,16 +268,14 @@ def _assert_duplicate_review_panel(client, page, *, api_url: str) -> None:
 def _run_duplicate_review_assertions(
     api_url: str, ui_url: str, *, warm_route: bool = True
 ) -> None:
-    if warm_route and _parallel_warm_ui_route():
-        warm_ui_route("/settings/wiki", timeout_sec=_warm_ui_parallel_wait_sec(60.0))
+    del warm_route  # smoke pool + open_mcp_page(/) compile shared routes on demand
 
     _seed_wiki_dedup_fixture(api_url)
     _verify_open_exact_groups_via_api(api_url)
-    home_url = f"{ui_url.rstrip('/')}/"
 
-    with open_mcp_page(home_url, timeout_ms=90_000) as (client, page):
+    # data: URL — instant openTransaction navigate; client-nav reaches :3000/settings.
+    with open_mcp_page(_FAST_OPEN_PAGE_URL, timeout_ms=90_000) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        dismiss_blocking_modals(client, page)
         _navigate_to_duplicate_review(client, page, ui_url)
         _assert_duplicate_review_panel(client, page, api_url=api_url)
 

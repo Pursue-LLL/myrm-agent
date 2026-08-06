@@ -20,22 +20,8 @@ export interface SubmitLearnMessageOptions {
 }
 
 async function ensureActiveChatId(): Promise<string | null> {
-  const { default: useChatStore } = await import('@/store/useChatStore');
-  let { chatId } = useChatStore.getState();
-  if (chatId?.trim()) return chatId;
-
-  useChatStore.getState().initializeChat(undefined);
-  chatId = useChatStore.getState().chatId;
-  if (!chatId?.trim()) return null;
-
-  const { default: useWorkspaceStore } = await import('@/store/useWorkspaceStore');
-  const panes = useWorkspaceStore.getState().panes;
-  const hasPane = panes.some((pane) => pane.chatId === chatId);
-  if (!hasPane) {
-    useWorkspaceStore.getState().addPane(chatId);
-  }
-
-  return chatId;
+  const { ensureActiveChatId: resolveChatId } = await import('@/lib/chat/ensureActiveChatId');
+  return resolveChatId();
 }
 
 export async function submitLearnMessage(

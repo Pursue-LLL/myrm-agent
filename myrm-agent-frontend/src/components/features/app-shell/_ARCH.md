@@ -30,6 +30,7 @@
 | `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
+| `search-dialog.tsx` | 组件 | Cmd+K 历史消息搜索；跳转高亮 + **引用到 composer**（`data-search-trigger` / `data-search-input` / `data-cite-to-composer` E2E 测点） | ✅ |
 | `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+专家模板召唤漏斗埋点+首条发送转化口径 | ✅ |
 | `flow-pad-inline-route-switcher.tsx` | 辅助 | Inline 路由切换与专家召唤菜单子组件（跟随当前会话/指定 Agent/模板召唤入口，含搜索与失败降级 UI） | ✅ |
 | `flow-pad-quick-actions.tsx` | 辅助 | FlowPad 截图场景快捷动作条（reply/summarize/translate/explain） | ✅ |

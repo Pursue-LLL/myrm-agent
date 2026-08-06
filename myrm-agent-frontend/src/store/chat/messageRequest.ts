@@ -156,6 +156,7 @@ export interface ChatActionsMethods {
   setHideAttachList: (hide: boolean) => void;
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
   setIsWorkflowMode: (enabled: boolean) => void;
+  clearPendingWorkflowTemplate: () => void;
   setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) => void;
   setHasUserSelectedModel: (hasSelected: boolean) => void;
   clearCurrentSessionMessageId: () => void;
@@ -588,6 +589,9 @@ export const createMessageRequest = async (
     : null;
 
   const activeMoaPresetId = useChatStore.getState().activeMoaPresetId;
+  const pendingWorkflowTemplateId = useChatStore.getState().pendingWorkflowTemplateId;
+  const pendingWorkflowTemplateArgs = useChatStore.getState().pendingWorkflowTemplateArgs;
+  const useWorkflowLane = state.isWorkflowMode || Boolean(pendingWorkflowTemplateId);
 
   const requestBody = {
     query,
@@ -597,7 +601,12 @@ export const createMessageRequest = async (
     multiplexed: shouldUseMultiplexedAgentStream(),
     client_surface: isTauriRuntime() ? 'tauri' : 'web',
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
-    ...(state.isWorkflowMode && { use_workflow: true }),
+    ...(useWorkflowLane && { use_workflow: true }),
+    ...(pendingWorkflowTemplateId && { workflow_template_id: pendingWorkflowTemplateId }),
+    ...(pendingWorkflowTemplateArgs &&
+      Object.keys(pendingWorkflowTemplateArgs).length > 0 && {
+        workflow_template_args: pendingWorkflowTemplateArgs,
+      }),
     ...(resumeValue !== undefined && { resume_value: resumeValue }),
     ...(archiveRestoreActions && archiveRestoreActions.length > 0
       ? {

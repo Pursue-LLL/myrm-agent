@@ -6,7 +6,7 @@
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 
 [OUTPUT]
-- _ChatCrudMixin: Chat CRUD、session flush、channel chat 管理方法
+- _ChatCrudMixin: Chat CRUD、session flush、channel chat 管理、`ensure_chat_source`（cron 打标并同步 recall 索引 source）
 
 [POS]
 Chat CRUD 编排层。提供聊天会话的创建、读取、更新、删除，
@@ -23,7 +23,9 @@ from uuid import uuid4
 from app.database.dto import ChatCreate, ChatDTO, MessageCreate, MessageDTO
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
-from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
+from app.services.external_agents.runtime_pool_registry import (
+    close_external_agent_pool_for_chat,
+)
 
 from ._base import _ChatServiceBase
 
@@ -62,13 +64,52 @@ class _ChatCrudMixin(_ChatServiceBase):
     async def get_chat_by_id(chat_id: str) -> ChatDTO | None:
         """根据ID获取聊天详情（含 messages relationship）"""
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=True)
+            return await _ChatServiceBase._cr(uow).get_chat_by_id(
+                chat_id, load_messages=True
+            )
 
     @staticmethod
     async def get_chat_metadata(chat_id: str) -> ChatDTO | None:
         """根据 ID 获取 Chat 元数据（不加载 messages，用于权限检查等轻量场景）"""
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+            return await _ChatServiceBase._cr(uow).get_chat_by_id(
+                chat_id, load_messages=False
+            )
+
+    @staticmethod
+    async def ensure_chat_source(chat_id: str, source: str) -> None:
+        """Tag cron-owned chats for recall ranking without overwriting channel sources."""
+        normalized = source.strip().lower()
+        if normalized != "cron":
+            return
+        async with UnitOfWork() as uow:
+            session = uow.session
+            if session is None:
+                return
+            from sqlalchemy import text
+
+            await session.execute(
+                text(
+                    """
+                    UPDATE chats
+                    SET source = :source, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :chat_id
+                      AND source = 'web'
+                """
+                ),
+                {"chat_id": chat_id, "source": normalized},
+            )
+            await session.execute(
+                text(
+                    """
+                    UPDATE conversation_recall_documents
+                    SET source = (SELECT source FROM chats WHERE id = :chat_id),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE chat_id = :chat_id
+                """
+                ),
+                {"chat_id": chat_id},
+            )
 
     @staticmethod
     async def ensure_default_workspace_dir(chat_id: str) -> str | None:
@@ -76,7 +117,9 @@ class _ChatCrudMixin(_ChatServiceBase):
 
         Persists JIT sandbox path when created so legacy callers stay in sync with GET chat.
         """
-        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
 
         chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
         if chat is None:
@@ -105,11 +148,15 @@ class _ChatCrudMixin(_ChatServiceBase):
     async def create_or_update_chat(chat_data: ChatCreate) -> ChatDTO:
         """创建或更新聊天会话"""
         async with UnitOfWork() as uow:
-            existing_chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_data.chat_id, load_messages=False)
+            existing_chat = await _ChatServiceBase._cr(uow).get_chat_by_id(
+                chat_data.chat_id, load_messages=False
+            )
             title = chat_data.title
             first_message = None
             if chat_data.messages:
-                first_user_msg = next((msg for msg in chat_data.messages if msg.role == "user"), None)
+                first_user_msg = next(
+                    (msg for msg in chat_data.messages if msg.role == "user"), None
+                )
                 if first_user_msg:
                     first_message = first_user_msg.content
                     if not title:
@@ -119,7 +166,8 @@ class _ChatCrudMixin(_ChatServiceBase):
                     "title": title or existing_chat.title,
                     "action_mode": chat_data.action_mode,
                     "agent_id": chat_data.agent_id,
-                    "last_message": chat_data.last_message or existing_chat.last_message,
+                    "last_message": chat_data.last_message
+                    or existing_chat.last_message,
                 }
                 if chat_data.agent_id and chat_data.agent_id != existing_chat.agent_id:
                     updates["session_loaded_skill_names"] = None
@@ -129,7 +177,9 @@ class _ChatCrudMixin(_ChatServiceBase):
                     updates["is_incognito"] = chat_data.is_incognito
                 if first_message or not existing_chat.first_message:
                     updates["first_message"] = first_message
-                await _ChatServiceBase._cr(uow).update_chat_fields(existing_chat.id, updates)
+                await _ChatServiceBase._cr(uow).update_chat_fields(
+                    existing_chat.id, updates
+                )
                 chat = existing_chat
                 for k, v in updates.items():
                     setattr(chat, k, v)
@@ -149,7 +199,9 @@ class _ChatCrudMixin(_ChatServiceBase):
                 )
                 await _ChatServiceBase._cr(uow).add_chat(chat)
 
-            await _ChatCrudMixin._update_chat_messages(uow, chat_data.chat_id, chat_data.messages)
+            await _ChatCrudMixin._update_chat_messages(
+                uow, chat_data.chat_id, chat_data.messages
+            )
             sess = uow.session
             assert sess is not None
             await sess.flush()
@@ -157,7 +209,9 @@ class _ChatCrudMixin(_ChatServiceBase):
             return chat
 
     @staticmethod
-    async def _update_chat_messages(uow: UnitOfWork, chat_id: str, messages: list[MessageCreate]) -> None:
+    async def _update_chat_messages(
+        uow: UnitOfWork, chat_id: str, messages: list[MessageCreate]
+    ) -> None:
         """更新聊天消息（内部方法）"""
         message_ids = [msg.messageId for msg in messages]
         if len(message_ids) != len(set(message_ids)):
@@ -165,7 +219,9 @@ class _ChatCrudMixin(_ChatServiceBase):
 
             id_counts = Counter(message_ids)
             duplicates = [msg_id for msg_id, count in id_counts.items() if count > 1]
-            raise ValueError(f"在同一个聊天会话中发现重复的messageId: {', '.join(duplicates)}")
+            raise ValueError(
+                f"在同一个聊天会话中发现重复的messageId: {', '.join(duplicates)}"
+            )
         new_messages = [
             MessageDTO(
                 id=msg.messageId,
@@ -191,7 +247,9 @@ class _ChatCrudMixin(_ChatServiceBase):
         else:
             new_last = ""
         if new_last:
-            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"last_message": new_last})
+            await _ChatServiceBase._cr(uow).update_chat_fields(
+                chat_id, {"last_message": new_last}
+            )
 
     @staticmethod
     async def update_chat_title(chat_id: str, title: str) -> ChatDTO | None:
@@ -200,7 +258,9 @@ class _ChatCrudMixin(_ChatServiceBase):
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
             if not chat:
                 return None
-            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"title": title})
+            await _ChatServiceBase._cr(uow).update_chat_fields(
+                chat_id, {"title": title}
+            )
             sess = uow.session
             assert sess is not None
             await sess.flush()
@@ -215,10 +275,14 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, updates)
 
     @staticmethod
-    async def update_message_extra_data(message_id: str, extra_data: dict[str, object]) -> None:
+    async def update_message_extra_data(
+        message_id: str, extra_data: dict[str, object]
+    ) -> None:
         """Update extra_data for a message record."""
         async with UnitOfWork() as uow:
-            await _ChatServiceBase._cr(uow).update_message_extra_data(message_id, extra_data)
+            await _ChatServiceBase._cr(uow).update_message_extra_data(
+                message_id, extra_data
+            )
 
     @staticmethod
     async def delete_chat(chat_id: str) -> bool:
@@ -269,11 +333,15 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatCrudMixin._cleanup_checkpointer(chat_id)
             if sandbox_base_dir:
                 try:
-                    from app.services.chat.sandbox_worktree import cleanup_sandbox_worktree
+                    from app.services.chat.sandbox_worktree import (
+                        cleanup_sandbox_worktree,
+                    )
 
                     await cleanup_sandbox_worktree(sandbox_base_dir, chat_id)
                 except Exception as e:
-                    logger.warning("Sandbox worktree cleanup failed (chat=%s): %s", chat_id, e)
+                    logger.warning(
+                        "Sandbox worktree cleanup failed (chat=%s): %s", chat_id, e
+                    )
             try:
                 from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
 
@@ -297,11 +365,15 @@ class _ChatCrudMixin(_ChatServiceBase):
         return True
 
     @staticmethod
-    async def get_trashed_chats(page: int = 1, page_size: int = 20) -> tuple[list[ChatDTO], int]:
+    async def get_trashed_chats(
+        page: int = 1, page_size: int = 20
+    ) -> tuple[list[ChatDTO], int]:
         """List trashed chats with pagination."""
         offset = (page - 1) * page_size
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(offset, page_size)
+            return await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(
+                offset, page_size
+            )
 
     @staticmethod
     async def count_trashed_chats() -> int:
@@ -316,7 +388,9 @@ class _ChatCrudMixin(_ChatServiceBase):
             repo = _ChatServiceBase._cr(uow)
             trashed, _ = await repo.get_trashed_chats_paginated(0, 10000)
             chat_ids = [c.id for c in trashed]
-            sandbox_map = {c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir}
+            sandbox_map = {
+                c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir
+            }
             sess = uow.session
             assert sess is not None
             for cid in chat_ids:
@@ -328,17 +402,25 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatCrudMixin._cleanup_checkpointer(cid)
             if cid in sandbox_map:
                 try:
-                    from app.services.chat.sandbox_worktree import cleanup_sandbox_worktree
+                    from app.services.chat.sandbox_worktree import (
+                        cleanup_sandbox_worktree,
+                    )
 
                     await cleanup_sandbox_worktree(sandbox_map[cid], cid)
                 except Exception as e:
-                    logger.warning("Sandbox worktree cleanup failed during empty_trash (chat=%s): %s", cid, e)
+                    logger.warning(
+                        "Sandbox worktree cleanup failed during empty_trash (chat=%s): %s",
+                        cid,
+                        e,
+                    )
             try:
                 from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
 
                 await cleanup_chat_workspace(cid)
             except Exception as e:
-                logger.error("Workspace cleanup failed during empty_trash (chat=%s): %s", cid, e)
+                logger.error(
+                    "Workspace cleanup failed during empty_trash (chat=%s): %s", cid, e
+                )
             await close_external_agent_pool_for_chat(cid)
         return count
 
@@ -368,7 +450,9 @@ class _ChatCrudMixin(_ChatServiceBase):
     async def focus_flush_session(chat_id: str) -> bool:
         """Soft-delete all messages to flush LLM context while retaining sandbox."""
         async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(
+                chat_id, load_messages=False
+            )
             if not chat:
                 return False
 
@@ -391,7 +475,9 @@ class _ChatCrudMixin(_ChatServiceBase):
         return True
 
     @staticmethod
-    async def get_channel_chat_by_key(user_id_or_session_key: str, session_key: str | None = None) -> ChatDTO | None:
+    async def get_channel_chat_by_key(
+        user_id_or_session_key: str, session_key: str | None = None
+    ) -> ChatDTO | None:
         """Resolve channel chat; supports ``get_channel_chat_by_key(session_key)`` or
         ``get_channel_chat_by_key(user_id, session_key)`` (user_id is ignored for lookup).
         """
@@ -415,10 +501,14 @@ class _ChatCrudMixin(_ChatServiceBase):
         else:
             _, channel_session_key, src = first, second, source
         async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
+            chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(
+                channel_session_key
+            )
             if chat:
                 if agent_id and chat.agent_id != agent_id:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(chat.id, {"agent_id": agent_id})
+                    await _ChatServiceBase._cr(uow).update_chat_fields(
+                        chat.id, {"agent_id": agent_id}
+                    )
                     return chat.model_copy(update={"agent_id": agent_id})
                 return chat
             from sqlalchemy.exc import IntegrityError
@@ -440,7 +530,9 @@ class _ChatCrudMixin(_ChatServiceBase):
                 sess = uow.session
                 assert sess is not None
                 await sess.rollback()
-                chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
+                chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(
+                    channel_session_key
+                )
                 if chat:
                     return chat
                 raise
@@ -461,7 +553,9 @@ class _ChatCrudMixin(_ChatServiceBase):
                 return chat
             count = await repo.count_pinned()
             if count >= _ChatCrudMixin.MAX_PINNED:
-                raise ValueError(f"Cannot pin more than {_ChatCrudMixin.MAX_PINNED} chats")
+                raise ValueError(
+                    f"Cannot pin more than {_ChatCrudMixin.MAX_PINNED} chats"
+                )
             next_order = await repo.get_next_pin_order()
             await repo.pin_chat(chat_id, next_order)
             chat.is_pinned = True
@@ -480,7 +574,9 @@ class _ChatCrudMixin(_ChatServiceBase):
     @staticmethod
     async def reorder_pinned_chats(items: list[tuple[str, int]]) -> None:
         if len(items) > _ChatCrudMixin.MAX_PINNED:
-            raise ValueError(f"Cannot reorder more than {_ChatCrudMixin.MAX_PINNED} items")
+            raise ValueError(
+                f"Cannot reorder more than {_ChatCrudMixin.MAX_PINNED} items"
+            )
         async with UnitOfWork() as uow:
             await _ChatServiceBase._cr(uow).reorder_pinned_chats(items)
 

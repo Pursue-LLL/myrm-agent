@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import React from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
+import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
@@ -33,6 +34,8 @@ const EmptyChat = React.memo(() => {
         </div>
 
         <MigrationDiscoveryBanner />
+
+        <ConversationRecallHint />
 
         <SamplePrompts />
       </div>

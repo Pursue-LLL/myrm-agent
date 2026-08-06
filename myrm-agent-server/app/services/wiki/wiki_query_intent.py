@@ -92,7 +92,7 @@ def should_use_wiki_knowledge_lane(session: AgentStreamSession) -> bool:
         return False
     if not params.enable_wiki or params.incognito_mode or request.incognito_mode:
         return False
-    if request.use_workflow or request.resume_value is not None:
+    if request.use_workflow or request.resume_value is not None or request.workflow_template_id:
         return False
     if request.blueprint_id or request.ephemeral_subagents:
         return False

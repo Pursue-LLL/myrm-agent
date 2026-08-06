@@ -81,6 +81,9 @@ export interface ChatState {
   optimizationMode: string;
   isGoalMode: boolean;
   isWorkflowMode: boolean;
+  pendingWorkflowTemplateId: string | null;
+  pendingWorkflowTemplateDisplayName: string | null;
+  pendingWorkflowTemplateArgs: Record<string, string> | null;
   incognitoMode: boolean;
   sandboxMode: boolean;
   securityPreset: SecurityPreset;
@@ -194,6 +197,12 @@ export interface ChatState {
   setOptimizationMode: (mode: string) => void;
   setIsGoalMode: (isGoalMode: boolean) => void;
   setIsWorkflowMode: (isWorkflowMode: boolean) => void;
+  setPendingWorkflowTemplate: (
+    templateId: string | null,
+    args?: Record<string, string> | null,
+    displayName?: string | null,
+  ) => void;
+  clearPendingWorkflowTemplate: () => void;
   setIncognitoMode: (incognitoMode: boolean) => void;
   setSessionSkillOverrides: (overrides: string[] | null) => void;
   setSandboxMode: (sandboxMode: boolean) => void;

@@ -28,6 +28,8 @@ class CronJobModel(Base):
     model: Mapped[str | None] = mapped_column(String(255), nullable=True)
     chat_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    workflow_template_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    workflow_template_args: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     command: Mapped[str | None] = mapped_column(Text, nullable=True)
     pre_condition_script: Mapped[str | None] = mapped_column(Text, nullable=True)

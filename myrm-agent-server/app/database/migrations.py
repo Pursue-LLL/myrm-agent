@@ -885,6 +885,8 @@ INDEX_STATEMENTS = [
     "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",
     "ALTER TABLE chats ADD COLUMN compaction_failure_error VARCHAR(500)",
     "ALTER TABLE chats ADD COLUMN compression_ineffective_streak INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_id VARCHAR(64)",
+    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_args JSON",
 ]
 
 

@@ -349,6 +349,26 @@ class TestEnsureSystemBoard:
         mock_kanban_svc.create_board.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_board_settings_align_max_concurrent(self, handler, mock_kanban_svc) -> None:
+        """BoardSettings.max_concurrent_tasks must equal handler MAX_CONCURRENT_TASKS."""
+        from app.core.channel_bridge.background_task_handler import MAX_CONCURRENT_TASKS
+
+        handler._system_board_id = None
+        mock_kanban_svc.list_boards = AsyncMock(return_value=[])
+
+        mock_board = MagicMock()
+        mock_board.board_id = "board_new"
+        mock_kanban_svc.create_board = AsyncMock(return_value=mock_board)
+
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            await handler._ensure_system_board()
+
+        call_kwargs = mock_kanban_svc.create_board.call_args.kwargs
+        settings = call_kwargs["settings"]
+        assert settings.max_concurrent_tasks == MAX_CONCURRENT_TASKS
+
+    @pytest.mark.asyncio
     async def test_reuses_existing_board(self, handler, mock_kanban_svc) -> None:
         handler._system_board_id = None
 

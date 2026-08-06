@@ -15,6 +15,7 @@ seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
 seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
+seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup review Chrome E2E 提供可重复、无 LLM 的种子数据。
@@ -62,6 +63,7 @@ from .test_fixtures_stream_retry_busy import (
     router as stream_retry_busy_fixture_router,
 )
 from .test_fixtures_memory_lifecycle import router as memory_lifecycle_fixture_router
+from .test_fixtures_prior_chat import router as prior_chat_fixture_router
 
 router = APIRouter()
 
@@ -383,3 +385,4 @@ router.include_router(guardrail_bash_fixture_router)
 router.include_router(wiki_dedup_fixture_router)
 router.include_router(context_retention_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
+router.include_router(prior_chat_fixture_router)

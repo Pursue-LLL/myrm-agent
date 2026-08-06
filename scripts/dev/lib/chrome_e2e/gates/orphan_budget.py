@@ -80,7 +80,12 @@ def active_page_lease_ceiling() -> int:
     wave_snapshot = load_wave_snapshot_observation()
     counts = wave_lease_counts(wave_snapshot)
     effective_leases = max(0, counts.effective_total)
-    return max(active_tests, effective_leases, 1)
+    burst_lanes = 0
+    for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
+        raw = os.environ.get(key, "").strip()
+        if raw.isdigit():
+            burst_lanes = max(burst_lanes, int(raw))
+    return max(active_tests, effective_leases, burst_lanes, 1)
 
 
 def evaluate_orphan_budget(*, cdp_port: int | None = None) -> OrphanBudgetEvaluation:

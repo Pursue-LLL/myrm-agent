@@ -55,13 +55,16 @@ class AgentConfigRequest(BaseModel):
         default_factory=lambda: list(DEFAULT_ENABLED_BUILTIN_TOOLS),
     )
     browser_source: str | None = Field(
-        default=None, description="Browser acquisition mode (launch/connect/extension/auto/remote)"
+        default=None,
+        description="Browser acquisition mode (launch/connect/extension/auto/remote)",
     )
     dialog_policy: str | None = Field(
-        default=None, description="Dialog handling strategy (smart/auto_accept/auto_dismiss/wait_for_agent)"
+        default=None,
+        description="Dialog handling strategy (smart/auto_accept/auto_dismiss/wait_for_agent)",
     )
     session_recording: str | None = Field(
-        default=None, description="Browser session recording mode (off/on_failure/always)"
+        default=None,
+        description="Browser session recording mode (off/on_failure/always)",
     )
     auto_restore_domains: list[str] = []
     kanban_default_board_id: str | None = Field(
@@ -144,6 +147,7 @@ class MentionReferenceRequest(BaseModel):
         "codebase",
         "wiki_concept",
         "wiki_raw_file",
+        "prior_chat",
     ]
     path: str | None = Field(None, max_length=4096)
     file_id: str | None = Field(None, max_length=256)
@@ -210,6 +214,15 @@ class AgentRequest(BaseModel):
     ephemeral_subagents: dict[str, object] | None = None
     query: MultimodalQuery = ""
     use_workflow: bool = False
+    workflow_template_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Pinned workflow template id — skips orchestrator LLM script generation.",
+    )
+    workflow_template_args: dict[str, str] | None = Field(
+        default=None,
+        description="Placeholder substitutions applied to pinned template script before execution.",
+    )
     goal: GoalBudgetRequest | None = None
 
     model_selection: ModelSelection | None = None
@@ -266,7 +279,9 @@ class AgentRequest(BaseModel):
     quote: str | None = None
 
     mention_references: list[MentionReferenceRequest] | None = None
-    mentioned_agent_ids: list[str] | None = Field(default=None, description="Explicitly @ mentioned agent IDs")
+    mentioned_agent_ids: list[str] | None = Field(
+        default=None, description="Explicitly @ mentioned agent IDs"
+    )
     uploaded_file_ids: list[str] | None = Field(
         default=None,
         description="IDs of files attached to this message (from drag-and-drop upload). "

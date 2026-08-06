@@ -30,6 +30,7 @@ from e2e_api_verify import (
     _compute_next_action,
     _load_parallel_runtime_snapshot,
     _mux_context_fields,
+    _resolve_cap_headroom_active_test_count,
     resolve_e2e_api_context,
 )
 
@@ -85,6 +86,8 @@ def _observability_unknown(
     parallel_snapshot: dict[str, object],
 ) -> bool:
     if mux_fields.get("muxSnapshotAvailable") is False:
+        return True
+    if parallel_snapshot.get("parallel_observability_mismatch") is True:
         return True
     snapshot_error = parallel_snapshot.get("snapshot_error")
     return isinstance(snapshot_error, str) and bool(snapshot_error.strip())
@@ -160,6 +163,40 @@ def _launch_force_bypass_enabled() -> bool:
     )
 
 
+def _signoff_holder_launch_denial(
+    ctx: E2eApiContext,
+) -> ChromeE2eReadinessVerdict | None:
+    """P0-SAO-8: block new daily chrome_e2e while Step1 signoff episode is RUNNING."""
+    if _launch_force_bypass_enabled():
+        return None
+    if os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1":
+        return None
+    if os.environ.get("MYRM_SIGNOFF_CRITICAL", "").strip() == "1":
+        return None
+    try:
+        from signoff_admission import signoff_critical_section_holder
+    except ImportError:
+        return None
+    holder = signoff_critical_section_holder()
+    if holder is None:
+        return None
+    reason = (
+        f"signoff gate active ({holder.label}); "
+        "wait for STEP1_EXIT or run ./myrm e2e-context signoffAdmission"
+    )
+    return ChromeE2eReadinessVerdict(
+        status="WAIT",
+        token="WAIT:SIGNOFF_HOLDER",
+        reason=reason,
+        next_action="SIGNOFF_HOLDER",
+        launch_allowed=False,
+        attach_allowed=True,
+        ready_chrome_full=False,
+        blocked=ctx.blocked,
+        epoch_match=ctx.epoch_match,
+    )
+
+
 def evaluate_chrome_e2e_readiness(
     ctx: E2eApiContext,
     *,
@@ -168,6 +205,9 @@ def evaluate_chrome_e2e_readiness(
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None = None,
 ) -> ChromeE2eReadinessVerdict:
+    holder_denial = _signoff_holder_launch_denial(ctx)
+    if holder_denial is not None:
+        return holder_denial
     if _launch_force_bypass_enabled():
         return ChromeE2eReadinessVerdict(
             status="READY",
@@ -244,12 +284,24 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         if isinstance(active_tests_raw, list)
         else []
     )
-    active_test_count = int(parallel_snapshot.get("active_test_count", 0))
+    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+
+    active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
+        parallel_snapshot,
+        wave_leases_effective=counts.effective_total,
+        dev_gate=dev_gate_status(),
+    )
+    if observability_mismatch:
+        parallel_snapshot = {
+            **parallel_snapshot,
+            "parallel_observability_mismatch": True,
+        }
     headroom = _cap_headroom_fields(
         lease_counts=counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
+        observability_mismatch=observability_mismatch,
     )
     if headroom.get("registryObservabilityUnknown") is True:
         return ChromeE2eReadinessVerdict(
