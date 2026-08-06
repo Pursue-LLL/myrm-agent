@@ -5,12 +5,14 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.wiki.pipeline.chat_compound import ChatCompoundResult
 
 from app.core.security.auth.identity import LOCAL_USER_ID
+from app.services.wiki.chat_compound_service import ChatCompoundServiceError
 
 
 @dataclass(frozen=True, slots=True)
@@ -678,3 +680,80 @@ def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) ->
     assert snippets[0]["evidence_path"] == "raw/source.md"
     assert snippets[0]["resource_uri"] == f"raw/source.md@sha256:{pinned}"
     assert snippets[0]["resource_uri"] != f"raw/{structure.get_concept_file_path('Budget')}".lower()
+
+
+def test_wiki_compound_stages_pending_edit(client: TestClient) -> None:
+    """POST /api/v1/wiki/compound delegates to server SSOT and returns pending id."""
+    payload = {
+        "concept_name": "ChatCompounds/2026-08/ci-note",
+        "source_chat": "chat-ci-1",
+        "source_message": "msg-ci-1",
+    }
+    with patch(
+        "app.services.wiki.chat_compound_service.stage_chat_compound_from_message",
+        new_callable=AsyncMock,
+    ) as mock_stage:
+        mock_stage.return_value = ChatCompoundResult(
+            pending_edit_id=99,
+            concept_name=payload["concept_name"],
+        )
+        response = client.post("/api/v1/wiki/compound", json=payload)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["success"] is True
+    assert data["pending_edit_id"] == 99
+    assert data["concept_name"] == payload["concept_name"]
+    mock_stage.assert_awaited_once()
+
+
+def test_wiki_compound_returns_not_found_for_missing_message(client: TestClient) -> None:
+    payload = {
+        "concept_name": "ChatCompounds/2026-08/missing",
+        "source_chat": "chat-missing",
+        "source_message": "msg-missing",
+    }
+    with patch(
+        "app.services.wiki.chat_compound_service.stage_chat_compound_from_message",
+        new_callable=AsyncMock,
+        side_effect=ChatCompoundServiceError("message_not_found", "Chat message not found"),
+    ):
+        response = client.post("/api/v1/wiki/compound", json=payload)
+    assert response.status_code == 404
+    body = response.json()
+    assert body.get("code") == "message_not_found" or body.get("detail", {}).get("code") == "message_not_found"
+
+
+def test_wiki_compound_rejects_duplicate_source_message(client: TestClient) -> None:
+    """Duplicate source_message returns 409 already_staged."""
+    payload = {
+        "concept_name": "ChatCompounds/2026-08/dup-note",
+        "source_chat": "chat-dup",
+        "source_message": "msg-dup-unique",
+    }
+    with patch(
+        "app.services.wiki.chat_compound_service.stage_chat_compound_from_message",
+        new_callable=AsyncMock,
+        side_effect=[
+            ChatCompoundResult(pending_edit_id=1, concept_name=payload["concept_name"]),
+            ChatCompoundServiceError("already_staged", "Chat message already staged as pending edit 1"),
+        ],
+    ):
+        first = client.post("/api/v1/wiki/compound", json=payload)
+        second = client.post("/api/v1/wiki/compound", json=payload)
+    assert first.status_code == 200, first.text
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "already_staged"
+
+
+def test_wiki_apply_chat_create_note_forbidden(client: TestClient) -> None:
+    """Chat caller cannot publish create_note directly."""
+    response = client.post(
+        "/api/v1/wiki/apply?caller=chat",
+        json={
+            "op": "create_note",
+            "concept_name": "ChatCompounds/2026-08/forbidden",
+            "body": "Should not publish",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "forbidden_for_caller"

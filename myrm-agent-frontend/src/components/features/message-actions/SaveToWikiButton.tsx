@@ -2,18 +2,19 @@
 
 /**
  * [INPUT]
- * @/store/useChatStore::agentConfig (POS: Chat session agent scope)
- * @/services/wikiService::wikiService (POS: Wiki REST client with explicit agentId)
+ * @/store/useChatStore::agentConfig, messages (POS: Chat session agent scope + thread)
+ * @/services/wikiService::compoundWiki (POS: Wiki REST client — ids only; server hydrates Q&A)
  *
  * [OUTPUT]
- * SaveToWikiButton: Save assistant message content into the active agent wiki vault.
+ * SaveToWikiButton: Stage assistant message Q&A into Wiki pending review (HITL).
  *
  * [POS]
- * Chat message action. Writes scoped concepts via the same agentId contract as ArtifactCard ingest.
+ * Chat message action. Uses POST /wiki/compound — never direct publish.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { BookPlus, Loader2 } from 'lucide-react';
 import {
@@ -24,16 +25,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/primitives/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/primitives/alert-dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
@@ -44,28 +35,33 @@ import {
   filterFolderNodes,
   getWikiOperationErrorMessage,
   getWikiErrorCode,
-  isNotFoundApiError,
 } from '@/components/features/settings/sections/knowledge/wiki/wikiTreeUtils';
 import { WikiFolderSelectTree } from '@/components/features/settings/sections/knowledge/wiki/WikiFolderSelectTree';
 
 interface SaveToWikiButtonProps {
   message: Message;
+  messageIndex: number;
 }
 
-function buildSaveMetadata(message: Message): Record<string, string> {
-  return {
-    source_chat: message.chatId,
-    source_message: message.messageId,
-    saved_at: new Date().toISOString(),
-  };
+function defaultCompoundFolder(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `ChatCompounds/${now.getFullYear()}-${month}`;
 }
 
-export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
+export default function SaveToWikiButton({ message, messageIndex: _messageIndex }: SaveToWikiButtonProps) {
+  void _messageIndex;
   const t = useTranslations('settings.wiki.saveToWiki');
   const tWiki = useTranslations('settings.wiki');
   const locale = useLocale();
+  const router = useRouter();
   const agentId = useChatStore((state) => state.agentConfig?.agentId);
   const agentName = useChatStore((state) => state.agentConfig?.agentName);
+  const enabledBuiltinTools = useChatStore(
+    (state) => state.agentConfig?.enabledBuiltinTools ?? state.currentBuiltinTools,
+  );
+  const incognitoMode = useChatStore((state) => state.incognitoMode);
+  const wikiEnabled = enabledBuiltinTools.includes('wiki');
   const scopeLabel = agentId
     ? getBuiltinAgentName(agentId, agentName ?? agentId, locale)
     : tWiki('agentScopeDefault');
@@ -75,7 +71,6 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [filename, setFilename] = useState('');
-  const [overwritePath, setOverwritePath] = useState<string | null>(null);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -101,79 +96,72 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
       .replace(/\s+/g, '-')
       .toLowerCase();
     setFilename(snippet || 'untitled-note');
-    setOverwritePath(null);
-    setSelectedFolder(null);
+    setSelectedFolder(defaultCompoundFolder());
   }, [fetchTree, isOpen, message.content]);
 
-  const buildFullPath = () => (selectedFolder ? `${selectedFolder}/${filename}` : filename);
+  if (!wikiEnabled || incognitoMode || !message.content.trim() || !message.chatId || !message.messageId) {
+    return null;
+  }
 
-  const performSave = async (fullPath: string, overwrite = false) => {
-    setIsSaving(true);
-    try {
-      if (overwrite) {
-        const savedAt = new Date().toISOString();
-        await wikiService.applyWiki(
-          {
-            op: 'patch_compiled_truth',
-            concept_name: fullPath,
-            compiled_truth: message.content,
-          },
-          agentId,
-          'chat',
-        );
-        await wikiService.applyWiki(
-          {
-            op: 'append_timeline',
-            concept_name: fullPath,
-            timeline_entry: `Updated from chat at ${savedAt}`,
-          },
-          agentId,
-          'chat',
-        );
-      } else {
-        await wikiService.applyWiki(
-          {
-            op: 'create_note',
-            concept_name: fullPath,
-            body: message.content,
-            metadata: buildSaveMetadata(message),
-            provenance: 'chat-save',
-          },
-          agentId,
-          'chat',
-        );
-      }
-      toast.success(t('saveSuccess'));
-      setIsOpen(false);
-      setOverwritePath(null);
-    } catch (error) {
-      const code = getWikiErrorCode(error);
-      if (code === 'canonical_conflict') {
-        toast.error(t('canonicalConflict'));
-      } else {
-        toast.error(getWikiOperationErrorMessage(error, t('saveFailed')));
-      }
-    } finally {
-      setIsSaving(false);
+  const buildFullPath = () => {
+    const folder = selectedFolder?.trim();
+    return folder ? `${folder}/${filename}` : filename;
+  };
+
+  const openPendingSettings = () => {
+    const params = new URLSearchParams({ wikiTab: 'pendingEdits' });
+    if (agentId) {
+      params.set('agentId', agentId);
     }
+    router.push(`/settings/wiki?${params.toString()}`);
   };
 
   const handleSave = async () => {
-    if (!filename) {
+    if (!filename.trim()) {
       toast.error(t('filenameRequired'));
       return;
     }
 
-    const fullPath = buildFullPath();
+    setIsSaving(true);
     try {
-      await wikiService.getConcept(fullPath, agentId);
-      setOverwritePath(fullPath);
+      await wikiService.compoundWiki(
+        {
+          concept_name: buildFullPath(),
+          source_chat: message.chatId,
+          source_message: message.messageId,
+        },
+        agentId,
+      );
+      toast.success(t('compoundSuccess'), {
+        action: {
+          label: t('openPending'),
+          onClick: openPendingSettings,
+        },
+      });
+      setIsOpen(false);
     } catch (error) {
-      if (isNotFoundApiError(error)) {
-        await performSave(fullPath);
-      } else {
-        toast.error(getWikiOperationErrorMessage(error, t('saveFailed')));
+      const code = getWikiErrorCode(error);
+      if (code === 'already_staged') {
+        toast.info(t('alreadyStaged'), {
+          action: {
+            label: t('openPending'),
+            onClick: openPendingSettings,
+          },
+        });
+        setIsOpen(false);
+        return;
       }
+      if (code === 'message_not_found') {
+        toast.error(t('messageNotFound'));
+        return;
+      }
+      if (code === 'incognito_forbidden') {
+        toast.error(t('incognitoForbidden'));
+        return;
+      }
+      toast.error(getWikiOperationErrorMessage(error, t('saveFailed')));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -244,25 +232,6 @@ export default function SaveToWikiButton({ message }: SaveToWikiButtonProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={overwritePath !== null} onOpenChange={(open) => !open && setOverwritePath(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('overwriteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('overwriteDescription', { path: overwritePath ?? '' })}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (overwritePath) void performSave(overwritePath, true);
-              }}
-            >
-              {t('overwriteConfirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

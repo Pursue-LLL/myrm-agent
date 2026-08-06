@@ -2511,6 +2511,7 @@
           "agent": "Agent",
           "create_note": "Note",
           "chat-save": "Chat Save",
+          "chat-compound": "Chat Compound",
           "contradiction_synthesis": "Synthesis",
           "import": "Import",
           "web_fetch": "Web Fetch"
@@ -2543,24 +2544,24 @@
         "confirm": "Confirm"
       },
       "saveToWiki": {
-        "buttonTitle": "Save to Wiki",
-        "title": "Save to Wiki",
-        "description": "Select a folder to save this message as a new Wiki concept.",
+        "buttonTitle": "Compound to Wiki (Pending Review)",
+        "title": "Compound to Wiki",
+        "description": "Stage this Q&A as a pending draft. Approve it in Settings before it enters your knowledge base.",
         "filenameLabel": "Filename",
         "filenamePlaceholder": "e.g. react-hooks-guide",
         "folderLabel": "Select Folder (Optional)",
         "noFolders": "No folders found. Will save to root.",
         "selectedPath": "Selected path:",
         "cancel": "Cancel",
-        "save": "Save",
+        "save": "Stage for Review",
         "loadFailed": "Failed to load folders",
         "filenameRequired": "Filename is required",
-        "saveSuccess": "Saved to Wiki successfully",
-        "saveFailed": "Failed to save to Wiki",
-        "canonicalConflict": "A note with the same topic already exists. Choose a different name or overwrite the existing note.",
-        "overwriteTitle": "Overwrite existing note?",
-        "overwriteDescription": "A note already exists at \"{path}\". Overwriting updates Compiled Truth and appends a Timeline entry without erasing history.",
-        "overwriteConfirm": "Overwrite"
+        "compoundSuccess": "Staged for wiki review",
+        "alreadyStaged": "This message is already pending review",
+        "openPending": "Open Pending",
+        "saveFailed": "Failed to stage wiki draft",
+        "messageNotFound": "This message is no longer available to compound",
+        "incognitoForbidden": "Incognito chats cannot be saved to the wiki"
       },
       "pending": {
         "title": "Pending Edits",
@@ -2686,12 +2687,14 @@
         "filterConcepts": "Concept drafts",
         "filterSynthesis": "Evolution synthesis",
         "synthesisBadge": "Evolution",
+        "openSourceChat": "Open source chat",
         "provenance": {
           "compiled": "Compiled",
           "repaired": "Repaired",
           "agent": "Agent",
           "create_note": "Note",
           "chat-save": "Chat Save",
+          "chat-compound": "Chat Compound",
           "contradiction_synthesis": "Synthesis",
           "import": "Import",
           "web_fetch": "Web Fetch"

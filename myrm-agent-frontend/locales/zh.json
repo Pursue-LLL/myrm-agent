@@ -2511,6 +2511,7 @@
           "agent": "AI 创建",
           "create_note": "笔记",
           "chat-save": "对话保存",
+          "chat-compound": "对话沉淀",
           "contradiction_synthesis": "矛盾综合",
           "import": "导入",
           "web_fetch": "网页抓取"
@@ -2543,24 +2544,24 @@
         "confirm": "确认"
       },
       "saveToWiki": {
-        "buttonTitle": "保存到 Wiki",
-        "title": "保存到 Wiki",
-        "description": "选择文件夹，将本条消息保存为新的 Wiki 词条。",
+        "buttonTitle": "沉淀到 Wiki（待审核）",
+        "title": "沉淀到 Wiki",
+        "description": "将本条问答提交为待审核草稿，批准后才进入知识库。",
         "filenameLabel": "文件名",
         "filenamePlaceholder": "例如 react-hooks-guide",
         "folderLabel": "选择文件夹（可选）",
         "noFolders": "未找到文件夹，将保存到根目录。",
         "selectedPath": "保存路径：",
         "cancel": "取消",
-        "save": "保存",
+        "save": "提交审核",
         "loadFailed": "加载文件夹失败",
         "filenameRequired": "请输入文件名",
-        "saveSuccess": "已成功保存到 Wiki",
-        "saveFailed": "保存到 Wiki 失败",
-        "canonicalConflict": "相同主题的笔记已存在，请更换名称或覆盖已有笔记。",
-        "overwriteTitle": "覆盖已有笔记？",
-        "overwriteDescription": "路径「{path}」已存在笔记。覆盖将更新 Compiled Truth，并向 Timeline 追加记录，不会清空历史。",
-        "overwriteConfirm": "确认覆盖"
+        "compoundSuccess": "已提交 Wiki 待审核",
+        "alreadyStaged": "该消息已在待审核列表中",
+        "openPending": "打开待审核",
+        "saveFailed": "提交 Wiki 草稿失败",
+        "messageNotFound": "该消息已不可用，无法沉淀",
+        "incognitoForbidden": "无痕会话无法沉淀到 Wiki"
       },
       "pending": {
         "title": "待审核草稿",
@@ -2686,12 +2687,14 @@
         "filterConcepts": "概念草稿",
         "filterSynthesis": "演变合成",
         "synthesisBadge": "演变",
+        "openSourceChat": "回到来源对话",
         "provenance": {
           "compiled": "编译生成",
           "repaired": "修复",
           "agent": "AI 创建",
           "create_note": "笔记",
           "chat-save": "对话保存",
+          "chat-compound": "对话沉淀",
           "contradiction_synthesis": "矛盾综合",
           "import": "导入",
           "web_fetch": "网页抓取"

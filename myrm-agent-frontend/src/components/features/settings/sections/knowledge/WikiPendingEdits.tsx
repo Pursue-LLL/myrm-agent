@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -10,6 +11,7 @@ import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/compon
 import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
 import { WikiScopeChip } from './WikiScopeChip';
+import { extractSourceChatIdFromFrontmatter } from './wiki/wikiTreeUtils';
 
 interface WikiPendingEditsProps {
   agentScopeId?: string | null;
@@ -181,7 +183,12 @@ export function WikiPendingEdits({
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredEdits.map((edit) => (
+            {filteredEdits.map((edit) => {
+              const sourceChatId =
+                edit.provenance === 'chat-compound'
+                  ? extractSourceChatIdFromFrontmatter(edit.proposed_content)
+                  : null;
+              return (
               <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
                 <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
                   <div className="flex items-center gap-3 flex-wrap">
@@ -195,6 +202,14 @@ export function WikiPendingEdits({
                       <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30">
                         {t(`pendingEdits.provenance.${edit.provenance}`, { defaultValue: edit.provenance })}
                       </Badge>
+                    )}
+                    {sourceChatId && (
+                      <Link
+                        href={`/${sourceChatId}`}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {t('pendingEdits.openSourceChat')}
+                      </Link>
                     )}
                     <Badge
                       variant="outline"
@@ -260,7 +275,8 @@ export function WikiPendingEdits({
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </CardContent>

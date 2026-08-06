@@ -3,8 +3,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getTreeMock = vi.fn();
-const getConceptMock = vi.fn();
-const applyWikiMock = vi.fn();
+const compoundWikiMock = vi.fn();
+const pushMock = vi.fn();
+
+const chatStoreState = vi.hoisted(() => ({
+  incognitoMode: false,
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string, values?: Record<string, string>) => {
@@ -19,9 +27,18 @@ vi.mock('next-intl', () => ({
 vi.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {
     code: number;
-    constructor(message: string, code = 500) {
+    businessCode?: string;
+
+    constructor(
+      message: string,
+      code = 500,
+      _details: unknown[] = [],
+      _traceId?: string,
+      businessCode?: string,
+    ) {
       super(message);
       this.code = code;
+      this.businessCode = businessCode;
     }
   },
 }));
@@ -40,20 +57,31 @@ vi.mock('@/components/agent/builtin-agent-i18n', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: { agentConfig: { agentId?: string; agentName?: string } | null }) => unknown) =>
+  default: (selector: (state: {
+    agentConfig: { agentId?: string; agentName?: string; enabledBuiltinTools?: string[] } | null;
+    currentBuiltinTools: string[];
+    incognitoMode: boolean;
+    messages: Array<{ role: string; content: string }>;
+  }) => unknown) =>
     selector({
       agentConfig: {
         agentId: 'research-agent',
         agentName: 'Research Agent',
+        enabledBuiltinTools: ['wiki'],
       },
+      currentBuiltinTools: ['wiki'],
+      incognitoMode: chatStoreState.incognitoMode,
+      messages: [
+        { role: 'user', content: 'What is revenue growth?' },
+        { role: 'assistant', content: 'Important finding about revenue growth' },
+      ],
     }),
 }));
 
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
     getTree: (...args: unknown[]) => getTreeMock(...args),
-    getConcept: (...args: unknown[]) => getConceptMock(...args),
-    applyWiki: (...args: unknown[]) => applyWikiMock(...args),
+    compoundWiki: (...args: unknown[]) => compoundWikiMock(...args),
   },
 }));
 
@@ -61,20 +89,24 @@ vi.mock('@/components/features/settings/sections/knowledge/wiki/WikiFolderSelect
   WikiFolderSelectTree: () => <div data-testid="wiki-folder-tree" />,
 }));
 
-import { ApiError } from '@/lib/api';
 import SaveToWikiButton from '../SaveToWikiButton';
 
 describe('SaveToWikiButton agent scope', () => {
   beforeEach(() => {
+    chatStoreState.incognitoMode = false;
     getTreeMock.mockReset();
-    getConceptMock.mockReset();
-    applyWikiMock.mockReset();
+    compoundWikiMock.mockReset();
+    pushMock.mockReset();
     getTreeMock.mockResolvedValue([]);
-    getConceptMock.mockRejectedValue(new ApiError('Not found', 404));
-    applyWikiMock.mockResolvedValue({ success: true, message: 'ok', op: 'create_note', concept_name: 'x' });
+    compoundWikiMock.mockResolvedValue({
+      success: true,
+      pending_edit_id: 42,
+      concept_name: 'ChatCompounds/2026-08/important-finding-ab',
+      message: 'ok',
+    });
   });
 
-  it('loads and saves against the active chat agent wiki scope', async () => {
+  it('stages compound draft against the active chat agent wiki scope', async () => {
     render(
       <SaveToWikiButton
         message={{
@@ -82,7 +114,9 @@ describe('SaveToWikiButton agent scope', () => {
           messageId: 'msg-1',
           content: 'Important finding about revenue growth',
           role: 'assistant',
+          createdAt: new Date(),
         }}
+        messageIndex={1}
       />,
     );
 
@@ -97,20 +131,61 @@ describe('SaveToWikiButton agent scope', () => {
     fireEvent.click(screen.getByText('settings.wiki.saveToWiki.save'));
 
     await waitFor(() => {
-      expect(getConceptMock).toHaveBeenCalledWith('important-finding-ab', 'research-agent');
-      expect(applyWikiMock).toHaveBeenCalledWith(
+      expect(compoundWikiMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          op: 'create_note',
-          concept_name: 'important-finding-ab',
-          body: 'Important finding about revenue growth',
-          metadata: expect.objectContaining({
-            source_chat: 'chat-1',
-            source_message: 'msg-1',
-          }),
+          concept_name: expect.stringContaining('important-finding-ab'),
+          source_chat: 'chat-1',
+          source_message: 'msg-1',
         }),
         'research-agent',
-        'chat',
       );
     });
+  });
+
+  it('shows localized toast when the source message is no longer available', async () => {
+    const { ApiError } = await import('@/lib/api');
+    const { toast } = await import('sonner');
+    compoundWikiMock.mockRejectedValueOnce(
+      new ApiError('Chat message not found', 404, [], undefined, 'message_not_found'),
+    );
+
+    render(
+      <SaveToWikiButton
+        message={{
+          chatId: 'chat-1',
+          messageId: 'msg-missing',
+          content: 'Important finding about revenue growth',
+          role: 'assistant',
+          createdAt: new Date(),
+        }}
+        messageIndex={1}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'settings.wiki.saveToWiki.buttonTitle' }));
+    fireEvent.click(await screen.findByText('settings.wiki.saveToWiki.save'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('settings.wiki.saveToWiki.messageNotFound');
+    });
+  });
+
+  it('does not render in incognito mode', () => {
+    chatStoreState.incognitoMode = true;
+
+    render(
+      <SaveToWikiButton
+        message={{
+          chatId: 'chat-1',
+          messageId: 'msg-1',
+          content: 'Important finding about revenue growth',
+          role: 'assistant',
+          createdAt: new Date(),
+        }}
+        messageIndex={1}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'settings.wiki.saveToWiki.buttonTitle' })).toBeNull();
   });
 });

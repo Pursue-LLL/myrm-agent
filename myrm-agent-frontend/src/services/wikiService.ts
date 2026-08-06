@@ -173,6 +173,19 @@ export interface PendingEditsResponse {
   pending_edits: PendingEdit[];
 }
 
+export interface WikiCompoundRequestBody {
+  concept_name: string;
+  source_chat: string;
+  source_message: string;
+}
+
+export interface WikiCompoundResponse {
+  success: boolean;
+  pending_edit_id: number;
+  concept_name: string;
+  message: string;
+}
+
 export type WikiApplyCaller = 'agent' | 'settings' | 'chat';
 
 export type WikiApplyOp =
@@ -380,6 +393,16 @@ export const wikiService = {
   ): Promise<WikiApplyResponse> => {
     const path = buildWikiApiPath(`/wiki/apply?caller=${encodeURIComponent(caller)}`, agentId);
     return apiRequest<WikiApplyResponse>(path, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  compoundWiki: async (
+    body: WikiCompoundRequestBody,
+    agentId?: string | null,
+  ): Promise<WikiCompoundResponse> => {
+    return apiRequest<WikiCompoundResponse>(buildWikiApiPath('/wiki/compound', agentId), {
       method: 'POST',
       body: JSON.stringify(body),
     });

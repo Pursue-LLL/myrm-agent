@@ -71,7 +71,10 @@ async def _wiki_boundary_enabled_for_agent(agent_id: str) -> bool:
 
 
 async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+    from app.core.memory.adapters.setup import (
+        create_memory_manager,
+        resolve_context_binding,
+    )
     from app.services.memory.shared_context import resolve_shared_context_ids
 
     shared_context_ids = await resolve_shared_context_ids(agent_id=agent_id)
@@ -176,7 +179,10 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
     try:
         from myrm_agent_harness.toolkits.memory.mcp_server import MemoryMCPServer
 
-        from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+        from app.core.memory.adapters.setup import (
+            create_memory_manager,
+            resolve_context_binding,
+        )
 
         embedding_cfg = await _require_embedding_config()
 

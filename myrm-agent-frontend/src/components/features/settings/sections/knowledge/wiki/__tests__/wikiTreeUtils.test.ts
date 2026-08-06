@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { countDescendantItems, filterFolderNodes, resolveCreateParentFolder } from '../wikiTreeUtils';
+import { countDescendantItems, extractSourceChatIdFromFrontmatter, filterFolderNodes, resolveCreateParentFolder } from '../wikiTreeUtils';
 import type { TreeNode } from '@/services/wikiService';
 
 const sampleTree: TreeNode[] = [
@@ -37,5 +37,15 @@ describe('wikiTreeUtils', () => {
     expect(resolveCreateParentFolder('research/ai', true)).toBe('research/ai');
     expect(resolveCreateParentFolder('research/paper-a', false)).toBe('research');
     expect(resolveCreateParentFolder(undefined, undefined)).toBeNull();
+  });
+
+  it('extracts source_chat from frontmatter with quoted and unquoted values', () => {
+    const unquoted = '---\nsource_chat: chat-abc\n---\n# body';
+    const doubleQuoted = '---\nsource_chat: "chat:colon-id"\n---\n# body';
+    const singleQuoted = "---\nsource_chat: 'chat-single'\n---\n# body";
+    expect(extractSourceChatIdFromFrontmatter(unquoted)).toBe('chat-abc');
+    expect(extractSourceChatIdFromFrontmatter(doubleQuoted)).toBe('chat:colon-id');
+    expect(extractSourceChatIdFromFrontmatter(singleQuoted)).toBe('chat-single');
+    expect(extractSourceChatIdFromFrontmatter('no frontmatter')).toBeNull();
   });
 });

@@ -379,6 +379,19 @@ class WikiApplyResponse(BaseModel):
     content_hash: str = ""
 
 
+class WikiCompoundRequestBody(BaseModel):
+    concept_name: str = Field(..., min_length=1)
+    source_chat: str = Field(..., min_length=1)
+    source_message: str = Field(..., min_length=1)
+
+
+class WikiCompoundResponse(BaseModel):
+    success: bool
+    pending_edit_id: int
+    concept_name: str
+    message: str
+
+
 class QueueStatusResponse(BaseModel):
     stats: dict[str, int]
     pending_items: list[dict[str, object]]
@@ -1560,6 +1573,52 @@ async def apply_wiki_mutation_endpoint(
         created=result.created,
         appended=result.appended,
         content_hash=result.content_hash,
+    )
+
+
+def _wiki_compound_http_status(code: str) -> int:
+    mapping = {
+        "already_staged": 409,
+        "incognito_forbidden": 403,
+        "invalid_request": 422,
+        "invalid_role": 422,
+        "message_not_found": 404,
+    }
+    return mapping.get(code, 400)
+
+
+@router.post("/compound", response_model=WikiCompoundResponse)
+async def compound_chat_message_to_wiki(
+    request: WikiCompoundRequestBody,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> WikiCompoundResponse:
+    """Stage a chat Q&A pair as a pending wiki edit (HITL; zero LLM)."""
+    from app.services.wiki.chat_compound_service import (
+        ChatCompoundServiceError,
+        stage_chat_compound_from_message,
+    )
+
+    try:
+        result = await stage_chat_compound_from_message(
+            archiver,
+            concept_name=request.concept_name,
+            source_chat=request.source_chat,
+            source_message=request.source_message,
+        )
+    except ChatCompoundServiceError as exc:
+        raise HTTPException(
+            status_code=_wiki_compound_http_status(exc.code),
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except Exception as exc:
+        logger.error("Wiki chat compound failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Wiki chat compound failed") from exc
+
+    return WikiCompoundResponse(
+        success=True,
+        pending_edit_id=result.pending_edit_id,
+        concept_name=result.concept_name,
+        message="Chat Q&A staged for wiki review",
     )
 
 

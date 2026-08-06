@@ -121,7 +121,7 @@ export default function MessageActionBar({
         )}
         {!isStreaming && <SaveToMemoryButton message={message} />}
         {!isStreaming && <ExtractToSkillButton message={message} />}
-        {!isStreaming && <SaveToWikiButton message={message} />}
+        {!isStreaming && <SaveToWikiButton message={message} messageIndex={messageIndex} />}
         {!isStreaming && <Copy message={message} markdownRef={markdownRef} />}
         {!isStreaming && <ExportMenu message={message} markdownRef={markdownRef} />}
         {!isStreaming && enableEvalLab && chatId && <SaveEvalCase chatId={chatId} />}

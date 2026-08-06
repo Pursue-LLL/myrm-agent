@@ -7,7 +7,7 @@
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 
 [OUTPUT]
-- _ChatMessageMixin: 消息追加、分页查询、全量查询、assistant 消息安全持久化与记忆影响账本记录
+- _ChatMessageMixin: 消息追加、分页查询、全量查询、按 id 查询、assistant 消息安全持久化与记忆影响账本记录
 
 [POS]
 消息持久化编排层。提供消息追加（含自动 chat 元数据更新）、
@@ -218,6 +218,11 @@ class _ChatMessageMixin(_ChatServiceBase):
     async def get_all_messages(chat_id: str) -> list[MessageDTO]:
         async with UnitOfWork() as uow:
             return await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
+
+    @staticmethod
+    async def get_message_by_id(chat_id: str, message_id: str) -> MessageDTO | None:
+        async with UnitOfWork() as uow:
+            return await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
 
     @staticmethod
     async def persist_assistant_message_safe(

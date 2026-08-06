@@ -15,7 +15,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | WikiFolderSelectTree.tsx        | UI   | 仅文件夹的选择树（Create/SaveToWiki 复用）                | ✅    |
 | WikiImportConflictDialog.tsx    | UI   | Batch import raw 冲突：保留现有 vs 填写 reason 后 supersede | ✅    |
 | WikiImportSecurityDialog.tsx    | UI   | Batch import 安全拦截/脱敏摘要（`security_blocked_paths` / `security_redacted_paths`） | ✅    |
-| wikiTreeUtils.ts                | Util | 树过滤、子项计数、API 错误解析（含 `getWikiErrorCode`）、父目录推断                | ✅    |
+| wikiTreeUtils.ts                | Util | 树过滤、子项计数、API 错误解析、`extractSourceChatIdFromFrontmatter`、父目录推断                | ✅    |
 | wikiSectionUtils.ts             | Util | Metadata editor comma-split helper (`splitTagsInput`)     | ✅    |
 | **tests**/wikiTreeUtils.test.ts | Test | 树工具函数单测                                            | ✅    |
 
@@ -31,7 +31,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 
 - Settings → Wiki → 词条管理：`WikiConceptsList`（父级编排于 `../WikiConceptsList.tsx`）
 - Chat→Wiki 写入三入口（均传 `useChatStore.agentConfig.agentId`）：
-  - `message-actions/SaveToWikiButton.tsx` → `create_note` / 覆盖时 `patch_compiled_truth` + `append_timeline`
+  - `message-actions/SaveToWikiButton.tsx` → `POST /wiki/compound` 待审核沉淀（禁止 chat `create_note` 直发）
   - `artifacts/ArtifactCard.tsx` → artifact ingest
   - `research/ResearchOutputPanel.tsx` → artifact ingest
 
@@ -39,7 +39,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 
 - 删除 folder：展示 path + 子项 count（`deleteFolderConfirmDetail`）
 - 新建 folder：Dialog 内显式父目录树选择
-- SaveToWiki：同名路径覆盖前 AlertDialog；窄写更新 Compiled Truth + Timeline 追加；canonical 冲突 toast
+- SaveToWiki：提交 Pending 待审核；同名 pending 草稿由 harness 覆盖；chat caller 禁止直发 publish
 - Settings 保存：并发冲突 `pageConflict` toast；Timeline duplicate `timelineDuplicateSkipped`
 - Settings Advanced：整页 replace 前内联警告文案（settings caller only）
 - Batch import：首次默认 skip 冲突；`conflict_paths` 非空时弹出 `WikiImportConflictDialog` 可 supersede 重试
