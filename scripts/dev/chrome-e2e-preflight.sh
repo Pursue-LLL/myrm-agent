@@ -1439,10 +1439,10 @@ if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
 fi
 if [[ "${MUX_USING}" -eq 1 ]]; then
   if [[ "${VANILLA_MCP_COUNT}" -gt 0 ]]; then
-    fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor, run scripts/dev/enable-chrome-devtools-mcp.sh, reopen"
+    fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use --auto-connect (./myrm doctor --mcp-isolation)"
   fi
   if [[ ! -f "${MUX_PID_FILE}" ]]; then
-    fail "cdmcp-mux daemon not running — open any Agent with chrome-devtools MCP once, or run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
+    fail "cdmcp-mux daemon not running — run: ./myrm ready --chrome"
   fi
   mux_pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
   if ! kill -0 "${mux_pid}" 2>/dev/null; then
@@ -1463,10 +1463,10 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
   ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"
 else
   if [[ "${VANILLA_MCP_COUNT}" -gt 1 ]]; then
-    fail "Too many vanilla chrome-devtools-mcp processes (${VANILLA_MCP_COUNT}) — enable mux: scripts/dev/enable-chrome-devtools-mcp.sh"
+    fail "Too many vanilla chrome-devtools-mcp processes (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor windows using Agent browser MCP"
   fi
   if [[ "${VANILLA_MCP_COUNT}" -eq 1 ]]; then
-    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — parallel Agent tabs will collide; run scripts/dev/enable-chrome-devtools-mcp.sh" >&2
+    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — Agent MCP should use --auto-connect; E2E uses ./myrm ready --chrome" >&2
   fi
 fi
 

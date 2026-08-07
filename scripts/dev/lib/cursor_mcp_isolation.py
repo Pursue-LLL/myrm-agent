@@ -29,6 +29,7 @@ from typing import Literal, TypedDict
 
 ViolationCode = Literal[
     "AGENT_MUX_FORBIDDEN",
+    "AGENT_E2E_PORT_FORBIDDEN",
     "AGENT_MISSING_AUTO_CONNECT",
     "MCP_JSON_INVALID",
     "MCP_MISSING_CHROME_DEVTOOLS",
@@ -135,7 +136,35 @@ def _args_list(entry: dict[str, object]) -> list[str]:
     return [item.strip() for item in args if isinstance(item, str) and item.strip()]
 
 
+def _entry_env_text(entry: dict[str, object]) -> str:
+    env = entry.get("env")
+    if not isinstance(env, dict):
+        return ""
+    parts: list[str] = []
+    for key, value in env.items():
+        if isinstance(key, str):
+            parts.append(key)
+        if isinstance(value, str):
+            parts.append(value)
+    return " ".join(parts)
+
+
+def _references_e2e_chrome(entry: dict[str, object]) -> bool:
+    blob = " ".join((_command_text(entry), _entry_env_text(entry))).lower()
+    markers = (
+        f":{E2E_CDP_PORT}",
+        "127.0.0.1:9333",
+        "localhost:9333",
+        "myrm_chrome_e2e",
+        "chromee2e",
+        "cdmcp-mux",
+    )
+    return any(marker in blob for marker in markers)
+
+
 def _has_auto_connect(entry: dict[str, object]) -> bool:
+    if _references_e2e_chrome(entry):
+        return False
     command = _command_text(entry)
     if "cdmcp-mux" in command:
         return False
@@ -154,6 +183,11 @@ def _violation_message(code: ViolationCode, *, path: Path) -> str:
     if code == "AGENT_MUX_FORBIDDEN":
         return (
             f"{path}: chrome-devtools must not use cdmcp-mux in Agent layer — "
+            f"{FIX_AUTO_CONNECT_HINT}"
+        )
+    if code == "AGENT_E2E_PORT_FORBIDDEN":
+        return (
+            f"{path}: chrome-devtools must not reference E2E :9333 / Myrm ChromeE2E — "
             f"{FIX_AUTO_CONNECT_HINT}"
         )
     if code == "AGENT_MISSING_AUTO_CONNECT":
@@ -201,8 +235,11 @@ def inspect_mcp_json(path: Path) -> McpInspection:
 
     command = _command_text(entry)
     violations: list[str] = []
-    if "cdmcp-mux" in command:
-        violations.append(_violation_message("AGENT_MUX_FORBIDDEN", path=path))
+    if _references_e2e_chrome(entry):
+        if "cdmcp-mux" in command.lower():
+            violations.append(_violation_message("AGENT_MUX_FORBIDDEN", path=path))
+        else:
+            violations.append(_violation_message("AGENT_E2E_PORT_FORBIDDEN", path=path))
     elif not _has_auto_connect(entry):
         violations.append(_violation_message("AGENT_MISSING_AUTO_CONNECT", path=path))
 
