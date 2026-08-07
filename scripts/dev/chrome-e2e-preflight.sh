@@ -171,6 +171,16 @@ _maybe_seed_providers() {
   fi
   MYRM_E2E_MODEL_SEED_FAILED=0
   if [[ -f "${SERVER_DIR}/.env.test" ]]; then
+    if ! PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" "${PREFLIGHT_PY}" -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from env_test_shell_lint import assert_env_test_shell_safe
+assert_env_test_shell_safe(Path('${SERVER_DIR}/.env.test'))
+"; then
+      echo "E2E_ENV_TEST_SHELL_UNSAFE: ${SERVER_DIR}/.env.test is not safe to source (S0)" >&2
+      return 1
+    fi
     set -a
     # shellcheck disable=SC1091
     source "${SERVER_DIR}/.env.test"
@@ -378,6 +388,19 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
       if _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"; then
         continue
       fi
+    fi
+    if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
+      && "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from warm_shell_registry import platform_shell_fresh
+raise SystemExit(0 if platform_shell_fresh(route_path='/') else 1)
+" 2>/dev/null; then
+      echo "CHROME_E2E_ATTACH: epoch warm shell fresh — skip per-lane ui heal (§19.11 TAB-6b)" >&2
+      _admit_poll_touch "CHROME_E2E_ATTACH_WARM_SHELL_FRESH"
+      _admit_poll_budget_or_fail "CHROME_E2E_ATTACH_WARM_SHELL_FRESH" || return $?
+      sleep "${poll_sec}"
+      continue
     fi
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
       && [[ "${waited}" -ge "${ui_heal_next_at}" ]] \
@@ -927,9 +950,7 @@ MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
 MUX_SOCKET="${CDMCP_MUX_SOCKET:-${TMPDIR:-/tmp}/mux-$(id -u)/cdmcp-mux.sock}"
 MUX_USING=0
-if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
-  || grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor-3.1.15/mcp.json" 2>/dev/null \
-  || [[ -f "${MUX_PID_FILE}" ]]; then
+if [[ -f "${MUX_PID_FILE}" ]]; then
   MUX_USING=1
 fi
 
