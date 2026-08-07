@@ -759,13 +759,14 @@ def open_orchestrator_mcp_page(
 
         if hot.eligible:
             set_bootstrap_hot_path("fast_create")
-            # Hot path skips runtime binding — navigate directly (mirror cold post-bind navigate).
             try:
                 created = _open_page_fast_create_with_retry(
                     daemon,
                     session_id,
                     url=url,
                 )
+                if binding_source or hot.needs_binding:
+                    pending_binding = binding_source or None
             except RuntimeError as hot_exc:
                 if not _is_retryable_open_page_error(str(hot_exc)):
                     raise
