@@ -174,16 +174,12 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
 
 
 async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
-    """Save registration credentials to UserConfig DB via existing config API."""
+    """Save registration credentials to UserConfig DB via ConfigService."""
     try:
-        from sqlalchemy import select
-
-        from app.database.connection import get_session
-        from app.database.models import UserConfig
-        from app.services.config.encryption import get_encryption_service
+        from app.services.config.service import ConfigService
 
         config_key = "feishuCredentials"
-        value = {
+        value: dict[str, object] = {
             "appId": creds["app_id"],
             "appSecret": creds["app_secret"],
             "botOpenId": creds.get("bot_open_id") or "",
@@ -195,19 +191,7 @@ async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
             "botPolicy": "deny",
         }
 
-        encryption_service = get_encryption_service()
-        encrypted_value = encryption_service.encrypt_config_value(config_key, value)
-
-        async with get_session() as session:
-            result = await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))
-            existing = result.scalar_one_or_none()
-
-            if existing:
-                existing.config_value = encrypted_value
-            else:
-                session.add(UserConfig(config_key=config_key, config_value=encrypted_value))
-
-            await session.commit()
+        await ConfigService().set(config_key, value, device_id="feishu-qr-register")
 
         logger.info("Feishu QR registration credentials saved to DB")
         from app.api.config.router import _try_hot_register_channel
