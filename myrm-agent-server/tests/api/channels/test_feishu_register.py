@@ -212,6 +212,32 @@ class TestPollQRRegister:
         assert session_id not in _active_sessions
 
 
+class TestSaveCredentialsToDb:
+    @pytest.mark.asyncio
+    async def test_save_uses_config_service(self) -> None:
+        from app.api.channels.feishu_register import _save_credentials_to_db
+
+        mock_set = AsyncMock()
+        with patch("app.services.config.service.ConfigService") as mock_cls:
+            mock_cls.return_value.set = mock_set
+            with patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot:
+                await _save_credentials_to_db(
+                    {
+                        "app_id": "cli_test",
+                        "app_secret": "sec_test",
+                        "domain": "feishu",
+                        "bot_open_id": "ou_bot",
+                    }
+                )
+        mock_set.assert_awaited_once()
+        call_args = mock_set.await_args
+        assert call_args is not None
+        assert call_args.args[0] == "feishuCredentials"
+        assert call_args.args[1]["appId"] == "cli_test"
+        assert call_args.args[1]["transport"] == "websocket"
+        mock_hot.assert_awaited_once_with("feishuCredentials")
+
+
 class TestSessionCleanup:
     def test_cleanup_expired_sessions(self) -> None:
         import time
