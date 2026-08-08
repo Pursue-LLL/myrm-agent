@@ -4,6 +4,7 @@
 - app.api.statistics.context_health (POS: 上下文健康指标构建)
 - app.api.statistics.usage_aggregation (POS: 使用量聚合)
 - myrm_agent_harness.agent.event_log (POS: 事件日志分析框架)
+- app.core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
 
 [OUTPUT]
 - router: Session analytics APIRouter (get_session_analytics, get_session_execution_trace)
@@ -33,6 +34,7 @@ from app.api.statistics.usage_aggregation import aggregate_usage, normalize_usag
 from app.config.settings import settings
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
+from app.core.utils.session_id import is_safe_session_id
 from app.database.connection import get_db
 from app.database.models import Chat, Message
 from app.services.memory.command_center_projection_utils import event_phase
@@ -93,6 +95,12 @@ def _empty_trace_payload(
     }
 
 
+def _validate_session_id(session_id: str) -> None:
+    """Reject IDs outside the safe charset as not-found (no existence oracle)."""
+    if not is_safe_session_id(session_id):
+        raise not_found_error(resource=f"Session {session_id}")
+
+
 @router.get("/session/{session_id}")
 async def get_session_analytics(
     session_id: str,
@@ -104,6 +112,7 @@ async def get_session_analytics(
     Validates session ownership to prevent data leakage.
     """
     try:
+        _validate_session_id(session_id)
         chat_stmt = select(Chat).where(and_(Chat.id == session_id))
         chat_result = await db.execute(chat_stmt)
         chat = chat_result.scalar_one_or_none()
@@ -278,14 +287,16 @@ async def get_session_execution_trace(
     reconstructed from the event log, suitable for timeline visualization.
     """
     try:
+        _validate_session_id(session_id)
+        event_log_file = Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
         chat_stmt = select(Chat.id).where(and_(Chat.id == session_id))
         chat_result = await db.execute(chat_stmt)
-        if not chat_result.scalar_one_or_none():
+        has_chat = chat_result.scalar_one_or_none() is not None
+        if not has_chat and not event_log_file.exists():
             raise not_found_error(resource=f"Session {session_id}")
 
         memory_events = await _build_session_memory_events(db, session_id)
 
-        event_log_file = Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
         if not event_log_file.exists():
             return success_response(
                 data=_empty_trace_payload(session_id, memory_events)

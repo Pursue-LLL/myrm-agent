@@ -5,14 +5,24 @@
 
 [OUTPUT]
 - resolve_chat_agent_id(): agent_id bound to a chat session
+- normalize_agent_scope(): normalize agent_id to a UserConfig scope key
 
 [POS]
-Wiki agent scope resolver. Maps chat_id to agent_id for agent-scoped vault paths.
+Wiki agent scope utilities. Chat→agent resolution for vault paths and
+agent_id→UserConfig scope normalization shared across wiki state stores.
 """
 
 from __future__ import annotations
 
 from app.services.chat.chat_service import ChatService
+
+DEFAULT_AGENT_SCOPE = "__default__"
+
+
+def normalize_agent_scope(agent_id: str | None) -> str:
+    """Normalize an optional agent_id to a stable UserConfig scope key."""
+    trimmed = (agent_id or "").strip()
+    return trimmed or DEFAULT_AGENT_SCOPE
 
 
 async def resolve_chat_agent_id(chat_id: str | None) -> str | None:

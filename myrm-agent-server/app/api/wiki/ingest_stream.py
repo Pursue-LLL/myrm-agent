@@ -33,7 +33,7 @@ async def get_wiki_archiver_for_ingest_stream(
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> MemoryToWikiArchiver:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     return get_wiki_archiver(llm, manager, agent_id=agent_id)
 

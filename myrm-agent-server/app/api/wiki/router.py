@@ -81,7 +81,7 @@ async def _after_wiki_vault_mutation(
     archiver: MemoryToWikiArchiver, reason: str
 ) -> None:
     """Drop stats cache and commit vault git snapshot after wiki mutations."""
-    from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
+    from app.services.wiki.vault import after_wiki_vault_mutation
 
     await after_wiki_vault_mutation(archiver, reason)
 
@@ -452,7 +452,7 @@ async def _get_wiki_archiver(
     ] = None,
 ) -> MemoryToWikiArchiver:
     """Get wiki archiver bound to an agent-scoped vault path."""
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     return get_wiki_archiver(llm, manager, agent_id=agent_id)
 
@@ -729,7 +729,7 @@ async def maintain_wiki(
     try:
         from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
-        from app.services.wiki.maintain_runner import run_wiki_maintain_job
+        from app.services.wiki.maintain import run_wiki_maintain_job
 
         maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
         result = await run_wiki_maintain_job(
@@ -1097,7 +1097,7 @@ async def get_wiki_stats(
     ] = None,
 ) -> WikiStatsResponse:
     try:
-        from app.services.wiki.vault_resolver import (
+        from app.services.wiki.vault import (
             is_legacy_migration_complete,
             is_vault_ready,
         )
@@ -1121,7 +1121,7 @@ async def get_wiki_stats(
             ensure_archiver_asset_indexer,
             wiki_asset_index_enabled,
         )
-        from app.services.wiki.vault_git_status import read_vault_git_status
+        from app.services.wiki.vault import read_vault_git_status
 
         await ensure_archiver_asset_indexer(archiver)
         asset_enabled = await wiki_asset_index_enabled()
@@ -1148,7 +1148,7 @@ async def get_wiki_stats(
             )
         git_status = read_vault_git_status(archiver._structure, archiver._config)
         from app.database.connection import get_session
-        from app.services.wiki.maintain_state_store import load_wiki_maintain_state
+        from app.services.wiki.maintain import load_wiki_maintain_state
 
         async with get_session() as db:
             maintain = await load_wiki_maintain_state(db, agent_id=agent_id)
@@ -2117,7 +2117,7 @@ async def ingest_artifact(
     from app.database.connection import get_session
     from app.database.models.artifact import Artifact
     from app.services.wiki.agent_scope import resolve_chat_agent_id
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     workspace_root = get_workspace_root()
     try:
@@ -2626,7 +2626,7 @@ async def _process_obsidian_vault(
     agent_id: str | None = None,
 ) -> ObsidianImportResultResponse:
     """Shared logic for processing an Obsidian vault directory into Wiki."""
-    from app.services.wiki.obsidian_adapter import (
+    from app.services.wiki.obsidian import (
         ObsidianImportStats,
         prepare_obsidian_file,
     )
@@ -2901,7 +2901,7 @@ async def export_wiki_vault(
         iter_vault_files,
     )
 
-    from app.services.wiki.vault_export import build_wiki_export_zip
+    from app.services.wiki.vault import build_wiki_export_zip
 
     structure = archiver._structure
     if not iter_vault_files(structure):

@@ -31,6 +31,11 @@ async def test_kanban_task_runner_uses_unattended_mode():
 
     mock_model_cfg = ModelConfig(model="test-model", api_key="test-key")
 
+    mock_settings = MagicMock()
+    mock_settings.database = MagicMock()
+    mock_settings.database.event_log_dir = "/tmp/test-event-logs"
+    mock_settings.event_log_max_jsonl_line_bytes = 1024
+
     with (
         patch(
             "app.ai_agents.agents.AgentFactory.create_general_agent"
@@ -57,6 +62,10 @@ async def test_kanban_task_runner_uses_unattended_mode():
             "app.services.agent.swarm_fission_resume.stream_with_swarm_fission_resume",
             new_callable=AsyncMock,
         ) as mock_stream,
+        patch(
+            "app.config.settings.get_settings",
+            return_value=mock_settings,
+        ),
     ):
         mock_build_context.return_value = "test context"
         mock_resolve_profile.return_value = None
@@ -86,6 +95,12 @@ async def test_kanban_task_runner_uses_unattended_mode():
         assert (
             params.unattended_mode is True
         ), "Kanban tasks must run in unattended_mode to prevent blocking"
+        assert (
+            params.event_log_dir == "/tmp/test-event-logs"
+        ), "Kanban tasks must write event logs so runs trace is available"
+        assert (
+            params.event_log_max_jsonl_line_bytes == 1024
+        ), "Kanban task event logs must cap JSONL line bytes"
 
 
 class TestResolvedProfile:

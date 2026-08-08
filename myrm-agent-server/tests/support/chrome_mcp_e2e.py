@@ -190,11 +190,22 @@ def prepare_e2e_ui_session(api_url: str) -> None:
 
     if current_access_scope() == "READ":
         return
-    http_json(
-        "POST",
-        f"{api_url}/api/v1/config/onboarding/complete",
-        expected_statuses=frozenset({200, 201}),
-    )
+    last_error: BaseException | None = None
+    for attempt in range(1, 4):
+        try:
+            http_json(
+                "POST",
+                f"{api_url}/api/v1/config/onboarding/complete",
+                expected_statuses=frozenset({200, 201}),
+            )
+            return
+        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
+            last_error = exc
+            if attempt >= 3:
+                break
+            time.sleep(min(2.0 * attempt, 6.0))
+    if last_error is not None:
+        raise last_error
 
 
 def guarded_httpx_request(

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat business facade)
-- app.services.wiki.vault_service::get_wiki_archiver (POS: shared wiki archiver accessor)
+- app.services.wiki.vault::get_wiki_archiver (POS: shared wiki archiver accessor)
 - app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving service)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from langchain_core.language_models import BaseChatModel
 from app.services.chat.chat_service import ChatService
 from app.services.wiki.agent_scope import resolve_chat_agent_id
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_service import get_wiki_archiver
+from app.services.wiki.vault import get_wiki_archiver
 
 logger = logging.getLogger(__name__)
 

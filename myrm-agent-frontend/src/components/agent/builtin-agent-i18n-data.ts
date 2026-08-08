@@ -468,6 +468,26 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Professionelles E-Mail-Verfassen — Kaltakquise, Follow-ups, Verhandlungen und Geschäftskommunikation.',
     },
   },
+  'builtin-ko-office': {
+    en: {
+      name: 'Korean Office Assistant',
+      description: 'Formal Korean business assistant for email, meeting notes, and office workflows.',
+    },
+    zh: { name: '韩语办公助手', description: '正式韩语商务助手——邮件、会议纪要、办公流程。' },
+    'zh-TW': { name: '韓語辦公助手', description: '正式韓語商務助手——郵件、會議紀要、辦公流程。' },
+    ja: {
+      name: '韓国語オフィスアシスタント',
+      description: 'ビジネスメール、議事録、オフィス業務向けの丁寧な韓国語アシスタント。',
+    },
+    ko: {
+      name: '한국어 오피스 어시스턴트',
+      description: '이메일, 회의록, 사무 업무를 위한 정중한 한국어(합니다체) 비즈니스 어시스턴트.',
+    },
+    de: {
+      name: 'Koreanischer Büro-Assistent',
+      description: 'Formeller koreanischer Business-Assistent für E-Mails, Meeting-Notizen und Büro-Workflows.',
+    },
+  },
   'builtin-automation': {
     en: {
       name: 'Automation Builder',

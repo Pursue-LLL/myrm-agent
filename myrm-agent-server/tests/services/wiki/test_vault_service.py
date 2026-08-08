@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.services.wiki.vault_service import (
+from app.services.wiki.vault import (
     get_wiki_archiver,
     init_wiki_vault_at_startup,
     reset_wiki_archiver_cache_for_tests,
@@ -69,11 +69,11 @@ async def test_init_wiki_vault_at_startup_runs_migration(tmp_path: Path) -> None
     with (
         patch("app.config.settings.settings") as mock_settings,
         patch(
-            "app.services.wiki.vault_service.migrate_legacy_wiki_vaults",
+            "app.services.wiki.vault.service.migrate_legacy_wiki_vaults",
             return_value=MagicMock(skipped=False, files_copied=2),
         ) as mock_migrate,
         patch(
-            "app.services.wiki.vault_service.WikiStructure",
+            "app.services.wiki.vault.service.WikiStructure",
             return_value=mock_structure,
         ) as mock_ws,
     ):

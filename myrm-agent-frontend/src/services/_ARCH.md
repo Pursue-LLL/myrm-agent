@@ -14,7 +14,7 @@
 | `channels/` | 核心工厂、管理 API、Provider 凭证、登录协议 · [_ARCH.md](channels/_ARCH.md) |
 | `connect.ts` | Connect Wizard：`/connect/profiles|generate|doctor|revoke|status`；外部 Agent MCP 连接管理（generate 携带 agent_id 实现 per-agent 记忆作用域） |
 | `extension.ts` | 浏览器扩展桥：`/extension/status|domains|tabs|disconnect|clip-agent|setup-hints`；`getExtensionWebSocketUrl()`；`getExtensionClipAgentConfig` / `updateExtensionClipAgentConfig`（Wiki 剪藏 vault SSOT）。**REST 须传 `apiRequest('/extension/...')` 相对路径**（禁止 `getApiUrl()` 再包一层，否则 `fetchWithTimeout` 二次前缀 → `/api/v1/api/v1/...` 404）；loopback dev WS 回退端口 **8080**（`isLoopbackDevHost()`） |
-| `llm-config.ts` | Provider / 模型探测 |
+| `llm-config.ts` | Provider / 模型探测 + 模型能力批量探测 + 模型切换压缩预检（`fetchModelSwitchPreflight`，签名含 estimatedTokens/compressStartRatio/promptMode/turnCount，会话维度 LRU 缓存上限 100 条防内存泄漏） |
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
 | `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |

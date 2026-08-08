@@ -72,7 +72,7 @@ async def test_build_subagent_wiki_query_returns_callable(monkeypatch) -> None:
             return f"answer:{question}"
 
     monkeypatch.setattr(
-        "app.services.wiki.vault_service.get_wiki_archiver",
+        "app.services.wiki.vault.get_wiki_archiver",
         lambda *_args, **_kwargs: FakeArchiver(),
     )
 

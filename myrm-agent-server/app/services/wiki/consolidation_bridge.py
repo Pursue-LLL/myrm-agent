@@ -57,7 +57,7 @@ async def archive_consolidation_insights_to_wiki(
     if not insight_lines:
         return
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(llm, agent_id=agent_id)
     structure = archiver._structure

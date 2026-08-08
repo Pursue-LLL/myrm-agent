@@ -204,6 +204,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft
 - `tests/api/skills/conftest.py`：minimal app 含 drafts/curator/sync/evolution/skill-growth 路由
 - `tests/api/integrations/test_llm_speed_test.py`：`POST /api/v1/integrations/llm/speed-test`
+- `tests/api/integrations/test_model_switch_preflight.py`：`POST /api/v1/integrations/llm/model-switch-preflight`（tier 推断 / 显式比例 clamp / prompt_mode 回退 / 多模型）
 - `tests/api/notifications/conftest.py`：in-memory DB + loopback auth（通知 API 集成测）
 - `tests/api/config/test_readiness_e2e.py`、`tests/api/security/test_generate_policy_e2e.py`：`@pytest.mark.e2e`（默认套件不收集）
 

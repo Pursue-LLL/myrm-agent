@@ -532,7 +532,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     if node_elapsed is None:
         return None
     from dev_gate_contract import (  # noqa: PLC0415
+        E2E_ADMIT_NODE_STUCK_TOKEN,
         NODE_STUCK_FAIL_FAST_SEC,
+        is_admit_semantic_stall_node,
         resolve_transport_stall_cap_sec,
     )
     from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
@@ -546,6 +548,15 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             return admit_semantic
         if elapsed_f < _admit_wall_cap_for_pid(row.pid):
             return None
+        # R285: ADMIT semantic node past the admit wall must keep the ADMIT
+        # token (not fall through to generic E2E_NODE_STUCK) so force-kill and
+        # signoff peer immunity classification stay aligned with e2e-context.
+        if is_admit_semantic_stall_node(current_node):
+            wall_sec = int(_admit_wall_cap_for_pid(row.pid))
+            return (
+                f"{E2E_ADMIT_NODE_STUCK_TOKEN}: node={current_node!r} "
+                f"node_elapsed={int(elapsed_f)}s>={wall_sec}s"
+            )
     if wall == "body":
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None

@@ -65,6 +65,8 @@ export interface AgentConfig {
   routingConfig?: RoutingConfig | null;
   busyInputMode?: BusyInputMode;
   engineParams?: Record<string, unknown> | null;
+  /** Agent prompt 模式（full/lean/naked/search），与 server agents.prompt_mode 对齐，用于模型切换压缩预检。 */
+  promptMode?: 'full' | 'lean' | 'naked' | 'search';
 }
 
 // 已选模型配置

@@ -24,7 +24,7 @@ Server 侧 clip 任务编排：multipart 大小守卫 + 异步 job runner，委�
 ## 依赖
 
 - `myrm_agent_harness.toolkits.wiki.pipeline.ingress` (POS: clip ingress SSOT)
-- `app.services.wiki.vault_service` (POS: wiki archiver)
+- `app.services.wiki.vault` (POS: wiki archiver)
 - `app.services.wiki.dedup_runner` (POS: post-clip dedup scan)
 - `app.services.wiki.ingest_events` (POS: Settings Wiki ingest SSE tree/stats refresh)
 

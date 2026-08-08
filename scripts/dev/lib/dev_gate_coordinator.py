@@ -135,6 +135,12 @@ class CoordinatorService:
             return {"session": record.to_dict()}
         if operation == "ownership":
             return self._ownership(request)
+        if operation == "destroy":
+            record = self.store.destroy_ownership(
+                _required_text(request, "session_id"),
+                _required_text(request, "owner_token"),
+            )
+            return {"session": record.to_dict()}
         if operation == "cleanup":
             return self._cleanup(request)
         if operation == "teardown_finish":
@@ -145,6 +151,7 @@ class CoordinatorService:
                 _required_text(request, "owner_token"),
                 succeeded=request.get("succeeded") is True,
                 failure_token=_optional_text(request, "failure_token"),
+                pytest_evidence_hash=_optional_text(request, "pytest_evidence_hash"),
             )
             from idle_hygiene_scheduler import (
                 run_idle_tab_hygiene_if_safe,
@@ -459,6 +466,7 @@ class CoordinatorService:
             receipt,
             succeeded=request.get("succeeded") is True,
             failure_token=_optional_text(request, "failure_token"),
+            pytest_evidence_hash=_optional_text(request, "pytest_evidence_hash"),
         )
         from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
 

@@ -219,6 +219,7 @@ class AgentFactory:
 
         from app.ai_agents.general_agent import GeneralAgent
         from app.config.settings import get_settings
+        from app.core.utils.session_id import is_safe_session_id
 
         if params.enable_browser and params.prompt_mode != "search":
             from app.services.agent.browser_skill_binding import (
@@ -234,7 +235,11 @@ class AgentFactory:
             params.agent_skill_configs = skill_configs
 
         event_log_backend = None
-        if params.event_log_dir and params.chat_id:
+        if (
+            params.event_log_dir
+            and params.chat_id
+            and is_safe_session_id(params.chat_id)
+        ):
             log_dir = Path(params.event_log_dir)
             log_dir.mkdir(parents=True, exist_ok=True)
             line_max = (

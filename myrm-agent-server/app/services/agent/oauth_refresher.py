@@ -214,6 +214,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
 
                         row.config_value = final_value
+                        row.is_encrypted = is_enc
                         flag_modified(row, "config_value")
                         await db_session.commit()
 
@@ -320,6 +321,7 @@ async def _refresh_copilot_token(
             final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
 
             row.config_value = final_value
+            row.is_encrypted = is_enc
             flag_modified(row, "config_value")
             await db_session.commit()
 

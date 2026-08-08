@@ -30,7 +30,7 @@ async def test_wiki_ingest_stream_route_exists() -> None:
         "app.api.wiki.ingest_stream.wiki_ingest_event_bus.stream_scope",
         new=_fake_stream_scope,
     ), patch(
-        "app.services.wiki.vault_service.get_wiki_archiver",
+        "app.services.wiki.vault.get_wiki_archiver",
         return_value=mock_archiver,
     ):
         transport = ASGITransport(app=app)

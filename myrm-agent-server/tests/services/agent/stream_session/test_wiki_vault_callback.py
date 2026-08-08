@@ -51,11 +51,11 @@ def _wiki_vault_callback_patches(
         compiler.enqueue_file = MagicMock()
     with (
         patch(
-            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            "app.services.wiki.vault.resolve_wiki_vault_path",
             return_value=wiki_dir,
         ),
         patch(
-            "app.services.wiki.vault_service.get_wiki_archiver",
+            "app.services.wiki.vault.get_wiki_archiver",
             return_value=_mock_wiki_archiver(compiler),
         ),
         patch(
@@ -338,7 +338,7 @@ class TestBuildWikiVaultCallback:
 
         with (
             patch(
-                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                "app.services.wiki.vault.resolve_wiki_vault_path",
                 return_value=wiki_dir,
             ),
             patch(

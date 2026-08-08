@@ -456,7 +456,7 @@ class TestWikiConceptPart:
 
         vault = self._make_wiki_vault({"machine-learning": "# ML\nSupervised and unsupervised learning."})
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_concept_part("machine-learning", 0)
 
         assert 'path="@wiki:machine-learning"' in result
@@ -472,7 +472,7 @@ class TestWikiConceptPart:
 
         vault = self._make_wiki_vault()
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_concept_part("nonexistent", 0)
 
         assert 'error="concept not found"' in result
@@ -486,7 +486,7 @@ class TestWikiConceptPart:
 
         vault = self._make_wiki_vault({"big-concept": "x" * (_MENTION_MAX_INLINE_BYTES + 1)})
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_concept_part("big-concept", 0)
 
         assert "Concept too large" in result
@@ -499,7 +499,7 @@ class TestWikiConceptPart:
         from app.services.agent.params.mention import _wiki_concept_part
 
         with patch(
-            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            "app.services.wiki.vault.resolve_wiki_vault_path",
             side_effect=RuntimeError("disk failure"),
         ):
             result, consumed = await _wiki_concept_part("test", 0)
@@ -529,7 +529,7 @@ class TestWikiRawFilePart:
 
         vault = self._make_wiki_vault({"report.md": "# Q3 Report\nRevenue grew 30%."})
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_raw_file_part("report.md", "report.md", 0)
 
         assert 'type="wiki-raw-file"' in result
@@ -544,7 +544,7 @@ class TestWikiRawFilePart:
 
         vault = self._make_wiki_vault()
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_raw_file_part("missing.pdf", "missing.pdf", 0)
 
         assert 'error="raw file not found"' in result
@@ -558,7 +558,7 @@ class TestWikiRawFilePart:
 
         vault = self._make_wiki_vault({"huge.txt": "y" * (_MENTION_MAX_INLINE_BYTES + 1)})
 
-        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
             result, consumed = await _wiki_raw_file_part("huge.txt", "huge.txt", 0)
 
         assert "File too large" in result
@@ -571,7 +571,7 @@ class TestWikiRawFilePart:
         from app.services.agent.params.mention import _wiki_raw_file_part
 
         with patch(
-            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            "app.services.wiki.vault.resolve_wiki_vault_path",
             side_effect=RuntimeError("io error"),
         ):
             result, consumed = await _wiki_raw_file_part("file.txt", "file.txt", 0)

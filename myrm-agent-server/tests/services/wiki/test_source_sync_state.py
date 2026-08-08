@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.wiki.source_sync.agent_scope import DEFAULT_AGENT_SCOPE
+from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
 from app.services.wiki.source_sync.schemas import WikiSourceSyncResult, WikiSourceSyncRunSummary, WikiSourceSyncState
 from app.services.wiki.source_sync.state_store import (
     STATE_KEY,

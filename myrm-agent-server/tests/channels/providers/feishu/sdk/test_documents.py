@@ -464,6 +464,58 @@ class TestDocx:
         assert result["code"] == 0
 
     @pytest.mark.asyncio
+    async def test_get_blocks_paginates_until_exhausted(self, client: FeishuClient) -> None:
+        page1 = _mock_response(
+            200,
+            {
+                "code": 0,
+                "data": {
+                    "items": [{"block_id": "b1"}],
+                    "has_more": True,
+                    "page_token": "tok-2",
+                },
+            },
+        )
+        page2 = _mock_response(
+            200,
+            {
+                "code": 0,
+                "data": {
+                    "items": [{"block_id": "b2"}],
+                    "has_more": False,
+                },
+            },
+        )
+        client._http.get = AsyncMock(side_effect=[page1, page2])
+        result = await client.get_docx_blocks("doc_001")
+        assert result["code"] == 0
+        items = result["data"]["items"]
+        assert [item["block_id"] for item in items] == ["b1", "b2"]
+        assert client._http.get.await_args_list[1].kwargs["params"]["page_token"] == "tok-2"
+
+    @pytest.mark.asyncio
+    async def test_get_blocks_stops_on_api_error(self, client: FeishuClient) -> None:
+        resp = _mock_response(200, {"code": 99, "msg": "fail"})
+        client._http.get = AsyncMock(return_value=resp)
+        result = await client.get_docx_blocks("doc_001")
+        assert result["code"] == 99
+
+    @pytest.mark.asyncio
+    async def test_download_media_success(self, client: FeishuClient) -> None:
+        resp = _mock_response(200, {"code": 0})
+        resp.content = b"\x89PNG\r\n\x1a\nfake-image"
+        client._http.get = AsyncMock(return_value=resp)
+        data = await client.download_media("img_v2_abc")
+        assert data == b"\x89PNG\r\n\x1a\nfake-image"
+
+    @pytest.mark.asyncio
+    async def test_download_media_failure_returns_none(self, client: FeishuClient) -> None:
+        resp = _mock_response(403, {"code": 99991663, "msg": "no permission"})
+        client._http.get = AsyncMock(return_value=resp)
+        assert await client.download_media("img_v2_abc") is None
+        assert await client.download_media("  ") is None
+
+    @pytest.mark.asyncio
     async def test_append_blocks_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.post = AsyncMock(return_value=resp)

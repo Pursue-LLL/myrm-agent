@@ -27,7 +27,6 @@ def client() -> TestClient:
 def test_wiki_apply_create_note_and_editor_sections(client: TestClient) -> None:
     create = client.post(
         "/api/v1/wiki/apply",
-        params={"caller": "chat"},
         json={
             "op": "create_note",
             "concept_name": "integration/apply-note",
@@ -45,6 +44,20 @@ def test_wiki_apply_create_note_and_editor_sections(client: TestClient) -> None:
     concept = get_resp.json()
     assert concept["editor_sections"]["compiled_truth"] == "Integration summary body"
     assert concept["editor_sections"]["tags"] == []
+
+
+def test_wiki_apply_chat_forbidden_create_note(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/wiki/apply",
+        params={"caller": "chat"},
+        json={
+            "op": "create_note",
+            "concept_name": "integration/chat-note",
+            "body": "Body",
+        },
+    )
+    assert response.status_code == 403, response.text
+    assert response.json()["detail"]["code"] == "forbidden_for_caller"
 
 
 def test_wiki_apply_patch_and_append_timeline(client: TestClient) -> None:

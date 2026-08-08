@@ -378,9 +378,27 @@ _frontend_curl_seconds() {
   curl -sf --max-time 5 -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
 }
 
+_frontend_html_probe_ok() {
+  # W2 #4: SSOT dual probe — fresh TCP connect + first-packet HTML (not cached urlopen 200).
+  local py probe_timeout
+  py="${PREFLIGHT_PY:-python3}"
+  probe_timeout="$(_attach_ui_probe_timeout_sec)"
+  "${py}" - "${_MYRM_WARMUP_LIB_DIR}" "${APP_URL}" "${probe_timeout}" <<'PY' 2>/dev/null
+import sys
+sys.path.insert(0, sys.argv[1])
+from runtime_identity import frontend_tcp_html_probe_ok
+sys.exit(0 if frontend_tcp_html_probe_ok(sys.argv[2], timeout_sec=float(sys.argv[3])) else 1)
+PY
+}
+
 _frontend_compile_hot_status() {
   if ! _frontend_port_listening; then
     echo "down"
+    return 0
+  fi
+  # W2 #4: cached warmth must not fake liveness — require live TCP+HTML before any "yes".
+  if ! _frontend_html_probe_ok; then
+    echo "no"
     return 0
   fi
   if _frontend_warmth_recorded; then

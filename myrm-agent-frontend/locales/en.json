@@ -1644,6 +1644,8 @@
       "noEnabledModels": "Please enable models in Model Service first",
       "noMatchingModels": "No matching models",
       "orgPolicyRestricted": "Restricted by organization policy",
+      "preflightCompress": "Compresses",
+      "preflightCompressDetail": "Switching now will compress context on the next message (threshold: {threshold} tokens)",
       "moaPreset": {
         "groupTitle": "Mixture of Agents",
         "defaultLabel": "Standard",
@@ -5295,7 +5297,9 @@
           "failure": "Failure",
           "cancelled": "Cancelled",
           "unknown": "Unknown"
-        }
+        },
+        "llmCalls": "LLM Invocations",
+        "saveAsEval": "Save as Eval Case"
       },
       "replay": {
         "title": "Session Replay",
@@ -6277,6 +6281,10 @@
     "allowDiscovery": {
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can find and delegate to this agent via @ mentions or auto team formation. Disable to hide work-in-progress agents."
+    },
+    "formalKoreanReplies": {
+      "title": "Formal Korean replies",
+      "description": "Replies use polite formal Korean (hamnida style) suited for business email, meeting notes, and office workflows."
     },
     "openapi": {
       "title": "OpenAPI Services",
@@ -10885,7 +10893,8 @@
     "stopReasonTimedOut": "Execution timed out",
     "stopReasonCancelled": "Run cancelled",
     "stopReasonError": "Execution failed",
-    "stopReasonUnknown": "Stopped for an unknown reason"
+    "stopReasonUnknown": "Stopped for an unknown reason",
+    "executionTrace": "Execution trace"
   },
   "cron": {
     "sectionTitle": "Scheduled Tasks",
@@ -15231,7 +15240,9 @@
         "failure": "Failure",
         "cancelled": "Cancelled",
         "unknown": "Unknown"
-      }
+      },
+      "llmCalls": "LLM Invocations",
+      "saveAsEval": "Save as Eval Case"
     },
     "replay": {
       "title": "Session Replay",

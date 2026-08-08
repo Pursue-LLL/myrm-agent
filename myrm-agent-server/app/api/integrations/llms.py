@@ -24,7 +24,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _MODELS_DISCOVERY_TIMEOUT_S = 8.0
-_KNOWN_ENDPOINT_SUFFIXES = ("/chat/completions", "/completions", "/embeddings", "/models")
+_KNOWN_ENDPOINT_SUFFIXES = (
+    "/chat/completions",
+    "/completions",
+    "/embeddings",
+    "/models",
+)
 _LOCAL_NO_AUTH_KEY_MARKER = "__myrm_local_no_auth__"
 
 
@@ -66,7 +71,13 @@ def _build_models_candidates(base_url: str) -> list[str]:
         if parts:
             parent1 = "/" + "/".join(parts[:-1]) if len(parts) > 1 else ""
             parent2 = "/" + "/".join(parts[:-2]) if len(parts) > 2 else ""
-            candidates.append(urlunparse(parsed._replace(path=(parent1 + "/models") if parent1 else "/models")))
+            candidates.append(
+                urlunparse(
+                    parsed._replace(
+                        path=(parent1 + "/models") if parent1 else "/models"
+                    )
+                )
+            )
             if parent2:
                 candidates.append(urlunparse(parsed._replace(path=f"{parent2}/models")))
 
@@ -75,7 +86,9 @@ def _build_models_candidates(base_url: str) -> list[str]:
         candidates.append(urlunparse(parsed._replace(path="/api/v1/models")))
         candidates.append(urlunparse(parsed._replace(path="/api/models")))
 
-    candidates.append(urlunparse(parsed._replace(path=f"{path}/models" if path else "/models")))
+    candidates.append(
+        urlunparse(parsed._replace(path=f"{path}/models" if path else "/models"))
+    )
     deduped = list(dict.fromkeys(candidates))
     return [url.rstrip("/") for url in deduped]
 
@@ -84,12 +97,24 @@ def _extract_model_ids(payload: object) -> list[str]:
     if isinstance(payload, dict):
         raw_data = payload.get("data")
         if isinstance(raw_data, list):
-            return [str(item.get("id")) for item in raw_data if isinstance(item, dict) and item.get("id")]
+            return [
+                str(item.get("id"))
+                for item in raw_data
+                if isinstance(item, dict) and item.get("id")
+            ]
         raw_models = payload.get("models")
         if isinstance(raw_models, list):
-            return [str(item.get("id")) for item in raw_models if isinstance(item, dict) and item.get("id")]
+            return [
+                str(item.get("id"))
+                for item in raw_models
+                if isinstance(item, dict) and item.get("id")
+            ]
     if isinstance(payload, list):
-        return [str(item.get("id")) for item in payload if isinstance(item, dict) and item.get("id")]
+        return [
+            str(item.get("id"))
+            for item in payload
+            if isinstance(item, dict) and item.get("id")
+        ]
     return []
 
 
@@ -111,29 +136,43 @@ def _apply_local_no_auth_marker_transport_overrides(
     api_key: object,
 ) -> dict[str, object]:
     """Normalize model_kwargs and suppress synthetic local marker auth headers."""
-    model_kwargs: dict[str, object] = dict(model_kwargs_raw) if isinstance(model_kwargs_raw, dict) else {}
+    model_kwargs: dict[str, object] = (
+        dict(model_kwargs_raw) if isinstance(model_kwargs_raw, dict) else {}
+    )
     if api_key != _LOCAL_NO_AUTH_KEY_MARKER:
         return model_kwargs
 
     raw_extra_headers = model_kwargs.get("extra_headers")
-    extra_headers = dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
+    extra_headers = (
+        dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
+    )
     extra_headers["Authorization"] = ""
     model_kwargs["extra_headers"] = extra_headers
     return model_kwargs
 
 
 class ModelDiscoveryRequest(BaseModel):
-    api_url: str = Field(..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL")
-    api_key: str | None = Field(default=None, description="Optional API key (required for non-local endpoints)")
+    api_url: str = Field(
+        ..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL"
+    )
+    api_key: str | None = Field(
+        default=None, description="Optional API key (required for non-local endpoints)"
+    )
 
 
 class ModelDiscoveryResult(BaseModel):
     success: bool = Field(..., description="Whether model discovery succeeded")
     normalized_api_url: str = Field(..., description="Normalized API base URL")
-    models_url: str | None = Field(default=None, description="Resolved models endpoint URL")
+    models_url: str | None = Field(
+        default=None, description="Resolved models endpoint URL"
+    )
     models: list[str] = Field(default_factory=list, description="Discovered model IDs")
-    no_auth_local: bool = Field(default=False, description="Whether no-auth local policy was used")
-    error: str | None = Field(default=None, description="Error message when discovery fails")
+    no_auth_local: bool = Field(
+        default=False, description="Whether no-auth local policy was used"
+    )
+    error: str | None = Field(
+        default=None, description="Error message when discovery fails"
+    )
 
 
 @router.post("/discover-models", response_model=StandardSuccessResponse)
@@ -183,7 +222,9 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
     allow_loopback_host = bool(parsed.hostname and is_loopback and is_local_mode())
     allowed_hosts = [parsed.hostname] if allow_loopback_host else None
 
-    async with create_httpx_client(timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False) as client:
+    async with create_httpx_client(
+        timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False
+    ) as client:
         for models_url in candidates:
             response: httpx.Response | None = None
             try:
@@ -295,7 +336,9 @@ class ReachabilityResult(BaseModel):
     """Model reachability check result."""
 
     reachable: bool = Field(..., description="Whether the model endpoint is reachable")
-    latency_ms: int | None = Field(default=None, description="Round-trip latency in milliseconds")
+    latency_ms: int | None = Field(
+        default=None, description="Round-trip latency in milliseconds"
+    )
     error: str | None = Field(default=None, description="Error message if unreachable")
     cached: bool = Field(default=False, description="Whether result came from cache")
 
@@ -345,7 +388,9 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
 
     try:
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
-        from myrm_agent_harness.toolkits.llms.fallback.health_check import lightweight_health_check
+        from myrm_agent_harness.toolkits.llms.fallback.health_check import (
+            lightweight_health_check,
+        )
 
         llm = await llm_tools.get_llm(**kwargs)
         start = time.monotonic()
@@ -392,13 +437,23 @@ class ModelCapabilities(BaseModel):
     """模型能力信息"""
 
     supports_vision: bool = Field(default=False, description="是否支持视觉/图像输入")
-    supports_function_calling: bool = Field(default=False, description="是否支持函数调用")
+    supports_function_calling: bool = Field(
+        default=False, description="是否支持函数调用"
+    )
     supports_reasoning: bool = Field(default=False, description="是否支持推理")
     supports_web_search: bool = Field(default=False, description="是否支持网页搜索")
-    supports_prompt_caching: bool = Field(default=False, description="是否支持提示词缓存")
-    input_cost_per_token: float | None = Field(default=None, description="每个输入 token 的成本（美元）")
-    output_cost_per_token: float | None = Field(default=None, description="每个输出 token 的成本（美元）")
-    max_tokens: int | None = Field(default=None, description="最大 token 数（输入+输出）")
+    supports_prompt_caching: bool = Field(
+        default=False, description="是否支持提示词缓存"
+    )
+    input_cost_per_token: float | None = Field(
+        default=None, description="每个输入 token 的成本（美元）"
+    )
+    output_cost_per_token: float | None = Field(
+        default=None, description="每个输出 token 的成本（美元）"
+    )
+    max_tokens: int | None = Field(
+        default=None, description="最大 token 数（输入+输出）"
+    )
     max_input_tokens: int | None = Field(default=None, description="最大输入 token 数")
     max_output_tokens: int | None = Field(default=None, description="最大输出 token 数")
 
@@ -407,7 +462,9 @@ class ModelCandidate(BaseModel):
     """候选模型信息"""
 
     provider: str = Field(..., description="提供商名称（如 openrouter, zai）")
-    model_key: str = Field(..., description="完整的模型键名（如 openrouter/zai/glm-4.5v）")
+    model_key: str = Field(
+        ..., description="完整的模型键名（如 openrouter/zai/glm-4.5v）"
+    )
     capabilities: ModelCapabilities = Field(..., description="模型能力信息")
 
 
@@ -415,8 +472,12 @@ class ModelInfoResponse(BaseModel):
     """模型信息响应"""
 
     found: bool = Field(..., description="是否精确匹配找到模型")
-    capabilities: ModelCapabilities | None = Field(default=None, description="精确匹配时的模型能力")
-    candidates: list[ModelCandidate] | None = Field(default=None, description="模糊匹配时的候选模型列表")
+    capabilities: ModelCapabilities | None = Field(
+        default=None, description="精确匹配时的模型能力"
+    )
+    candidates: list[ModelCandidate] | None = Field(
+        default=None, description="模糊匹配时的候选模型列表"
+    )
 
 
 class ModelInfoRequest(BaseModel):
@@ -429,6 +490,51 @@ class ModelInfoBatchRequest(BaseModel):
     """批量模型信息请求"""
 
     models: list[str] = Field(..., description="模型名称列表")
+
+
+class ModelSwitchPreflightItem(BaseModel):
+    """模型切换压缩预检输入项"""
+
+    model: str = Field(..., description="目标模型名（LiteLLM 格式）")
+    max_input_tokens: int | None = Field(
+        default=None,
+        description="目标模型上下文窗口（前端能力探测结果）；缺省时后端尝试解析",
+    )
+
+
+class ModelSwitchPreflightRequest(BaseModel):
+    """模型切换压缩预检请求"""
+
+    estimated_tokens: int = Field(..., gt=0, description="当前会话估算 tokens")
+    compress_start_ratio: float | None = Field(
+        default=None,
+        description="显式压缩起始比例（agent 引擎配置）；缺省按目标模型 tier 推断。"
+        "越界值由 harness ContextConfig 内部 clamp 到 [0.20, 0.85]，与运行时口径一致",
+    )
+    prompt_mode: str | None = Field(
+        default=None,
+        description="agent prompt 模式（full/lean/naked/search）。仅 full 或未配置时按模型 tier 推断压缩比例，"
+        "否则回退默认 0.5，与 factory._apply_small_model_tuning 的触发条件保持一致",
+    )
+    turn_count: int | None = Field(
+        default=None,
+        ge=0,
+        description="当前会话 human 消息数（轮数）。提供时按运行时动态阈值判定压缩（长会话阈值收紧），"
+        "与 compress_processor 的 calculate_dynamic_thresholds 口径一致；缺省回退静态阈值",
+    )
+    models: list[ModelSwitchPreflightItem] = Field(..., description="目标模型列表")
+
+
+class ModelSwitchPreflightResult(BaseModel):
+    """模型切换压缩预检结果"""
+
+    model: str = Field(..., description="目标模型名")
+    found: bool = Field(default=False, description="是否成功解析目标窗口")
+    new_window: int | None = Field(default=None, description="目标模型上下文窗口")
+    compress_threshold: int | None = Field(
+        default=None, description="切换后压缩触发阈值"
+    )
+    will_compress: bool = Field(default=False, description="切换后下一条消息将触发压缩")
 
 
 def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
@@ -489,8 +595,12 @@ class SpeedTestItemResult(BaseModel):
     model: str = Field(..., description="Model name (LiteLLM format)")
     ttft_ms: int | None = Field(default=None, description="Time to first token in ms")
     throughput_tps: float | None = Field(default=None, description="Tokens per second")
-    total_ms: int | None = Field(default=None, description="Total generation time in ms")
-    total_tokens: int | None = Field(default=None, description="Total output tokens generated")
+    total_ms: int | None = Field(
+        default=None, description="Total generation time in ms"
+    )
+    total_tokens: int | None = Field(
+        default=None, description="Total output tokens generated"
+    )
     status: Literal["ok", "error"] = Field(..., description="Test outcome")
     error: str | None = Field(default=None, description="Error message if failed")
 
@@ -527,15 +637,21 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
             token_count = 0
             start = time.monotonic()
 
-            async def _stream_and_measure(stream_llm: BaseChatModel, stream_msg: HumanMessage) -> None:
+            async def _stream_and_measure(
+                stream_llm: BaseChatModel, stream_msg: HumanMessage
+            ) -> None:
                 nonlocal first_token_time, token_count
-                async for chunk in stream_llm.astream([stream_msg], config={"tags": ["speed_test"]}):
+                async for chunk in stream_llm.astream(
+                    [stream_msg], config={"tags": ["speed_test"]}
+                ):
                     if chunk.content:
                         if first_token_time is None:
                             first_token_time = time.monotonic()
                         token_count += 1
 
-            await asyncio.wait_for(_stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S)
+            await asyncio.wait_for(
+                _stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S
+            )
             total_elapsed = time.monotonic() - start
 
             if first_token_time is None:
@@ -551,7 +667,9 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
             ttft_ms = int((first_token_time - start) * 1000)
             total_ms = int(total_elapsed * 1000)
             generation_time = total_elapsed - (first_token_time - start)
-            tps = round(token_count / generation_time, 1) if generation_time > 0 else 0.0
+            tps = (
+                round(token_count / generation_time, 1) if generation_time > 0 else 0.0
+            )
 
             results.append(
                 SpeedTestItemResult(
@@ -610,7 +728,9 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
 
     candidates = _search_models_by_name(model_name)
 
-    logger.debug(f"Model info not found for {request.model}, found {len(candidates)} candidates")
+    logger.debug(
+        f"Model info not found for {request.model}, found {len(candidates)} candidates"
+    )
 
     response = ModelInfoResponse(found=False, candidates=candidates)
     return success_response(data=response.model_dump())
@@ -639,3 +759,92 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
             result[model] = ModelCapabilities().model_dump()
 
     return success_response(data=result)
+
+
+def _resolve_target_max_input_tokens(
+    model: str,
+    fallback: int | None,
+) -> int | None:
+    """Resolve the target model context window for preflight checks.
+
+    Priority: explicit frontend capability value > LiteLLM model info.
+    Returns None when the window is unknown (caller skips the warning).
+    """
+    if isinstance(fallback, int) and fallback > 0:
+        return fallback
+    info = _try_get_model_info_exact(model)
+    if not info:
+        return None
+    for key in ("max_input_tokens", "max_tokens"):
+        value = info.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return int(value)
+    return None
+
+
+@router.post("/model-switch-preflight", response_model=StandardSuccessResponse)
+async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONResponse:
+    """
+    模型切换压缩预检
+
+    计算切换到目标模型后是否会在下一条消息立即触发上下文压缩。
+    复用 harness ContextConfig 的真实压缩阈值公式，避免前端硬编码导致口径漂移。
+    compress_start_ratio 缺省且 agent 为 full prompt 模式时，按目标模型 tier
+    （STRONG/MEDIUM/WEAK）推断，与 factory._apply_small_model_tuning 的压缩起点口径一致；
+    非 full 模式（lean/naked/search）下 _apply_small_model_tuning 不生效，回退默认 0.5。
+    传入 turn_count 时复用 harness ContextBudget 的动态阈值（长会话按紧张度收紧阈值），
+    与 compress_processor 的阈值计算口径一致。已知边界：运行时 eco_mode（预算压力阈值
+    ×0.80）与 hot cache bypass（5 分钟活跃跳过压缩）为瞬态运行时状态，前端无法预知，
+    预检不模拟，预警取保守方向（可能比实际略早预警）。
+
+    Returns:
+        每个目标模型的窗口、压缩阈值与 will_compress 判定
+    """
+    from myrm_agent_harness.agent.context_management.infra.context_budget import (
+        DEFAULT_ESTIMATED_REMAINING_TURNS,
+        ContextBudget,
+    )
+    from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
+    from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
+
+    results: list[dict[str, object]] = []
+    for item in request.models:
+        window = _resolve_target_max_input_tokens(item.model, item.max_input_tokens)
+        if window is None:
+            results.append(ModelSwitchPreflightResult(model=item.model).model_dump())
+            continue
+
+        ratio = request.compress_start_ratio
+        if ratio is None and request.prompt_mode in (None, "full"):
+            tier = infer_model_tier(item.model, max_context_tokens=window)
+            if tier == ModelTier.WEAK:
+                ratio = 0.30
+            elif tier == ModelTier.MEDIUM:
+                ratio = 0.50
+            # STRONG -> ratio None -> 默认 0.5 压缩阈值
+
+        cfg = ContextConfig(max_context_tokens=window, compress_start_ratio=ratio)
+        threshold = cfg.compress_threshold
+        if request.turn_count is not None:
+            budget = ContextBudget(
+                current_tokens=request.estimated_tokens,
+                compress_threshold=cfg.compress_threshold,
+                summarize_threshold=cfg.summarize_trigger_threshold,
+                config=cfg,
+            )
+            threshold, _ = budget.calculate_dynamic_thresholds(
+                turn_count=request.turn_count,
+                estimated_remaining_turns=DEFAULT_ESTIMATED_REMAINING_TURNS,
+            )
+
+        results.append(
+            ModelSwitchPreflightResult(
+                model=item.model,
+                found=True,
+                new_window=window,
+                compress_threshold=threshold,
+                will_compress=request.estimated_tokens >= threshold,
+            ).model_dump()
+        )
+
+    return success_response(data={"results": results})

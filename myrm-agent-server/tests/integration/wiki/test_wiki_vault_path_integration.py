@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from app.ai_agents.general_agent.agent import GeneralAgent
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_resolver import resolve_agent_wiki_vault_path
+from app.services.wiki.vault import resolve_agent_wiki_vault_path
 
 
 class TestWikiVaultPathIntegration:

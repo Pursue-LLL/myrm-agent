@@ -3,7 +3,7 @@
 myrm_agent_harness.toolkits.filesystem_suggest::suggest_workspace_paths (POS: Workspace path suggestion ranker)
 app.services.chat.chat_service::ChatService (POS: Chat metadata and workspace resolver)
 app.core.storage::files_service (POS: Stored file metadata service)
-app.services.wiki.vault_resolver::resolve_wiki_vault_path (POS: Wiki vault path resolver)
+app.services.wiki.vault::resolve_wiki_vault_path (POS: Wiki vault path resolver)
 myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: Wiki file system structure manager)
 
 [OUTPUT]
@@ -274,7 +274,7 @@ def _suggest_wiki(query: str, agent_id: str | None = None) -> list[ReferenceSugg
     try:
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)

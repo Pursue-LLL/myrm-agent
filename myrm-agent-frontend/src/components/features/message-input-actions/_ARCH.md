@@ -14,7 +14,7 @@
 | `AgentToolsToggle.tsx` | 组件 | Agent 工具开关快捷切换 | ✅ |
 | `AttachButton.tsx` | 组件 | 文件附件按钮：Tauri 走原生对话框 / Web 走 `<input type="file">`；支持 image/video/audio/doc/text；含模型能力检查、SHA-256 去重、视频 100MB / 音频 25MB 大小校验 | ✅ |
 | `AttachList.tsx` | 组件 | 附件预览列表：ImageThumbnail（含 Lightbox + ImageEditor 标注，失败 toast）/ VideoThumbnail / FilePill | ✅ |
-| `BaseModelSelector.tsx` | 组件 | 聊天输入区模型选择：MoA 虚拟分组（default/review/fast）；per-chat `activeMoaPresetId`；主模型 + MoA chip 触发器 | ✅ |
+| `BaseModelSelector.tsx` | 组件 | 聊天输入区模型选择：MoA 虚拟分组（default/review/fast）；per-chat `activeMoaPresetId`；主模型 + MoA chip 触发器；透传会话估算 tokens / agent 压缩比例 / prompt 模式（`agentConfig.promptMode`，由 server `prompt_mode` 映射）/ 会话轮数供切换压缩预检。轮数优先取服务端 `contextBudget.turn_count`（checkpoint 全量 human 数），缺失时 fallback 本地 user 消息统计 | ✅ |
 | `CameraInputButton.tsx` | 组件 | 摄像头拍照/录像输入按钮 | ✅ |
 | `CameraPreview.tsx` | 组件 | 摄像头实时预览与 capture 控制 | ✅ |
 | `DeepSearchToggle.tsx` | 组件 | Deep Research 模式开关 | ✅ |

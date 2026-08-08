@@ -8,7 +8,7 @@
 
 [POS]
 Mixin that adds document-level API methods to FeishuClient: Drive meta, comments,
-wiki lookup, CardKit streaming, Bitable records, and Docx blocks.
+wiki lookup, CardKit streaming, Bitable records, Docx blocks, and media download.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ class FeishuDocumentsMixin:
     """
 
     api_base: str
+    _MEDIA_TIMEOUT: float
 
     async def ensure_token(self) -> str: ...
     def _get_http(self) -> httpx.AsyncClient: ...
@@ -435,15 +436,73 @@ class FeishuDocumentsMixin:
 
     # ── Docx ─────────────────────────────────────────────────────
 
-    async def get_docx_blocks(self, document_id: str) -> dict[str, object]:
-        """Get blocks from a Feishu Docx document."""
+    async def download_media(self, file_token: str) -> bytes | None:
+        """Download a document media file (image/attachment) by its token.
+
+        Uses the tenant access token; returns None on any failure so callers
+        can degrade gracefully (e.g. missing drive:drive scope → 403).
+        """
+        if not file_token.strip():
+            return None
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.get(
-            f"{self.api_base}/docx/v1/documents/{document_id}/blocks",
+            f"{self.api_base}/drive/v1/medias/{file_token}/download",
             headers=self._auth(token),
+            timeout=self._MEDIA_TIMEOUT,
         )
-        return self._safe_json(resp, "get_docx_blocks")
+        if resp.status_code != 200:
+            logger.warning(
+                "Feishu media download failed for %s: HTTP %s",
+                file_token,
+                resp.status_code,
+            )
+            return None
+        return resp.content
+
+    async def get_docx_blocks(self, document_id: str) -> dict[str, object]:
+        """Get all blocks from a Feishu Docx document (paged until exhausted).
+
+        Bounded by max_pages as a defensive guard against API loops returning
+        a stale page_token while has_more stays true.
+        """
+        token = await self.ensure_token()
+        http = self._get_http()
+        all_items: list[object] = []
+        page_token = ""
+        page_size = 500
+        max_pages = 200
+
+        for _ in range(max_pages):
+            params: dict[str, str] = {"page_size": str(page_size)}
+            if page_token:
+                params["page_token"] = page_token
+            resp = await http.get(
+                f"{self.api_base}/docx/v1/documents/{document_id}/blocks",
+                headers=self._auth(token),
+                params=params,
+            )
+            body = self._safe_json(resp, "get_docx_blocks")
+            if body.get("code", -1) != 0:
+                if not all_items:
+                    return body
+                logger.warning("Feishu get_docx_blocks page failed: %s", body.get("msg"))
+                break
+            data = body.get("data", {})
+            if not isinstance(data, dict):
+                break
+            raw_items = data.get("items")
+            if isinstance(raw_items, list):
+                all_items.extend(raw_items)
+            if not data.get("has_more"):
+                break
+            page_token = str(data.get("page_token", ""))
+            if not page_token:
+                break
+
+        return {"code": 0, "data": {"items": all_items}}
+
+
 
     async def list_drive_folder_files(
         self,

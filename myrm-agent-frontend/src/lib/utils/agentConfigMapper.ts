@@ -84,5 +84,6 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     routingConfig: toRoutingConfig(ms),
     busyInputMode: agent.busy_input_mode ?? undefined,
     engineParams: agent.engine_params ?? null,
+    promptMode: agent.prompt_mode ?? undefined,
   };
 }

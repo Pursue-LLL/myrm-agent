@@ -46,20 +46,21 @@ def _require_cleanup_sealed_for_success(row: sqlite3.Row) -> None:
 
 
 def _normalize_cleanup_receipt(receipt: CleanupReceipt) -> CleanupReceipt:
-    physical_ok = receipt.physical_released is True
-    if receipt.ledger_cleaned and physical_ok:
+    """Only observed seals are accepted; a sealed receipt without an observation
+    timestamp is synthetic (fake green) and is downgraded to fail-closed."""
+    if not receipt.sealed:
+        return receipt
+    if receipt.observed_at <= 0.0:
         return CleanupReceipt(
             closed_page_ids=receipt.closed_page_ids,
             closed_context_id=receipt.closed_context_id,
             released_lease_id=receipt.released_lease_id,
             released_runtime_id=receipt.released_runtime_id,
-            ledger_cleaned=True,
-            physical_released=True,
-            sealed=True,
+            ledger_cleaned=receipt.ledger_cleaned,
+            physical_released=receipt.physical_released,
+            sealed=False,
             requested_at=receipt.requested_at,
-            observed_at=(
-                receipt.observed_at if receipt.observed_at > 0 else time.time()
-            ),
+            observed_at=receipt.observed_at,
             completed_at=receipt.completed_at,
         )
     return receipt
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     runtime_id TEXT NOT NULL,
     outcome TEXT NOT NULL,
     failure_token TEXT NOT NULL,
+    pytest_evidence_hash TEXT NOT NULL DEFAULT '',
     cleanup_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sessions_state_idx ON sessions(state, submitted_at);
@@ -154,6 +156,7 @@ ON ownership_resources(session_id, updated_at);
 _MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE sessions ADD COLUMN owner_process_start TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE sessions ADD COLUMN owner_boot_id TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE sessions ADD COLUMN pytest_evidence_hash TEXT NOT NULL DEFAULT ''",
 )
 
 
@@ -288,6 +291,7 @@ class DevGateStore:
                             runtime_id='',
                             outcome='',
                             failure_token='',
+                            pytest_evidence_hash='',
                             cleanup_json='{}'
                         WHERE session_id=?
                         """,
@@ -659,6 +663,46 @@ class DevGateStore:
                 ),
             )
 
+    def destroy_ownership(
+        self,
+        session_id: str,
+        owner_token: str,
+    ) -> SessionRecord:
+        """P0-A destroy: clear keyed ownership in one transaction.
+
+        Physical page/context destroy is performed by the pytest process; this
+        ledger-side destroy makes the ownership_cleared seal check observably true.
+        """
+        with self._connect() as connection:
+            _begin_immediate(connection)
+            row = self._owned_row(connection, session_id, owner_token)
+            version = int(row["version"]) + 1
+            pages_raw = DevGateStore._load_json_field(row["page_ids_json"], default=[])
+            closed_pages = (
+                tuple(str(item) for item in pages_raw)
+                if isinstance(pages_raw, list)
+                else ()
+            )
+            closed_context = str(row["browser_context_id"])
+            self._clear_session_ownership(connection, session_id=session_id)
+            connection.execute(
+                "UPDATE sessions SET version=? WHERE session_id=?",
+                (version, session_id),
+            )
+            self._event(
+                connection,
+                session_id=session_id,
+                version=version,
+                event_type="DESTROY_SESSION",
+                state=SessionState(str(row["state"])),
+                detail={
+                    "closed_page_ids": closed_pages,
+                    "closed_context_id": closed_context,
+                },
+                now=time.time(),
+            )
+            return self._record(self._required_row(connection, session_id))
+
     def record_cleanup(
         self,
         session_id: str,
@@ -686,6 +730,7 @@ class DevGateStore:
         *,
         succeeded: bool,
         failure_token: str = "",
+        pytest_evidence_hash: str = "",
         now: float | None = None,
     ) -> SessionRecord:
         """Atomically persist cleanup receipt and terminal state (P0-A)."""
@@ -698,6 +743,7 @@ class DevGateStore:
                     receipt,
                     succeeded=succeeded,
                     failure_token=failure_token,
+                    pytest_evidence_hash=pytest_evidence_hash,
                     now=now,
                 )
             except sqlite3.OperationalError as exc:
@@ -717,6 +763,7 @@ class DevGateStore:
         *,
         succeeded: bool,
         failure_token: str = "",
+        pytest_evidence_hash: str = "",
         now: float | None = None,
     ) -> SessionRecord:
         finished_at = time.time() if now is None else now
@@ -742,8 +789,8 @@ class DevGateStore:
                 connection.execute(
                     """
                     UPDATE sessions SET state=?, version=?, outcome=?,
-                        failure_token=?, cleanup_json=?, phase_started_at=?,
-                        last_progress_at=?
+                        failure_token=?, pytest_evidence_hash=?, cleanup_json=?,
+                        phase_started_at=?, last_progress_at=?
                     WHERE session_id=?
                     """,
                     (
@@ -751,6 +798,7 @@ class DevGateStore:
                         version,
                         outcome,
                         failure_token,
+                        pytest_evidence_hash,
                         _cleanup_receipt_payload(final_receipt),
                         finished_at,
                         finished_at,
@@ -767,6 +815,7 @@ class DevGateStore:
                         "from": current.value,
                         "outcome": outcome,
                         "cleanup_sealed": final_receipt.sealed,
+                        "pytest_evidence_hash": pytest_evidence_hash,
                     },
                     now=finished_at,
                 )
@@ -777,6 +826,7 @@ class DevGateStore:
                 owner_token,
                 succeeded=succeeded,
                 failure_token=failure_token,
+                pytest_evidence_hash=pytest_evidence_hash,
                 now=now,
             )
         raise RuntimeError("teardown_and_finish reached unreachable path")
@@ -807,6 +857,7 @@ class DevGateStore:
         *,
         succeeded: bool,
         failure_token: str = "",
+        pytest_evidence_hash: str = "",
         now: float | None = None,
     ) -> SessionRecord:
         """Finalize a session from any nonterminal phase after best-effort teardown."""
@@ -818,6 +869,7 @@ class DevGateStore:
                     owner_token,
                     succeeded=succeeded,
                     failure_token=failure_token,
+                    pytest_evidence_hash=pytest_evidence_hash,
                     now=now,
                 )
             except sqlite3.OperationalError as exc:
@@ -836,6 +888,7 @@ class DevGateStore:
         *,
         succeeded: bool,
         failure_token: str = "",
+        pytest_evidence_hash: str = "",
         now: float | None = None,
     ) -> SessionRecord:
         finished_at = time.time() if now is None else now
@@ -853,13 +906,15 @@ class DevGateStore:
                         connection.execute(
                             """
                             UPDATE sessions SET state=?, version=?, outcome=?,
-                                failure_token='', phase_started_at=?, last_progress_at=?
+                                failure_token='', pytest_evidence_hash=?,
+                                phase_started_at=?, last_progress_at=?
                             WHERE session_id=?
                             """,
                             (
                                 SessionState.SUCCEEDED.value,
                                 version,
                                 "PASSED",
+                                pytest_evidence_hash,
                                 finished_at,
                                 finished_at,
                                 session_id,
@@ -871,7 +926,10 @@ class DevGateStore:
                             version=version,
                             event_type="FINISH_OWNER_EXITED_RECOVERY",
                             state=SessionState.SUCCEEDED,
-                            detail={"prior_failure_token": prior_token},
+                            detail={
+                                "prior_failure_token": prior_token,
+                                "pytest_evidence_hash": pytest_evidence_hash,
+                            },
                             now=finished_at,
                         )
                         return self._record(self._required_row(connection, session_id))
@@ -891,7 +949,8 @@ class DevGateStore:
             connection.execute(
                 """
                 UPDATE sessions SET state=?, version=?, outcome=?,
-                    failure_token=?, phase_started_at=?, last_progress_at=?
+                    failure_token=?, pytest_evidence_hash=?, phase_started_at=?,
+                    last_progress_at=?
                 WHERE session_id=?
                 """,
                 (
@@ -899,6 +958,7 @@ class DevGateStore:
                     version,
                     outcome,
                     failure_token,
+                    pytest_evidence_hash,
                     finished_at,
                     finished_at,
                     session_id,
@@ -910,7 +970,11 @@ class DevGateStore:
                 version=version,
                 event_type="FINISH",
                 state=target,
-                detail={"from": current.value, "outcome": outcome},
+                detail={
+                    "from": current.value,
+                    "outcome": outcome,
+                    "pytest_evidence_hash": pytest_evidence_hash,
+                },
                 now=finished_at,
             )
             return self._record(self._required_row(connection, session_id))
@@ -1346,6 +1410,7 @@ class DevGateStore:
             ),
             outcome=str(row["outcome"]),
             failure_token=str(row["failure_token"]),
+            pytest_evidence_hash=str(row["pytest_evidence_hash"]),
             cleanup=CleanupReceipt(
                 closed_page_ids=tuple(
                     str(item) for item in cleanup.get("closed_page_ids", ())

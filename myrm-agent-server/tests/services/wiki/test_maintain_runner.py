@@ -9,8 +9,9 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.types import LintResult
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
-from app.services.wiki.maintain_runner import _build_summary_text, run_wiki_maintain_job
-from app.services.wiki.maintain_schemas import WikiMaintainRunResult
+from app.services.wiki.maintain import run_wiki_maintain_job
+from app.services.wiki.maintain.runner import _build_summary_text
+from app.services.wiki.maintain.schemas import WikiMaintainRunResult
 
 
 @asynccontextmanager
@@ -33,10 +34,10 @@ async def test_skip_when_compile_processing() -> None:
     mock_archiver._queue.get_stats.return_value = {"processing": 1}
     mock_archiver._linter = MagicMock()
 
-    with patch("app.services.wiki.vault_service.get_wiki_archiver", return_value=mock_archiver):
-        with patch("app.services.wiki.maintain_runner.get_session", _fake_session):
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
             with patch(
-                "app.services.wiki.maintain_runner.save_wiki_maintain_state",
+                "app.services.wiki.maintain.runner.save_wiki_maintain_state",
                 new=AsyncMock(),
             ) as save_mock:
                 result = await run_wiki_maintain_job(
@@ -66,16 +67,16 @@ async def test_structural_maintain_persists_state() -> None:
         )
     )
 
-    with patch("app.services.wiki.vault_service.get_wiki_archiver", return_value=mock_archiver):
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
         with patch("app.services.wiki.asset_index_service.run_wiki_asset_index", new=AsyncMock()):
-            with patch("app.services.wiki.vault_git_snapshot.after_wiki_vault_mutation", new=AsyncMock()):
-                with patch("app.services.wiki.maintain_runner.get_session", _fake_session):
+            with patch("app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()):
+                with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
                     with patch(
                         "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
                         return_value=MagicMock(duplicate_groups_pending=0),
                     ):
                         with patch(
-                            "app.services.wiki.maintain_runner.save_wiki_maintain_state",
+                            "app.services.wiki.maintain.runner.save_wiki_maintain_state",
                             new=AsyncMock(),
                         ) as save_mock:
                             result = await run_wiki_maintain_job(
@@ -90,3 +91,29 @@ async def test_structural_maintain_persists_state() -> None:
     assert result.issues_fixed == 1
     assert "fixed" in result.summary_text.lower()
     save_mock.assert_awaited_once()
+
+
+def test_state_from_run_result_maps_fields() -> None:
+    from app.services.wiki.maintain.state_store import state_from_run_result
+
+    result = WikiMaintainRunResult(
+        skipped=True,
+        skipped_reason="no_content",
+        mode="structural",
+        issues_found=3,
+        issues_fixed=2,
+        connections_discovered=1,
+        duration_ms=42,
+        summary_text="Fixed 2",
+    )
+
+    state = state_from_run_result(result)
+
+    assert state.last_mode == "structural"
+    assert state.last_issues_found == 3
+    assert state.last_issues_fixed == 2
+    assert state.last_connections_discovered == 1
+    assert state.last_duration_ms == 42
+    assert state.last_skipped_reason == "no_content"
+    assert state.last_output == "Fixed 2"
+    assert state.last_run_at is not None

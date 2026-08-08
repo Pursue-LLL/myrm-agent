@@ -62,7 +62,7 @@ def test_wiki_portability_export_zip_contains_manifest_and_concepts(tmp_path: Pa
 
 
 def test_wiki_pending_edits_respects_agent_scope_query(tmp_path: Path) -> None:
-    from app.services.wiki.vault_service import reset_wiki_archiver_cache_for_tests
+    from app.services.wiki.vault import reset_wiki_archiver_cache_for_tests
 
     structure_a = WikiStructure(tmp_path / "vault-a")
     structure_b = WikiStructure(tmp_path / "vault-b")

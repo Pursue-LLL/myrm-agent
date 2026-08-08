@@ -295,7 +295,7 @@ def _build_explore_callback(params: GeneralAgentParams):
         from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
         from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
         if not wiki_base_dir.exists():
@@ -350,7 +350,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
         from myrm_agent_harness.toolkits.llms import llm_manager
         from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
         wiki_base_dir.mkdir(parents=True, exist_ok=True)
@@ -418,7 +418,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
             return
 
         try:
-            from app.services.wiki.vault_service import get_wiki_archiver
+            from app.services.wiki.vault import get_wiki_archiver
 
             wiki_llm = await llm_manager.get_llm_from_config(
                 params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)

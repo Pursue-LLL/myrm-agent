@@ -129,6 +129,7 @@ describe('SearchDialog cite to composer', () => {
       path: 'other-chat-id',
       fileId: 'other-chat-id',
       source: 'special',
+      size: null,
     });
     expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });

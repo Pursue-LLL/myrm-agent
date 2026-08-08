@@ -23,6 +23,10 @@ import { getApiUrl } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
+import {
+  isFormalKoreanRepliesEnabled,
+  setFormalKoreanRepliesEnabled,
+} from '@/lib/utils/responseLocalePolicy';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
@@ -40,6 +44,18 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
+
+  const formalKoreanReplies = useMemo(
+    () => isFormalKoreanRepliesEnabled(editor.engineParams),
+    [editor.engineParams],
+  );
+
+  const handleFormalKoreanRepliesChange = useCallback(
+    (enabled: boolean) => {
+      editor.setEngineParams(setFormalKoreanRepliesEnabled(editor.engineParams, enabled));
+    },
+    [editor.engineParams, editor.setEngineParams],
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined' || isNew) return;
@@ -408,6 +424,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
               personalityStyle={editor.personalityStyle}
               promptMode={editor.promptMode}
               allowDiscovery={editor.allowDiscovery}
+              formalKoreanReplies={formalKoreanReplies}
               suggestionPrompts={editor.suggestionPrompts}
               readonly={editor.isReadonly}
               onNameChange={editor.setName}
@@ -415,6 +432,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
               onPersonalityChange={editor.setPersonalityStyle}
               onPromptModeChange={editor.setPromptMode}
               onAllowDiscoveryChange={editor.setAllowDiscovery}
+              onFormalKoreanRepliesChange={handleFormalKoreanRepliesChange}
               onSuggestionPromptsChange={editor.setSuggestionPrompts}
             />
           )}

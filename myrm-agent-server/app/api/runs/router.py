@@ -155,6 +155,13 @@ async def _fetch_kanban_runs(
             duration_ms = int((finished - started).total_seconds() * 1000)
         stop_reason = stop_reason_from_error(task.error, task_status)
 
+        metadata: dict[str, object] = {}
+        progress_steps: list[dict[str, object]] = []
+        if task.progress_note:
+            progress_steps.append({"step_key": "heartbeat", "items": [{"text": task.progress_note}]})
+        if progress_steps:
+            metadata["progressSteps"] = progress_steps
+
         results.append(
             UnifiedRunResponse(
                 id=f"kanban:{task.task_id}",
@@ -166,8 +173,10 @@ async def _fetch_kanban_runs(
                 duration_ms=duration_ms,
                 error=task.error or None,
                 summary=_truncate(task.description, 200) if task.description else None,
+                metadata=metadata or None,
                 agent_id=task.agent_id,
                 task_id=task.task_id,
+                has_execution_steps=bool(progress_steps),
                 stop_reason=stop_reason,
             )
         )

@@ -12,6 +12,11 @@ MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
 # R286: python -m e2e_bootstrap_deadline must share one holder key across subprocesses.
 export MYRM_E2E_DEDUPE_HOLDER_PID="${MYRM_E2E_DEDUPE_HOLDER_PID:-$$}"
+# R292: launch-force maintainer override must use fast attach path (solo PASS ~212s);
+# without SKIP_ATTACH_WAIT, preflight burns 650s+ on signoff-stream hot-pool gate.
+if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" ]]; then
+  export MYRM_PREFLIGHT_SKIP_ATTACH_WAIT=1
+fi
 
 _attach_api_base() {
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && -n "${E2E_API_BASE:-}" ]]; then
@@ -50,6 +55,10 @@ export MYRM_DEV_STACK="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 # shellcheck source=lib/dev_state_paths.sh
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
+# Sandboxed HOME (e.g. Cursor's ~/.cursor2) would split mux state, warm shells and
+# harness data across two homes. Run the whole preflight under the real user home so
+# every $HOME-derived path (cdmcp-mux state, frontend caches) stays on one SSOT dir.
+export_spawn_home
 STATE_DIR="$(dev_state_dir)"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 export_myrm_next_dist_dir

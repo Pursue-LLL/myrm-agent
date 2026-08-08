@@ -37,7 +37,7 @@ async def test_vault_research_to_wiki_uses_publish_raw(tmp_path: Path) -> None:
 
     with (
         patch(
-            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            "app.services.wiki.vault.resolve_wiki_vault_path",
             return_value=wiki_base,
         ),
         patch(
@@ -46,7 +46,7 @@ async def test_vault_research_to_wiki_uses_publish_raw(tmp_path: Path) -> None:
             return_value=mock_llm,
         ),
         patch(
-            "app.services.wiki.vault_service.get_wiki_archiver",
+            "app.services.wiki.vault.get_wiki_archiver",
             return_value=mock_archiver,
         ),
     ):
@@ -85,7 +85,7 @@ async def test_vault_research_blocks_credential_content(tmp_path: Path) -> None:
     callback = _build_wiki_vault_callback(params)
 
     with patch(
-        "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+        "app.services.wiki.vault.resolve_wiki_vault_path",
         return_value=wiki_base,
     ):
         await callback(_Result())

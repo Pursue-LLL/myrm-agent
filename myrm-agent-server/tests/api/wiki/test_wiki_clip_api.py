@@ -52,7 +52,7 @@ def _build_wiki_client(
 
     app.dependency_overrides[_get_wiki_archiver] = _override_archiver
     patcher = patch(
-        "app.services.wiki.vault_service.get_wiki_archiver",
+        "app.services.wiki.vault.get_wiki_archiver",
         return_value=archiver,
     )
     patcher.start()

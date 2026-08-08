@@ -4,9 +4,12 @@
 - app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
 - app.services.wiki.source_sync.schemas (POS: WikiSourceSyncResult)
 - app.channels.providers.feishu.sdk.client::FeishuClient (POS: Feishu OpenAPI client)
+- app.services.wiki.source_sync.feishu.render (POS: Pure block→Markdown converter for Feishu docs)
+- myrm_agent_harness.toolkits.wiki.pipeline.ingress.asset_store (POS: image asset persistence)
 
 [OUTPUT]
 - sync_feishu_docs_to_wiki: pull Feishu docs into wiki raw/feishu/
+- feishu_docx_blocks_to_markdown: re-export from feishu.render (docx blocks → GFM Markdown)
 
 [POS]
 Deterministic Feishu/Lark ingest path for wiki source sync; zero LLM.
@@ -20,6 +23,11 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
+from app.services.wiki.source_sync.feishu.render import (
+    FEISHU_IMAGE_PREFIX,
+    FEISHU_IMAGE_RE,
+    feishu_docx_blocks_to_markdown,
+)
 from app.services.wiki.source_sync.publish_helpers import (
     build_frontmatter,
     publish_source_markdown,
@@ -68,7 +76,12 @@ async def sync_feishu_docs_to_wiki(
                 relative_path = (
                     f"feishu/{month}/{safe_name}-{sanitize_path_segment(file_token)}.md"
                 )
-                body = await _fetch_doc_markdown(client, file_token)
+                body = await _fetch_doc_markdown(
+                    client,
+                    file_token,
+                    structure=structure,
+                    raw_relative=relative_path,
+                )
                 if not body:
                     result.skipped += 1
                     continue
@@ -140,62 +153,71 @@ async def _resolve_feishu_client() -> FeishuClient | None:
     return FeishuClient(app_id, app_secret, use_lark=use_lark)
 
 
-async def _fetch_doc_markdown(client: FeishuClient, document_id: str) -> str | None:
+async def _fetch_doc_markdown(
+    client: FeishuClient,
+    document_id: str,
+    *,
+    structure: WikiStructure,
+    raw_relative: str,
+) -> str | None:
     payload = await client.get_docx_blocks(document_id)
-    return feishu_docx_blocks_to_markdown(payload)
-
-
-def feishu_docx_blocks_to_markdown(payload: dict[str, object]) -> str | None:
-    data = payload.get("data")
-    if not isinstance(data, dict):
+    markdown = feishu_docx_blocks_to_markdown(payload)
+    if not markdown:
         return None
-    items = data.get("items")
-    if not isinstance(items, list):
-        return None
+    return await _localize_feishu_images(
+        markdown, client, structure=structure, raw_relative=raw_relative
+    )
 
-    lines: list[str] = []
-    for block in items:
-        if not isinstance(block, dict):
+
+async def _localize_feishu_images(
+    markdown: str,
+    client: FeishuClient,
+    *,
+    structure: WikiStructure,
+    raw_relative: str,
+) -> str:
+    """Download image blocks referenced in markdown and rewrite to wiki assets.
+
+    Download failures (missing scope / 403 / timeouts) degrade to a plain
+    ``![image]`` placeholder so a single image never blocks the document.
+    """
+    tokens = list(dict.fromkeys(FEISHU_IMAGE_RE.findall(markdown)))
+    if not tokens:
+        return markdown
+
+    from myrm_agent_harness.toolkits.wiki.pipeline.ingress.asset_store import (
+        rewrite_markdown_asset_refs,
+        store_asset_bytes,
+    )
+
+    ref_to_filename: dict[str, str] = {}
+    for token in tokens:
+        data = await client.download_media(token)
+        if not data:
             continue
-        block_type = block.get("block_type")
-        if block_type in {3, 4, 5}:
-            heading_level = {3: 1, 4: 2, 5: 3}.get(int(block_type), 1)
-            text = _block_text(block)
-            if text:
-                lines.append(f"{'#' * heading_level} {text}")
-            continue
-        if block_type == 2:
-            text = _block_text(block)
-            if text:
-                lines.append(text)
-            continue
-        if block_type == 12:
-            text = _block_text(block)
-            if text:
-                lines.append(f"- {text}")
+        filename = store_asset_bytes(
+            structure,
+            data=data,
+            content_type=_guess_image_mime(data),
+        )
+        if filename:
+            ref_to_filename[f"{FEISHU_IMAGE_PREFIX}{token}"] = filename
 
-    body = "\n\n".join(lines).strip()
-    return body or None
+    rewritten = rewrite_markdown_asset_refs(
+        markdown,
+        ref_to_filename,
+        raw_relative=raw_relative,
+    )
+    return FEISHU_IMAGE_RE.sub("![image]", rewritten)
 
 
-def _block_text(block: dict[str, object]) -> str:
-    for key in ("text", "heading1", "heading2", "heading3", "bullet"):
-        section = block.get(key)
-        if isinstance(section, dict):
-            return _text_elements_to_str(section.get("elements"))
-    return ""
-
-
-def _text_elements_to_str(elements: object) -> str:
-    if not isinstance(elements, list):
-        return ""
-    parts: list[str] = []
-    for element in elements:
-        if not isinstance(element, dict):
-            continue
-        text_run = element.get("text_run")
-        if isinstance(text_run, dict):
-            content = text_run.get("content")
-            if isinstance(content, str) and content:
-                parts.append(content)
-    return "".join(parts).strip()
+def _guess_image_mime(data: bytes) -> str:
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/png"

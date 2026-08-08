@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving service)
-- app.services.wiki.vault_service::get_wiki_archiver (POS: shared archiver accessor)
+- app.services.wiki.vault::get_wiki_archiver (POS: shared archiver accessor)
 - myrm_agent_harness.toolkits.wiki.retrieval.source_citations::build_wiki_query_sources
 
 [OUTPUT]
@@ -23,7 +23,7 @@ from myrm_agent_harness.toolkits.wiki.retrieval.source_citations import build_wi
 
 from app.services.agent.llm_access import get_optional_llm_for_user
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_service import get_wiki_archiver
+from app.services.wiki.vault import get_wiki_archiver
 
 WikiQueryMode = Literal["auto", "raw_claim"]
 

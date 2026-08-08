@@ -20,6 +20,28 @@ vi.mock('@/services/runs', () => ({
   listUnifiedRuns: (...args: unknown[]) => mockListUnifiedRuns(...args),
 }));
 
+vi.mock(
+  '@/components/features/settings/sections/system/ExecutionTraceTimeline',
+  () => ({
+    default: ({
+      sessionId,
+      showEvalCase,
+      pollMs,
+    }: {
+      sessionId: string;
+      showEvalCase?: boolean;
+      pollMs?: number;
+    }) => (
+      <div
+        data-testid="mock-trace-timeline"
+        data-session-id={sessionId}
+        data-show-eval-case={String(showEvalCase)}
+        data-poll-ms={pollMs ?? ''}
+      />
+    ),
+  }),
+);
+
 import { toast } from 'sonner';
 import { RunsHub } from '../RunsHub';
 
@@ -169,5 +191,166 @@ describe('RunsHub', () => {
 
     expect(screen.getByText('Daily AI digest')).toBeInTheDocument();
     expect(screen.queryByText('retry')).not.toBeInTheDocument();
+  });
+
+  it('expands a kanban run with a task_id to show the execution trace', async () => {
+    const kanbanRun = {
+      ...sampleRun,
+      id: 'kanban:task-1',
+      source: 'kanban' as const,
+      title: 'Summarize repo',
+      job_id: null,
+      task_id: 'task-1',
+      has_execution_steps: false,
+    };
+    mockListUnifiedRuns.mockResolvedValue({
+      ...emptyListResponse,
+      items: [kanbanRun],
+      total: 1,
+    });
+
+    render(<RunsHub />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Summarize repo')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('sourceKanban').length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByText('Summarize repo'));
+
+    expect(screen.getByText('executionTrace')).toBeInTheDocument();
+    const timeline = screen.getByTestId('mock-trace-timeline');
+    expect(timeline).toBeInTheDocument();
+    expect(timeline).toHaveAttribute('data-session-id', 'task-1');
+    expect(timeline).toHaveAttribute('data-show-eval-case', 'false');
+    expect(timeline).toHaveAttribute('data-poll-ms', '');
+  });
+
+  it('polls the execution trace while a kanban run is running', async () => {
+    const runningRun = {
+      ...sampleRun,
+      id: 'kanban:task-2',
+      source: 'kanban' as const,
+      title: 'Deploy release',
+      job_id: null,
+      task_id: 'task-2',
+      status: 'running' as const,
+      has_execution_steps: false,
+    };
+    mockListUnifiedRuns.mockResolvedValue({
+      ...emptyListResponse,
+      items: [runningRun],
+      total: 1,
+    });
+
+    render(<RunsHub />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Deploy release')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText('Deploy release'));
+
+    const timeline = screen.getByTestId('mock-trace-timeline');
+    expect(timeline).toHaveAttribute('data-session-id', 'task-2');
+    expect(timeline).toHaveAttribute('data-poll-ms', '30000');
+  });
+
+  it('silently refreshes the list while a run is running, keeping current offset', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const runningRun = {
+        ...sampleRun,
+        id: 'kanban:task-3',
+        source: 'kanban' as const,
+        title: 'Nightly sync',
+        job_id: null,
+        task_id: 'task-3',
+        status: 'running' as const,
+        has_execution_steps: false,
+      };
+      mockListUnifiedRuns.mockResolvedValue({
+        ...emptyListResponse,
+        items: [runningRun],
+        total: 1,
+      });
+
+      render(<RunsHub />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Nightly sync')).toBeInTheDocument();
+      });
+
+      const firstCall = mockListUnifiedRuns.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      await waitFor(() => {
+        expect(mockListUnifiedRuns.mock.calls.length).toBeGreaterThan(firstCall);
+      });
+      // Poll keeps the previous list position (offset from loaded items) instead of resetting to 0.
+      const pollCall = mockListUnifiedRuns.mock.calls.at(-1)?.[0];
+      expect(pollCall).toEqual({ status: undefined, source: undefined, limit: 30, offset: 1 });
+      // Silent poll must not set the full-list loading state.
+      expect(screen.queryByText('retry')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores silent poll failures without clearing the list', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const runningRun = {
+        ...sampleRun,
+        id: 'kanban:task-4',
+        source: 'kanban' as const,
+        title: 'Cache warm',
+        job_id: null,
+        task_id: 'task-4',
+        status: 'running' as const,
+        has_execution_steps: false,
+      };
+      mockListUnifiedRuns
+        .mockResolvedValueOnce({
+          ...emptyListResponse,
+          items: [runningRun],
+          total: 1,
+        })
+        .mockRejectedValueOnce(new Error('network'));
+
+      render(<RunsHub />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Cache warm')).toBeInTheDocument();
+      });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The failed silent poll must not blow away the current list into the error state.
+      expect(screen.getByText('Cache warm')).toBeInTheDocument();
+      expect(screen.queryByText('retry')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not render trace section for non-kanban runs without a task_id', async () => {
+    mockListUnifiedRuns.mockResolvedValue({
+      ...emptyListResponse,
+      items: [sampleRun],
+      total: 1,
+    });
+
+    render(<RunsHub />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Daily AI digest')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText('Daily AI digest'));
+
+    expect(screen.queryByText('executionTrace')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mock-trace-timeline')).not.toBeInTheDocument();
   });
 });

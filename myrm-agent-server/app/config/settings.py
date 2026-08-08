@@ -349,6 +349,7 @@ class DatabaseSettings(BaseSettings):
     memory_base_path: str = Field(default="", validation_alias="MEMORY_BASE_PATH")
 
     sqlite_pool_size: int = 5  # SQLITE_POOL_SIZE
+    sqlite_pool_max_overflow: int = 10  # SQLITE_POOL_MAX_OVERFLOW (burst headroom for parallel E2E)
     sqlite_busy_timeout_ms: int = 3000  # SQLITE_BUSY_TIMEOUT_MS
     database_echo: bool = False  # DATABASE_ECHO
     database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
@@ -391,7 +392,12 @@ class DatabaseSettings(BaseSettings):
     @field_validator("sqlite_pool_size")
     @classmethod
     def _clamp_pool_size(cls, v: int) -> int:
-        return max(1, min(32, v))
+        return max(1, min(64, v))
+
+    @field_validator("sqlite_pool_max_overflow")
+    @classmethod
+    def _clamp_pool_max_overflow(cls, v: int) -> int:
+        return max(0, min(64, v))
 
     @field_validator("sqlite_busy_timeout_ms")
     @classmethod

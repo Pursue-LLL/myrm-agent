@@ -288,13 +288,13 @@ class GeneralAgent(ToolSetupMixin):
 
     def _resolve_wiki_base_dir(self) -> str | None:
         """Resolve writable wiki base directory for this agent."""
-        from app.services.wiki.vault_resolver import resolve_agent_wiki_vault_path
+        from app.services.wiki.vault import resolve_agent_wiki_vault_path
 
         return str(resolve_agent_wiki_vault_path(self.agent_id))
 
     def _resolve_wiki_public_dirs(self) -> list[str]:
         """Resolve shared read-only wiki vaults bound to this agent."""
-        from app.services.wiki.vault_resolver import resolve_shared_wiki_vault_paths
+        from app.services.wiki.vault import resolve_shared_wiki_vault_paths
 
         return [
             str(path)

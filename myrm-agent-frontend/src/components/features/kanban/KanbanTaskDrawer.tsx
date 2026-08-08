@@ -180,7 +180,7 @@ export default function KanbanTaskDrawer({
             <KanbanRunHistory runs={drawer.runs} />
             <KanbanEventTimeline events={drawer.events} />
 
-            <KanbanTaskExecutionTraceSection taskId={task.task_id} />
+            <KanbanTaskExecutionTraceSection taskId={task.task_id} taskStatus={task.status} />
 
             <CommentInputSection
               commentText={drawer.commentText}

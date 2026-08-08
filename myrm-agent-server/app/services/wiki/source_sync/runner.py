@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.wiki.source_sync.config_store (POS: per-agent wikiSourceSync UserConfig persistence)
 - app.services.wiki.source_sync.state_store (POS: per-agent wikiSourceSyncState last-run observability)
-- app.services.wiki.vault_resolver (POS: agent wiki vault path SSOT)
+- app.services.wiki.vault (POS: agent wiki vault path SSOT)
 - myrm_agent_harness.toolkits.wiki.pipeline.raw_gate::publish_raw (POS: raw publication gate)
 
 [OUTPUT]
@@ -34,7 +34,7 @@ from app.services.wiki.source_sync.schemas import (
     WikiSourceSyncConfig,
     WikiSourceSyncRunSummary,
 )
-from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+from app.services.wiki.vault import resolve_wiki_vault_path
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ async def run_wiki_source_sync(
     auto_compile = effective_config.auto_compile and llm is not None
 
     if llm is not None:
-        from app.services.wiki.vault_service import get_wiki_archiver
+        from app.services.wiki.vault import get_wiki_archiver
 
         archiver = get_wiki_archiver(llm, agent_id=agent_id)
         structure = archiver._structure
@@ -102,7 +102,7 @@ async def run_wiki_source_sync(
         )
         run.results.append(gdrive_result)
 
-    if effective_config.feishu_enabled:
+    if sync_gmail_rss and effective_config.feishu_enabled:
         feishu_result = await sync_feishu_docs_to_wiki(
             structure,
             folder_token=effective_config.feishu_folder_token,

@@ -28,6 +28,7 @@ const REQUIRED_RUNS_KEYS = [
   'loadError',
   'retry',
   'executionStepsBadge',
+  'executionTrace',
   'loadMore',
   'timeJustNow',
   'timeMinutesAgo',

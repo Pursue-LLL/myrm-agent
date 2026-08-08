@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.database.models import Chat, Message
-from app.services.chat.compact_service import _get_compaction_lock, compact_chat
+from app.services.chat.compact._lock import get_compaction_lock
+from app.services.chat.compact_service import compact_chat
 
 
 def _make_messages(chat_id: str, count: int) -> list[Message]:
@@ -56,7 +57,7 @@ async def test_compact_chat_skips_when_summarize_circuit_open() -> None:
 async def test_compact_chat_skips_when_concurrent_compaction_in_progress() -> None:
     db = AsyncMock()
     chat_id = "chat-lock-test"
-    lock = _get_compaction_lock(chat_id)
+    lock = get_compaction_lock(chat_id)
     await lock.acquire()
     try:
         result = await compact_chat(db, chat_id)

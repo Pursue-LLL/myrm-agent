@@ -1725,7 +1725,9 @@
         "skippedBudgetPressure": "セッション予算が逼迫しているため、Mixture of Agents アドバイザーオーバーレイをスキップしました。",
         "skippedInsufficientRefs": "Mixture of Agents はオンですが、十分な参照モデルが成功しませんでした。アドバイザー注入をスキップしました — 参照モデルの可用性を確認してください。",
         "skippedGeneric": "このメッセージでは Mixture of Agents アドバイザーオーバーレイをスキップしました。"
-      }
+      },
+      "preflightCompress": "圧縮します",
+      "preflightCompressDetail": "今切り替えると、次のメッセージでコンテキストが圧縮されます（しきい値: {threshold} トークン）"
     },
     "modelCapabilities": {
       "vision": "视觉",
@@ -4991,7 +4993,9 @@
           "failure": "失敗",
           "cancelled": "キャンセル済み",
           "unknown": "不明"
-        }
+        },
+        "llmCalls": "LLM 呼び出し",
+        "saveAsEval": "評価ケースとして保存"
       },
       "replay": {
         "title": "セッションリプレイ",
@@ -6167,6 +6171,10 @@
     "allowDiscovery": {
       "title": "許可されたその他エージェント发现し委派",
       "description": "有効化后，その他エージェントできます合格 @ 提およびまたは自動组队时发现し调使用此エージェント。閉じる可非表示半成品。"
+    },
+    "formalKoreanReplies": {
+      "title": "正式韓国語返信（합니다体）",
+      "description": "ビジネスメール、議事録、オフィス業務に適した丁寧語（합니다体）で返信します。"
     },
     "openapi": {
       "title": "OpenAPI サービス",
@@ -10820,7 +10828,8 @@
     "stopReasonTimedOut": "実行タイムアウト",
     "stopReasonCancelled": "実行キャンセル済み",
     "stopReasonError": "実行失敗",
-    "stopReasonUnknown": "因ない明理由停止"
+    "stopReasonUnknown": "因ない明理由停止",
+    "executionTrace": "実行トレース"
   },
   "cron": {
     "sectionTitle": "スケジュールタスク",
@@ -15151,7 +15160,9 @@
         "failure": "失敗",
         "cancelled": "キャンセル",
         "unknown": "不明"
-      }
+      },
+      "llmCalls": "LLM 呼び出し",
+      "saveAsEval": "評価ケースとして保存"
     },
     "replay": {
       "title": "セッションリプレイ",

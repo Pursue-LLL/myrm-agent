@@ -472,6 +472,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             memoryDecayProfile: agent.memory_decay_profile || 'normal',
             memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
             browserSource: agent.browser_source || undefined,
+            promptMode: agent.prompt_mode || undefined,
           };
           setAgentConfig(config);
 

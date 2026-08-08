@@ -29,8 +29,9 @@ Unified Runs Hub 聚合 API。只读端点，将 Cron Runs、Kanban Background T
 
 - 只读：无写操作
 - 并行查询：各源独立 collect；异常或子系统不可用记入 `failed_sources`
-- 字段：`has_execution_steps` = cron metadata 含 progressSteps
+- 字段：`has_execution_steps` = cron metadata 含 progressSteps **或** kanban task 有 progress_note
 - 字段：`stop_reason` = 统一结构化停止原因（优先读取 `metadata.stopReason`，其次回退 `progressSteps`/error 推断）
+- 字段：kanban run 携带 `task_id`，供前端展开 `ExecutionTraceTimeline` 读取 `/statistics/session/{task_id}/trace`（kanban 已通过 task_runner 写入 event_log；trace API 允许无 Chat 记录但 event_log 存在的会话）
 - `failed_sources`：子系统不可用或 fetch 异常；Kanban 尚无 system board 视为空列表（非 degraded）
 - Kanban `failed`/`blocked` 任务：error 含 `timed out` → `timed_out`；含 `cancelled` → `cancelled`（与 channel bridge 一致）
 - 分页：各源最多拉取 `limit + offset + 10` 条后内存合并；`total`/`has_more` 在超 cap 历史下可能偏小

@@ -8,9 +8,14 @@ import ExecutionTraceTimeline from '@/components/features/settings/sections/syst
 
 interface KanbanTaskExecutionTraceSectionProps {
   taskId: string;
+  /**
+   * When the task is running, poll the trace so the drawer live-updates while
+   * the execution is still appending events.
+   */
+  taskStatus?: string;
 }
 
-const KanbanTaskExecutionTraceSection = memo<KanbanTaskExecutionTraceSectionProps>(({ taskId }) => {
+const KanbanTaskExecutionTraceSection = memo<KanbanTaskExecutionTraceSectionProps>(({ taskId, taskStatus }) => {
   const t = useTranslations('kanban');
   const [expanded, setExpanded] = useState(false);
 
@@ -33,7 +38,11 @@ const KanbanTaskExecutionTraceSection = memo<KanbanTaskExecutionTraceSectionProp
       </button>
       {expanded && (
         <div className={cn('border-t border-border px-2 py-2 max-h-[420px] overflow-y-auto')}>
-          <ExecutionTraceTimeline sessionId={taskId} />
+          <ExecutionTraceTimeline
+            sessionId={taskId}
+            showEvalCase={false}
+            pollMs={taskStatus === 'running' ? 30_000 : undefined}
+          />
         </div>
       )}
     </section>

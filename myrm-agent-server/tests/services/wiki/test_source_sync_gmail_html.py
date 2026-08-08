@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from app.services.wiki.source_sync.html_body import html_body_to_markdown
+from app.services.wiki.source_sync.gmail.html_body import html_body_to_markdown
 
 
 def test_html_body_to_markdown_uses_harness_converter() -> None:

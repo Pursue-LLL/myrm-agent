@@ -21,7 +21,7 @@ from app.core.cron.adapters.wiki_router_job_runner import (
     parse_wiki_maintain_mode,
 )
 from app.services.wiki.dedup_runner import WikiDedupRunResult
-from app.services.wiki.maintain_schemas import WikiMaintainRunResult
+from app.services.wiki.maintain import WikiMaintainRunResult
 from app.services.wiki.source_sync.schemas import (
     WikiSourceSyncResult,
     WikiSourceSyncRunSummary,
@@ -78,7 +78,7 @@ async def test_run_maintain_structural_silent() -> None:
     runner = WikiRouterJobRunner()
     maintain_result = WikiMaintainRunResult(mode="structural", summary_text="[SILENT]")
     with patch(
-        "app.services.wiki.maintain_runner.run_wiki_maintain_job",
+        "app.services.wiki.maintain.run_wiki_maintain_job",
         new=AsyncMock(return_value=maintain_result),
     ) as run_mock:
         with patch(

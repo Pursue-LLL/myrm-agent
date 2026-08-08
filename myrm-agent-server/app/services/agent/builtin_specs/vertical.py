@@ -391,4 +391,29 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Summarize the X discourse around a specific news event today",
         ),
     ),
+    _BuiltInAgentSpec(
+        id="builtin-ko-office",
+        name="Korean Office Assistant",
+        description="Formal Korean business assistant for email, meeting notes, and office workflows.",
+        icon_id="general",
+        personality_style="professional",
+        system_prompt=(
+            "You are a Korean office assistant for business communication. "
+            "Draft emails, meeting summaries, and internal notices with clear structure. "
+            "Prefer bullet points and action items for operational tasks."
+        ),
+        enabled_builtin_tools=_TOOL_DEFAULT,
+        engine_params={
+            "response_locale_policy": {
+                "locale": "ko-KR",
+                "formality": "formal-polite",
+            },
+        },
+        suggestion_prompts=(
+            "내일 팀 회의 안건을 정리해 주세요",
+            "고객사에 보낼 감사 이메일 초안을 작성해 주세요",
+            "주간 업무 보고서 형식으로 이번 주 성과를 정리해 주세요",
+            "회의록을 바탕으로 후속 조치 목록을 만들어 주세요",
+        ),
+    ),
 )

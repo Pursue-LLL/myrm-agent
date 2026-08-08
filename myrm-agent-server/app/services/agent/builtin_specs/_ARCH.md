@@ -16,7 +16,7 @@
 | `core.py` | 核心 | 核心预置智能体规格（`_CORE_BUILTIN_AGENTS`）；`builtin-economy` = Knowledge Work Cowork preset（`KNOWLEDGE_WORK_SYSTEM_PROMPT`） | ✅ |
 | `search.py` | 核心 | Web 搜索预置智能体（`prompt_mode=search`）；Web UI  persona，非 Channel 绑定目标 | ✅ |
 | `extended.py` | 核心 | 扩展预置智能体规格（`_EXTENDED_BUILTIN_AGENTS`） | ✅ |
-| `vertical.py` | 核心 | 垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`） | ✅ |
+| `vertical.py` | 核心 | 垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`）；含 **`builtin-ko-office`**（`response_locale_policy` 正式韩语） | ✅ |
 | `__init__.py` | 辅助 | 子包标识；公共 API 由根门面 re-export | ✅ |
 
 ---

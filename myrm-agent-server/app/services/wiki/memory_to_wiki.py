@@ -28,7 +28,7 @@ MemoryToWikiArchiver: Memory→Wiki 自动归档服务
 
 ## Vault Location
 
-- Agent vault SSOT: `{harness_dir}/wiki/agents/{agent_id}/` via `vault_resolver.resolve_wiki_vault_path(agent_id)`
+- Agent vault SSOT: `{harness_dir}/wiki/agents/{agent_id}/` via `vault.resolve_wiki_vault_path(agent_id)`
 - Shared read-only mounts: `{harness_dir}/wiki/shared/{context_id}/` and optional `MYRM_PUBLIC_WIKI_VOLUMES`
 """
 
@@ -90,7 +90,7 @@ class MemoryToWikiArchiver:
             resolved_config = replace(resolved_config, enable_version_control=True)
         self._config = resolved_config
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         if wiki_dir:
             resolved_wiki_dir = Path(wiki_dir).expanduser().resolve()

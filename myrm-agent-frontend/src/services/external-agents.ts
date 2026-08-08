@@ -54,7 +54,7 @@ export async function getExternalAgentAuthStatus(): Promise<ExternalAgentAuthSta
 export function isExternalAgentDelegationReady(
   status: Pick<ExternalAgentAuthStatus, 'authenticated' | 'installed' | 'readyForDelegation'>,
 ): boolean {
-  return status.readyForDelegation ?? (status.authenticated || status.installed);
+  return Boolean(status.readyForDelegation || status.authenticated || status.installed);
 }
 
 export type ExternalAgentBadgeKind = 'subscription' | 'cli_ready' | 'logged_out';

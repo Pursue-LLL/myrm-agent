@@ -249,10 +249,55 @@ def _ui_probe_host_port(ui_base: str) -> tuple[str, int]:
     return host, port
 
 
+def frontend_tcp_html_probe_ok(ui_base: str, *, timeout_sec: float = 5.0) -> bool:
+    """W2 #4 dual probe: fresh TCP connect + first-HTML-packet on the shared UI.
+
+    Guards against BUG-004 "probe before=ok but curl refused": a keep-alive
+    HTTP 200 can be served by a dying Next process while a fresh TCP connect is
+    refused, and a listening socket can accept without ever speaking HTML.
+    Requires a NEW socket connection whose first response packets carry an HTML
+    document, so a cached ``urlopen`` 200 can never fake liveness.
+    """
+    import socket
+    import ssl
+
+    parsed = urlparse(ui_base)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=timeout_sec) as raw:
+            sock: socket.socket | ssl.SSLSocket = raw
+            if parsed.scheme == "https":
+                context = ssl.create_default_context()
+                sock = context.wrap_socket(raw, server_hostname=host)
+            with sock:
+                sock.settimeout(timeout_sec)
+                sock.sendall(
+                    (
+                        f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\n"
+                        "Connection: close\r\nAccept: text/html\r\n\r\n"
+                    ).encode("ascii")
+                )
+                buffered = bytearray()
+                while len(buffered) < 65_536:
+                    try:
+                        chunk = sock.recv(4096)
+                    except (TimeoutError, socket.timeout):
+                        break
+                    if not chunk:
+                        break
+                    buffered.extend(chunk)
+                    lowered = buffered.lower()
+                    if b"<!doctype html" in lowered or b"<html" in lowered:
+                        return True
+    except (OSError, TimeoutError, ValueError, ssl.SSLError):
+        return False
+    return False
+
+
 def classify_ui_endpoint_error(ui_base: str, *, timeout_sec: float = 5.0) -> str | None:
-    """Return ui error token or None when UI responds HTTP 2xx."""
-    url = ui_base.rstrip("/") + "/"
-    if _http_url_ok(url, timeout_sec=timeout_sec):
+    """Return ui error token or None when UI serves real HTML (W2 #4 SSOT)."""
+    if frontend_tcp_html_probe_ok(ui_base, timeout_sec=timeout_sec):
         return None
     _, port = _ui_probe_host_port(ui_base)
     if _frontend_tcp_port_listening("127.0.0.1", port):

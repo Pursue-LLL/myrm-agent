@@ -758,7 +758,7 @@ async def _wiki_concept_part(
     try:
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)
@@ -868,7 +868,7 @@ async def _wiki_raw_file_part(
     try:
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from app.services.wiki.vault import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)

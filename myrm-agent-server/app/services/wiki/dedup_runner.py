@@ -79,7 +79,7 @@ def _compile_is_busy(archiver: object) -> bool:
 
 
 def _run_scan_sync(*, agent_id: str | None, incremental: bool) -> ScanResult:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     scanner = CorpusDedupScanner(archiver._structure)
@@ -97,7 +97,7 @@ async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -
             "Background wiki dedup scan failed for scope %s: %s", scope_key, exc
         )
         try:
-            from app.services.wiki.vault_service import get_wiki_archiver
+            from app.services.wiki.vault import get_wiki_archiver
 
             archiver = get_wiki_archiver(None, agent_id=agent_id)
             CorpusDedupScanner(archiver._structure).store.set_scan_progress(
@@ -117,7 +117,7 @@ async def schedule_wiki_dedup_scan(
     agent_id: str | None = None,
     incremental: bool = True,
 ) -> WikiDedupScanScheduleResult:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     if _compile_is_busy(archiver):
@@ -146,7 +146,7 @@ async def schedule_wiki_dedup_scan(
 async def run_wiki_dedup_scan_job(
     *, agent_id: str | None = None, incremental: bool = True
 ) -> WikiDedupRunResult:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     if _compile_is_busy(archiver):
@@ -177,7 +177,7 @@ async def apply_wiki_dedup_disposition(
     action: DispositionAction,
     reason: str,
 ) -> DispositionResult:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
@@ -191,7 +191,7 @@ async def apply_wiki_dedup_disposition(
 
 
 def get_wiki_dedup_progress(*, agent_id: str | None = None) -> ScanProgress:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     scanner = CorpusDedupScanner(archiver._structure)
@@ -199,7 +199,7 @@ def get_wiki_dedup_progress(*, agent_id: str | None = None) -> ScanProgress:
 
 
 def get_wiki_dedup_stats(*, agent_id: str | None = None):
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     eligibility = CorpusEligibilityFilter(archiver._structure)
@@ -209,7 +209,7 @@ def get_wiki_dedup_stats(*, agent_id: str | None = None):
 
 
 def list_wiki_dedup_groups(*, agent_id: str | None = None):
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     scanner = CorpusDedupScanner(archiver._structure)
@@ -221,7 +221,7 @@ def get_wiki_dedup_group_snippets(*, agent_id: str | None, group_id: int):
         build_group_body_snippets,
     )
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     store = CorpusDedupScanner(archiver._structure).store
@@ -233,7 +233,7 @@ def get_wiki_dedup_group_snippets(*, agent_id: str | None, group_id: int):
 
 
 def wiki_dedup_blocks_compile(*, agent_id: str | None = None) -> bool:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
@@ -245,7 +245,7 @@ def is_wiki_dedup_scan_running(*, agent_id: str | None = None) -> bool:
 
 
 def wiki_dedup_checklist_ready(*, agent_id: str | None = None) -> bool:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     store = CorpusDedupScanner(archiver._structure).store
@@ -260,7 +260,7 @@ def wiki_dedup_checklist_ready(*, agent_id: str | None = None) -> bool:
 def get_wiki_dedup_vault_hygiene(
     *, agent_id: str | None = None
 ) -> VaultHygieneSnapshot:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
@@ -272,7 +272,7 @@ async def restore_wiki_dedup_trashed(
     agent_id: str | None,
     relative_path: str,
 ) -> TrashedRawEntry:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)
@@ -289,7 +289,7 @@ async def undo_wiki_dedup_excluded(
     agent_id: str | None,
     relative_path: str,
 ) -> ExcludedRawEntry:
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     governor = CorpusDedupGovernor(archiver._structure)

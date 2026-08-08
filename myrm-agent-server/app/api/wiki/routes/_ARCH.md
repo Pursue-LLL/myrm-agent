@@ -16,5 +16,5 @@ Extension clip 与 wikiignore REST 子路由，与 Brain Console 主 router 分�
 ## 依赖
 
 - `app.services.wiki.clip` (POS: clip job orchestration + multipart cap)
-- `app.services.wiki.vault_service` (POS: wiki archiver)
+- `app.services.wiki.vault` (POS: wiki archiver)
 - `myrm_agent_harness.toolkits.wiki.pipeline.ingress` (POS: clip ingress + wikiignore)

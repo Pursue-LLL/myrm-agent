@@ -1725,7 +1725,9 @@
         "skippedBudgetPressure": "\"會話預算已告警，多智能體顧問疊加已跳過。\"",
         "skippedInsufficientRefs": "\"多智能體已開啟，但成功顧問模型數量不足，注入已跳過 — 請檢查參考模型可用性。\"",
         "skippedGeneric": "\"本條消息的多智能體顧問疊加已跳過。\""
-      }
+      },
+      "preflightCompress": "將壓縮",
+      "preflightCompressDetail": "現在切換後，下一則訊息將觸發上下文壓縮（閾值：{threshold} tokens）"
     },
     "modelCapabilities": {
       "vision": "視覺",
@@ -5032,7 +5034,9 @@
           "failure": "失敗",
           "cancelled": "已取消",
           "unknown": "未知"
-        }
+        },
+        "llmCalls": "LLM 調用",
+        "saveAsEval": "儲存為評測案例"
       },
       "replay": {
         "title": "錄影回放",
@@ -6170,6 +6174,10 @@
     "allowDiscovery": {
       "title": "允許被其他智慧體發現並委派",
       "description": "開啟後，其他智慧體可以透過 @ 提及或自動組隊時發現並呼叫此智慧體。關閉可隱藏半成品。"
+    },
+    "formalKoreanReplies": {
+      "title": "正式韓語回覆（합니다体）",
+      "description": "回覆使用適合商務郵件、會議紀要與辦公場景的韓語敬語（합니다体）。"
     },
     "openapi": {
       "title": "OpenAPI 服務",
@@ -10820,7 +10828,8 @@
     "stopReasonTimedOut": "執行超時",
     "stopReasonCancelled": "執行已取消",
     "stopReasonError": "執行失敗",
-    "stopReasonUnknown": "因未知原因停止"
+    "stopReasonUnknown": "因未知原因停止",
+    "executionTrace": "執行軌跡"
   },
   "cron": {
     "sectionTitle": "定時任務",
@@ -15303,7 +15312,9 @@
         "failure": "\"失敗\"",
         "cancelled": "\"已取消\"",
         "unknown": "\"未知\""
-      }
+      },
+      "llmCalls": "LLM 調用",
+      "saveAsEval": "儲存為評測案例"
     },
     "replay": {
       "title": "\"會話回放\"",

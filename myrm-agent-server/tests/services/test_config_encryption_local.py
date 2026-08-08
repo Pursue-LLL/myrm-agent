@@ -35,6 +35,8 @@ def test_local_mode_encryption_service():
     assert is_sensitive_config("retrieval") is True
     assert is_sensitive_config("mcpServers") is True
     assert is_sensitive_config("orgMcpServers") is True
+    assert is_sensitive_config("mcpOAuthTokens") is True
+    assert is_sensitive_config("oauthCredentials") is True
     assert is_sensitive_config("chatSettings") is False
 
 

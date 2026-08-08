@@ -82,7 +82,7 @@ def test_seed_wiki_dedup_fixture_dismiss_then_resurface_on_new_member(
     ]
     assert open_or_deferred == []
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=None)
     structure = archiver._structure

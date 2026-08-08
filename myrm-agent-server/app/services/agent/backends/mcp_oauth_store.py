@@ -4,8 +4,10 @@ Business-layer implementation of the harness ``MCPOAuthTokenStore`` protocol.
 Stores MCP OAuth tokens in the ``UserConfig`` table under the key
 ``mcpOAuthTokens``, encrypted via ``ConfigEncryptionService``.
 
-Supports concurrent-safe token refresh with lock-per-server to prevent
-Refresh Token Rotation lockout.
+Supports concurrent-safe token refresh: lock-per-server prevents Refresh
+Token Rotation lockout, and a global persist lock serializes read-modify-write
+of the shared token dict across servers (agent startup refreshes many servers
+concurrently).
 
 [INPUT]
 - myrm_agent_harness.toolkits.mcp.oauth (POS: MCPOAuthTokenStore protocol)
@@ -17,7 +19,8 @@ Refresh Token Rotation lockout.
 
 [POS]
 MCP OAuth token encrypted persistence. Implements framework MCPOAuthTokenStore
-protocol with AES-256-GCM encryption and stampede-safe token refresh.
+protocol with AES-256-GCM encryption, stampede-safe token refresh, and
+cross-server atomic writes.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 
 import httpx
 from myrm_agent_harness.toolkits.mcp.oauth import (
@@ -43,6 +47,11 @@ logger = logging.getLogger(__name__)
 _CONFIG_KEY = "mcpOAuthTokens"
 
 _refresh_locks: dict[str, asyncio.Lock] = {}
+
+# Serializes read-modify-write of the shared token dict across servers.
+# Per-server ``_refresh_locks`` cannot prevent cross-server lost updates when
+# multiple servers refresh concurrently (e.g. agent startup after expiry).
+_persist_lock = asyncio.Lock()
 
 
 class DatabaseMCPOAuthTokenStore:
@@ -90,8 +99,11 @@ class DatabaseMCPOAuthTokenStore:
                 flag_modified(row, "config_value")
             else:
                 row = UserConfig(
+                    id=str(uuid.uuid4()),
                     config_key=_CONFIG_KEY,
                     config_value=final_value,
+                    version="1.0.0",
+                    last_device_id="sandbox",
                     is_encrypted=is_enc,
                 )
                 db.add(row)
@@ -110,27 +122,29 @@ class DatabaseMCPOAuthTokenStore:
             return None
 
     async def save_token(self, server_name: str, token: MCPOAuthToken) -> None:
-        tokens = await self._load_tokens()
-        entry = tokens.get(server_name)
-        existing_config = entry.get("_oauth_config") if isinstance(entry, dict) else None
-        data = token.model_dump()
-        if existing_config:
-            data["_oauth_config"] = existing_config
-        tokens[server_name] = data
-        await self._save_tokens(tokens)
+        async with _persist_lock:
+            tokens = await self._load_tokens()
+            entry = tokens.get(server_name)
+            existing_config = entry.get("_oauth_config") if isinstance(entry, dict) else None
+            data = token.model_dump()
+            if existing_config:
+                data["_oauth_config"] = existing_config
+            tokens[server_name] = data
+            await self._save_tokens(tokens)
         logger.info("Saved MCP OAuth token for '%s'", server_name)
 
     async def save_token_with_config(self, server_name: str, token: MCPOAuthToken, oauth_config: MCPOAuthConfig) -> None:
         """Persist token together with the OAuth server config for later refresh."""
-        tokens = await self._load_tokens()
-        data = token.model_dump()
-        data["_oauth_config"] = {
-            "token_endpoint": oauth_config.token_endpoint,
-            "client_id": oauth_config.client_id,
-            "client_secret": oauth_config.client_secret,
-        }
-        tokens[server_name] = data
-        await self._save_tokens(tokens)
+        async with _persist_lock:
+            tokens = await self._load_tokens()
+            data = token.model_dump()
+            data["_oauth_config"] = {
+                "token_endpoint": oauth_config.token_endpoint,
+                "client_id": oauth_config.client_id,
+                "client_secret": oauth_config.client_secret,
+            }
+            tokens[server_name] = data
+            await self._save_tokens(tokens)
         logger.info("Saved MCP OAuth token+config for '%s'", server_name)
 
     async def get_oauth_config(self, server_name: str) -> MCPOAuthConfig | None:
@@ -150,11 +164,12 @@ class DatabaseMCPOAuthTokenStore:
         )
 
     async def delete_token(self, server_name: str) -> None:
-        tokens = await self._load_tokens()
-        if server_name in tokens:
-            del tokens[server_name]
-            await self._save_tokens(tokens)
-            logger.info("Deleted MCP OAuth token for '%s'", server_name)
+        async with _persist_lock:
+            tokens = await self._load_tokens()
+            if server_name in tokens:
+                del tokens[server_name]
+                await self._save_tokens(tokens)
+                logger.info("Deleted MCP OAuth token for '%s'", server_name)
 
     async def refresh_token_exchange(
         self, server_name: str, oauth_config: MCPOAuthConfig, refresh_token: str

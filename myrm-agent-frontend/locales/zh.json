@@ -1644,6 +1644,8 @@
       "noEnabledModels": "请先在模型服务中启用模型",
       "noMatchingModels": "没有匹配的模型",
       "orgPolicyRestricted": "受组织策略限制",
+      "preflightCompress": "将压缩",
+      "preflightCompressDetail": "现在切换后下一条消息将触发上下文压缩（阈值：{threshold} tokens）",
       "moaPreset": {
         "groupTitle": "多智能体混合",
         "defaultLabel": "标准",
@@ -5336,7 +5338,9 @@
           "failure": "失败",
           "cancelled": "已取消",
           "unknown": "未知"
-        }
+        },
+        "llmCalls": "LLM 调用",
+        "saveAsEval": "保存为评测用例"
       },
       "replay": {
         "title": "录像回放",
@@ -6280,6 +6284,10 @@
     "allowDiscovery": {
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。"
+    },
+    "formalKoreanReplies": {
+      "title": "正式韩语回复（합니다体）",
+      "description": "回复使用适合商务邮件、会议纪要与办公场景的韩语敬语（합니다体）。"
     },
     "openapi": {
       "title": "OpenAPI 服务",
@@ -10885,7 +10893,8 @@
     "stopReasonTimedOut": "执行超时",
     "stopReasonCancelled": "运行已取消",
     "stopReasonError": "执行失败",
-    "stopReasonUnknown": "因未知原因停止"
+    "stopReasonUnknown": "因未知原因停止",
+    "executionTrace": "执行轨迹"
   },
   "cron": {
     "sectionTitle": "定时任务",
@@ -15383,7 +15392,9 @@
         "failure": "失败",
         "cancelled": "已取消",
         "unknown": "未知"
-      }
+      },
+      "llmCalls": "LLM 调用",
+      "saveAsEval": "保存为评测用例"
     },
     "replay": {
       "title": "会话回放",

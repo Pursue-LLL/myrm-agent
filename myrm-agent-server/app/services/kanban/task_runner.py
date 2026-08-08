@@ -315,6 +315,7 @@ class KanbanTaskRunner:
         goal_provider: GoalProvider | None = None,
     ) -> tuple[bool, str]:
         from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.config.settings import get_settings
         from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.channel_bridge.config_parsers import (
             extract_fallback_model_configs,
@@ -485,6 +486,8 @@ class KanbanTaskRunner:
                 personal_settings=memory_settings,
                 channel=_CHANNEL_NAME,
             ),
+            event_log_dir=get_settings().database.event_log_dir,
+            event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,
         )
 
         from app.services.agent.execution_cache import (

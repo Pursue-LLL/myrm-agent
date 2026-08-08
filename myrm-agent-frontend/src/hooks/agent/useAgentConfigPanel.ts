@@ -395,6 +395,7 @@ export const useAgentConfigPanel = () => {
           memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
           memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
           browserSource: agentDetail.browser_source || undefined,
+          promptMode: agentDetail.prompt_mode || undefined,
         };
         setAgentConfig(newConfig);
 

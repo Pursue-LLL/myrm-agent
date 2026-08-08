@@ -5,7 +5,7 @@
 - app.services.agent.template_utils::ensure_skills_enabled (POS: prebuilt skill enablement)
 - app.core.cron.blueprints::fill_blueprint (POS: read_it_later + wiki_morning_delta + wiki_maintain blueprints)
 - app.services.config.service::config_service (POS: preset state persistence)
-- app.services.wiki.vault_resolver::seed_agent_vault_from_default (POS: default→agent vault seed)
+- app.services.wiki.vault::seed_agent_vault_from_default (POS: default→agent vault seed)
 
 [OUTPUT]
 - apply_second_brain_preset(): create/reuse agent + read-it-later + wiki-morning-delta + wiki-maintain crons, persist checklist state
@@ -54,7 +54,7 @@ from app.services.onboarding.schemas import (
     SecondBrainPresetState,
     SecondBrainStatusResponse,
 )
-from app.services.wiki.vault_resolver import (
+from app.services.wiki.vault import (
     seed_agent_vault_from_default,
     vault_has_wiki_content,
 )

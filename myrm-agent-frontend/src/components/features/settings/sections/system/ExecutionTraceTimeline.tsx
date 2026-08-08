@@ -30,6 +30,17 @@ import SessionReplayPlayer from '@/components/features/memory/SessionReplayPlaye
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
+  /**
+   * Kanban task runs have no Chat record, so the "save as eval case" action
+   * (which replays chat messages) would always fail; callers may hide it.
+   */
+  showEvalCase?: boolean;
+  /**
+   * Optional live-refresh interval (ms) for in-progress runs. While the run is
+   * running the trace grows incrementally; callers pass a value here and drop it
+   * once the run reaches a terminal state.
+   */
+  pollMs?: number;
 }
 
 const OUTCOME_CONFIG: Record<TraceOutcome, { icon: React.ElementType; label: string; className: string }> = {
@@ -55,7 +66,7 @@ const OUTCOME_CONFIG: Record<TraceOutcome, { icon: React.ElementType; label: str
   },
 };
 
-const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId }) => {
+const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, showEvalCase = true, pollMs }) => {
   const t = useTranslations('settings.sessionAnalytics.trace');
   const [trace, setTrace] = useState<ExecutionTrace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,23 +87,32 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId })
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const load = async (initial: boolean) => {
       try {
-        setLoading(true);
-        setError(null);
+        if (initial) {
+          setLoading(true);
+          setError(null);
+        }
         const data = await getSessionExecutionTrace(sessionId);
         if (!cancelled) setTrace(data);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load trace');
+        if (!cancelled && initial) {
+          setError(err instanceof Error ? err.message : 'Failed to load trace');
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && initial) setLoading(false);
       }
     };
-    load();
+    void load(true);
+    if (pollMs && pollMs > 0) {
+      timer = setInterval(() => void load(false), pollMs);
+    }
     return () => {
       cancelled = true;
+      if (timer) clearInterval(timer);
     };
-  }, [sessionId]);
+  }, [sessionId, pollMs]);
 
   if (loading) {
     return (
@@ -138,7 +158,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId })
             <IconPlay className="w-3 h-3" />
             {t('enterReplay', { defaultMessage: 'Enter Replay' })}
           </button>
-          {trace.outcome === 'failure' && (
+          {trace.outcome === 'failure' && showEvalCase && (
             <div className="mr-2" title={t('saveAsEval', { defaultMessage: 'Save as Eval Case' })}>
               <SaveEvalCase chatId={sessionId} />
             </div>

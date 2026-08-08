@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.core.security.auth.identity import LOCAL_USER_ID
-from app.services.wiki.maintain_schemas import WikiMaintainRunResult
+from app.services.wiki.maintain import WikiMaintainRunResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,7 +73,7 @@ def test_maintain_default_structural_mode(
     client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
     try:
         with patch(
-            "app.services.wiki.maintain_runner.run_wiki_maintain_job",
+            "app.services.wiki.maintain.run_wiki_maintain_job",
             new=AsyncMock(return_value=success),
         ) as run_mock:
             response = client.post("/api/v1/wiki/maintain")
@@ -103,7 +103,7 @@ def test_maintain_full_mode_query(client: TestClient, mock_archiver: MagicMock) 
     client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
     try:
         with patch(
-            "app.services.wiki.maintain_runner.run_wiki_maintain_job",
+            "app.services.wiki.maintain.run_wiki_maintain_job",
             new=AsyncMock(return_value=success),
         ) as run_mock:
             response = client.post("/api/v1/wiki/maintain?mode=full")
@@ -129,7 +129,7 @@ def test_maintain_compile_busy_returns_409(
     client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
     try:
         with patch(
-            "app.services.wiki.maintain_runner.run_wiki_maintain_job",
+            "app.services.wiki.maintain.run_wiki_maintain_job",
             new=AsyncMock(return_value=skipped),
         ):
             response = client.post("/api/v1/wiki/maintain")

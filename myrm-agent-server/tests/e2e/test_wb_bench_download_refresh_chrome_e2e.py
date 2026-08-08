@@ -28,46 +28,12 @@ from tests.support.chrome_mcp_e2e import (
 from tests.support.wb_bench_e2e_helpers import (
     EVAL_LAB_PATH,
     SOURCES_READY_JS,
+    all_grid_buttons_disabled_js,
+    click_refresh_js,
     click_subset_download_js,
     restore_eval_lab_route,
     subset_downloaded_js,
 )
-
-# While a download is running the backend marks eval busy; every Download/Run
-# button on the sources grid must be disabled until the state resets.
-_ALL_BUTTONS_DISABLED_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const grid = buttons.filter((b) => {
-    if (!/Download|下载|Run|运行/i.test(b.textContent || '')) return false;
-    let node = b.parentElement;
-    while (node && node !== document.body) {
-      if (/WBBench/.test(node.textContent || '')) return true;
-      node = node.parentElement;
-    }
-    return false;
-  });
-  return {
-    ready: grid.length >= 8 && grid.every((b) => b.disabled === true),
-    total: grid.length,
-    disabledCount: grid.filter((b) => b.disabled === true).length,
-  };
-})()"""
-
-# Clicks the Refresh button next to the WBBench sources heading.
-_CLICK_REFRESH_JS = """(() => {
-  const target = Array.from(document.querySelectorAll('button')).find((b) => {
-    const text = (b.textContent || '').trim();
-    return /Refresh|刷新/i.test(text);
-  });
-  if (!target) return { ok: false, err: 'refresh-button-missing' };
-  const opts = { bubbles: true, cancelable: true, view: window, button: 0, buttons: 1, detail: 1 };
-  target.dispatchEvent(new PointerEvent('pointerdown', opts));
-  target.dispatchEvent(new MouseEvent('mousedown', opts));
-  target.dispatchEvent(new PointerEvent('pointerup', opts));
-  target.dispatchEvent(new MouseEvent('mouseup', opts));
-  target.dispatchEvent(new MouseEvent('click', opts));
-  return { ok: true, clicked: true };
-})()"""
 
 
 @pytest.mark.chrome_e2e(
@@ -102,7 +68,7 @@ def test_wb_bench_download_refresh_and_buttons_chrome_e2e() -> None:
         all_disabled = wait_for_state(
             client,
             page,
-            _ALL_BUTTONS_DISABLED_JS,
+            all_grid_buttons_disabled_js(),
             timeout_sec=60.0,
         )
         # At least the 4 cards must render their buttons; all must be disabled.
@@ -114,7 +80,7 @@ def test_wb_bench_download_refresh_and_buttons_chrome_e2e() -> None:
         assert downloaded.get("ready") is True, downloaded
 
         # Manual refresh re-pulls the catalog; the downloaded state must persist.
-        refreshed = client.evaluate(page, _CLICK_REFRESH_JS)
+        refreshed = client.evaluate(page, click_refresh_js())
         assert refreshed.get("ok") is True, refreshed
         after_refresh = wait_for_state(
             client,

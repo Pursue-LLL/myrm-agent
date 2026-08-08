@@ -7,9 +7,7 @@ Sandbox 模式下 SQLite 文件存储在沙箱持久化卷上。
 
 import logging
 import os
-import random
 import sqlite3
-import time
 from pathlib import Path
 
 from sqlalchemy import event
@@ -106,7 +104,7 @@ def create_engine() -> AsyncEngine:
         future=True,
         connect_args={"check_same_thread": False},
         pool_size=pool_size,
-        max_overflow=0,
+        max_overflow=settings.database.sqlite_pool_max_overflow,
     )
 
     # Register database setting pragmas when connection is established
@@ -114,43 +112,18 @@ def create_engine() -> AsyncEngine:
 
     @event.listens_for(engine.sync_engine, "begin")
     def do_begin(conn: Connection) -> None:
-        """Execute BEGIN IMMEDIATE with Jitter Retry to prevent WAL Convoy Effect.
+        """Execute BEGIN IMMEDIATE to take the SQLite write lock eagerly.
 
-        When multiple processes/threads write to the same SQLite WAL database,
-        SQLite's built-in busy_timeout uses a deterministic backoff that causes
-        a convoy effect (all blocked writers wake up at the same time, collide,
-        and sleep again).
-        By executing BEGIN IMMEDIATE, we acquire the write lock immediately.
-        If it fails, we sleep for a random jitter (20ms-150ms) and retry,
-        breaking the convoy pattern.
+        Lock-contention waits are governed by the ``busy_timeout`` PRAGMA and
+        happen on the aiosqlite connection worker thread, so the asyncio event
+        loop is never blocked. A previous implementation retried with
+        ``time.sleep(jitter)`` in this sync callback, which froze the whole
+        event loop during write contention and cascaded into multi-second
+        health-check latency (and loadMessages fetch timeouts) under parallel
+        E2E load. SQLite's built-in busy handler already applies its own
+        backoff, so the manual jitter retry was redundant.
         """
-        # If database WAL has degraded to DELETE on network storage, double the write retries to prevent locking timeouts
-        max_retries = 30 if system_status.database_degraded else 15
-        min_s = 0.020
-        max_s = 0.150
-        last_err = None
-
-        for attempt in range(max_retries):
-            try:
-                conn.exec_driver_sql("BEGIN IMMEDIATE")
-                return
-            except Exception as exc:
-                # Check if it's a sqlite3.OperationalError with "locked" or "busy"
-                # SQLAlchemy wraps DBAPI errors, so we check the original exception
-                orig = getattr(exc, "orig", exc)
-                if isinstance(orig, sqlite3.OperationalError):
-                    err_msg = str(orig).lower()
-                    if "locked" in err_msg or "busy" in err_msg:
-                        last_err = exc
-                        if attempt < max_retries - 1:
-                            jitter = random.uniform(min_s, max_s)
-                            time.sleep(jitter)
-                            continue
-                raise
-
-        # If we exhausted retries, raise the last error
-        if last_err:
-            raise last_err
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
 
     logger.info(
         "SQLite engine: WAL + mmap, pool_size=%s, busy_timeout_ms=%s",

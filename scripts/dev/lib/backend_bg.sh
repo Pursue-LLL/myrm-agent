@@ -230,7 +230,13 @@ except Exception:
   export DEPLOY_MODE="${DEPLOY_MODE:-local}"
   export HOST="${HOST:-127.0.0.1}"
   export PORT="${backend_port}"
-  export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-15}"
+  # SQLite is single-writer: a large async pool only widens write-lock
+  # contention across parallel E2E sessions. Keep the pool modest and lean on
+  # the busy_timeout PRAGMA (which waits on the aiosqlite worker thread without
+  # blocking the event loop) to absorb short write bursts.
+  export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-8}"
+  export SQLITE_POOL_MAX_OVERFLOW="${SQLITE_POOL_MAX_OVERFLOW:-8}"
+  export SQLITE_BUSY_TIMEOUT_MS="${SQLITE_BUSY_TIMEOUT_MS:-15000}"
   export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${state_dir}/stack-epoch.json}"
   # Child backend must run under the real user home: sandboxed HOME (e.g.
   # ~/.cursor2) would split harness data into ~/.cursor2/.myrm, desyncing

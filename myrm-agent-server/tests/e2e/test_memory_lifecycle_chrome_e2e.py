@@ -72,6 +72,9 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "RUNTIME_DRIFT",
     "timed out",
     "QueuePool limit",
+    "Memory lifecycle seed",
+    "seed chat not readable",
+    "database is locked",
 )
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -471,16 +474,27 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 
 
 def _seed_memory_lifecycle_fixture(api_url: str) -> dict[str, str]:
-    seeded = http_json(
-        "POST", f"{api_url}/api/v1/chats/test/seed-memory-lifecycle-fixture"
-    )
-    assert isinstance(seeded, dict)
-    chat_id = str(seeded.get("chat_id") or "")
-    message_id = str(seeded.get("message_id") or "")
-    assert chat_id.startswith("e2ememlife")
-    assert message_id
-    _ensure_seeded_chat_ready(api_url, chat_id)
-    return {"chat_id": chat_id, "message_id": message_id}
+    last_error: BaseException | None = None
+    for attempt in range(1, 4):
+        try:
+            seeded = http_json(
+                "POST",
+                f"{api_url}/api/v1/chats/test/seed-memory-lifecycle-fixture",
+            )
+            assert isinstance(seeded, dict)
+            chat_id = str(seeded.get("chat_id") or "")
+            message_id = str(seeded.get("message_id") or "")
+            assert chat_id.startswith("e2ememlife")
+            assert message_id
+            _ensure_seeded_chat_ready(api_url, chat_id, timeout_sec=90.0)
+            return {"chat_id": chat_id, "message_id": message_id}
+        except (AssertionError, RuntimeError, TimeoutError, OSError, ValueError) as exc:
+            last_error = exc
+            if attempt >= 3:
+                break
+            time.sleep(min(2.0 * attempt, 6.0))
+    assert last_error is not None
+    raise last_error
 
 
 def _ensure_seeded_chat_ready(

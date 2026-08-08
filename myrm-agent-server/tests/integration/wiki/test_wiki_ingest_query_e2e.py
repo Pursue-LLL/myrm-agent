@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage
 from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+from app.services.wiki.vault import resolve_wiki_vault_path
 
 
 class TestWikiIngestQueryE2E:

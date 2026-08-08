@@ -1,7 +1,7 @@
 """Wiki vault lifecycle and shared archiver access.
 
 [INPUT]
-- app.services.wiki.vault_resolver::resolve_wiki_vault_path (POS: wiki filesystem SSOT)
+- app.services.wiki.vault.resolver::resolve_wiki_vault_path (POS: wiki filesystem SSOT)
 - app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving service)
 - myrm_agent_harness.toolkits.wiki::WikiStructure (POS: Wiki file system abstraction layer)
 
@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_resolver import (
+from app.services.wiki.vault.resolver import (
     migrate_legacy_wiki_vaults,
     resolve_agent_wiki_vault_path,
     resolve_wiki_vault_path,

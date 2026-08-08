@@ -18,4 +18,6 @@ export type ContextBudget = {
   messages_estimated_tokens?: number;
   bound_tools_overhead_tokens?: number;
   other_tokens?: number;
+  /** 服务端 checkpoint 全量 human 消息数（与运行时 compress_processor 口径一致）。 */
+  turn_count?: number;
 };

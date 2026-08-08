@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database.connection import init_database
-from app.services.wiki.vault_resolver import seed_agent_vault_from_default, vault_has_wiki_content
+from app.services.wiki.vault import seed_agent_vault_from_default, vault_has_wiki_content
 from tests.support.minimal_app import build_minimal_app
 
 TEST_WS = Path(os.environ["MYRM_DATA_DIR"])
@@ -148,7 +148,14 @@ def test_second_brain_status_before_apply() -> None:
             assert response.status_code == 200
             payload = response.json()
             assert payload["applied"] is False
-            assert len(payload["checklist"]) == 4
+            assert len(payload["checklist"]) == 5
+            assert {item["id"] for item in payload["checklist"]} == {
+                "agent_tools",
+                "cron_job",
+                "vault_content",
+                "corpus_dedup",
+                "provider_ready",
+            }
     finally:
         app.router.lifespan_context = original_lifespan
 

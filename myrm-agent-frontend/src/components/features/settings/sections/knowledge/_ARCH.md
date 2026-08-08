@@ -20,6 +20,7 @@ Settings 记忆与知识子系统：全局/归档记忆、Wiki、Checkpoint、�
 | `CheckpointSection.tsx` | 组件 | Checkpoint 快照管理 | ✅ |
 | `FollowUpsPanel.tsx` | 组件 | Commitment / Follow-up 面板 | ✅ |
 | `WikiSection.tsx` | 核心 | Wiki Settings 入口 | ✅ |
+| `WikiSourceSyncPanel.tsx` | 组件 | Wiki 外部来源同步配置（Feishu/Gmail/GDrive/RSS + 手动同步） | ✅ |
 | `WikiIgnorePanel.tsx` | 组件 | `.wikiignore` 编辑（Settings → Wiki · agent scope） | ✅ |
 | `WikiDuplicateReviewPanel.tsx` | 组件 | Raw corpus dedup 审核面板 | ✅ |
 | `WikiQueuePanel.tsx` | 组件 | Wiki 入库队列 | ✅ |

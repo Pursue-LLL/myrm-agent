@@ -38,9 +38,9 @@ async def test_get_llm_for_user_returns_real_window():
             return_value=mock_llm,
         ),
     ):
-        from app.services.chat.compact_service import _get_llm_for_user
+        from app.services.chat.compact.llm_config import get_llm_for_user
 
-        llm, max_tokens = await _get_llm_for_user()
+        llm, max_tokens = await get_llm_for_user()
 
         assert llm is mock_llm
         assert max_tokens == 32000
@@ -70,9 +70,9 @@ async def test_get_llm_for_user_fallback_128k_when_none():
             return_value=mock_llm,
         ),
     ):
-        from app.services.chat.compact_service import _get_llm_for_user
+        from app.services.chat.compact.llm_config import get_llm_for_user
 
-        _, max_tokens = await _get_llm_for_user()
+        _, max_tokens = await get_llm_for_user()
 
         assert max_tokens == 128000
 
@@ -103,10 +103,10 @@ async def test_guarded_compact_summarize_passes_config():
         "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.generate_structured_summary",
         side_effect=fake_generate,
     ):
-        from app.services.chat.compact_service import _guarded_compact_summarize
+        from app.services.chat.compact.summarize_guard import guarded_compact_summarize
 
         mock_llm = AsyncMock()
-        await _guarded_compact_summarize(
+        await guarded_compact_summarize(
             lc_messages=[],
             llm=mock_llm,
             chat_id="test-chat",
@@ -144,9 +144,9 @@ async def test_get_llm_for_user_large_window_200k():
             return_value=mock_llm,
         ),
     ):
-        from app.services.chat.compact_service import _get_llm_for_user
+        from app.services.chat.compact.llm_config import get_llm_for_user
 
-        _, max_tokens = await _get_llm_for_user()
+        _, max_tokens = await get_llm_for_user()
 
         assert max_tokens == 200000
 
@@ -175,9 +175,9 @@ async def test_get_llm_for_user_zero_treated_as_falsy():
             return_value=mock_llm,
         ),
     ):
-        from app.services.chat.compact_service import _get_llm_for_user
+        from app.services.chat.compact.llm_config import get_llm_for_user
 
-        _, max_tokens = await _get_llm_for_user()
+        _, max_tokens = await get_llm_for_user()
 
         assert max_tokens == 128000
 
@@ -208,10 +208,10 @@ async def test_guarded_compact_summarize_default_128k():
         "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.generate_structured_summary",
         side_effect=fake_generate,
     ):
-        from app.services.chat.compact_service import _guarded_compact_summarize
+        from app.services.chat.compact.summarize_guard import guarded_compact_summarize
 
         mock_llm = AsyncMock()
-        await _guarded_compact_summarize(
+        await guarded_compact_summarize(
             lc_messages=[],
             llm=mock_llm,
             chat_id="test-chat",

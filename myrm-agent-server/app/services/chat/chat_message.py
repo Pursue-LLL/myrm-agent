@@ -5,6 +5,7 @@
 - database.dto::MessageDTO (POS: 消息数据传输对象)
 - chat_helpers::ALLOWED_MESSAGE_ROLES (POS: 合法消息角色集合)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
+- core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
 
 [OUTPUT]
 - _ChatMessageMixin: 消息追加、分页查询、全量查询、按 id 查询、assistant 消息安全持久化与记忆影响账本记录
@@ -271,6 +272,10 @@ class _ChatMessageMixin(_ChatServiceBase):
                 )
 
                 from app.config.settings import settings
+                from app.core.utils.session_id import is_safe_session_id
+
+                if not is_safe_session_id(chat_id):
+                    return
 
                 event_log_file = (
                     Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"

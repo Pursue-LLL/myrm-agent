@@ -66,6 +66,13 @@ CRITICAL INSTRUCTIONS:
 - Do NOT include any conversational filler (like "Here is your prompt:"). Output ONLY the raw Markdown prompt text.
 - You MUST output the prompt in the language corresponding to this locale: {locale or "auto-detect based on intent"}.
 """
+        if locale and str(locale).lower().startswith("ko"):
+            system_prompt += (
+                "\n- When the locale is Korean, write the prompt in Korean using formal polite "
+                "speech (합니다/하십시오체) suitable for office communication."
+            )
+
+        system_prompt += "\n"
 
         if current_prompt and current_prompt.strip():
             system_prompt += f"\n\nThe user already has an existing prompt. You should EDIT or ENHANCE it based on their new intent, rather than rewriting from scratch if the intent is just a minor addition.\n\nEXISTING PROMPT:\n{current_prompt}"

@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import (
 )
 
 from app.services.wiki import dedup_runner
-from app.services.wiki.vault_service import (
+from app.services.wiki.vault import (
     get_wiki_archiver,
     reset_wiki_archiver_cache_for_tests,
 )
@@ -29,7 +29,7 @@ def wiki_archiver(tmp_path):
         mock_settings.database.state_dir = str(tmp_path)
         archiver = get_wiki_archiver(llm)
     with patch(
-        "app.services.wiki.vault_service.get_wiki_archiver", return_value=archiver
+        "app.services.wiki.vault.get_wiki_archiver", return_value=archiver
     ):
         yield archiver
     dedup_runner._running_scans.clear()

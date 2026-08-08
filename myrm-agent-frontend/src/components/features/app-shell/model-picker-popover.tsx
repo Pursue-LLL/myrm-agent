@@ -22,7 +22,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
-import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/llm-config';
+import { fetchModelCapabilitiesBatch, fetchModelSwitchPreflight, type ModelCapabilities, type ModelSwitchPreflightResult } from '@/services/llm-config';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -54,6 +54,14 @@ interface ModelPickerPopoverProps {
   moaPresets?: MoaPresetOption[];
   activeMoaPresetId?: string | null;
   onSelectMoaPreset?: (presetId: string | null) => void;
+  /** 当前会话估算 tokens（聊天场景传入）；无值/<=0 时禁用压缩预检 */
+  estimatedTokens?: number | null;
+  /** agent 显式压缩起始比例（engineParams），缺省由 server 按目标模型 tier 推断 */
+  compressStartRatio?: number | null;
+  /** agent prompt 模式（full/lean/naked/search）；非 full 时 server 回退默认压缩比例 */
+  promptMode?: string | null;
+  /** 当前会话 human 消息数（轮数）；提供时 server 按运行时动态阈值判定压缩 */
+  turnCount?: number | null;
   align?: 'start' | 'center' | 'end';
   className?: string;
 }
@@ -71,6 +79,10 @@ export default function ModelPickerPopover({
   moaPresets,
   activeMoaPresetId,
   onSelectMoaPreset,
+  estimatedTokens,
+  compressStartRatio,
+  promptMode,
+  turnCount,
   align = 'start',
   className,
 }: ModelPickerPopoverProps) {
@@ -83,6 +95,10 @@ export default function ModelPickerPopover({
   const inputRef = useRef<HTMLInputElement>(null);
   const [capabilities, setCapabilities] = useState<Record<string, ModelCapabilities>>({});
   const [costPerMillion, setCostPerMillion] = useState<Record<string, { input: number; output: number }>>({});
+  // 压缩预检结果：key = providerId/model
+  const [preflightMap, setPreflightMap] = useState<Record<string, ModelSwitchPreflightResult>>({});
+  // 防骚扰：对同一目标模型已确认选择过的次数（>=2 后不再提示）
+  const acknowledgedCountRef = useRef<Record<string, number>>({});
   const hasFallbackSupport = !!onSelectFallback;
   const hasSafetyFallbackSupport = !!onSelectSafetyFallback;
   const hasMoaPresets = !!onSelectMoaPreset && (moaPresets?.length ?? 0) > 0;
@@ -185,6 +201,49 @@ export default function ModelPickerPopover({
     }
   }, [open, enabledModels, providers, customModelInfo]);
 
+  const preflightRequestedRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!open || !estimatedTokens || estimatedTokens <= 0 || Object.keys(capabilities).length === 0) {
+      return;
+    }
+    const pairs: { providerId: string; model: string; liteName: string; maxInput: number | null }[] = [];
+    for (const em of enabledModels) {
+      const prov = providers.find((p) => p.id === em.providerId);
+      if (!prov) continue;
+      const caps = capabilities[em.model];
+      if (!caps) continue;
+      pairs.push({
+        providerId: em.providerId,
+        model: em.model,
+        liteName: getLiteLLMModelName(em.providerId, em.model, prov.providerType),
+        maxInput: caps.max_input_tokens ?? null,
+      });
+    }
+    if (pairs.length === 0) return;
+
+    const signature = `${estimatedTokens}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${turnCount ?? ''}:${pairs
+      .map((p) => `${p.liteName}:${p.maxInput}`)
+      .join('|')}`;
+    if (preflightRequestedRef.current === signature) return;
+    preflightRequestedRef.current = signature;
+
+    fetchModelSwitchPreflight(
+      estimatedTokens,
+      pairs.map((p) => ({ model: p.liteName, max_input_tokens: p.maxInput })),
+      compressStartRatio,
+      promptMode,
+      turnCount,
+    ).then((results) => {
+      const mapped: Record<string, ModelSwitchPreflightResult> = {};
+      for (const p of pairs) {
+        const result = results[p.liteName];
+        if (result) mapped[`${p.providerId}/${p.model}`] = result;
+      }
+      setPreflightMap(mapped);
+    });
+  }, [open, estimatedTokens, capabilities, enabledModels, providers, compressStartRatio, promptMode, turnCount]);
+
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim();
     const result: { provider: (typeof providers)[0]; models: string[] }[] = [];
@@ -211,6 +270,11 @@ export default function ModelPickerPopover({
         : safetyFallbackSelection;
 
   const handleModelClick = (providerId: string, model: string) => {
+    const preflight = preflightMap[`${providerId}/${model}`];
+    if (preflight?.will_compress) {
+      const key = `${providerId}/${model}`;
+      acknowledgedCountRef.current[key] = (acknowledgedCountRef.current[key] ?? 0) + 1;
+    }
     if (activeSlot === 'fallback') {
       onSelectFallback?.(providerId, model);
     } else if (activeSlot === 'safety') {
@@ -230,7 +294,7 @@ export default function ModelPickerPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className={cn('w-96 p-0', className)} align={align}>
+      <PopoverContent className={cn('w-96 max-w-[calc(100vw-2rem)] p-0', className)} align={align}>
         {/* Segmented tab for primary/fallback slot selection */}
         {hasFallbackSupport && (
           <div className="px-2 pt-2 pb-1 border-b border-border">
@@ -382,6 +446,10 @@ export default function ModelPickerPopover({
                     const caps = capabilities[model];
                     const cost = costPerMillion[model];
                     const contextLabel = caps?.max_input_tokens ? formatTokens(caps.max_input_tokens) : null;
+                    const preflightKey = `${provider.id}/${model}`;
+                    const preflight = preflightMap[preflightKey];
+                    const acknowledged = acknowledgedCountRef.current[preflightKey] ?? 0;
+                    const showCompressWarning = !!preflight?.will_compress && acknowledged < 2;
                     const policyBlocked = restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
                     const highlightColor =
                       activeSlot === 'primary'
@@ -415,6 +483,23 @@ export default function ModelPickerPopover({
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
                                 {tCap('contextWindow')}: {caps!.max_input_tokens!.toLocaleString()} tokens
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {showCompressWarning && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  data-testid={`preflight-warning-${provider.id}-${model}`}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium"
+                                >
+                                  {t('preflightCompress')}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {t('preflightCompressDetail', {
+                                  threshold: (preflight.compress_threshold ?? 0).toLocaleString(),
+                                })}
                               </TooltipContent>
                             </Tooltip>
                           )}

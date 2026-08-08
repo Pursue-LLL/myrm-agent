@@ -8,7 +8,7 @@ myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPageType
 build_obsidian_vault_zip: Full vault ZIP with .obsidian/graph.json + README
 
 [POS]
-Server-side Obsidian integration (symmetric to obsidian_adapter import).
+Server-side Obsidian integration (symmetric to obsidian.adapter import).
 """
 
 from __future__ import annotations

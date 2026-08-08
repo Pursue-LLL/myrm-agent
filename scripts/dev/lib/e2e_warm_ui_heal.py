@@ -191,17 +191,12 @@ def heal_shared_frontend_debounced(
 
 
 def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
-    import urllib.error
-    import urllib.request
-
     ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-    request = urllib.request.Request(f"{ui_base}/", method="GET")  # noqa: S310
     try:
-        with urllib.request.urlopen(
-            request, timeout=timeout_sec
-        ) as response:  # noqa: S310
-            return response.status == 200
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        from runtime_identity import frontend_tcp_html_probe_ok
+
+        return frontend_tcp_html_probe_ok(ui_base, timeout_sec=timeout_sec)
+    except (ImportError, OSError, ValueError):
         return False
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from app.services.wiki.vault_resolver import (
+from app.services.wiki.vault import (
     is_agent_layout_migration_complete,
     is_legacy_migration_complete,
     is_vault_ready,

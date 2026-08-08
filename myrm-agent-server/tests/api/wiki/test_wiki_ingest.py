@@ -144,7 +144,7 @@ def ingest_env(tmp_path: Path):
 
         stack.enter_context(
             patch(
-                "app.services.wiki.vault_service.get_wiki_archiver",
+                "app.services.wiki.vault.get_wiki_archiver",
                 mock_get_archiver,
             )
         )

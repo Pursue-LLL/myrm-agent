@@ -50,6 +50,8 @@ const BaseModelSelector = () => {
     })),
   );
 
+  const messages = useChatStore(useShallow((state) => state.messages));
+
   const {
     providers,
     defaultModelConfig,
@@ -150,6 +152,39 @@ const BaseModelSelector = () => {
     return triggerDisplay.modelName;
   }, [triggerDisplay.modelName, commonT]);
 
+  // 当前会话估算 tokens 与轮数（取最近一条 assistant 消息的 provider 真实数据）
+  // estimatedTokens 来自服务端 prompt_tokens；turnCount 优先用服务端全量 human 数，
+  // 缺失时 fallback 本地消息统计（与运行时 compress_processor 口径一致）。
+  const contextBudgetInfo = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === 'assistant' && msg.contextBudget) {
+        const { current_tokens, messages_estimated_tokens, turn_count } = msg.contextBudget;
+        return {
+          estimatedTokens: current_tokens || messages_estimated_tokens || 0,
+          serverTurnCount: typeof turn_count === 'number' ? turn_count : null,
+        };
+      }
+    }
+    return { estimatedTokens: 0, serverTurnCount: null };
+  }, [messages]);
+
+  const estimatedTokens = contextBudgetInfo.estimatedTokens;
+
+  const turnCount = useMemo(() => {
+    if (contextBudgetInfo.serverTurnCount !== null) {
+      return contextBudgetInfo.serverTurnCount;
+    }
+    return messages.filter((m) => m.role === 'user').length;
+  }, [contextBudgetInfo.serverTurnCount, messages]);
+
+  const compressStartRatio = useMemo(() => {
+    const value = agentConfig?.engineParams?.compress_start_ratio;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }, [agentConfig?.engineParams]);
+
+  const promptMode = useMemo(() => agentConfig?.promptMode ?? null, [agentConfig?.promptMode]);
+
   const moaChipLabel = useMemo(() => {
     const labelKey = resolveMoaPresetLabelKey(triggerDisplay.moaPresetId);
     if (!labelKey) {
@@ -237,6 +272,10 @@ const BaseModelSelector = () => {
         moaPresets={moaPresets}
         activeMoaPresetId={activeMoaPresetId}
         onSelectMoaPreset={showMoaPresets ? setActiveMoaPresetId : undefined}
+        estimatedTokens={estimatedTokens}
+        compressStartRatio={compressStartRatio}
+        promptMode={promptMode}
+        turnCount={turnCount}
         trigger={
           <button
             type="button"

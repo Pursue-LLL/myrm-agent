@@ -40,5 +40,5 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 - `app/services/agent/streaming_support/` — SSE 辅助与内容收集
 - `app/services/agent/streaming.py` — Harness 流式桥接
 - `app/services/agent/evolution/engine.py` — skill evolution 后台触发
-- `app/services/wiki/vault_resolver.py` + `vault_service.py` — Deep Research vault 与 API 共用 wiki 路径与 archiver
+- `app/services/wiki/vault` — Deep Research vault 与 API 共用 wiki 路径与 archiver
 - `myrm_agent_harness.agent.streaming.stream_buffer` — 全局流 buffer

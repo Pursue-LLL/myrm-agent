@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress (POS: clip ingress pipeline)
-- app.services.wiki.vault_service (POS: wiki archiver + compile queue)
+- app.services.wiki.vault (POS: wiki archiver + compile queue)
 - app.services.wiki.dedup_runner (POS: incremental dedup after clip)
 
 [OUTPUT]
@@ -108,7 +108,7 @@ async def schedule_wiki_clip(
     async def _run() -> None:
         record.state = WikiClipJobState.RUNNING
         try:
-            from app.services.wiki.vault_service import get_wiki_archiver
+            from app.services.wiki.vault import get_wiki_archiver
 
             archiver = get_wiki_archiver(None, agent_id=agent_id)
             ingress_result = await publish_clip_ingress(

@@ -28,6 +28,14 @@ from myrm_agent_harness.runtime.context.session_continuity import (
     sync_checkpoint_messages,
 )
 
+__all__ = [
+    "ContinuitySyncError",
+    "SessionBusyError",
+    "assert_session_available_for_continuity",
+    "pause_active_goal_for_rewind",
+    "sync_chat_checkpoint_from_db",
+]
+
 from app.core.utils.chat_utils import convert_chat_history
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.goal_registry import GoalRegistry

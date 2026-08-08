@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.wiki.source_sync.runner::run_wiki_source_sync (POS: wiki pull orchestration)
-- app.services.wiki.maintain_runner::run_wiki_maintain_job (POS: wiki maintain SSOT)
+- app.services.wiki.maintain::run_wiki_maintain_job (POS: wiki maintain SSOT)
 
 [OUTPUT]
 - WikiRouterJobRunner: cron adapter for __wiki_source_sync__ and __wiki_maintain__ commands
@@ -82,7 +82,7 @@ class WikiRouterJobRunner:
     ) -> JobResult:
         try:
             from app.services.agent.llm_access import get_optional_llm_for_user
-            from app.services.wiki.maintain_runner import run_wiki_maintain_job
+            from app.services.wiki.maintain import run_wiki_maintain_job
 
             llm = await get_optional_llm_for_user()
             result = await run_wiki_maintain_job(

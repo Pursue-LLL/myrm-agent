@@ -1,8 +1,8 @@
 """Wiki maintain orchestration SSOT for REST and cron.
 
 [INPUT]
-- app.services.wiki.vault_service::get_wiki_archiver (POS: shared archiver accessor)
-- app.services.wiki.maintain_state_store (POS: wikiMaintainState persistence)
+- app.services.wiki.vault::get_wiki_archiver (POS: shared archiver accessor)
+- app.services.wiki.maintain.state_store (POS: wikiMaintainState persistence)
 - myrm_agent_harness.toolkits.wiki.maintenance.modes::MaintainMode (POS: structural vs full)
 
 [OUTPUT]
@@ -20,8 +20,8 @@ from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.database.connection import get_session
-from app.services.wiki.maintain_schemas import WikiMaintainRunResult
-from app.services.wiki.maintain_state_store import (
+from app.services.wiki.maintain.schemas import WikiMaintainRunResult
+from app.services.wiki.maintain.state_store import (
     save_wiki_maintain_state,
     state_from_run_result,
 )
@@ -81,8 +81,7 @@ async def run_wiki_maintain_job(
         return skipped
 
     from app.services.wiki.asset_index_service import run_wiki_asset_index
-    from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import after_wiki_vault_mutation, get_wiki_archiver
 
     archiver = get_wiki_archiver(llm, agent_id=agent_id)
     queue_stats = archiver._queue.get_stats()

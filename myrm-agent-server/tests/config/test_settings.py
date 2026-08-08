@@ -311,7 +311,13 @@ class TestFieldValidators:
 
     def test_sqlite_pool_size_clamped_high(self) -> None:
         s = DatabaseSettings(sqlite_pool_size=100)
-        assert s.sqlite_pool_size == 32
+        assert s.sqlite_pool_size == 64
+
+    def test_sqlite_pool_overflow_clamped(self) -> None:
+        s = DatabaseSettings(sqlite_pool_max_overflow=100)
+        assert s.sqlite_pool_max_overflow == 64
+        s = DatabaseSettings(sqlite_pool_max_overflow=-3)
+        assert s.sqlite_pool_max_overflow == 0
 
     def test_busy_timeout_clamped(self) -> None:
         s = DatabaseSettings(sqlite_busy_timeout_ms=99999)

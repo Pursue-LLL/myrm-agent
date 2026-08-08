@@ -17,7 +17,7 @@ import re
 
 from app.services.agent.params import MultimodalQuery, _extract_text_from_query
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
-from app.services.wiki.vault_resolver import is_vault_ready, vault_has_wiki_content
+from app.services.wiki.vault import is_vault_ready, vault_has_wiki_content
 
 _MAX_QUESTION_CHARS = 800
 

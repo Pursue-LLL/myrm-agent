@@ -17,5 +17,5 @@ Server 层原子 onboarding 预设编排。复用 agent template 与 cron bluepr
 - `app.api.agents.templates` — prebuilt agent 实例化与 skill enable
 - `app.core.cron.blueprints` — `read_it_later` blueprint fill
 - `app.services.config.service` — `secondBrainPreset` 状态持久化
-- `app.services.wiki.vault_resolver` — `seed_agent_vault_from_default` + checklist vault probe
+- `app.services.wiki.vault` — `seed_agent_vault_from_default` + checklist vault probe
 - `app.api.config.router` — HTTP 暴露 `/onboarding/second-brain/{status,apply}`

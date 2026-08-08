@@ -422,9 +422,14 @@ def acquire_session_lock(
     batch_key = file_batch_key(argv)
     scope_key = e2e_file_scope_key(argv)
     execution_mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
-    if execution_mode == "SHARED" and not _is_guardrail_file_scope(scope_key):
-        # P1: SHARED logical sessions must not whole-file dedupe block peers.
-        # Exception: guardrail bash signoff is a maintenance singleton (Epic A §20 / R297).
+    access_scope = os.environ.get("MYRM_E2E_ACCESS_SCOPE", "").strip().upper()
+    if (
+        execution_mode == "SHARED"
+        and access_scope not in {"NAMESPACE_WRITE", "GLOBAL_WRITE"}
+        and not _is_guardrail_file_scope(scope_key)
+    ):
+        # P1: SHARED READ sessions may whole-file parallel under mux scheduler.
+        # NAMESPACE_WRITE / GLOBAL_WRITE seed SQLite — must file-scope dedupe (R298).
         scope_key = None
         batch_key = None
     batch_flock_handle = None

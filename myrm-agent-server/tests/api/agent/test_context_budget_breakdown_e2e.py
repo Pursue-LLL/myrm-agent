@@ -126,4 +126,7 @@ def test_message_end_context_budget_includes_provider_total_and_breakdown(
     other_tokens = budget.get("other_tokens")
     assert isinstance(other_tokens, int) and other_tokens >= 0
 
+    turn_count = budget.get("turn_count")
+    assert isinstance(turn_count, int) and turn_count >= 0
+
     assert current_tokens >= messages_est + tools_overhead or other_tokens >= 0

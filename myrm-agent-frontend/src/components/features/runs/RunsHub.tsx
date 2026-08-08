@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -15,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Wrench,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
@@ -26,6 +28,11 @@ import {
   type RunSource,
   type RunStatus,
 } from '@/services/runs';
+
+const ExecutionTraceTimeline = dynamic(
+  () => import('@/components/features/settings/sections/system/ExecutionTraceTimeline'),
+  { ssr: false },
+);
 
 const STATUS_ICON: Record<RunStatus, React.ReactNode> = {
   running: <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 dark:text-blue-400" />,
@@ -110,9 +117,11 @@ export function RunsHub() {
   const requestSeqRef = useRef(0);
 
   const fetchRuns = useCallback(
-    async (offset: number, append: boolean) => {
+    async (offset: number, append: boolean, silent = false) => {
       const requestSeq = ++requestSeqRef.current;
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       if (!append) {
         setLoadError(false);
         setDegraded(false);
@@ -144,6 +153,9 @@ export function RunsHub() {
         if (requestSeq !== requestSeqRef.current) {
           return;
         }
+        if (silent) {
+          return;
+        }
         if (!append) {
           setRuns([]);
           setTotal(0);
@@ -154,7 +166,7 @@ export function RunsHub() {
           toast.error(tRef.current('loadError'));
         }
       } finally {
-        if (requestSeq === requestSeqRef.current) {
+        if (!silent && requestSeq === requestSeqRef.current) {
           setLoading(false);
         }
       }
@@ -174,6 +186,17 @@ export function RunsHub() {
     offsetRef.current = 0;
     void fetchRuns(0, false);
   }, [fetchRuns]);
+
+  // Live-refresh list while any run is in progress so status/progress stay current.
+  const hasRunning = runs.some((r) => r.status === 'running');
+  useEffect(() => {
+    if (!hasRunning) return;
+    const interval = setInterval(() => {
+      // silent keeps the current scroll/loadMore position and avoids a loading flicker.
+      void fetchRuns(offsetRef.current, false, true);
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [hasRunning, fetchRuns]);
 
   const hasActiveFilter = statusFilter !== '' || sourceFilter !== '';
 
@@ -275,7 +298,8 @@ export function RunsHub() {
 
 function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
   const [expanded, setExpanded] = useState(false);
-  const hasDetail = !!(run.output || run.error || run.stop_reason || run.has_execution_steps);
+  const canShowTrace = run.source === 'kanban' && run.task_id != null;
+  const hasDetail = !!(run.output || run.error || run.stop_reason || run.has_execution_steps || canShowTrace);
   const stopReasonLabel = run.stop_reason ? t(stopReasonLabelKey(run.stop_reason.code)) : null;
   const stopReasonMessage = run.stop_reason?.message?.trim() || null;
   const compactStopReason = !run.error ? stopReasonMessage : null;
@@ -358,6 +382,19 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
                   {stopReasonMessage}
                 </p>
               )}
+            </div>
+          )}
+          {canShowTrace && (
+            <div className="rounded-lg border border-border/30 bg-muted/20 p-2 space-y-2">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {t('executionTrace')}
+              </p>
+              <ExecutionTraceTimeline
+                sessionId={run.task_id as string}
+                showEvalCase={false}
+                pollMs={run.status === 'running' ? 30_000 : undefined}
+              />
             </div>
           )}
           {Array.isArray(run.metadata?.progressSteps) && (

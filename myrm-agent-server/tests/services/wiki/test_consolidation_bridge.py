@@ -27,7 +27,7 @@ async def test_archive_consolidation_insights_writes_raw_and_enqueues(tmp_path: 
     mock_archiver._compiler = mock_compiler
 
     with patch(
-        "app.services.wiki.vault_service.get_wiki_archiver",
+        "app.services.wiki.vault.get_wiki_archiver",
         return_value=mock_archiver,
     ):
         await archive_consolidation_insights_to_wiki(
@@ -48,7 +48,7 @@ async def test_archive_consolidation_insights_writes_raw_and_enqueues(tmp_path: 
 async def test_archive_consolidation_skips_when_no_insights() -> None:
     from app.services.wiki.consolidation_bridge import archive_consolidation_insights_to_wiki
 
-    with patch("app.services.wiki.vault_service.get_wiki_archiver") as mock_get:
+    with patch("app.services.wiki.vault.get_wiki_archiver") as mock_get:
         await archive_consolidation_insights_to_wiki(
             ConsolidationStats(),
             agent_id="default",
@@ -84,7 +84,7 @@ async def test_archive_consolidation_skips_when_security_blocked() -> None:
 
     with (
         patch(
-            "app.services.wiki.vault_service.get_wiki_archiver",
+            "app.services.wiki.vault.get_wiki_archiver",
             return_value=mock_archiver,
         ),
         patch(

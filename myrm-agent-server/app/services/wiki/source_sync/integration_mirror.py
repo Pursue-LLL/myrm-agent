@@ -34,7 +34,7 @@ async def mirror_integration_sync_results_to_wiki(
     if llm is None:
         return summary
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(llm, agent_id=agent_id)
     structure = archiver._structure

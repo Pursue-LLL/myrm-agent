@@ -439,7 +439,9 @@ async def _phase_1b_parallel() -> None:
             load_managed_approval_policy_from_env,
         )
 
-        configure_process_managed_approval_policy(load_managed_approval_policy_from_env())
+        configure_process_managed_approval_policy(
+            load_managed_approval_policy_from_env()
+        )
         logger.info("[Startup] Allowlist store initialized")
 
     async def _init_permission_logger_task() -> None:
@@ -551,7 +553,7 @@ async def _phase_1b_parallel() -> None:
             logger.error("[Startup] Failed to sync Vault Credentials: %s", e)
 
     async def _init_wiki_vault_task() -> None:
-        from app.services.wiki.vault_service import init_wiki_vault_at_startup
+        from app.services.wiki.vault import init_wiki_vault_at_startup
 
         await init_wiki_vault_at_startup()
 

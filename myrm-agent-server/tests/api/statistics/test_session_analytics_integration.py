@@ -140,6 +140,148 @@ async def test_session_trace_endpoint_not_found():
 
 
 @pytest.mark.asyncio
+async def test_session_trace_endpoint_kanban_without_chat(
+    tmp_path, monkeypatch
+):
+    """Kanban runs have no Chat record but do write event logs; trace must not 404."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "kanban-task-no-chat-record"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=datetime.now().timestamp(),
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=datetime.now().timestamp(),
+            event_type="session_end",
+            data={
+                "summary": {
+                    "total_events": 2,
+                    "tool_calls": 1,
+                    "errors": 0,
+                    "approvals": 0,
+                    "compactions": 0,
+                    "failovers": 0,
+                    "security_decisions": 0,
+                    "duration_ms": 5000,
+                }
+            },
+        ),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            f"/api/v1/statistics/session/{session_id}/trace"
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is True
+    trace = result["data"]
+    assert trace["session_id"] == session_id
+    assert isinstance(trace["tool_calls"], list)
+    assert isinstance(trace["memory_events"], list)
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_kanban_colon_session_id(
+    tmp_path, monkeypatch
+):
+    """Real kanban goal sessions use `kanban:{task_id}` (colon). Whitelist
+    must allow the colon and the trace must resolve to the event log file."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "kanban:abcd1234ef56"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=datetime.now().timestamp(),
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=datetime.now().timestamp(),
+            event_type="session_end",
+            data={
+                "summary": {
+                    "total_events": 2,
+                    "tool_calls": 1,
+                    "errors": 0,
+                    "approvals": 0,
+                    "compactions": 0,
+                    "failovers": 0,
+                    "security_decisions": 0,
+                    "duration_ms": 5000,
+                }
+            },
+        ),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            f"/api/v1/statistics/session/{session_id}/trace"
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is True
+    trace = result["data"]
+    assert trace["session_id"] == session_id
+    assert isinstance(trace["tool_calls"], list)
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_missing_both_returns_404(
+    tmp_path, monkeypatch
+):
+    """Trace with neither Chat record nor event log file must 404 (not leak)."""
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            "/api/v1/statistics/session/kanban-no-eventlog/trace"
+        )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_session_trace_endpoint_structure():
     """Test trace response structure has all expected fields."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -188,6 +330,36 @@ async def test_model_sessions_endpoint_basic():
         assert result["success"] is True
         assert "data" in result
         assert isinstance(result["data"], list)
+
+
+# Path-traversal payloads that must never reach the event-log directory.
+# Covered: raw and URL-encoded dot segments, Windows backslash, NUL byte.
+_MALICIOUS_SESSION_IDS = [
+    "..%5c..%5cetc",  # decoded `..\..\etc` (Windows backslash traversal)
+    "%2e%2e%2f%2e%2e%2fetc",  # decoded `../../etc`
+    "%2e%2e",  # decoded `..`
+    "%00",  # NUL byte
+    "..\\..\\boot",
+    "../secret",
+]
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_rejects_path_traversal():
+    """Crafted session ids must not escape the event-log dir (404, no oracle)."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        for bad_id in _MALICIOUS_SESSION_IDS:
+            response = await ac.get(f"/api/v1/statistics/session/{bad_id}/trace")
+            assert response.status_code == 404, f"{bad_id!r} -> {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_session_analytics_endpoint_rejects_path_traversal():
+    """Analytics endpoint applies the same session-id whitelist."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        for bad_id in _MALICIOUS_SESSION_IDS:
+            response = await ac.get(f"/api/v1/statistics/session/{bad_id}")
+            assert response.status_code == 404, f"{bad_id!r} -> {response.status_code}"
 
 
 if __name__ == "__main__":

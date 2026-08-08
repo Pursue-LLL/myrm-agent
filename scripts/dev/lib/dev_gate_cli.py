@@ -767,6 +767,24 @@ def _load_session_ownership(session_id: str) -> tuple[tuple[str, ...], str]:
     return record.ownership.page_ids, record.ownership.browser_context_id
 
 
+def _request_dev_gate_destroy(session_id: str, owner_token: str) -> None:
+    """Best-effort coordinator-owned destroy (clear keyed ownership).
+
+    Failure keeps the pending ownership visible so the seal observation stays
+    fail-closed instead of reporting a synthetic green.
+    """
+    try:
+        send(
+            {
+                "operation": "destroy",
+                "session_id": session_id,
+                "owner_token": owner_token,
+            }
+        )
+    except (RuntimeError, OSError) as exc:
+        print(f"DEV_GATE_DESTROY_WARN: {exc}", file=sys.stderr)
+
+
 def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, object]:
     from cleanup_observed_seal import (
         collect_cdp_target_ids,
@@ -781,6 +799,17 @@ def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, objec
     owned_pages, owned_context = _load_session_ownership(args.session_id)
     if args.closed_context_id.strip():
         owned_context = args.closed_context_id.strip()
+    closed_pages = owned_pages
+    closed_context = owned_context
+
+    # P0-A destroy step: coordinator-owned destroy clears keyed ownership so the
+    # ownership_cleared seal check is observably true. Physical page/context
+    # destroy already happened inside the pytest process.
+    if owned_pages or owned_context.strip():
+        _request_dev_gate_destroy(args.session_id, args.owner_token)
+        owned_pages, owned_context = _load_session_ownership(args.session_id)
+        if args.closed_context_id.strip():
+            owned_context = args.closed_context_id.strip()
 
     ledger_cleaned = lease_released(released_lease)
     if not ledger_cleaned:
@@ -798,17 +827,15 @@ def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, objec
     else:
         physical_released = physical_targets_absent(lease_id=released_lease)
 
-    # Post-close seal: session row may still list ownership until teardown_finish
-    # clears it; physical + lease observability is the gate (P0-A).
     ledger_cleaned, sealed = observe_cleanup_seal(
         released_lease_id=released_lease,
-        owned_page_ids=(),
-        owned_context_id="",
+        owned_page_ids=owned_pages,
+        owned_context_id=owned_context,
     )
     cdp_after = collect_cdp_target_ids()
     return {
-        "closed_page_ids": list(owned_pages),
-        "closed_context_id": owned_context,
+        "closed_page_ids": list(closed_pages),
+        "closed_context_id": closed_context,
         "released_lease_id": released_lease,
         "released_runtime_id": args.released_runtime_id,
         "ledger_cleaned": ledger_cleaned,
@@ -842,6 +869,8 @@ def _simple_operation(args: argparse.Namespace) -> int:
     elif args.command == "finish":
         payload["succeeded"] = args.succeeded
         payload["failure_token"] = args.failure_token
+    if args.command in {"finish", "teardown-finish"} and args.pytest_evidence_hash:
+        payload["pytest_evidence_hash"] = args.pytest_evidence_hash
     try:
         response = send(payload)
     except RuntimeError as exc:
@@ -1030,6 +1059,7 @@ def _parser() -> argparse.ArgumentParser:
     for command in (
         "transition",
         "heartbeat",
+        "destroy",
         "cleanup",
         "teardown-finish",
         "private_release",
@@ -1043,6 +1073,7 @@ def _parser() -> argparse.ArgumentParser:
         operation.add_argument("--current-node", default="")
         operation.add_argument("--failure-token", default="")
         operation.add_argument("--succeeded", action="store_true")
+        operation.add_argument("--pytest-evidence-hash", default="")
         operation.add_argument("--closed-context-id", default="")
         operation.add_argument("--released-lease-id", default="")
         operation.add_argument("--released-runtime-id", default="")

@@ -1,23 +1,16 @@
 """Wiki external source sync — deterministic pull into raw/ (zero LLM).
 
+[INPUT]
+- app.services.wiki.source_sync.runner (POS: wiki pull orchestration SSOT)
+- app.services.wiki.source_sync.schemas (POS: source sync DTOs)
+
 [OUTPUT]
-- run_wiki_source_sync: orchestrates Gmail/RSS pulls → publish_raw → optional compile enqueue
-- WikiSourceSyncConfig / WikiSourceSyncResult / WikiSourceSyncRunSummary re-exports
+- Public subpackage for wiki source sync; consumers import runner / schemas /
+  config_store / state_store directly.
 
 [POS]
-Public package barrel for wiki source sync; delegates orchestration to runner.
+Public package for wiki source sync, documenting the package boundary and
+keeping ``source_sync`` importable as a package.
 """
 
-from app.services.wiki.source_sync.runner import run_wiki_source_sync
-from app.services.wiki.source_sync.schemas import (
-    WikiSourceSyncConfig,
-    WikiSourceSyncResult,
-    WikiSourceSyncRunSummary,
-)
-
-__all__ = [
-    "WikiSourceSyncConfig",
-    "WikiSourceSyncResult",
-    "WikiSourceSyncRunSummary",
-    "run_wiki_source_sync",
-]
+from __future__ import annotations

@@ -390,6 +390,7 @@ class TestFetchKanbanRunsTasks:
             description="desc",
             error=None,
             agent_id="agent-1",
+            progress_note=None,
         )
         board = SimpleNamespace(board_id="board-1", name="__background_tasks__")
         svc = MagicMock()
@@ -417,6 +418,7 @@ class TestFetchKanbanRunsTasks:
             description=None,
             error="execution timed out after 300s",
             agent_id=None,
+            progress_note=None,
         )
         board = SimpleNamespace(board_id="board-1", name="__background_tasks__")
         svc = MagicMock()
@@ -429,6 +431,66 @@ class TestFetchKanbanRunsTasks:
         assert available is True
         assert len(items) == 1
         assert items[0].status == "timed_out"
+
+    @pytest.mark.asyncio
+    async def test_maps_progress_note_to_execution_steps(self) -> None:
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus as KanbanStatus
+
+        task = SimpleNamespace(
+            task_id="k-progress",
+            status=KanbanStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            completed_at=None,
+            title="Running task",
+            description="desc",
+            error=None,
+            agent_id="agent-1",
+            progress_note="Step 2/5: Parsing data",
+        )
+        board = SimpleNamespace(board_id="board-1", name="__background_tasks__")
+        svc = MagicMock()
+        svc.list_boards = AsyncMock(return_value=[board])
+        svc.store.list_tasks = AsyncMock(return_value=[task])
+
+        with patch("app.services.kanban.KanbanService.get_instance", return_value=svc):
+            items, available = await _fetch_kanban_runs(None, 10)
+
+        assert available is True
+        assert len(items) == 1
+        assert items[0].has_execution_steps is True
+        assert items[0].metadata is not None
+        steps = items[0].metadata["progressSteps"]
+        assert isinstance(steps, list)
+        assert steps[0]["step_key"] == "heartbeat"
+        assert steps[0]["items"][0]["text"] == "Step 2/5: Parsing data"
+
+    @pytest.mark.asyncio
+    async def test_no_progress_steps_when_note_missing(self) -> None:
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus as KanbanStatus
+
+        task = SimpleNamespace(
+            task_id="k-no-note",
+            status=KanbanStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            completed_at=None,
+            title="No note task",
+            description="desc",
+            error=None,
+            agent_id=None,
+            progress_note=None,
+        )
+        board = SimpleNamespace(board_id="board-1", name="__background_tasks__")
+        svc = MagicMock()
+        svc.list_boards = AsyncMock(return_value=[board])
+        svc.store.list_tasks = AsyncMock(return_value=[task])
+
+        with patch("app.services.kanban.KanbanService.get_instance", return_value=svc):
+            items, available = await _fetch_kanban_runs(None, 10)
+
+        assert available is True
+        assert len(items) == 1
+        assert items[0].has_execution_steps is False
+        assert items[0].metadata is None
 
     @pytest.mark.asyncio
     async def test_skips_archived_and_triage(self) -> None:

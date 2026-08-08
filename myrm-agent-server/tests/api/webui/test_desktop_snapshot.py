@@ -119,7 +119,7 @@ class TestGetDesktopSnapshot:
         assert response.status_code == 500
         data = response.json()
         assert data["error"] == "snapshot_failed"
-        assert "capture failed" in data["message"]
+        assert data["message"] == "Desktop snapshot failed"
 
     @pytest.mark.asyncio
     async def test_registry_source_returns_cached_refs(self, client: httpx.AsyncClient) -> None:

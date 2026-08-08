@@ -11,7 +11,7 @@ from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.portability.vault_git import maybe_commit_vault_git_snapshot
 
-from app.services.wiki.vault_git_snapshot import after_wiki_vault_mutation
+from app.services.wiki.vault import after_wiki_vault_mutation
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git not available")
 

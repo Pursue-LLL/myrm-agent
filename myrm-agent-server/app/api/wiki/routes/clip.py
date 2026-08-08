@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.wiki.clip (POS: clip job orchestration + multipart cap)
-- app.services.wiki.vault_service (POS: wiki archiver)
+- app.services.wiki.vault (POS: wiki archiver)
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress (POS: clip ingress + wikiignore)
 
 [OUTPUT]
@@ -153,7 +153,7 @@ async def get_wiki_ignore_rules(
         wikiignore_path,
     )
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     path = wikiignore_path(archiver._structure)
@@ -172,7 +172,7 @@ async def put_wiki_ignore_rules(
         write_wikiignore_patterns,
     )
 
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     write_wikiignore_patterns(archiver._structure, body.content)

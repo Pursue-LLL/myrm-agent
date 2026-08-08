@@ -6,7 +6,7 @@ import hashlib
 import re
 from pathlib import Path
 
-from app.services.wiki.obsidian_adapter import (
+from app.services.wiki.obsidian import (
     ObsidianImportStats,
     adapt_obsidian_file,
     extract_inline_obsidian_tags,

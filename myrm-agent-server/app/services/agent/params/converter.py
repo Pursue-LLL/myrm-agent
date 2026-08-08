@@ -570,6 +570,16 @@ async def convert_to_general_agent_params(
                         request.agent_id,
                     )
 
+            from myrm_agent_harness.utils.response_locale import build_response_locale_suffix
+
+            locale_suffix = build_response_locale_suffix(resolved.engine_params)
+            if locale_suffix:
+                user_instructions = (
+                    f"{user_instructions}{locale_suffix}"
+                    if user_instructions
+                    else locale_suffix.strip()
+                )
+
     if mcp_configs and resolved:
         from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
 

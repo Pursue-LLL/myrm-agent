@@ -520,6 +520,99 @@ export const fetchModelCapabilitiesBatch = async (models: string[]): Promise<Rec
 };
 
 // ============================================================================
+// Model switch preflight (上下文压缩预警)
+// ============================================================================
+
+export interface ModelSwitchPreflightItem {
+  model: string;
+  max_input_tokens?: number | null;
+}
+
+export interface ModelSwitchPreflightResult {
+  model: string;
+  found: boolean;
+  new_window: number | null;
+  compress_threshold: number | null;
+  will_compress: boolean;
+}
+
+export interface ModelSwitchPreflightResponse {
+  results: ModelSwitchPreflightResult[];
+}
+
+const PREFLIGHT_CACHE_LIMIT = 100;
+
+/**
+ * 会话维度 preflight 缓存（LRU 上限，防 estimatedTokens 单调变化导致 key 无限累积）。
+ * key = `${model}:${max_input_tokens}:${ratio}:${prompt_mode}:${estimatedTokens}:${turn_count}`
+ */
+const preflightCache = new Map<string, ModelSwitchPreflightResult>();
+
+function cacheSet(key: string, value: ModelSwitchPreflightResult): void {
+  preflightCache.delete(key);
+  preflightCache.set(key, value);
+  while (preflightCache.size > PREFLIGHT_CACHE_LIMIT) {
+    const oldestKey = preflightCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    preflightCache.delete(oldestKey);
+  }
+}
+
+/**
+ * 模型切换压缩预检：判断切换到目标模型后是否会在下一条消息立即触发上下文压缩。
+ *
+ * 请求复用 harness ContextConfig 的真实压缩阈值公式（server 端计算），
+ * 前端无需硬编码压缩比例，避免口径漂移。estimated_tokens 取自当前会话
+ * 最近一条 assistant 消息的 provider 真实 prompt_tokens。
+ */
+export const fetchModelSwitchPreflight = async (
+  estimatedTokens: number,
+  items: ModelSwitchPreflightItem[],
+  compressStartRatio?: number | null,
+  promptMode?: string | null,
+  turnCount?: number | null,
+): Promise<Record<string, ModelSwitchPreflightResult>> => {
+  const cacheKeyFor = (item: ModelSwitchPreflightItem) =>
+    `${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
+
+  const uncached = items.filter((item) => !preflightCache.has(cacheKeyFor(item)));
+  const hitMap: Record<string, ModelSwitchPreflightResult> = {};
+  for (const item of items) {
+    const cached = preflightCache.get(cacheKeyFor(item));
+    if (cached) {
+      hitMap[item.model] = cached;
+    }
+  }
+
+  if (uncached.length === 0) {
+    return hitMap;
+  }
+
+  try {
+    const response = await apiRequest<ModelSwitchPreflightResponse>('/integrations/llm/model-switch-preflight', {
+      method: 'POST',
+      body: JSON.stringify({
+        estimated_tokens: estimatedTokens,
+        compress_start_ratio: compressStartRatio ?? null,
+        prompt_mode: promptMode ?? null,
+        turn_count: turnCount ?? null,
+        models: uncached,
+      }),
+    });
+
+    const all: Record<string, ModelSwitchPreflightResult> = { ...hitMap };
+    for (const result of response.results) {
+      const item = uncached.find((candidate) => candidate.model === result.model);
+      cacheSet(cacheKeyFor(item ?? { model: result.model }), result);
+      all[result.model] = result;
+    }
+    return all;
+  } catch {
+    return hitMap;
+  }
+};
+
+// ============================================================================
 // MCP OAuth API
 // ============================================================================
 

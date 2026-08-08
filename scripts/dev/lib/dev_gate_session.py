@@ -137,6 +137,7 @@ class SessionRecord:
     ownership: SessionOwnership = field(default_factory=SessionOwnership)
     outcome: str = ""
     failure_token: str = ""
+    pytest_evidence_hash: str = ""
     cleanup: CleanupReceipt = field(default_factory=CleanupReceipt)
 
     def to_dict(self) -> dict[str, object]:

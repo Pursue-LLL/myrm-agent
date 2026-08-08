@@ -923,7 +923,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             wiki_structure = None
             conversation_provider = None
             if search_policy.allow_wiki and self._lite_llm is not None:
-                from app.services.wiki.vault_service import get_wiki_archiver
+                from app.services.wiki.vault import get_wiki_archiver
 
                 lite_llm = self._lite_llm
                 wiki_structure = get_wiki_archiver(

@@ -1586,6 +1586,19 @@ CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC: Final[int] = (
 )
 
 
+def chrome_e2e_session_lane_from_profile(*, access_scope: str, workload: str) -> str:
+    """Map chrome_e2e profile fields to Wave session lane (SSOT with test.sh)."""
+    scope = access_scope.strip().upper()
+    wl = workload.strip().upper()
+    if scope == "NAMESPACE_WRITE":
+        return "RESOURCE_WRITE"
+    if scope == "GLOBAL_WRITE":
+        return "GLOBAL_WRITE"
+    if wl == "STANDARD":
+        return "READ"
+    return "LIVE_AGENT"
+
+
 def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
     """Return pytest-timeout floor for a formal chrome_e2e session lane."""
     if lane.strip().upper() == "READ":

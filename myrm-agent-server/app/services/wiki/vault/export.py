@@ -16,7 +16,7 @@ import io
 
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-from app.services.wiki.obsidian_export import build_obsidian_vault_zip
+from app.services.wiki.obsidian.export import build_obsidian_vault_zip
 
 
 def build_wiki_export_zip(structure: WikiStructure, agent_id: str | None = None) -> io.BytesIO:

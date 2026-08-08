@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.wiki import WikiStructure
 from app.database.connection import get_session
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER, refresh_oauth_token
 from app.services.integrations.oauth_store import is_oauth_issuer_connected
-from app.services.wiki.source_sync.html_body import html_body_to_markdown
+from app.services.wiki.source_sync.gmail.html_body import html_body_to_markdown
 from app.services.wiki.source_sync.publish_helpers import build_frontmatter, publish_source_markdown, sanitize_path_segment
 from app.services.wiki.source_sync.schemas import WikiSourceSyncResult
 

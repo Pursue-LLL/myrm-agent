@@ -135,7 +135,7 @@ def _build_subagent_wiki_query(
     lite_llm = getattr(parent_agent, "_lite_llm", None)
     if lite_llm is None:
         return None
-    from app.services.wiki.vault_service import get_wiki_archiver
+    from app.services.wiki.vault import get_wiki_archiver
 
     async def _query_wiki(question: str) -> str:
         archiver = get_wiki_archiver(lite_llm, memory_manager, agent_id=agent_id)
@@ -239,7 +239,7 @@ def _apply_subagent_memory_search_rebind(
         )
         lite_llm = getattr(parent_agent, "_lite_llm", None)
         if lite_llm is not None:
-            from app.services.wiki.vault_service import get_wiki_archiver
+            from app.services.wiki.vault import get_wiki_archiver
 
             wiki_structure = get_wiki_archiver(
                 lite_llm, memory_manager, agent_id=agent_id

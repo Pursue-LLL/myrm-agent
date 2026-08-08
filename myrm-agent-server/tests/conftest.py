@@ -34,6 +34,7 @@ if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 from dev_gate_contract import (  # noqa: E402
     chrome_e2e_pytest_timeout_floor,
+    chrome_e2e_session_lane_from_profile,
 )
 
 _logger = logging.getLogger(__name__)
@@ -207,8 +208,11 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     profile = _chrome_e2e_profile(item)
     if profile is None:
         return None
-    _execution_mode, _access_scope, workload = profile
-    lane = "READ" if workload == "STANDARD" else "LIVE_AGENT"
+    _execution_mode, access_scope, workload = profile
+    lane = chrome_e2e_session_lane_from_profile(
+        access_scope=access_scope,
+        workload=workload,
+    )
     return chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
 
 
