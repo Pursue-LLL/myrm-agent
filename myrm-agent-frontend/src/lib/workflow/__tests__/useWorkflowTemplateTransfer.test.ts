@@ -52,7 +52,7 @@ function importFile(
   return act(async () => {
     await hook.result.current.handleImportInputChange({
       target: { files: [file], value: '' },
-    } as ChangeEvent<HTMLInputElement>);
+    } as unknown as ChangeEvent<HTMLInputElement>);
   });
 }
 

@@ -76,7 +76,7 @@ describe('resumeApprovalStream', () => {
     const { resumeApprovalStream } = await import('../resumeApprovalStream');
 
     await expect(
-      resumeApprovalStream(buildRequest(), { action: 'approve' }, 'resume failed'),
+      resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed'),
     ).rejects.toBeInstanceOf(AgentBusyError);
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();

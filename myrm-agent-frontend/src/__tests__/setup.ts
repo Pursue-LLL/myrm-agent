@@ -11,6 +11,45 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
+// vitest 4 + Node 22 下 jsdom 不再暴露 localStorage（Node 实验性全局为 undefined），
+// 内存版 polyfill 保证依赖 localStorage 的模块在测试中可用。
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.get(key) ?? null;
+    },
+    key(index: number) {
+      return [...store.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, String(value));
+    },
+  };
+}
+
+if (typeof globalThis.localStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: createMemoryStorage(),
+  });
+}
+if (typeof globalThis.sessionStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    configurable: true,
+    value: createMemoryStorage(),
+  });
+}
+
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Object.defineProperty(Element.prototype, 'scrollIntoView', {
     configurable: true,

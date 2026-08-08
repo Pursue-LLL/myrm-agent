@@ -27,6 +27,7 @@ import {
   useDisplayMode,
   useOpenTabs,
 } from '@/store/useArtifactPortalStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import ArtifactRenderer from '../artifacts/ArtifactRenderer';
 import PortalTabs from '../artifacts/portal/PortalTabs';
 import { formatBytes, getDownloadFilename } from '../artifacts/artifactUtils';
@@ -38,17 +39,22 @@ import { useCallback } from 'react';
 
 export default function ResearchOutputPanel() {
   const t = useTranslations('research');
+  const tArtifacts = useTranslations('artifacts');
   const activeTab = useActiveTab();
   const content = useArtifactContent();
   const contentLoading = useArtifactLoading();
   const isGenerating = useIsGenerating();
   const displayMode = useDisplayMode();
-  const { tabs } = useOpenTabs();
+  const { tabs, activeIndex } = useOpenTabs();
+  const switchTab = useArtifactPortalStore((s) => s.switchTab);
+  const closeTab = useArtifactPortalStore((s) => s.closeTab);
+  const closeOtherTabs = useArtifactPortalStore((s) => s.closeOtherTabs);
+  const closeAllTabs = useArtifactPortalStore((s) => s.closeAllTabs);
 
   const handleDownload = useCallback(() => {
     if (!activeTab) return;
     const { artifact } = activeTab;
-    const filename = getDownloadFilename(artifact);
+    const filename = getDownloadFilename(artifact.filename);
     const a = document.createElement('a');
     a.download = filename;
 
@@ -96,7 +102,20 @@ export default function ResearchOutputPanel() {
       {/* Tabs */}
       {tabs.length > 1 && (
         <div className="shrink-0 border-b">
-          <PortalTabs />
+          <PortalTabs
+            tabs={tabs}
+            activeIndex={activeIndex}
+            onSwitchTab={switchTab}
+            onCloseTab={closeTab}
+            onCloseOtherTabs={closeOtherTabs}
+            onCloseAllTabs={closeAllTabs}
+            labels={{
+              close: tArtifacts('tabs.close'),
+              closeOthers: tArtifacts('tabs.closeOthers'),
+              closeAll: tArtifacts('tabs.closeAll'),
+              generating: tArtifacts('tabs.generating'),
+            }}
+          />
         </div>
       )}
 

@@ -35,7 +35,6 @@ from app.api.client_logs import router as client_logs_router
 from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
 from app.api.compounding_playbook import router as compounding_playbook_router
-from app.api.workflow_templates import router as workflow_templates_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
@@ -53,7 +52,6 @@ from app.api.files.artifact_share_api import (
     public_router as artifact_share_public_router,
 )
 from app.api.files.router import router as files_router
-from app.api.theme.router import router as theme_router
 from app.api.files.vault_proxy import router as vault_proxy_router
 from app.api.goals.router import router as goals_router
 from app.api.health.diagnostic import router as diagnostic_router
@@ -75,6 +73,7 @@ from app.api.runs import router as runs_router
 from app.api.security.allowlist import router as allowlist_router
 from app.api.security.estop import router as security_estop_router
 from app.api.security.generate import router as security_generate_router
+from app.api.security.managed_policy import router as security_managed_policy_router
 from app.api.security.profiles import router as security_profiles_router
 from app.api.security.router import router as security_dashboard_router
 from app.api.security.vault import router as vault_router
@@ -94,6 +93,7 @@ from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
 from app.api.tasks.router import router as tasks_router
+from app.api.theme.router import router as theme_router
 from app.api.tts.router import router as tts_router
 from app.api.voice.gemini_live import router as voice_gemini_live_router
 from app.api.voice.realtime import router as voice_realtime_router
@@ -101,6 +101,7 @@ from app.api.voice.ws_session import router as voice_ws_router
 from app.api.web_push.router import router as web_push_router
 from app.api.widget_storage import router as widget_storage_router
 from app.api.wiki import router as wiki_router
+from app.api.workflow_templates import router as workflow_templates_router
 from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
 
@@ -275,6 +276,7 @@ api_router.include_router(security_estop_router, tags=["security"])
 api_router.include_router(security_dashboard_router, tags=["security"])
 api_router.include_router(security_generate_router, tags=["security"])
 api_router.include_router(security_profiles_router, tags=["security"])
+api_router.include_router(security_managed_policy_router, tags=["security"])
 api_router.include_router(vault_router, prefix="/security", tags=["security"])
 api_router.include_router(
     vault_credentials_router, prefix="/security", tags=["security"]

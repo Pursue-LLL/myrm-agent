@@ -17,7 +17,6 @@ from app.api.browser_domain_skills.router import (
     _manifest_to_response,
 )
 
-
 # ---------------------------------------------------------------------------
 # DistillSkillRequest — tool_name path-safety validation
 # ---------------------------------------------------------------------------

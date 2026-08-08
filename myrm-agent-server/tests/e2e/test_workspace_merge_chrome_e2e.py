@@ -30,7 +30,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 
-
 _FIXTURE_ANSWER = "Workspace merge E2E fixture answer."
 _MAX_ATTEMPTS = 3
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (

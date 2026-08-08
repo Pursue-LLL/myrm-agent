@@ -1,0 +1,44 @@
+{
+  "commands": {
+    "builtin": {
+      "goal": "この会話の長期目標を設定・管理する",
+      "goalUsage": "使い方: /goal <目標> | status | pause | resume | clear",
+      "goalSet": "目標モードを有効化 — 目標を編集して送信すると開始します",
+      "goalStatus": "目標の状態: {status}",
+      "goalNoActive": "この会話にアクティブな目標はありません",
+      "goalPaused": "目標を一時停止しました",
+      "goalResumed": "目標を再開しました",
+      "goalCleared": "目標をクリアしました",
+      "goalActionFailed": "目標コマンドが失敗しました",
+      "pet": "ペットギャラリーを開くか、スプライトオーバーレイを管理する",
+      "petDisabled": "コンパニオンモードが無効です — 設定で有効にしてください",
+      "petOverlayEnabled": "ペットスプライトオーバーレイを有効にしました",
+      "petOverlayDisabled": "ペットスプライトオーバーレイを非表示にしました",
+      "petInstalled": "ペットをインストールしました: {name}",
+      "petInstallFailed": "ペットのインストールに失敗しました",
+      "petNoActive": "インストール済みのペットがありません — ペットパレットを開きます",
+      "ask": "セッションアドバイザーを開いて読み取り専用のサイドQ&Aを行う（/side）",
+      "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中にサイドQ&Aを行うには /ask または /side を使用してください。"
+    }
+  },
+  "copilot": {
+    "runningFallback": "エージェント実行中",
+    "headlineRunning": "ステップ {step}: {tool}",
+    "headlineWaitingApproval": "承認待ち（{count}）",
+    "headlineCompleted": "完了（{count} ステップ）",
+    "headlineFailed": "実行に失敗しました",
+    "headlineCancelled": "実行をキャンセルしました",
+    "askButton": "質問する",
+    "advisorTitle": "セッションアドバイザー",
+    "advisorHint": "読み取り専用のサイドQ&A — メインのトランスクリプトには入りません。",
+    "advisorEmpty": "実行状況、進捗、承認待ちについて質問できます。",
+    "advisorPlaceholder": "エージェントは何をしていますか？",
+    "advisorSend": "送信",
+    "advisorSending": "送信中…",
+    "advisorClear": "クリア",
+    "tierRules": "実行サマリー",
+    "tierLite": "軽量モデル",
+    "advisorSelectionAsk": "アドバイザーに質問",
+    "advisorSelectionDefaultQuestion": "この選択について説明"
+  }
+}

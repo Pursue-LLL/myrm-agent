@@ -71,7 +71,7 @@ Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension
 |------|------|------|
 | Popup + clip 错误 + 右键剪藏菜单 + clip 系统通知 | en / zh_CN | `_locales` + `chrome.i18n` |
 | Side Panel Chat chrome | en | Agent 回复与 WebUI 设置语言由 server SSE 提供 |
-| WebUI Settings → Extension Bridge | 五语 | `myrm-agent-frontend` next-intl |
+| WebUI Settings → Extension Bridge | 六语 | `myrm-agent-frontend` next-intl |
 
 **Degraded deep links:** When `web_ui_origin` is not yet seeded from WebUI, clip still writes to Wiki; popup shows a success hint (`clipSavedWithoutOrigin`) until origin syncs.
 

@@ -56,10 +56,9 @@ from app.services.agent.stream_session.stream_generator import (
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
-    record_turn_capability_send_failed,
 )
-from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.agent.streaming_support.sse_helpers import error_sse
+from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
 
 if TYPE_CHECKING:

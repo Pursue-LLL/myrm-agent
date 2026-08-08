@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import useConfigStore from '@/store/useConfigStore';
 import useThemeStudioDomPreviewStore from '@/store/useThemeStudioDomPreviewStore';
 import { getDefaultThemeProfile } from '@/theme-engine';
+import { DEFAULT_PERSONAL_SETTINGS } from '@/services/config/types';
 
 let mockPathname = '/';
 
@@ -63,6 +64,7 @@ describe('ThemeProfileProvider pet-overlay art layer', () => {
     useThemeStudioDomPreviewStore.getState().clearPreview();
     useConfigStore.setState({
       personalSettings: {
+        ...DEFAULT_PERSONAL_SETTINGS,
         activeThemeProfileId: getDefaultThemeProfile().id,
         themeProfiles: [],
       },

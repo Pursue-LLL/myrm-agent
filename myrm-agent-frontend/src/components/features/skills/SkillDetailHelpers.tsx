@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, ChevronDown } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, ChevronDown, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Badge } from '@/components/primitives/badge';
-import type { SkillTrap, SecurityScanSummary } from '@/store/skill/types';
-import type { useTranslations } from 'next-intl';
+import type { SkillEvalCase, SkillTrap, SecurityScanSummary } from '@/store/skill/types';
+
+/** next-intl translator compatible with useTranslations('settings.skills'). */
+export type SkillSectionTranslator = ReturnType<typeof useTranslations<'settings.skills'>>;
 
 /* ─── RequirementRow ─── */
 
@@ -70,7 +73,7 @@ function getScoreConfig(score: number) {
 
 interface SecurityScanSectionProps {
   security: SecurityScanSummary;
-  t: ReturnType<typeof useTranslations<'settings.skills'>>;
+  t: SkillSectionTranslator;
 }
 
 export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
@@ -137,6 +140,71 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
   );
 }
 
+/* ─── EvalCasesSection ─── */
+
+export function EvalCasesSection({
+  cases,
+  t,
+}: {
+  cases: SkillEvalCase[];
+  t: SkillSectionTranslator;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (cases.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        className="w-full flex items-center justify-between"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <h4 className="text-sm font-medium flex items-center gap-2">
+          <FileCheck2 size={14} className="text-primary" />
+          {t('detail.evalCases')}
+          <Badge variant="secondary" className="text-xs">
+            {cases.length}
+          </Badge>
+        </h4>
+        <ChevronDown
+          size={14}
+          className={cn('text-muted-foreground transition-transform', expanded && 'rotate-180')}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {cases.map((caseItem, i) => {
+            const message = typeof caseItem.message === 'string' ? caseItem.message : '';
+            const assertions = Array.isArray(caseItem.sandbox_assertions) ? caseItem.sandbox_assertions : [];
+            return (
+              <div key={i} className="rounded-lg border bg-muted/30 p-2.5 text-sm">
+                {message && <p className="font-medium text-foreground">{message}</p>}
+                {assertions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {assertions.map((assertion, j) => (
+                      <code
+                        key={j}
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-muted font-mono text-muted-foreground"
+                      >
+                        {String(assertion.type)}
+                        {assertion.target ? `: ${String(assertion.target)}` : ''}
+                      </code>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── KnownPitfallsSection ─── */
 
 const trapSeverityConfig: Record<string, { color: string; icon: string }> = {
@@ -146,12 +214,18 @@ const trapSeverityConfig: Record<string, { color: string; icon: string }> = {
   low: { color: 'text-blue-600 dark:text-blue-400', icon: '~' },
 };
 
-export function KnownPitfallsSection({ traps }: { traps: SkillTrap[] }) {
+export function KnownPitfallsSection({
+  traps,
+  t,
+}: {
+  traps: SkillTrap[];
+  t: SkillSectionTranslator;
+}) {
   return (
     <div>
       <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
         <AlertTriangle size={14} className="text-amber-500" />
-        Known Pitfalls
+        {t('detail.knownPitfalls')}
         <Badge variant="secondary" className="text-xs">
           {traps.length}
         </Badge>
@@ -166,7 +240,9 @@ export function KnownPitfallsSection({ traps }: { traps: SkillTrap[] }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground">{trap.description}</p>
                   {trap.trigger_condition && (
-                    <p className="text-xs text-muted-foreground mt-1">Trigger: {trap.trigger_condition}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('detail.pitfallTrigger')}: {trap.trigger_condition}
+                    </p>
                   )}
                   {trap.mitigation && (
                     <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">→ {trap.mitigation}</p>

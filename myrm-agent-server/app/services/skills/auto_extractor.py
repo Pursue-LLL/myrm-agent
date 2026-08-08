@@ -7,7 +7,16 @@ events. Orchestration and policy decisions live in ``growth_lifecycle.py``.
 import logging
 from dataclasses import dataclass
 
-from myrm_agent_harness.agent.skills.evolution.pipeline.patch import PatchType, apply_skill_patch
+from myrm_agent_harness.agent.skills.evolution.core.types import (
+    EnvironmentFingerprint,
+    EvolutionType,
+    SkillLineage,
+    SkillRecord,
+)
+from myrm_agent_harness.agent.skills.evolution.pipeline.patch import (
+    PatchType,
+    apply_skill_patch,
+)
 
 from app.core.skills.creation.service import skill_creation_service
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -26,18 +35,68 @@ class SkillMaterializationResult:
     error: str | None = None
 
 
-def _publish_evolution_event(skill_name: str, evolution_type: str, description: str) -> None:
+def _publish_evolution_event(
+    skill_name: str, evolution_type: str, description: str
+) -> None:
     try:
         bus = get_event_bus()
         bus.publish(
             AppEvent(
                 event_type=AppEventType.SKILL_EVOLVED,
-                data={"skill_name": skill_name, "evolution_type": evolution_type, "description": description[:200]},
+                data={
+                    "skill_name": skill_name,
+                    "evolution_type": evolution_type,
+                    "description": description[:200],
+                },
             )
         )
         logger.info("Skill evolved notification published: %s", skill_name)
     except Exception as e:
         logger.error("Failed to publish skill evolution event: %s", e)
+
+
+async def _persist_review_eval_cases(
+    skill_name: str,
+    content: str,
+    skill_path: str,
+    eval_cases: list[dict[str, object]],
+) -> None:
+    """Best-effort write of review-generated eval_cases into the evolution SkillStore.
+
+    Populates the regression gate consumed by ``filter_variants_by_regression`` so
+    future FIX/OPTIMIZE proposals are guarded by the freshly materialized cases.
+    """
+    if not eval_cases:
+        return
+    try:
+        from app.core.skills.store.evolution_store import get_evolution_skill_store
+
+        store = get_evolution_skill_store()
+        try:
+            record = store.get_skill_by_name_version(skill_name)
+            if record is None:
+                record = SkillRecord(
+                    skill_id=skill_name,
+                    name=skill_name,
+                    description="Auto-extracted skill",
+                    content=content,
+                    path=skill_path,
+                    lineage=SkillLineage(
+                        evolution_type=EvolutionType.CAPTURED,
+                        version=1,
+                        created_by="review_callback",
+                    ),
+                    is_active=True,
+                    environment=EnvironmentFingerprint(),
+                )
+            record.eval_cases = eval_cases
+            await store.save_skill(record)
+        finally:
+            store.close()
+    except Exception as exc:
+        logger.warning(
+            "Failed to persist eval_cases for skill '%s': %s", skill_name, exc
+        )
 
 
 def _build_skill_markdown(
@@ -63,7 +122,10 @@ always: false
 """
 
 
-async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMaterializationResult:
+async def auto_extract_or_patch_skill(
+    result: dict[str, object],
+    eval_cases: list[dict[str, object]] | None = None,
+) -> SkillMaterializationResult:
     """Materialize a reviewed skill growth result when policy allows it."""
 
     if not result.get("has_value"):
@@ -81,14 +143,24 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
         trigger_condition = str(result.get("trigger_condition") or "")
         skill_steps = str(result.get("skill_steps") or "")
 
-        content = _build_skill_markdown(skill_name, description, trigger_condition, skill_steps)
+        content = _build_skill_markdown(
+            skill_name, description, trigger_condition, skill_steps
+        )
         save_result = await skill_creation_service.save_skill(
             name=skill_name,
             content=content,
             description=description,
         )
         if save_result.success:
-            logger.warning("🚀 Auto-Extractor: Successfully extracted NEW skill '%s'", skill_name)
+            await _persist_review_eval_cases(
+                skill_name,
+                content,
+                str(skill_creation_service.base_path / skill_name / "SKILL.md"),
+                eval_cases or [],
+            )
+            logger.warning(
+                "🚀 Auto-Extractor: Successfully extracted NEW skill '%s'", skill_name
+            )
             _publish_evolution_event(skill_name, "new", description)
             return SkillMaterializationResult(
                 success=True,
@@ -97,7 +169,11 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
                 skill_name=skill_name,
             )
         else:
-            logger.error("Auto-Extractor failed to save new skill '%s': %s", skill_name, save_result.error)
+            logger.error(
+                "Auto-Extractor failed to save new skill '%s': %s",
+                skill_name,
+                save_result.error,
+            )
             return SkillMaterializationResult(
                 success=False,
                 evolution_type="new",
@@ -109,7 +185,9 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
     elif result_type == "skill_patch":
         patch_content = str(result.get("patch_content") or "")
         if not patch_content:
-            logger.warning("Auto-extractor: patch_content missing for skill %s", skill_name)
+            logger.warning(
+                "Auto-extractor: patch_content missing for skill %s", skill_name
+            )
             return SkillMaterializationResult(
                 success=False,
                 evolution_type="patch",
@@ -121,7 +199,10 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
         skill_file = skill_dir / "SKILL.md"
 
         if not skill_file.exists():
-            logger.warning("Auto-Extractor: Cannot patch skill '%s' because it does not exist locally.", skill_name)
+            logger.warning(
+                "Auto-Extractor: Cannot patch skill '%s' because it does not exist locally.",
+                skill_name,
+            )
             return SkillMaterializationResult(
                 success=False,
                 evolution_type="patch",
@@ -144,8 +225,19 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
                 description="Auto-patched skill",
             )
             if save_result.success:
-                logger.warning("🛠️ Auto-Extractor: Successfully applied PATCH to skill '%s'", skill_name)
-                _publish_evolution_event(skill_name, "patch", "Applied optimization patch")
+                await _persist_review_eval_cases(
+                    skill_name,
+                    patch_result.content,
+                    str(skill_file),
+                    eval_cases or [],
+                )
+                logger.warning(
+                    "🛠️ Auto-Extractor: Successfully applied PATCH to skill '%s'",
+                    skill_name,
+                )
+                _publish_evolution_event(
+                    skill_name, "patch", "Applied optimization patch"
+                )
                 return SkillMaterializationResult(
                     success=True,
                     evolution_type="patch",
@@ -153,7 +245,11 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
                     skill_name=skill_name,
                 )
             else:
-                logger.error("Auto-Extractor failed to save patched skill '%s': %s", skill_name, save_result.error)
+                logger.error(
+                    "Auto-Extractor failed to save patched skill '%s': %s",
+                    skill_name,
+                    save_result.error,
+                )
                 return SkillMaterializationResult(
                     success=False,
                     evolution_type="patch",
@@ -162,7 +258,11 @@ async def auto_extract_or_patch_skill(result: dict[str, object]) -> SkillMateria
                     error=save_result.error,
                 )
         else:
-            logger.error("Auto-Extractor failed to apply patch to skill '%s': %s", skill_name, patch_result.error_message)
+            logger.error(
+                "Auto-Extractor failed to apply patch to skill '%s': %s",
+                skill_name,
+                patch_result.error_message,
+            )
             return SkillMaterializationResult(
                 success=False,
                 evolution_type="patch",

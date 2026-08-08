@@ -21,7 +21,7 @@ const shellMessages = {
   settings: {
     defaultModel: { searchModels: 'Search models' },
   },
-} as Messages;
+} as unknown as Messages;
 
 describe('ClientIntlProvider deferred locale', () => {
   const originalFetch = globalThis.fetch;

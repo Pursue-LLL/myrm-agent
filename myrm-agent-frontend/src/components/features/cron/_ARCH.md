@@ -16,7 +16,7 @@
 | `cronCreateAuditGate.ts`（lib/cron） | 辅助 | Settings 创建 audit policy + pause/resume 门禁 | ✅ |
 | `ActiveHoursEditor.tsx` | 组件 | 活跃时段（active hours）可视化编辑器 | ✅ |
 | `AllowedRootsEditor.tsx` | 组件 | Cron 允许工作目录 roots 列表编辑 | ✅ |
-| `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（preset 与 server blueprints SSOT 对齐；cap/tool 预设 research/devops/webOnly/full 均双写 caps+tools；devops 含 code_interpreter_tool；五语 i18n） | ✅ |
+| `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（preset 与 server blueprints SSOT 对齐；cap/tool 预设 research/devops/webOnly/full 均双写 caps+tools；devops 含 code_interpreter_tool；六语 i18n） | ✅ |
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobAuditPanel.tsx` | 组件 | Hermes 六字段 Cron 创建审计 + Confirm 门禁（聊天/创建弹窗/详情页复用） | ✅ |

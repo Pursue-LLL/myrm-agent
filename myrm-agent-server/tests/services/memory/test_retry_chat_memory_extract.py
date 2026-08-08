@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,6 +11,7 @@ from app.database.dto import MessageDTO
 from app.services.memory import retry_chat_memory_extract as retry_module
 from app.services.memory.retry_chat_memory_extract import (
     _find_last_turn,
+    run_retry_extract_for_chat,
     schedule_retry_chat_memory_extract,
 )
 
@@ -57,24 +58,6 @@ def test_find_last_turn_raises_when_assistant_missing() -> None:
         _find_last_turn(messages)
 
 
-@pytest.mark.asyncio
-async def test_schedule_retry_skips_when_already_in_flight(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    retry_module._in_flight_retries.add("chat-1")
-    mock_get_messages = AsyncMock()
-    monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_all_messages",
-        mock_get_messages,
-    )
-
-    status = await schedule_retry_chat_memory_extract("chat-1")
-
-    assert status == "already_in_flight"
-    mock_get_messages.assert_not_awaited()
-    retry_module._in_flight_retries.discard("chat-1")
-
-
 def _chat_dto(*, chat_id: str = "chat-1", is_incognito: bool = False):
     from app.database.dto import ChatDTO
 
@@ -87,13 +70,86 @@ def _chat_dto(*, chat_id: str = "chat-1", is_incognito: bool = False):
     )
 
 
+async def _patch_chat_service(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    chat=None,
+    messages: list[MessageDTO] | None = None,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.memory.retry_chat_memory_extract.ChatService.get_chat_metadata",
+        AsyncMock(return_value=chat),
+    )
+    monkeypatch.setattr(
+        "app.services.memory.retry_chat_memory_extract.ChatService.get_all_messages",
+        AsyncMock(return_value=messages or []),
+    )
+
+
+@pytest.mark.asyncio
+async def test_schedule_retry_enqueues_and_returns_scheduled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [
+        _message(message_id="u1", role="user", content="question"),
+        _message(message_id="a1", role="assistant", content="answer"),
+    ]
+    await _patch_chat_service(
+        monkeypatch,
+        chat=_chat_dto(),
+        messages=messages,
+    )
+    enqueue_mock = AsyncMock(return_value="queued")
+    monkeypatch.setattr(
+        "app.services.memory.extract_retry_queue.enqueue", enqueue_mock
+    )
+
+    status = await schedule_retry_chat_memory_extract("chat-1")
+
+    assert status == "scheduled"
+    enqueue_mock.assert_awaited_once_with("chat-1", reset_failed=True)
+
+
+@pytest.mark.asyncio
+async def test_schedule_retry_maps_already_queued_to_in_flight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [
+        _message(message_id="u1", role="user", content="question"),
+        _message(message_id="a1", role="assistant", content="answer"),
+    ]
+    await _patch_chat_service(
+        monkeypatch,
+        chat=_chat_dto(),
+        messages=messages,
+    )
+    enqueue_mock = AsyncMock(return_value="already_queued")
+    monkeypatch.setattr(
+        "app.services.memory.extract_retry_queue.enqueue", enqueue_mock
+    )
+
+    status = await schedule_retry_chat_memory_extract("chat-1")
+
+    assert status == "already_in_flight"
+
+
+@pytest.mark.asyncio
+async def test_schedule_retry_rejects_missing_chat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _patch_chat_service(monkeypatch, chat=None)
+
+    with pytest.raises(ValueError, match="Chat not found"):
+        await schedule_retry_chat_memory_extract("chat-1")
+
+
 @pytest.mark.asyncio
 async def test_schedule_retry_rejects_incognito_chat(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_chat_metadata",
-        AsyncMock(return_value=_chat_dto(chat_id="chat-incognito", is_incognito=True)),
+    await _patch_chat_service(
+        monkeypatch,
+        chat=_chat_dto(chat_id="chat-incognito", is_incognito=True),
     )
 
     with pytest.raises(ValueError, match="Incognito"):
@@ -101,11 +157,79 @@ async def test_schedule_retry_rejects_incognito_chat(
 
 
 @pytest.mark.asyncio
-async def test_run_retry_extract_uses_chat_binding_and_dedup_llm(
+async def test_schedule_retry_rejects_chat_without_messages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.services.memory import retry_chat_memory_extract as retry_module
+    await _patch_chat_service(monkeypatch, chat=_chat_dto(), messages=[])
 
+    with pytest.raises(ValueError, match="has no messages"):
+        await schedule_retry_chat_memory_extract("chat-1")
+
+
+@pytest.mark.asyncio
+async def test_run_retry_extract_for_chat_returns_false_when_chat_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _patch_chat_service(monkeypatch, chat=None)
+    run_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        run_mock,
+    )
+
+    assert await run_retry_extract_for_chat("chat-1") is False
+    run_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_retry_extract_for_chat_returns_false_when_no_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [_message(message_id="u1", role="user", content="solo")]
+    await _patch_chat_service(
+        monkeypatch,
+        chat=_chat_dto(),
+        messages=messages,
+    )
+    run_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        run_mock,
+    )
+
+    assert await run_retry_extract_for_chat("chat-1") is False
+    run_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_retry_extract_for_chat_runs_latest_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [
+        _message(message_id="u1", role="user", content="question"),
+        _message(message_id="a1", role="assistant", content="answer"),
+    ]
+    await _patch_chat_service(
+        monkeypatch,
+        chat=_chat_dto(),
+        messages=messages,
+    )
+    run_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        run_mock,
+    )
+
+    assert await run_retry_extract_for_chat("chat-1") is True
+    run_mock.assert_awaited_once_with(
+        "chat-1", "question", [], "answer", source="manual_retry_extract"
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_retry_extract_uses_chat_binding_and_compressed_track(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     binding = MagicMock()
     binding_context = MagicMock()
     binding_context.binding = binding
@@ -150,7 +274,9 @@ async def test_run_retry_extract_uses_chat_binding_and_dedup_llm(
         lambda chat_id, **kwargs: f"observer-{chat_id}",
     )
 
-    await retry_module._run_retry_extract("chat-1", "question", [], "answer")
+    await retry_module._run_retry_extract(
+        "chat-1", "question", [], "answer", source="manual_retry_extract"
+    )
 
     resolve_binding.assert_awaited_once_with("chat-1")
     create_manager.assert_awaited_once()
@@ -158,42 +284,6 @@ async def test_run_retry_extract_uses_chat_binding_and_dedup_llm(
     assert manager_kwargs["dedup_llm"] is extraction_llm
     assert manager_kwargs["on_conflict"] == "conflict-agent-marketing"
     auto_extract.assert_awaited_once()
-    assert auto_extract.call_args.kwargs["lifecycle_observer"] == "observer-chat-1"
-
-
-@pytest.mark.asyncio
-async def test_schedule_retry_runs_extract_in_background(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    messages = [
-        _message(message_id="u1", role="user", content="question"),
-        _message(message_id="a1", role="assistant", content="answer"),
-    ]
-    monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_chat_metadata",
-        AsyncMock(return_value=_chat_dto(chat_id="chat-1", is_incognito=False)),
-    )
-    monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_all_messages",
-        AsyncMock(return_value=messages),
-    )
-
-    run_mock = AsyncMock()
-    monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
-        run_mock,
-    )
-
-    with patch(
-        "app.services.memory.retry_chat_memory_extract.asyncio.create_task"
-    ) as create_task:
-        status = await schedule_retry_chat_memory_extract("chat-1")
-
-    assert status == "scheduled"
-
-    create_task.assert_called_once()
-    guarded_runner = create_task.call_args.args[0]
-    await guarded_runner
-
-    run_mock.assert_awaited_once_with("chat-1", "question", [], "answer")
-    assert "chat-1" not in retry_module._in_flight_retries
+    call_kwargs = auto_extract.call_args.kwargs
+    assert call_kwargs["enable_verbatim"] is False
+    assert call_kwargs["lifecycle_observer"] == "observer-chat-1"

@@ -1,0 +1,245 @@
+{
+  "settings": {
+    "securityPolicy": {
+      "autoReview": {
+        "title": "스마트 인텐트 가드",
+        "description": "LLM을 사용하여 원래 의도에 따라 고위험 도구 호출(셸 명령 또는 네트워크 요청 등)을 자동 검토합니다. 작업이 의도와 일치하면 자동 승인되어 중단 피로를 줄입니다.",
+        "enableLabel": "스마트 인텐트 가드 활성화",
+        "enableDesc": "활성화하면 LLM이 사용자를 중단하기 전에 잠재적으로 위험한 도구 호출을 평가합니다.",
+        "saved": "스마트 인텐트 가드 설정이 저장되었습니다",
+        "modelSaved": "스마트 인텐트 가드 모델이 저장되었습니다",
+        "modelCleared": "검토자 모델이 지워졌습니다 — 기본 모델을 폴백으로 사용합니다.",
+        "selectModel": "검토자 모델 선택",
+        "selectModelPlaceholder": "빠른 모델 선택 (예: GPT-4o-mini)",
+        "modelRecommendation": "권장: 최적의 지연 시간을 위해 GPT-4o-mini 또는 Claude 3 Haiku와 같은 빠르고 저비용 모델을 사용하세요.",
+        "noModelHint": "스마트 인텐트 가드가 기본 모델을 사용하여 활성화되어 있습니다. 최적의 지연 시간과 비용을 위해 전용 빠른 모델(예: GPT-4o-mini)을 선택하는 것을 고려하세요.",
+        "shellEscalationHint": "참고: 스마트 인텐트 가드 모드에서 고위험 작업(예: 셸 명령)은 권한 규칙이 \"허용\" 으로 설정되어 있어도 보안 모델이 검토합니다. 명백히 안전한 명령(ls, cat, git status 등)은 LLM 검토 없이 빠른 처리가 됩니다."
+      },
+      "managedPolicy": {
+        "lockedBadge": "조직 정책",
+        "autoReviewLocked": "조직이 보호된 에이전트에 스마트 인텐트 가드를 요구합니다. 이 설정은 끌 수 없습니다.",
+        "yoloLocked": "YOLO 모드는 조직 정책에 의해 비활성화되었습니다.",
+        "allowAlwaysLocked": "항상 허용은 조직 정책에 의해 비활성화되었습니다."
+      },
+      "riskRules": {
+        "title": "위험 규칙",
+        "description": "LLM 대화에서 데이터 유출을 방지하기 위해 민감 데이터 감지 규칙을 관리합니다. 신뢰할 수 없는 타사 모델 API(예: 프록시 서비스)를 사용할 때는 민감 데이터가 악의적으로 분석 및 악용되지 않도록 주의하세요.",
+        "addRule": "규칙 추가",
+        "testRule": "규칙 테스트",
+        "noRules": "위험 규칙이 구성되지 않았습니다",
+        "totalRules": "{count}개 규칙",
+        "enabled": "활성화됨",
+        "disabled": "비활성화됨",
+        "builtin": "내장",
+        "custom": "사용자 정의",
+        "ruleId": "규칙 ID",
+        "displayName": "표시 이름",
+        "pattern": "정규식 패턴",
+        "severity": "심각도",
+        "action": "작업",
+        "category": "카테고리",
+        "sortOrder": "정렬 순서",
+        "severityLow": "낮음",
+        "severityMedium": "중간",
+        "severityHigh": "높음",
+        "actionAllow": "허용",
+        "actionBlock": "차단",
+        "categoryPersonal": "개인 정보",
+        "categoryCompany": "회사 내부",
+        "categorySecurity": "보안 자격 증명",
+        "categoryFinanceLegal": "금융 및 법률",
+        "categoryPolitical": "정치 및 군사",
+        "categoryCustomer": "고객 데이터",
+        "categoryCustom": "사용자 정의",
+        "allCategories": "모든 카테고리",
+        "enableAll": "모두 활성화",
+        "disableAll": "모두 비활성화",
+        "batchToggle": "일괄 전환",
+        "deleteRule": "규칙 삭제",
+        "editRule": "규칙 편집",
+        "createRule": "규칙 만들기",
+        "saveRule": "저장",
+        "cancel": "취소",
+        "deleteConfirm": "이 규칙을 삭제하시겠습니까?",
+        "deleteSuccess": "규칙이 삭제되었습니다",
+        "saveSuccess": "규칙이 저장되었습니다",
+        "createSuccess": "규칙이 생성되었습니다",
+        "toggleSuccess": "규칙이 업데이트되었습니다",
+        "loadError": "규칙 로드 실패",
+        "testTitle": "규칙 패턴 테스트",
+        "testPattern": "패턴",
+        "testText": "테스트 텍스트",
+        "testSubmit": "테스트",
+        "testMatches": "일치",
+        "testNoMatches": "일치 항목을 찾을 수 없습니다",
+        "testInvalidPattern": "잘못된 정규식 패턴",
+        "builtinCannotDelete": "내장 규칙은 삭제할 수 없습니다",
+        "builtinCannotEditPattern": "내장 규칙 패턴은 수정할 수 없습니다",
+        "hits": "감사 로그",
+        "hitsTitle": "위험 감지 기록",
+        "hitsEmpty": "기록된 위험 감지가 없습니다",
+        "hitsRuleName": "규칙",
+        "hitsSeverity": "심각도",
+        "hitsAction": "작업",
+        "hitsMatch": "일치 콘텐츠",
+        "hitsTime": "시간",
+        "hitsUser": "사용자",
+        "hitsTotal": "{count}개 기록",
+        "searchPlaceholder": "이름, 설명 또는 ID로 검색...",
+        "searchResults": "{count}개 일치",
+        "searchNoResults": "일치하는 규칙을 찾을 수 없습니다",
+        "exportRules": "사용자 정의 규칙 내보내기",
+        "importRules": "규칙 가져오기",
+        "noCustomRulesToExport": "내보낼 사용자 정의 규칙이 없습니다",
+        "importSuccess": "{count}개 규칙을 성공적으로 가져왔습니다",
+        "importError": "가져오기 실패, 파일 형식을 확인하세요",
+        "duplicateRule": "중복 규칙",
+        "rules": {
+          "email_address": {
+            "name": "이메일 주소",
+            "desc": "이메일 주소 감지."
+          },
+          "cn_mobile_number": {
+            "name": "중국 본토 휴대폰 번호",
+            "desc": "중국 본토 휴대폰 번호 감지."
+          },
+          "cn_id_card": {
+            "name": "중국 주민등록번호",
+            "desc": "18자리 중국 주민등록번호 감지."
+          },
+          "passport_number": {
+            "name": "여권 번호",
+            "desc": "일반적인 여권 번호 형식 감지."
+          },
+          "bank_card_context": {
+            "name": "은행 카드 컨텍스트",
+            "desc": "은행 카드 키워드 근처의 카드 번호 유사 데이터 감지."
+          },
+          "personal_address_keywords": {
+            "name": "개인 주소 키워드",
+            "desc": "일반적인 개인 주소 표현 감지."
+          },
+          "resume_cv_keywords": {
+            "name": "이력서 또는 CV 콘텐츠",
+            "desc": "이력서 및 커리큘럼 관련 콘텐츠 감지."
+          },
+          "private_key_marker": {
+            "name": "개인 키 자료",
+            "desc": "PEM 개인 키 마커 감지."
+          },
+          "api_key_like": {
+            "name": "API 키 / 클라우드 자격 증명",
+            "desc": "일반적인 API 키 및 클라우드 자격 증명 패턴 감지."
+          },
+          "credential_assignment": {
+            "name": "자격 증명 할당",
+            "desc": "명시적 비밀번호, 시크릿, 토큰 또는 API 키 할당 감지."
+          },
+          "jwt_token_like": {
+            "name": "JWT 토큰",
+            "desc": "JWT 유사 베어러 토큰 감지."
+          },
+          "cookie_session_like": {
+            "name": "쿠키 / 세션 시크릿",
+            "desc": "세션, 쿠키 및 권한 부여 문구 감지."
+          },
+          "db_connection_string": {
+            "name": "데이터베이스 연결 문자열",
+            "desc": "데이터베이스, 캐시 및 큐용 연결 문자열 감지."
+          },
+          "kubeconfig_content": {
+            "name": "Kubeconfig 콘텐츠",
+            "desc": "kubeconfig 스타일 구성 콘텐츠 감지."
+          },
+          "env_file_secret": {
+            "name": "환경 시크릿 변수",
+            "desc": "env 스타일 콘텐츠의 일반적인 시크릿 변수 이름 감지."
+          },
+          "private_ip": {
+            "name": "사설 네트워크 주소",
+            "desc": "RFC1918 사설 IP 주소 감지."
+          },
+          "internal_domain_name": {
+            "name": "내부 도메인 / 호스트 이름",
+            "desc": "일반적인 내부 도메인 및 시스템 명명 패턴 감지."
+          },
+          "internal_hostname_pattern": {
+            "name": "내부 호스트 명명",
+            "desc": "내부 호스트 이름 및 환경별 리소스 이름 감지."
+          },
+          "kubernetes_service_dns": {
+            "name": "K8s 서비스 DNS",
+            "desc": "Kubernetes 내부 서비스 DNS 참조 감지."
+          },
+          "project_codename_keywords": {
+            "name": "프로젝트 코드명 / 로드맵",
+            "desc": "프로젝트 코드명 또는 미공개 로드맵 문구 감지."
+          },
+          "org_roster_keywords": {
+            "name": "조직 명단 / 디렉토리",
+            "desc": "조직도, 명단 및 내부 디렉토리 감지."
+          },
+          "salary_hr_keywords": {
+            "name": "급여 / HR 데이터",
+            "desc": "보상, 급여 및 HR 평가 문구 감지."
+          },
+          "customer_list_keywords": {
+            "name": "고객 목록 / 연락처",
+            "desc": "고객 명단 및 연락처 목록 스타일 문구 감지."
+          },
+          "contract_quote_keywords": {
+            "name": "계약 / 견적 문서",
+            "desc": "계약, 견적 또는 입찰 문서 문구 감지."
+          },
+          "crm_ticket_keywords": {
+            "name": "CRM / 티켓 데이터",
+            "desc": "CRM 메모, 티켓 콘텐츠 또는 고객 프로필 문구 감지."
+          },
+          "financial_metrics_keywords": {
+            "name": "재무 지표 / 예산",
+            "desc": "재무 지표, 예산 및 수익성 문구 감지."
+          },
+          "invoice_tax_keywords": {
+            "name": "송장 / 세금 정보",
+            "desc": "송장 및 세금 식별자 문구 감지."
+          },
+          "legal_document_keywords": {
+            "name": "법률 / 규정 준수 문서",
+            "desc": "법률 의견, 분쟁 및 NDA 스타일 문구 감지."
+          },
+          "political_person_org_keywords": {
+            "name": "정치 기관 / 공무원",
+            "desc": "정치 기관, 공무원 및 관련 문구 감지."
+          },
+          "military_security_keywords": {
+            "name": "군사 / 국가 안보",
+            "desc": "군사 배치, 무기 및 국가 안보 문구 감지."
+          },
+          "extremism_keywords": {
+            "name": "극단주의 / 폭력",
+            "desc": "극단주의, 폭력 공격 및 폭탄 제작 문구 감지."
+          }
+        }
+      },
+      "nlGenerator": {
+        "sectionTitle": "AI 정책 생성기",
+        "sectionDesc": "자연어로 보안 요구 사항을 설명하고 AI가 구성을 생성하게 하세요.",
+        "title": "스마트 생성",
+        "description": "자연어로 보안 요구 사항을 설명하면 AI가 해당 권한 규칙, 경로 정책 및 네트워크 허용 목록 구성을 생성합니다.",
+        "placeholder": "예: 모든 파일 삭제 명령 차단, 프로젝트 디렉토리와 /tmp 만 액세스 허용, github.com 및 npm 관련 도메인만 허용",
+        "generate": "생성",
+        "generateFailed": "정책 생성 실패, 다시 시도하세요",
+        "resultValid": "정책이 성공적으로 생성되었습니다",
+        "resultDanger": "정책에 고위험 항목이 포함되어 있습니다",
+        "apply": "적용",
+        "cancel": "취소",
+        "applied": "정책이 적용되었습니다",
+        "willReplace": "교체 대상: {sections}",
+        "sectionPermissions": "권한 규칙",
+        "sectionPathPolicy": "경로 정책",
+        "sectionNetwork": "네트워크 허용 목록",
+        "sectionPrivacy": "개인정보 정책"
+      }
+    }
+  }
+}

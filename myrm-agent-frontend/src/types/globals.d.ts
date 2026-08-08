@@ -20,6 +20,7 @@ interface Window {
     queueLen: number;
     attempt?: number;
     error?: string;
+    source?: string;
   };
   /** Page-local private runtime identity parsed from window.name before hydration. */
   __MYRM_E2E_RUNTIME__?: Readonly<{
@@ -91,6 +92,7 @@ interface Window {
     clearStreamRequestMessageId?: () => void;
     submitSteerNudge?: (message: string) => Promise<{ ok: boolean; mode?: string; err?: string; detail?: unknown }>;
     abortActiveStream?: () => void;
+    releaseActiveStreamForApiResume?: () => void;
     /** CDP E2E: API-confirmed user message count before submit. */
     _submitBaselineUsers?: number;
     turnSnapshot: () => {
@@ -100,6 +102,9 @@ interface Window {
       hasOk: boolean;
       hasDone: boolean;
       lastAssistantSample: string;
+      marketSkillCount: number;
+      slashBoundSkillResolvedCount: number;
+      slashSkillCatalogReady: boolean;
     };
     lastSubmitResult?: {
       ok: boolean;
@@ -251,8 +256,8 @@ interface Window {
     }) => void;
     isHandlersReady: () => boolean;
     registerHandlers: (handlers: {
-      applyStats: (stats: Record<string, unknown>) => void;
-      applyHealth: (health: Record<string, unknown>) => void;
+      applyStats: (stats: unknown) => void;
+      applyHealth: (health: unknown) => void;
     }) => void;
     unregisterHandlers: () => void;
   };
@@ -348,4 +353,9 @@ declare module '@novnc/novnc' {
     resizeSession: boolean;
     disconnect(): void;
   }
+}
+
+declare module 'docshift' {
+  export function toDocx(html: string): Promise<Blob>;
+  export function toHtml(docx: ArrayBuffer): Promise<string>;
 }

@@ -150,7 +150,7 @@ async def test_manual_retry_observer_uses_custom_source_and_metadata() -> None:
     observer = make_extraction_lifecycle_observer(
         "chat-99",
         source="manual_retry_extract",
-        manual_retry=True,
+        is_retry=True,
     )
     mock_ledger = MagicMock()
     mock_ledger.record_event = AsyncMock(return_value=MagicMock())
@@ -175,4 +175,58 @@ async def test_manual_retry_observer_uses_custom_source_and_metadata() -> None:
 
     call_kwargs = mock_ledger.record_event.await_args.kwargs
     assert call_kwargs["source"] == "manual_retry_extract"
-    assert call_kwargs["metadata"]["manual_retry"] is True
+    assert call_kwargs["metadata"]["is_retry"] is True
+
+
+@patch("app.services.memory.extract_retry_queue.enqueue", new_callable=AsyncMock)
+@patch("app.database.connection.get_session")
+@patch("app.services.memory.operation_ledger.MemoryOperationLedgerService")
+@pytest.mark.asyncio
+async def test_auto_extract_error_enqueues_retry(
+    mock_ledger_cls, mock_session_factory, mock_enqueue
+) -> None:
+    mock_session = MagicMock()
+    mock_session.__aenter__ = AsyncMock(return_value=MagicMock())
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_session_factory.return_value = mock_session
+    mock_ledger_cls.return_value.record_event = AsyncMock(return_value=MagicMock())
+
+    observer = make_extraction_lifecycle_observer("chat-99")
+    await observer(
+        "extract",
+        MemoryOperationStatus.ERROR,
+        chat_id="chat-99",
+        summary="Memory extraction failed",
+        metadata={"error": "TimeoutError"},
+    )
+
+    mock_enqueue.assert_awaited_once_with("chat-99", reset_failed=False)
+
+
+@patch("app.services.memory.extract_retry_queue.enqueue", new_callable=AsyncMock)
+@patch("app.database.connection.get_session")
+@patch("app.services.memory.operation_ledger.MemoryOperationLedgerService")
+@pytest.mark.asyncio
+async def test_manual_retry_error_does_not_enqueue_again(
+    mock_ledger_cls, mock_session_factory, mock_enqueue
+) -> None:
+    mock_session = MagicMock()
+    mock_session.__aenter__ = AsyncMock(return_value=MagicMock())
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_session_factory.return_value = mock_session
+    mock_ledger_cls.return_value.record_event = AsyncMock(return_value=MagicMock())
+
+    observer = make_extraction_lifecycle_observer(
+        "chat-99",
+        source="manual_retry_extract",
+        is_retry=True,
+    )
+    await observer(
+        "extract",
+        MemoryOperationStatus.ERROR,
+        chat_id="chat-99",
+        summary="Manual retry failed",
+        metadata={"error": "TimeoutError"},
+    )
+
+    mock_enqueue.assert_not_awaited()

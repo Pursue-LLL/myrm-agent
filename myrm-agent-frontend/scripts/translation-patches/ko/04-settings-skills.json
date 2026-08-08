@@ -1,0 +1,90 @@
+{
+  "settings": {
+    "skills": {
+      "workflowTemplates": {
+        "tab": "워크플로 템플릿",
+        "subtitle": "다이내믹 워크플로 실행에서 오케스트레이션 스크립트를 저장하고, 플래너를 재생성하지 않고 재실행하며, 템플릿을 내보내거나 가져와 백업하거나 다른 기기로 이동하세요.",
+        "loading": "템플릿 로드 중…",
+        "loadFailed": "워크플로 템플릿 로드 실패",
+        "refresh": "새로고침",
+        "empty": "저장된 워크플로 템플릿이 없습니다. 다이내믹 워크플로 실행을 완료하고 어시스턴트 메시지에서 템플릿으로 저장을 사용하세요.",
+        "run": "실행",
+        "delete": "삭제",
+        "deleted": "템플릿이 삭제되었습니다",
+        "deleteFailed": "템플릿 삭제 실패",
+        "deleteConfirmTitle": "워크플로 템플릿을 삭제하시겠습니까?",
+        "deleteConfirm": "\"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        "deleteConfirmWithCron": "\"{name}\"을(를) 삭제하시겠습니까? 이 템플릿에 {count, plural, one {예약 작업 #개가} other {예약 작업 #개가}} 아직 바인딩되어 있어 실행이 중지됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "deleteCancel": "취소",
+        "runQueryPlaceholder": "다음 고정 템플릿 실행을 위한 작업 쿼리…",
+        "runQueryRequired": "템플릿을 실행하기 전에 작업 쿼리를 입력하세요",
+        "runStarted": "고정 템플릿 실행이 시작되었습니다",
+        "runStartedHint": "오케스트레이션 스크립트가 채팅에서 실행 중입니다.",
+        "runBusy": "템플릿을 실행하기 전에 현재 메시지가 완료될 때까지 기다리세요",
+        "runNoChat": "이 실행을 위한 채팅 세션을 열 수 없습니다",
+        "runFailed": "고정 템플릿 실행을 시작하지 못했습니다",
+        "trustLatchOn": "신뢰 래치",
+        "trustLatchOff": "매 실행 확인",
+        "trustLatch": "신뢰 래치 (비용 임계값 미만의 읽기 전용 실행에 대해 계획 확인 건너뛰기)",
+        "agentTypes": "에이전트 유형: {types}",
+        "previewScript": "스크립트 보기",
+        "previewLoading": "스크립트 로드 중…",
+        "previewLoadFailed": "스크립트 로드 실패",
+        "placeholdersHint": "매개변수: {keys}",
+        "argsDialogTitle": "{name} 매개변수",
+        "argsDialogDescription": "실행 전에 템플릿 매개변수를 입력하세요.",
+        "argsFieldPlaceholder": "{key} 값",
+        "argsCancel": "취소",
+        "argsConfirmRun": "실행",
+        "export": "내보내기",
+        "import": "가져오기",
+        "exportSuccess": "템플릿이 내보내졌습니다",
+        "exportSuccessHint": "백업 또는 공유를 위해 JSON 파일을 저장하세요.",
+        "exportFailed": "템플릿 내보내기 실패",
+        "importSuccess": "템플릿이 가져와졌습니다",
+        "importSuccessHint": "이 템플릿으로 크론을 사용하는 경우 예약 작업을 다시 바인딩하세요.",
+        "importFailed": "템플릿 가져오기 실패",
+        "importInvalidFile": "잘못된 워크플로 템플릿 파일",
+        "importFileTooLarge": "템플릿 파일이 너무 큽니다 (최대 512KB)",
+        "importOverwriteTitle": "기존 템플릿을 교체하시겠습니까?",
+        "importOverwriteConfirm": "가져오기로 \"{name}\"이(가) 교체됩니다. 예약 작업 바인딩은 자동으로 업데이트되지 않습니다.",
+        "importOverwriteAction": "교체"
+      },
+      "learn": {
+        "panelTitle": "스킬 학습",
+        "description": "에이전트에게 디렉터리, URL 또는 워크플로 메모를 지정하세요. 채팅에서 소스를 수집하고 검토용 초안을 저장합니다.",
+        "directoryLabel": "로컬 파일 또는 디렉터리",
+        "directoryPlaceholder": "~/projects/some-sdk (file_read_tool / grep_tool로 읽기)",
+        "urlLabel": "URL",
+        "urlPlaceholder": "https://docs.example.com/api (web_fetch_tool로 가져오기)",
+        "textLabel": "워크플로 메모 또는 설명",
+        "textPlaceholder": "예: 지출 보고서 제출 방법: 포털 열기, 영수증 첨부, 제출",
+        "cancel": "취소",
+        "submit": "학습하기",
+        "noActiveChat": "먼저 채팅을 여세요 — 학습은 대화 턴으로 실행됩니다",
+        "scenarios": {
+          "sdk": {
+            "label": "SDK / API",
+            "text": "이 SDK에서 재사용 가능한 클라이언트/API 절차를 추출하세요; 인증, 페이지네이션, 오류 처리를 중점적으로 다룹니다."
+          },
+          "deploy": {
+            "label": "최근 배포",
+            "text": "방금 배포를 완료한 방법 — 이 대화의 단계를 검토하고 재사용 가능한 스킬로 정리하세요."
+          },
+          "debug": {
+            "label": "디버그 경로",
+            "text": "이 문제를 진단하고 해결하는 데 사용한 디버깅 및 문제 해결 경로입니다."
+          },
+          "writing": {
+            "label": "작문 가이드",
+            "text": "이 디렉터리에서 나의 작문 스타일, 어조 규칙, 구조 템플릿을 추출하세요."
+          },
+          "release": {
+            "label": "릴리스 SOP",
+            "text": "우리의 릴리스/배포 SOP — 버전 관리 체크리스트, 검증 단계, 롤백 절차."
+          }
+        }
+      }
+    }
+  }
+}

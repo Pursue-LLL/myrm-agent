@@ -2,8 +2,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-const openArtifactDeliverable = vi.hoisted(() => vi.fn(async () => undefined));
-const openWorkspaceDeliverable = vi.hoisted(() => vi.fn(async () => undefined));
+const openArtifactDeliverable = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
+);
+const openWorkspaceDeliverable = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
+);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) =>
@@ -49,7 +53,8 @@ describe('DeliverableReferenceLink', () => {
     await waitFor(() => {
       expect(openArtifactDeliverable).toHaveBeenCalledTimes(1);
     });
-    expect(openArtifactDeliverable.mock.calls[0][0].short_file_id).toBe('@file_001');
+    const firstCall = openArtifactDeliverable.mock.calls[0]?.[0] as { short_file_id: string } | undefined;
+    expect(firstCall?.short_file_id).toBe('@file_001');
   });
 
   it('disables @file link when artifact not yet synced', () => {

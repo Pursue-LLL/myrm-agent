@@ -18,16 +18,16 @@ from cdp_chat_support import wait_e2e_provider_ready  # noqa: E402
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     reload_mcp_page,
     wait_for_state,
-    warm_ui_route,
-    _warm_ui_parallel_wait_sec,
 )
 
 _FETCH_HOOK_JS = """(() => {
@@ -294,7 +294,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
@@ -302,11 +302,15 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
     agent_id = _create_editable_agent(api_url)
-    agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}#loadout"
+    agents_subroute = f"/settings/agents?agentId={agent_id}#loadout"
+    agent_settings_url = f"{ui_url.rstrip('/')}{agents_subroute.replace('#loadout', '')}#loadout"
 
     try:
-        warm_ui_route("/settings/agents")
-        with open_mcp_page(agent_settings_url, timeout_ms=120_000) as (client, page):
+        layout_timeout = _warm_ui_parallel_wait_sec(90.0)
+        with open_settings_subroute(
+            agents_subroute,
+            layout_timeout_sec=layout_timeout,
+        ) as (client, page):
             dismiss_blocking_modals(client, page, recover_url=agent_settings_url)
             editor_ready: dict[str, object] = {}
             for attempt in range(3):
@@ -364,7 +368,12 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
             )
 
         with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
-            wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+            wait_for_state(
+                client,
+                page,
+                _BRIDGE_READY_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            )
             client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
             capture = _submit_and_wait_web_surface(client, page)
             assert capture.get("lastSurface") in {
@@ -375,7 +384,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
         _delete_agent(api_url, agent_id)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
@@ -388,7 +397,12 @@ def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
 
     ui_url = get_e2e_ui_url()
     with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
-        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+        wait_for_state(
+            client,
+            page,
+            _BRIDGE_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         simulated = client.evaluate(page, _SIMULATE_TAURI_RUNTIME_JS, timeout_sec=10.0)
         assert isinstance(simulated, dict)

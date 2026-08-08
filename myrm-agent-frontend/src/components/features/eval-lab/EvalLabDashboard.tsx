@@ -29,6 +29,57 @@ import {
 } from '@/components/features/app-shell/lazy-recharts';
 import MatrixResultView, { type MatrixReportData } from './MatrixResultView';
 import CaseFormatReference from './CaseFormatReference';
+import WbBenchSources from './WbBenchSources';
+
+interface EvalDataset {
+  id: string;
+  filename?: string;
+  updated_at?: number;
+  size?: number;
+}
+
+interface EvalProfile {
+  agent_id: string;
+  name: string;
+}
+
+interface ReportItem {
+  timestamp?: number;
+  total?: number;
+  passed?: number;
+  filename?: string;
+  manifest?: {
+    task_set_id?: string;
+    profile_id?: string;
+    model_provider?: string;
+    model_id?: string;
+    benchmark_mode?: boolean;
+    thinking_effort?: string;
+    harness_version?: string;
+    tool_policy?: string[];
+    prompt_fingerprint?: string;
+  };
+  avg_time_secs?: number;
+  avg_total_tokens?: number;
+  cases?: Array<{
+    passed: boolean;
+    time_secs?: number;
+    details?: unknown;
+    usage?: { total_tokens?: number };
+    actual_tools?: unknown[];
+    actual_output?: string;
+    case?: {
+      message?: string;
+      expected_tools?: unknown[];
+      state_assertions?: unknown[];
+    };
+  }>;
+}
+
+function formatMib(bytes: number): string {
+  if (bytes <= 0) return '0 MB';
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 export default function EvalLabDashboard() {
   const t = useTranslations('evalLab');
@@ -38,13 +89,20 @@ export default function EvalLabDashboard() {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ total: 0, completed: 0 });
-  const [report, setReport] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
+  const [evalStage, setEvalStage] = useState<string | null>(null);
+  const [evalStageSubsetId, setEvalStageSubsetId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    downloaded_bytes: number;
+    total_bytes: number;
+  } | null>(null);
+  const [sourcesRefreshToken, setSourcesRefreshToken] = useState(0);
+  const [report, setReport] = useState<ReportItem | null>(null);
+  const [history, setHistory] = useState<ReportItem[]>([]);
   const [activeTab, setActiveTab] = useState('cases');
   const [diffView, setDiffView] = useState<{ expected: string; actual: string } | null>(null);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<EvalProfile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
-  const [datasets, setDatasets] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<EvalDataset[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>('default');
   const [benchmarkMode, setBenchmarkMode] = useState(false);
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
@@ -60,7 +118,7 @@ export default function EvalLabDashboard() {
   const fetchDatasets = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/eval/datasets');
-      const data = await res.json();
+      const data = (await res.json()) as { status?: string; datasets?: EvalDataset[] };
       if (data.status === 'success' && data.datasets) {
         setDatasets(data.datasets);
       }
@@ -83,13 +141,9 @@ export default function EvalLabDashboard() {
 
   const fetchProfiles = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/system/profiles');
-      const data = await res.json();
-      if (Array.isArray(data.items)) {
-        setProfiles(data.items);
-      } else if (Array.isArray(data)) {
-        setProfiles(data);
-      }
+      const { listAgents } = await import('@/services/agent');
+      const res = await listAgents(1, 200);
+      setProfiles(res.items.map((item) => ({ agent_id: item.id, name: item.name })));
     } catch (e) {
       console.error('Failed to fetch profiles', e);
     }
@@ -100,8 +154,11 @@ export default function EvalLabDashboard() {
       const res = await fetch('/api/v1/eval/status');
       const data = await res.json();
       setRunning(data.is_running);
-      if (data.progress) {
-        setProgress(data.progress);
+      setProgress({ total: data.total ?? 0, completed: data.completed ?? 0 });
+      setEvalStage(data.stage ?? null);
+      setEvalStageSubsetId(data.stage_subset_id ?? null);
+      if (data.download_progress) {
+        setDownloadProgress(data.download_progress);
       }
 
       if (!data.is_running && running) {
@@ -131,7 +188,7 @@ export default function EvalLabDashboard() {
   const fetchReport = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/eval/reports/latest');
-      const data = await res.json();
+      const data = (await res.json()) as { status?: string; summary?: ReportItem };
       if (data.status === 'success' && data.summary) {
         setReport(data.summary);
       }
@@ -169,31 +226,38 @@ export default function EvalLabDashboard() {
     if (running) {
       eventSource = new EventSource('/api/v1/eval/stream');
 
+      let finalized = false;
+      const finalize = () => {
+        if (finalized) return;
+        finalized = true;
+        eventSource?.close();
+        setRunning(false);
+        setSourcesRefreshToken((prev) => prev + 1);
+        fetchReport();
+        fetchHistory();
+      };
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           setRunning(data.is_running);
-          if (data.progress) {
-            setProgress(data.progress);
+          setProgress({ total: data.total ?? 0, completed: data.completed ?? 0 });
+          setEvalStage(data.stage ?? null);
+          setEvalStageSubsetId(data.stage_subset_id ?? null);
+          if (data.download_progress) {
+            setDownloadProgress(data.download_progress);
           }
 
           if (!data.is_running) {
             if (data.error) { toast.error(data.error); }
-            eventSource?.close();
-            fetchReport();
-            fetchHistory();
+            finalize();
           }
         } catch (e) {
           console.error('Failed to parse SSE data', e);
         }
       };
 
-      eventSource.addEventListener('close', () => {
-        eventSource?.close();
-        setRunning(false);
-        fetchReport();
-        fetchHistory();
-      });
+      eventSource.addEventListener('close', finalize);
 
       eventSource.onerror = () => {
         console.error('SSE Error');
@@ -213,6 +277,16 @@ export default function EvalLabDashboard() {
     let eventSource: EventSource | null = null;
     if (matrixRunning) {
       eventSource = new EventSource('/api/v1/eval/matrix/stream');
+
+      let finalized = false;
+      const finalize = () => {
+        if (finalized) return;
+        finalized = true;
+        eventSource?.close();
+        setMatrixRunning(false);
+        fetchMatrixReport();
+      };
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -226,18 +300,13 @@ export default function EvalLabDashboard() {
           });
           if (!data.is_running) {
             if (data.error) { toast.error(data.error); }
-            eventSource?.close();
-            fetchMatrixReport();
+            finalize();
           }
         } catch (e) {
           console.error('Matrix SSE parse error', e);
         }
       };
-      eventSource.addEventListener('close', () => {
-        eventSource?.close();
-        setMatrixRunning(false);
-        fetchMatrixReport();
-      });
+      eventSource.addEventListener('close', finalize);
       eventSource.onerror = () => {
         eventSource?.close();
         setMatrixRunning(false);
@@ -317,6 +386,55 @@ export default function EvalLabDashboard() {
     }
   };
 
+  const handleWbRun = async (subsetId: string) => {
+    if (running || matrixRunning) return;
+    try {
+      const res = await fetch('/api/v1/eval/wb-bench/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subset_id: subsetId,
+          profile_id: selectedProfileIds[0] || null,
+          benchmark_mode: benchmarkMode,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === 'started') {
+        setRunning(true);
+        toast.success(t('wbBenchRunStarted'));
+        setActiveTab('report');
+      } else if (data.status === 'already_running') {
+        toast.info(t('alreadyRunning'));
+      } else {
+        toast.error(data.error || t('evalStartFailed'));
+      }
+    } catch {
+      toast.error(t('evalStartFailed'));
+    }
+  };
+
+  const handleWbDownload = async (subsetId: string) => {
+    if (running || matrixRunning) return;
+    try {
+      const res = await fetch('/api/v1/eval/wb-bench/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subset_id: subsetId }),
+      });
+      const data = await res.json();
+      if (data.status === 'started') {
+        setRunning(true);
+        setActiveTab('sources');
+      } else if (data.status === 'already_running') {
+        toast.info(t('alreadyRunning'));
+      } else {
+        toast.error(data.error || t('evalStartFailed'));
+      }
+    } catch {
+      toast.error(t('evalStartFailed'));
+    }
+  };
+
   const handleAbort = async () => {
     try {
       const endpoint = matrixRunning ? '/api/v1/eval/matrix/abort' : '/api/v1/eval/abort';
@@ -361,7 +479,10 @@ export default function EvalLabDashboard() {
     return <div className="p-8 text-center text-muted-foreground">{t('loading')}</div>;
   }
 
-  const successRate = report && report.total > 0 ? Math.round((report.passed / report.total) * 100) : 0;
+  const successRate =
+    report && typeof report.total === 'number' && report.total > 0
+      ? Math.round(((report.passed ?? 0) / report.total) * 100)
+      : 0;
 
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border overflow-hidden">
@@ -370,6 +491,7 @@ export default function EvalLabDashboard() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
             <TabsList>
               <TabsTrigger value="cases">{t('tabs.cases')}</TabsTrigger>
+              <TabsTrigger value="sources">{t('tabs.sources')}</TabsTrigger>
               <TabsTrigger value="report">{t('tabs.report')}</TabsTrigger>
               {(matrixReport || matrixRunning) && <TabsTrigger value="matrix">{t('tabs.matrix')}</TabsTrigger>}
               <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
@@ -383,7 +505,13 @@ export default function EvalLabDashboard() {
             <div className="flex items-center gap-2 text-sm">
               <RefreshCw className="w-4 h-4 animate-spin text-primary" />
               <span>
-                {t('progress')}: {progress.completed} / {progress.total}
+                {evalStage === 'downloading'
+                  ? `${t('wbBench.downloading')}: ${formatMib(downloadProgress?.downloaded_bytes ?? 0)} / ${
+                      downloadProgress && downloadProgress.total_bytes > 0
+                        ? formatMib(downloadProgress.total_bytes)
+                        : '?'
+                    }`
+                  : `${t('progress')}: ${progress.completed} / ${progress.total}`}
               </span>
             </div>
           )}
@@ -502,17 +630,43 @@ export default function EvalLabDashboard() {
             </div>
           </TabsContent>
 
+          <TabsContent value="sources" className="h-full p-6 m-0">
+            <WbBenchSources
+              running={running || matrixRunning}
+              history={history}
+              onRun={handleWbRun}
+              onDownload={handleWbDownload}
+              refreshToken={sourcesRefreshToken}
+              downloadingSubsetId={evalStage === 'downloading' ? evalStageSubsetId : null}
+              downloadProgress={downloadProgress}
+            />
+          </TabsContent>
+
           <TabsContent value="report" className="h-full p-6 overflow-y-auto">
             {running ? (
               <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                 <RefreshCw className="w-8 h-8 animate-spin text-primary" />
                 <p>
-                  {t('report.evalRunning')} ({progress.completed} / {progress.total})
+                  {evalStage === 'downloading'
+                    ? `${t('wbBench.downloading')}: ${formatMib(downloadProgress?.downloaded_bytes ?? 0)} / ${
+                        downloadProgress && downloadProgress.total_bytes > 0
+                          ? formatMib(downloadProgress.total_bytes)
+                          : '?'
+                      }`
+                    : `${t('report.evalRunning')} (${progress.completed} / ${progress.total})`}
                 </p>
                 <div className="w-64 h-2 bg-secondary rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${progress.total > 0 ? (progress.completed / progress.total) * 100 : 0}%` }}
+                    style={{
+                      width: `${
+                        evalStage === 'downloading' && downloadProgress && downloadProgress.total_bytes > 0
+                          ? (downloadProgress.downloaded_bytes / downloadProgress.total_bytes) * 100
+                          : progress.total > 0
+                            ? (progress.completed / progress.total) * 100
+                            : 0
+                      }%`,
+                    }}
                   />
                 </div>
               </div>
@@ -604,7 +758,7 @@ export default function EvalLabDashboard() {
                       </thead>
                       <tbody className="divide-y">
                         {report.cases &&
-                          report.cases.map((c: any, i: number) => (
+                          report.cases.map((c, i: number) => (
                             <tr key={i} className="bg-card hover:bg-muted/20 transition-colors">
                               <td className="px-4 py-3">
                                 {c.passed ? (
@@ -625,7 +779,7 @@ export default function EvalLabDashboard() {
                               <td className="px-4 py-3">{c.usage?.total_tokens || 0}</td>
                               <td className="px-4 py-3">{c.time_secs ? c.time_secs.toFixed(2) : '-'}s</td>
                               <td className="px-4 py-3">
-                                {c.details && (
+                                {c.details ? (
                                   <button
                                     onClick={() => {
                                       const expected = {
@@ -642,7 +796,7 @@ export default function EvalLabDashboard() {
                                   >
                                     <Eye className="w-4 h-4" /> {t('report.viewDiff')}
                                   </button>
-                                )}
+                                ) : null}
                               </td>
                             </tr>
                           ))}
@@ -701,17 +855,21 @@ export default function EvalLabDashboard() {
                     <LineChart data={history} margin={{ top: 5, right: 20, bottom: 25, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
                       <XAxis
-                        dataKey={(d) => new Date(d.timestamp * 1000).toLocaleTimeString()}
+                        dataKey={(d: ReportItem) =>
+                          d.timestamp ? new Date(d.timestamp * 1000).toLocaleTimeString() : ''
+                        }
                         tick={{ fontSize: 12 }}
                       />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                       <RechartsTooltip
-                        labelFormatter={(l) => `${t('history.time')}: ${l}`}
+                        labelFormatter={(l: string) => `${t('history.time')}: ${l}`}
                         formatter={(val: number) => [`${Math.round(val)}%`, t('history.passRateLabel')]}
                       />
                       <Line
                         type="monotone"
-                        dataKey={(d) => (d.passed / d.total) * 100}
+                        dataKey={(d: ReportItem) =>
+                          d.total && d.passed != null ? (d.passed / d.total) * 100 : 0
+                        }
                         stroke="#10b981"
                         strokeWidth={2}
                         dot={{ r: 4 }}
@@ -740,8 +898,10 @@ export default function EvalLabDashboard() {
                         {history
                           .slice()
                           .reverse()
-                          .map((h: any, i: number) => {
-                            const rate = h.total > 0 ? Math.round((h.passed / h.total) * 100) : 0;
+                          .map((h: ReportItem, i: number) => {
+                            const total = h.total ?? 0;
+                            const passed = h.passed ?? 0;
+                            const rate = total > 0 ? Math.round((passed / total) * 100) : 0;
                             const m = h.manifest;
                             return (
                               <tr
@@ -768,7 +928,7 @@ export default function EvalLabDashboard() {
                                   {loadingReport === h.filename && (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
                                   )}
-                                  {new Date(h.timestamp * 1000).toLocaleString()}
+                                  {h.timestamp ? new Date(h.timestamp * 1000).toLocaleString() : '-'}
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="font-mono text-xs">{m?.profile_id || '-'}</span>

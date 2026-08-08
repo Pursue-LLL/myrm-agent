@@ -134,6 +134,7 @@ export interface MessageEndStreamEvent extends BaseAgentEvent {
   completion_status?: CompletionStatus;
   model?: string;
   stream_ttft_ms?: number;
+  wu_consumed?: number;
   context_budget?: ContextBudget;
   citations?: string[];
   memoryBudget?: { used: number; total: number };
@@ -169,6 +170,7 @@ export interface StatusStreamEvent extends BaseAgentEvent {
   tool_name?: string | null;
   error_kind?: ErrorKind;
   fallback_model?: string;
+  snapshot_path?: string;
 }
 
 export interface CaptchaStreamEvent extends BaseAgentEvent {

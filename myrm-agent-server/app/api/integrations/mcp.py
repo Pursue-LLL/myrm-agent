@@ -27,8 +27,8 @@ from app.core.utils.errors import (
     validation_error,
 )
 from app.core.utils.response_utils import success_response
-from app.schemas.responses import StandardSuccessResponse
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+from app.schemas.responses import StandardSuccessResponse
 from app.services.integrations.mcp_posture import (
     enforce_mcp_config_posture,
     enforce_mcp_runtime_posture,

@@ -17,12 +17,25 @@ type NotificationCopy = {
   desktopControlApprovalNeeded: string;
 };
 
+function toNotificationCopy(module: Record<string, unknown>): NotificationCopy {
+  return {
+    clarificationNeeded:
+      typeof module.clarificationNeeded === 'string'
+        ? module.clarificationNeeded
+        : 'Agent needs your input',
+    desktopControlApprovalNeeded:
+      typeof module.desktopControlApprovalNeeded === 'string'
+        ? module.desktopControlApprovalNeeded
+        : 'Desktop control approval required',
+  };
+}
+
 const localeLoaders: Record<StreamLocale, () => Promise<NotificationCopy>> = {
-  en: () => import('../../../locales/namespaces/en/notifications.json').then((module) => module.default),
-  zh: () => import('../../../locales/namespaces/zh/notifications.json').then((module) => module.default),
-  ja: () => import('../../../locales/namespaces/ja/notifications.json').then((module) => module.default),
-  ko: () => import('../../../locales/namespaces/ko/notifications.json').then((module) => module.default),
-  de: () => import('../../../locales/namespaces/de/notifications.json').then((module) => module.default),
+  en: () => import('../../../locales/namespaces/en/notifications.json').then((module) => toNotificationCopy(module.default)),
+  zh: () => import('../../../locales/namespaces/zh/notifications.json').then((module) => toNotificationCopy(module.default)),
+  ja: () => import('../../../locales/namespaces/ja/notifications.json').then((module) => toNotificationCopy(module.default)),
+  ko: () => import('../../../locales/namespaces/ko/notifications.json').then((module) => toNotificationCopy(module.default)),
+  de: () => import('../../../locales/namespaces/de/notifications.json').then((module) => toNotificationCopy(module.default)),
 };
 
 const notificationCache: Partial<Record<StreamLocale, NotificationCopy>> = {};

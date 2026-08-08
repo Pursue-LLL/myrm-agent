@@ -1,0 +1,132 @@
+{
+  "settings": {
+    "lockedUse": {
+      "layer1Title": "保持屏幕常亮",
+      "layer1Badge": "始终开启",
+      "layer2Title": "屏幕解锁"
+    },
+    "wiki": {
+      "concepts": {
+        "editTabTimeline": "时间线"
+      }
+    },
+    "savedSessions": {
+      "cookies": "Cookie"
+    }
+  },
+  "loadout": {
+    "openWiki": "知识库",
+    "tiles": { "wiki": "知识库" },
+    "teamHub": { "wikiTitle": "知识库" }
+  },
+  "agent": {
+    "temperature": "温度",
+    "topP": "Top-P"
+  },
+  "chat": {
+    "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理"
+  },
+  "memory": {
+    "commandCenter": {
+      "spaceKind": { "agent": "智能体" }
+    }
+  },
+  "channels": {
+    "wechatOfficialToken": "令牌",
+    "wecomToken": "令牌",
+    "authorizeNow": "立即授权",
+    "cancelLoginFailed": "取消失败",
+    "connectionError": "连接错误",
+    "loginCancelled": "登录已取消",
+    "loginFailed": "登录失败",
+    "loginTimeout": "登录超时",
+    "oauth2LoginDesc": "通过浏览器授权",
+    "qrCodeLogin": "扫码登录",
+    "selectLoginMethod": "选择登录方式",
+    "startLoginFailed": "启动登录失败",
+    "unknownError": "未知错误",
+    "wecom": { "secret": "密钥" },
+    "feishuEncryptKeyPlaceholder": "可选，用于消息加密",
+    "feishuNotConfigured": "尚未配置飞书。",
+    "feishuWebhookFailed": "Webhook 配置失败，请检查配置。",
+    "wecomNotConfigured": "尚未配置企业微信。",
+    "dingtalkNotConfigured": "尚未配置钉钉。",
+    "telegramBotTokenTooltip": "从 @BotFather 获取",
+    "telegramNotConfigured": "尚未配置 Telegram。",
+    "slackBotTokenTooltip": "从 Slack 应用的 OAuth 与权限页面获取",
+    "slackSigningSecretTooltip": "从 Slack 应用的基础信息页面获取",
+    "slackNotConfigured": "尚未配置 Slack。",
+    "discordBotTokenTooltip": "从 Discord 开发者门户获取",
+    "discordNotConfigured": "尚未配置 Discord。",
+    "teamsNotConfigured": "尚未配置 Microsoft Teams。",
+    "lineNotConfigured": "尚未配置 LINE。",
+    "signalNotConfigured": "尚未配置 Signal。",
+    "emailPasswordPlaceholder": "应用密码或邮箱密码",
+    "emailNotConfigured": "尚未配置邮箱。",
+    "matrixNotConfigured": "尚未配置 Matrix。",
+    "mattermostNotConfigured": "尚未配置 Mattermost。",
+    "zaloNotConfigured": "尚未配置 Zalo。",
+    "qqNotConfigured": "尚未配置 QQ。",
+    "ircNickname": "昵称",
+    "ircPasswordPlaceholder": "可选",
+    "ircNotConfigured": "尚未配置 IRC。",
+    "googlechatNotConfigured": "尚未配置 Google Chat。",
+    "imessageNotConfigured": "尚未配置 iMessage。",
+    "wecomAibotNotConfigured": "尚未配置企业微信 AI 机器人。",
+    "wecomWxworkSupportHint": "启用对 WxWork（企业微信）的支持",
+    "dingtalkTransport": "传输模式",
+    "dingtalkTransportWebhook": "Webhook（需要公网 IP）",
+    "dingtalkTransportStream": "Stream（无需公网 IP）",
+    "dingtalkTransportHint": "Stream 模式使用长轮询，无需公网 IP",
+    "dingtalkRobotCodeHint": "用于群机器人身份标识",
+    "dingtalkBotOpenIdHint": "用于检测 @提及",
+    "telegramWebhookMode": "Webhook 模式",
+    "telegramWebhookModeHint": "启用 Webhook 模式（需要公网 IP），否则使用轮询",
+    "telegramAllowedUpdates": "允许的更新类型",
+    "telegramAllowedUpdatesHint": "要接收的更新类型，留空表示全部",
+    "discordIntents": "意图（Intents）",
+    "discordIntentsHint": "机器人网关意图，留空使用默认值（MESSAGE_CONTENT + GUILDS + GUILD_MESSAGES）",
+    "teamsAppPasswordHint": "Microsoft 应用密码或客户端机密",
+    "lineWebhookMode": "Webhook 模式",
+    "lineWebhookModeHint": "启用 Webhook 模式（需要公网 IP）",
+    "signalPhoneNumberHint": "带国家代码的电话号码，例如 +1234567890",
+    "emailSmtpTls": "使用 TLS",
+    "emailSmtpTlsHint": "启用 STARTTLS 以建立安全连接",
+    "emailImapTls": "使用 TLS",
+    "emailImapTlsHint": "启用 TLS 以建立安全的 IMAP 连接",
+    "mattermostWebhookMode": "Webhook 模式",
+    "mattermostWebhookModeHint": "启用 Webhook 模式（需要公网 IP）",
+    "qqAppIdHint": "来自 QQ 开放平台的机器人应用 ID",
+    "qqBotTokenHint": "来自 QQ 开放平台的机器人令牌",
+    "ircUseTls": "使用 TLS",
+    "ircUseTlsHint": "启用 TLS 以建立安全连接",
+    "googlechatSpaceNameHint": "Google Chat 空间标识",
+    "imessageAppleIdHint": "iMessage 账号的 Apple ID",
+    "imessageEnableGroups": "启用群聊",
+    "imessageEnableGroupsHint": "启用对群消息的支持",
+    "wecomAibotTokenHint": "企业微信 AI 机器人身份验证令牌",
+    "channelFormSectionBasic": "基础配置",
+    "channelFormSectionAuth": "身份验证",
+    "channelFormSectionWebhook": "Webhook 设置",
+    "channelFormSectionAdvanced": "高级设置",
+    "saveSuccess": "保存成功",
+    "saveFailed": "保存失败",
+    "resetToDefault": "恢复默认",
+    "resetConfirm": "确定要恢复为默认配置吗？",
+    "testConnectionButton": "测试连接",
+    "testSuccessTitle": "连接成功",
+    "testSuccessMessage": "频道配置正确且运行正常",
+    "testFailedTitle": "连接失败",
+    "testFailedMessage": "请检查你的配置",
+    "enableChannel": "启用频道",
+    "disableChannel": "停用频道",
+    "channelEnabledSuccessfully": "频道启用成功",
+    "channelDisabledSuccessfully": "频道停用成功",
+    "channelConfigLoadFailed": "加载频道配置失败",
+    "invalidConfiguration": "配置无效",
+    "missingRequiredFields": "缺少必填字段",
+    "invalidFieldFormat": "字段格式无效",
+    "networkError": "网络错误，请重试",
+    "unexpectedError": "发生意外错误"
+  }
+}

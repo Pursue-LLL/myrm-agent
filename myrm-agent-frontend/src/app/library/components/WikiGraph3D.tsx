@@ -158,9 +158,10 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
     fetchGraph();
   }, [refreshTrigger, agentId, t]);
 
-  const handleNodeClick = useCallback(async (node: GraphNode) => {
+  const handleNodeClick = useCallback(async (node: unknown) => {
+    const graphNode = node as GraphNode;
     try {
-      const center = node.id || node.name;
+      const center = graphNode.id || graphNode.name;
       if (!center) return;
 
       const response = await fetch(
@@ -253,16 +254,16 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
             width={dimensions.width}
             height={dimensions.height}
             nodeLabel="name"
-            nodeColor={(node: GraphNode) => getGroupColor(node.group)}
-            nodeVisibility={(node: GraphNode) => isGroupActive(node.group)}
-            linkVisibility={(link: GraphLink) => {
+            nodeColor={(node) => getGroupColor((node as GraphNode).group)}
+            nodeVisibility={(node) => isGroupActive((node as GraphNode).group)}
+            linkVisibility={(link) => {
               const srcGroup =
                 typeof link.source === 'object'
-                  ? (link.source as GraphNode).group
+                  ? ((link.source as unknown) as GraphNode).group
                   : data.nodes.find((n) => n.id === link.source)?.group;
               const tgtGroup =
                 typeof link.target === 'object'
-                  ? (link.target as GraphNode).group
+                  ? ((link.target as unknown) as GraphNode).group
                   : data.nodes.find((n) => n.id === link.target)?.group;
               return (
                 srcGroup !== undefined && tgtGroup !== undefined && isGroupActive(srcGroup) && isGroupActive(tgtGroup)
@@ -274,15 +275,15 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
             backgroundColor="rgba(0,0,0,0)"
             nodeRelSize={5}
             nodeOpacity={0.9}
-            linkWidth={(link: GraphLink) => Math.max(0.5, (link.weight || 1) / 3)}
-            linkColor={(link: GraphLink) => {
+            linkWidth={(link) => Math.max(0.5, (((link as GraphLink).weight) || 1) / 3)}
+            linkColor={(link) => {
+              const source = typeof link.source === 'object' ? (link.source as unknown as GraphNode).id : link.source;
+              const target = typeof link.target === 'object' ? (link.target as unknown as GraphNode).id : link.target;
               if (!hoveredNode) return 'rgba(150, 150, 255, 0.4)';
-              const src = typeof link.source === 'object' ? (link.source as unknown as GraphNode).id : link.source;
-              const tgt = typeof link.target === 'object' ? (link.target as unknown as GraphNode).id : link.target;
-              if (src === hoveredNode || tgt === hoveredNode) return 'rgba(100, 200, 255, 0.9)';
+              if (source === hoveredNode || target === hoveredNode) return 'rgba(100, 200, 255, 0.9)';
               return 'rgba(150, 150, 255, 0.1)';
             }}
-            onNodeHover={(node: GraphNode | null) => setHoveredNode(node?.id || null)}
+            onNodeHover={(node) => setHoveredNode((node as GraphNode | null)?.id || null)}
             onNodeClick={handleNodeClick}
           />
 

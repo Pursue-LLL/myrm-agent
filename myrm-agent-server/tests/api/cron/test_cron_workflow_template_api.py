@@ -8,10 +8,9 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.dynamic_workflow.template_store import WorkflowTemplateStore
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
-
-from myrm_agent_harness.agent.dynamic_workflow.template_store import WorkflowTemplateStore
 
 _VALID_READONLY_SCRIPT = """
 import myrm_tools

@@ -302,6 +302,7 @@ def test_phase_c_burst_open_mcp_uses_signoff_parallel_budgets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from dev_gate_contract import signoff_open_mcp_budgets
+
     from tests.support import chrome_mcp_e2e
 
     monkeypatch.delenv("E2E_SIGNOFF", raising=False)
@@ -414,6 +415,20 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
         yield
 
     monkeypatch.setattr(chrome_mcp_e2e, "shared_ui_hydrate_slot", _track_slot)
+    # Isolate from live system wave load — the queue decision must be forced.
+    monkeypatch.setattr(
+        chrome_mcp_e2e,
+        "parallel_shared_ui_hydrate_queue_enabled",
+        lambda: True,
+    )
+    # Isolate from a real sealed shell record so the hydrate slot path runs.
+    import warm_shell_registry
+
+    monkeypatch.setattr(
+        warm_shell_registry,
+        "platform_shell_fresh",
+        lambda **kwargs: False,
+    )
 
     with patch(
         "tests.support.chrome_mcp_e2e.get_e2e_ui_url",

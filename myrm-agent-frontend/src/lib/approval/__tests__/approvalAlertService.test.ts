@@ -70,7 +70,7 @@ describe('approvalAlertService', () => {
         enableIdleApprovalNotification: true,
         approvalNotificationSound: true,
       })),
-    } as ReturnType<typeof getConfigSyncManager>);
+    } as unknown as ReturnType<typeof getConfigSyncManager>);
   });
 
   afterEach(() => {
@@ -93,7 +93,7 @@ describe('approvalAlertService', () => {
           enableIdleApprovalNotification: false,
           approvalNotificationSound: true,
         })),
-      } as ReturnType<typeof getConfigSyncManager>);
+      } as unknown as ReturnType<typeof getConfigSyncManager>);
       notifyIdleApproval([makeRequest()]);
       expect(mockNotificationInstances).toHaveLength(0);
     });

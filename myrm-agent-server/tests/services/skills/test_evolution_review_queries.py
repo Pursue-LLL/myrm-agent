@@ -36,6 +36,7 @@ async def _create_record(
     *,
     growth_status: EvolutionGrowthStatus = EvolutionGrowthStatus.PENDING_REVIEW,
     approval_status: str = "PENDING",
+    eval_cases: list[dict[str, object]] | None = None,
 ) -> EvolutionReviewRecord:
     return await create_evolution_review_record(
         agent_id="test-agent",
@@ -52,6 +53,7 @@ async def _create_record(
         task_context="evolution review query test",
         growth_status=growth_status,
         approval_status=approval_status,
+        eval_cases=eval_cases,
     )
 
 
@@ -67,7 +69,9 @@ async def test_list_evolution_review_records_respects_sql_limit() -> None:
 @pytest.mark.asyncio
 async def test_list_evolution_review_records_pending_only_filters_in_sql() -> None:
     pending = await _create_record(growth_status=EvolutionGrowthStatus.PENDING_REVIEW)
-    apply_failed = await _create_record(growth_status=EvolutionGrowthStatus.APPLY_FAILED)
+    apply_failed = await _create_record(
+        growth_status=EvolutionGrowthStatus.APPLY_FAILED
+    )
     await _create_record(
         growth_status=EvolutionGrowthStatus.APPROVED,
         approval_status="APPROVED",
@@ -82,7 +86,8 @@ async def test_list_evolution_review_records_pending_only_filters_in_sql() -> No
 
     assert pending_ids == {pending.id, apply_failed.id}
     assert all(
-        record.status in {EvolutionGrowthStatus.PENDING_REVIEW, EvolutionGrowthStatus.APPLY_FAILED}
+        record.status
+        in {EvolutionGrowthStatus.PENDING_REVIEW, EvolutionGrowthStatus.APPLY_FAILED}
         for record in pending_records
     )
 
@@ -127,3 +132,45 @@ async def test_pending_only_includes_legacy_records_without_growth_status() -> N
 
     assert record.id in pending_ids
     assert await count_evolution_review_records(pending_only=True) >= 1
+
+
+@pytest.mark.asyncio
+async def test_eval_cases_persisted_in_review_payload() -> None:
+    """Review-generated eval_cases must survive the proposal -> approval payload bridge."""
+    eval_cases = [
+        {
+            "message": "deploy nginx",
+            "sandbox_assertions": [{"type": "code_contains", "target": "nginx"}],
+        }
+    ]
+    record = await _create_record(eval_cases=eval_cases)
+
+    assert record.id
+
+    from app.database.connection import get_session as db_session
+    from app.database.models import ApprovalRecord
+    from app.services.skills.evolution_review_types import approval_payload
+
+    async with db_session() as db:
+        stored = await db.get(ApprovalRecord, record.id)
+        assert stored is not None
+        payload = approval_payload(stored)
+        assert payload is not None
+        assert payload.eval_cases == eval_cases
+
+
+@pytest.mark.asyncio
+async def test_eval_cases_default_to_empty_list() -> None:
+    """Legacy proposals without eval_cases must not fail payload validation."""
+    record = await _create_record()
+
+    from app.database.connection import get_session as db_session
+    from app.database.models import ApprovalRecord
+    from app.services.skills.evolution_review_types import approval_payload
+
+    async with db_session() as db:
+        stored = await db.get(ApprovalRecord, record.id)
+        assert stored is not None
+        payload = approval_payload(stored)
+        assert payload is not None
+        assert payload.eval_cases == []

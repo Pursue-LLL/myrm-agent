@@ -139,7 +139,7 @@ const MemoryCard = memo<MemoryCardProps>(
                 </span>
               )}
               {confirmed?.is_user_locked && (
-                <Lock size={12} className="text-amber-500" title={t('locked')} />
+                <Lock size={12} className="text-amber-500" aria-label={t('locked')} />
               )}
             </div>
 

@@ -1,0 +1,166 @@
+{
+  "settings": {
+    "wiki": {
+      "title": "LLM 위키 지식 베이스",
+      "secondBrain": {
+        "title": "세컨드 브레인 빠른 시작",
+        "description": "위키, 메모리, 일일 나중에 읽기 수집, 7:00 볼트 요약 다이제스트를 갖춘 지식 에이전트를 원클릭으로 설정합니다. 위키는 장문 지식을 저장하고, 메모리는 귀하에 대한 간결한 사실(선호도, 규칙, 프로필)을 저장합니다.",
+        "loading": "설정 상태 로드 중…",
+        "loadFailed": "세컨드 브레인 설정 상태를 불러올 수 없습니다",
+        "applyFailed": "세컨드 브레인 프리셋을 적용할 수 없습니다",
+        "applying": "적용 중…",
+        "apply": "세컨드 브레인 설정",
+        "reapply": "프리셋 재적용",
+        "useAgent": "세컨드 브레인 에이전트 사용",
+        "appliedAs": "활성 에이전트: {name}",
+        "checklist": {
+          "agentTools": "에이전트에 위키, 메모리 및 cron 도구가 있습니다",
+          "cronJob": "일일 나중에 읽기(6:00) 및 위키 아침 다이제스트(7:00) cron 작업",
+          "vaultContent": "지식 볼트에 콘텐츠가 있습니다",
+          "corpusDedup": "원본 코퍼스 중복 제거 검사 완료, 차단 중복 없음",
+          "providerReady": "모델 제공자가 구성되었습니다"
+        },
+        "goImport": "지식 가져오기",
+        "goDuplicateReview": "중복 검토",
+        "goProviders": "모델 구성",
+        "goGraph": "지식 그래프 탐색",
+        "pitfalls": {
+          "checklist": {
+            "agentTools": "프리셋을 재적용하거나 에이전트를 열어 이 에이전트에 대해 위키, 메모리 및 cron 도구가 활성화되어 있는지 확인하세요.",
+            "cronJob": "프리셋을 재적용하여 6:00 나중에 읽기 및 7:00 위키 다이제스트 작업을 다시 만드세요. 작업이 수동으로 삭제된 경우 설정 → 예약 작업을 확인하세요.",
+            "vaultContent": "Obsidian을 가져오거나, 파일을 업로드하거나, 브라우저에서 클립하여 컴파일 전에 raw/ 에 콘텐츠가 있도록 하세요.",
+            "corpusDedup": "중복 검토를 열고 첫 전체 컴파일 전에 정확 또는 정규화 중복 그룹을 해결하세요.",
+            "providerReady": "설정 → 모델에서 API 키와 기본 채팅 모델을 추가하세요. 프록시 또는 사용자 정의 base URL을 사용하는 경우 연결 가능성을 확인하세요."
+          },
+          "actions": {
+            "repairPreset": "프리셋 작업 복구"
+          },
+          "syncExpectation": {
+            "title": "첫 동기화 시점",
+            "body": "대규모 Obsidian 가져오기 또는 첫 소스 동기화는 컴파일과 그래프가 완성되기까지 보통 18~25분이 걸립니다. 진행 상황은 큐와 통계에 표시됩니다 — 정상이며, 멈춤이 아닙니다."
+          },
+          "obsidianGit": {
+            "title": "Obsidian 이중 기록 & git",
+            "body": "Myrm 자동 수집 중에 Obsidian에서 동일한 볼트를 편집하는 경우 병합 충돌을 피하려면 Obsidian 동기화를 일시 중지하거나 버전 제어(볼트 git)를 활성화하세요. 첫 가져오기 동안에는 한 번에 하나의 작성자를 사용하세요.",
+            "cta": "가져오기 및 볼트 설정으로 이동"
+          },
+          "ladder": {
+            "title": "실패 시 해결 단계",
+            "stepDocs": "위키 설정 가이드 읽기 (개념, 가져오기, 컴파일)",
+            "stepAgent": "오류 메시지와 함께 세컨드 브레인 에이전트에게 문의하세요 — 볼트 상태를 검사하고 수정 제안을 할 수 있습니다",
+            "stepCoach": "여전히 해결되지 않았나요? 설정 → 정보에서 로그를 내보내고 배포 모드(로컬, 데스크톱 또는 클라우드)와 함께 지원팀에 문의하세요"
+          },
+          "teamKb": {
+            "title": "팀 지식 시작하기",
+            "description": "4단계 흐름: 시나리오 선택 → AI와 초안 작성 → 위키 보류로 저장 → 컴파일하고 채팅 답변 대신 위키 링크를 공유.",
+            "wikiLinkTip": "반복 질문을 받으면 일회성 채팅 답변이 아닌 컴파일된 위키 URL로 답하세요.",
+            "scenarios": {
+              "opsSop": {
+                "label": "운영 SOP",
+                "prompt": "우리 팀을 위한 운영 SOP 초안 작성을 도와주세요: 범위, 역할, 단계별 절차, 에스컬레이션 및 체크리스트. 보류 문서로 위키에 저장할 수 있게 준비하세요."
+              },
+              "onboardingGuide": {
+                "label": "온보딩 가이드",
+                "prompt": "신입 온보딩 가이드 개요를 작성하세요: 첫 주 작업, 도구 액세스, 주요 연락처 및 FAQ. 위키 보류 검토 형식으로 작성하세요."
+              },
+              "projectRetro": {
+                "label": "프로젝트 회고",
+                "prompt": "프로젝트 회고 템플릿을 진행하세요: 잘된 점, 이슈, 조치 항목 및 담당자. 위키 스테이징용 구조화된 마크다운으로 출력하세요."
+              },
+              "customerFaq": {
+                "label": "고객 FAQ",
+                "prompt": "주요 지원 주제에서 고객 FAQ 초안을 작성하세요: 질문, 간단한 답변, 딥 링크 앵커 및 최종 검토 날짜. 위키 컴파일에 적합하게 작성하세요."
+              },
+              "inspectionMaint": {
+                "label": "점검 및 유지보수",
+                "prompt": "점검 및 유지보수 런북을 작성하세요: 일정, 체크포인트, 합격/불합격 기준 및 안전 수칙. 위키 보류 수집 대상으로 작성하세요."
+              }
+            }
+          },
+          "extractFailures": {
+            "title": "문서 가져오기 실패",
+            "body": "암호화된 PDF, 손상된 Office 파일, 지원되지 않는 형식, OCR이 필요한 스캔 PDF 및 초대용량 첨부 파일은 각각 다른 해결 방법이 있습니다 — 재시도 전에 가져오기 오류 배지와 큐 세부 정보를 확인하세요."
+          }
+        }
+      },
+      "sources": {
+        "title": "외부 소스",
+        "description": "Gmail 라벨, Google Drive 폴더, Feishu/Lark 문서 및 RSS 피드를 일정에 따라 지식 베이스로 가져옵니다 (동기화 시 AI 비용 0). 긴 문서와 메모는 위키에, 짧은 개인 사실은 메모리에 저장합니다.",
+        "feishuLabel": "Feishu / Lark 문서",
+        "feishuFolderLabel": "Feishu 폴더 토큰",
+        "feishuFolderPlaceholder": "루트 공간이면 비워 두세요",
+        "feishuFolderHint": "Feishu Drive에서 폴더 토큰을 붙여넣으세요. 비어 있으면 루트 폴더를 사용합니다",
+        "feishuConnected": "Feishu 연결됨",
+        "feishuDisconnected": "먼저 Feishu 채널 자격 증명을 구성하세요",
+        "gmailLabel": "Gmail 나중에 읽기",
+        "gmailTagLabel": "Gmail 라벨",
+        "gdriveLabel": "Google Drive 폴더",
+        "gdriveFolderLabel": "Drive 폴더 ID",
+        "gdriveFolderPlaceholder": "root",
+        "gdriveFolderHint": "내 드라이브에는 root 를 사용하거나 Drive URL에서 폴더 ID를 붙여넣으세요",
+        "googleConnected": "Google 연결됨",
+        "googleDisconnected": "먼저 통합에서 Google을 연결하세요",
+        "rssFeedsLabel": "RSS 피드 URL (줄당 하나)",
+        "rssFeedsPlaceholder": "https://example.com/feed.xml",
+        "mirrorIntegrations": "통합 동기화를 위키에 미러링",
+        "autoCompile": "동기화 후 자동 컴파일",
+        "save": "저장",
+        "saving": "저장 중…",
+        "saveSuccess": "소스 설정이 저장되었습니다",
+        "saveError": "소스 설정을 저장할 수 없습니다",
+        "syncNow": "지금 동기화",
+        "syncing": "동기화 중…",
+        "syncSuccess": "{count}개 새 항목 동기화됨",
+        "syncEmpty": "동기화할 새 항목이 없습니다",
+        "syncError": "동기화 실패",
+        "loadError": "소스 설정을 불러올 수 없습니다",
+        "connectGoogle": "Google 연결",
+        "reconnectGoogleDrive": "Drive용 Google 재연결",
+        "googleDriveReconnectHint": "Google은 연결되어 있지만 Drive 액세스가 없습니다. 재연결하여 Drive 동기화를 승인하세요.",
+        "lastSync": "마지막 동기화: {time}",
+        "lastSyncNever": "아직 동기화되지 않음",
+        "lastSyncSummary": "+{published} 새 · {skipped} 건너뜀 · {failed} 실패",
+        "syncIssue": "마지막 동기화 문제: {detail}",
+        "syncIssueGeneric": "일부 소스 동기화 실패"
+      },
+      "loading": "로딩 중...",
+      "agentScopeLabel": "에이전트 지식 베이스",
+      "agentScopePlaceholder": "에이전트 선택",
+      "agentScopeDefault": "기본 지식 베이스",
+      "agentScopeNotice": "선택한 에이전트의 개인 지식 베이스를 관리 중입니다.",
+      "defaultScopeNotice": "기본 지식 베이스를 관리 중입니다. 에이전트에서 열면 해당 에이전트의 볼트를 관리합니다.",
+      "scopeChip": {
+        "label": "대상 볼트: {scope}"
+      },
+      "obsidianVault": {
+        "title": "Obsidian 볼트",
+        "description": "Obsidian 그래프 보기를 위해 컴파일된 위키를 열거나 다운로드하세요",
+        "mountHint": "자신의 디스크 폴더를 실시간으로 편집하고 있나요? 대신 설정 → 프로젝트 → 마운트 동기화 폴더를 사용하세요.",
+        "openObsidian": "Obsidian에서 열기",
+        "revealFolder": "폴더에 표시",
+        "copyPath": "볼트 경로 복사",
+        "downloadPack": "Obsidian 팩 다운로드",
+        "exporting": "준비 중...",
+        "opening": "여는 중...",
+        "copyPathSuccess": "볼트 경로가 복사되었습니다",
+        "copyPathFailed": "경로를 복사할 수 없습니다",
+        "revealSuccess": "볼트 폴더가 열렸습니다",
+        "revealFailed": "볼트 폴더를 열 수 없습니다",
+        "openObsidianSuccess": "Obsidian에서 볼트가 열렸습니다",
+        "openObsidianFailed": "Obsidian을 열 수 없습니다 — 폴더에 표시 를 시도하세요",
+        "exportSuccess": "Obsidian 팩 다운로드됨 — 압축을 풀고 '폴더를 볼트로 열기'를 사용하세요",
+        "exportFailed": "다운로드 실패",
+        "cloudHint": "클라우드 호스팅: 팩을 다운로드하여 컴퓨터의 Obsidian에서 엽니다.",
+        "postWorkflowHint": "라이브러리에서 지식 그래프를 열거나 아래 카드에서 Obsidian 팩을 다운로드하세요.",
+        "postWorkflowAction": "그래프 열기",
+        "gitHistoryHint": "이 볼트는 변경 감사를 위해 로컬 git 기록을 유지합니다.",
+        "gitHistoryHintWithCommit": "최신 스냅샷: {commit}"
+      },
+      "querying": "쿼리 중...",
+      "compiling": "컴파일 중...",
+      "maintaining": "유지보수 중...",
+      "repairingTypes": "복구 중...",
+      "repairingPublication": "게시 상태 복구 중..."
+    }
+  }
+}

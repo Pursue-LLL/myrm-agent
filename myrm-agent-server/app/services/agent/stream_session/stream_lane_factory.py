@@ -165,6 +165,10 @@ async def create_dynamic_workflow_stream(
 
     approval_gate = _auto_approve_gate if unattended else _dw_approval_gate
 
+    from app.services.context.context_assembly import ContextAssemblyService
+
+    harness_root = ContextAssemblyService.build_facade(ensure_layout=False).harness_path()
+
     try:
         async for chunk in run_dynamic_workflow_stream(
             parent_agent=base_agent,
@@ -178,6 +182,7 @@ async def create_dynamic_workflow_stream(
             resume_value=resume_value,
             pinned_template_id=workflow_template_id,
             template_args=workflow_template_args,
+            harness_root=harness_root,
         ):
             if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                 tracker = get_token_tracker()

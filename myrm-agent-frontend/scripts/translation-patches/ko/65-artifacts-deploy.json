@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "deploy": {
+      "title": "웹에 배포",
+      "description": "Vercel을 사용하여 아티팩트를 전역 엣지 네트워크에 즉시 게시합니다.",
+      "openModal": "웹에 배포",
+      "deployedLabel": "배포됨: {hostname}",
+      "platformHostingHint": "이 작업 공간에 플랫폼 호스팅이 활성화되어 있습니다. 토큰 입력 없이 즉시 배포할 수 있습니다.",
+      "tokenLabelOptional": "Vercel 토큰 (선택 — 자체 계정 사용)",
+      "redeployBanner": "이 아티팩트의 최신 버전이 있습니다. 라이브 사이트를 업데이트하려면 재배포하세요.",
+      "redeployBannerForTarget": "{target}에 최신 버전이 있습니다. 라이브 사이트를 업데이트하려면 다시 게시하세요.",
+      "redeployAction": "최신 버전 재배포",
+      "tokenLabel": "Vercel 개인 액세스 토큰",
+      "tokenPlaceholder": "Vercel 토큰 입력",
+      "tokenHint": "계정 설정에 안전하게 저장됩니다. 다음에서 발급받으세요:",
+      "tokenLink": "Vercel 계정 설정",
+      "deployNow": "지금 배포",
+      "deploying": "빌드 및 배포 중...",
+      "successTitle": "배포 성공!",
+      "successDescription": "앱이 전역 엣지 네트워크에서 라이브 상태입니다.",
+      "done": "완료",
+      "failedTitle": "배포 실패",
+      "tryAgain": "다시 시도",
+      "logs": {
+        "initiating": "배포 시작 중...",
+        "created": "배포 생성됨: {id}",
+        "connecting": "빌드 로그 연결 중...",
+        "status": "상태: {status}",
+        "wsError": "WebSocket 연결 오류",
+        "error": "오류: {message}"
+      },
+      "errors": {
+        "tokenRequired": "Vercel 토큰을 입력하세요",
+        "saveCredentialsFailed": "Vercel 자격 증명 저장 실패",
+        "deployFailed": "배포 실패",
+        "noDeploymentId": "배포 ID가 반환되지 않았습니다",
+        "deploymentStatus": "배포 {status}",
+        "networkLost": "네트워크 연결이 끊어졌습니다. 새로고침하여 배포 상태를 확인하세요.",
+        "unexpected": "예상치 못한 오류가 발생했습니다"
+      }
+    }
+  }
+}

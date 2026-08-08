@@ -13,7 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 

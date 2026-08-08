@@ -18,7 +18,8 @@ function makeRef(
     {
       role,
       name: role,
-      nth,
+      nth: nth ?? null,
+      position: null,
       bbox: {
         x: 40,
         y: 40,
@@ -26,6 +27,8 @@ function makeRef(
         height: 40,
         centerX: 80,
         centerY: 60,
+        viewport_x: 40,
+        viewport_y: 40,
         viewport_width: viewport.width,
         viewport_height: viewport.height,
       },

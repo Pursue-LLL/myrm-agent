@@ -1,12 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockValidateMessageQuota = vi.hoisted(() => vi.fn(async () => ({ allowed: true })));
+const mockValidateMessageQuota = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<{ allowed: boolean }>>(async () => ({ allowed: true })),
+);
 const mockRecordChatWikiQueryAttempt = vi.hoisted(() => vi.fn());
 const mockRecordChatWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
-const mockSendMessage = vi.hoisted(() => vi.fn(async () => undefined));
-const mockSteerMessage = vi.hoisted(() => vi.fn(async () => true));
+const mockSendMessage = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
+);
+const mockSteerMessage = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true),
+);
 const mockEnqueue = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());

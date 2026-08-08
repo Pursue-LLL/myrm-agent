@@ -33,8 +33,8 @@ vi.mock('@/lib/deploy-mode', async (importOriginal) => {
   };
 });
 
-const mockSendTauriNativeNotification = vi.fn(async () => true);
-const mockRequestUserAttention = vi.fn(async () => undefined);
+const mockSendTauriNativeNotification = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true);
+const mockRequestUserAttention = vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined);
 
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ requestUserAttention: (...args: unknown[]) => mockRequestUserAttention(...args) }),

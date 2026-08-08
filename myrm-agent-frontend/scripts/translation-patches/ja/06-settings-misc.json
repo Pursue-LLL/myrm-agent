@@ -1,0 +1,134 @@
+{
+  "settings": {
+    "themeStudio": {
+      "recipeImport": {
+        "errors": {
+          "invalid_json": "無効なJSON",
+          "not_object": "レシピはJSONオブジェクトである必要があります",
+          "missing_name": "nameは必須です",
+          "invalid_layout": "layoutIdが無効です",
+          "invalid_font": "fontIdが無効です",
+          "invalid_palette": "パレットの色が無効です",
+          "invalid_art": "アート設定が無効です"
+        }
+      },
+      "profilePicker": {
+        "savedTitle": "保存済みテーマ"
+      }
+    },
+    "linkEmbeds": "リンク埋め込み",
+    "linkEmbedsMode": "インライン埋め込み",
+    "linkEmbedsDesc": "会話内でYouTube、X、Spotifyなどのリンクのリッチプレビューを表示",
+    "linkEmbedsAsk": "読み込み前に確認（推奨）",
+    "linkEmbedsAlways": "常に埋め込みを読み込む",
+    "linkEmbedsOff": "埋め込みなし（プレーンリンク）",
+    "linkEmbedsAllowed": "許可されたプロバイダー",
+    "linkEmbedsClear": "すべてクリア",
+    "searchService": {
+      "loadingProviders": "プロバイダーを読み込み中…",
+      "providerNotReady": "近日公開"
+    },
+    "autoContinueInterruptedTurns": "クラッシュ後の自動再開",
+    "autoContinueInterruptedTurnsDesc": "クラッシュ後にサーバーが再起動したとき、中断された会話を自動的に再開します",
+    "enterprise": {
+      "mcpTypeTunnel": "プライベートトンネル",
+      "mcpTunnelSelect": "トンネルを選択",
+      "mcpTunnelSelectPlaceholder": "登録済みトンネルを選択…",
+      "mcpTunnelNone": "トンネルが登録されていません。先にトンネルを作成してください。",
+      "mcpAclGroups": "グループに制限（任意）",
+      "mcpAclGroupsPlaceholder": "engineering, finance, security",
+      "mcpAclGroupsHint": "カンマ区切りのIdPグループ名。空のままにすると全メンバーに表示されます。",
+      "mcpAclGroupsBadge": "{count, plural, one {# グループ} other {# グループ}}",
+      "tunnelTitle": "プライベートトンネル",
+      "tunnelDescription": "セキュアな送信トンネルでクラウドサンドボックスをオンプレミスのMCPサーバーに接続します。インバウンドのファイアウォールルールは不要です。",
+      "tunnelAdd": "トンネルを登録",
+      "tunnelAddDesc": "新しいプライベートトンネルエンドポイントを登録します。トンネルエージェントを設定するための認証トークンが発行されます。",
+      "tunnelName": "トンネル名",
+      "tunnelUpstreamUrl": "内部MCPサーバーURL",
+      "tunnelEmpty": "登録済みのプライベートトンネルはありません。",
+      "tunnelOnline": "接続済み",
+      "tunnelDegraded": "低下",
+      "tunnelLastUpstreamError": "最終エラー: {error}",
+      "tunnelLastErrorAt": "{time} に発生",
+      "tunnelOffline": "切断",
+      "tunnelRotateToken": "トークンを再発行",
+      "tunnelDelete": "トンネルを削除",
+      "tunnelDeleted": "トンネルを削除しました",
+      "tunnelLoadFailed": "トンネルの読み込みに失敗しました",
+      "tunnelCreateFailed": "トンネルの作成に失敗しました",
+      "tunnelDeleteFailed": "トンネルの削除に失敗しました",
+      "tunnelRotateFailed": "トンネルトークンの再発行に失敗しました",
+      "tunnelTokenTitle": "トンネル認証トークン",
+      "tunnelTokenDesc": "このトークンは今すぐコピーしてください。再表示されません。",
+      "tunnelTokenWarning": "このトークンは一度だけ表示されます。安全に保管してください。",
+      "tunnelTokenCopied": "トークンをクリップボードにコピーしました",
+      "tunnelAuthTokenLabel": "認証トークン",
+      "tunnelDockerBuildLabel": "Dockerビルドコマンド",
+      "tunnelDockerBuildDesc": "エンタープライズデプロイメントパッケージに含まれるmyrm-tunnel-agentソースディレクトリから実行してください。",
+      "tunnelDockerBuildCopied": "Dockerビルドコマンドをコピーしました",
+      "tunnelDockerRunLabel": "Docker実行コマンド",
+      "tunnelDockerRunCopied": "Dockerコマンドをコピーしました",
+      "tunnelUpstreamAuthLabel": "アップストリーム認証ヘッダー（任意）",
+      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthHint": "トンネルエージェントがリクエストを転送するときに内部MCPサーバーへ送信されます。",
+      "tunnelBindMcp": "組織MCPとして追加",
+      "tunnelBindMcpSuccess": "トンネルを組織MCPサーバーに追加しました",
+      "tunnelBindMcpFailed": "トンネルを組織MCPとして追加できませんでした"
+    },
+    "system": {
+      "serverConnection": {
+        "title": "サーバー接続",
+        "description": "ローカルバックエンドの代わりにリモートのMyrmサーバーに接続",
+        "modeLocal": "ローカル",
+        "modeRemote": "リモート",
+        "localDesc": "組み込みのローカルバックエンドを使用中",
+        "remoteDesc": "リモートサーバーに接続中",
+        "serverUrl": "サーバーURL",
+        "serverUrlPlaceholder": "https://your-server.example.com",
+        "testConnection": "接続テスト",
+        "testing": "テスト中…",
+        "testSuccess": "接続に成功しました",
+        "testFailed": "サーバーに到達できません",
+        "save": "接続",
+        "disconnect": "切断",
+        "connected": "リモートサーバーに接続しました",
+        "disconnected": "ローカルモードに切り替えました",
+        "loginRequired": "このサーバーは認証が必要です。接続後にログインページへリダイレクトされます。",
+        "invalidUrl": "有効なHTTPまたはHTTPS URLを入力してください"
+      }
+    },
+    "sessionAnalytics": {
+      "contextHealth": {
+        "compaction": {
+          "avgElapsed": "平均所要時間",
+          "lastElapsed": "前回の所要時間"
+        }
+      }
+    },
+    "sections": {
+      "channelRouting": {
+        "toasts": {
+          "workspaceBound": "ワークスペースを正常にバインドしました"
+        },
+        "errors": {
+          "workspaceBind": "ワークスペースのバインドに失敗しました"
+        },
+        "workspace": {
+          "label": "ワークスペース",
+          "none": "-- ワークスペースなし --",
+          "emptyProjects": "先にプロジェクトでプロジェクトフォルダをマウントしてください"
+        }
+      }
+    }
+  },
+  "userMenu": {
+    "wikiKnowledgeBase": "ナレッジベース"
+  },
+  "nav": {
+    "remoteGateway": "リモートサーバーに接続中"
+  },
+  "workspace": {
+    "organizeFolder": "AIでフォルダを整理",
+    "organizePrompt": "workspace-auto-organizerスキルを使用して「{path}」配下のファイルを整理してください。レビュー用にorganize-plan.jsonを作成してください。"
+  }
+}

@@ -259,6 +259,18 @@ export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
   data: ClarificationRequiredWireData;
 }
 
+export interface DirectoryRequestRequiredStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.DIRECTORY_REQUEST_REQUIRED;
+  data: {
+    request?: {
+      reason?: string;
+      path?: string;
+      writable?: boolean;
+    };
+    [key: string]: unknown;
+  };
+}
+
 export interface SteeringStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.STEERING;
   data?: { count?: number; messages?: string[] } | string;
@@ -267,6 +279,39 @@ export interface SteeringStreamEvent extends BaseAgentEvent {
 export interface RedirectedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.REDIRECTED;
   data?: string;
+}
+
+export interface ArtifactFocusStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.ARTIFACT_FOCUS;
+  data?: {
+    short_file_id?: string;
+    path?: string;
+  };
+}
+
+export interface RiskBlockedStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.RISK_BLOCKED;
+  data?: {
+    message: string;
+    rules?: Array<{ rule_id: string; display_name: string; severity: string }>;
+  };
+}
+
+export interface SessionRecordingStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.SESSION_RECORDING;
+  data?: {
+    filename?: string;
+    preview_url?: string;
+    content_type?: string;
+  };
+}
+
+export interface CitationMapStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.CITATION_MAP;
+  data?: {
+    sources?: Source[];
+    audit?: { total_markers: number; valid: number; unresolved: number };
+  };
 }
 
 export interface ToolStartStreamEvent extends BaseAgentEvent {
@@ -332,7 +377,8 @@ export interface ArtifactContentStreamEvent extends BaseAgentEvent {
 export interface UIUpdateStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.UI_UPDATE;
   subtype: 'ui_artifact' | 'data_update';
-  data: unknown[];
+  /** `ui_artifact` 分支为 UIArtifact[]；`data_update` 分支为 { surface_id, updates } 对象。由 handler 运行时守卫区分。 */
+  data: unknown;
 }
 
 export interface CorrectionLearnedStreamEvent extends BaseAgentEvent {

@@ -94,7 +94,7 @@ export const useGoalStore = create<GoalStore>((set) => ({
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/status`);
       if (!res.ok) return;
-      const data = (await res.json()) as { goal?: GoalState };
+      const data = (await res.json()) as { goal?: import('@/store/chat/types').GoalStatusPayload };
       if (!data.goal) return;
       const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
       set({ activeGoal: normalizeGoalState(data.goal) });

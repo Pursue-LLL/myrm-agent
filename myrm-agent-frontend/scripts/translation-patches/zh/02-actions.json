@@ -1,0 +1,62 @@
+{
+  "stt": {
+    "holdToTalk": "按住说话",
+    "releaseToStop": "松开停止",
+    "tooShort": "录音时间过短"
+  },
+  "toolApproval": {
+    "deployApprovalArtifact": "工件"
+  },
+  "checkpoint": {
+    "title": "检查点",
+    "confirmDelete": "确定要删除此检查点吗？",
+    "confirmCleanup": "确定要清理旧的检查点（7 天有效期）吗？",
+    "resumable": "可恢复",
+    "notResumable": "不可恢复",
+    "progress": "进度",
+    "lastTool": "最后使用的工具",
+    "resume": "恢复",
+    "delete": "删除",
+    "refresh": "刷新",
+    "cleanup": "清理旧检查点",
+    "loadError": "加载检查点失败",
+    "resumeError": "恢复检查点失败",
+    "deleteError": "删除检查点失败",
+    "cleanupError": "清理检查点失败",
+    "resumeSuccess": "检查点恢复成功",
+    "empty": "未找到检查点",
+    "noCheckpoints": "未找到检查点",
+    "description": "管理已保存的检查点，恢复被中断的智能体任务",
+    "savedCheckpoints": "已保存的检查点",
+    "savedCheckpointsDesc": "当智能体任务被中断时，所有检查点都会自动保存"
+  },
+  "growthDashboard": {
+    "dailyJournal": { "tokens": "Token" }
+  },
+  "billing": {
+    "wuBalance": "工作单元",
+    "pricing": {
+      "plans": {
+        "companion": { "name": "Companion" },
+        "plus": { "name": "Plus" },
+        "pro": { "name": "Pro" },
+        "max": { "name": "Max" }
+      }
+    }
+  },
+  "connectWizard": {
+    "mcpConnectTimeout": "连接超时（秒）",
+    "mcpExecuteTimeout": "执行超时（秒）",
+    "mcpTlsConfigured": "已配置",
+    "mcpSslVerify": "SSL 校验",
+    "mcpSslVerifyWarning": "TLS 校验已禁用，连接将暴露于中间人攻击风险之下。仅限本地开发使用。",
+    "mcpClientCert": "客户端证书",
+    "mcpClientKeyPassword": "客户端密钥口令",
+    "mcpClientKeyPasswordPlaceholder": "加密客户端密钥的口令（可选）",
+    "mcpTlsHint": "对于 mTLS：提供客户端证书以及可选的分开密钥。路径支持 ~ 展开。",
+    "mcpHeadersConfigured": "已配置",
+    "mcpHeaderKeyPlaceholder": "请求头名称（例如 Authorization）",
+    "mcpSecretRefSaveHint": "配置已保存",
+    "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。"
+  }
+}

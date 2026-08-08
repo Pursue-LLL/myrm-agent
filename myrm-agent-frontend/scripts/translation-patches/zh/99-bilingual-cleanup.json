@@ -1,0 +1,219 @@
+{
+  "Goal": {
+    "tokenCost": "费用"
+  },
+  "settings": {
+    "securityPolicy": {
+      "riskRules": {
+        "rules": {
+          "crm_ticket_keywords": {
+            "name": "工单数据"
+          }
+        }
+      }
+    },
+    "searchService": {
+      "searxngPresetCode": "代码"
+    },
+    "sessionAnalytics": {
+      "yes": "是",
+      "no": "否",
+      "performance": "性能表现",
+      "contextHealth": {
+        "title": "上下文健康",
+        "status": {
+          "inactive": "未激活",
+          "healthy": "健康",
+          "warning": "预警",
+          "critical": "严重"
+        },
+        "compaction": {
+          "title": "压缩健康",
+          "count": "压缩次数",
+          "saved": "累计节省",
+          "netSaved": "净节省",
+          "efficiency": "压缩效率",
+          "refetch": "重取次数",
+          "dedup": "去重收益",
+          "integrity": "完整性跳过",
+          "persisted": "已落盘摘要",
+          "avgElapsed": "平均耗时",
+          "lastElapsed": "上次耗时",
+          "lastCompacted": "最近压缩"
+        },
+        "pruning": {
+          "title": "缓存剪枝",
+          "archived": "已归档",
+          "archiveWritten": "实际写入",
+          "archiveReused": "归档复用",
+          "softTrimmed": "软裁剪",
+          "offloadFailed": "落盘失败",
+          "deferred": "延期处理",
+          "archiveDeferred": "归档延期",
+          "refetch": "归档回读",
+          "restoreRequested": "恢复请求",
+          "restoreAllowed": "恢复放行",
+          "restoreBlocked": "恢复阻断",
+          "restoreBlockedRatio": "阻断比例",
+          "restoreResults": "恢复结果",
+          "restoreCostRatio": "恢复成本占比",
+          "restoreRoiRatio": "恢复收益保留",
+          "refetchTokens": "回读成本",
+          "saved": "节省",
+          "netSaved": "净节省",
+          "refetchRatio": "回读比例",
+          "writtenBytes": "写入字节",
+          "reusedBytes": "复用字节",
+          "archiveSummaryQueued": "摘要排队",
+          "archiveSummarySucceeded": "摘要落盘",
+          "archiveSummaryFailed": "摘要失败",
+          "archiveSummarySkipped": "摘要跳过",
+          "backoff": "自适应退让",
+          "backoffReasons": "退让原因",
+          "backoffActive": "已降低强度",
+          "backoffInactive": "正常强度",
+          "backoffReasonLabels": {
+            "negativeNetSavings": "净节省为负",
+            "highRefetchRatio": "归档回读比例偏高",
+            "highRestoreCostRatio": "恢复成本偏高",
+            "lowRestoreRoiRatio": "收益保留偏低",
+            "unknown": "自适应安全触发"
+          },
+          "failureKinds": "失败类型",
+          "deferredReasons": "延期原因",
+          "archiveDeferredReasons": "归档预算原因",
+          "recentRestoreBlocks": "最近恢复阻断",
+          "restoreRange": "读取范围",
+          "restoreGuidance": "指引来源",
+          "restoreFallback": "兜底原因",
+          "restoreHintReasons": {
+            "errorKeyword": "错误段",
+            "sectionHeading": "章节",
+            "codeBlock": "代码块",
+            "tableRange": "表格",
+            "listRange": "列表",
+            "chunk": "分块",
+            "range": "范围"
+          },
+          "contentFeatures": {
+            "markdownHeadings": "标题",
+            "codeBlocks": "代码块",
+            "tables": "表格",
+            "lists": "列表",
+            "chunks": "分块",
+            "unknown": "结构"
+          },
+          "restoreRangeSubmitted": "已提交范围",
+          "restoreRangeFailed": "提交失败",
+          "restoreRangeRequiresActiveSession": "打开目标会话",
+          "copyRestoreArg": "复制恢复范围",
+          "restoreArgCopied": "已复制",
+          "copyRestoreArgUnavailable": "复制不可用",
+          "copyRestoreArgFailed": "复制失败",
+          "restoreReasons": {
+            "archiveRestoreRangeRequired": "全量归档恢复需要范围",
+            "archiveRefetchPathBudgetExceeded": "路径恢复次数已达上限",
+            "archiveRefetchSessionMismatch": "归档属于其他会话",
+            "archiveRestoreSizeProbeFailed": "归档大小检查失败",
+            "unknown": "归档恢复被阻断"
+          },
+          "signal": "信号",
+          "signals": {
+            "inactive": "未激活",
+            "restoreBlocked": "恢复需要更小范围",
+            "adaptiveBackoff": "剪枝强度已降低",
+            "restoreCostHigh": "恢复成本偏高",
+            "cacheColdArchived": "冷缓存且存在可恢复归档",
+            "archiveAvailable": "存在可恢复归档",
+            "cacheHotSkip": "热缓存已保护",
+            "archiveDeferred": "归档预算延期",
+            "softTrimmed": "软裁剪生效",
+            "monitoring": "监控中"
+          }
+        },
+        "cache": {
+          "title": "缓存健康",
+          "calls": "调用次数",
+          "cachedTokens": "缓存命中",
+          "hitRate": "命中率",
+          "provider": "提供商",
+          "policy": "保留策略",
+          "observation": "保留信号",
+          "sample": "观测样本",
+          "strategy": "策略",
+          "strategies": {
+            "inactive": "未激活",
+            "hotProtected": "热缓存保护",
+            "insufficientData": "数据不足",
+            "coldEligible": "冷缓存可剪枝",
+            "coldWatch": "冷缓存观察",
+            "stable": "稳定复用"
+          },
+          "observationStates": {
+            "observed": "已观测",
+            "estimated": "静态估算",
+            "insufficientData": "数据不足"
+          },
+          "sampleSources": {
+            "dominantModel": "主模型",
+            "sessionAggregate": "会话聚合"
+          }
+        }
+      },
+      "trace": {
+        "title": "执行回放",
+        "enterReplay": "播放录像",
+        "exitReplay": "退出录像",
+        "loading": "加载中...",
+        "input": "任务输入",
+        "output": "任务输出",
+        "events": "事件",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "outcome": {
+          "success": "成功",
+          "failure": "失败",
+          "cancelled": "已取消",
+          "unknown": "未知"
+        }
+      },
+      "replay": {
+        "title": "录像回放",
+        "chatView": "界面",
+        "mindView": "脑电波",
+        "inspector": "原始参数",
+        "seekToError": "跳到报错处",
+        "play": "播放",
+        "pause": "暂停",
+        "speed": "播放速度",
+        "scrubber": "时间轴",
+        "errorMarker": "报错",
+        "running": "运行中...",
+        "result": "结果",
+        "emptyState": "当前时间点暂无消息",
+        "noPayload": "拖动到事件帧",
+        "userMessage": "用户消息",
+        "assistantMessage": "助手消息",
+        "loading": "加载回放数据...",
+        "humanFeedback": "人工审批",
+        "humanFeedbackTitle": "人工审批",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "preCompactEventTitle": "压缩前记忆召回",
+        "toolFailed": "工具执行失败",
+        "scrubSnapHint": "松手吸附到最近事件帧",
+        "marker": {
+          "tool": "工具",
+          "llm": "模型",
+          "message": "消息",
+          "memory": "记忆",
+          "error": "报错"
+        }
+      }
+    }
+  },
+  "progressSteps": {
+    "archive_restore_result": "已恢复归档上下文",
+    "archiveRestoreSubmitting": "恢复中..."
+  }
+}

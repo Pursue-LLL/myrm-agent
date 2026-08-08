@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.cron.types import ScheduleKind
 
 from app.services.migration.hermes_cron_converter import (
     build_hermes_cron_migration_plan,
@@ -13,7 +14,6 @@ from app.services.migration.hermes_cron_converter import (
     load_hermes_cron_jobs,
 )
 from app.services.migration.source_payload_loader import build_coverage_items, load_source_payload
-from myrm_agent_harness.toolkits.cron.types import ScheduleKind
 
 
 def test_convert_hermes_cron_job_maps_schedule() -> None:

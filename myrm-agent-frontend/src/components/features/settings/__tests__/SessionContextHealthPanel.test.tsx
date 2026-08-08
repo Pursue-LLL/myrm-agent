@@ -37,6 +37,8 @@ describe('SessionContextHealthPanel', () => {
         integrity_skipped: 0,
         summary_persisted: true,
         last_compacted_at: '2026-04-18T08:00:00+00:00',
+        avg_elapsed_ms: 950,
+        last_elapsed_ms: 800,
       },
       pruning: {
         status: 'healthy',
@@ -209,6 +211,8 @@ describe('SessionContextHealthPanel', () => {
         integrity_skipped: 0,
         summary_persisted: false,
         last_compacted_at: null,
+        avg_elapsed_ms: 0,
+        last_elapsed_ms: 0,
       },
       pruning: {
         status: 'warning',

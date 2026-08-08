@@ -174,6 +174,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
         path: item.chat_id,
         fileId: item.chat_id,
         source: 'special',
+        size: null,
       });
       onOpenChange(false);
       focusComposerInput();

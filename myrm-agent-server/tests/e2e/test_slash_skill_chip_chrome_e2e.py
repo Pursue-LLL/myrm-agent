@@ -7,6 +7,7 @@ import json
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -14,7 +15,6 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
-    _warm_ui_parallel_wait_sec,
 )
 
 _SKILL_ID = "systematic-debugging"

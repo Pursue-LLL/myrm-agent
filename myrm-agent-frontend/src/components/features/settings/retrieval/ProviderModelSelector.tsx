@@ -102,11 +102,8 @@ const ProviderModelSelector = memo<ProviderModelSelectorProps>(
         // 解析结果数：Validation successful (returned 1 result / 2 results)
         const resultsMatch = message.match(/Validation successful \(returned (\d+) results?\)/);
         if (resultsMatch) {
-          const count = parseInt(resultsMatch[1]);
-          return t('validationMessages.successWithResults', {
-            count: count.toString(),
-            plural: count > 1 ? 's' : '',
-          });
+          const count = parseInt(resultsMatch[1], 10);
+          return t('validationMessages.successWithResults', { count });
         }
 
         // 解析失败消息：Validation failed: Error

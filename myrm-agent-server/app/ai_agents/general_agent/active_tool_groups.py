@@ -18,10 +18,10 @@ Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed t
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
-
 from types import SimpleNamespace
 from typing import Protocol
+
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 
 
 class ActiveToolGroupSource(Protocol):

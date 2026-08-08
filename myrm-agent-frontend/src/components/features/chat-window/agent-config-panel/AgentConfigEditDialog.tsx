@@ -9,6 +9,7 @@ import { Skill } from '@/store/skill/types';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import { MCPServiceConfig } from '@/store/config/types';
 import { type BuiltinToolId } from '@/store/chat/types';
+import type { AgentConfig } from '@/store/chat/types/sessionConfig';
 import { type AgentThemeColor } from '@/components/features/message-box/progress-steps/toolIcons';
 import { Wand2, Plug, FileText, Wrench, Globe, Search, X } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
@@ -57,28 +58,14 @@ interface AgentConfigEditDialogProps {
   autoRestoreDomains?: string[];
   enabledBuiltinTools: BuiltinToolId[];
   browserSource?: string;
-  dialogPolicy?: string;
-  sessionRecording?: string;
+  dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
+  sessionRecording?: 'off' | 'on_failure' | 'always';
   ephemeralSubagents?: Record<string, unknown>;
   isSystemPromptHidden?: boolean;
   loadingSystemPrompt?: boolean;
   onShowSystemPrompt?: () => void;
   onRefreshSkills?: () => Promise<void>;
-  onSave: (data: {
-    selectedSkillIds?: string[];
-    skillConfigs?: AgentSkillConfigMap;
-    selectedMcpNames?: string[];
-    mcpToolSelections?: Record<string, string[]>;
-    systemPrompt?: string;
-    useGlobalInstruction?: boolean;
-    enabledBuiltinTools?: BuiltinToolId[];
-    browserSource?: string;
-    dialogPolicy?: string;
-    sessionRecording?: string;
-    autoRestoreDomains?: string[];
-    ephemeralSubagents?: Record<string, unknown>;
-    personalityStyle?: string;
-  }) => void;
+  onSave: (data: Partial<AgentConfig>) => void;
 }
 
 const AgentConfigEditDialog = ({
@@ -132,8 +119,8 @@ const AgentConfigEditDialog = ({
   const [localAutoRestoreDomains, setLocalAutoRestoreDomains] = useState<string[]>(initialAutoRestoreDomains || []);
   const [localBuiltinTools, setLocalBuiltinTools] = useState<BuiltinToolId[]>(initialBuiltinTools || []);
   const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
-  const [localDialogPolicy, setLocalDialogPolicy] = useState<string | undefined>(initialDialogPolicy);
-  const [localSessionRecording, setLocalSessionRecording] = useState<string | undefined>(initialSessionRecording);
+  const [localDialogPolicy, setLocalDialogPolicy] = useState<'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined>(initialDialogPolicy);
+  const [localSessionRecording, setLocalSessionRecording] = useState<'off' | 'on_failure' | 'always' | undefined>(initialSessionRecording);
   const [localEphemeralSubagents, setLocalEphemeralSubagents] = useState<Record<string, EphemeralSubagentConfig>>(
     initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>,
   );

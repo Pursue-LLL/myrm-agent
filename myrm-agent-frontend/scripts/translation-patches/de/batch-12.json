@@ -1,0 +1,354 @@
+{
+  "appUpdate": {
+    "readyDescriptionGeneric": "Eine neue Version ist zur Installation bereit.",
+    "restartHint": "Beim Neustart wird das Fenster kurz geschlossen. Die neue Version startet automatisch.",
+    "restartNow": "Jetzt neu starten",
+    "later": "Später",
+    "errorGeneric": "Beim Aktualisieren ist etwas schiefgelaufen.",
+    "retry": "Erneut versuchen",
+    "dismiss": "Verwerfen",
+    "showMore": "Mehr anzeigen",
+    "showLess": "Weniger anzeigen"
+  },
+  "metadata": {
+    "appDescription": "KI-Chat-Assistent",
+    "chatPageTitle": "Chat - MyrmAgent",
+    "chatPageDescription": "Chatten Sie mit Ihrem KI-Arbeitspartner.",
+    "settingsPageTitle": "Einstellungen - MyrmAgent",
+    "settingsPageDescription": "Konfigurieren Sie Ihr MyrmAgent-Erlebnis",
+    "libraryPageTitle": "Bibliothek - MyrmAgent",
+    "libraryPageDescription": "Durchsuchen Sie Ihren Gesprächsverlauf",
+    "subscriptionPageTitle": "Abonnement - MyrmAgent",
+    "subscriptionPageDescription": "Prüfen Sie Ihren Abrechnungsstatus und Abonnementplan.",
+    "landingPageTitle": "Myrm - Ihr KI-Arbeitspartner",
+    "landingPageDescription": "Persistente Sandbox, Speicher und GUI-first KI-Agenten-Plattform.",
+    "privacyPageTitle": "Datenschutzrichtlinie - Myrm",
+    "privacyPageDescription": "Wie Myrm Ihre Daten erhebt, verwendet und schützt.",
+    "termsPageTitle": "Nutzungsbedingungen - Myrm",
+    "termsPageDescription": "Bedingungen für die Nutzung der Myrm-Plattform.",
+    "refundPageTitle": "Rückerstattungsrichtlinie - Myrm",
+    "refundPageDescription": "Kündigungs- und Rückerstattungsrichtlinie für Myrm SaaS.",
+    "notFoundTitle": "Nicht gefunden",
+    "settingsSuffix": "Einstellungen",
+    "settingsTabs": {
+      "account": {
+        "title": "Kontoeinstellungen",
+        "description": "Verwalten Sie Ihre Kontoinformationen und Präferenzen"
+      },
+      "preferences": {
+        "title": "Präferenzen",
+        "description": "Passen Sie Ihre Anwendungspräferenzen an"
+      },
+      "personalization": {
+        "title": "Personalisierung",
+        "description": "Personalisieren Sie Ihr Erlebnis"
+      },
+      "agents": {
+        "title": "KI-Agenten",
+        "description": "Erstellen und verwalten Sie Ihre benutzerdefinierten KI-Agenten"
+      },
+      "security": {
+        "title": "Sicherheitsrichtlinie",
+        "description": "Genehmigungsregeln für Tool-Ausführung und Sicherheitsrichtlinien konfigurieren"
+      },
+      "riskRules": {
+        "title": "Risikoregeln",
+        "description": "Erkennung sensibler Daten und Inhaltsrisikokontrolle verwalten"
+      },
+      "models": {
+        "title": "Modellservices",
+        "description": "KI-Modellanbieter konfigurieren"
+      },
+      "defaultModel": {
+        "title": "Standardmodell",
+        "description": "Ihr Standard-KI-Modell festlegen"
+      },
+      "search": {
+        "title": "Sucheinstellungen",
+        "description": "Suchmaschinen-Präferenzen konfigurieren"
+      },
+      "mcp": {
+        "title": "MCP-Konfiguration",
+        "description": "Model Context Protocol-Integrationen verwalten"
+      },
+      "skills": {
+        "title": "Fähigkeiten",
+        "description": "KI-Fähigkeiten durchsuchen und verwalten"
+      },
+      "credentials": {
+        "title": "Anmeldedaten",
+        "description": "Anmeldedatendateien für Fähigkeiten verwalten"
+      },
+      "mediaGeneration": {
+        "title": "Mediengenerierung",
+        "description": "Bild- und Videogenerierungsdienste konfigurieren"
+      },
+      "cron": {
+        "title": "Geplante Aufgaben",
+        "description": "Vom Agenten erstellte geplante Aufgaben verwalten"
+      },
+      "kanban": {
+        "title": "Kanban-Board",
+        "description": "Dauerhafte Multi-Task-Kanban-Verwaltung"
+      },
+      "channels": {
+        "title": "Nachrichtenkanäle",
+        "description": "Benachrichtigungskanäle und externe Plattformintegrationen verwalten"
+      },
+      "channelRouting": {
+        "title": "Kanal-Routing",
+        "description": "Agenten-Bindungen für verschiedene Kanalgruppen verwalten",
+        "threadSharing": {
+          "label": "Thread-Freigabemodus",
+          "isolated": "Isoliert",
+          "isolatedDesc": "Jeder Benutzer hat seinen eigenen Gesprächsverlauf",
+          "shared": "Geteilt",
+          "sharedDesc": "Alle Benutzer im Thread teilen denselben Gesprächsverlauf",
+          "tooltip": "Aktivieren für kollaborative Szenarien wie Discord-Foren oder Telegram-Forum-Themen"
+        },
+        "replyMode": {
+          "label": "Antwortmodus",
+          "auto": "Automatisch senden",
+          "draftReview": "Entwurfsprüfung",
+          "tooltip": "Bei Entwurfsprüfung werden KI-Antworten vor dem Senden an den Kanal zur Genehmigung gehalten. Empfohlen für kundenorientierte Szenarien.",
+          "timeout": "Timeout",
+          "onExpiry": "Bei Ablauf",
+          "autoReject": "Entwurf verwerfen",
+          "autoSend": "Automatisch senden"
+        }
+      },
+      "voice": {
+        "title": "Spracheinstellungen",
+        "description": "Sprache-zu-Text und Text-zu-Sprache für Sprachnachrichten konfigurieren"
+      },
+      "integrationCatalog": {
+        "title": "Dienstkatalog",
+        "description": "Drittanbieterdienste durchsuchen und verbinden"
+      },
+      "integrationMemory": {
+        "title": "Integrations-Speicher",
+        "description": "Daten von verbundenen Diensten synchronisieren und indexieren"
+      },
+      "workspaceRules": {
+        "title": "Arbeitsbereichsregeln",
+        "description": "Automatisch erkannte projektbezogene Regeldateien anzeigen"
+      },
+      "developer": {
+        "title": "Entwicklereinstellungen",
+        "description": "Erweiterte Entwicklerkonfiguration",
+        "showSystemMessages": "Systemnachrichten anzeigen",
+        "showSystemMessagesDesc": "KI-Systemprompts in Chat-Nachrichten anzeigen",
+        "showSystemMessagesWarning": "Systemnachrichten enthalten KI-Verhaltensanweisungen. Nur zum Debuggen. In Produktion deaktivieren."
+      },
+      "importExport": {
+        "title": "Import & Export",
+        "description": "Ihre Daten importieren und exportieren"
+      },
+      "companion": {
+        "description": "Ihren KI-Haustier-Begleiter konfigurieren"
+      },
+      "usageStatistics": {
+        "title": "Nutzungsstatistiken",
+        "description": "Token-Nutzungsanalyse und Kostenverfolgung anzeigen"
+      },
+      "memory-backup": {
+        "title": "Speicher-Backup",
+        "description": "Speicherdaten sichern und wiederherstellen"
+      },
+      "memory-archival": {
+        "title": "Speicher-Archivierung",
+        "description": "Alte Erinnerungen archivieren, um die Suchleistung zu verbessern"
+      },
+      "enterprise": {
+        "title": "Unternehmensorganisation",
+        "description": "Unternehmensorganisation, Teammitglieder und Mitarbeiter-Offboarding verwalten"
+      },
+      "system": {
+        "title": "Systemeinstellungen",
+        "description": "Systemweite Konfiguration und Präferenzen"
+      },
+      "about": {
+        "title": "Über MyrmAgent",
+        "description": "Informationen über die Anwendung anzeigen"
+      },
+      "skillQuality": {
+        "title": "Fähigkeitsqualität",
+        "description": "Fähigkeitsqualitätsüberwachung und -verwaltung"
+      },
+      "toolQuality": {
+        "title": "Ausführungsqualität",
+        "description": "Ausführungsqualität und Stabilität von Fähigkeiten und Tools überwachen und analysieren"
+      },
+      "memory": {
+        "title": "Speicherverwaltungszentrum",
+        "description": "Langzeitspeicher, Backups und Archivierungsrichtlinien verwalten"
+      }
+    }
+  },
+  "library": {
+    "title": "Bibliothek",
+    "noChats": "Keine Chats gefunden.",
+    "ago": "Vor",
+    "tabs": {
+      "chats": "Chat-Verlauf",
+      "gallery": "Mediengalerie",
+      "skills": "Fähigkeiten"
+    },
+    "graph": {
+      "emptyFirstWin": "Importieren Sie Notizen oder wenden Sie das Second-Brain-Preset in den Wiki-Einstellungen an, und kehren Sie dann hierher zurück, um Verbindungen zu erkunden.",
+      "goSetupWiki": "Wiki-Einstellungen öffnen",
+      "insights": {
+        "title": "Graph-Einblicke",
+        "error": "Graph-Einblicke konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "emptyGaps": "Keine Wissenslücken erkannt.",
+        "emptyConnections": "Noch keine unerwarteten Verbindungen."
+      }
+    },
+    "gallery": {
+      "title": "Mediengalerie",
+      "empty": "Noch keine Medien",
+      "emptyDesc": "Generierte Bilder erscheinen hier automatisch",
+      "allTypes": "Alle Typen",
+      "images": "Bilder",
+      "videos": "Videos",
+      "audio": "Audio",
+      "allTags": "Alle Tags",
+      "noResults": "Keine Medien gefunden",
+      "noResultsDesc": "Versuchen Sie andere Filter oder Suchbegriffe",
+      "loadMore": "Mehr laden",
+      "deleteConfirmTitle": "Medium löschen",
+      "deleteConfirmDesc": "Möchten Sie dieses Medium wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen",
+      "deleteSuccess": "Medium gelöscht",
+      "deleteFailed": "Löschen des Mediums fehlgeschlagen",
+      "tagsUpdated": "Tags aktualisiert",
+      "tagsFailed": "Aktualisieren der Tags fehlgeschlagen",
+      "size": "Größe",
+      "model": "Modell",
+      "prompt": "Prompt",
+      "createdAt": "Erstellt",
+      "viewOriginal": "Original anzeigen",
+      "download": "Herunterladen",
+      "editTags": "Tags bearbeiten",
+      "close": "Schließen",
+      "select": "Auswählen",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Auswahl aufheben",
+      "batchDelete": "Ausgewählte löschen",
+      "batchDeleteConfirmTitle": "Ausgewählte Medien löschen",
+      "batchTag": "Ausgewählte taggen"
+    }
+  },
+  "images": {
+    "search": "Bilder suchen"
+  },
+  "videos": {
+    "search": "Videos suchen"
+  },
+  "files": {
+    "attachedFiles": "Angehängte Dateien",
+    "add": "Hinzufügen",
+    "clear": "Leeren",
+    "attach": "Anhänge hinzufügen: Bilder, PDF, Word, Excel, CSV, TXT, MD, JSON (max. 5 Dateien)",
+    "attachDisabledInFastMode": "Anhänge im Schnellsuche-Modus nicht unterstützt",
+    "uploadLimit": "Dateianzahl-Limit",
+    "maxFilesReached": "Maximal 5 Dateien erlaubt",
+    "uploadPartialFailed": "Einige Dateien konnten nicht hochgeladen werden",
+    "uploadFailed": "Hochladen fehlgeschlagen",
+    "duplicateFiles": "Doppelte Dateien",
+    "connectionTimeout": "Verbindungs-Timeout, bitte Netzwerk prüfen oder später erneut versuchen",
+    "serverUnavailable": "Verbindung zum Server nicht möglich, bitte prüfen Sie, ob der Dienst läuft",
+    "modelNotSupportVision": "Aktuelles Modell unterstützt keine Bilder, bitte zu einem vision-fähigen Modell wechseln",
+    "modelNotSupportVideo": "Aktuelles Modell unterstützt kein Video. Bitte zu einem videofähigen Modell wechseln oder ein Vision-Ersatzmodell konfigurieren",
+    "pasteSuccess": "Bild hinzugefügt",
+    "pasteUploadError": "Hochladen des eingefügten Bildes fehlgeschlagen, bitte erneut versuchen",
+    "fileTooLarge": "Datei zu groß (überschreitet 50-MB-Limit)"
+  },
+  "mermaidChart": {
+    "syntaxError": "Mermaid-Syntaxfehler",
+    "syntaxErrorDesc": "Das Mermaid-Diagramm konnte nicht gerendert werden. Bitte Syntax prüfen.",
+    "viewOriginalCode": "Originalcode anzeigen",
+    "receiving": "Empfangen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "reset": "Zurücksetzen",
+    "fullscreen": "Vollbild",
+    "exitFullscreen": "Vollbild beenden",
+    "copySource": "Quellcode kopieren",
+    "downloadSvg": "SVG herunterladen",
+    "legend": "Legende"
+  },
+  "progressSteps": {
+    "searchTool": {
+      "globLabel": "Dateisuche",
+      "grepLabel": "Inhaltssuche",
+      "path": "Pfad",
+      "filePattern": "Dateien"
+    },
+    "evictedOutput": {
+      "savedHint": "Vollständige Tool-Ausgabe in Sandbox-Speicher gespeichert",
+      "viewFull": "Vollständige Ausgabe anzeigen",
+      "expiredTitle": "Ausgabe abgelaufen",
+      "expiredDesc": "Diese Ausgabedatei wurde bereinigt. Ausgelagerte Ausgaben werden nur für die Sitzungsdauer aufbewahrt.",
+      "errorTitle": "Laden der Ausgabe fehlgeschlagen",
+      "errorDesc": "Bitte später erneut versuchen.",
+      "searchTitle": "Suchen (Strg+F)",
+      "copyAll": "Alles kopieren",
+      "prev": "Zurück",
+      "next": "Weiter",
+      "storageTruncated": "Speicher begrenzt; Datei möglicherweise unvollständig"
+    },
+    "diagnosticHint": "Diagnosehinweis",
+    "planning_task": "Aufgabe planen",
+    "analyzing_query": "Abfrage analysieren",
+    "searching_web": "Web durchsuchen",
+    "generating_answer": "Antwort generieren",
+    "reading_webpage": "Webseite lesen",
+    "system_step": "Systemschritt",
+    "tool_execution": "Tool-Ausführung",
+    "processing": "Verarbeitung",
+    "processing_failed": "Verarbeitung fehlgeschlagen",
+    "model_failover": "Zu Backup-Modell gewechselt",
+    "model_failover_rate_limit": "Ratenlimit erreicht, zu Backup-Modell gewechselt",
+    "model_failover_overloaded": "Dienst überlastet, zu Backup-Modell gewechselt",
+    "model_failover_timeout": "Dienst-Timeout, zu Backup-Modell gewechselt",
+    "model_failover_billing": "Abrechnungsproblem, zu Backup-Modell gewechselt",
+    "model_failover_context_overflow": "Kontext zu lang, zu Backup-Modell gewechselt",
+    "safety_fallback_active": "Sicherheitsfilter ausgelöst, isolierter Fallback aktiv",
+    "context_compaction": "Kontext komprimieren",
+    "context_compaction_active": "Kontext komprimieren",
+    "context_compaction_timeout": "Komprimierung abgelaufen, Fallback wird verwendet",
+    "context_compaction_circuit_open": "Komprimierung nicht verfügbar, Fallback wird verwendet",
+    "context_compaction_fallback": "Komprimierung beeinträchtigt, schneller Fallback wird verwendet",
+    "context_compaction_completed": "Kontext erfolgreich komprimiert",
+    "archive_checkpoint": "Archivzusammenfassung für späteren Abruf gespeichert",
+    "visionBackend": {
+      "vlm": "Vision-Modell",
+      "ocr": "OCR-Fallback",
+      "frame": "Frame-Extraktion",
+      "native_video": "Natives Video",
+      "geometry": "Pixelanalyse"
+    },
+    "turn_prewarm_agent": "Agentenausführungskontext vorbereiten",
+    "turn_prewarm_agent_clear": "Agent bereit",
+    "turn_prewarm_memory": "Speicher-Brief laden",
+    "turn_prewarm_memory_clear": "Speicherinitialisierung abgeschlossen",
+    "wiki_knowledge_lane": "Wiki-Wissensbasis abfragen",
+    "wiki_knowledge_lane_clear": "Wiki-Antwort bereit",
+    "consensus_active": "Multi-Modell-Konsens läuft",
+    "moa_overlay_active": "Berater-Overlay-Fan-out läuft",
+    "moa_ref_done": "Berater-Referenz abgeschlossen",
+    "subagent_running": "Subagent läuft",
+    "subagent_notification": "Subagent abgeschlossen",
+    "deep_research_start": "Tiefenrecherche starten",
+    "deep_research_planning": "Rechercheplan erstellen",
+    "deep_research_researching": "Recherchieren",
+    "deep_research_report": "Recherchebericht generieren",
+    "skill_select_tool_tool": "Fähigkeit auswählen",
+    "skill_search_tool_tool": "Fähigkeiten suchen",
+    "code_execution_tool_tool": "Code ausführen",
+    "answer_user_tool_tool": "Antwort vorbereiten"
+  }
+}

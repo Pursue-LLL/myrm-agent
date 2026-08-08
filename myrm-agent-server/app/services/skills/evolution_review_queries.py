@@ -60,6 +60,7 @@ async def create_evolution_review_record(
     reason_code: str | None = None,
     remediation: str | None = None,
     runtime_failure: RuntimeFailureEvidence | None = None,
+    eval_cases: list[dict[str, object]] | None = None,
     growth_status: EvolutionGrowthStatus = EvolutionGrowthStatus.PENDING_REVIEW,
     approval_status: str = "PENDING",
 ) -> EvolutionReviewRecord:
@@ -82,8 +83,10 @@ async def create_evolution_review_record(
         trajectory=trajectory,
         growth_status=growth_status,
         reason_code=reason_code or "manual_review",
-        remediation=remediation or "Review the diff and approve or reject the proposal.",
+        remediation=remediation
+        or "Review the diff and approve or reject the proposal.",
         runtime_failure=runtime_failure,
+        eval_cases=eval_cases or [],
     )
     record = await ApprovalRegistry.create_approval(
         agent_id=agent_id,
@@ -110,13 +113,19 @@ async def create_evolution_review_record(
                 "apply_status": payload.apply_status.value,
                 "reason_code": payload.reason_code,
                 "remediation": payload.remediation,
-                "runtime_failure": (runtime_failure.model_dump(mode="json") if runtime_failure is not None else None),
+                "runtime_failure": (
+                    runtime_failure.model_dump(mode="json")
+                    if runtime_failure is not None
+                    else None
+                ),
             },
         )
     )
     review_record = approval_to_evolution_review_record(record)
     if review_record is None:
-        raise RuntimeError(f"Failed to normalize evolution approval record: {record.id}")
+        raise RuntimeError(
+            f"Failed to normalize evolution approval record: {record.id}"
+        )
     return review_record
 
 

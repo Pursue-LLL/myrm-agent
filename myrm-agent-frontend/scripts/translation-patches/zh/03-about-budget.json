@@ -1,0 +1,89 @@
+{
+  "about": {
+    "title": "关于",
+    "slogan": "核心产品开源的强大、可扩展 AI 助手平台",
+    "version": "版本",
+    "introduction": {
+      "title": "项目介绍",
+      "description": "MyrmAgent 的核心产品（Server、Frontend、Desktop）以 MIT 协议开源。"
+    },
+    "features": {
+      "powerful": {
+        "title": "强大的 AI 能力",
+        "description": "支持多种大语言模型，集成 MCP 协议、技能体系与知识库，打造一站式 AI 助手"
+      },
+      "secure": { "title": "安全与隐私" },
+      "extensible": {
+        "title": "高度可扩展",
+        "description": "灵活的插件系统、自定义技能与 MCP 服务，轻松扩展 AI 能力"
+      },
+      "opensource": { "title": "核心产品开源" }
+    },
+    "changelog": {
+      "title": "更新日志",
+      "description": "查看 MyrmAgent 的最新更新与改进",
+      "v0_1_0": {
+        "item1": "首次公开发布",
+        "item2": "支持多模型服务、智能体、技能与知识库",
+        "item3": "集成 MCP 协议以扩展 AI 能力",
+        "item4": "现代化的 UI 设计，支持深色模式"
+      }
+    },
+    "techStack": {
+      "title": "技术栈",
+      "description": "MyrmAgent 基于现代化技术栈构建",
+      "frontend": "前端",
+      "backend": "后端",
+      "ai": "AI 技术"
+    },
+    "links": {
+      "title": "相关链接",
+      "description": "获取更多信息与支持",
+      "website": {
+        "title": "官方网站",
+        "description": "访问 MyrmAgent 官方网站"
+      },
+      "github": {
+        "title": "GitHub 仓库",
+        "description": "查看源代码、报告问题、贡献代码"
+      },
+      "documentation": {
+        "title": "文档",
+        "description": "查看详细使用指南与 API 文档"
+      },
+      "community": {
+        "title": "社区讨论",
+        "description": "加入社区，与开发者和用户交流"
+      }
+    },
+    "license": {
+      "title": "许可证与版权",
+      "type": "MIT 许可证（核心产品）",
+      "description": "本仓库中的 Server、Frontend 与 Desktop 均以 MIT 许可证发布。"
+    }
+  },
+  "budget": {
+    "title": "预算控制",
+    "description": "多维度支出限制，智能地在对话中途终止",
+    "save": "保存",
+    "todaySpend": "今日支出",
+    "sessionSpend": "会话支出",
+    "ecoModeHint": "已启用省电模式：优化上下文压缩以节省 Token",
+    "enableLabel": "启用预算控制",
+    "enableDesc": "对 LLM 支出进行多维度监控与限制",
+    "sessionLimit": "会话上限",
+    "sessionLimitDesc": "每次对话的最大支出（美元）",
+    "dailyLimit": "每日上限",
+    "dailyLimitDesc": "每天的最大支出（美元）",
+    "perCallLimit": "单次调用上限",
+    "perCallLimitDesc": "每次 LLM 调用的最大支出（美元）",
+    "warningThreshold": "预警阈值",
+    "warningThresholdDesc": "支出达到该百分比时发出提醒",
+    "actionOnExceeded": "超支处理方式",
+    "actionOnExceededDesc": "如何应对预算超支",
+    "actionFinalize": "优雅收尾",
+    "actionWarn": "仅提醒",
+    "actionBlock": "阻止请求",
+    "optional": "可选"
+  }
+}

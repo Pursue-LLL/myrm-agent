@@ -51,7 +51,7 @@ async def load_compactable_messages(db: AsyncSession, chat: Chat) -> list[Messag
 
 def db_messages_to_langchain(messages: list[Message]) -> list[BaseMessage]:
     """Convert DB Message records to LangChain message objects."""
-    from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+    from langchain_core.messages import AIMessage, HumanMessage
 
     lc_messages: list[BaseMessage] = []
     for msg in messages:

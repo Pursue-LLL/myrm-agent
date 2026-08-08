@@ -23,7 +23,7 @@ import useAuthStore from '@/store/useAuthStore';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { type EntitlementSnapshot } from '@/lib/cp-billing';
 import { useEntitlements } from '@/hooks/billing/useEntitlements';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, API_BASE_URL } from '@/lib/api';
 
 // Error types for better error handling
 const ERROR_TYPES = {

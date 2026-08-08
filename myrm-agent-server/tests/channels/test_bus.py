@@ -446,8 +446,9 @@ class TestMessageBusEdgeCases:
 
     @pytest.mark.asyncio
     async def test_send_tracked_stopped_channel_returns_none(self, tmp_path) -> None:
-        from app.channels.types import ChannelStatus
         from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+        from app.channels.types import ChannelStatus
 
         bus = MessageBus(dlq_dir=tmp_path)
         ch = FakeChannel()
@@ -877,8 +878,9 @@ class TestCpEgressDispatch:
 
     @pytest.mark.asyncio
     async def test_dispatch_stopped_channel_retains_disk(self, tmp_path) -> None:
-        from app.channels.types import ChannelStatus
         from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
+
+        from app.channels.types import ChannelStatus
 
         bus = MessageBus(dlq_dir=tmp_path)
         ch = FakeChannel()

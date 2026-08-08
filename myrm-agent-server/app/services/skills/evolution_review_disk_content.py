@@ -44,7 +44,11 @@ async def apply_content_update(
     old_skill_id = payload.skill_id
     final_scope_agent_id = None
 
-    if existing and existing.environment and "scope_agent_id" in existing.environment.custom_tags:
+    if (
+        existing
+        and existing.environment
+        and "scope_agent_id" in existing.environment.custom_tags
+    ):
         owner_id = existing.environment.custom_tags["scope_agent_id"]
         if agent_id and owner_id != agent_id:
             is_fork = True
@@ -58,7 +62,11 @@ async def apply_content_update(
             final_scope_agent_id = agent_id
         else:
             final_scope_agent_id = owner_id
-    elif payload.evolution_type in (EvolutionType.CAPTURED.value, EvolutionType.SLICE_EXTRACTION.value) and agent_id:
+    elif (
+        payload.evolution_type
+        in (EvolutionType.CAPTURED.value, EvolutionType.SLICE_EXTRACTION.value)
+        and agent_id
+    ):
         final_scope_agent_id = agent_id
 
     content_to_write = payload.evolved_content
@@ -69,7 +77,13 @@ async def apply_content_update(
             fm = re.sub(r"(?m)^scope_agent_id:\s*.*$", "", fm)
             return f"---\n{fm.strip()}\nscope_agent_id: {final_scope_agent_id}\n---"
 
-        content_to_write = re.sub(r"^---\s*\n(.*?)\n---", _inject_scope, content_to_write, count=1, flags=re.DOTALL)
+        content_to_write = re.sub(
+            r"^---\s*\n(.*?)\n---",
+            _inject_scope,
+            content_to_write,
+            count=1,
+            flags=re.DOTALL,
+        )
 
     skill_path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_evolve_")
@@ -95,10 +109,14 @@ async def apply_content_update(
         skill_record.content = payload.evolved_content
         skill_record.lineage = lineage
         skill_record.is_active = True
+        if payload.eval_cases:
+            skill_record.eval_cases = payload.eval_cases
         if final_scope_agent_id:
             if skill_record.environment is None:
                 skill_record.environment = EnvironmentFingerprint()
-            skill_record.environment.custom_tags["scope_agent_id"] = final_scope_agent_id
+            skill_record.environment.custom_tags["scope_agent_id"] = (
+                final_scope_agent_id
+            )
     else:
         env = EnvironmentFingerprint()
         if final_scope_agent_id:
@@ -113,13 +131,18 @@ async def apply_content_update(
             lineage=lineage,
             is_active=True,
             environment=env,
+            eval_cases=payload.eval_cases,
         )
 
     await store.save_skill(skill_record)
 
     try:
-        from app.services.skill_optimization.bootstrap import get_skill_optimization_storage as get_storage
-        from app.services.skill_optimization.skill_version_sync import persist_skill_version
+        from app.services.skill_optimization.bootstrap import (
+            get_skill_optimization_storage as get_storage,
+        )
+        from app.services.skill_optimization.skill_version_sync import (
+            persist_skill_version,
+        )
 
         opt_storage = get_storage()
         await persist_skill_version(
@@ -146,32 +169,51 @@ async def apply_content_update(
             async with get_session() as db:
                 agent = await db.get(Agent, agent_id)
                 if agent:
-                    if agent.mounted_skill_ids and old_skill_id in agent.mounted_skill_ids:
-                        new_mounted = [x for x in agent.mounted_skill_ids if x != old_skill_id]
+                    if (
+                        agent.mounted_skill_ids
+                        and old_skill_id in agent.mounted_skill_ids
+                    ):
+                        new_mounted = [
+                            x for x in agent.mounted_skill_ids if x != old_skill_id
+                        ]
                         agent.mounted_skill_ids = new_mounted
                         new_skill_ids = list(agent.skill_ids) if agent.skill_ids else []
                         if payload.skill_id not in new_skill_ids:
                             new_skill_ids.append(payload.skill_id)
                         agent.skill_ids = new_skill_ids
                     elif agent.skill_ids and old_skill_id in agent.skill_ids:
-                        agent.skill_ids = [x if x != old_skill_id else payload.skill_id for x in agent.skill_ids]
+                        agent.skill_ids = [
+                            x if x != old_skill_id else payload.skill_id
+                            for x in agent.skill_ids
+                        ]
 
                     flag_modified(agent, "mounted_skill_ids")
                     flag_modified(agent, "skill_ids")
                     await db.commit()
         except Exception as exc:
-            logger.error("Failed to update agent skill bindings during Copy-on-Write forking: %s", exc)
+            logger.error(
+                "Failed to update agent skill bindings during Copy-on-Write forking: %s",
+                exc,
+            )
 
 
-async def rollback_content_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
+async def rollback_content_update(
+    payload: EvolutionApprovalPayload, store: SkillStore
+) -> None:
     skill_path = Path(payload.skill_path)
 
-    if payload.evolution_type == EvolutionType.DERIVED.value or not payload.original_content:
+    if (
+        payload.evolution_type == EvolutionType.DERIVED.value
+        or not payload.original_content
+    ):
         fork_skill = store.get_skill(payload.skill_id)
         owner_id = None
         parent_id = None
         if fork_skill:
-            if fork_skill.environment and "scope_agent_id" in fork_skill.environment.custom_tags:
+            if (
+                fork_skill.environment
+                and "scope_agent_id" in fork_skill.environment.custom_tags
+            ):
                 owner_id = fork_skill.environment.custom_tags["scope_agent_id"]
             if fork_skill.lineage:
                 parent_id = fork_skill.lineage.parent_id
@@ -181,7 +223,10 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
                 if skill_path.parent.name not in ["workspace", "skills", ""]:
                     shutil.rmtree(skill_path.parent, ignore_errors=True)
                 else:
-                    logger.warning("Skipping rmtree on unsafe path during rollback: %s", skill_path.parent)
+                    logger.warning(
+                        "Skipping rmtree on unsafe path during rollback: %s",
+                        skill_path.parent,
+                    )
             else:
                 os.remove(skill_path)
         try:
@@ -204,8 +249,14 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
 
                         parent_skill = store.get_skill(parent_id)
                         parent_owner_id = None
-                        if parent_skill and parent_skill.environment and "scope_agent_id" in parent_skill.environment.custom_tags:
-                            parent_owner_id = parent_skill.environment.custom_tags["scope_agent_id"]
+                        if (
+                            parent_skill
+                            and parent_skill.environment
+                            and "scope_agent_id" in parent_skill.environment.custom_tags
+                        ):
+                            parent_owner_id = parent_skill.environment.custom_tags[
+                                "scope_agent_id"
+                            ]
 
                         if parent_owner_id and parent_owner_id != owner_id:
                             if parent_id not in mounted_ids:
@@ -218,12 +269,17 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
 
                     if update_needed:
                         await agent_service.update_agent(
-                            owner_id, AgentUpdate(mounted_skill_ids=mounted_ids, skill_ids=skill_ids)
+                            owner_id,
+                            AgentUpdate(
+                                mounted_skill_ids=mounted_ids, skill_ids=skill_ids
+                            ),
                         )
             except Exception as exc:
                 logger.error("Failed to restore parent mount during rollback: %s", exc)
     else:
-        fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_rollback_")
+        fd, temp_path = tempfile.mkstemp(
+            dir=skill_path.parent, prefix="skill_rollback_"
+        )
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
                 file_obj.write(payload.original_content)

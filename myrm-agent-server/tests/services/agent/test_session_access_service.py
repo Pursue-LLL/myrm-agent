@@ -6,7 +6,6 @@ import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.session_access import (
     get_session_access_roots,

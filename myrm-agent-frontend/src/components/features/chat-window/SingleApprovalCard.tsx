@@ -22,6 +22,7 @@ import { Progress } from '@/components/primitives/progress';
 import { Textarea } from '@/components/primitives/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
 import type { ToolApprovalRequest } from '@/store/chat/types';
+import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import EditModeView from './approval/EditModeView';
 import RejectModeView from './approval/RejectModeView';
 import HandoverModeView from './approval/HandoverModeView';
@@ -56,12 +57,7 @@ interface SingleApprovalCardProps {
   onResolve: (
     requestId: string,
     decision: DecisionType,
-    extra?: {
-      edited_args?: Record<string, unknown>;
-      feedback?: string;
-      allow_always?: boolean | { tool?: boolean; args?: boolean };
-      allow_domain?: boolean;
-    },
+    extra?: ToolApprovalResolveExtra,
   ) => Promise<void>;
   isLoading: boolean;
   hideVisualHighlight?: boolean;

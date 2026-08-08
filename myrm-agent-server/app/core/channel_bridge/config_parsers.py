@@ -538,7 +538,6 @@ def _resolve_video_fallback_primary_config(
     from app.core.channel_bridge.model_resolver import (
         enrich_model_capabilities,
         enrich_model_context_window,
-        _lookup_custom_model_info,
     )
 
     cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
@@ -547,7 +546,6 @@ def _resolve_video_fallback_primary_config(
         providers_dict,
         selection_supports_vision=True,
     )
-    custom = _lookup_custom_model_info(cfg.model, providers_dict)
     cfg = cfg.model_copy(update={"supports_video": _infer_supports_video(cfg.model, providers_dict)})
     return enrich_model_context_window(cfg, providers_dict)
 

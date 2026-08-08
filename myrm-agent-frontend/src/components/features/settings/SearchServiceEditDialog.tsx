@@ -379,7 +379,11 @@ const SearchServiceEditDialog = memo(
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                setErrors((prev) => ({ ...prev, name: undefined }));
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.name;
+                  return next;
+                });
               }}
               error={errors.name}
             />
@@ -488,7 +492,11 @@ const SearchServiceEditDialog = memo(
                   value={String(priority)}
                   onChange={(value) => {
                     setPriority(Number(value));
-                    setErrors((prev) => ({ ...prev, priority: undefined }));
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.priority;
+                      return next;
+                    });
                   }}
                   hideDescription
                   options={priorityOptions}

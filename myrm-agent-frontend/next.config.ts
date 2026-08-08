@@ -62,8 +62,9 @@ const sharedRoot = path.join(monorepoRoot, 'shared');
 const nextConfig: NextConfig = {
   distDir: process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next',
   // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
-  cacheComponents: true,
-  partialPrefetching: true,
+  // NOTE(LSSS debug): cacheComponents/partialPrefetching temporarily disabled to isolate hydration hang.
+  cacheComponents: false,
+  partialPrefetching: false,
 
   outputFileTracingRoot: monorepoRoot,
   outputFileTracingIncludes: {

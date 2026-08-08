@@ -74,7 +74,7 @@ async def _execute_benchmarks() -> None:
                 fix_suggestion="Check network or API provider.",
             )
             reports.append(report)
-        except Exception as e:
+        except Exception:
             report = HealthReport(
                 component_name=hook_name,
                 status="fail",

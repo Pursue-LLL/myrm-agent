@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 
-
 WAIT_CHAT_IDLE_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ok: false, err: 'no-bridge' };

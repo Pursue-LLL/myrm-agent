@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { TauriConfigAdapter } from '@/services/config/adapters/TauriAdapter';
-import type { ConfigChange } from '@/services/config/types';
+import { DEFAULT_PERSONAL_SETTINGS, type ConfigChange } from '@/services/config/types';
 
 vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => '/api/v1',
@@ -41,7 +41,7 @@ describe('TauriConfigAdapter backend unavailable', () => {
     const changes: ConfigChange[] = [
       {
         key: 'personalSettings',
-        value: { systemInstructions: 'test' },
+        value: { ...DEFAULT_PERSONAL_SETTINGS, systemInstructions: 'test' },
         expectedVersion: '0_0',
         timestamp: Date.now(),
       },

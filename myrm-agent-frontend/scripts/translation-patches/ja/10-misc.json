@@ -1,0 +1,457 @@
+{
+  "projects": {
+    "memorySpaces": {
+      "title": "メモリスペース",
+      "desc": "このプロジェクトにバインドされた共有メモリコンテキストを表示",
+      "statLabel": "スペース"
+    }
+  },
+  "artifacts": {
+    "spreadsheet": {
+      "draftRecovered": "未保存の草稿を復元しました。以前の編集内容が復元されています。",
+      "discardDraft": "草稿を破棄",
+      "fidelityWarning": "このファイルには、編集後に完全に保持されない可能性のある {features} が含まれています。保存前にバックアップをダウンロードしてください。",
+      "charts": "チャート",
+      "macros": "マクロ",
+      "pivotTables": "ピボットテーブル",
+      "images": "画像"
+    },
+    "wechatDraft": {
+      "openPanel": "WeChat下書きに送信",
+      "titleLabel": "記事タイトル",
+      "titlePlaceholder": "下書きタイトルを入力",
+      "coverLabel": "カバー画像（任意）",
+      "coverPlaceholder": "カバー画像へのワークスペースパス",
+      "coverHint": "パネルを開くと記事の最初のローカル画像が自動入力されます。パスを編集するか、ワークスペース画像を検索するか、サーバーがHTMLからカバーを選べる場合は空のままにします。",
+      "coverSuggestLoading": "ワークスペース画像を検索中…",
+      "coverSuggestEmpty": "ワークスペースに一致する画像ファイルがありません",
+      "confirm": "下書きボックスに送信",
+      "pushing": "送信中…",
+      "success": "WeChat下書きボックスに保存しました。mp.weixin.qq.com を開いてプレビュー・公開してください。",
+      "failed": "下書きの送信に失敗しました",
+      "credentialsMissing": "先に設定でWeChat公式アカウントの資格情報を設定してください",
+      "pathMissing": "下書きを送信するにはローカルファイルパスが必要です"
+    },
+    "organizePlan": {
+      "openPanel": "整理プランをレビュー",
+      "hint": "対象: {scope} · {count} 件の移動",
+      "colFrom": "移動元",
+      "colTo": "移動先",
+      "colReason": "理由",
+      "removeRow": "削除",
+      "preview": "検証",
+      "apply": "移動を適用",
+      "rollback": "最後のジョブをロールバック",
+      "previewOk": "プランを検証しました（{count} 件の移動）",
+      "applyOk": "{count} 件の移動を適用しました。必要に応じてロールバックを使用してください。",
+      "rollbackOk": "{count} 件の移動をロールバックしました",
+      "rollbackPartial": "部分的なロールバック（{count} 件の移動を復元）。一部のファイルは新しい場所にある可能性があります — ファイルツリーを確認してください。",
+      "undoHint": "ファイル移動は上記の「整理ロールバック」で行います。チャットのターン元に戻すではありません。",
+      "validateFailed": "プランの検証に失敗しました",
+      "applyFailed": "プランの適用に失敗しました",
+      "rollbackFailed": "ロールバックに失敗しました",
+      "noJob": "ロールバック可能なジョブがありません",
+      "workspaceMissing": "ワークスペースパスを利用できません",
+      "invalidPlan": "無効な整理プランJSONです"
+    },
+    "sideBySide": "並べて表示",
+    "overlay": "オーバーレイ",
+    "diff": {
+      "label": "差分",
+      "inline": "インライン",
+      "sideBySide": "並べて表示",
+      "noVersions": "差分を比較するには少なくとも2つのバージョンが必要です"
+    }
+  },
+  "cron": {
+    "createWorkflowTemplateLabel": "ワークフローテンプレート",
+    "createWorkflowTemplateNone": "なし — 自然言語のみ",
+    "createWorkflowTemplateHint": "スケジュールで信頼済みのDynamic Workflowテンプレートを実行（信頼済みテンプレートのみ）。上記のプロンプトをタスククエリとして使用します。",
+    "workflowTemplateDetailTitle": "ワークフローテンプレート",
+    "workflowTemplateArgsLabel": "テンプレート引数",
+    "workflowTemplateOpenLibrary": "ライブラリで開く",
+    "workflowTemplateTooltip": "Dynamic Workflowテンプレート: {template}",
+    "workflowTemplateTooltipWithArgs": "テンプレート {template} · {args}",
+    "workflowTemplateEditorTitle": "ワークフローテンプレート",
+    "workflowTemplateEditorHint": "信頼済みテンプレートのみ。保存すると次のスケジュール実行が更新されます。",
+    "workflowTemplateEditorSave": "テンプレートバインドを保存",
+    "workflowTemplateEditArgs": "引数を編集",
+    "workflowTemplateUpdated": "ワークフローテンプレートのバインドを更新しました",
+    "workflowTemplateMissingWarning": "このテンプレートはライブラリで利用できなくなりました。バインドを解除するか別の信頼済みテンプレートを選択するまで、スケジュール実行は失敗します。",
+    "workflowTemplateUnbind": "テンプレートのバインドを解除",
+    "workflowTemplateLoadFailed": "ワークフローテンプレートの読み込みに失敗しました。",
+    "workflowTemplateRetryLoad": "再試行",
+    "workflowTemplateUnavailable": "ワークフローテンプレートのバインドを利用できません。ジョブを開いてバインドを解除するか別のテンプレートを選択してください。",
+    "acceptanceCriteria": "受け入れ基準",
+    "acceptanceCriteriaHint": "任意 — 自動検証用の測定可能な成功基準を定義",
+    "acceptanceCriteriaUpdated": "受け入れ基準を更新しました",
+    "criterionSemantic": "意味",
+    "criterionShell": "シェル",
+    "criterionSemanticPlaceholder": "例: 出力にサマリーセクションが含まれる必要があります",
+    "criterionShellPlaceholder": "例: test -f /tmp/report.json",
+    "addCriterion": "基準を追加",
+    "auditDone": "完了",
+    "auditDoneHint": "閉じる前にタスクを確認して再開してください",
+    "auditPauseFail": "タスクは作成されましたが、レビュー用に一時停止できませんでした。後でジョブ詳細から確認してください。",
+    "audit": {
+      "title": "事前監査",
+      "subtitle": "この自動化がスケジュールで実行される前に何をするか確認してください。",
+      "subtitleAck": "この自動化が行うことを確認してください。読んだら確認してください。",
+      "loading": "監査詳細を読み込み中…",
+      "loadFailed": "タスク詳細を読み込めませんでした",
+      "confirmed": "確認済み",
+      "pendingConfirm": "確認が必要",
+      "confirm": "問題ない",
+      "confirmAndResume": "確認して再開",
+      "openSettings": "設定で開く",
+      "pauseTask": "タスクを一時停止",
+      "pauseSuccess": "タスクを一時停止しました",
+      "pauseFail": "タスクの一時停止に失敗しました",
+      "resumeFail": "タスクの再開に失敗しました",
+      "pausedHint": "確認して再開するまで、このタスクは一時停止されたままです。",
+      "fields": {
+        "taskName": "タスク名",
+        "scheduleTz": "スケジュールとタイムゾーン",
+        "skillsInvoked": "スキル / ツール",
+        "inputSources": "入力ソース",
+        "outputDestinations": "出力先",
+        "failureRecords": "失敗の記録"
+      }
+    }
+  },
+  "channels": {
+    "wechatOfficialTitle": "WeChat公式アカウント",
+    "wechatOfficialDesc": "記事の下書き公開用に認証済みサービスアカウントの資格情報を設定します。",
+    "wechatOfficialIpWhitelistHint": "このサーバーのパブリックIPを公式アカウントのIPホワイトリストに追加してください（mp.weixin.qq.com → 設定 → 開発 → 基本設定）。ホワイトリストにない場合APIエラー40164が発生します。",
+    "wechatOfficialAppId": "App ID",
+    "wechatOfficialAppSecret": "App Secret",
+    "wechatOfficialToken": "トークン",
+    "wechatOfficialTokenHint": "コールバックURLの検証に使用（下書きには任意）",
+    "wechatOfficialEncodingAesKey": "エンコーディングAESキー",
+    "wechatOfficialEncodingAesKeyHint": "メッセージ暗号化に使用（下書きには任意）",
+    "wechatOfficialSave": "保存",
+    "wechatOfficialSaved": "WeChat公式の設定を保存しました",
+    "wechatOfficialSaveError": "WeChat公式の設定の保存に失敗しました",
+    "wechatOfficialTestConnection": "接続テスト",
+    "wechatOfficialTestSuccess": "WeChat公式APIに接続しました",
+    "wechatOfficialTestFailed": "WeChat公式APIの接続に失敗しました",
+    "wechatOfficialCredentialsRequired": "先にApp IDとApp Secretを入力してください",
+    "credentialGuideWechatOfficial": "WeChat公式アカウントプラットフォームからAppIDとAppSecretを取得します"
+  },
+  "voice": {
+    "localSttUnavailableTitle": "ローカルのWhisper STTを利用できません",
+    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。"
+  },
+  "toolApproval": {
+    "mcpElicitationTitle": "MCPサーバーの確認",
+    "mcpElicitationServer": "サーバー"
+  },
+  "companion": {
+    "gallery": {
+      "installedTitle": "インストール済み",
+      "manifestOffline": "カタログを現在利用できません。下のインストール済みペットは引き続き動作します。",
+      "uninstall": "削除",
+      "uninstallConfirm": "このペットをデバイスから削除しますか？カタログから再度インストールできます。",
+      "uninstallError": "ペットの削除に失敗しました",
+      "cancel": "キャンセル",
+      "companionGateError": "コンパニオン機能は現在無効です。設定 → 開発者 で再度有効にしてください。",
+      "officialBadge": "公式",
+      "viewOnPetdex": "Petdexで表示",
+      "formatCodexStandard": "形式: Codex標準",
+      "formatLegacyStandard": "形式: レガシー標準",
+      "formatNonStandard": "形式: 非標準",
+      "formatInvalid": "形式: 無効"
+    },
+    "doctor": {
+      "title": "スプライト健全性チェック",
+      "ready": "準備完了",
+      "issues": "{count} 件の問題",
+      "runHint": "タップして診断",
+      "loading": "チェック中…",
+      "fix": "修正",
+      "refresh": "更新",
+      "rescan": "アトラスを再検証",
+      "openFromSprite": "健全性チェック",
+      "checks": {
+        "spriteEnabledPass": "スプライトオーバーレイはUIで有効です。",
+        "spriteEnabledFail": "スプライトオーバーレイはUIで無効です。"
+      },
+      "serverChecks": {
+        "feature_gate_companion_mode": {
+          "pass": "コンパニオン機能は有効です。",
+          "fail": "コンパニオン機能は無効です。"
+        },
+        "config_sprite_slug": {
+          "pass": "アクティブなペットは「{slug}」に設定されています。",
+          "fail": "コンパニオン設定でアクティブなペットが選択されていません。"
+        },
+        "disk_installed_pets": {
+          "pass": "このデバイスに {count} 体のペットがインストールされています。",
+          "fail": "このデバイスにペットがインストールされていません。"
+        },
+        "disk_active_pet_files": {
+          "pass": "「{slug}」のスプライトシートファイルが存在します。",
+          "fail": "アクティブなペットのスプライトシートファイルが存在しないか未インストールです。"
+        },
+        "atlas_format": {
+          "pass": "スプライトシートはサポートされているCodexまたはレガシーアトラスに一致します。",
+          "warn": "アトラス形式は非標準ですが描画される可能性があります。スプライトがおかしい場合は再インストールまたは再検証してください。",
+          "fail": "スプライトシートのアトラス形式が無効です。"
+        },
+        "config_sha256_match": {
+          "pass": "設定されたチェックサムがディスク上のスプライトシートと一致します。",
+          "warn": "設定されたチェックサムがディスク上のスプライトシートと一致しません。ギャラリーでペットを選択し直してください。"
+        },
+        "serve_file_readable": {
+          "pass": "スプライトシートファイルはローカル配信で読み取り可能です。",
+          "fail": "スプライトシートファイルをディスクから読み取れません。"
+        }
+      }
+    },
+    "sprite": {
+      "popOut": "デスクトップにポップアウト",
+      "popIn": "ウィンドウに戻す",
+      "composerPlaceholder": "メッセージ…",
+      "composerSend": "送信",
+      "mailOpen": "チャットを開く",
+      "bubble": {
+        "run0": "やります…",
+        "run1": "作業中…",
+        "run2": "計算中…",
+        "review0": "確認中…",
+        "review1": "レビュー中…",
+        "review2": "チェック中…",
+        "failed0": "問題が発生しました",
+        "failed1": "何かが壊れました",
+        "wait0": "あなたが必要です",
+        "wait1": "待っています",
+        "wait2": "あなたの番です"
+      }
+    },
+    "palette": {
+      "title": "ペットパレット",
+      "hint": "チャットでいつでも /pet と入力できます。下からペットを選んでインストール・切り替えてください。"
+    }
+  },
+  "messageActions": {
+    "revertFilesWithCount": "{count} 件のファイル変更を元に戻す",
+    "revertFilesBadgeAria": "元に戻すファイル変更 {count} 件"
+  },
+  "evalLab": {
+    "tabs": {
+      "matrix": "マトリックス比較"
+    },
+    "benchmarkMode": "ベンチマークモード",
+    "matrixMode": "マトリックス",
+    "runMatrix": "マトリックス評価",
+    "matrixEvalStarted": "マトリックス評価を開始しました",
+    "matrix": {
+      "running": "マトリックス評価を実行中",
+      "profileProgress": "プロファイル",
+      "caseProgress": "ケース",
+      "noReport": "マトリックスレポートはまだありません。プロファイルを2つ以上選択して実行してください。",
+      "totalCases": "総ケース数",
+      "stableRate": "安定率",
+      "regressionCount": "回帰",
+      "totalTime": "総時間",
+      "profile": "プロファイル",
+      "passRate": "合格率",
+      "passed": "合格",
+      "failed": "失敗",
+      "tokens": "トークン",
+      "cost": "コスト",
+      "time": "時間",
+      "matrixDetail": "ケース × プロファイル マトリックス",
+      "case": "ケース",
+      "legend": {
+        "stable": "安定",
+        "regression": "回帰",
+        "allFailed": "すべて失敗"
+      }
+    }
+  },
+  "backgroundTasks": {
+    "media": {
+      "section": "メディア生成",
+      "imageGenerate": "画像",
+      "videoGenerate": "動画",
+      "pending": "待機中",
+      "queued": "キュー済み",
+      "running": "生成中",
+      "succeeded": "完了",
+      "failed": "失敗",
+      "recentSection": "最近",
+      "showRecent": "表示",
+      "hideRecent": "隠す",
+      "cancel": "キャンセル",
+      "navigate": "チャットへ移動",
+      "untitledPrompt": "無題の生成",
+      "completedTitle": "{type} が完了しました",
+      "failedTitle": "{type} が失敗しました",
+      "unknownError": "不明なエラー"
+    }
+  },
+  "taskCard": {
+    "failedTitle": "タスクに失敗しました",
+    "retryTask": "タスクを再試行",
+    "retrying": "再試行中…",
+    "cancelled": "タスクをキャンセルしました",
+    "videoCompletedFallback": "動画が完了しました。アーティファクトパネルを開いて出力を確認してください。",
+    "videoUnsupported": "お使いのブラウザは動画再生をサポートしていません。",
+    "alternateLabel": "代替 {index}",
+    "providerLabel": "プロバイダー",
+    "modelLabel": "モデル",
+    "latencyLabel": "レイテンシ",
+    "backgroundHint": "このチャットを離れて構いません — 完了したら通知します。",
+    "queued": "キュー中…",
+    "generatingProgress": "生成中… {percent}%"
+  },
+  "boot": {
+    "onboarding": {
+      "migrationCloudTitle": "別のアシスタントからインポート",
+      "migrationCloudDescription": "エクスポートパッケージをアップロードして、メモリとワークスペース設定をクラウドサンドボックスに移行します。",
+      "syncFolder": {
+        "pageTitle": "ノートフォルダをリンク",
+        "pageDescription": "任意: Obsidian、Typora、または同期済みドキュメントフォルダをアシスタントに指定します。",
+        "hint": "ファイルはデバイス上に残ります。アシスタントはファイルをその場で編集します — 別のデータベースへのインポートはありません。",
+        "chooseFolder": "フォルダを選択",
+        "preparing": "準備中…",
+        "skip": "後でスキップ",
+        "defaultProjectName": "マイファイル"
+      },
+      "smartGuard": {
+        "pageTitle": "スマートセキュリティガード",
+        "pageDescription": "低リスクのアクションは自動承認、危険なアクションはブロック — 中断を減らし、妥協なし。",
+        "title": "Smart Intent Guard",
+        "description": "軽量LLMが各ツールアクションを実行前にレビューします。安全なアクションは即座に進み、リスクのあるものは明示的な承認が必要です。",
+        "modelLabel": "レビューモデル",
+        "modelPlaceholder": "セキュリティレビュー用のモデルを選択",
+        "costHint": "軽量モデルを推奨 — 各レビューは最小限のトークンを使用します。",
+        "skip": "スキップ",
+        "enable": "スマートガードを有効化"
+      },
+      "telegramAssistant": {
+        "pageTitle": "Telegramアシスタントを接続",
+        "pageDescription": "ガイド付きの1ステップで個人用Telegramアシスタントを設定します。",
+        "title": "Telegram個人アシスタント",
+        "description": "ボットトークンを接続し、アシスタントプロフィールを設定して、追加設定なしでスマホからチャットを始められます。",
+        "safetyHint": "接続検証とロールバック保護を含みます",
+        "tokenLabel": "Telegramボットトークン",
+        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        "showToken": "トークンを表示",
+        "hideToken": "トークンを隠す",
+        "tokenRequired": "Telegramボットトークンが必要です。",
+        "webhookLabel": "Webhook URL（任意）",
+        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
+        "webhookHint": "空のままにするとポーリングモードを使用します。Webhook URLを指定する場合はHTTPSを使用してください。",
+        "webhookHttpsRequired": "Webhook URLは https:// で始まる必要があります",
+        "assistantNameLabel": "アシスタント名",
+        "assistantDescriptionLabel": "アシスタントの説明（任意）",
+        "assistantDescriptionPlaceholder": "例: あなたの毎日のプランナー兼実行コパイロット",
+        "defaultAssistantName": "個人用Telegramアシスタント",
+        "setupButton": "Telegramアシスタントを設定",
+        "retryButton": "接続を再試行",
+        "continueButton": "今は続行",
+        "skipButton": "後でスキップ",
+        "pendingTitle": "Telegramは設定済み、接続はウォームアップ中",
+        "pendingDescription": "{botUsername} が到達可能になるまで数秒かかる場合があります。今すぐ続行するか、接続チェックを再試行してください。",
+        "pendingToast": "設定を保存しました。Telegram接続はまだ初期化中です。",
+        "retryingToast": "別のセットアップリクエストが完了中です。今すぐ再試行します…",
+        "inProgressFriendlyError": "セットアップはまだ進行中です。数秒待ってからもう一度お試しください。",
+        "setupFailed": "Telegramアシスタントのセットアップに失敗しました。",
+        "setupFailedToast": "Telegramのセットアップに失敗しました。資格情報を確認して再試行してください。",
+        "successToast": "Telegramアシスタントの準備ができました: {agentName}"
+      },
+      "toolsConnect": {
+        "pageTitle": "日常のツールを接続",
+        "pageDescription": "毎日使うサービスにアシスタントがアクセスできるようにします。設定から後でいつでも追加できます。",
+        "connected": "接続済み",
+        "connectButton": "接続",
+        "moreHint": "設定 → 統合 に30以上の統合があります",
+        "continueButton": "続行",
+        "skipButton": "後でスキップ"
+      },
+      "themePick": {
+        "pageTitle": "ワークスペースの見た目を選択",
+        "pageDescription": "チャット、カンバン、設定の開始テーマを選びます。外観設定でいつでもカスタマイズできます。",
+        "continueButton": "続行",
+        "skipButton": "デフォルトを維持"
+      }
+    }
+  },
+  "flowPad": {
+    "inlineRouteTemplateSectionTitle": "専門家を呼び出す",
+    "inlineRouteTemplateSearchPlaceholder": "専門家テンプレートを検索…",
+    "inlineRouteTemplateLoading": "専門家テンプレートを読み込み中…",
+    "inlineRouteTemplateRetry": "テンプレートの読み込みに失敗しました。クリックして再試行",
+    "inlineRouteTemplateNoResults": "一致する専門家テンプレートがありません",
+    "inlineRouteTemplateEmpty": "利用可能な専門家テンプレートはありません",
+    "inlineRouteTemplateApplyFailed": "専門家テンプレートの呼び出しに失敗しました"
+  },
+  "project": {
+    "workspaceMount": {
+      "title": "フォルダをリンク",
+      "emptyHint": "ノートやドキュメントのフォルダを選択してください。アシスタントはそのファイルを直接読み書きします。",
+      "chooseFolder": "フォルダを選択",
+      "clear": "リンク解除",
+      "close": "閉じる",
+      "updated": "フォルダをリンクしました",
+      "cleared": "フォルダのリンクを解除しました",
+      "invalidPath": "このフォルダをリンクできませんでした",
+      "pickFolderTitle": "{name} のフォルダを選択",
+      "pathPlaceholder": "パスを入力…",
+      "selectThis": "このフォルダを使用",
+      "browseTrigger": "フォルダを参照",
+      "recent": "最近",
+      "filter": "フィルタ…",
+      "noSubdirs": "サブフォルダがありません"
+    }
+  },
+  "milestone": {
+    "importAction": "評価アーティファクトをインポート",
+    "importing": "インポート中…",
+    "importPlaceholder": "アーティファクトID",
+    "importArtifactRequired": "アーティファクトIDが必要です",
+    "importSuccess": "{milestones} 件のマイルストーンと {tasks} 件のタスクをインポートしました",
+    "importFailed": "評価アーティファクトのインポートに失敗しました",
+    "importReceipt": "最終インポート: {milestones} マイルストーン / {tasks} タスク",
+    "importDuplicate": "このアーティファクトバージョンはこのプロジェクトに既にインポートされています",
+    "importNoActionable": "アーティファクトのチェックリストに実行可能なタスクがありませんでした",
+    "importNoTasks": "このアーティファクトにインポート可能なチェックリスト項目が見つかりませんでした",
+    "importArtifactNotFound": "アーティファクトが見つかりません",
+    "importProjectNotFound": "プロジェクトが見つかりません",
+    "importRecentLabel": "最近のアーティファクト（クリックしてインポート）",
+    "importRecentEmpty": "利用可能な最近のアーティファクトはありません",
+    "importRecentLoadFailed": "最近のアーティファクトを読み込めませんでした",
+    "importValueHint": "過去 {days} 日: インポートタスク完了 {completed}/{total}（{rate}%）",
+    "importValueEmpty": "過去 {days} 日: インポートされたタスクはまだありません"
+  },
+  "mobileHub": {
+    "newTask": "新しいタスク",
+    "newTaskCollapse": "キャンセル",
+    "selectAgent": "エージェント",
+    "selectProject": "プロジェクト（任意）",
+    "noProject": "なし",
+    "taskDescription": "エージェントに何をさせますか？",
+    "taskPlaceholder": "例: 競合他社を調査してサマリーレポートを作成",
+    "submit": "タスクを開始",
+    "submitting": "開始中…",
+    "spawnFailed": "タスクの作成に失敗しました。",
+    "loadOptionsFailed": "オプションの読み込みに失敗しました。"
+  },
+  "memoryRecallDegraded": {
+    "title": "意味記憶を利用できません",
+    "description": "ベクトル検索が低下しています。埋め込みが復元されるまで、返信が関連メモリを見逃す可能性があります。",
+    "actionDoctor": "メモリドクターを開く",
+    "actionSettings": "メモリ設定",
+    "unavailable": "メモリ検索の健全性を確認できませんでした",
+    "retry": "再試行",
+    "dismiss": "このチャットでは閉じる"
+  },
+  "MarkdownTable": {
+    "switchToTable": "テーブル表示に切り替え",
+    "switchToCard": "カード表示に切り替え",
+    "tableView": "テーブル",
+    "cardView": "カード"
+  }
+}

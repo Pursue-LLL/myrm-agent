@@ -118,7 +118,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
     }
 
     let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let timeoutId: number | undefined;
 
     const scheduleRecoveryCheck = () => {
       timeoutId = window.setTimeout(() => {

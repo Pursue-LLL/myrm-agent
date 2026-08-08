@@ -139,6 +139,9 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "security_dashboard": _RouterMount("app.api.security.router", tags=("security",)),
     "security_generate": _RouterMount("app.api.security.generate", tags=("security",)),
     "security_profiles": _RouterMount("app.api.security.profiles", tags=("security",)),
+    "security_managed_policy": _RouterMount(
+        "app.api.security.managed_policy", tags=("security",)
+    ),
     "vault": _RouterMount(
         "app.api.security.vault", prefix="/security", tags=("security",)
     ),
@@ -242,6 +245,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "security_dashboard",
         "security_generate",
         "security_profiles",
+        "security_managed_policy",
         "vault",
         "vault_credentials",
     ),

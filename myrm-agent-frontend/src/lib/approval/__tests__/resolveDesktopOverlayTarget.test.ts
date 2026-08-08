@@ -4,6 +4,7 @@ import {
   resolveDesktopOverlayTarget,
   selectEarliestInlineRequest,
 } from '@/lib/approval/resolveDesktopOverlayTarget';
+import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 const baseRequest: ToolApprovalRequest = {
@@ -20,12 +21,27 @@ const baseRequest: ToolApprovalRequest = {
   actionMode: 'agent',
 };
 
-const viewData = {
+const viewData: InspectorViewSnapshot = {
   screenshotBase64: 'abc',
   mimeType: 'image/png',
   refs: {
     d1: {
-      bbox: { x: 10, y: 20, width: 30, height: 40, viewport_x: 10, viewport_y: 20 },
+      role: 'button',
+      name: 'd1',
+      nth: 1,
+      position: null,
+      bbox: {
+        x: 10,
+        y: 20,
+        width: 30,
+        height: 40,
+        centerX: 25,
+        centerY: 40,
+        viewport_x: 10,
+        viewport_y: 20,
+        viewport_width: 30,
+        viewport_height: 40,
+      },
     },
   },
   viewportWidth: 1280,

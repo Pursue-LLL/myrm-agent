@@ -1,0 +1,328 @@
+{
+  "about": {
+    "changelog": {
+      "description": "Sehen Sie die neuesten Updates und Verbesserungen an MyrmAgent",
+      "title": "Änderungsprotokoll",
+      "v0_1_0": {
+        "item1": "Erste öffentliche Veröffentlichung",
+        "item2": "Unterstützung für Multi-Modell-Service, Agent, Fähigkeiten und Wissensbasis",
+        "item3": "MCP-Protokollintegration für erweiterte KI-Funktionen",
+        "item4": "Modernes UI-Design mit Dark-Mode-Unterstützung"
+      }
+    },
+    "features": {
+      "extensible": {
+        "description": "Flexibles Plugin-System, benutzerdefinierte Fähigkeiten und MCP-Dienste zur einfachen Erweiterung der KI-Funktionen",
+        "title": "Hochgradig erweiterbar"
+      },
+      "opensource": {
+        "title": "Kernprodukte Open Source"
+      },
+      "powerful": {
+        "description": "Unterstützt mehrere LLMs, integriert MCP-Protokoll, Fähigkeitensystem und Wissensbasis für einen All-in-One-KI-Assistenten",
+        "title": "Leistungsstarke KI-Funktionen"
+      },
+      "secure": {
+        "title": "Sicherheit & Datenschutz"
+      }
+    },
+    "introduction": {
+      "description": "Die Kernprodukte von MyrmAgent (Server, Frontend, Desktop) sind unter der MIT-Lizenz Open Source.",
+      "title": "Projektvorstellung"
+    },
+    "license": {
+      "description": "Server, Frontend und Desktop in diesem Repository werden unter der MIT-Lizenz veröffentlicht.",
+      "title": "Lizenz & Urheberrecht",
+      "type": "MIT-Lizenz (Kernprodukte)"
+    },
+    "links": {
+      "community": {
+        "description": "Treten Sie der Community bei, um sich mit Entwicklern und Nutzern auszutauschen",
+        "title": "Community-Diskussion"
+      },
+      "description": "Weitere Informationen und Support erhalten",
+      "documentation": {
+        "description": "Detaillierte Anleitungen und API-Dokumentation ansehen",
+        "title": "Dokumentation"
+      },
+      "github": {
+        "description": "Quellcode ansehen, Probleme melden, Code beitragen",
+        "title": "GitHub-Repository"
+      },
+      "title": "Verwandte Links",
+      "website": {
+        "description": "Besuchen Sie die offizielle MyrmAgent-Website",
+        "title": "Offizielle Website"
+      }
+    },
+    "slogan": "Kernprodukte Open Source – leistungsstarke und erweiterbare KI-Assistenten-Plattform",
+    "techStack": {
+      "ai": "KI-Technologie",
+      "backend": "Backend",
+      "description": "MyrmAgent basiert auf einem modernen Tech-Stack",
+      "frontend": "Frontend",
+      "title": "Tech-Stack"
+    },
+    "title": "Über",
+    "version": "Version"
+  },
+  "agent": {
+    "addNotifyTarget": "Benachrichtigungsziel hinzufügen",
+    "addSubagent": "Subagent hinzufügen",
+    "advancedEngineParams": "Erweiterte Engine-Parameter",
+    "aiBuilder": {
+      "apply": "Anwenden",
+      "error": "Generierung fehlgeschlagen, bitte erneut versuchen",
+      "placeholder": "Beschreiben Sie den Agenten, den Sie erstellen möchten, z. B. „Ein Assistent für tägliche Berichte“",
+      "retry": "Erneut versuchen",
+      "subtitle": "Beschreiben Sie Ihren Bedarf – die KI erstellt die vollständige Konfiguration",
+      "title": "Schnell mit KI erstellen"
+    },
+    "allowDiscovery": {
+      "description": "Wenn aktiviert, können andere Agenten diesen Agenten über @-Erwähnungen oder automatische Teambildung finden und Aufgaben delegieren. Deaktivieren Sie dies, um Agenten in Entwicklung auszublenden.",
+      "title": "Entdeckung und Delegation durch andere Agenten erlauben"
+    },
+    "applyConfig": "Konfiguration anwenden",
+    "avatarColor": "Avatar-Farbe",
+    "back": "Zurück",
+    "basicInfo": "Grundinformationen",
+    "basicInfoDesc": "Name und Beschreibung des Agenten festlegen",
+    "browserConfig": "Browser-Konfiguration",
+    "browserConfigDesc": "Browserquelle, Dialoge und Sitzungsaufzeichnung konfigurieren. Anti-Bot-Stealth wird automatisch gehandhabt, wenn das Browser-Tool aktiviert ist.",
+    "builtInReadonly": "Integriert (Schreibgeschützt)",
+    "busyInputMode": "Verhalten bei laufender Aufgabe",
+    "busyInputModeDesc": "Standardaktion, wenn Sie eine Nachricht senden, während der Agent arbeitet.",
+    "busyInputQueue": "Warteschlange",
+    "busyInputRedirect": "Umleiten",
+    "busyInputSteer": "Steuern",
+    "cancel": "Abbrechen",
+    "capabilities": "Fähigkeiten",
+    "capabilitiesDesc": "Tools und Ressourcen konfigurieren, die der Agent nutzen kann",
+    "capabilitiesTip": "Bitte klicken Sie nach der Konfiguration oben rechts auf Speichern",
+    "capabilityConfig": {
+      "custom": "Benutzerdefiniert",
+      "goToConfigure": "Zur Konfiguration",
+      "goToCreate": "Zur Erstellung",
+      "goToEnable": "Zur Aktivierung",
+      "mcpDesc": "MCP-Dienste auswählen, die an diesen Agenten gebunden werden",
+      "mcpTitle": "MCP-Dienste konfigurieren",
+      "noMcpServices": "Keine aktivierten MCP-Dienste",
+      "noSkills": "Keine Fähigkeiten verfügbar",
+      "prebuilt": "Vorgefertigt",
+      "skillsDesc": "Fähigkeiten auswählen, die an diesen Agenten gebunden werden",
+      "skillsTitle": "Fähigkeiten konfigurieren"
+    },
+    "clone": "Klonen",
+    "cloneDialogDesc": "Erstellen Sie eine Kopie dieses Agenten mit einem neuen Namen",
+    "cloneDialogTitle": "Agent klonen",
+    "cloneNamePlaceholder": "Geben Sie einen Namen für den geklonten Agenten ein",
+    "cloneSuccess": "Agent erfolgreich geklont",
+    "configEditor": {
+      "actionSpaceRadar": {
+        "smartPruneFailed": "Curator-Durchlauf fehlgeschlagen",
+        "turn1CatalogTitle": "Skill-Katalog Runde 1"
+      },
+      "addMore": "Weitere hinzufügen",
+      "addSubagent": "Subagent hinzufügen",
+      "aiGenerateConfigMissing": "LLM-Anbieter ist nicht konfiguriert",
+      "aiGenerateFailed": "Prompt konnte nicht generiert werden",
+      "applyAndSave": "Anwenden & speichern",
+      "applyOnly": "Anwenden",
+      "browserSource": {
+        "description": "Wählen Sie, wie dieser Agent Browser-Instanzen für Web-Aufgaben bezieht.",
+        "extensionWarning": "Erfordert eine verbundene Browser-Erweiterung. Der Agent arbeitet in Ihrem echten Browser.",
+        "label": "Browserquelle",
+        "options": {
+          "auto": "Automatisch (Systemstandard)",
+          "autoDesc": "Erkennt und nutzt automatisch die beste verfügbare Quelle.",
+          "connect": "Vorhandenen Browser verbinden",
+          "extension": "Browser-Erweiterung",
+          "extensionDesc": "Nutzt Ihren echten Browser über die Erweiterungsbrücke. Login-Sitzungen bleiben erhalten.",
+          "launch": "Neuen Browser starten",
+          "launchDesc": "Startet jedes Mal eine frische isolierte Browser-Instanz.",
+          "remote": "Cloud-Browser",
+          "remoteDesc": "Verbindet mit Browserbase oder anderen Cloud-Browser-Diensten (zuerst in den Einstellungen konfigurieren)."
+        },
+        "placeholder": "Browserquelle auswählen",
+        "remoteWarning": "Erfordert Cloud-Browser-Anmeldedaten in den Einstellungen. Der Agent nutzt eine Remote-Browser-Instanz."
+      },
+      "builtinToolsSection": "Integrierte Tools auswählen",
+      "builtinToolsSectionDesc": "Integrierte Tools auswählen, die dem Agenten zur Verfügung stehen",
+      "confirmDeleteSubagent": "Möchten Sie diese Subagent-Konfiguration wirklich löschen?",
+      "customId": "Benutzerdefinierte ID",
+      "deleteSubagent": "Löschen",
+      "dialogPolicy": {
+        "description": "Wie der Agent Browser-Dialoge (Alerts, Confirms, Prompts) behandelt.",
+        "label": "Dialogbehandlung",
+        "options": {
+          "autoAccept": "Automatisch akzeptieren",
+          "autoAcceptDesc": "Alle Dialoge automatisch akzeptieren.",
+          "autoDismiss": "Automatisch schließen",
+          "autoDismissDesc": "Alle Dialoge automatisch schließen.",
+          "smart": "Intelligent (Standard)",
+          "waitForAgent": "Auf Agent warten",
+          "waitForAgentDesc": "Pausiert und lässt die KI entscheiden, wie reagiert wird."
+        }
+      },
+      "errorDisplayNameTooLong": "Anzeigename darf höchstens 100 Zeichen lang sein",
+      "errorIdDuplicate": "Diese ID existiert bereits",
+      "errorIdInvalid": "ID darf nur Kleinbuchstaben, Ziffern, Unterstriche und Bindestriche enthalten",
+      "errorIdRequired": "Subagent-ID ist erforderlich",
+      "errorIdTooLong": "ID darf höchstens 50 Zeichen lang sein",
+      "errorIdTooShort": "ID muss mindestens 2 Zeichen lang sein",
+      "fixValidationErrors": "Bitte beheben Sie Validierungsfehler vor dem Speichern.",
+      "goToSettings": "Zu Einstellungen",
+      "instructionSection": "Anweisung bearbeiten",
+      "mcpSection": "MCP-Dienste auswählen",
+      "mcpSectionDesc": "Aus aktivierten MCP-Diensten auswählen",
+      "mcpTools": {
+        "destructive": "Destruktiv (Vorsicht)",
+        "loadFailed": "Tools konnten nicht geladen werden",
+        "noTools": "Keine Tools verfügbar",
+        "readOnly": "Schreibgeschützt (sicher)",
+        "retry": "Erneut versuchen",
+        "selectAll": "Alle auswählen",
+        "toolFilter": "Tool-Filter",
+        "writable": "Beschreibbar"
+      },
+      "noEnabledMcp": "Kein MCP aktiviert",
+      "noEnabledSkills": "Keine Fähigkeiten aktiviert",
+      "noSubagents": "Keine Subagenten konfiguriert",
+      "noSubagentsDesc": "Verwenden Sie den JIT-Team-Selektor, um zuerst Subagenten hinzuzufügen",
+      "presetAnalyst": "Analyst",
+      "presetCoder": "Entwickler",
+      "presetResearcher": "Rechercheur",
+      "presetReviewer": "Reviewer",
+      "saveDialog": {
+        "cancel": "Abbrechen",
+        "description": "Beschreibung",
+        "descriptionPlaceholder": "Zweck des Agenten beschreiben (optional)",
+        "name": "Agentenname",
+        "namePlaceholder": "Agentenname eingeben",
+        "save": "Speichern",
+        "title": "Agent speichern"
+      },
+      "selectPreset": "Voreinstellung auswählen",
+      "sessionRecording": {
+        "description": "Browser-Sitzungen als WebM-Video für Debugging und Audit aufzeichnen.",
+        "label": "Sitzungsaufzeichnung",
+        "options": {
+          "always": "Immer",
+          "alwaysDesc": "Jede Browser-Sitzung aufzeichnen.",
+          "off": "Aus (Standard)",
+          "offDesc": "Keine Videoaufzeichnung von Browser-Sitzungen.",
+          "onFailure": "Bei Fehler",
+          "onFailureDesc": "Aufzeichnung nur bei fehlgeschlagener Aufgabe behalten."
+        }
+      },
+      "showPrompt": "Anzeigen",
+      "skillInstance": {
+        "auto": "Automatisch",
+        "label": "Instanz",
+        "placeholder": "Instanz auswählen",
+        "staleClear": "Bindung löschen"
+      },
+      "skillsSection": "Fähigkeiten auswählen",
+      "skillsSectionDesc": "Aus aktivierten Fähigkeiten auswählen",
+      "skillsZone": {
+        "availableTitle": "Verfügbare Fähigkeiten",
+        "coreHint": "Vollständig injiziert für schnelle Antwort",
+        "coreTitle": "Kern-Fähigkeiten",
+        "peripheralHint": "Bei Bedarf geladen, minimaler Overhead",
+        "peripheralTitle": "Periphere Fähigkeiten"
+      },
+      "subagentDisplayName": "Anzeigename",
+      "subagentDisplayNamePlaceholder": "Anzeigename eingeben (z. B. @Researcher)",
+      "subagentIdLabel": "Subagent-ID",
+      "subagentIdPlaceholder": "z. B. researcher",
+      "subagentRole": "Rolle",
+      "subagentRoleCoordinator": "Koordinator",
+      "subagentRoleCoordinatorDesc": "Kann eine kontrollierte Ebene untergeordneter Aufgaben delegieren",
+      "subagentRoleWorker": "Worker",
+      "subagentRoleWorkerDesc": "Führt eine isolierte Aufgabe aus und kann nicht weiter delegieren",
+      "subagentsSection": "Subagenten konfigurieren",
+      "subagentsSectionDesc": "Anzeigename, Rolle und Themenfarbe für Subagenten konfigurieren",
+      "subagentThemeColor": "Themenfarbe",
+      "systemPromptHidden": "System-Prompt ausgeblendet",
+      "systemPromptHiddenDesc": "Klicken Sie auf Anzeigen, um den vollständigen Prompt zu sehen (nur Eigentümer)",
+      "teammateMessage": "Teammitglied-Nachricht",
+      "title": "Agentenkonfiguration bearbeiten",
+      "useGlobalInstruction": "Globale Anweisungen verwenden",
+      "useGlobalInstructionDesc": "Wenn aktiviert, werden globale Anweisungen mit Agenten-Anweisungen kombiniert"
+    },
+    "configPanel": {
+      "blueprints": {
+        "code_audit_squad": "Code-Red-Team-Audit (Multi-Agent)"
+      },
+      "browserDelegateHint": "Bei langen oder parallelen Web-Aufgaben können Sie Ihren Agenten bitten, Browser-Aufgaben an den Browser-Spezialisten zu delegieren, während andere Subagenten Recherche oder Analyse übernehmen.",
+      "builtinToolDescs": {
+        "browser": "Webseiten durchsuchen und mit Inhalten interagieren",
+        "code_execute": "Code und Befehle in der Sandbox ausführen",
+        "file_ops": "Dateien in der Sandbox lesen, schreiben und bearbeiten",
+        "image_generation": "Bilder aus Textbeschreibungen generieren",
+        "memory": "Nutzerpräferenzen und Gesprächskontext für personalisiertes Langzeitgedächtnis speichern",
+        "tts": "Audio aus Text mit TTS-Modellen generieren",
+        "video_generation": "Videos aus Textbeschreibungen generieren",
+        "web_search": "Das Internet nach Echtzeitinformationen durchsuchen",
+        "wiki": "Eine strukturierte Wissensbasis aufbauen und abfragen"
+      },
+      "builtinToolNames": {
+        "answer_tool": "Antwortqualitäts-Audit",
+        "browser": "Browser",
+        "code_execute": "Code-Ausführung",
+        "computer_use": "Desktop-Steuerung",
+        "file_ops": "Dateioperationen",
+        "image_generation": "Bildgenerierung",
+        "kanban": "Aufgabenboard",
+        "memory": "Speicher",
+        "tts": "Text-zu-Sprache",
+        "video_generation": "Videogenerierung",
+        "web_search": "Websuche",
+        "wiki": "Wissensbasis"
+      },
+      "builtinTools": "Integrierte Tools",
+      "configDetails": "Konfigurationsdetails",
+      "configured": "Konfiguriert",
+      "cuPermission": {
+        "accessibilityMissing": "Bedienungshilfen nicht erteilt",
+        "allGranted": "Desktop-Berechtigungen OK",
+        "checkFailed": "Desktop-Berechtigungen konnten nicht geprüft werden. Versuchen Sie es erneut, wenn das Backend bereit ist.",
+        "hint": "Desktop-Steuerung erfordert macOS-Berechtigungen für Bedienungshilfen und Bildschirmaufnahme.",
+        "missing": "Desktop-Berechtigungen fehlen",
+        "openSettings": "Einstellungen öffnen",
+        "recheckBtn": "Erneut prüfen",
+        "screenRecordingMissing": "Bildschirmaufnahme nicht erteilt"
+      },
+      "currentConfig": "Agenten-Fähigkeiten",
+      "directDelegate": "Direkt an externen Agenten",
+      "directDelegateOff": "Aus (über Hauptmodell)",
+      "editConfig": "Konfiguration bearbeiten",
+      "forcePush": "Senden",
+      "instruction": "Anweisung",
+      "instructionDesc": "Benutzerdefinierte Anweisungen konfigurieren",
+      "kanbanActiveBoard": "Aktives Board",
+      "kanbanNoBoardsHint": "Erstellen Sie ein Aufgabenboard in den Einstellungen, bevor der Agent Aufgaben hinzufügen kann.",
+      "kanbanOpenSettings": "Aufgabenboards in Einstellungen öffnen",
+      "kanbanSelectBoardPlaceholder": "Board auswählen",
+      "kanbanTargetBoard": "Ziel-Board",
+      "loadFailed": "Laden fehlgeschlagen",
+      "manage": "Verwalten",
+      "mcpDesc": "MCP-Dienste konfigurieren",
+      "mediaCredential": {
+        "imageMissing": "Bildgenerierung: kein API-Schlüssel für den gewählten Bildanbieter",
+        "openSettings": "Einstellungen öffnen",
+        "recheck": "Erneut prüfen",
+        "title": "Medien-Tools benötigen API-Anmeldedaten",
+        "ttsMissing": "Text-zu-Sprache: kein API-Schlüssel für den gewählten TTS-Anbieter",
+        "videoMissing": "Videogenerierung: kein API-Schlüssel für den gewählten Videoanbieter"
+      },
+      "memoryDecay": "Speicher-Verfall",
+      "memoryDecayDesc": "Geschwindigkeit des Langzeitgedächtnis-Verfalls steuern",
+      "memoryDecayFast": "Schneller Verfall",
+      "memoryDecayNormal": "Normal",
+      "memoryDecayPermanent": "Permanent",
+      "memoryExtractionPreset": "Speicher-Fokus",
+      "memoryPresetAuto": "Automatisch erkennen"
+    }
+  }
+}

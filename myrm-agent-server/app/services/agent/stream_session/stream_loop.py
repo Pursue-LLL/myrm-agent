@@ -53,6 +53,18 @@ _TTFT_VISIBLE_EVENT_TYPES = frozenset({"message", "reasoning"})
 _REASONING_DISPLAY_MODE_OFF = "off"
 
 
+def _dynamic_workflow_unattended(params: object) -> bool:
+    """Auto-approve DW plan_confirm when YOLO or plan confirm is disabled in security config."""
+    raw = getattr(params, "security_config_raw", None)
+    if not isinstance(raw, dict):
+        return False
+    yolo_enabled = bool(raw.get("yolo_mode_enabled") or raw.get("yoloModeEnabled"))
+    plan_confirm_enabled = bool(
+        raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled")
+    )
+    return yolo_enabled or not plan_confirm_enabled
+
+
 @dataclass
 class ApprovalTimeoutHolder:
     value: dict[str, object] | None = None
@@ -229,6 +241,7 @@ async def iter_agent_stream_chunks(
             session.request.resume_value if isinstance(session.request.resume_value, dict) else None,
             workflow_template_id=session.request.workflow_template_id,
             workflow_template_args=session.request.workflow_template_args,
+            unattended=_dynamic_workflow_unattended(session.params),
         )
     elif (
         session.routing_tier == "simple"

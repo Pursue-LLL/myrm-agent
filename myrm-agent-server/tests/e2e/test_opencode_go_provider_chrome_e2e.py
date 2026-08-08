@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sys
 from pathlib import Path
@@ -19,7 +18,6 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     get_e2e_api_url,
-    get_e2e_ui_url,
     open_mcp_page_async,
     open_settings_subroute,
     prepare_e2e_ui_session,

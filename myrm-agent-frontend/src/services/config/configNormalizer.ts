@@ -59,7 +59,7 @@ export function normalizeProviders(raw: ProvidersConfigValue | null | undefined)
 }
 
 export function normalizePersonalSettings(
-  raw: PersonalSettingsConfigValue | null | undefined,
+  raw: Partial<PersonalSettingsConfigValue> | null | undefined,
 ): PersonalSettingsConfigValue {
   const merged: PersonalSettingsConfigValue = {
     ...DEFAULT_PERSONAL_SETTINGS,

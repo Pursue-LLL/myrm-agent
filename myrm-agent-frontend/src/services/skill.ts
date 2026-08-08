@@ -379,6 +379,7 @@ export interface DiscoveryInstallResponse {
   skill_name: string;
   skill_id: string;
   installed_path: string;
+  version?: string;
   error: string;
   mounted?: boolean;
   mount_agent_id?: string;

@@ -88,7 +88,7 @@ async def test_get_or_create_corpus_creates_new(service: FaqCorpusService, mock_
     mock_session.add = capture_add
 
     with patch("app.services.faq.corpus.get_session", return_value=_mock_session(mock_session)):
-        result = await service.get_or_create_corpus("agent-1", db=mock_session)
+        await service.get_or_create_corpus("agent-1", db=mock_session)
 
     mock_session.execute.assert_called_once()
 
@@ -196,7 +196,7 @@ async def test_update_corpus_settings_clamps_values(service: FaqCorpusService) -
     session.execute.return_value = result_mock
 
     with patch("app.services.faq.corpus.get_session", return_value=_mock_session(session)):
-        result = await service.update_corpus_settings(
+        await service.update_corpus_settings(
             "agent-1", threshold=0.5, min_score_gap=1.0,
         )
 

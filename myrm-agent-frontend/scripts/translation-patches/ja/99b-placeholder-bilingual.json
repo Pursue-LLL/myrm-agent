@@ -1,0 +1,36 @@
+{
+  "settings": {
+    "sessionAnalytics": {
+      "contextHealth": {
+        "pruning": {
+          "archiveDeferredSoftTrimmed": "{count} 個のアーカイブ延期項目がソフトトリムされました。",
+          "restoreActiveSessionRequired": "現在のアクティブなチャットはこのセッションではありません（{sessionId}）。対象セッションを開くと復元指示が事前に入力されます。",
+          "restorePrompt": "アーカイブされたコンテキスト範囲 `{restoreArg}` を読み取り、復元された証拠に基づいて処理を続行してください。",
+          "adaptiveBackoffWarning": "{reasons} のため、このセッションの剪定強度が低減されました。"
+        }
+      },
+      "replay": {
+        "latestTool": "最新ツール: {name}",
+        "llmCallTitle": "LLM 呼び出し: {model}",
+        "memoryEventTitle": "メモリ: {phase}"
+      }
+    }
+  },
+  "progressSteps": {
+    "archiveRestoreCardDescription": "アーカイブされたコンテキストにはより狭い復元範囲が必要です。{count} 件の入力済み復元アクションが準備されています。",
+    "archiveRestoreButton": "復元して続行 ({count})",
+    "archiveRestorePrompt": "アーカイブされたコンテキスト範囲 `{restoreArg}` を読み取り、復元された証拠に基づいて処理を続行してください。",
+    "archiveRestoreMetadataTokens": "推定復元トークン: {tokens}",
+    "archiveRestoreMetadataReason": "理由: {reason}",
+    "archiveRestoreMetadataGuidance": "ガイダンス出典: {source}",
+    "archiveRestoreMetadataFallback": "フォールバック: {reason}",
+    "archiveRestoreMetadataArchive": "アーカイブ: {path}",
+    "archiveRestoreRangeReason": "理由: {reason}",
+    "archiveRestoreContentFeatures": "コンテンツ信号: {features}",
+    "archiveRestoreResultSummary": "{lines} 行、{tokens} トークンを復元しました。",
+    "archiveRestoreResultRange": "範囲: {range}",
+    "archiveRestoreResultTokens": "復元トークン: {tokens}",
+    "archiveRestoreResultBytes": "復元ペイロード: {bytes} バイト",
+    "archiveRestoreResultArchive": "アーカイブ: {path}"
+  }
+}

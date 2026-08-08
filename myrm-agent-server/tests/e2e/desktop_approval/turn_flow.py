@@ -14,6 +14,7 @@ from typing import Awaitable, TypeVar
 
 import pytest
 from cdp_chat_support import (
+    _signoff_desktop_soak_parallel_load,
     chat_id_from_path,
     chat_messages_have_done,
     chat_user_message_count,
@@ -25,7 +26,6 @@ from cdp_chat_support import (
     signoff_parallel_force_chat_timeout_sec,
     wait_chat_messages_done,
     wait_e2e_provider_ready,
-    _signoff_desktop_soak_parallel_load,
 )
 from mcp_chat_ui import McpChatSession
 
@@ -251,6 +251,7 @@ def _kickoff_desktop_turn_via_api_sync(
 ) -> dict[str, object]:
     """R232: POST agent-stream to start turn without MUX CDP bridge (seeded resend SSOT)."""
     from cdp_chat_support import _collect_agent_stream_events
+
     from tests.api.agent.utils import get_model_selection
 
     normalized = chat_id.strip()

@@ -235,8 +235,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         ...data,
         type: H.AgentEventType.TOOL_APPROVAL_REQUEST,
         data: payload,
-      };
-      return toolsProgressEvents({ ...ctx, data: rerouted as typeof data });
+      } as unknown as typeof data;
+      return toolsProgressEvents({ ...ctx, data: rerouted });
     }
 
     if (payload?.action_type === 'browser_takeover') {
@@ -275,7 +275,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const form = resolveClarificationFormFromEventData(data.data);
     const payload =
       data.data && typeof data.data === 'object'
-        ? (data.data as Record<string, unknown>)
+        ? (data.data as unknown as Record<string, unknown>)
         : undefined;
     const actionMode = H.useChatStore.getState().actionMode;
     const source = typeof payload?.source === 'string' ? payload.source : undefined;
@@ -323,7 +323,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.DIRECTORY_REQUEST_REQUIRED) {
     const payload =
       data.data && typeof data.data === 'object'
-        ? (data.data as Record<string, unknown>)
+        ? (data.data as unknown as Record<string, unknown>)
         : undefined;
     const request =
       payload?.request && typeof payload.request === 'object'

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import pytest
+from search_support import seed_chat_and_messages
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.agent.params.models import MentionReferenceRequest
 from app.services.chat.chat_crud import _ChatCrudMixin
-from search_support import seed_chat_and_messages
 
 
 @pytest.mark.asyncio

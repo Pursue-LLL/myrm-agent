@@ -787,10 +787,10 @@ async def _wiki_concept_part(
 
 
 async def _load_prior_chat_document(chat_id: str):
-    from app.database.repositories.uow import UnitOfWork
     from app.database.repositories.conversation_recall.lookup_repo import (
         ConversationRecallLookupRepository,
     )
+    from app.database.repositories.uow import UnitOfWork
 
     async with UnitOfWork() as uow:
         session = uow.session
@@ -814,9 +814,6 @@ async def _prior_chat_part(
     )
 
     from app.database.repositories.uow import UnitOfWork
-    from app.database.repositories.conversation_recall.lookup_repo import (
-        ConversationRecallLookupRepository,
-    )
     from app.services.chat.chat_crud import _ChatCrudMixin
     from app.services.chat.conversation_recall_index_service import (
         ConversationRecallIndexService,

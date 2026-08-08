@@ -17,8 +17,10 @@ Provides a clean, isolated execution environment for each eval case.
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 import uuid
+from pathlib import Path
 
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -48,9 +50,15 @@ class LocalEvalExecutor:
         profile_id: str | None = None,
         *,
         benchmark_mode: bool = False,
+        workspace_seed_map: dict[str, str] | None = None,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
+        # Maps a case message to a pre-provisioned workspace directory whose
+        # contents are copied into the session workspace before the agent runs.
+        # Generic capability for external datasets (e.g. WorkBuddy Bench) that
+        # ship a read-only task workspace archive.
+        self._workspace_seed_map = workspace_seed_map or {}
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
 
@@ -61,8 +69,6 @@ class LocalEvalExecutor:
         For eval, we generate a unique chat ID and create a dedicated physical
         workspace directory to ensure true concurrency isolation per case.
         """
-        from pathlib import Path
-
         self._session_id = f"eval_{uuid.uuid4().hex[:8]}"
 
         # Create an isolated workspace directory for this evaluation session
@@ -91,13 +97,25 @@ class LocalEvalExecutor:
         self, message: str, *, session_id: str | None = None
     ) -> AgentResponse:
         """Execute a single eval case."""
-        from pathlib import Path
-
         chat_id = session_id or self._session_id or f"eval_{uuid.uuid4().hex[:8]}"
 
         # Resolve the isolated physical workspace directory for this execution
         workspace_dir = (Path(".myrm/eval_workspaces") / chat_id).resolve()
         workspace_dir.mkdir(parents=True, exist_ok=True)
+
+        # Seed the workspace from a pre-provisioned task directory when the
+        # dataset ships an initial workspace (e.g. WorkBuddy Bench task assets).
+        seed_dir = self._workspace_seed_map.get(message)
+        if seed_dir:
+            seed_path = Path(seed_dir)
+            if seed_path.is_dir() and not any(workspace_dir.iterdir()):
+                shutil.copytree(seed_path, workspace_dir, dirs_exist_ok=True)
+            else:
+                logger.warning(
+                    "Workspace seed missing or workspace not empty for case %s: %s",
+                    chat_id,
+                    seed_dir,
+                )
 
         # Load user configs to test their specific agent setup
         configs = await load_user_configs()

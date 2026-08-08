@@ -35,7 +35,7 @@ const WebFetchEscalationCard = memo(() => {
   const [firecrawlBaseText, setFirecrawlBaseText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [verifying, setVerifying] = useState<'jina' | 'firecrawl' | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     try {

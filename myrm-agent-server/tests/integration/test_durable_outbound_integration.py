@@ -7,13 +7,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import pytest
-
-from app.channels.core.base import BaseChannel
-from app.channels.core.gateway import ChannelGateway
-from app.channels.routing.message_effects import MessageEffects
-from app.channels.types import ChannelStatus, OutboundMessage
-from app.channels.types.status import ChannelCapabilities
-from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from myrm_agent_harness.infra.delivery.storage import (
     QueuedDelivery,
     load_pending_deliveries,
@@ -26,6 +19,13 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobType,
     Schedule,
 )
+
+from app.channels.core.base import BaseChannel
+from app.channels.core.gateway import ChannelGateway
+from app.channels.routing.message_effects import MessageEffects
+from app.channels.types import ChannelStatus, OutboundMessage
+from app.channels.types.status import ChannelCapabilities
+from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
 
 class _FeishuStubChannel(BaseChannel):
@@ -134,7 +134,7 @@ async def test_crash_recovery_after_disabled_retains_disk(tmp_path) -> None:
     channel.sent.clear()
     channel._status = ChannelStatus.IDLE
 
-    async with _gateway_with_channel(tmp_path, channel=channel) as gw:
+    async with _gateway_with_channel(tmp_path, channel=channel):
         await asyncio.sleep(0.4)
         assert len(channel.sent) == 1
         assert "held while disabled" in channel.sent[0].content

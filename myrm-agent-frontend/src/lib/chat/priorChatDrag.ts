@@ -54,6 +54,7 @@ export function buildPriorChatMention(payload: PriorChatDragPayload): MentionRef
     path: payload.chatId,
     fileId: payload.chatId,
     source: 'special',
+    size: null,
   };
 }
 

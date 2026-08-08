@@ -1,0 +1,345 @@
+{
+  "settings": {
+    "browserDoctor": {
+      "title": "브라우저 진단",
+      "description": "브라우저 자동화 의존성, 시작 준비 상태를 확인하고 수정 제안을 받습니다",
+      "runCheck": "진단 실행",
+      "running": "검사 실행 중…",
+      "healthy": "브라우저 스택 정상",
+      "unhealthy": "문제가 감지되었습니다",
+      "recommendations": "권장 사항",
+      "checks": "검사 항목",
+      "fix": "수정",
+      "launchTest": "시작 테스트 포함",
+      "loadFailed": "브라우저 진단을 불러오지 못했습니다"
+    },
+    "cloudBrowser": {
+      "title": "클라우드 브라우저",
+      "provider": "제공자",
+      "credential": "API 키 / 토큰",
+      "credentialPlaceholder": "제공자 API 키 입력",
+      "customWsUrl": "WebSocket CDP 엔드포인트",
+      "testConnection": "연결 테스트",
+      "saveFailed": "클라우드 브라우저 설정 저장 실패"
+    },
+    "browserProxy": {
+      "title": "브라우저 프록시",
+      "proxyUrls": "프록시 URL",
+      "proxyUrlsPlaceholder": "http://user:pass@proxy1.example.com:8080\nhttp://user:pass@proxy2.example.com:8080",
+      "proxyUrlsHint": "한 줄에 프록시 URL 하나. HTTP/HTTPS/SOCKS5와 인증을 지원합니다. 프록시는 고정 세션과 장애 격리로 자동 순환됩니다.",
+      "testConnection": "연결 테스트",
+      "saveFailed": "브라우저 프록시 설정 저장 실패"
+    },
+    "captchaSolver": {
+      "title": "CAPTCHA 자동 해결",
+      "apiKey": "CapSolver API 키",
+      "apiKeyPlaceholder": "CAP-XXXXXXXXXXXXXXXXXXXXXXXX",
+      "apiKeyHint": "capsolver.com에서 API 키를 받으세요. 클라우드/헤드리스 브라우징에서 자동 CAPTCHA 해결을 활성화합니다. 해결당 약 $0.002.",
+      "saveFailed": "CAPTCHA 해결사 설정 저장 실패"
+    },
+    "webFetchEscalation": {
+      "title": "원격 웹 페치 폴백",
+      "subtitle": "로컬 L1–L3 실패 시 Jina / Firecrawl (기본 OFF)",
+      "description": "HTTP, 브라우저, 스텔스 페치가 모두 실패하면 원격 리더 API를 선택적으로 호출합니다. 비활성 시 턴 1 도구나 프롬프트 캐시에 영향을 주지 않습니다.",
+      "jinaApiKey": "Jina Reader API 키 (선택)",
+      "jinaApiKeyPlaceholder": "무료 등급은 비워두세요 (~20 RPM)",
+      "jinaApiKeyHint": "jina.ai의 선택 유료 등급 키. 무료 등급은 키 없이 작동합니다.",
+      "firecrawlKeylessHint": "API 키 없이 작동합니다 (무료 등급). 더 높은 한도를 위해 키를 추가하세요.",
+      "firecrawlInherit": "검색 서비스의 Firecrawl 키 재사용",
+      "firecrawlApiKey": "전용 Firecrawl API 키",
+      "firecrawlApiKeyPlaceholder": "fc-XXXXXXXX",
+      "firecrawlApiBase": "커스텀 API URL",
+      "firecrawlApiBaseHint": "자체 호스팅 Firecrawl용. 비워두면 기본 클라우드 서비스를 사용합니다.",
+      "sessionCap": "세션 시도 상한",
+      "sessionCapHint": "에이전트 세션당 최대 L4 원격 페치 수 (1–50).",
+      "verifyJina": "Jina 테스트",
+      "verifyFirecrawl": "Firecrawl 테스트",
+      "verifySuccess": "{provider} 검증 성공",
+      "verifyFailed": "원격 페치 검증 실패",
+      "verifyInheritHint": "먼저 Firecrawl 검색 서비스를 활성화하거나 전용 키를 입력하세요",
+      "saveFailed": "웹 페치 에스컬레이션 설정 저장 실패"
+    },
+    "mcpThreat": {
+      "prompt_injection": "프롬프트 주입 콘텐츠 감지됨 (시스템 지침 재정의 시도)",
+      "name_injection": "식별자에 주입성 콘텐츠가 포함됨 (URL 또는 지시 텍스트)",
+      "concealment_instruction": "은폐 또는 지시 숨김 패턴 감지됨",
+      "data_exfiltration": "데이터 유출 또는 외부 페치 패턴 감지됨",
+      "credential_harvesting": "자격 증명 또는 민감 파일 수집용 숨은 지시",
+      "context_leak": "시스템 프롬프트 또는 대화 컨텍스트 누출 지시",
+      "arbitrary_execution": "임의 명령 또는 스크립트 실행 지시",
+      "risky_mcp_profile": "이 MCP 프로필은 높은 시스템 접근 위험을 부여합니다",
+      "suspicious_url": "인자에 의심스러운 유출 또는 수집 URL이 있음",
+      "sensitive_path": "인자가 민감한 파일시스템 경로를 참조함",
+      "hardcoded_secret": "구성에 평문 비밀 또는 토큰이 있음",
+      "credential_exposure": "잠재적 자격 증명 노출 감지됨",
+      "supply_chain": "공급망 위험 (예: 버전 고정되지 않은 npx 패키지)",
+      "supply_chain_malware": "패키지에 알려진 악성코드 권고가 있음"
+    },
+    "mcpThreatRec": {
+      "prompt_injection": "이 MCP를 활성화하지 말고 관리자에게 보고하세요",
+      "name_injection": "URL이나 지시 없이 짧은 영숫자 식별자를 사용하세요",
+      "concealment_instruction": "콘텐츠가 검증될 때까지 비활성 상태를 유지하세요",
+      "data_exfiltration": "설명에서 외부 페치 지시를 제거하세요",
+      "credential_harvesting": "자격 증명 수집용 숨은 지시를 제거하세요",
+      "context_leak": "시스템 프롬프트 또는 컨텍스트를 누출하는 지시를 제거하세요",
+      "arbitrary_execution": "임의 명령 실행 지시를 제거하세요",
+      "risky_mcp_profile": "활성화 전에 범위를 제한하고 위험을 인지하세요",
+      "suspicious_url": "신뢰할 수 없는 외부 콜백 URL을 제거하세요",
+      "sensitive_path": "파일시스템 MCP를 비민감 디렉터리로 제한하세요",
+      "hardcoded_secret": "평문 대신 {{secret:KEY}} 참조를 사용하세요",
+      "credential_exposure": "평문 대신 {{secret:KEY}} 참조를 사용하세요",
+      "supply_chain": "인자에 패키지 이름과 버전을 고정하세요",
+      "supply_chain_malware": "플래그된 패키지를 제거하고 검증된 의존성을 사용하세요"
+    },
+    "workingState": {
+      "title": "작업 메모리",
+      "empty": "활성 작업 컨텍스트 없음",
+      "cleared": "작업 메모리가 지워졌습니다",
+      "clearFailed": "지우기 실패",
+      "saved": "작업 메모리가 업데이트되었습니다",
+      "saveFailed": "저장 실패",
+      "edit": "편집",
+      "clear": "지우기",
+      "cancel": "취소",
+      "save": "저장",
+      "placeholder": "현재 작업 진행 상황을 설명하세요...",
+      "updatedAt": "업데이트: {time}",
+      "add": "추가"
+    },
+    "remoteBackup": {
+      "webdav": "WebDAV",
+      "webdavHostPlaceholder": "https://dav.example.com",
+      "s3EndpointPlaceholder": "https://s3.amazonaws.com"
+    },
+    "memoryArchival": {
+      "title": "메모리 보관",
+      "description": "오래되고 접근이 적은 메모리를 자동으로 보관하여 검색 성능을 개선합니다.",
+      "criteriaTitle": "보관 기준",
+      "criteriaAge": "메모리 연령 ≥ 180일 (6개월)",
+      "criteriaAccess": "접근 횟수 ≤ 5회",
+      "criteriaImportance": "중요도 ≤ 0.3 (낮은 우선순위)",
+      "criteriaNote": "메모리가 보관되려면 모든 기준을 충족해야 합니다.",
+      "runArchival": "보관 실행",
+      "archiving": "보관 중...",
+      "confirmTitle": "메모리 보관 실행",
+      "confirmDescription": "오래되고 접근이 적은 메모리를 보관 저장소로 이동합니다. 보관된 메모리는 언제든 검색하고 복원할 수 있습니다.",
+      "cancel": "취소",
+      "confirm": "확인",
+      "archiveSuccess": "{count}개 메모리가 보관되었습니다",
+      "noMemoriesToArchive": "보관 대상 메모리가 없습니다",
+      "archiveError": "보관 실행 실패",
+      "benefitsTitle": "이점",
+      "benefit1": "활성 코퍼스 크기를 줄여 검색 성능 개선",
+      "benefit2": "BM25 인덱스 크기를 줄여 키워드 매칭 가속화",
+      "benefit3": "삭제 없이 과거 데이터 보존",
+      "benefit4": "보관된 메모리는 전용 API로 계속 검색 가능"
+    },
+    "experimentalFeatures": {
+      "title": "실험 기능",
+      "description": "실험 기능을 활성화하거나 비활성화합니다. 이 기능들은 활발히 개발 중이며 불안정할 수 있습니다.",
+      "experimentalBadge": "실험",
+      "newBadge": "신규",
+      "noFeatures": "사용 가능한 실험 기능이 없습니다.",
+      "customized": "커스텀 설정 (기본값 재정의)",
+      "fetchError": "실험 기능을 불러오지 못했습니다",
+      "enabledSuccess": "기능 {name} 활성화됨",
+      "disabledSuccess": "기능 {name} 비활성화됨",
+      "toggleError": "기능 {name} 전환 실패"
+    },
+    "sections": {
+      "channelRouting": {
+        "toasts": {
+          "replyModeUpdated": "답장 모드가 업데이트되었습니다",
+          "draftTimeoutUpdated": "초안 시간 초과 설정이 업데이트되었습니다",
+          "workspaceBound": "작업 공간이 성공적으로 바인딩되었습니다"
+        },
+        "errors": {
+          "replyMode": "답장 모드 설정 실패",
+          "draftTimeout": "초안 시간 초과 업데이트 실패",
+          "workspaceBind": "작업 공간 바인딩 실패"
+        },
+        "workspace": {
+          "label": "작업 공간",
+          "none": "-- 작업 공간 없음 --",
+          "emptyProjects": "프로젝트에서 먼저 프로젝트 폴더를 마운트하세요"
+        },
+        "replyMode": {
+          "label": "답장 모드",
+          "auto": "자동 전송",
+          "draftReview": "초안 검토",
+          "tooltip": "초안 검토로 설정하면 AI 답변이 채널에 전송되기 전에 승인 대기를 거칩니다. 고객 접점 시나리오에 권장됩니다.",
+          "timeout": "시간 초과",
+          "onExpiry": "만료 시",
+          "autoReject": "초안 폐기",
+          "autoSend": "자동 전송"
+        }
+      }
+    },
+    "mcpTlsSection": "TLS / mTLS",
+    "mcpClientCertPlaceholder": "/path/to/client.pem",
+    "systemHealth": {
+      "doctor": {
+        "desktopOpenSettings": "시스템 설정 열기",
+        "errors": {
+          "ERR_DLQ_CRITICAL": {
+            "message": "메시지 전달 큐에 심각한 오류가 있습니다 ({failed_count}건 실패)."
+          },
+          "OK_DLQ_HEALTHY": {
+            "message": "메시지 전달이 정상입니다 ({failed_count}건 실패)."
+          },
+          "WARN_DLQ_UNAVAILABLE": {
+            "message": "DLQ가 구성되지 않았거나 초기화되지 않았습니다."
+          },
+          "ERR_DLQ_CHECK_FAILED": {
+            "message": "메시지 전달 상태 확인 중 오류가 발생했습니다."
+          },
+          "ERR_PROBE_CRASH": {
+            "message": "프로브 실행이 예기치 않게 충돌했습니다."
+          },
+          "OK_DESKTOP_PERMISSIONS": {
+            "message": "데스크톱 권한이 부여되었습니다."
+          },
+          "WARN_DESKTOP_PERMISSIONS_MISSING": {
+            "message": "데스크톱 권한 누락: {missing}."
+          },
+          "OK_DESKTOP_SANDBOX_VNC": {
+            "message": "클라우드 샌드박스 시각적 데스크톱이 활성화되어 있습니다."
+          },
+          "WARN_DESKTOP_SANDBOX_UNAVAILABLE": {
+            "message": "이 클라우드 샌드박스에서는 데스크톱 제어를 사용할 수 없습니다."
+          },
+          "ERR_DESKTOP_PERMISSIONS_PROBE": {
+            "message": "데스크톱 권한 확인에 실패했습니다."
+          }
+        }
+      }
+    }
+  },
+  "userMenu": {
+    "openMenu": "메뉴 열기",
+    "settings": "설정",
+    "personalization": "개인화",
+    "subscription": "구독",
+    "logout": "로그아웃",
+    "login": "로그인",
+    "guest": "게스트",
+    "loading": "로딩 중...",
+    "loginTitle": "데이터 동기화를 위해 로그인하세요",
+    "loginWithGoogle": "Google로 계속",
+    "loginForTest": "테스트 로그인",
+    "usageAnalytics": "사용 분석",
+    "totalCalls": "호출",
+    "totalTokens": "토큰",
+    "batchOptimization": "배치 최적화",
+    "research": "리서치",
+    "wikiKnowledgeBase": "지식 베이스"
+  },
+  "research": {
+    "resourcePool": "리소스",
+    "selectedCount": "{selected}/{total}개 선택됨",
+    "addFromWiki": "위키에서",
+    "addFromWikiTooltip": "지식 베이스 개념을 리서치 컨텍스트로 추가합니다",
+    "uploadFile": "업로드",
+    "uploadFileTooltip": "리서치 자료로 문서를 업로드합니다",
+    "uploading": "업로드 중...",
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 해제",
+    "searchConcepts": "개념 검색...",
+    "searching": "검색 중...",
+    "noResults": "개념을 찾을 수 없습니다",
+    "added": "추가됨",
+    "resourceAdded": "리소스가 추가되었습니다",
+    "filesUploaded": "{count}개 파일 업로드됨",
+    "emptyResources": "아직 추가된 리소스가 없습니다",
+    "emptyResourcesHint": "문서나 위키 개념을 추가하여 리서치 컨텍스트를 구성하세요",
+    "resources": "리소스",
+    "chat": "채팅",
+    "output": "출력",
+    "emptyOutput": "아직 출력이 없습니다",
+    "emptyOutputHint": "리서치 중에 생성된 아티팩트가 여기에 표시됩니다",
+    "saveToWiki": "위키에 저장",
+    "savedToWiki": "지식 베이스에 저장되었습니다",
+    "download": "다운로드",
+    "errors": {
+      "searchFailed": "개념 검색 실패",
+      "uploadFailed": "파일 업로드 실패",
+      "saveToWikiFailed": "지식 베이스 저장 실패"
+    }
+  },
+  "loginBubble": {
+    "title": "더 많은 기능 잠금 해제",
+    "description": "로그인하여 채팅 기록, 에이전트 구성, 개인 설정을 동기화하세요",
+    "loginWithGoogle": "Google로 계속",
+    "loginForTest": "테스트 로그인",
+    "close": "닫기"
+  },
+  "nav": {
+    "chat": "채팅",
+    "work": "작업",
+    "projects": "프로젝트",
+    "agent": "에이전트",
+    "history": "기록",
+    "health": "시스템 닥터",
+    "securityCenter": "보안 센터",
+    "extensionConnected": "브라우저 확장 연결됨",
+    "extensionDisconnected": "브라우저 확장 연결 끊김",
+    "remoteGateway": "원격 서버에 연결됨"
+  },
+  "health": {
+    "title": "시스템 닥터",
+    "overview": "개요",
+    "resources": "리소스 매트릭스",
+    "repairCenter": "복구 센터",
+    "status": {
+      "healthy": "정상",
+      "degraded": "저하됨",
+      "unhealthy": "심각",
+      "unknown": "알 수 없음"
+    },
+    "score": "상태 점수",
+    "historyChart": "24시간 추이",
+    "refresh": "새로고침",
+    "autoRecover": "자동 복구",
+    "execute": "실행",
+    "executing": "실행 중...",
+    "success": "성공",
+    "failed": "실패",
+    "noActions": "지금 권장 조치가 없습니다.",
+    "errors": {
+      "ERR_DLQ_CRITICAL": {
+        "message": "메시지 전달 큐에 심각한 오류가 있습니다 ({failed_count}건 실패)."
+      },
+      "OK_DLQ_HEALTHY": {
+        "message": "메시지 전달이 정상입니다 ({failed_count}건 실패)."
+      },
+      "WARN_DLQ_UNAVAILABLE": {
+        "message": "DLQ가 구성되지 않았거나 초기화되지 않았습니다."
+      },
+      "ERR_DLQ_CHECK_FAILED": {
+        "message": "메시지 전달 상태 확인 중 오류가 발생했습니다."
+      },
+      "ERR_PROBE_CRASH": {
+        "message": "프로브 실행이 예기치 않게 실패했습니다."
+      }
+    }
+  },
+  "layout": {
+    "showSidebar": "사이드바 표시",
+    "hideSidebar": "사이드바 숨기기"
+  },
+  "sidebar": {
+    "searchPlaceholder": "채팅 검색",
+    "searchAgents": "에이전트 검색",
+    "chatHistory": "채팅",
+    "workspace": "작업 공간",
+    "files": "파일"
+  },
+  "workspace": {
+    "refresh": "새로고침",
+    "emptyDir": "빈 디렉터리",
+    "truncated": "파일 목록이 잘렸습니다 (항목이 너무 많음)",
+    "download": "다운로드",
+    "close": "닫기",
+    "noContent": "미리볼 콘텐츠가 없습니다"
+  }
+}

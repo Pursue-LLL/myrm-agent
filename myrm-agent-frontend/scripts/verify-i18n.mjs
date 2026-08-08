@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * 翻译完整性验证脚本
+ * 翻译完整性验证脚本（i18n 质量门禁）。
  *
- * - metadata.settingsTabs / settings.menu / settings.developer
- * - zh.json 与 en.json 全量 key 树一致
- * - agent.configPanel 下关键 string 键在 zh/en/ja/ko/de 均存在（防 MISSING_MESSAGE）
+ * - metadata.settingsTabs / settings.menu / settings.developer 完整性
+ * - agent.configPanel / kanban / artifacts / cron 关键 string 键在全部 6 种语言均存在（防 MISSING_MESSAGE）
  * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
+ * - home-route settings i18n shell contract（scan-home-i18n-shell.mjs）
+ * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=WARNING）、叶子类型一致、ICU 占位符变量一致、
+ *   ICU 花括号平衡、翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
+ *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
+ * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
+ *
+ * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs';
@@ -19,15 +25,18 @@ const rootDir = resolve(__dirname, '..');
 
 // 有效的tabs列表（必须与 app/settings/[tab]/page.tsx 中的 VALID_TABS 保持一致）
 const VALID_TABS = [
-  'account', 'preferences', 'personalization', 'agents', 'security',
+  'account', 'preferences', 'theme-studio', 'personalization', 'agents', 'security',
   'riskRules', 'models', 'defaultModel', 'search', 'mcp', 'skills',
-  'skillQuality', 'credentials', 'cron', 'checkpoint',
-  'channels', 'voice', 'developer', 'importExport', 'companion',
-  'usageStatistics', 'system', 'about', 'enterprise',
+  'skillQuality', 'toolStability', 'toolQuality', 'evolutionPending', 'evolutionRejection', 'eval',
+  'credentials', 'wiki', 'memory', 'cron', 'kanban', 'checkpoint',
+  'channels', 'channelRouting', 'voice', 'openaiApi', 'integrationCatalog', 'integrationMemory',
+  'extensionBridge', 'connect', 'hosting', 'workspaceRules', 'developer', 'importExport',
+  'companion', 'usageStatistics', 'experimentalFeatures', 'memory-backup', 'memory-cloud-backup',
+  'memory-archival', 'memory-migration', 'enterprise', 'system', 'about',
 ];
 
-// 支持的语言
-const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de'];
+// 支持的语言（必须与 src/i18n/config.ts locales 一致）
+const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'];
 
 /**
  * `agent.configPanel` 下必须在所有语言中存在的字符串键（与 `useTranslations('agent.configPanel')` 对齐）。
@@ -263,51 +272,6 @@ for (const lang of LANGUAGES) {
   }
 }
 
-// 验证4: 检查zh.json和en.json的key结构是否一致
-console.log('\n📋 验证 zh.json 和 en.json 结构一致性...');
-function getAllKeys(obj, prefix = '') {
-  const keys = new Set();
-  if (typeof obj !== 'object' || obj === null) {
-    return keys;
-  }
-  for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    keys.add(fullKey);
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      getAllKeys(value, fullKey).forEach(k => keys.add(k));
-    }
-  }
-  return keys;
-}
-
-const zhKeys = getAllKeys(translations.zh);
-const enKeys = getAllKeys(translations.en);
-
-const missingInEn = [...zhKeys].filter(k => !enKeys.has(k));
-const missingInZh = [...enKeys].filter(k => !zhKeys.has(k));
-
-if (missingInEn.length > 0) {
-  console.warn(`  ⚠️  en.json 缺少 ${missingInEn.length} 个keys (zh.json中存在):`);
-  missingInEn.slice(0, 10).forEach(key => console.warn(`     - ${key}`));
-  if (missingInEn.length > 10) {
-    console.warn(`     ... 还有 ${missingInEn.length - 10} 个`);
-  }
-  hasErrors = true;
-}
-
-if (missingInZh.length > 0) {
-  console.warn(`  ⚠️  zh.json 缺少 ${missingInZh.length} 个keys (en.json中存在):`);
-  missingInZh.slice(0, 10).forEach(key => console.warn(`     - ${key}`));
-  if (missingInZh.length > 10) {
-    console.warn(`     ... 还有 ${missingInZh.length - 10} 个`);
-  }
-  hasErrors = true;
-}
-
-if (missingInEn.length === 0 && missingInZh.length === 0) {
-  console.log(`  ✅ zh.json 和 en.json 结构一致`);
-}
-
 // 验证5: agent.configPanel 关键 keys（全语言，与 AgentConfigEditDialog 的 useTranslations 命名空间一致）
 console.log('\n📋 验证 agent.configPanel 关键 keys（全语言）...');
 for (const lang of LANGUAGES) {
@@ -511,6 +475,289 @@ try {
   console.log('  ✅ home-route settings shell contract 通过');
 } catch {
   hasErrors = true;
+}
+
+// 验证9: 全量 key parity + 类型一致 + 占位符 + 壳检测 + 哨兵（所有语言 vs en）
+console.log('\n📋 验证全量 key parity / 类型 / 占位符 / 翻译壳 / 异常哨兵...');
+
+// 壳检测 allowlist（scripts/i18n-shell-allowlist.json）
+let ALLOWED_SAME_VALUES = new Set();
+let ALLOWED_SAME_KEYS = new Set();
+let ALLOWED_MIXED_VALUES = new Set();
+let ALLOWED_MIXED_KEYS = new Set();
+try {
+  const allowlist = JSON.parse(
+    readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'),
+  );
+  ALLOWED_SAME_VALUES = new Set(allowlist.allowedSameValues || []);
+  ALLOWED_SAME_KEYS = new Set(allowlist.allowedSameKeys || []);
+  ALLOWED_MIXED_VALUES = new Set(allowlist.allowedMixedValues || []);
+  ALLOWED_MIXED_KEYS = new Set(allowlist.allowedMixedKeys || []);
+} catch (error) {
+  console.error(`  ❌ 无法加载 scripts/i18n-shell-allowlist.json: ${error.message}`);
+  hasErrors = true;
+}
+
+function walkTypes(obj, prefix, out) {
+  if (Array.isArray(obj)) {
+    out.set(prefix, 'array');
+    return;
+  }
+  if (obj && typeof obj === 'object') {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) {
+      out.set(prefix, 'object');
+      return;
+    }
+    for (const key of keys) {
+      walkTypes(obj[key], prefix ? `${prefix}.${key}` : key, out);
+    }
+    return;
+  }
+  out.set(prefix, typeof obj);
+}
+
+function resolvePath(obj, dottedPath) {
+  let node = obj;
+  for (const part of dottedPath.split('.')) {
+    if (node == null || typeof node !== 'object') return undefined;
+    node = node[part];
+  }
+  return node;
+}
+
+function placeholderSet(value) {
+  const matches = String(value).match(/\{([a-zA-Z_][\w.-]*)(?:,|})/g) || [];
+  return matches
+    .map((match) => match.replace(/^\{/, '').replace(/[,}]$/, ''))
+    .sort()
+    .join('|');
+}
+
+/** ICU 花括号是否成对平衡（防 next-intl 运行时解析崩溃）。 */
+function isBraceBalanced(value) {
+  let depth = 0;
+  for (const ch of value) {
+    if (ch === '{') depth += 1;
+    else if (ch === '}') depth -= 1;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+/** CJK 汉字区间（含中文日文共用汉字），用于 en 纯净性与双语对照检测。 */
+const CJK_RE = /[\u4e00-\u9fff]/;
+
+/**
+ * 双语对照脏值：同一语义被写成"本地语 / English"（如 "是 / Yes"、"上下文健康 / Context Health"）。
+ * 判定：恰好两段，一段纯 ASCII（英文），另一段纯 CJK（本地语），且不含 ICU 占位符对照。
+ * 排除合理情形：占位符对照（{shown} / {total}）、术语对照（MCP / 技能设置）、路径/URL。
+ */
+function isBilingualDirty(value) {
+  if (typeof value !== 'string' || value.length > 160) return false;
+  if (!CJK_RE.test(value) || !/[a-zA-Z]/.test(value)) return false;
+  if (!value.includes(' / ') || /\{/.test(value)) return false;
+  const parts = value.split(' / ');
+  if (parts.length !== 2) return false;
+  const [a, b] = parts.map((s) => s.trim());
+  if (!a || !b) return false;
+  const asciiOnly = (s) => /^[\x00-\x7F]+$/.test(s);
+  const cjkOnly = (s) => !/[a-zA-Z]/.test(s) && /[\u4e00-\u9fff]/.test(s);
+  return (asciiOnly(a) && cjkOnly(b)) || (cjkOnly(a) && asciiOnly(b));
+}
+
+/**
+ * 值“合法保留英文”：极短词/含非 ASCII（原生文字）/模板/URL/路径/纯数字/全大写缩写豁免；
+ * 其余（含单 token 英文，如 "Yes"/"GitHub"/"Webhook"）一律视为壳，仅品牌 allowlist 可豁免。
+ */
+function isLegitSameValue(value) {
+  if (!value) return true;
+  if (value.length < 3) return true; // "OK"/"No" 等极短词不判壳
+  if (/[\u0080-\uFFFF]/.test(value)) return true; // 含非 ASCII（已是本地化文字）
+  if (/[{}$%^]/.test(value)) return true; // 模板 / 金额 / 指数
+  if (/https?:\/\//.test(value) || value.includes('/') || value.includes('\\')) return true;
+  if (/^[\d\s.,-]+$/.test(value)) return true;
+  if (value.includes('...')) return true;
+  if (!value.includes(' ') && /^[A-Z0-9][A-Z0-9._-]*$/.test(value)) return true; // 全大写缩写（MCP/API/RPM…）
+  return false;
+}
+
+function reportShells(locale, shells) {
+  if (shells.length === 0) return;
+  console.error(`  ❌ ${locale}.json 存在 ${shells.length} 个翻译壳（值与英文一致）：`);
+  shells.slice(0, 15).forEach(({ path, value }) => {
+    console.error(`     - ${path} = ${JSON.stringify(value.slice(0, 80))}`);
+  });
+  if (shells.length > 15) console.error(`     ... 还有 ${shells.length - 15} 个`);
+  hasErrors = true;
+}
+
+const enTypes = new Map();
+walkTypes(translations.en, '', enTypes);
+const enLeaves = [...enTypes.keys()];
+
+// 9e. en.json 自身 ICU 花括号平衡（SSOT 损坏会连锁所有语言）
+const enBraceErrors = [];
+for (const key of enLeaves) {
+  const enValue = resolvePath(translations.en, key);
+  if (typeof enValue === 'string' && !isBraceBalanced(enValue)) {
+    enBraceErrors.push(key);
+  }
+}
+if (enBraceErrors.length > 0) {
+  console.error(`  ❌ en.json 存在 ${enBraceErrors.length} 个 ICU 花括号不平衡键：`);
+  enBraceErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+  hasErrors = true;
+}
+
+// 9f. en.json 纯净性（SSOT 语言纯净门禁）：en 叶子值不得混入 CJK（语言名/品牌 allowlist 豁免）
+const EN_PURITY_ALLOWED_KEYS = new Set([
+  'settings.languageOptions.chinese',
+  'settings.languageOptions.chineseTraditional',
+  'settings.languageOptions.japanese',
+  'settings.languageOptions.korean',
+  'settings.languageOptions.german',
+]);
+const enCjkErrors = [];
+for (const key of enLeaves) {
+  if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
+  if (ALLOWED_SAME_KEYS.has(key) || ALLOWED_MIXED_KEYS.has(key)) continue;
+  const enValue = resolvePath(translations.en, key);
+  if (typeof enValue === 'string' && CJK_RE.test(enValue)) {
+    enCjkErrors.push(key);
+  }
+}
+if (enCjkErrors.length > 0) {
+  console.error(`  ❌ en.json 存在 ${enCjkErrors.length} 个混入 CJK 的键（SSOT 污染，须修复为纯英文）：`);
+  enCjkErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+  hasErrors = true;
+}
+
+for (const lang of LANGUAGES) {
+  const data = translations[lang];
+  if (!data || lang === 'en') continue;
+
+  const localeTypes = new Map();
+  walkTypes(data, '', localeTypes);
+
+  // 9a. key parity
+  const missing = enLeaves.filter((key) => !localeTypes.has(key));
+  if (missing.length > 0) {
+    console.error(`  ❌ ${lang}.json 缺少 ${missing.length} 个 en 键：`);
+    missing.slice(0, 15).forEach((key) => console.error(`     - ${key}`));
+    if (missing.length > 15) console.error(`     ... 还有 ${missing.length - 15} 个`);
+    hasErrors = true;
+  }
+
+// 9b. extra keys（en 中不存在的孤儿键 → 警告，建议清理）
+const extras = [...localeTypes.keys()].filter((key) => !enTypes.has(key));
+const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
+  if (realExtras.length > 0) {
+    console.warn(`  ⚠️  ${lang}.json 存在 ${realExtras.length} 个 en 中没有的键（孤儿键，建议清理）：`);
+    realExtras.slice(0, 10).forEach((key) => console.warn(`     - ${key}`));
+  }
+
+  // 9c. 类型一致
+  const typeMismatches = [];
+  for (const [key, enType] of enTypes) {
+    if (!localeTypes.has(key)) continue;
+    const localeType = localeTypes.get(key);
+    if (localeType !== enType) typeMismatches.push(`${key} (en:${enType} vs ${lang}:${localeType})`);
+  }
+  if (typeMismatches.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${typeMismatches.length} 个类型不一致键：`);
+    typeMismatches.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
+
+  // 9d. 占位符一致 + 翻译壳 + 双语对照 + 哨兵 + ICU 花括号
+  const shellErrors = [];
+  const placeholderErrors = [];
+  const bilingualErrors = [];
+  const sentinelErrors = [];
+  const braceErrors = [];
+
+  const checkValue = (key, enValue, localeValue) => {
+    if (typeof enValue !== 'string') return;
+    if (typeof localeValue !== 'string') return;
+    if (localeValue.includes('[object Object]')) {
+      sentinelErrors.push(`${key} = "[object Object]"`);
+      return;
+    }
+    if (!localeValue.trim()) {
+      sentinelErrors.push(`${key} = 空字符串`);
+      return;
+    }
+    if (!isBraceBalanced(localeValue)) {
+      braceErrors.push(`${key} = ICU 花括号不平衡`);
+      return;
+    }
+    if (placeholderSet(enValue) !== placeholderSet(localeValue)) {
+      placeholderErrors.push(
+        `${key}: en[${placeholderSet(enValue) || '(none)'}] vs ${lang}[${placeholderSet(localeValue) || '(none)'}]`,
+      );
+      return;
+    }
+    if (isBilingualDirty(localeValue) && !enValue.includes(' / ')) {
+      if (!ALLOWED_MIXED_VALUES.has(localeValue) && !ALLOWED_MIXED_KEYS.has(key)) {
+        bilingualErrors.push(`${key} = ${JSON.stringify(localeValue.slice(0, 80))}`);
+      }
+      return;
+    }
+    if (localeValue === enValue && enValue.length > 2) {
+      if (isLegitSameValue(enValue)) return;
+      if (ALLOWED_SAME_VALUES.has(enValue)) return;
+      if (ALLOWED_SAME_KEYS.has(key)) return;
+      shellErrors.push({ path: key, value: enValue });
+    }
+  };
+
+  const checkArray = (key, enArr, localeArr) => {
+    enArr.forEach((item, index) => {
+      const localeItem = Array.isArray(localeArr) ? localeArr[index] : undefined;
+      if (typeof item === 'string' && typeof localeItem === 'string') {
+        checkValue(`${key}[${index}]`, item, localeItem);
+      }
+    });
+  };
+
+  for (const key of enLeaves) {
+    const enValue = resolvePath(translations.en, key);
+    const localeValue = resolvePath(data, key);
+    if (enValue === undefined || localeValue === undefined) continue;
+    if (Array.isArray(enValue)) {
+      checkArray(key, enValue, localeValue);
+    } else {
+      checkValue(key, enValue, localeValue);
+    }
+  }
+
+  reportShells(lang, shellErrors);
+  if (placeholderErrors.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${placeholderErrors.length} 个占位符不匹配：`);
+    placeholderErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
+  if (bilingualErrors.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${bilingualErrors.length} 个双语对照脏值（本地语 / English 并存）：`);
+    bilingualErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
+  if (sentinelErrors.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${sentinelErrors.length} 个异常哨兵：`);
+    sentinelErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
+  if (braceErrors.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${braceErrors.length} 个 ICU 花括号不平衡：`);
+    braceErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
+  if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
+    && placeholderErrors.length === 0 && bilingualErrors.length === 0
+    && sentinelErrors.length === 0 && braceErrors.length === 0) {
+    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / 双语对照 检测 通过`);
+  }
 }
 
 // 最终结果

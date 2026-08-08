@@ -4,12 +4,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.skills.auto_extractor import _publish_evolution_event, auto_extract_or_patch_skill
+from app.services.skills.auto_extractor import (
+    _publish_evolution_event,
+    auto_extract_or_patch_skill,
+)
 
 
 @pytest.fixture
 def mock_skill_creation_service():
-    with patch("app.services.skills.auto_extractor.skill_creation_service") as mock_service:
+    with patch(
+        "app.services.skills.auto_extractor.skill_creation_service"
+    ) as mock_service:
         # Mock save_skill to return a success result
         mock_result = MagicMock()
         mock_result.success = True
@@ -28,7 +33,9 @@ def mock_skill_creation_service():
 
 @pytest.fixture
 def mock_publish_event():
-    with patch("app.services.skills.auto_extractor._publish_evolution_event") as mock_pub:
+    with patch(
+        "app.services.skills.auto_extractor._publish_evolution_event"
+    ) as mock_pub:
         yield mock_pub
 
 
@@ -67,7 +74,9 @@ async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_
 
 
 @pytest.mark.asyncio
-async def test_auto_patch_existing_skill(mock_skill_creation_service, mock_publish_event, mock_apply_patch):
+async def test_auto_patch_existing_skill(
+    mock_skill_creation_service, mock_publish_event, mock_apply_patch
+):
     result = {
         "user_id": "test_user_2",
         "has_value": True,
@@ -85,7 +94,9 @@ async def test_auto_patch_existing_skill(mock_skill_creation_service, mock_publi
     assert kwargs["name"] == "existing_skill"
     assert kwargs["content"] == "Patched content"
 
-    mock_publish_event.assert_called_once_with("existing_skill", "patch", "Applied optimization patch")
+    mock_publish_event.assert_called_once_with(
+        "existing_skill", "patch", "Applied optimization patch"
+    )
 
 
 @pytest.mark.asyncio
@@ -101,3 +112,45 @@ async def test_publish_evolution_event(mock_get_bus):
     assert event.event_type == "skill_evolved"  # AppEventType.SKILL_EVOLVED
     assert event.data["skill_name"] == "my_skill"
     assert event.data["evolution_type"] == "new"
+
+
+@pytest.mark.asyncio
+async def test_auto_extract_persists_eval_cases(
+    mock_skill_creation_service, mock_publish_event
+):
+    """Review eval_cases must be written into the evolution SkillStore for new skills."""
+    eval_cases = [
+        {
+            "message": "deploy nginx",
+            "sandbox_assertions": [{"type": "code_contains", "target": "nginx"}],
+        }
+    ]
+    result = {
+        "user_id": "test_user_3",
+        "has_value": True,
+        "type": "skill_draft",
+        "skill_name": "test_skill_eval",
+        "skill_description": "A new skill with eval cases",
+        "trigger_condition": "When asked",
+        "skill_steps": "Deploy the service",
+        "eval_cases": eval_cases,
+    }
+
+    mock_store = MagicMock()
+    mock_store.get_skill_by_name_version.return_value = None
+    mock_store.save_skill = AsyncMock()
+    mock_store.close = MagicMock()
+
+    with patch(
+        "app.core.skills.store.evolution_store.get_evolution_skill_store",
+        return_value=mock_store,
+    ):
+        materialization = await auto_extract_or_patch_skill(
+            result, eval_cases=eval_cases
+        )
+
+    assert materialization.success
+    mock_store.save_skill.assert_awaited_once()
+    saved_record = mock_store.save_skill.call_args.args[0]
+    assert saved_record.name == "test_skill_eval"
+    assert saved_record.eval_cases == eval_cases

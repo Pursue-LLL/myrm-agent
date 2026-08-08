@@ -26,8 +26,10 @@ interface InlineInputPayload {
 
 type ListenCallback<T> = (event: { payload: T }) => void;
 const mockListeners = new Map<string, ListenCallback<unknown>>();
-const mockUnlisten = vi.fn();
-const mockListen = vi.fn(async (eventName: string, callback: ListenCallback<unknown>) => {
+const mockUnlisten = vi.fn<() => void>(() => undefined);
+const mockListen = vi.fn<
+  (eventName: string, callback: ListenCallback<unknown>) => Promise<() => void>
+>(async (eventName: string, callback: ListenCallback<unknown>) => {
   mockListeners.set(eventName, callback);
   return mockUnlisten;
 });
@@ -44,10 +46,12 @@ describe('useInlineInputListener', () => {
     mockListeners.clear();
     mockIsTauriRuntime = false;
     mockListen.mockReset();
-    mockListen.mockImplementation(async (eventName: string, callback: ListenCallback<unknown>) => {
-      mockListeners.set(eventName, callback);
-      return mockUnlisten;
-    });
+    mockListen.mockImplementation(
+      async (eventName: string, callback: ListenCallback<unknown>) => {
+        mockListeners.set(eventName, callback);
+        return mockUnlisten;
+      },
+    );
   });
 
   afterEach(() => {
@@ -164,8 +168,8 @@ describe('useInlineInputListener', () => {
 
     unmount();
 
-    const lateUnlisten = vi.fn();
-    resolveListen?.(lateUnlisten);
+    const lateUnlisten = vi.fn<() => void>(() => undefined);
+    (resolveListen as ((dispose: () => void) => void) | null)?.(lateUnlisten);
 
     await vi.waitFor(() => {
       expect(lateUnlisten).toHaveBeenCalledTimes(1);

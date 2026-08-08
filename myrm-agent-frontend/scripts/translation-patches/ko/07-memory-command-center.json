@@ -1,0 +1,161 @@
+{
+  "memory": {
+    "commandCenter": {
+      "migrationTitle": "마이그레이션 준비 상태",
+      "trackedImports": "추적된 가져오기 {count}건",
+      "unmappedItems": "매핑되지 않은 항목 {count}건",
+      "importCleanupPending": "가져오기 검토 대기 {count}건",
+      "importCleanupRetained": "유지된 검토 {count}건, 롤백 기간 {days}일",
+      "importPostVerifyTitle": "가져오기 후 검증",
+      "importPostVerifyDesc": "가져온 메모리에 의존하기 전에 저장소, 인덱싱, 원장, 검색 상태를 확인하기 위해 가져오기 후 진단을 실행하세요.",
+      "lastImportBatch": "마지막 배치: {batch}",
+      "lastImportDiagnostic": "자동 진단: {status}",
+      "verifyImport": "가져오기 검증",
+      "verifyingImport": "검증 중",
+      "exportArchive": "아카이브 내보내기",
+      "exportingArchive": "내보내는 중",
+      "archiveExportSuccess": "메모리 아카이브가 내보내졌습니다",
+      "archiveExportSuccessDesc": "{sections}개 섹션에 걸쳐 {count}개 아카이브 항목을 내보냈습니다.",
+      "restoreArchive": "아카이브 복원",
+      "reviewingArchiveRestore": "검토 중",
+      "archiveRestoreSuccess": "아카이브 복원 완료",
+      "archiveRestoreSuccessDesc": "충돌 {conflicts}건과 함께 {count}개 항목을 복원했습니다.",
+      "archiveRestoreRollbackEmpty": "이 복원 배치에는 되돌릴 수 있는 항목이 없습니다.",
+      "archiveRestoreRollbackSuccess": "아카이브 복원이 롤백되었습니다",
+      "archiveRestoreRollbackSuccessDesc": "{count}개 항목을 롤백했고 {missing}개가 누락되었습니다.",
+      "consolidationRollbackTitle": "메모리 통합",
+      "consolidationLastRun": "마지막 자동 통합",
+      "consolidationNoDetails": "사용 가능한 세부 정보 없음",
+      "consolidationAffected": "{count}개 메모리 영향",
+      "consolidationConflict": "통합 후 수정됨",
+      "consolidationRollingBack": "롤백 중...",
+      "consolidationRollbackBtn": "마지막 통합 실행 취소",
+      "consolidationRollbackUnavailable": "롤백 불가 (메모리 수정됨)",
+      "consolidationRollbackSuccess": "통합이 롤백되었습니다",
+      "consolidationRollbackSuccessDesc": "{count}개 메모리를 복원했습니다. 수동 변경으로 {conflicts}건이 건너뛰어졌습니다.",
+      "rollbackImport": "가져오기 롤백",
+      "rollingBackImport": "롤백 중",
+      "rollbackSuccess": "가져오기 롤백 완료",
+      "rollbackSuccessDesc": "가져온 메모리 항목 {count}개를 롤백했고 {missing}개 누락, {failed}건 실패.",
+      "rollbackPreviewTitle": "가져오기 롤백 확인",
+      "rollbackPreviewDesc": "롤백 미리보기는 삭제가 실행되기 전에 서버 트랜잭션 원장과 현재 메모리 메타데이터에서 생성됩니다.",
+      "rollbackPreviewBatch": "배치",
+      "rollbackPreviewSource": "소스",
+      "rollbackPreviewTotal": "원장 항목",
+      "rollbackPreviewReversible": "지금 되돌릴 수 있음",
+      "rollbackPreviewSkipped": "건너뜀",
+      "rollbackPreviewConflicts": "충돌",
+      "rollbackPreviewMissing": "누락",
+      "rollbackPreviewCancel": "가져오기 유지",
+      "rollbackPreviewConfirm": "가져오기 롤백",
+      "rollbackResultIntegrity": "무결성",
+      "rollbackResultTotal": "롤백됨",
+      "rollbackResultDeleted": "삭제됨",
+      "rollbackResultMissing": "누락",
+      "rollbackResultForbidden": "보호됨",
+      "rollbackResultFailed": "실패",
+      "rollbackIntegrityStatus": {
+        "ready": "완료",
+        "warning": "주의 필요",
+        "critical": "심각",
+        "not_checked": "확인되지 않음"
+      },
+      "rollbackWarnings": {
+        "no_reversible_items": "현재 되돌릴 수 있는 가져온 메모리 항목이 없습니다.",
+        "profile_conflicts": "{count}개 프로필 항목이 가져오기 후 변경되어 동시성 보호에 의해 차단되었습니다.",
+        "profile_guarded": "{count}개 프로필 항목은 롤백 전에 가져온 값과 대조 확인됩니다.",
+        "memory_rows_missing": "{count}개 가져온 항목에 정밀 롤백을 위한 주소 지정 가능한 메모리 ID가 없습니다.",
+        "unknown": "롤백 미리보기가 알 수 없는 알림을 반환했습니다."
+      },
+      "healthCheck": "건강 점검",
+      "healthStatus": {
+        "healthy": "정상",
+        "degraded": "주의 필요",
+        "critical": "심각",
+        "unknown": "알 수 없음"
+      },
+      "healthDashboardTitle": "메모리 건강",
+      "healthDashboard": {
+        "totalScore": "건강 점수",
+        "dimensions": {
+          "freshness": "신선도",
+          "coverage": "적용 범위",
+          "retention_health": "보존",
+          "coherence": "일관성"
+        },
+        "suggestionsTitle": "제안",
+        "guardianRunning": "가디언 활성",
+        "guardianStopped": "가디언 대기",
+        "guardianIdle": "예약된 실행 없음",
+        "guardianImminent": "지금 실행 중",
+        "guardianSeconds": "{count}초 후 실행",
+        "guardianMinutes": "{count}분 후 실행",
+        "neverChecked": "확인된 적 없음",
+        "justNow": "방금 확인됨",
+        "minutesAgo": "{count}분 전 확인",
+        "hoursAgo": "{count}시간 전 확인",
+        "sampleSize": "{count}개 메모리 기준",
+        "guardianNextRun": "다음: {time}",
+        "checkedAt": "{time}에 확인됨",
+        "unavailable": "건강 데이터를 아직 사용할 수 없습니다. 메모리가 축적되면서 평가됩니다.",
+        "cacheStatus": {
+          "fresh": "캐시 최신",
+          "refreshed": "캐시 새로고침됨",
+          "unavailable": "캐시 사용 불가"
+        }
+      },
+      "runtimeStatus": {
+        "available": "사용 가능",
+        "unavailable": "사용 불가",
+        "custom": "사용자 정의 공급자",
+        "not_used": "사용 안 함",
+        "proxied_by_sandbox": "샌드박스 프록시"
+      },
+      "coverageStatus": {
+        "not_tracked": "외부 메모리 가져오기가 추적되지 않음",
+        "partial": "일부 가져온 메모리에 매핑이 필요합니다",
+        "complete": "가져온 메모리가 매핑되었습니다"
+      },
+      "spaceKind": {
+        "global": "전역",
+        "agent": "에이전트",
+        "channel": "채널",
+        "conversation": "대화",
+        "task": "작업",
+        "shared": "공유",
+        "unknown": "알 수 없음"
+      },
+      "recordStatus": {
+        "pending": "대기",
+        "approved": "승인됨",
+        "rejected": "거부됨",
+        "active": "활성",
+        "archived": "보관됨",
+        "success": "성공"
+      },
+      "timelineSource": {
+        "pending_memory": "대기 메모리",
+        "shared_context_write_proposal": "공유 컨텍스트 제안",
+        "shared_context": "공유 컨텍스트",
+        "memory_manager": "메모리 관리자"
+      },
+      "allProjects": "모든 프로젝트",
+      "clearFilter": "지우기",
+      "migrationAdapterStatusTitle": "어댑터 준비 상태",
+      "migrationAdapterStatus": {
+        "ready": "준비됨",
+        "planned": "계획됨",
+        "missing": "사용 불가"
+      },
+      "migrationAdapterMissingHint": "{source}을(를) 아직 직접 사용할 수 없습니다. 마이그레이션 마법사의 호환 가능한 가져오기 형식을 통해 계속할 수 있습니다.",
+      "migrationAdapterOpenWizard": "가져오기 마법사 열기",
+      "lastImportReadiness": "실행 준비: {status}",
+      "lastImportFirstTurn": "가져오기 후 첫 채팅: {outcome}",
+      "firstTurnOutcome": {
+        "success": "성공",
+        "failed": "실패",
+        "no_output": "어시스턴트 응답 없음"
+      }
+    }
+  }
+}

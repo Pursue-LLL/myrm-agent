@@ -238,38 +238,37 @@ const ModelServiceSection = memo(() => {
     const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
     
     // 查找是否已有 Ollama 提供商
-    let ollamaProvider = providers.find(p => p.providerType === 'ollama');
+    let ollamaProvider = providers.find(p => p.id === 'ollama');
     
     if (!ollamaProvider) {
-      // 如果没有，自动添加一个
-      const newId = 'ollama_local';
-      addProvider('Ollama Local', 'ollama');
+      // 如果没有，自动添加一个（Ollama 是内置本地提供商）
+      const newId = 'ollama';
+      const newProvider: ProviderConfigType = {
+        id: newId,
+        name: 'Ollama Local',
+        isBuiltIn: true,
+        isEnabled: true,
+        apiKeys: [],
+        apiUrl: 'http://localhost:11434/v1',
+        enabledModels: [pureModelName],
+        availableModels: [pureModelName],
+        providerType: undefined,
+        routingProfile: 'ollama',
+      };
+      setProviders([...providers, newProvider]);
       handleSelectProvider(newId);
-      
-      // 延迟一下等待 store 更新，或者直接通过 store 的 getState 修改
-      setTimeout(() => {
-        const state = useProviderStore.getState();
-        const newProvider = state.providers.find(p => p.id === newId);
-        if (newProvider) {
-          state.updateProvider(newId, {
-            ...newProvider,
-            customModels: [pureModelName],
-            enabledModels: [pureModelName]
-          });
-        }
-      }, 100);
       return;
     }
     
     // 切换到 Ollama 提供商
     handleSelectProvider(ollamaProvider.id);
     
-    // 将模型添加到 customModels 列表中（如果不存在）
-    const currentCustomModels = ollamaProvider.customModels || [];
+    // 将模型添加到 availableModels 列表中（如果不存在）
+    const currentCustomModels = ollamaProvider.availableModels || [];
     if (!currentCustomModels.includes(pureModelName)) {
       const updatedProvider = {
         ...ollamaProvider,
-        customModels: [...currentCustomModels, pureModelName],
+        availableModels: [...currentCustomModels, pureModelName],
         // 自动将该模型加入已启用列表
         enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName]
       };

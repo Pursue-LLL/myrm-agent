@@ -37,6 +37,7 @@ const baseJob: CronJob = {
   run_retention_days: 30,
   deduplicate: false,
   skip_if_active: false,
+  context_from: [],
   consecutive_failures: 0,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -49,7 +50,7 @@ describe('cronCreateAuditGate', () => {
   });
 
   it('pauses active jobs before settings audit', async () => {
-    vi.mocked(pauseCronJob).mockResolvedValue(undefined);
+    vi.mocked(pauseCronJob).mockResolvedValue({ ...baseJob, status: 'paused' });
     vi.mocked(getCronJob).mockResolvedValue({ ...baseJob, status: 'paused' });
 
     const result = await prepareJobForSettingsAudit(baseJob);
@@ -68,7 +69,7 @@ describe('cronCreateAuditGate', () => {
   });
 
   it('resumes job after audit confirm', async () => {
-    vi.mocked(resumeCronJob).mockResolvedValue(undefined);
+    vi.mocked(resumeCronJob).mockResolvedValue({ ...baseJob, status: 'active' });
     vi.mocked(getCronJob).mockResolvedValue({ ...baseJob, status: 'active' });
 
     const result = await resumeJobAfterAuditConfirm('job-1');

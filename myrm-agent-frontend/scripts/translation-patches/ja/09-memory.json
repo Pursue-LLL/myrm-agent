@@ -1,0 +1,102 @@
+{
+  "memory": {
+    "commandCenter": {
+      "allProjects": "すべてのプロジェクト",
+      "clearFilter": "クリア",
+      "migrationAdapterStatusTitle": "アダプターの準備状態",
+      "migrationAdapterStatus": {
+        "ready": "準備完了",
+        "planned": "計画済み",
+        "missing": "利用不可"
+      },
+      "migrationAdapterMissingHint": "{source} はまだ直接利用できません。マイグレーションウィザードの互換インポート形式で続行できます。",
+      "migrationAdapterOpenWizard": "インポートウィザードを開く",
+      "lastImportReadiness": "実行準備: {status}",
+      "lastImportFirstTurn": "インポート後の最初のチャット: {outcome}",
+      "firstTurnOutcome": {
+        "success": "成功",
+        "failed": "失敗",
+        "no_output": "アシスタントの返信なし"
+      }
+    },
+    "migrationWizard": {
+      "preview": {
+        "cronSkippedTitle": "{count} 件のスケジュールタスクはインポートされません",
+        "cronSkippedReason": {
+          "no_agent_script": "スクリプトのみのタスク（エージェントプロンプトなし）",
+          "missing_prompt": "エージェントプロンプトがありません",
+          "invalid_schedule": "無効または未対応のスケジュール",
+          "prompt_injection": "プロンプトがセキュリティスキャンでブロックされました",
+          "unsupported_job_type": "未対応のタスクタイプ"
+        }
+      },
+      "result": {
+        "reviewTeamAssets": "チームアセットをレビュー",
+        "reviewAgentLoadout": "エージェントのロードアウトをレビュー",
+        "configureCron": "スケジュールタスクをレビュー",
+        "cronImported": "{count} 件のスケジュールタスクをインポートしました（一時停止中）",
+        "cronImportFailed": "{count} 件のスケジュールタスクをインポートできませんでした",
+        "cronSkippedOnly": "{count} 件のスケジュールタスクはスキップされました（理由はプレビュー参照）",
+        "readinessSummary": "インポート後のランタイム準備チェック",
+        "readinessResolveBeforeChat": "チャットを開始する前に重大な準備問題を解決してください。",
+        "vaultBind": {
+          "title": "ノートフォルダをリンク",
+          "description": "任意: アシスタントがファイルをその場で読み書きするよう、ローカルフォルダを接続します。Wikiインポートはノートを別のライブラリにコピーします — ライブのボールトや同期フォルダにはこちらを使用してください。",
+          "chooseFolder": "フォルダを選択",
+          "preparing": "準備中…",
+          "skip": "後でスキップ",
+          "linkedSuccess": "フォルダをリンクしました。次のチャットはこのワークスペースを使用します。",
+          "defaultProjectName": "マイファイル",
+          "candidateGeneric": "以前のアシスタントセットアップからフォルダを検出しました。",
+          "candidateMarkdown": "このフォルダに {count} 件のMarkdownノートを検出しました。",
+          "candidateObsidian": "Obsidianボールトを検出 · {count} 件のMarkdownノート。"
+        },
+        "readinessStatus": {
+          "ready": "実行可能",
+          "warning": "警告付きで実行可能",
+          "critical": "実行不可"
+        },
+        "readinessIssue": {
+          "providersNotConfigured": "モデルプロバイダーが設定されていません。初回実行前にプロバイダーを1つ以上追加してください。",
+          "postImportDiagnosticsCritical": "インポート後の診断で重大な失敗が報告されました（{count} 件）。",
+          "postImportDiagnosticsWarning": "インポート後の診断で警告が報告されました（{count} 件）。",
+          "mcpServersImportedDisabled": "インポートされた {count} 個のMCPサーバーはデフォルトで無効です。必要に応じてレビューして有効化してください。",
+          "workspaceRulesSkipped": "{count} 件のワークスペースルールファイルは既に存在するためスキップされました。",
+          "voiceFeatureDisabled": "音声対話がオフです。Hermesで音声機能を使用していた場合は音声設定で有効にしてください。",
+          "consensusFeatureDisabled": "複数モデルコンセンサスがオフです。より高品質な回答のためにエージェント設定で有効にしてください。",
+          "moaOverlaySetupHint": "エージェント設定でMoAオーバーレイを有効にし、チャットモデルピッカーからプリセットを選択して複数モデルの助言を受けてください。",
+          "generic": "準備チェックで対応が必要です: {code}"
+        },
+        "readinessAction": {
+          "configureProviders": "プロバイダー設定を修正",
+          "openMemoryCenter": "メモリ診断を開く",
+          "configureMcp": "MCP設定をレビュー",
+          "reviewMigrationRules": "マイグレーションルールをレビュー",
+          "configureVoice": "音声設定を開く",
+          "configureConsensus": "エージェント設定を開く",
+          "configureMoaOverlay": "エージェント設定を開く"
+        },
+        "startChatChecking": "準備を確認中…",
+        "startChatRecheck": "準備を再確認して開始",
+        "startChatBlocked": "先に準備問題を解決してください",
+        "readinessRecheckFailed": "準備状態を更新できませんでした。もう一度お試しください。",
+        "codexCompletion": {
+          "title": "ナレッジベースを完成（Codex + Obsidian）",
+          "description": "Codexインポートによりエージェントの指示がMyrmに移行されました。多くのCodex+ObsidianユーザーはノートをObsidianボールトに保持しています — そのボールトをWikiにインポートし、セカンドブレイン自動化を有効にしてください。",
+          "steps": {
+            "importVault": "ObsidianボールトをWikiにインポート（raw → コンパイル → レビュー待ち）",
+            "secondBrain": "セカンドブレインプリセットを適用（cron取り込み + 朝デルタ + メンテナンス）",
+            "graph": "ナレッジグラフを開いてリンクとギャップを確認"
+          },
+          "actions": {
+            "importWiki": "ObsidianをWikiにインポート",
+            "secondBrain": "セカンドブレインを適用",
+            "viewGraph": "ナレッジグラフを表示"
+          },
+          "applyFailed": "セカンドブレインプリセットを適用できませんでした",
+          "vaultHint": "CodexセットアップからこのObsidianボールトを検出しました。Wikiインポートはこのパスを自動的に使用します。"
+        }
+      }
+    }
+  }
+}

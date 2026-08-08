@@ -1,0 +1,133 @@
+{
+  "memory": {
+    "sharedContexts": {
+      "tab": "공유 컨텍스트",
+      "title": "공유 컨텍스트",
+      "description": "에이전트, 채널, 크론 작업, 대화 또는 작업에 바인딩할 수 있는 거버넌스 메모리 공간을 생성하세요.",
+      "refresh": "새로고침",
+      "empty": "공유 컨텍스트가 아직 없습니다. 런타임 대상 간 승인된 메모리를 공유하려면 생성하세요.",
+      "selectEmpty": "바인딩과 제안을 관리할 공유 컨텍스트를 선택하거나 생성하세요.",
+      "noDescription": "설명 없음",
+      "archive": "보관",
+      "archivedNotice": "이 공유 컨텍스트는 보관되었습니다. 기존 증거는 읽을 수 있지만 새 바인딩, 제안, 승인, 기록 승격은 비활성화됩니다.",
+      "health": {
+        "checking": "공유 컨텍스트 메모리 상태 확인 중...",
+        "unavailable": "공유 컨텍스트 메모리 상태를 사용할 수 없습니다",
+        "status": {
+          "ready": "메모리 종속성이 준비되었습니다",
+          "not_configured": "임베딩이 구성되지 않았습니다",
+          "unreachable": "임베딩 서비스에 연결할 수 없습니다"
+        },
+        "reason": {
+          "ready": "승인된 공유 컨텍스트 제안을 검색 가능한 메모리로 구체화할 수 있습니다.",
+          "probe_skipped": "구성이 사용 가능해 보입니다. 중요한 공유 메모리를 승인하기 전에 라이브 프로브를 실행하세요.",
+          "missing_embedding_api_key": "EMBEDDING_API_KEY 또는 OPENAI_API_KEY를 설정하거나 로컬 OpenAI 호환 임베딩 엔드포인트를 구성하세요.",
+          "placeholder_embedding_api_key": "임베딩 API 키가 여전히 자리 표시자입니다. 공유 컨텍스트 제안을 승인하기 전에 교체하세요.",
+          "invalid_api_key": "임베딩 공급자가 구성된 API 키를 거부했습니다.",
+          "insufficient_quota": "임베딩 공급자가 할당량 부족을 보고했습니다.",
+          "rate_limited": "임베딩 공급자가 요청을 제한하고 있습니다.",
+          "timeout": "임베딩 프로브가 시간 초과되었습니다.",
+          "network_error": "임베딩 엔드포인트에 연결할 수 없습니다.",
+          "embedding_probe_failed": "라이브 임베딩 프로브가 공급자 세부 정보 없이 실패했습니다.",
+          "empty_embedding_vector": "임베딩 공급자가 빈 벡터를 반환했습니다."
+        },
+        "summary": {
+          "model": "모델: {model}",
+          "configOnly": "구성 확인",
+          "liveProbe": "라이브 프로브",
+          "dimension": "차원: {dimension}"
+        },
+        "actions": {
+          "probe": "라이브 프로브 실행",
+          "checking": "확인 중..."
+        }
+      },
+      "create": {
+        "namePlaceholder": "컨텍스트 이름, 예: 고객 A",
+        "descriptionPlaceholder": "이 공유 메모리 공간의 목적과 경계",
+        "submit": "컨텍스트 생성"
+      },
+      "status": {
+        "active": "활성",
+        "archived": "보관됨"
+      },
+      "targetTypes": {
+        "agent": "에이전트",
+        "channel": "채널",
+        "cron": "크론",
+        "conversation": "대화",
+        "task": "작업"
+      },
+      "bindings": {
+        "title": "런타임 바인딩",
+        "description": "바인딩된 대상은 사용자 지정 코드 없이 이 공유 컨텍스트를 자동으로 검색합니다.",
+        "selectTarget": "대상 선택",
+        "targetIdPlaceholder": "대상 ID 입력",
+        "bind": "바인딩",
+        "empty": "바인딩이 아직 없습니다"
+      },
+      "policy": {
+        "title": "정책",
+        "description": "이 공유 컨텍스트의 거버넌스 규칙.",
+        "correctionAutoApprove": "수정 자동 전파",
+        "correctionAutoApproveHint": "에이전트가 수정되면 수정 사항이 이 공유 컨텍스트에 자동으로 기록되어 모든 바인딩된 에이전트가 학습합니다.",
+        "goalCompletionAutoApprove": "목표 완료 자동 보관",
+        "goalCompletionAutoApproveHint": "목표가 완료되면 Planner의 아키텍처 결정이 이 공유 컨텍스트에 자동으로 기록됩니다."
+      },
+      "proposals": {
+        "title": "제안 수신함",
+        "description": "대기 중인 공유 메모리 제안 {count}건을 검토해야 합니다.",
+        "contentPlaceholder": "지속 가능한 공유 메모리 후보 작성...",
+        "create": "제안 생성",
+        "empty": "제안이 아직 없습니다",
+        "correctionTag": "수정",
+        "goalCompletionTag": "목표 완료"
+      },
+      "proposalStatus": {
+        "pending": "대기",
+        "approved": "승인됨",
+        "rejected": "거부됨"
+      },
+      "actions": {
+        "removeBinding": "바인딩 제거",
+        "saveProposal": "제안 저장",
+        "rejectProposal": "제안 거부",
+        "approveProposal": "제안 승인"
+      },
+      "history": {
+        "title": "기록에서 승격",
+        "description": "이전 채팅 메시지를 검색하고 선택한 증거를 검토 가능한 제안으로 승격하세요.",
+        "searchPlaceholder": "채팅 기록 검색...",
+        "search": "검색",
+        "promote": "제안으로 승격"
+      },
+      "toasts": {
+        "contextCreated": "공유 컨텍스트 생성됨",
+        "contextArchived": "공유 컨텍스트 보관됨",
+        "bindingCreated": "바인딩 생성됨",
+        "bindingDeleted": "바인딩 제거됨",
+        "proposalCreated": "제안 생성됨",
+        "proposalApproved": "제안 승인됨",
+        "proposalRejected": "제안 거부됨",
+        "proposalUpdated": "제안 업데이트됨",
+        "historyPromoted": "기록이 제안으로 승격됨",
+        "policyUpdated": "정책 업데이트됨"
+      },
+      "errors": {
+        "loadContexts": "공유 컨텍스트 로드 실패",
+        "loadDetails": "공유 컨텍스트 세부 정보 로드 실패",
+        "createContext": "공유 컨텍스트 생성 실패",
+        "archiveContext": "공유 컨텍스트 보관 실패",
+        "createBinding": "바인딩 생성 실패",
+        "deleteBinding": "바인딩 제거 실패",
+        "createProposal": "제안 생성 실패",
+        "approveProposal": "제안 승인 실패",
+        "rejectProposal": "제안 거부 실패",
+        "updateProposal": "제안 업데이트 실패",
+        "searchHistory": "기록 검색 실패",
+        "promoteHistory": "기록 승격 실패",
+        "updatePolicy": "정책 업데이트 실패"
+      }
+    }
+  }
+}

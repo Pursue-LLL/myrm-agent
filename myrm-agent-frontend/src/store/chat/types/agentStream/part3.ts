@@ -36,6 +36,8 @@ export interface WorkspaceMergeFailedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.WORKSPACE_MERGE_FAILED;
   data: {
     errors: WorkspaceMergeFailure[];
+    failed_count?: number;
+    truncated?: number;
   };
 }
 
@@ -127,6 +129,7 @@ export interface BrowserTakeoverRequestedStreamEvent extends BaseAgentEvent {
     is_managed?: boolean;
     auto_detect_completion?: boolean;
     live_assist_url?: string;
+    messageId?: string;
   };
 }
 

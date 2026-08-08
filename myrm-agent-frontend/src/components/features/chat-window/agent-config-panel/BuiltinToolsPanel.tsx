@@ -43,10 +43,12 @@ export interface BuiltinToolsPanelProps {
   setLocalAutoRestoreDomains: React.Dispatch<React.SetStateAction<string[]>>;
   localBrowserSource?: string;
   setLocalBrowserSource: React.Dispatch<React.SetStateAction<string | undefined>>;
-  localDialogPolicy?: string;
-  setLocalDialogPolicy: React.Dispatch<React.SetStateAction<string | undefined>>;
-  localSessionRecording?: string;
-  setLocalSessionRecording: React.Dispatch<React.SetStateAction<string | undefined>>;
+  localDialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
+  setLocalDialogPolicy: React.Dispatch<
+    React.SetStateAction<'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined>
+  >;
+  localSessionRecording?: 'off' | 'on_failure' | 'always';
+  setLocalSessionRecording: React.Dispatch<React.SetStateAction<'off' | 'on_failure' | 'always' | undefined>>;
   agentDisplayName?: string;
   onExternalCliBackendReady?: (ready: boolean | null) => void;
   t: (key: string) => string;
@@ -352,7 +354,9 @@ function BrowserConfigSection({
         <p className="text-xs text-muted-foreground">{t('dialogPolicy.description')}</p>
         <Select
           value={localDialogPolicy || 'smart'}
-          onValueChange={(value) => setLocalDialogPolicy(value === 'smart' ? undefined : value)}
+          onValueChange={(value) =>
+            setLocalDialogPolicy(value === 'smart' ? undefined : (value as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent'))
+          }
         >
           <SelectTrigger className="w-full bg-background">
             <SelectValue />
@@ -384,7 +388,9 @@ function BrowserConfigSection({
         <p className="text-xs text-muted-foreground">{t('sessionRecording.description')}</p>
         <Select
           value={localSessionRecording || 'off'}
-          onValueChange={(value) => setLocalSessionRecording(value === 'off' ? undefined : value)}
+          onValueChange={(value) =>
+            setLocalSessionRecording(value === 'off' ? undefined : (value as 'off' | 'on_failure' | 'always'))
+          }
         >
           <SelectTrigger>
             <SelectValue />

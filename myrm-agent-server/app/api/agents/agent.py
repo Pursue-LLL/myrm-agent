@@ -27,8 +27,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.agents._agent_response import (
     _build_model_selection,
-    _metadata_as_mapping,
     _meta_str,
+    _metadata_as_mapping,
     _resolve_enabled_builtin_tools,
     _to_agent_response,
 )
@@ -38,8 +38,6 @@ from app.core.utils.errors import (
     permission_error,
     validation_error,
 )
-from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
-from app.services.agent.skill_instance_resolver import SkillConfigValidationError
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.dto import (
@@ -52,6 +50,8 @@ from app.database.dto import (
 )
 from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
+from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
+from app.services.agent.skill_instance_resolver import SkillConfigValidationError
 
 logger = logging.getLogger(__name__)
 

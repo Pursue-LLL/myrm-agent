@@ -1,0 +1,42 @@
+{
+  "sessionAnalytics": {
+    "replay": {
+      "title": "세션 재생",
+      "chatView": "UI 상태",
+      "mindView": "마인드 창",
+      "inspector": "페이로드 검사기",
+      "seekToError": "오류로 이동",
+      "play": "재생",
+      "pause": "일시 중지",
+      "speed": "재생 속도",
+      "scrubber": "타임라인 스크러버",
+      "errorMarker": "오류",
+      "keyboardHint": "스페이스: 재생/일시 중지 · ←/→: 프레임 이동",
+      "running": "실행 중...",
+      "latestTool": "최신 도구: {name}",
+      "result": "결과",
+      "emptyState": "이 시점에 아직 메시지가 없습니다",
+      "noPayload": "이벤트 프레임으로 드래그하세요",
+      "userMessage": "사용자 메시지",
+      "assistantMessage": "어시스턴트 메시지",
+      "loading": "재생 데이터 로딩 중...",
+      "humanFeedback": "인간 승인",
+      "humanFeedbackTitle": "인간 피드백",
+      "llmCallTitle": "LLM 호출: {model}",
+      "approved": "승인됨",
+      "rejected": "거부됨",
+      "promptPreview": "프롬프트 미리보기",
+      "memoryEventTitle": "메모리: {phase}",
+      "preCompactEventTitle": "컴팩션 전 회상",
+      "toolFailed": "도구 실행 실패",
+      "scrubSnapHint": "놓으면 가장 가까운 이벤트로 스냅됩니다",
+      "marker": {
+        "tool": "도구",
+        "llm": "LLM",
+        "message": "메시지",
+        "memory": "메모리",
+        "error": "오류"
+      }
+    }
+  }
+}

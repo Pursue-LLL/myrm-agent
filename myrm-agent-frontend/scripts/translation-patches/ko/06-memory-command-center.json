@@ -1,0 +1,170 @@
+{
+  "memory": {
+    "commandCenter": {
+      "retrievalTraceTitle": "검색 트레이스",
+      "retrievalTraceEmpty": "아직 캡처된 검색 트레이스 이벤트가 없습니다",
+      "retrievalQueryFallback": "기록된 검색 쿼리 없음",
+      "retrievalPhase": "단계",
+      "retrievalOutputs": "출력",
+      "retrievalResults": "결과",
+      "retrievalSteps": "단계",
+      "retrievalDuration": "시간",
+      "retrievalTime": "시각",
+      "evalTitle": "메모리 평가 검사",
+      "connectorTitle": "외부 에이전트 커넥터",
+      "privacyTitle": "개인정보 및 안전 신호",
+      "planeSummaryTitle": "배포 플레인 경계",
+      "planeContentVisibility": "비즈니스 콘텐츠 가시성",
+      "planeEventCount": "표시 가능한 이벤트",
+      "planeFailedEvents": "경고 또는 오류 이벤트",
+      "planeQueueBacklog": "거버넌스 백로그",
+      "planeRollbackHealth": "가져오기 롤백 상태",
+      "planeRollbackBatches": "롤백 배치",
+      "planeRollbackItems": "롤백 항목",
+      "planeRollbackBatchCounts": "진행 중 {inProgress}, 실패 {failed}, 부분 {partial}",
+      "planeRollbackItemCounts": "누락 {missing}, 실패 {failed}",
+      "planeArchiveRestoreHealth": "아카이브 복원 상태",
+      "planeArchiveRestoreBatches": "아카이브 복원 배치",
+      "planeArchiveRestoreItems": "아카이브 복원 항목",
+      "planeArchiveRestoreBatchCounts": "복원 중 {inProgress}, 실패 {failed}, 부분 {partial}, 롤백 중 {rollbackInProgress}, 롤백 실패 {rollbackFailed}",
+      "planeArchiveRestoreItemCounts": "누락 {missing}, 실패 {failed}",
+      "planeLastEvent": "마지막 이벤트",
+      "planeRedactionScope": "편집 범위",
+      "planeSandboxIsolation": "샌드박스 격리",
+      "rollbackHealthStatus": {
+        "ready": "준비됨",
+        "warning": "주의 필요",
+        "critical": "심각"
+      },
+      "contentVisibility": {
+        "not_shared": "컨트롤 플레인과 공유되지 않음"
+      },
+      "redactionScope": {
+        "metadata_only": "콘텐츠를 제외한 메타데이터만 공유됨"
+      },
+      "sandboxIsolation": {
+        "local_or_per_user_sandbox": "로컬 또는 사용자별 샌드박스 격리"
+      },
+      "waterfallPhase": {
+        "observe": "관찰",
+        "scan": "스캔",
+        "propose": "제안",
+        "approve": "승인",
+        "write": "쓰기",
+        "index": "인덱싱",
+        "recall": "검색",
+        "inject": "주입",
+        "pre_compact": "압축 전 검색",
+        "archive_checkpoint": "아카이브 체크포인트",
+        "cite": "인용",
+        "verify": "검증"
+      },
+      "replayPhase": {
+        "observe": "관찰",
+        "govern": "거버넌스",
+        "write": "쓰기",
+        "index": "인덱싱",
+        "recall": "검색",
+        "inject": "주입",
+        "verify": "검증"
+      },
+      "readinessStatus": {
+        "ready": "준비됨",
+        "active": "활성",
+        "partial": "부분",
+        "success": "성공",
+        "warning": "경고",
+        "error": "오류",
+        "skipped": "건너뜀",
+        "critical": "심각",
+        "missing": "누락",
+        "manual_config_required": "수동 설정",
+        "planned": "계획됨"
+      },
+      "evalMetric": {
+        "event_coverage": "이벤트 적용 범위",
+        "influence_coverage": "영향 적용 범위",
+        "conflict_governance": "충돌 거버넌스",
+        "migration_readiness": "마이그레이션 준비 상태",
+        "cross_session_transfer": "세션 간 지식 전달"
+      },
+      "evalEvidence": {
+        "event_coverage": "커맨드 센터 증거 점수: {score}/100.",
+        "influence_coverage": "답변 영향 증거 점수: {score}/100.",
+        "conflict_governance": "주장 거버넌스 증거 점수: {score}/100.",
+        "migration_readiness": "마이그레이션 출처 증거 점수: {score}/100.",
+        "cross_session_transfer": "세션 간 지식 재사용 점수: {score}/100."
+      },
+      "doctorCheck": {
+        "relational_store": {
+          "label": "관계형 저장소",
+          "evidence": "SQLite/관계형 메모리 저장소를 사용할 수 있는지 확인하여 프로필, 절차적, 승인 큐가 안정적으로 읽고 쓸 수 있는지 검사합니다."
+        },
+        "memory_base_path": {
+          "label": "메모리 경로 권한",
+          "evidence": "로컬 웹, Tauri 데스크톱, SaaS 샌드박스 볼륨 마운트에서 로컬 메모리 경로 또는 상위 경로에 쓸 수 있는지 확인합니다."
+        },
+        "vector_index": {
+          "label": "벡터 인덱스",
+          "evidence": "시맨틱 검색 백엔드를 사용할 수 있는지 확인하여 세션 간 메모리를 의미로 검색할 수 있는지 검사합니다."
+        },
+        "knowledge_graph": {
+          "label": "지식 그래프",
+          "evidence": "관계 추론을 사용할 수 있는지 확인합니다. 그래프가 없어도 검색은 작동하지만 관계 설명은 약해집니다."
+        },
+        "embedding_provider": {
+          "label": "임베딩 공급자",
+          "evidence": "임베딩 모드를 사용할 수 있는지 확인하여 새 쓰기가 벡터 인덱스를 구축할 수 있는지 검사합니다."
+        },
+        "event_ledger": {
+          "label": "이벤트 원장",
+          "evidence": "커맨드 센터 관찰 기능이 트레이스, 감사, 리플레이 증거를 영속화할 수 있는지 확인합니다."
+        },
+        "health_snapshot": {
+          "label": "건강 스냅샷",
+          "evidence": "콘솔을 열 때마다 무거운 스캔을 피하기 위해 메모리 건강 스냅샷 캐싱을 사용할 수 있는지 확인합니다."
+        },
+        "deployment_boundary": {
+          "label": "배포 경계",
+          "evidence": "로컬 웹, Tauri 데스크톱, SaaS 샌드박스가 동일한 콘텐츠 격리 경계를 공유하는지 확인합니다."
+        },
+        "context_bundle_manifest": {
+          "label": "컨텍스트 번들 매니페스트",
+          "evidence": "통합 컨텍스트 번들 매니페스트가 존재하고 메모리, 작업 공간, 오프로드 시나리오에 대해 볼륨 레이아웃에 쓸 수 있는지 확인합니다."
+        }
+      },
+      "connector": {
+        "claude_code": {
+          "label": "Claude Code",
+          "notes": "Claude Code 에이전트를 연결하여 메모리에 접근하세요."
+        },
+        "windsurf": {
+          "label": "Windsurf",
+          "notes": "Codeium Windsurf 에이전트를 연결하여 메모리에 접근하세요."
+        },
+        "codex": {
+          "label": "Codex CLI",
+          "notes": "OpenAI Codex CLI 에이전트를 연결하여 메모리에 접근하세요."
+        },
+        "gemini_cli": {
+          "label": "Gemini CLI",
+          "notes": "Google Gemini CLI 에이전트를 연결하여 메모리에 접근하세요."
+        }
+      },
+      "privacySignal": {
+        "approval_gate": {
+          "label": "승인 게이트 쓰기",
+          "evidence": "거버넌스 트레일에 승인 또는 거부 이벤트 {count}건이 표시됩니다."
+        },
+        "sensitive_event_visibility": {
+          "label": "민감 이벤트 가시성",
+          "evidence": "메모리 원장에 경고 또는 오류 이벤트 {count}건이 표시됩니다."
+        },
+        "secret_redaction": {
+          "label": "비밀 편집 증거",
+          "evidence": "커맨드 센터에 편집 카운터 이벤트 {count}건이 표시됩니다."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "settings": {
+    "sessionAnalytics": {
+      "performance": "パフォーマンス",
+      "contextHealth": {
+        "status": {
+          "inactive": "非アクティブ",
+          "warning": "警告",
+          "critical": "重大"
+        },
+        "compaction": {
+          "title": "圧縮",
+          "count": "実行回数",
+          "saved": "節約量",
+          "netSaved": "純節約",
+          "efficiency": "効率",
+          "refetch": "再取得回数",
+          "dedup": "重複削除の効果",
+          "integrity": "整合性スキップ",
+          "persisted": "永続化済み",
+          "lastCompacted": "最終圧縮"
+        },
+        "pruning": {
+          "title": "キャッシュ剪定",
+          "archived": "アーカイブ済み",
+          "archiveWritten": "アーカイブ書き込み",
+          "archiveReused": "アーカイブ再利用",
+          "softTrimmed": "ソフトトリム済み",
+          "offloadFailed": "オフロード失敗",
+          "deferred": "延期済み",
+          "archiveDeferred": "アーカイブ延期",
+          "refetch": "アーカイブ再取得",
+          "restoreRequested": "復元リクエスト",
+          "restoreAllowed": "復元許可",
+          "restoreBlocked": "復元ブロック",
+          "restoreBlockedRatio": "ブロック率",
+          "restoreResults": "復元結果",
+          "restoreCostRatio": "復元コスト",
+          "restoreRoiRatio": "復元ROI",
+          "refetchTokens": "再取得コスト",
+          "saved": "節約量",
+          "netSaved": "純節約",
+          "refetchRatio": "再取得率",
+          "writtenBytes": "書き込みバイト",
+          "reusedBytes": "再利用バイト",
+          "archiveSummaryQueued": "要約キュー待ち",
+          "archiveSummarySucceeded": "要約保存済み",
+          "archiveSummaryFailed": "要約失敗",
+          "archiveSummarySkipped": "要約スキップ",
+          "backoff": "適応的バックオフ",
+          "backoffReasons": "バックオフ理由",
+          "backoffActive": "強度低減中",
+          "backoffInactive": "通常強度",
+          "backoffReasonLabels": {
+            "negativeNetSavings": "純節約がマイナス",
+            "highRefetchRatio": "アーカイブ再取得率が高い",
+            "highRestoreCostRatio": "復元コストが高い",
+            "lowRestoreRoiRatio": "保持ROIが低い",
+            "unknown": "適応的安全トリガー"
+          },
+          "failureKinds": "失敗種別",
+          "deferredReasons": "延期理由",
+          "archiveDeferredReasons": "アーカイブ予算理由",
+          "recentRestoreBlocks": "最近の復元ブロック",
+          "restoreRange": "読み取り範囲",
+          "restoreGuidance": "ガイダンス",
+          "restoreFallback": "フォールバック",
+          "restoreHintReasons": {
+            "errorKeyword": "エラーセクション",
+            "sectionHeading": "セクション",
+            "codeBlock": "コードブロック",
+            "tableRange": "テーブル",
+            "listRange": "リスト",
+            "chunk": "チャンク",
+            "range": "範囲"
+          },
+          "contentFeatures": {
+            "codeBlocks": "コードブロック",
+            "tables": "テーブル",
+            "lists": "リスト",
+            "chunks": "チャンク",
+            "unknown": "構造"
+          },
+          "restoreRangeSubmitted": "範囲をキュー投入",
+          "restoreRangeFailed": "送信失敗",
+          "restoreRangeRequiresActiveSession": "対象セッションを開く",
+          "copyRestoreArg": "復元範囲をコピー",
+          "restoreArgCopied": "コピー済み",
+          "copyRestoreArgUnavailable": "コピー不可",
+          "copyRestoreArgFailed": "コピー失敗",
+          "restoreReasons": {
+            "archiveRestoreRangeRequired": "フルアーカイブ復元には範囲が必要です",
+            "archiveRefetchPathBudgetExceeded": "パス復元の上限に達しました",
+            "archiveRefetchSessionMismatch": "アーカイブは別のセッションに属しています",
+            "archiveRestoreSizeProbeFailed": "アーカイブサイズの確認に失敗しました",
+            "unknown": "アーカイブ復元がブロックされました"
+          },
+          "signal": "シグナル",
+          "signals": {
+            "inactive": "非アクティブ",
+            "restoreBlocked": "復元にはより小さな範囲が必要です",
+            "adaptiveBackoff": "剪定強度を低減しました",
+            "restoreCostHigh": "復元コストが高い",
+            "cacheColdArchived": "復元可能なアーカイブのあるコールドキャッシュ",
+            "archiveAvailable": "復元可能なアーカイブあり",
+            "cacheHotSkip": "ホットキャッシュ保護中",
+            "archiveDeferred": "アーカイブ予算延期",
+            "softTrimmed": "ソフトトリム有効",
+            "monitoring": "監視中"
+          }
+        },
+        "cache": {
+          "calls": "呼び出し回数",
+          "cachedTokens": "キャッシュ済み",
+          "hitRate": "ヒット率",
+          "policy": "保持ポリシー",
+          "observation": "保持シグナル",
+          "sample": "観測サンプル",
+          "strategies": {
+            "inactive": "非アクティブ",
+            "hotProtected": "ホットキャッシュ保護中",
+            "insufficientData": "データ不足",
+            "coldEligible": "コールドキャッシュ対象",
+            "coldWatch": "コールドキャッシュ監視",
+            "stable": "安定再利用"
+          },
+          "observationStates": {
+            "observed": "観測済み",
+            "estimated": "推定",
+            "insufficientData": "データ不足"
+          },
+          "sampleSources": {
+            "dominantModel": "主要モデル",
+            "sessionAggregate": "セッション集計"
+          }
+        }
+      },
+      "trace": {
+        "title": "実行リプレイ",
+        "enterReplay": "リプレイ開始",
+        "exitReplay": "リプレイモード終了",
+        "loading": "読み込み中...",
+        "input": "タスク入力",
+        "output": "タスク出力",
+        "approved": "承認済み",
+        "rejected": "拒否済み",
+        "outcome": {
+          "success": "成功",
+          "failure": "失敗",
+          "cancelled": "キャンセル済み",
+          "unknown": "不明"
+        }
+      },
+      "replay": {
+        "title": "セッションリプレイ",
+        "chatView": "UI状態",
+        "mindView": "マインドウィンドウ",
+        "inspector": "ペイロードインスペクタ",
+        "seekToError": "エラーへ移動",
+        "play": "再生",
+        "pause": "一時停止",
+        "speed": "再生速度",
+        "scrubber": "タイムラインスクラバー",
+        "errorMarker": "エラー",
+        "running": "実行中...",
+        "result": "結果",
+        "emptyState": "この時点ではメッセージがまだありません",
+        "noPayload": "イベントフレームへドラッグ",
+        "assistantMessage": "アシスタントメッセージ",
+        "loading": "リプレイデータを読み込み中...",
+        "humanFeedback": "人間による承認",
+        "humanFeedbackTitle": "人間のフィードバック",
+        "approved": "承認済み",
+        "rejected": "拒否済み",
+        "preCompactEventTitle": "圧縮前のメモリ想起",
+        "toolFailed": "ツール実行に失敗しました",
+        "scrubSnapHint": "離して最近のイベントにスナップ",
+        "marker": {
+          "error": "エラー"
+        }
+      }
+    }
+  },
+  "progressSteps": {
+    "archive_restore_result": "アーカイブされたコンテキストを復元しました",
+    "archiveRestoreSubmitting": "復元中..."
+  }
+}

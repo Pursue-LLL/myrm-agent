@@ -514,7 +514,7 @@ export interface StreamRequestBody {
   active_moa_preset_id?: string | null;
   search_depth?: 'normal' | 'deep';
   reasoning_display_mode?: 'off' | 'collapsed' | 'inline';
-  model_selection: ModelSelection;
+  model_selection?: ModelSelection;
   timezone: string;
   timestamp?: number;
   locale?: string;
@@ -556,8 +556,16 @@ export interface StreamRequestBody {
   sibling_group_id?: string;
   regenerate_instruction?: string;
   goal?: {
-    max_tokens: number | null;
+    max_tokens?: number;
+    max_usd?: number;
+    max_time_seconds?: number;
+    max_turns?: number;
+    convergence_window?: number;
+    loop_on_pause?: boolean;
+    checkpoint_mode?: string;
     acceptance_criteria?: Array<Record<string, unknown>>;
+    constraints?: string[];
+    protected_paths?: string[];
   };
   mention_references?: MentionReferencePayload[];
   quote?: {

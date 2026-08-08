@@ -1,0 +1,96 @@
+{
+  "settings": {
+    "menu": {
+      "themeStudio": "テーマスタジオ",
+      "compoundingPlaybook": "複利ループ"
+    },
+    "integrationCatalog": {
+      "connectDialog": {
+        "probeConnectionRefused": "接続が拒否されました — エディタのMCPサーバーまたはプラグインを起動してから再試行してください。",
+        "probeConnectionUnreachable": "ローカルネットワーク経路を利用できません — localhost ルーティング、VPN/プロキシ設定、エディタMCP設定を確認してください。",
+        "probeConnectionTimeout": "接続がタイムアウトしました — ローカルネットワークの到達可能性とエディタMCP設定を確認し、再試行してください。",
+        "probeUnknownFailure": "接続チェックが予期せず失敗しました — エディタMCP設定を確認して再試行してください。",
+        "probeRecommendedActionTitle": "推奨される次のステップ",
+        "probeRecommendedModeLocalOrTauri": "ローカルWebUIまたはTauriデスクトップに切り替えてから、この統合をローカルマシンから再接続してください。",
+        "probeRecommendedModeStartLocalEditorMcp": "ローカルエディタでMCPサーバーを起動し、接続チェックを再度実行してください。",
+        "probeRecommendedModeVerifyLocalNetworkAndEditor": "ローカルネットワークの到達可能性とエディタMCP設定を確認し、接続チェックを再度実行してください。",
+        "probeRecommendedActionSwitchMode": "閉じてモードを切り替え",
+        "probeRecommendedActionRetryProbe": "再試行して接続"
+      }
+    },
+    "securityPolicy": {
+      "injectionPolicy": {
+        "title": "プロンプトインジェクションガード",
+        "description": "検出されたプロンプトインジェクション攻撃をログ記録するだけでなくブロックします。IM・Cronチャンネルはこの設定に関わらずデフォルトでブロックモードになります。",
+        "enableLabel": "フェイルクローズドブロッキングを有効化",
+        "enableDesc": "有効にすると、高リスクのプロンプトインジェクションパターン（スコア ≥ 0.7）をブロックし安全なプレースホルダーに置き換えて、LLMが悪意のある入力（プロンプト）を処理するのを防ぎます。",
+        "saved": "プロンプトインジェクションポリシーを保存しました"
+      },
+      "managedPolicy": {
+        "lockedBadge": "組織ポリシー",
+        "autoReviewLocked": "組織は保護されたエージェントにSmart Intent Guardを要求しています。この設定はオフにできません。",
+        "yoloLocked": "YOLOモードは組織ポリシーにより無効になっています。",
+        "allowAlwaysLocked": "Always Allow は組織ポリシーにより無効になっています。"
+      }
+    },
+    "defaultModel": {
+      "visionFallbackModelFallbackDescription": "プライマリの視覚モデルが課金・レート制限・過負荷になったとき、視覚対応のメインエージェントモデルにフォールバックする前に、このバックアップを自動的に試します。",
+      "videoFallbackModel": "動画フォールバックモデル",
+      "videoFallbackModelDescription": "プライマリモデルがネイティブ動画をサポートしない場合に使用します。Gemini など動画対応モデルを推奨します。",
+      "videoFallbackModelFallbackDescription": "プライマリの動画フォールバックが利用できない場合のバックアップ動画モデルです。",
+      "selectVideoFallbackModel": "動画バックアップモデルを選択",
+      "selectVisionFallbackModel": "視覚バックアップモデルを選択",
+      "visionHealthTest": "視覚チェーンをテスト",
+      "visionHealthChecking": "テスト中…",
+      "visionHealthOk": "視覚チェーンOK（{latency} ms）",
+      "visionHealthOkHint": "接続チェックのみ — 複雑な画像分析を保証するものではありません。",
+      "visionHealthResolvedModel": "設定されたプライマリ {configured} は利用できません。{resolved} 経由でプローブに成功しました。",
+      "visionHealthFailed": "視覚チェーンが失敗しました: {error}",
+      "visionHealthFailedModel": "モデル: {model}",
+      "visionHealthFailedEndpoint": "APIアドレス: {endpoint}",
+      "visionHealthNotConfigured": "先に視覚フォールバックモデルを設定してください",
+      "visionHealthUnknown": "不明なエラー",
+      "visionHealthNetworkError": "ネットワークリクエストに失敗しました",
+      "videoHealthTest": "動画チェーンをテスト",
+      "videoHealthChecking": "テスト中…",
+      "videoHealthOk": "動画チェーンOK（{latency} ms）",
+      "videoHealthOkHint": "接続チェックのみ — 完全な動画分析を保証するものではありません。",
+      "videoHealthResolvedModel": "設定されたプライマリ {configured} は利用できません。{resolved} 経由でプローブに成功しました。",
+      "videoHealthFailed": "動画チェーンが失敗しました: {error}",
+      "videoHealthFailedModel": "モデル: {model}",
+      "videoHealthFailedEndpoint": "APIアドレス: {endpoint}",
+      "videoHealthNotConfigured": "先に動画フォールバックモデルを設定してください",
+      "videoHealthUnknown": "不明なエラー",
+      "videoHealthNetworkError": "ネットワークリクエストに失敗しました",
+      "visionRecommendHint": "プライマリモデルは画像を読めません。有効なプロバイダーから視覚モデルをワンクリックで選択してください。",
+      "visionRecommendPreview": "推奨: {provider} / {model}",
+      "visionRecommendButton": "このモデルを使用",
+      "visionRecommendApplied": "視覚フォールバックを {provider} / {model} に設定しました",
+      "visionRecommendNone": "有効なプロバイダーに視覚対応モデルが見つかりません",
+      "orgPolicyRestricted": "組織ポリシーにより制限されています",
+      "moaPreset": {
+        "groupTitle": "Mixture of Agents",
+        "defaultLabel": "標準",
+        "reviewLabel": "詳細レビュー",
+        "fastLabel": "高速",
+        "activeLabel": "MoA · {preset}",
+        "refCount": "{count} 件の参照",
+        "persistFailed": "MoAプリセット設定の保存に失敗しました",
+        "skippedNoReferenceConfigs": "Mixture of Agents はオンですが、参照モデルが設定されていません。アドバイザーオーバーレイをスキップしました — エージェントの機能設定を確認してください。",
+        "skippedNoReferenceLlms": "Mixture of Agents はオンですが、参照モデルを読み込めませんでした（APIキーまたはプロバイダー設定を確認してください）。アドバイザーオーバーレイをスキップしました。",
+        "skippedBudgetPressure": "セッション予算が逼迫しているため、Mixture of Agents アドバイザーオーバーレイをスキップしました。",
+        "skippedInsufficientRefs": "Mixture of Agents はオンですが、十分な参照モデルが成功しませんでした。アドバイザー注入をスキップしました — 参照モデルの可用性を確認してください。",
+        "skippedGeneric": "このメッセージでは Mixture of Agents アドバイザーオーバーレイをスキップしました。"
+      }
+    },
+    "extension": {
+      "wikiClipHintTitle": "ページをWikiにクリップ",
+      "wikiClipHintDescription": "任意のページまたは選択範囲を右クリックして「Wikiにクリップ」を選択します。コンテンツは raw/ に保存され重複レビューに回ります — LLM費用はかかりません。除外パターンは 設定 → Wiki で構成します。",
+      "clipAgentLabel": "Wikiクリップ対象エージェント",
+      "clipAgentHint": "ブラウザのクリップはこのエージェントのWikiボールトに保存されます。拡張機能は接続時に自動的に同期されます。",
+      "clipAgentDefault": "デフォルトエージェント",
+      "clipAgentSaved": "Wikiクリップエージェントを更新しました",
+      "clipAgentSaveFailed": "Wikiクリップエージェントの更新に失敗しました"
+    }
+  }
+}

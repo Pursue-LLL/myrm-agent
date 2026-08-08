@@ -1,0 +1,36 @@
+{
+  "settings": {
+    "sessionAnalytics": {
+      "contextHealth": {
+        "pruning": {
+          "archiveDeferredSoftTrimmed": "{count} 個歸檔延期項已完成軟裁剪。",
+          "restoreActiveSessionRequired": "當前活動聊天不是此會話（{sessionId}）；開啟目標會話後會預填恢復指令。",
+          "restorePrompt": "讀取歸檔上下文範圍 `{restoreArg}`，並基於恢復的證據繼續處理。",
+          "adaptiveBackoffWarning": "因{reasons}，系統已降低本會話剪枝強度。"
+        }
+      },
+      "replay": {
+        "latestTool": "最新工具: {name}",
+        "llmCallTitle": "LLM 呼叫: {model}",
+        "memoryEventTitle": "記憶: {phase}"
+      }
+    }
+  },
+  "progressSteps": {
+    "archiveRestoreCardDescription": "歸檔上下文需要縮小恢復範圍，已準備 {count} 個結構化恢復動作。",
+    "archiveRestoreButton": "恢復並繼續 ({count})",
+    "archiveRestorePrompt": "讀取歸檔上下文範圍 `{restoreArg}`，並基於恢復的證據繼續處理。",
+    "archiveRestoreMetadataTokens": "預計恢復 token：{tokens}",
+    "archiveRestoreMetadataReason": "原因：{reason}",
+    "archiveRestoreMetadataGuidance": "建議來源：{source}",
+    "archiveRestoreMetadataFallback": "兜底原因：{reason}",
+    "archiveRestoreMetadataArchive": "歸檔：{path}",
+    "archiveRestoreRangeReason": "原因：{reason}",
+    "archiveRestoreContentFeatures": "內容訊號：{features}",
+    "archiveRestoreResultSummary": "已恢復 {lines} 行，{tokens} tokens。",
+    "archiveRestoreResultRange": "範圍：{range}",
+    "archiveRestoreResultTokens": "恢復 token：{tokens}",
+    "archiveRestoreResultBytes": "恢復內容大小：{bytes} 位元組",
+    "archiveRestoreResultArchive": "歸檔：{path}"
+  }
+}

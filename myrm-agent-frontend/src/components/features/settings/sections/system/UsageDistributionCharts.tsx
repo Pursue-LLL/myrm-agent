@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 
-export const WeekDistributionChart = memo<{ data: Record<number, number> }>(({ data }) => {
+export const WeekDistributionChart = memo<{ data: Record<string, number> }>(({ data }) => {
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const values = weekDays.map((_, idx) => data[idx.toString()] || data[idx] || 0);
   const maxValue = Math.max(...values, 1);

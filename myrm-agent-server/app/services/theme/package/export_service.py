@@ -24,7 +24,7 @@ import zipfile
 from app.core.storage import files_service
 from app.schemas.theme_profile import ThemeProfileRecipeModel
 from app.services.theme.package.constants import RECIPE_JSON, THEME_PACKAGE_MIN_ENGINE_VERSION, THEME_PACKAGE_SCHEMA_VERSION
-from app.services.theme.package.manifest import ThemePackageManifestModel, ThemePackageProfileModel, ThemePackageArtModel
+from app.services.theme.package.manifest import ThemePackageArtModel, ThemePackageManifestModel, ThemePackageProfileModel
 
 
 class ThemePackageExportError(ValueError):

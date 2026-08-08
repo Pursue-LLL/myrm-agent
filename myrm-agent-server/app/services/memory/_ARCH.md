@@ -3,7 +3,7 @@
 
 ## 架构概述
 
-记忆服务层。提供记忆数据备份/恢复、单用户 Memory Archive 导出与审查预检、单用户 Memory Archive 安全合并恢复与回滚账本、个人大脑指挥中心聚合、独立 Memory Diagnostics 探针、迁移完整性检查、诊断召回基准、结构化修复计划与白名单执行、导入 adapter 目录、服务端绑定导入审查会话、纯导入计划校验、关系型导入批次/条目事务账本、崩溃安全回滚 journal、导入后自动诊断、账本权威回滚预演与基于 exact mutation refs 的精准回滚、回滚后完整性探针、画像 revision 乐观并发保护、会话清理、记忆操作账本、影响证据分析，以及 Shared Context 共享上下文的产品层治理、记忆依赖健康检查、审批物化和历史证据提升能力。
+记忆服务层。提供记忆数据备份/恢复、单用户 Memory Archive 导出与审查预检、单用户 Memory Archive 安全合并恢复与回滚账本、个人大脑指挥中心聚合、独立 Memory Diagnostics 探针、迁移完整性检查、诊断召回基准、结构化修复计划与白名单执行、导入 adapter 目录、服务端绑定导入审查会话、纯导入计划校验、关系型导入批次/条目事务账本、崩溃安全回滚 journal、导入后自动诊断、账本权威回滚预演与基于 exact mutation refs 的精准回滚、回滚后完整性探针、画像 revision 乐观并发保护、会话清理、记忆操作账本、影响证据分析、记忆提取失败持久化重试队列（幂等入队 + 退避重试 + 重启恢复 + 终态账本），以及 Shared Context 共享上下文的产品层治理、记忆依赖健康检查、审批物化和历史证据提升能力。
 
 ## 文件清单
 
@@ -57,5 +57,7 @@
 | `integration_memory.py` | 核心 | Integration Memory 业务服务。封装框架层 IntegrationFetcher/TreeManager/Summariser，提供 sync/browse/status/remove facade 和类型安全 DTO（IntegrationStatusSnapshot/IntegrationTreeNodeDTO）供 API 层消费 | ✅ |
 | `mcp_bridge_provider.py` | 核心 | MCPBridgeProvider — 将任意 MCP Server 桥接为 IntegrationProvider。通过 DI 注入 MCPConnection，自动探测 fetch 工具并将结果转换为 IntegrationLeaf | ✅ |
 | `integration_sync_daemon.py` | 核心 | Integration Sync Daemon — 基于 APScheduler 的后台定时同步守护进程。每次触发时动态加载用户 MCP 配置，将符合条件的 MCP Server 注册为 MCPBridgeProvider，然后调用 IntegrationMemoryService.sync_all() 保持知识源新鲜 | ✅ |
-| `retry_chat_memory_extract.py` | 核心 | 对指定 chat 最近一轮 user/assistant 重新调度 `auto_extract_memories`；`ContextAssemblyService.resolve_binding_for_chat` + dedup_llm · incognito 拒绝 · in-flight dedup | ✅ |
+| `retry_chat_memory_extract.py` | 核心 | 对指定 chat 最近一轮 user/assistant 重新调度 `auto_extract_memories`；`ContextAssemblyService.resolve_binding_for_chat` + dedup_llm · incognito 拒绝 · 持久化队列幂等入队（`scheduled`/`already_in_flight`）· 重试仅压缩轨（`enable_verbatim=False` 防 verbatim 重复写入）；`run_retry_extract_for_chat` 供 worker 与手动共用（source 区分 `worker_retry_extract`/`manual_retry_extract`） | ✅ |
+| `extract_retry_queue.py` | 核心 | 记忆提取持久化重试队列（SQLite 表 `memory_extract_retries`）。幂等入队/原子领取(attempt 自增)/成功删除/失败指数退避与终态 failed/聊天删除级联清理；单进程语义，重启由启动扫描恢复 | ✅ |
+| `extract_retry_worker.py` | 核心 | 记忆提取重试后台 worker（lifespan 管理）。启动即扫描（重启恢复）+ 每 60s 扫描 + `wake()` 即时唤醒（手动重试/observer 入队后立即扫描，sweep 期间到达的 wake 不丢失）；`asyncio.timeout(240s)` 包裹提取；失败按退避重试至 `MAX_ATTEMPTS` 后写 ERROR 账本事件 | ✅ |
 | `resolve_chat_extraction_llm.py` | 核心 | chat→agent→`create_agent_llms` + `apply_lite_context_downgrade` 解析 extraction LLM（与 auto-extract SSOT 对齐；不 replay  per-turn privacy_routing） | ✅ |

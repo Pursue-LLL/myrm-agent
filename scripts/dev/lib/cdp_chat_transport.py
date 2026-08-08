@@ -6,6 +6,8 @@ import asyncio
 import json
 from typing import Protocol
 
+from dev_gate_contract import EvaluateIntent
+
 class CdpSocket(Protocol):
     async def send(self, message: str) -> None: ...
 
@@ -53,8 +55,18 @@ class CdpChatTransport:
         expression: str,
         *,
         await_promise: bool = True,
-        recv_timeout: float = 60.0,
+        recv_timeout: float | None = None,
+        intent: EvaluateIntent | None = None,
     ) -> object:
+        from dev_gate_contract import resolve_evaluate_budget
+        from send_turn_contract import is_live_send_turn_profile
+
+        if intent is not None:
+            budget = resolve_evaluate_budget(intent, live=is_live_send_turn_profile())
+            await_promise = budget.await_promise
+            recv_timeout = budget.cdp_timeout_sec
+        if recv_timeout is None:
+            recv_timeout = 60.0
         self._mid[0] += 1
         await self._ws.send(
             json.dumps(

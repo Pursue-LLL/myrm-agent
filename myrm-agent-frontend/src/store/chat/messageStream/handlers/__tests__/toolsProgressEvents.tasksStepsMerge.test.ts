@@ -41,6 +41,7 @@ vi.mock('./handlerDeps', () => {
 import { toolsProgressEvents } from '../toolsProgressEvents';
 import type { ProgressItem } from '@/store/chat/types';
 import type { StreamCtx } from '../../streamContext';
+import type { StreamMutableState } from '../../types';
 
 function makeMessagesState() {
   return {
@@ -84,16 +85,16 @@ function makeTasksStepsCtx(status: string, stepKey: string): StreamCtx {
 describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
   it('updates existing checklist step instead of duplicating on re-emit', async () => {
     const state = makeMessagesState();
-    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
-      updater(state);
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
     });
 
     const pendingCtx = makeTasksStepsCtx('pending', 'checklist_1');
-    pendingCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    pendingCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(pendingCtx);
 
     const runningCtx = makeTasksStepsCtx('running', 'checklist_1');
-    runningCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    runningCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(runningCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
@@ -101,7 +102,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     expect(state.messages[0].progressSteps![0].status).toBeUndefined();
 
     const successCtx = makeTasksStepsCtx('success', 'checklist_1');
-    successCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    successCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(successCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
@@ -110,8 +111,8 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
 
   it('merges checklist_root summary updates', async () => {
     const state = makeMessagesState();
-    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
-      updater(state);
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
     });
 
     for (const status of ['in_progress', 'success'] as const) {
@@ -120,7 +121,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
         ...ctx.data,
         data: [{ text: 'Execution checklist (1/2 done)' }],
       } as never;
-      ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+      ctx.actions.setMessages = setMessages;
       await toolsProgressEvents(ctx);
     }
 
@@ -131,12 +132,12 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
 
   it('maps skipped harness status to cancelled on merge', async () => {
     const state = makeMessagesState();
-    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
-      updater(state);
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
     });
 
     const ctx = makeTasksStepsCtx('skipped', 'checklist_9');
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages;
     await toolsProgressEvents(ctx);
 
     expect(state.messages[0].progressSteps![0].status).toBe('cancelled');
@@ -144,8 +145,8 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
 
   it('merges is_plan todo tree by step_key (progress_root + todo_step_*)', async () => {
     const state = makeMessagesState();
-    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
-      updater(state);
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
     });
 
     const rootCtx = makeTasksStepsCtx('in_progress', 'progress_root');
@@ -154,7 +155,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
       is_plan: true,
       data: [{ text: 'Launch checklist' }],
     } as never;
-    rootCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    rootCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(rootCtx);
 
     const childCtx = makeTasksStepsCtx('pending', 'todo_step_a');
@@ -164,7 +165,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
       parent_step_key: 'progress_root',
       data: [{ text: 'Draft outline' }],
     } as never;
-    childCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    childCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(childCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(2);
@@ -176,13 +177,13 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
 
   it('keeps distinct step_keys as separate progress items', async () => {
     const state = makeMessagesState();
-    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
-      updater(state);
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
     });
 
     for (const key of ['checklist_1', 'checklist_2']) {
       const ctx = makeTasksStepsCtx('pending', key);
-      ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+      ctx.actions.setMessages = setMessages;
       await toolsProgressEvents(ctx);
     }
 

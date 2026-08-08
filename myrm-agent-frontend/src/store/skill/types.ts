@@ -60,6 +60,12 @@ export interface SkillVerificationStep {
   validation_method: string;
 }
 
+export interface SkillEvalCase {
+  message?: string;
+  sandbox_assertions?: Array<{ type: string; target?: string }>;
+  [key: string]: unknown;
+}
+
 export interface Skill {
   id: string;
   type: SkillType;
@@ -123,6 +129,7 @@ export interface Skill {
 
   traps: SkillTrap[];
   verification_steps: SkillVerificationStep[];
+  eval_cases: SkillEvalCase[];
 
   created_at: string;
   updated_at: string;

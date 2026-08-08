@@ -298,13 +298,13 @@ def test_memory_search_tool_description_hides_web_corpus() -> None:
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.toolkits.memory.memory_agent_tools import (
         create_memory_tools,
     )
     from myrm_agent_harness.toolkits.memory.memory_search_policy import (
         MemorySearchPolicy,
     )
-    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     config = MemoryConfig(
         embedding_model="test-model",

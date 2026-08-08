@@ -1,0 +1,219 @@
+{
+  "Goal": {
+    "tokenCost": "費用"
+  },
+  "settings": {
+    "securityPolicy": {
+      "riskRules": {
+        "rules": {
+          "crm_ticket_keywords": {
+            "name": "工單資料"
+          }
+        }
+      }
+    },
+    "searchService": {
+      "searxngPresetCode": "程式碼"
+    },
+    "sessionAnalytics": {
+      "yes": "是",
+      "no": "否",
+      "performance": "效能表現",
+      "contextHealth": {
+        "title": "上下文健康",
+        "status": {
+          "inactive": "未啟用",
+          "healthy": "健康",
+          "warning": "預警",
+          "critical": "嚴重"
+        },
+        "compaction": {
+          "title": "壓縮健康",
+          "count": "壓縮次數",
+          "saved": "累計節省",
+          "netSaved": "淨節省",
+          "efficiency": "壓縮效率",
+          "refetch": "重取次數",
+          "dedup": "去重收益",
+          "integrity": "完整性跳過",
+          "persisted": "已落盤摘要",
+          "lastCompacted": "最近壓縮",
+          "avgElapsed": "Avg Duration\"",
+          "lastElapsed": "Last Duration\""
+        },
+        "pruning": {
+          "title": "快取剪枝",
+          "archived": "已歸檔",
+          "archiveWritten": "實際寫入",
+          "archiveReused": "歸檔複用",
+          "softTrimmed": "軟裁剪",
+          "offloadFailed": "落盤失敗",
+          "deferred": "延期處理",
+          "archiveDeferred": "歸檔延期",
+          "refetch": "歸檔回讀",
+          "restoreRequested": "恢復請求",
+          "restoreAllowed": "恢復放行",
+          "restoreBlocked": "恢復阻斷",
+          "restoreBlockedRatio": "阻斷比例",
+          "restoreResults": "恢復結果",
+          "restoreCostRatio": "恢復成本佔比",
+          "restoreRoiRatio": "恢復收益保留",
+          "refetchTokens": "回讀成本",
+          "saved": "節省",
+          "netSaved": "淨節省",
+          "refetchRatio": "回讀比例",
+          "writtenBytes": "寫入位元組",
+          "reusedBytes": "複用位元組",
+          "archiveSummaryQueued": "摘要排隊",
+          "archiveSummarySucceeded": "摘要落盤",
+          "archiveSummaryFailed": "摘要失敗",
+          "archiveSummarySkipped": "摘要跳過",
+          "backoff": "自適應退讓",
+          "backoffReasons": "退讓原因",
+          "backoffActive": "已降低強度",
+          "backoffInactive": "正常強度",
+          "backoffReasonLabels": {
+            "negativeNetSavings": "淨節省為負",
+            "highRefetchRatio": "歸檔回讀比例偏高",
+            "highRestoreCostRatio": "恢復成本偏高",
+            "lowRestoreRoiRatio": "收益保留偏低",
+            "unknown": "自適應安全觸發"
+          },
+          "failureKinds": "失敗型別",
+          "deferredReasons": "延期原因",
+          "archiveDeferredReasons": "歸檔預算原因",
+          "recentRestoreBlocks": "最近恢復阻斷",
+          "restoreRange": "讀取範圍",
+          "restoreGuidance": "指引來源",
+          "restoreFallback": "兜底原因",
+          "restoreHintReasons": {
+            "errorKeyword": "錯誤段",
+            "sectionHeading": "章節",
+            "codeBlock": "程式碼塊",
+            "tableRange": "表格",
+            "listRange": "列表",
+            "chunk": "分塊",
+            "range": "範圍"
+          },
+          "contentFeatures": {
+            "markdownHeadings": "標題",
+            "codeBlocks": "程式碼塊",
+            "tables": "表格",
+            "lists": "列表",
+            "chunks": "分塊",
+            "unknown": "結構"
+          },
+          "restoreRangeSubmitted": "已提交範圍",
+          "restoreRangeFailed": "提交失敗",
+          "restoreRangeRequiresActiveSession": "開啟目標會話",
+          "copyRestoreArg": "複製恢復範圍",
+          "restoreArgCopied": "已複製",
+          "copyRestoreArgUnavailable": "複製不可用",
+          "copyRestoreArgFailed": "複製失敗",
+          "restoreReasons": {
+            "archiveRestoreRangeRequired": "全量歸檔恢復需要範圍",
+            "archiveRefetchPathBudgetExceeded": "路徑恢復次數已達上限",
+            "archiveRefetchSessionMismatch": "歸檔屬於其他會話",
+            "archiveRestoreSizeProbeFailed": "歸檔大小檢查失敗",
+            "unknown": "歸檔恢復被阻斷"
+          },
+          "signal": "訊號",
+          "signals": {
+            "inactive": "未啟用",
+            "restoreBlocked": "恢復需要更小範圍",
+            "adaptiveBackoff": "剪枝強度已降低",
+            "restoreCostHigh": "恢復成本偏高",
+            "cacheColdArchived": "冷快取且存在可恢復歸檔",
+            "archiveAvailable": "存在可恢復歸檔",
+            "cacheHotSkip": "熱快取已保護",
+            "archiveDeferred": "歸檔預算延期",
+            "softTrimmed": "軟裁剪生效",
+            "monitoring": "監控中"
+          }
+        },
+        "cache": {
+          "title": "快取健康",
+          "calls": "呼叫次數",
+          "cachedTokens": "快取命中",
+          "hitRate": "命中率",
+          "provider": "提供商",
+          "policy": "保留策略",
+          "observation": "保留訊號",
+          "sample": "觀測樣本",
+          "strategy": "策略",
+          "strategies": {
+            "inactive": "未啟用",
+            "hotProtected": "熱快取保護",
+            "insufficientData": "資料不足",
+            "coldEligible": "冷快取可剪枝",
+            "coldWatch": "冷快取觀察",
+            "stable": "穩定複用"
+          },
+          "observationStates": {
+            "observed": "已觀測",
+            "estimated": "靜態估算",
+            "insufficientData": "資料不足"
+          },
+          "sampleSources": {
+            "dominantModel": "主模型",
+            "sessionAggregate": "會話聚合"
+          }
+        }
+      },
+      "trace": {
+        "title": "執行回放",
+        "enterReplay": "播放錄影",
+        "exitReplay": "退出錄影",
+        "loading": "載入中...",
+        "input": "任務輸入",
+        "output": "任務輸出",
+        "events": "事件",
+        "approved": "已批准",
+        "rejected": "已拒絕",
+        "outcome": {
+          "success": "成功",
+          "failure": "失敗",
+          "cancelled": "已取消",
+          "unknown": "未知"
+        }
+      },
+      "replay": {
+        "title": "錄影回放",
+        "chatView": "介面",
+        "mindView": "腦電波",
+        "inspector": "原始引數",
+        "seekToError": "跳到報錯處",
+        "play": "播放",
+        "pause": "暫停",
+        "speed": "播放速度",
+        "scrubber": "時間軸",
+        "errorMarker": "報錯",
+        "running": "執行中...",
+        "result": "結果",
+        "emptyState": "當前時間點暫無訊息",
+        "noPayload": "拖動到事件幀",
+        "userMessage": "使用者訊息",
+        "assistantMessage": "助手訊息",
+        "loading": "載入回放資料...",
+        "humanFeedback": "人工審批",
+        "humanFeedbackTitle": "人工審批",
+        "approved": "已批准",
+        "rejected": "已拒絕",
+        "preCompactEventTitle": "壓縮前記憶召回",
+        "toolFailed": "工具執行失敗",
+        "scrubSnapHint": "鬆手吸附到最近事件幀",
+        "marker": {
+          "tool": "工具",
+          "llm": "模型",
+          "message": "訊息",
+          "memory": "記憶",
+          "error": "報錯"
+        }
+      }
+    }
+  },
+  "progressSteps": {
+    "archive_restore_result": "已恢復歸檔上下文",
+    "archiveRestoreSubmitting": "恢復中..."
+  }
+}

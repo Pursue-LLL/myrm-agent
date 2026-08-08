@@ -1,0 +1,246 @@
+{
+  "settings": {
+    "wiki": {
+      "obsidianVault": {
+        "description": "コンパイル済みのWikiをダウンロードしてObsidianのグラフビューで開く",
+        "mountHint": "自分のディスクフォルダを直接編集する場合は 設定 → プロジェクト → 同期フォルダのマウント を使用してください。",
+        "openObsidian": "Obsidianで開く",
+        "revealFolder": "フォルダを表示",
+        "copyPath": "ボールトパスをコピー",
+        "downloadPack": "Obsidianパックをダウンロード",
+        "exporting": "準備中…",
+        "opening": "開いています…",
+        "copyPathSuccess": "ボールトパスをコピーしました",
+        "copyPathFailed": "パスをコピーできませんでした",
+        "revealSuccess": "ボールトフォルダを開きました",
+        "revealFailed": "ボールトフォルダを開けませんでした",
+        "openObsidianSuccess": "Obsidianでボールトを開きました",
+        "openObsidianFailed": "Obsidianを開けませんでした — 「フォルダを表示」をお試しください",
+        "exportSuccess": "Obsidianパックをダウンロードしました — 解凍して「フォルダをボールトとして開く」を使用してください",
+        "exportFailed": "ダウンロードに失敗しました",
+        "cloudHint": "クラウドホスティング: パックをダウンロードしてコンピュータのObsidianで開いてください。",
+        "postWorkflowHint": "ナレッジグラフをライブラリで開くか、下のカードからObsidianパックをダウンロードしてください。",
+        "postWorkflowAction": "グラフを開く",
+        "gitHistoryHint": "このボールトは監査用にローカルのgit履歴を保持します。",
+        "gitHistoryHintWithCommit": "最新スナップショット: {commit}"
+      },
+      "repairingTypes": "修復中…",
+      "repairingPublication": "公開状態を修復中…",
+      "stats": {
+        "cognitiveIndex": "ナレッジカタログ",
+        "cognitiveLog": "アクティビティログ",
+        "cognitiveHot": "最近のコンテキスト",
+        "cognitiveReady": "準備完了",
+        "cognitivePending": "未構築",
+        "cognitiveLogEntries": "{count, plural, =0 {エントリなし} one {# エントリ} other {# エントリ}}",
+        "cognitiveHotUpdated": "{time} に更新",
+        "cognitiveHotEmpty": "未更新",
+        "brokenLinks": "{count, plural, one {# 件の壊れたリンク} other {# 件の壊れたリンク}}",
+        "invalidPageTypes": "{count, plural, one {# 件の無効なページタイプ} other {# 件の無効なページタイプ}}",
+        "provenanceGaps": "{count, plural, one {# 件の出所情報なし} other {# 件の出所情報なし}}",
+        "structuralHint": "構造上の問題を修正するには、下のWikiアクションで「メンテナンス」または「ページタイプ修復」を実行してください。",
+        "lastMaintain": "最終メンテナンス: {time}",
+        "lastMaintainNever": "未実行",
+        "lastMaintainSummary": "修正 {fixed} 件 · 検出 {found} 件",
+        "lastMaintainSkipped": "前回の実行はスキップされました",
+        "lastMaintainSkippedCompile": "前回の実行はスキップされました（コンパイル中）",
+        "lastMaintainSkippedNoModel": "前回の実行はスキップされました（AIモデル未設定）",
+        "indexedAssets": "{count, plural, one {# 枚の画像を索引付け} other {# 枚の画像を索引付け}}",
+        "failedAssets": "{count, plural, one {# 枚の画像の索引付けに失敗} other {# 枚の画像の索引付けに失敗}}",
+        "assetsVisionHint": "画像はインポート済みですがまだ検索できません。設定 → モデル で視覚フォールバックモデルを設定すると索引付けできます。",
+        "synthesisPending": "{count, plural, one {# 件の進化合成がレビュー待ち} other {# 件の進化合成がレビュー待ち}}",
+        "duplicateGroupsPending": "{count, plural, one {# 件の重複グループがレビュー待ち} other {# 件の重複グループがレビュー待ち}}"
+      },
+      "healthReport": {
+        "title": "ナレッジ健全性",
+        "summary": "{open, plural, =0 {未対応アクションなし} one {# 件の未対応アクション} other {# 件の未対応アクション}} · チェック済み {total}",
+        "loading": "ナレッジ健全性を確認中…",
+        "allClear": "未対応の健全性アクションはありません — ボールトは良好です。",
+        "refresh": "更新",
+        "expand": "問題を表示",
+        "collapse": "問題を隠す",
+        "reviewDuplicates": "重複をレビュー（{count}）",
+        "reviewPending": "保留中の編集をレビュー（{count}）",
+        "actionRecompile": "再コンパイル",
+        "actionRepair": "メタデータを修復",
+        "open": "開く",
+        "driftSampleHint": "フルメンテナンスはドリフト検出のために最大5記事をサンプリングします — 網羅的監査ではありません。",
+        "lastDriftCheck": "最終フルドリフトチェック: {checkedAt}",
+        "structuralScopeHint": "構造スキャンのみです。ドリフトサンプリングにはアクションの「フルメンテナンス」を実行してください。",
+        "truncatedList": "{total} 件中 {shown} 件を表示しています。",
+        "loadFailed": "健全性レポートを読み込めませんでした。",
+        "retry": "再試行",
+        "maintainToastOpen": "{open, plural, one {# 件がまだ対応待ち} other {# 件がまだ対応待ち}} · {fixed} 件を自動修正",
+        "issueType": {
+          "broken_link": "壊れたリンク",
+          "broken_wikilink": "壊れたウィキリンク",
+          "invalid_frontmatter_type": "無効なページタイプ",
+          "stale": "古いソース",
+          "drift": "ドリフトの可能性",
+          "incomplete": "不完全な記事",
+          "knowledge_gap": "グラフのギャップ",
+          "provenance_gap": "出所情報なし",
+          "security_redacted": "編集済みコンテンツ",
+          "security_removed": "削除済みコンテンツ"
+        }
+      },
+      "actions": {
+        "maintainModeLabel": "メンテナンスモード",
+        "maintainModeStructural": "構造",
+        "maintainModeFull": "フル",
+        "maintainModeStructuralHint": "AIを追加利用せずにリンク、rawの衛生状態をチェックし自動修正します。定時メンテナンスと同じです。",
+        "maintainModeFullHint": "AIによるドリフトレビューと新規リンクの発見を含みます。設定済みモデルを使用する場合があります。",
+        "maintainCompileBusyHint": "コンパイル中は利用できません。完了後に再度お試しください。",
+        "repairPageTypes": "ページタイプを修復",
+        "repairPublication": "公開状態を修復"
+      },
+      "stale": {
+        "bannerTitle": "ソースが更新されました",
+        "bannerDescription": "前回のコンパイル以降 {count, plural, one {# 件のソースファイルが} other {# 件のソースファイルが}}変更されました。ナレッジベースを同期するには再コンパイルしてください。",
+        "fileListTitle": "古いソース"
+      },
+      "success": {
+        "compileSummary": "コンパイル完了: 公開 {published}、レビュー待ち {pending}、未生成 {blocked}。保留中の草稿は「保留中の編集」タブでレビューしてください。",
+        "compileSummaryWithSynthesis": "コンパイル完了: 公開 {published}、レビュー待ち {pending}、進化合成 {synthesis}、未生成 {blocked}。進化ページは「保留中の編集 → 進化合成」でレビューしてください。",
+        "maintainSummary": "メンテナンス完了: 検出 {found}、修正 {fixed}",
+        "maintainSummaryWithLinks": "メンテナンス完了: 検出 {found}、修正 {fixed}、新規リンク {connections}",
+        "maintainRemovedSensitive": "メンテナンスは {count} 件の機密rawファイルを削除しました: {paths}",
+        "repairTypesComplete": "{count} 件のノートのページタイプを修復しました",
+        "repairPublicationComplete": "{repaired} 件を修復、{reindexed} 件を再索引付けしました",
+        "repairPublicationCompleteWithSkips": "{repaired} 件を修復、{reindexed} 件を再索引付け、{skippedDrafts} 件の草稿ページを保持しました"
+      },
+      "errors": {
+        "compileBlockedByDedup": "コンパイル前に完全一致または正規化一致の重複グループを解決してください",
+        "maintainCompileBusy": "Wikiがコンパイル中です。完了後に再度お試しください。",
+        "repairTypesFailed": "ページタイプの修復に失敗しました",
+        "repairPublicationFailed": "公開状態の修復に失敗しました",
+        "approveTypeRequired": "承認する前にノートヘッダーに有効なページタイプを追加してください",
+        "approveStaleSources": "ソースファイルが変更されました — この草稿を承認する前にWikiを再コンパイルしてください"
+      },
+      "import": {
+        "migrationVaultHandoff": "CodexマイグレーションからObsidianボールトをインポート中: {path}",
+        "migrationVaultHandoffFailed": "マイグレーション引き継ぎからObsidianボールトを自動インポートできませんでした",
+        "dedupScanStarted": "重複スキャンをバックグラウンドで開始しました — 結果は「重複レビュー」で確認してください",
+        "conflictTitle": "インポートの競合を検出しました",
+        "conflictDescription": "{count} 件のrawソースファイルが異なる内容で既に存在します。既存コピーを保持するか、インポート版で置き換えてください。",
+        "conflictMore": "…他 {count} 件",
+        "conflictKeepSkipped": "既存を保持",
+        "conflictSupersede": "すべて置き換え",
+        "supersedeReasonLabel": "置き換え理由",
+        "supersedeReasonPlaceholder": "これらのrawソースを置き換える理由を説明してください（監査ログに必須）",
+        "conflictSkippedToast": "既存のrawソース {count} 件を保持し、競合のないファイルのみインポートしました",
+        "securityTitle": "インポート中に機密コンテンツを処理しました",
+        "securityBlockedDescription": "{count} 件のファイルは資格情報などの機密コンテンツを含むためブロックされました。",
+        "securityRedactedDescription": "{count} 件のファイルは機密フラグメントを編集したうえでインポートされました。",
+        "securityMore": "…他 {count} 件",
+        "securityAcknowledge": "了解"
+      },
+      "tabs": {
+        "duplicateReview": "重複レビュー"
+      },
+      "queue": {
+        "compilePhase": {
+          "title": "コンパイルフェーズ: {phase}",
+          "idle": "待機中",
+          "structure_survey": "構造調査",
+          "semantic_compile": "意味コンパイル",
+          "postprocess": "後処理",
+          "fastPath": "高速パス（小規模ボールト）",
+          "facetSummary": "{facets} ファセット · 警告 {warnings}",
+          "structureSurveyHint": "LLM抽出の前にフォルダ構造とチャンクグループをスキャン中。",
+          "semanticCompileHint": "rawドキュメントから概念を抽出し記事を生成中。",
+          "postprocessHint": "バックリンク、サイドカー、合成パスを実行中。"
+        }
+      },
+      "concepts": {
+        "highlightNotFound": "概念ツリーで「{path}」を見つけられませんでした。移動または削除された可能性があります。",
+        "editTabTruth": "コンパイル済み真実",
+        "editTabTimeline": "タイムライン",
+        "editTabMetadata": "メタデータ",
+        "editTabAdvanced": "詳細",
+        "editTruthPlaceholder": "「コンパイル済み真実」セクションを編集…",
+        "editTimelineHint": "追記のみ: 履歴を上書きせずに新しいタイムラインエントリを追加します。",
+        "editTimelineExisting": "既存のタイムライン",
+        "editTimelineEmpty": "タイムラインエントリはまだありません。",
+        "editTimelinePlaceholder": "新しい証拠またはイベントを記述…",
+        "editTagsLabel": "タグ",
+        "editTagsPlaceholder": "カンマ、区切り、タグ",
+        "editAliasesLabel": "エイリアス",
+        "editAliasesPlaceholder": "カンマ、区切り、エイリアス",
+        "editAdvancedWarning": "詳細モードはページ全体を置き換えます。タイムラインと主張を保護するため、他のタブを優先してください。",
+        "timelineEntryRequired": "保存前にタイムラインエントリを入力してください",
+        "timelineDuplicateSkipped": "そのタイムラインエントリは既に存在します。何も追加されませんでした。",
+        "pageConflict": "このページは別の場所で更新されました。ページを再読み込みしてもう一度お試しください。",
+        "provenance": {
+          "compiled": "コンパイル済み",
+          "repaired": "修復済み",
+          "agent": "エージェント",
+          "create_note": "ノート",
+          "chat-save": "チャット保存",
+          "chat-compound": "チャット合成",
+          "contradiction_synthesis": "合成",
+          "import": "インポート",
+          "web_fetch": "ウェブ取得"
+        },
+        "rawForgetTitle": "rawソースを削除",
+        "rawForgetDescription": "rawファイルを削除し、関連するWikiページを再アンカーします。この操作は元に戻せません。",
+        "rawForgetReasonLabel": "理由",
+        "rawForgetReasonPlaceholder": "このrawソースを削除する理由は？",
+        "rawForgetConfirm": "ソースを削除",
+        "rawForgetSuccess": "rawソースを削除しました",
+        "rawForgetFailed": "rawソースの削除に失敗しました"
+      },
+      "saveToWiki": {
+        "compoundSuccess": "Wikiレビュー用にステージしました",
+        "alreadyStaged": "このメッセージは既にレビュー待ちです",
+        "openPending": "保留中を開く",
+        "messageNotFound": "このメッセージは合成できなくなりました",
+        "incognitoForbidden": "シークレットチャットはWikiに保存できません"
+      },
+      "wikiignore": {
+        "title": "インポート無視ルール",
+        "description": "フォルダインポートと重複スキャン用のgitignoreスタイルのパターン。1行につき1パターン。# はコメントの開始です。",
+        "placeholder": "drafts/**\n*.tmp\nprivate-notes/",
+        "save": "ルールを保存",
+        "saving": "保存中…",
+        "saved": "無視ルールを保存しました",
+        "loadFailed": "無視ルールを読み込めませんでした",
+        "saveFailed": "無視ルールを保存できませんでした"
+      },
+      "duplicateReview": {
+        "title": "重複コーパスレビュー",
+        "description": "コンパイルに影響する前に重複rawソースをレビューします。完全一致と正規化一致は解決までコンパイルをブロックします。",
+        "empty": "レビューが必要な重複グループはありません",
+        "emptyFiltered": "このフィルタに一致するグループはありません",
+        "groupLabel": "グループ #{id}",
+        "recommendedKeep": "推奨: 保持",
+        "memberModified": "{time} に変更",
+        "reasonPlaceholder": "破棄・除外の理由（監査ログに必須）",
+        "filters": {
+          "all": "全レベル",
+          "exact": "完全一致",
+          "normalized": "正規化一致",
+          "near": "近似一致"
+        },
+        "tiers": {
+          "exact": "完全な重複",
+          "normalized": "正規化された重複",
+          "near": "近似の重複"
+        },
+        "status": {
+          "open": "未対応",
+          "deferred": "延期",
+          "blocksCompile": "コンパイルをブロック"
+        },
+        "scan": {
+          "run": "重複スキャンを実行",
+          "running": "スキャン中…",
+          "accepted": "重複スキャンをキューに追加しました — 完了を待機中",
+          "alreadyRunning": "重複スキャンは既に実行中です",
+          "stillRunning": "スキャンはまだ実行中です — 準備ができたらグループを手動で更新してください",
+          "skipped": "スキャンをスキップしました（コンパイル中）"
+        }
+      }
+    }
+  }
+}

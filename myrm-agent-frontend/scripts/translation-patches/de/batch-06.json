@@ -1,0 +1,314 @@
+{
+  "settings": {
+    "credentials": {
+      "saveBtn": "Integration verbinden",
+      "googleOauthConnectDesc": "Melden Sie sich mit Ihrem Google-Konto an, um Lesezugriff auf Kalender, Gmail und Drive zu gewähren. Tokens werden verschlüsselt gespeichert und nur während Agentensitzungen injiziert.",
+      "googleOauthConnectBtn": "Mit Google anmelden",
+      "googleOauthNotConfigured": "Server-OAuth ist nicht konfiguriert. Bitten Sie Ihren Administrator, GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET festzulegen.",
+      "googleOauthTimeout": "Autorisierung abgelaufen. Schließen Sie diesen Dialog und versuchen Sie es erneut.",
+      "googleOauthConnectedSkillEnabled": "Google Workspace verbunden. Die google-workspace-Fähigkeit ist aktiviert.",
+      "googleOauthConnectedSkillDisabled": "Google verbunden. Aktivieren Sie die google-workspace-Fähigkeit unter Fähigkeiten, falls Sie sie zuvor deaktiviert haben.",
+      "googleOauthReadonlyTier": "Nur lesen",
+      "googleOauthWriteTierOn": "Lesen & schreiben",
+      "googleOauthEnableWrite": "Schreibzugriff aktivieren",
+      "googleOauthWriteConnected": "Schreibzugriff auf Google Workspace aktiviert.",
+      "googleOauthWriteConnectedSkillEnabled": "Schreibzugriff aktiviert. Die google-workspace-Fähigkeit bleibt aktiv."
+    },
+    "skillQuality": {
+      "title": "Fähigkeitsqualitätsverwaltung",
+      "description": "Niedrigwertige oder veraltete Fähigkeiten automatisch erkennen und entfernen",
+      "allHealthy": "Alle Fähigkeiten sind gesund! Keine Aktion erforderlich.",
+      "confirmDelete": "Möchten Sie diese Fähigkeit wirklich löschen?",
+      "deleteFailed": "Löschen der Fähigkeit fehlgeschlagen",
+      "neverUsed": "Nie verwendet",
+      "calls": "Aufrufe",
+      "successRate": "Erfolgsquote",
+      "lastUsed": "Zuletzt verwendet",
+      "criteriaTitle": "Auto-Cleanup-Kriterien",
+      "criteriaStale": "Seit 37+ Tagen nicht verwendet",
+      "criteriaInactive": "Seit 37+ Tagen inaktiv"
+    },
+    "toolStabilitySection": {
+      "title": "Tool-Stabilität",
+      "description": "Tool-Aufrufvolumen, Fehlerrate und Latenz der letzten 30 Tage überwachen.",
+      "loadError": "Tool-Stabilitätsdaten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "refresh": "Aktualisieren",
+      "noData": "Keine Tool-Stabilitätsaufzeichnungen für diesen Zeitraum.",
+      "totalCalls": "Gesamtaufrufe",
+      "failureRate": "Globale Fehlerrate",
+      "avgDuration": "Durchschnittliche Dauer",
+      "busiestTool": "Am stärksten genutztes Tool",
+      "mostFailedTool": "Tool mit den meisten Fehlern",
+      "tableTitle": "Tägliche Aufschlüsselung",
+      "columns": {
+        "date": "Datum",
+        "tool": "Tool",
+        "calls": "Aufrufe",
+        "success": "Erfolgreich",
+        "failures": "Fehler",
+        "failRate": "Fehlerrate",
+        "avgMs": "Durchschn. (ms)"
+      }
+    },
+    "skillOptimization": {
+      "title": "Fähigkeits-Selbstoptimierung",
+      "description": "LLM-gesteuertes automatisches Optimierungssystem für Fähigkeiten zur kontinuierlichen Qualitätsverbesserung",
+      "dashboard": "Dashboard",
+      "activeOptimizations": "Aktive Optimierungen",
+      "qualityRanking": "Qualitätsranking",
+      "topSkills": "Top 10 beste Fähigkeiten",
+      "bottomSkills": "Die 10 am stärksten optimierungsbedürftigen Fähigkeiten",
+      "triggerOptimization": "Optimierung auslösen",
+      "viewHistory": "Verlauf anzeigen",
+      "actions": "Aktionen",
+      "noData": "Keine Daten verfügbar",
+      "qualityScore": "Qualitätswert",
+      "overallScore": "Gesamtwert",
+      "successRate": "Erfolgsquote",
+      "tokenEfficiency": "Token-Effizienz",
+      "executionTime": "Ausführungszeit",
+      "userSatisfaction": "Benutzerzufriedenheit",
+      "callFrequency": "Aufruffrequenz",
+      "radarChart": "5D-Qualitäts-Radardiagramm",
+      "optimizationHistory": "Optimierungsverlauf",
+      "status": {
+        "pending": "Ausstehend",
+        "inProgress": "In Bearbeitung",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      },
+      "abTestStatus": {
+        "running": "Läuft",
+        "baselineWin": "Basislinie gewinnt",
+        "candidateWin": "Kandidat gewinnt",
+        "noDifference": "Kein signifikanter Unterschied"
+      },
+      "versions": {
+        "title": "Versionsverlauf",
+        "version": "Version",
+        "createdAt": "Erstellt am",
+        "createdBy": "Erstellt von",
+        "active": "Aktiv",
+        "inactive": "Inaktiv",
+        "rollback": "Zurücksetzen",
+        "compare": "Vergleichen",
+        "viewContent": "Inhalt anzeigen",
+        "noVersions": "Keine Versionen verfügbar",
+        "rollbackFailed": "Zurücksetzen fehlgeschlagen",
+        "scoreDelta": "Wertänderung",
+        "contentChanged": "Inhalt geändert",
+        "contentUnchanged": "Inhalt unverändert",
+        "createdByLlm": "LLM-Optimierung",
+        "createdByManual": "Manuelle Bearbeitung",
+        "createdByRollback": "Zurücksetzen",
+        "refresh": "Aktualisieren",
+        "confirmAction": "Diese Version aktivieren"
+      },
+      "guardian": {
+        "idleTitle": "Schattenvalidierung verfügbar",
+        "idleDescription": "Eine Kandidatenversion ist bereit. Starten Sie einen Schattentest, um Live-Datenverkehr vor der Promotion zu vergleichen.",
+        "startShadow": "Schattentest starten",
+        "startSuccess": "Schattentest gestartet",
+        "startFailed": "Start des Schattentests fehlgeschlagen",
+        "consistency": "Konsistenz",
+        "samples": "Stichproben",
+        "versions": "Versionen",
+        "confidence": "Testkonfidenz",
+        "hideSamples": "Stichproben ausblenden",
+        "reviewDifferences": "Unterschiede prüfen",
+        "stopTest": "Test stoppen",
+        "stopConfirmTitle": "Schattentest stoppen?",
+        "cancel": "Abbrechen",
+        "promoteFailed": "Promotion der Version fehlgeschlagen",
+        "stopSuccess": "Schattentest gestoppt",
+        "stopFailed": "Stoppen des Tests fehlgeschlagen",
+        "networkError": "Netzwerkfehler",
+        "match": "Übereinstimmend",
+        "diverged": "Abgewichen",
+        "baselineLabel": "Basislinie",
+        "candidateLabel": "Kandidat"
+      },
+      "batchPage": {
+        "submitConfirmTitle": "Wiederherstellungspunkt erstellen?",
+        "submitConfirmDescription": "Vor der Optimierung wird eine Batch-Snapshot gespeichert. Sie können von der Batch-Detailseite zurücksetzen, falls die Ergebnisse unbefriedigend sind.",
+        "submitConfirmAction": "Batch starten",
+        "submitCancel": "Abbrechen",
+        "rollback": "Batch zurücksetzen",
+        "rollbackCardDescription": "Alle Fähigkeiten in diesem Batch auf ihre Vor-Optimierungs-Snapshots zurücksetzen.",
+        "rollbackConfirmTitle": "Diesen Batch zurücksetzen?",
+        "rollbackConfirmDescription": "Alle Fähigkeiten in diesem Batch werden auf ihre Vor-Optimierungs-Snapshots zurückgesetzt.",
+        "rollbackFailed": "Batch-Zurücksetzen fehlgeschlagen",
+        "cancel": "Batch abbrechen",
+        "cancelConfirmTitle": "Diesen Batch abbrechen?",
+        "cancelConfirmDescription": "Wählen Sie, ob bereits angewendete Optimierungen erhalten bleiben oder alle Fähigkeiten auf ihre Vor-Batch-Snapshots zurückgesetzt werden sollen.",
+        "cancelKeepAction": "Nur abbrechen",
+        "cancelRollbackAction": "Abbrechen und zurücksetzen",
+        "cancelSuccess": "Batch abgebrochen",
+        "cancelFailed": "Abbrechen des Batches fehlgeschlagen",
+        "statusPending": "Ausstehend",
+        "statusRunning": "Läuft",
+        "statusCompleted": "Abgeschlossen",
+        "statusCancelled": "Abgebrochen",
+        "statusFailed": "Fehlgeschlagen",
+        "filterAll": "Alle",
+        "filterActive": "Aktiv",
+        "filterExecuting": "Ausführend"
+      }
+    },
+    "skillAggregation": {
+      "title": "Fähigkeitsqualitäts-Aggregation",
+      "description": "Mehrdimensionale Analyse- und Aggregations-Dashboard für Fähigkeitsqualität",
+      "error": "Fehler",
+      "errorFetchingMetrics": "Abrufen der Metriken fehlgeschlagen",
+      "connected": "Verbunden",
+      "disconnected": "Getrennt",
+      "last7Days": "Letzte 7 Tage",
+      "last30Days": "Letzte 30 Tage",
+      "last90Days": "Letzte 90 Tage",
+      "exportCSV": "CSV exportieren",
+      "exportJSON": "JSON exportieren",
+      "exportSuccess": "Export erfolgreich",
+      "exportSuccessDescription": "Daten erfolgreich exportiert",
+      "exportFailed": "Export fehlgeschlagen",
+      "exportFailedDescription": "Export der Daten fehlgeschlagen",
+      "avgQuality": "Durchschn. Qualität",
+      "median": "Median",
+      "totalSkills": "Gesamtfähigkeiten",
+      "executions": "Ausführungen",
+      "optimizationRate": "Optimierungsrate",
+      "topSkills": "Top-Fähigkeiten",
+      "bottomSkills": "Untere Fähigkeiten",
+      "qualityDistribution": "Qualitätsverteilung",
+      "worstSkills": "Am schlechtesten abschneidende Fähigkeiten",
+      "noData": "Keine Daten",
+      "refresh": "Aktualisieren",
+      "skillTrend": "Fähigkeitstrend",
+      "globalTrend": "Globaler Qualitätstrend",
+      "qualityScore": "Qualitätswert",
+      "successRate": "Erfolgsquote",
+      "tokenEfficiency": "Token-Effizienz",
+      "dataPoints": "Datenpunkte",
+      "totalExecutions": "Gesamtausführungen",
+      "timeRange": "Zeitraum",
+      "errorFetchingTrends": "Abrufen der Trenddaten fehlgeschlagen"
+    },
+    "wiki": {
+      "title": "LLM-Wiki-Wissensbasis",
+      "secondBrain": {
+        "title": "Second-Brain-Schnellstart",
+        "description": "Mit einem Klick einen Wissensagenten mit Wiki, Speicher, täglicher „Später lesen\"-Aufnahme und einem 7:00-Uhr-Tresor-Delta-Digest einrichten. Wiki speichert Langzeitwissen; Speicher speichert kompakte Fakten über Sie (Präferenzen, Regeln, Profil).",
+        "loadFailed": "Status der Second-Brain-Einrichtung konnte nicht geladen werden",
+        "applyFailed": "Second-Brain-Preset konnte nicht angewendet werden",
+        "apply": "Second Brain einrichten",
+        "reapply": "Preset erneut anwenden",
+        "useAgent": "Second-Brain-Agenten verwenden",
+        "checklist": {
+          "agentTools": "Agent hat Wiki-, Speicher- und Cron-Tools",
+          "cronJob": "Tägliche „Später lesen\" (6:00) und Wiki-Morgen-Delta (7:00) Cron-Jobs",
+          "vaultContent": "Wissenstresor hat Inhalt",
+          "corpusDedup": "Rohtext-Deduplikationsscan ohne blockierende Duplikate abgeschlossen",
+          "providerReady": "Modellanbieter konfiguriert"
+        },
+        "goImport": "Wissen importieren",
+        "goDuplicateReview": "Duplikate prüfen",
+        "goProviders": "Modelle konfigurieren",
+        "goGraph": "Wissensgraph erkunden",
+        "pitfalls": {
+          "checklist": {
+            "agentTools": "Wenden Sie das Preset erneut an oder öffnen Sie Agenten, um zu bestätigen, dass Wiki-, Speicher- und Cron-Tools für diesen Agenten aktiviert sind.",
+            "corpusDedup": "Öffnen Sie die Duplikatprüfung und beheben Sie blockierende exakte oder normalisierte Duplikate vor Ihrer ersten vollständigen Kompilierung."
+          },
+          "actions": {
+            "repairPreset": "Preset-Jobs reparieren"
+          },
+          "syncExpectation": {
+            "title": "Timing der ersten Synchronisierung"
+          },
+          "obsidianGit": {
+            "title": "Obsidian-Doppelschreiben & git",
+            "body": "Wenn Sie denselben Tresor in Obsidian bearbeiten, während Myrm automatisch abruft, pausieren Sie die Obsidian-Synchronisierung oder aktivieren Sie Versionskontrolle (Tresor-git), um Merge-Konflikte zu vermeiden. Bevorzugen Sie während des ersten Imports einen einzelnen Schreiber.",
+            "cta": "Zu Import- & Tresor-Einstellungen springen"
+          },
+          "ladder": {
+            "title": "Wenn etwas fehlschlägt",
+            "stepDocs": "Lesen Sie den Wiki-Einrichtungsleitfaden (Konzepte, Import, Kompilierung)"
+          },
+          "teamKb": {
+            "title": "Team-Wissen-Starter",
+            "scenarios": {
+              "opsSop": {
+                "label": "Ops-SOP",
+                "prompt": "Helfen Sie mir, eine Ops-SOP für unser Team zu entwerfen: Umfang, Rollen, schrittweise Vorgehensweise, Eskalation und Checkliste. Halten Sie sie bereit, um sie als ausstehenden Artikel in unser Wiki zu speichern."
+              },
+              "onboardingGuide": {
+                "label": "Onboarding-Leitfaden",
+                "prompt": "Erstellen Sie eine Onboarding-Leitfaden-Gliederung für neue Mitarbeiter: Aufgaben der ersten Woche, Tool-Zugriff, Schlüsselkontakte und FAQ. Formatieren Sie sie zur Wiki-Überprüfung."
+              },
+              "projectRetro": {
+                "label": "Projekt-Retro",
+                "prompt": "Erstellen Sie eine Projekt-Retrospektiv-Vorlage: was gut lief, Probleme, Aktionspunkte und Verantwortliche. Geben Sie strukturiertes Markdown für die Wiki-Phase aus."
+              },
+              "customerFaq": {
+                "label": "Kunden-FAQ",
+                "prompt": "Entwerfen Sie eine Kunden-FAQ aus unseren wichtigsten Support-Themen: Frage, kurze Antwort, Deep-Link-Anker und Datum der letzten Überprüfung. Geeignet für die Wiki-Kompilierung."
+              },
+              "inspectionMaint": {
+                "label": "Inspektion & Wartung"
+              }
+            }
+          },
+          "extractFailures": {
+            "title": "Dokumentimportfehler"
+          }
+        }
+      },
+      "sources": {
+        "title": "Externe Quellen",
+        "feishuFolderLabel": "Feishu-Ordner-Token",
+        "feishuFolderPlaceholder": "Für Root-Space leer lassen",
+        "feishuFolderHint": "Ordner-Token aus Feishu Drive einfügen; leer verwendet den Root-Ordner",
+        "feishuConnected": "Feishu verbunden",
+        "feishuDisconnected": "Zuerst Feishu-Kanal-Anmeldedaten konfigurieren",
+        "gmailLabel": "Gmail „Später lesen\"",
+        "gmailTagLabel": "Gmail-Label",
+        "gdriveLabel": "Google Drive-Ordner",
+        "gdriveFolderLabel": "Drive-Ordner-ID",
+        "gdriveFolderHint": "Verwenden Sie Root für My Drive oder fügen Sie eine Ordner-ID aus der Drive-URL ein",
+        "googleConnected": "Google verbunden",
+        "googleDisconnected": "Zuerst Google unter Integrationen verbinden",
+        "rssFeedsLabel": "RSS-Feed-URLs (eine pro Zeile)",
+        "mirrorIntegrations": "Integrationssynchronisierung auf Wiki spiegeln",
+        "autoCompile": "Nach Synchronisierung automatisch kompilieren",
+        "save": "Speichern",
+        "saveSuccess": "Quelleinstellungen gespeichert",
+        "saveError": "Quelleinstellungen konnten nicht gespeichert werden",
+        "syncNow": "Jetzt synchronisieren",
+        "syncEmpty": "Nichts Neues zu synchronisieren",
+        "syncError": "Synchronisierung fehlgeschlagen",
+        "loadError": "Quelleinstellungen konnten nicht geladen werden",
+        "connectGoogle": "Google verbinden",
+        "reconnectGoogleDrive": "Google für Drive erneut verbinden",
+        "googleDriveReconnectHint": "Google ist verbunden, aber der Drive-Zugriff fehlt. Verbinden Sie sich erneut, um die Drive-Synchronisierung zu autorisieren.",
+        "lastSyncNever": "Noch nicht synchronisiert",
+        "syncIssueGeneric": "Einige Quellen konnten nicht synchronisiert werden"
+      },
+      "agentScopeLabel": "Agenten-Wissensbasis",
+      "agentScopePlaceholder": "Einen Agenten auswählen",
+      "agentScopeDefault": "Standard-Wissensbasis",
+      "agentScopeNotice": "Verwaltung der privaten Wissensbasis des ausgewählten Agenten.",
+      "defaultScopeNotice": "Verwaltung der Standard-Wissensbasis. Öffnen Sie sie von einem Agenten, um den Tresor dieses Agenten zu verwalten.",
+      "obsidianVault": {
+        "title": "Obsidian-Tresor",
+        "description": "Öffnen oder laden Sie Ihr kompiliertes Wiki für die Graph-Ansicht in Obsidian herunter",
+        "openObsidian": "In Obsidian öffnen",
+        "revealFolder": "Im Ordner anzeigen",
+        "copyPath": "Tresorpfad kopieren",
+        "downloadPack": "Obsidian-Paket herunterladen",
+        "copyPathSuccess": "Tresorpfad kopiert",
+        "copyPathFailed": "Pfad konnte nicht kopiert werden",
+        "revealSuccess": "Tresorordner geöffnet"
+      }
+    }
+  }
+}

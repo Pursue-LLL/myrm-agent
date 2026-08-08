@@ -358,8 +358,8 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [hasDraftRecovery, setHasDraftRecovery] = useState(false);
   const dirtyRef = useRef(false);
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const draftTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const draftKeyRef = useRef(getDraftKey(previewUrl));
 
   const scheduleDraftSave = useCallback(() => {
@@ -439,7 +439,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
           ],
         });
 
-        univerAPI.createWorkbook(workbookData);
+        univerAPI.createWorkbook(workbookData as unknown as import('@univerjs/core').IWorkbookData);
         univerRef.current = univerAPI;
 
         commandDisposable = univerAPI.onCommandExecuted(() => {

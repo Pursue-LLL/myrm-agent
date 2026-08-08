@@ -11,7 +11,7 @@ from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types import ModelConfig
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
-from tests.api.agent.utils import get_model_selection, _infer_provider_id, _strip_provider_prefix
+from tests.api.agent.utils import _infer_provider_id, _strip_provider_prefix, get_model_selection
 from tests.support.test_secrets import resolve_test_env
 
 

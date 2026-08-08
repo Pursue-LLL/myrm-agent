@@ -2411,6 +2411,7 @@ def _collect_agent_stream_events(
     api_url: str | None = None,
     timeout_sec: float = 180.0,
     stop_on_clarification: bool = False,
+    idle_timeout_sec: float | None = None,
 ) -> dict[str, object]:
     """POST agent-stream and collect SSE until deadline, idle, or terminal event."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
@@ -2423,14 +2424,18 @@ def _collect_agent_stream_events(
     events: list[dict[str, object]] = []
     error_event: dict[str, object] | None = None
     deadline = time.monotonic() + timeout_sec
-    idle_timeout_sec = min(45.0, max(15.0, timeout_sec / 3.0))
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+    resolved_idle_timeout = (
+        idle_timeout_sec
+        if idle_timeout_sec is not None
+        else min(45.0, max(15.0, timeout_sec / 3.0))
+    )
+    if idle_timeout_sec is None and os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         # Signoff clarify/API legs: parallel wave load can stall SSE >45s between tokens.
-        idle_timeout_sec = signoff_parallel_force_chat_timeout_sec(45.0)
-        idle_timeout_sec = min(120.0, max(idle_timeout_sec, timeout_sec * 0.5))
+        resolved_idle_timeout = signoff_parallel_force_chat_timeout_sec(45.0)
+        resolved_idle_timeout = min(120.0, max(resolved_idle_timeout, timeout_sec * 0.5))
         if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
             # SHPOIB pool: agent may stall >120s between progress and ask_question under wave load.
-            idle_timeout_sec = min(240.0, max(idle_timeout_sec, timeout_sec * 0.85))
+            resolved_idle_timeout = min(240.0, max(resolved_idle_timeout, timeout_sec * 0.85))
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
     clarification_seen = False
@@ -2456,13 +2461,13 @@ def _collect_agent_stream_events(
                     and os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip()
                     == "1"
                 )
-                if not skip_idle_break and now - last_event_at >= idle_timeout_sec:
+                if not skip_idle_break and now - last_event_at >= resolved_idle_timeout:
                     error_event = {
                         "type": "error",
                         "error_type": "AgentStreamIdleTimeout",
                         "error": (
                             "agent-stream idle timeout "
-                            f"after {idle_timeout_sec:.0f}s without SSE data"
+                            f"after {resolved_idle_timeout:.0f}s without SSE data"
                         ),
                     }
                     break

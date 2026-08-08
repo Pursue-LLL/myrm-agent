@@ -6,6 +6,8 @@
 
 [OUTPUT]
 - run_eval_suite: runs the standard eval suite for a user.
+- run_wb_bench_background / run_wb_bench_download_background: WorkBuddy Bench
+  subset run and download-only flows with progress via _eval_state.
 
 [POS]
 Orchestrates the execution of the evaluation framework within the Server layer.
@@ -29,7 +31,7 @@ from myrm_agent_harness.eval import EvalManifest, EvalRunner, JsonlReporter
 from app.core.eval.executor import LocalEvalExecutor
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.eval import MatrixRunner
+    from myrm_agent_harness.eval import MatrixRunner, MultiTurnEvalCase
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +130,48 @@ _eval_state: dict[str, object] = {
 }
 
 
+def _report_wb_bench_download_progress(downloaded: int, total: int) -> None:
+    """Record the current WorkBuddy Bench download progress into global state.
+
+    Called from the download stream (potentially a worker thread for the run
+    flow); plain dict item assignment is atomic under the GIL, and the SSE
+    generator snapshots the dict, so the update is safe without a lock.
+    """
+    _eval_state["download_progress"] = {
+        "downloaded_bytes": downloaded,
+        "total_bytes": total,
+    }
+
+
+def _wb_bench_abort_requested() -> bool:
+    """Report whether the user requested abort of the current download."""
+    return bool(_eval_state.get("abort_requested"))
+
+
+def _init_wb_bench_state(subset_id: str) -> None:
+    """Reset global eval state for a WBBench background flow (run or download-only)."""
+    _eval_state.clear()
+    _eval_state.update(
+        {
+            "is_running": True,
+            "total": 0,
+            "completed": 0,
+            "error": None,
+            "abort_requested": False,
+            "stage": "downloading",
+            "stage_subset_id": subset_id,
+            "download_progress": {"downloaded_bytes": 0, "total_bytes": 0},
+        }
+    )
+
+
+def _reset_wb_bench_state() -> None:
+    """Clear run flags and stage markers when a WBBench flow finishes."""
+    _eval_state["is_running"] = False
+    _eval_state["stage"] = None
+    _eval_state["stage_subset_id"] = None
+
+
 def get_eval_status() -> dict[str, object]:
     """Get the current status of the evaluation suite."""
     return _eval_state.copy()
@@ -137,13 +181,19 @@ _active_runner: EvalRunner | None = None
 
 
 def abort_eval() -> bool:
-    """Request abort of the currently running evaluation suite."""
+    """Request abort of the currently running evaluation suite.
+
+    For a live run this aborts the active runner; during the WBBench download
+    phase (no runner yet) it sets ``abort_requested`` so the stream loop stops.
+    """
     global _eval_state, _active_runner
-    if _eval_state.get("is_running") and _active_runner:
+    if not _eval_state.get("is_running"):
+        return False
+    _eval_state["abort_requested"] = True
+    if _active_runner:
         _active_runner.abort()
         _eval_state["error"] = "Aborted by user"
-        return True
-    return False
+    return True
 
 
 async def _build_eval_manifest(
@@ -152,6 +202,7 @@ async def _build_eval_manifest(
     cases_path: Path,
     *,
     benchmark_mode: bool = False,
+    external_cases: list["MultiTurnEvalCase"] | None = None,
 ) -> EvalManifest:
     """Build an EvalManifest capturing the current evaluation environment."""
     import hashlib
@@ -202,6 +253,13 @@ async def _build_eval_manifest(
     if cases_path.exists():
         content = cases_path.read_bytes()
         task_set_hash = hashlib.sha256(content).hexdigest()
+    else:
+        import pickle
+
+        try:
+            task_set_hash = hashlib.sha256(pickle.dumps(external_cases)).hexdigest()
+        except Exception:  # noqa: BLE001 - fall back to a stable marker on any serialization edge case
+            task_set_hash = f"external-{dataset_id}"
 
     return EvalManifest(
         model_provider=model_provider,
@@ -255,12 +313,96 @@ async def run_eval_suite_background(
         _eval_state["is_running"] = False
 
 
+async def run_wb_bench_background(
+    subset_id: str,
+    reports_dir: Path | None = None,
+    profile_id: str | None = None,
+    *,
+    benchmark_mode: bool = False,
+) -> None:
+    """Run a WorkBuddy Bench subset in the background, updating global eval state."""
+    global _eval_state
+
+    if _eval_state.get("is_running"):
+        logger.warning("Evaluation suite is already running. Ignoring WBBench request.")
+        return
+
+    _init_wb_bench_state(subset_id)
+
+    try:
+        from app.core.eval.wb_bench import build_wb_bench_cases
+
+        cases, seed_map = await asyncio.to_thread(
+            build_wb_bench_cases,
+            subset_id,
+            progress_callback=_report_wb_bench_download_progress,
+            should_abort=_wb_bench_abort_requested,
+        )
+        # An abort during the download/extract worker phase is only visible
+        # after the thread returns; never start evaluating after a cancel.
+        if _eval_state.get("abort_requested"):
+            logger.info("WBBench evaluation aborted by user before evaluation")
+            return
+        _eval_state["stage"] = "evaluating"
+        dataset_id = f"wb-bench-{subset_id}"
+        await run_eval_suite(
+            dataset_id=dataset_id,
+            reports_dir=reports_dir,
+            profile_id=profile_id,
+            benchmark_mode=benchmark_mode,
+            external_cases=cases,
+            workspace_seed_map=seed_map,
+        )
+    except Exception as exc:
+        if _eval_state.get("abort_requested"):
+            logger.info("WBBench evaluation aborted by user")
+        else:
+            logger.exception("WBBench evaluation suite failed")
+            _eval_state["error"] = str(exc)
+    finally:
+        _reset_wb_bench_state()
+
+
+async def run_wb_bench_download_background(subset_id: str) -> None:
+    """Download a WorkBuddy Bench subset in the background (download-only flow).
+
+    Reuses the same global eval state and SSE stream as a full run so the UI
+    can show live download progress; no evaluation is scheduled.
+    """
+    global _eval_state
+
+    if _eval_state.get("is_running"):
+        logger.warning("Evaluation suite is already running. Ignoring WBBench download request.")
+        return
+
+    _init_wb_bench_state(subset_id)
+
+    try:
+        from app.core.eval.wb_bench import ensure_wb_bench_source
+
+        await ensure_wb_bench_source(
+            subset_id,
+            progress_callback=_report_wb_bench_download_progress,
+            should_abort=_wb_bench_abort_requested,
+        )
+    except Exception as exc:
+        if _eval_state.get("abort_requested"):
+            logger.info("WBBench download aborted by user")
+        else:
+            logger.exception("WBBench download failed")
+            _eval_state["error"] = str(exc)
+    finally:
+        _reset_wb_bench_state()
+
+
 async def run_eval_suite(
     dataset_id: str | None = None,
     reports_dir: Path | None = None,
     profile_id: str | None = None,
     *,
     benchmark_mode: bool = False,
+    external_cases: list["MultiTurnEvalCase"] | None = None,
+    workspace_seed_map: dict[str, str] | None = None,
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -270,6 +412,11 @@ async def run_eval_suite(
         profile_id: Optional ID of a specific Agent Profile to evaluate.
         benchmark_mode: When True, strips all user-specific configuration
             to produce a clean, fair baseline for harness-level benchmarks.
+        external_cases: Optional pre-built cases (e.g. WorkBuddy Bench) that
+            bypass the JSONL dataset loading step.
+        workspace_seed_map: Maps a case message to a pre-provisioned workspace
+            directory that is copied into the session workspace before the
+            agent runs (used by external dataset adapters).
 
     Returns:
         A summary dictionary of the evaluation results.
@@ -277,23 +424,26 @@ async def run_eval_suite(
     cases_path = get_dataset_path(dataset_id)
     reports_dir = reports_dir or DEFAULT_REPORTS_DIR
 
-    if not cases_path.exists():
-        # Create a dummy case if none exists for testing purposes
-        cases_path.parent.mkdir(parents=True, exist_ok=True)
-        with cases_path.open("w", encoding="utf-8") as f:
-            f.write('{"message": "Hello, world!"}\n')
-            f.write('{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n')
+    if external_cases is not None:
+        cases = external_cases
+    else:
+        if not cases_path.exists():
+            # Create a dummy case if none exists for testing purposes
+            cases_path.parent.mkdir(parents=True, exist_ok=True)
+            with cases_path.open("w", encoding="utf-8") as f:
+                f.write('{"message": "Hello, world!"}\n')
+                f.write('{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n')
 
-    from myrm_agent_harness.eval import load_multi_turn_cases
+        from myrm_agent_harness.eval import load_multi_turn_cases
 
-    cases = load_multi_turn_cases(cases_path)
+        cases = load_multi_turn_cases(cases_path)
 
-    # Group cases by profile_id to maximize LLM Prompt Cache hits
-    cases.sort(key=lambda c: str(c.metadata.get("profile_id", "default")))
-    grouped_cases = []
-    for _, group in groupby(cases, key=lambda c: str(c.metadata.get("profile_id", "default"))):
-        grouped_cases.extend(list(group))
-    cases = grouped_cases
+        # Group cases by profile_id to maximize LLM Prompt Cache hits
+        cases.sort(key=lambda c: str(c.metadata.get("profile_id", "default")))
+        grouped_cases = []
+        for _, group in groupby(cases, key=lambda c: str(c.metadata.get("profile_id", "default"))):
+            grouped_cases.extend(list(group))
+        cases = grouped_cases
 
     global _eval_state, _active_runner
 
@@ -309,7 +459,9 @@ async def run_eval_suite(
         _eval_state["completed"] = prev + 1
 
     executor = LocalEvalExecutor(
-        profile_id=profile_id, benchmark_mode=benchmark_mode
+        profile_id=profile_id,
+        benchmark_mode=benchmark_mode,
+        workspace_seed_map=workspace_seed_map,
     )
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
     runner = EvalRunner(executor, max_concurrency=3, on_case_complete=_on_case_complete, yielding_strategy=adaptive_manager)
@@ -319,6 +471,7 @@ async def run_eval_suite(
         dataset_id=dataset_id or "default",
         cases_path=cases_path,
         benchmark_mode=benchmark_mode,
+        external_cases=external_cases,
     )
 
     logger.info("Starting evaluation suite with %d sessions (%d turns) (Adaptive Yielding Enabled)", len(cases), total_turns)

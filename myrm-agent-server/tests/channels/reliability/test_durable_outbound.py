@@ -6,6 +6,11 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.infra.delivery.storage import (
+    QueuedDelivery,
+    load_pending_deliveries,
+    save_delivery,
+)
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
@@ -15,11 +20,6 @@ from app.channels.reliability.durable_outbound import (
     DurableOutboundGate,
 )
 from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
-from myrm_agent_harness.infra.delivery.storage import (
-    QueuedDelivery,
-    load_pending_deliveries,
-    save_delivery,
-)
 
 
 class _RecordingChannel(BaseChannel):

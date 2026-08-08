@@ -9,11 +9,11 @@ Internationalization for channel static messages and shared JSON/Fluent catalogs
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports `channel_t`, `add_locale_root`, locale resolution helpers. | — |
 | engine.py | Core | Fluent + JSON dual engine: `SafeDict` formatting, deep flatten, locale roots. | ✅ |
-| locales/ | Data | Harness default `.ftl` and LLM error diagnostic `.json` catalogs. Channel static keys include slash commands, search gate messages, `daily_budget_blocked`, and `channel_budget_blocked` (en/zh-CN `.ftl`; other locales fall back to en). | — |
+| locales/ | Data | Channel static catalogs: `.ftl` (slash commands, search gates, `daily_budget_blocked`, `channel_budget_blocked`…) and `.json` (server channel-only keys: `stuck_task_timeout_user_message`, `risk_outbound_blocked`, `risk_inbound_blocked`). LLM error diagnostics belong to the harness catalog (`myrm_agent_harness.agent.errors.diagnostics.i18n`), NOT duplicated here. | — |
 
 ## Locale Roots (priority: first registered wins)
 
-1. `locales/` (this package) — harness defaults (slash commands, error diagnostics).
+1. `locales/` (this package) — server channel messages (slash commands, risk gates, task timeout).
 2. Optional `add_locale_root()` — host app may register extra catalogs (e.g. channel-specific server messages only when no GUI).
 
 ## Key Dependencies

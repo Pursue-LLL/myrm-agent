@@ -1,0 +1,30 @@
+{
+  "progressSteps": {
+    "archiveRestoreMetadataTokens": "예상 복원 토큰: {tokens}",
+    "archiveRestoreMetadataReason": "사유: {reason}",
+    "archiveRestoreMetadataGuidance": "지침 출처: {source}",
+    "archiveRestoreMetadataFallback": "대체 사유: {reason}",
+    "archiveRestoreMetadataArchive": "아카이브: {path}",
+    "archiveRestoreRangeReason": "사유: {reason}",
+    "archiveRestoreContentFeatures": "콘텐츠 신호: {features}",
+    "archiveRestoreResultSummary": "{lines}줄, {tokens} 토큰을 복원했습니다.",
+    "archiveRestoreResultRange": "범위: {range}",
+    "archiveRestoreResultTokens": "복원된 토큰: {tokens}",
+    "archiveRestoreResultBytes": "복원된 페이로드: {bytes} 바이트",
+    "archiveRestoreResultArchive": "아카이브: {path}",
+    "archiveRestoreCardDescription": "아카이브된 컨텍스트는 더 좁은 복원 범위가 필요합니다. {count}개의 입력된 복원 작업이 준비되었습니다.",
+    "archiveRestoreButton": "복원 및 계속 ({count})",
+    "archiveRestorePrompt": "아카이브된 컨텍스트 범위 `{restoreArg}` 를 읽고 복구된 증거를 바탕으로 계속하세요."
+  },
+  "settings": {
+    "commands": {
+      "editor": {
+        "fields": {
+          "template": {
+            "placeholder": "다음을 영어로 번역하세요:\n\n'{{input}}'"
+          }
+        }
+      }
+    }
+  }
+}

@@ -56,7 +56,10 @@ const PreferencesSection = memo(() => {
   const { initConfig } = useConfigStore();
   const { personalSettings, updatePersonalSettings } = usePersonalSettings();
   const isLocal = isLocalMode();
-  const schemaVisibilityContext = { isLocal, value: personalSettings as Record<string, unknown> };
+  const schemaVisibilityContext = {
+    isLocal,
+    value: personalSettings as unknown as Record<string, unknown>,
+  };
 
   const { enableAdvancedRetrieval, setEnableAdvancedRetrieval, embeddingApplied, rerankerApplied } =
     useRetrievalStore();

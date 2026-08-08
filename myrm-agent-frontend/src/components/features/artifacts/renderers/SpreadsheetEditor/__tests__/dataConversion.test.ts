@@ -140,7 +140,7 @@ describe('univerDataToXlsx', () => {
   it('round-trips basic data (xlsx → univer → xlsx → univer)', async () => {
     const original = [['Name', 'Age'], ['Alice', 30], ['Bob', 25]];
     const buf = await createSimpleXlsx(original);
-    const univerData = (await xlsxToUniverData(buf)) as WorkbookSnapshot;
+    const univerData = (await xlsxToUniverData(buf)) as unknown as WorkbookSnapshot;
     const blob = await univerDataToXlsx(univerData);
     const roundTrip = await xlsxToUniverData(await blob.arrayBuffer());
     const rt = roundTrip as { sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown }>> }> };
@@ -229,7 +229,7 @@ describe('formula roundtrip', () => {
     const a3 = sheets['Sheet1']?.cellData[2]?.[0];
     expect(a3?.f).toBe('SUM(A1:A2)');
 
-    const blob = await univerDataToXlsx(univerData as WorkbookSnapshot);
+    const blob = await univerDataToXlsx(univerData as unknown as WorkbookSnapshot);
     const XLSX = await import('xlsx');
     const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets['Sheet1'];
@@ -275,7 +275,7 @@ describe('merge roundtrip', () => {
       startRow: 0, endRow: 0, startColumn: 0, endColumn: 2,
     });
 
-    const blob = await univerDataToXlsx(univerData as WorkbookSnapshot);
+    const blob = await univerDataToXlsx(univerData as unknown as WorkbookSnapshot);
     const XLSX = await import('xlsx');
     const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets['Sheet1'];

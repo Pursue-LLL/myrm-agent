@@ -391,8 +391,13 @@ export interface ExecutionTrace {
   total_tokens: number;
 }
 
-export async function getSessionExecutionTrace(sessionId: string): Promise<ExecutionTrace> {
-  return apiRequest<ExecutionTrace>(`/statistics/session/${sessionId}/trace`);
+export async function getSessionExecutionTrace(
+  sessionId: string,
+  options?: { silent?: boolean },
+): Promise<ExecutionTrace> {
+  return apiRequest<ExecutionTrace>(`/statistics/session/${sessionId}/trace`, {
+    silent: options?.silent,
+  });
 }
 
 // ── Growth Dashboard ────────────────────────────────────────────────

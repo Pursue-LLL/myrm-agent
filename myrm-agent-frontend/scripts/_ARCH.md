@@ -16,13 +16,18 @@
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
-| `verify-i18n.mjs` | 五语系 i18n 完整性 + SSR shell/deferred namespace 门禁 + `kanban` Chat↔Board closure keys（`pretest` + CI） |
+| `verify-i18n.mjs` | 六语系 i18n 全量门禁：key parity（缺键=ERROR / 孤儿键=WARNING）、叶子类型一致、ICU 占位符变量一致、翻译壳检测（豁免见 `i18n-shell-allowlist.json`）、异常哨兵；另含 SSR shell/deferred namespace 门禁 + 关键 namespace keys（`pretest` + CI） |
+| `i18n-patch-apply.mjs` | 将 `translation-patches/<locale>/*.json` 深度合并进 `locales/<locale>.json`（内容补齐工作流） |
+| `i18n-dump-remaining.mjs` | 按 `verify-i18n.mjs` 同款壳检测逻辑导出某语言剩余翻译壳清单（TSV/JSON，支持 `--limit`/`--offset`/`--stats`） |
+| `i18n-glossary.json` | Native QA 术语表 SSOT（de Sie-Form + ko 敬语约束与固定术语，供批量翻译管线引用） |
+| `i18n-shell-allowlist.json` | 翻译壳检测豁免清单：真正不可翻译的值（品牌/凭据字段名/占位示例）与键路径 |
+| `translation-patches/` | 各语言内容补齐补丁目录（`<locale>/batch-NN.json` 等嵌套 JSON 补丁，供 `i18n-patch-apply.mjs` 深度合并；应用前以 `i18n-dump-remaining.mjs` 导出剩余壳清单） |
 | `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`build:sw-inject` + Serwist inject-manifest + CI） |
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
 | `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |
-| `sync_i18n.py` | 从 en 补全 ja/ko/de/zh（本地维护） |
+| `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
 | `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；`dev-server.lock` 健康跳过） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |

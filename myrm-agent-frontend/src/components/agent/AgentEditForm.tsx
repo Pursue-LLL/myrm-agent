@@ -130,7 +130,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   const onSubmit = async (data: AgentFormData) => {
     setIsSubmitting(true);
     try {
-      const validBindings = commandBindings.filter((b) => b.command_name && b.skill_id);
+      const validBindings = commandBindings.filter((b) => b.command_name && b.skill_ids.length > 0);
       const payload = {
         ...data,
         agent_type: agentType,

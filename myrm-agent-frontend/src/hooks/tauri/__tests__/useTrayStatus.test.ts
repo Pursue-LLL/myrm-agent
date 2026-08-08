@@ -58,7 +58,9 @@ vi.mock('@/services/background-tasks', () => ({
   listBackgroundTasks: () => mockListBackgroundTasks(),
 }));
 
-const mockListActiveMediaTasks = vi.fn(async () => [] as Array<{ task_id: string }>);
+const mockListActiveMediaTasks = vi.fn<
+  () => Promise<Array<{ task_id: string; task_type?: string; status?: string; [key: string]: unknown }>>
+>(async () => []);
 
 vi.mock('@/services/mediaTasks', () => ({
   listActiveMediaTasks: () => mockListActiveMediaTasks(),

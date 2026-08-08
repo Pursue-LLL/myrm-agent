@@ -2,9 +2,20 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const mockCompleteOnboarding = vi.fn(() => Promise.resolve({ success: true, message: 'ok' }));
-const mockDiscoverMigrationSources = vi.fn(() => Promise.resolve({ sources: [] }));
-const mockProbeLocalCapabilities = vi.fn(() => Promise.resolve({ results: [], search: [] }));
-const mockGetTelegramCredentials = vi.fn(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
+const mockDiscoverMigrationSources = vi.fn<
+  (force?: boolean) => Promise<{ sources: Array<{ type: string; path: string }> }>
+>(() => Promise.resolve({ sources: [] }));
+const mockProbeLocalCapabilities = vi.fn<
+  (force?: boolean) => Promise<{
+    results: never[];
+    search: never[];
+    has_available: boolean;
+    recommended_model: string | null;
+  }>
+>(() => Promise.resolve({ results: [], search: [], has_available: false, recommended_model: null }));
+const mockGetTelegramCredentials = vi.fn<
+  () => Promise<{ botToken: string; botPolicy: string } | null>
+>(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
 const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
 
 vi.mock('next-intl', () => ({
@@ -27,11 +38,11 @@ vi.mock('@/lib/deploy-mode', () => ({
 }));
 
 vi.mock('@/services/migrationDiscovery', () => ({
-  discoverMigrationSources: (...args: unknown[]) => mockDiscoverMigrationSources(...args),
+  discoverMigrationSources: (force?: boolean) => mockDiscoverMigrationSources(force),
 }));
 
 vi.mock('@/services/localCapabilitiesProbe', () => ({
-  probeLocalCapabilities: (...args: unknown[]) => mockProbeLocalCapabilities(...args),
+  probeLocalCapabilities: (force?: boolean) => mockProbeLocalCapabilities(force),
   invalidateLocalCapabilitiesProbeCache: vi.fn(),
 }));
 
@@ -40,7 +51,7 @@ vi.mock('@/services/onboarding', () => ({
 }));
 
 vi.mock('@/services/channels', () => ({
-  getTelegramCredentials: (...args: unknown[]) => mockGetTelegramCredentials(...args),
+  getTelegramCredentials: () => mockGetTelegramCredentials(),
 }));
 
 vi.mock('@/components/features/app-shell/BrandLogo', () => ({
@@ -199,7 +210,9 @@ describe('OnboardingWizard', () => {
     mockRoutingEnabled.value = false;
     mockSecurityConfig.value = null;
     mockDiscoverMigrationSources.mockImplementation(() => Promise.resolve({ sources: [] }));
-    mockProbeLocalCapabilities.mockImplementation(() => Promise.resolve({ results: [], search: [] }));
+    mockProbeLocalCapabilities.mockImplementation(() =>
+      Promise.resolve({ results: [], search: [], has_available: false, recommended_model: null }),
+    );
     mockGetTelegramCredentials.mockImplementation(() =>
       Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
     );

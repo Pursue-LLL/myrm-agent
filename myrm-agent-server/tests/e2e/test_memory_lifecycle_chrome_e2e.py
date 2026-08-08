@@ -19,7 +19,9 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (
+    _coerce_evaluate_result,
     _require_e2e_cdp_ready,
+    _restore_e2e_window_via_cdp,
     dismiss_blocking_modals,
     ensure_desktop_viewport,
     get_e2e_api_url,
@@ -31,7 +33,6 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
-    _coerce_evaluate_result,
 )
 
 _MAX_ATTEMPTS = 2
@@ -66,6 +67,8 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "E2E_LEASE_INVALID",
     "LEASE_NOT_ACTIVE",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
+    "timed out",
+    "QueuePool limit",
 )
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -209,12 +212,22 @@ _CHAT_UI_READY_JS = """(() => {
     && (store?.messages?.length ?? 0) >= 2
     && store.messages.some((m) => m?.role === 'assistant');
   const assistant = document.querySelector('[data-test-id="assistant-message"]');
-  const text = document.body?.innerText || '';
+  // textContent (not innerText): innerText is '' while the window is offscreen-hidden.
+  const text = document.body?.textContent || '';
   const hasNoted = /Noted|remember your food|cilantro/i.test(text);
   const msgDomCount = document.querySelectorAll('[data-message-id]').length;
   const path = window.location.pathname.replace(/^\\//, '');
+  // Window policy is OFFSCREEN-NORMAL (never minimized). If a window ever goes
+  // hidden again, Chrome pauses rAF and React stops rendering — the UI stays on
+  // its SSR skeleton while the store is already hydrated. Force ready=false and
+  // surface __windowHidden so wait_for_state restores the window instead of
+  // silently failing on a frozen skeleton.
+  const visibility = document.visibilityState;
+  const windowHidden = visibility === 'hidden';
   return {
-    ready: hasStore && Boolean(assistant) && hasNoted && msgDomCount >= 2,
+    ready:
+      !windowHidden && hasStore && Boolean(assistant) && hasNoted && msgDomCount >= 2,
+    __windowHidden: windowHidden,
     hasStore,
     hasAssistant: Boolean(assistant),
     hasNoted,
@@ -265,6 +278,10 @@ def _probe_chat_ui_state(
                 return last
         except (RuntimeError, TimeoutError, OSError):
             pass
+        if last.get("__windowHidden"):
+            # Same offscreen-window fallback as wait_for_state: a hidden window
+            # freezes React rendering on its skeleton, so restore before polling.
+            _restore_e2e_window_via_cdp(page)
         time.sleep(0.5)
     return last
 
@@ -288,16 +305,21 @@ _SCROLL_MESSAGES_INTO_VIEW_JS = """(() => {
 
 _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
   const timeline = document.querySelector('[data-testid="memory-lifecycle-timeline"]');
-  const mainText = document.body?.innerText || '';
+  const retryBtn = timeline?.querySelector('button');
+  const retryText = (retryBtn?.textContent || '').trim();
+  // Must match a real rendered retry control — body.textContent also contains
+  // next-intl bundles ("Retry extraction") and causes false positives.
   const hasRetry =
-    /Retry extraction|重试提取|重試提取|Extraktion wiederholen|抽出を再試行|추출 재시도/i.test(
-      mainText,
+    !!retryBtn
+    && /Retry extraction|重试提取|重試提取|Extraktion wiederholen|抽出を再試行|추출 재시도/i.test(
+      retryText,
     );
   const store = window.__myrmChatStore?.getState?.();
   const msgs = Array.isArray(store?.messages) ? store.messages : [];
   const path = location.pathname.replace(/^\\//, '');
   const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
   let traceCount = -1;
+  let scopedEventCount = -1;
   let traceErr = '';
   try {
     const chatId = path;
@@ -307,7 +329,23 @@ _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
     );
     const json = await res.json();
     const data = json.data ?? json;
-    traceCount = Array.isArray(data.memory_events) ? data.memory_events.length : 0;
+    const events = Array.isArray(data.memory_events) ? data.memory_events : [];
+    traceCount = events.length;
+    const createdAtRaw = lastMsg?.createdAt;
+    let messageCreatedAtMs = null;
+    if (createdAtRaw instanceof Date) {
+      messageCreatedAtMs = createdAtRaw.getTime();
+    } else if (typeof createdAtRaw === 'string' || typeof createdAtRaw === 'number') {
+      messageCreatedAtMs =
+        typeof createdAtRaw === 'number' ? createdAtRaw : Date.parse(createdAtRaw);
+    }
+    if (messageCreatedAtMs != null && Number.isFinite(messageCreatedAtMs)) {
+      scopedEventCount = events.filter(
+        (event) => (Number(event.timestamp) * 1000) >= messageCreatedAtMs - 5000,
+      ).length;
+    } else {
+      scopedEventCount = events.length;
+    }
   } catch (err) {
     traceErr = String(err);
   }
@@ -316,9 +354,8 @@ _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
   if (createdAtRaw instanceof Date) {
     messageCreatedAtMs = createdAtRaw.getTime();
   } else if (typeof createdAtRaw === 'string' || typeof createdAtRaw === 'number') {
-    messageCreatedAtMs = typeof createdAtRaw === 'number'
-      ? createdAtRaw
-      : Date.parse(createdAtRaw);
+    messageCreatedAtMs =
+      typeof createdAtRaw === 'number' ? createdAtRaw : Date.parse(createdAtRaw);
   }
   const trackWriteExtract =
     Boolean(store?.chatId)
@@ -331,14 +368,16 @@ _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
     onChat: path.startsWith('e2ememlife') || /^c-/.test(path),
     path: location.pathname,
     msgCount: msgs.length,
+    msgDomCount: document.querySelectorAll('[data-message-id]').length,
     loading: Boolean(store?.loading),
     isMessagesLoaded: Boolean(store?.isMessagesLoaded),
     traceCount,
+    scopedEventCount,
     traceErr,
     trackWriteExtract,
     messageCreatedAtMs,
     assistantContentHead: String(lastMsg?.content ?? '').slice(0, 120),
-    snippet: mainText.slice(0, 900),
+    visibility: document.visibilityState,
   };
 })()"""
 
@@ -584,13 +623,14 @@ def _run_lifecycle_assertions(
         )
 
         client.evaluate(page, _SCROLL_MESSAGES_INTO_VIEW_JS, timeout_sec=15.0)
-        time.sleep(1.0)
+        _poke_chat_route_render(client, page, chat_id)
+        time.sleep(1.5)
 
         state = wait_for_state(
             client,
             page,
             _MEMORY_LIFECYCLE_PROBE_JS,
-            timeout_sec=_chat_ui_wait_timeout_sec(45.0),
+            timeout_sec=_chat_ui_wait_timeout_sec(90.0),
             page_url=chat_url,
         )
         assert state.get("ready") is True, json.dumps(

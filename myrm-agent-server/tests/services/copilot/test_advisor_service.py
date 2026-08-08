@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase, build_run_digest
 
 from app.services.copilot.advisor_service import ask_advisor

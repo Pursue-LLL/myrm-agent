@@ -208,7 +208,7 @@ const AboutSection = memo(() => {
                 {updateStatus === 'available' && (
                   <div className="flex flex-col items-center gap-2 w-full max-w-sm">
                     <p className="text-xs text-primary font-medium">
-                      {t('update.available', { version: updateVersion })}
+                      {t('update.available', { version: updateVersion ?? '' })}
                     </p>
                     {updateBody && (
                       <div className="w-full max-h-32 overflow-y-auto rounded-md bg-muted/50 p-3 text-left text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">

@@ -295,6 +295,7 @@ class _ChatCrudMixin(_ChatServiceBase):
         await ConversationRecallIndexService.set_chat_excluded(chat_id, excluded=True)
         await close_external_agent_pool_for_chat(chat_id)
         await close_execution_cache_for_chat_all_agents(chat_id)
+        await _clear_extract_retry_queue(chat_id)
         return True
 
     @staticmethod
@@ -351,6 +352,7 @@ class _ChatCrudMixin(_ChatServiceBase):
                 logger.error("Chat workspace cleanup failed (chat=%s): %s", chat_id, e)
             await close_external_agent_pool_for_chat(chat_id)
             await close_execution_cache_for_chat_all_agents(chat_id)
+            await _clear_extract_retry_queue(chat_id)
         return ok
 
     @staticmethod
@@ -601,6 +603,18 @@ async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> Non
 
     stmt = delete(WidgetKVEntry).where(WidgetKVEntry.chat_id == chat_id)
     await session.execute(stmt)
+
+
+async def _clear_extract_retry_queue(chat_id: str) -> None:
+    """Drop pending memory-extract retry work for a deleted chat (fail-open)."""
+    try:
+        from app.services.memory.extract_retry_queue import clear_for_chat
+
+        await clear_for_chat(chat_id)
+    except Exception as exc:
+        logger.warning(
+            "Failed to clear memory extract retry queue (chat=%s): %s", chat_id, exc
+        )
 
 
 async def _cascade_delete_memories(chat_id: str) -> None:

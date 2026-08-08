@@ -25,15 +25,13 @@ Artifact 内容写入接口
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
-from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
@@ -1506,7 +1504,6 @@ async def get_concept(
     from myrm_agent_harness.toolkits.wiki.core.canonical_registry import (
         compute_page_lease_hash,
     )
-
     from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
         load_frontmatter_metadata,
     )
@@ -2490,6 +2487,9 @@ async def import_zip(
     supersede_reason: str = Query(
         "", description="Required when on_conflict is supersede"
     ),
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
 ) -> ImportResultResponse:
     """Upload and import a ZIP archive of documents into the wiki."""
     import tempfile

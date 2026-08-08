@@ -11,12 +11,12 @@ const mockAttachForHitlRecovery = vi.hoisted(() => vi.fn());
 const mockRecoverPendingApprovals = vi.hoisted(() => vi.fn());
 const mockWaitUntilReady = vi.hoisted(() => vi.fn());
 const mockLoadMessages = vi.hoisted(() => vi.fn());
-const mockResolveE2eApiBase = vi.hoisted(() => vi.fn(() => null));
+const mockResolveE2eApiBase = vi.hoisted(() => vi.fn<(...args: unknown[]) => string | null>(() => null));
 const mockResolveChatWikiEvidenceContext = vi.hoisted(() => vi.fn());
 const mockRecordWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockConsumePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockDecryptSseFrame = vi.hoisted(() => vi.fn());
-const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn(() => null));
+const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>(() => null));
 const mockCreateMultiplexReadableStream = vi.hoisted(() => vi.fn());
 const mockClearPendingWorkflowTemplate = vi.hoisted(() => vi.fn());
 const approvalState = vi.hoisted(() => ({
@@ -311,7 +311,7 @@ describe('streamConsumer resilience paths', () => {
           handler();
         }
         return 0 as unknown as ReturnType<typeof setTimeout>;
-      }) as typeof setTimeout,
+      }) as unknown as typeof setTimeout,
     );
     const state = createBaseState();
     const actions = createActions(state);

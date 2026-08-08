@@ -148,8 +148,24 @@ describe('toolsProgressEvents clarification notification', () => {
     const updater = setMessages.mock.calls[0]?.[0] as (state: {
       messages: Array<{ clarification?: { form?: { questions?: Array<{ id: string }> } } }>;
     }) => void;
-    const draft = {
-      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant' as const, content: '' }],
+    const draft: {
+      messages: Array<{
+        messageId?: string;
+        chatId?: string;
+        role?: 'assistant';
+        content?: string;
+        clarification?: { answered?: boolean; form?: { questions?: Array<{ id: string }> } };
+      }>;
+    } = {
+      messages: [
+        {
+          messageId: 'msg-1',
+          chatId: 'c1',
+          role: 'assistant' as const,
+          content: '',
+          clarification: { answered: false, form: { questions: [] } },
+        },
+      ],
     };
     updater(draft);
     expect(draft.messages[0]?.clarification?.form?.questions?.[0]?.id).toBe('db');

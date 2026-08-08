@@ -22,7 +22,7 @@ from app.services.companion.pet_atlas import (
     FormatTier,
     analyze_spritesheet,
 )
-from app.services.companion.pet_store import load_pet, list_installed_pets
+from app.services.companion.pet_store import list_installed_pets, load_pet
 
 logger = logging.getLogger(__name__)
 

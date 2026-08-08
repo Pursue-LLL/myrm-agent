@@ -73,7 +73,7 @@ export function resolveContrastSafeForeground(
     return secondarySweep;
   }
 
-  let best = FOREGROUND_CANDIDATES[0];
+  let best: string = FOREGROUND_CANDIDATES[0];
   let bestRatio = contrastRatio(best, background);
   for (const candidate of FOREGROUND_CANDIDATES) {
     const ratio = contrastRatio(candidate, background);

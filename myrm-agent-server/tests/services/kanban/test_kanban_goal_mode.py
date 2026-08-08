@@ -9,7 +9,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.kanban.types import (
     KanbanTask,
     TaskPriority,
@@ -47,7 +46,7 @@ class TestGoalProviderSetup:
             mock_provider.create_goal = AsyncMock()
             mock_registry.get_or_create_provider.return_value = mock_provider
 
-            result = await runner._setup_goal_provider(task)
+            await runner._setup_goal_provider(task)
 
             mock_registry.get_or_create_provider.assert_called_once_with("kanban:abc123")
             mock_provider.create_goal.assert_called_once()

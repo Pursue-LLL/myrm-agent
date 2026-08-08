@@ -27,6 +27,7 @@ from app.api.voice.realtime import RealtimeToolExecRequest, RealtimeToolExecResp
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from app.channels.types import InboundMessage
     from app.core.channel_bridge.background_task_handler import (
         ChannelBackgroundTaskHandler,
     )

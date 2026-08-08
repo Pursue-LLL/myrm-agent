@@ -11,7 +11,6 @@ from app.core.security.share_hmac import (
     parse_share_token,
 )
 
-
 _SALT = "test-share"
 
 

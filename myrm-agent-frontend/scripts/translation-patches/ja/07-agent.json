@@ -1,0 +1,147 @@
+{
+  "agent": {
+    "readiness": {
+      "warning": "一部の設定で確認が必要です",
+      "blocked": "エージェントを実行できません — 修正が必要です",
+      "ready": "準備完了"
+    },
+    "idleCompact": {
+      "title": "アイドル後の自動圧縮",
+      "desc": "チャットがアイドル状態のとき、次の返信の前に古いメッセージを要約します。",
+      "minutes": "アイドル時間（分）",
+      "minutesDesc": "自動圧縮が実行されるまでに最後のメッセージから待機する時間。",
+      "hint": "デフォルトではオフ。手動圧縮や高トークン使用時の自動圧縮の代わりにはなりません。"
+    },
+    "moaOverlayTitle": "エージェントループアドバイザーオーバーレイ",
+    "moaOverlayDesc": "チャットモデルピッカー用のアドバイザー参照モデルを設定します。セッションのアクティブ化はMixture of Agentsグループから行います — デフォルトでは毎メッセージではありません。",
+    "moaOverlayPickerHint": "有効にすると、このプリセットがチャットモデルピッカーに表示されます。セッションごとに選択するとアドバイザーオーバーレイが実行されます。",
+    "moaOverlayPresetDefaultTab": "標準参照",
+    "moaOverlayPresetReviewTab": "詳細レビュー参照",
+    "moaOverlayPresetFastTab": "高速参照",
+    "moaOverlayFanout": "ファンアウトポリシー",
+    "moaOverlayFanoutUserTurn": "ユーザーターンごとに1回",
+    "moaOverlayFanoutPerIteration": "モデル呼び出しごと",
+    "moaOverlayFanoutEveryN": "N回のモデル呼び出しごと",
+    "moaOverlayEveryN": "N（間隔）",
+    "moaOverlayPrivacy": "アドバイザー機密フィルター",
+    "moaOverlayPrivacyOff": "オフ",
+    "moaOverlayPrivacyDisplay": "表示のみ（UI編集）",
+    "moaOverlayPrivacyFull": "フル（UI + プロンプト編集）",
+    "moaOverlayNoModels": "参照モデルが選択されていません — オーバーレイはスキップされます（フォールバックなし）",
+    "consensusPrivacy": "参照機密フィルター",
+    "consensusPrivacyOff": "オフ",
+    "consensusPrivacyDisplay": "表示のみ（UI編集）",
+    "consensusPrivacyFull": "フル（UI + アグリゲーター入力編集）",
+    "consensusRefReasoning": "参照思考の労力",
+    "consensusRefReasoningHint": "労力を下げると推論モデル（o3、R1）の思考トークンコストを節約できます",
+    "consensusAggReasoning": "アグリゲーター思考の労力",
+    "consensusAggReasoningHint": "労力を上げるとより深い合成が得られます",
+    "consensusReasoningDefault": "デフォルト",
+    "consensusReasoningLow": "低",
+    "consensusReasoningMedium": "中",
+    "consensusReasoningHigh": "高",
+    "busyInputMode": "実行中入力の挙動",
+    "busyInputModeDesc": "エージェントの作業中にメッセージを送信したときのデフォルト動作。",
+    "busyInputRedirect": "リダイレクト",
+    "busyInputSteer": "ステア",
+    "busyInputQueue": "キュー",
+    "openapi": {
+      "turn1BudgetWarning": "推定Turn1スキーマ（約{tokens}トークン）が直接バインド予算（{budget}）を超えています。選択エンドポイントを減らさないとエージェントはこれらのAPIツールを使用できません。",
+      "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。"
+    },
+    "configEditor": {
+      "actionSpaceRadar": {
+        "turn1CatalogTitle": "Turn 1 スキルカタログ",
+        "turn1CatalogSummary": "{inline} インライン · {hidden} 非表示 · 検索 {searchState}",
+        "turn1CatalogSearchOn": "オン",
+        "turn1CatalogSearchOff": "オフ",
+        "turn1CatalogOverCapHint": "会話開始時には最初の{cap}個のCoreスキル（アルファベット順）のみがインライン表示されます。頻度の低いスキルをPeripheralに移動すると検索が無効になり、ターンあたり約203トークンを節約できます。"
+      },
+      "skillsZone": {
+        "coreTitle": "コアスキル",
+        "coreHint": "高速応答のために完全に注入",
+        "peripheralTitle": "周辺スキル",
+        "peripheralHint": "オンデマンドで読み込み、オーバーヘッド最小",
+        "availableTitle": "利用可能なスキル"
+      },
+      "skillInstance": {
+        "label": "インスタンス",
+        "placeholder": "インスタンスを選択",
+        "auto": "自動",
+        "staleWarning": "バインドされたインスタンス「{name}」はもう存在しません。",
+        "staleClear": "バインドを解除"
+      }
+    },
+    "security": {
+      "healthScoreTitle": "セキュリティ健全性スコア",
+      "findingsCount": "件の指摘",
+      "checkerPass": "合格",
+      "checkerIssues": "{count} 件の問題",
+      "fixAction": "修正",
+      "configureAction": "設定",
+      "checkers": {
+        "tool_exposure": "ツール露出",
+        "mcp_auth": "MCPセキュリティ",
+        "skill_aggregate": "スキルの信頼性",
+        "subagent_risk": "サブエージェントリスク",
+        "cron_risk": "スケジュールタスクリスク",
+        "policy_gap": "ポリシーカバレッジ"
+      }
+    },
+    "faq": {
+      "tabTitle": "FAQ",
+      "title": "FAQクイック返信",
+      "desc": "チャンネル即時応答用に事前設定されたQ&Aペア。一致したクエリはAIエージェントをバイパスして即座に返信します。",
+      "enabled": "FAQクイック返信を有効化",
+      "threshold": "一致しきい値",
+      "thresholdDesc": "一致に必要な最小類似度スコア（0.75–1.0）。",
+      "minScoreGap": "スコア差",
+      "minScoreGapDesc": "確信を持った一致のための1位と2位の最小スコア差。",
+      "addEntry": "エントリを追加",
+      "editEntry": "エントリを編集",
+      "question": "質問",
+      "questionPlaceholder": "例: VPNに接続するには？",
+      "answer": "回答",
+      "answerPlaceholder": "この質問が一致したときに送信される応答を入力…",
+      "tags": "タグ",
+      "tagsPlaceholder": "任意のカンマ区切りタグ",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "delete": "削除",
+      "deleteConfirm": "このFAQエントリを削除しますか？",
+      "import": "一括インポート",
+      "importDesc": "JSONからFAQエントリをインポート。形式: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importBtn": "インポート",
+      "importSuccess": "{count} 件のエントリをインポートしました",
+      "importFailed": "インポートに失敗しました",
+      "rebuildIndex": "インデックスを再構築",
+      "rebuildSuccess": "{count} 件のエントリでインデックスを再構築しました",
+      "rebuildFailed": "インデックスの再構築に失敗しました",
+      "stats": "統計",
+      "statsTotal": "総クエリ数",
+      "statsHits": "ヒット",
+      "statsMisses": "ミス",
+      "statsHitRate": "ヒット率",
+      "unmatched": "一致しなかったクエリ",
+      "unmatchedDesc": "どのFAQエントリにも一致しなかった最近のクエリ — 新しいFAQ候補の発見に活用できます。",
+      "emptyTitle": "FAQエントリはまだありません",
+      "emptyDesc": "Q&Aペアを追加するとチャンネルの即時応答が可能になります。",
+      "saveSuccess": "FAQ設定を保存しました",
+      "saveFailed": "FAQ設定の保存に失敗しました",
+      "entryCreated": "FAQエントリを作成しました",
+      "entryUpdated": "FAQエントリを更新しました",
+      "entryDeleted": "FAQエントリを削除しました"
+    },
+    "mobileCommand": {
+      "artifacts": "成果物",
+      "advisorAsk": "アドバイザーに質問",
+      "advisorOpen": "サイドQ&A"
+    }
+  },
+  "common": {
+    "remoteGateway": {
+      "unreachable": "リモートサーバー {host} に到達できません。サーバーアドレスを確認するか、ローカルモードに戻してください。",
+      "switchToLocal": "ローカルモードに切り替え"
+    }
+  }
+}

@@ -550,6 +550,14 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN memory_extraction_preset VARCHAR(32) NOT NULL DEFAULT 'auto'",
     # V182: forward-fix for baselined DBs that predated session_access_roots at V128 insert.
     "ALTER TABLE chats ADD COLUMN session_access_roots JSON",
+    # Dynamic Workflow binding on cron jobs (harness cron engine reads these columns).
+    # IMPORTANT: MIGRATION_STATEMENTS / INDEX_STATEMENTS are APPEND-ONLY — never
+    # insert/reorder statements in the middle of the list. Engine versions come from
+    # enumerate(list_index); an insertion silently reuses prior version numbers and the
+    # engine only warns (never re-runs) on checksum mismatch, permanently skipping the
+    # displaced migration.
+    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_id VARCHAR(64)",
+    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_args JSON",
 ]
 
 # 创建索引的SQL语句列表
@@ -885,8 +893,6 @@ INDEX_STATEMENTS = [
     "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",
     "ALTER TABLE chats ADD COLUMN compaction_failure_error VARCHAR(500)",
     "ALTER TABLE chats ADD COLUMN compression_ineffective_streak INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_id VARCHAR(64)",
-    "ALTER TABLE cron_jobs ADD COLUMN workflow_template_args JSON",
 ]
 
 

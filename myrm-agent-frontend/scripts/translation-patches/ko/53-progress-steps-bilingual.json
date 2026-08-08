@@ -1,0 +1,10 @@
+{
+  "progressSteps": {
+    "context_pruned": "만료된 캐시 컨텍스트가 정리되었습니다",
+    "archive_restore_blocked": "대용량 아카이브 복원이 차단되었습니다",
+    "archive_restore_result": "아카이브된 컨텍스트가 복원되었습니다",
+    "archiveRestoreSubmitting": "복원 중...",
+    "archiveRestorePrepared": "복원 작업이 메시지 상자에 준비되었습니다.",
+    "archiveRestoreFailed": "복원을 제출할 수 없습니다. 작업이 메시지 상자에 준비되었습니다."
+  }
+}

@@ -31,7 +31,7 @@ const createStatefulActions = (state: StreamHandlerState): StreamHandlerActions 
   setMessages: (updater) => updater(state),
   setMessageAppeared: () => undefined,
   setLoading: (loading) => {
-    state.loading = typeof loading === 'function' ? loading(state.loading) : loading;
+    state.loading = loading;
   },
   _processSuggestions: async () => undefined,
   scheduleAutoSave: () => undefined,
@@ -58,7 +58,7 @@ describe('messageStreamHandler - diagnostic_result priority logic', () => {
         type: AgentEventType.ERROR,
         messageId,
         error: 'API key is invalid',
-        error_kind: 'LLM_ERROR',
+        error_kind: 'unknown',
         diagnostic_result: {
           error_type: 'api_key',
           user_message: 'Invalid API key from backend i18n',
@@ -96,7 +96,7 @@ describe('messageStreamHandler - diagnostic_result priority logic', () => {
         type: AgentEventType.ERROR,
         messageId,
         error: 'API key is invalid',
-        error_kind: 'LLM_ERROR',
+        error_kind: 'unknown',
       },
       '',
       undefined,
@@ -121,7 +121,7 @@ describe('messageStreamHandler - diagnostic_result priority logic', () => {
         type: AgentEventType.ERROR,
         messageId,
         error: 'Unknown error',
-        error_kind: 'LLM_ERROR',
+        error_kind: 'unknown',
         diagnostic_result: {
           error_type: 'unknown',
           user_message: 'Unknown error occurred',

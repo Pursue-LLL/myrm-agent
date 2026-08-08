@@ -90,6 +90,7 @@ class SkillResponse(BaseModel):
 
     traps: list[dict[str, object]] = []
     verification_steps: list[dict[str, object]] = []
+    eval_cases: list[dict[str, object]] = []
 
     created_at: str
     updated_at: str
@@ -224,11 +225,13 @@ class SkillConfigVersionResponse(BaseModel):
 
 def _lookup_evolution_data(
     skill_name: str,
-) -> tuple[list[dict[str, object]], list[dict[str, object]], bool]:
-    """Best-effort lookup of evolution traps and lock status for a skill.
+) -> tuple[
+    list[dict[str, object]], list[dict[str, object]], bool, list[dict[str, object]]
+]:
+    """Best-effort lookup of evolution traps, verification steps, lock status and eval cases.
 
     Returns:
-        Tuple of (traps, verification_steps, evolution_locked)
+        Tuple of (traps, verification_steps, evolution_locked, eval_cases)
     """
     try:
         from myrm_agent_harness.agent.skills.evolution.infra.integration import (
@@ -239,10 +242,15 @@ def _lookup_evolution_data(
         if evolution and evolution.store:
             record = evolution.store.get_skill_by_name_version(skill_name)
             if record:
-                return record.traps, record.verification_steps, record.evolution_locked
+                return (
+                    record.traps,
+                    record.verification_steps,
+                    record.evolution_locked,
+                    record.eval_cases,
+                )
     except Exception as e:
         logger.debug("Evolution data lookup failed for %s: %s", skill_name, e)
-    return [], [], False
+    return [], [], False, []
 
 
 def skill_to_response(skill: Skill) -> SkillResponse:
@@ -265,8 +273,8 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             ],
         )
 
-    traps, verification_steps, store_evolution_locked = _lookup_evolution_data(
-        skill.name
+    traps, verification_steps, store_evolution_locked, eval_cases = (
+        _lookup_evolution_data(skill.name)
     )
     evolution_locked = skill.evolution_locked or store_evolution_locked
 
@@ -322,6 +330,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         has_upstream_update=skill.has_upstream_update,
         traps=traps,
         verification_steps=verification_steps,
+        eval_cases=eval_cases,
         created_at=skill.created_at.isoformat(),
         updated_at=skill.updated_at.isoformat(),
     )

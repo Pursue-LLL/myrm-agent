@@ -1,24 +1,27 @@
-"""Retry memory extraction for one chat turn (GUI manual recovery).
+"""Retry memory extraction for one chat turn (GUI manual recovery + auto queue).
 
 [INPUT]
 app.services.chat.chat_service::ChatService (POS: chat metadata)
 app.services.context.context_assembly::ContextAssemblyService (POS: chat memory binding SSOT)
 app.services.memory.resolve_chat_extraction_llm::resolve_chat_extraction_llm (POS: extraction LLM SSOT)
+app.services.memory.extract_retry_queue::enqueue (POS: 持久化重试队列)
 myrm_agent_harness.api.hooks::auto_extract_memories (POS: harness extract)
 app.ai_agents.extensions.extraction_lifecycle::make_extraction_lifecycle_observer (POS: ledger bridge)
 
 [OUTPUT]
-schedule_retry_chat_memory_extract: Fire-and-forget re-run of auto_extract for last user/assistant turn.
-Returns `scheduled` or `already_in_flight` (in-process dedup via asyncio.Lock).
+schedule_retry_chat_memory_extract: 幂等入队手动重试，返回 `scheduled` 或 `already_in_flight`。
+run_retry_extract_for_chat: 对最新 user/assistant turn 执行压缩轨提取（worker 与手动共用，
+手动 source=`manual_retry_extract`，worker 传 `worker_retry_extract`）。
 
 [POS]
-Business-layer manual recovery when auto extract failed. Reuses harness extract with factory-aligned
-memory binding and extraction LLM — no new engine.
+Business-layer recovery for failed memory extraction. Enqueues durable tasks consumed
+by the background worker, reusing harness extract with factory-aligned memory binding
+and extraction LLM. Retries run compressed-track only (enable_verbatim=False) to avoid
+duplicating verbatim chunks that the original auto-extract already stored.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Literal
 
@@ -30,9 +33,6 @@ from app.services.chat.chat_service import ChatService
 logger = logging.getLogger(__name__)
 
 RetryScheduleStatus = Literal["scheduled", "already_in_flight"]
-
-_in_flight_retries: set[str] = set()
-_in_flight_lock = asyncio.Lock()
 
 
 def _time_decay_half_life_days(memory_decay_profile: str | None) -> float:
@@ -76,71 +76,96 @@ def _find_last_turn(
 
 
 async def _run_retry_extract(
-    chat_id: str, query: str, history: ChatHistoryReq, assistant_reply: str
+    chat_id: str,
+    query: str,
+    history: ChatHistoryReq,
+    assistant_reply: str,
+    *,
+    source: str,
 ) -> None:
+    from myrm_agent_harness.api.hooks import auto_extract_memories
+
+    from app.ai_agents.extensions.extraction_lifecycle import (
+        make_extraction_lifecycle_observer,
+    )
+    from app.core.memory.adapters.setup import (
+        create_conflict_callback,
+        create_memory_manager,
+    )
+    from app.services.agent.platform_config import require_platform_embedding_config
+    from app.services.context.context_assembly import ContextAssemblyService
+    from app.services.memory.resolve_chat_extraction_llm import (
+        resolve_chat_extraction_llm,
+    )
+
+    binding_context = await ContextAssemblyService.resolve_binding_for_chat(chat_id)
+    llm, extraction_llm = await resolve_chat_extraction_llm(chat_id)
+
+    embedding_cfg = await require_platform_embedding_config()
+    memory_manager = await create_memory_manager(
+        binding_context.binding,
+        embedding_cfg,
+        approval_required=False,
+        dedup_llm=extraction_llm,
+        time_decay_half_life_days=_time_decay_half_life_days(
+            binding_context.memory_decay_profile
+        ),
+        on_conflict=create_conflict_callback(agent_id=binding_context.agent_id),
+    )
+
+    await auto_extract_memories(
+        query,
+        history,
+        memory_manager,
+        llm,
+        extraction_llm=extraction_llm,
+        source_chat_id=chat_id,
+        assistant_reply=assistant_reply,
+        enable_verbatim=False,
+        lifecycle_observer=make_extraction_lifecycle_observer(
+            chat_id,
+            source=source,
+            is_retry=True,
+        ),
+    )
+
+
+async def run_retry_extract_for_chat(
+    chat_id: str, *, source: str = "manual_retry_extract"
+) -> bool:
+    """Run compressed-track extraction for a chat's latest turn.
+
+    Returns True when extraction was attempted; False when there is nothing to retry
+    (chat gone or no complete user/assistant turn).
+    """
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if chat is None:
+        return False
+
+    messages = await ChatService.get_all_messages(chat_id)
+    if not messages:
+        return False
+
     try:
-        from myrm_agent_harness.api.hooks import auto_extract_memories
+        last_user, last_assistant, history = _find_last_turn(messages)
+    except ValueError:
+        return False
 
-        from app.ai_agents.extensions.extraction_lifecycle import (
-            make_extraction_lifecycle_observer,
-        )
-        from app.core.memory.adapters.setup import (
-            create_conflict_callback,
-            create_memory_manager,
-        )
-        from app.services.agent.platform_config import require_platform_embedding_config
-        from app.services.context.context_assembly import ContextAssemblyService
-        from app.services.memory.resolve_chat_extraction_llm import (
-            resolve_chat_extraction_llm,
-        )
-
-        binding_context = await ContextAssemblyService.resolve_binding_for_chat(chat_id)
-        llm, extraction_llm = await resolve_chat_extraction_llm(chat_id)
-
-        embedding_cfg = await require_platform_embedding_config()
-        memory_manager = await create_memory_manager(
-            binding_context.binding,
-            embedding_cfg,
-            approval_required=False,
-            dedup_llm=extraction_llm,
-            time_decay_half_life_days=_time_decay_half_life_days(
-                binding_context.memory_decay_profile
-            ),
-            on_conflict=create_conflict_callback(agent_id=binding_context.agent_id),
-        )
-
-        await auto_extract_memories(
-            query,
-            history,
-            memory_manager,
-            llm,
-            extraction_llm=extraction_llm,
-            source_chat_id=chat_id,
-            assistant_reply=assistant_reply,
-            lifecycle_observer=make_extraction_lifecycle_observer(
-                chat_id,
-                source="manual_retry_extract",
-                manual_retry=True,
-            ),
-        )
-    except Exception as exc:
-        logger.warning(
-            "Manual memory extract retry failed for chat %s: %s", chat_id, exc
-        )
+    await _run_retry_extract(
+        chat_id,
+        last_user.content or "",
+        history,
+        last_assistant.content or "",
+        source=source,
+    )
+    return True
 
 
 async def schedule_retry_chat_memory_extract(chat_id: str) -> RetryScheduleStatus:
-    """Schedule background retry for the latest active user/assistant turn."""
+    """Enqueue a durable background retry for the latest active user/assistant turn."""
     resolved_chat_id = chat_id.strip()
     if not resolved_chat_id:
         raise ValueError("Chat id is required")
-
-    async with _in_flight_lock:
-        if resolved_chat_id in _in_flight_retries:
-            logger.info(
-                "Memory extract retry already in flight for chat %s", resolved_chat_id
-            )
-            return "already_in_flight"
 
     chat = await ChatService.get_chat_metadata(resolved_chat_id)
     if chat is None:
@@ -152,23 +177,22 @@ async def schedule_retry_chat_memory_extract(chat_id: str) -> RetryScheduleStatu
     if not messages:
         raise ValueError("Chat has no messages")
 
-    last_user, last_assistant, history = _find_last_turn(messages)
+    # Fail fast on malformed turns; the worker re-resolves the latest turn at run time.
+    _find_last_turn(messages)
 
-    async with _in_flight_lock:
-        if resolved_chat_id in _in_flight_retries:
-            return "already_in_flight"
-        _in_flight_retries.add(resolved_chat_id)
+    from app.services.memory.extract_retry_queue import enqueue
 
-    async def _run_guarded() -> None:
-        try:
-            await _run_retry_extract(
-                resolved_chat_id,
-                last_user.content or "",
-                history,
-                last_assistant.content or "",
-            )
-        finally:
-            _in_flight_retries.discard(resolved_chat_id)
+    result = await enqueue(resolved_chat_id, reset_failed=True)
+    if result == "queued":
+        from app.services.memory.extract_retry_worker import extract_retry_worker
 
-    asyncio.create_task(_run_guarded())
-    return "scheduled"
+        extract_retry_worker.wake()
+    logger.info("Memory extract retry enqueued for chat %s: %s", resolved_chat_id, result)
+    return "already_in_flight" if result == "already_queued" else "scheduled"
+
+
+__all__ = [
+    "RetryScheduleStatus",
+    "run_retry_extract_for_chat",
+    "schedule_retry_chat_memory_extract",
+]

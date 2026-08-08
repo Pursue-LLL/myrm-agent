@@ -25,10 +25,10 @@ import {
 interface AgentBrowserConfigSectionProps {
   browserSource: string | undefined;
   onBrowserSourceChange: (value: string | undefined) => void;
-  dialogPolicy: string | undefined;
-  onDialogPolicyChange: (value: string | undefined) => void;
-  sessionRecording: string | undefined;
-  onSessionRecordingChange: (value: string | undefined) => void;
+  dialogPolicy: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined;
+  onDialogPolicyChange: (value: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined) => void;
+  sessionRecording: 'off' | 'on_failure' | 'always' | undefined;
+  onSessionRecordingChange: (value: 'off' | 'on_failure' | 'always' | undefined) => void;
 }
 
 export function AgentBrowserConfigSection({
@@ -129,7 +129,11 @@ export function AgentBrowserConfigSection({
           </label>
           <Select
             value={dialogPolicy || 'smart'}
-            onValueChange={(v) => onDialogPolicyChange(v === 'smart' ? undefined : v)}
+            onValueChange={(v) =>
+              onDialogPolicyChange(
+                v === 'smart' ? undefined : (v as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent'),
+              )
+            }
           >
             <SelectTrigger className="w-full bg-background">
               <SelectValue />
@@ -178,7 +182,9 @@ export function AgentBrowserConfigSection({
           </label>
           <Select
             value={sessionRecording || 'off'}
-            onValueChange={(v) => onSessionRecordingChange(v === 'off' ? undefined : v)}
+            onValueChange={(v) =>
+              onSessionRecordingChange(v === 'off' ? undefined : (v as 'off' | 'on_failure' | 'always'))
+            }
           >
             <SelectTrigger className="w-full bg-background">
               <SelectValue />

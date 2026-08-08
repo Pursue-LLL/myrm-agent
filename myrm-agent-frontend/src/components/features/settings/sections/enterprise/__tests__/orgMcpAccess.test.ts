@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { canManageOrgMcp } from '../orgMcpAccess';
+import type { OrgMember } from '@/services/enterprise-org';
 
 describe('canManageOrgMcp', () => {
-  const members = [
-    { user_id: 'owner-1', role: 'owner', joined_at: 1 },
-    { user_id: 'admin-1', role: 'admin', joined_at: 2 },
-    { user_id: 'member-1', role: 'member', joined_at: 3 },
+  const members: OrgMember[] = [
+    { user_id: 'owner-1', role: 'owner', idp_groups: null, joined_at: 1 },
+    { user_id: 'admin-1', role: 'admin', idp_groups: null, joined_at: 2 },
+    { user_id: 'member-1', role: 'member', idp_groups: null, joined_at: 3 },
   ];
 
   it('allows owner and admin', () => {

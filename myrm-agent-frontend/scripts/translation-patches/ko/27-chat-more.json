@@ -1,0 +1,124 @@
+{
+  "chat": {
+    "messageFailed": {
+      "title": "전송 실패",
+      "description": "메시지 전송에 실패했습니다: {error}",
+      "networkError": "서비스 연결이 끊어졌습니다. 백엔드 서비스를 확인하고 페이지를 새로고침하여 다시 시도하세요"
+    },
+    "searchNotConfigured": {
+      "enableAction": "무료 검색 활성화"
+    },
+    "enableWebSearch": "웹 검색 활성화",
+    "disableWebSearch": "웹 검색 비활성화",
+    "enableBrowser": "브라우저 자동화 활성화",
+    "disableBrowser": "브라우저 자동화 비활성화",
+    "disableComputerUse": "데스크톱 제어 비활성화",
+    "enableImageGeneration": "이미지 생성 활성화",
+    "disableImageGeneration": "이미지 생성 비활성화",
+    "enableVideoGeneration": "비디오 생성 활성화",
+    "disableVideoGeneration": "비디오 생성 비활성화",
+    "compact": {
+      "badge": "압축됨",
+      "compacting": "컨텍스트 압축 중...",
+      "success": "컨텍스트 압축 완료: {count}개 메시지 요약, ~{tokens} 토큰 절약",
+      "noChatId": "압축할 활성 채팅이 없습니다",
+      "failed": "압축 실패",
+      "skipped": "압축 건너뜀: {reason}",
+      "confirmTitle": "컨텍스트 압축을 진행하시겠습니까?",
+      "confirmDescription": "수동 압축은 프롬프트 캐시를 지워 다음 대화 비용이 증가할 수 있습니다. 시스템은 토큰 사용량 90% 시 자동 압축을 수행합니다 (최적 시점).",
+      "confirmButton": "그래도 압축",
+      "dontRemindAgain": "다시 표시하지 않기"
+    },
+    "fileMention": {
+      "removeReference": "{label} 제거"
+    },
+    "conversationRecall": {
+      "hintTitle": "과거 대화 계속하기",
+      "hintBody": "설정에서 대화 기록 검색을 활성화하면 이전 채팅에 대해 질문하거나 작성기에 @chat: 을 사용할 수 있습니다.",
+      "openSettings": "메모리 설정",
+      "dismiss": "닫기"
+    },
+    "message": {
+      "truncated": "응답이 길이 제한으로 인해 잘렸습니다. 대화를 계속하면 나머지를 받을 수 있습니다.",
+      "contentFiltered": "응답의 일부가 콘텐츠 정책에 의해 필터링되었습니다.",
+      "budgetBlocked": "일일 예산 정책으로 실행이 차단되었습니다. 설정에서 예산 한도를 조정하여 계속하세요.",
+      "workflowMergeWarning": "일부 작업공간 파일을 병합할 수 없습니다. 자세한 내용은 도구 출력을 확인하세요.",
+      "workflowTemplateSave": {
+        "title": "워크플로우 템플릿으로 저장",
+        "description": "플래너를 재생성하지 않고 결정적 재실행을 위해 이 오케스트레이션 스크립트를 저장합니다.",
+        "displayNamePlaceholder": "표시 이름",
+        "templateIdPlaceholder": "템플릿 슬러그 (예: weekly-report)",
+        "trustLatch": "트러스트 래치",
+        "save": "템플릿 저장",
+        "success": "워크플로우 템플릿이 저장되었습니다",
+        "failed": "워크플로우 템플릿 저장 실패",
+        "fieldsRequired": "표시 이름과 템플릿 슬러그는 필수입니다"
+      }
+    },
+    "clarification": {
+      "placeholder": "연구를 정교화하려면 답변을 입력하세요...",
+      "submit": "제출",
+      "skip": "건너뛰기",
+      "answered": "명확화 질문에 답변되었습니다",
+      "formTitle": "명확화 양식",
+      "singleChoicePrompt": "하나를 선택하세요:",
+      "multipleChoicePrompt": "하나 이상을 선택하세요:",
+      "freeTextWithOptionsPlaceholder": "세부 사항이나 다른 답변을 추가하세요...",
+      "questionCount": "{count}개 질문",
+      "optionalNote": "아래에 사용자 정의 답변을 입력할 수도 있습니다",
+      "submitFailed": "명확화 제출에 실패했습니다. 다시 시도하세요."
+    },
+    "directoryRequest": {
+      "pathPlaceholder": "/Users/you/Documents/project"
+    },
+    "toolsPanel": {
+      "title": "사용 가능한 도구",
+      "searchPlaceholder": "도구 검색...",
+      "noResults": "일치하는 도구가 없습니다",
+      "parameters": "매개변수",
+      "layers": {
+        "core": "핵심",
+        "common": "일반",
+        "extended": "확장",
+        "external": "외부"
+      },
+      "knownTools": {
+        "conversationSearch": {
+          "name": "대화 검색",
+          "summary": "이전 대화에서 정확한 구절과 사전 계산된 요약을 검색합니다."
+        }
+      }
+    },
+    "cancel_request": "요청 취소",
+    "performanceDiagnostics": "성능 진단",
+    "memoryFeedbackGood": "도움이 되는 메모리",
+    "memoryFeedbackBad": "도움이 안 되는 메모리",
+    "pin": {
+      "action": "상단에 고정",
+      "section": "고정됨",
+      "error": "채팅 고정 실패"
+    },
+    "unpin": {
+      "action": "고정 해제",
+      "error": "채팅 고정 해제 실패"
+    },
+    "createAutomation": "자동화 만들기",
+    "handoff": {
+      "menuAction": "전송...",
+      "title": "대화 전송",
+      "description": "\"{title}\" 을 다른 플랫폼으로 전송하여 그곳에서 대화를 계속합니다.",
+      "transfer": "전송",
+      "noChannels": "연결된 채널이 없습니다. 설정에서 먼저 채널을 연결하세요.",
+      "success": "대화가 전송되었습니다",
+      "successDesc": "이제 {target} 에서 계속할 수 있습니다.",
+      "failed": "전송 실패"
+    },
+    "reasoningThinking": "{seconds}초 동안 사고 중...",
+    "reasoningCompleted": "{seconds}초 동안 사고함",
+    "reasoningTitle": "추론",
+    "agentReady": "{agentName} 준비됨",
+    "defaultModelNotConfigured": {
+      "description": "메시지를 보내기 전에 설정 > 기본 모델에서 기본 모델을 선택하세요."
+    }
+  }
+}

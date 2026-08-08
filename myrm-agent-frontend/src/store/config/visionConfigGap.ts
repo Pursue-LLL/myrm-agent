@@ -29,7 +29,7 @@ const VISION_GAP_I18N = {
   action: 'chat.visionNotConfigured.action',
 } as const;
 
-export type VisionConfigGapKind = keyof typeof VISION_GAP_I18N;
+export type VisionConfigGapKind = Exclude<keyof typeof VISION_GAP_I18N, 'action'>;
 
 const VISION_GAP_FALLBACKS: Record<string, { en: string; zh: string }> = {
   [VISION_GAP_I18N.image.title]: {

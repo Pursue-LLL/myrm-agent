@@ -1,0 +1,68 @@
+{
+  "chat": {
+    "desktopInspector": {
+      "title": "데스크톱 라이브 뷰",
+      "toggleTitle": "데스크톱 인스펙터 전환",
+      "viewMode": "보기 모드",
+      "inspectMode": "검사 모드",
+      "close": "닫기",
+      "refresh": "새로고침",
+      "enabledHint": "에이전트가 데스크톱 도구를 사용하면 여기에 데스크톱 인스펙터가 열립니다",
+      "resizePanel": "패널 크기 조정",
+      "screenshotAlt": "데스크톱 스크린샷",
+      "waitingForDesktop": "데스크톱 제어 활동 대기 중...",
+      "waitingHint": "에이전트가 데스크톱 도구를 사용하면 라이브 뷰가 나타납니다",
+      "permissionDenied": "손쉬운 사용 권한이 필요합니다. 시스템 설정에서 권한을 부여한 후 다시 시도하세요.",
+      "permissionDeniedAccessibility": "데스크톱 요소 상호작용에는 손쉬운 사용 권한이 필요합니다.",
+      "permissionDeniedScreenRecording": "데스크톱 스크린샷에는 화면 기록 권한이 필요합니다.",
+      "permissionOpenSettings": "시스템 설정 열기",
+      "permissionCheckFailed": "데스크톱 권한을 확인할 수 없습니다",
+      "permissionCheckAgain": "다시 확인",
+      "permissionChecking": "권한 확인 중…",
+      "permissionAllGranted": "모든 권한이 부여되었습니다",
+      "permissionMissing": "권한 누락",
+      "instructionPlaceholder": "데스크톱에서 수행하려는 작업을 설명하세요...",
+      "instructionWithElement": "에이전트가 이 데스크톱 요소로 무엇을 해야 하나요?",
+      "send": "지시 보내기",
+      "controlApproval": {
+        "title": "데스크톱 제어 승인 필요",
+        "deny": "거부",
+        "allowOnce": "한 번만 허용",
+        "allowSession": "이 채팅 허용",
+        "allowAlways": "이 앱 항상 허용"
+      }
+    }
+  },
+  "progressSteps": {
+    "errorCategories": {
+      "oom": "메모리 부족",
+      "oom_killed": "OOM 종료됨",
+      "timeout": "시간 초과",
+      "not_found": "찾을 수 없음",
+      "sandbox_ro": "읽기 전용",
+      "network_blocked": "네트워크 차단됨",
+      "permission_denied": "권한 거부됨",
+      "execution_failure": "실행 실패",
+      "segfault": "세그멘테이션 오류",
+      "signal_terminated": "시그널 종료됨",
+      "nonzero_exit": "0이 아닌 종료 코드",
+      "syntax": "문법 오류",
+      "import": "모듈 누락",
+      "unknown": "알 수 없는 오류",
+      "hook_blocked": "규칙에 의해 차단됨",
+      "estop": "비상 정지",
+      "loop_guard": "루프 한도",
+      "sandbox_boundary": "경계 한도",
+      "frequency_guard": "요청 제한됨",
+      "turn_budget_guard": "검색 할당량",
+      "steering": "건너뜀",
+      "invalid_tool": "잘못된 도구",
+      "pii_guard": "개인정보 보호됨",
+      "circuit_breaker": "차단기 동작됨",
+      "context_validation": "잘못된 입력",
+      "post_hook_blocked": "실행 후 차단됨",
+      "tool_cancelled": "취소됨",
+      "guardrail_blocked": "안전 차단됨"
+    }
+  }
+}

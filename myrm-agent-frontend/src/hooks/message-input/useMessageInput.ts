@@ -610,7 +610,7 @@ export const useMessageInput = () => {
     }
 
     clearDraft();
-    addInputHistory(inputMessage, useChatStore.getState().agentConfig?.id);
+    addInputHistory(inputMessage, useChatStore.getState().agentConfig?.agentId);
     setHideAttachList(true);
     recordChatQueryMetric();
 

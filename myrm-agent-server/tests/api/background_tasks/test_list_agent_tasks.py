@@ -12,14 +12,12 @@ Verifies the Kanban-direct query path that replaced the old
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.kanban.types import TaskEvent, TaskEventKind, TaskStatus
 
 

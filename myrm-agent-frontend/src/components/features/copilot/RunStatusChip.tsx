@@ -23,11 +23,11 @@ export default function RunStatusChip({ chatId }: RunStatusChipProps) {
     digest?.phase === 'running' ||
     digest?.phase === 'waiting_approval';
 
+  const headline = useMemo(() => resolveRunDigestHeadline(digest, t), [digest, t]);
+
   if (!active && (!digest || digest.phase === 'idle')) {
     return null;
   }
-
-  const headline = useMemo(() => resolveRunDigestHeadline(digest, t), [digest, t]);
 
   const openAdvisor = (question = '') => {
     window.dispatchEvent(

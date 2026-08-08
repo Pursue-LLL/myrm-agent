@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
-
-from app.channels.core.base import BaseChannel
-from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
-from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from myrm_agent_harness.infra.delivery.storage import load_pending_deliveries
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
@@ -17,6 +11,10 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobType,
     Schedule,
 )
+
+from app.channels.core.base import BaseChannel
+from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
+from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
 
 @pytest.mark.asyncio
@@ -65,7 +63,6 @@ async def test_deliver_channel_null_send_retains_disk(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_deliver_disabled_channel_raises() -> None:
     from app.channels.core.gateway import ChannelGateway
-    from app.channels.types import ChannelStatus
 
     class _FeishuChannel(BaseChannel):
         name = "feishu"
@@ -116,9 +113,6 @@ async def test_deliver_missing_channel_raises() -> None:
         delivery=DeliveryConfig(channel="missing", target="chat-1"),
     )
 
-    import app.core.channel_bridge as channel_bridge
-
-    gateway = channel_bridge.channel_gateway
     with pytest.raises(RuntimeError, match="No channel registered"):
         await ChannelResultDelivery().deliver(
             job, JobResult(success=True, output="body")

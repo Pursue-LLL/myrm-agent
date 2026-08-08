@@ -1,0 +1,316 @@
+{
+  "progressSteps": {
+    "media_rejected_recovery": "모델이 미디어를 거부함 — 제거 후 재시도 중",
+    "thinking_signature_recovery": "씽킹 블록 복구됨 — 재시도 중",
+    "tool_history_recovery": "대화 기록 복구됨 — 재시도 중",
+    "image_shrink_recovery": "이미지가 제한에 맞게 축소됨 — 재시도 중",
+    "long_context_tier_recovery": "컨텍스트 티어가 조정됨 — 재시도 중",
+    "turn_prewarm_agent": "에이전트 실행 컨텍스트 준비 중",
+    "turn_prewarm_agent_clear": "에이전트 준비됨",
+    "turn_prewarm_memory": "메모리 브리프 로딩 중",
+    "turn_prewarm_memory_clear": "메모리 초기화 완료",
+    "wiki_knowledge_lane": "위키 지식 베이스 조회 중",
+    "wiki_knowledge_lane_clear": "위키 답변 준비됨",
+    "consensus_active": "멀티 모델 컨센서스 진행 중",
+    "moa_overlay_active": "어드바이저 오버레이 팬아웃 진행 중",
+    "moa_ref_done": "어드바이저 참조 완료",
+    "subagent_running": "하위 에이전트 실행 중",
+    "subagent_notification": "하위 에이전트 완료됨",
+    "deep_research_start": "딥 리서치 시작",
+    "deep_research_planning": "리서치 계획 작성 중",
+    "deep_research_researching": "리서치 중",
+    "deep_research_report": "리서치 보고서 생성 중",
+    "skill_select_tool_tool": "스킬 선택 중",
+    "skill_search_tool_tool": "스킬 검색 중",
+    "code_execution_tool_tool": "코드 실행 중",
+    "answer_user_tool_tool": "답변 준비 중",
+    "request_answer_user_tool_tool": "답변 요청 중",
+    "web_search_tool_tool": "웹 검색 중",
+    "web_search_tool_tool_error": "검색 실패",
+    "web_fetch_tool_tool": "웹페이지 콘텐츠 읽는 중",
+    "web_fetch_tool_tool_error": "웹페이지 읽기 실패",
+    "file_editor_tool_tool": "파일 편집 중",
+    "file_editor_tool_tool_error": "파일 편집 실패",
+    "file_editor_view_tool": "파일 읽는 중",
+    "file_editor_view_tool_error": "파일 읽기 실패",
+    "file_editor_create_tool": "파일 생성 중",
+    "file_editor_create_tool_error": "파일 생성 실패",
+    "file_editor_edit_tool": "파일 편집 중",
+    "file_editor_edit_tool_error": "파일 편집 실패",
+    "mcp_tool_tool": "MCP 도구 호출 중",
+    "mcp_tool_tool_error": "MCP 도구 호출 실패",
+    "image_tool_tool": "이미지 생성 중",
+    "image_tool_tool_error": "이미지 생성 실패",
+    "video_tool_tool": "비디오 생성 중",
+    "video_tool_tool_error": "비디오 생성 실패",
+    "render_ui_tool_tool": "대화형 UI 생성 중",
+    "render_ui_tool_tool_error": "UI 생성 실패",
+    "update_ui_data_tool_tool": "대화형 UI 데이터 업데이트 중",
+    "update_ui_data_tool_tool_error": "UI 데이터 업데이트 실패",
+    "bash_code_execute_tool_tool": "코드 실행 중",
+    "bash_code_execute_tool_tool_error": "코드 실행 실패",
+    "text_editor_tool_tool": "파일 편집 중",
+    "text_editor_tool_tool_error": "파일 편집 실패",
+    "memory_recall_tool_tool": "메모리 회상 중",
+    "memory_recall_tool_tool_error": "메모리 회상 실패",
+    "memory_save_tool_tool": "메모리 저장 중",
+    "memory_save_tool_tool_error": "메모리 저장 실패",
+    "memory_manage_tool_tool": "메모리 관리 중",
+    "memory_manage_tool_tool_error": "메모리 관리 실패",
+    "cron_manage_tool_tool": "예약 작업 관리 중",
+    "cron_manage_tool_tool_error": "예약 작업 조작 실패",
+    "file_read_tool": "파일 읽는 중",
+    "file_read_tool_error": "파일 읽기 실패",
+    "file_write_tool": "파일 쓰는 중",
+    "file_write_tool_error": "파일 쓰기 실패",
+    "file_edit_tool": "파일 편집 중",
+    "file_edit_tool_error": "파일 편집 실패",
+    "browser_navigate_tool_tool": "브라우저 탐색",
+    "browser_navigate_tool_tool_error": "브라우저 탐색 실패",
+    "browser_snapshot_tool_tool": "페이지 스냅샷",
+    "browser_snapshot_tool_tool_error": "페이지 스냅샷 실패",
+    "browser_interact_tool_tool": "페이지 상호작용",
+    "browser_interact_tool_tool_error": "페이지 상호작용 실패",
+    "browser_extract_tool_tool": "페이지 콘텐츠 추출",
+    "browser_extract_tool_tool_error": "페이지 콘텐츠 추출 실패",
+    "browser_manage_tool_tool": "브라우저 관리",
+    "browser_manage_tool_tool_error": "브라우저 관리 실패",
+    "retry": "재시도",
+    "reviewing_sources": "{count}개 소스 검토 중",
+    "expand": "펼치기",
+    "collapse": "접기",
+    "categoryStageLabels": {
+      "thinking": "사고 중",
+      "search": "리서치 중",
+      "file": "파일 작업",
+      "execute": "실행 중",
+      "storage": "메모리 작업",
+      "tool": "도구 실행",
+      "image": "이미지 생성 중",
+      "video": "비디오 생성 중",
+      "safety": "안전 폴백"
+    }
+  },
+  "memory": {
+    "trash": {
+      "restoreSuccess": "메모리가 복원되었습니다",
+      "restoreFailed": "복원 실패",
+      "purgeSuccess": "영구 삭제됨",
+      "purgeFailed": "영구 삭제 실패",
+      "archivedAt": "삭제된 시각",
+      "expiresAt": "만료 시각",
+      "autoDeleteHint": "휴지통의 메모리는 삭제 후 7일 뒤 영구 제거됩니다"
+    },
+    "commandCenter": {
+      "benchmarkRecall": "Recall@{k}",
+      "benchmarkNdcg": "NDCG@{k}",
+      "benchmarkMrr": "MRR",
+      "benchmarkPrecision": "Precision@{k}",
+      "connector": {
+        "claude_code": {
+          "label": "Claude Code"
+        },
+        "cursor": {
+          "label": "Cursor"
+        },
+        "windsurf": {
+          "label": "Windsurf"
+        },
+        "codex": {
+          "label": "Codex CLI"
+        },
+        "gemini_cli": {
+          "label": "Gemini CLI"
+        }
+      }
+    },
+    "exportMarkdown": "Markdown으로 내보내기 (Obsidian 호환)",
+    "importReview": {
+      "sources": {
+        "agentmemory": "agentmemory",
+        "gbrain": "gbrain",
+        "memweaver": "memweaver",
+        "claude_code_jsonl": "Claude Code JSONL",
+        "hermes": "Hermes",
+        "openclaw": "OpenClaw",
+        "cursor_rules": "Cursor Rules",
+        "codex": "Codex"
+      }
+    },
+    "pendingReview": {
+      "title": "대기 중인 마이그레이션",
+      "description": "적용 전 승인을 기다리는 가져온 스킬",
+      "loading": "대기 항목 로딩 중...",
+      "loadFailed": "대기 중인 마이그레이션을 불러오지 못했습니다",
+      "refresh": "새로고침",
+      "skillCount": "{count}개 스킬 검토 대기 중",
+      "bindTargetAgent": "승인 시 스킬이 에이전트에 바인딩됩니다: {name}",
+      "approve": "승인",
+      "reject": "거부",
+      "approveSuccess": "마이그레이션이 승인되었습니다",
+      "approveFailed": "승인 실패",
+      "rejectSuccess": "마이그레이션이 거부되었습니다",
+      "rejectFailed": "거부 실패"
+    }
+  },
+  "codeBlock": {
+    "code": "코드",
+    "copy": "코드 복사",
+    "copied": "복사됨",
+    "preview": "미리보기"
+  },
+  "imageEditor": {
+    "applyFailedTitle": "주석 실패",
+    "applyFailedDesc": "편집 내용을 적용하지 못했습니다. 원본 이미지는 변경되지 않았습니다 — 다시 시도하세요."
+  },
+  "projects": {
+    "title": "프로젝트",
+    "subtitle": "작업, 일정, 아티팩트를 한곳에서 관리하세요",
+    "kanban": {
+      "title": "칸반 보드",
+      "desc": "드래그 앤 드롭 보드로 시각적 작업 관리",
+      "statLabel": "보드"
+    },
+    "cron": {
+      "title": "예약 작업",
+      "desc": "cron 일정으로 반복 작업 자동화",
+      "statLabel": "작업"
+    },
+    "artifacts": {
+      "title": "아티팩트",
+      "desc": "버전 관리된 아티팩트와 산출물 탐색 및 관리"
+    },
+    "memorySpaces": {
+      "title": "메모리 공간",
+      "desc": "이 프로젝트에 바인딩된 공유 메모리 컨텍스트 보기",
+      "statLabel": "공간"
+    }
+  },
+  "artifacts": {
+    "title": "아티팩트",
+    "empty": "아직 아티팩트가 없습니다",
+    "select_prompt": "왼쪽에서 아티팩트를 선택하여 불변 타임라인을 확인하세요",
+    "no_desc": "설명 없음",
+    "version_history": "버전 타임라인 (변조 방지)",
+    "tamper_free": "무결성 검증 통과",
+    "corrupted": "파일이 변조되었습니다!",
+    "verifying": "검증 중...",
+    "verify_hash": "무결성 검증",
+    "loading_versions": "버전 로딩 중...",
+    "auto_saved_version": "자동 저장 버전",
+    "preview": "미리보기",
+    "download": "다운로드",
+    "code": "코드",
+    "close": "닫기",
+    "copyCode": "코드 복사",
+    "copied": "복사됨",
+    "openInNewTab": "새 탭에서 열기",
+    "revealInFileManager": "파일 관리자에서 보기",
+    "openWithDefaultApp": "기본 앱으로 열기",
+    "copyPath": "파일 경로 복사",
+    "fileInfo": "파일 정보",
+    "filename": "파일 이름",
+    "type": "유형",
+    "size": "크기",
+    "createdAt": "생성 시각",
+    "types": {
+      "code": "코드",
+      "document": "문서",
+      "html": "웹페이지",
+      "pdf": "PDF",
+      "image": "이미지",
+      "svg": "벡터",
+      "mermaid": "다이어그램",
+      "binary": "파일",
+      "spreadsheet": "스프레드시트",
+      "presentation": "프레젠테이션",
+      "word_document": "Word 문서"
+    },
+    "spreadsheet": {
+      "draftRecovered": "저장되지 않은 초안이 복구되었습니다. 이전 편집 내용이 복원되었습니다.",
+      "discardDraft": "초안 폐기",
+      "fidelityWarning": "이 파일에는 편집 후 완전히 보존되지 않을 수 있는 {features}이(가) 포함되어 있습니다. 저장 전에 백업을 다운로드하세요.",
+      "charts": "차트",
+      "macros": "매크로",
+      "pivotTables": "피벗 테이블",
+      "images": "이미지"
+    },
+    "noPreview": "이 파일 형식은 미리보기를 지원하지 않습니다",
+    "downloadHint": "파일을 저장하려면 다운로드를 클릭하세요",
+    "pdfLoadError": "PDF 로드 실패",
+    "imageLoadError": "이미지 로드 실패",
+    "audioLoadError": "오디오 로드 실패",
+    "videoLoadError": "비디오 로드 실패",
+    "docxLoadError": "문서 로드 실패",
+    "pptxLoadError": "프레젠테이션 로드 실패",
+    "noContent": "미리볼 콘텐츠가 없습니다",
+    "publish": {
+      "openLiveWithTarget": "{target}: {hostname}"
+    },
+    "errors": {
+      "notFound": "파일을 찾을 수 없거나 삭제되었습니다",
+      "notFoundHint": "파일이 삭제되었거나 이동되었을 수 있습니다",
+      "serverError": "서버 오류, 나중에 다시 시도하세요",
+      "serverErrorHint": "서버가 일시적으로 사용 불가합니다",
+      "networkError": "네트워크 연결 실패, 네트워크를 확인하세요",
+      "networkErrorHint": "네트워크 연결을 확인하세요",
+      "permissionDenied": "이 파일에 접근할 권한이 없습니다",
+      "permissionDeniedHint": "이 파일을 볼 권한이 없습니다",
+      "parseError": "콘텐츠 파싱 실패",
+      "unknown": "알 수 없는 오류",
+      "httpStatus": "HTTP 상태 코드"
+    },
+    "tabs": {
+      "closeOthers": "다른 탭 닫기",
+      "closeAll": "모든 탭 닫기",
+      "close": "탭 닫기",
+      "generating": "생성 중"
+    },
+    "versions": {
+      "history": "버전 기록",
+      "totalVersions": "{count}개 버전",
+      "latest": "최신",
+      "currentVersion": "현재 버전",
+      "justNow": "방금",
+      "minutesAgo": "{count}분 전",
+      "hoursAgo": "{count}시간 전",
+      "daysAgo": "{count}일 전",
+      "rollback": "이 버전으로 롤백",
+      "viewingHistoryBanner": "v{version} 보는 중",
+      "backToLatest": "최신으로 돌아가기",
+      "rollbackConfirm": {
+        "title": "롤백 확인",
+        "description": "v{version}(으)로 롤백하시겠습니까? 이후의 모든 버전이 삭제되며 되돌릴 수 없습니다.",
+        "cancel": "취소",
+        "confirm": "롤백 확인"
+      }
+    },
+    "reactPreview": {
+      "preview": "미리보기",
+      "code": "코드",
+      "split": "분할",
+      "console": "콘솔",
+      "toggleConsole": "콘솔 전환",
+      "notReactCode": "React 코드 아님",
+      "notReactCodeHint": "이 파일은 유효한 React 컴포넌트가 아니므로 라이브 미리보기를 할 수 없습니다",
+      "renderError": "컴포넌트 렌더링 실패",
+      "renderErrorHint": "코드에 문법 오류가 있는지 확인하세요",
+      "retry": "재시도",
+      "loading": "로딩 중...",
+      "compileError": "컴파일 오류",
+      "lineInfo": "{line}줄",
+      "saving": "저장 중...",
+      "saved": "저장됨"
+    },
+    "inlinePreview": {
+      "expand": "인라인 미리보기 펼치기",
+      "collapse": "미리보기 접기",
+      "loadError": "미리보기 로드 실패",
+      "largeFileHint": "파일이 인라인 미리보기에 너무 큼 ({size})",
+      "viewFullscreen": "전체 화면으로 보기"
+    },
+    "wechatDraft": {
+      "openPanel": "WeChat 초안으로 보내기"
+    }
+  }
+}

@@ -1,4 +1,5 @@
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, fetchWithTimeout, apiRequest } from '@/lib/api';
+import type { WikiClaimStatus } from '@/lib/wiki/claimStatusDisplay';
 
 export function buildWikiApiPath(path: string, agentId?: string | null): string {
   const trimmed = agentId?.trim();
@@ -41,7 +42,7 @@ export interface WikiSourceSnippet {
   claim_text?: string;
   evidence_path?: string;
   line_range?: string;
-  claim_status?: string;
+  claim_status?: WikiClaimStatus;
   claim_confidence?: number;
   snapshot_status?: 'verified' | 'stale' | 'missing';
   resource_uri?: string;
@@ -170,8 +171,16 @@ export interface CompileRunStatus {
   survey_skipped?: boolean;
 }
 
+export interface WikiQueueStats {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+  [key: string]: number;
+}
+
 export interface QueueStatus {
-  stats: Record<string, number>;
+  stats: WikiQueueStats;
   pending_items: Array<{
     id: number;
     file_path: string;
@@ -249,6 +258,75 @@ export interface WikiApplyRequestBody {
   metadata?: Record<string, string>;
   canonical_id?: string;
   if_match?: string;
+}
+
+export type WikiDedupTier = 'exact' | 'normalized' | 'near';
+export type WikiDedupDispositionAction = 'trash' | 'exclude' | 'dismiss' | 'defer';
+
+export interface WikiDedupMember {
+  relative_path: string;
+  size_bytes: number;
+  mtime_ns: number;
+}
+
+export interface WikiDedupGroup {
+  group_id: number;
+  tier: WikiDedupTier;
+  fingerprint: string;
+  recommended_keep_path: string;
+  status: 'open' | 'deferred' | 'resolved';
+  members: WikiDedupMember[];
+}
+
+export interface WikiDedupMemberSnippet {
+  relative_path: string;
+  snippet: string;
+}
+
+export interface WikiDedupScanResponse {
+  accepted: boolean;
+  skipped: boolean;
+  skipped_reason?: string | null;
+  files_scanned?: number;
+  groups_found?: number;
+  open_groups?: number;
+  exact_groups?: number;
+  normalized_groups?: number;
+  near_groups?: number;
+  duration_ms?: number;
+}
+
+export interface WikiDedupDispositionResponse {
+  group_id: number;
+  action: WikiDedupDispositionAction;
+  affected_paths: string[];
+  compile_jobs_prevented?: number;
+}
+
+export interface WikiDedupProgress {
+  phase: 'idle' | 'scanning' | 'grouping' | 'done' | 'failed';
+  files_scanned: number;
+  files_total: number;
+  groups_found: number;
+  message?: string;
+}
+
+export interface WikiDedupTrashedEntry {
+  relative_path: string;
+  trash_relpath: string;
+  content_hash: string;
+  created_at: string;
+}
+
+export interface WikiDedupExcludedEntry {
+  relative_path: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface WikiDedupVaultHygiene {
+  trashed: WikiDedupTrashedEntry[];
+  excluded: WikiDedupExcludedEntry[];
 }
 
 export interface WikiApplyResponse {
@@ -657,6 +735,72 @@ export const wikiService = {
     return apiRequest<{ content: string }>(buildWikiApiPath('/wiki/wikiignore', agentId), {
       method: 'PUT',
       body: JSON.stringify({ content }),
+    });
+  },
+
+  getWikiDedupVaultHygiene: async (agentId?: string | null): Promise<WikiDedupVaultHygiene> => {
+    return apiRequest<WikiDedupVaultHygiene>(buildWikiApiPath('/wiki/dedup/vault-hygiene', agentId));
+  },
+
+  getWikiDuplicateGroups: async (agentId?: string | null): Promise<WikiDedupGroup[]> => {
+    return apiRequest<WikiDedupGroup[]>(buildWikiApiPath('/wiki/dedup/groups', agentId));
+  },
+
+  getWikiDedupGroupSnippets: async (
+    groupId: number,
+    agentId?: string | null,
+  ): Promise<WikiDedupMemberSnippet[]> => {
+    return apiRequest<WikiDedupMemberSnippet[]>(
+      buildWikiApiPath(`/wiki/dedup/groups/${groupId}/snippets`, agentId),
+    );
+  },
+
+  getWikiDedupProgress: async (agentId?: string | null): Promise<WikiDedupProgress> => {
+    return apiRequest<WikiDedupProgress>(buildWikiApiPath('/wiki/dedup/progress', agentId));
+  },
+
+  scanWikiDuplicates: async (
+    agentId?: string | null,
+    incremental?: boolean,
+  ): Promise<WikiDedupScanResponse> => {
+    const basePath = buildWikiApiPath('/wiki/dedup/scan', agentId);
+    const joiner = basePath.includes('?') ? '&' : '?';
+    const path = incremental === false ? `${basePath}${joiner}incremental=false` : basePath;
+    return apiRequest<WikiDedupScanResponse>(path, { method: 'POST' });
+  },
+
+  applyWikiDuplicateDisposition: async (
+    groupId: number,
+    action: WikiDedupDispositionAction,
+    reason: string,
+    agentId?: string | null,
+  ): Promise<WikiDedupDispositionResponse> => {
+    return apiRequest<WikiDedupDispositionResponse>(
+      buildWikiApiPath(`/wiki/dedup/groups/${groupId}/disposition`, agentId),
+      {
+        method: 'POST',
+        body: JSON.stringify({ action, reason }),
+      },
+    );
+  },
+
+  restoreWikiDedupTrashedRaw: async (
+    relativePath: string,
+    agentId?: string | null,
+  ): Promise<WikiDedupTrashedEntry> => {
+    return apiRequest<WikiDedupTrashedEntry>(buildWikiApiPath('/wiki/dedup/trash/restore', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ relative_path: relativePath }),
+    });
+  },
+
+  undoWikiDedupExcludedRaw: async (
+    relativePath: string,
+    agentId?: string | null,
+  ): Promise<WikiDedupExcludedEntry> => {
+    return apiRequest<WikiDedupExcludedEntry>(buildWikiApiPath('/wiki/dedup/excluded/undo', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ relative_path: relativePath }),
     });
   },
 };

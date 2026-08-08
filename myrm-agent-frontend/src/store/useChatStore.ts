@@ -207,7 +207,7 @@ const useChatStore = create<ChatState>()(
         useQuoteStore.getState().clearQuote();
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),
-      setMessages: (messages) => set({ messages }),
+      setMessages: (updater: (state: ChatState) => void) => set(updater),
       refreshCompactionState: async (chatId, meta) => {
         const { getChatDetail, listContextBranches, getContextPins } = await import('@/services/chat');
         const [detailResult, branchesResult, pinsResult] = await Promise.allSettled([
@@ -676,6 +676,8 @@ const useChatStore = create<ChatState>()(
             set({ selectedModels: models }),
           setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
           _processSuggestions: get()._processSuggestions,
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
@@ -699,6 +701,8 @@ const useChatStore = create<ChatState>()(
             set({ selectedModels: models }),
           setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
           _processSuggestions: get()._processSuggestions,
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
@@ -802,6 +806,8 @@ const useChatStore = create<ChatState>()(
             set({ selectedModels: models }),
           setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
           _processSuggestions: get()._processSuggestions,
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
@@ -859,6 +865,8 @@ const useChatStore = create<ChatState>()(
             set({ selectedModels: models }),
           setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
           _processSuggestions: get()._processSuggestions,
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),

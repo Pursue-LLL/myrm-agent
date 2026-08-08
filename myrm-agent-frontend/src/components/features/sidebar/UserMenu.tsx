@@ -293,8 +293,8 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
           <UserAvatar />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-            {user.email && user.email !== displayName && (
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            {user?.email && user?.email !== displayName && (
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             )}
           </div>
         </div>

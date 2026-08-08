@@ -171,7 +171,11 @@ describe('buildMultimodalQuery - PDF images always included', () => {
     mockExtract.mockResolvedValue({
       text: 'Chart data summary',
       images: [{ mimeType: 'image/png', data: 'base64chart' }],
-      imageTrace: { keptCount: 1, droppedCount: 2 },
+      pageCount: 1,
+      parsedPages: 1,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: { totalProcessed: 3, keptCount: 1, droppedCount: 2, dropReasons: {} },
     });
 
     const pdfFile = { id: 'f1', fileName: 'report.pdf', fileExtension: 'pdf', fileUrl: '/files/f1' };
@@ -192,7 +196,11 @@ describe('buildMultimodalQuery - PDF images always included', () => {
     mockExtract.mockResolvedValue({
       text: '',
       images: [{ mimeType: 'image/png', data: '', fileUrl: '/api/media/files/pdf-img-1/content' }],
-      imageTrace: { keptCount: 1, droppedCount: 0 },
+      pageCount: 1,
+      parsedPages: 1,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: { totalProcessed: 1, keptCount: 1, droppedCount: 0, dropReasons: {} },
     });
 
     const pdfFile = { id: 'f2', fileName: 'charts.pdf', fileExtension: 'pdf', fileUrl: '/files/f2' };

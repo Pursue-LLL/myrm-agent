@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
+import os
 import urllib.parse
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _parallel_chrome_e2e_active,
+    _warm_ui_parallel_wait_sec,
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
 )
+
+
+def _e2e_run_namespace() -> str:
+    """Per-run namespace so parallel chrome_e2e seeds never deny each other."""
+    return os.environ.get("MYRM_E2E_RUN_ID", "").strip() or f"growth-{os.getpid()}"
 
 _GROWTH_DASHBOARD_STATE = """(() => {
   const bodyText = document.body.innerText || '';
@@ -50,7 +59,7 @@ _GROWTH_DASHBOARD_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
@@ -58,12 +67,19 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
 
     seed_url = (
         f"{api_url}/api/v1/skills/drafts/test/seed-mock?"
-        + urllib.parse.urlencode({"agent_id": "builtin-general"})
+        + urllib.parse.urlencode(
+            {
+                "agent_id": "builtin-general",
+                "namespace": _e2e_run_namespace(),
+            }
+        )
     )
     seeded = http_json("POST", seed_url)
     assert isinstance(seeded, dict)
     created_ids = seeded.get("created_ids")
     assert isinstance(created_ids, list) and len(created_ids) >= 2
+    seeded_names = seeded.get("skill_names")
+    assert isinstance(seeded_names, list) and len(seeded_names) == 2
 
     stats_payload = http_json("GET", f"{api_url}/api/v1/skill-growth/stats")
     assert isinstance(stats_payload, dict)
@@ -81,8 +97,18 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     assert "proposed_content" not in case_items[0]
 
     with open_settings_subroute("/settings/skills?sub=pending") as (client, page):
+        dashboard_timeout = (
+            _warm_ui_parallel_wait_sec(180.0)
+            if _parallel_chrome_e2e_active()
+            else 90.0
+        )
+        skills_url = f"{get_e2e_ui_url().rstrip('/')}/settings/skills?sub=pending"
         dashboard = wait_for_state(
-            client, page, _GROWTH_DASHBOARD_STATE, timeout_sec=90.0
+            client,
+            page,
+            _GROWTH_DASHBOARD_STATE,
+            timeout_sec=dashboard_timeout,
+            page_url=skills_url,
         )
         total_text = str(dashboard.get("totalText") or "")
         pending_text = str(dashboard.get("pendingText") or "")

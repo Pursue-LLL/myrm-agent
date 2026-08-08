@@ -22,10 +22,10 @@ describe('resolveInstantChatSnapshot', () => {
   });
 
   it('prefers LRU session config when pane snapshot is partial', () => {
-    const agentConfig = { agentId: 'agent-1', name: 'Research Agent' } as ChatState['agentConfig'];
+    const agentConfig = { agentId: 'agent-1', name: 'Research Agent' } as unknown as ChatState['agentConfig'];
 
     saveChatNavigationSnapshot('chat-a', {
-      messages: [{ id: 'm1', role: 'user', content: 'cached' } as Message],
+      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
       agentConfig,
       actionMode: 'deep_research',
       selectedModels: { base: 'gpt-4', vision: null, reasoning: null },
@@ -37,7 +37,7 @@ describe('resolveInstantChatSnapshot', () => {
     workspacePanes.push({
       chatId: 'chat-a',
       snapshot: {
-        messages: [{ id: 'm2', role: 'assistant', content: 'streaming' } as Message],
+        messages: [{ id: 'm2', role: 'assistant', content: 'streaming' } as unknown as Message],
         loading: true,
         messageAppeared: true,
       },
@@ -56,8 +56,8 @@ describe('resolveInstantChatSnapshot', () => {
   it('keeps LRU messages when pane snapshot is stale and not loading', () => {
     saveChatNavigationSnapshot('chat-a', {
       messages: [
-        { id: 'm1', role: 'user', content: 'latest' } as Message,
-        { id: 'm2', role: 'assistant', content: 'reply' } as Message,
+        { id: 'm1', role: 'user', content: 'latest' } as unknown as Message,
+        { id: 'm2', role: 'assistant', content: 'reply' } as unknown as Message,
       ],
       isMessagesLoaded: true,
       loading: false,
@@ -66,7 +66,7 @@ describe('resolveInstantChatSnapshot', () => {
     workspacePanes.push({
       chatId: 'chat-a',
       snapshot: {
-        messages: [{ id: 'm0', role: 'user', content: 'stale' } as Message],
+        messages: [{ id: 'm0', role: 'user', content: 'stale' } as unknown as Message],
         loading: false,
         messageAppeared: false,
       },
@@ -83,7 +83,7 @@ describe('resolveInstantChatSnapshot', () => {
     workspacePanes.push({
       chatId: 'chat-b',
       snapshot: {
-        messages: [{ id: 'm1', role: 'user', content: 'pane only' } as Message],
+        messages: [{ id: 'm1', role: 'user', content: 'pane only' } as unknown as Message],
         isMessagesLoaded: true,
         loading: false,
       },

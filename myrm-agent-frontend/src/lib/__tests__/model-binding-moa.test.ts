@@ -12,7 +12,7 @@ const providers: ProviderConfig[] = [
     isEnabled: true,
     enabledModels: ['gpt-4o'],
     availableModels: ['gpt-4o'],
-    providerType: 'openai',
+    providerType: 'openai-like',
     apiUrl: '',
     apiKeys: [{ id: 'key-1', key: 'sk-test', remark: 'test', isActive: true }],
   },

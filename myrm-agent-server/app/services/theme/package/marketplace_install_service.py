@@ -15,8 +15,8 @@ marketplace_install(signed_payload) -> ThemeProfileRecipeModel
 
 from __future__ import annotations
 
-from app.schemas.theme_profile import ThemeProfileRecipeModel
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+from app.schemas.theme_profile import ThemeProfileRecipeModel
 from app.services.theme.package.inspect_service import inspect_theme_package
 from app.services.theme.package.install_service import ThemePackageInstallError, install_theme_package
 from app.services.theme.package.marketplace_cp_client import (

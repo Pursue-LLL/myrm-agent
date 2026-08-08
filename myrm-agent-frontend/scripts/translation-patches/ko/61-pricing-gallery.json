@@ -1,0 +1,108 @@
+{
+  "billing": {
+    "pricing": {
+      "title": "요금제",
+      "subtitle": "SaaS 클라우드 샌드박스용 간단한 작업 단위(WU) 요금제. 로컬/Tauri는 BYOK로 무료입니다.",
+      "monthly": "월간",
+      "yearly": "연간",
+      "perMonth": "/월",
+      "wuPerMonth": "월 {wu} WU",
+      "subscribe": "구독하기",
+      "startTrial": "7일 무료 체험 시작",
+      "trialBadge": "7일 무료",
+      "currentPlan": "현재 요금제",
+      "included": "포함",
+      "processing": "처리 중…",
+      "checkoutFailed": "결제에 실패했습니다. 다시 시도하세요.",
+      "loadingCatalog": "요금제 로딩 중…",
+      "catalogLoadFailed": "요금제를 불러올 수 없습니다. 새로고침하거나 나중에 다시 시도하세요.",
+      "perYear": "/년",
+      "yearlyEquivalent": "연간 결제 시 월 약 {amount}",
+      "everythingIn": "{plan}의 모든 기능에 추가:",
+      "including": "포함:",
+      "topup": "충전",
+      "topupTitle": "작업 단위(WU) 충전",
+      "topupDescription": "추가 WU를 구매하세요. 1달러당 {rate} WU.",
+      "topupSuccess": "충전 성공! WU가 잔액에 추가되었습니다.",
+      "topupAmount": "${amount}",
+      "topupWu": "{wu} WU",
+      "plans": {
+        "free": {
+          "name": "무료",
+          "description": "핵심 에이전트 기능으로 시작하기",
+          "feature1": "월 600 WU + 일 50회 리프레시",
+          "feature2": "사용자별 영구 샌드박스"
+        },
+        "companion": {
+          "name": "컴패니언",
+          "description": "일상적인 AI 작업 습관용",
+          "feature1": "월 2,500 WU",
+          "feature2": "2C 샌드박스 + Cron (×3)"
+        },
+        "plus": {
+          "name": "플러스",
+          "description": "동일한 샌드박스에서 더 많은 월간 WU",
+          "feature1": "월 5,000 WU",
+          "feature2": "컴패니언과 동일한 2C 샌드박스"
+        },
+        "pro": {
+          "name": "프로",
+          "description": "파워 유저와 빌더용",
+          "feature1": "월 12,000 WU",
+          "feature2": "8C 샌드박스 + VNC 데스크톱"
+        },
+        "max": {
+          "name": "맥스",
+          "description": "최대 용량과 동시성",
+          "feature1": "월 22,000 WU",
+          "feature2": "8C 샌드박스 + 확장 활성 시간"
+        }
+      }
+    }
+  },
+  "library": {
+    "gallery": {
+      "title": "미디어 갤러리",
+      "empty": "아직 미디어가 없습니다",
+      "emptyDesc": "생성된 이미지가 여기에 자동으로 표시됩니다",
+      "searchPlaceholder": "프롬프트 또는 모델로 검색...",
+      "allTypes": "모든 유형",
+      "images": "이미지",
+      "videos": "비디오",
+      "audio": "오디오",
+      "allTags": "모든 태그",
+      "noResults": "미디어를 찾을 수 없습니다",
+      "noResultsDesc": "다른 필터나 검색어를 시도해보세요",
+      "loadMore": "더 보기",
+      "loading": "로딩 중...",
+      "deleteConfirmTitle": "미디어 삭제",
+      "deleteConfirmDesc": "이 미디어를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+      "cancel": "취소",
+      "confirm": "삭제",
+      "deleteSuccess": "미디어가 삭제되었습니다",
+      "deleteFailed": "미디어 삭제 실패",
+      "tagsUpdated": "태그가 업데이트되었습니다",
+      "tagsFailed": "태그 업데이트 실패",
+      "addTag": "태그 추가...",
+      "size": "크기",
+      "model": "모델",
+      "prompt": "프롬프트",
+      "createdAt": "생성일",
+      "viewOriginal": "원본 보기",
+      "download": "다운로드",
+      "editTags": "태그 편집",
+      "close": "닫기",
+      "select": "선택",
+      "selectAll": "전체 선택",
+      "deselectAll": "전체 해제",
+      "selected": "{count}개 선택됨",
+      "batchDelete": "선택 항목 삭제",
+      "batchDeleteConfirmTitle": "선택한 미디어 삭제",
+      "batchDeleteConfirmDesc": "{count}개 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+      "batchDeleteSuccess": "{count}개 항목이 삭제되었습니다",
+      "batchTag": "선택 항목 태그 지정",
+      "batchTagSuccess": "{count}개 항목에 태그가 지정되었습니다",
+      "batchTagPlaceholder": "태그 (쉼표로 구분)..."
+    }
+  }
+}

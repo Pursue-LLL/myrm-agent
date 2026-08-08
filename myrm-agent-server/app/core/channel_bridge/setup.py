@@ -27,10 +27,10 @@ from app.config.deploy_mode import is_local_mode
 from app.core.channel_bridge import channel_gateway
 from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
 from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
-from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
-from app.core.channel_bridge.webui_voice_work_notifier import WebuiVoiceWorkNotifier
 from app.core.channel_bridge.channel_factory import create_all_channels
+from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 from app.core.channel_bridge.kanban_command_handler import ChannelKanbanCommandHandler
+from app.core.channel_bridge.webui_voice_work_notifier import WebuiVoiceWorkNotifier
 from app.core.notifications.dispatcher import NotificationDispatcher
 from app.core.web_push.dispatcher import WebPushDispatcher
 

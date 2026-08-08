@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { apiRequest, fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
 
-const ensureLocalBackendReady = vi.fn(() => Promise.resolve(true));
-const markLocalBackendUnreachable = vi.fn();
-const resolveBackendUnreachableMessage = vi.fn(() =>
+const ensureLocalBackendReady = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
+const markLocalBackendUnreachable = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
+const resolveBackendUnreachableMessage = vi.fn<(...args: unknown[]) => Promise<string>>(() =>
   Promise.resolve('Backend not reachable. Run: myrm dev or myrm start.'),
 );
 

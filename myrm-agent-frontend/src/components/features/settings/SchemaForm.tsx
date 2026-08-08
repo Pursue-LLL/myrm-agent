@@ -34,10 +34,10 @@ interface JSONSchema {
   required?: string[];
 }
 
-interface SchemaFormProps {
+interface SchemaFormProps<T extends object> {
   configKey: string;
-  value: Record<string, unknown>;
-  onChange: (newValue: Record<string, unknown>) => void;
+  value: T;
+  onChange: (newValue: T) => void;
   iconMap?: Record<string, React.ElementType>;
   translationNamespace?: string;
   /** Filter fields by backend `x-ui-section` metadata */
@@ -48,7 +48,7 @@ interface SchemaFormProps {
   visibilityContext?: SchemaVisibilityContext;
 }
 
-export const SchemaForm: React.FC<SchemaFormProps> = ({
+export function SchemaForm<T extends object>({
   configKey,
   value,
   onChange,
@@ -57,7 +57,7 @@ export const SchemaForm: React.FC<SchemaFormProps> = ({
   section,
   group,
   visibilityContext,
-}) => {
+}: SchemaFormProps<T>) {
   const locale = useLocale();
   const t = useTranslations(translationNamespace);
   const loadFailedMessage = t('schemaForm.loadFailed');
@@ -109,9 +109,8 @@ export const SchemaForm: React.FC<SchemaFormProps> = ({
   }
 
   const handleChange = (key: string, val: unknown) => {
-    onChange({ ...value, [key]: val });
+    onChange({ ...value, [key]: val } as T);
   };
-
   const hasKey = (key: string) => t.has(key as Parameters<typeof t.has>[0]);
   const translate = (key: string) => t(key as Parameters<typeof t>[0]);
 
@@ -127,7 +126,8 @@ export const SchemaForm: React.FC<SchemaFormProps> = ({
             return null;
           }
 
-          const currentValue = value[key] !== undefined ? value[key] : prop.default;
+          const recordValue = value as Record<string, unknown>;
+          const currentValue = recordValue[key] !== undefined ? recordValue[key] : prop.default;
           const { title: displayTitle, desc: displayDesc } = resolveFieldLabels(
             translate,
             hasKey,

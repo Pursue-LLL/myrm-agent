@@ -148,8 +148,8 @@ export const AgentWorkMap = () => {
   const setFissionTopology = useSubagentStore((state) => state.setFissionTopology);
   const chatId = useChatStore((state) => state.chatId);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Fetch initial topology on mount
   useEffect(() => {

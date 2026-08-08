@@ -9,6 +9,7 @@ import { Switch } from '@/components/primitives/switch';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import SettingsSection from '../SettingsSection';
 
 interface FeatureItem {
   id: string;

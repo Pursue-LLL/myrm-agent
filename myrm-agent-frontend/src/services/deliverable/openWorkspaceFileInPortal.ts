@@ -7,7 +7,10 @@
  */
 
 import { fetchWithTimeout } from '@/lib/api';
-import useArtifactPortalStore, { type OpenArtifactTabOptions } from '@/store/useArtifactPortalStore';
+import useArtifactPortalStore, {
+  ArtifactErrorType,
+  type OpenArtifactTabOptions,
+} from '@/store/useArtifactPortalStore';
 import type { Artifact } from '@/store/chat/types/artifacts';
 import useChatStore from '@/store/useChatStore';
 

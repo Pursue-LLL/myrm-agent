@@ -1,0 +1,526 @@
+{
+  "settings": {
+    "wiki": {
+      "duplicateReview": {
+        "scan": {
+          "complete": "スキャン完了: {scanned} ファイルから {open} 件の未対応グループ"
+        },
+        "actions": {
+          "refresh": "更新",
+          "trash": "重複を破棄",
+          "exclude": "コンパイルから除外",
+          "dismiss": "重複ではない",
+          "defer": "延期",
+          "cancel": "キャンセル",
+          "confirm": "適用",
+          "applying": "適用中…"
+        },
+        "hints": {
+          "compileBlocked": "完全一致または正規化一致の重複グループは、Wikiコンパイルの前に解決する必要があります。"
+        },
+        "errors": {
+          "loadFailed": "重複グループの読み込みに失敗しました",
+          "scanFailed": "重複スキャンに失敗しました",
+          "scanCompileBusy": "コンパイルが進行中です。後でもう一度お試しください",
+          "dispositionFailed": "処分の適用に失敗しました",
+          "reasonRequired": "破棄・除外には理由が必要です",
+          "snippetsFailed": "本文プレビューの読み込みに失敗しました"
+        },
+        "snippets": {
+          "show": "本文を比較",
+          "hide": "本文を隠す",
+          "loading": "プレビューを読み込み中…",
+          "empty": "読み取り可能な本文がありません"
+        },
+        "success": {
+          "disposition": "{action}: {count, plural, one {# パスを更新} other {# パスを更新}}"
+        },
+        "vaultHygiene": {
+          "title": "ボールトの衛生管理",
+          "description": "コーパスゴミ箱に移動したrawファイルを復元するか、重複レビューのコンパイル除外を解除します。",
+          "trashedTitle": "コーパスゴミ箱",
+          "excludedTitle": "コンパイル除外",
+          "restoreTrash": "rawに復元",
+          "restoreExclude": "除外を解除",
+          "restoring": "復元中…",
+          "success": {
+            "restoredTrash": "コーパスゴミ箱からrawファイルを復元しました",
+            "restoredExclude": "rawファイルのコンパイル除外を解除しました"
+          },
+          "errors": {
+            "loadFailed": "ボールト衛生管理エントリの読み込みに失敗しました",
+            "restoreFailed": "rawファイルの復元に失敗しました"
+          }
+        }
+      },
+      "pendingEdits": {
+        "noFiltered": "このフィルタに一致する草稿はありません",
+        "filterAll": "すべて",
+        "filterConcepts": "概念の草稿",
+        "filterSynthesis": "進化合成",
+        "synthesisBadge": "進化",
+        "openSourceChat": "ソースチャットを開く",
+        "provenance": {
+          "compiled": "コンパイル済み",
+          "repaired": "修復済み",
+          "agent": "エージェント",
+          "create_note": "ノート",
+          "chat-save": "チャット保存",
+          "chat-compound": "チャット合成",
+          "contradiction_synthesis": "合成",
+          "import": "インポート",
+          "web_fetch": "ウェブ取得"
+        },
+        "status": {
+          "synthesisPending": "進化合成"
+        }
+      }
+    },
+    "skills": {
+      "history": {
+        "qualityBefore": "変更前"
+      },
+      "discover": {
+        "browseEmptyTitle": "コミュニティスキルを検索",
+        "browseEmptyDesc": "キーワードを入力してClawHub、GitHub、ModelScopeなどのソースを検索",
+        "installedAndEnabled": "インストールして有効化しました: {name}",
+        "installedAlreadyEnabled": "{name} は既に有効です",
+        "installedEnableFailed": "{name} をインストールしましたが、有効化に失敗しました",
+        "installedAllowlistAppended": "{name} をエージェントのスキル許可リストに追加しました",
+        "installedAllowlistAppendedDesc": "このエージェントは明示的なスキル許可リストを使用しています。新しいスキルは自動的に追加されました。",
+        "installedAllowlistAppendFailed": "{name} はカタログでは有効ですが、チャット許可リストに追加されませんでした",
+        "installedAllowlistAppendFailedDesc": "エージェント設定でこのスキルを追加するか、もう一度インストールしてみてください。",
+        "source": {
+          "modelscope": "ModelScope",
+          "aliyun": "阿里云"
+        },
+        "registryMirror": {
+          "title": "スキルマーケットミラー",
+          "description": "コミュニティスキル用のClawHub互換レジストリ。国際版または中国版を選択するか、独自のレジストリURLを入力してください。",
+          "intl": "国際版（clawhub.ai）",
+          "cn": "中国版（iFlytek SkillHub）",
+          "custom": "カスタムレジストリURL",
+          "customUrlPlaceholder": "https://skill.xfyun.cn",
+          "customSave": "保存",
+          "customUrlRequired": "レジストリURLを入力してください",
+          "mirrorUnreachable": "レジストリに到達できません — 設定は保存されませんでした",
+          "saved": "ミラー設定を保存しました",
+          "saveFailed": "ミラー設定の保存に失敗しました",
+          "cnUnreachable": "中国ミラーに到達できません — 国際レジストリを維持します"
+        },
+        "customSources": {
+          "title": "カスタムソース",
+          "description": "プライベートスキルレジストリ用に .well-known/skills エンドポイントを追加",
+          "addSource": "ソースを追加",
+          "urlPlaceholder": "https://skills.company.com",
+          "labelPlaceholder": "ラベル（任意）",
+          "adding": "確認中…",
+          "addSuccess": "ソースを追加しました（{count} 件のスキルを検出）",
+          "addFailed": "ソースの追加に失敗しました",
+          "unreachable": "ソースに到達できないか、エンドポイントが無効です",
+          "removeConfirm": "このソースを削除しますか？",
+          "remove": "削除",
+          "removing": "削除中…",
+          "removed": "ソースを削除しました",
+          "removeFailed": "ソースの削除に失敗しました",
+          "healthy": "オンライン",
+          "unhealthy": "オフライン",
+          "empty": "カスタムソースが設定されていません",
+          "emptyDesc": ".well-known/skills エンドポイントを追加するとプライベートスキルを発見できます",
+          "alreadyExists": "ソースは既に存在します"
+        }
+      },
+      "draft": {
+        "approveAction": "草稿を承認",
+        "rejectAction": "草稿を却下",
+        "invokeGuideTitle": "チャットでこのスキルを呼び出す",
+        "invokeGuideDescription": "以下のプレフィックスを任意のメッセージに貼り付けるか、エージェント設定でスラッシュコマンドをバインドします。",
+        "invokeGuideCopy": "プレフィックスをコピー",
+        "invokeGuideCopied": "呼び出しプレフィックスをコピーしました",
+        "invokeGuideCopyFailed": "コピーに失敗しました",
+        "invokeGuideCommandHint": "再利用可能なスラッシュショートカットには、コマンドバインドを追加します:",
+        "invokeGuideCommandLink": "エージェント設定"
+      },
+      "compounding": {
+        "tab": "複利ループ",
+        "title": "メモリ · スキル · Cron ループ",
+        "subtitle": "メモリ、スキル、スケジュールタスクを複利ワークフローに接続 — GUIファーストのMSCプレイブック。",
+        "loading": "チェックリストを読み込み中…",
+        "loadFailed": "複利ステータスの読み込みに失敗しました",
+        "refresh": "更新",
+        "progress": "進捗",
+        "progressValue": "{ready} / {total} 準備完了",
+        "countLabel": "検出: {count}",
+        "open": "開く",
+        "learnHint": "ステップ 2 — 学習ウィザードで再利用可能なスキルを教えます:",
+        "items": {
+          "memory": {
+            "title": "メモリベースライン",
+            "description": "プロフィール、意味記憶、主張記憶が存在し、エージェントがコンテキストを再利用できます。"
+          },
+          "skills": {
+            "title": "再利用可能なスキル",
+            "description": "繰り返しワークフロー用に少なくとも1つのスキルがバインドまたはアクティブです。"
+          },
+          "cron": {
+            "title": "スケジュール自動化",
+            "description": "Cronジョブが手動チャットターンなしで繰り返し作業を実行します。"
+          },
+          "verify": {
+            "title": "受け入れルール",
+            "description": "自動実行後チェック用の受け入れ基準を定義したCronジョブが少なくとも1つあります。"
+          }
+        }
+      },
+      "workflowTemplates": {
+        "tab": "ワークフローテンプレート",
+        "subtitle": "Dynamic Workflow実行からオーケストレーションスクリプトを保存し、プランナーを再生成せずに再実行できます。テンプレートをエクスポート・インポートしてバックアップや別デバイスへの移行も可能です。",
+        "loading": "テンプレートを読み込み中…",
+        "loadFailed": "ワークフローテンプレートの読み込みに失敗しました",
+        "refresh": "更新",
+        "empty": "保存済みのワークフローテンプレートはまだありません。Dynamic Workflow実行を完了し、アシスタントメッセージで「テンプレートとして保存」を使用してください。",
+        "run": "実行",
+        "delete": "削除",
+        "deleted": "テンプレートを削除しました",
+        "deleteFailed": "テンプレートの削除に失敗しました",
+        "deleteConfirmTitle": "ワークフローテンプレートを削除しますか？",
+        "deleteConfirm": "「{name}」を削除しますか？この操作は元に戻せません。",
+        "deleteConfirmWithCron": "「{name}」を削除しますか？{count, plural, one {# 件のスケジュールタスクが} other {# 件のスケジュールタスクが}}このテンプレートにバインドされており、実行を停止します。この操作は元に戻せません。",
+        "deleteCancel": "キャンセル",
+        "runQueryPlaceholder": "次にピン留めしたテンプレートを実行するためのタスククエリ…",
+        "runQueryRequired": "テンプレートを実行する前にタスククエリを入力してください",
+        "runStarted": "ピン留めしたテンプレートの実行を開始しました",
+        "runStartedHint": "オーケストレーションスクリプトがチャットで実行中です。",
+        "runBusy": "テンプレートを実行する前に、現在のメッセージの完了を待ってください",
+        "runNoChat": "この実行用のチャットセッションを開けませんでした",
+        "runFailed": "ピン留めしたテンプレートの実行を開始できませんでした",
+        "trustLatchOn": "トラストラッチ",
+        "trustLatchOff": "毎回確認",
+        "trustLatch": "トラストラッチ（コストしきい値以下の読み取り専用スポーンではプラン確認をスキップ）",
+        "agentTypes": "エージェントタイプ: {types}",
+        "previewScript": "スクリプトを表示",
+        "previewLoading": "スクリプトを読み込み中…",
+        "previewLoadFailed": "スクリプトの読み込みに失敗しました",
+        "placeholdersHint": "パラメータ: {keys}",
+        "argsDialogTitle": "{name} のパラメータ",
+        "argsDialogDescription": "実行前にテンプレートのパラメータを入力してください。",
+        "argsFieldPlaceholder": "{key} の値",
+        "argsCancel": "キャンセル",
+        "argsConfirmRun": "実行",
+        "export": "エクスポート",
+        "import": "インポート",
+        "exportSuccess": "テンプレートをエクスポートしました",
+        "exportSuccessHint": "バックアップまたは共有用にJSONファイルを保存してください。",
+        "exportFailed": "テンプレートのエクスポートに失敗しました",
+        "importSuccess": "テンプレートをインポートしました",
+        "importSuccessHint": "このテンプレートでCronを使用する場合は、スケジュールタスクを再バインドしてください。",
+        "importFailed": "テンプレートのインポートに失敗しました",
+        "importInvalidFile": "無効なワークフローテンプレートファイルです",
+        "importFileTooLarge": "テンプレートファイルが大きすぎます（上限512 KB）",
+        "importOverwriteTitle": "既存のテンプレートを置き換えますか？",
+        "importOverwriteConfirm": "インポートにより「{name}」が置き換えられます。スケジュールタスクのバインドは自動更新されません。",
+        "importOverwriteAction": "置き換え"
+      },
+      "learn": {
+        "panelTitle": "スキルを学習",
+        "description": "エージェントにディレクトリ、URL、またはワークフローノートを指定します。チャットでソースを収集し、レビュー用の草稿を保存します。",
+        "directoryLabel": "ローカルファイルまたはディレクトリ",
+        "directoryPlaceholder": "~/projects/some-sdk（file_read_tool / grep_tool で読み取り）",
+        "urlLabel": "URL",
+        "urlPlaceholder": "https://docs.example.com/api（web_fetch_tool で取得）",
+        "textLabel": "ワークフローノートまたは説明",
+        "textPlaceholder": "例: 経費申請の方法 — ポータルを開き、領収書を添付し、提出する",
+        "cancel": "キャンセル",
+        "submit": "学習する",
+        "noActiveChat": "先にチャットを開いてください — 学習は会話ターンとして実行されます",
+        "scenarios": {
+          "sdk": {
+            "label": "SDK / API",
+            "text": "このSDKから再利用可能なクライアント/API手順を抽出。認証、ページネーション、エラー処理に注目してください。"
+          },
+          "deploy": {
+            "label": "最近のデプロイ",
+            "text": "今回完了したデプロイの手順をこの会話からレビューし、再利用可能なスキルに凝縮します。"
+          },
+          "debug": {
+            "label": "デバッグ経路",
+            "text": "この問題の診断と修正に使用したデバッグ・トラブルシューティング経路。"
+          },
+          "writing": {
+            "label": "ライティングガイド",
+            "text": "このディレクトリから私の文章スタイル、トーンルール、構造テンプレートを凝縮します。"
+          },
+          "release": {
+            "label": "リリースSOP",
+            "text": "リリース/公開のSOP — バージョニングチェックリスト、検証手順、ロールバック手順。"
+          }
+        }
+      },
+      "instances": {
+        "agentBindHint": "このエージェントが使用するインスタンスは、エージェント設定 → スキル で選択します。"
+      }
+    },
+    "appearancePanel": {
+      "workspaceTheme": "ワークスペーステーマ",
+      "workspaceBackground": "ワークスペース背景",
+      "workspaceBackgroundDesc": "全ウィンドウの背景に画像またはMP4ループをアップロードします。",
+      "uploadBackground": "背景をアップロード",
+      "changeBackground": "背景を変更",
+      "clearBackground": "背景を削除",
+      "backgroundUploadSuccess": "背景を更新しました",
+      "backgroundUploadFailed": "背景のアップロードに失敗しました",
+      "backgroundPosterFailed": "この動画からポスターフレームを抽出できませんでした",
+      "backgroundPosterReupload": "モバイルとモーション軽減表示を有効にするには、この背景をもう一度アップロードしてください。",
+      "backgroundInvalidType": "サポートされていないファイルタイプです。PNG、JPEG、WebP、MP4を使用してください。",
+      "backgroundTooLarge": "ファイルが80 MBの上限を超えています。",
+      "backgroundEmpty": "ファイルが空です。",
+      "backgroundWash": "背景の淡色化",
+      "backgroundWashDesc": "明るい背景の上でテキストの可読性を高めるには淡色化を上げてください。",
+      "customPrimaryColor": "カスタムのプライマリカラーを選択",
+      "hexPlaceholder": "#2563eb",
+      "font": "フォント",
+      "restoreDefault": "公式デフォルトを復元",
+      "restoreConfirmTitle": "公式デフォルトを復元しますか？",
+      "restoreConfirmDescription": "カスタムテーマ、ワークスペース背景、保存済みStudioプロファイルが削除されます。購入済みマーケットプレイステーマは再インストールできます。個人設定 → タイムマシン で元に戻せます。",
+      "restoreConfirmAction": "復元",
+      "restoreCancel": "キャンセル",
+      "restoreSuccess": "公式デフォルトテーマを復元しました",
+      "restoreFailed": "公式デフォルトの復元に失敗しました",
+      "packageSection": "テーマパッケージ",
+      "packageSectionDesc": ".myrmtheme ファイルをインポートまたはエクスポートして、ワークスペース全体の見た目を共有します。",
+      "packageImport": "テーマパッケージをインポート",
+      "packageExport": "現在のテーマをエクスポート",
+      "packageImportTitle": "テーマパッケージをインポート",
+      "packageHeroPreview": "背景プレビュー",
+      "packageApply": "テーマを適用",
+      "packageCancel": "キャンセル",
+      "assetMissingTitle": "このデバイスでは背景を利用できません",
+      "assetMissingDesc": "テーマの色は適用されていますが、壁紙ファイルがここにありません。背景を再アップロードするか、外観設定で .myrmtheme パッケージをインポートしてください。",
+      "assetMissingAction": "外観設定を開く",
+      "packageUnsignedHint": "このパッケージは署名されていません。信頼できるソースからのテーマのみインポートしてください。",
+      "packageImportSuccess": "テーマパッケージを適用しました",
+      "packageImportFailed": "テーマパッケージのインポートに失敗しました",
+      "packageExportSuccess": "テーマパッケージをダウンロードしました",
+      "packageExportFailed": "テーマパッケージのエクスポートに失敗しました",
+      "openThemeStudio": "テーマスタジオを開く",
+      "presets": {
+        "official-default": "ティール＆オレンジ",
+        "preset-teal": "ティール",
+        "preset-rose": "ローズ",
+        "preset-amber": "アンバー",
+        "preset-violet": "バイオレット",
+        "preset-ocean": "オーシャン",
+        "preset-atkinson-calm": "落ち着いた可読性",
+        "preset-dark-comfort": "ダークコンフォート",
+        "preset-paper-sepia": "紙のセピア",
+        "preset-moss": "モスグリーン",
+        "preset-sunset": "サンセット",
+        "preset-midnight": "ミッドナイト",
+        "preset-terminal": "ターミナル",
+        "preset-studio-gray": "スタジオグレー",
+        "preset-peach": "ピーチブラッシュ",
+        "preset-cream": "クリーム",
+        "preset-mint": "ミントフレッシュ"
+      }
+    },
+    "themeStudio": {
+      "title": "テーマスタジオ",
+      "subtitle": "4つのステップでフルワークスペーステーマを作成し、Myrmレイアウトでプレビューしてから適用またはエクスポートします。",
+      "steps": {
+        "1": "ヒーロー",
+        "2": "レイアウト",
+        "3": "スタイル",
+        "4": "完了",
+        "heroDesc": "ワークスペースの背景にPNG、JPEG、WebP、またはMP4ループをアップロードします。"
+      },
+      "focusX": "水平フォーカス",
+      "focusY": "垂直フォーカス",
+      "heroRecommend": {
+        "title": "推奨パレット＆レイアウト",
+        "body": "ヒーロー画像からサンプリング（クラウドもLLMも不使用）。色、フォーカスポイント、推奨レイアウトを適用します。",
+        "apply": "提案を適用",
+        "applied": "提案を適用しました",
+        "dismiss": "閉じる"
+      },
+      "themeName": "テーマ名",
+      "themeNamePlaceholder": "マイワークスペーステーマ",
+      "tagline": "タグライン（任意）",
+      "defaultThemeName": "マイワークスペーステーマ",
+      "back": "戻る",
+      "next": "次へ",
+      "apply": "ワークスペースに適用",
+      "export": ".myrmtheme をエクスポート",
+      "applySuccess": "テーマを適用しました",
+      "applyFailed": "テーマの適用に失敗しました",
+      "exportSuccess": "テーマパッケージをダウンロードしました",
+      "exportFailed": "テーマのエクスポートに失敗しました",
+      "livePreview": "実際のワークスペースでプレビュー",
+      "openAiSkill": "AIスキルで生成",
+      "layouts": {
+        "fullBleed": {
+          "name": "フルブリード",
+          "description": "ウィンドウ全体に没入感のある背景。",
+          "guidance": "落ち着いたグラデーションや広いシーンを使用し、中央は読みやすく保ってください。"
+        },
+        "navRailFocus": {
+          "name": "ナビレールフォーカス",
+          "description": "より強いナビゲーションサーフェスと柔らかなメインキャンバス。",
+          "guidance": "被写体を左のナビゲーションレールから離して配置してください。"
+        },
+        "chatHero": {
+          "name": "チャットヒーロー",
+          "description": "チャットファーストのレイアウトと軽いヒーローバンド。",
+          "guidance": "空のチャットメッセージのために上部エリアを静かに保ってください。"
+        },
+        "workDense": {
+          "name": "ワークデンス",
+          "description": "カンバン、設定、ツールでより高いサーフェス不透明度。",
+          "guidance": "長時間の機能セッションと可読性重視のテーマに最適です。"
+        }
+      },
+      "preview": {
+        "scene": {
+          "chat": "チャット",
+          "kanban": "カンバン",
+          "settings": "設定",
+          "workDense": "機能ページ"
+        }
+      },
+      "library": {
+        "title": "マイテーマ",
+        "empty": "保存済みのテーマはまだありません。ウィザードを完了して適用するとここに追加されます。",
+        "apply": "適用",
+        "applied": "テーマを適用しました",
+        "delete": "テーマを削除",
+        "deleted": "テーマを削除しました"
+      },
+      "gallery": {
+        "title": "テーマギャラリー",
+        "subtitle": "公式・コミュニティのテーマを閲覧。無料テーマはワンクリックでインストールできます。",
+        "tabs": {
+          "official": "公式",
+          "community": "コミュニティ",
+          "owned": "所有済み"
+        },
+        "loading": "ギャラリーを読み込み中…",
+        "empty": "このタブにはまだテーマがありません。",
+        "searchEmpty": "検索に一致するテーマがありません。",
+        "searchLabel": "テーマを検索",
+        "searchPlaceholder": "名前またはタグラインで検索…",
+        "sortLabel": "テーマを並べ替え",
+        "sort": {
+          "latest": "最新",
+          "popular": "人気",
+          "price": "価格"
+        },
+        "install": "インストール",
+        "installing": "インストール中…",
+        "installed": "テーマをインストールしました",
+        "installFailed": "テーマをインストールできませんでした",
+        "recordInstallWarn": "テーマはインストールされましたが、マーケットプレイス統計を同期できませんでした。テーマは有効です。",
+        "priceFree": "無料",
+        "pricePaid": "${cents}",
+        "purchase": "購入",
+        "purchasing": "リダイレクト中…",
+        "purchaseFailed": "チェックアウトを開始できませんでした",
+        "previewInstall": "プレビュー＆インストール",
+        "previewTitle": "テーマをインストール",
+        "previewCancel": "キャンセル",
+        "previewConfirm": "インストール",
+        "paidSoon": "有料チェックアウトは近日公開",
+        "purchaseCompleting": "購入を完了中…",
+        "purchaseReturnFailed": "購入は成功しましたが、インストールに失敗しました。",
+        "purchaseRetryOwned": "所有済みを開いてインストール"
+      },
+      "marketplaceGate": {
+        "needsAuthTitle": "クラウドアカウントをリンク",
+        "needsAuthBody": "マーケットプレイスでテーマを閲覧・購入・インストールするにはサインインしてください。",
+        "offlineTitle": "マーケットプレイスオフライン",
+        "offlineBody": "コントロールプレーンに到達できません。テーマスタジオのステップ4と外観設定では、.myrmtheme ファイルのインポートをサポートしています — クラウドアカウントは不要です。"
+      },
+      "creator": {
+        "title": "テーマを提出",
+        "subtitle": "コミュニティレビューのために .myrmtheme パッケージをアップロードします。",
+        "fields": {
+          "name": "名前",
+          "slug": "スラッグ",
+          "tagline": "タグライン",
+          "description": "説明",
+          "priceCents": "価格（セント、0 = 無料）",
+          "package": "テーマパッケージ"
+        },
+        "submit": "レビューに提出",
+        "submitting": "提出中…",
+        "inspecting": "パッケージを検査中…",
+        "submitted": "テーマをレビューに提出しました",
+        "mineTitle": "あなたの提出",
+        "mineEmpty": "まだ提出がありません。",
+        "loading": "読み込み中…",
+        "installCount": "{count} インストール",
+        "totalEarned": "合計収益: ${amount}",
+        "status": {
+          "pending": "レビュー待ち",
+          "pending_review": "レビュー待ち",
+          "published": "公開済み",
+          "rejected": "却下",
+          "suspended": "停止中",
+          "draft": "下書き"
+        },
+        "errors": {
+          "missingFields": "名前とパッケージファイルが必要です",
+          "inspectFailed": "テーマパッケージを検査できませんでした",
+          "submitFailed": "テーマを提出できませんでした"
+        },
+        "preview": {
+          "packageImportTitle": "提出前にレビュー",
+          "packageHeroPreview": "テーマプレビュー",
+          "packageApply": "レビューに提出",
+          "packageCancel": "キャンセル",
+          "packageUnsignedHint": "このパッケージは署名されていません。信頼できるソースからのテーマのみ提出してください。",
+          "backgroundWash": "背景の淡色化"
+        }
+      },
+      "admin": {
+        "title": "テーマレビューキュー",
+        "pendingSection": "レビュー待ち",
+        "catalogSection": "公開カタログ",
+        "catalogEmpty": "公開中または停止中のテーマはありません。",
+        "loading": "キューを読み込み中…",
+        "empty": "レビュー待ちのテーマはありません。",
+        "approve": "承認",
+        "reject": "却下",
+        "suspend": "停止",
+        "restore": "復元",
+        "approved": "テーマを承認しました",
+        "rejected": "テーマを却下しました",
+        "suspended": "テーマを停止しました",
+        "restored": "テーマを復元しました",
+        "reviewFailed": "レビュー操作に失敗しました",
+        "moderationFailed": "モデレーション操作に失敗しました",
+        "defaultReviewReason": "テーマスタジオ管理パネルからレビュー",
+        "rejectReasonLabel": "却下理由",
+        "rejectReasonPlaceholder": "再提出前にクリエイターが修正すべき点を説明してください。",
+        "suspendReasonLabel": "停止理由",
+        "suspendReasonPlaceholder": "このリスティングがギャラリーから削除される理由を説明してください。",
+        "restoreReasonLabel": "復元理由",
+        "restoreReasonPlaceholder": "このリスティングが再公開される理由を説明してください。",
+        "rejectConfirm": "却下を確認",
+        "suspendConfirm": "停止を確認",
+        "restoreConfirm": "復元を確認",
+        "moderationCancel": "キャンセル",
+        "reasonTooShort": "理由は2文字以上必要です。",
+        "status": {
+          "published": "公開済み",
+          "suspended": "停止中"
+        }
+      },
+      "recipeImport": {
+        "title": "AIスキルからレシピをインポート",
+        "hint": "generate-myrm-theme のJSONを貼り付け、必要に応じてステップ1でヒーローメディアをアップロードしてください。",
+        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "import": "レシピをインポート",
+        "success": "レシピをエディタにインポートしました"
+      }
+    }
+  }
+}

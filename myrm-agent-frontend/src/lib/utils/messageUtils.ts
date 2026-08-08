@@ -29,7 +29,7 @@ export const stripUiActionPayload = (text: string): string => {
 
 /** Matches harness `_preload_explicit_skill()` and channel `skill_command_handler` wire prefix. */
 const EXPLICIT_SKILL_ACTIVATION_PATTERN =
-  /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?(.*)$/s;
+  /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/;
 
 export interface ExplicitSkillActivation {
   skillNames: string[];
@@ -68,7 +68,7 @@ export const stripExplicitSkillActivationPrefix = (text: string): string => {
 
 /** Build harness-visible wire message from pending activation + composer user text. */
 export const buildExplicitSkillWireMessage = (
-  activation: Pick<ExplicitSkillActivation, 'skillNames' | 'instruction'>,
+  activation: { skillNames: string[]; instruction?: string | null },
   userText: string,
 ): string => {
   const names = activation.skillNames.join(',');

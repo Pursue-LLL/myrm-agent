@@ -27,8 +27,8 @@ from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cf
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.database.dto import PersonalityStyleLiteral
-from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 from app.services.agent.moa_preset_resolver import apply_moa_preset_activation
+from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
 from .archive_restore import (
     ArchiveRestoreRequestError,

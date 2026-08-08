@@ -87,7 +87,14 @@ describe('memoryLifecyclePhases', () => {
   it('derives recall success from memory brief', () => {
     expect(
       deriveRecallPhaseFromMessage(
-        { namespaces: ['global'], is_cold_start: false, stable: { instruction_count: 0, rule_count: 0, profile_field_count: 0 }, learned: { preference_count: 0, rule_count: 0, correction_count: 0, preference_ids: [], rule_ids: [] } },
+        {
+          snapshot_id: 'snap-1',
+          generated_at_ms: 0,
+          namespaces: ['global'],
+          is_cold_start: false,
+          stable: { working_state: true, profile_keys: [], instruction_count: 0, rule_count: 0 },
+          learned: { preference_count: 0, rule_count: 0, correction_count: 0, preference_ids: [], rule_ids: [] },
+        },
       ).status,
     ).toBe('success');
   });

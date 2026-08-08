@@ -37,15 +37,21 @@ export function mapAuditStatsResponse(result: Record<string, unknown>): AuditLog
       : Array.isArray(result.time_series)
         ? (result.time_series as AuditLogStats['time_series'])
         : [],
-    top_ips: (result.topIps ?? result.top_ips ?? []).map((item: Record<string, unknown>) => ({
-      ip_address: String(item.ipAddress ?? item.ip_address ?? ''),
-      request_count: Number(item.requestCount ?? item.request_count ?? 0),
-    })),
-    event_distribution: (result.eventDistribution ?? result.event_distribution ?? []).map(
-      (item: Record<string, unknown>) => ({
-        event_type: String(item.eventType ?? item.event_type ?? ''),
-        count: Number(item.count ?? 0),
-      }),
+    top_ips: ((result.topIps ?? result.top_ips ?? []) as unknown[]).map((item: unknown) => {
+      const record = item as Record<string, unknown>;
+      return {
+        ip_address: String(record.ipAddress ?? record.ip_address ?? ''),
+        request_count: Number(record.requestCount ?? record.request_count ?? 0),
+      };
+    }),
+    event_distribution: ((result.eventDistribution ?? result.event_distribution ?? []) as unknown[]).map(
+      (item: unknown) => {
+        const record = item as Record<string, unknown>;
+        return {
+          event_type: String(record.eventType ?? record.event_type ?? ''),
+          count: Number(record.count ?? 0),
+        };
+      },
     ),
     success_vs_failed: {
       success: Number(successFailed.success ?? 0),

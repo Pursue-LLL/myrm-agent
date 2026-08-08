@@ -28,7 +28,7 @@ from app.database.models.faq import FaqCorpus, FaqEntry
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
-    from myrm_agent_harness.toolkits.vector.base import VectorDocument, VectorStore
+    from myrm_agent_harness.toolkits.vector.base import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +179,7 @@ class FaqCorpusService:
                 vector=emb,
                 metadata={"entry_id": entry.id},
             )
-            for entry, emb in zip(entries, embeddings)
+            for entry, emb in zip(entries, embeddings, strict=True)
         ]
         await vector_store.upsert(collection, docs)
         logger.info("FAQ index rebuilt for agent=%s, entries=%d", agent_id, len(docs))

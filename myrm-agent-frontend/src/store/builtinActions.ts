@@ -63,7 +63,7 @@ export function buildBuiltinActions(): SlashAction[] {
             await loadMessages(chatId);
           } else {
             showI18nToast('commands.builtin.nothingToCompact', undefined, {
-              description: result.reason,
+              description: result.reason ?? undefined,
               type: 'info',
             });
             toast.dismiss(toastId);

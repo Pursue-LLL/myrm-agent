@@ -490,13 +490,13 @@ const BatchOptimizationPage = () => {
         if (cleanupStrategy === 'rollback') {
           const toastParams = resolveBatchRollbackToastParams(result, 'cancel');
           if (toastParams.variant === 'success') {
-            toast.success(tBatch('cancelRollbackSuccess', { count: toastParams.count }));
+            toast.success(tBatch('cancelRollbackSuccess', { count: toastParams.count ?? 0 }));
           } else if (toastParams.variant === 'partial') {
             toast.error(
               tBatch('cancelRollbackPartial', {
-                rolled: toastParams.rolled,
-                failed: toastParams.failed,
-                total: toastParams.total,
+                rolled: toastParams.rolled ?? 0,
+                failed: toastParams.failed ?? 0,
+                total: toastParams.total ?? 0,
               }),
               toastParams.error_message ? { description: toastParams.error_message } : undefined,
             );

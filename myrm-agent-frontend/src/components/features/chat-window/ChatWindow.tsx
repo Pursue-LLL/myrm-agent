@@ -400,7 +400,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         void initializeChat(id);
       }
 
-      if (meta?.kind === 'goal_needs_review' && meta?.chat_id === id) {
+      if (meta?.kind === 'goal_needs_review' && id && meta?.chat_id === id) {
         void useGoalStore.getState().refreshActiveGoal(id);
       }
     };

@@ -112,7 +112,7 @@ describe('builtin action execute functions', () => {
     it('returns error when no chatId', async () => {
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
-      (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+      (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
         chatId: null,
         stopMessage: stopMessageMock,
       }));
@@ -144,7 +144,7 @@ describe('builtin action execute functions', () => {
       const sendMessageMock = vi.fn().mockResolvedValue(undefined);
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
-      (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+      (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
         chatId: 'test-chat-123',
         loading: false,
         sendMessage: sendMessageMock,
@@ -167,14 +167,14 @@ describe('builtin action execute functions', () => {
       const initializeChatMock = vi.fn();
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
-      (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+      (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
         chatId: null,
         loading: false,
         sendMessage: sendMessageMock,
         initializeChat: initializeChatMock,
       }));
       initializeChatMock.mockImplementation(() => {
-        (useChatStore as { getState: Mock }).getState = vi.fn(() => ({
+        (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
           chatId: 'bootstrapped-chat',
           loading: false,
           sendMessage: sendMessageMock,
@@ -245,7 +245,7 @@ describe('builtin action execute functions', () => {
     it('returns error when no chatId', async () => {
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
-      (useChatStore as Record<string, unknown>).getState = vi.fn(() => ({
+      (useChatStore as unknown as Record<string, unknown>).getState = vi.fn(() => ({
         chatId: null,
         loadMessages: vi.fn(),
         stopMessage: stopMessageMock,
@@ -255,7 +255,7 @@ describe('builtin action execute functions', () => {
       const result = await compactAction.execute('/compact');
       expect(result).toEqual({ success: false, error: 'No active chat' });
 
-      (useChatStore as Record<string, unknown>).getState = originalGetState;
+      (useChatStore as unknown as Record<string, unknown>).getState = originalGetState;
     });
   });
 
@@ -307,7 +307,7 @@ describe('builtin action execute functions', () => {
     it('returns error when no chatId', async () => {
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
-      (useChatStore as Record<string, unknown>).getState = vi.fn(() => ({
+      (useChatStore as unknown as Record<string, unknown>).getState = vi.fn(() => ({
         chatId: null,
         loadMessages: vi.fn(),
         resetSessionState: vi.fn(),
@@ -318,7 +318,7 @@ describe('builtin action execute functions', () => {
       const result = await focusAction.execute('');
       expect(result).toEqual({ success: false, error: 'No active chat' });
 
-      (useChatStore as Record<string, unknown>).getState = originalGetState;
+      (useChatStore as unknown as Record<string, unknown>).getState = originalGetState;
     });
   });
 

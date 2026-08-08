@@ -15,7 +15,7 @@
  * [POS]
  * App shell dev bridge。在 MessageInput 水合前挂载，供 CDP/MCP E2E 驱动聊天与 Goal 模式（非终端用户功能）。
  */
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
@@ -688,24 +688,6 @@ async function submitAndObserveTurn(
   }
 }
 
-function isE2eChatSurfaceDomReady(requireCompactedSummary = false): boolean {
-  if (typeof document === 'undefined') {
-    return false;
-  }
-  const hasSummaryDom = Boolean(
-    document.querySelector('[data-testid="compacted-summary-view"]')
-    || document.querySelector('[data-message-id="compacted-summary-view"]'),
-  );
-  if (requireCompactedSummary) {
-    return hasSummaryDom;
-  }
-  return Boolean(
-    document.querySelector('[data-message-end]')
-    || document.querySelector('[data-chat-input]')
-    || hasSummaryDom,
-  );
-}
-
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) return;
@@ -1080,7 +1062,7 @@ export default function E2EChatBridge() {
         const assistants = state.messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
         const assistantText = (() => {
-          const content = lastAssistant?.content;
+          const content: unknown = lastAssistant?.content;
           if (typeof content === 'string') {
             return content;
           }
@@ -1126,7 +1108,11 @@ export default function E2EChatBridge() {
       prefetchSlashSkillCatalog: async () => {
         const store = useSkillStore.getState();
         await Promise.all([store.fetchMarketSkills(true), store.fetchLocalSkills()]);
-        const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+        const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {
+          marketSkillCount: 0,
+          slashBoundSkillResolvedCount: 0,
+          slashSkillCatalogReady: false,
+        };
         return {
           marketSkillCount: snap.marketSkillCount ?? 0,
           slashBoundSkillResolvedCount: snap.slashBoundSkillResolvedCount ?? 0,
@@ -1570,6 +1556,13 @@ export default function E2EChatBridge() {
           setHasUserSelectedModel: (hasSelected: boolean) =>
             useChatStore.setState({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => useChatStore.setState({ currentSessionMessageId: null }),
+          setIsWorkflowMode: (enabled: boolean) => useChatStore.setState({ isWorkflowMode: enabled }),
+          clearPendingWorkflowTemplate: () =>
+            useChatStore.setState({
+              pendingWorkflowTemplateId: null,
+              pendingWorkflowTemplateDisplayName: null,
+              pendingWorkflowTemplateArgs: null,
+            }),
           _processSuggestions: useChatStore.getState()._processSuggestions,
           scheduleAutoSave: useChatStore.getState().scheduleAutoSave,
           setInputMessage: (message: string) => useChatStore.setState({ inputMessage: message }),

@@ -1,0 +1,320 @@
+{
+  "settings": {
+    "commands": {
+      "actions": {
+        "import": "Importieren"
+      },
+      "list": {
+        "empty": "Noch keine Befehle",
+        "noResults": "Keine passenden Befehle gefunden",
+        "createFirst": "Erstellen Sie Ihren ersten Befehl"
+      },
+      "delete": {
+        "success": "Befehl gelöscht"
+      },
+      "export": {
+        "success": "Befehle exportiert",
+        "error": "Export fehlgeschlagen"
+      },
+      "import": {
+        "success": "Befehle erfolgreich importiert",
+        "error": "Import fehlgeschlagen, bitte Dateiformat prüfen"
+      },
+      "tips": {
+        "title": "Tipps"
+      },
+      "editor": {
+        "title": {
+          "create": "Befehl erstellen",
+          "edit": "Befehl bearbeiten"
+        },
+        "createTitle": "Befehl erstellen",
+        "editTitle": "Befehl bearbeiten",
+        "description": "Erstellen Sie Ihre benutzerdefinierte Befehlsvorlage",
+        "fields": {
+          "name": {
+            "label": "Befehlsname",
+            "hint": "Nur Buchstaben, Zahlen, Unterstriche und Bindestriche erlaubt"
+          },
+          "description": {
+            "label": "Beschreibung",
+            "placeholder": "Nach Englisch übersetzen"
+          },
+          "template": {
+            "label": "Vorlage"
+          }
+        },
+        "variables": {
+          "title": "Variable einfügen"
+        },
+        "examples": {
+          "title": "Beispiele"
+        },
+        "actions": {
+          "cancel": "Abbrechen",
+          "save": "Speichern"
+        },
+        "validation": {
+          "nameRequired": "Bitte geben Sie einen Befehlsnamen ein",
+          "nameInvalid": "Der Befehlsname darf nur Buchstaben, Zahlen, Unterstriche und Bindestriche enthalten",
+          "descriptionRequired": "Bitte geben Sie eine Beschreibung ein",
+          "templateRequired": "Bitte geben Sie eine Vorlage ein"
+        },
+        "success": {
+          "created": "Befehl erfolgreich erstellt",
+          "updated": "Befehl erfolgreich aktualisiert"
+        }
+      }
+    },
+    "integrationCatalog": {
+      "title": "Service-Katalog",
+      "description": "Durchsuchen und verbinden Sie Drittanbieterdienste. Ein-Klick-Einrichtung für beliebte Integrationen über MCP oder OpenAPI.",
+      "allCategories": "Alle",
+      "noResults": "Keine passenden Dienste gefunden",
+      "connect": "Verbinden",
+      "connected": "Verbunden",
+      "connectDialog": {
+        "credentialPlaceholder": "Fügen Sie hier Ihre Anmeldedaten ein",
+        "credentialRequired": "Bitte geben Sie Ihre Anmeldedaten ein",
+        "getCredential": "Anmeldedaten abrufen",
+        "noAuthRequired": "Dieser Dienst erfordert keine Authentifizierung. Klicken Sie auf Verbinden, um ihn zu aktivieren.",
+        "alreadyConnected": "Dieser Dienst ist bereits verbunden",
+        "connectFailed": "Verbindung fehlgeschlagen",
+        "connect": "Verbinden",
+        "cancel": "Abbrechen",
+        "probeRecommendedActionTitle": "Empfohlener nächster Schritt",
+        "probeRecommendedModeLocalOrTauri": "Wechseln Sie zur lokalen WebUI oder Tauri-Desktop und verbinden Sie diese Integration erneut von Ihrem lokalen Gerät.",
+        "probeRecommendedModeStartLocalEditorMcp": "Starten Sie den MCP-Server in Ihrem lokalen Editor und führen Sie den Konnektivitätscheck erneut aus.",
+        "probeRecommendedModeVerifyLocalNetworkAndEditor": "Prüfen Sie die lokale Netzwerkerreichbarkeit und die Editor-MCP-Einstellungen und führen Sie den Konnektivitätscheck erneut aus.",
+        "probeRecommendedActionSwitchMode": "Schließen und Modus wechseln",
+        "probeRecommendedActionRetryProbe": "Erneut versuchen und verbinden"
+      }
+    },
+    "integrationMemory": {
+      "title": "Integrationsspeicher",
+      "description": "Daten aus verbundenen Diensten synchronisieren und indizieren für quellenübergreifende semantische Suche.",
+      "statusTitle": "Integrationsspeicher",
+      "noProviders": "Noch keine Integrationsanbieter konfiguriert.",
+      "refresh": "Aktualisieren",
+      "syncAll": "Alle synchronisieren",
+      "lastSync": "Letzte Synchronisierungsergebnisse",
+      "failed": "fehlgeschlagen",
+      "upToDate": "Aktuell",
+      "dataSources": "Datenquellen",
+      "items": "Elemente",
+      "confirmRemove": "Entfernen bestätigen",
+      "emptyTitle": "Keine Integrationsdaten",
+      "emptyDescription": "Verbinden Sie Drittanbieterdienste aus dem Service-Katalog und synchronisieren Sie deren Daten hier für die semantische Suche.",
+      "fetchError": "Integrationsstatus konnte nicht geladen werden.",
+      "syncError": "Synchronisierung fehlgeschlagen. Bitte erneut versuchen.",
+      "removeError": "Entfernen des Integrationsbaums fehlgeschlagen."
+    },
+    "openaiApi": {
+      "createKey": "API-Schlüssel erstellen",
+      "keyName": "Schlüsselname",
+      "keyNamePlaceholder": "z. B. Meine Integration",
+      "expiresIn": "Läuft ab in",
+      "noExpiry": "Nie",
+      "days": "Tage",
+      "note": "Notiz",
+      "notePlaceholder": "Optionale Notiz für diesen Schlüssel",
+      "create": "Erstellen",
+      "cancel": "Abbrechen",
+      "copyWarning": "Kopieren Sie Ihren API-Schlüssel jetzt. Sie können ihn nicht erneut ansehen.",
+      "copied": "In die Zwischenablage kopiert",
+      "revoke": "Widerrufen",
+      "delete": "Löschen",
+      "revokeConfirm": "Möchten Sie diesen Schlüssel wirklich widerrufen? Er funktioniert sofort nicht mehr.",
+      "deleteConfirm": "Möchten Sie diesen Schlüssel wirklich dauerhaft löschen?",
+      "noKeys": "Noch keine API-Schlüssel",
+      "noKeysDesc": "Erstellen Sie einen API-Schlüssel, um über die OpenAI-kompatible API auf Ihre Agenten zuzugreifen.",
+      "active": "Aktiv",
+      "revoked": "Widerrufen",
+      "expired": "Abgelaufen",
+      "lastUsed": "Zuletzt verwendet",
+      "never": "Nie",
+      "endpoint": "API-Endpunkt",
+      "endpointDesc": "Verwenden Sie diese Basis-URL mit jedem OpenAI-kompatiblen Client:",
+      "docsTitle": "Schnellstart",
+      "createdAt": "Erstellt"
+    },
+    "workspaceRules": {
+      "title": "Arbeitsbereichsregeln",
+      "workspaceRoot": "Arbeitsbereich",
+      "noRules": "Keine Projektregeln erkannt",
+      "truncated": "gekürzt",
+      "emptyRule": "(leer)",
+      "truncatedHint": "Der Inhalt wurde gekürzt, weil die Datei das maximale Größenlimit überschreitet."
+    },
+    "developer": {
+      "title": "Entwickler",
+      "description": "Entwicklerkonfiguration und Debug-Optionen",
+      "currentMode": "Aktueller Modus",
+      "tauriMode": "Tauri-Modus",
+      "localMode": "Lokaler Modus",
+      "sandboxMode": "Sandbox-Modus",
+      "overrideActive": "Überschreibung aktiv",
+      "switchTo": "Wechseln zu",
+      "reset": "Zurücksetzen",
+      "externalAgents": {
+        "title": "Externe Agenten",
+        "description": "Externe KI-Agenten konfigurieren (z. B. Claude Code, Codex CLI) für Aufgaben-Delegation.",
+        "empty": "Keine externen Agenten konfiguriert",
+        "tauriAutoDetect": "Im Tauri-Modus werden lokal installierte CLI-Agenten automatisch erkannt.",
+        "add": "Agent hinzufügen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "confirmDelete": "Möchten Sie diesen Agenten wirklich löschen?",
+        "name": "Name",
+        "namePlaceholder": "z. B. claude-code",
+        "type": "Typ",
+        "typeCli": "CLI (Prozess starten)",
+        "typeAcp": "ACP (JSON-RPC-Brücke)",
+        "typeSdk": "SDK (native Integration)",
+        "command": "Befehl",
+        "commandPlaceholder": "z. B. claude",
+        "args": "Argumente",
+        "argsPlaceholder": "z. B. --verbose (eine pro Zeile)",
+        "permissionMode": "Berechtigungsmodus",
+        "permissionAllowAll": "Alle erlauben",
+        "permissionAsk": "Vor Ausführung fragen",
+        "permissionSafe": "Nur sicher",
+        "enabled": "Aktiviert",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "nameRequired": "Agentenname ist erforderlich",
+        "nameDuplicate": "Ein Agent mit diesem Namen existiert bereits",
+        "commandRequired": "Befehl ist erforderlich",
+        "testConnection": "Testen",
+        "testFailed": "Verbindungstest fehlgeschlagen",
+        "presets": "Schnell hinzufügen",
+        "descriptionLabel": "Beschreibung",
+        "descriptionPlaceholder": "Beschreiben Sie die Fähigkeiten dieses Agenten (hilft der KI, den richtigen Agenten zu wählen)",
+        "maxTurns": "Max. Schritte",
+        "maxTurnsHint": "Sicherheitslimit für Tool-Aufrufrunden (1 Schritt = 1 Tool-Aufruf)",
+        "authMode": "Authentifizierung",
+        "authModeSubscription": "Abonnement",
+        "login": "Anmelden",
+        "logout": "Abmelden",
+        "loginSuccess": "Erfolgreich angemeldet",
+        "loginFailed": "Anmeldung fehlgeschlagen",
+        "loginOpenUrl": "Öffnen Sie diesen Link in Ihrem Browser zur Autorisierung:",
+        "loginCode": "Verifizierungscode",
+        "loginCodePlaceholder": "Fügen Sie den in Ihrem Browser angezeigten Code ein",
+        "loginCodeSubmit": "Absenden",
+        "loginClose": "Schließen",
+        "importTitle": "Anmeldedaten importieren",
+        "importHint": "Bereits auf einem anderen Gerät angemeldet? Fügen Sie den Inhalt der Anmeldedatei ein (z. B. auth.json).",
+        "importPlaceholder": "Anmeldedatei-Inhalt einfügen",
+        "import": "Importieren",
+        "importSuccess": "Anmeldedaten importiert",
+        "logoutSuccess": "Abgemeldet",
+        "badgeLoggedIn": "Angemeldet",
+        "badgeLoggedOut": "Nicht angemeldet",
+        "badgeCliReady": "CLI bereit",
+        "badgeInstalled": "Installiert"
+      },
+      "showSystemMessages": "Systemnachrichten anzeigen",
+      "systemHealth": {
+        "title": "Systemzustand",
+        "description": "Speicherpfade, Arbeitsbereichsbereitschaft und ripgrep-Verfügbarkeit prüfen, bevor Agenten laufen.",
+        "refresh": "Aktualisieren",
+        "loadFailed": "Systemzustand konnte nicht geladen werden",
+        "warnings": "Warnungen",
+        "migrationPending": "Layout-Migration ausstehend",
+        "applyMigration": "Migration anwenden",
+        "migrateConfirmTitle": "Kontext-Bundle-Migration anwenden?",
+        "migrateConfirmDesc": "Dies aktualisiert die On-Disk-Layout-Metadaten. Bestehende Daten bleiben erhalten; nur fehlende Struktur wird erstellt.",
+        "migrateSuccess": "Migration angewendet",
+        "migrateFailed": "Migration fehlgeschlagen",
+        "cancel": "Abbrechen",
+        "writable": "Volume beschreibbar",
+        "notWritable": "Volume nicht beschreibbar",
+        "manifestOk": "Manifest vorhanden",
+        "manifestMissing": "Manifest fehlt",
+        "memoryPath": "Speicher-Root",
+        "harnessPath": "Harness-Root",
+        "status": {
+          "ready": "Gesund",
+          "degraded": "Eingeschränkt",
+          "missing": "Kritisch"
+        },
+        "sceneStatus": {
+          "ready": "Bereit",
+          "degraded": "Eingeschränkt",
+          "missing": "Fehlt"
+        },
+        "scenes": {
+          "memory": "Speicher",
+          "workspace": "Arbeitsbereich",
+          "offload": "Auslagern",
+          "archive": "Archiv"
+        }
+      }
+    },
+    "securityPolicy": {
+      "title": "Sicherheitsrichtlinie",
+      "description": "Steuern, wie der KI-Agent Tool-Ausführungen behandelt. Konfigurieren Sie Berechtigungsregeln mit Last-Match-Wins-Semantik.",
+      "profile": {
+        "title": "Sicherheitsprofil",
+        "description": "Wählen Sie ein vorgefertigtes Sicherheitsprofil oder passen Sie es unten an.",
+        "selectDefault": "Profil auswählen"
+      },
+      "modeAllow": "Erlauben",
+      "modeAsk": "Genehmigung erforderlich",
+      "modeDeny": "Ablehnen",
+      "approvalTimeout": "Genehmigungs-Timeout",
+      "approvalTimeoutDesc": "Sekunden, die auf Ihre Genehmigung gewartet wird, bevor ein Tool-Aufruf automatisch aufgelöst wird.",
+      "seconds": "Sekunden",
+      "timeoutBehavior": "Timeout-Aktion",
+      "timeoutBehaviorDesc": "Aktion bei Genehmigungs-Timeout. „Ablehnen\" verwirft den Tool-Aufruf; „Erlauben\" genehmigt automatisch.",
+      "timeoutDeny": "Ablehnen",
+      "timeoutAllow": "Erlauben",
+      "rulesTitle": "Berechtigungsregeln",
+      "rulesDesc": "Berechtigungsregeln für Tool-Ausführungen definieren. Verwendet fnmatch-Syntax. Spätere Regeln überschreiben frühere (Last-Match-Wins).",
+      "addRule": "Regel hinzufügen",
+      "noRules": "Keine Berechtigungsregeln konfiguriert. Standardregeln gelten (Terminalbefehle und externe Tools erfordern Genehmigung).",
+      "permissionPlaceholder": "Berechtigungstyp auswählen",
+      "patternPlaceholder": "Muster (z. B. *.env)",
+      "ruleRemoved": "Regel entfernt",
+      "saved": "Sicherheitskonfiguration gespeichert",
+      "blacklistTitle": "Integrierte Blacklist",
+      "blacklistDesc": "Diese gefährlichen Befehlsmuster sind immer gesperrt und können nicht überschrieben werden.",
+      "pathPolicyTitle": "Pfadzugriffsrichtlinie",
+      "pathPolicyDesc": "Steuern, auf welche Dateisystempfade der KI-Agent zugreifen kann. Verbotene Pfade sind immer gesperrt.",
+      "forbiddenPathsLabel": "Verbotene Pfade (nur lesen)",
+      "forbiddenPathsDesc": "Diese sensiblen Pfade sind immer gesperrt und können durch keine Konfiguration überschrieben werden.",
+      "allowedRootsLabel": "Erlaubte Wurzeln",
+      "allowedRootsDesc": "Zusätzliche Dateisystempfade, auf die der Agent zugreifen darf (außerhalb des Arbeitsbereichs).",
+      "addPath": "Pfad hinzufügen",
+      "noAllowedRoots": "Keine zusätzlichen Pfade konfiguriert. Der Agent kann nur auf das Arbeitsbereichsverzeichnis zugreifen.",
+      "pathPolicySaved": "Pfadrichtlinie gespeichert",
+      "privacy": {
+        "title": "PII-Datenschutz",
+        "description": "Personenbezogene Daten (PII) in Gesprächen erkennen und behandeln. Unterstützt automatische Maskierung und Blockierung sensibler Daten.",
+        "enableLabel": "PII-Schutz aktivieren",
+        "enableDesc": "Automatisch Telefonnummern, Ausweise, Bankkarten, E-Mails und andere PII in Nachrichten und Tool-Aufrufen erkennen.",
+        "s2Label": "Sensible Daten (S2)",
+        "s3Label": "Vertrauliche Daten (S3)",
+        "actionWarn": "Nur warnen",
+        "actionPseudonymize": "Pseudonymisieren",
+        "actionRedact": "Automatisch maskieren",
+        "actionBlock": "Blockieren",
+        "pseudonymizeHint": "Der Pseudonymisierungsmodus ersetzt PII vor dem Senden an die Cloud durch typisierte semantische Platzhalter. Die KI behält das volle semantische Verständnis, während die Originalwerte lokal wiederhergestellt werden. Null Datenschutzverlust, null Qualitätsverlust.",
+        "deepScanLabel": "Tiefenscan (LLM-erweitert)",
+        "deepScanDesc": "Verwendet LLM, um nicht strukturierte PII (Krankengeschichte, Familienbeziehungen, Arbeitsplatz usw.) zu erkennen, die Regex-Muster nicht erfassen. Kann die Latenz erhöhen.",
+        "routing": {
+          "title": "Datenschutzbewusstes Modell-Routing",
+          "description": "Leiten Sie LLM-Anfragen an ein lokales Modell weiter, wenn sensible Daten erkannt werden, um private Daten von der Cloud fernzuhalten.",
+          "localModel": "Lokales Modell",
+          "localBaseUrl": "Lokale Modell-Basis-URL",
+          "localApiKey": "Lokaler Modell-API-Schlüssel",
+          "localApiKeyPlaceholder": "Leer lassen, wenn nicht erforderlich",
+          "s2Strategy": "S2-Strategie (sensibel)",
+          "s2CloudAfterRedact": "Maskieren, dann Cloud",
+          "s2Local": "Nur lokal"
+        }
+      }
+    }
+  }
+}

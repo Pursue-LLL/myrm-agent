@@ -21,7 +21,6 @@ from myrm_agent_harness.toolkits.kanban.types import (
 
 from app.core.channel_bridge.persistent_background import (
     BACKGROUND_SOURCE_BTW,
-    BACKGROUND_SOURCE_VOICE,
 )
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 

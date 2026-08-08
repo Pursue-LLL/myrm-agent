@@ -58,7 +58,9 @@ async def _check_semantic_duplicate(skill_name: str, description: str) -> str | 
     if _similarity_checker is None:
         return None
     try:
-        similar = await _similarity_checker.find_similar(skill_name, description, top_k=3, threshold=SIMILARITY_THRESHOLD)
+        similar = await _similarity_checker.find_similar(
+            skill_name, description, top_k=3, threshold=SIMILARITY_THRESHOLD
+        )
         if not similar:
             return None
         names = ", ".join(f"'{s.name}' ({s.similarity_score:.0%})" for s in similar)
@@ -79,15 +81,15 @@ async def _get_existing_local_skill(skill_name: str) -> object | None:
 
 
 def _locked_description(skill_name: str, base_description: str) -> str:
-    message = (
-        f'Skill "{skill_name}" is locked against automatic evolution. Review the proposed change manually before applying it.'
-    )
+    message = f'Skill "{skill_name}" is locked against automatic evolution. Review the proposed change manually before applying it.'
     if base_description.strip():
         return f"{base_description.strip()}\n\n{message}"
     return message
 
 
-def _materialization_failure_description(base_description: str, error: str | None) -> str:
+def _materialization_failure_description(
+    base_description: str, error: str | None
+) -> str:
     failure = f"Auto-apply failed and has been downgraded to manual review: {error or 'unknown error'}"
     if base_description.strip():
         return f"{base_description.strip()}\n\n{failure}"
@@ -113,7 +115,9 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
         return None
 
     existing_skill = await _get_existing_local_skill(skill_name)
-    is_locked = bool(existing_skill and getattr(existing_skill, "evolution_locked", False))
+    is_locked = bool(
+        existing_skill and getattr(existing_skill, "evolution_locked", False)
+    )
 
     if is_locked:
         return cast(
@@ -136,8 +140,14 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
 
     dedup_warning = await _check_semantic_duplicate(skill_name, description)
     if dedup_warning:
-        logger.info("Skill draft '%s' flagged by semantic dedup: %s", skill_name, dedup_warning)
-        desc_with_warning = f"{description}\n\n⚠️ {dedup_warning}" if description.strip() else dedup_warning
+        logger.info(
+            "Skill draft '%s' flagged by semantic dedup: %s", skill_name, dedup_warning
+        )
+        desc_with_warning = (
+            f"{description}\n\n⚠️ {dedup_warning}"
+            if description.strip()
+            else dedup_warning
+        )
         return cast(
             object | None,
             await persist_skill_draft_record(
@@ -164,14 +174,20 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
             ),
         )
 
-    materialized = await auto_extract_or_patch_skill(result)
+    eval_cases = result.get("eval_cases")
+    materialized = await auto_extract_or_patch_skill(
+        result,
+        eval_cases=eval_cases if isinstance(eval_cases, list) else None,
+    )
     if not materialized.success:
         return cast(
             object | None,
             await persist_skill_draft_record(
                 result,
                 status="PENDING_REVIEW",
-                description=_materialization_failure_description(scan_description, materialized.error),
+                description=_materialization_failure_description(
+                    scan_description, materialized.error
+                ),
                 dedupe_statuses=("PENDING_REVIEW",),
             ),
         )

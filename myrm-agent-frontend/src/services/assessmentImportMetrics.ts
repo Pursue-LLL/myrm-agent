@@ -12,6 +12,9 @@
  * 并提供导入后执行价值锚点查询。
  */
 import { apiRequest } from '@/lib/api';
+import type { AssessmentImportFailureReason } from '../components/features/sidebar/assessmentImportError';
+
+export type { AssessmentImportFailureReason };
 
 export type AssessmentImportMetricSurface = 'project_milestone_panel';
 export type AssessmentImportMetricTrigger = 'manual_input' | 'recent_candidate';
@@ -20,7 +23,6 @@ export type AssessmentImportMetricEventType =
   | 'import_succeeded'
   | 'import_failed'
   | 'dropped_report';
-export type { AssessmentImportFailureReason } from '../components/features/sidebar/assessmentImportError';
 
 interface AssessmentImportMetricEventPayload {
   event_type: AssessmentImportMetricEventType;
@@ -100,7 +102,7 @@ function createEmptyDroppedBuffer(): Record<AssessmentImportMetricTrigger, numbe
 }
 
 function clampPendingCount(count: number | undefined): number {
-  if (!Number.isFinite(count)) {
+  if (count === undefined || !Number.isFinite(count)) {
     return 0;
   }
   return Math.max(0, Math.min(MAX_PENDING_DROPPED_EVENTS, Math.floor(count)));

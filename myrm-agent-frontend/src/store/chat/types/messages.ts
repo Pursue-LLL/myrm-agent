@@ -40,6 +40,8 @@ export type Message = {
   reasoningStartedAt?: number;
   reasoningDurationMs?: number;
   role: 'user' | 'assistant' | 'system';
+  /** True while the assistant message is still streaming. */
+  loading?: boolean;
   isCompactedSummaryView?: boolean;
   suggestions?: string[];
   sources?: Source[]; // 外部引用来源
@@ -102,6 +104,7 @@ export type Message = {
     title?: string;
     form?: ClarificationForm;
     isResumeMode?: boolean;
+    source?: string;
   };
   directoryRequest?: {
     answered: boolean;

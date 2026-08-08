@@ -1,0 +1,314 @@
+{
+  "chat": {
+    "contextUsage": {
+      "strategy": {
+        "pinsEmpty": "Keine angehefteten Dateien",
+        "pinsLoadError": "Angeheftete Dateien konnten nicht geladen werden",
+        "pinsRetry": "Erneut versuchen"
+      }
+    },
+    "compactedSummary": {
+      "title": "Komprimierte Speicherzusammenfassung",
+      "edit": "Zusammenfassung bearbeiten",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "saveBookmark": "Snapshot-Lesezeichen speichern",
+      "bookmarkSaved": "Snapshot-Lesezeichen gespeichert",
+      "bookmarkSaveFailed": "Speichern des Snapshot-Lesezeichens fehlgeschlagen",
+      "bookmarksTitle": "Gespeicherte Snapshot-Lesezeichen",
+      "bookmarksEmpty": "Noch keine Snapshot-Lesezeichen",
+      "bookmarksLoadError": "Lesezeichen konnten nicht geladen werden",
+      "bookmarksRetry": "Erneut versuchen",
+      "bookmarkFork": "In neuem Chat öffnen",
+      "bookmarkForkSuccess": "Snapshot in neuem Chat geöffnet",
+      "bookmarkForkFailed": "Snapshot konnte nicht in neuem Chat geöffnet werden",
+      "archiveTitle": "Archivierte Nachrichten",
+      "archiveEmpty": "Keine archivierten Nachrichten gefunden",
+      "roleUser": "Sie",
+      "roleAssistant": "Assistent"
+    },
+    "compact": {
+      "badge": "Komprimiert",
+      "noChatId": "Kein aktiver Chat zum Komprimieren",
+      "failed": "Komprimierung fehlgeschlagen",
+      "confirmTitle": "Kontextkomprimierung bestätigen?",
+      "confirmButton": "Trotzdem komprimieren",
+      "dontRemindAgain": "Nicht mehr anzeigen"
+    },
+    "redirect": {
+      "send": "Jetzt umleiten",
+      "tooltip": "Aktuelle Generierung unterbrechen und den Agenten umleiten"
+    },
+    "conversationRecall": {
+      "hintTitle": "Frühere Gespräche fortsetzen",
+      "hintBody": "Aktivieren Sie die Gesprächsverlaufssuche in den Einstellungen, um nach früheren Chats zu fragen oder @chat: im Editor zu verwenden.",
+      "openSettings": "Speichereinstellungen",
+      "dismiss": "Verwerfen"
+    },
+    "message": {
+      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
+      "contentFiltered": "Ein Teil der Antwort wurde durch die Inhaltsrichtlinie gefiltert.",
+      "budgetBlocked": "Ausführung durch Tagesbudget-Richtlinie blockiert. Passen Sie Ihr Budgetlimit in den Einstellungen an.",
+      "workflowMergeWarning": "Einige Arbeitsbereichsdateien konnten nicht zurückgemergt werden. Prüfen Sie die Tool-Ausgabe für Details.",
+      "fileMutationFailedTitle": "Dateibearbeitung fehlgeschlagen",
+      "workflowTemplateSave": {
+        "title": "Als Workflow-Vorlage speichern",
+        "description": "Dieses Orchestrierungsskript für deterministische Wiederholungen ohne erneute Planergenerierung speichern.",
+        "displayNamePlaceholder": "Anzeigename",
+        "templateIdPlaceholder": "Vorlagen-Slug (z. B. weekly-report)",
+        "trustLatch": "Vertrauensverriegelung",
+        "save": "Vorlage speichern",
+        "success": "Workflow-Vorlage gespeichert",
+        "failed": "Speichern der Workflow-Vorlage fehlgeschlagen",
+        "fieldsRequired": "Anzeigename und Vorlagen-Slug sind erforderlich"
+      }
+    },
+    "sessionRecording": {
+      "label": "Sitzungsaufzeichnung"
+    },
+    "browserRecording": {
+      "title": "Browser-Aufzeichnung",
+      "toggleTitle": "Browser-Aufzeichnungs-Panel umschalten",
+      "toggleLabel": "Browser-Aufzeichnung",
+      "statusIdle": "Browser-Aufzeichnung",
+      "statusPaused": "Pausiert",
+      "statusComplete": "Aufzeichnung abgeschlossen",
+      "closePanel": "Panel schließen",
+      "startRecording": "Aufzeichnung starten",
+      "pause": "Pause",
+      "stop": "Stoppen",
+      "resume": "Fortsetzen",
+      "newRecording": "Neue Aufzeichnung",
+      "idleHint": "Klicken Sie auf „Aufzeichnung starten\", um Browser-Aktionen zu erfassen. Ihre Aktionen werden in eine wiederverwendbare Browser-Fähigkeit umgewandelt.",
+      "deleteStep": "Schritt löschen",
+      "skillNamePlaceholder": "Fähigkeitsname (z. B. weekly-report)",
+      "descriptionPlaceholder": "Beschreibung (optional)",
+      "generateSkill": "Browser-Fähigkeit generieren",
+      "skillGenerated": "Fähigkeit generiert!",
+      "labelName": "Name:",
+      "labelSteps": "Schritte:",
+      "actionClick": "Klicken",
+      "actionDblclick": "Doppelklick",
+      "actionType": "Eingeben",
+      "actionFill": "Ausfüllen",
+      "actionSelect": "Auswählen",
+      "actionCheck": "Aktivieren",
+      "actionUncheck": "Deaktivieren",
+      "actionNavigate": "Navigieren",
+      "actionUpload": "Hochladen",
+      "actionPressKey": "Taste drücken",
+      "actionScroll": "Scrollen",
+      "actionHover": "Hover",
+      "actionDrag": "Ziehen"
+    },
+    "desktopInspector": {
+      "title": "Desktop-Live-Ansicht",
+      "toggleTitle": "Desktop-Inspektor umschalten",
+      "viewMode": "Ansichtsmodus",
+      "inspectMode": "Inspektionsmodus",
+      "close": "Schließen",
+      "refresh": "Aktualisieren",
+      "enabledHint": "Der Desktop-Inspektor öffnet sich hier, wenn der Agent Desktop-Tools verwendet",
+      "resizePanel": "Panelgröße ändern",
+      "screenshotAlt": "Desktop-Screenshot",
+      "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent Desktop-Tools verwendet",
+      "permissionDenied": "Bedienungshilfen-Berechtigung erforderlich. Erteilen Sie den Zugriff in den Systemeinstellungen und versuchen Sie es erneut.",
+      "permissionDeniedAccessibility": "Bedienungshilfen-Berechtigung ist für Desktop-Elementinteraktion erforderlich.",
+      "permissionDeniedScreenRecording": "Bildschirmaufnahme-Berechtigung ist für Desktop-Screenshots erforderlich.",
+      "permissionOpenSettings": "Systemeinstellungen öffnen",
+      "permissionCheckFailed": "Desktop-Berechtigungen konnten nicht geprüft werden",
+      "permissionCheckAgain": "Erneut prüfen",
+      "permissionAllGranted": "Alle Berechtigungen erteilt",
+      "permissionMissing": "Fehlende Berechtigungen",
+      "instructionWithElement": "Was soll der Agent mit diesem Desktop-Element tun?",
+      "send": "Anweisung senden",
+      "controlApproval": {
+        "title": "Desktop-Steuerungsgenehmigung erforderlich",
+        "deny": "Ablehnen",
+        "allowOnce": "Einmal erlauben",
+        "allowSession": "Diesen Chat erlauben",
+        "allowAlways": "Diese App immer erlauben"
+      }
+    },
+    "clarification": {
+      "formTitle": "Klärungsformular",
+      "optionalNote": "Sie können auch unten eine benutzerdefinierte Antwort eingeben",
+      "singleChoicePrompt": "Eine Option wählen:",
+      "multipleChoicePrompt": "Eine oder mehrere Optionen wählen:",
+      "submit": "Absenden",
+      "skip": "Überspringen",
+      "submitFailed": "Absenden der Klärung fehlgeschlagen. Bitte erneut versuchen.",
+      "answered": "Klärung beantwortet"
+    },
+    "directoryRequest": {
+      "title": "Verzeichniszugriff erforderlich",
+      "pathLabel": "Ordnerpfad",
+      "pathRequired": "Bitte einen Ordnerpfad eingeben",
+      "grant": "Zugriff gewähren",
+      "deny": "Ablehnen",
+      "answered": "Verzeichniszugriff geklärt"
+    },
+    "planConfirmation": {
+      "title": "Rechercheplan",
+      "badge": "Vor Ausführung prüfen",
+      "description": "Die KI hat einen Rechercheplan entworfen. Prüfen Sie ihn und entscheiden Sie, wie fortzufahren ist.",
+      "confirm": "Plan genehmigen",
+      "edit": "Änderungen speichern",
+      "skip": "Prüfung überspringen",
+      "confirmed": "Plan genehmigt",
+      "edited": "Plan aktualisiert & genehmigt",
+      "skipped": "Prüfung übersprungen",
+      "submitFailed": "Absenden der Planantwort fehlgeschlagen. Bitte erneut versuchen.",
+      "workflowTitle": "Dynamischer Workflow-Plan",
+      "workflowBadge": "Vor Ausführung prüfen",
+      "workflowDescription": "Prüfen Sie das Orchestrierungsskript und die Sub-Agenten-Schätzung, bevor Sub-Agenten in der Sandbox ausgeführt werden.",
+      "workflowConfirm": "Workflow ausführen",
+      "workflowCancel": "Abbrechen"
+    },
+    "workflowSuggestion": {
+      "activate": "Aktivieren",
+      "dismiss": "Verwerfen",
+      "activated": "Workflow-Modus für nächste Nachricht aktiviert"
+    },
+    "toolsPanel": {
+      "title": "Verfügbare Tools",
+      "noResults": "Keine passenden Tools",
+      "parameters": "Parameter",
+      "layers": {
+        "core": "Kern",
+        "common": "Allgemein",
+        "extended": "Erweitert",
+        "external": "Extern"
+      },
+      "knownTools": {
+        "conversationSearch": {
+          "name": "Gesprächssuche",
+          "summary": "Frühere Gespräche nach exakten Textausschnitten und vorberechneten Zusammenfassungen durchsuchen."
+        }
+      }
+    },
+    "sessionSkills": {
+      "tooltip": "Sitzungs-Fähigkeiten",
+      "popoverTitle": "Fähigkeiten für diesen Chat",
+      "usingAll": "Alle Fähigkeiten verwenden",
+      "clearOverride": "Alle Fähigkeiten verwenden",
+      "noSkills": "Keine Fähigkeiten für diesen Agenten konfiguriert"
+    },
+    "turnCapabilities": {
+      "tooltip": "Fähigkeiten der nächsten Nachricht",
+      "popoverTitle": "Fähigkeiten für nächste Nachricht",
+      "clearOverride": "Zurücksetzen",
+      "skillsSection": "Fähigkeiten",
+      "mcpSection": "MCP-Server",
+      "noSkills": "Keine Fähigkeiten für diesen Agenten aktiviert",
+      "noMcp": "Keine MCP-Server für diesen Agenten aktiviert",
+      "usingAgentDefaults": "Agent-Standards verwenden",
+      "nextTurnOnly": "Gilt nur für die nächste Nachricht"
+    },
+    "samplePrompts": {
+      "fast_0": "Was sind die neuesten KI-Regulierungsrichtlinien?",
+      "fast_2": "Erklären Sie Quantencomputing in einfachen Worten",
+      "fast_3": "Welche bemerkenswerten Tech-News gab es heute?",
+      "fast_6": "Was sind die Anwendungen von KI im Gesundheitswesen?",
+      "fast_7": "Empfehlen Sie großartige Bücher über Produktdesign",
+      "fast_9": "Wie kann ich meine Remote-Arbeitsproduktivität verbessern?",
+      "fast_10": "Was sind die gängigen großen Sprachmodelle und ihre Stärken?",
+      "fast_11": "Erklären Sie die Kernprinzipien der RAG-Technologie",
+      "agent_3": "Richten Sie eine tägliche Briefing-Erinnerung für jeden Morgen um 8 Uhr ein",
+      "agent_4": "Suchen Sie nach den neuesten AI-Agent-Entwicklungen und fassen Sie zusammen",
+      "agent_6": "Analysieren Sie Wettbewerbsprodukte und schlagen Sie Differenzierungsmerkmale vor",
+      "agent_10": "Suchen und fassen Sie Branchennews der letzten Woche zusammen",
+      "agent_11": "Helfen Sie mir, einen Plan zur Nutzerfeedback-Sammlung zu entwerfen",
+      "deep_research_0": "Umfassender Vergleich von RAG vs. Fine-Tuning für Unternehmens-LLM-Anwendungen",
+      "deep_research_1": "Tiefgehende Analyse der Auswirkungen von WebAssembly auf moderne Web-Performance",
+      "deep_research_2": "Recherchieren Sie den aktuellen Stand und die Zukunft autonomer Fahrtechnologie",
+      "deep_research_3": "Tiefgehende Analyse der architektonischen Evolution von AI Agents",
+      "deep_research_4": "Umfassende Recherche zu den neuesten Fortschritten bei multimodalen LLMs",
+      "deep_research_5": "Vergleichen Sie KI-Regulierungsrahmen in USA, EU und China",
+      "deep_research_6": "Recherchieren Sie die Integration von Wissensgraphen mit großen Sprachmodellen",
+      "deep_research_7": "Untersuchen Sie Edge-Computing-Best-Practices in IoT-Szenarien",
+      "deep_research_8": "Analysieren Sie die Machbarkeit, Rust C++ in der Systemprogrammierung zu ersetzen",
+      "deep_research_9": "Recherchieren Sie Kommerzialisierungspfade für Open-Source-Großmodelle",
+      "deep_research_10": "Studieren Sie die praktische Wirksamkeit von Federated Learning beim Datenschutz",
+      "deep_research_11": "Analysieren Sie Quantencomputing-Bedrohungen für aktuelle Verschlüsselung und Gegenmaßnahmen"
+    },
+    "subagent": {
+      "viewResults": "Ergebnisse anzeigen"
+    },
+    "environmentAlert": {
+      "title": "Umgebungseinschränkungen",
+      "network_blocked": "Netzwerkzugriff blockiert",
+      "sandbox_ro": "Dateisystem ist schreibgeschützt",
+      "healthy": "Umgebung gesund"
+    },
+    "localModelDetected": {
+      "title": "Lokales KI-Modell erkannt",
+      "configureManually": "Manuell konfigurieren",
+      "noModels": "Keine lokalen KI-Modelle erkannt",
+      "activated": "Bereit!",
+      "tryDemo": "Fassen Sie die heutigen Tech-News zusammen",
+      "tryDemoLabel": "Jetzt ausprobieren"
+    },
+    "localCapabilities": {
+      "searchTitle": "Kostenlose Websuche verfügbar",
+      "searchDescription": "Lokales SearXNG aktivieren (über LiteLLM, kein API-Schlüssel).",
+      "enableSearxng": "SearXNG aktivieren",
+      "searxngDockerHint": "Suche ist optional. Starten Sie lokale kostenlose Suche über SearXNG bei Bedarf (Docker erforderlich).",
+      "startSearxngDocker": "SearXNG starten (Docker)",
+      "startSearxngFailed": "SearXNG konnte nicht gestartet werden. Ist Docker installiert?",
+      "usePaidSearchSettings": "Stattdessen kostenpflichtigen Suchanbieter verwenden",
+      "configureSearch": "Suche konfigurieren",
+      "chipLabel": "Suche aktivieren",
+      "searchEnableFailed": "Aktivieren der Suche fehlgeschlagen",
+      "modelActivateFailed": "Aktivieren des lokalen Modells fehlgeschlagen",
+      "customEndpointTitle": "OpenAI-kompatibler lokaler Endpunkt",
+      "customEndpointDescription": "Fügen Sie Ihren lokalen Endpunkt ein, um Modelle automatisch zu erkennen und die Einrichtung in einem Schritt abzuschließen.",
+      "customApiKeyLabel": "API-Schlüssel (optional für localhost)",
+      "customNoAuthHint": "Localhost-Endpunkte können den API-Schlüssel leer lassen; Cloud- oder Remote-Endpunkte benötigen weiterhin einen Schlüssel.",
+      "customNoAuthDetected": "Lokaler No-Auth-Modus erkannt. Dieser Endpunkt wird ohne gespeicherten API-Schlüssel verwendet.",
+      "customDetectModels": "Modelle erkennen",
+      "customErrorApiUrlRequired": "Bitte API-URL eingeben",
+      "customErrorDetectFailed": "Erkennen der Modelle von diesem Endpunkt fehlgeschlagen",
+      "customErrorNoModels": "Endpunkt ist erreichbar, hat aber keine Modelle zurückgegeben",
+      "customErrorProbeFailed": "Sondieren des Endpunkts fehlgeschlagen",
+      "customErrorDetectFirst": "Bitte zuerst Modelle erkennen",
+      "customErrorReachabilityFailed": "Endpunkt verbunden, aber Modell-Gesundheitsprüfung fehlgeschlagen"
+    },
+    "migrationDiscovery": {
+      "importButton": "Migrationsassistent öffnen",
+      "dismiss": "Vielleicht später"
+    }
+  },
+  "mode": {
+    "fast": "Schnellsuche",
+    "fastTitle": "Schnellsuche",
+    "fastDescription": "Geschwindigkeit zuerst, schnelle Antworten auf Alltagsfragen",
+    "fastFeature1": "Integrierte Websuche, ideal für einfache Q&A und Faktenabfragen",
+    "fastFeature2": "Kein Speicher, keine Fähigkeiten, kein MCP, keine Anhänge",
+    "agent": "KI-Agent",
+    "agentTitle": "KI-Agent",
+    "agentDescription": "Allzweck-KI-Agent",
+    "agentFeature1": "Tiefensuche mit Qualitätsfokus",
+    "agentFeature2": "Verwendet automatisch Fähigkeiten und MCP-Dienste und wählt schrittweise die richtigen Tools für komplexe Aufgaben",
+    "agentFeature3": "Langzeitgedächtnis für personalisierte Antworten",
+    "deep_research": "Tiefenrecherche",
+    "deep_researchTitle": "Tiefenrecherche",
+    "deep_researchDescription": "Mehrstufige Suche + strukturierter Bericht, typisch 2–5 Minuten",
+    "deep_researchFeature2": "Querverifizierte Erkenntnisse mit zitierten Quellen in einem strukturierten Bericht",
+    "consensusTitle": "Konsens",
+    "consensusFeature1": "Parallele Abfragen an verschiedene Modelle für umfassende Perspektiven",
+    "consensusFeature2": "Aggregator synthetisiert die besten Teile zu einer einzigen hochwertigen Antwort",
+    "hint": "Wählen Sie den Modus basierend auf der Aufgabenkomplexität",
+    "deepSearchLabel": "Tief",
+    "deepSearchTitle": "Tiefensuche",
+    "deepSearchDescription": "Liest vollständige Webseiten für genaue, detaillierte Antworten. Dauert etwas länger, liefert aber höhere Qualität.",
+    "workflowModeLabel": "Workflow",
+    "workflowModeTitle": "Dynamischer Workflow-Modus",
+    "workflowModeDescription": "Startet parallele Multi-Agenten-Engine im Hintergrund, für massive komplexe Aufgaben wie vollständige Codebase-Refaktorierung. Hinweis: Hoher Token-Verbrauch."
+  },
+  "appUpdate": {
+    "readyTitle": "Update bereit",
+    "installingTitle": "Update wird installiert",
+    "errorTitle": "Update fehlgeschlagen"
+  }
+}

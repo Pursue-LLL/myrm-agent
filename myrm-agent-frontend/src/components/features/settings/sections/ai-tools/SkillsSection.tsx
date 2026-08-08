@@ -284,7 +284,7 @@ const SkillsSection = memo(() => {
       } catch (error) {
         // Check if this is a permission approval error
         if (error && typeof error === 'object' && 'name' in error && error.name === 'SkillPermissionRequiredError') {
-          const err = error as {
+          const err = error as unknown as {
             skillId: string;
             skillName: string;
             requiredPermissions: string[];
@@ -299,7 +299,7 @@ const SkillsSection = memo(() => {
             allowedDomains: skill?.allowed_domains,
           });
         } else if (error && typeof error === 'object' && 'name' in error && error.name === 'SkillBlockedError') {
-          const err = error as {
+          const err = error as unknown as {
             skillId: string;
             skillName: string;
             scanFindings: {
@@ -759,7 +759,7 @@ const SkillsSection = memo(() => {
               <div className="space-y-3">
                 <p>
                   {t('detail.scanBlockedDesc', {
-                    name: blockedSkill?.skillName,
+                    name: blockedSkill?.skillName ?? '',
                     count: blockedSkill?.scanFindings.length || 0,
                   })}
                 </p>
@@ -815,8 +815,8 @@ const SkillsSection = memo(() => {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDestructiveAction?.action === 'reset-to-default'
-                ? t('card.confirmResetDesc', { name: pendingDestructiveAction?.skill.name })
-                : t('card.confirmAcceptDesc', { name: pendingDestructiveAction?.skill.name })}
+                ? t('card.confirmResetDesc', { name: pendingDestructiveAction?.skill.name ?? '' })
+                : t('card.confirmAcceptDesc', { name: pendingDestructiveAction?.skill.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

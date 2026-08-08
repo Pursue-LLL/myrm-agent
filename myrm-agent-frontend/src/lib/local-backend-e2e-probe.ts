@@ -54,8 +54,9 @@ export async function waitForChromeE2eBackendBinding(maxWaitMs = 60_000): Promis
     }
 
     if (hasE2eApiBase()) {
-      const apiBase = window.__MYRM_E2E_API_BASE__.trim().replace(/\/+$/, '');
-      if (await probeE2eHealth(apiBase)) {
+      const apiBase = window.__MYRM_E2E_API_BASE__ as string;
+      const normalized = apiBase.trim().replace(/\/+$/, '');
+      if (await probeE2eHealth(normalized)) {
         return true;
       }
     }

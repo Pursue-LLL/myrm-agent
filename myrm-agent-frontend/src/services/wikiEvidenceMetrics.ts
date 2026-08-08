@@ -218,7 +218,7 @@ function persistDroppedBufferToStorage(): void {
 }
 
 function clampPendingCount(count: number | undefined): number {
-  if (!Number.isFinite(count)) {
+  if (count === undefined || !Number.isFinite(count)) {
     return 0;
   }
   return Math.max(0, Math.min(MAX_PENDING_DROPPED_EVENTS, Math.floor(count)));

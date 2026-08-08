@@ -47,7 +47,7 @@ export type ProgressItem = {
         diff_truncated?: boolean;
       }[] // 文件路径（用于 file_editor view）
     | { code: string }[]; // 代码内容（用于 bash_code_execute）
-  status?: 'success' | 'error' | 'warning' | 'cancelled'; // 步骤执行状态（warning 用于取消）
+  status?: 'success' | 'error' | 'warning' | 'cancelled' | 'complete'; // 步骤执行状态（warning 用于取消）
   error?: boolean | string; // 错误标记或错误信息
   error_category?: string; // 错误分类（用于显示特殊 Badge，如 OOM, Network Blocked）
   error_hint?: string; // 诊断建议（LLM 友好或用户友好的文字提示）

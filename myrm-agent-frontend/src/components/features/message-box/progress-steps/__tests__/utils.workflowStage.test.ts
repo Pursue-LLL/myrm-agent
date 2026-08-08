@@ -10,7 +10,7 @@ describe('getStepTitle workflow_stage', () => {
     const step: ProgressItem = {
       step_key: 'workflow_stage:analysis',
       notify_message: 'Phase 1: Collecting data',
-      status: 'in_progress',
+      status: 'complete',
     };
     expect(getStepTitle(step, t)).toBe('Phase 1: Collecting data');
   });

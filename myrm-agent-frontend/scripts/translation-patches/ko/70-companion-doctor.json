@@ -1,0 +1,50 @@
+{
+  "companion": {
+    "doctor": {
+      "title": "스프라이트 상태 점검",
+      "ready": "준비됨",
+      "issues": "{count}개 문제",
+      "runHint": "탭하여 진단",
+      "loading": "확인 중…",
+      "fix": "수정",
+      "refresh": "새로고침",
+      "rescan": "아틀라스 재검증",
+      "openFromSprite": "상태 점검",
+      "checks": {
+        "spriteEnabledPass": "스프라이트 오버레이가 UI에서 활성화되어 있습니다.",
+        "spriteEnabledFail": "스프라이트 오버레이가 UI에서 비활성화되어 있습니다."
+      },
+      "serverChecks": {
+        "feature_gate_companion_mode": {
+          "pass": "컴패니언 기능이 활성화되어 있습니다.",
+          "fail": "컴패니언 기능이 비활성화되어 있습니다."
+        },
+        "config_sprite_slug": {
+          "pass": "활성 펫이 \"{slug}\"(으)로 설정되어 있습니다.",
+          "fail": "컴패니언 설정에서 선택된 활성 펫이 없습니다."
+        },
+        "disk_installed_pets": {
+          "pass": "이 기기에 {count}개 펫이 설치되어 있습니다.",
+          "fail": "이 기기에 설치된 펫이 없습니다."
+        },
+        "disk_active_pet_files": {
+          "pass": "\"{slug}\"용 스프라이트시트 파일이 존재합니다.",
+          "fail": "활성 펫 스프라이트시트 파일이 없거나 설치되지 않았습니다."
+        },
+        "atlas_format": {
+          "pass": "스프라이트시트가 지원되는 Codex 또는 레거시 아틀라스 형식입니다.",
+          "warn": "아틀라스 형식이 비표준이지만 렌더링될 수 있습니다. 스프라이트가 이상하면 재설치하거나 재검증하세요.",
+          "fail": "스프라이트시트 아틀라스 형식이 유효하지 않습니다."
+        },
+        "config_sha256_match": {
+          "pass": "구성된 체크섬이 디스크의 스프라이트시트와 일치합니다.",
+          "warn": "구성된 체크섬이 디스크의 스프라이트시트와 일치하지 않습니다. 갤러리에서 펫을 다시 선택하세요."
+        },
+        "serve_file_readable": {
+          "pass": "로컬 서빙을 위해 스프라이트시트 파일을 읽을 수 있습니다.",
+          "fail": "디스크에서 스프라이트시트 파일을 읽을 수 없습니다."
+        }
+      }
+    }
+  }
+}

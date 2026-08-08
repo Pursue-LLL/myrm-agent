@@ -75,6 +75,7 @@ const CredentialsSection = memo(() => {
         handleDisconnectOauth={state.handleDisconnectOauth}
         handleGoogleWorkspaceConnect={state.handleGoogleWorkspaceConnect}
         handleSaveVaultCredential={state.handleSaveVaultCredential}
+        handleXaiOAuthConnect={state.handleXaiOAuthConnect}
         providerTreeCount={state.providerTreeCount}
         scopeInput={state.scopeInput}
         setClearSyncedMemory={state.setClearSyncedMemory}
@@ -96,6 +97,9 @@ const CredentialsSection = memo(() => {
         vaultModalOpen={state.vaultModalOpen}
         vaultPassword={state.vaultPassword}
         vaultTotp={state.vaultTotp}
+        xaiOauthPolling={state.xaiOauthPolling}
+        xaiUserCode={state.xaiUserCode}
+        xaiVerificationUrl={state.xaiVerificationUrl}
       />
     </SettingsSection>,
     locale,

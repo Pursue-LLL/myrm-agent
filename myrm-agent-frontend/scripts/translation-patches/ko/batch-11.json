@@ -1,0 +1,320 @@
+{
+  "toolApproval": {
+    "allowAlwaysConfirm": {
+      "scopeLabel": "일치 범위",
+      "scopePermission": "이 유형의 모든 도구 (권장하지 않음)",
+      "scopeExactDesc": "도구와 인자가 정확히 일치할 때만 자동 허용",
+      "scopePermissionDesc": "{permissionType} 유형의 모든 도구 자동 허용"
+    },
+    "permissionTypes": {
+      "codeInterpreter": "코드 실행",
+      "shellExec": "셸 명령",
+      "browser": "브라우저 작업",
+      "default": "이 유형"
+    },
+    "domain": {
+      "label": "대상 도메인",
+      "allowDomain": "이 도메인 항상 허용",
+      "allowDomainDesc": "이 도메인에 대한 향후 요청이 자동 승인됩니다 (현재 세션만)"
+    }
+  },
+  "notifications": {
+    "title": "시스템 알림",
+    "unread": "읽지 않음",
+    "empty": "새 알림이 없습니다",
+    "retry": "재시도",
+    "retrySuccess": "재대기열에 성공적으로 추가되었습니다",
+    "retryFailed": "재시도 실패, 메시지가 만료되었을 수 있습니다",
+    "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
+    "goToApproval": "승인으로 이동",
+    "configHealthWarning": "구성 문제 감지됨: {items}이(가) 올바르게 구성되지 않음",
+    "goToSettings": "설정으로 이동",
+    "newSkillDraft": "새 스킬 성장 사례가 준비되었습니다: {name}",
+    "reviewDraft": "검토 열기",
+    "messageDeadLettered": "{channel}로의 메시지 전달이 영구적으로 실패했습니다. 이유: {reason}",
+    "skillGrowthAutoApplied": "\"{name}\"이(가) 자동 적용되었습니다",
+    "skillGrowthFailedScan": "\"{name}\"이(가) 사전 비행 보안 스캔에 실패했습니다",
+    "skillGrowthBlockedLocked": "\"{name}\"은(는) 진화 잠금으로 보호되며 수동 검토가 필요합니다",
+    "openSkillGrowth": "스킬 성장 열기",
+    "skillEvolvedNew": "에이전트가 새 스킬을 학습했습니다: {name}",
+    "skillEvolvedPatch": "에이전트가 스킬을 개선했습니다: {name}",
+    "undoEvolve": "실행 취소",
+    "rollbackSuccess": "성공적으로 롤백됨: {name}",
+    "rollbackFailed": "롤백 실패, 다시 시도하세요",
+    "subagentRebindRequired": "하위 에이전트 바인딩이 변경되었습니다. 업데이트된 위임 도구를 사용하려면 새 채팅을 시작하세요.",
+    "subagentStale": "하위 에이전트가 중단되었습니다",
+    "noProgressFor": "진행 없음 기간",
+    "approvalRequired": "에이전트가 승인을 요청합니다: {actionType}",
+    "multipleApprovalsDescription": "여러 승인이 사용자 검토를 기다리고 있습니다.",
+    "reviewApproval": "지금 검토",
+    "databaseResetFailedDesc": "{message}",
+    "undoConsolidation": "실행 취소",
+    "undoConsolidationSuccess": "메모리 통합이 성공적으로 취소되었습니다",
+    "undoConsolidationFailed": "메모리 통합 취소 실패",
+    "budgetExceeded": "일일 예산 초과",
+    "budgetWarning": "일일 예산 한도에 근접 중",
+    "ecoModeActive": "에코 모드: 토큰 절약을 위해 컨텍스트 압축 중",
+    "kanbanTaskCompleted": "칸반 작업 완료",
+    "kanbanTaskBlocked": "칸반 작업 차단됨",
+    "kanbanTaskFailed": "칸반 작업 실패",
+    "goalCompleted": "목표 완료",
+    "goalCancelled": "목표 취소됨",
+    "goalBudgetLimited": "목표 예산 소진",
+    "goalNeedsReview": "목표 검토 필요",
+    "goalTerminal": "목표 종료됨",
+    "goalDequeued": "다음 목표 시작됨",
+    "goalMemoryArchived": "팀 메모리 업데이트됨 ({count}개 아키텍처 결정 보관)",
+    "goalMemoryPendingApproval": "아키텍처 결정이 승인을 기다립니다 ({count}개 항목)",
+    "goalMemoryArchiveFailed": "아키텍처 결정을 팀 메모리에 보관하지 못했습니다",
+    "correctionMemorySynced": "수정 사항이 팀 메모리에 동기화되었습니다",
+    "correctionMemoryPendingApproval": "수정 사항이 팀 메모리 승인을 기다립니다",
+    "frustrationSkillLearned": "스킬 \"{skillName}\"에 대한 선호도가 학습되었습니다",
+    "reviewSharedContextProposal": "메모리에서 검토"
+  },
+  "configConflict": {
+    "title": "구성 충돌 감지됨",
+    "description": "\"{configLabel}\"이(가) 다른 기기에서 업데이트되었습니다",
+    "serverVersion": "서버 버전",
+    "localVersion": "로컬 버전",
+    "device": "기기",
+    "unknown": "알 수 없음",
+    "keepLocal": "로컬 변경 유지",
+    "useServer": "서버 버전 사용",
+    "keepLocalDesc": "로컬 변경으로 서버를 덮어씁니다",
+    "useServerDesc": "로컬 변경을 버리고 서버 버전을 사용합니다"
+  },
+  "imageGen": {
+    "generated": "생성됨",
+    "download": "다운로드",
+    "regenerate": "재생성",
+    "editThisImage": "이 이미지 편집",
+    "editPromptPrefix": "위 이미지를 수정해 주세요: ",
+    "referenceImages": "참조 이미지",
+    "prompt": "프롬프트",
+    "model": "모델",
+    "size": "크기",
+    "latency": "지연 시간",
+    "lightboxClose": "닫기",
+    "loadError": "이미지 로드 실패"
+  },
+  "companion": {
+    "title": "컴패니언",
+    "enable": "컴패니언 활성화",
+    "enableDesc": "입력 상자 옆에 귀여운 컴패니언을 표시합니다",
+    "mute": "음소거",
+    "muteDesc": "시각 효과는 유지하되 버블과 반응을 숨깁니다",
+    "rename": "이름",
+    "renamePlaceholder": "이름 입력...",
+    "species": "종족",
+    "hat": "모자",
+    "noHat": "없음",
+    "defaultHat": "기본",
+    "close": "컴패니언 숨기기",
+    "settings": "컴패니언 설정",
+    "goalStatus": {
+      "complete": "목표 완료",
+      "active": "목표 재개됨"
+    },
+    "info": {
+      "rarity": "등급",
+      "stars": "별점",
+      "shiny": "샤이니",
+      "personality": "성격",
+      "petCount": "쓰다듬은 횟수",
+      "hatchedAt": "탄생일",
+      "birthday": "생일 축하해!"
+    },
+    "snack": {
+      "xpGain": "+10 XP"
+    },
+    "stats": {
+      "debugging": "디버깅",
+      "patience": "인내",
+      "chaos": "혼돈",
+      "wisdom": "지혜",
+      "snark": "비꼼"
+    },
+    "rarity": {
+      "Common": "일반",
+      "Uncommon": "희귀하지 않음",
+      "Rare": "희귀",
+      "Epic": "에픽",
+      "Legendary": "전설"
+    },
+    "completion": {
+      "0": "완료!",
+      "1": "다 됐어!",
+      "2": "준비됐어!",
+      "3": "여기 있어",
+      "4": "알았어!",
+      "5": "끝났어!",
+      "6": "짜잔!",
+      "7": "보라!",
+      "8": "펑!",
+      "9": "여기 있습니다!",
+      "10": "한번 봐봐!"
+    },
+    "evolution": {
+      "progressTitle": "→ {next}"
+    },
+    "gallery": {
+      "installedTitle": "설치됨",
+      "manifestOffline": "카탈로그를 지금 사용할 수 없습니다. 아래 설치된 펫은 계속 작동합니다.",
+      "uninstall": "제거",
+      "uninstallConfirm": "기기에서 이 펫을 제거하시겠습니까? 카탈로그에서 다시 설치할 수 있습니다.",
+      "uninstallError": "펫 제거 실패",
+      "cancel": "취소",
+      "companionGateError": "컴패니언 기능이 현재 비활성화되어 있습니다. 설정 → 개발자에서 다시 활성화하세요.",
+      "officialBadge": "공식",
+      "viewOnPetdex": "Petdex에서 보기",
+      "formatCodexStandard": "형식: Codex Standard",
+      "formatLegacyStandard": "형식: Legacy Standard",
+      "formatNonStandard": "형식: 비표준",
+      "formatInvalid": "형식: 잘못됨"
+    },
+    "sprite": {
+      "popOut": "데스크톱으로 꺼내기",
+      "popIn": "다시 가져오기",
+      "composerPlaceholder": "메시지…",
+      "composerSend": "보내기",
+      "mailOpen": "채팅 열기",
+      "bubble": {
+        "run0": "하고 있어…",
+        "run1": "작업 중…",
+        "run2": "열심히 하는 중…",
+        "review0": "확인 중…",
+        "review1": "검토 중…",
+        "review2": "이걸 보고 있어…",
+        "failed0": "장애가 발생했어",
+        "failed1": "뭔가 고장났어",
+        "wait0": "네가 필요해",
+        "wait1": "기다리고 있어",
+        "wait2": "네 차례야"
+      }
+    },
+    "palette": {
+      "title": "펫 팔레트",
+      "hint": "채팅에서 언제든 /pet을 입력하세요. 아래에서 펫을 선택해 설치하고 전환하세요."
+    }
+  },
+  "messageActions": {
+    "revertFilesWithCount": "{count}개 파일 변경 실행 취소",
+    "revertFilesBadgeAria": "{count}개 파일 변경 취소 가능",
+    "revertViewDiff": "diff 보기"
+  },
+  "errors": {
+    "configIncomplete": {
+      "title": "구성 필요",
+      "nextSteps": "다음 단계",
+      "skipForNow": "지금은 건너뛰기",
+      "configureNow": "지금 구성"
+    },
+    "failedToFetchRecoveryKey": "복구 키 가져오기 실패",
+    "failedToValidateRecoveryKey": "복구 키 검증 실패",
+    "networkError": "네트워크 오류가 발생했습니다",
+    "overloaded": {
+      "message": "AI 서비스가 일시적으로 과부하 상태입니다, 잠시 기다려주세요",
+      "hint": "사용 가능하면 시스템이 자동으로 백업 모델로 전환합니다."
+    },
+    "timeout": {
+      "message": "서비스 시간 초과, 다시 시도하세요",
+      "hint": "지속되면 네트워크 연결을 확인하거나 설정 → 모델 서비스에서 기본 URL을 확인하세요."
+    },
+    "unknown": {
+      "message": "알 수 없는 오류가 발생했습니다",
+      "hint": "문제가 지속되면 다시 시도하거나 지원팀에 문의하세요."
+    },
+    "billing": {
+      "message": "계정 잔액 부족",
+      "hint": "제공자 콘솔에서 충전하거나 다른 API 키로 전환하세요."
+    },
+    "session_expired": {
+      "message": "세션이 만료되었습니다, 다시 인증하세요",
+      "hint": "오른쪽 상단의 새로고침 버튼을 클릭하여 다시 로그인하세요."
+    },
+    "auth": {
+      "message": "인증 실패, API 키를 확인하세요",
+      "hint": "설정 → 모델 서비스로 이동하여 API 키가 올바르고 만료되지 않았는지 확인하세요."
+    },
+    "model_not_found": {
+      "message": "모델이 존재하지 않습니다, 구성을 확인하세요",
+      "hint": "설정 → 모델 서비스로 이동하여 모델 이름이 올바른지 확인하세요."
+    },
+    "format_error": {
+      "message": "잘못된 요청 형식",
+      "hint": "문제가 지속되면 지원팀에 문의하세요."
+    },
+    "context_overflow": {
+      "message": "대화가 너무 깁니다, 새 채팅을 시작하세요",
+      "hint": "시스템이 컨텍스트를 자동으로 압축할 때까지 기다릴 수도 있습니다."
+    }
+  },
+  "checkpoint": {
+    "title": "체크포인트",
+    "confirmDelete": "이 체크포인트를 삭제하시겠습니까?",
+    "confirmCleanup": "오래된 체크포인트를 정리하시겠습니까 (7일 TTL)?",
+    "resumable": "재개 가능",
+    "notResumable": "재개 불가",
+    "progress": "진행",
+    "lastTool": "마지막 도구",
+    "resume": "재개",
+    "delete": "삭제",
+    "deleting": "삭제 중...",
+    "refresh": "새로고침",
+    "cleaning": "정리 중...",
+    "loadError": "체크포인트 로드 실패",
+    "resumeError": "체크포인트 재개 실패",
+    "deleteError": "체크포인트 삭제 실패",
+    "cleanupError": "체크포인트 정리 실패",
+    "resumeSuccess": "체크포인트가 성공적으로 재개되었습니다",
+    "resumeSuccessDesc": "작업 {taskId} 재개됨",
+    "cleanupSuccess": "{deleted}개 체크포인트 정리됨",
+    "loading": "체크포인트 로딩 중...",
+    "empty": "체크포인트를 찾을 수 없습니다",
+    "noCheckpoints": "체크포인트를 찾을 수 없습니다",
+    "savedCheckpoints": "저장된 체크포인트"
+  },
+  "fileSnapshot": {
+    "title": "파일 스냅샷",
+    "restore": "복원",
+    "diff": "diff 보기",
+    "refresh": "새로고침",
+    "cleanup": "오래된 항목 정리",
+    "cleaning": "정리 중...",
+    "loading": "스냅샷 로딩 중...",
+    "noSnapshots": "파일 스냅샷을 찾을 수 없습니다",
+    "total": "총 {count}개 스냅샷",
+    "filesCount": "{count}개 파일",
+    "loadError": "파일 스냅샷 로드 실패",
+    "restoreError": "파일 스냅샷 복원 실패",
+    "diffError": "파일 diff 가져오기 실패",
+    "deleteError": "파일 스냅샷 삭제 실패",
+    "cleanupError": "파일 스냅샷 정리 실패",
+    "restoreSuccess": "{count}개 파일이 성공적으로 복원되었습니다",
+    "cleanupSuccess": "{deleted}개 파일 스냅샷 정리됨",
+    "confirmCleanup": "오래된 파일 스냅샷을 정리하시겠습니까?",
+    "diffTitle": "스냅샷 {snapshotId} 이후 변경 사항",
+    "noChanges": "이 스냅샷 이후 변경 사항 없음",
+    "panelTitle": "파일 스냅샷",
+    "selectAll": "전체 선택",
+    "restoreSelected": "선택한 {count}개 복원",
+    "confirmRestore": "{count}개 파일을 스냅샷 상태로 복원하시겠습니까?",
+    "confirmYes": "확인",
+    "confirmNo": "취소",
+    "restoring": "복원 중...",
+    "externalEffects": "외부",
+    "externalEffectsTooltip": "이 스냅샷에는 파일 롤백으로 되돌릴 수 없는 외부 작업({effects})이 포함되어 있습니다",
+    "restoreExternalWarning": "외부 작업({effects})이 수행되었으며 이 복원으로 되돌릴 수 없습니다",
+    "allAgents": "전체"
+  },
+  "SkillOptimization": {
+    "qualityScore": "품질 점수",
+    "successRate": "성공률",
+    "tokenEfficiency": "토큰 효율",
+    "executionTime": "실행 시간",
+    "userSatisfaction": "사용자 만족도",
+    "callFrequency": "호출 빈도",
+    "loading": "로딩 중...",
+    "noData": "데이터 없음"
+  }
+}

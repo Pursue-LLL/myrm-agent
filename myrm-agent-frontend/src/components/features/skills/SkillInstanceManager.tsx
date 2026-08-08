@@ -429,7 +429,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
           <DialogHeader>
             <DialogTitle>{t('editDialogTitle')}</DialogTitle>
             <DialogDescription>
-              {t('editDialogDescription', { name: selectedInstance?.instance_name })}
+              {t('editDialogDescription', { name: selectedInstance?.instance_name ?? '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -477,7 +477,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
           <AlertDialogHeader>
             <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('deleteDialogDescription', { name: selectedInstance?.instance_name })}
+              {t('deleteDialogDescription', { name: selectedInstance?.instance_name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

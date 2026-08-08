@@ -163,6 +163,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
   "S101",
+  "S310",  # 测试基础设施访问本地 HTTP 端点（带 timeout 的 urlopen）
   "INP001",
   "E402",
   "B011",

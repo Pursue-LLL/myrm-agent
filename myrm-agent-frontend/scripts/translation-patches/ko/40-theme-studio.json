@@ -1,0 +1,215 @@
+{
+  "settings": {
+    "themeStudio": {
+      "title": "테마 스튜디오",
+      "subtitle": "네 단계로 전체 작업공간 테마를 만들고 Myrm 레이아웃에서 미리보기한 후 적용하거나 내보내세요.",
+      "steps": {
+        "1": "히어로",
+        "2": "레이아웃",
+        "3": "스타일",
+        "4": "완료",
+        "heroDesc": "작업공간 배경용 PNG, JPEG, WebP 또는 MP4 루프를 업로드하세요."
+      },
+      "focusX": "가로 초점",
+      "focusY": "세로 초점",
+      "heroRecommend": {
+        "title": "추천 팔레트 및 레이아웃",
+        "body": "히어로 이미지에서 샘플링됨 (클라우드 없음, LLM 없음). 색상, 초점 및 권장 레이아웃을 적용하세요.",
+        "apply": "제안 적용",
+        "applied": "제안이 적용되었습니다",
+        "dismiss": "닫기"
+      },
+      "themeName": "테마 이름",
+      "themeNamePlaceholder": "내 작업공간 테마",
+      "tagline": "태그라인 (선택)",
+      "defaultThemeName": "내 작업공간 테마",
+      "back": "뒤로",
+      "next": "다음",
+      "apply": "작업공간에 적용",
+      "export": ".myrmtheme 내보내기",
+      "applySuccess": "테마가 적용되었습니다",
+      "applyFailed": "테마 적용 실패",
+      "exportSuccess": "테마 패키지가 다운로드되었습니다",
+      "exportFailed": "테마 내보내기 실패",
+      "livePreview": "라이브 작업공간에서 미리보기",
+      "openAiSkill": "AI 스킬로 생성",
+      "layouts": {
+        "fullBleed": {
+          "name": "풀 블리드",
+          "description": "전체 창을 감싸는 몰입형 배경.",
+          "guidance": "차분한 그라디언트나 넓은 장면을 사용하고 중앙을 읽기 쉽게 유지하세요."
+        },
+        "navRailFocus": {
+          "name": "내비 레일 포커스",
+          "description": "더 강한 탐색 표면과 부드러운 메인 캔버스.",
+          "guidance": "주제를 왼쪽 내비게이션 레일에서 멀리 배치하세요."
+        },
+        "chatHero": {
+          "name": "채팅 히어로",
+          "description": "가벼운 히어로 밴드가 있는 채팅 우선 레이아웃.",
+          "guidance": "빈 채팅 메시지를 위해 상단 영역을 조용하게 유지하세요."
+        },
+        "workDense": {
+          "name": "워크 덴스",
+          "description": "칸반, 설정 및 도구에 더 높은 표면 불투명도.",
+          "guidance": "긴 기능 세션과 가독성 우선 테마에 적합합니다."
+        }
+      },
+      "preview": {
+        "scene": {
+          "chat": "채팅",
+          "kanban": "칸반",
+          "settings": "설정",
+          "workDense": "기능 페이지"
+        }
+      },
+      "library": {
+        "title": "내 테마",
+        "empty": "저장된 테마가 아직 없습니다. 마법사를 완료하고 적용하면 여기에 추가됩니다.",
+        "apply": "적용",
+        "applied": "테마가 적용되었습니다",
+        "delete": "테마 삭제",
+        "deleted": "테마가 제거되었습니다"
+      },
+      "gallery": {
+        "title": "테마 갤러리",
+        "subtitle": "공식 및 커뮤니티 테마를 둘러보세요. 무료 테마는 원클릭 설치입니다.",
+        "tabs": {
+          "official": "공식",
+          "community": "커뮤니티",
+          "owned": "보유"
+        },
+        "loading": "갤러리 로드 중…",
+        "empty": "이 탭에 아직 테마가 없습니다.",
+        "searchEmpty": "검색과 일치하는 테마가 없습니다.",
+        "searchLabel": "테마 검색",
+        "searchPlaceholder": "이름 또는 태그라인으로 검색…",
+        "sortLabel": "테마 정렬",
+        "sort": {
+          "latest": "최신",
+          "popular": "인기",
+          "price": "가격"
+        },
+        "install": "설치",
+        "installing": "설치 중…",
+        "installed": "테마가 설치되었습니다",
+        "installFailed": "테마를 설치할 수 없습니다",
+        "recordInstallWarn": "테마가 설치되었지만 마켓플레이스 통계를 동기화할 수 없습니다. 테마는 활성 상태입니다.",
+        "priceFree": "무료",
+        "pricePaid": "${cents}",
+        "purchase": "구매",
+        "purchasing": "리디렉션 중…",
+        "purchaseFailed": "체크아웃을 시작할 수 없습니다",
+        "previewInstall": "미리보기 및 설치",
+        "previewTitle": "테마 설치",
+        "previewCancel": "취소",
+        "previewConfirm": "설치",
+        "paidSoon": "유료 체크아웃이 곧 제공됩니다",
+        "purchaseCompleting": "구매 완료 중…",
+        "purchaseReturnFailed": "구매는 성공했지만 설치에 실패했습니다.",
+        "purchaseRetryOwned": "보유 열고 설치"
+      },
+      "marketplaceGate": {
+        "needsAuthTitle": "클라우드 계정 연결",
+        "needsAuthBody": "마켓플레이스에서 테마를 탐색, 구매 및 설치하려면 로그인하세요.",
+        "offlineTitle": "마켓플레이스 오프라인",
+        "offlineBody": "제어 평면에 연결할 수 없습니다. 테마 스튜디오 4단계와 외형 설정 모두 .myrmtheme 파일 가져오기를 지원합니다 — 클라우드 계정이 필요 없습니다."
+      },
+      "creator": {
+        "title": "테마 제출",
+        "subtitle": "커뮤니티 검토를 위해 .myrmtheme 패키지를 업로드하세요.",
+        "fields": {
+          "name": "이름",
+          "slug": "슬러그",
+          "tagline": "태그라인",
+          "description": "설명",
+          "priceCents": "가격 (센트, 0 = 무료)",
+          "package": "테마 패키지"
+        },
+        "submit": "검토 제출",
+        "submitting": "제출 중…",
+        "inspecting": "패키지 검사 중…",
+        "submitted": "테마가 검토를 위해 제출되었습니다",
+        "mineTitle": "내 제출",
+        "mineEmpty": "아직 제출이 없습니다.",
+        "loading": "로딩 중…",
+        "installCount": "{count}개 설치",
+        "totalEarned": "총 수익: ${amount}",
+        "status": {
+          "pending": "검토 대기 중",
+          "pending_review": "검토 대기 중",
+          "published": "게시됨",
+          "rejected": "거부됨",
+          "suspended": "정지됨",
+          "draft": "초안"
+        },
+        "errors": {
+          "missingFields": "이름과 패키지 파일이 필요합니다",
+          "inspectFailed": "테마 패키지를 검사할 수 없습니다",
+          "submitFailed": "테마를 제출할 수 없습니다"
+        },
+        "preview": {
+          "packageImportTitle": "제출 전 검토",
+          "packageHeroPreview": "테마 미리보기",
+          "packageApply": "검토 제출",
+          "packageCancel": "취소",
+          "packageUnsignedHint": "이 패키지는 서명되지 않았습니다. 신뢰하는 출처의 테마만 제출하세요.",
+          "backgroundWash": "배경 워시"
+        }
+      },
+      "admin": {
+        "title": "테마 검토 큐",
+        "pendingSection": "검토 대기",
+        "catalogSection": "게시 카탈로그",
+        "catalogEmpty": "게시되거나 정지된 테마가 없습니다.",
+        "loading": "큐 로드 중…",
+        "empty": "검토 대기 테마가 없습니다.",
+        "approve": "승인",
+        "reject": "거부",
+        "suspend": "정지",
+        "restore": "복원",
+        "approved": "테마가 승인되었습니다",
+        "rejected": "테마가 거부되었습니다",
+        "suspended": "테마가 정지되었습니다",
+        "restored": "테마가 복원되었습니다",
+        "reviewFailed": "검토 작업 실패",
+        "moderationFailed": "관리 작업 실패",
+        "defaultReviewReason": "테마 스튜디오 관리자 패널에서 검토됨",
+        "rejectReasonLabel": "거부 사유",
+        "rejectReasonPlaceholder": "재제출 전에 작성자가 수정해야 할 사항을 설명하세요.",
+        "suspendReasonLabel": "정지 사유",
+        "suspendReasonPlaceholder": "이 목록이 갤러리에서 제거되는 이유를 설명하세요.",
+        "restoreReasonLabel": "복원 사유",
+        "restoreReasonPlaceholder": "이 목록이 재게시되는 이유를 설명하세요.",
+        "rejectConfirm": "거부 확인",
+        "suspendConfirm": "정지 확인",
+        "restoreConfirm": "복원 확인",
+        "moderationCancel": "취소",
+        "reasonTooShort": "사유는 최소 2자여야 합니다.",
+        "status": {
+          "published": "게시됨",
+          "suspended": "정지됨"
+        }
+      },
+      "recipeImport": {
+        "title": "AI 스킬에서 레시피 가져오기",
+        "hint": "generate-myrm-theme 의 JSON을 붙여넣은 후 필요한 경우 1단계에서 히어로 미디어를 업로드하세요.",
+        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "import": "레시피 가져오기",
+        "success": "레시피가 편집기에 가져와졌습니다",
+        "errors": {
+          "invalid_json": "잘못된 JSON",
+          "not_object": "레시피는 JSON 객체여야 합니다",
+          "missing_name": "name 이 필요합니다",
+          "invalid_layout": "layoutId 가 잘못되었습니다",
+          "invalid_font": "fontId 가 잘못되었습니다",
+          "invalid_palette": "팔레트 색상이 잘못되었습니다",
+          "invalid_art": "아트 설정이 잘못되었습니다"
+        }
+      },
+      "profilePicker": {
+        "savedTitle": "저장된 테마"
+      }
+    }
+  }
+}

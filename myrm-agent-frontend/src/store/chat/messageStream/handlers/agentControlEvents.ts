@@ -58,8 +58,8 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
       }
     });
 
-    if (data.retry_after_ms || data.cooldown_remaining_ms) {
-      const retryAfterMs = data.retry_after_ms || data.cooldown_remaining_ms;
+    const retryAfterMs = data.retry_after_ms || data.cooldown_remaining_ms;
+    if (retryAfterMs) {
       const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
       const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
       const toastMessage = lang?.startsWith('zh')
@@ -194,7 +194,6 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         }
         state.messages[messageIndex].progressSteps!.push({
           step_key: 'safety_fallback_active',
-          tool_name: null,
           status: 'warning',
           items: [{ text: data.message }],
         });

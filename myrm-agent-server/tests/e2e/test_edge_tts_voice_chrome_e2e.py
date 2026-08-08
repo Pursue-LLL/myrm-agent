@@ -335,9 +335,7 @@ def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]
     try:
         yield
     finally:
-        if _read_scope_active():
-            return
-        if _server_reachable():
+        if not _read_scope_active() and _server_reachable():
             try:
                 _http_json(
                     "PUT",

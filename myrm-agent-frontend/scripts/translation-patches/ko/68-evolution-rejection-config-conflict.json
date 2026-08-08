@@ -1,0 +1,68 @@
+{
+  "settingsTabs": {
+    "evolutionRejection": {
+      "totalEvents": "부정 이벤트",
+      "avgConfidenceHint": "신뢰도가 있는 이벤트만 포함됩니다",
+      "statusDistribution": "상태 분포",
+      "skill": "스킬",
+      "statusColumn": "상태",
+      "growthType": "성장 유형",
+      "reason": "사유",
+      "latestEvents": "최근 이벤트",
+      "latestEventsDescription": "스킬 성장 수명주기 전반의 최근 부정 결과 통합 피드.",
+      "sourceDraft": "초안 성장",
+      "sourceEvolution": "진화 검토",
+      "reasonCode": "사유 코드",
+      "actions": "작업",
+      "forceRetry": "강제 재시도",
+      "status": {
+        "PENDING_REVIEW": "검토 대기",
+        "AUTO_APPLIED": "자동 적용됨",
+        "FAILED_SCAN": "스캔 실패",
+        "BLOCKED_LOCKED": "잠금에 의해 차단됨",
+        "APPROVED": "승인됨",
+        "REJECTED": "거부됨",
+        "APPLY_FAILED": "적용 실패",
+        "pendingReview": "검토 대기",
+        "autoApplied": "자동 적용됨",
+        "failedScan": "스캔 실패",
+        "blockedLocked": "잠금에 의해 차단됨",
+        "approved": "승인됨",
+        "rejected": "거부됨",
+        "applyFailed": "적용 실패"
+      }
+    }
+  },
+  "common": {
+    "configConflict": {
+      "title": "구성 충돌 감지됨",
+      "description": "\"{configLabel}\"이(가) 다른 기기에서 업데이트되었습니다",
+      "serverVersion": "서버 버전",
+      "localVersion": "로컬 버전",
+      "device": "기기",
+      "unknown": "알 수 없음",
+      "keepLocal": "로컬 변경 유지",
+      "useServer": "서버 버전 사용",
+      "keepLocalDesc": "로컬 변경으로 서버를 덮어씁니다",
+      "useServerDesc": "로컬 변경을 버리고 서버 버전을 적용합니다",
+      "configLabels": {
+        "providers": "모델 제공자 구성",
+        "chatSettings": "채팅 설정",
+        "personalSettings": "개인 설정",
+        "mcpServers": "MCP 서버",
+        "searchServices": "검색 서비스",
+        "commands": "커스텀 명령",
+        "retrieval": "검색 구성",
+        "feishuCredentials": "Feishu 자격 증명",
+        "dingtalkCredentials": "DingTalk 자격 증명",
+        "slackCredentials": "Slack 자격 증명",
+        "discordCredentials": "Discord 자격 증명",
+        "wecomCredentials": "WeCom 자격 증명",
+        "wecomAibotCredentials": "WeCom AI 봇 자격 증명",
+        "teamsCredentials": "Teams 자격 증명",
+        "matrixCredentials": "Matrix 자격 증명",
+        "securityConfig": "보안 구성"
+      }
+    }
+  }
+}

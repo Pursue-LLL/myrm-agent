@@ -673,11 +673,11 @@ class AgentJobRunner:
                 )
 
             memory_settings = user_cfgs.personal_settings_dict or {}
-            from app.core.memory.proactive.settings import (
-                resolve_conversation_search_enabled,
-            )
             from app.core.agent.tool_description_locale import (
                 resolve_agent_params_locale,
+            )
+            from app.core.memory.proactive.settings import (
+                resolve_conversation_search_enabled,
             )
             from app.services.agent.resolve_enable_web_fetch import (
                 resolve_enable_web_fetch,

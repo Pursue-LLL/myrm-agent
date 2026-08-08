@@ -33,7 +33,9 @@ PersonalityStyleLiteral = Literal[
     "wenyan",
 ]
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
-MemoryExtractionPresetLiteral = Literal["none", "auto", "persona", "work_assistant", "research"]
+MemoryExtractionPresetLiteral = Literal[
+    "none", "auto", "persona", "work_assistant", "research"
+]
 PromptModeLiteral = Literal["full", "lean", "naked", "search"]
 WorkspacePolicyLiteral = Literal[
     "INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"
@@ -259,7 +261,9 @@ class ChatDetail(BaseModel):
     id: str = Field(..., description="聊天会话ID")
     title: str | None = Field(None, description="聊天标题")
     actionMode: str = Field(..., description="聊天模式")
-    activeMoaPresetId: str | None = Field(None, description="会话 MoA preset（agent 模式 opt-in）")
+    activeMoaPresetId: str | None = Field(
+        None, description="会话 MoA preset（agent 模式 opt-in）"
+    )
     agent_id: str | None = Field(None, description="绑定的智能体ID")
     is_incognito: bool = Field(False, description="是否为无痕模式")
     compacted_summary: str | None = Field(None, description="上下文压缩结构化摘要")
@@ -269,7 +273,8 @@ class ChatDetail(BaseModel):
         None, description="会话级 Skill override 列表"
     )
     session_access_roots: list[dict[str, object]] | None = Field(
-        None, description="Session-scoped HITL directory grants (path, writable, source)"
+        None,
+        description="Session-scoped HITL directory grants (path, writable, source)",
     )
     total_calls: int = Field(0, description="Session total model calls")
     total_tokens: int = Field(0, description="Session total tokens")
@@ -578,6 +583,10 @@ class AgentBase(BaseModel):
         default=False,
         description="Run adversarial delivery verification after unattended cron agent runs (verifier-only, no worker retry)",
     )
+    busy_input_mode: Literal["redirect", "steer", "queue"] | None = Field(
+        default=None,
+        description="What to do with a new user message while the agent is busy: redirect/steer/queue",
+    )
 
 
 class AgentCreate(AgentBase):
@@ -702,6 +711,10 @@ class AgentUpdate(BaseModel):
     cron_post_run_verify: bool | None = Field(
         None,
         description="Run adversarial delivery verification after unattended cron agent runs",
+    )
+    busy_input_mode: Literal["redirect", "steer", "queue"] | None = Field(
+        None,
+        description="What to do with a new user message while the agent is busy: redirect/steer/queue. None=不修改。",
     )
 
 

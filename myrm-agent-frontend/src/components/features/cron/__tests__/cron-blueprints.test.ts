@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Sun } from 'lucide-react';
 import type { BlueprintDef } from '@/services/cron';
 import {
   humanizeSchedule,
@@ -164,7 +165,7 @@ describe('cron-blueprints', () => {
   describe('buildBlueprintCreatePayload', () => {
     const mockBlueprint = {
       id: 'morning_briefing',
-      icon: () => null,
+      icon: Sun,
       titleKey: 'blueprint.morningBriefing.title',
       descKey: 'blueprint.morningBriefing.desc',
       promptKey: 'blueprint.morningBriefing.prompt',
@@ -185,6 +186,10 @@ describe('cron-blueprints', () => {
         name: 'Morning Briefing',
         required_capabilities: ['web_search_tool', 'net_fetch'],
         tools_allowed: ['web_search'],
+        job_type: 'agent',
+        session_target: 'main',
+        deduplicate: false,
+        skip_if_active: false,
       });
 
       const payload = await buildBlueprintCreatePayload(

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import ast
+import asyncio
 import json
 import os
 import subprocess
@@ -64,7 +64,6 @@ __all__ = [
     "guarded_httpx_request",
     "http_json",
     "navigate_mcp_page",
-    "navigate_settings_subroute",
     "open_mcp_page",
     "open_mcp_page_async",
     "open_settings_subroute",
@@ -293,11 +292,11 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         if platform_shell_fresh(route_path=path):
             heartbeat_e2e_lease()
             touch_wall_progress(current_node="warm_ui_route_skipped_registry_reuse")
-            request = urllib.request.Request(url, method="GET")  # noqa: S310
+            request = urllib.request.Request(url, method="GET")
             try:
                 with urllib.request.urlopen(
                     request, timeout=5.0
-                ) as response:  # noqa: S310
+                ) as response:
                     if int(response.status) == 200:
                         seal_platform_shell(ui_url=url, route_path=path)
                         try:
@@ -1019,32 +1018,6 @@ def wait_for_settings_layout(
     raise AssertionError(f"Settings layout did not become ready: {layout_ready}")
 
 
-def navigate_settings_subroute(
-    client: ChromeMcpClient,
-    page: McpPage,
-    target_url: str,
-    *,
-    timeout_ms: int = 90_000,
-    layout_timeout_sec: float = 45.0,
-) -> dict[str, object]:
-    """CDP navigate to a nested Settings URL and wait for settings-layout SSOT."""
-    expected_path = _settings_route_path(target_url)
-    navigate_mcp_page(client, page, target_url, timeout_ms=timeout_ms)
-    dismiss_blocking_modals(client, page, recover_url=target_url)
-    path = client.evaluate(page, "location.pathname", timeout_sec=15.0)
-    if not isinstance(path, str) or not path.startswith(expected_path):
-        raise AssertionError(
-            "Settings subroute navigate missed target: "
-            f"expected={expected_path!r} path={path!r}"
-        )
-    return wait_for_settings_layout(
-        client,
-        page,
-        page_url=target_url,
-        timeout_sec=layout_timeout_sec,
-    )
-
-
 def _settings_http_warm_skippable(route_path: str) -> bool:
     """Skip redundant HTTP warm when bootstrap hot path + registry shell are fresh."""
     hot = os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip()
@@ -1061,6 +1034,41 @@ def _settings_http_warm_skippable(route_path: str) -> bool:
         return platform_shell_fresh(route_path=shell_route)
     except ImportError:
         return hot == "reused"
+
+
+_SETTINGS_DISMISSAL_BINDING_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    sessionStorage.removeItem('e2e_warm_platform_readiness');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
+
+_ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE: bool | None = None
+
+
+def _orchestrator_atomic_route_available() -> bool:
+    """True when the live daemon exposes the page/openAppRoute RPC (NAV-2/NAV-3).
+
+    Cached per process — the daemon capability only changes on rebuild/restart.
+    """
+    global _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE
+    if _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE is not None:
+        return _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE
+    try:
+        from browser_orchestrator_client import (  # noqa: PLC0415
+            BrowserOrchestratorClient,
+        )
+
+        _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE = (
+            BrowserOrchestratorClient().supports_open_app_route()
+        )
+    except (ImportError, OSError, RuntimeError, TimeoutError):
+        _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE = False
+    return _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE
 
 
 @contextmanager
@@ -1091,8 +1099,10 @@ def open_settings_subroute(
         target_url = f"{ui_base}{path_only}{query}"
 
     if _parallel_chrome_e2e_active():
-        timeout_ms = min(timeout_ms, 60_000)
-        request_timeout_sec = min(request_timeout_sec, 60.0)
+        parallel_budget = _warm_ui_parallel_wait_sec(90.0)
+        timeout_ms = max(timeout_ms, min(int(parallel_budget * 1000), 180_000))
+        request_timeout_sec = max(request_timeout_sec, parallel_budget)
+        layout_timeout_sec = max(layout_timeout_sec, _warm_ui_parallel_wait_sec(60.0))
 
     if warm:
         skip_parallel_http_warm = _parallel_chrome_e2e_active()
@@ -1117,9 +1127,46 @@ def open_settings_subroute(
             pass
         _trigger_attach_client_warmup_once(page_url=target_url)
 
-    # Orchestrator absorbs shell reclaim + subroute navigate atomically via
-    # _settings_open_plan — avoid test-layer navigate_mcp_page (§19.11.9 / W3c).
+    # Orchestrator absorbs shell reclaim + subroute navigate + hydration
+    # atomically via open_app_route (NAV-2/NAV-3) — zero test-layer navigate,
+    # zero reload + second-hydrate storm (§19.11.11.2 dead paths deleted).
     touch_wall_progress(current_node="open_settings_subroute_page_open")
+    atomic_available = (
+        os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
+        and _orchestrator_atomic_route_available()
+    )
+    if atomic_available:
+        from browser_orchestrator_e2e import open_app_route_page
+
+        with open_app_route_page(
+            target_url,
+            request_timeout_sec=request_timeout_sec,
+            hydrate_timeout_sec=max(
+                45.0,
+                _warm_ui_parallel_wait_sec(layout_timeout_sec)
+                if _parallel_chrome_e2e_active()
+                else layout_timeout_sec,
+            ),
+            binding_expression=_SETTINGS_DISMISSAL_BINDING_JS,
+        ) as (client, page):
+            _ensure_orchestrator_shared_ui_session(client, page)
+            _ensure_e2e_private_api_live(
+                client,
+                page,
+                timeout_sec=_warm_ui_parallel_wait_sec(90.0)
+                if _parallel_chrome_e2e_active()
+                else 45.0,
+            )
+            try:
+                dismiss_blocking_modals(client, page, recover_url=target_url)
+            except (AssertionError, RuntimeError, TimeoutError, OSError):
+                pass
+            _recover_chrome_error_page(client, page, target_url=target_url)
+            _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
+            heartbeat_e2e_lease()
+            yield client, page  # type: ignore[misc]
+        return
+
     with open_mcp_page(
         target_url,
         timeout_ms=timeout_ms,
@@ -1128,20 +1175,16 @@ def open_settings_subroute(
     ) as (client, page):
         client.evaluate(
             page,
-            """(() => {
-              try {
-                sessionStorage.setItem('migration_discovery_dismissed', 'true');
-                sessionStorage.setItem('competitor_migration_dismissed', 'true');
-                sessionStorage.setItem('e2e_skip_deferred_locale', 'true');
-                sessionStorage.removeItem('e2e_warm_platform_readiness');
-              } catch (err) {
-                return { ok: false, err: String(err) };
-              }
-              return { ok: true };
-            })()""",
+            _SETTINGS_DISMISSAL_BINDING_JS,
             timeout_sec=15.0,
         )
-        _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
+        _ensure_e2e_private_api_live(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0)
+            if _parallel_chrome_e2e_active()
+            else 45.0,
+        )
         reload_mcp_page(
             client,
             page,
@@ -2305,6 +2348,119 @@ def _coerce_evaluate_result(raw: object) -> dict[str, object]:
     return {"value": raw}
 
 
+_WINDOW_RESTORE_LAST_TS: dict[str, float] = {}
+_WINDOW_RESTORE_COOLDOWN_SEC = 8.0
+
+
+def _restore_e2e_window_via_cdp(page: object) -> bool:
+    """Bring the owning browser window back to a visible (frontmost) state.
+
+    Window policy is OFFSCREEN-NORMAL: the orchestrator parks every background
+    tab at an offscreen normal position (never minimized) so Chrome keeps
+    running requestAnimationFrame. However, on macOS a window that is NOT
+    frontmost still reports ``document.visibilityState === "hidden"`` (Chrome
+    occludes it), which freezes React rendering — the UI stays on its skeleton
+    while the store is already hydrated. ``document.visibilityState`` only
+    flips to ``"visible"`` once the tab is its window's active tab AND the
+    window is frontmost. This helper therefore sets normal bounds and then
+    issues ``Page.bringToFront`` to activate the tab. Cooldown-guarded; direct
+    CDP via the E2E Chrome port — no orchestrator RPC change needed.
+    """
+    target_id = str(getattr(page, "target_id", "") or "")
+    if not target_id:
+        return False
+    now = time.monotonic()
+    if now - _WINDOW_RESTORE_LAST_TS.get(target_id, 0.0) < _WINDOW_RESTORE_COOLDOWN_SEC:
+        return False
+    port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/json/version", timeout=5
+        ) as resp:
+            browser_ws = str(json.load(resp)["webSocketDebuggerUrl"])
+    except (OSError, TimeoutError, ValueError, KeyError):
+        return False
+    try:
+        from websockets.sync.client import connect as _ws_connect
+    except ImportError:
+        return False
+    try:
+        with _ws_connect(browser_ws, open_timeout=10, close_timeout=5) as ws:
+            ws.send(
+                json.dumps(
+                    {
+                        "id": 1,
+                        "method": "Browser.getWindowForTarget",
+                        "params": {"targetId": target_id},
+                    }
+                )
+            )
+            while True:
+                msg = json.loads(ws.recv(timeout=15))
+                if msg.get("id") == 1:
+                    break
+            window_id = msg.get("result", {}).get("windowId")
+            if not window_id:
+                return False
+            ws.send(
+                json.dumps(
+                    {
+                        "id": 2,
+                        "method": "Browser.setWindowBounds",
+                        "params": {
+                            "windowId": window_id,
+                            "bounds": {
+                                "windowState": "normal",
+                                "left": -24000,
+                                "top": -24000,
+                                "width": 1400,
+                                "height": 900,
+                            },
+                        },
+                    }
+                )
+            )
+            while True:
+                msg2 = json.loads(ws.recv(timeout=15))
+                if msg2.get("id") == 2:
+                    break
+    except (OSError, TimeoutError, ValueError):
+        return False
+    # Page.bringToFront (target session) makes the tab its window's active tab
+    # and raises the window to the front — the only way to flip visibilityState
+    # from 'hidden' to 'visible' on macOS.
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/json/list", timeout=5
+        ) as resp:
+            targets = json.load(resp)
+        target_ws = next(
+            (
+                t.get("webSocketDebuggerUrl")
+                for t in targets
+                if t.get("id") == target_id
+            ),
+            None,
+        )
+        if not target_ws:
+            return False
+        with _ws_connect(target_ws, open_timeout=10, close_timeout=5) as ws:
+            ws.send(json.dumps({"id": 1, "method": "Page.enable"}))
+            while True:
+                msg = json.loads(ws.recv(timeout=15))
+                if msg.get("id") == 1:
+                    break
+            ws.send(json.dumps({"id": 2, "method": "Page.bringToFront"}))
+            while True:
+                msg = json.loads(ws.recv(timeout=15))
+                if msg.get("id") == 2:
+                    break
+    except (OSError, TimeoutError, ValueError):
+        return False
+    _WINDOW_RESTORE_LAST_TS[target_id] = time.monotonic()
+    return True
+
+
 _REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
   ready:
     typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function'
@@ -2354,7 +2510,6 @@ def _trigger_attach_frontend_heal_once() -> None:
 
 def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
     """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT)."""
-    import subprocess
 
     global _ATTACH_CLIENT_WARMUP_URLS
     ui = (page_url or f"{get_e2e_ui_url().rstrip('/')}/").rstrip("/") + "/"
@@ -2605,6 +2760,7 @@ def wait_for_state(
         )
     )
     transport_streak = 0
+    dom_hidden = False
     ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
     eval_cap = 25.0 if parallel_active else 60.0
     reload_timeout_ms = _settings_heal_reload_timeout_ms()
@@ -2637,14 +2793,43 @@ def wait_for_state(
         last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last
+        window_hidden = bool(last.get("__windowHidden"))
         body_probe = int(last.get("bodyLength") or last.get("bodyLen") or 0)
+        if (
+            last.get("ready") is not True
+            and not dom_hidden
+            and (window_hidden or body_probe > 0)
+            and _restore_e2e_window_via_cdp(page)
+        ):
+            # Window went hidden (offscreen policy regression or external
+            # minimize) — Chrome pauses rendering and the UI freezes on its SSR
+            # skeleton. Restore the window and re-evaluate instead of failing on
+            # a frozen skeleton.
+            continue
+        if body_probe == 0 and not dom_hidden:
+            # innerText reads '' while the window is offscreen-hidden (AOS agent
+            # surface) even when the DOM is fully rendered. Reloading cannot
+            # restore innerText and would wipe attached store state, so never
+            # heal a page whose DOM already has text.
+            try:
+                tc_raw = client.evaluate(
+                    page,
+                    "(() => ({ n: (document.body?.textContent?.trim() || '').length }))()",
+                    timeout_sec=5.0,
+                )
+                tc_state = _coerce_evaluate_result(tc_raw)
+                dom_hidden = int(tc_state.get("n") or 0) > 0
+            except (RuntimeError, TimeoutError, OSError):
+                dom_hidden = True
         if (
             page_url
             and reload_passes < max_reload_passes
             and body_probe == 0
+            and not dom_hidden
             and polls in {2, 5, 10, 20, 40}
         ):
             reload_passes += 1
+            dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_empty_body_heal")
             _trigger_attach_client_warmup_once(
                 page_url=page_url if isinstance(page_url, str) else None
@@ -2671,9 +2856,11 @@ def wait_for_state(
             and reload_passes < max_reload_passes
             and blank_heal_mode == "direct"
             and polls in {4, 8, 16, 32, 56}
+            and not dom_hidden
             and (_state_looks_blank(last) or last.get("deferredLoading") is True)
         ):
             reload_passes += 1
+            dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_deferred_heal")
             _trigger_attach_client_warmup_once(
                 page_url=page_url if isinstance(page_url, str) else None
@@ -2687,9 +2874,11 @@ def wait_for_state(
             page_url
             and reload_passes < max_reload_passes
             and polls in {16, 48, 96, 160}
+            and not dom_hidden
             and _state_looks_blank(last)
         ):
             reload_passes += 1
+            dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_blank_heal")
             try:
                 if blank_heal_mode == "direct" or settings_route:
@@ -2832,6 +3021,73 @@ def _plan_confirm_state_from_messages(
     return {"phase": "none"}
 
 
+def _dw_unattended_enabled(api_base: str) -> bool:
+    """True when YOLO or plan_confirm disabled — DW skips plan_confirm HITL."""
+    try:
+        payload = http_json("GET", f"{api_base.rstrip('/')}/api/v1/config/securityConfig")
+    except (RuntimeError, OSError, ValueError):
+        return False
+    raw = payload.get("value") if isinstance(payload, dict) else payload
+    if not isinstance(raw, dict):
+        return False
+    yolo_enabled = bool(raw.get("yoloModeEnabled") or raw.get("yolo_mode_enabled"))
+    plan_confirm_enabled = bool(
+        raw.get("planConfirmEnabled") if raw.get("planConfirmEnabled") is not None
+        else raw.get("plan_confirm_enabled", True)
+    )
+    return yolo_enabled or not plan_confirm_enabled
+
+
+def _wait_for_yolo_dw_plan_skip(
+    *,
+    api_base: str,
+    chat_id: str,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """YOLO/unattended DW has no plan_confirm card — wait for assistant stream start."""
+    normalized_chat_id = chat_id.strip()
+    if not normalized_chat_id:
+        raise ValueError("chat_id is required for YOLO DW plan skip wait")
+    base = api_base.rstrip("/")
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    terminal_statuses = {"complete", "success", "error", "cancelled", "budget_blocked"}
+    while time.monotonic() < deadline:
+        touch_wall_progress(current_node="workflow_plan_yolo_skip_wait")
+        try:
+            payload = http_json(
+                "GET",
+                f"{base}/api/v1/chats/{normalized_chat_id}/messages",
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(0.25)
+            continue
+        messages = _messages_from_api_payload(payload)
+        plan_state = _plan_confirm_state_from_messages(messages)
+        if plan_state.get("phase") == "waiting":
+            break
+        stream_probe = _api_stream_probe_from_messages(messages)
+        last = stream_probe
+        sample = str(stream_probe.get("sample") or "")
+        completion_status = str(stream_probe.get("completionStatus") or "")
+        user_count = int(stream_probe.get("userCount") or 0)
+        if user_count >= 1 and (
+            completion_status in terminal_statuses
+            or len(sample.strip()) >= 15
+        ):
+            return {
+                "ready": True,
+                "confirmedVia": "yolo_skip",
+                "streamProbe": stream_probe,
+            }
+        time.sleep(0.25)
+    raise AssertionError(
+        f"YOLO DW stream did not start within {timeout_sec}s "
+        f"for chat {normalized_chat_id}: {last}"
+    )
+
+
 def _try_confirm_workflow_plan_via_api(
     client: ChromeMcpClient,
     page: McpPage,
@@ -2901,7 +3157,7 @@ def _api_stream_probe_from_messages(
     metadata = last_assistant.get("metadata")
     meta = metadata if isinstance(metadata, dict) else {}
     completion_status = str(meta.get("completionStatus") or "")
-    is_complete = completion_status in {"complete", "error", "cancelled"}
+    is_complete = completion_status in {"complete", "error", "cancelled", "success", "budget_blocked"}
     sample = _assistant_text_from_api_message(last_assistant)
     message_id_raw = last_assistant.get("messageId") or last_assistant.get("id")
     message_id = message_id_raw if isinstance(message_id_raw, str) else None
@@ -2962,12 +3218,50 @@ def wait_for_dw_stream_done_via_api(
                 "Dynamic Workflow stream failed — orchestration not approved: "
                 f"{last}"
             )
+        terminal_statuses = {"complete", "success", "error", "budget_blocked"}
+        if (
+            completion_status in terminal_statuses
+            and len(sample.strip()) >= min_assistant_chars
+        ):
+            return {**last, "chatId": normalized_chat_id, "source": "api"}
         if last.get("ready") is True and len(sample.strip()) >= min_assistant_chars:
             return {**last, "chatId": normalized_chat_id, "source": "api"}
         time.sleep(2.0)
     raise AssertionError(
         f"DW stream did not complete within {timeout_sec}s via API "
         f"for chat {normalized_chat_id}: {last}"
+    )
+
+
+_WAIT_CHAT_SEND_IDLE_JS = """(() => ({
+  isStreaming: window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.isStreaming === true,
+}))()"""
+
+
+def wait_for_chat_send_idle(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float = 120.0,
+) -> None:
+    """Wait until chat store loading clears so sendWorkflowTemplateRun is not busy."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        touch_wall_progress(current_node="wait_for_chat_send_idle")
+        try:
+            raw = client.evaluate(
+                page,
+                _WAIT_CHAT_SEND_IDLE_JS,
+                timeout_sec=min(15.0, max(5.0, deadline - time.monotonic())),
+            )
+        except (RuntimeError, TimeoutError, OSError):
+            time.sleep(1.0)
+            continue
+        if isinstance(raw, dict) and raw.get("isStreaming") is not True:
+            return
+        time.sleep(1.0)
+    raise AssertionError(
+        f"Chat send path still busy after {timeout_sec}s (submitWorkflowTemplateRun loading gate)"
     )
 
 
@@ -2990,6 +3284,12 @@ def wait_for_workflow_plan_card(
     resolved_url = page_url or get_e2e_ui_url()
     resolved_api_base = (api_base or get_e2e_api_url()).rstrip("/")
     normalized_chat_id = chat_id.strip() if isinstance(chat_id, str) else ""
+    if normalized_chat_id and _dw_unattended_enabled(resolved_api_base):
+        return _wait_for_yolo_dw_plan_skip(
+            api_base=resolved_api_base,
+            chat_id=normalized_chat_id,
+            timeout_sec=resolved_timeout,
+        )
     deadline = time.monotonic() + resolved_timeout
     last: dict[str, object] = {}
     blank_bridge_attempts = 0

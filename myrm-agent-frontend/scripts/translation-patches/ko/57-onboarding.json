@@ -1,0 +1,86 @@
+{
+  "boot": {
+    "onboarding": {
+      "migrationTitle": "히스토리 데이터 발견됨",
+      "migrationDescription": "다른 AI 어시스턴트의 데이터를 찾았습니다. 원활하게 가져올까요?",
+      "migrationCloudTitle": "다른 어시스턴트에서 가져오기",
+      "migrationCloudDescription": "내보내기 패키지를 업로드하여 메모리와 작업 공간 기본 설정을 클라우드 샌드박스로 마이그레이션하세요.",
+      "skipStep": "건너뛰기",
+      "capabilitiesTitle": "AI 엔진 구성",
+      "syncFolder": {
+        "pageTitle": "노트 폴더 연결",
+        "pageDescription": "선택 사항: Obsidian, Typora 또는 동기화된 문서 폴더에 어시스턴트를 연결하세요.",
+        "hint": "파일은 기기 내에 유지됩니다. 어시스턴트가 해당 위치에서 직접 편집하며 별도 데이터베이스로 가져오지 않습니다.",
+        "chooseFolder": "폴더 선택",
+        "preparing": "준비 중…",
+        "skip": "나중에 하기",
+        "defaultProjectName": "내 파일"
+      },
+      "noLocalModel": "로컬 모델이 감지되지 않았습니다. 나중에 설정에서 API 키를 직접 구성할 수 있습니다.",
+      "configureLater": "나중에 구성",
+      "searchReady": "준비됨",
+      "enterWorkspace": "작업 공간 입장",
+      "cloudProviderGemini": "Google Gemini",
+      "cloudProviderSiliconFlow": "SiliconFlow",
+      "cloudProviderOpenRouter": "OpenRouter",
+      "smartGuard": {
+        "pageTitle": "스마트 보안 가드",
+        "pageDescription": "위험한 작업을 차단하면서 위험도가 낮은 작업은 자동 승인합니다 — 중단은 줄이고 안전은 유지하세요.",
+        "title": "스마트 의도 가드",
+        "description": "가벼운 LLM이 실행 전에 각 도구 작업을 검토합니다. 안전한 작업은 즉시 진행되고 위험한 작업은 명시적 승인을 요구합니다.",
+        "modelLabel": "검토 모델",
+        "modelPlaceholder": "보안 검토용 모델 선택",
+        "costHint": "가벼운 모델을 권장합니다 — 각 검토는 최소 토큰만 사용합니다.",
+        "skip": "건너뛰기",
+        "enable": "스마트 가드 활성화"
+      },
+      "telegramAssistant": {
+        "pageTitle": "텔레그램 어시스턴트 연결",
+        "pageDescription": "안내된 단계에 따라 개인 텔레그램 어시스턴트를 설정하세요.",
+        "title": "텔레그램 개인 어시스턴트",
+        "description": "봇 토큰을 연결하고 어시스턴트 프로필을 설정하면 추가 설정 없이 휴대폰에서 채팅을 시작할 수 있습니다.",
+        "safetyHint": "연결 검증과 롤백 보호 포함",
+        "tokenLabel": "텔레그램 봇 토큰",
+        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        "showToken": "토큰 표시",
+        "hideToken": "토큰 숨기기",
+        "tokenRequired": "텔레그램 봇 토큰이 필요합니다.",
+        "webhookLabel": "웹훅 URL (선택)",
+        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
+        "webhookHint": "비워두면 폴링 모드를 사용합니다. 웹훅 URL을 제공하는 경우 HTTPS를 사용하세요.",
+        "webhookHttpsRequired": "웹훅 URL은 https://로 시작해야 합니다",
+        "assistantNameLabel": "어시스턴트 이름",
+        "assistantDescriptionLabel": "어시스턴트 설명 (선택)",
+        "assistantDescriptionPlaceholder": "예: 나의 일일 플래너이자 실행 코파일럿",
+        "defaultAssistantName": "개인 텔레그램 어시스턴트",
+        "setupButton": "텔레그램 어시스턴트 설정",
+        "retryButton": "연결 재시도",
+        "continueButton": "지금은 계속",
+        "skipButton": "나중에 하기",
+        "pendingTitle": "텔레그램 구성 완료, 연결 준비 중",
+        "pendingDescription": "{botUsername}에 연결되기까지 몇 초가 걸릴 수 있습니다. 지금 계속하거나 연결 확인을 재시도할 수 있습니다.",
+        "pendingToast": "구성이 저장되었습니다. 텔레그램 연결이 초기화 중입니다.",
+        "retryingToast": "다른 설정 요청이 마무리되는 중입니다. 지금 재시도합니다...",
+        "inProgressFriendlyError": "설정이 아직 진행 중입니다. 몇 초 기다린 후 다시 시도하세요.",
+        "setupFailed": "텔레그램 어시스턴트 설정에 실패했습니다.",
+        "setupFailedToast": "텔레그램 설정에 실패했습니다. 자격 증명을 확인하고 다시 시도하세요.",
+        "successToast": "텔레그램 어시스턴트 준비 완료: {agentName}"
+      },
+      "toolsConnect": {
+        "pageTitle": "일상적인 도구 연결",
+        "pageDescription": "어시스턴트가 매일 사용하는 서비스에 접근하도록 하세요. 나중에 설정에서 언제든 추가할 수 있습니다.",
+        "connected": "연결됨",
+        "connectButton": "연결",
+        "moreHint": "설정 → 통합에서 30개 이상의 연동 사용 가능",
+        "continueButton": "계속",
+        "skipButton": "나중에 하기"
+      },
+      "themePick": {
+        "pageTitle": "작업 공간 모양 선택",
+        "pageDescription": "채팅, 칸반, 설정의 시작 테마를 선택하세요. 언제든 모양 설정에서 더 자세히 사용자 지정할 수 있습니다.",
+        "continueButton": "계속",
+        "skipButton": "기본값 유지"
+      }
+    }
+  }
+}

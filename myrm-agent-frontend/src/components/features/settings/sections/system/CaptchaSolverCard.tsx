@@ -24,7 +24,7 @@ const CaptchaSolverCard = memo(() => {
   const [config, setConfig] = useState<CaptchaSolverConfigValue>(DEFAULT_CONFIG);
   const [apiKeyText, setApiKeyText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     try {

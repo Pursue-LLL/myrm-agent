@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.chat.compact_service import CompactResult
 from app.services.agent.stream_session.pre_reply_compact_sse import (
     append_pre_reply_compact_sse,
     run_pre_reply_compact_with_sse,
 )
+from app.services.chat.compact_service import CompactResult
 
 
 @pytest.mark.asyncio

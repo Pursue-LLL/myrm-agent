@@ -22,7 +22,6 @@ import tempfile
 
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
-from app.channels.i18n import resolve_message_locale
 from app.channels.types import InboundMessage, MediaAttachment, MediaType, OutboundMessage
 from app.core.channel_bridge.config_parsers import SessionPolicy
 from app.core.channel_bridge.executor_helpers import (

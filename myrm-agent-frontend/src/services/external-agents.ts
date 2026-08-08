@@ -93,13 +93,16 @@ export function hasExternalCliBackendAvailable(
 export async function* streamExternalAgentInstall(
   backend: string
 ): AsyncGenerator<ExternalAgentAuthEvent, void, unknown> {
-  const response = await fetchWithTimeout(`/external-agents/install/${backend}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'text/event-stream',
+  const response = await fetchWithTimeout(
+    `/external-agents/install/${backend}`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'text/event-stream',
+      },
     },
-    timeout: 300000, // 5 minutes for installation
-  });
+    300000, // 5 minutes for installation
+  );
 
   if (!response.body) {
     throw new Error('No response body');

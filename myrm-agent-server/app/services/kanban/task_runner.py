@@ -42,13 +42,13 @@ from myrm_agent_harness.toolkits.kanban.types import (
     has_completion_intent,
 )
 
+from app.core.channel_bridge.persistent_background import is_persistent_background
 from app.services.agent.goal_registry import GoalRegistry
 from app.services.agent.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     resolve_builtin_tool_flags,
 )
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
-from app.core.channel_bridge.persistent_background import is_persistent_background
 from app.services.kanban.task_runner_profile import (
     _ResolvedProfile,
     resolve_agent_profile,
@@ -421,10 +421,10 @@ class KanbanTaskRunner:
         if workspace_root:
             declared_roots = (workspace_root,)
 
+        from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.core.memory.proactive.settings import (
             resolve_conversation_search_enabled,
         )
-        from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         kanban_agent_security_raw = profile.security_overrides if profile else None

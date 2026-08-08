@@ -33,11 +33,12 @@ async def seed_wiki_provenance_gap_fixture(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
-    from app.services.wiki.vault_service import get_wiki_archiver
     from myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint import (
         collect_provenance_gap_issues,
     )
+
+    from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
+    from app.services.wiki.vault_service import get_wiki_archiver
 
     suffix = uuid4().hex[:8]
     archiver = get_wiki_archiver(None, agent_id=agent_id)

@@ -34,6 +34,8 @@ from app.core.eval.service import (
     get_matrix_eval_status,
     run_eval_suite_background,
     run_matrix_eval_background,
+    run_wb_bench_background,
+    run_wb_bench_download_background,
     save_eval_cases,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
@@ -45,6 +47,79 @@ router = APIRouter(prefix="/eval", tags=["eval"])
 
 class EvalCasesRequest(BaseModel):
     content: str
+
+
+# ---------------------------------------------------------------------------
+# WorkBuddy Bench — external benchmark dataset sources
+# ---------------------------------------------------------------------------
+
+
+@router.get("/wb-bench/sources")
+async def list_wb_bench_sources() -> dict[str, object]:
+    """List the WorkBuddy Bench subsets with local download status."""
+    from app.core.eval.wb_bench import list_wb_bench_sources
+
+    return {"status": "success", "sources": list_wb_bench_sources()}
+
+
+class WbBenchRunRequest(BaseModel):
+    subset_id: str
+    profile_id: str | None = None
+    benchmark_mode: bool = False
+
+
+class WbBenchDownloadRequest(BaseModel):
+    subset_id: str
+
+
+@router.post("/wb-bench/run")
+async def run_wb_bench(
+    background_tasks: BackgroundTasks,
+    request: WbBenchRunRequest,
+) -> dict[str, object]:
+    """Download (if needed) and run a WorkBuddy Bench subset in the background."""
+    status_info = get_eval_status()
+    if status_info.get("is_running"):
+        return {"status": "already_running", "info": status_info}
+
+    from app.core.eval.wb_bench import WB_BENCH_SUBSETS
+
+    if request.subset_id not in WB_BENCH_SUBSETS:
+        return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
+
+    background_tasks.add_task(
+        run_wb_bench_background,
+        subset_id=request.subset_id,
+        profile_id=request.profile_id,
+        benchmark_mode=request.benchmark_mode,
+    )
+    return {"status": "started"}
+
+
+@router.post("/wb-bench/download")
+async def download_wb_bench(
+    background_tasks: BackgroundTasks,
+    request: WbBenchDownloadRequest,
+) -> dict[str, object]:
+    """Download a WorkBuddy Bench subset in the background without running it.
+
+    Lets users pre-fetch large archives (e.g. the ~480 MB Security subset) and
+    surface the download status before starting a benchmark run.
+    """
+    status_info = get_eval_status()
+    if status_info.get("is_running"):
+        return {"status": "already_running", "info": status_info}
+
+    from app.core.eval.wb_bench import WB_BENCH_SUBSETS
+
+    if request.subset_id not in WB_BENCH_SUBSETS:
+        return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
+
+    background_tasks.add_task(
+        run_wb_bench_download_background,
+        subset_id=request.subset_id,
+    )
+    return {"status": "started"}
 
 
 @router.get("/datasets")

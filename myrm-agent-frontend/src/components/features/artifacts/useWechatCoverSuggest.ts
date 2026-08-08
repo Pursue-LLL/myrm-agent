@@ -19,7 +19,7 @@ export function isCoverImageSuggestion(item: ReferenceSuggestion): boolean {
 
 interface UseWechatCoverSuggestOptions {
   enabled: boolean;
-  chatId: string | null;
+  chatId: string | null | undefined;
   query: string;
 }
 

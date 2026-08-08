@@ -1,0 +1,91 @@
+{
+  "sections": {
+    "channelRouting": {
+      "title": "チャンネルルーティング",
+      "description": "チャンネルグループごとに専用のエージェントバインディングを管理",
+      "connectedChannels": "接続済みチャンネル",
+      "noConnectedChannels": "接続済みチャンネルがありません",
+      "routingFor": "{channel} のルーティング",
+      "globalDefaultAgent": "グローバルデフォルトエージェント",
+      "globalDefaultAgentDesc": "専用バインディングのないスレッドはこのエージェントにフォールバックします。",
+      "noDefaultAgent": "-- デフォルトエージェントなし --",
+      "topicBindings": "トピックバインディング",
+      "noActiveTopics": "このチャンネルにアクティブなトピックはありません。",
+      "inheritGlobalDefault": "-- グローバルデフォルトを継承 --",
+      "selectChannelPrompt": "ルーティングを設定するチャンネルを選択",
+      "sharedContexts": {
+        "targetLabel": "チャンネル"
+      },
+      "toasts": {
+        "agentBound": "エージェントをバインドしました",
+        "threadSharingUpdated": "スレッド共有モードを更新しました",
+        "globalAgentSet": "グローバルエージェントを設定しました",
+        "replyModeUpdated": "返信モードを更新しました",
+        "draftTimeoutUpdated": "下書きタイムアウト設定を更新しました"
+      },
+      "errors": {
+        "initialLoad": "チャンネルまたはエージェントの読み込みに失敗しました",
+        "topicsLoad": "このチャンネルのトピックの読み込みに失敗しました",
+        "agentBind": "エージェントのバインドに失敗しました",
+        "threadSharing": "共有モードの設定に失敗しました",
+        "globalAgent": "グローバルエージェントの設定に失敗しました",
+        "replyMode": "返信モードの設定に失敗しました",
+        "draftTimeout": "下書きタイムアウトの更新に失敗しました"
+      },
+      "threadSharing": {
+        "label": "スレッド共有モード",
+        "isolated": "分離",
+        "isolatedDesc": "各ユーザーが独立した会話履歴を持ちます",
+        "shared": "共有",
+        "sharedDesc": "トピック内のすべてのユーザーが同じ会話履歴を共有します",
+        "tooltip": "DiscordフォーラムやTelegramトピックなどのコラボレーションシナリオに適しています"
+      },
+      "replyMode": {
+        "label": "返信モード",
+        "auto": "自動送信",
+        "draftReview": "下書きレビュー",
+        "tooltip": "下書きレビューに設定すると、チャンネルへ送信される前にAI返信が承認待ちになります。顧客向けシナリオに推奨です。",
+        "timeout": "タイムアウト",
+        "onExpiry": "期限切れ時",
+        "autoReject": "下書きを破棄",
+        "autoSend": "自動送信"
+      }
+    }
+  },
+  "loadout": {
+    "saveAgentFirst": "ロードアウトを確認するには、先にエージェントを保存してください。",
+    "fix": "修正",
+    "openWiki": "Wiki",
+    "openSkills": "スキル",
+    "openMemory": "メモリ",
+    "readiness": {
+      "ready": "準備完了",
+      "warning": "要確認",
+      "blocked": "ブロック"
+    },
+    "tiles": {
+      "sharedContexts": "共有コンテキスト",
+      "skills": "スキル",
+      "wiki": "Wiki",
+      "wikiOn": "有効",
+      "wikiOff": "オフ",
+      "memoryPolicy": "メモリポリシー"
+    },
+    "sharedContexts": {
+      "none": "バインドなし",
+      "unavailable": "利用不可"
+    },
+    "memoryPolicy": {
+      "on": "メモリオン",
+      "off": "メモリオフ"
+    },
+    "teamHub": {
+      "wikiTitle": "Wiki",
+      "wikiDesc": "ナレッジベースとエージェントスコープのノート",
+      "skillsTitle": "スキル",
+      "skillsDesc": "マウントされた機能と進化キュー",
+      "memoryTitle": "メモリ",
+      "memoryDesc": "パーソナルブレイン、ポリシー、コマンドセンター"
+    }
+  }
+}

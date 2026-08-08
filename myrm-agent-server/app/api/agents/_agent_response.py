@@ -221,6 +221,11 @@ def _to_agent_response(
             else None
         ),
         notify_targets=_meta_list_or_none(metadata, "notify_targets"),
+        busy_input_mode=(
+            _meta_str(metadata, "busy_input_mode")
+            if _meta_str(metadata, "busy_input_mode") in ("redirect", "steer", "queue")
+            else None
+        ),
         cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
         created_at=agent.created_at or datetime.now(),
         updated_at=agent.updated_at or datetime.now(),

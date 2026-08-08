@@ -39,7 +39,7 @@ from app.services.theme.package.constants import (
     RECIPE_JSON,
 )
 from app.services.theme.package.manifest import ThemePackageManifestModel
-from app.services.theme.package.session_store import ThemePackageInspectSession, create_session
+from app.services.theme.package.session_store import create_session
 from app.services.theme.package.whitelist import (
     is_allowed_package_entry,
     is_animated_image,

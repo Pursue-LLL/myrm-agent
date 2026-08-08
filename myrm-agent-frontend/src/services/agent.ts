@@ -129,6 +129,7 @@ export interface Agent {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
   snapshot_count?: number;
   snapshot_saved?: boolean;
   created_at: string;
@@ -187,6 +188,7 @@ export interface AgentCreate {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
 }
 
 export interface AgentUpdate {
@@ -225,6 +227,7 @@ export interface AgentUpdate {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
 }
 
 export interface AgentListResponse {

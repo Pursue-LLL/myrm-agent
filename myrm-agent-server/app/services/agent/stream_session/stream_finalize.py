@@ -581,6 +581,7 @@ async def finalize_agent_stream_session(
     else:
         if session.request.chat_id:
             from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+
             from app.services.copilot.run_digest_store import RunDigestStore
 
             phase = RunDigestPhase.COMPLETED

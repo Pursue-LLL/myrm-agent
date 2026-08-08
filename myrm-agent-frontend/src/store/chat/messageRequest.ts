@@ -29,6 +29,7 @@ import {
   type ArchiveRestoreAction,
   type MentionReference,
   type TurnCapabilityTerminalTelemetry,
+  type ChatState,
 } from '@/store/chat/types';
 import useConfigStore from '../useConfigStore';
 import useProviderStore from '../useProviderStore';
@@ -72,7 +73,6 @@ import {
   consumeMigrationReadinessAnchorForAgent,
   peekMigrationBoundProjectId,
 } from '@/lib/migrationChatHandoff';
-import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
 
@@ -131,6 +131,7 @@ export interface ChatActionsState {
   goalConvergenceWindow: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
+  goalCheckpointMode: boolean;
   isWorkflowMode: boolean;
   currentSessionMessageId: string | null;
   messageAppeared: boolean;
@@ -144,13 +145,21 @@ export interface ChatActionsState {
   loadError: boolean;
   newChatCreated: boolean;
   currentBuiltinTools: BuiltinToolId[];
+  activeMoaPresetId: string | null;
+  lastCompactionMeta: import('./types/messages').LastCompactionMeta | null;
+  sessionSkillOverrides: string[] | null;
+  sessionAccessRoots: import('./types/sessionAccess').SessionAccessRoot[];
+  contextBranches: import('./types/chatState').ChatState['contextBranches'];
+  contextPinnedFiles: string[];
+  contextBranchesLoadError: string | null;
+  contextPinnedFilesLoadError: string | null;
   regenerateSiblingGroupId?: string;
   regenerateInstruction?: string;
   clearMentionReferences: () => void;
 }
 
 export interface ChatActionsMethods {
-  setMessages: (updater: (state: ChatActionsState) => void) => void;
+  setMessages: (updater: (state: ChatState) => void) => void;
   setLoading: (loading: boolean) => void;
   setMessageAppeared: (appeared: boolean) => void;
   setHideAttachList: (hide: boolean) => void;
@@ -809,9 +818,9 @@ import { resolvePaneSnapshotBase } from '@/store/chat/chatNavigationSnapshotCach
 
 export const createSmartUpdater = (
   chatId: string | undefined,
-  originalSetMessages: (updater: (state: ChatActionsState) => void) => void,
+  originalSetMessages: (updater: (state: ChatState) => void) => void,
 ) => {
-  return (updater: (state: ChatActionsState) => void) => {
+  return (updater: (state: ChatState) => void) => {
     if (!chatId) {
       originalSetMessages(updater);
       return;
@@ -834,7 +843,7 @@ export const createSmartUpdater = (
     if (pane) {
       const currentSnapshot = resolvePaneSnapshotBase(chatId, pane.snapshot ?? null);
       const nextSnapshot = produce(currentSnapshot, (draft: any) => {
-        updater(draft as ChatActionsState);
+        updater(draft as ChatState);
       });
       useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
       return;

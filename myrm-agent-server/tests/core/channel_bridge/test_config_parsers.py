@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from app.core.channel_bridge import config_parsers
 from app.core.channel_bridge.config_parsers import (
     _ping_searxng,
     invalidate_search_health_cache,

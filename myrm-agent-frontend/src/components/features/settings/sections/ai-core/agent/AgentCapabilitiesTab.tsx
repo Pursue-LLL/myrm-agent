@@ -49,10 +49,10 @@ export interface AgentCapabilitiesTabProps {
     setEngineParams: (val: Record<string, unknown>) => void;
     browserSource?: string;
     setBrowserSource: (val: string | undefined) => void;
-    dialogPolicy?: string;
-    setDialogPolicy: (val: string | undefined) => void;
-    sessionRecording?: string;
-    setSessionRecording: (val: string | undefined) => void;
+    dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
+    setDialogPolicy: (val: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined) => void;
+    sessionRecording?: 'off' | 'on_failure' | 'always';
+    setSessionRecording: (val: 'off' | 'on_failure' | 'always' | undefined) => void;
     sessionPolicy: AgentSessionPolicy | null;
     setSessionPolicy: (val: AgentSessionPolicy | null) => void;
     cronPostRunVerify: boolean;

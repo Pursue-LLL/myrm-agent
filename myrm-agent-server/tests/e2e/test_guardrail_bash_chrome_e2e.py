@@ -16,6 +16,7 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from guardrail_e2e_ssot import CHROME_E2E_MARKER_KWARGS  # noqa: E402
+
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,

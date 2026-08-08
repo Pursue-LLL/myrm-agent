@@ -60,6 +60,9 @@ const mockChatState = vi.hoisted(() => ({
       max_context_tokens: number;
       usage_percent: number;
       health_status: ContextHealthStatus;
+      messages_estimated_tokens?: number;
+      bound_tools_overhead_tokens?: number;
+      other_tokens?: number;
     };
   }>,
   chatId: 'test-chat-123',
@@ -107,6 +110,8 @@ const mockHealthy: ContextHealth = {
     integrity_skipped: 0,
     summary_persisted: true,
     last_compacted_at: '2026-05-28T10:00:00Z',
+    avg_elapsed_ms: 1200,
+    last_elapsed_ms: 980,
   },
   pruning: {
     status: 'inactive',
@@ -306,7 +311,7 @@ describe('ContextUsageIndicator', () => {
             health_status: undefined,
           },
         },
-      ] as typeof mockChatState.messages;
+      ] as unknown as typeof mockChatState.messages;
       render(<ContextUsageIndicator />);
       const dot = screen.getByRole('status').querySelector('[aria-hidden="true"]');
       expect(dot).toBeNull();

@@ -80,7 +80,7 @@ export function RewindDialog({
       }
       onOpenChange(false);
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
+      if (error instanceof ApiError && error.code === 409) {
         toast({
           title: t('failed'),
           description: t('streamingBlocked'),

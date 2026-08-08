@@ -32,7 +32,7 @@ describe('wikiQueuePoll', () => {
       stats: baseStats,
       pending_items: [],
       failed_items: [],
-      compile_run: { state: 'paused', pause_reason: 'auth failure' },
+      compile_run: { state: 'paused', pause_reason: 'auth failure', primary_error_kind: 'auth' },
     };
     expect(computeShouldPollQueue(queue)).toBe(true);
   });
@@ -60,7 +60,7 @@ describe('wikiQueuePoll', () => {
         stats: { ...baseStats, failed: 2 },
         pending_items: [],
         failed_items: [],
-        compile_run: { state: 'running' },
+        compile_run: { state: 'running', pause_reason: '', primary_error_kind: '' },
       }),
     ).toBe(false);
   });

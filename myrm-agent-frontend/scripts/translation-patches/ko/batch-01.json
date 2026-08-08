@@ -1,0 +1,349 @@
+{
+  "Goal": {
+    "branchSwitchedStashed": "브랜치 {branch}(으)로 전환됨. 활성 목표가 보류되었습니다.",
+    "branchSwitchedRestored": "브랜치 {branch}(으)로 전환됨. 목표가 복원되었습니다.",
+    "statusActive": "활성",
+    "statusPaused": "일시 중지",
+    "statusNeedsHumanReview": "인간 검토 필요",
+    "statusBudgetLimited": "예산 제한",
+    "statusComplete": "완료",
+    "statusCancelled": "취소됨",
+    "tokenUsage": "토큰 사용량",
+    "turnsUsed": "턴 수",
+    "timeElapsed": "경과 시간",
+    "enableGoalMode": "장기 목표로 실행",
+    "goalBudgetPlaceholder": "최대 토큰 (선택)",
+    "enableBackgroundNotification": "알림 활성화",
+    "burnRate": "속도",
+    "etaLabel": "ETA",
+    "etaCollecting": "예상 중...",
+    "budgetExhaustedMessage": "예산이 소진되어 작업이 자동으로 일시 중지되었습니다",
+    "addTokensAndResume": "10,000 토큰 추가 및 재개",
+    "reviewFailedMessage": "검증이 최대 재시도 횟수를 초과했습니다. 인간 개입이 필요합니다",
+    "reviewFailedHint": "에이전트가 수정할 오류를 지적하거나 강제 승인할 수 있습니다.",
+    "feedbackPlaceholder": "에이전트에게 계속 진행할 피드백...",
+    "resetRetriesMessage": "재시도가 초기화되었습니다. 오류 로그를 기반으로 계속 진행하세요.",
+    "rejectAndRetry": "거부 및 재시도",
+    "forceApprove": "강제 승인",
+    "notificationEnabled": "백그라운드 알림이 활성화되었습니다",
+    "notificationDenied": "알림 권한이 거부되었습니다",
+    "pendingIssues": "확인 대기",
+    "goalPlan": "목표 계획",
+    "architecturalDecisions": "아키텍처 결정",
+    "keyDecisions": "핵심 결정",
+    "executionSummary": "실행 요약",
+    "filesModified": "수정된 파일",
+    "verifications": "테스트",
+    "tokenCost": "토큰 / 비용",
+    "duration": "소요 시간",
+    "viewFiles": "수정된 파일 보기",
+    "editObjective": "목표 편집",
+    "objectiveUpdated": "목표가 업데이트됨 — 에이전트가 방향을 조정합니다",
+    "objectiveUpdateFailed": "목표 업데이트 실패",
+    "constraintsLabel": "제약 조건 (위반 금지)",
+    "subgoals": "하위 목표",
+    "addSubgoal": "하위 목표 추가",
+    "subgoalPlaceholder": "수락 기준 또는 하위 작업 추가...",
+    "subgoalAdded": "하위 목표가 추가되었습니다",
+    "subgoalRemoved": "하위 목표가 제거되었습니다",
+    "acceptanceCriteria": "수락 기준",
+    "hideHistory": "기록 숨기기",
+    "showHistory": "기록 ({count}회 시도)",
+    "addShellCriteria": "+ 셸 명령",
+    "addSemanticCriteria": "+ AI 심사",
+    "noCriteriaHint": "(기준 없음 — 에이전트가 완료를 자율적으로 판단합니다)",
+    "shellCriteriaLabel": "셸 검증",
+    "semanticCriteriaLabel": "의미 검증",
+    "shellPlaceholder": "예: pytest tests/",
+    "semanticPlaceholder": "예: 출력에 유효한 SQL이 포함되어야 함",
+    "timeoutLabel": "시간 초과 (초):",
+    "targetFileLabel": "대상 파일 (선택):",
+    "targetFilePlaceholder": "예: src/main.py",
+    "constraints": "제약 조건 (위반 금지)",
+    "addConstraint": "+ 추가",
+    "noConstraintsHint": "(제약 없음 — 에이전트가 제한 없이 작동합니다)",
+    "constraintPlaceholder": "예: 프로덕션 구성 파일 수정 금지",
+    "statusConverged": "수렴됨",
+    "statusLoopRestart": "재시작 중",
+    "queueTitle": "대기 중인 목표",
+    "cancelQueued": "대기 중인 목표 취소",
+    "budgetSection": "예산 제한",
+    "maxUsdLabel": "최대 비용 ($)",
+    "maxUsdPlaceholder": "예: 5.00",
+    "maxTimeLabel": "최대 소요 시간 (분)",
+    "maxTimePlaceholder": "예: 60",
+    "maxTurnsLabel": "최대 턴 수",
+    "maxTurnsPlaceholder": "예: 30",
+    "protectedPathsLabel": "보호 파일",
+    "addProtectedPath": "+ 경로 추가",
+    "protectedPathPlaceholder": "예: .env, data/*.csv",
+    "noProtectedPathsHint": "(보호 파일 없음 — 에이전트가 모든 파일을 수정할 수 있습니다)",
+    "advancedSettings": "고급",
+    "checkpointModeLabel": "각 단계 후 일시 중지",
+    "loopOnPauseLabel": "컨텍스트 오버플로 시 자동 재시작",
+    "convergenceWindowLabel": "수렴 창 (턴)",
+    "convergenceWindowPlaceholder": "예: 3",
+    "statusWait": "대기 중",
+    "reasonJudgeComplete": "품질 검사로 완료됨",
+    "reasonToolComplete": "에이전트가 완료로 표시",
+    "reasonBudgetExhausted": "예산 소진",
+    "reasonWaitTimeout": "대기 시간 초과 — 일시 중지됨",
+    "reasonConvergence": "새 진행 없이 완료됨",
+    "draftSection": "목표 설정 도우미",
+    "draftObjectivePlaceholder": "에이전트가 달성할 목표를 설명하세요…",
+    "suggestCriteria": "수락 기준 제안",
+    "draftGenerating": "생성 중…",
+    "draftPreviewHint": "목표 메시지를 보내기 전에 아래 제안된 기준을 검토하세요.",
+    "draftObjectiveRequired": "먼저 목표 설명을 입력하세요",
+    "draftFailed": "제안을 생성할 수 없습니다",
+    "draftApplied": "제안이 적용됨 — 전송 전에 검토하세요",
+    "draftComposerHint": "아래 메시지 상자에 목표를 작성한 후 여기에서 제안을 생성하세요.",
+    "draftComposerRequired": "먼저 메시지 상자에 목표를 작성하세요",
+    "pauseDialogTitle": "목표 일시 중지",
+    "pauseDialogDescription": "일시 중지 이유를 기억할 수 있도록 메모를 추가할 수 있습니다.",
+    "pauseNotePlaceholder": "일시 중지 사유 (선택)",
+    "pauseConfirm": "일시 중지",
+    "pauseSubmitting": "일시 중지 중…",
+    "goalActionFailed_pause": "목표 일시 중지 실패",
+    "goalActionFailed_resume": "목표 재개 실패",
+    "goalActionFailed_cancel": "목표 취소 실패",
+    "goalActionFailed_approve": "목표 승인 실패",
+    "goalActionFailed_reject": "목표 거부 실패",
+    "goalActionFailed_unwait": "목표 재개 실패",
+    "goalActionSuccess_pause": "목표가 일시 중지되었습니다",
+    "goalActionSuccess_resume": "목표가 재개되었습니다",
+    "goalActionSuccess_cancel": "목표가 취소되었습니다",
+    "goalActionSuccess_approve": "목표가 승인되었습니다",
+    "goalActionSuccess_reject": "목표가 거부되었습니다",
+    "goalActionSuccess_unwait": "목표가 재개되었습니다",
+    "stepProgress": "단계 진행도",
+    "cancel": "취소",
+    "save": "저장"
+  },
+  "commands": {
+    "palette": {
+      "noCommands": "아직 명령이 없습니다",
+      "goToSettings": "명령을 추가하려면 설정으로 이동하세요",
+      "actions": "작업",
+      "commands": "내 명령",
+      "commandType": "명령",
+      "actionType": "작업",
+      "skills": "스킬",
+      "skillType": "스킬",
+      "createCommand": "명령 만들기…"
+    }
+  },
+  "copilot": {
+    "runningFallback": "에이전트 실행 중",
+    "headlineRunning": "{step}단계: {tool}",
+    "headlineWaitingApproval": "승인 대기 중 ({count})",
+    "headlineCompleted": "완료됨 ({count}단계)",
+    "headlineFailed": "실행 실패",
+    "headlineCancelled": "실행 취소됨",
+    "askButton": "질문",
+    "advisorTitle": "세션 어드바이저",
+    "advisorHint": "읽기 전용 사이드 Q&A — 메인 대화록에 기록되지 않습니다.",
+    "advisorEmpty": "실행 상태, 진행 상황 또는 대기 중인 승인에 대해 질문하세요.",
+    "advisorPlaceholder": "에이전트가 무엇을 하고 있나요?",
+    "advisorSend": "질문",
+    "advisorSending": "묻는 중…",
+    "advisorClear": "지우기",
+    "tierRules": "실행 요약",
+    "tierLite": "라이트 모델",
+    "advisorSelectionAsk": "어드바이저에게 묻기",
+    "advisorSelectionDefaultQuestion": "이 선택 항목 설명"
+  },
+  "settings": {
+    "lockedUse": {
+      "title": "컴퓨터 사용 / 잠금 사용",
+      "layer1Title": "화면 유지 깨우기",
+      "layer1Desc": "CU 세션 중 디스플레이 절전을 자동으로 방지합니다, 구성 불필요",
+      "layer1Badge": "항상 켜짐",
+      "layer2Title": "화면 잠금 해제",
+      "layer2DescSupported": "잠긴 상태에서 CU 작업을 위해 화면을 자동으로 일시적으로 잠금 해제합니다",
+      "layer2DescUnsupported": "현재 플랫폼({platform})에서는 자동 잠금 해제가 지원되지 않습니다",
+      "passwordSaved": "비밀번호가 시스템 키체인에 저장되었습니다",
+      "deletePassword": "저장된 비밀번호 삭제",
+      "inputPlaceholder": "시스템 로그인 비밀번호 입력",
+      "savePassword": "키체인에 저장",
+      "saving": "저장 중...",
+      "cancel": "취소",
+      "securityNote": "비밀번호는 macOS 키체인에 안전하게 암호화되어 저장됩니다 (Chrome과 1Password가 사용하는 것과 동일한 보안 저장소)",
+      "setPassword": "시스템 로그인 비밀번호 설정",
+      "toastSaved": "비밀번호가 키체인에 저장되었습니다",
+      "toastSaveFailed": "비밀번호 저장 실패: {error}",
+      "toastDeleted": "비밀번호가 키체인에서 삭제되었습니다",
+      "toastDeleteFailed": "삭제 실패: {error}"
+    },
+    "rate_limits": {
+      "title": "속도 제한 모니터",
+      "no_data": "아직 속도 제한 데이터가 없습니다. 요청을 만들어 추적을 시작하세요.",
+      "requests_per_minute": "RPM",
+      "requests_per_hour": "RPH",
+      "tokens_per_minute": "TPM",
+      "tokens_per_hour": "TPH",
+      "warning": "{provider} ({model})의 속도 제한 사용량이 {pct}%입니다. 에이전트가 느려질 수 있습니다."
+    },
+    "communication": {
+      "desc": {
+        "channels": "외부 IM, 이메일, SMS, 엔터프라이즈 메시징 채널을 연결하고 활성화합니다",
+        "routing": "채팅과 채널을 특정 에이전트 및 공유 컨텍스트 정책에 매핑합니다",
+        "voice": "음성 인식(STT) 및 음성 합성(TTS) 제공자를 구성합니다"
+      }
+    },
+    "menu": {
+      "mcp": "MCP"
+    },
+    "memoryCenter": {
+      "tabs": {
+        "teamHub": "팀 자산"
+      },
+      "tabDescriptions": {
+        "migration": "Hermes, OpenClaw, Claude Code 또는 Codex 스캔 — 미리보기 가져오기; 스킬은 검토 필요; MCP와 채널은 수동"
+      },
+      "migrationUnavailable": {
+        "downloadCta": "다운로드 페이지로 이동"
+      }
+    },
+    "commands": {
+      "editor": {
+        "fields": {
+          "name": {
+            "placeholder": "translate"
+          }
+        },
+        "variables": {
+          "input": "'{{input}}'",
+          "date": "'{{date}}'",
+          "time": "'{{time}}'"
+        },
+        "examples": {
+          "translate": {
+            "name": "translate"
+          },
+          "review": {
+            "name": "review"
+          }
+        }
+      }
+    },
+    "integrationMemory": {
+      "title": "통합 메모리",
+      "description": "연결된 서비스의 데이터를 동기화하고 인덱싱하여 교차 소스 시맨틱 검색을 제공합니다.",
+      "statusTitle": "통합 메모리",
+      "noProviders": "아직 구성된 통합 제공자가 없습니다.",
+      "statusSummary": "{providers}개 제공자, {items}개 항목 인덱싱됨",
+      "refresh": "새로고침",
+      "syncAll": "전체 동기화",
+      "syncing": "동기화 중...",
+      "lastSync": "마지막 동기화 결과",
+      "failed": "실패",
+      "upToDate": "최신 상태",
+      "dataSources": "데이터 소스",
+      "items": "항목",
+      "confirmRemove": "제거 확인",
+      "emptyTitle": "통합 데이터 없음",
+      "emptyDescription": "서비스 카탈로그에서 타사 서비스를 연결한 후 여기에서 데이터를 동기화하여 시맨틱 검색에 사용하세요.",
+      "fetchError": "통합 상태를 불러오지 못했습니다.",
+      "syncError": "동기화 실패. 다시 시도하세요.",
+      "removeError": "통합 트리 제거 실패."
+    },
+    "hosting": {
+      "cloudflareAccountId": "계정 ID",
+      "cloudflareProjectNamePlaceholder": "pages-project-name",
+      "netlifyTokenPlaceholder": "Netlify 개인 액세스 토큰",
+      "webhookUrl": "웹훅 URL",
+      "webhookUrlPlaceholder": "https://ci.example.com/publish",
+      "allowHttpPlaceholder": "false",
+      "webhookAuthHeaderPlaceholder": "Authorization",
+      "webhookAuthValuePlaceholder": "Bearer …"
+    },
+    "workspaceRules": {
+      "title": "작업 공간 규칙",
+      "description": "작업 공간에서 자동으로 발견된 프로젝트 수준 규칙 파일 (AGENTS.md, CLAUDE.md, .cursorrules, .myrm/rules/*.md, .cursor/rules/*.mdc)",
+      "workspaceRoot": "작업 공간",
+      "noRules": "프로젝트 규칙이 감지되지 않았습니다",
+      "noRulesHint": "프로젝트 루트에 AGENTS.md, CLAUDE.md, .cursorrules 또는 .myrm/rules/*.md를 배치하세요",
+      "loadedCount": "{count}개 규칙 파일 로드됨",
+      "totalChars": "총 {count}자",
+      "truncated": "잘림",
+      "emptyRule": "(비어 있음)",
+      "truncatedHint": "파일이 최대 크기 제한을 초과하여 콘텐츠가 잘렸습니다."
+    },
+    "developer": {
+      "externalAgents": {
+        "preset_claude": "Claude Code",
+        "preset_codex": "Codex CLI",
+        "preset_gemini": "Gemini CLI"
+      }
+    },
+    "mediaGeneration": {
+      "imageTitle": "이미지 생성",
+      "imageDescription": "이미지 생성 모델을 구성하고 채팅의 토글로 활성화합니다",
+      "videoTitle": "비디오 생성",
+      "videoDescription": "비디오 생성 제공자와 모델을 구성하고 채팅의 토글로 활성화합니다",
+      "provider": "제공자",
+      "model": "모델",
+      "testConnection": "연결 테스트",
+      "configured": "구성됨",
+      "needsApiKey": "API 키 필요",
+      "connectionFailed": "연결 실패",
+      "apiKey": "API 키",
+      "enterApiKey": "API 키 입력",
+      "apiKeyHint": "이 제공자의 API 키를 구성하세요. 키는 이 제공자를 사용하는 모든 기능에서 전역으로 공유됩니다.",
+      "save": "저장",
+      "apiKeySaved": "API 키가 성공적으로 저장되었습니다",
+      "apiKeySaveFailed": "API 키 저장 실패"
+    },
+    "modelService": {
+      "apiUrl": "API URL",
+      "speedTest": {
+        "ttft": "TTFT",
+        "tps": "TPS"
+      },
+      "cookbook": {
+        "gpu": "GPU"
+      }
+    },
+    "defaultModel": {
+      "moaPreset": {
+        "groupTitle": "에이전트 혼합",
+        "activeLabel": "MoA · {preset}"
+      },
+      "rpm": "RPM",
+      "tpm": "TPM",
+      "retrieval": {
+        "apiBasePlaceholder": "https://api.example.com/v1"
+      }
+    },
+    "modelCapabilities": {
+      "vision": "비전",
+      "functionCalling": "도구 호출",
+      "reasoning": "추론",
+      "audioInput": "오디오 입력",
+      "videoInput": "비디오 입력"
+    },
+    "extension": {
+      "websocketUrl": "WebSocket URL"
+    },
+    "skillQuality": {
+      "title": "스킬 품질 관리",
+      "description": "저품질 또는 오래된 스킬을 자동으로 식별하고 제거합니다",
+      "allHealthy": "모든 스킬이 정상입니다! 조치가 필요 없습니다.",
+      "cleanupAll": "모두 제거 ({count})",
+      "confirmDelete": "이 스킬을 삭제하시겠습니까?",
+      "confirmCleanupAll": "{count}개 저품질 스킬을 제거하시겠습니까?",
+      "deleteFailed": "스킬 삭제 실패",
+      "neverUsed": "사용된 적 없음",
+      "lowSuccessRate": "성공률: {rate}%",
+      "inactive": "{days}일 동안 비활성",
+      "calls": "호출",
+      "successRate": "성공률",
+      "lastUsed": "마지막 사용",
+      "criteriaTitle": "자동 정리 기준",
+      "criteriaStale": "37일 이상 사용 안 함",
+      "criteriaLowQuality": "성공률 50% 미만 (최소 5회 호출)",
+      "criteriaInactive": "37일 이상 비활성"
+    }
+  }
+}

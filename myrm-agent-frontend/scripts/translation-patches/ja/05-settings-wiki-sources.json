@@ -1,0 +1,133 @@
+{
+  "settings": {
+    "wiki": {
+      "secondBrain": {
+        "title": "セカンドブレイン クイックスタート",
+        "description": "ワンクリックで、wiki・メモリ・毎日の後で読む取り込み・午前7時のボールトデルタダイジェストを備えたナレッジエージェントをセットアップします。Wikiは長文ナレッジを保存し、Memoryはあなたに関するコンパクトな事実（好み、ルール、プロフィール）を保存します。",
+        "loading": "セットアップ状況を読み込み中…",
+        "loadFailed": "セカンドブレインのセットアップ状況を読み込めませんでした",
+        "applyFailed": "セカンドブレインプリセットを適用できませんでした",
+        "applying": "適用中…",
+        "apply": "セカンドブレインをセットアップ",
+        "reapply": "プリセットを再適用",
+        "useAgent": "セカンドブレインエージェントを使用",
+        "appliedAs": "アクティブエージェント: {name}",
+        "checklist": {
+          "agentTools": "エージェントにwiki、メモリ、cronツールがあります",
+          "cronJob": "毎日後で読む（6:00）とwiki朝デルタ（7:00）のcronジョブ",
+          "vaultContent": "ナレッジボールトにコンテンツがあります",
+          "corpusDedup": "rawコーパスの重複スキャンが完了し、ブロックする重複はありません",
+          "providerReady": "モデルプロバイダーが設定されています"
+        },
+        "goImport": "ナレッジをインポート",
+        "goDuplicateReview": "重複をレビュー",
+        "goProviders": "モデルを設定",
+        "goGraph": "ナレッジグラフを探索",
+        "pitfalls": {
+          "checklist": {
+            "agentTools": "プリセットを再適用するか、エージェントを開いてwiki、メモリ、cronツールがこのエージェントで有効になっているか確認してください。",
+            "cronJob": "プリセットを再適用して、6:00の後で読むジョブと7:00のwikiデルタジョブを再作成してください。手動で削除された場合は設定 → スケジュールタスク を確認してください。",
+            "vaultContent": "コンパイル前に raw/ にコンテンツがあるよう、Obsidianをインポートするか、ファイルをアップロードするか、ブラウザからクリップしてください。",
+            "corpusDedup": "最初のフルコンパイルの前に、重複レビューを開いてブロックする完全一致・正規化一致の重複を解決してください。",
+            "providerReady": "設定 → モデル でAPIキーとデフォルトチャットモデルを追加してください。プロキシやカスタムベースURLを使用する場合は到達可能性を確認してください。"
+          },
+          "actions": {
+            "repairPreset": "プリセットジョブを修復"
+          },
+          "syncExpectation": {
+            "title": "初回同期の所要時間",
+            "body": "大規模なObsidianインポートや初回のソース同期は、コンパイルとグラフが完成したと感じられるまで通常18〜25分かかります。進行状況はキューと統計に表示されます — これは正常で、ハングではありません。"
+          },
+          "obsidianGit": {
+            "title": "Obsidianの二重書き込みとgit",
+            "body": "Myrmの自動取得中に同じボールトをObsidianで編集する場合は、Obsidianの同期を一時停止するかバージョン管理（ボールトgit）を有効にしてマージ競合を回避してください。初回インポート中は一度に1つのライターを推奨します。",
+            "cta": "インポートとボールト設定へ移動"
+          },
+          "ladder": {
+            "title": "失敗したとき",
+            "stepDocs": "wikiセットアップガイドを読む（概念、インポート、コンパイル）",
+            "stepAgent": "エラーメッセージを添えてセカンドブレインエージェントに相談する — ボールトの状態を検査して修正案を提示できます",
+            "stepCoach": "それでも解決しない場合は、設定 → バージョン情報 からログをエクスポートし、デプロイメントモード（local、desktop、cloud）を添えてサポートに連絡してください"
+          },
+          "teamKb": {
+            "title": "チームナレッジの始め方",
+            "description": "4ステップの流れ: シナリオを選ぶ → AIで草稿をチャット → wiki保留として保存 → コンパイルしてチャットで回答する代わりにwikiリンクを共有。",
+            "wikiLinkTip": "繰り返しの質問を受けたら、使い捨てのチャット回答ではなくコンパイル済みのwiki URLで返信してください。",
+            "scenarios": {
+              "opsSop": {
+                "label": "運用SOP",
+                "prompt": "チーム向けの運用SOPの草稿を手伝ってください: 範囲、役割、ステップバイステップ手順、エスカレーション、チェックリスト。保留中の記事としてwikiに保存できる状態にしてください。"
+              },
+              "onboardingGuide": {
+                "label": "オンボーディングガイド",
+                "prompt": "新入社員オンボーディングガイドのアウトラインを作成してください: 初週のタスク、ツールアクセス、主要連絡先、FAQ。wikiの保留レビュー用に整形してください。"
+              },
+              "projectRetro": {
+                "label": "プロジェクト振り返り",
+                "prompt": "プロジェクトレトロスペクティブのテンプレートを進行してください: 良かった点、問題点、アクション項目、担当者。wikiステージング用の構造化マークダウンを出力してください。"
+              },
+              "customerFaq": {
+                "label": "カスタマーFAQ",
+                "prompt": "上位のサポートテーマからカスタマーFAQの草稿を作成してください: 質問、短い回答、ディープリンクアンカー、最終レビュー日。wikiコンパイルに適した形にしてください。"
+              },
+              "inspectionMaint": {
+                "label": "点検・保守",
+                "prompt": "点検・保守ランブックを作成してください: スケジュール、チェックポイント、合格/不合格基準、安全上の注意。wiki保留取り込みを対象にしてください。"
+              }
+            }
+          },
+          "extractFailures": {
+            "title": "ドキュメントインポートの失敗",
+            "body": "暗号化PDF、破損したOfficeファイル、未対応フォーマット、OCRが必要なスキャンPDF、巨大な添付ファイルはそれぞれ別の修正方法があります — 再試行する前にインポートエラーバッジとキューの詳細を確認してください。"
+          }
+        }
+      },
+      "sources": {
+        "title": "外部ソース",
+        "description": "Gmailラベル、Google Driveフォルダ、Feishu/Larkドキュメント、RSSフィードをスケジュールでナレッジベースに取り込みます（同期はAI費用ゼロ）。長い記事やメモはWikiに、短い個人の事実はMemoryに。",
+        "feishuLabel": "Feishu / Lark ドキュメント",
+        "feishuFolderLabel": "Feishuフォルダトークン",
+        "feishuFolderPlaceholder": "ルートスペースの場合は空のまま",
+        "feishuFolderHint": "Feishu Driveのフォルダトークンを貼り付けます。空の場合はルートフォルダを使用",
+        "feishuConnected": "Feishuに接続しました",
+        "feishuDisconnected": "先にFeishuチャンネルの資格情報を設定してください",
+        "gmailLabel": "Gmail 後で読む",
+        "gmailTagLabel": "Gmailラベル",
+        "gdriveLabel": "Google Driveフォルダ",
+        "gdriveFolderLabel": "DriveフォルダID",
+        "gdriveFolderPlaceholder": "root",
+        "gdriveFolderHint": "My Driveには root を使用するか、Drive URLからフォルダIDを貼り付けます",
+        "googleConnected": "Googleに接続しました",
+        "googleDisconnected": "先に統合でGoogleを接続してください",
+        "rssFeedsLabel": "RSSフィードURL（1行に1つ）",
+        "rssFeedsPlaceholder": "https://example.com/feed.xml",
+        "mirrorIntegrations": "統合の同期をwikiにミラー",
+        "autoCompile": "同期後に自動コンパイル",
+        "save": "保存",
+        "saving": "保存中…",
+        "saveSuccess": "ソース設定を保存しました",
+        "saveError": "ソース設定を保存できませんでした",
+        "syncNow": "今すぐ同期",
+        "syncing": "同期中…",
+        "syncSuccess": "{count} 件の新しい項目を同期しました",
+        "syncEmpty": "同期する新しい項目はありません",
+        "syncError": "同期に失敗しました",
+        "loadError": "ソース設定を読み込めませんでした",
+        "connectGoogle": "Googleに接続",
+        "reconnectGoogleDrive": "Drive用にGoogleを再接続",
+        "googleDriveReconnectHint": "Googleには接続していますがDriveアクセスがありません。再接続してDrive同期を承認してください。",
+        "lastSync": "最終同期: {time}",
+        "lastSyncNever": "未同期",
+        "lastSyncSummary": "+{published} 件の新規 · {skipped} 件スキップ · {failed} 件失敗",
+        "syncIssue": "最終同期の問題: {detail}",
+        "syncIssueGeneric": "一部のソースの同期に失敗しました"
+      },
+      "scopeChip": {
+        "label": "対象ボールト: {scope}"
+      },
+      "obsidianVault": {
+        "title": "Obsidianボールト"
+      }
+    }
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "chat": {
+    "skillActivation": {
+      "remove": "選択したスキルを削除"
+    },
+    "workflowTemplateArmed": {
+      "label": "ピン留めしたテンプレート",
+      "disarm": "ピン留めを解除"
+    },
+    "rewind": {
+      "title": "ここに巻き戻す",
+      "description": "このメッセージの前まで会話を戻し、そのテキストをコンポーザーに配置します。",
+      "sideEffectNotice": "チャットコンテキストは巻き戻されます。ファイル、メモリ、ツールの副作用は元に戻りません。",
+      "cancel": "キャンセル",
+      "confirm": "巻き戻す",
+      "rewinding": "巻き戻し中…",
+      "success": "会話を巻き戻しました",
+      "successDescription": "コンポーザーでメッセージを編集し、準備ができたら送信してください。",
+      "goalPausedNotice": "アクティブな目標はこの巻き戻しのために一時停止されました。",
+      "failed": "巻き戻しに失敗しました",
+      "buttonLabel": "ここに巻き戻す",
+      "buttonTitle": "会話をここに巻き戻す",
+      "streamingBlocked": "エージェントの作業中は巻き戻しを利用できません",
+      "unknownError": "不明なエラーが発生しました"
+    },
+    "share": {
+      "passwordLabel": "パスワード（任意）",
+      "passwordPlaceholder": "アクセスパスワードを設定",
+      "ttlLabel": "有効期限",
+      "successProtected": "パスワード保護付きリンクを作成しました。{days} 日間有効です。"
+    },
+    "visionNotConfigured": {
+      "imageTitle": "画像には視覚モデルが必要です",
+      "imageDescription": "設定で視覚フォールバックモデルを設定すると、テキスト専用のプライマリモデルでも画像を分析できます。",
+      "videoTitle": "動画には視覚モデルが必要です",
+      "videoDescription": "設定で視覚フォールバックモデルを設定すると動画を分析できます。",
+      "action": "設定に移動"
+    },
+    "contextUsage": {
+      "strategy": {
+        "focusHintPlaceholder": "フォーカストピック（任意、例: authモジュール）",
+        "archiveRestoreHint": "大きなツール出力は .context/…/evicted/ に保存されます。エージェントは file_read で読み戻せます。古いメッセージを要約するには「コンテキストを圧縮」を使用してください。",
+        "pinnedFiles": "ピン留めファイル（圧縮後も保持）",
+        "pinPlaceholder": "ピン留めするファイルパス",
+        "addPin": "ピン留め",
+        "removePin": "削除",
+        "pinsEmpty": "ピン留めされたファイルはありません",
+        "pinsLoading": "ピン留めを読み込み中…",
+        "pinsLoadError": "ピン留めファイルを読み込めませんでした",
+        "pinsRetry": "再試行"
+      }
+    },
+    "compactedSummary": {
+      "foldLabel": "コンテキストを圧縮しました — アーカイブを表示",
+      "title": "圧縮メモリサマリー",
+      "edit": "サマリーを編集",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "tokensSaved": "前回の圧縮で約{tokens}トークンを節約",
+      "saveBookmark": "スナップショットブックマークを保存",
+      "savingBookmark": "保存中…",
+      "bookmarkSaved": "スナップショットブックマークを保存しました",
+      "bookmarkSaveFailed": "スナップショットブックマークの保存に失敗しました",
+      "bookmarksTitle": "保存済みスナップショットブックマーク",
+      "bookmarksLoading": "ブックマークを読み込み中…",
+      "bookmarksEmpty": "スナップショットブックマークはまだありません",
+      "bookmarksLoadError": "ブックマークを読み込めませんでした",
+      "bookmarksRetry": "再試行",
+      "bookmarkFork": "新しいチャットで開く",
+      "bookmarkForking": "開いています…",
+      "bookmarkForkSuccess": "スナップショットを新しいチャットで開きました",
+      "bookmarkForkFailed": "新しいチャットでスナップショットを開けませんでした",
+      "archiveTitle": "アーカイブされたメッセージ",
+      "archiveEmpty": "アーカイブされたメッセージは見つかりませんでした",
+      "roleUser": "あなた",
+      "roleAssistant": "アシスタント"
+    },
+    "redirect": {
+      "send": "今すぐリダイレクト",
+      "tooltip": "現在の生成を中断してエージェントをリダイレクト"
+    },
+    "message": {
+      "workflowTemplateSave": {
+        "title": "ワークフローテンプレートとして保存",
+        "description": "このオーケストレーションスクリプトを保存して、プランナーを再生成せずに決定的に再実行できるようにします。",
+        "displayNamePlaceholder": "表示名",
+        "templateIdPlaceholder": "テンプレートスラッグ（例: weekly-report）",
+        "trustLatch": "トラストラッチ",
+        "save": "テンプレートを保存",
+        "success": "ワークフローテンプレートを保存しました",
+        "failed": "ワークフローテンプレートの保存に失敗しました",
+        "fieldsRequired": "表示名とテンプレートスラッグが必要です"
+      }
+    },
+    "turnCapabilities": {
+      "tooltip": "次のメッセージの機能",
+      "popoverTitle": "次のメッセージの機能",
+      "activeCount": "{skills} スキル、{mcps} 個のMCPサーバー",
+      "clearOverride": "リセット",
+      "skillsSection": "スキル",
+      "mcpSection": "MCPサーバー",
+      "noSkills": "このエージェントで有効なスキルはありません",
+      "noMcp": "このエージェントで有効なMCPサーバーはありません",
+      "usingAgentDefaults": "エージェントのデフォルトを使用",
+      "nextTurnOnly": "次のメッセージのみに適用"
+    }
+  },
+  "library": {
+    "graph": {
+      "emptyFirstWin": "ノートをインポートするか、Wiki設定でセカンドブレインプリセットを適用してから、ここに戻って接続を探索してください。",
+      "goSetupWiki": "Wiki設定を開く",
+      "insights": {
+        "title": "グラフインサイト",
+        "description": "wikiグラフからの構造シグナル — ギャップ、意外なリンク、トピッククラスター。",
+        "loading": "インサイトを読み込み中…",
+        "error": "グラフインサイトを読み込めませんでした。",
+        "retry": "再試行",
+        "gapsTitle": "ナレッジギャップ（{count}）",
+        "connectionsTitle": "意外なリンク（{count}）",
+        "communitiesTitle": "トピッククラスター（{count}）",
+        "emptyGaps": "ナレッジギャップは検出されませんでした。",
+        "emptyConnections": "意外なリンクはまだありません。",
+        "emptyCommunities": "クラスターはまだありません — ボールトに概念を追加してください。"
+      }
+    }
+  },
+  "progressSteps": {
+    "context_compaction_active": "コンテキストを圧縮中",
+    "context_compaction_timeout": "圧縮がタイムアウトしました。フォールバックを使用",
+    "context_compaction_circuit_open": "圧縮を利用できません。フォールバックを使用",
+    "context_compaction_fallback": "圧縮が低下しました。高速フォールバックを使用",
+    "context_compaction_completed": "コンテキストの圧縮に成功しました",
+    "visionBackend": {
+      "vlm": "視覚モデル",
+      "ocr": "OCRフォールバック",
+      "frame": "フレーム抽出",
+      "native_video": "ネイティブ動画",
+      "geometry": "ピクセル解析"
+    },
+    "turn_prewarm_agent": "エージェント実行コンテキストを準備中",
+    "turn_prewarm_agent_clear": "エージェント準備完了",
+    "turn_prewarm_memory": "メモリブリーフを読み込み中",
+    "turn_prewarm_memory_clear": "メモリ初期化完了",
+    "wiki_knowledge_lane": "wikiナレッジベースを照会中",
+    "wiki_knowledge_lane_clear": "wiki回答の準備完了",
+    "moa_overlay_active": "アドバイザーオーバーレイのファンアウトを実行中",
+    "moa_ref_done": "アドバイザー参照が完了しました"
+  }
+}

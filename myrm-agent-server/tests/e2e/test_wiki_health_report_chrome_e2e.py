@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
@@ -25,7 +24,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
     open_wiki_settings_mcp_page,
     prepare_e2e_ui_session,
     reload_mcp_page,

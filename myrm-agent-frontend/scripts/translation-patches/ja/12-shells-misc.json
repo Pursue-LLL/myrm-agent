@@ -1,0 +1,148 @@
+{
+  "settings": {
+    "lockedUse": {
+      "layer1Title": "画面の常時点灯を表示",
+      "layer1Badge": "常時オン",
+      "layer2Title": "画面ロック解除"
+    },
+    "securityPolicy": {
+      "autoReview": {
+        "noModelHint": "Smart Intent Guard はデフォルトモデルで有効です。レイテンシとコストを最適化するには、専用の高速モデル（例: GPT-4o-mini）の選択を検討してください。"
+      },
+      "riskRules": {
+        "rules": {
+          "jwt_token_like": {
+            "name": "JWTトークン"
+          }
+        }
+      }
+    },
+    "defaultModel": {
+      "moaPreset": {
+        "groupTitle": "複数エージェント混合",
+        "activeLabel": "MoA · {preset}"
+      }
+    },
+    "toolStabilitySection": {
+      "columns": {
+        "p90Ms": "p90（ms）"
+      }
+    },
+    "languageOptions": {
+      "english": "英語"
+    },
+    "enterprise": {
+      "audit": {
+        "topIps": "上位IP"
+      },
+      "tunnelUpstreamAuthPlaceholder": "Bearer <トークン>"
+    },
+    "sessionAnalytics": {
+      "tokens": "トークン"
+    }
+  },
+  "userMenu": {
+    "totalTokens": "トークン"
+  },
+  "agent": {
+    "temperature": "温度"
+  },
+  "chat": {
+    "reasoningModelDisabledWithImage": "視覚拡張を有効にすると、画像には視覚モデルが必要です"
+  },
+  "progressSteps": {
+    "evictedOutput": {
+      "savedHint": "完全なツール出力をサンドボックスストレージに保存しました",
+      "viewFull": "完全な出力を表示",
+      "expiredTitle": "出力の期限切れ",
+      "expiredDesc": "この出力ファイルはクリーンアップされました。追い出された出力はセッションの期間のみ保持されます。",
+      "errorTitle": "出力の読み込みに失敗",
+      "errorDesc": "後でもう一度お試しください。",
+      "searchTitle": "検索（Ctrl+F）",
+      "copyAll": "すべてコピー",
+      "prev": "前へ",
+      "next": "次へ",
+      "storageTruncated": "ストレージ上限に達しました。ファイルは不完全な可能性があります"
+    }
+  },
+  "memory": {
+    "commandCenter": {
+      "spaceKind": {
+        "agent": "エージェント"
+      }
+    },
+    "migrationWizard": {
+      "preview": {
+        "coverageLabels": {
+          "api_keys_manual": "APIキー"
+        }
+      }
+    }
+  },
+  "pricing": {
+    "quota": {
+      "tokens": "トークン"
+    }
+  },
+  "cron": {
+    "triggerSourceWebhook": "webhook"
+  },
+  "stt": {
+    "holdToTalk": "押して話す",
+    "releaseToStop": "離して停止",
+    "tooShort": "録音が短すぎます"
+  },
+  "toolApproval": {
+    "deployApprovalArtifact": "成果物"
+  },
+  "checkpoint": {
+    "title": "チェックポイント",
+    "confirmDelete": "このチェックポイントを削除しますか？",
+    "confirmCleanup": "古いチェックポイント（7日間のTTL）をクリーンアップしますか？",
+    "resumable": "再開可能",
+    "notResumable": "再開不可",
+    "progress": "進捗",
+    "lastTool": "最後のツール",
+    "resume": "再開",
+    "delete": "削除",
+    "refresh": "更新",
+    "loadError": "チェックポイントの読み込みに失敗しました",
+    "resumeError": "チェックポイントの再開に失敗しました",
+    "deleteError": "チェックポイントの削除に失敗しました",
+    "cleanupError": "チェックポイントのクリーンアップに失敗しました",
+    "resumeSuccess": "チェックポイントを再開しました",
+    "empty": "チェックポイントが見つかりません",
+    "noCheckpoints": "チェックポイントが見つかりません",
+    "savedCheckpoints": "保存済みチェックポイント"
+  },
+  "growthDashboard": {
+    "dailyJournal": {
+      "tokens": "トークン"
+    }
+  },
+  "boot": {
+    "onboarding": {
+      "smartGuard": {
+        "title": "Smart Intent Guard"
+      }
+    }
+  },
+  "billing": {
+    "wuBalance": "ワークユニット"
+  },
+  "connectWizard": {
+    "mcpConnectTimeout": "接続タイムアウト（秒）",
+    "mcpExecuteTimeout": "実行タイムアウト（秒）",
+    "mcpTlsConfigured": "設定済み",
+    "mcpSslVerify": "SSL検証",
+    "mcpSslVerifyWarning": "TLS検証が無効です。これにより中間者攻撃にさらされます。ローカル開発でのみ使用してください。",
+    "mcpClientCert": "クライアント証明書",
+    "mcpClientKeyPassword": "クライアントキーのパスフレーズ",
+    "mcpClientKeyPasswordPlaceholder": "暗号化されたクライアントキーのパスフレーズ（任意）",
+    "mcpTlsHint": "mTLS: クライアント証明書と、必要に応じて別のキーを指定してください。パスは ~ 展開をサポートします。",
+    "mcpHeadersConfigured": "設定済み",
+    "mcpHeaderKeyPlaceholder": "ヘッダー名（例: Authorization）",
+    "mcpSecretRefSaveHint": "設定を保存しました",
+    "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。"
+  }
+}

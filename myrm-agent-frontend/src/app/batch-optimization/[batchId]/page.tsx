@@ -79,14 +79,14 @@ const BatchDetailPage = () => {
       const result = await rollbackBatchTask(batchId);
       const toastParams = resolveBatchRollbackToastParams(result, 'rollback');
       if (toastParams.variant === 'success') {
-        toast({ title: tBatch('rollbackSuccess', { count: toastParams.count }) });
+        toast({ title: tBatch('rollbackSuccess', { count: toastParams.count ?? 0 }) });
         await fetchTaskDetail();
       } else if (toastParams.variant === 'partial') {
         toast({
           title: tBatch('rollbackPartial', {
-            rolled: toastParams.rolled,
-            failed: toastParams.failed,
-            total: toastParams.total,
+            rolled: toastParams.rolled ?? 0,
+            failed: toastParams.failed ?? 0,
+            total: toastParams.total ?? 0,
           }),
           description: toastParams.error_message ?? undefined,
           variant: 'destructive',
@@ -114,13 +114,13 @@ const BatchDetailPage = () => {
         if (cleanupStrategy === 'rollback') {
           const toastParams = resolveBatchRollbackToastParams(result, 'cancel');
           if (toastParams.variant === 'success') {
-            toast({ title: tBatch('cancelRollbackSuccess', { count: toastParams.count }) });
+            toast({ title: tBatch('cancelRollbackSuccess', { count: toastParams.count ?? 0 }) });
           } else if (toastParams.variant === 'partial') {
             toast({
               title: tBatch('cancelRollbackPartial', {
-                rolled: toastParams.rolled,
-                failed: toastParams.failed,
-                total: toastParams.total,
+                rolled: toastParams.rolled ?? 0,
+                failed: toastParams.failed ?? 0,
+                total: toastParams.total ?? 0,
               }),
               description: toastParams.error_message ?? undefined,
               variant: 'destructive',

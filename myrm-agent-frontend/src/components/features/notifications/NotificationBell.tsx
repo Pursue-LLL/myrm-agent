@@ -11,6 +11,13 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/lib/utils/toast';
 
+interface SystemNotificationMeta {
+  action_url?: string;
+  chat_id?: string;
+  delivery_id?: string;
+  retried?: boolean;
+}
+
 interface SystemNotification {
   id: string;
   title: string;
@@ -19,7 +26,7 @@ interface SystemNotification {
   source: string;
   is_read: boolean;
   created_at: string;
-  meta_data?: Record<string, unknown> | null;
+  meta_data?: SystemNotificationMeta | null;
 }
 
 interface NotificationListResponse {
@@ -65,7 +72,7 @@ export default function NotificationBell() {
       setUnreadCount((prev) => Math.max(0, prev - 1));
       apiRequest(`/notifications/${notif.id}/read`, { method: 'POST' }).catch(() => {});
     }
-    const actionUrl = notif.meta_data?.action_url as string | undefined;
+    const actionUrl = notif.meta_data?.action_url;
     if (actionUrl) {
       setIsOpen(false);
       router.push(actionUrl);

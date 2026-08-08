@@ -1,4 +1,4 @@
-export type { ThemeProfileIndexEntry, ThemeProfileRecipe, ThemeLayoutId, ThemeReadabilityScene, CompiledTheme } from './schema';
+export type { ThemeProfileIndexEntry, ThemeProfileRecipe, ThemeLayoutId, ThemeReadabilityScene, CompiledTheme, ThemeMediaKind } from './schema';
 export { compileThemeProfile, applyCompiledTheme, applyThemeFont, clearThemeRuntime } from './compiler';
 export {
   resolveReadabilityScene,

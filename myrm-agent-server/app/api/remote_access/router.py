@@ -11,10 +11,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.remote_access.schemas import (
+    PAIRING_PURPOSES,
     E2EEHelloRequest,
     MobileSpawnRequest,
     NodeEventRequest,
-    PAIRING_PURPOSES,
     PairingTokenRequest,
     TunnelStartRequest,
 )

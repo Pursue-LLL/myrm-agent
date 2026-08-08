@@ -192,7 +192,7 @@ export function buildPresetsForMoaEnable(
   for (const presetId of MOA_PRESET_IDS) {
     const block = presetBlocks(overlayWithPresets)[presetId];
     merged[presetId] = {
-      ...(block ?? {}),
+      ...block,
       reference_model_selections: resolvePresetReferenceSelections(overlayWithPresets, presetId),
     };
   }

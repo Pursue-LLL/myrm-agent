@@ -319,7 +319,7 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
             return True, f"Successfully merged sandbox to {parent_branch}"
         else:
             return False, f"Merge conflict: {result.stderr.strip()}"
-    except Exception as exc:
+    except Exception:
         return False, "Merge failed"
 
 

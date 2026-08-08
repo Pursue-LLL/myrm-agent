@@ -302,7 +302,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       if (entry.authType === 'oauth2') {
         setOauthPolling(true);
         try {
-          const mcpCfg = entry.mcpConfig as CatalogMcpDialogConfig | null;
+          const mcpCfg = entry.mcpConfig as unknown as CatalogMcpDialogConfig | null;
           const oauthCfg = mcpCfg?.oauth;
           if (!mcpCfg || !oauthCfg) {
             toast({ title: t('connectFailed'), description: 'Missing OAuth config', variant: 'destructive' });
@@ -408,7 +408,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             }
           }
 
-          const mcpCfg = entry.mcpConfig as CatalogMcpDialogConfig;
+          const mcpCfg = entry.mcpConfig as unknown as CatalogMcpDialogConfig;
 
           let finalArgs = mcpCfg.args || [];
           const envMap: Record<string, string> = { ...mcpCfg.env };
@@ -528,7 +528,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                     variant="secondary"
                     size="sm"
                     className="mt-3"
-                    disabled={probeStatus === 'probing' || connecting || oauthPolling}
+                    disabled={connecting || oauthPolling}
                     onClick={handleProbeRecommendedAction}
                   >
                     {probeRecommendedActionLabel}
@@ -598,7 +598,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             <Button variant="outline" onClick={onClose}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleConnect} disabled={connecting || oauthPolling}>
+            <Button onClick={() => void handleConnect()} disabled={connecting || oauthPolling}>
               {oauthPolling ? t('waitingAuth', { default: 'Waiting for authorization...' }) : connecting ? t('connecting') : t('connect')}
             </Button>
           </DialogFooter>

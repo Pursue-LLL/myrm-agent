@@ -8,6 +8,7 @@ import {
   SSR_SHELL_SETTINGS_SECTIONS,
 } from '@/i18n/locale-manifest';
 import { mergeMessages } from '@/i18n/merge-messages';
+import type { Messages } from '@/i18n/locale-manifest';
 
 const localesRoot = join(process.cwd(), 'locales/namespaces');
 
@@ -50,13 +51,13 @@ describe('locale shell settings', () => {
         menu: { defaultModel: 'Default Model' },
         defaultModel: { searchModels: 'Search models...' },
       },
-    } as const;
+    } as unknown as Messages;
 
     const deferred = {
       settings: {
         account: { title: 'Account' },
       },
-    };
+    } as Partial<Messages>;
 
     const merged = mergeMessages(shell, deferred);
     expect(merged.settings.defaultModel?.searchModels).toBe('Search models...');

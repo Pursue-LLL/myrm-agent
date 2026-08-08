@@ -140,7 +140,7 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
                 </div>
 
                 <div className="max-h-[200px] overflow-y-auto rounded-full border p-3 text-sm bg-muted/30">
-                  <p className="font-medium mb-2">{t('affectedAgents', { count: preview?.affected_count })}</p>
+                  <p className="font-medium mb-2">{t('affectedAgents', { count: preview?.affected_count ?? 0 })}</p>
                   <ul className="space-y-2">
                     {preview?.affected_agents.map((agent) => (
                       <li

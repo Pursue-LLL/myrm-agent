@@ -249,8 +249,12 @@ export function PendingEvolutionsDashboard() {
         await createCronJob({
           name: item.skillName || scheduleHint,
           job_type: 'agent',
-          schedule: { type: 'cron', cron: scheduleHint, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-          prompt: item.proposedContent || item.description || scheduleHint,
+          schedule: {
+            kind: 'cron',
+            expr: scheduleHint,
+            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
+          prompt: item.summary || item.description || scheduleHint,
         });
         await approveSkillGrowthCase(item, 'immediate');
         toast.success(t('cronCreated', { name: item.skillName }));

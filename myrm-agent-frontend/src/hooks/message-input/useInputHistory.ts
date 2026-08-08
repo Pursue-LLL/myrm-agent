@@ -120,7 +120,7 @@ export function useInputHistory({ agentId, getInputValue }: UseInputHistoryOptio
    * 处理 keydown 事件。返回 true 表示事件已被消费。
    */
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    (e: React.KeyboardEvent): boolean => {
       // IME 组合输入阶段不拦截
       if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
         return false;

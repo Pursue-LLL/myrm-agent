@@ -3,13 +3,16 @@
 [INPUT]
 myrm_agent_harness.agent._internals.memory_extraction::ExtractionLifecycleObserver (POS: harness callback protocol)
 app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: memory operation ledger)
+app.services.memory.extract_retry_queue (POS: 业务层持久化重试队列)
 
 [OUTPUT]
-make_extraction_lifecycle_observer: Factory for harness ExtractionLifecycleObserver callback (optional source + manual_retry metadata).
+make_extraction_lifecycle_observer: Factory for harness ExtractionLifecycleObserver callback
+(optional source + is_retry metadata).
 
 [POS]
 Business-layer bridge from harness post-turn auto_extract_memories to GUI-visible telemetry.
-Does not inject prompt content — SSE/UI only.
+Does not inject prompt content — SSE/UI only. Initial auto-extract failures enqueue a durable
+retry; retry attempts (manual or worker) never re-enqueue, preventing infinite loops.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ def make_extraction_lifecycle_observer(
     effective_chat_id: str,
     *,
     source: str = "auto_extract_memories",
-    manual_retry: bool = False,
+    is_retry: bool = False,
 ):
     """Build observer bound to one chat session for ledger + SSE publish."""
 
@@ -53,8 +56,8 @@ def make_extraction_lifecycle_observer(
             else MemoryOperationKind.EXTRACT
         )
         meta: dict[str, JsonScalar] = {"chat_id": resolved_chat_id, "phase": phase}
-        if manual_retry:
-            meta["manual_retry"] = True
+        if is_retry:
+            meta["is_retry"] = True
         if metadata:
             for key, value in metadata.items():
                 if isinstance(value, (str, int, float, bool)) or value is None:
@@ -112,6 +115,24 @@ def make_extraction_lifecycle_observer(
                 )
         except Exception as exc:
             logger.warning("Failed to record extraction lifecycle event: %s", exc)
+
+        if (
+            phase == "extract"
+            and status == MemoryOperationStatus.ERROR
+            and source == "auto_extract_memories"
+            and not is_retry
+        ):
+            try:
+                from app.services.memory.extract_retry_queue import enqueue
+
+                if await enqueue(resolved_chat_id, reset_failed=False) == "queued":
+                    from app.services.memory.extract_retry_worker import (
+                        extract_retry_worker,
+                    )
+
+                    extract_retry_worker.wake()
+            except Exception as exc:
+                logger.warning("Failed to enqueue auto extract retry: %s", exc)
 
     return _observe
 

@@ -131,11 +131,12 @@ async def bulk_import(agent_id: str, body: FaqBulkImportRequest) -> dict[str, in
 
 @router.post("/{agent_id}/rebuild-index")
 async def rebuild_index(agent_id: str) -> FaqRebuildResponse:
-    from app.core.retriever.vector.defaults import create_default_vector_store
     from myrm_agent_harness.toolkits.retriever.embedding.factory import (
         get_embedding_config,
         get_embedding_service,
     )
+
+    from app.core.retriever.vector.defaults import create_default_vector_store
 
     embedding_service = get_embedding_service(get_embedding_config())
     vector_store = await create_default_vector_store()

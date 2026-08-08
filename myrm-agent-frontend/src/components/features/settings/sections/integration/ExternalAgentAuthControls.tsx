@@ -123,7 +123,7 @@ const LoginDialog = memo(({ open, onOpenChange, command, status, onChanged }: Lo
   const sessionIdRef = useRef<string>('');
   const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
-  const autoCloseRef = useRef<ReturnType<typeof setTimeout>>();
+  const autoCloseRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const backend = status.backend;
   const scriptable = status.scriptableLogin;

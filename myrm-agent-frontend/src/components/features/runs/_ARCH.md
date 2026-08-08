@@ -10,7 +10,7 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 | ---- | ---- | ---- | ---- |
 | `RunsHub.tsx` | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、加载失败态 | — |
 | `__tests__/RunsHub.test.tsx` | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge | — |
-| `__tests__/runsLocales.test.ts` | 测试 | 五语 `runs` namespace key 完整性 | — |
+| `__tests__/runsLocales.test.ts` | 测试 | 六语 `runs` namespace key 完整性 | — |
 
 ## 路由
 
@@ -22,7 +22,7 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 
 - `@/services/runs` — `listUnifiedRuns`、`UnifiedRun` 类型（POS: 统一运行历史 REST 客户端）
 - `@/components/primitives/*` — Button、Tabs、Skeleton
-- `locales/namespaces/*/runs.json` — 运行时 `runs` namespace（五语：en/zh/ja/ko/de）；译者 SSOT 为 `locales/{lang}.json`，改文案后跑 `bun run i18n:split`
+- `locales/namespaces/*/runs.json` — 运行时 `runs` namespace（六语：en/zh/ja/ko/de/zh-TW）；译者 SSOT 为 `locales/{lang}.json`，改文案后跑 `bun run i18n:split`
 
 ## 约束
 

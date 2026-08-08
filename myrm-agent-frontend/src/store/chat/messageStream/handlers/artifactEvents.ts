@@ -5,6 +5,7 @@
 
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { mergeUiDataModel } from "../mergeUiDataModel";
+import type { Artifact, ArtifactType } from "../../types/artifacts";
 import * as H from "./handlerDeps";
 
 export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -101,8 +102,8 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     if (data.subtype === 'complete' && data.content) {
       // 创建临时 artifact 对象用于实时预览
       const tempArtifact: Artifact = {
-        id: data.artifactId,
-        filename: data.filename,
+        id: data.artifactId ?? '',
+        filename: data.filename ?? '',
         type: (data.artifactType ?? 'code') as ArtifactType,
         content_type: 'text/plain',
         size: data.content.length,

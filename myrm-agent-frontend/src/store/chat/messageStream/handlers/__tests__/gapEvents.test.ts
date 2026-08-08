@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AgentEventType } from '@/store/chat/types';
+import { AgentEventType, type AgentStreamEvent } from '@/store/chat/types';
 import { AdaptiveScheduler } from '../../../adaptiveScheduler';
 import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 import type { StreamCtx } from '../../streamContext';
@@ -85,7 +85,7 @@ function createCtx(eventType: string, data: Record<string, string>): StreamCtx {
   };
 
   return {
-    data: { type: eventType, data },
+    data: { type: eventType, data } as unknown as AgentStreamEvent,
     input: '',
     sources: undefined,
     added: false,

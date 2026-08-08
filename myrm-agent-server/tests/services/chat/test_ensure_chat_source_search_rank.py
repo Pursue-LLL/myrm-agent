@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from myrm_agent_harness.toolkits.memory.conversation_search.types import (
+    ConversationSearchRequest,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
 from app.database.repositories.conversation_recall import ConversationRecallRepository
 from app.services.chat.chat_crud import _ChatCrudMixin
-from myrm_agent_harness.toolkits.memory.conversation_search.types import (
-    ConversationSearchRequest,
-)
 from app.services.chat.conversation_search_service import ConversationSearchService
 
 

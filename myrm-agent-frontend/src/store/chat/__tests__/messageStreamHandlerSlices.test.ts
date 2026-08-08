@@ -82,7 +82,6 @@ describe('messageStreamHandler handler slices', () => {
       {
         type: AgentEventType.TOOL_START,
         messageId: 'assistant-tool-1',
-        tool_name: 'read_file',
       },
       '',
       undefined,
@@ -203,6 +202,7 @@ describe('messageStreamHandler handler slices', () => {
         type: AgentEventType.TOOL_END,
         messageId: 'assistant-kanban-err-no-dur',
         tool_name: 'kanban_add_task',
+        duration_ms: 0,
         result: { error: 'Board board-1 not found' },
       },
       '',

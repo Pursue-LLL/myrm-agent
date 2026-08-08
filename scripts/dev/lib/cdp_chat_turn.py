@@ -33,16 +33,6 @@ def _touch_live_turn_progress(node: str) -> None:
         pass
 
 
-def _bridge_poll_eval_timeout_sec() -> float:
-    """Deprecated — prefer evaluate(..., intent=EvaluateIntent.BRIDGE_POLL)."""
-    from dev_gate_contract import resolve_evaluate_budget
-
-    return resolve_evaluate_budget(
-        EvaluateIntent.BRIDGE_POLL,
-        live=is_live_send_turn_profile(),
-    ).cdp_timeout_sec
-
-
 def _bridge_has_completion(bridge: dict[str, object]) -> bool:
     """Unified completion signal check: hasCompletionSignal (SSOT) with hasOk/hasDone fallback."""
     return bool(
@@ -58,6 +48,7 @@ class CdpChatTurn(CdpChatSubmit):
         prompt: str,
         *,
         recv_timeout: float = 90.0,
+        intent: EvaluateIntent | None = None,
     ) -> dict[str, object]:
         result = await self.evaluate(
             f"""( () => {{
@@ -98,6 +89,7 @@ class CdpChatTurn(CdpChatSubmit):
             }})()""",
             await_promise=False,
             recv_timeout=recv_timeout,
+            intent=intent,
         )
         return (
             result
@@ -171,8 +163,7 @@ class CdpChatTurn(CdpChatSubmit):
         try:
             result = await self.evaluate(
                 BRIDGE_TURN_SNAPSHOT_JS,
-                await_promise=False,
-                recv_timeout=_bridge_poll_eval_timeout_sec(),
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
         except (RuntimeError, TimeoutError):
             return None
@@ -300,7 +291,7 @@ class CdpChatTurn(CdpChatSubmit):
             if not chat_id:
                 try:
                     probe = await self.main_state(
-                        prompt, recv_timeout=_bridge_poll_eval_timeout_sec()
+                        prompt, intent=EvaluateIntent.BRIDGE_POLL
                     )
                     if isinstance(probe, dict):
                         last = probe
@@ -331,7 +322,7 @@ class CdpChatTurn(CdpChatSubmit):
                     return finished
             try:
                 last = await self.main_state(
-                    prompt, recv_timeout=_bridge_poll_eval_timeout_sec()
+                    prompt, intent=EvaluateIntent.BRIDGE_POLL
                 )
             except RuntimeError as exc:
                 message = str(exc)

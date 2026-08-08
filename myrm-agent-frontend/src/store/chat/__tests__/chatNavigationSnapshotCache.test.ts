@@ -26,7 +26,7 @@ describe('chatNavigationSnapshotCache', () => {
       actionMode: 'agent',
       selectedModels: { base: 'gpt-4', vision: null, reasoning: null },
       hasUserSelectedModel: true,
-    } as Parameters<typeof extractNavigationSnapshot>[0]);
+    } as unknown as Parameters<typeof extractNavigationSnapshot>[0]);
 
     expect(snapshot.agentConfig).toEqual({ agentId: 'a1', name: 'Agent' });
     expect(snapshot.hasUserSelectedModel).toBe(true);
@@ -48,7 +48,7 @@ describe('chatNavigationSnapshotCache', () => {
       files: mockFiles,
       cameraFrames: mockCameraFrames,
       mentionReferences: mockMentionReferences,
-    } as Parameters<typeof extractNavigationSnapshot>[0]);
+    } as unknown as Parameters<typeof extractNavigationSnapshot>[0]);
 
     expect(snapshot.files).toEqual(mockFiles);
     expect(snapshot.cameraFrames).toEqual(mockCameraFrames);
@@ -63,7 +63,7 @@ describe('chatNavigationSnapshotCache', () => {
       files: mockFiles,
       cameraFrames: ['frame-1'],
       mentionReferences: [{ type: 'file' as const, path: '/a.ts', display: 'a.ts' }],
-    } as Parameters<typeof extractNavigationSnapshot>[0]);
+    } as unknown as Parameters<typeof extractNavigationSnapshot>[0]);
 
     saveChatNavigationSnapshot('media-chat', snapshot);
     const restored = getChatNavigationSnapshot('media-chat');
@@ -77,7 +77,7 @@ describe('chatNavigationSnapshotCache', () => {
     const snapshot = extractNavigationSnapshot({
       messages: [],
       activeMoaPresetId: 'default',
-    } as Parameters<typeof extractNavigationSnapshot>[0]);
+    } as unknown as Parameters<typeof extractNavigationSnapshot>[0]);
 
     expect(snapshot.activeMoaPresetId).toBe('default');
   });
@@ -87,7 +87,7 @@ describe('chatNavigationSnapshotCache', () => {
       messages: [],
       isMessagesLoaded: true,
       activeMoaPresetId: 'default',
-    } as Parameters<typeof extractNavigationSnapshot>[0]);
+    } as unknown as Parameters<typeof extractNavigationSnapshot>[0]);
 
     saveChatNavigationSnapshot('moa-chat', snapshot);
     expect(getChatNavigationSnapshot('moa-chat')?.activeMoaPresetId).toBe('default');
@@ -113,12 +113,12 @@ describe('chatNavigationSnapshotCache', () => {
     });
 
     const base = resolvePaneSnapshotBase('pane-chat', {
-      messages: [{ id: 'm1' }],
+      messages: [{ messageId: 'm1' }],
       activeMoaPresetId: 'review',
-    } as Parameters<typeof resolvePaneSnapshotBase>[1]);
+    } as unknown as Parameters<typeof resolvePaneSnapshotBase>[1]);
 
     expect(base.activeMoaPresetId).toBe('review');
-    expect(base.messages).toEqual([{ id: 'm1' }]);
+    expect(base.messages).toEqual([{ messageId: 'm1' }]);
   });
 
   it('evicts the oldest snapshot when capacity is exceeded', () => {

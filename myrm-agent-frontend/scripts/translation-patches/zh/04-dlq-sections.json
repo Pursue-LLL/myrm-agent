@@ -1,0 +1,85 @@
+{
+  "dlq": {
+    "title": "死信队列（DLQ）",
+    "description": "管理重试后仍失败的消息，支持手动干预。",
+    "refresh": "刷新",
+    "channel": "频道",
+    "recipient": "收件人",
+    "content": "内容",
+    "error": "错误",
+    "time": "时间",
+    "actions": "操作",
+    "retry": "重试",
+    "delete": "删除",
+    "empty": "没有失败消息",
+    "noText": "无文本内容",
+    "retrySuccess": "消息已重新排队等待重试",
+    "retryFailed": "重试失败",
+    "deleteSuccess": "消息已删除",
+    "deleteFailed": "删除失败",
+    "fetchFailed": "获取失败消息失败",
+    "retryAll": "全部重试",
+    "deleteAll": "全部清除",
+    "retryAllConfirmTitle": "确认全部重试？",
+    "retryAllConfirmDesc": "这将把所有失败消息重新排队发送。是否继续？",
+    "deleteAllConfirmTitle": "确认全部清除？",
+    "deleteAllConfirmDesc": "这将永久删除死信队列中的所有消息。此操作无法撤销。是否继续？",
+    "cancel": "取消",
+    "confirm": "确认"
+  },
+  "experimentalFeatures": {
+    "title": "实验性功能",
+    "description": "启用或禁用实验性功能。这些功能处于积极开发中，可能不稳定。",
+    "experimentalBadge": "实验性",
+    "newBadge": "新增",
+    "noFeatures": "暂无可用的实验性功能。",
+    "customized": "自定义设置（覆盖默认值）",
+    "fetchError": "加载实验性功能失败"
+  },
+  "sections": {
+    "channelRouting": {
+      "title": "频道路由",
+      "description": "为不同频道分组管理专属的智能体绑定",
+      "connectedChannels": "已连接频道",
+      "noConnectedChannels": "没有已连接的频道",
+      "globalDefaultAgent": "全局默认智能体",
+      "globalDefaultAgentDesc": "没有专属绑定的会话线程将回退到该智能体。",
+      "noDefaultAgent": "-- 无默认智能体 --",
+      "topicBindings": "话题绑定",
+      "noActiveTopics": "该频道中没有活跃的话题。",
+      "inheritGlobalDefault": "-- 继承全局默认 --",
+      "selectChannelPrompt": "选择频道以配置路由",
+      "sharedContexts": { "targetLabel": "频道" },
+      "toasts": {
+        "agentBound": "智能体绑定成功",
+        "threadSharingUpdated": "线程共享模式已更新",
+        "globalAgentSet": "全局智能体设置成功",
+        "replyModeUpdated": "回复模式已更新",
+        "draftTimeoutUpdated": "草稿超时设置已更新"
+      },
+      "errors": {
+        "initialLoad": "加载频道或智能体失败",
+        "topicsLoad": "加载该频道的话题失败",
+        "agentBind": "绑定智能体失败",
+        "threadSharing": "设置共享模式失败",
+        "globalAgent": "设置全局智能体失败",
+        "replyMode": "设置回复模式失败",
+        "draftTimeout": "更新草稿超时失败"
+      },
+      "threadSharing": {
+        "label": "线程共享模式",
+        "isolated": "隔离",
+        "isolatedDesc": "每个用户拥有独立的对话历史",
+        "shared": "共享",
+        "sharedDesc": "话题中的所有用户共享同一份对话历史",
+        "tooltip": "适合 Discord 论坛或 Telegram 话题等协作场景"
+      },
+      "replyMode": {
+        "label": "回复模式",
+        "auto": "自动发送",
+        "draftReview": "草稿审核",
+        "timeout": "超时"
+      }
+    }
+  }
+}

@@ -168,7 +168,11 @@ export const MemoryMonitorCard = memo(() => {
                   fontSize={10}
                   tickMargin={10}
                 />
-                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickFormatter={(val) => `${val}MB`} />
+                <YAxis
+                  stroke="rgba(255,255,255,0.3)"
+                  fontSize={10}
+                  tickFormatter={(val: number) => `${val}MB`}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -176,7 +180,7 @@ export const MemoryMonitorCard = memo(() => {
                     borderRadius: '12px',
                     fontSize: '12px',
                   }}
-                  labelFormatter={(val) => formatTime(val as number)}
+                  labelFormatter={(val: number) => formatTime(val as number)}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 <Area

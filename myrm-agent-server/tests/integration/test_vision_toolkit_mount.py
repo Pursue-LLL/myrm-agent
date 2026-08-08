@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
 from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 from app.core.types import ModelConfig
 

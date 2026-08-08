@@ -1,0 +1,55 @@
+{
+  "sections": {
+    "channelRouting": {
+      "title": "채널 라우팅",
+      "description": "채널 그룹별 전용 에이전트 바인딩을 관리합니다",
+      "connectedChannels": "연결된 채널",
+      "noConnectedChannels": "연결된 채널이 없습니다",
+      "routingFor": "{channel} 라우팅",
+      "globalDefaultAgent": "전역 기본 에이전트",
+      "globalDefaultAgentDesc": "전용 바인딩이 없는 스레드는 이 에이전트로 대체됩니다.",
+      "noDefaultAgent": "-- 기본 에이전트 없음 --",
+      "topicBindings": "주제 바인딩",
+      "noActiveTopics": "이 채널에 활성 주제가 없습니다.",
+      "inheritGlobalDefault": "-- 전역 기본값 상속 --",
+      "selectChannelPrompt": "라우팅을 구성할 채널을 선택하세요",
+      "sharedContexts": {
+        "targetLabel": "채널"
+      },
+      "toasts": {
+        "agentBound": "에이전트가 성공적으로 바인딩되었습니다",
+        "threadSharingUpdated": "스레드 공유 모드가 업데이트되었습니다",
+        "globalAgentSet": "전역 에이전트가 성공적으로 설정되었습니다",
+        "replyModeUpdated": "답장 모드가 업데이트되었습니다",
+        "draftTimeoutUpdated": "초안 시간 초과 설정이 업데이트되었습니다"
+      },
+      "errors": {
+        "initialLoad": "채널 또는 에이전트를 불러오지 못했습니다",
+        "topicsLoad": "이 채널의 주제를 불러오지 못했습니다",
+        "agentBind": "에이전트 바인딩 실패",
+        "threadSharing": "공유 모드 설정 실패",
+        "globalAgent": "전역 에이전트 설정 실패",
+        "replyMode": "답장 모드 설정 실패",
+        "draftTimeout": "초안 시간 초과 업데이트 실패"
+      },
+      "threadSharing": {
+        "label": "스레드 공유 모드",
+        "isolated": "분리",
+        "isolatedDesc": "각 사용자는 독립적인 대화 기록을 가집니다",
+        "shared": "공유",
+        "sharedDesc": "주제의 모든 사용자가 동일한 대화 기록을 공유합니다",
+        "tooltip": "Discord 포럼이나 텔레그램 주제 같은 협업 시나리오에 적합합니다"
+      },
+      "replyMode": {
+        "label": "답장 모드",
+        "auto": "자동 전송",
+        "draftReview": "초안 검토",
+        "tooltip": "초안 검토로 설정하면 AI 답변이 채널에 전송되기 전에 승인 대기를 거칩니다. 고객 접점 시나리오에 권장됩니다.",
+        "timeout": "시간 초과",
+        "onExpiry": "만료 시",
+        "autoReject": "초안 폐기",
+        "autoSend": "자동 전송"
+      }
+    }
+  }
+}

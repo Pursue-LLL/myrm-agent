@@ -1,0 +1,159 @@
+{
+  "metadata": {
+    "settingsTabs": {
+      "account": {
+        "title": "계정 설정",
+        "description": "계정 정보와 기본 설정을 관리합니다"
+      },
+      "preferences": {
+        "title": "환경 설정",
+        "description": "애플리케이션 환경 설정을 사용자 지정합니다"
+      },
+      "personalization": {
+        "title": "개인화",
+        "description": "경험을 개인화합니다"
+      },
+      "agents": {
+        "title": "AI 에이전트",
+        "description": "커스텀 AI 에이전트를 만들고 관리합니다"
+      },
+      "security": {
+        "title": "보안 정책",
+        "description": "도구 실행 승인 규칙과 보안 정책을 구성합니다"
+      },
+      "riskRules": {
+        "title": "위험 규칙",
+        "description": "민감 데이터 탐지 및 콘텐츠 위험 제어 규칙을 관리합니다"
+      },
+      "models": {
+        "title": "모델 서비스",
+        "description": "AI 모델 서비스 제공자를 구성합니다"
+      },
+      "defaultModel": {
+        "title": "기본 모델",
+        "description": "기본 AI 모델을 설정합니다"
+      },
+      "search": {
+        "title": "검색 설정",
+        "description": "검색 엔진 기본 설정을 구성합니다"
+      },
+      "mcp": {
+        "title": "MCP 구성",
+        "description": "Model Context Protocol 통합을 관리합니다"
+      },
+      "skills": {
+        "title": "스킬",
+        "description": "AI 스킬을 탐색하고 관리합니다"
+      },
+      "credentials": {
+        "title": "자격 증명",
+        "description": "스킬용 자격 증명 파일을 관리합니다"
+      },
+      "mediaGeneration": {
+        "title": "미디어 생성",
+        "description": "이미지 및 비디오 생성 서비스를 구성합니다"
+      },
+      "cron": {
+        "title": "예약 작업",
+        "description": "에이전트가 만든 예약 작업을 관리합니다"
+      },
+      "kanban": {
+        "title": "칸반 보드",
+        "description": "지속형 멀티태스크 칸반 관리"
+      },
+      "channels": {
+        "title": "메시지 채널",
+        "description": "알림 채널과 외부 플랫폼 통합을 관리합니다"
+      },
+      "channelRouting": {
+        "title": "채널 라우팅",
+        "description": "채널 그룹별 에이전트 바인딩을 관리합니다",
+        "threadSharing": {
+          "label": "스레드 공유 모드",
+          "isolated": "분리",
+          "isolatedDesc": "각 사용자는 자신의 대화 기록을 가집니다",
+          "shared": "공유",
+          "sharedDesc": "스레드의 모든 사용자가 동일한 대화 기록을 공유합니다",
+          "tooltip": "Discord 포럼이나 Telegram 포럼 주제 같은 협업 시나리오에서 활성화하세요"
+        },
+        "replyMode": {
+          "label": "답장 모드",
+          "auto": "자동 전송",
+          "draftReview": "초안 검토",
+          "tooltip": "초안 검토로 설정하면 AI 답변이 채널에 전송되기 전에 승인 대기를 거칩니다. 고객 접점 시나리오에 권장됩니다.",
+          "timeout": "시간 초과",
+          "onExpiry": "만료 시",
+          "autoReject": "초안 폐기",
+          "autoSend": "자동 전송"
+        }
+      },
+      "voice": {
+        "title": "음성 설정",
+        "description": "음성 메시지용 음성 인식 및 음성 합성을 구성합니다"
+      },
+      "integrationCatalog": {
+        "title": "서비스 카탈로그",
+        "description": "타사 서비스를 탐색하고 연결합니다"
+      },
+      "integrationMemory": {
+        "title": "통합 메모리",
+        "description": "연결된 서비스의 데이터를 동기화하고 인덱싱합니다"
+      },
+      "workspaceRules": {
+        "title": "작업 공간 규칙",
+        "description": "자동으로 발견된 프로젝트 수준 규칙 파일을 봅니다"
+      },
+      "developer": {
+        "title": "개발자 설정",
+        "description": "고급 개발자 구성",
+        "showSystemMessages": "시스템 메시지 표시",
+        "showSystemMessagesDesc": "채팅 메시지에 AI 시스템 프롬프트를 표시합니다",
+        "showSystemMessagesWarning": "시스템 메시지에는 AI 동작 지침이 포함됩니다. 디버깅 전용입니다. 프로덕션에서는 비활성화하세요."
+      },
+      "importExport": {
+        "title": "가져오기 및 내보내기",
+        "description": "데이터를 가져오고 내보냅니다"
+      },
+      "companion": {
+        "title": "컴패니언",
+        "description": "AI 펫 컴패니언을 구성합니다"
+      },
+      "usageStatistics": {
+        "title": "사용 통계",
+        "description": "토큰 사용 분석과 비용 추적을 봅니다"
+      },
+      "memory-backup": {
+        "title": "메모리 백업",
+        "description": "데이터 안전을 위해 메모리 데이터를 백업하고 복원합니다"
+      },
+      "memory-archival": {
+        "title": "메모리 보관",
+        "description": "검색 성능 향상을 위해 오래된 메모리를 보관합니다"
+      },
+      "enterprise": {
+        "title": "엔터프라이즈 조직",
+        "description": "엔터프라이즈 조직, 팀 구성원, 퇴사자 관리를 관리합니다"
+      },
+      "system": {
+        "title": "시스템 설정",
+        "description": "시스템 수준 구성과 기본 설정"
+      },
+      "about": {
+        "title": "MyrmAgent 정보",
+        "description": "애플리케이션에 대한 정보를 봅니다"
+      },
+      "skillQuality": {
+        "title": "스킬 품질",
+        "description": "스킬 품질 모니터링 및 관리"
+      },
+      "toolQuality": {
+        "title": "실행 품질",
+        "description": "스킬과 도구의 실행 품질 및 안정성을 모니터링하고 분석합니다"
+      },
+      "memory": {
+        "title": "메모리 관리 센터",
+        "description": "장기 메모리, 백업, 보관 정책을 관리합니다"
+      }
+    }
+  }
+}

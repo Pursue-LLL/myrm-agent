@@ -54,6 +54,9 @@ export interface ApprovalPayloadData {
   reviewConfigs?: Array<{ smartDenied?: boolean; hideAllowAlways?: boolean }>;
   /** Per-tool reviewer reasons from interrupt payload */
   reviewerReasons?: string[];
+  /** MCP elicitation approval: server name and requested input schema */
+  server_name?: string;
+  requested_schema?: Record<string, unknown>;
 }
 
 export interface ApprovalPayload {

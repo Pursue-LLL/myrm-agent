@@ -255,8 +255,8 @@ async def get_extension_setup_hints() -> ExtensionSetupHintsResponse:
     )
 
 
-from app.api.extension.routes.clip_agent import (
+from app.api.extension.routes.clip_agent import (  # noqa: E402
     router as clip_agent_router,
-)  # noqa: E402
+)
 
 router.include_router(clip_agent_router)

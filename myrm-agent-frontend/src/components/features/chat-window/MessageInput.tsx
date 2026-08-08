@@ -227,7 +227,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   );
 
   const inputHistory = useInputHistory({
-    agentId: agentConfig?.id,
+    agentId: agentConfig?.agentId,
     getInputValue: () => inputMessage,
   });
 
@@ -652,7 +652,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                         </button>
                         <button
                           type="button"
-                          onClick={handleQueueSubmit}
+                          onClick={() => void handleQueueSubmit()}
                           className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
                           aria-label={chatT('queue.sendLater')}
                           title={chatT('queue.sendLaterTooltip')}

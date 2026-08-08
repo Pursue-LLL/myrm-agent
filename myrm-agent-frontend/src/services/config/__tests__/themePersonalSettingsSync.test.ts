@@ -39,7 +39,7 @@ describe('isThemePersonalSettingsChange', () => {
 
   it('returns true when themeFontOverride changes', () => {
     const prev = base();
-    const next = { ...prev, themeFontOverride: 'jetbrains-mono' as const };
+    const next = { ...prev, themeFontOverride: 'system' as const };
     expect(isThemePersonalSettingsChange(prev, next)).toBe(true);
   });
 });

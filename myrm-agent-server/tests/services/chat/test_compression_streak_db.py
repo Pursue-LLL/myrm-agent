@@ -5,17 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database.models import Chat
-from app.services.chat.compact.compression_streak import (
-    ChatCompressionStreakStore,
-    hydrate_compression_streak_from_db,
-    load_compression_ineffective_streak,
-    register_chat_compression_streak_store,
-    save_compression_ineffective_streak,
-)
 from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
     ANTI_THRASHING_STREAK_LIMIT,
     should_block_automatic_compression,
@@ -26,6 +15,17 @@ from myrm_agent_harness.agent.context_management.strategies.compression.compress
 )
 from myrm_agent_harness.agent.context_management.tracking.task_metrics import (
     clear_task_metrics,
+)
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models import Chat
+from app.services.chat.compact.compression_streak import (
+    ChatCompressionStreakStore,
+    hydrate_compression_streak_from_db,
+    load_compression_ineffective_streak,
+    register_chat_compression_streak_store,
+    save_compression_ineffective_streak,
 )
 
 

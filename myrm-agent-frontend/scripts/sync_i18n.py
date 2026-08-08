@@ -1,59 +1,50 @@
+"""本地维护脚本：将 en.json（唯一 SSOT）中缺失的键深拷贝补齐到其余 locale 文件。
+
+只单向同步 en → locale，不反向写回 en；占位符与原文保持一致，译文留给译者。
+"""
+
+from __future__ import annotations
+
 import copy
 import json
 from pathlib import Path
 
-def sync_dict(source, target):
-    """Recursively sync keys from source to target."""
+# 与 src/i18n/config.ts locales 保持一致
+SUPPORTED_LOCALES: tuple[str, ...] = ("en", "zh", "ja", "ko", "de", "zh-TW")
+
+
+def sync_dict(source: dict[str, object], target: dict[str, object]) -> bool:
+    """递归将 source 中 target 缺失的键深拷贝到 target。"""
     changed = False
-    for k, v in source.items():
-        if k not in target:
-            target[k] = copy.deepcopy(v)
+    for key, value in source.items():
+        if key not in target:
+            target[key] = copy.deepcopy(value)
             changed = True
-        elif isinstance(v, dict) and isinstance(target[k], dict):
-            if sync_dict(v, target[k]):
+        elif isinstance(value, dict) and isinstance(target[key], dict):
+            if sync_dict(value, target[key]):
                 changed = True
     return changed
 
-def main():
+
+def main() -> None:
     locales_dir = Path(__file__).resolve().parents[1] / "locales"
-    zh_path = locales_dir / "zh.json"
     en_path = locales_dir / "en.json"
-    ja_path = locales_dir / "ja.json"
-    ko_path = locales_dir / "ko.json"
-    de_path = locales_dir / "de.json"
+    with open(en_path, encoding="utf-8") as fh:
+        en_data = json.load(fh)
 
-    with open(zh_path, 'r', encoding='utf-8') as f:
-        zh_data = json.load(f)
-    with open(en_path, 'r', encoding='utf-8') as f:
-        en_data = json.load(f)
-        
-    with open(ja_path, 'r', encoding='utf-8') as f:
-        ja_data = json.load(f)
-    with open(ko_path, 'r', encoding='utf-8') as f:
-        ko_data = json.load(f)
-    with open(de_path, 'r', encoding='utf-8') as f:
-        de_data = json.load(f)
+    for lang in SUPPORTED_LOCALES:
+        if lang == "en":
+            continue
+        path = locales_dir / f"{lang}.json"
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if sync_dict(en_data, data):
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, ensure_ascii=False, indent=2)
+            print(f"synced en -> {lang}")
+        else:
+            print(f"{lang} already in sync")
 
-    # Sync en to zh
-    sync_dict(en_data, zh_data)
-    # Sync zh to en
-    sync_dict(zh_data, en_data)
-    
-    # Sync to other languages just in case they are missing keys too
-    sync_dict(en_data, ja_data)
-    sync_dict(en_data, ko_data)
-    sync_dict(en_data, de_data)
-
-    with open(zh_path, 'w', encoding='utf-8') as f:
-        json.dump(zh_data, f, ensure_ascii=False, indent=2)
-    with open(en_path, 'w', encoding='utf-8') as f:
-        json.dump(en_data, f, ensure_ascii=False, indent=2)
-    with open(ja_path, 'w', encoding='utf-8') as f:
-        json.dump(ja_data, f, ensure_ascii=False, indent=2)
-    with open(ko_path, 'w', encoding='utf-8') as f:
-        json.dump(ko_data, f, ensure_ascii=False, indent=2)
-    with open(de_path, 'w', encoding='utf-8') as f:
-        json.dump(de_data, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     main()

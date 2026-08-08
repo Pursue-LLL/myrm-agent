@@ -1,0 +1,328 @@
+{
+  "artifacts": {
+    "wechatDraft": {
+      "titleLabel": "기사 제목",
+      "titlePlaceholder": "초안 제목 입력",
+      "coverLabel": "표지 이미지 (선택)",
+      "coverPlaceholder": "표지 이미지의 작업 공간 경로",
+      "coverHint": "패널을 열면 기사의 첫 번째 로컬 이미지가 자동으로 채워집니다. 경로를 편집하거나 작업 공간 이미지를 검색하거나, 서버가 HTML에서 표지를 선택할 수 있으면 비워 둘 수 있습니다.",
+      "coverSuggestLoading": "작업 공간 이미지 검색 중...",
+      "coverSuggestEmpty": "작업 공간에 일치하는 이미지 파일이 없습니다",
+      "confirm": "초안함으로 보내기",
+      "pushing": "보내는 중...",
+      "success": "WeChat 초안함에 저장되었습니다. mp.weixin.qq.com에서 미리보기하고 게시하세요.",
+      "failed": "초안 보내기 실패",
+      "credentialsMissing": "먼저 설정에서 WeChat 공식 계정 자격 증명을 구성하세요",
+      "pathMissing": "초안을 보내려면 로컬 파일 경로가 필요합니다"
+    },
+    "organizePlan": {
+      "openPanel": "정리 계획 검토",
+      "hint": "범위: {scope} · {count}개 이동",
+      "colFrom": "원본",
+      "colReason": "이유",
+      "removeRow": "제거",
+      "preview": "검증",
+      "apply": "이동 적용",
+      "rollback": "마지막 작업 롤백",
+      "previewOk": "계획 검증됨 ({count}개 이동)",
+      "applyOk": "{count}개 이동이 적용되었습니다. 필요하면 롤백을 사용하세요.",
+      "rollbackOk": "{count}개 이동이 롤백되었습니다",
+      "rollbackPartial": "부분 롤백 ({count}개 이동 복원). 일부 파일은 여전히 새 위치에 있을 수 있습니다 — 파일 트리를 확인하세요.",
+      "undoHint": "파일 이동은 위의 조직 롤백을 사용하며, 채팅 턴 되돌리기가 아닙니다.",
+      "validateFailed": "계획 검증 실패",
+      "applyFailed": "계획 적용 실패",
+      "rollbackFailed": "롤백 실패",
+      "noJob": "롤백할 작업이 없습니다",
+      "workspaceMissing": "작업 공간 경로를 사용할 수 없습니다",
+      "invalidPlan": "잘못된 organize plan JSON"
+    },
+    "sideBySide": "나란히 보기",
+    "overlay": "오버레이",
+    "diff": {
+      "label": "Diff",
+      "inline": "인라인",
+      "sideBySide": "나란히 보기",
+      "noVersions": "차이를 비교하려면 두 개 이상의 버전이 필요합니다"
+    },
+    "elementPicker": {
+      "toggle": "포인트 & 편집",
+      "placeholder": "이 요소에서 변경할 내용을 설명하세요...",
+      "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다"
+    },
+    "selectionToolbar": {
+      "modify": "AI 수정",
+      "explain": "설명",
+      "optimize": "최적화",
+      "addComment": "댓글 추가",
+      "copy": "복사",
+      "modifyPlaceholder": "변경할 내용을 설명하세요...",
+      "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다"
+    },
+    "documentSelection": {
+      "modify": "AI 수정",
+      "explain": "설명",
+      "rewrite": "다시 쓰기",
+      "copy": "복사",
+      "modifyPlaceholder": "변경할 내용을 설명하세요..."
+    }
+  },
+  "MessageSources": {
+    "untitled": "제목 없음",
+    "mcp_skill": "MCP 스킬",
+    "mcp_calls_count": "{count}회 호출",
+    "view_more": "{count}개 소스 더 보기",
+    "sources_title": "소스",
+    "knowledge_base": "지식 베이스",
+    "conversation_history": "대화 기록",
+    "source_excerpt": "소스 발췌",
+    "no_snippet": "이 소스에는 발췌문이 없습니다.",
+    "kb_level_l0": "요약",
+    "kb_level_l1": "개요",
+    "kb_level_l2": "상세",
+    "kb_section_index_routing": "카탈로그 인덱스"
+  },
+  "sources": {
+    "title": "소스",
+    "count": "{count}개 소스",
+    "untitled": "제목 없음",
+    "mcp_source": "MCP 스킬 호출",
+    "mcp_calls_count": "{count}회 도구 호출",
+    "calls": "호출",
+    "relevance_score": "관련성",
+    "conversation_source": "대화 기록",
+    "exclude_conversation": "회상에서 제외",
+    "delete_conversation": "대화 삭제",
+    "delete_conversation_desc": "원본 채팅이 삭제되며 되돌릴 수 없습니다.",
+    "delete_confirm": "삭제",
+    "delete_cancel": "취소",
+    "delete_loading": "삭제 중...",
+    "conversation_excluded": "대화 회상에서 제외됨",
+    "conversation_deleted": "대화가 삭제되었습니다",
+    "operation_failed": "작업 실패"
+  },
+  "auth": {
+    "oauth": {
+      "title": "로그인 중",
+      "description": "보안 로그인 완료 중…",
+      "failed": "로그인 실패",
+      "missingToken": "OAuth 자격 증명이 없습니다. 다시 시도하세요.",
+      "provider": {
+        "google": "Google로 계속",
+        "github": "GitHub로 계속",
+        "oidc": "SSO로 계속"
+      },
+      "backToLogin": "로그인으로 돌아가기",
+      "unavailableHint": "Google 로그인을 사용할 수 없습니다. 컨트롤 플레인 Google OAuth 설정과 NEXT_PUBLIC_CP_BASE_URL을 확인하세요."
+    }
+  },
+  "migration": {
+    "title": "로컬 데이터 발견됨",
+    "description": "동기화되지 않은 로컬 데이터가 감지되었습니다. 클라우드로 마이그레이션하시겠습니까?",
+    "dataFound": "데이터 감지됨",
+    "modelConfigs": "모델 구성",
+    "chatRecords": "채팅 기록",
+    "syncNote": "마이그레이션 후에는 모든 기기에서 이 데이터에 접근할 수 있습니다. API 키는 암호화됩니다.",
+    "providerCount": "{count}개 모델 서비스 구성",
+    "chatCount": "{count}개 채팅 기록",
+    "confirmQuestion": "마이그레이션 후에는 모든 기기에서 이 데이터에 접근할 수 있습니다.",
+    "syncToCloud": "클라우드에 동기화",
+    "keepLocal": "로컬 유지",
+    "migrating": "마이그레이션 중...",
+    "migrateSuccess": "마이그레이션 성공",
+    "migrateSuccessDesc": "로컬 데이터가 클라우드에 동기화되었습니다",
+    "migrateFailed": "마이그레이션 실패",
+    "migrateFailedDesc": "나중에 다시 시도하거나 설정을 수동으로 내보내세요"
+  },
+  "interactiveUI": {
+    "title": "대화형 인터페이스",
+    "submitted": "제출됨",
+    "submitting": "제출 중...",
+    "noData": "데이터 없음",
+    "actions": {
+      "submit": "제출",
+      "cancel": "취소",
+      "confirm": "확인"
+    },
+    "validation": {
+      "required": "{field}은(는) 필수입니다",
+      "minLength": "{field}은(는) 최소 {min}자 이상이어야 합니다",
+      "maxLength": "{field}은(는) {max}자를 초과할 수 없습니다",
+      "pattern": "{field} 형식이 올바르지 않습니다",
+      "min": "{field}은(는) 최소 {min} 이상이어야 합니다",
+      "max": "{field}은(는) {max}를 초과할 수 없습니다",
+      "email": "유효한 이메일 주소를 입력하세요",
+      "defaultField": "이 필드"
+    },
+    "chart": {
+      "noData": "차트 데이터 없음",
+      "loading": "차트 로딩 중..."
+    },
+    "image": {
+      "loading": "이미지 로딩 중...",
+      "loadError": "이미지 로드 실패",
+      "alt": "이미지"
+    },
+    "toast": {
+      "submitSuccess": "제출 성공",
+      "submitSuccessDesc": "데이터가 AI 어시스턴트로 전송되었습니다",
+      "submitError": "제출 실패",
+      "submitErrorDesc": "나중에 다시 시도하세요",
+      "cancelled": "작업이 취소되었습니다",
+      "validationFailed": "양식을 확인하세요",
+      "validationFailedDesc": "일부 필드가 검증에 실패했습니다"
+    }
+  },
+  "presetAgent": {
+    "title": "에이전트",
+    "description": "대화를 시작할 에이전트를 선택하세요",
+    "selectPreset": "프리셋 에이전트 선택",
+    "workingDirectory": "작업 디렉터리",
+    "selectWorkingDirectory": "작업 디렉터리 선택",
+    "configureWorkingDirectory": "이 에이전트의 작업 디렉터리를 구성하세요. 에이전트는 이 디렉터리 내에서 작동합니다.",
+    "notConfigured": "연결되지 않음, 먼저 구성하세요",
+    "requiresConfig": "구성 필요",
+    "cancel": "취소",
+    "confirm": "확인",
+    "pathHint": "프로젝트의 전체 경로를 입력하세요, 예:",
+    "enterDirectoryPath": "프로젝트 디렉터리 경로 입력",
+    "manualInputPath": "작동할 프로젝트 디렉터리의 절대 경로를 입력하세요.",
+    "clickToConfigureDirectory": "작업 경로 구성하려면 클릭",
+    "pleaseEnterWorkingDirectory": "먼저 작업 경로를 입력하세요",
+    "workingDirectoryPlaceholder": "작업 경로 입력...",
+    "workingPathLabel": "작업 경로",
+    "invalidAbsolutePath": "절대 경로를 입력하세요",
+    "edit": "편집",
+    "pathNotExist": "경로가 존재하지 않습니다",
+    "pathNotDirectory": "경로가 디렉터리가 아닙니다",
+    "errors": {
+      "workingDirectoryRequired": "작업 경로는 필수입니다",
+      "absolutePathRequired": "절대 경로를 입력하세요"
+    },
+    "collapse": "접기",
+    "showMore": "더 보기 ({count})",
+    "enableInSettings": "먼저 설정에서 {name}을(를) 활성화하세요",
+    "selectACPProvider": "코딩 어시스턴트 선택",
+    "noACPProviderEnabled": "사용 가능한 코딩 어시스턴트가 없습니다, 설정에서 구성하세요",
+    "goToSettings": "구성하러 가기",
+    "quickTaskHint": "빠른 작업 예시",
+    "useThisAgent": "이 에이전트 사용",
+    "selectACPModelHint": "선택 후 모델 선택기에서 ACP 모델을 선택하세요",
+    "category": {
+      "acp": "CLI 시각화",
+      "general": "일반 어시스턴트"
+    },
+    "acpProvider": {
+      "claudeCode": "Claude Code",
+      "geminiCli": "Gemini CLI",
+      "codexCli": "Codex CLI"
+    },
+    "general": {
+      "name": "일반 어시스턴트",
+      "description": "다양한 질문에 답할 수 있는 일반 대화 어시스턴트"
+    },
+    "cliVisual": {
+      "name": "CLI 시각화",
+      "description": "실시간 실행 계획과 파일 변경 시각화로 여러 CLI 코딩 어시스턴트를 지원합니다"
+    },
+    "quickTask": {
+      "writeDocument": {
+        "name": "문서 작성",
+        "guide": "스마트 홈 산업을 위한 경쟁 분석 프레임워크 초안을 도와주세요"
+      },
+      "chatWithWebpage": {
+        "name": "웹페이지와 채팅",
+        "guide": "웹페이지 링크를 붙여넣고 질문하세요"
+      },
+      "summarizeWebpage": {
+        "name": "웹페이지 요약",
+        "guide": "웹페이지 링크를 붙여넣고 AI에게 요약을 요청하세요"
+      },
+      "createProject": {
+        "name": "새 프로젝트 만들기",
+        "guide": "만들고 싶은 프로젝트를 설명하면 AI가 프로젝트 구조 초기화를 도와줍니다"
+      },
+      "codeReview": {
+        "name": "코드 리뷰",
+        "guide": "AI에게 프로젝트의 코드 품질과 잠재적 문제를 검토하게 하세요"
+      },
+      "fixBug": {
+        "name": "버그 수정",
+        "guide": "발생한 문제를 설명하면 AI가 위치를 찾아 수정해 줍니다"
+      },
+      "addFeature": {
+        "name": "기능 추가",
+        "guide": "추가할 기능을 설명하면 AI가 구현을 도와줍니다"
+      }
+    },
+    "available": "사용 가능",
+    "exampleCases": "예시",
+    "goToSettingsHint": "먼저 모델 서비스에서 ACP 제공자를 구성하고 활성화하세요"
+  },
+  "pricing": {
+    "title": "요금제",
+    "subtitle": "필요에 맞는 요금제를 선택하세요",
+    "monthly": "월간",
+    "yearly": "연간",
+    "yearlyDiscount": "20% 할인",
+    "perMonth": "/월",
+    "perYear": "/년",
+    "billedYearly": "연간 청구",
+    "currentPlan": "현재 요금제",
+    "upgrade": "Pro로 업그레이드",
+    "subscribe": "구독",
+    "free": {
+      "name": "무료",
+      "description": "시작하기에 완벽한 요금제"
+    },
+    "pro": {
+      "name": "Pro",
+      "description": "더 많은 것이 필요한 파워 유저용",
+      "monthlyPrice": "$9.9",
+      "yearlyPrice": "$95",
+      "yearlyEquivalent": "$7.9"
+    },
+    "features": {
+      "dailyTokens": "일일 토큰 (내장 모델)",
+      "dailyChats": "일일 채팅 세션",
+      "dailySearches": "일일 검색",
+      "memories": "메모리 항목",
+      "skills": "커스텀 스킬",
+      "skillStorage": "스킬 저장 공간",
+      "agents": "커스텀 에이전트",
+      "priorityQueue": "우선 대기열",
+      "configSync": "구성 동기화",
+      "advancedModels": "고급 모델",
+      "unlimited": "무제한",
+      "perKb": "KB당"
+    },
+    "quota": {
+      "title": "사용량",
+      "tokens": "토큰",
+      "workUnits": "작업 단위",
+      "workUnitsSubtitle": "월간 작업 단위 잔액",
+      "chats": "채팅",
+      "searches": "검색",
+      "used": "사용됨",
+      "remaining": "남음",
+      "limit": "한도",
+      "resetAt": "초기화 시각",
+      "resetDaily": "할당량은 매일 UTC 자정에 초기화됩니다",
+      "upgradeForMore": "Pro로 업그레이드하면 10배 할당량",
+      "upgradeNow": "지금 업그레이드",
+      "skills": "스킬",
+      "skillStorage": "스킬 저장 공간",
+      "exceeded": "할당량 초과",
+      "chatLimitReached": "일일 채팅 한도에 도달했습니다. 더 많은 한도를 위해 Pro로 업그레이드하세요.",
+      "searchLimitReached": "일일 검색 한도에 도달했습니다. 더 많은 한도를 위해 Pro로 업그레이드하세요.",
+      "tokenLimitReached": "일일 토큰 한도에 도달했습니다. 더 많은 한도를 위해 Pro로 업그레이드하세요.",
+      "serviceUnavailable": "구독 서비스를 사용할 수 없습니다",
+      "serviceUnavailableDesc": "기본 할당량을 사용 중이며 일부 기능이 제한될 수 있습니다",
+      "retryConnection": "연결 재시도",
+      "offlineMode": "오프라인 모드",
+      "upgrade": "업그레이드",
+      "proMember": "Pro 회원",
+      "freeTier": "무료 등급",
+      "upgradeToPro": "Pro로 업그레이드"
+    }
+  }
+}

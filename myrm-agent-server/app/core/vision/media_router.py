@@ -46,7 +46,6 @@ def resolve_video_route(
     has_video_fallback: bool,
     has_vision_fallback: bool,
 ) -> VisionMediaRoute:
-    has_fallback = has_video_fallback or has_vision_fallback
     native_required = has_video_fallback and not supports_video
     return VisionMediaRoute(
         use_native_video=supports_video,

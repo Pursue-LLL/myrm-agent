@@ -1,0 +1,78 @@
+{
+  "agent": {
+    "instinctInbox": {
+      "tabTitle": "인사이트",
+      "title": "대기 중인 인사이트",
+      "desc": "최근 대화에서 추출된 습관을 검토하고 승인하여 이 에이전트를 영구적으로 개선하세요.",
+      "approveSuccess": "인사이트가 승인되어 스킬로 저장되었습니다.",
+      "rejectSuccess": "인사이트가 거부되었습니다.",
+      "emptyTitle": "새 인사이트 없음",
+      "emptyDesc": "백그라운드 옵저버가 이 에이전트에 대한 새 습관이나 수정 사항을 최근에 추출하지 않았습니다.",
+      "approveBtn": "승인",
+      "dismissBtn": "닫기",
+      "loading": "인사이트 로드 중...",
+      "skillProposalBadge": "새 스킬 제안",
+      "proposedRulesLabel": "제안된 코드/규칙",
+      "approveFailed": "승인 실패",
+      "rejectFailed": "거부 실패"
+    },
+    "mobileCommand": {
+      "title": "커맨드 센터",
+      "running": "실행 중...",
+      "finished": "작업 완료",
+      "progress": "실행 진행 상황",
+      "thinking": "최신 사고",
+      "result": "결과 요약",
+      "viewFull": "전체 대화 보기",
+      "noStatus": "작업 상태 없음",
+      "stopTask": "작업 중지",
+      "stopTaskSuccess": "작업 중지 요청됨",
+      "stopTaskFailed": "중지할 실행 중인 작업이 없습니다",
+      "pendingApprovals": "대기 중인 승인",
+      "approve": "승인",
+      "reject": "거부",
+      "approveAll": "모두 승인",
+      "quickCommand": "빠른 명령",
+      "quickCommandPlaceholder": "새 지침 보내기...",
+      "steerPlaceholder": "에이전트 방향 전환...",
+      "send": "보내기",
+      "verifications": "수용 기준",
+      "livePreview": "라이브 미리보기",
+      "browser": "브라우저",
+      "desktop": "데스크톱",
+      "artifacts": "산출물",
+      "advisorAsk": "어드바이저에게 물어보기",
+      "advisorOpen": "사이드 Q&A"
+    },
+    "readiness": {
+      "warning": "일부 구성에 주의가 필요합니다",
+      "blocked": "에이전트를 실행할 수 없습니다 — 수정 필요",
+      "ready": "준비됨"
+    },
+    "aiBuilder": {
+      "placeholder": "만들려는 에이전트를 설명하세요, 예: '일일 보고서 작성 어시스턴트'",
+      "generating": "AI가 구성을 생성 중...",
+      "title": "AI로 빠른 생성",
+      "subtitle": "필요한 것을 설명하면 AI가 완전한 구성을 생성합니다",
+      "apply": "적용",
+      "retry": "다시 시도",
+      "error": "생성 실패, 다시 시도하세요"
+    },
+    "workspacePolicyOption": {
+      "INHERIT_REQUESTER": "부모 상속",
+      "ISOLATED_COPY": "격리 복사",
+      "READ_ONLY_SANDBOX": "읽기 전용 샌드박스"
+    },
+    "idleCompact": {
+      "title": "유휴 후 자동 압축",
+      "desc": "채팅이 유휴 상태가 되면 다음 응답 전에 이전 메시지를 요약합니다.",
+      "minutes": "유휴 시간 (분)",
+      "minutesDesc": "자동 압축 실행 전 마지막 메시지 이후 대기 시간.",
+      "hint": "기본적으로 꺼져 있습니다. 수동 압축 또는 높은 토큰 사용 시 자동 압축을 대체하지 않습니다."
+    },
+    "allowDiscovery": {
+      "title": "다른 에이전트의 발견 및 위임 허용",
+      "description": "활성화하면 다른 에이전트가 @멘션이나 자동 팀 구성을 통해 이 에이전트를 찾아 위임할 수 있습니다. 진행 중인 에이전트를 숨기려면 비활성화하세요."
+    }
+  }
+}

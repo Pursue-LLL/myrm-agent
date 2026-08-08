@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.chat.compact_service import CompactResult
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
+from app.services.chat.compact_service import CompactResult
 
 _PUMP_STREAM_PATH = (
     "app.services.agent.stream_session.stream_pump.generate_cancellable_stream"

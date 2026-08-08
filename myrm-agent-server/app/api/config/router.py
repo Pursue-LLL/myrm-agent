@@ -908,7 +908,7 @@ async def vision_health_check() -> VisionHealthResult:
 
         start = time.monotonic()
         try:
-            probe_result = await engine.describe_image_b64(
+            await engine.describe_image_b64(
                 _TINY_VISION_HEALTH_PNG_B64,
                 "image/png",
                 prompt="Health check",
@@ -955,13 +955,14 @@ VideoHealthResult = VisionHealthResult
 @router.post("/video-health", response_model=VideoHealthResult)
 async def video_health_check() -> VideoHealthResult:
     """Probe the configured video fallback chain with a tiny test image."""
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+        VisionDescriptionError,
+    )
+
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.config_parsers import (
         build_video_fallback_probe_engine_from_providers,
         extract_video_fallback_model_config,
-    )
-    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
-        VisionDescriptionError,
     )
 
     user_cfgs = await load_user_configs()

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionDescriptionError
 
 from tests.support.minimal_app import build_minimal_app

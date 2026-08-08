@@ -1,0 +1,139 @@
+{
+  "about": {
+    "title": "について",
+    "slogan": "コア製品をオープンソース化した、パワフルで拡張性の高いAIアシスタントプラットフォーム",
+    "version": "バージョン",
+    "introduction": {
+      "title": "プロジェクト紹介",
+      "description": "MyrmAgent のコア製品（Server、Frontend、Desktop）は MIT ライセンスでオープンソース化されています。"
+    },
+    "features": {
+      "powerful": {
+        "title": "強力なAI機能",
+        "description": "複数のLLMをサポートし、MCPプロトコル、スキルシステム、ナレッジベースを統合してオールインワンのAIアシスタントを構築"
+      },
+      "secure": {
+        "title": "セキュリティとプライバシー",
+        "description": "エンドツーエンドの暗号化とローカルデプロイをサポート — あなたのデータは完全にあなたの管理下にあります"
+      },
+      "extensible": {
+        "title": "高い拡張性",
+        "description": "柔軟なプラグインシステム、カスタムスキル、MCPサービスでAI機能を簡単に拡張"
+      },
+      "opensource": {
+        "title": "コア製品のオープンソース化",
+        "description": "Server、Frontend、Desktop はオープンソースでコミュニティ主導、継続的に改善されています — コントリビューション歓迎"
+      }
+    },
+    "changelog": {
+      "title": "変更履歴",
+      "description": "MyrmAgent の最新アップデートと改善を確認",
+      "v0_1_0": {
+        "item1": "初のパブリックリリース",
+        "item2": "マルチモデルサービス、エージェント、スキル、ナレッジベースのサポート",
+        "item3": "AI機能拡張のためのMCPプロトコル統合",
+        "item4": "ダークモード対応のモダンなUIデザイン"
+      }
+    },
+    "techStack": {
+      "title": "技術スタック",
+      "description": "MyrmAgent はモダンな技術スタックで構築されています",
+      "frontend": "フロントエンド",
+      "backend": "バックエンド",
+      "ai": "AI技術"
+    },
+    "links": {
+      "title": "関連リンク",
+      "description": "詳細情報とサポートを取得",
+      "website": {
+        "title": "公式ウェブサイト",
+        "description": "MyrmAgent の公式ウェブサイトにアクセス"
+      },
+      "github": {
+        "title": "GitHubリポジトリ",
+        "description": "ソースコードの閲覧、問題の報告、コードへの貢献"
+      },
+      "documentation": {
+        "title": "ドキュメント",
+        "description": "詳細な使用ガイドとAPIドキュメントを確認"
+      },
+      "community": {
+        "title": "コミュニティディスカッション",
+        "description": "コミュニティに参加して開発者やユーザーと交流"
+      }
+    },
+    "license": {
+      "title": "ライセンスと著作権",
+      "type": "MITライセンス（コア製品）",
+      "description": "このリポジトリの Server、Frontend、Desktop は MIT ライセンスでリリースされています。",
+      "copyright": "© {year} MyrmAgent. All rights reserved."
+    }
+  },
+  "budget": {
+    "title": "予算管理",
+    "description": "会話中のインテリジェントな終了を伴う多次元の支出制限",
+    "save": "保存",
+    "todaySpend": "本日の支出",
+    "sessionSpend": "セッション支出",
+    "statusWarning": "予算上限に近づいています — エージェントに通知済み",
+    "statusFinalization": "予算がほぼ使い切りました — エージェントは応答をまとめます",
+    "statusExceeded": "予算を超過しました — 実行をブロック",
+    "ecoModeHint": "エコモードが有効: トークン節約のためコンテキスト圧縮を最適化中",
+    "enableLabel": "予算管理を有効化",
+    "enableDesc": "LLM支出の多次元監視と制限",
+    "sessionLimit": "セッション上限",
+    "sessionLimitDesc": "1回の会話あたりの最大支出（USD）",
+    "dailyLimit": "日次上限",
+    "dailyLimitDesc": "1日あたりの最大支出（USD）",
+    "perCallLimit": "呼び出しあたりの上限",
+    "perCallLimitDesc": "LLM呼び出しあたりの最大支出（USD）",
+    "warningThreshold": "警告しきい値",
+    "warningThresholdDesc": "支出がこの割合に達したときに警告",
+    "actionOnExceeded": "超過時のアクション",
+    "actionOnExceededDesc": "予算超過の処理方法",
+    "actionFinalize": "正常終了",
+    "actionWarn": "警告のみ",
+    "actionBlock": "リクエストをブロック",
+    "optional": "任意"
+  },
+  "dlq": {
+    "title": "デッドレターミュー（DLQ）",
+    "description": "再試行後も失敗したメッセージを管理し、手動介入をサポートします。",
+    "refresh": "更新",
+    "channel": "チャンネル",
+    "recipient": "受信者",
+    "content": "コンテンツ",
+    "error": "エラー",
+    "time": "時刻",
+    "actions": "アクション",
+    "retry": "再試行",
+    "delete": "削除",
+    "empty": "失敗したメッセージはありません",
+    "noText": "テキストコンテンツがありません",
+    "retrySuccess": "メッセージを再試行キューに入れました",
+    "retryFailed": "再試行に失敗しました",
+    "deleteSuccess": "メッセージを削除しました",
+    "deleteFailed": "削除に失敗しました",
+    "fetchFailed": "失敗したメッセージの取得に失敗しました",
+    "retryAll": "すべて再試行",
+    "deleteAll": "すべてクリア",
+    "retryAllConfirmTitle": "すべて再試行しますか？",
+    "retryAllConfirmDesc": "失敗したすべてのメッセージを送信キューに再登録します。続行しますか？",
+    "deleteAllConfirmTitle": "すべてクリアしますか？",
+    "deleteAllConfirmDesc": "デッドレターミューのすべてのメッセージが完全に削除されます。この操作は元に戻せません。続行しますか？",
+    "cancel": "キャンセル",
+    "confirm": "確認"
+  },
+  "experimentalFeatures": {
+    "title": "実験的機能",
+    "description": "実験的機能を有効または無効にします。これらの機能は活発に開発中で、不安定な場合があります。",
+    "experimentalBadge": "実験的",
+    "newBadge": "新規",
+    "noFeatures": "利用可能な実験的機能はありません。",
+    "customized": "カスタム設定（デフォルトを上書き）",
+    "fetchError": "実験的機能の読み込みに失敗しました",
+    "enabledSuccess": "機能 {name} を有効にしました",
+    "disabledSuccess": "機能 {name} を無効にしました",
+    "toggleError": "機能 {name} の切り替えに失敗しました"
+  }
+}

@@ -26,7 +26,10 @@ import {
   ChevronRight,
   ChevronDown,
   Clock,
+  Hourglass,
   ShieldCheck,
+  Ban,
+  Hand,
   X,
   GitCompareArrows,
   ArrowUpDown,
@@ -53,12 +56,16 @@ import {
 } from '@/lib/utils/subagentTree';
 
 const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; className: string; spin?: boolean }> = {
+  pending: { icon: Clock, className: 'text-slate-400' },
+  pending_approval: { icon: Hourglass, className: 'text-amber-500' },
   running: { icon: Loader2, className: 'text-blue-500', spin: true },
   verifying: { icon: ShieldCheck, className: 'text-amber-500', spin: true },
   completed: { icon: CheckCircle2, className: 'text-green-500' },
   failed: { icon: XCircle, className: 'text-red-500' },
   timed_out: { icon: AlertCircle, className: 'text-yellow-500' },
   cancelled: { icon: StopCircle, className: 'text-gray-500' },
+  cancelled_by_budget: { icon: Ban, className: 'text-rose-500' },
+  yielded: { icon: Hand, className: 'text-purple-500' },
   checkpoint: { icon: PlayCircle, className: 'text-purple-500' },
   interrupted: { icon: AlertTriangle, className: 'text-orange-500' },
 };

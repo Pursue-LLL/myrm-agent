@@ -90,7 +90,7 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
       if (!user?.id || processingId) return;
       setProcessingId(draft.id);
       try {
-        const result = await approveDraft(draft.id, draft.name);
+        const result = await approveDraft(draft.id, draft.name ?? '');
         if (result.materialized === false) {
           setInvokeGuideSkillName(null);
           toast({
@@ -102,7 +102,7 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
           let description = draft.name || draft.draft_type;
           if (result.materialized_type === 'skill') {
             const skillName = result.skill_name || draft.name;
-            description = t('draft.materializedSkill', { name: skillName });
+            description = t('draft.materializedSkill', { name: skillName ?? '' });
             setInvokeGuideSkillName(skillName || null);
           } else if (result.materialized_type === 'memory') {
             description = t('draft.materializedMemory');

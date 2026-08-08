@@ -358,7 +358,8 @@ export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
  */
 export function resolveLucideIcon(iconName: string): React.ComponentType<{ size?: number; className?: string }> {
   const componentName = iconName.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
-  return (LucideIcons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[componentName] || LucideIcons.Bot;
+  const iconMap = LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>;
+  return iconMap[componentName] || LucideIcons.Bot;
 }
 
 export function LucideAgentIcon({ iconName, size = 'md', className }: { iconName: string, size?: 'sm' | 'md' | 'lg', className?: string }) {

@@ -6,10 +6,10 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 
 from app.services.copilot.advisor_thread_store import AdvisorThreadStore
 from app.services.copilot.run_digest_store import RunDigestStore
-from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")

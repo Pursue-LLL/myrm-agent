@@ -9,6 +9,7 @@ import { SortablePinnedRow } from '../ChatHistoryRow';
 const chat: ChatItem = {
   id: 'pinned-chat-1',
   title: 'Pinned Alpha',
+  firstMessage: 'First message',
   lastMessage: 'Last message',
   updatedAt: new Date('2026-08-01T12:00:00Z'),
   createdAt: new Date('2026-08-01T10:00:00Z'),

@@ -109,7 +109,17 @@
     ".next-isolated-chrome-test_render_ui_surface_hint_and_client_s-1ebbc892-86559-7aa80d53/types/**/*.ts",
     ".next-isolated-chrome-test_render_ui_surface_hint_and_client_s-1ebbc892-86559-7aa80d53/dev/types/**/*.ts",
     ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-57494-a2523edc/types/**/*.ts",
-    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-57494-a2523edc/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-57494-a2523edc/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-2594-a321e09d/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-2594-a321e09d/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-53427-4316dce3/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-53427-4316dce3/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-94564-d18308db/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-94564-d18308db/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-40267-d2fbfe3d/types/**/*.ts",
+    ".next-isolated-chrome-test_growth_center_stats_and_lazy_detail-c0650d6a-40267-d2fbfe3d/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-1-34237-7d8240c1/types/**/*.ts",
+    ".next-isolated-e2e-parent-1-34237-7d8240c1/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

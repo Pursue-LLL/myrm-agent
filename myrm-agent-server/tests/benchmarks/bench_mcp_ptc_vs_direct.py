@@ -81,20 +81,10 @@ def _load_model_configs() -> list[dict[str, str]]:
     return configs
 
 
-def _resolve_uvx() -> str:
-    if Path(_UVX_PATH).exists():
-        return _UVX_PATH
-    found = shutil.which("uvx")
-    if found:
-        return found
-    raise RuntimeError("uvx not found")
-
-
 async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
     """连接 MCP 获取工具列表, 返回 (tools, tool_defs, schema_tokens)"""
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
-    uvx_cmd = _resolve_uvx()
     mcp_cmd, mcp_args = _resolve_12306_mcp_stdio()
     client = MultiServerMCPClient(
         {"12306": {"command": mcp_cmd, "args": mcp_args, "transport": "stdio"}}

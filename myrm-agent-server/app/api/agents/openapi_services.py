@@ -158,7 +158,7 @@ async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
     """
     try:
         spec = await _bridge.preview_spec(payload.service_config)
-    except ValueError as e:
+    except ValueError:
         return TestRequestResponse(success=False, status_message="Spec validation failed")
 
     target_ep = None
@@ -207,5 +207,5 @@ async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
             status_message="Request successful" if not is_error else "Request returned error",
             response_body=result[:2000],
         )
-    except Exception as e:
+    except Exception:
         return TestRequestResponse(success=False, status_message="Request failed")

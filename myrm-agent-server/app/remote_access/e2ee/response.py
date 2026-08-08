@@ -18,8 +18,8 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from app.schemas.responses import create_success_response
 from app.remote_access.e2ee.session import E2EE_CONTENT_TYPE, E2EESession
+from app.schemas.responses import create_success_response
 
 
 def get_request_e2ee_session(request: Request) -> E2EESession | None:

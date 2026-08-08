@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from e2e_resource_ledger import register_e2e_resource
 
 from tests.support.e2e_runtime_guard import (
     assert_chrome_attach_health,
@@ -16,8 +17,6 @@ from tests.support.e2e_runtime_guard import (
     reap_chrome_e2e_session_hygiene,
     require_e2e_runtime_lease,
 )
-
-from e2e_resource_ledger import register_e2e_resource
 
 
 def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:

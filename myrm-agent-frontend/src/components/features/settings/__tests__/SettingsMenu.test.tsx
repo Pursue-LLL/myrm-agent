@@ -174,7 +174,7 @@ describe('SettingsMenu - search filtering', () => {
     { id: 'models', labelKey: 'models', group: 'ai-core' },
     { id: 'agents', labelKey: 'agents', group: 'ai-core' },
     { id: 'mcp', labelKey: 'mcp', group: 'ai-tools' },
-    { id: 'security', labelKey: 'security', group: 'security' },
+    { id: 'security', labelKey: 'security', group: 'system' },
   ];
 
   it('should return all items when query is empty', () => {

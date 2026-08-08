@@ -98,13 +98,27 @@ vi.mock('@/services/llm-config', () => ({
 }));
 
 import LocalCapabilitiesSetup from '../LocalCapabilitiesSetup';
+import type { ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
 
-const NO_MODEL_PROBE = { results: [], search: [] };
+const NO_MODEL_PROBE: ProbeLocalResponse = {
+  results: [],
+  search: [],
+  has_available: false,
+  recommended_model: null,
+};
 
-const WITH_MODEL_PROBE = {
+const WITH_MODEL_PROBE: ProbeLocalResponse = {
   results: [
-    { provider: 'ollama', available: true, base_url: 'http://localhost:11434', models: ['llama3'] },
+    {
+      provider: 'ollama',
+      available: true,
+      base_url: 'http://localhost:11434',
+      models: [{ name: 'llama3', size_bytes: null, modified_at: null }],
+      error: null,
+      latency_ms: 5,
+    },
   ],
+  has_available: true,
   recommended_model: 'llama3',
   search: [],
 };

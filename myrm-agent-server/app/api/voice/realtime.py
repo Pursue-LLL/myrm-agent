@@ -412,7 +412,6 @@ def _extract_openai_base_url(providers: dict[str, object]) -> str | None:
 
 def _safe_json_str(obj: object) -> str:
     """Serialize to JSON string safely."""
-    import json
 
     try:
         return json.dumps(obj, ensure_ascii=False, default=str)

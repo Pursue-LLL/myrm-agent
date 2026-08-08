@@ -12,9 +12,8 @@ import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-from app.services.wiki.clip import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
-
 from app.core.security.auth.identity import LOCAL_USER_ID
+from app.services.wiki.clip import MAX_CLIP_PAYLOAD_BYTES, clip_form_payload_bytes
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from tests.support.minimal_app import build_minimal_app
 

@@ -12,7 +12,7 @@
 | `ConfigConflictDialog.tsx` | 组件 | 跨设备配置冲突解决 UI（T3）；同设备冲突由 ConfigSyncManager 静默处理 | ✅ |
 | `PremiumTooltip.tsx` | 辅助 | 付费功能锁定 Tooltip 包装器 | ✅ |
 | `QuarantineDialog.tsx` | 组件 | 隔离/安全扫描 quarantine 文件确认对话框 | ✅ |
-| `SystemStatusBanner.tsx` | 组件 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过）；文案走 `notifications.*` 五语言 i18n | ✅ |
+| `SystemStatusBanner.tsx` | 组件 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过）；文案走 `notifications.*` 六语言 i18n | ✅ |
 | `VaultUnlockModal.tsx` | 组件 | E2EE Vault 解锁密码模态框 | ✅ |
 | `VisualDesktop.tsx` | 组件 | VNC/noVNC 实时桌面嵌入视图 | ✅ |
 | `VisualDesktopToggle.tsx` | 组件 | managed 模式 VNC 桌面面板 + 浏览器 HITL takeover（自动弹出、CAPTCHA auto_detect 时隐藏 Done/Skip；extension 模式不触发 VNC） | ✅ |
@@ -56,7 +56,7 @@
 | 路径 | 职责 |
 |------|------|
 | `__tests__/SystemStatusBanner.test.tsx` | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定 |
-| `__tests__/SystemStatusBanner.locales.test.ts` | 五语言 `notifications.database*` keys 完整性 |
+| `__tests__/SystemStatusBanner.locales.test.ts` | 六语言 `notifications.database*` keys 完整性 |
 | `__tests__/crash-recovery-dialog.test.tsx` | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见 |
 | `__tests__/flow-pad-inline-mode.test.tsx` | Inline 路由切换、请求级中断隔离、专家模板召唤与场景预填回归 |
 | `__tests__/search-dialog.cite.test.tsx` | Cmd+K cite：跨会话 prior_chat chip · 同会话 citeSameChat toast |

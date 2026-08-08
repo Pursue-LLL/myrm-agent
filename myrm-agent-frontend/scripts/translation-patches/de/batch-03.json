@@ -1,0 +1,350 @@
+{
+  "settings": {
+    "securityPolicy": {
+      "privacy": {
+        "routing": {
+          "s3Strategy": "S3-Strategie (vertraulich)",
+          "s3Local": "Nur lokal",
+          "s3Block": "Anfrage blockieren",
+          "localFallback": "Lokales Modell fehlgeschlagen",
+          "fallbackBlock": "Anfrage blockieren",
+          "fallbackForceRedactCloud": "Maskieren erzwingen und Cloud",
+          "testConnection": "Testen",
+          "testSuccess": "Lokales Modell verbunden",
+          "testFailed": "Verbindung fehlgeschlagen",
+          "noLocalModelWarning": "Sie haben eine lokale Routing-Strategie gewählt, aber kein lokales Modell konfiguriert. Das Routing fällt für alle Anfragen auf die Cloud zurück."
+        },
+        "advanced": {
+          "title": "Erweiterte PII-Konfiguration",
+          "description": "Definieren Sie benutzerdefinierte Schlüsselwörter, Regex-Muster und sensible Tools, um die integrierten PII-Erkennungsregeln zu erweitern.",
+          "keywordsS2Label": "S2-Benutzerschlüsselwörter",
+          "keywordsS2Desc": "Wörter, die als sensibel (S2) behandelt werden sollen. Mindestens 2 Zeichen.",
+          "keywordsS2Placeholder": "z. B. Projekt Phoenix",
+          "keywordsS3Label": "S3-Benutzerschlüsselwörter",
+          "keywordsS3Desc": "Wörter, die als vertraulich (S3) behandelt werden sollen.",
+          "keywordsS3Placeholder": "z. B. Streng geheim",
+          "patternsS2Label": "S2-Benutzermuster (Regex)",
+          "patternsS2Desc": "Regex-Muster zur Erkennung sensibler Inhalte.",
+          "patternsS3Label": "S3-Benutzermuster (Regex)",
+          "patternsS3Desc": "Regex-Muster zur Erkennung vertraulicher Inhalte.",
+          "toolsS2Label": "S2-Sensible Tools",
+          "toolsS2Desc": "Tool-Aufrufe, die den S2-Schutz auslösen sollen.",
+          "toolsS3Label": "S3-Sensible Tools",
+          "toolsS3Desc": "Tool-Aufrufe, die den S3-Schutz auslösen sollen.",
+          "invalidRegex": "Ungültiges Regex-Muster",
+          "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein",
+          "testMatch": "Treffer testen",
+          "testMatchNoResult": "Keine benutzerdefinierten Regeln stimmten überein"
+        }
+      },
+      "domainAllowlist": {
+        "title": "Domain-Erlaubnisliste",
+        "description": "Steuern, auf welche Domains der KI-Agent über Browser- und Netzwerktools zugreifen kann. Nur gelistete Domains sind erlaubt.",
+        "hitlLabel": "Domain-HITL-Genehmigung",
+        "hitlDesc": "Wenn aktiviert, wird der Zugriff auf nicht gelistete Domains zur Genehmigung angefragt, statt direkt blockiert zu werden.",
+        "listLabel": "Erlaubte Domains",
+        "listDesc": "Domains oder Muster, auf die der Agent zugreifen darf (z. B. *.example.com, api.github.com).",
+        "placeholder": "z. B. *.example.com oder api.github.com",
+        "addDomain": "Hinzufügen",
+        "empty": "Keine Domains konfiguriert. Bei leerer Erlaubnisliste sind standardmäßig alle Domains erlaubt.",
+        "invalidDomain": "Ungültiges Domain-Format. Verwenden Sie Muster wie example.com oder *.example.com",
+        "duplicateDomain": "Diese Domain ist bereits in der Erlaubnisliste",
+        "domainAdded": "Domain hinzugefügt",
+        "domainRemoved": "Domain entfernt",
+        "saved": "Domainrichtlinie gespeichert"
+      },
+      "injectionPolicy": {
+        "title": "Prompt-Injection-Schutz",
+        "description": "Erkannte Prompt-Injection-Angriffe blockieren statt nur zu protokollieren. IM- und Cron-Kanäle verwenden standardmäßig den Blockiermodus, unabhängig von dieser Einstellung.",
+        "enableLabel": "Fail-Closed-Blockierung aktivieren",
+        "saved": "Prompt-Injection-Richtlinie gespeichert"
+      },
+      "allowlist": {
+        "title": "Erlaubnislisten-Einträge (Immer erlauben)",
+        "description": "Verwalten Sie Operationen, die als „Immer erlauben\" markiert sind. Diese Operationen werden ohne Nachfrage automatisch genehmigt.",
+        "refresh": "Aktualisieren",
+        "clearAll": "Alle löschen",
+        "empty": "Keine Erlaubnislisten-Einträge",
+        "toolName": "Tool-Name",
+        "argsHash": "Args-Hash",
+        "deleteSuccess": "Eintrag gelöscht",
+        "deleteError": "Löschen fehlgeschlagen",
+        "clearError": "Löschen fehlgeschlagen",
+        "loadError": "Laden fehlgeschlagen",
+        "granularity": {
+          "permission": "Berechtigung",
+          "tool": "Tool",
+          "exact": "Exakt"
+        },
+        "permissions": {
+          "codeInterpreter": "Code-Ausführung",
+          "shellExec": "Shell-Befehle",
+          "fileRead": "Datei lesen",
+          "fileWrite": "Datei schreiben",
+          "browserNavigate": "Browser-Navigation",
+          "browserFill": "Formular ausfüllen",
+          "browserSession": "Sitzungsverwaltung"
+        },
+        "notice": {
+          "title": "Sicherheitshinweis",
+          "description": "Verwalten Sie Erlaubnislisten-Einträge sorgfältig. Gelöschte Einträge stellen den Genehmigungsablauf wieder her."
+        },
+        "clearConfirm": {
+          "title": "Alle Einträge löschen bestätigen",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen bestätigen"
+        }
+      },
+      "autoReview": {
+        "description": "Verwenden Sie eine LLM, um riskante Tool-Aufrufe (wie Shell-Befehle oder Netzwerkanfragen) automatisch gegen Ihre ursprüngliche Absicht zu prüfen. Wenn die Aktion Ihrer Absicht entspricht, wird sie stillschweigend genehmigt – weniger Unterbrechungen.",
+        "enableLabel": "Smart Intent Guard aktivieren",
+        "enableDesc": "Wenn aktiviert, bewertet eine LLM potenziell gefährliche Tool-Aufrufe, bevor Sie unterbrochen werden.",
+        "saved": "Smart-Intent-Guard-Einstellung gespeichert",
+        "modelSaved": "Smart-Intent-Guard-Modell gespeichert",
+        "selectModel": "Prüfmodell auswählen",
+        "selectModelPlaceholder": "Ein schnelles Modell auswählen (z. B. GPT-4o-mini)",
+        "modelRecommendation": "Empfehlung: Verwenden Sie ein schnelles, kostengünstiges Modell wie GPT-4o-mini oder Claude 3 Haiku für optimale Latenz.",
+        "noModelHint": "Smart Intent Guard ist mit Ihrem Standardmodell aktiv. Für optimale Latenz und Kosten sollten Sie ein dediziertes schnelles Modell auswählen (z. B. GPT-4o-mini).",
+        "shellEscalationHint": "Hinweis: Im Smart-Intent-Guard-Modus werden risikoreiche Operationen (z. B. Shell-Befehle) vom Sicherheitsmodell geprüft, auch wenn Ihre Berechtigungsregeln sie auf „Erlauben\" setzen. Trivial sichere Befehle (ls, cat, git status usw.) werden ohne LLM-Prüfung schnell durchgereicht."
+      },
+      "managedPolicy": {
+        "lockedBadge": "Organisationsrichtlinie",
+        "autoReviewLocked": "Ihre Organisation verlangt Smart Intent Guard für geschützte Agenten. Diese Einstellung kann nicht deaktiviert werden.",
+        "yoloLocked": "Der YOLO-Modus ist durch Ihre Organisationsrichtlinie deaktiviert.",
+        "allowAlwaysLocked": "„Immer erlauben\" ist durch Ihre Organisationsrichtlinie deaktiviert."
+      },
+      "riskRules": {
+        "title": "Risikoregeln",
+        "description": "Regeln zur Erkennung sensibler Daten verwalten, um Datenlecks in LLM-Gesprächen zu verhindern. Verwenden Sie nicht vertrauenswürdige Drittanbieter-Modell-APIs (z. B. Proxy-Dienste) mit Vorsicht, um zu vermeiden, dass sensible Daten böswillig analysiert und ausgenutzt werden.",
+        "addRule": "Regel hinzufügen",
+        "testRule": "Regel testen",
+        "noRules": "Keine Risikoregeln konfiguriert",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert",
+        "builtin": "Integriert",
+        "custom": "Benutzerdefiniert",
+        "ruleId": "Regel-ID",
+        "displayName": "Anzeigename",
+        "pattern": "Regex-Muster",
+        "severity": "Schweregrad",
+        "action": "Aktion",
+        "category": "Kategorie",
+        "sortOrder": "Sortierreihenfolge",
+        "severityLow": "Niedrig",
+        "severityMedium": "Mittel",
+        "severityHigh": "Hoch",
+        "actionAllow": "Erlauben",
+        "actionBlock": "Blockieren",
+        "categoryPersonal": "Persönliche Daten",
+        "categoryCompany": "Unternehmensintern",
+        "categorySecurity": "Sicherheitsanmeldedaten",
+        "categoryFinanceLegal": "Finanzen & Recht",
+        "categoryPolitical": "Politik & Militär",
+        "categoryCustomer": "Kundendaten",
+        "categoryCustom": "Benutzerdefiniert",
+        "allCategories": "Alle Kategorien",
+        "enableAll": "Alle aktivieren",
+        "disableAll": "Alle deaktivieren",
+        "batchToggle": "Stapelumschaltung",
+        "deleteRule": "Regel löschen",
+        "editRule": "Regel bearbeiten",
+        "createRule": "Regel erstellen",
+        "saveRule": "Speichern",
+        "cancel": "Abbrechen",
+        "deleteConfirm": "Möchten Sie diese Regel wirklich löschen?",
+        "deleteSuccess": "Regel gelöscht",
+        "saveSuccess": "Regel gespeichert",
+        "createSuccess": "Regel erstellt",
+        "toggleSuccess": "Regeln aktualisiert",
+        "loadError": "Regeln konnten nicht geladen werden",
+        "testTitle": "Regelmuster testen",
+        "testPattern": "Muster",
+        "testText": "Testtext",
+        "testSubmit": "Testen",
+        "testMatches": "Treffer",
+        "testNoMatches": "Keine Treffer gefunden",
+        "testInvalidPattern": "Ungültiges Regex-Muster",
+        "builtinCannotDelete": "Integrierte Regeln können nicht gelöscht werden",
+        "builtinCannotEditPattern": "Integrierte Regelmuster können nicht geändert werden",
+        "hits": "Prüfprotokoll",
+        "hitsTitle": "Risiko-Trefferaufzeichnungen",
+        "hitsEmpty": "Keine Risiko-Treffer aufgezeichnet",
+        "hitsRuleName": "Regel",
+        "hitsSeverity": "Schweregrad",
+        "hitsAction": "Aktion",
+        "hitsMatch": "Trefferinhalt",
+        "hitsTime": "Zeit",
+        "hitsUser": "Benutzer",
+        "searchNoResults": "Keine passenden Regeln gefunden",
+        "exportRules": "Benutzerdefinierte Regeln exportieren",
+        "importRules": "Regeln importieren",
+        "noCustomRulesToExport": "Keine benutzerdefinierten Regeln zum Exportieren",
+        "importError": "Import fehlgeschlagen, bitte Dateiformat prüfen",
+        "duplicateRule": "Doppelte Regel",
+        "rules": {
+          "email_address": {
+            "name": "E-Mail-Adresse",
+            "desc": "E-Mail-Adressen erkennen."
+          },
+          "cn_mobile_number": {
+            "name": "Festland-China-Handynummer",
+            "desc": "Festland-China-Handynummern erkennen."
+          },
+          "cn_id_card": {
+            "name": "Chinesische Personalausweisnummer",
+            "desc": "18-stellige chinesische Personalausweisnummern erkennen."
+          },
+          "passport_number": {
+            "name": "Reisepassnummer",
+            "desc": "Gängige Reisepassnummernformate erkennen."
+          },
+          "bank_card_context": {
+            "name": "Bankkartenkontext",
+            "desc": "Kartennummernähnliche Daten in der Nähe von Bankkarten-Schlüsselwörtern erkennen."
+          },
+          "personal_address_keywords": {
+            "name": "Schlüsselwörter für persönliche Adressen",
+            "desc": "Gängige persönliche Adressausdrücke erkennen."
+          },
+          "resume_cv_keywords": {
+            "name": "Lebenslauf- oder CV-Inhalt",
+            "desc": "Lebenslauf- und CV-bezogene Inhalte erkennen."
+          },
+          "private_key_marker": {
+            "name": "Privatschlüsselmaterial",
+            "desc": "PEM-Privatschlüsselmarker erkennen."
+          },
+          "api_key_like": {
+            "desc": "Gängige API-Schlüssel- und Cloud-Anmeldedatenmuster erkennen."
+          },
+          "credential_assignment": {
+            "name": "Anmeldedatenzuweisung",
+            "desc": "Explizite Passwort-, Secret-, Token- oder API-Schlüsselzuweisung erkennen."
+          },
+          "jwt_token_like": {
+            "name": "JWT-Token",
+            "desc": "JWT-ähnliche Bearer-Tokens erkennen."
+          },
+          "cookie_session_like": {
+            "desc": "Sitzungs-, Cookie- und Autorisierungswortlaut erkennen."
+          },
+          "db_connection_string": {
+            "name": "Datenbank-Verbindungsstring",
+            "desc": "Verbindungsstrings für Datenbanken, Caches und Warteschlangen erkennen."
+          },
+          "kubeconfig_content": {
+            "name": "Kubeconfig-Inhalt",
+            "desc": "Kubeconfig-artigen Konfigurationsinhalt erkennen."
+          },
+          "env_file_secret": {
+            "name": "Geheime Umgebungsvariable",
+            "desc": "Gängige Secret-Variablennamen in env-artigem Inhalt erkennen."
+          },
+          "private_ip": {
+            "name": "Private Netzwerkadresse",
+            "desc": "RFC1918 private IP-Adressen erkennen."
+          },
+          "internal_domain_name": {
+            "desc": "Gängige interne Domain- und Systembenennungsmuster erkennen."
+          },
+          "internal_hostname_pattern": {
+            "name": "Interne Host-Benennung",
+            "desc": "Interne Hostnamen und umgebungsspezifische Ressourcennamen erkennen."
+          },
+          "kubernetes_service_dns": {
+            "name": "K8s-Service-DNS",
+            "desc": "Kubernetes-interne Service-DNS-Referenzen erkennen."
+          },
+          "project_codename_keywords": {
+            "desc": "Projekt-Codename oder nicht veröffentlichte Roadmap-Wortlaute erkennen."
+          },
+          "org_roster_keywords": {
+            "desc": "Organigramme, Namenslisten und interne Verzeichnisse erkennen."
+          },
+          "salary_hr_keywords": {
+            "desc": "Vergütungs-, Gehalts- und HR-Bewertungswortlaut erkennen."
+          },
+          "customer_list_keywords": {
+            "desc": "Kundenlisten- und Kontaktlisten-Wortlaut erkennen."
+          },
+          "contract_quote_keywords": {
+            "desc": "Vertrags-, Angebots- oder Ausschreibungswortlaut erkennen."
+          },
+          "crm_ticket_keywords": {
+            "desc": "CRM-Notizen, Ticketinhalte oder Kundenprofil-Wortlaut erkennen."
+          },
+          "financial_metrics_keywords": {
+            "desc": "Finanzkennzahlen-, Budget- und Rentabilitätswortlaut erkennen."
+          },
+          "invoice_tax_keywords": {
+            "desc": "Rechnungs- und Steuerkennungswortlaut erkennen."
+          },
+          "legal_document_keywords": {
+            "desc": "Rechtsgutachten-, Streit- und NDA-Wortlaut erkennen."
+          },
+          "political_person_org_keywords": {
+            "desc": "Politische Institutionen, Amtsträger und verwandten Wortlaut erkennen."
+          },
+          "military_security_keywords": {
+            "desc": "Militärische Aufstellung, Waffen und nationale Sicherheitswortlaute erkennen."
+          },
+          "extremism_keywords": {
+            "desc": "Extremistischen, gewalttätigen Angriffs- und Bombenbau-Wortlaut erkennen."
+          }
+        }
+      },
+      "nlGenerator": {
+        "sectionTitle": "KI-Richtliniengenerator",
+        "sectionDesc": "Beschreiben Sie Ihre Sicherheitsanforderungen in natürlicher Sprache und lassen Sie die KI die Konfiguration generieren.",
+        "title": "Smart Generieren",
+        "description": "Beschreiben Sie Ihre Sicherheitsanforderungen in natürlicher Sprache und die KI generiert entsprechende Berechtigungsregeln, Pfadrichtlinien und Netzwerk-Erlaubnislisten.",
+        "generate": "Generieren",
+        "generateFailed": "Richtliniengenerierung fehlgeschlagen, bitte erneut versuchen",
+        "resultValid": "Richtlinie erfolgreich generiert",
+        "resultDanger": "Richtlinie enthält risikoreiche Elemente",
+        "apply": "Anwenden",
+        "cancel": "Abbrechen",
+        "applied": "Richtlinie angewendet",
+        "sectionPermissions": "Berechtigungsregeln",
+        "sectionPathPolicy": "Pfadrichtlinie",
+        "sectionNetwork": "Netzwerk-Erlaubnisliste",
+        "sectionPrivacy": "Datenschutzrichtlinie"
+      }
+    },
+    "retrieval": {
+      "embeddingConfig": "Embedding-Modellkonfiguration",
+      "rerankerConfig": "Reranker-Modellkonfiguration",
+      "embeddingModel": "Embedding-Modell",
+      "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche (läuft lokal)",
+      "embeddingModelDescriptionSaas": "Text-Vektorisierungsmodell für semantische Suche (kostenlos für Abonnenten)",
+      "rerankerModel": "Reranker-Modell",
+      "rerankerModelDescription": "Such-Reranking-Modell für bessere Relevanz (läuft lokal)",
+      "rerankerModelDescriptionSaas": "Such-Reranking-Modell für bessere Relevanz (kostenlos für Abonnenten)",
+      "localModel": "Lokales Modell",
+      "platformService": "Plattformdienst",
+      "customProvider": "Benutzerdefinierter Anbieter",
+      "provider": "Anbieter",
+      "modelName": "Modellname",
+      "modelNamePlaceholder": "Modellname eingeben",
+      "apiKeyPlaceholder": "Ihren API-Schlüssel eingeben",
+      "apiKeyHint": "API-Schlüssel von der Anbieterwebsite abrufen oder benutzerdefinierten Schlüssel für lokale Dienste eingeben",
+      "apiBase": "API-Basis-URL",
+      "apiBasePlaceholder": "Benutzerdefinierter API-Endpunkt (optional)",
+      "apiBaseHint": "Nur bei Verwendung eines benutzerdefinierten Dienstes erforderlich",
+      "viewProviderModels": "Unterstützte Modelle anzeigen",
+      "modelLabel": "Modell",
+      "modelHint": "Beliebiges LiteLLM-unterstütztes Modell eingeben. Siehe",
+      "apiBaseLabel": "API-Basis-URL",
+      "optional": "optional",
+      "testConnection": "Verbindung testen",
+      "connectionSuccess": "Erfolgreich verbunden",
+      "connectionError": "Verbindung fehlgeschlagen",
+      "saveConfiguration": "Konfiguration speichern",
+      "unsavedChanges": "Sie haben ungespeicherte Änderungen. Sie werden in 1 Sekunde automatisch gespeichert.",
+      "saveSuccess": "Konfiguration gespeichert",
+      "saveSuccessDesc": "Ihre Abrufdienstkonfiguration wurde erfolgreich gespeichert.",
+      "saveError": "Speichern fehlgeschlagen",
+      "saveErrorDesc": "Konfiguration konnte nicht gespeichert werden. Bitte erneut versuchen."
+    }
+  }
+}

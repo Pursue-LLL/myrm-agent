@@ -97,8 +97,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const [useGlobalInstruction, setUseGlobalInstruction] = useState(true);
   const [autoRestoreDomains, setAutoRestoreDomains] = useState<string[]>([]);
   const [browserSource, setBrowserSource] = useState<string | undefined>(undefined);
-  const [dialogPolicy, setDialogPolicy] = useState<string | undefined>(undefined);
-  const [sessionRecording, setSessionRecording] = useState<string | undefined>(undefined);
+  const [dialogPolicy, setDialogPolicy] = useState<'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined>(undefined);
+  const [sessionRecording, setSessionRecording] = useState<'off' | 'on_failure' | 'always' | undefined>(undefined);
   const [enabledBuiltinTools, setEnabledBuiltinTools] = useState<BuiltinToolId[]>([...DEFAULT_ENABLED_BUILTIN_TOOLS]);
   const [modelSelection, setModelSelection] = useState<AgentModelSelection | null>(null);
 
@@ -170,8 +170,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedMcpNames: [] as string[],
     autoRestoreDomains: [] as string[],
     browserSource: undefined as string | undefined,
-    dialogPolicy: undefined as string | undefined,
-    sessionRecording: undefined as string | undefined,
+    dialogPolicy: undefined as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined,
+    sessionRecording: undefined as 'off' | 'on_failure' | 'always' | undefined,
     enabledBuiltinTools: [...DEFAULT_ENABLED_BUILTIN_TOOLS] as BuiltinToolId[],
     modelSelection: null as AgentModelSelection | null,
     selectedSubagentIds: [] as string[],
@@ -313,8 +313,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setMcpToolSelections(data.mcp_tool_selections || {});
       setAutoRestoreDomains(data.auto_restore_domains || []);
       setBrowserSource(data.browser_source ?? undefined);
-      setDialogPolicy(data.dialog_policy ?? undefined);
-      setSessionRecording(data.session_recording ?? undefined);
+      setDialogPolicy((data.dialog_policy ?? undefined) as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined);
+      setSessionRecording((data.session_recording ?? undefined) as 'off' | 'on_failure' | 'always' | undefined);
       setSuggestionPrompts(data.suggestion_prompts || []);
       const agentBuiltinTools = (data.enabled_builtin_tools ?? [...DEFAULT_ENABLED_BUILTIN_TOOLS]) as BuiltinToolId[];
       setEnabledBuiltinTools(agentBuiltinTools);
@@ -345,8 +345,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         selectedMcpNames: data.mcp_ids || [],
         autoRestoreDomains: data.auto_restore_domains || [],
         browserSource: data.browser_source ?? undefined,
-        dialogPolicy: data.dialog_policy ?? undefined,
-        sessionRecording: data.session_recording ?? undefined,
+        dialogPolicy: (data.dialog_policy ?? undefined) as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined,
+        sessionRecording: (data.session_recording ?? undefined) as 'off' | 'on_failure' | 'always' | undefined,
         enabledBuiltinTools: agentBuiltinTools,
         selectedSubagentIds: data.subagent_ids || [],
         modelSelection: data.model_selection ?? null,
@@ -534,6 +534,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           maxIterations,
           memoryDecayProfile,
           memoryExtractionPreset,
+          workspacePolicy,
           engineParams,
           openapiServices: [...openapiServices],
           suggestionPrompts: [...suggestionPrompts],
@@ -636,8 +637,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       enabledBuiltinTools?: BuiltinToolId[];
       autoRestoreDomains?: string[];
       browserSource?: string;
-      dialogPolicy?: string;
-      sessionRecording?: string;
+      dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
+      sessionRecording?: 'off' | 'on_failure' | 'always';
     }) => {
       if (data.selectedSkillIds !== undefined) setSelectedSkillIds(data.selectedSkillIds);
       if (data.skillConfigs !== undefined) setSkillConfigs(data.skillConfigs);
@@ -648,8 +649,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       if (data.enabledBuiltinTools !== undefined) setEnabledBuiltinTools(data.enabledBuiltinTools);
       if (data.autoRestoreDomains !== undefined) setAutoRestoreDomains(data.autoRestoreDomains);
       if (data.browserSource !== undefined) setBrowserSource(data.browserSource || undefined);
-      if (data.dialogPolicy !== undefined) setDialogPolicy(data.dialogPolicy || undefined);
-      if (data.sessionRecording !== undefined) setSessionRecording(data.sessionRecording || undefined);
+      if (data.dialogPolicy !== undefined) setDialogPolicy(data.dialogPolicy);
+      if (data.sessionRecording !== undefined) setSessionRecording(data.sessionRecording);
     },
     [],
   );

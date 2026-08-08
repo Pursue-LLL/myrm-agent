@@ -14,7 +14,6 @@ from app.remote_access.pairing import (
     MOBILE_HUB_LIST_PURPOSE,
 )
 
-
 PAIRING_PURPOSES = {
     MOBILE_HUB_LIST_PURPOSE,
     MOBILE_HUB_CONTROL_PURPOSE,

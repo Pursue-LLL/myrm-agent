@@ -43,7 +43,13 @@ describe('waitForChromeE2eBackendBinding', () => {
   it('resolves true when __MYRM_E2E_RUNTIME_READY__ succeeds', async () => {
     window.name = 'myrm-e2e-v1:{"version":1}';
     window.__MYRM_E2E_RUNTIME_READY__ = Promise.resolve(
-      Object.freeze({ version: 1, apiBase: 'http://127.0.0.1:18081' }),
+      Object.freeze({
+        version: 1,
+        runId: 'run-1',
+        runtimeId: 'rt-1',
+        apiBase: 'http://127.0.0.1:18081',
+        uiOrigin: 'http://localhost:3000',
+      }),
     );
 
     await expect(waitForChromeE2eBackendBinding(1_000)).resolves.toBe(true);

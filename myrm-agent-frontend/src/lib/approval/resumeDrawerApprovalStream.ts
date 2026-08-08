@@ -25,7 +25,7 @@ async function createDrawerResumeAnchor(approval: ApprovalPayload): Promise<Tool
   const { default: useChatStore } = await import('@/store/useChatStore');
   const chatState = useChatStore.getState();
   const actionMode =
-    chatState.chatId === approval.chat_id ? chatState.actionMode : 'general';
+    chatState.chatId === approval.chat_id ? chatState.actionMode : ('agent' as const);
 
   return {
     requestId: approval.approval_id,

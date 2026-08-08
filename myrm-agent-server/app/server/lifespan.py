@@ -202,6 +202,13 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     asyncio.create_task(run_async_warmup())
 
     try:
+        from app.services.memory.extract_retry_worker import extract_retry_worker
+
+        await extract_retry_worker.start()
+    except Exception as e:
+        logger.error("[Startup] Memory extract retry worker failed to start: %s", e)
+
+    try:
         from app.services.agent.goal_registry import GoalRegistry
 
         GoalRegistry.start_branch_watcher()
@@ -425,6 +432,14 @@ async def _phase_1b_parallel() -> None:
 
     async def _init_allowlist_store_task() -> None:
         await init_allowlist_store()
+
+    def _init_managed_approval_policy_task() -> None:
+        from myrm_agent_harness.agent.security.managed_approval_policy import (
+            configure_process_managed_approval_policy,
+            load_managed_approval_policy_from_env,
+        )
+
+        configure_process_managed_approval_policy(load_managed_approval_policy_from_env())
         logger.info("[Startup] Allowlist store initialized")
 
     async def _init_permission_logger_task() -> None:
@@ -539,6 +554,8 @@ async def _phase_1b_parallel() -> None:
         from app.services.wiki.vault_service import init_wiki_vault_at_startup
 
         await init_wiki_vault_at_startup()
+
+    _init_managed_approval_policy_task()
 
     results = await asyncio.gather(
         _init_subagent_configs(),
@@ -661,6 +678,11 @@ async def _shutdown(app_instance: FastAPI) -> None:
 
         await shutdown_mcp_endpoint()
 
+    async def _stop_extract_retry_worker() -> None:
+        from app.services.memory.extract_retry_worker import extract_retry_worker
+
+        await extract_retry_worker.stop()
+
     shutdown_results = await asyncio.gather(
         safe_stop_cron(),
         safe_stop_gateway(),
@@ -691,6 +713,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         stop_integration_sync_daemon(),
         harness_bridge_task,
         _shutdown_mcp(),
+        _stop_extract_retry_worker(),
         return_exceptions=True,
     )
     for r in shutdown_results:

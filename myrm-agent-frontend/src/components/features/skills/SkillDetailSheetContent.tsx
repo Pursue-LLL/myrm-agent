@@ -45,7 +45,13 @@ import {
 } from '@/lib/skills/integrationOAuthDisplay';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
-import { RequirementRow, SecurityScanSection, KnownPitfallsSection } from './SkillDetailHelpers';
+import {
+  EvalCasesSection,
+  RequirementRow,
+  SecurityScanSection,
+  KnownPitfallsSection,
+  type SkillSectionTranslator,
+} from './SkillDetailHelpers';
 
 function stripYamlFrontmatter(content: string): string {
   const match = content.match(/^---\s*\n[\s\S]*?\n---\s*\n/);
@@ -83,7 +89,7 @@ interface SkillDetailSheetContentProps {
   setShowTrustConfirm: (v: boolean) => void;
   setShowDeleteConfirm: (v: boolean) => void;
   onLifecycleAction?: (skill: Skill, action: SkillLifecycleAction) => void;
-  t: (key: string, fallbackOrParams?: string | Record<string, unknown>) => string;
+  t: SkillSectionTranslator;
 }
 
 export function SkillDetailSheetContent({
@@ -230,7 +236,7 @@ export function SkillDetailSheetContent({
             )}
             <div className="overflow-hidden">
               <span className={cn('text-sm font-medium', isPathInvalid && 'text-red-500')}>
-                {isPathInvalid ? t('detail.pathInvalid', 'Path Invalid') : t('detail.storagePath', 'Storage Path')}
+                {isPathInvalid ? t('detail.pathInvalid') : t('detail.storagePath')}
               </span>
               <p
                 className={cn('text-xs truncate', isPathInvalid ? 'text-red-400' : 'text-muted-foreground')}
@@ -247,9 +253,9 @@ export function SkillDetailSheetContent({
               className="h-7 w-7"
               onClick={() => {
                 navigator.clipboard.writeText(skill.storage_path!);
-                toast({ title: t('detail.pathCopied', 'Path copied') });
+                toast({ title: t('detail.pathCopied') });
               }}
-              title={t('detail.copyPath', 'Copy path')}
+              title={t('detail.copyPath')}
             >
               <Copy size={14} />
             </Button>
@@ -260,7 +266,7 @@ export function SkillDetailSheetContent({
                 ) : (
                   <FolderOpen className="mr-1" size={12} />
                 )}
-                {t('detail.revealInManager', 'Reveal')}
+                {t('detail.revealInManager')}
               </Button>
             ) : (
               <Button
@@ -270,7 +276,7 @@ export function SkillDetailSheetContent({
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="mr-1" size={12} />
-                {t('detail.cleanupInvalid', 'Cleanup')}
+                {t('detail.cleanupInvalid')}
               </Button>
             )}
           </div>
@@ -486,6 +492,14 @@ export function SkillDetailSheetContent({
         <>
           <div className="border-t" />
           <KnownPitfallsSection traps={skill.traps} t={t} />
+        </>
+      )}
+
+      {/* Eval Cases */}
+      {skill.eval_cases && skill.eval_cases.length > 0 && (
+        <>
+          <div className="border-t" />
+          <EvalCasesSection cases={skill.eval_cases} t={t} />
         </>
       )}
 

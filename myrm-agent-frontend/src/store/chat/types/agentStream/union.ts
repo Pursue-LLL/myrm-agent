@@ -14,16 +14,22 @@ import type {
   ApprovalProcessedStreamEvent,
   ApprovalRequiredStreamEvent,
   ArtifactContentStreamEvent,
+  ArtifactFocusStreamEvent,
   ArtifactsStreamEvent,
+  CitationMapStreamEvent,
   ClarificationRequiredStreamEvent,
   CorrectionLearnedStreamEvent,
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
+  DirectoryRequestRequiredStreamEvent,
   ErrorStreamEvent,
   MessageStreamEvent,
   RateLimitThrottledStreamEvent,
   RateLimitUpdatedStreamEvent,
   RateLimitWarningStreamEvent,
+  RedirectedStreamEvent,
+  RiskBlockedStreamEvent,
+  SessionRecordingStreamEvent,
   SourcesStreamEvent,
   SteeringStreamEvent,
   TasksStepsStreamEvent,
@@ -43,6 +49,7 @@ import type {
   CatchupSnapshotStreamEvent,
   ContextOverflowResetStreamEvent,
   ContextReferenceWarningStreamEvent,
+  CouncilPhaseStreamEvent,
   DagStateUpdateStreamEvent,
   GoalStatusStreamEvent,
   IterationLimitReachedStreamEvent,
@@ -99,6 +106,13 @@ export type AgentStreamEvent =
   | ApprovalProcessedStreamEvent
   | ApprovalRequiredStreamEvent
   | ClarificationRequiredStreamEvent
+  | DirectoryRequestRequiredStreamEvent
+  | RedirectedStreamEvent
+  | ArtifactFocusStreamEvent
+  | RiskBlockedStreamEvent
+  | SessionRecordingStreamEvent
+  | CitationMapStreamEvent
+  | CouncilPhaseStreamEvent
   | CorrectionLearnedStreamEvent
   | CapabilityGapStreamEvent
   | SkillGapStreamEvent

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionDescriptionError
 
 from app.channels.media.sticker_vision import (
     StickerVisionService,
@@ -10,7 +11,6 @@ from app.channels.media.sticker_vision import (
     describe_sticker_inbound,
 )
 from app.channels.types import InboundMessage
-from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionDescriptionError
 
 
 class _FakeEngine:

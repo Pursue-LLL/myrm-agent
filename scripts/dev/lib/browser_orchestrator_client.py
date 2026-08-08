@@ -20,6 +20,7 @@ import logging
 import os
 import select
 import socket
+import subprocess
 import tempfile
 import time
 from contextlib import contextmanager
@@ -33,8 +34,92 @@ _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
 _SIGNOFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
 _WAVE_LEASE_CACHE_TTL_SEC = 5.0
 _wave_lease_cache: tuple[float, int] | None = None
-_socket_timeout_cap_cache: tuple[float, float] | None = None
+_socket_timeout_cap_cache: tuple[float, tuple[float, int], float] | None = None
 _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC = 5.0
+
+# fix#14 (§24 W3e): daemon respawn serialization — at most one spawn per window
+# so a parallel ConnectionRefused storm never produces a subprocess spawn storm.
+_DAEMON_RESPAWN_COOLDOWN_SEC = 8.0
+_daemon_respawn_last_at: float = 0.0
+_DAEMON_READY_WALL_SEC = 60.0
+_daemon_unreachable_markers = (
+    "daemon not running",
+    "connection refused",
+    "connection closed before response",
+    "connection lost",
+)
+
+
+def _daemon_unreachable_message(message: str) -> bool:
+    lowered = message.lower()
+    return any(marker in lowered for marker in _daemon_unreachable_markers)
+
+
+def _monorepo_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _try_claim_daemon_respawn() -> bool:
+    """Atomically claim the respawn slot; True when this lane may spawn."""
+    global _daemon_respawn_last_at
+    now = time.monotonic()
+    if now - _daemon_respawn_last_at < _DAEMON_RESPAWN_COOLDOWN_SEC:
+        return False
+    _daemon_respawn_last_at = now
+    return True
+
+
+def spawn_ensure_orchestrator() -> None:
+    """Best-effort daemon (re)start via the ensure script (flock-serialized)."""
+    script = _monorepo_root() / "scripts/dev/ensure-browser-orchestrator.sh"
+    if not script.is_file():
+        _LOGGER.warning("orchestrator ensure script missing: %s", script)
+        return
+    env = os.environ.copy()
+    env["MYRM_BROWSER_ORCHESTRATOR"] = "1"
+    env["MYRM_BROWSER_ORCHESTRATOR_ENSURE_DONE"] = "1"
+    node_dir = "/opt/homebrew/bin"
+    path = env.get("PATH", "")
+    if node_dir not in path:
+        bun_bin = os.path.expanduser("~/.bun/bin")
+        env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
+    try:
+        subprocess.run(
+            ["bash", str(script)],
+            env=env,
+            timeout=45.0,
+            capture_output=True,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        _LOGGER.warning("orchestrator respawn failed: %s", exc)
+
+
+def _wait_daemon_ready(daemon: "BrowserOrchestratorClient") -> None:
+    """Wait until the daemon socket accepts connections (new generation)."""
+    deadline = time.monotonic() + _DAEMON_READY_WALL_SEC
+    while time.monotonic() < deadline:
+        if _socket_accepts(daemon._socket_path):
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running after respawn — "
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+    )
+
+
+def _socket_accepts(socket_path: str) -> bool:
+    """Probe whether the Unix socket accepts a connection without JSON-RPC."""
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(1.0)
+            sock.connect(socket_path)
+            return True
+        finally:
+            sock.close()
+    except (OSError, FileNotFoundError, ConnectionRefusedError, TimeoutError):
+        return False
 
 
 def _parallel_load_from_env() -> int:
@@ -121,18 +206,19 @@ def orchestrator_open_tx_wall_sec() -> float:
 def orchestrator_socket_timeout_cap_sec() -> float:
     """Return socket read cap aligned with openPageTransaction wall (no 480s retry storm)."""
     global _socket_timeout_cap_cache
-    now = time.monotonic()
-    if _socket_timeout_cap_cache is not None:
-        cached_at, cached = _socket_timeout_cap_cache
-        if now - cached_at < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC:
-            return cached
     wall = orchestrator_open_tx_wall_sec()
     burst_lanes = _parallel_load_from_env()
     if burst_lanes < 2:
         burst_lanes = max(burst_lanes, _cached_parallel_load())
+    cache_key = (wall, burst_lanes)
+    now = time.monotonic()
+    if _socket_timeout_cap_cache is not None:
+        cached_at, cached_key, cached = _socket_timeout_cap_cache
+        if cached_key == cache_key and now - cached_at < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC:
+            return cached
     queue_headroom = 15.0 * float(max(0, burst_lanes - 1))
     cap = wall + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + queue_headroom
-    _socket_timeout_cap_cache = (now, cap)
+    _socket_timeout_cap_cache = (now, cache_key, cap)
     return cap
 
 
@@ -170,6 +256,14 @@ class ReclaimPageResult(TypedDict):
     reclaimed: bool
 
 
+class OpenAppRouteResult(TypedDict):
+    pageId: int
+    targetId: str
+    url: str
+    reclaimed: bool
+    hydrated: bool
+
+
 class CloseResult(TypedDict):
     closed: bool
 
@@ -188,6 +282,7 @@ class OrchestratorStatus(TypedDict):
     contexts: int
     scheduler: dict[str, int]
     recovery: dict[str, object]
+    capabilities: list[str]
 
 
 class BrowserOrchestratorClient:
@@ -282,6 +377,62 @@ class BrowserOrchestratorClient:
             reclaimed=bool(result.get("reclaimed", False)),
         )
 
+    def open_app_route(
+        self,
+        session_id: str,
+        *,
+        url: str,
+        shell_path: str,
+        sealed_target_id: str | None = None,
+        hydration_probe: str | None = None,
+        hydrate_timeout_sec: float | None = None,
+        binding_expression: str | None = None,
+    ) -> OpenAppRouteResult:
+        """Atomically open an app route: reclaim/create shell → navigate → hydrate.
+
+        §19.11.10 NAV-2: single operation credit, single transaction. The daemon
+        reclaims an epoch shell (or cold-creates), injects the same-origin binding,
+        navigates the subroute, then polls the RouteManifest hydration probe until
+        ready or deadline.
+        """
+        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+
+        lease_id = assert_orchestrator_lease_allowed()
+        params: dict[str, object] = {
+            "sessionId": session_id,
+            "url": url,
+            "shellPath": shell_path,
+        }
+        if sealed_target_id:
+            params["sealedTargetId"] = sealed_target_id
+        if hydration_probe and hydration_probe.strip():
+            params["hydrationProbe"] = hydration_probe
+        if hydrate_timeout_sec is not None:
+            params["hydrateTimeoutMs"] = int(hydrate_timeout_sec * 1000)
+        if binding_expression and binding_expression.strip():
+            params["bindingExpression"] = binding_expression
+        if lease_id:
+            params["leaseId"] = lease_id
+        prior_timeout = self._timeout_sec
+        # Hydration wait lives inside the daemon RPC — give the socket budget
+        # headroom above the hydration deadline (scheduler grace + poll granularity).
+        deadline_sec = float(hydrate_timeout_sec or 60.0)
+        self._timeout_sec = min(
+            max(prior_timeout, deadline_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + 10.0),
+            orchestrator_socket_timeout_cap_sec(),
+        )
+        try:
+            result = self._request("page/openAppRoute", params)
+        finally:
+            self._timeout_sec = prior_timeout
+        return OpenAppRouteResult(
+            pageId=int(result["pageId"]),
+            targetId=str(result["targetId"]),
+            url=str(result.get("url", url)),
+            reclaimed=bool(result.get("reclaimed", False)),
+            hydrated=bool(result.get("hydrated", False)),
+        )
+
     def open_page_transaction(
         self,
         session_id: str,
@@ -330,8 +481,9 @@ class BrowserOrchestratorClient:
         *,
         timeout_sec: float | None = None,
         await_promise: bool = True,
+        intent: str | None = None,
     ) -> dict[str, object]:
-        """Evaluate JavaScript in an owned page."""
+        """Evaluate JavaScript in an owned page (§24 W3b intent scoped budget)."""
         prior_timeout = self._timeout_sec
         cdp_sec: float | None = None
         if timeout_sec is not None:
@@ -341,9 +493,8 @@ class BrowserOrchestratorClient:
             else:
                 cdp_sec = _parallel_scaled_evaluate_timeout_sec(bounded)
             self._timeout_sec = min(
-                prior_timeout,
+                max(prior_timeout, cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC),
                 orchestrator_socket_timeout_cap_sec(),
-                cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC,
                 90.0,
             )
         try:
@@ -355,6 +506,8 @@ class BrowserOrchestratorClient:
             }
             if cdp_sec is not None:
                 payload["timeoutMs"] = int(cdp_sec * 1000)
+            if intent:
+                payload["intent"] = intent
             result = self._request(
                 "page/evaluate",
                 payload,
@@ -377,15 +530,25 @@ class BrowserOrchestratorClient:
         )
 
     def status(self) -> OrchestratorStatus:
-        """Get daemon status snapshot."""
-        result = self._request("status", {})
+        """Get daemon status snapshot (never triggers daemon respawn)."""
+        result = self._request("status", {}, allow_daemon_recovery=False)
         return OrchestratorStatus(
             state=result.get("state", "UNKNOWN"),
             generation=result.get("generation", 0),
             contexts=result.get("contexts", 0),
             scheduler=result.get("scheduler", {}),
             recovery=result.get("recovery", {}),
+            capabilities=[
+                str(cap) for cap in result.get("capabilities", [])
+            ],
         )
+
+    def supports_open_app_route(self) -> bool:
+        """True when the daemon exposes the atomic ``page/openAppRoute`` RPC (NAV-2)."""
+        try:
+            return "openAppRoute" in self.status().get("capabilities", [])
+        except (OSError, TimeoutError, RuntimeError):
+            return False
 
     def is_alive(self) -> bool:
         """Check if daemon is reachable and not in FAILED state."""
@@ -396,13 +559,29 @@ class BrowserOrchestratorClient:
         except (OSError, TimeoutError, RuntimeError):
             return False
 
-    def _request(self, method: str, params: dict[str, object]) -> dict[str, object]:
+    def _request(
+        self,
+        method: str,
+        params: dict[str, object],
+        *,
+        allow_daemon_recovery: bool = True,
+    ) -> dict[str, object]:
         req_id = self._next_id
         self._next_id += 1
         payload = json.dumps(
             {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params}
         )
+        try:
+            return self._request_raw(payload, req_id)
+        except RuntimeError as exc:
+            if not allow_daemon_recovery or not _daemon_unreachable_message(str(exc)):
+                raise
+            self._recover_daemon_generation()
+            return self._request_raw(payload, req_id)
 
+    def _request_raw(
+        self, payload: str, req_id: int
+    ) -> dict[str, object]:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self._connect_timeout_sec)
         try:
@@ -419,6 +598,19 @@ class BrowserOrchestratorClient:
             return self._read_response(sock, req_id)
         finally:
             sock.close()
+
+    def _recover_daemon_generation(self) -> None:
+        """Respawn a crashed/replaced daemon once per cooldown, then wait ready.
+
+        fix#14 (§24 W3e): a parallel ConnectionRefused storm must not crash every
+        lane nor spawn a subprocess storm — the module-level watchdog cooldown
+        serializes respawn while this lane waits for the new generation.
+        """
+        if not _try_claim_daemon_respawn():
+            _wait_daemon_ready(self)
+            return
+        spawn_ensure_orchestrator()
+        _wait_daemon_ready(self)
 
     def _read_response(
         self, sock: socket.socket, expected_id: int

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
-from app.services.event.app_event_bus import AppEventType, ServerEventBus
+from app.services.event.app_event_bus import ServerEventBus
 
 
 def _make_event_bus() -> ServerEventBus:

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildDrawerResumeValue, shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
+import type { ResumeDecisionsPayload } from '@/lib/approval/approvalDecision';
 import type { ApprovalPayload } from '@/store/useApprovalStore';
+
+function decisionsOf(value: ReturnType<typeof buildDrawerResumeValue>): ResumeDecisionsPayload['decisions'] {
+  return 'decisions' in value ? value.decisions : [];
+}
 
 const baseApproval: ApprovalPayload = {
   approval_id: 'approval-1',
@@ -26,8 +31,9 @@ describe('buildDrawerResumeValue', () => {
 
   it('builds one decision per subagent tool call', () => {
     const resumeValue = buildDrawerResumeValue(baseApproval, 'approve');
-    expect(resumeValue.decisions).toHaveLength(2);
-    expect(resumeValue.decisions[0]).toMatchObject({
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(2);
+    expect(decisions[0]).toMatchObject({
       type: 'approve',
       extensions: { allowAlways: false },
     });
@@ -39,8 +45,9 @@ describe('buildDrawerResumeValue', () => {
       feedback: 'ok',
     });
 
-    expect(resumeValue.decisions).toHaveLength(2);
-    for (const decision of resumeValue.decisions) {
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(2);
+    for (const decision of decisions) {
       expect(decision.extensions.allowAlways).toEqual({ tool: true });
       expect(decision.feedback).toBe('ok');
     }
@@ -48,7 +55,8 @@ describe('buildDrawerResumeValue', () => {
 
   it('builds reject decisions with feedback', () => {
     const resumeValue = buildDrawerResumeValue(baseApproval, 'reject', { feedback: 'no' });
-    expect(resumeValue.decisions[0]).toMatchObject({
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions[0]).toMatchObject({
       type: 'reject',
       feedback: 'no',
     });
@@ -87,8 +95,9 @@ describe('buildDrawerResumeValue', () => {
       edited_args: { command: 'pwd' },
       allow_always: { tool: true },
     });
-    expect(resumeValue.decisions).toHaveLength(1);
-    expect(resumeValue.decisions[0]).toMatchObject({
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]).toMatchObject({
       type: 'edit',
       args: { command: 'pwd' },
       extensions: { allowAlways: { tool: true } },

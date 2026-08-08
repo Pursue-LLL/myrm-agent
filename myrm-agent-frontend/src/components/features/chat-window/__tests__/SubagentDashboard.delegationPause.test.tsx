@@ -8,6 +8,7 @@ import type { SubagentNode } from '@/store/chat/useSubagentStore';
 
 const runningNode: SubagentNode = {
   task_id: 'task-pause-e2e',
+  parent_task_id: '',
   agent_type: 'generalPurpose',
   description: 'Long running worker',
   status: 'running',

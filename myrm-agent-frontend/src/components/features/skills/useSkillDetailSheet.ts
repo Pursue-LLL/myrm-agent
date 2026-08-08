@@ -10,6 +10,7 @@ import {
   revealSkill,
 } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
+import type { SkillSectionTranslator } from './SkillDetailHelpers';
 
 interface UseSkillDetailSheetParams {
   skill: Skill | null;
@@ -19,7 +20,7 @@ interface UseSkillDetailSheetParams {
   onToggle?: (skillId: string) => Promise<void>;
   onDelete?: (skill: Skill) => Promise<void>;
   onTrustChange?: () => void;
-  t: (key: string, fallbackOrParams?: string | Record<string, unknown>) => string;
+  t: SkillSectionTranslator;
 }
 
 export function useSkillDetailSheet({
@@ -195,9 +196,9 @@ export function useSkillDetailSheet({
       const err = error as { status?: number; message?: string };
       if (err?.status === 404 || err?.message?.includes('404')) {
         setIsPathInvalid(true);
-        toast({ title: t('detail.pathInvalid', 'Path is invalid or deleted'), variant: 'destructive' });
+        toast({ title: t('detail.pathInvalid'), variant: 'destructive' });
       } else {
-        toast({ title: t('detail.revealFailed', 'Failed to reveal path'), variant: 'destructive' });
+        toast({ title: t('detail.revealFailed'), variant: 'destructive' });
       }
     } finally {
       setIsRevealing(false);

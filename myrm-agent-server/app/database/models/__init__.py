@@ -19,14 +19,15 @@ from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
 from .daily_wrap import DailyWrapCache
-from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .expert_summon_metric import ExpertSummonMetricEvent
+from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
 from .media import BatchImageJob, MediaLibrary
 from .memory import (
     MemoryArchiveRestoreBatchModel,
     MemoryArchiveRestoreItemModel,
+    MemoryExtractRetryModel,
     MemoryHealthSnapshotModel,
     MemoryImportBatchModel,
     MemoryImportDryRunModel,
@@ -97,6 +98,7 @@ __all__ = [
     "MemoryHealthSnapshotModel",
     "MemoryArchiveRestoreBatchModel",
     "MemoryArchiveRestoreItemModel",
+    "MemoryExtractRetryModel",
     "MemoryImportBatchModel",
     "MemoryImportDryRunModel",
     "MemoryImportItemModel",

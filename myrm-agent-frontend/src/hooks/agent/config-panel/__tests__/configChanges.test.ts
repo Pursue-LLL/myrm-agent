@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detectAgentConfigChanges, areSkillConfigsEqual, type OriginalAgentSnapshot } from '../configChanges';
 import type { BuiltinToolId } from '@/store/chat/types';
 
-const DEFAULT_BUILTIN_TOOLS: BuiltinToolId[] = ['bash', 'computer'];
+const DEFAULT_BUILTIN_TOOLS: BuiltinToolId[] = ['web_search', 'computer_use'];
 
 const makeSnapshot = (overrides?: Partial<OriginalAgentSnapshot>): OriginalAgentSnapshot => ({
   agentId: 'agent-1',
@@ -163,7 +163,7 @@ describe('detectAgentConfigChanges', () => {
   });
 
   it('detects builtin tools change', () => {
-    expect(detectAgentConfigChanges(makeSnapshot(), makeCurrent(), ['bash'] as BuiltinToolId[])).toBe(true);
+    expect(detectAgentConfigChanges(makeSnapshot(), makeCurrent(), ['web_search'] as BuiltinToolId[])).toBe(true);
   });
 
   it('detects memoryDecayProfile change', () => {

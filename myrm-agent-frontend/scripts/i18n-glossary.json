@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "description": "Native QA glossary SSOT for batch translation pipelines (de Sie-Form + ko honorific).",
+  "locales": {
+    "de": {
+      "formality": "formal",
+      "address": "Sie",
+      "rules": [
+        "Use formal Sie/Ihr/Ihnen consistently; never du/dein unless quoting code or brand slogans.",
+        "Preserve ICU placeholders exactly ({count}, {name}, plural/select blocks).",
+        "Keep product brands untranslated: Myrm, MyrmAgent, MCP, OpenAI, GitHub, Telegram, Discord, Slack, Webhook.",
+        "Prefer established UI terms: Einstellungen, Fähigkeiten, Agent, Modell, Kanal, Speicher.",
+        "Button labels: short imperative (Speichern, Abbrechen, Löschen, Bestätigen)."
+      ],
+      "terms": {
+        "Agent": "Agent",
+        "Skill": "Fähigkeit",
+        "Skills": "Fähigkeiten",
+        "Settings": "Einstellungen",
+        "Memory": "Speicher",
+        "Channel": "Kanal",
+        "Channels": "Kanäle",
+        "Model": "Modell",
+        "Models": "Modelle",
+        "Workspace": "Arbeitsbereich",
+        "Sandbox": "Sandbox",
+        "Webhook": "Webhook",
+        "Timeout": "Zeitüberschreitung",
+        "Cancel": "Abbrechen",
+        "Confirm": "Bestätigen",
+        "Delete": "Löschen",
+        "Save": "Speichern",
+        "Edit": "Bearbeiten",
+        "Import": "Importieren",
+        "Export": "Exportieren",
+        "Search": "Suche",
+        "Optional": "optional",
+        "Required": "erforderlich",
+        "Enabled": "Aktiviert",
+        "Disabled": "Deaktiviert",
+        "Loading": "Wird geladen…",
+        "Error": "Fehler",
+        "Warning": "Warnung",
+        "Success": "Erfolg"
+      },
+      "forbidden": ["du ", "dein ", "deine ", "dir ", "dich "]
+    },
+    "ko": {
+      "formality": "honorific",
+      "address": "존댓말",
+      "rules": [
+        "Default to polite honorific (합니다/해요체); avoid 반말 in product UI.",
+        "Preserve ICU placeholders exactly.",
+        "Keep brands in Latin script: Myrm, MCP, OpenAI, GitHub, Webhook.",
+        "Use consistent product terms: 설정, 스킬, 에이전트, 모델, 채널, 메모리."
+      ],
+      "terms": {
+        "Settings": "설정",
+        "Skill": "스킬",
+        "Skills": "스킬",
+        "Agent": "에이전트",
+        "Memory": "메모리",
+        "Channel": "채널",
+        "Model": "모델",
+        "Cancel": "취소",
+        "Confirm": "확인",
+        "Delete": "삭제",
+        "Save": "저장",
+        "Edit": "편집"
+      },
+      "forbidden": ["해라", "해!", "하세요?"]
+    }
+  }
+}

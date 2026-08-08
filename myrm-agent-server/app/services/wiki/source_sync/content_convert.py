@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.services.files.content_extraction import (
-    extract_document_text_from_bytes,
     extract_pdf_text_from_bytes,
 )
 

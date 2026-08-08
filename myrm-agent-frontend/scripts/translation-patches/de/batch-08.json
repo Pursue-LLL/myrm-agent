@@ -1,0 +1,338 @@
+{
+  "settings": {
+    "wiki": {
+      "saveToWiki": {
+        "cancel": "Abbrechen",
+        "loadFailed": "Laden der Ordner fehlgeschlagen",
+        "filenameRequired": "Dateiname ist erforderlich",
+        "compoundSuccess": "Zur Wiki-Prüfung eingestuft",
+        "alreadyStaged": "Diese Nachricht wird bereits geprüft",
+        "openPending": "Ausstehende öffnen",
+        "messageNotFound": "Diese Nachricht ist für die Zusammenfassung nicht mehr verfügbar",
+        "incognitoForbidden": "Incognito-Chats können nicht im Wiki gespeichert werden"
+      },
+      "pending": {
+        "title": "Ausstehende Bearbeitungen",
+        "description": "KI-generierte Wiki-Bearbeitungen vor dem Zusammenführen prüfen",
+        "approve": "Genehmigen",
+        "reject": "Ablehnen",
+        "noPending": "Keine ausstehenden Bearbeitungen",
+        "approveSuccess": "Bearbeitung genehmigt und zusammengeführt",
+        "approveFailed": "Genehmigen der Bearbeitung fehlgeschlagen",
+        "rejectSuccess": "Bearbeitung abgelehnt",
+        "rejectFailed": "Ablehnen der Bearbeitung fehlgeschlagen"
+      },
+      "conceptList": {
+        "title": "Konzept-Wissensbasis",
+        "description": "Durch Ihre strukturierte Wissensbasis stöbern und suchen",
+        "noConcepts": "Keine Konzepte gefunden",
+        "loadMore": "Mehr laden"
+      },
+      "wikiignore": {
+        "title": "Import-Ignorierregeln",
+        "description": "Gitignore-artige Muster für Ordnerimport und Deduplikationsscans. Ein Muster pro Zeile; # beginnt einen Kommentar.",
+        "save": "Regeln speichern",
+        "saved": "Ignorierregeln gespeichert",
+        "loadFailed": "Ignorierregeln konnten nicht geladen werden",
+        "saveFailed": "Ignorierregeln konnten nicht gespeichert werden"
+      },
+      "duplicateReview": {
+        "title": "Duplikat-Korpus-Prüfung",
+        "description": "Duplizierte Rohquellen vor ihrer Auswirkung auf die Kompilierung prüfen. Exakte und normalisierte Übereinstimmungen blockieren die Kompilierung, bis sie gelöst sind.",
+        "empty": "Keine Duplikatgruppen zur Prüfung",
+        "emptyFiltered": "Keine Gruppen passen zu diesem Filter",
+        "recommendedKeep": "Empfohlene Beibehaltung:",
+        "filters": {
+          "all": "Alle Stufen",
+          "exact": "Exakt",
+          "normalized": "Normalisiert",
+          "near": "Ähnlich"
+        },
+        "tiers": {
+          "exact": "Exaktes Duplikat",
+          "normalized": "Normalisiertes Duplikat",
+          "near": "Ähnliches Duplikat"
+        },
+        "status": {
+          "open": "offen",
+          "deferred": "Zurückgestellt",
+          "blocksCompile": "blockiert Kompilierung"
+        },
+        "scan": {
+          "run": "Dedup-Scan ausführen",
+          "alreadyRunning": "Ein Dedup-Scan läuft bereits",
+          "skipped": "Scan übersprungen (Kompilierung läuft)"
+        },
+        "actions": {
+          "refresh": "Aktualisieren",
+          "trash": "Duplikate in den Papierkorb",
+          "exclude": "Von Kompilierung ausschließen",
+          "dismiss": "Kein Duplikat",
+          "defer": "Zurückstellen",
+          "cancel": "Abbrechen",
+          "confirm": "Anwenden"
+        },
+        "hints": {
+          "compileBlocked": "Exakte oder normalisierte Duplikatgruppen müssen aufgelöst werden, bevor die Wiki-Kompilierung fortfahren kann."
+        },
+        "errors": {
+          "loadFailed": "Laden der Duplikatgruppen fehlgeschlagen",
+          "scanFailed": "Dedup-Scan fehlgeschlagen",
+          "scanCompileBusy": "Kompilierung läuft; versuchen Sie es später erneut",
+          "dispositionFailed": "Anwenden der Behandlung fehlgeschlagen",
+          "snippetsFailed": "Laden der Textvorschauen fehlgeschlagen"
+        },
+        "snippets": {
+          "show": "Texte vergleichen",
+          "hide": "Texte ausblenden",
+          "empty": "Kein lesbarer Text"
+        },
+        "vaultHygiene": {
+          "title": "Tresor-Hygiene",
+          "description": "Rohdateien wiederherstellen, die in den Korpus-Papierkorb verschoben wurden, oder Kompilierungsausschlüsse aus der Duplikatprüfung rückgängig machen.",
+          "trashedTitle": "Korpus-Papierkorb",
+          "excludedTitle": "Kompilierungsausschlüsse",
+          "restoreTrash": "Zu Roh wiederherstellen",
+          "restoreExclude": "Ausschluss rückgängig machen",
+          "success": {
+            "restoredTrash": "Rohdatei aus dem Korpus-Papierkorb wiederhergestellt",
+            "restoredExclude": "Kompilierungsausschluss für Rohdatei entfernt"
+          },
+          "errors": {
+            "loadFailed": "Laden der Tresor-Hygieneeinträge fehlgeschlagen",
+            "restoreFailed": "Wiederherstellen der Rohdatei fehlgeschlagen"
+          }
+        }
+      },
+      "pendingEdits": {
+        "title": "Prüfung ausstehender Bearbeitungen",
+        "description": "KI-generiertes Wissen prüfen und genehmigen, um es Ihrem Wiki hinzuzufügen",
+        "approve": "Genehmigen",
+        "reject": "Ablehnen",
+        "edit": "Bearbeiten",
+        "saveApprove": "Speichern & Genehmigen",
+        "cancelEdit": "Bearbeitung abbrechen",
+        "noPending": "Keine ausstehenden Bearbeitungen zur Prüfung",
+        "noFiltered": "Keine Entwürfe passen zu diesem Filter",
+        "filterAll": "Alle",
+        "filterConcepts": "Konzeptentwürfe",
+        "filterSynthesis": "Evolutionssynthese",
+        "synthesisBadge": "Evolution",
+        "openSourceChat": "Quellchat öffnen",
+        "provenance": {
+          "compiled": "Kompiliert",
+          "repaired": "Repariert",
+          "agent": "Agent",
+          "create_note": "Notiz",
+          "chat-save": "Chat-Speichern",
+          "chat-compound": "Chat-Verbund",
+          "contradiction_synthesis": "Synthese",
+          "import": "Import",
+          "web_fetch": "Web-Abruf"
+        },
+        "status": {
+          "pending": "Ausstehend",
+          "approved": "Genehmigt",
+          "rejected": "Abgelehnt",
+          "synthesisPending": "Evolutionssynthese"
+        }
+      }
+    },
+    "skills": {
+      "title": "Fähigkeitenverwaltung",
+      "description": "KI-Assistenten-Fähigkeiten verwalten und konfigurieren, um ihre Funktionalität zu erweitern",
+      "history": {
+        "title": "Automatisch gelernte Historie",
+        "refresh": "Aktualisieren",
+        "empty": "Noch keine automatisch gelernten Fähigkeiten",
+        "codeChanges": "Codeänderungen",
+        "rollback": "Rückgängig (Deaktivieren)",
+        "rollbackFailed": "Rückgängig machen fehlgeschlagen, bitte erneut versuchen",
+        "cancel": "Abbrechen",
+        "fetchError": "Abrufen des Fähigkeitsverlaufs fehlgeschlagen",
+        "qualityBefore": "Vorher",
+        "status": {
+          "approved": "Angewendet",
+          "rolled_back": "Zurückgerollt",
+          "rejected": "Abgelehnt"
+        }
+      },
+      "tabs": {
+        "discover": "Entdecken",
+        "installed": "Installiert"
+      },
+      "installed": {
+        "viewArchived": "Archivierte anzeigen",
+        "exportFailed": "Export fehlgeschlagen",
+        "importFailed": "Import fehlgeschlagen",
+        "importSuccess": "Import erfolgreich",
+        "title": "Installierte Fähigkeiten",
+        "description": "Alle installierten Fähigkeiten verwalten",
+        "sourceFilter": {
+          "all": "Alle Quellen",
+          "prebuilt": "Integriert",
+          "local": "Lokal",
+          "workspace": "Projekt"
+        },
+        "statusFilter": {
+          "all": "Alle Status",
+          "ready": "Bereit",
+          "needs-setup": "Einrichtung erforderlich",
+          "disabled": "Deaktiviert"
+        },
+        "sourceLabel": {
+          "prebuilt": "Integriert",
+          "local": "Lokal",
+          "workspace": "Projekt"
+        },
+        "empty": "Keine installierten Fähigkeiten",
+        "emptyDesc": "Gehen Sie zum Entdecken-Tab, um Fähigkeiten zu finden und zu installieren",
+        "batchEnable": "Alle aktivieren",
+        "batchDisable": "Alle deaktivieren",
+        "selectAll": "Alle auswählen",
+        "deselectAll": "Auswahl aufheben",
+        "batchActions": "Batch-Aktionen",
+        "localPathsTitle": "Lokale Fähigkeitspfade",
+        "localPathsCollapse": "Konfigurieren"
+      },
+      "discover": {
+        "title": "Fähigkeiten entdecken",
+        "description": "Fähigkeiten aus GitHub und der Community suchen und installieren",
+        "import": "Importieren",
+        "importUrl": "GitHub-URL importieren",
+        "analyzeFailed": "Analyse der URL fehlgeschlagen",
+        "selectSkillsToImport": "Folgende Fähigkeiten gefunden, bitte zum Importieren auswählen:",
+        "importSelected": "Ausgewählte importieren",
+        "cancel": "Abbrechen",
+        "alreadyInstalled": "Installiert",
+        "noResults": "Keine Fähigkeiten gefunden",
+        "noResultsDesc": "Versuchen Sie andere Stichwörter oder beschreiben Sie Ihr Anliegen anders",
+        "install": "Installieren",
+        "installed": "Installiert!",
+        "installFailed": "Installation fehlgeschlagen",
+        "update": "Aktualisieren",
+        "updateAvailable": "Aktualisieren",
+        "previewFailed": "Vorschau fehlgeschlagen",
+        "scanWarningTitle": "Sicherheitsscan-Warnung",
+        "scanCancel": "Abbrechen",
+        "scanConfirm": "Trotzdem installieren",
+        "allTags": "Alle",
+        "sortDefault": "Standard",
+        "sortStars": "Am beliebtesten",
+        "sortDownloads": "Meiste Downloads",
+        "uninstall": "Deinstallieren",
+        "uninstalled": "Deinstalliert",
+        "uninstallFailed": "Deinstallation fehlgeschlagen",
+        "uninstallConfirm": "Möchten Sie diese Fähigkeit wirklich deinstallieren?",
+        "browseEmptyTitle": "Community-Fähigkeiten durchsuchen",
+        "browseEmptyDesc": "Stichwörter eingeben, um ClawHub, GitHub, ModelScope und andere Quellen zu durchsuchen",
+        "installedAllowlistAppendedDesc": "Dieser Agent verwendet eine explizite Fähigkeits-Whitelist. Die neue Fähigkeit wurde automatisch hinzugefügt.",
+        "installedAllowlistAppendFailedDesc": "Fügen Sie diese Fähigkeit in den Agent-Einstellungen hinzu oder versuchen Sie die Installation erneut.",
+        "source": {
+          "prebuilt": "Offiziell",
+          "skills_sh": "Community",
+          "aliyun": "Aliyun"
+        },
+        "registryMirror": {
+          "title": "Fähigkeitsmarkt-Mirror",
+          "description": "ClawHub-kompatibles Registry für Community-Fähigkeiten. Wählen Sie international oder China oder geben Sie Ihre eigene Registry-URL ein.",
+          "intl": "International (clawhub.ai)",
+          "cn": "China (iFlytek SkillHub)",
+          "custom": "Benutzerdefinierte Registry-URL",
+          "customSave": "Speichern",
+          "customUrlRequired": "Geben Sie eine Registry-URL ein",
+          "saved": "Mirror-Einstellungen gespeichert",
+          "saveFailed": "Speichern der Mirror-Einstellungen fehlgeschlagen"
+        },
+        "customSources": {
+          "title": "Benutzerdefinierte Quellen",
+          "addSource": "Quelle hinzufügen",
+          "labelPlaceholder": "Bezeichnung (optional)",
+          "addFailed": "Hinzufügen der Quelle fehlgeschlagen",
+          "unreachable": "Quelle nicht erreichbar oder ungültiger Endpunkt",
+          "removeConfirm": "Diese Quelle entfernen?",
+          "remove": "Entfernen",
+          "removed": "Quelle entfernt",
+          "removeFailed": "Entfernen der Quelle fehlgeschlagen",
+          "healthy": "Online",
+          "unhealthy": "Offline",
+          "empty": "Keine benutzerdefinierten Quellen konfiguriert",
+          "alreadyExists": "Quelle existiert bereits"
+        }
+      },
+      "market": {
+        "title": "Fähigkeitsmarkt",
+        "description": "Integrierte Fähigkeiten durchsuchen und aktivieren, um KI-Assistenten-Funktionen zu erweitern",
+        "empty": "Keine Fähigkeiten verfügbar"
+      },
+      "personal": {
+        "title": "Persönliche Fähigkeiten",
+        "description": "Ihre hochgeladenen benutzerdefinierten Fähigkeiten verwalten",
+        "empty": "Keine persönlichen Fähigkeiten",
+        "emptyDesc": "Klicken Sie oben auf die Schaltfläche, um Ihre erste benutzerdefinierte Fähigkeit hochzuladen",
+        "uploadButton": "Fähigkeit hochladen"
+      },
+      "enabled": {
+        "title": "Aktivierte Fähigkeiten",
+        "description": "Liste der aktuell aktivierten Fähigkeiten",
+        "empty": "Keine aktivierten Fähigkeiten"
+      },
+      "card": {
+        "enable": "Aktivieren",
+        "disable": "Deaktivieren",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert",
+        "prebuilt": "Integriert",
+        "local": "Lokal",
+        "details": "Details",
+        "manageInstances": "Instanzen verwalten",
+        "delete": "Löschen",
+        "version": "Version",
+        "category": "Kategorie",
+        "tags": "Tags",
+        "createdAt": "Erstellt",
+        "updatedAt": "Aktualisiert",
+        "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivierung",
+        "neverUsed": "Nie verwendet",
+        "ready": "Bereit",
+        "author": "Autor",
+        "homepage": "Startseite",
+        "trust": "Vertrauensstufe",
+        "trustLevels": {
+          "builtin": "Integriert",
+          "installed": "Installiert",
+          "untrusted": "Nicht vertrauenswürdig"
+        },
+        "alwaysEnabled": "Immer aktiv",
+        "requirements": "Anforderungen",
+        "requiredBins": "Erforderliche Programme",
+        "requiredEnv": "Umgebungsvariablen",
+        "requiredConfig": "Konfiguration",
+        "noRequirements": "Keine Abhängigkeiten",
+        "available": "Verfügbar",
+        "unavailable": "Nicht verfügbar",
+        "integrationOAuth": {
+          "googleWorkspace": {
+            "connectInSettings": "In Einstellungen verbinden"
+          },
+          "xLiveSearch": {
+            "connectInSettings": "Anbieter konfigurieren"
+          },
+          "envSkill": {
+            "unavailable": "Erforderlicher API-Schlüssel ist für diese Fähigkeit nicht konfiguriert",
+            "configureInSettings": "Schlüssel konfigurieren"
+          },
+          "xurl": {
+            "unavailable": "Installieren Sie die xurl-CLI und stellen Sie sicher, dass sie im Server-PATH liegt"
+          }
+        },
+        "envConfig": "Umgebungskonfiguration",
+        "saveKeys": "Schlüssel speichern",
+        "keysSaved": "API-Schlüssel gespeichert",
+        "keysSaveFailed": "Speichern der API-Schlüssel fehlgeschlagen",
+        "trustSkill": "Dieser Fähigkeit vertrauen",
+        "revokeSkill": "Vertrauen entziehen"
+      }
+    }
+  }
+}

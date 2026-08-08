@@ -24,18 +24,21 @@ describe('external agent delegation badge helpers', () => {
       isExternalAgentDelegationReady({
         authenticated: false,
         installed: true,
+        readyForDelegation: false,
       }),
     ).toBe(true);
     expect(
       isExternalAgentDelegationReady({
         authenticated: true,
         installed: false,
+        readyForDelegation: false,
       }),
     ).toBe(true);
     expect(
       isExternalAgentDelegationReady({
         authenticated: false,
         installed: false,
+        readyForDelegation: false,
       }),
     ).toBe(false);
   });

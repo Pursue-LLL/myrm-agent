@@ -3,10 +3,10 @@ import manifest from '../../locales/namespaces/manifest.json';
 import type { Locale } from './config';
 
 export type LocaleNamespace = (typeof manifest.namespaces)[number];
-export type SettingsSection = (typeof manifest.settingsSections)[number];
+export type SettingsSection = keyof Messages['settings'];
 
 /** Full locale messages shape (monolith-equivalent). */
-export type Messages = typeof import('#locales/zh.json').default;
+export type Messages = typeof import('#locales/zh.json');
 
 /** Namespaces omitted from SSR — loaded client-side after mount. */
 export const DEFERRED_NAMESPACES = ['channels'] as const satisfies readonly LocaleNamespace[];

@@ -416,9 +416,9 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     try:
         from epoch_delivery_plane import epoch_pin_active
     except ImportError:
-        epoch_pin_active = (
+        epoch_pin_active = (  # noqa: E731
             lambda: os.environ.get("MYRM_E2E_EPOCH_PIN", "").strip() == "1"
-        )  # noqa: E731
+        )
     if epoch_pin_active():
         return
     # R278/R279: signoff + desktop soak queue via ADMIT — never pytest.skip here.
@@ -628,9 +628,9 @@ def _require_live_e2e_lease(
         yield
         return
     from tests.support.e2e_runtime_guard import (
+        _heal_stale_e2e_lease,
         assert_chrome_attach_health,
         reap_chrome_e2e_session_hygiene,
-        _heal_stale_e2e_lease,
     )
 
     runtime_cell_id: str | None = None

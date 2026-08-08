@@ -24,7 +24,6 @@ from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKin
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 from pydantic import BaseModel
 
-from app.schemas.responses import create_success_response
 from app.schemas.memory.crud import (
     CorrectMemoryRequest,
     CreateMemoryRequest,
@@ -38,6 +37,7 @@ from app.schemas.memory.crud import (
     UpdateMemoryRequest,
     UpdateMemoryStatusRequest,
 )
+from app.schemas.responses import create_success_response
 from app.services.memory.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _SORT_KEYS, _record_memory_event

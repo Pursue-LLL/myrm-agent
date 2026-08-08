@@ -25,6 +25,10 @@ from cdp_chat_support import (
     wait_e2e_provider_ready,
 )
 
+# OrchestratorWatchdog (§24 W3e): daemon ensure is at most once per window.
+ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC = 15.0
+_orchestrator_watchdog_last_spawn_at: float = 0.0
+
 
 @dataclass
 class OrchestratorMcpPage:
@@ -302,6 +306,7 @@ class OrchestratorChromeClient:
         *,
         timeout_sec: float = 15.0,
         await_promise: bool = True,
+        intent: str | None = None,
     ) -> object:
         effective = min(max(5.0, timeout_sec), self._request_timeout_sec)
         last_exc: BaseException | None = None
@@ -314,6 +319,7 @@ class OrchestratorChromeClient:
                     expression,
                     timeout_sec=effective,
                     await_promise=await_promise,
+                    intent=intent,
                 )
                 return payload.get("value")
             except (TimeoutError, OSError, RuntimeError) as exc:
@@ -478,7 +484,16 @@ def _recover_orchestrator_daemon(
 
 
 def _spawn_ensure_orchestrator() -> None:
-    """Best-effort daemon (re)start — serialized by ensure script flock."""
+    """Best-effort daemon (re)start — serialized by ensure script flock.
+
+    OrchestratorWatchdog (§24 W3e): at most one spawn per cooldown window,
+    so a Connection-refused storm never triggers a subprocess spawn storm.
+    """
+    now = time.monotonic()
+    global _orchestrator_watchdog_last_spawn_at
+    if now - _orchestrator_watchdog_last_spawn_at < ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC:
+        return
+    _orchestrator_watchdog_last_spawn_at = now
     script = _monorepo_root() / "scripts/dev/ensure-browser-orchestrator.sh"
     if not script.is_file():
         return
@@ -1254,6 +1269,93 @@ def open_orchestrator_mcp_page(
             assert_orphan_budget_invariant()
         except ImportError:
             pass
+        yield client, page
+    finally:
+        daemon.destroy_session(session_id)
+
+
+@contextmanager
+def open_app_route_page(
+    url: str,
+    *,
+    request_timeout_sec: float = 180.0,
+    hydrate_timeout_sec: float = 60.0,
+    binding_expression: str | None = None,
+) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
+    """SSOT single entry for atomic app-route opens (§19.11.10 NAV-2/NAV-3).
+
+    Delegates the whole reclaim/create → binding → subroute navigate → hydration
+    wait into one Orchestrator ``open_app_route`` transaction (one operation
+    credit, progress token). Route/hydration-probe identity comes from the
+    RouteManifest — no test-layer navigate or second hydrate wait.
+
+    Must be used for every /settings/* open — new deep-link tests must call this
+    (or the tests/support thin wrapper), never client.navigate.
+    """
+    from e2e_route_manifest import (  # noqa: PLC0415
+        assert_gate_allowed,
+        hydration_probe_js,
+        resolve_route_manifest,
+    )
+    from browser_orchestrator_client import (  # noqa: PLC0415
+        orchestrator_socket_timeout_cap_sec,
+    )
+    from cdp_chat_support import get_e2e_ui_url  # noqa: PLC0415
+
+    manifest = resolve_route_manifest(url)
+    probe_js = hydration_probe_js(manifest.hydration_gate)
+    assert_gate_allowed(manifest.hydration_gate, url)
+
+    parallel_load = _effective_parallel_load()
+    effective_timeout = min(
+        request_timeout_sec,
+        orchestrator_socket_timeout_cap_sec() if parallel_load >= 2 else request_timeout_sec,
+    )
+    daemon = BrowserOrchestratorClient(timeout_sec=effective_timeout)
+    wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
+    _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
+    if not daemon.supports_open_app_route():
+        # Old daemon build: delegate to the legacy reclaim/create path so callers
+        # keep a single API (NAV-3); capability drops once daemon is rebuilt.
+        with open_orchestrator_mcp_page(
+            url,
+            request_timeout_sec=request_timeout_sec,
+        ) as (legacy_client, legacy_page):
+            yield legacy_client, legacy_page  # type: ignore[misc]
+        return
+    session_id = _resolve_session_id()
+    _ensure_orchestrator_session(daemon, session_id)
+    page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
+    client = OrchestratorChromeClient(
+        session_id=session_id,
+        daemon=daemon,
+        request_timeout_sec=effective_timeout,
+    )
+    try:
+        sealed_target: str | None = None
+        preassigned = os.environ.get("MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", "").strip()
+        if preassigned:
+            sealed_target = preassigned
+        elif parallel_load >= 2:
+            # Parallel sealed-shell claim caused cross-session "does not own target"
+            # under loaded 3-way; openAppRoute cold-create is safe (§19.11.6).
+            sealed_target = None
+        result = daemon.open_app_route(
+            session_id,
+            url=url,
+            shell_path=f"{get_e2e_ui_url().rstrip('/')}{manifest.shell_path}",
+            sealed_target_id=sealed_target,
+            hydration_probe=probe_js,
+            hydrate_timeout_sec=hydrate_timeout_sec,
+            binding_expression=binding_expression,
+        )
+        page.page_id = int(result["pageId"])
+        page.target_id = str(result["targetId"])
+        page.url = str(result.get("url", url))
+        client.bind_primary_page(page)
+        from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+
+        touch_wall_progress(current_node="open_app_route")
         yield client, page
     finally:
         daemon.destroy_session(session_id)

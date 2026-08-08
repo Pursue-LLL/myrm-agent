@@ -903,6 +903,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 MemorySearchBackends,
                 MemorySearchPolicy,
             )
+
             from app.core.agent.tool_description_locale import (
                 resolve_tool_description_locale,
             )

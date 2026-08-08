@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from pathlib import Path
+
 import pytest
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
@@ -28,7 +29,6 @@ from cdp_chat_support import (
     signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
 )  # noqa: E402
-from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from mcp_chat_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (

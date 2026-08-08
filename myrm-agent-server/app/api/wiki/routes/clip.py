@@ -64,7 +64,7 @@ async def clip_page_to_wiki(
     folder_path: Annotated[str, Form(max_length=512)] = "",
     queue_compile: Annotated[str, Form()] = "false",
     asset_urls: Annotated[str, Form()] = "[]",
-    asset_files: Annotated[list[UploadFile], File()] = [],
+    asset_files: Annotated[list[UploadFile] | None, File()] = None,
     agent_id: Annotated[
         str | None, Query(description="Agent whose wiki vault to use")
     ] = None,
@@ -80,14 +80,14 @@ async def clip_page_to_wiki(
         raise HTTPException(status_code=422, detail="Invalid asset_urls JSON") from exc
     if not isinstance(url_list, list):
         raise HTTPException(status_code=422, detail="asset_urls must be a JSON array")
-    if len(url_list) != len(asset_files):
+    if len(url_list) != len(asset_files or []):
         raise HTTPException(
             status_code=422,
             detail="asset_urls length must match uploaded asset_files count",
         )
 
     assets: list[ClipAssetInput] = []
-    for idx, upload in enumerate(asset_files):
+    for idx, upload in enumerate(asset_files or []):
         data = await upload.read()
         content_type = upload.content_type or "application/octet-stream"
         source = str(url_list[idx]) if idx < len(url_list) else upload.filename or ""

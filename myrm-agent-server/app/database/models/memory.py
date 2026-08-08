@@ -6,7 +6,7 @@ SharedContextWriteProposalModel: 共享上下文写入提案, MemoryOperationEve
 MemoryHealthSnapshotModel: 记忆健康快照, MemoryMigrationProvenanceModel: 记忆迁移来源,
 MemoryImportDryRunModel: 记忆导入审查会话, MemoryImportBatchModel: 记忆导入批次账本,
 MemoryImportItemModel: 记忆导入条目账本, MemoryArchiveRestoreBatchModel: 记忆归档恢复批次账本,
-MemoryArchiveRestoreItemModel: 记忆归档恢复条目账本
+MemoryArchiveRestoreItemModel: 记忆归档恢复条目账本, MemoryExtractRetryModel: 记忆提取重试队列
 [POS] 记忆域模型。管理用户画像、程序性规则、待审批记忆和产品层共享上下文。
 """
 
@@ -393,4 +393,31 @@ class MemoryArchiveRestoreItemModel(Base):
     batch: Mapped["MemoryArchiveRestoreBatchModel"] = relationship(
         "MemoryArchiveRestoreBatchModel",
         back_populates="items",
+    )
+
+
+class MemoryExtractRetryModel(Base):
+    """记忆提取失败持久化重试队列。
+
+    保存提取失败/手动重试的 chat 级待处理任务，支撑服务重启后恢复与定时重试。
+    单进程语义：仅 pending/failed 两种状态，运行中的任务靠 worker 进程内集合防重复领取。
+    """
+
+    __tablename__ = "memory_extract_retries"
+
+    chat_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", index=True
+    )
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

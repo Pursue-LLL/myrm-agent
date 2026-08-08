@@ -1,0 +1,157 @@
+{
+  "settings": {
+    "title": "설정",
+    "autoSaveFailed": "자동 저장에 실패했습니다. 떠나기 전에 수동으로 저장하세요.",
+    "menu": {
+      "account": "계정",
+      "preferences": "기본 설정",
+      "themeStudio": "테마 스튜디오",
+      "personalization": "개인화",
+      "agents": "에이전트",
+      "models": "모델 서비스",
+      "defaultModel": "기본 모델",
+      "retrieval": "검색 서비스",
+      "search": "검색 서비스",
+      "mcp": "MCP",
+      "skills": "스킬",
+      "compoundingPlaybook": "복리 루프",
+      "skillQuality": "스킬 품질",
+      "toolStability": "도구 안정성",
+      "toolQuality": "실행 품질",
+      "eval": "평가",
+      "credentials": "자격 증명",
+      "wiki": "위키",
+      "memory": "메모리 관리",
+      "mediaGeneration": "미디어 생성",
+      "commands": "슬래시 명령",
+      "cron": "예약 작업",
+      "kanban": "칸반 보드",
+      "security": "보안 정책",
+      "riskRules": "위험 규칙",
+      "channels": "채널",
+      "channelRouting": "채널 라우팅",
+      "voice": "음성",
+      "integrationMemory": "통합 메모리",
+      "connect": "외부 에이전트",
+      "workspaceRules": "작업공간 규칙",
+      "enterprise": "엔터프라이즈",
+      "developer": "개발자",
+      "importExport": "가져오기 / 내보내기",
+      "companion": "컴패니언",
+      "usageStatistics": "사용 통계",
+      "memory-backup": "메모리 백업",
+      "memory-team-hub": "팀 자산",
+      "memory-cloud-backup": "클라우드 동기화",
+      "memory-archival": "메모리 아카이빙",
+      "memory-migration": "마이그레이션",
+      "experimentalFeatures": "실험 기능",
+      "system": "시스템",
+      "about": "정보",
+      "dlq": "데드 레터 큐"
+    },
+    "commands": {
+      "title": "슬래시 명령",
+      "description": "사용자 정의 슬래시 명령을 만들고 관리하세요",
+      "empty": "아직 명령이 없습니다",
+      "search": {
+        "placeholder": "명령 검색...",
+        "noResults": "일치하는 명령을 찾을 수 없습니다"
+      },
+      "actions": {
+        "add": "명령 추가",
+        "export": "내보내기",
+        "import": "가져오기"
+      },
+      "list": {
+        "empty": "아직 명령이 없습니다",
+        "noResults": "일치하는 명령을 찾을 수 없습니다",
+        "createFirst": "첫 번째 명령 만들기"
+      },
+      "delete": {
+        "confirm": "\"{name}\" 명령을 삭제하시겠습니까?",
+        "success": "명령이 삭제되었습니다"
+      },
+      "export": {
+        "success": "명령이 내보내졌습니다",
+        "error": "내보내기 실패"
+      },
+      "import": {
+        "success": "명령을 성공적으로 가져왔습니다",
+        "error": "가져오기 실패, 파일 형식을 확인하세요"
+      },
+      "tips": {
+        "title": "팁",
+        "usage": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
+        "trigger": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
+        "variables": "템플릿은 변수를 지원합니다: '{{input}}', '{{date}}', '{{time}}'",
+        "examples": "예: /translate 번역용, /review 코드 리뷰용",
+        "example": "예: /translate 번역용, /review 코드 리뷰용"
+      },
+      "editor": {
+        "title": {
+          "create": "명령 만들기",
+          "edit": "명령 편집"
+        },
+        "createTitle": "명령 만들기",
+        "editTitle": "명령 편집",
+        "description": "사용자 정의 명령 템플릿 만들기",
+        "fields": {
+          "name": {
+            "label": "명령 이름",
+            "placeholder": "translate",
+            "hint": "영문, 숫자, 밑줄 및 하이픈만 허용됩니다"
+          },
+          "description": {
+            "label": "설명",
+            "placeholder": "영어로 번역",
+            "hint": "다음을 영어로 번역하세요:"
+          },
+          "template": {
+            "label": "템플릿",
+            "placeholder": "다음을 영어로 번역하세요:",
+            "hint": "'{{input}}' 을 사용하여 사용자 입력 삽입"
+          }
+        },
+        "variables": {
+          "title": "변수 삽입",
+          "input": "'{{input}}'",
+          "date": "'{{date}}'",
+          "time": "'{{time}}'"
+        },
+        "examples": {
+          "title": "예시",
+          "translate": {
+            "name": "translate",
+            "template": "영어로 번역하세요: '{{input}}'"
+          },
+          "review": {
+            "name": "review",
+            "template": "다음 코드를 리뷰하세요: '{{input}}'"
+          }
+        },
+        "actions": {
+          "cancel": "취소",
+          "save": "저장"
+        },
+        "validation": {
+          "nameRequired": "명령 이름을 입력하세요",
+          "nameInvalid": "명령 이름은 영문, 숫자, 밑줄 및 하이픈만 포함할 수 있습니다",
+          "descriptionRequired": "설명을 입력하세요",
+          "templateRequired": "템플릿을 입력하세요"
+        },
+        "success": {
+          "created": "명령이 성공적으로 생성되었습니다",
+          "updated": "명령이 성공적으로 업데이트되었습니다"
+        }
+      }
+    },
+    "common": {
+      "providerDisabledWarning": "이 모델의 제공자가 비활성화되어 있습니다. 다른 모델을 선택하세요.",
+      "edit": "편집",
+      "delete": "삭제",
+      "cancel": "취소",
+      "save": "저장",
+      "confirm": "확인"
+    }
+  }
+}

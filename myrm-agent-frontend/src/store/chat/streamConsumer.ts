@@ -76,16 +76,20 @@ async function tryE2eAttachForPendingApproval(
   state: ChatActionsState,
   actions: ChatActionsMethods,
   _abortController: AbortController,
-): Promise<{ attached: boolean; queueLen: number }> {
+): Promise<{ attached: boolean; queueLen: number; attempt: number }> {
   if (typeof window === 'undefined') {
-    return { attached: false, queueLen: 0 };
+    return { attached: false, queueLen: 0, attempt: 0 };
   }
   if (!window.__MYRM_E2E_DIRECT_SSE__ && !resolveE2eApiBase()) {
-    return { attached: false, queueLen: 0 };
+    return { attached: false, queueLen: 0, attempt: 0 };
   }
   const chatId = state.chatId?.trim();
   if (!chatId || useToolApprovalStore.getState().queue.length > 0) {
-    return { attached: false, queueLen: useToolApprovalStore.getState().queue.length };
+    return {
+      attached: false,
+      queueLen: useToolApprovalStore.getState().queue.length,
+      attempt: 0,
+    };
   }
   const { default: useChatStore } = await import('../useChatStore');
   for (let attempt = 0; attempt < 5; attempt += 1) {

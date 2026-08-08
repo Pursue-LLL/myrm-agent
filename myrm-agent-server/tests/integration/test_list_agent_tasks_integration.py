@@ -14,8 +14,8 @@ from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
 
 from app.core.channel_bridge.background_task_handler import (
-    ChannelBackgroundTaskHandler,
     _SYSTEM_BOARD_NAME,
+    ChannelBackgroundTaskHandler,
 )
 from app.core.channel_bridge.persistent_background import (
     BACKGROUND_SOURCE_BTW,

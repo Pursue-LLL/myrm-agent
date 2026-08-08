@@ -73,18 +73,29 @@ export function useMessageMemoryLifecycle({
 
     let cancelled = false;
 
-    void getSessionExecutionTrace(chatId)
-      .then((trace) => {
-        if (cancelled) return;
-        const events = trace.memory_events ?? [];
-        if (events.length === 0) return;
-        setPhases((current) =>
-          hydratePhasesFromTraceEvents(current, events, scopedMessageCreatedAtMs),
-        );
-      })
-      .catch(() => {
-        // Hydrate is best-effort; live SSE remains primary.
-      });
+    const hydrateFromTrace = async (): Promise<void> => {
+      const maxAttempts = 4;
+      for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
+        try {
+          const trace = await getSessionExecutionTrace(chatId, { silent: true });
+          if (cancelled) return;
+          const events = trace.memory_events ?? [];
+          if (events.length === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+            continue;
+          }
+          setPhases((current) =>
+            hydratePhasesFromTraceEvents(current, events, scopedMessageCreatedAtMs),
+          );
+          return;
+        } catch {
+          if (attempt >= maxAttempts) return;
+          await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+        }
+      }
+    };
+
+    void hydrateFromTrace();
 
     return () => {
       cancelled = true;

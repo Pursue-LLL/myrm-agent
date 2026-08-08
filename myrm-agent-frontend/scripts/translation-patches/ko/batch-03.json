@@ -1,0 +1,344 @@
+{
+  "workspace": {
+    "selectDir": "파일을 탐색할 작업 공간 디렉터리를 선택하세요",
+    "selectDirButton": "디렉터리 선택",
+    "upload": "파일 업로드",
+    "dropToUpload": "업로드할 파일을 여기에 끌어다 놓으세요",
+    "uploading": "업로드 중... {percent}%",
+    "uploadSuccess": "{count}개 파일 업로드됨",
+    "uploadFailed": "업로드 실패",
+    "newDir": "새 디렉터리",
+    "newDirPlaceholder": "디렉터리 이름",
+    "mkdirSuccess": "디렉터리 생성됨: {name}",
+    "mkdirFailed": "디렉터리 생성 실패",
+    "rename": "이름 바꾸기",
+    "renameSuccess": "이름이 성공적으로 바뀌었습니다",
+    "renameFailed": "이름 바꾸기 실패",
+    "move": "이동",
+    "moveTitle": "\"{name}\" 이동",
+    "movePlaceholder": "대상 디렉터리 경로",
+    "moveConfirm": "이동",
+    "moveSuccess": "이동 완료",
+    "moveFailed": "이동 실패",
+    "organizeFolder": "AI 폴더 정리",
+    "organizePrompt": "workspace-auto-organizer 스킬을 사용하여 \"{path}\" 아래 파일을 정리하세요. 검토를 위해 organize-plan.json을 작성해 주세요.",
+    "delete": "삭제",
+    "deleteConfirmTitle": "삭제 확인",
+    "deleteConfirmDesc": "{type} \"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+    "deleteSuccess": "\"{name}\"이(가) 삭제되었습니다",
+    "deleteFailed": "삭제 실패",
+    "confirmDelete": "삭제",
+    "cancel": "취소",
+    "file": "파일",
+    "directory": "디렉터리",
+    "editMode": "편집",
+    "viewMode": "보기",
+    "save": "저장",
+    "saveSuccess": "파일이 저장되었습니다",
+    "saveFailed": "파일 저장 실패",
+    "unsaved": "저장되지 않음"
+  },
+  "loadout": {
+    "title": "에이전트 로드아웃",
+    "subtitle": "이 에이전트가 상속하는 것 — 팀 메모리, 위키, 스킬, 메모리 정책을 한눈에.",
+    "loading": "로드아웃 로딩 중…",
+    "saveAgentFirst": "로드아웃을 검토하려면 먼저 에이전트를 저장하세요.",
+    "fix": "수정",
+    "openTeamAssets": "팀 자산",
+    "openWiki": "위키",
+    "openSkills": "스킬",
+    "openMemory": "메모리",
+    "openLoadout": "로드아웃",
+    "readiness": {
+      "ready": "준비됨",
+      "warning": "주의 필요",
+      "blocked": "차단됨"
+    },
+    "tiles": {
+      "sharedContexts": "공유 컨텍스트",
+      "skills": "스킬",
+      "skillsCount": "{count}개 마운트됨",
+      "wiki": "위키",
+      "wikiOn": "활성화됨",
+      "wikiOff": "끄기",
+      "memoryPolicy": "메모리 정책"
+    },
+    "sharedContexts": {
+      "none": "바인딩 없음",
+      "unavailable": "사용 불가"
+    },
+    "memoryPolicy": {
+      "on": "메모리 켜짐",
+      "off": "메모리 꺼짐",
+      "onWithPreCompact": "켜짐 · 사전 압축 {tokens} tok"
+    },
+    "teamHub": {
+      "title": "팀 자산",
+      "subtitle": "공유 컨텍스트, 위키, 스킬, 채팅 메모리 — 팀 설정과 검토를 위한 원스톱 공간.",
+      "wikiTitle": "위키",
+      "wikiDesc": "지식 베이스 및 에이전트 범위 노트",
+      "skillsTitle": "스킬",
+      "skillsDesc": "마운트된 기능과 진화 대기열",
+      "memoryTitle": "메모리",
+      "memoryDesc": "개인 브레인, 정책, 커맨드 센터"
+    }
+  },
+  "agent": {
+    "mcp": "MCP",
+    "personality": {
+      "styles": {
+        "uwu": "UwU"
+      }
+    },
+    "timeMachine": {
+      "fieldLabels": {
+        "mcp_ids": "MCP"
+      }
+    },
+    "temperature": "Temperature",
+    "topP": "Top-P",
+    "openapi": {
+      "auth": {
+        "clientId": "클라이언트 ID",
+        "clientSecret": "클라이언트 시크릿"
+      }
+    },
+    "configPanel": {
+      "mcp": "MCP",
+      "mediaCredential": {
+        "recheck": "다시 확인"
+      }
+    },
+    "configEditor": {
+      "teammateMessagePreview": "{from} → {to}: {preview}"
+    },
+    "secrets": {
+      "tabTitle": "시크릿",
+      "title": "에이전트 시크릿",
+      "description": "에이전트에 안전하게 주입되는 환경 변수와 API 키를 관리합니다.",
+      "saveFirstTitle": "먼저 에이전트 저장",
+      "saveFirstDesc": "시크릿을 추가하기 전에 에이전트를 저장해야 합니다.",
+      "addBtn": "시크릿 추가",
+      "addSecret": "새 시크릿",
+      "editSecret": "시크릿 업데이트"
+    },
+    "faq": {
+      "tabTitle": "FAQ"
+    }
+  },
+  "common": {
+    "keyValueEditor": {
+      "keyPlaceholder": "키",
+      "valuePlaceholder": "값"
+    },
+    "jsonEditor": {
+      "mustBeObject": "JSON 객체여야 합니다",
+      "invalidJson": "잘못된 JSON 형식"
+    },
+    "schemaForm": {
+      "resetDefaults": "기본값으로 재설정",
+      "requiredField": "이 필드는 필수입니다"
+    },
+    "subagentApprovalRequired": "하위 에이전트 작업 승인",
+    "settings": "설정",
+    "collapseMenu": "메뉴 접기",
+    "search": "검색",
+    "searchHistory": "검색 기록",
+    "send": "보내기",
+    "cancel": "취소",
+    "confirm": "확인",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "characters": "문자",
+    "connectionFailed": "서버에 연결할 수 없습니다. 나중에 다시 시도하세요.",
+    "configurationRequired": "메시지를 보내기 전에 구성이 필요합니다",
+    "yes": "예",
+    "home": "홈",
+    "library": "라이브러리",
+    "recentChats": "최근",
+    "pinSidebar": "사이드바 고정",
+    "unpinSidebar": "사이드바 고정 해제",
+    "close": "닫기",
+    "expandMenu": "메뉴 펼치기",
+    "rename": "이름 바꾸기",
+    "export": "내보내기",
+    "confirmDelete": "삭제 확인",
+    "openMenu": "메뉴 열기",
+    "more": "더 보기",
+    "clickToVisitLink": "클릭하여 방문",
+    "previous": "이전",
+    "next": "다음",
+    "loading": "로딩 중...",
+    "loadMore": "더 보기",
+    "loadHistoryError": "채팅 기록을 불러오지 못했습니다",
+    "retry": "재시도",
+    "notConfigured": "구성되지 않음",
+    "model": "모델",
+    "selectModel": "모델 선택",
+    "goalMode": "목표 모드",
+    "forkBranch": "포크 브랜치",
+    "enabled": "활성화됨",
+    "remoteGateway": {
+      "unreachable": "원격 서버 {host}에 연결할 수 없습니다. 서버 주소를 확인하거나 로컬 모드로 전환하세요.",
+      "switchToLocal": "로컬 모드로 전환"
+    },
+    "crashRecovery": {
+      "title": "서비스 사용 불가",
+      "description": "여러 번 시도한 후에도 백엔드 서비스가 시작되지 않았습니다. 데이터는 디스크에 안전하게 저장되어 있습니다.",
+      "exportDatabase": "데이터베이스 내보내기",
+      "viewLogs": "로그 보기",
+      "retryStart": "재시도",
+      "hint": "데이터는 로컬에 저장되며 손실되지 않습니다. 필요 시 재설치 전에 백업을 내보내세요.",
+      "selectExportFolder": "내보내기 폴더 선택"
+    }
+  },
+  "chat": {
+    "skillActivation": {
+      "remove": "선택한 스킬 제거"
+    },
+    "workflowTemplateArmed": {
+      "label": "고정 템플릿",
+      "disarm": "해제"
+    },
+    "scrollCue": {
+      "scrollToBottom": "맨 아래로 스크롤",
+      "newMessage": "새 메시지"
+    },
+    "fork": {
+      "title": "대화 포크",
+      "description": "메시지 #{index}에서 새 대화 브랜치를 만듭니다. 포크된 대화는 이 시점의 완전한 상태를 보존합니다.",
+      "titleLabel": "새 대화 제목",
+      "titlePlaceholder": "제목 입력 (선택)",
+      "cancel": "취소",
+      "create": "브랜치 만들기",
+      "creating": "브랜치 만드는 중...",
+      "success": "대화가 성공적으로 포크되었습니다",
+      "successDescription": "메시지 #{index}에서 새 브랜치 생성됨",
+      "failed": "포크 실패",
+      "buttonLabel": "이 메시지에서 대화 포크",
+      "buttonTitle": "대화 포크",
+      "parentLink": "부모 대화에서 포크됨",
+      "parentLinkWithIndex": "부모 대화에서 포크됨 (메시지 #{index})",
+      "unknownError": "알 수 없는 오류가 발생했습니다",
+      "streamingBlocked": "에이전트가 응답하는 동안에는 포크할 수 없습니다"
+    },
+    "rewind": {
+      "title": "여기로 되감기",
+      "description": "이 메시지 이전으로 대화를 되돌리고 그 텍스트를 입력 상자에 넣습니다.",
+      "sideEffectNotice": "채팅 컨텍스트가 되감깁니다. 파일, 메모리, 도구 부작용은 되돌려지지 않습니다.",
+      "cancel": "취소",
+      "confirm": "되감기",
+      "rewinding": "되감는 중...",
+      "success": "대화가 되감겼습니다",
+      "successDescription": "입력 상자에서 메시지를 편집한 후 준비되면 보내세요.",
+      "goalPausedNotice": "이 되감기 동안 활성 목표가 일시 중지되었습니다.",
+      "failed": "되감기 실패",
+      "buttonLabel": "여기로 되감기",
+      "buttonTitle": "대화를 여기로 되감기",
+      "streamingBlocked": "에이전트가 작업하는 동안에는 되감기를 사용할 수 없습니다",
+      "unknownError": "알 수 없는 오류가 발생했습니다"
+    },
+    "batch": {
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
+    },
+    "share": {
+      "share": "공유",
+      "title": "대화 공유",
+      "description": "링크가 있는 사람은 누구나 이 대화를 볼 수 있습니다 (읽기 전용).",
+      "createLink": "공유 링크 만들기",
+      "creating": "만드는 중...",
+      "copyLink": "링크 복사",
+      "copied": "링크가 복사되었습니다!",
+      "revoke": "링크 해지",
+      "revokeConfirm": "이 공유 링크를 해지하시겠습니까? 링크가 있는 사람은 더 이상 볼 수 없게 됩니다.",
+      "revoked": "공유 링크가 해지되었습니다",
+      "expires": "만료",
+      "ttlDays": "{days}일 동안 유효",
+      "passwordLabel": "비밀번호 (선택)",
+      "passwordPlaceholder": "접근 비밀번호 설정",
+      "ttlLabel": "만료 기간",
+      "successProtected": "비밀번호 보호 링크가 생성되었습니다. {days}일 동안 유효합니다.",
+      "localFallback": "공유 링크는 클라우드 모드에서 사용할 수 있습니다. 로컬 공유는 HTML로 내보내기를 사용하세요.",
+      "error": "공유 링크 생성 실패"
+    },
+    "sendBlocked": {
+      "title": "보낼 수 없음",
+      "processingDescription": "이 메시지는 아직 처리 중입니다. 잠시 기다려주세요.",
+      "noChatDescription": "채팅 세션이 준비되지 않았습니다. 페이지를 새로고침하거나 새 채팅을 시작하세요.",
+      "kanbanNoBoardDescription": "칸반 도구를 활성화하고 보내기 전에 설정에서 칸반 보드를 만드세요.",
+      "kanbanNeedBoardDescription": "보내기 전에 도구 패널에서 대상 칸반 보드를 선택하세요."
+    },
+    "visionNotConfigured": {
+      "imageTitle": "이미지에는 비전 모델이 필요합니다",
+      "imageDescription": "텍스트 전용 기본 모델로 이미지를 분석하려면 설정에서 비전 폴백 모델을 구성하세요.",
+      "videoTitle": "비디오에는 비전 모델이 필요합니다",
+      "videoDescription": "비디오를 분석하려면 설정에서 비전 폴백 모델을 구성하세요.",
+      "action": "설정으로 이동"
+    },
+    "defaultModelNotConfigured": {
+      "action": "기본 모델 선택"
+    },
+    "searchNotConfiguredTooltip": "검색 서비스가 구성되지 않음 — 클릭하여 설정",
+    "workspaceDir": {
+      "label": "작업 디렉터리",
+      "tooltip": "이 채팅의 작업 디렉터리를 설정하세요. 에이전트는 이 폴더 내에서 작동합니다.",
+      "change": "변경",
+      "clear": "지우기",
+      "browse": "찾아보기",
+      "back": "뒤로",
+      "selectThis": "이 디렉터리 선택",
+      "noSubdirs": "하위 디렉터리 없음",
+      "invalidPath": "잘못된 경로",
+      "updated": "작업 디렉터리가 업데이트되었습니다",
+      "cleared": "작업 디렉터리가 지워졌습니다",
+      "recent": "최근",
+      "filter": "디렉터리 필터..."
+    },
+    "workingMemory": {
+      "title": "활성 작업 메모리",
+      "action": {
+        "reading": "AI가 이 파일을 읽는 중",
+        "modifying": "AI가 이 파일을 수정하는 중",
+        "scanning": "AI가 이 디렉터리/파일을 스캔하는 중"
+      }
+    },
+    "liveness": {
+      "idle": "준비됨",
+      "busy": "작업 실행 중…",
+      "degraded": "서비스 저하됨",
+      "draining": "종료 중…",
+      "offline": "백엔드 오프라인"
+    },
+    "dragDrop": {
+      "title": "파일을 여기에 끌어다 놓으세요",
+      "description": "이미지와 PDF 파일 지원, 최대 10개"
+    },
+    "redirect": {
+      "send": "지금 리디렉션",
+      "tooltip": "현재 생성을 중단하고 에이전트를 리디렉션합니다"
+    },
+    "sessionRecording": {
+      "label": "세션 녹화"
+    },
+    "mcpApp": {
+      "loading": "MCP 앱 로딩 중...",
+      "loadFailed": "MCP 앱 로드 실패: {error}",
+      "title": "MCP 앱: {server}"
+    },
+    "directoryRequest": {
+      "pathPlaceholder": "/Users/you/Documents/project"
+    },
+    "planConfirmation": {
+      "title": "리서치 계획",
+      "badge": "실행 전 검토",
+      "description": "AI가 리서치 계획을 작성했습니다. 검토하고 진행 방식을 결정하세요.",
+      "confirm": "계획 승인",
+      "edit": "변경 사항 저장",
+      "skip": "검토 건너뛰기",
+      "editPlaceholder": "리서치 계획 수정..."
+    }
+  }
+}

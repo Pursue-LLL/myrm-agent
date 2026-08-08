@@ -25,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_optional_llm_for_user
 from app.database.connection import get_db
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
-from app.services.wiki.source_sync.feishu import is_feishu_wiki_sync_available
 from app.services.integrations.oauth_store import (
     google_workspace_drive_read_enabled,
     is_oauth_issuer_connected,
@@ -34,6 +33,7 @@ from app.services.wiki.source_sync.config_store import (
     load_wiki_source_sync_config,
     save_wiki_source_sync_config,
 )
+from app.services.wiki.source_sync.feishu import is_feishu_wiki_sync_available
 from app.services.wiki.source_sync.runner import run_wiki_source_sync
 from app.services.wiki.source_sync.schemas import (
     WikiSourceSyncConfig,

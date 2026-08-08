@@ -150,6 +150,7 @@ async def get_job(job_id: str) -> CronJobResponse:
 @router.patch("/{job_id}", response_model=CronJobResponse)
 async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
     from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+
     from app.services.workflow_templates.validation import validate_cron_workflow_template_binding
 
     mgr = _h._get_manager()

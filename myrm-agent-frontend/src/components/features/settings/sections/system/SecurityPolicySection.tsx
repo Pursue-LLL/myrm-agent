@@ -286,8 +286,17 @@ const SecurityPolicySection = memo(() => {
             <Switch
               checked={policy.autoReviewEnabled}
               onCheckedChange={policy.handleAutoReviewToggle}
+              disabled={policy.managedForceAutoReview}
             />
           </div>
+          {policy.managedForceAutoReview && (
+            <p className="text-xs text-muted-foreground px-1">
+              {t('managedPolicy.autoReviewLocked', {
+                default:
+                  'Your organization requires Smart Intent Guard for protected agents. This setting cannot be turned off.',
+              })}
+            </p>
+          )}
 
           <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
             <EnabledModelSelect
@@ -381,8 +390,19 @@ const SecurityPolicySection = memo(() => {
                 })}
               </p>
             </div>
-            <Switch checked={policy.yoloModeEnabled} onCheckedChange={policy.handleYoloModeToggle} />
+            <Switch
+              checked={policy.yoloModeEnabled}
+              onCheckedChange={policy.handleYoloModeToggle}
+              disabled={policy.managedDisableYolo}
+            />
           </div>
+          {policy.managedDisableYolo && (
+            <p className="text-xs text-muted-foreground px-1">
+              {t('managedPolicy.yoloLocked', {
+                default: 'YOLO mode is disabled by your organization policy.',
+              })}
+            </p>
+          )}
 
           {policy.yoloModeEnabled && (
             <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/20 bg-destructive/5">

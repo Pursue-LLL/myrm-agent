@@ -1,4 +1,4 @@
-import type { BlueprintDef, CreateCronJobRequest, CronSchedule } from '@/services/cron';
+import type { BlueprintDef, BlueprintFillResponse, CreateCronJobRequest, CronSchedule } from '@/services/cron';
 import { fillBlueprint, listBlueprints } from '@/services/cron';
 import type { LucideIcon } from 'lucide-react';
 import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
@@ -183,29 +183,7 @@ export async function fillBlueprintFromServer(
   values: Record<string, string>,
   tz: string,
   locale: string,
-): Promise<{
-  schedule: CronSchedule;
-  prompt: string;
-  name: string;
-  required_capabilities: string[];
-  tools_allowed: string[];
-  job_type: 'agent' | 'shell' | 'router' | 'reminder';
-  session_target: 'isolated' | 'main' | 'daily';
-  deduplicate: boolean;
-  skip_if_active: boolean;
-  timeout_seconds?: number | null;
-  monitor_config?: {
-    monitor_type: 'set' | 'hash';
-    ttl_days: number;
-    enabled: boolean;
-  } | null;
-  failure_alert?: {
-    enabled: boolean;
-    after: number;
-    cooldown_seconds: number;
-  } | null;
-  pre_condition_script?: string | null;
-}> {
+): Promise<BlueprintFillResponse> {
   return fillBlueprint(blueprintId, values, locale, tz);
 }
 

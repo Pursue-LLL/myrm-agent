@@ -357,7 +357,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
 
           {(pruning?.archive_restore_blocked_count ?? 0) > 0 && (
             <div className="mt-1 pt-1.5 border-t border-border/50 text-[10px] text-rose-600 dark:text-rose-400">
-              {t('restoreBlocked', { count: pruning.archive_restore_blocked_count })}
+              {t('restoreBlocked', { count: pruning?.archive_restore_blocked_count ?? 0 })}
             </div>
           )}
         </>

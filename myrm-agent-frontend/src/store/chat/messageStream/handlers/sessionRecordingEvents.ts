@@ -29,7 +29,7 @@ export async function sessionRecordingEvents(ctx: StreamCtx): Promise<StreamTurn
     }
     state.messages[messageIndex].sessionRecording = {
       filename: payload.filename ?? 'session-recording.webm',
-      preview_url: payload.preview_url,
+      preview_url: payload.preview_url ?? '',
       content_type: payload.content_type ?? 'video/webm',
     };
   });

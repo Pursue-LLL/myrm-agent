@@ -202,19 +202,20 @@ const MemoryKnowledgeGraph = memo<{ className?: string }>(({ className }) => {
   }, [selectedNode, data]);
 
   const nodeCanvasObject = useCallback(
-    (node: ForceNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const x = node.x ?? 0;
-      const y = node.y ?? 0;
-      const r = getNodeRadius(node.labels);
-      const color = getNodeColor(node.labels);
-      const isFocused = selectedNode?.id === node.id;
-      const isNeighbor = neighbors.has(node.id);
-      const isHovered = hoveredNode === node.id;
+    (node: unknown, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const graphNode = node as ForceNode;
+      const x = graphNode.x ?? 0;
+      const y = graphNode.y ?? 0;
+      const r = getNodeRadius(graphNode.labels);
+      const color = getNodeColor(graphNode.labels);
+      const isFocused = selectedNode?.id === graphNode.id;
+      const isNeighbor = neighbors.has(graphNode.id);
+      const isHovered = hoveredNode === graphNode.id;
       const dimmed = selectedNode && !isFocused && !isNeighbor;
 
       ctx.globalAlpha = dimmed ? 0.15 : 1;
 
-      if (node.labels.includes('Evidence')) {
+      if (graphNode.labels.includes('Evidence')) {
         ctx.fillStyle = color;
         ctx.fillRect(x - r, y - r, r * 2, r * 2);
         if (isFocused || isHovered) {
@@ -235,7 +236,7 @@ const MemoryKnowledgeGraph = memo<{ className?: string }>(({ className }) => {
       }
 
       if (globalScale > 1.8 || isFocused) {
-        const label = getNodeDisplayName(node);
+        const label = getNodeDisplayName(graphNode);
         const fontSize = Math.min(12 / globalScale, 3.5);
         ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
@@ -249,11 +250,12 @@ const MemoryKnowledgeGraph = memo<{ className?: string }>(({ className }) => {
   );
 
   const linkColor = useCallback(
-    (link: ForceLink) => {
-      const c = getLinkColor(link.rel_type);
+    (link: unknown) => {
+      const graphLink = link as ForceLink;
+      const c = getLinkColor(graphLink.rel_type);
       if (!selectedNode) return c;
-      const src = nodeId(link.source);
-      const tgt = nodeId(link.target);
+      const src = nodeId(graphLink.source);
+      const tgt = nodeId(graphLink.target);
       if (src === selectedNode.id || tgt === selectedNode.id) return c;
       return 'rgba(100,100,100,0.08)';
     },
@@ -353,24 +355,30 @@ const MemoryKnowledgeGraph = memo<{ className?: string }>(({ className }) => {
           width={dimensions.width}
           height={dimensions.height}
           nodeCanvasObject={nodeCanvasObject}
-          nodePointerAreaPaint={(node: ForceNode, color: string, ctx: CanvasRenderingContext2D) => {
-            const r = getNodeRadius(node.labels) + 2;
+          nodePointerAreaPaint={(node: unknown, color: string, ctx: CanvasRenderingContext2D) => {
+            const graphNode = node as ForceNode;
+            const r = getNodeRadius(graphNode.labels) + 2;
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI);
+            ctx.arc(graphNode.x ?? 0, graphNode.y ?? 0, r, 0, 2 * Math.PI);
             ctx.fill();
           }}
           linkColor={linkColor}
-          linkWidth={(link: ForceLink) =>
-            selectedNode && (nodeId(link.source) === selectedNode.id || nodeId(link.target) === selectedNode.id)
+          linkWidth={(link: unknown) => {
+            const graphLink = link as ForceLink;
+            return selectedNode &&
+              (nodeId(graphLink.source) === selectedNode.id || nodeId(graphLink.target) === selectedNode.id)
               ? 2
-              : 0.8
-          }
+              : 0.8;
+          }}
           linkDirectionalArrowLength={3}
           linkDirectionalArrowRelPos={1}
           backgroundColor="rgba(0,0,0,0)"
-          onNodeClick={(node: ForceNode) => setSelectedNode((prev) => (prev?.id === node.id ? null : node))}
-          onNodeHover={(node: ForceNode | null) => setHoveredNode(node?.id ?? null)}
+          onNodeClick={(node: unknown) => {
+            const graphNode = node as ForceNode;
+            setSelectedNode((prev) => (prev?.id === graphNode.id ? null : graphNode));
+          }}
+          onNodeHover={(node: unknown) => setHoveredNode((node as ForceNode | null)?.id ?? null)}
           onBackgroundClick={() => setSelectedNode(null)}
         />
       )}

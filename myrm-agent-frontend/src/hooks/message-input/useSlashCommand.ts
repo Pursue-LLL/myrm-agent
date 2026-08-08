@@ -42,13 +42,14 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   const skillActions = useMemo((): SlashAction[] => {
     if (!agentConfig?.selectedSkillIds?.length) return [];
     const allSkills = [...marketSkills, ...localSkills];
-    const boundSkills = agentConfig.selectedSkillIds.flatMap((id) => {
-      const fromCatalog = allSkills.find((skill) => skill.id === id);
-      if (fromCatalog) {
-        return fromCatalog.user_invocable === false ? [] : [fromCatalog];
-      }
-      return [{ id, name: id, description: id, user_invocable: true as const }];
-    });
+    const boundSkills: Array<{ id: string; name: string; description: string; user_invocable: boolean }> =
+      agentConfig.selectedSkillIds.flatMap((id): Array<{ id: string; name: string; description: string; user_invocable: boolean }> => {
+        const fromCatalog = allSkills.find((skill) => skill.id === id);
+        if (fromCatalog) {
+          return fromCatalog.user_invocable === false ? [] : [{ id: fromCatalog.id, name: fromCatalog.name, description: fromCatalog.description, user_invocable: true }];
+        }
+        return [{ id, name: id, description: id, user_invocable: true }];
+      });
 
     const singleSkillActions: SlashAction[] = boundSkills.map(
       (skill): SlashAction => ({
