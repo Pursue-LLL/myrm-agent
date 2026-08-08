@@ -25,6 +25,7 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -349,13 +350,13 @@ async def _evaluate_gap_snapshot(
     _assert_gap_wall_budget(wall_deadline)
     js = _gap_poll_snapshot_js(message_id)
     try:
-        raw = await chat.evaluate(js, await_promise=False, recv_timeout=12.0)
+        raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
     except RuntimeError as exc:
         message = str(exc).lower()
         if "not owned" in message or "pageid" in message:
             await chat._heal_reclaimed_page()  # noqa: SLF001
             _assert_gap_wall_budget(wall_deadline)
-            raw = await chat.evaluate(js, await_promise=False, recv_timeout=12.0)
+            raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
         else:
             raise
     return raw if isinstance(raw, dict) else {"value": raw}
@@ -376,8 +377,7 @@ async def _send_and_collect_gap_while_streaming(
 
     idle = await chat.evaluate(
         _WAIT_CHAT_IDLE_JS,
-        await_promise=True,
-        recv_timeout=20.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
 
@@ -399,8 +399,7 @@ async def _send_and_collect_gap_while_streaming(
             debug: bridge.debugProviderState?.() ?? null,
           };
         })()""",
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     assert isinstance(pre_send, dict) and pre_send.get("ok") is True, pre_send
 
@@ -413,14 +412,12 @@ async def _send_and_collect_gap_while_streaming(
           bridge?.clearSseSnapshot?.();
           return { ok: true };
         })()""",
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
 
     force_idle = await chat.evaluate(
         _FORCE_IDLE_BEFORE_GAP_SEND_JS,
-        await_promise=True,
-        recv_timeout=60.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(force_idle, dict) and force_idle.get("ok") is True, force_idle
 
@@ -482,8 +479,7 @@ async def _send_and_collect_gap_while_streaming(
         try:
             await chat.evaluate(
                 "() => { window.__MYRM_E2E_CHAT__?.abortActiveStream?.(); return { ok: true }; }",
-                await_promise=False,
-                recv_timeout=8.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
         except RuntimeError:
             pass
@@ -495,8 +491,7 @@ async def _send_and_collect_gap_while_streaming(
     else:
         await chat.evaluate(
             "() => { window.__MYRM_E2E_CHAT__?.abortActiveStream?.(); return { ok: true }; }",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         raw_send = await send_task
         send_result = raw_send if isinstance(raw_send, dict) else {"value": raw_send}
@@ -512,8 +507,7 @@ async def _send_and_collect_gap_while_streaming(
           turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
           streamMessageId: {json.dumps(stream_message_id)},
         }}))()""",
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
     diag_sse = diag.get("sse") if isinstance(diag.get("sse"), list) else []
@@ -536,14 +530,12 @@ async def _prepare_chat(chat: McpChatSession) -> None:
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     enabled = await chat.evaluate(
         _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS,
-        await_promise=True,
-        recv_timeout=30.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(enabled, dict) and enabled.get("ok") is True, enabled
     idle = await chat.evaluate(
         _WAIT_CHAT_IDLE_JS,
-        await_promise=True,
-        recv_timeout=20.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
     await ensure_e2e_search_cleared_in_browser(chat, api_url=get_e2e_api_url())
@@ -579,8 +571,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
 
             workspace_ready = await chat.evaluate(
                 WAIT_WORKSPACE_STREAM_JS,
-                await_promise=True,
-                recv_timeout=45.0,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
             assert (
                 isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
@@ -592,8 +583,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                   runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
                   directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
                 }))()""",
-                await_promise=False,
-                recv_timeout=15.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             assert isinstance(binding, dict), binding
             assert str(binding.get("apiBase") or "").rstrip("/") == api_base.rstrip(
