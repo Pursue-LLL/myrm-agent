@@ -24,6 +24,10 @@ contract:
 
 Use semantic tools for sandbox images under `/workspace`. Do not call provider APIs directly.
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first. Use bash only for ffmpeg frame extraction or pixel scripts when geometry tools are insufficient.
+
 | Question | Tool |
 |---|---|
 | Read one image generally | `file_read_tool` |

@@ -324,8 +324,11 @@ myrm_agent_harness.toolkits.cron.situation
 myrm_agent_harness.toolkits.cron.triggers
 myrm_agent_harness.toolkits.cron.types
 myrm_agent_harness.toolkits.file_parsers
+myrm_agent_harness.toolkits.file_parsers.content_format_sniff
 myrm_agent_harness.toolkits.file_parsers.docx
+myrm_agent_harness.toolkits.file_parsers.docx_embedded_assets
 myrm_agent_harness.toolkits.file_parsers.excel
+myrm_agent_harness.toolkits.file_parsers.gfm_normalize
 myrm_agent_harness.toolkits.file_parsers.ipynb
 myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor
 myrm_agent_harness.toolkits.file_parsers.pptx
@@ -361,6 +364,7 @@ myrm_agent_harness.toolkits.llms.video
 myrm_agent_harness.toolkits.llms.video.async_video_engine
 myrm_agent_harness.toolkits.llms.video.providers
 myrm_agent_harness.toolkits.llms.video.video_engine
+myrm_agent_harness.toolkits.llms.vision
 myrm_agent_harness.toolkits.llms.vision.fallback_engine
 myrm_agent_harness.toolkits.llms.vision.video_analysis_engine
 myrm_agent_harness.toolkits.mcp
@@ -456,6 +460,7 @@ myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map.schema_writer
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup
 myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.snippets
 myrm_agent_harness.toolkits.wiki.pipeline.ingress
+myrm_agent_harness.toolkits.wiki.pipeline.ingress.asset_store
 myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore
 myrm_agent_harness.toolkits.wiki.pipeline.publication
 myrm_agent_harness.toolkits.wiki.pipeline.raw_gate
