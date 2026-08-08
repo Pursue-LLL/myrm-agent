@@ -1,4 +1,14 @@
-"""Convert cloud file bytes into wiki-ready Markdown text."""
+"""Convert cloud file bytes into wiki-ready Markdown text.
+
+[INPUT]
+- app.services.files.content_extraction (POS: pdf/docx/text byte extractors)
+
+[OUTPUT]
+- bytes_to_wiki_markdown: normalize Drive/Feishu/RSS bytes to markdown body
+
+[POS]
+Shared zero-LLM conversion layer for wiki source sync connectors.
+"""
 
 from __future__ import annotations
 

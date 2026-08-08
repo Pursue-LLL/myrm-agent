@@ -1,4 +1,15 @@
-"""Feishu/Lark document pull → wiki raw sync."""
+"""Feishu/Lark document pull → wiki raw sync.
+
+[INPUT]
+- app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
+- app.services.wiki.source_sync.schemas (POS: WikiSourceSyncResult)
+
+[OUTPUT]
+- sync_feishu_docs_to_wiki: pull Feishu docs into wiki raw/feishu/
+
+[POS]
+Deterministic Feishu/Lark ingest path for wiki source sync; zero LLM.
+"""
 
 from __future__ import annotations
 
