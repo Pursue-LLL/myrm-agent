@@ -7,8 +7,10 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve_agent_root.sh
 source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 resolve_agent_paths "${REPO_ROOT}"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 
-STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+STATE_DIR="$(dev_state_dir)"
 PY="${SERVER_DIR}/.venv/bin/python"
 PID_FILE="${STATE_DIR}/supervisor.pid"
 SOCK_FILE="${MYRM_SUPERVISOR_SOCKET:-${STATE_DIR}/supervisor.sock}"

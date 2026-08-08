@@ -22,7 +22,7 @@ source "${SCRIPT_DIR}/lib/stack-epoch.sh"
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
-STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+STATE_DIR="$(dev_state_dir)"
 BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
 FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 APP_URL="${E2E_UI_BASE:-http://127.0.0.1:${FRONTEND_PORT}}"
@@ -34,7 +34,7 @@ BACKEND_LOG="${MYRM_BACKEND_LOG_FILE:-${STATE_DIR}/backend.log}"
 BACKEND_IDENTITY="${MYRM_BACKEND_IDENTITY_FILE:-${STATE_DIR}/backend-process.json}"
 FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
 FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
-export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}"
+export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}" MYRM_DEV_STATE_DIR="${STATE_DIR}"
 export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
 export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
 export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
@@ -67,7 +67,7 @@ if [[ -n "${MYRM_BUN}" ]]; then
 fi
 
 export_myrm_next_dist_dir
-if [[ "${STATE_DIR}" != "${HOME}/.local/state/myrm-dev" ]]; then
+if [[ "${STATE_DIR}" != "$(_real_home_default_state_dir)" ]]; then
   export MYRM_FRONTEND_DEV_WEBPACK="${MYRM_FRONTEND_DEV_WEBPACK:-0}"
 fi
 mkdir -p "${FRONTEND_DIR}/${MYRM_NEXT_DIST_DIR}"
@@ -694,7 +694,7 @@ _private_backend_identity_valid() {
 
 _private_backend_scope() {
   [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
-    || [[ "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]
+    || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]
 }
 
 _repair_orphan_private_backend() {
