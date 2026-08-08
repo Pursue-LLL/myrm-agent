@@ -48,6 +48,38 @@ const SecurityPolicySection = memo(() => {
         <SecurityProfileSelector onProfileSelect={policy.handleProfileSelect} />
       </SettingsSection>
 
+      {policy.managedPolicyActive && (
+        <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+          <p className="text-sm font-medium">
+            {t('managedPolicy.orgActiveTitle', {
+              default: 'Organization approval policy is active',
+            })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t('managedPolicy.orgActiveDesc', {
+              default:
+                'Your admin may require Smart Intent Guard or disable allowlist shortcuts for specific agent models. Configure agents in AI Core when using protected models.',
+            })}
+          </p>
+          {(policy.managedPolicyEffective.forceAutoReviewForModels?.length ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground font-mono">
+              {t('managedPolicy.forceModels', {
+                default: 'Forced review models: {patterns}',
+                patterns: policy.managedPolicyEffective.forceAutoReviewForModels?.join(', ') ?? '',
+              })}
+            </p>
+          )}
+          {(policy.managedPolicyEffective.ignoreAllowlistForModels?.length ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground font-mono">
+              {t('managedPolicy.ignoreAllowlistModels', {
+                default: 'Allowlist ignored for: {patterns}',
+                patterns: policy.managedPolicyEffective.ignoreAllowlistForModels?.join(', ') ?? '',
+              })}
+            </p>
+          )}
+        </div>
+      )}
+
       <SettingsSection
         title={t('nlGenerator.sectionTitle', { default: 'AI Policy Generator' })}
         description={t('nlGenerator.sectionDesc', {
@@ -286,17 +318,8 @@ const SecurityPolicySection = memo(() => {
             <Switch
               checked={policy.autoReviewEnabled}
               onCheckedChange={policy.handleAutoReviewToggle}
-              disabled={policy.managedForceAutoReview}
             />
           </div>
-          {policy.managedForceAutoReview && (
-            <p className="text-xs text-muted-foreground px-1">
-              {t('managedPolicy.autoReviewLocked', {
-                default:
-                  'Your organization requires Smart Intent Guard for protected agents. This setting cannot be turned off.',
-              })}
-            </p>
-          )}
 
           <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
             <EnabledModelSelect
@@ -448,6 +471,15 @@ const SecurityPolicySection = memo(() => {
           </div>
         </div>
       </SettingsSection>
+
+      {policy.managedDisableAllowAlways && (
+        <p className="text-xs text-muted-foreground px-1">
+          {t('managedPolicy.allowAlwaysDisabled', {
+            default:
+              'Your organization disabled saving permanent allowlist entries from approval prompts.',
+          })}
+        </p>
+      )}
 
       <AllowlistSection />
     </div>

@@ -23,6 +23,7 @@ from cdp_chat_ui import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -59,7 +60,7 @@ async def _resolve_chat_id(
             .filter((url) => url.startsWith(base) && !url.endsWith('/') && !url.includes('/settings'));
           return links[0] || location.href;
         }})()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     return _extract_chat_id(str(href) if href else "")
 

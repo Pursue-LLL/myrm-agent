@@ -16,6 +16,10 @@ import {
   createEmptyRule,
   DOMAIN_PATTERN,
 } from './securityPolicyUtils';
+import {
+  managedPolicyConstraintsForModel,
+} from '@/lib/managedPolicyMatch';
+import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
 
 const syncManager = getConfigSyncManager();
 
@@ -34,9 +38,19 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
   const [autoReviewModel, setAutoReviewModel] = useState<SingleModelSelection | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [managedPolicyActive, setManagedPolicyActive] = useState(false);
-  const [managedDisableYolo, setManagedDisableYolo] = useState(false);
-  const [managedForceAutoReview, setManagedForceAutoReview] = useState(false);
+  const {
+    policy: managedPolicyEffective,
+    active: managedPolicyActive,
+    loaded: managedPolicyLoaded,
+  } = useManagedPolicyEffective();
+  const managedDisableYolo = Boolean(managedPolicyEffective.disableYolo);
+  const managedDisableAllowAlways = Boolean(managedPolicyEffective.disableAllowAlways);
+
+  const getManagedConstraintsForModel = useCallback(
+    (modelSlug: string | null | undefined) =>
+      managedPolicyConstraintsForModel(managedPolicyEffective, modelSlug),
+    [managedPolicyEffective],
+  );
 
   const { providers, getEnabledModels } = useProviderStore();
   const enabledModels = getEnabledModels();
@@ -71,34 +85,6 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setRules(flattenPermissions(DEFAULT_CONFIG.permissions));
     }
     setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadManagedPolicy = async () => {
-      try {
-        const response = await fetch('/api/v1/security/managed-policy/effective');
-        if (!response.ok) return;
-        const data = (await response.json()) as {
-          active?: boolean;
-          disableYolo?: boolean;
-          forceAutoReviewForModels?: string[];
-        };
-        if (cancelled) return;
-        setManagedPolicyActive(Boolean(data.active));
-        setManagedDisableYolo(Boolean(data.disableYolo));
-        setManagedForceAutoReview(
-          Array.isArray(data.forceAutoReviewForModels) &&
-            data.forceAutoReviewForModels.length > 0,
-        );
-      } catch {
-        /* local mode: endpoint always empty */
-      }
-    };
-    void loadManagedPolicy();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const save = useCallback(
@@ -494,9 +480,12 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     autoReviewEnabled,
     autoReviewModel,
     loaded,
+    managedPolicyLoaded,
     managedPolicyActive,
     managedDisableYolo,
-    managedForceAutoReview,
+    managedDisableAllowAlways,
+    managedPolicyEffective,
+    getManagedConstraintsForModel,
     providers,
     enabledModels,
     handleAddRoot,

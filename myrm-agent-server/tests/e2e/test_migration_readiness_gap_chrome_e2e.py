@@ -455,8 +455,7 @@ async def _send_and_collect_migration_gap(
           apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
           turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
         }}))()""",
-        await_promise=False,
-        recv_timeout=12.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
     diag["sawGap"] = saw_gap

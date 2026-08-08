@@ -35,19 +35,22 @@ from tests.support.wb_bench_e2e_helpers import (
 # A live WBBench run must surface through the header Stop button and the report
 # tab progress text ("Eval task in progress" / "Downloading"). The sources tab
 # is unmounted while the run is in flight, so grid buttons are not a probe.
-_RUN_INFLIGHT_JS = """(() => {
+# Running text matches both the English strings and the zh locale renderings
+# (评估运行中 / 下载中 / 进度) so the probe reflects the real localized UI.
+_RUNNING_TEXT_RE = r"Eval task in progress|Downloading|评估运行中|评测中|下载中|进度: \d+"
+_RUN_INFLIGHT_JS = f"""(() => {{
   const body = document.body?.innerText || document.body?.textContent || '';
   const stopBtn = Array.from(document.querySelectorAll('button')).find(
     (b) => /Stop|停止/.test((b.textContent || '').trim()),
   );
-  const runningText = /Eval task in progress|Downloading/i.test(body);
-  return {
+  const runningText = /{_RUNNING_TEXT_RE}/i.test(body);
+  return {{
     ready: !!stopBtn && runningText,
     hasStop: !!stopBtn,
     runningText,
     bodyLength: body.length,
-  };
-})()"""
+  }};
+}})()"""
 
 # Clicks the Stop button that appears in the page header while a run is in flight.
 _CLICK_STOP_JS = """(() => {
@@ -67,19 +70,19 @@ _CLICK_STOP_JS = """(() => {
 
 # After abort the run flag clears: the Stop button disappears and the report tab
 # stops showing in-progress text.
-_RUN_CLEARED_JS = """(() => {
+_RUN_CLEARED_JS = f"""(() => {{
   const body = document.body?.innerText || document.body?.textContent || '';
   const stopBtn = Array.from(document.querySelectorAll('button')).find(
     (b) => /Stop|停止/.test((b.textContent || '').trim()),
   );
-  const runningText = /Eval task in progress|Downloading/i.test(body);
-  return {
+  const runningText = /{_RUNNING_TEXT_RE}/i.test(body);
+  return {{
     ready: !stopBtn && !runningText,
     hasStop: !!stopBtn,
     runningText,
     bodyLength: body.length,
-  };
-})()"""
+  }};
+}})()"""
 
 
 @pytest.mark.chrome_e2e(

@@ -36,6 +36,9 @@ from app.api.internal.org_model_policy_sync import (
 from app.api.internal.org_model_policy_sync import (
     router as internal_org_model_policy_sync_router,
 )
+from app.api.internal.org_managed_approval_policy_sync import (
+    router as internal_org_managed_approval_policy_sync_router,
+)
 from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
 from app.api.mem0_compat.router import mem0_compat_router
 from app.api.openai_compat.router import openai_compat_router
@@ -75,6 +78,7 @@ app.include_router(internal_import_agent_profile_router)
 app.include_router(internal_import_archive_router, prefix="/api")
 app.include_router(internal_org_mcp_sync_router)
 app.include_router(internal_org_model_policy_sync_router)
+app.include_router(internal_org_managed_approval_policy_sync_router)
 app.include_router(org_model_policy_frontend_router, prefix=settings.api_prefix)
 app.include_router(internal_skills_killswitch_router)
 app.include_router(openai_compat_router)

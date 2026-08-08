@@ -1359,8 +1359,7 @@ async def _run_fast_evicted_read_live_e2e_once(
               searchDepth: window.__MYRM_E2E_CHAT__?.getSearchDepth?.() ?? null,
               lastSubmit: window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null,
             }))()""",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(post_send_mode, dict), post_send_mode
         assert (

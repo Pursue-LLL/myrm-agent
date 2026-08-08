@@ -46,7 +46,7 @@
 | `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器 | ✅ |
 | `SamplePrompts.tsx` | 组件 | 空会话示例 prompt 芯片列表 | ✅ |
 | `ScrollToBottomButton.tsx` | 组件/模块 | 滚动到底部浮动按钮（双态：↓ 箭头 / 新消息药丸） | ✅ |
-| `YoloModeBanner.tsx` | 组件 | YOLO 模式全局警告横幅（读取 ConfigSyncManager 安全策略配置） | ✅ |
+| `YoloModeBanner.tsx` | 组件 | YOLO 模式全局警告横幅；组织 MAP 抑制时展示约束文案（读 ConfigSync + effective MAP + 当前 Agent 模型） | ✅ |
 | `EStopBanner.tsx` | 组件/模块 | E-Stop 全局冻结横幅（GET /security/estop，解除冻结 POST resume） | ✅ |
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |

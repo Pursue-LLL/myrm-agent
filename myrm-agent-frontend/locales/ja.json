@@ -12218,7 +12218,7 @@
     "githubTestFailed": "GitHub API 接続に失敗しました",
     "githubCredentialsRequired": "Personal Access Token を入力してください",
     "githubWebhookUrl": "Webhook URL",
-    "githubWebhookUrlHintPublic": "この URL を GitHub リポジトリの Settings → Webhooks に登録してください。",
+    "githubWebhookUrlHintPublic": "この URL を GitHub リポジトリの Settings → Webhooks に登録してください。上で Webhook Secret を設定した場合は、同じ Secret もここに入力してください。",
     "githubWebhookUrlHintLocal": "これはローカルアドレスです。公開トンネル（例: ngrok/cpolar）で公開してから GitHub に設定してください。",
     "signalTitle": "Signal",
     "signalDesc": "設定 Signal CLI REST API 以有効 Signal メッセージ通道。",

@@ -62,7 +62,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
                 : '';
               return base || null;
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(page_api, str) and page_api.strip():
             return page_api.strip().rstrip("/")

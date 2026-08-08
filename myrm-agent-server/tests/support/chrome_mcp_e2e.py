@@ -42,6 +42,7 @@ from dev_gate_contract import (
     SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
     is_e2e_signoff_runtime,
+    resolve_evaluate_budget,
     shpoib_rebind_location_wait_cap_sec,
 )  # noqa: E402
 from e2e_orchestrator import touch_wall_progress  # noqa: E402
@@ -618,17 +619,20 @@ def reload_mcp_page(
 ) -> None:
     """Full page reload with SHPOIB runtime rebind when private backend is active.
 
-    ``ignore_cache=True`` forces ``location.reload(true)``: stale Turbopack chunks
+    ``ignore_cache=True`` forces a cache-bypassing reload: stale Turbopack chunks
     on long-lived warm-shell pages can mount an outdated ``__MYRM_E2E_CHAT__``
     bridge (missing attachToChat/syncSearchServicesFromE2eApi), stranding the
-    shared-UI contract; a cache-bypassing reload pulls the latest bundle.
+    shared-UI contract.
+
+    ``window.location.reload(true)`` is a no-op in Chrome (the ``forceGet``
+    argument is Firefox-only and silently ignored), so a plain reload keeps
+    serving the cached HTML/chunk set. Two-step navigation (about:blank then
+    target) discards the old document and pulls freshly compiled, content-hashed
+    bundle URLs.
     """
-    if ignore_cache:
-        client.evaluate(
-            page,
-            "(() => { window.location.reload(true); return true; })()",
-            timeout_sec=max(5.0, timeout_ms / 1000),
-        )
+    if ignore_cache and isinstance(target_url, str) and target_url.strip():
+        client.navigate(page, "about:blank", timeout_ms=min(timeout_ms, 30_000))
+        client.navigate(page, target_url, timeout_ms=timeout_ms)
     else:
         client.reload(page, timeout_ms=timeout_ms)
     # Isolated stacks use Next.js rewrites — skip expensive SHPOIB rebind (TAB-6b).
@@ -2214,6 +2218,10 @@ class _OrchestratorSharedUiChat:
         recv_timeout: float = 30.0,
         intent: EvaluateIntent | None = None,
     ) -> object:
+        if intent is not None:
+            budget = resolve_evaluate_budget(intent)
+            await_promise = budget.await_promise
+            recv_timeout = budget.cdp_timeout_sec
         timeout = max(5.0, recv_timeout)
         expr = expression
         if await_promise and "async" not in expression[:48]:
@@ -2238,13 +2246,12 @@ class _OrchestratorSharedUiChat:
         if bootstrap_js is not None and not self._runtime_bootstrapped:
             result = await self.evaluate(
                 bootstrap_js,
-                await_promise=True,
-                recv_timeout=60.0,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
             if isinstance(result, dict) and result.get("ok") is True:
                 self._runtime_bootstrapped = True
                 return
-        await self.evaluate(inject, recv_timeout=30.0)
+        await self.evaluate(inject, intent=EvaluateIntent.ROUTE_ATTACH)
 
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
         await asyncio.to_thread(

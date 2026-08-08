@@ -12007,7 +12007,7 @@
     "githubTestFailed": "GitHub API 연결 실패",
     "githubCredentialsRequired": "Personal Access Token을 먼저 입력하세요",
     "githubWebhookUrl": "Webhook URL",
-    "githubWebhookUrlHintPublic": "GitHub 저장소의 Settings → Webhooks에 이 URL을 등록하세요.",
+    "githubWebhookUrlHintPublic": "GitHub 저장소의 Settings → Webhooks에 이 URL을 등록하세요. 위에서 Webhook Secret을 설정한 경우 GitHub에도 동일한 Secret을 입력하세요.",
     "githubWebhookUrlHintLocal": "로컬 주소입니다. 공개 터널(예: ngrok/cpolar)로 노출한 후 GitHub에 설정하세요.",
     "signalTitle": "Signal",
     "signalDesc": "Signal 메시징 채널을 활성화하려면 Signal 자격 증명을 구성하세요.",

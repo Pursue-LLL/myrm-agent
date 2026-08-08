@@ -300,8 +300,7 @@ async def test_file_edit_batch_live_agent_webui(
                     sample: text.slice(0, 600),
                   };
                 })()""",
-                await_promise=False,
-                recv_timeout=20.0,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
             ui = raw if isinstance(raw, dict) else {"value": raw}
             if (

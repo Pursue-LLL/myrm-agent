@@ -977,7 +977,12 @@
         "lockedBadge": "Organization policy",
         "autoReviewLocked": "Your organization requires Smart Intent Guard for protected agents. This setting cannot be turned off.",
         "yoloLocked": "YOLO mode is disabled by your organization policy.",
-        "allowAlwaysLocked": "Always Allow is disabled by your organization policy."
+        "allowAlwaysLocked": "Always Allow is disabled by your organization policy.",
+        "allowAlwaysDisabled": "Your organization disabled saving permanent allowlist entries from approval prompts.",
+        "orgActiveTitle": "Organization approval policy is active",
+        "orgActiveDesc": "Your admin may require Smart Intent Guard or disable allowlist shortcuts for specific agent models. Configure agents in AI Core when using protected models.",
+        "forceModels": "Forced review models: {patterns}",
+        "ignoreAllowlistModels": "Allowlist ignored for: {patterns}"
       },
       "riskRules": {
         "title": "Risk Rules",
@@ -4388,6 +4393,29 @@
       "mcpDeleteTitle": "Remove MCP server",
       "mcpDeleteDesc": "Remove \"{name}\" from the organization? Members will lose this tool on next sync.",
       "membersTab": "Members",
+      "modelPolicyTab": "Model Policy",
+      "approvalPolicyTab": "Approval Policy",
+      "approvalPolicy": {
+        "title": "Approval Policy",
+        "description": "Set organization-wide security floors for tool approvals. Changes apply to member sandboxes shortly after save.",
+        "noOrg": "Organization not configured",
+        "loadFailed": "Failed to load approval policy",
+        "saveFailed": "Failed to save approval policy",
+        "saved": "Approval policy saved",
+        "saving": "Saving…",
+        "save": "Save policy",
+        "addPattern": "Add",
+        "removePattern": "Click to remove",
+        "ignoreAllowlistTitle": "Ignore prefix allowlist (by model)",
+        "ignoreAllowlistDesc": "Matched models cannot auto-approve via saved allowlist shortcuts; they follow Smart Intent Guard or manual approval.",
+        "forceAutoReviewTitle": "Force Smart Intent Guard (by model)",
+        "forceAutoReviewDesc": "Matched models always run Smart Intent Guard before risky tool calls, even if members turned it off.",
+        "disableYoloTitle": "Disable YOLO mode",
+        "disableYoloDesc": "Members cannot enable auto-approve-all for any agent.",
+        "disableAllowAlwaysTitle": "Disable Always Allow",
+        "disableAllowAlwaysDesc": "Hide and block saving permanent allowlist entries from approval prompts.",
+        "patternHint": "Use the model slug only (e.g. claude-opus-4), not the provider prefix."
+      },
       "usageTab": "Cost & Usage",
       "auditTab": "Audit Logs",
       "usage": {
@@ -6156,6 +6184,10 @@
     "view": "View",
     "modelBinding": "Select Model",
     "modelBindingDesc": "Bind a dedicated model to this agent",
+    "orgMapBadgeTitle": "Organization approval policy",
+    "orgMapForceReview": "Smart Intent Guard is required for this model.",
+    "orgMapIgnoreAllowlist": "Saved allowlist shortcuts do not apply to this model.",
+    "orgMapYoloSuppressed": "YOLO mode will not bypass approvals for this model.",
     "routingOverride": "Smart Routing Override",
     "routingOverrideDesc": "Override global routing policy for this agent",
     "routingUseGlobal": "Use global settings",
@@ -12300,7 +12332,7 @@
     "githubTestFailed": "GitHub API connection failed",
     "githubCredentialsRequired": "Please fill in Personal Access Token first",
     "githubWebhookUrl": "Webhook URL",
-    "githubWebhookUrlHintPublic": "Add this URL in your GitHub repository under Settings → Webhooks.",
+    "githubWebhookUrlHintPublic": "Add this URL in your GitHub repository under Settings → Webhooks. If you set a Webhook Secret above, enter the same secret there.",
     "githubWebhookUrlHintLocal": "Local address — expose it through a public tunnel (e.g. ngrok/cpolar) before configuring it in GitHub.",
     "signalTitle": "Signal",
     "signalDesc": "Configure Signal credentials to enable Signal messaging channel.",
@@ -12761,6 +12793,7 @@
   },
   "yoloBanner": {
     "message": "YOLO Mode Active – All tools auto-approved",
+    "orgConstrainedMessage": "YOLO is on, but your organization's policy still requires approval for this agent's model.",
     "disable": "Disable"
   },
   "estopBanner": {

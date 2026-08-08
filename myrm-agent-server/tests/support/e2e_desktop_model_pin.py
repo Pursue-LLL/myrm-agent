@@ -16,6 +16,16 @@ try:
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     McpChatSession = object  # type: ignore[misc,assignment]
 
+try:
+    from dev_gate_contract import EvaluateIntent, resolve_evaluate_budget
+except ImportError:  # pragma: no cover - import path in pytest vs standalone
+    EvaluateIntent = None  # type: ignore[misc,assignment]
+
+    def resolve_evaluate_budget(intent):  # type: ignore[misc]
+        from types import SimpleNamespace
+
+        return SimpleNamespace(cdp_timeout_sec=60.0)
+
 DEBUG_PROVIDER_STATE_JS = (
     """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()"""
 )
@@ -77,23 +87,22 @@ async def _evaluate_bridge(
     chat: McpChatSession,
     script: str,
     *,
-    await_promise: bool,
-    recv_timeout: float,
+    intent: EvaluateIntent,
 ) -> object:
-    wall_timeout = max(30.0, recv_timeout + 15.0)
+    budget = resolve_evaluate_budget(intent)
+    wall_timeout = max(30.0, budget.cdp_timeout_sec + 15.0)
     try:
         return await asyncio.wait_for(
             chat.evaluate(  # type: ignore[attr-defined]
                 script,
-                await_promise=await_promise,
-                recv_timeout=recv_timeout,
+                intent=intent,
             ),
             timeout=wall_timeout,
         )
     except asyncio.TimeoutError as exc:
         raise RuntimeError(
             "desktop model pin bridge evaluate wall-timeout "
-            f"({wall_timeout:.0f}s recv_timeout={recv_timeout:.0f}s)"
+            f"({wall_timeout:.0f}s intent={intent.value})"
         ) from exc
 
 
@@ -150,14 +159,11 @@ def _assert_pinned_payload(pinned_raw: dict[str, object]) -> dict[str, object]:
 
 async def fetch_ui_provider_debug(
     chat: McpChatSession,
-    *,
-    recv_timeout: float = 30.0,
 ) -> dict[str, object]:
     raw = await _evaluate_bridge(
         chat,
         DEBUG_PROVIDER_STATE_JS,
-        await_promise=False,
-        recv_timeout=recv_timeout,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     return raw if isinstance(raw, dict) else {}
 
@@ -165,7 +171,6 @@ async def fetch_ui_provider_debug(
 async def ensure_desktop_basic_model_pinned_for_send(
     chat: McpChatSession,
     *,
-    recv_timeout: float = 120.0,
     max_attempts: int = 5,
     retry_sleep_sec: float = 3.0,
 ) -> dict[str, object]:
@@ -202,8 +207,7 @@ async def ensure_desktop_basic_model_pinned_for_send(
             pinned_raw = await _evaluate_bridge(
                 chat,
                 PIN_BASIC_MODEL_JS,
-                await_promise=True,
-                recv_timeout=recv_timeout,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             pin_eval_error = str(exc)
@@ -229,8 +233,7 @@ async def ensure_desktop_basic_model_pinned_for_send(
             sync_raw = await _evaluate_bridge(
                 chat,
                 SYNC_PROVIDER_BRIDGE_JS,
-                await_promise=True,
-                recv_timeout=60.0,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             sync_eval_error = str(exc)
@@ -291,14 +294,12 @@ async def ensure_desktop_basic_model_pinned_for_send(
 async def pin_basic_model_for_desktop_e2e(
     chat: McpChatSession,
     *,
-    recv_timeout: float = 120.0,
     max_attempts: int = 5,
     retry_sleep_sec: float = 3.0,
 ) -> dict[str, object]:
     """Pin BASIC_MODEL for desktop E2E."""
     result = await ensure_desktop_basic_model_pinned_for_send(
         chat,
-        recv_timeout=recv_timeout,
         max_attempts=max_attempts,
         retry_sleep_sec=retry_sleep_sec,
     )

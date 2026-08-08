@@ -9,6 +9,11 @@ try:
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     McpChatSession = object  # type: ignore[misc,assignment]
 
+try:
+    from dev_gate_contract import EvaluateIntent
+except ImportError:  # pragma: no cover - import path in pytest vs standalone
+    EvaluateIntent = None  # type: ignore[misc,assignment]
+
 PIN_LITE_MODEL_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.pinLiteModelForE2e) {
@@ -41,7 +46,6 @@ def strip_provider_prefix(model: str) -> str:
 async def pin_lite_model_for_e2e(
     chat: McpChatSession,
     *,
-    recv_timeout: float = 30.0,
     max_attempts: int = 5,
     retry_sleep_sec: float = 3.0,
 ) -> dict[str, object]:
@@ -52,8 +56,7 @@ async def pin_lite_model_for_e2e(
     for attempt in range(1, max_attempts + 1):
         pinned_raw = await chat.evaluate(  # type: ignore[attr-defined]
             PIN_LITE_MODEL_JS,
-            await_promise=True,
-            recv_timeout=recv_timeout,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         last_raw = pinned_raw
         if isinstance(pinned_raw, dict) and pinned_raw.get("ok") is True:

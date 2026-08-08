@@ -323,11 +323,11 @@ async def run_wb_bench_background(
     """Run a WorkBuddy Bench subset in the background, updating global eval state."""
     global _eval_state
 
-    if _eval_state.get("is_running"):
-        logger.warning("Evaluation suite is already running. Ignoring WBBench request.")
-        return
-
-    _init_wb_bench_state(subset_id)
+    # The router marks is_running synchronously before scheduling this task so
+    # the SSE stream opened on "started" never reads a stale idle first frame.
+    # If the state was not pre-initialized (direct/legacy callers), do it here.
+    if not _eval_state.get("is_running"):
+        _init_wb_bench_state(subset_id)
 
     try:
         from app.core.eval.wb_bench import build_wb_bench_cases
@@ -371,11 +371,8 @@ async def run_wb_bench_download_background(subset_id: str) -> None:
     """
     global _eval_state
 
-    if _eval_state.get("is_running"):
-        logger.warning("Evaluation suite is already running. Ignoring WBBench download request.")
-        return
-
-    _init_wb_bench_state(subset_id)
+    if not _eval_state.get("is_running"):
+        _init_wb_bench_state(subset_id)
 
     try:
         from app.core.eval.wb_bench import ensure_wb_bench_source

@@ -686,8 +686,7 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
 
             result = await chat.evaluate(
                 _FAST_MODE_CLIENT_GUARD_JS,
-                await_promise=True,
-                recv_timeout=90.0,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
             assert isinstance(result, dict), result
             assert result.get("ok") is True, json.dumps(result, ensure_ascii=False)

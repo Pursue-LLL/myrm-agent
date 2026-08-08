@@ -31,6 +31,7 @@ from tests.support.wb_bench_e2e_helpers import (
     all_grid_buttons_disabled_js,
     click_refresh_js,
     click_subset_download_js,
+    reset_wb_bench_source,
     restore_eval_lab_route,
     subset_downloaded_js,
 )
@@ -44,6 +45,9 @@ from tests.support.wb_bench_e2e_helpers import (
 @pytest.mark.timeout(600)
 def test_wb_bench_download_refresh_and_buttons_chrome_e2e() -> None:
     """Downloading the web subset disables buttons, then persists across refresh/reload."""
+    # Reset the extracted web source so the download window is observable even
+    # after a previous run installed it. The cached archive is kept.
+    reset_wb_bench_source("wb-bench-web-v1.0")
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route(EVAL_LAB_PATH)

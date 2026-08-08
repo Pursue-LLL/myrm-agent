@@ -19,7 +19,27 @@ and none of the other three.
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 EVAL_LAB_PATH = "/eval-lab"
+
+# The shared backend resolves ".myrm/wb_bench" against the server working
+# directory; this helper runs from the same repo checkout, so the server root is
+# two levels above tests/support (server/tests/support -> server).
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+
+
+def reset_wb_bench_source(archive_stem: str) -> None:
+    """Remove an installed WBBench source so a real download flow can run again.
+
+    Deletes only the extracted source under sources/ (the cached archive under
+    archives/ is kept, so re-downloading reuses the tarball instead of hitting
+    HuggingFace again). No-op when the source is not installed.
+    """
+    target = _SERVER_ROOT / ".myrm/wb_bench/sources" / archive_stem
+    if (target / "tasks").is_dir():
+        shutil.rmtree(target)
 
 _PATH_PROBE_JS = "(() => ({ path: location.pathname }))()"
 

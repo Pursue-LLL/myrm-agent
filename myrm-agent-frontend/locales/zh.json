@@ -977,7 +977,12 @@
         "lockedBadge": "组织策略",
         "autoReviewLocked": "您的组织要求对受保护 Agent 启用智能意图守护，无法关闭。",
         "yoloLocked": "组织策略已禁用 YOLO 模式。",
-        "allowAlwaysLocked": "组织策略已禁用「始终允许」。"
+        "allowAlwaysLocked": "组织策略已禁用「始终允许」。",
+        "allowAlwaysDisabled": "组织策略已禁止在审批弹窗中保存永久白名单条目。",
+        "orgActiveTitle": "组织审批策略已生效",
+        "orgActiveDesc": "管理员可能要求特定智能体模型走智能意图审查或禁用白名单捷径。使用受保护模型时请在 AI 核心中配置对应智能体。",
+        "forceModels": "强制审查模型：{patterns}",
+        "ignoreAllowlistModels": "忽略白名单的模型：{patterns}"
       },
       "riskRules": {
         "title": "风控规则",
@@ -4388,6 +4393,29 @@
       "mcpDeleteTitle": "删除 MCP 服务",
       "mcpDeleteDesc": "确定从组织中移除「{name}」？成员将在下次同步后失去该工具。",
       "membersTab": "成员管理",
+      "modelPolicyTab": "模型策略",
+      "approvalPolicyTab": "审批策略",
+      "approvalPolicy": {
+        "title": "审批策略",
+        "description": "设置组织级工具审批安全底线。保存后会在短时间内同步到成员沙箱。",
+        "noOrg": "未配置组织",
+        "loadFailed": "加载审批策略失败",
+        "saveFailed": "保存审批策略失败",
+        "saved": "审批策略已保存",
+        "saving": "保存中…",
+        "save": "保存策略",
+        "addPattern": "添加",
+        "removePattern": "点击移除",
+        "ignoreAllowlistTitle": "按模型忽略前缀白名单",
+        "ignoreAllowlistDesc": "匹配的模型不能通过已保存的白名单捷径自动放行，需走智能意图审查或人工审批。",
+        "forceAutoReviewTitle": "按模型强制智能意图审查",
+        "forceAutoReviewDesc": "匹配的模型在执行高风险工具前必须走智能意图审查，即使成员已关闭该功能。",
+        "disableYoloTitle": "禁用 YOLO 模式",
+        "disableYoloDesc": "成员无法为任何智能体开启全自动批准。",
+        "disableAllowAlwaysTitle": "禁用「始终允许」",
+        "disableAllowAlwaysDesc": "在审批弹窗中隐藏并阻止保存永久白名单条目。",
+        "patternHint": "仅填写模型 slug（如 claude-opus-4），不要带 provider 前缀。"
+      },
       "usageTab": "成本报表",
       "auditTab": "审计日志",
       "usage": {
@@ -6147,6 +6175,10 @@
     "failedToLoadPrompt": "加载系统提示词失败，请重试",
     "systemPromptLoaded": "系统提示词已加载",
     "modelBindingDesc": "为此智能体绑定专用模型",
+    "orgMapBadgeTitle": "组织审批策略",
+    "orgMapForceReview": "组织要求此模型必须启用智能意图审查。",
+    "orgMapIgnoreAllowlist": "组织规定此模型不适用已保存的白名单捷径。",
+    "orgMapYoloSuppressed": "YOLO 模式不能绕过此模型的审批。",
     "routingOverride": "智能路由覆盖",
     "routingOverrideDesc": "为此智能体单独配置路由策略",
     "routingUseGlobal": "使用全局设置",
@@ -12300,7 +12332,7 @@
     "githubTestFailed": "GitHub API 连接失败",
     "githubCredentialsRequired": "请先填写个人访问令牌",
     "githubWebhookUrl": "Webhook URL",
-    "githubWebhookUrlHintPublic": "在 GitHub 仓库的 Settings → Webhooks 中填入此 URL。",
+    "githubWebhookUrlHintPublic": "在 GitHub 仓库的 Settings → Webhooks 中填入此 URL。若你已在上方设置 Webhook Secret，请在 GitHub 中填入相同的 Secret。",
     "githubWebhookUrlHintLocal": "当前为本地地址，请先通过公网隧道（如 ngrok/cpolar）暴露后，再在 GitHub 中配置。",
     "signalTitle": "Signal",
     "signalDesc": "配置 Signal CLI REST API 以启用 Signal 消息通道。",
@@ -12761,6 +12793,7 @@
   },
   "yoloBanner": {
     "message": "YOLO 模式已开启 – 所有工具自动审批",
+    "orgConstrainedMessage": "YOLO 已开启，但组织策略仍要求对此智能体模型进行审批。",
     "disable": "关闭"
   },
   "estopBanner": {

@@ -172,7 +172,8 @@ if command -v gh >/dev/null 2>&1; then
   gh pr create --title "feat(auth): add JWT refresh token rotation" \
     --body "## Summary ..." --base main
 else
-  REPO="${PWD#*/}"  # resolve to owner/repo, or read from `git remote get-url origin`
+  # Resolve owner/repo from the remote URL, e.g. https://github.com/owner/repo.git -> owner/repo
+  REPO="$(git remote get-url origin | sed -E 's#(https://|git@)([^/:]+)[:/]([^/]+)/([^/.]+)(\.git)?$#\3/\4#')"
   curl -fsSL -X POST "https://api.github.com/repos/${REPO}/pulls" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
@@ -237,7 +238,7 @@ git push
 if command -v gh >/dev/null 2>&1; then
   gh pr merge <number> --squash --delete-branch
 else
-  REPO="${PWD#*/}"
+  REPO="$(git remote get-url origin | sed -E 's#(https://|git@)([^/:]+)[:/]([^/]+)/([^/.]+)(\.git)?$#\3/\4#')"
   curl -fsSL -X PATCH "https://api.github.com/repos/${REPO}/pulls/<number>" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" \

@@ -12,6 +12,7 @@ from cdp_chat_support import (
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
 )
+from dev_gate_contract import EvaluateIntent
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
@@ -489,7 +490,7 @@ async def probe_desktop_tool_progress(
         return await _desktop_tool_progress_api_fast(normalized_chat_id)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {})()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     ui_probe = probe if isinstance(probe, dict) else {"active": False}
     if not normalized_chat_id:
@@ -505,7 +506,7 @@ async def probe_desktop_tool_progress(
 async def _bridge_chat_id(chat: McpChatSession) -> str:
     chat_id = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? '')()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     return str(chat_id or "").strip()
 
@@ -549,7 +550,7 @@ async def _abort_stuck_ui_stream(chat: McpChatSession) -> None:
           window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
           return { ok: true };
         })()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
 
 
@@ -642,7 +643,7 @@ async def _fetch_first_desktop_dref(
         await asyncio.to_thread(activate_chrome_foreground)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getFirstDesktopDref?.() ?? null)()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     if probe is not None:
         normalized = str(probe).strip().lstrip("@")
@@ -735,7 +736,7 @@ async def _ensure_nudge_chat_surface(
               const href = String(location.href || '');
               return {{ href, onTarget: href.startsWith({target!r}) }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if not (isinstance(probe, dict) and probe.get("onTarget")):
             progress(f"restore chat route before nudge chat_id={normalized}")

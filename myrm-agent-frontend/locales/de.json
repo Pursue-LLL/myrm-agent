@@ -12007,7 +12007,7 @@
     "githubTestFailed": "GitHub API Verbindung fehlgeschlagen",
     "githubCredentialsRequired": "Bitte füllen Sie zuerst den Personal Access Token aus",
     "githubWebhookUrl": "Webhook URL",
-    "githubWebhookUrlHintPublic": "Fügen Sie diese URL in Ihrem GitHub-Repository unter Settings → Webhooks hinzu.",
+    "githubWebhookUrlHintPublic": "Fügen Sie diese URL in Ihrem GitHub-Repository unter Settings → Webhooks hinzu. Falls Sie oben ein Webhook Secret festgelegt haben, geben Sie dort dasselbe Secret ein.",
     "githubWebhookUrlHintLocal": "Lokale Adresse — exponieren Sie sie über einen öffentlichen Tunnel (z. B. ngrok/cpolar), bevor Sie sie in GitHub konfigurieren.",
     "signalTitle": "Signal",
     "signalDesc": "Konfigurieren Sie Signal-Anmeldeinformationen, um den Signal-Messaging-Kanal zu aktivieren.",

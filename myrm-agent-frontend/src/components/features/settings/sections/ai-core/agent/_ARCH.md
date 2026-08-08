@@ -10,7 +10,7 @@
 |------|------|
 | `AgentBasicInfoTab.tsx` | 名称、描述、头像、**正式韩语回复 Switch**（`engine_params.response_locale_policy`）等基础信息 |
 | `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口；顶部 `AgentLoadoutSummary`（`refreshKey` + SC tile→`#shared-context-binding`）；`#loadout` 深链 |
-| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/路由覆盖/迭代/工作区/**IdleCompactSection** `engine_params.idle_compact_after_seconds` 开关+分钟输入，默认 OFF，sm 响应式）/engine 参数） |
+| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型绑定含 org MAP 约束 badge、路由覆盖/迭代/工作区/**IdleCompactSection** 等） |
 | `AgentCapabilitiesConsensusSection.tsx` | MoA overlay 参考模型选择器（`ConsensusRefModels`，供 MoaOverlaySection 复用） |
 | `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型） |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |

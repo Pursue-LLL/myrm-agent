@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - router: Channel 状态/切换/install-dependencies（含 registered）/Pairings/群组管理端点
+- github_webhook_url: GET /github/webhook-url（Ingress 优先、request base 回退）
 - _channel_config_key: 频道名到 UserConfig key 的映射（被其他子模块引用）
 
 [POS]

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
@@ -7,8 +8,11 @@ import { Switch } from '@/components/primitives/switch';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import TemperatureSlider from '@/components/features/settings/default-model/TemperatureSlider';
-import { X } from 'lucide-react';
+import { ShieldAlert, X } from 'lucide-react';
 import { IconChevronDown } from '@/components/features/icons/PremiumIcons';
+import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
+import { managedPolicyConstraintsForModel } from '@/lib/managedPolicyMatch';
+import useProviderStore from '@/store/useProviderStore';
 import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
 
 type SectionProps = {
@@ -17,6 +21,16 @@ type SectionProps = {
 };
 
 export function ModelBindingSection({ editor, t }: SectionProps) {
+  const { policy, active } = useManagedPolicyEffective();
+  const defaultModelConfig = useProviderStore((state) => state.defaultModelConfig);
+  const boundModelSlug = editor.modelSelection?.model?.trim() ?? '';
+  const effectiveModelSlug =
+    boundModelSlug || defaultModelConfig.baseModel.primary?.model?.trim() || '';
+  const orgConstraints = useMemo(
+    () => (active ? managedPolicyConstraintsForModel(policy, effectiveModelSlug) : null),
+    [active, policy, effectiveModelSlug],
+  );
+
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3">
@@ -59,6 +73,35 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
           </button>
         }
       />
+      {orgConstraints && effectiveModelSlug && (orgConstraints.forceAutoReview || orgConstraints.ignoreAllowlist) && (
+        <div className="mt-3 space-y-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+            <span>{t('agent.orgMapBadgeTitle', { default: 'Organization approval policy' })}</span>
+          </div>
+          {orgConstraints.forceAutoReview && (
+            <p className="text-xs text-muted-foreground">
+              {t('agent.orgMapForceReview', {
+                default: 'Smart Intent Guard is required for this model.',
+              })}
+            </p>
+          )}
+          {orgConstraints.ignoreAllowlist && (
+            <p className="text-xs text-muted-foreground">
+              {t('agent.orgMapIgnoreAllowlist', {
+                default: 'Saved allowlist shortcuts do not apply to this model.',
+              })}
+            </p>
+          )}
+          {(orgConstraints.forceAutoReview || orgConstraints.ignoreAllowlist) && (
+            <p className="text-xs text-muted-foreground">
+              {t('agent.orgMapYoloSuppressed', {
+                default: 'YOLO mode will not bypass approvals for this model.',
+              })}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

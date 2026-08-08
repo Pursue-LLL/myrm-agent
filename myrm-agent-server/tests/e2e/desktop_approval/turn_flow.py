@@ -13,11 +13,11 @@ import uuid
 from typing import Awaitable, TypeVar
 
 import pytest
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from cdp_chat_support import (
     _signoff_desktop_soak_parallel_load,
     chat_id_from_path,
-    chat_messages_have_done,
-    chat_user_message_count,
+    chat_messages_have_done,    chat_user_message_count,
     fetch_chat_messages,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
@@ -144,7 +144,7 @@ async def _probe_chat_route(chat: McpChatSession, target: str) -> dict[str, obje
               const href = String(location.href || '');
               return {{ href, onTarget: href.startsWith({target!r}) }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         ),
         timeout_sec=_CHAT_ROUTE_PROBE_TIMEOUT_SEC,
         label="chat route probe",
@@ -239,7 +239,10 @@ async def resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str
     explicit = str(state.get("chatId") or "").strip()
     if explicit:
         return explicit
-    path = await chat.evaluate("(() => location.pathname)()", await_promise=False)
+    path = await chat.evaluate(
+        "(() => location.pathname)()",
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
     return chat_id_from_path(str(path) if path else "")
 
 
@@ -446,7 +449,7 @@ async def _wait_seeded_resend_turn_kickoff(
         try:
             probe = await chat.evaluate(
                 "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
-                await_promise=False,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
         except (TimeoutError, RuntimeError, OSError) as exc:
             if poll == 1 or poll % 5 == 0:
@@ -503,7 +506,7 @@ async def wait_stream_done_with_marker(
                 lastAssistantSample: sample,
               }};
             }})()""",
-                await_promise=False,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
         except (TimeoutError, RuntimeError, OSError) as exc:
             if poll == 1 or poll % 5 == 0:
@@ -621,7 +624,7 @@ async def verify_settings_revoke_trusted_app(
           window.location.assign({settings_url!r});
           return {{ ok: true }};
         }})()""",
-        await_promise=False,
+        intent=EvaluateIntent.ROUTE_ATTACH,
     )
     assert isinstance(nav, dict) and nav.get("ok") is True, nav
 
@@ -639,7 +642,7 @@ async def verify_settings_revoke_trusted_app(
                 revokeReady: Boolean(revokeBtn && !revokeBtn.disabled),
               }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.BRIDGE_POLL,
         )
         if (
             isinstance(probe, dict)
@@ -658,7 +661,7 @@ async def verify_settings_revoke_trusted_app(
           btn.click();
           return {{ ok: true }};
         }})()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     assert (
         isinstance(click, dict) and click.get("ok") is True
@@ -794,7 +797,7 @@ async def ensure_desktop_inspector_panel_open(
           const href = String(location.href || '');
           return {{ onChatUi: href.startsWith({BASE_URL!r}), href }};
         }})()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     if not isinstance(on_chat, dict) or not on_chat.get("onChatUi"):
         href = str(on_chat.get("href") if isinstance(on_chat, dict) else on_chat or "")
@@ -820,7 +823,7 @@ async def ensure_desktop_inspector_panel_open(
           }
           return { ok: true, skipped: 'overlay-only' };
         })()""",
-        await_promise=False,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert (
         isinstance(result, dict) and result.get("ok") is True
@@ -849,7 +852,7 @@ async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
           bridge.syncDesktopControlApproval({json.dumps(payload)});
           return {{ ok: true, requestId: {json.dumps(request_id)} }};
         }})()""",
-        await_promise=False,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert (
         isinstance(result, dict) and result.get("ok") is True
@@ -863,7 +866,7 @@ async def _ensure_wide_viewport_for_banner(chat: McpChatSession) -> None:
           try { window.resizeTo(1400, 900); } catch { /* headless / policy */ }
           return { ok: true, innerWidth: window.innerWidth, innerHeight: window.innerHeight };
         })()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
 
 
@@ -873,7 +876,7 @@ async def _abort_stream_for_approval_banner(chat: McpChatSession) -> None:
           window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
           return { ok: true };
         })()""",
-        await_promise=False,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
 
 
@@ -1153,7 +1156,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
           const tools = bridge.getCurrentBuiltinTools?.() ?? [];
           return { ok: true, tools };
         })()""",
-        await_promise=False,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert (
         isinstance(tools_locked, dict) and tools_locked.get("ok") is True
@@ -1175,7 +1178,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     if not isinstance(provider_debug, dict):
         provider_debug = await chat.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
     progress(f"provider debug before send: {provider_debug}")
     if isinstance(provider_debug, dict) and not ui_provider_debug_matches_expected(
@@ -1201,8 +1204,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 () => bridge.debugProviderState?.() ?? null,
               );
             })()""",
-            await_promise=True,
-            recv_timeout=60.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         progress(f"provider debug after sync: {sync_result}")
         if isinstance(sync_result, dict):
@@ -1225,8 +1227,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 () => bridge.debugProviderState?.() ?? null,
               );
             })()""",
-            await_promise=True,
-            recv_timeout=60.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         progress(f"provider debug after API-ready resync: {resync}")
         if isinstance(resync, dict):
@@ -1341,7 +1342,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 ui_snap = await asyncio.wait_for(
                     chat.evaluate(
                         "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
-                        await_promise=False,
+                        intent=EvaluateIntent.BRIDGE_POLL,
                     ),
                     timeout=15.0,
                 )
@@ -1671,7 +1672,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 (
                     await chat.evaluate(
                         "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
-                        await_promise=False,
+                        intent=EvaluateIntent.BRIDGE_POLL,
                     )
                 )
                 or ""

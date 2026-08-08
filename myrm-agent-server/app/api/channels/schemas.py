@@ -6,6 +6,7 @@
 [OUTPUT]
 - ChannelStatusResponse, PairingCreate, PairingResponse: 请求/响应模型
 - ChannelInstallDependenciesResponse: lazy-install 结果（ok/message/registered）
+- GithubWebhookUrlResponse: GitHub webhook 配置 URL（webhookUrl + public 标记）
 
 [POS]
 Channel 管理 API 数据模型。定义 Channel 状态查询和账号绑定的 schema。

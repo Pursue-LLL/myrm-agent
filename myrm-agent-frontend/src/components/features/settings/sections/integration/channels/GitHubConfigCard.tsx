@@ -117,7 +117,10 @@ export function GitHubConfigCard() {
         <div className="space-y-2 max-w-md">
           <Label htmlFor="github-webhook-url">{t('githubWebhookUrl')}</Label>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60">
+            <code
+              id="github-webhook-url"
+              className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60"
+            >
               {webhookUrl}
             </code>
             <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={handleCopy}>

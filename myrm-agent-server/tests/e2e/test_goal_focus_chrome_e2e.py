@@ -56,7 +56,7 @@ async def test_chrome_ui_goal_mode_stream(
                 : '';
               return base || null;
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(page_api, str) and page_api.strip():
             return page_api.strip().rstrip("/")

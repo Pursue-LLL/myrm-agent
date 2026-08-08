@@ -7,6 +7,7 @@ Sandbox 模式下 SQLite 文件存储在沙箱持久化卷上。
 
 import logging
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -18,6 +19,27 @@ from app.config.settings import settings
 from app.config.system_status import system_status
 
 logger = logging.getLogger(__name__)
+
+# Statements that mutate the database (DML + DDL). A deferred ``BEGIN`` only
+# escalates to a write transaction implicitly; these prefixes let us take the
+# write lock eagerly via ``BEGIN IMMEDIATE`` instead of relying on the
+# implicit upgrade, which SQLite aborts with SQLITE_BUSY_SNAPSHOT (not covered
+# by busy_timeout) whenever a concurrent writer committed meanwhile.
+_IMPLICIT_WRITE_RE = re.compile(
+    r"^\s*(?:INSERT|UPDATE|DELETE|REPLACE|UPSERT|MERGE|"
+    r"CREATE|ALTER|DROP|VACUUM|REINDEX|ATTACH|DETACH)",
+    re.IGNORECASE,
+)
+
+_TRANSACTION_CTL_WORDS = (
+    "BEGIN",
+    "COMMIT",
+    "END",
+    "ROLLBACK",
+    "ABORT",
+    "SAVEPOINT",
+    "RELEASE",
+)
 
 
 def get_sqlite_busy_timeout_ms() -> int:
@@ -84,6 +106,63 @@ def set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _connection_record: object
     cursor.close()
 
 
+def register_sqlite_transaction_events(engine: AsyncEngine) -> None:
+    """Wire the deferred-read / immediate-write transaction policy onto ``engine``.
+
+    Start transactions with a plain ``BEGIN`` (WAL snapshot reads never touch
+    the write lock) and escalate only genuine writers to ``BEGIN IMMEDIATE``.
+    See ``do_begin`` / ``_escalate_write_transaction`` for the rationale.
+    """
+
+    @event.listens_for(engine.sync_engine, "begin")
+    def do_begin(conn: Connection) -> None:
+        """Start transactions deferred; only genuine writers escalate to IMMEDIATE.
+
+        A blanket ``BEGIN IMMEDIATE`` makes every read transaction also grab the
+        SQLite write lock, serializing *all* database access. Under parallel E2E
+        load this produced ``database is locked`` storms on read-only endpoints
+        (GET /messages, Get chat details, Get nav badges, ...), which left the
+        frontend on a skeleton and, ultimately, killed the backend. Starting
+        deferred keeps WAL snapshot reads completely lock-free; the first write
+        statement escalates via ``_escalate_write_transaction`` where lock waits
+        are governed by the busy_timeout PRAGMA on the aiosqlite worker thread
+        (the event loop is never blocked).
+        """
+        conn.exec_driver_sql("BEGIN")
+        conn._myrm_immediate = False
+        conn._myrm_read_seen = False
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def _escalate_write_transaction(
+        conn: Connection,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        if getattr(conn, "_myrm_immediate", False) or not conn.in_transaction():
+            return
+        if _IMPLICIT_WRITE_RE.match(statement):
+            if getattr(conn, "_myrm_read_seen", False):
+                # Read-then-write transaction: keep the deferred snapshot so the
+                # values already read stay consistent with the upcoming writes.
+                # If a concurrent writer committed in between, SQLite aborts the
+                # upgrade with SQLITE_BUSY_SNAPSHOT and the registered busy
+                # handlers surface a retryable 503 instead of losing the update.
+                return
+            conn._myrm_immediate = True
+            # A deferred BEGIN is lazy: nothing has touched the database yet, so
+            # committing it is a harmless no-op that lets us re-enter with
+            # BEGIN IMMEDIATE and take the write lock under busy_timeout.
+            conn.exec_driver_sql("COMMIT")
+            conn.exec_driver_sql("BEGIN IMMEDIATE")
+        else:
+            first_word = statement.lstrip().split(None, 1)[0].upper()
+            if first_word not in _TRANSACTION_CTL_WORDS:
+                conn._myrm_read_seen = True
+
+
 def create_engine() -> AsyncEngine:
     """创建 SQLite 数据库引擎
 
@@ -109,21 +188,7 @@ def create_engine() -> AsyncEngine:
 
     # Register database setting pragmas when connection is established
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
-
-    @event.listens_for(engine.sync_engine, "begin")
-    def do_begin(conn: Connection) -> None:
-        """Execute BEGIN IMMEDIATE to take the SQLite write lock eagerly.
-
-        Lock-contention waits are governed by the ``busy_timeout`` PRAGMA and
-        happen on the aiosqlite connection worker thread, so the asyncio event
-        loop is never blocked. A previous implementation retried with
-        ``time.sleep(jitter)`` in this sync callback, which froze the whole
-        event loop during write contention and cascaded into multi-second
-        health-check latency (and loadMessages fetch timeouts) under parallel
-        E2E load. SQLite's built-in busy handler already applies its own
-        backoff, so the manual jitter retry was redundant.
-        """
-        conn.exec_driver_sql("BEGIN IMMEDIATE")
+    register_sqlite_transaction_events(engine)
 
     logger.info(
         "SQLite engine: WAL + mmap, pool_size=%s, busy_timeout_ms=%s",
@@ -144,4 +209,5 @@ __all__ = [
     "create_engine",
     "create_session_factory",
     "set_sqlite_pragma",
+    "register_sqlite_transaction_events",
 ]

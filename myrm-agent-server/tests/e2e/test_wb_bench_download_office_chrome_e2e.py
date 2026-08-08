@@ -24,6 +24,7 @@ from tests.support.wb_bench_e2e_helpers import (
     EVAL_LAB_PATH,
     SOURCES_READY_JS,
     click_subset_download_js,
+    reset_wb_bench_source,
     restore_eval_lab_route,
     subset_downloaded_js,
 )
@@ -37,6 +38,11 @@ from tests.support.wb_bench_e2e_helpers import (
 @pytest.mark.timeout(600)
 def test_wb_bench_download_office_real_flow_chrome_e2e() -> None:
     """Clicking Download on the office card completes a real HF download via the UI."""
+    # Prior runs leave the office source installed, which would disable the
+    # Download button and skip the real flow. Reset the extracted source so the
+    # test always exercises the download→install→downloaded state transition.
+    # The cached archive under archives/ is kept, so reinstall is fast.
+    reset_wb_bench_source("wb-bench-office-v1.0")
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route(EVAL_LAB_PATH)

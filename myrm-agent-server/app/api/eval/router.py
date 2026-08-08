@@ -82,11 +82,17 @@ async def run_wb_bench(
     if status_info.get("is_running"):
         return {"status": "already_running", "info": status_info}
 
+    from app.core.eval.service import _init_wb_bench_state
     from app.core.eval.wb_bench import WB_BENCH_SUBSETS
 
     if request.subset_id not in WB_BENCH_SUBSETS:
         return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
 
+    # Mark the eval state as running synchronously before the response is sent.
+    # FastAPI BackgroundTasks run only after the response, so the SSE stream the
+    # frontend opens on "started" would otherwise read a stale is_running=false
+    # first frame and immediately drop the running flag (race on run start).
+    _init_wb_bench_state(request.subset_id)
     background_tasks.add_task(
         run_wb_bench_background,
         subset_id=request.subset_id,
@@ -110,11 +116,13 @@ async def download_wb_bench(
     if status_info.get("is_running"):
         return {"status": "already_running", "info": status_info}
 
+    from app.core.eval.service import _init_wb_bench_state
     from app.core.eval.wb_bench import WB_BENCH_SUBSETS
 
     if request.subset_id not in WB_BENCH_SUBSETS:
         return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
 
+    _init_wb_bench_state(request.subset_id)
     background_tasks.add_task(
         run_wb_bench_download_background,
         subset_id=request.subset_id,

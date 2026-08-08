@@ -54,8 +54,8 @@
 
 | 文件 | 职责 |
 |------|------|
-| `SecurityPolicySection.tsx` | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard） |
-| `useSecurityPolicy.ts` | 安全策略状态管理 hook（配置加载/保存/Profile/NL策略生成；含 networkBlocklist） |
+| `SecurityPolicySection.tsx` | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard；Org MAP 只读 banner + global YOLO/allow-always lock） |
+| `useSecurityPolicy.ts` | 安全策略状态 hook；加载 `/api/v1/security/managed-policy/effective` + `getManagedConstraintsForModel` |
 | `securityPolicyUtils.ts` | 安全策略工具函数（常量/权限扁平化/构建/默认配置） |
 | `SecurityPrivacyPanel.tsx` | PII 隐私保护面板 |
 | `SecurityProfileSelector.tsx` | 安全配置模板选择器 |
