@@ -16,9 +16,8 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -86,8 +85,8 @@ def test_chrome_ui_domain_skills_card_visible() -> None:
         "/settings/system",
         timeout_sec=_warm_ui_parallel_wait_sec(180.0),
     )
-    with open_mcp_page(
-        f"{get_e2e_ui_url()}/settings/system",
+    with open_settings_subroute(
+        "/settings/system",
         timeout_ms=120_000,
     ) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)

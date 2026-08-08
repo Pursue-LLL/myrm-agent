@@ -61,6 +61,7 @@ export interface KanbanTask {
   status: TaskStatus;
   priority: TaskPriority;
   agent_id?: string | null;
+  model_override?: string | null;
   parent_task_id?: string | null;
   workspace_path?: string | null;
   branch?: string | null;
@@ -178,6 +179,7 @@ export async function createTask(
     description?: string;
     priority?: TaskPriority;
     agent_id?: string;
+    model_override?: string;
     max_retries?: number;
     depends_on?: string[];
     extra_skill_ids?: string[];
@@ -205,6 +207,7 @@ export async function updateTask(
     description?: string;
     priority?: TaskPriority;
     agent_id?: string | null;
+    model_override?: string | null;
     extra_skill_ids?: string[];
     attachment_ids?: string[];
     max_runtime_seconds?: number | null;

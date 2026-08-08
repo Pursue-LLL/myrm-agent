@@ -9,7 +9,7 @@
 | KanbanBoardView.tsx          | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理）                | ✅    |
 | KanbanDndComponents.tsx      | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口）  | ✅    |
 | useKanbanDnD.ts              | 核心 | 拖拽状态管理 hook（传感器/事件/破坏性确认）                                      | ✅    |
-| useKanbanAddTask.ts          | 辅助 | 任务内联创建表单状态 hook                                                        | ✅    |
+| useKanbanAddTask.ts          | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                        | ✅    |
 | KanbanTaskCard.tsx           | 核心 | 单任务卡片渲染（状态/进度/操作菜单；附件 badge 点击打开 Drawer）                 | ✅    |
 | KanbanTaskDrawer.tsx         | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                       | ✅    |
 | useKanbanTaskDrawer.ts       | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                              | ✅    |
@@ -17,11 +17,11 @@
 | useKanbanTaskDrawerAttachments.ts | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                              | ✅    |
 | useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
 | KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
-| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/来源 Chat 与 Board 深链）                                    | ✅    |
+| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/模型覆盖/来源 Chat 与 Board 深链）                            | ✅    |
 | KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
 | KanbanTaskDrawerBody.tsx     | 辅助 | 抽屉主体区段 barrel 导出                                                       | ✅    |
-| KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI                                                              | ✅    |
+| KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                    | ✅    |
 | KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
 | KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |
 | KanbanPipelineWizard.tsx     | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）| ✅    |

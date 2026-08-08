@@ -10,9 +10,8 @@ from tests.support.chrome_allowlist_settings_e2e import (
 )
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
@@ -48,8 +47,7 @@ def _seed_live_allowlist_pattern_row() -> None:
 @pytest.mark.timeout(240)
 def test_settings_security_shows_pattern_allowlist_entry() -> None:
     warm_ui_route("/settings/security")
-    ui_base = get_e2e_ui_url()
-    with open_mcp_page(f"{ui_base}/settings/security", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (client, page):
         shell = wait_for_state(client, page, SETTINGS_SECURITY_SHELL_READY_JS, timeout_sec=90.0)
         assert shell.get("ready") is True, shell
 

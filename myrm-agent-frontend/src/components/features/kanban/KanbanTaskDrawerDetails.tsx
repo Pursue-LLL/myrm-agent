@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask } from '@/services/kanban';
 import { PRIORITY_STYLES, TIMEOUT_PRESETS, formatDate, formatDuration } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
+import type { KanbanModelOption } from './KanbanInlineAddForm';
 import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
@@ -33,6 +34,12 @@ interface TaskDetailsSectionProps {
   assignedAgent: AgentListItem | null;
   agents: AgentListItem[];
   handleAgentChange: (agentId: string | null) => void;
+  enabledModels: KanbanModelOption[];
+  editingModel: boolean;
+  setEditingModel: (v: boolean) => void;
+  modelValue: string;
+  setModelValue: (v: string) => void;
+  handleSaveModel: (v: string | null) => void;
   t: (key: string) => string;
 }
 
@@ -59,6 +66,12 @@ export function TaskDetailsSection({
   assignedAgent,
   agents,
   handleAgentChange,
+  enabledModels,
+  editingModel,
+  setEditingModel,
+  modelValue,
+  setModelValue,
+  handleSaveModel,
   t,
 }: TaskDetailsSectionProps) {
   const sourceChatId =
@@ -235,6 +248,63 @@ export function TaskDetailsSection({
           + {t('skillsLabel')}
         </button>
       )}
+
+      {/* Model override */}
+      {editingModel ? (
+        <div className="mt-1 rounded border border-chart-2/30 bg-chart-2/5 px-2 py-1.5 space-y-1">
+          <span className="text-[10px] font-semibold text-chart-2 uppercase tracking-wider">
+            {t('modelLabel')}
+          </span>
+          <select
+            value={modelValue}
+            onChange={(e) => setModelValue(e.target.value)}
+            className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-2"
+            autoFocus
+          >
+            <option value="">{t('inheritAgentModel')}</option>
+            {enabledModels.map((m) => (
+              <option key={`${m.providerId}/${m.model}`} value={`${m.providerId}/${m.model}`}>
+                {m.providerName} / {m.model}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-1">
+            <button
+              onClick={() => handleSaveModel(modelValue || null)}
+              className="text-[10px] px-2 py-0.5 rounded bg-chart-2 text-white hover:bg-chart-2/80"
+            >
+              {t('save')}
+            </button>
+            <button
+              onClick={() => setEditingModel(false)}
+              className="text-[10px] px-2 py-0.5 rounded hover:bg-muted"
+            >
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : task.model_override ? (
+        <span
+          className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-2/10 text-chart-2 border border-chart-2/20 mt-1 cursor-pointer hover:border-chart-2/40 transition-colors font-mono"
+          title={t('modelEditHint')}
+          onClick={() => {
+            setModelValue(task.model_override ?? '');
+            setEditingModel(true);
+          }}
+        >
+          {t('modelLabel')}: {task.model_override}
+        </span>
+      ) : enabledModels.length > 0 ? (
+        <button
+          onClick={() => {
+            setModelValue('');
+            setEditingModel(true);
+          }}
+          className="text-[10px] text-muted-foreground hover:text-chart-2 transition-colors mt-1"
+        >
+          + {t('modelLabel')}
+        </button>
+      ) : null}
 
       {/* Goal mode */}
       {task.goal_mode && (

@@ -12,6 +12,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
@@ -25,7 +26,6 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
     board_name = f"Chrome MCP Board {marker}"
     task_title = f"Chrome MCP Task {marker}"
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     board = http_json(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
@@ -44,7 +44,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
     task_id = str(task.get("task_id") or task.get("id") or "")
     assert task_id
 
-    with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
+    with open_settings_subroute("/settings/kanban") as (client, page):
         previous_board = client.evaluate(
             page,
             "localStorage.getItem('kanban_last_board_id')",
@@ -109,7 +109,6 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
     in_chat_title = f"In Chat Task {marker}"
     other_title = f"Other Chat Task {marker}"
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     board = http_json(
         "POST",
@@ -140,8 +139,9 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
         },
     )
 
-    deep_link = f"{ui_url}/settings/kanban?source_chat={chat_id}&board_id={board_id}"
-    with open_mcp_page(deep_link) as (client, page):
+    with open_settings_subroute(
+        f"/settings/kanban?source_chat={chat_id}&board_id={board_id}"
+    ) as (client, page):
         view_state = wait_for_state(
             client,
             page,
@@ -169,7 +169,6 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
     task_title = f"Chrome Attach Task {marker}"
     file_id = f"chrome-e2e-file-{marker}"
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     board = http_json(
         "POST",
@@ -194,7 +193,7 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
     task_id = str(task.get("task_id") or task.get("id") or "")
     assert task_id
 
-    with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
+    with open_settings_subroute("/settings/kanban") as (client, page):
         previous_board = client.evaluate(
             page,
             "localStorage.getItem('kanban_last_board_id')",

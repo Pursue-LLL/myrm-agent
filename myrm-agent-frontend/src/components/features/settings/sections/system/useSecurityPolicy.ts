@@ -16,9 +16,6 @@ import {
   createEmptyRule,
   DOMAIN_PATTERN,
 } from './securityPolicyUtils';
-import {
-  managedPolicyConstraintsForModel,
-} from '@/lib/managedPolicyMatch';
 import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
 
 const syncManager = getConfigSyncManager();
@@ -45,12 +42,6 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   } = useManagedPolicyEffective();
   const managedDisableYolo = Boolean(managedPolicyEffective.disableYolo);
   const managedDisableAllowAlways = Boolean(managedPolicyEffective.disableAllowAlways);
-
-  const getManagedConstraintsForModel = useCallback(
-    (modelSlug: string | null | undefined) =>
-      managedPolicyConstraintsForModel(managedPolicyEffective, modelSlug),
-    [managedPolicyEffective],
-  );
 
   const { providers, getEnabledModels } = useProviderStore();
   const enabledModels = getEnabledModels();
@@ -85,6 +76,15 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setRules(flattenPermissions(DEFAULT_CONFIG.permissions));
     }
     setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    const syncYoloFromConfig = () => {
+      const config = syncManager.get('securityConfig');
+      setYoloModeEnabled(config?.yoloModeEnabled ?? false);
+    };
+    syncYoloFromConfig();
+    return syncManager.subscribe('securityConfig', syncYoloFromConfig);
   }, []);
 
   const save = useCallback(
@@ -331,6 +331,14 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
   const handleYoloModeToggle = useCallback(
     (checked: boolean) => {
+      if (checked && managedDisableYolo) {
+        toast.error(
+          t('managedPolicy.yoloLocked', {
+            default: 'YOLO mode is disabled by your organization policy.',
+          }),
+        );
+        return;
+      }
       setYoloModeEnabled(checked);
       if (checked && planConfirmEnabled) {
         setPlanConfirmEnabled(false);
@@ -340,7 +348,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       }
       toast.success(t('yoloMode.saved', { default: 'YOLO mode setting saved' }));
     },
-    [save, t, planConfirmEnabled],
+    [save, t, planConfirmEnabled, managedDisableYolo],
   );
 
   const handleAutoReviewToggle = useCallback(
@@ -485,7 +493,6 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     managedDisableYolo,
     managedDisableAllowAlways,
     managedPolicyEffective,
-    getManagedConstraintsForModel,
     providers,
     enabledModels,
     handleAddRoot,

@@ -30,6 +30,12 @@ export interface KanbanAttachment {
   content_type: string;
 }
 
+export interface KanbanModelOption {
+  providerId: string;
+  providerName: string;
+  model: string;
+}
+
 type Variant = 'triage' | 'ready';
 
 interface KanbanInlineAddFormProps {
@@ -41,12 +47,14 @@ interface KanbanInlineAddFormProps {
   showCriteria: boolean;
   criteria: string;
   agentId: string;
+  modelOverride: string;
   skills: string;
   maxRuntimeSeconds: number | null;
   branch: string;
   goalMode: boolean;
   goalMaxTurns: number | null;
   agents: AgentListItem[];
+  enabledModels: KanbanModelOption[];
   allTasks: KanbanTask[];
   attachments: KanbanAttachment[];
   onAttachmentsChange: (attachments: KanbanAttachment[]) => void;
@@ -57,6 +65,7 @@ interface KanbanInlineAddFormProps {
   onShowCriteriaToggle: () => void;
   onCriteriaChange: (value: string) => void;
   onAgentIdChange: (value: string) => void;
+  onModelOverrideChange: (value: string) => void;
   onSkillsChange: (value: string) => void;
   onMaxRuntimeChange: (value: number | null) => void;
   onBranchChange: (value: string) => void;
@@ -75,12 +84,14 @@ export default function KanbanInlineAddForm({
   showCriteria,
   criteria,
   agentId,
+  modelOverride,
   skills,
   maxRuntimeSeconds,
   branch,
   goalMode,
   goalMaxTurns,
   agents,
+  enabledModels,
   allTasks,
   attachments,
   onAttachmentsChange,
@@ -91,6 +102,7 @@ export default function KanbanInlineAddForm({
   onShowCriteriaToggle,
   onCriteriaChange,
   onAgentIdChange,
+  onModelOverrideChange,
   onSkillsChange,
   onMaxRuntimeChange,
   onBranchChange,
@@ -321,6 +333,21 @@ export default function KanbanInlineAddForm({
           {agents.map((ag) => (
             <option key={ag.id} value={ag.id}>
               {ag.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {enabledModels.length > 0 && (
+        <select
+          value={modelOverride}
+          onChange={(e) => onModelOverrideChange(e.target.value)}
+          className="text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="">{t('inheritAgentModel')}</option>
+          {enabledModels.map((m) => (
+            <option key={`${m.providerId}/${m.model}`} value={`${m.providerId}/${m.model}`}>
+              {m.providerName} / {m.model}
             </option>
           ))}
         </select>

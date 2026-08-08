@@ -31,12 +31,14 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
 | `useProjectDefaultAgent.ts` | 新建对话时自动注入项目默认智能体的 agentConfig | ✅ |
+| `useManagedPolicyEffective.ts` | Org MAP effective 只读状态（mount + CP sync SSE + tab visible / Tauri focus refetch；共享 inflight fetch） | ✅ |
 
 ## 测试
 
 | 位置 | 说明 |
 |------|------|
 | `<domain>/__tests__/` | hook 单元测试与实现同域共置（colocated） |
+| `__tests__/useManagedPolicyEffective.test.ts` | 根级 MAP hook（mount / visibility refetch / SSE push / revision skip / inflight dedupe / stale YOLO clear） |
 
 政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 

@@ -361,7 +361,7 @@ class KanbanTaskRunner:
             security_config_raw["yolo_mode_enabled_at"] = time.time()
             security_config_raw["yolo_mode_timeout"] = None
 
-        model_override = profile.model if profile else None
+        model_override = task.model_override or (profile.model if profile else None)
         model_cfg = resolve_model_config(
             user_cfgs.providers_dict,
             model_override=model_override,

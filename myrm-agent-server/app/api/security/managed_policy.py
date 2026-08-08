@@ -13,6 +13,7 @@ from fastapi import APIRouter
 from myrm_agent_harness.api.security import (
     ManagedApprovalPolicy,
     get_process_managed_approval_policy,
+    get_process_managed_approval_revision,
 )
 
 router = APIRouter(prefix="/security/managed-policy", tags=["security-managed-policy"])
@@ -24,4 +25,5 @@ async def get_effective_managed_policy() -> dict[str, object]:
     policy = get_process_managed_approval_policy()
     payload = policy.to_public_dict()
     payload["active"] = policy != ManagedApprovalPolicy.empty()
+    payload["revision"] = get_process_managed_approval_revision()
     return payload

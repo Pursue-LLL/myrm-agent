@@ -13,6 +13,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     reload_mcp_page,
     wait_for_state,
@@ -199,14 +200,13 @@ def test_wiki_citation_button_survives_reload() -> None:
 @pytest.mark.timeout(180)
 def test_settings_wiki_agent_scope_deeplink() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
     seeded = _seed_wiki_citation_fixture(api_url)
     agent_id = str(seeded["agent_id"])
     wiki_settings_path = str(seeded["wiki_settings_path"])
 
     warm_ui_route(wiki_settings_path)
-    with open_mcp_page(f"{ui_url}{wiki_settings_path}", timeout_ms=120_000) as (
+    with open_settings_subroute(wiki_settings_path, timeout_ms=120_000) as (
         client,
         page,
     ):

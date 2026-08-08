@@ -262,7 +262,14 @@ export default function EvalLabDashboard() {
       eventSource.onerror = () => {
         console.error('SSE Error');
         eventSource?.close();
+        // A fast task (e.g. a cached-archive download) can finish before the
+        // EventSource connects, making the stream EOF immediately and firing
+        // onerror instead of onmessage. Always re-pull sources so the UI is not
+        // left showing stale downloadable buttons after a completed run.
         setRunning(false);
+        setSourcesRefreshToken((prev) => prev + 1);
+        fetchReport();
+        fetchHistory();
       };
     }
 

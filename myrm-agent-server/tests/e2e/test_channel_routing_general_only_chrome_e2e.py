@@ -7,8 +7,7 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -64,12 +63,11 @@ _ROUTING_AGENT_OPTIONS_STATE = """(() => {
 @pytest.mark.timeout(600)
 def test_channel_routing_dropdown_excludes_search_agents() -> None:
     """Settings → Channel Routing → agent selects must not list Search presets."""
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(get_e2e_api_url())
 
     warm_ui_route("/settings/channels?sub=routing")
-    with open_mcp_page(
-        f"{ui_url}/settings/channels?sub=routing", timeout_ms=90_000
+    with open_settings_subroute(
+        "/settings/channels?sub=routing", timeout_ms=90_000
     ) as (
         client,
         page,

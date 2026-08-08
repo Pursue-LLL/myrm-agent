@@ -26,8 +26,8 @@
 | `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（含 `engineParams`） | 内联 |
 | `moaPresetUtils.ts` | MoA preset 配置检测、参考模型计数、`default`/`review`/`fast` picker 选项列表 | 内联 |
 | `model-binding.ts` | actionMode/agent 绑定的活动模型解析 + MoA preset 触发器 chip 展示 | 内联 |
-| `managedPolicyMatch.ts` | Org MAP fnmatch 匹配（对齐 harness `fnmatchcase`）+ `managedPolicyConstraintsForModel` / `mapSuppressesYoloForModel` | 内联 |
-| `hooks/useManagedPolicyEffective.ts` | 读取 `GET /api/v1/security/managed-policy/effective`（云企业 MAP 只读） | 内联 |
+| `managedPolicyMatch.ts` | Org MAP fnmatch 匹配（对齐 harness `fnmatchcase`）+ constraints / YOLO block helpers；hook 见 [hooks/_ARCH.md](../hooks/_ARCH.md) | 内联 |
+| `managedPolicyEffectiveEvents.ts` | MAP SSE push → window event 常量（供 useGlobalEvents + hook subscribe） | 内联 |
 | `utils/diagnostic-export.ts` | DoctorDashboard 诊断数据格式化（Markdown/JSON）与导出 | 内联 |
 | `fonts.ts` | 全局字体系统配置（Inter/JetBrains Mono next/font 实例、字体目录 FONT_CHOICES、动态加载 ensureFontLoaded） | 内联 |
 | `i18n/` | 非 React 运行时 i18n（SSE/通知；与 `src/i18n/` next-intl 路由层分离） | [_ARCH.md](i18n/_ARCH.md) |

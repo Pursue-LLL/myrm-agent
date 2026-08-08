@@ -92,7 +92,14 @@ async function renderDrawer(task: KanbanTask) {
   const onOpenChange = vi.fn();
   const onRefresh = vi.fn();
   const utils = render(
-    <KanbanTaskDrawer task={task} allTasks={[task]} open={true} onOpenChange={onOpenChange} onRefresh={onRefresh} />,
+    <KanbanTaskDrawer
+      task={task}
+      allTasks={[task]}
+      open={true}
+      onOpenChange={onOpenChange}
+      onRefresh={onRefresh}
+      enabledModels={[]}
+    />,
   );
   await waitFor(
     () => {

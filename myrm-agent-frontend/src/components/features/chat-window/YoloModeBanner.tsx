@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { getConfigSyncManager } from '@/services/config';
 import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
-import { mapSuppressesYoloForModel } from '@/lib/managedPolicyMatch';
+import { orgBlocksYoloForModel } from '@/lib/managedPolicyMatch';
 import { resolveActiveModelSelection } from '@/lib/model-binding';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
@@ -32,8 +32,13 @@ export default function YoloModeBanner() {
     return selection?.model ?? '';
   }, [actionMode, agentConfig, defaultModelConfig, providers]);
 
+  const orgGloballyDisabled = useMemo(
+    () => mapActive && yoloEnabled && Boolean(policy.disableYolo),
+    [mapActive, yoloEnabled, policy.disableYolo],
+  );
+
   const orgSuppressesYolo = useMemo(
-    () => mapActive && yoloEnabled && mapSuppressesYoloForModel(policy, activeModelSlug),
+    () => mapActive && yoloEnabled && orgBlocksYoloForModel(policy, activeModelSlug),
     [mapActive, yoloEnabled, policy, activeModelSlug],
   );
 
@@ -110,23 +115,27 @@ export default function YoloModeBanner() {
   if (!yoloEnabled) return null;
 
   const countdownText = remaining !== null ? ` (${formatCountdown(remaining)})` : '';
-  const bannerMessage = orgSuppressesYolo
-    ? t('orgConstrainedMessage', {
-        default:
-          "YOLO is on, but your organization's policy still requires approval for this agent's model.",
+  const bannerMessage = orgGloballyDisabled
+    ? t('orgGlobalDisabledMessage', {
+        default: 'YOLO is disabled by your organization policy.',
       })
-    : t('message', { default: 'YOLO Mode Active – All tools auto-approved' });
+    : orgSuppressesYolo
+      ? t('orgConstrainedMessage', {
+          default:
+            "YOLO is on, but your organization's policy still requires approval for this agent's model.",
+        })
+      : t('message', { default: 'YOLO Mode Active – All tools auto-approved' });
 
   return (
     <div
       className={`flex items-center justify-between gap-2 px-4 py-1.5 border-b ${
-        orgSuppressesYolo
+        orgSuppressesYolo || orgGloballyDisabled
           ? 'bg-amber-500/15 border-amber-500/30 text-amber-800 dark:text-amber-300'
           : 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400'
       }`}
     >
       <div className="flex items-center gap-2 min-w-0">
-        {orgSuppressesYolo ? (
+        {orgSuppressesYolo || orgGloballyDisabled ? (
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         ) : (
           <Zap className="h-3.5 w-3.5 shrink-0 fill-current" />

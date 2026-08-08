@@ -8,9 +8,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
 )
 
@@ -42,7 +41,6 @@ _INBOX_STATE = """(() => {
 @pytest.mark.timeout(600)
 def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode(
         {"agent_id": "builtin-general"}
     )
@@ -52,7 +50,7 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
     assert isinstance(created_ids, list) and all(isinstance(item, str) for item in created_ids)
 
     try:
-        with open_mcp_page(f"{ui_url}/settings/agents?agentId=builtin-general") as (client, page):
+        with open_settings_subroute("/settings/agents?agentId=builtin-general") as (client, page):
             state = wait_for_state(client, page, _INBOX_STATE, timeout_sec=120.0)
             names = state.get("names")
             assert isinstance(names, list)

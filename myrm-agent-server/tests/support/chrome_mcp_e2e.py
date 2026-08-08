@@ -2526,11 +2526,11 @@ def _trigger_attach_frontend_heal_once() -> None:
         return
     if _ATTACH_FRONTEND_HEAL_TRIGGERED:
         return
-    # R291: launch-force preflight fast-path validated attach — avoid 61s heal flock under parallel.
-    if (
-        os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
-        and _parallel_chrome_e2e_active()
-    ):
+    # R291: launch-force preflight fast-path validated attach — restarting the
+    # frontend mid-test strands the running page in chrome-error (variant_d
+    # failure mode). Skip heal unconditionally under launch-force so a stale
+    # shell costs a timeout instead of corrupting parallel peers.
+    if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return
     _ATTACH_FRONTEND_HEAL_TRIGGERED = True
     monorepo_root = Path(__file__).resolve().parents[4]

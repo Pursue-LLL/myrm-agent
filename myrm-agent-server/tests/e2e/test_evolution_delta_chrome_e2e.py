@@ -14,9 +14,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
 )
 
@@ -72,7 +71,6 @@ _SKILL_HISTORY_STATE = """(() => {
 def test_evolution_delta_badge_renders_in_history_panel() -> None:
     """E2E: Approved evolution shows quality_delta badge in SkillHistoryPanel."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     # Step 1: Seed an approved evolution with before_quality_score via test endpoint
     seed_url = (
@@ -110,7 +108,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
     # Step 5: Navigate to the Skills tab in real Chrome
     # The SkillHistoryPanel renders under Settings > Skills > Installed tab
     # and requires user session (isLoggedIn=true)
-    with open_mcp_page(f"{ui_url}/settings?tab=skills", timeout_ms=30_000) as (client, page):
+    with open_settings_subroute("/settings?tab=skills", timeout_ms=30_000) as (client, page):
         time.sleep(3)
         # Switch to "Installed" tab inside the SkillsSection (the inner tab, not the outer)
         client.evaluate(page, _CLICK_INSTALLED_TAB_JS, timeout_sec=10.0)

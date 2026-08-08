@@ -90,6 +90,28 @@ def resolve_model_config(
     return _fallback_model_from_providers(providers_dict)
 
 
+def validate_model_override(
+    providers_dict: dict[str, object] | None,
+    model_override: str | None,
+) -> str:
+    """Validate a per-task model override is resolvable.
+
+    Returns an empty string when the override is valid (or empty); otherwise
+    a human-readable reason. Used by API layers to reject invalid overrides
+    with a 400 before persistence, preventing silent fallback at runtime.
+    """
+    if not model_override:
+        return ""
+    if not providers_dict:
+        return "No LLM providers are configured"
+    if _resolve_override(providers_dict, model_override) is None:
+        return (
+            f"Model '{model_override}' is not available in any enabled "
+            "provider; check the provider name and that the model is enabled"
+        )
+    return ""
+
+
 def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> int:
     """Register user-defined model pricing into litellm.model_cost.
 

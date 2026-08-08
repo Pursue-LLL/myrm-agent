@@ -18,9 +18,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
@@ -144,7 +143,6 @@ def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
 @pytest.mark.timeout(240)
 def test_integration_catalog_loopback_guard_end_to_end() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     # 1) Verify catalog scope semantics are explicit in live API.
     detail = http_json("GET", f"{api_url}/api/v1/integrations/catalog/unreal-engine")
@@ -201,7 +199,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
     last_open_error: RuntimeError | None = None
     for attempt in range(3):
         try:
-            with open_mcp_page(f"{ui_url}/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+            with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
                 # Install fetch logger once to capture actual connect-chain network calls.
                 fetch_spy = client.evaluate(
                     page,
@@ -321,14 +319,12 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> None:
-    ui_url = get_e2e_ui_url()
-
     with _temporary_loopback_server_url() as reachable_probe_url:
         warm_ui_route("/settings/integrationCatalog")
         last_open_error: RuntimeError | None = None
         for attempt in range(3):
             try:
-                with open_mcp_page(f"{ui_url}/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+                with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
                     fetch_spy = client.evaluate(
                         page,
                         f"""(() => {{
@@ -480,15 +476,13 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end() -> None:
-    ui_url = get_e2e_ui_url()
-
     with _temporary_broken_loopback_server_url() as unknown_probe_url:
         with _temporary_loopback_server_url() as reachable_probe_url:
             warm_ui_route("/settings/integrationCatalog")
             last_open_error: RuntimeError | None = None
             for attempt in range(3):
                 try:
-                    with open_mcp_page(f"{ui_url}/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+                    with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
                         fetch_spy = client.evaluate(
                             page,
                             f"""(() => {{
@@ -643,7 +637,6 @@ def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end(
 @pytest.mark.timeout(240)
 def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     with _temporary_self_signed_tls_server() as tls_url:
         probe = http_json(
@@ -662,7 +655,7 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
         last_open_error: RuntimeError | None = None
         for attempt in range(3):
             try:
-                with open_mcp_page(f"{ui_url}/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+                with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
                     fetch_spy = client.evaluate(
                         page,
                         f"""(() => {{

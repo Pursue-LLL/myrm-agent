@@ -20,8 +20,11 @@ from myrm_agent_harness.api.security import (
     ManagedApprovalPolicy,
     configure_process_managed_approval_policy,
     get_process_managed_approval_policy,
+    get_process_managed_approval_revision,
 )
 from pydantic import BaseModel, Field
+
+from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -51,6 +54,18 @@ def _verify_cp_token(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
+def _notify_managed_policy_updated(revision: int, active: bool) -> None:
+    try:
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.MANAGED_POLICY_UPDATED,
+                data={"revision": revision, "active": active},
+            )
+        )
+    except Exception:
+        logger.exception("Failed to publish managed policy updated event")
+
+
 @router.post(
     "/api/admin/org-managed-approval-policy-sync",
     response_model=OrgManagedApprovalPolicySyncResponse,
@@ -65,6 +80,8 @@ async def org_managed_approval_policy_sync(
     policy = ManagedApprovalPolicy.from_mapping(body.model_dump())
     configure_process_managed_approval_policy(policy)
     active = get_process_managed_approval_policy() != ManagedApprovalPolicy.empty()
+    revision = get_process_managed_approval_revision()
+    _notify_managed_policy_updated(revision, active)
     logger.info(
         "Org managed approval policy sync: active=%s ignore=%d force=%d",
         active,

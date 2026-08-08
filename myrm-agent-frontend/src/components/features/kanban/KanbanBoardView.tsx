@@ -43,6 +43,8 @@ import { useKanbanDnD } from './useKanbanDnD';
 import { useKanbanAddTask } from './useKanbanAddTask';
 import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 import useAgentStore from '@/store/useAgentStore';
+import useProviderStore from '@/store/useProviderStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const KanbanGraphView = dynamic(() => import('./KanbanGraphView'), { ssr: false });
 const KanbanPipelineWizard = dynamic(() => import('./KanbanPipelineWizard'), { ssr: false });
@@ -289,6 +291,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     setNewTaskCriteria,
     newTaskAgentId,
     setNewTaskAgentId,
+    newTaskModelOverride,
+    setNewTaskModelOverride,
     newTaskSkills,
     setNewTaskSkills,
     newTaskMaxRuntime,
@@ -305,6 +309,9 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     resetAddForm,
     handleAddTask,
   } = useKanbanAddTask({ boardId: board.board_id, onCreated: fetchTasks });
+
+  const getEnabledModels = useProviderStore(useShallow((state) => state.getEnabledModels));
+  const kanbanEnabledModels = useMemo(() => getEnabledModels(), [getEnabledModels]);
 
   const toggleLaneByProfile = useCallback(() => {
     setLaneByProfile((prev) => {
@@ -610,12 +617,14 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               showCriteria={showCriteria}
                               criteria={newTaskCriteria}
                               agentId={newTaskAgentId}
+                              modelOverride={newTaskModelOverride}
                               skills={newTaskSkills}
                               maxRuntimeSeconds={newTaskMaxRuntime}
                               branch={newTaskBranch}
                               goalMode={newTaskGoalMode}
                               goalMaxTurns={newTaskGoalMaxTurns}
                               agents={agents}
+                              enabledModels={kanbanEnabledModels}
                               allTasks={tasks}
                               attachments={newTaskAttachments}
                               onAttachmentsChange={setNewTaskAttachments}
@@ -626,6 +635,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               onShowCriteriaToggle={() => setShowCriteria((v) => !v)}
                               onCriteriaChange={setNewTaskCriteria}
                               onAgentIdChange={setNewTaskAgentId}
+                              onModelOverrideChange={setNewTaskModelOverride}
                               onSkillsChange={setNewTaskSkills}
                               onMaxRuntimeChange={setNewTaskMaxRuntime}
                               onBranchChange={setNewTaskBranch}
@@ -701,6 +711,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         }}
         onRefresh={fetchTasks}
         onNavigateTask={setDrawerTaskId}
+        enabledModels={kanbanEnabledModels}
       />
 
       <KanbanPipelineWizard

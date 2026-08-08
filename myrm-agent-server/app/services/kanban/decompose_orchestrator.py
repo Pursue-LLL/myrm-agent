@@ -14,6 +14,7 @@ server-layer store / event-bus / dispatcher.
 - build_agent_roster: Construct roster from the platform's agent profiles.
 - run_decompose_task: Preview a decomposition without persistence.
 - run_apply_decompose: Persist children atomically from a cached preview.
+  Child tasks inherit the parent's ``model_override`` (and ``source_chat_id``).
 - run_apply_no_fanout: Persist a fanout=false result as Specify (TRIAGE→READY).
 
 [POS]
@@ -160,6 +161,7 @@ async def run_apply_decompose(
             parent_task_id=task.task_id,
             depends_on=depends_on or None,
             extra_skill_ids=list(spec.extra_skill_ids) or None,
+            model_override=task.model_override,
             metadata_patch=child_metadata,
         )
         child_ids.append(child.task_id)
@@ -297,5 +299,6 @@ class _AddTaskFn(Protocol):
         parent_task_id: str | None,
         depends_on: list[str] | None,
         extra_skill_ids: list[str] | None = None,
+        model_override: str | None = None,
         metadata_patch: dict[str, object] | None = None,
     ) -> KanbanTask: ...

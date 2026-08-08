@@ -11708,6 +11708,11 @@
     "skillsUpdateError": "更新任务技能失败",
     "timeoutUpdated": "任务超时已更新",
     "timeoutUpdateError": "更新超时失败",
+    "modelLabel": "模型",
+    "inheritAgentModel": "继承智能体模型",
+    "modelEditHint": "编辑该任务的独立模型",
+    "modelUpdated": "任务模型已更新",
+    "modelUpdateError": "更新模型失败",
     "taskResult": "任务结果",
     "resultUpdated": "任务结果已更新",
     "noResult": "暂无结果",
@@ -12794,6 +12799,7 @@
   "yoloBanner": {
     "message": "YOLO 模式已开启 – 所有工具自动审批",
     "orgConstrainedMessage": "YOLO 已开启，但组织策略仍要求对此智能体模型进行审批。",
+    "orgGlobalDisabledMessage": "组织策略已禁用 YOLO 模式。",
     "disable": "关闭"
   },
   "estopBanner": {

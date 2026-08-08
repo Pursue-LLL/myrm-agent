@@ -558,6 +558,8 @@ MIGRATION_STATEMENTS: list[str] = [
     # displaced migration.
     "ALTER TABLE cron_jobs ADD COLUMN workflow_template_id VARCHAR(64)",
     "ALTER TABLE cron_jobs ADD COLUMN workflow_template_args JSON",
+    # Per-task model override (KanbanPerTaskModelStrategyOverride)
+    "ALTER TABLE kanban_tasks ADD COLUMN model_override VARCHAR(255)",
 ]
 
 # 创建索引的SQL语句列表

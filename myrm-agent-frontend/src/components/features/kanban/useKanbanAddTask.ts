@@ -33,6 +33,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
   const [showCriteria, setShowCriteria] = useState(false);
   const [newTaskCriteria, setNewTaskCriteria] = useState('');
   const [newTaskAgentId, setNewTaskAgentId] = useState<string>('');
+  const [newTaskModelOverride, setNewTaskModelOverride] = useState<string>('');
   const [newTaskSkills, setNewTaskSkills] = useState('');
   const [newTaskMaxRuntime, setNewTaskMaxRuntime] = useState<number | null>(null);
   const [newTaskBranch, setNewTaskBranch] = useState('');
@@ -52,6 +53,9 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setShowDepPicker(false);
     setShowCriteria(false);
     setNewTaskCriteria('');
+    setNewTaskAgentId('');
+    setNewTaskModelOverride('');
+    setNewTaskSkills('');
     setNewTaskMaxRuntime(null);
     setNewTaskBranch('');
     setNewTaskGoalMode(false);
@@ -77,6 +81,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
         attachment_ids: attachmentIds.length > 0 ? attachmentIds : undefined,
         completion_criteria: newTaskCriteria.trim() || undefined,
         agent_id: newTaskAgentId || undefined,
+        model_override: newTaskModelOverride || undefined,
         max_runtime_seconds: newTaskMaxRuntime ?? undefined,
         goal_mode: newTaskGoalMode || undefined,
         goal_max_turns: newTaskGoalMaxTurns ?? undefined,
@@ -90,6 +95,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
       setShowCriteria(false);
       setNewTaskCriteria('');
       setNewTaskAgentId('');
+      setNewTaskModelOverride('');
       setNewTaskSkills('');
       setNewTaskMaxRuntime(null);
       setNewTaskBranch('');
@@ -108,6 +114,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     newTaskDesc,
     newTaskCriteria,
     newTaskAgentId,
+    newTaskModelOverride,
     newTaskSkills,
     newTaskMaxRuntime,
     newTaskBranch,
@@ -136,6 +143,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setNewTaskCriteria,
     newTaskAgentId,
     setNewTaskAgentId,
+    newTaskModelOverride,
+    setNewTaskModelOverride,
     newTaskSkills,
     setNewTaskSkills,
     newTaskMaxRuntime,

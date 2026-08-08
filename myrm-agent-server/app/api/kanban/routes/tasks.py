@@ -44,6 +44,8 @@ from app.api.kanban.schemas import (
     TaskResponse,
     TaskUpdate,
 )
+from app.core.channel_bridge.config_loader import load_user_configs
+from app.core.channel_bridge.model_resolver import validate_model_override
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.diagnostics import (
     CARD_FAST_RULES,
@@ -104,6 +106,7 @@ async def list_tasks(
             status=t.status.value,
             priority=t.priority.value,
             agent_id=t.agent_id,
+            model_override=t.model_override,
             parent_task_id=t.parent_task_id,
             retry_count=t.retry_count,
             max_retries=t.max_retries,
@@ -165,6 +168,14 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
                 f"Invalid initial_status: {body.initial_status}",
             ) from None
 
+    model_override: str | None = None
+    if body.model_override:
+        user_cfgs = await load_user_configs()
+        err = validate_model_override(user_cfgs.providers_dict, body.model_override)
+        if err:
+            raise HTTPException(400, err)
+        model_override = body.model_override
+
     try:
         task = await svc.add_task(
             board_id=board_id,
@@ -173,6 +184,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             priority=priority,
             parent_task_id=body.parent_task_id,
             agent_id=body.agent_id,
+            model_override=model_override,
             max_retries=body.max_retries,
             depends_on=body.depends_on or None,
             extra_skill_ids=body.extra_skill_ids or None,
@@ -228,6 +240,14 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
         }
         if "agent_id" in body.model_fields_set:
             kwargs["agent_id"] = body.agent_id
+        if "model_override" in body.model_fields_set:
+            value = body.model_override
+            if value:
+                user_cfgs = await load_user_configs()
+                err = validate_model_override(user_cfgs.providers_dict, value)
+                if err:
+                    raise HTTPException(400, err)
+            kwargs["model_override"] = value
         if "extra_skill_ids" in body.model_fields_set:
             kwargs["extra_skill_ids"] = body.extra_skill_ids
         if "max_runtime_seconds" in body.model_fields_set:

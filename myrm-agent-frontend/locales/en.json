@@ -11708,6 +11708,11 @@
     "skillsUpdateError": "Failed to update skills",
     "timeoutUpdated": "Task timeout updated",
     "timeoutUpdateError": "Failed to update timeout",
+    "modelLabel": "Model",
+    "inheritAgentModel": "Inherit Agent Model",
+    "modelEditHint": "Edit per-task model override",
+    "modelUpdated": "Task model updated",
+    "modelUpdateError": "Failed to update model",
     "taskResult": "Task Result",
     "resultUpdated": "Task result updated",
     "noResult": "No result yet",
@@ -12794,6 +12799,7 @@
   "yoloBanner": {
     "message": "YOLO Mode Active – All tools auto-approved",
     "orgConstrainedMessage": "YOLO is on, but your organization's policy still requires approval for this agent's model.",
+    "orgGlobalDisabledMessage": "YOLO is disabled by your organization policy.",
     "disable": "Disable"
   },
   "estopBanner": {

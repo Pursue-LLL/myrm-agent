@@ -639,3 +639,128 @@ class TestResolveRunOutcome:
 
         assert ok is False
         assert msg == "Task not found after execution"
+
+
+class TestTaskModelOverride:
+    """Per-task model_override must win over the agent profile model."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("task_model", "profile_model", "expected"),
+        [
+            ("anthropic/claude-sonnet-4", "openai/gpt-4o", "anthropic/claude-sonnet-4"),
+            (None, "openai/gpt-4o", "openai/gpt-4o"),
+            (None, None, None),
+        ],
+    )
+    async def test_model_resolution_priority(self, task_model, profile_model, expected):
+        task = KanbanTask(
+            task_id="model-task-1",
+            board_id="board-1",
+            title="Model Override Task",
+            agent_id="agent-1",
+            model_override=task_model,
+        )
+
+        mock_store = AsyncMock()
+        mock_store.get_board.return_value = None
+        runner = KanbanTaskRunner(mock_store)
+
+        mock_model_cfg = ModelConfig(model="resolved-model", api_key="test-key")
+
+        mock_settings = MagicMock()
+        mock_settings.database = MagicMock()
+        mock_settings.database.event_log_dir = "/tmp/test-event-logs"
+        mock_settings.event_log_max_jsonl_line_bytes = 1024
+
+        resolved_args: list[str | None] = []
+
+        def _capture_resolve(providers, **kwargs):
+            resolved_args.append(kwargs.get("model_override"))
+            return mock_model_cfg
+
+        with (
+            patch(
+                "app.ai_agents.agents.AgentFactory.create_general_agent"
+            ) as mock_create_agent,
+            patch(
+                "app.services.kanban.task_runner.build_task_context",
+                new_callable=AsyncMock,
+            ) as mock_build_context,
+            patch(
+                "app.services.kanban.task_runner.resolve_agent_profile",
+                new_callable=AsyncMock,
+            ) as mock_resolve_profile,
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+            ) as mock_load_user_configs,
+            patch(
+                "app.core.channel_bridge.model_resolver.resolve_model_config",
+                side_effect=_capture_resolve,
+            ),
+            patch(
+                "app.core.channel_bridge.model_resolver.enrich_model_capabilities",
+                return_value=mock_model_cfg,
+            ),
+            patch(
+                "app.core.channel_bridge.model_resolver.enrich_model_context_window",
+                return_value=mock_model_cfg,
+            ),
+            patch(
+                "app.services.agent.swarm_fission_resume.stream_with_swarm_fission_resume",
+                new_callable=AsyncMock,
+            ) as mock_stream,
+            patch(
+                "app.config.settings.get_settings",
+                return_value=mock_settings,
+            ),
+        ):
+            mock_build_context.return_value = "test context"
+            mock_resolve_profile.return_value = (
+                _ResolvedProfile(
+                    agent_type="team",
+                    system_prompt=None,
+                    model=profile_model,
+                    skill_ids=(),
+                    subagent_ids=(),
+                    security_overrides=None,
+                    max_iterations=None,
+                    memory_policy=None,
+                    memory_decay_profile=None,
+                    memory_extraction_preset=None,
+                    engine_params=None,
+                    auto_restore_domains=(),
+                    enabled_builtin_tools=("web_search",),
+                )
+                if profile_model
+                else None
+            )
+
+            mock_configs = MagicMock()
+            mock_configs.retrieval_dict = {}
+            mock_configs.providers_dict = {"providers": []}
+            mock_configs.security_config_dict = {}
+            mock_configs.search_cfg = {"searchService": "tavily"}
+            mock_configs.search_is_user_configured = False
+            mock_load_user_configs.return_value = mock_configs
+
+            mock_agent = AsyncMock()
+            mock_create_agent.return_value = mock_agent
+
+            async def _stream_events(*args, **kwargs):
+                yield {"type": "message_end", "usage": {}}
+
+            mock_agent.process_stream = _stream_events
+
+            async def mock_stream_gen(*args, **kwargs):
+                yield {"type": "message_end", "usage": {}}
+
+            mock_stream.side_effect = mock_stream_gen
+
+            await runner.run(task)
+
+            assert resolved_args == [expected], (
+                f"resolve_model_config must receive {expected!r} as model_override "
+                f"(task={task_model!r}, profile={profile_model!r})"
+            )

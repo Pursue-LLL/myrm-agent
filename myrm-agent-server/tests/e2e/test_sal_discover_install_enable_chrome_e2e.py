@@ -10,9 +10,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -275,7 +274,6 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:
     """Discover prebuilt install enables catalog; empty agent.skill_ids stays unchanged."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     search_query, skill_id, _skill_name = _find_prebuilt_target(api_url)
     prior_enabled = _disable_prebuilt_for_install(api_url, skill_id)
@@ -285,7 +283,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
     warm_ui_route("/settings/skills")
 
     try:
-        with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
+        with open_settings_subroute("/settings/skills") as (client, page):
             wait_for_state(client, page, _DISCOVER_TAB_READY_JS, timeout_sec=90.0)
 
             submitted = client.evaluate(
@@ -351,7 +349,6 @@ def _restore_registry_url(api_url: str, prior_registry_url: str) -> None:
 def test_discover_cn_mirror_select_save_via_ui() -> None:
     """Discover settings: CN mirror select persists via API."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     probe = http_json(
         "GET", f"{api_url}/api/v1/skills/discovery/registry-probe?mirror=cn"
@@ -365,7 +362,7 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
     warm_ui_route("/settings/skills")
 
     try:
-        with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
+        with open_settings_subroute("/settings/skills") as (client, page):
             wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
             opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
@@ -387,7 +384,6 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
 def test_discover_custom_mirror_url_save_via_ui() -> None:
     """Discover settings: Custom URL input + Save persists normalized registry URL."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
     prior_registry_url = str(prior_config.get("clawhub_registry_url") or "")
@@ -399,7 +395,7 @@ def test_discover_custom_mirror_url_save_via_ui() -> None:
     expected_custom_stored = ""
 
     try:
-        with open_mcp_page(f"{ui_url}/settings/skills") as (client, page):
+        with open_settings_subroute("/settings/skills") as (client, page):
             wait_for_state(client, page, _MIRROR_PANEL_READY_JS, timeout_sec=60.0)
             opened = client.evaluate(page, _OPEN_MIRROR_SELECT_JS, timeout_sec=15.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened

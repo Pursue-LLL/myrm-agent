@@ -24,6 +24,7 @@ from cdp_chat_ui import (  # noqa: E402
 )
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
+from llm_receipt import emit_llm_receipt  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -79,7 +80,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
-    async def run_chat_flow(chat: McpChatSession) -> int:
+    async def run_chat_flow(chat: McpChatSession) -> tuple[int, str]:
         ui_base = _base_url()
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         await chat.click_new_chat()
@@ -122,7 +123,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             f"Expected two user messages in chat {chat_id}: "
             f"{after_first} -> {after_second}"
         )
-        return log_offset
+        return log_offset, chat_id
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
@@ -143,9 +144,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             )
         if page is None:
             raise RuntimeError("new_page returned no page")
-        log_offset = await run_chat_flow(McpChatSession(client, page))
+        log_offset, chat_id = await run_chat_flow(McpChatSession(client, page))
     finally:
         await asyncio.to_thread(client.close)
+
+    receipt = emit_llm_receipt(chat_id=chat_id)
+    assert receipt.get("model_id"), f"LLMReceipt missing model_id: {receipt}"
+    assert receipt.get("assistant_snippet"), f"LLMReceipt missing assistant_snippet: {receipt}"
+    assert receipt.get("api_port"), f"LLMReceipt missing api_port: {receipt}"
 
     prewarm_requests = count_turn_prewarm_in_log(since_offset=log_offset)
     assert (

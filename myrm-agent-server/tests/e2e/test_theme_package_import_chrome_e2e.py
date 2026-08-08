@@ -13,8 +13,7 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -105,8 +104,8 @@ def test_theme_package_appearance_import_smoke() -> None:
     zip_b64 = base64.b64encode(_build_sample_package()).decode('ascii')
 
     warm_ui_route('/settings/preferences')
-    with open_mcp_page(
-        f'{get_e2e_ui_url()}/settings/preferences',
+    with open_settings_subroute(
+        '/settings/preferences',
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)

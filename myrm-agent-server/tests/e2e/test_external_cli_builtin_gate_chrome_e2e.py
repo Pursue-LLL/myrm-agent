@@ -8,9 +8,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
 )
 
@@ -118,12 +117,11 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
     """Local deploy: external_cli card is togglable and shows setup hints when enabled."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     agent_id = _create_editable_agent(api_url)
-    agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}"
+    agent_settings_path = f"/settings/agents?agentId={agent_id}"
 
     try:
-        with open_mcp_page(agent_settings_url) as (client, page):
+        with open_settings_subroute(agent_settings_path) as (client, page):
             wait_for_state(client, page, _AGENT_EDITOR_READY_JS, timeout_sec=90.0)
             client.evaluate(page, _CLICK_CAPABILITIES_JS, timeout_sec=10.0)
             wait_for_state(

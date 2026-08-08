@@ -38,5 +38,7 @@ def test_effective_managed_policy_active(client: TestClient) -> None:
         body = response.json()
         assert body["active"] is True
         assert body["disableYolo"] is True
+        assert isinstance(body["revision"], int)
+        assert body["revision"] >= 1
     finally:
         configure_process_managed_approval_policy(ManagedApprovalPolicy.empty())

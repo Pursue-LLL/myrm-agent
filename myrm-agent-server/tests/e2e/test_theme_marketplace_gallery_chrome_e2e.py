@@ -10,8 +10,7 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -166,8 +165,8 @@ def test_theme_marketplace_gallery_free_install_smoke() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route('/settings/theme-studio')
 
-    with open_mcp_page(
-        f'{get_e2e_ui_url()}/settings/theme-studio',
+    with open_settings_subroute(
+        '/settings/theme-studio',
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)
@@ -266,8 +265,8 @@ def test_theme_purchased_return_auto_install_smoke() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route('/settings/theme-studio')
 
-    with open_mcp_page(
-        f'{get_e2e_ui_url()}/settings/theme-studio',
+    with open_settings_subroute(
+        '/settings/theme-studio',
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)

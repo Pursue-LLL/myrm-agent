@@ -41,6 +41,7 @@ async def add_task(
     priority: TaskPriority = TaskPriority.NORMAL,
     parent_task_id: str | None = None,
     agent_id: str | None = None,
+    model_override: str | None = None,
     max_retries: int = 3,
     depends_on: list[str] | None = None,
     extra_skill_ids: list[str] | None = None,
@@ -91,6 +92,7 @@ async def add_task(
         status=resolved_status,
         priority=priority,
         agent_id=agent_id,
+        model_override=model_override,
         parent_task_id=parent_task_id,
         workspace_path=workspace_path,
         branch=branch,
@@ -139,6 +141,7 @@ async def update_task(
     description: str | None = None,
     priority: TaskPriority | None = None,
     agent_id: str | None | Sentinel = UNSET,
+    model_override: str | None | Sentinel = UNSET,
     extra_skill_ids: list[str] | None | Sentinel = UNSET,
     max_runtime_seconds: int | None | Sentinel = UNSET,
     completion_criteria: str | list[dict[str, str | int]] | None = None,
@@ -165,6 +168,8 @@ async def update_task(
             task.consecutive_failures = 0
             task.error = ""
         task.agent_id = agent_id
+    if not isinstance(model_override, Sentinel):
+        task.model_override = model_override
     if not isinstance(extra_skill_ids, Sentinel):
         task.extra_skill_ids = extra_skill_ids or []
     if not isinstance(max_runtime_seconds, Sentinel):

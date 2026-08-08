@@ -16,6 +16,7 @@ import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationT
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
 import { notifyBackgroundTasksChangedForShellJobFinish, notifyBackgroundTasksChangedForVoiceJobFinish } from '@/services/backgroundTasksRefresh';
+import { MANAGED_POLICY_UPDATED_EVENT } from '@/lib/managedPolicyEffectiveEvents';
 
 interface SSEPayload {
   type: string;
@@ -583,6 +584,10 @@ export function useGlobalEvents(): void {
           }, 500);
         }
         window.dispatchEvent(new CustomEvent('agent-config-updated', { detail: payload.data }));
+      } else if (payload.type === 'managed_policy_updated') {
+        window.dispatchEvent(
+          new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: payload.data }),
+        );
       }
     }
 

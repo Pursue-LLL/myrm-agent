@@ -85,6 +85,7 @@ def task_to_domain(m: KanbanTaskModel) -> KanbanTask:
         status=TaskStatus(m.status),
         priority=TaskPriority(m.priority),
         agent_id=m.agent_id,
+        model_override=m.model_override,
         parent_task_id=m.parent_task_id,
         workspace_path=m.workspace_path,
         branch=m.branch,
@@ -119,6 +120,7 @@ def task_to_model(t: KanbanTask) -> KanbanTaskModel:
         status=t.status.value,
         priority=t.priority.value,
         agent_id=t.agent_id,
+        model_override=t.model_override,
         parent_task_id=t.parent_task_id,
         workspace_path=t.workspace_path,
         branch=t.branch,
@@ -149,6 +151,7 @@ def apply_task_to_model(t: KanbanTask, m: KanbanTaskModel) -> None:
     m.status = t.status.value
     m.priority = t.priority.value
     m.agent_id = t.agent_id
+    m.model_override = t.model_override
     m.parent_task_id = t.parent_task_id
     m.workspace_path = t.workspace_path
     m.branch = t.branch

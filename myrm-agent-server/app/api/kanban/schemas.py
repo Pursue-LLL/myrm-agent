@@ -90,6 +90,14 @@ class TaskCreate(BaseModel):
     priority: str = "normal"
     parent_task_id: str | None = None
     agent_id: str | None = None
+    model_override: str | None = Field(
+        None,
+        max_length=255,
+        description=(
+            "Per-task LLM model in 'provider/model' form. Overrides the agent "
+            "profile default for this task only; sub-tasks inherit it."
+        ),
+    )
     workspace_path: str | None = Field(
         None,
         max_length=1024,
@@ -151,6 +159,11 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     priority: str | None = None
     agent_id: str | None = None
+    model_override: str | None = Field(
+        None,
+        max_length=255,
+        description="Replace the per-task model override. Pass null to inherit the agent profile default.",
+    )
     extra_skill_ids: list[str] | None = Field(
         None,
         description="Replace task-level skills. Pass [] to clear.",
@@ -339,6 +352,7 @@ class TaskResponse(BaseModel):
     status: str
     priority: str
     agent_id: str | None = None
+    model_override: str | None = None
     parent_task_id: str | None = None
     workspace_path: str | None = None
     branch: str | None = None

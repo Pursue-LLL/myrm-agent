@@ -91,3 +91,29 @@ async def test_sync_rejects_invalid_token(map_sync_app: FastAPI) -> None:
             )
 
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_sync_publishes_managed_policy_updated_event(map_sync_app: FastAPI) -> None:
+    from app.services.event.app_event_bus import AppEventType
+
+    with patch("app.api.internal.org_managed_approval_policy_sync.get_event_bus") as mock_bus:
+        transport = ASGITransport(app=map_sync_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/api/admin/org-managed-approval-policy-sync",
+                json={
+                    "ignoreAllowlistForModels": [],
+                    "forceAutoReviewForModels": ["gpt-*"],
+                    "disableYolo": True,
+                    "disableAllowAlways": False,
+                },
+            )
+
+        assert resp.status_code == 200
+        mock_bus.return_value.publish.assert_called_once()
+        event = mock_bus.return_value.publish.call_args.args[0]
+        assert event.event_type == AppEventType.MANAGED_POLICY_UPDATED
+        assert event.data["active"] is True
+        assert isinstance(event.data["revision"], int)
+        assert event.data["revision"] >= 1

@@ -14,7 +14,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     reload_mcp_page,
     wait_for_state,
@@ -588,7 +588,6 @@ def _reload_mcp_page(client, page) -> None:
 def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
     """Single SHPOIB session: toggle cancel/confirm, delete, import, add/save."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
     import_payload = json.dumps(
@@ -604,7 +603,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
     )
 
     warm_ui_route("/settings/mcp")
-    with open_mcp_page(f"{ui_url}/settings/mcp", timeout_ms=120_000) as (client, page):
+    with open_settings_subroute("/settings/mcp", timeout_ms=120_000) as (client, page):
         # --- Path 1: disable toggle cancel + confirm ---
         _seed_probe_mcp_server()
         assert _probe_enabled_in_api() is True

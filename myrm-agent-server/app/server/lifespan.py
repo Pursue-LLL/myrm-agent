@@ -442,7 +442,7 @@ async def _phase_1b_parallel() -> None:
         configure_process_managed_approval_policy(
             load_managed_approval_policy_from_env()
         )
-        logger.info("[Startup] Allowlist store initialized")
+        logger.info("[Startup] Managed approval policy initialized from env")
 
     async def _init_permission_logger_task() -> None:
         from app.core.skills.permission_logger import start_permission_logger

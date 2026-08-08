@@ -32,6 +32,7 @@ class AppEventType(StrEnum):
     SKILL_INSTALL_PROGRESS = "skill_install_progress"
     CONFIG_HEALTH_WARNING = "config_health_warning"
     AGENT_CONFIG_UPDATED = "agent_config_updated"
+    MANAGED_POLICY_UPDATED = "managed_policy_updated"
     MESSAGE_DEAD_LETTERED = "message_dead_lettered"
     NEW_SKILL_DRAFT = "new_skill_draft"
     SKILL_GROWTH_UPDATED = "skill_growth_updated"

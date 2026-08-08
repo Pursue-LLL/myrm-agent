@@ -47,6 +47,8 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   const [skillsText, setSkillsText] = useState('');
   const [editingTimeout, setEditingTimeout] = useState(false);
   const [timeoutValue, setTimeoutValue] = useState<number | null>(null);
+  const [editingModel, setEditingModel] = useState(false);
+  const [modelValue, setModelValue] = useState<string>('');
   const [editingResult, setEditingResult] = useState(false);
   const [resultText, setResultText] = useState('');
   const [savingResult, setSavingResult] = useState(false);
@@ -94,6 +96,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
       setShowAddDep(false);
       setEditingCriteria(false);
       setEditingTimeout(false);
+      setEditingModel(false);
     } else {
       setRuns([]);
       setEvents([]);
@@ -212,6 +215,21 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     [task, onRefresh, t],
   );
 
+  const handleSaveModel = useCallback(
+    async (value: string | null) => {
+      if (!task) return;
+      try {
+        await updateTask(task.task_id, { model_override: value });
+        setEditingModel(false);
+        onRefresh();
+        toast.success(t('modelUpdated'));
+      } catch {
+        toast.error(t('modelUpdateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
   const handleAgentChange = useCallback(
     async (agentId: string | null) => {
       if (!task) return;
@@ -300,6 +318,10 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     setEditingTimeout,
     timeoutValue,
     setTimeoutValue,
+    editingModel,
+    setEditingModel,
+    modelValue,
+    setModelValue,
     ...workflow,
     ...attachments,
     editingResult,
@@ -320,6 +342,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     handleSaveCriteria,
     handleSaveSkills,
     handleSaveTimeout,
+    handleSaveModel,
     handleAgentChange,
     handleSaveResult,
   };

@@ -19,6 +19,7 @@ import {
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
 import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
+import type { KanbanModelOption } from './KanbanInlineAddForm';
 
 interface KanbanTaskDrawerProps {
   task: KanbanTask | null;
@@ -27,6 +28,7 @@ interface KanbanTaskDrawerProps {
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void;
   onNavigateTask?: (taskId: string) => void;
+  enabledModels: KanbanModelOption[];
 }
 
 export default function KanbanTaskDrawer({
@@ -36,6 +38,7 @@ export default function KanbanTaskDrawer({
   onOpenChange,
   onRefresh,
   onNavigateTask,
+  enabledModels,
 }: KanbanTaskDrawerProps) {
   const t = useTranslations('kanban');
   const agentName = useAgentName(task?.agent_id);
@@ -125,6 +128,12 @@ export default function KanbanTaskDrawer({
               assignedAgent={drawer.assignedAgent}
               agents={drawer.agents}
               handleAgentChange={drawer.handleAgentChange}
+              enabledModels={enabledModels}
+              editingModel={drawer.editingModel}
+              setEditingModel={drawer.setEditingModel}
+              modelValue={drawer.modelValue}
+              setModelValue={drawer.setModelValue}
+              handleSaveModel={drawer.handleSaveModel}
               t={t}
             />
 

@@ -23,8 +23,7 @@ from cdp_chat_support import (  # noqa: E402
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
-    get_e2e_ui_url,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
@@ -125,20 +124,16 @@ def test_search_priority_chain_persists_via_omni_config_api() -> None:
 def test_search_priority_chain_settings_ui_shows_priorities() -> None:
     """PRIVATE GLOBAL_WRITE: isolated backend config + settings/search priority UI."""
     api_base = get_e2e_api_url()
-    ui_base = get_e2e_ui_url().rstrip("/")
     if not wait_e2e_provider_ready(api_url=api_base):
         pytest.skip("E2E backend not ready for search priority chain Chrome signoff")
 
     backup = fetch_config_value("searchServices", api_url=api_base)
-    settings_url = f"{ui_base}/settings/search"
     try:
         put_config_value("searchServices", _PRIORITY_CHAIN_PAYLOAD, api_url=api_base)
         _assert_provider_chain_from_api(api_base)
 
         warm_ui_route("/settings/search")
-        with open_mcp_page(settings_url, timeout_ms=90_000) as (client, page):
-            dismiss_blocking_modals(client, page)
-            client.navigate(page, settings_url, timeout_ms=90_000)
+        with open_settings_subroute("/settings/search", timeout_ms=90_000) as (client, page):
             dismiss_blocking_modals(client, page)
             visible = wait_for_state(
                 client,
