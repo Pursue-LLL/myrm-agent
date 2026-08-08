@@ -214,8 +214,7 @@ async def _wait_for_tools_panel_ready(
         _touch_wall_progress("tools_panel_wait_snapshot")
         raw = await chat.evaluate(
             _WAIT_TOOLS_PANEL_READY_JS,
-            await_promise=True,
-            recv_timeout=35.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
@@ -286,8 +285,7 @@ async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
         return
     result = await chat.evaluate(
         bootstrap_js,
-        await_promise=True,
-        recv_timeout=60.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     if not isinstance(result, dict) or result.get("ok") is not True:
         raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
@@ -330,14 +328,12 @@ async def _wait_api_user_messages(
 async def _assert_private_api_binding(chat: McpChatSession, *, api_url: str) -> None:
     probe = await chat.evaluate(
         E2E_API_BINDING_PROBE_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     require_e2e_api_binding_probe(probe, api_url)
     stream_binding = await chat.evaluate(
         STREAM_API_BINDING_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     binding = stream_binding if isinstance(stream_binding, dict) else {}
     if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
@@ -376,8 +372,7 @@ async def _run_tools_panel_layer_badges_flow(
     heartbeat_e2e_lease()
     workspace = await chat.evaluate(
         WAIT_WORKSPACE_STREAM_JS,
-        await_promise=True,
-        recv_timeout=45.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(workspace, dict) and workspace.get("ok") is True, workspace
 
@@ -441,15 +436,13 @@ async def _run_tools_panel_layer_badges_flow(
 
     turn_probe = await chat.evaluate(
         BRIDGE_TURN_SNAPSHOT_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
     )
     turn = turn_probe if isinstance(turn_probe, dict) else {}
     if int(turn.get("userCount") or 0) < 1 and turn.get("isStreaming") is not True:
         await chat.evaluate(
             f"({_RECOVER_HITL_JS})({json.dumps(chat_id)})",
-            await_promise=True,
-            recv_timeout=45.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
 
     await _wait_for_eval_ready(
@@ -473,8 +466,7 @@ async def _run_tools_panel_layer_badges_flow(
 
     path_probe = await chat.evaluate(
         "(() => ({ path: location.pathname }))()",
-        await_promise=False,
-        recv_timeout=10.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     current_path = (
         str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
@@ -497,8 +489,7 @@ async def _run_tools_panel_layer_badges_flow(
 
     opened = await chat.evaluate(
         _OPEN_TOOLS_PANEL_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     assert isinstance(opened, dict) and opened.get("ok") is True, opened
 

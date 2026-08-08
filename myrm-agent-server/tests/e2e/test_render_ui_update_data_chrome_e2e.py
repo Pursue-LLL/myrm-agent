@@ -231,8 +231,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             return
         result = await chat.evaluate(
             bootstrap_js,
-            await_promise=True,
-            recv_timeout=60.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if not isinstance(result, dict) or result.get("ok") is not True:
             raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
@@ -247,8 +246,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         wait_e2e_backend_ready(timeout_sec=10.0, api_url=api_base)
         path_probe = await chat.evaluate(
             """(() => ({ path: location.pathname }))()""",
-            await_promise=False,
-            recv_timeout=10.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         on_chat = isinstance(path_probe, dict) and str(
             path_probe.get("path") or ""
@@ -261,7 +259,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await _apply_e2e_runtime_bootstrap(chat)
         if reenable_tools_js:
             await chat.evaluate(
-                reenable_tools_js, await_promise=False, recv_timeout=15.0
+                reenable_tools_js, intent=EvaluateIntent.SYNC_PROBE
             )
 
     async def _wait_js(
@@ -279,7 +277,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         max_heal_attempts = 3
         while time.monotonic() < deadline:
             _touch_render_ui_progress("render_ui_wait_js")
-            raw = await chat.evaluate(js, await_promise=False, recv_timeout=30.0)
+            raw = await chat.evaluate(js, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -311,8 +309,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                   path: location.pathname,
                   hasInput: !!document.querySelector('[data-chat-input]'),
                 }))()""",
-                await_promise=False,
-                recv_timeout=15.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if (
                 isinstance(probe, dict)
@@ -330,7 +327,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await _apply_e2e_runtime_bootstrap(chat)
 
         enabled = await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         assert isinstance(enabled, dict)
         assert (
@@ -366,8 +363,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         binding_probe = await chat.evaluate(
             E2E_API_BINDING_PROBE_JS,
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         require_e2e_api_binding_probe(binding_probe, api_base)
         await chat._attach_chat_session(chat_id)
@@ -385,7 +381,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             )
         await _apply_e2e_runtime_bootstrap(chat)
         await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         # Stay on the post-send page (inline_card SSOT); attachToChat binds stream without hard reload.
         await _wait_js(
@@ -406,7 +402,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             )
         except AssertionError as exc:
             recheck = await chat.evaluate(
-                _INITIAL_READY_JS, await_promise=False, recv_timeout=30.0
+                _INITIAL_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             if not isinstance(recheck, dict) or recheck.get("ready") is not True:
                 raise exc
@@ -420,8 +416,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                 _touch_render_ui_progress("render_ui_wait_not_streaming")
                 probe = await chat.evaluate(
                     """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? { err: 'no-bridge' })()""",
-                    await_promise=False,
-                    recv_timeout=15.0,
+                    intent=EvaluateIntent.BRIDGE_POLL,
                 )
                 if isinstance(probe, dict):
                     last = probe
@@ -434,7 +429,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
         await chat.evaluate(
-            _ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
 
         await chat.send_message(
@@ -445,7 +440,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         _touch_render_ui_progress("render_ui_post_update_send_turn")
         await chat.evaluate(
-            _ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
 
         async def _wait_api_user_messages(
@@ -485,7 +480,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             )
         except AssertionError as exc:
             recheck = await chat.evaluate(
-                _UPDATE_DATA_READY_JS, await_promise=False, recv_timeout=30.0
+                _UPDATE_DATA_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             if not isinstance(recheck, dict) or recheck.get("ready") is not True:
                 raise exc
@@ -495,8 +490,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
               location.reload();
               return { reloaded: true };
             })()""",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(reload_probe, dict)
         assert reload_probe.get("reloaded") is True
