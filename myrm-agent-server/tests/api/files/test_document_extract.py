@@ -10,7 +10,15 @@ import pytest
 
 from app.api.files.document_extract import _validate_extension
 from app.core.utils.errors import StandardHTTPException
-from app.services.files.content_extraction import _parse_document
+from app.services.files.content_extraction import (
+    _parse_document,
+    extract_document_from_bytes,
+)
+
+_MIN_PNG = (
+    b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
+    b"+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+)
 
 
 class TestValidateExtension:
@@ -56,6 +64,37 @@ class TestParseDocument:
         try:
             result = await _parse_document(Path(tmp), ".docx")
             assert "Extract test content" in result
+        finally:
+            os.unlink(tmp)
+
+    @pytest.mark.asyncio
+    async def test_extract_docx_embedded_image(self) -> None:
+        import base64
+
+        from docx import Document
+
+        png_bytes = base64.b64decode(_MIN_PNG)
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+            doc = Document()
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as png:
+                png.write(png_bytes)
+                png_path = png.name
+            try:
+                doc.add_picture(png_path)
+            finally:
+                os.unlink(png_path)
+            doc.save(f.name)
+            tmp = f.name
+
+        try:
+            with open(tmp, "rb") as handle:
+                content = handle.read()
+            result = await extract_document_from_bytes(
+                content, filename="pictured.docx"
+            )
+            assert result.format == "docx"
+            assert result.images, "docx embedded image should be extracted"
+            assert result.images[0].mime_type in {"image/png", "image/jpeg"}
         finally:
             os.unlink(tmp)
 

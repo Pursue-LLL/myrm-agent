@@ -71,14 +71,18 @@ async def test_structural_maintain_persists_state() -> None:
             with patch("app.services.wiki.vault_git_snapshot.after_wiki_vault_mutation", new=AsyncMock()):
                 with patch("app.services.wiki.maintain_runner.get_session", _fake_session):
                     with patch(
-                        "app.services.wiki.maintain_runner.save_wiki_maintain_state",
-                        new=AsyncMock(),
-                    ) as save_mock:
-                        result = await run_wiki_maintain_job(
-                            llm=MagicMock(),
-                            agent_id="agent-1",
-                            mode=MaintainMode.STRUCTURAL,
-                        )
+                        "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                        return_value=MagicMock(duplicate_groups_pending=0),
+                    ):
+                        with patch(
+                            "app.services.wiki.maintain_runner.save_wiki_maintain_state",
+                            new=AsyncMock(),
+                        ) as save_mock:
+                            result = await run_wiki_maintain_job(
+                                llm=MagicMock(),
+                                agent_id="agent-1",
+                                mode=MaintainMode.STRUCTURAL,
+                            )
 
     mock_archiver._linter.lint_and_maintain.assert_awaited_once()
     assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["mode"] == MaintainMode.STRUCTURAL
