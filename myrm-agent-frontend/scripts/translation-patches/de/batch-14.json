@@ -1,0 +1,312 @@
+{
+  "agent": {
+    "nameRequired": "Bitte geben Sie einen Agentennamen ein",
+    "newAgentName": "Neuer Agent",
+    "noAgentSelected": "Kein Agent ausgewählt",
+    "noChannelsForNotify": "Verbinden Sie einen Kanal in den Einstellungen, um Benachrichtigungen zu aktivieren.",
+    "noDescription": "Keine Beschreibung",
+    "noPairingsForNotify": "Koppeln Sie einen Kanal-Kontakt in den Kanaleinstellungen oder geben Sie manuell eine Empfänger-ID ein.",
+    "noSubagents": "Keine Subagenten gebunden",
+    "notifyLabelPlaceholder": "Bezeichnung",
+    "notifyRecipientPlaceholder": "Empfänger-ID",
+    "notifySelectRecipient": "Empfänger auswählen",
+    "notifyTargets": "Benachrichtigungskanäle",
+    "notifyTargetsDesc": "Erlauben Sie diesem Agenten, Benachrichtigungen an Ihre verbundenen Kanäle zu senden.",
+    "onlyOwnerCanViewPrompt": "Nur der Agenten-Eigentümer kann den System-Prompt ansehen",
+    "openapi": {
+      "add": "Hinzufügen",
+      "addFromPreset": "Aus Voreinstellung hinzufügen",
+      "auth": {
+        "apiKeyHeader": "Header-Name (z. B. X-API-Key)",
+        "apiKeyValue": "API-Schlüsselwert",
+        "basic": "Basic Auth",
+        "bearerToken": "Token-Wert",
+        "none": "Keine Authentifizierung",
+        "oauth2": "OAuth2 Client Credentials",
+        "password": "Passwort",
+        "scopes": "Scopes (kommagetrennt)",
+        "username": "Benutzername"
+      },
+      "authentication": "Authentifizierung",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Zweck dieses API-Dienstes",
+      "empty": "Keine OpenAPI-Dienste konfiguriert. Klicken Sie auf „Hinzufügen“, um eine REST-API zu integrieren.",
+      "endpoints": "Endpunkte",
+      "namespace": "Namespace",
+      "parse": "Parsen",
+      "parseFailed": "Spec konnte nicht geparst werden",
+      "parseSuccess": "Spec erfolgreich geparst",
+      "specRequired": "Bitte geben Sie eine OpenAPI-Spec-URL oder -Inhalt an",
+      "specUrl": "Spec-URL",
+      "subtitle": "Zero-Code-REST-API-Tool-Integration über OpenAPI-Specs",
+      "tags": "Tags",
+      "timeout": "Zeitüberschreitung (Sek.)",
+      "title": "OpenAPI-Dienste",
+      "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
+      "unnamed": "Unbenannter Dienst"
+    },
+    "operationFailed": "Vorgang fehlgeschlagen",
+    "personality": {
+      "styles": {
+        "catgirl": "Catgirl",
+        "hype": "Hype",
+        "kawaii": "Kawaii",
+        "noir": "Noir",
+        "shakespeare": "Shakespeare",
+        "surfer": "Surfer"
+      }
+    },
+    "precise": "Präzise",
+    "preview": "Vorschau",
+    "promptMode": {
+      "description": "Steuert, wie viel eingebaute Anweisung injiziert wird. Lean reduziert Token-Nutzung; Naked gibt Ihnen volle Kontrolle.",
+      "hints": {
+        "full": "Alle eingebauten Regeln aktiv: Formatierung, Zitate, Sicherheit und Aufgabenintegrität.",
+        "lean": "Nur Kernidentität + Sicherheit. Das Modell nutzt seinen natürlichen Formatierungsstil.",
+        "naked": "Nur minimale Sicherheitsregeln. Volle Kontrolle über Ihren System-Prompt."
+      },
+      "modes": {
+        "full": "Vollständig",
+        "lean": "Lean",
+        "naked": "Naked"
+      },
+      "title": "Prompt-Modus"
+    },
+    "readiness": {
+      "ready": "Bereit",
+      "warning": "Einige Konfigurationen erfordern Aufmerksamkeit"
+    },
+    "removeSubagent": "Entfernen",
+    "rollbackConfirmAction": "Rückgängig",
+    "rollbackConfirmCancel": "Abbrechen",
+    "rollbackConfirmDescription": "Die aktuelle Konfiguration wird durch den vorherigen Snapshot ersetzt. Ein Backup vor dem Rollback wird automatisch gespeichert.",
+    "rollbackConfirmTitle": "Letzte Konfigurationsänderung rückgängig machen?",
+    "rollbackFailed": "Konfiguration konnte nicht zurückgesetzt werden",
+    "rollbackLastAutoConfig": "Letzte Konfigurationsänderung rückgängig",
+    "rollbackLastAutoConfigTitle": "Den vorherigen gespeicherten Agenten-Konfigurations-Snapshot wiederherstellen",
+    "rollbackSuccess": "Konfiguration erfolgreich zurückgesetzt",
+    "routingCustom": "Benutzerdefiniert",
+    "routingDisabled": "Routing deaktivieren",
+    "routingLightModel": "Leichtes Modell",
+    "routingOverride": "Smart-Routing-Überschreibung",
+    "routingOverrideDesc": "Globale Routing-Richtlinie für diesen Agenten überschreiben",
+    "routingReasoningModel": "Reasoning-Modell",
+    "routingUseGlobal": "Globale Einstellungen verwenden",
+    "save": "Speichern",
+    "saveAsNewAgent": "Als neuen Agenten speichern",
+    "saved": "Gespeichert",
+    "savedAgents": "Gespeicherte Agenten",
+    "secrets": {
+      "addBtn": "Secret hinzufügen",
+      "addSecret": "Neues Secret",
+      "deleteBtn": "Löschen",
+      "deleteDesc": "Möchten Sie dieses Secret wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteError": "Secret konnte nicht gelöscht werden.",
+      "deleteTitle": "Secret löschen",
+      "description": "Umgebungsvariablen und API-Schlüssel verwalten, die sicher in den Agenten injiziert werden.",
+      "editSecret": "Secret aktualisieren",
+      "empty": "Noch keine Secrets konfiguriert.",
+      "keyHint": "Nur Großbuchstaben, Ziffern und Unterstriche.",
+      "keyName": "Schlüsselname",
+      "newValuePlaceholder": "Neuen Wert zum Überschreiben eingeben",
+      "saveError": "Secret konnte nicht gespeichert werden.",
+      "saveFirstDesc": "Sie müssen den Agenten speichern, bevor Sie Secrets hinzufügen.",
+      "saveFirstTitle": "Zuerst Agent speichern",
+      "secretValue": "Secret-Wert",
+      "tabTitle": "Secrets",
+      "title": "Agenten-Secrets",
+      "validationError": "Schlüssel und Wert sind erforderlich.",
+      "valuePlaceholder": "Secret-Wert eingeben"
+    },
+    "security": {
+      "addDomain": "Hinzufügen",
+      "addPath": "Hinzufügen",
+      "allowedRootsDesc": "Gewähren Sie diesem Agenten Zugriff auf zusätzliche Dateisystempfade außerhalb des Arbeitsbereichs (Vereinigung mit globaler Richtlinie).",
+      "allowedRootsTitle": "Zusätzliche erlaubte Pfade",
+      "capabilitiesDesc": "Fähigkeiten auswählen, die dieser Agent nutzen darf. Nur ausgewählte Fähigkeiten stehen zur Verfügung (Schnittmenge mit globaler Richtlinie).",
+      "capabilitiesTitle": "Fähigkeitsbeschränkungen",
+      "checkerPass": "Bestanden",
+      "checkers": {
+        "cron_risk": "Geplante Aufgaben-Risiko",
+        "mcp_auth": "MCP-Sicherheit",
+        "policy_gap": "Richtlinienabdeckung",
+        "skill_aggregate": "Skill-Vertrauen",
+        "subagent_risk": "Subagent-Risiko",
+        "tool_exposure": "Tool-Exposition"
+      },
+      "configureAction": "Konfigurieren",
+      "domainHitlDesc": "Benutzer bei Zugriff auf Domains außerhalb der Allowlist zur Genehmigung auffordern. Nutzer können „Einmal erlauben“ oder „Immer erlauben“ wählen.",
+      "domainHitlTitle": "Domain-Genehmigungsbestätigung",
+      "domainPlaceholder": "z. B. api.example.com oder .github.com",
+      "findingsCount": "Befunde",
+      "fixAction": "Beheben",
+      "healthScoreTitle": "Sicherheits-Gesundheitswert",
+      "networkAllowlistDesc": "Erlauben Sie diesem Agenten nur Zugriff auf folgende Domains. Unterstützt exakte und Suffix-Übereinstimmung (z. B. .example.com).",
+      "networkAllowlistTitle": "Netzwerk-Domain-Allowlist",
+      "seconds": "Sekunden",
+      "tabTitle": "Sicherheit",
+      "timeoutDesc": "Globale Genehmigungs-Zeitüberschreitung für diesen Agenten überschreiben. Leer lassen zum Erben.",
+      "timeoutPlaceholder": "Erben",
+      "timeoutTitle": "Genehmigungs-Zeitüberschreitung überschreiben"
+    },
+    "selectedMcp": "Ausgewähltes MCP",
+    "selectedSkills": "Ausgewählte Fähigkeiten",
+    "sessionPolicy": "Sitzungsrichtlinie",
+    "sessionPolicyDaily": "Täglich",
+    "sessionPolicyDailyDesc": "Neue Sitzung nach Reset-Stunde jeden Tag",
+    "sessionPolicyDesc": "Globale Sitzungs-Reset-Strategie für diesen Agenten überschreiben. Leer lassen für globale Einstellungen.",
+    "sessionPolicyEnabled": "Agentenspezifische Sitzungsrichtlinie aktivieren",
+    "sessionPolicyIdle": "Leerlauf",
+    "sessionPolicyIdleDesc": "Neue Sitzung nach Leerlauf-Zeitüberschreitung",
+    "sessionPolicyIdleMinutes": "Leerlauf-Zeitüberschreitung (Minuten)",
+    "sessionPolicyMode": "Reset-Modus",
+    "sessionPolicyPersistent": "Persistent",
+    "sessionPolicyPersistentDesc": "Eine Sitzung pro Peer dauerhaft",
+    "sessionPolicyResetHour": "Tägliche Reset-Stunde (UTC)",
+    "sessionRecording": {
+      "label": "Sitzungsaufzeichnung"
+    },
+    "sharedContexts": {
+      "active": "Geerbt",
+      "bind": "Kontext binden",
+      "description": "Wiederverwendbare Speicherräume binden, die dieser Agent zur Laufzeit erben soll.",
+      "empty": "Noch keine geteilten Kontexte an diesen Agenten gebunden.",
+      "errors": {
+        "bind": "Geteilten Kontext konnte nicht gebunden werden",
+        "load": "Geteilte Kontext-Bindungen konnten nicht geladen werden",
+        "unbind": "Geteilten Kontext konnte nicht gelöst werden"
+      },
+      "inactive": "Inaktiv",
+      "missingContext": "Kontext-Metadaten nicht verfügbar",
+      "noAvailable": "Keine aktiven Kontexte verfügbar",
+      "refresh": "Aktualisieren",
+      "saveFirst": "Speichern Sie diesen Agenten, bevor Sie geteilte Kontexte binden.",
+      "targetLabel": "Agent",
+      "title": "Geteilte Kontexte",
+      "toasts": {
+        "bound": "Geteilter Kontext gebunden",
+        "unbound": "Geteilter Kontext gelöst"
+      },
+      "unbind": "Lösen"
+    },
+    "skills": "Fähigkeiten",
+    "skillsDesc": "Fähigkeiten aktivieren, damit der Agent bestimmte Aufgaben ausführen kann",
+    "snapshotSaveFailed": "Konfigurations-Backup fehlgeschlagen",
+    "snapshotSaveFailedDesc": "Ihre Änderungen wurden gespeichert, aber kein Rollback-Snapshot erstellt. Rückgängig ist möglicherweise nicht verfügbar.",
+    "startChat": "Chat starten",
+    "subagentBinding": "Subagenten",
+    "subagentBindingDesc": "Agenten auswählen, an die dieser Agent Aufgaben delegieren kann",
+    "suggestionPrompts": {
+      "description": "Prompts konfigurieren, die auf der leeren Chat-Seite angezeigt werden, um Nutzer schnell über die Fähigkeiten dieses Agenten zu informieren.",
+      "placeholder": "Prompt eingeben und Enter drücken zum Hinzufügen",
+      "title": "Starter-Prompts"
+    },
+    "systemPrompt": "System-Prompt",
+    "systemPromptDesc": "Benutzerdefinierte Anweisungen für Verhalten und Antwortstil des Agenten",
+    "systemPromptLabel": "System-Prompt",
+    "systemPromptLoaded": "System-Prompt geladen",
+    "systemPromptPlaceholder": "Benutzerdefinierte Anweisungen für Verhalten und Antwortstil des Agenten",
+    "systemPromptTip": "Der System-Prompt steuert Verhalten, Stil und Antwortweise des Agenten",
+    "temperature": "Temperatur",
+    "temperatureDesc": "Steuert die Zufälligkeit der Ausgabe. Niedrigere Werte sind präziser",
+    "timeMachine": {
+      "confirmCancel": "Abbrechen",
+      "confirmDescription": "Die aktuelle Konfiguration wird ersetzt. Ein Backup vor dem Rollback wird automatisch gespeichert.",
+      "confirmRestore": "Wiederherstellen",
+      "confirmTitle": "Diesen Snapshot wiederherstellen?",
+      "description": "Snapshot-Verlauf ansehen und jeden vorherigen sicheren Zustand wiederherstellen.",
+      "fieldLabels": {
+        "display_name": "Name",
+        "enabled_builtin_tools": "Integrierte Tools",
+        "model": "Modell",
+        "skill_ids": "Fähigkeiten",
+        "system_prompt": "System-Prompt"
+      },
+      "hint": "Snapshots werden vor jeder Konfigurationsänderung automatisch gespeichert. Wiederherstellen ersetzt das aktuelle Profil durch den gewählten Snapshot.",
+      "loadFailed": "Snapshot-Verlauf konnte nicht geladen werden",
+      "mostRecent": "Neuestes Backup",
+      "reasons": {
+        "pre-rollback": "Backup vor Rollback",
+        "webui-update": "Auto-Backup vor Speichern"
+      },
+      "restore": "Wiederherstellen",
+      "restoreFailed": "Konfiguration konnte nicht wiederhergestellt werden",
+      "restoreSuccess": "Konfiguration erfolgreich wiederhergestellt",
+      "title": "Konfigurations-Zeitmaschine"
+    },
+    "title": "Agenten",
+    "topPDesc": "Nucleus-Sampling-Parameter, begrenzt den Kandidaten-Token-Bereich",
+    "unnamed": "Unbenannter Agent",
+    "unsaved": "Nicht gespeichert",
+    "updateSuccess": "Agent erfolgreich aktualisiert",
+    "use": "Verwenden",
+    "validation": {
+      "dependencyInvalid": "Agentenkonfiguration hat Probleme",
+      "pleaseEdit": "Bitte bearbeiten Sie den Agenten, um die Konfiguration zu beheben"
+    },
+    "view": "Ansehen",
+    "viewAgent": "Agent ansehen",
+    "viewAllSnapshots": "Alle Snapshots in der Zeitmaschine ansehen",
+    "viewDescription": "Konfiguration dieses integrierten Agenten ansehen",
+    "workspacePolicy": "Subagent-Arbeitsbereichsrichtlinie",
+    "workspacePolicyDesc": "Subagent-Zugriff auf den übergeordneten Arbeitsbereich steuern",
+    "workspacePolicyOption": {
+      "INHERIT_REQUESTER": "Übergeordneten erben",
+      "ISOLATED_COPY": "Isolierte Kopie",
+      "READ_ONLY_SANDBOX": "Schreibgeschützte Sandbox"
+    }
+  },
+  "agentEvents": {
+    "artifactCreated": "Artefakt erstellt",
+    "assistantMessage": "Assistenten-Nachricht",
+    "commandEnd": "Befehl abgeschlossen",
+    "commandOutput": "Befehlsausgabe",
+    "commandStart": "Befehl gestartet",
+    "error": "Fehler aufgetreten",
+    "fileDiff": "Datei geändert",
+    "noEvents": "Noch keine Ereignisse",
+    "permission": {
+      "actions": {
+        "command": "Befehlsausführung",
+        "fileDelete": "Datei löschen",
+        "fileWrite": "Datei schreiben",
+        "toolCall": "Tool-Aufruf"
+      },
+      "approve": "Genehmigen",
+      "deny": "Ablehnen",
+      "details": "Details",
+      "reason": "Grund",
+      "resource": "Ressource",
+      "title": "Genehmigung erforderlich",
+      "warningCritical": "Dieser Vorgang ist kritisch und kann irreversible Änderungen verursachen. Mit äußerster Vorsicht fortfahren.",
+      "warningHigh": "Dieser Vorgang birgt hohes Risiko. Bitte prüfen Sie sorgfältig vor der Genehmigung."
+    },
+    "permissionMode": {
+      "allowAll": {
+        "description": "Vertraut allen Vorgängen ohne Bestätigung. Nur in vertrauenswürdigen Umgebungen verwenden.",
+        "label": "Alles erlauben"
+      },
+      "ask": {
+        "description": "Fordert Genehmigung bei potenziell gefährlichen Vorgängen an. Für die meisten Nutzer empfohlen.",
+        "label": "Fragen-Modus"
+      },
+      "safe": {
+        "description": "Erlaubt nur schreibgeschützte und sichere Vorgänge. Am besten für nicht vertrauenswürdige Umgebungen.",
+        "label": "Sicherer Modus"
+      },
+      "title": "Genehmigungsmodus"
+    },
+    "permissionRequest": "Genehmigung angefordert",
+    "permissionResponse": "Genehmigung beantwortet",
+    "risk": {
+      "critical": "Kritisches Risiko",
+      "high": "Hohes Risiko",
+      "low": "Geringes Risiko",
+      "medium": "Mittleres Risiko"
+    },
+    "showDetails": "Details anzeigen",
+    "thinking": "Denkt nach",
+    "toolCallEnd": "Tool-Aufruf abgeschlossen",
+    "toolCallStart": "Tool-Aufruf gestartet"
+  }
+}
