@@ -1072,8 +1072,6 @@ export function WikiSection() {
             concepts: result.concepts_reindexed,
             sidecars: result.sidecars_reindexed,
             assets: result.assets_indexed,
-            scanned: result.scanned,
-            skippedDrafts: result.skipped_drafts,
           }),
         );
       } else {
@@ -1798,8 +1796,8 @@ export function WikiSection() {
                     {t('reindexErrorsTitle', { count: reindexErrors.length })}
                   </p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-                    {reindexErrors.slice(0, 8).map((entry) => (
-                      <li key={entry} className="break-all">
+                    {reindexErrors.slice(0, 8).map((entry, index) => (
+                      <li key={`${index}-${entry}`} className="break-all">
                         {entry}
                       </li>
                     ))}

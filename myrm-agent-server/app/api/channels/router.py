@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from nanoid import generate as nanoid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from app.api.channels.schemas import (
     ChannelToggleRequest,
     ChannelToggleResponse,
     EnabledGroupsUpdate,
+    GithubWebhookUrlResponse,
     GroupInfoResponse,
     PairingCreate,
     PairingResponse,
@@ -80,6 +81,23 @@ def _channel_config_key(channel_name: str) -> str | None:
 
 
 # ── Status & Toggle ──────────────────────────────────────────
+
+
+@router.get("/github/webhook-url", response_model=GithubWebhookUrlResponse)
+async def github_webhook_url(request: Request) -> GithubWebhookUrlResponse:
+    """Return the GitHub webhook URL to configure in a GitHub repository.
+
+    Prefers the configured public Ingress base URL; falls back to the
+    request's own base URL (localhost / LAN) when no Ingress is set.
+    """
+    from app.core.infra.ingress import get_public_ingress_base_url
+
+    ingress = (await get_public_ingress_base_url()).strip().rstrip("/")
+    base = ingress or str(request.base_url).rstrip("/")
+    return GithubWebhookUrlResponse(
+        webhookUrl=f"{base}/api/channels/github/webhook",
+        public=bool(ingress),
+    )
 
 
 def _issues_to_response(issues: list[ChannelIssue]) -> list[ChannelIssueResponse]:

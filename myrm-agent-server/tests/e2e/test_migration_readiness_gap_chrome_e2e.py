@@ -21,6 +21,7 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
@@ -356,7 +357,7 @@ async def _evaluate_gap_snapshot(
 ) -> dict[str, object]:
     _assert_gap_wall_budget(wall_deadline)
     js = _gap_poll_snapshot_js(message_id, gap_pattern=gap_pattern)
-    raw = await chat.evaluate(js, await_promise=False, recv_timeout=12.0)
+    raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
     return raw if isinstance(raw, dict) else {"value": raw}
 
 
@@ -374,27 +375,24 @@ async def _send_and_collect_migration_gap(
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
     idle = await chat.evaluate(
-        _WAIT_CHAT_IDLE_BEFORE_SEND_JS, await_promise=True, recv_timeout=25.0
+        _WAIT_CHAT_IDLE_BEFORE_SEND_JS, intent=EvaluateIntent.AGENT_SUBMIT
     )
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
 
     pre_send = await chat.evaluate(
         _pre_send_assert_js(seed, api_base),
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     assert isinstance(pre_send, dict) and pre_send.get("ok") is True, pre_send
 
     await chat.evaluate(
         "() => { window.__MYRM_E2E_CHAT__?.clearSseSnapshot?.(); return { ok: true }; }",
-        await_promise=False,
-        recv_timeout=10.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
 
     direct_off = await chat.evaluate(
         _ENSURE_DIRECT_SSE_OFF_JS,
-        await_promise=False,
-        recv_timeout=10.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     assert (
         isinstance(direct_off, dict) and direct_off.get("directSse") is False
@@ -586,15 +584,13 @@ async def _run_migration_readiness_gap_e2e(
 
         prepared = await chat.evaluate(
             _prepare_migration_chat_js(seed),
-            await_promise=True,
-            recv_timeout=120.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         assert isinstance(prepared, dict) and prepared.get("ok") is True, prepared
 
         anchor_set = await chat.evaluate(
             _set_anchor_js(seed),
-            await_promise=False,
-            recv_timeout=10.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(anchor_set, dict) and anchor_set.get("ok") is True, anchor_set
 
@@ -604,8 +600,7 @@ async def _run_migration_readiness_gap_e2e(
               runtimeApi: window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
               directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
             }))()""",
-            await_promise=False,
-            recv_timeout=10.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(binding, dict), binding
         bound_api = str(
@@ -617,8 +612,7 @@ async def _run_migration_readiness_gap_e2e(
 
         workspace_ready = await chat.evaluate(
             WAIT_WORKSPACE_STREAM_JS,
-            await_promise=True,
-            recv_timeout=45.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         assert (
             isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True

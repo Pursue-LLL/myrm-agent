@@ -77,7 +77,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            raw = await chat.evaluate(_INLINE_UI_READY_JS, await_promise=False, recv_timeout=30.0)
+            raw = await chat.evaluate(_INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -90,7 +90,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
 
-        enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0)
+        enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)
         assert enabled.get("ok") is True, f"Failed to enable render_ui in chat session: {enabled}"
 

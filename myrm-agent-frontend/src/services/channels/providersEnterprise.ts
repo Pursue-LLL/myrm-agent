@@ -121,6 +121,11 @@ export interface GitHubCredentials {
   webhookSecret: string;
 }
 
+export interface GitHubWebhookUrlInfo {
+  webhookUrl: string;
+  public: boolean;
+}
+
 const githubService = createChannelCredentialService<GitHubCredentials>(
   'githubCredentials',
   '/channels/manage/github/test',
@@ -129,6 +134,9 @@ export const getGitHubCredentials = githubService.get;
 export const saveGitHubCredentials = githubService.save;
 export async function testGitHubConnection(personalAccessToken: string): Promise<ChannelTestResult> {
   return githubService.test({ personalAccessToken });
+}
+export async function getGitHubWebhookUrl(): Promise<GitHubWebhookUrlInfo> {
+  return apiRequest('/channels/manage/github/webhook-url');
 }
 
 // ==================== Signal ====================

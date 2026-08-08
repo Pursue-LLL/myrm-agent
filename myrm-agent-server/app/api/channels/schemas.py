@@ -26,6 +26,16 @@ class ChannelIssueResponse(BaseModel):
     fix: str = ""
 
 
+class GithubWebhookUrlResponse(BaseModel):
+    """GitHub webhook URL for configuring in a GitHub repository."""
+
+    webhook_url: str = Field(alias="webhookUrl")
+    public: bool = False
+
+    class Config:
+        populate_by_name = True
+
+
 class ChannelStatusResponse(BaseModel):
     name: str
     status: str

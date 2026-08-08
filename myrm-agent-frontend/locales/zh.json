@@ -2326,6 +2326,8 @@
       "repairingTypes": "修复中...",
       "repairingPublication": "修复发布状态中...",
       "reindexingVectors": "重建向量索引中...",
+      "reindexErrorsTitle": "{count} 项未能重建索引",
+      "reindexErrorsTruncated": "…另有 {count} 项",
       "stats": {
         "title": "Wiki 统计",
         "description": "知识库概览",
@@ -2455,7 +2457,7 @@
         "repairTypesComplete": "已修复 {count} 篇笔记的页面类型",
         "repairPublicationComplete": "已修复 {repaired} 篇笔记的发布状态，重新索引 {reindexed} 篇",
         "repairPublicationCompleteWithSkips": "已修复 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未发布",
-        "reindexVectorsComplete": "已为 {reindexed}/{scanned} 篇笔记重建向量索引",
+        "reindexVectorsComplete": "已重建 {concepts} 篇笔记、{sidecars} 个目录与 {assets} 张图片的向量索引",
         "approveComplete": "草稿已批准",
         "rejectComplete": "草稿已拒绝",
         "purposeSaved": "知识方向已保存"

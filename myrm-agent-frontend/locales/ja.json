@@ -2249,7 +2249,7 @@
         "repairTypesComplete": "{count} 件のノートのページタイプを修復しました",
         "repairPublicationComplete": "{repaired} 件を修復、{reindexed} 件を再索引付けしました",
         "repairPublicationCompleteWithSkips": "{repaired} 件を修復、{reindexed} 件を再索引付け、{skippedDrafts} 件の草稿ページを保持しました",
-        "reindexVectorsComplete": "{scanned} 件中 {reindexed} 件のベクトル索引を再構築しました"
+        "reindexVectorsComplete": "ノート {concepts} 件、ディレクトリ {sidecars} 件、画像 {assets} 件のベクトルを再構築しました"
       },
       "errors": {
         "emptyQuery": "してください入力質問",
@@ -2562,6 +2562,8 @@
       "repairingTypes": "修復中…",
       "repairingPublication": "公開状態を修復中…",
       "reindexingVectors": "ベクトル索引を再構築中…",
+      "reindexErrorsTitle": "{count} 件を再構築できませんでした",
+      "reindexErrorsTruncated": "…他 {count} 件",
       "healthReport": {
         "title": "ナレッジ健全性",
         "summary": "{open, plural, =0 {未対応アクションなし} one {# 件の未対応アクション} other {# 件の未対応アクション}} · チェック済み {total}",

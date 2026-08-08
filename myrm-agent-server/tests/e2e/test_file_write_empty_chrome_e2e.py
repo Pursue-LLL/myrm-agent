@@ -27,7 +27,7 @@ from cdp_chat_support import (  # noqa: E402
     steer_chat_message,
     wait_e2e_provider_ready,
 )
-from dev_gate_contract import STALL_PROGRESS_SEC  # noqa: E402
+from dev_gate_contract import EvaluateIntent, STALL_PROGRESS_SEC  # noqa: E402
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from live_turn_wait import (  # noqa: E402
     live_empty_write_parallel_scaled_cap_sec,
@@ -621,7 +621,7 @@ async def test_file_write_empty_live_agent_webui(
             heartbeat_e2e_lease()
             touch_wall_progress()
             raw = await chat.evaluate(
-                _AGENT_READY_JS, await_promise=False, recv_timeout=20.0
+                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -632,7 +632,7 @@ async def test_file_write_empty_live_agent_webui(
     async def _pin_lite_model(chat: McpChatSession) -> dict[str, object]:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, await_promise=True, recv_timeout=30.0
+            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model: {pinned}"
@@ -761,8 +761,7 @@ async def test_file_write_empty_live_agent_webui(
                 try:
                     banner = await chat.evaluate(
                         _LIVE_MUTATION_BANNER_JS,
-                        await_promise=False,
-                        recv_timeout=15.0,
+                        intent=EvaluateIntent.BRIDGE_POLL,
                     )
                     if isinstance(banner, dict) and banner.get("ready") is True:
                         return {"source": "ui+api", "banner": banner, "invoked": True}
@@ -823,8 +822,7 @@ async def test_file_write_empty_live_agent_webui(
                         sample: text.slice(0, 600),
                       };
                     })()""",
-                    await_promise=False,
-                    recv_timeout=20.0,
+                    intent=EvaluateIntent.BRIDGE_POLL,
                 )
             except (RuntimeError, TimeoutError) as ui_exc:
                 if (
@@ -860,8 +858,7 @@ async def test_file_write_empty_live_agent_webui(
             if int(ui.get("failureCount") or 0) >= 1 and ui.get("isStreaming") is False:
                 banner = await chat.evaluate(
                     _LIVE_MUTATION_BANNER_JS,
-                    await_promise=False,
-                    recv_timeout=20.0,
+                    intent=EvaluateIntent.BRIDGE_POLL,
                 )
                 if isinstance(banner, dict) and banner.get("ready") is True:
                     return {"source": "ui", "banner": banner, "ui": ui}
@@ -987,8 +984,7 @@ async def test_file_write_empty_live_agent_webui(
         """R135/R139: re-navigate when shared UI drops ?agentId= or tab is chrome-error."""
         raw = await chat.evaluate(
             "(() => ({ href: String(location.href || ''), path: String(location.pathname || '') }))()",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         probe = raw if isinstance(raw, dict) else {"value": raw}
         href = str(probe.get("href") or "")
@@ -1024,8 +1020,7 @@ async def test_file_write_empty_live_agent_webui(
         try:
             ensured = await chat.evaluate(
                 _ENSURE_PROVIDERS_JS,
-                await_promise=True,
-                recv_timeout=min(hydrate_cap, 60.0),
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
             if isinstance(ensured, dict) and ensured.get("ok") is not True:
                 print(
@@ -1048,8 +1043,7 @@ async def test_file_write_empty_live_agent_webui(
             touch_wall_progress()
             raw = await chat.evaluate(
                 _PROVIDERS_SEND_READY_JS,
-                await_promise=False,
-                recv_timeout=20.0,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("sendReady") and last.get("selection"):
@@ -1076,8 +1070,7 @@ async def test_file_write_empty_live_agent_webui(
             touch_wall_progress()
             raw = await chat.evaluate(
                 f"({_AGENT_BOUND_JS})({json.dumps(expected_agent_id)})",
-                await_promise=False,
-                recv_timeout=20.0,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -1101,7 +1094,7 @@ async def test_file_write_empty_live_agent_webui(
         await chat.ensure_chat_surface(BASE_URL)
 
         ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, await_promise=True, recv_timeout=30.0
+            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
         )
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 

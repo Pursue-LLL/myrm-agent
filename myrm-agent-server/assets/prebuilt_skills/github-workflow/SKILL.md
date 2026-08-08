@@ -159,6 +159,30 @@ Same format as commit message: `{type}({scope}): {description}`
 - **Draft PR early** — Open as draft for early feedback on approach
 - **Self-review first** — Review your own diff before requesting others
 
+### Push & Create the PR
+
+The `GITHUB_TOKEN` environment variable is available for HTTPS remotes — push needs no extra setup. Prefer the `gh` CLI when installed, otherwise use the GitHub REST API directly.
+
+```bash
+# Push the branch (authentication is handled for https://github.com remotes)
+git push -u origin feat/PROJ-123-description
+
+# Create the PR
+if command -v gh >/dev/null 2>&1; then
+  gh pr create --title "feat(auth): add JWT refresh token rotation" \
+    --body "## Summary ..." --base main
+else
+  REPO="${PWD#*/}"  # resolve to owner/repo, or read from `git remote get-url origin`
+  curl -fsSL -X POST "https://api.github.com/repos/${REPO}/pulls" \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -d '{"title":"feat(auth): add JWT refresh token rotation","head":"feat/PROJ-123-description","base":"main","body":"## Summary ..."}'
+fi
+```
+
+- Capture the returned PR number and `html_url` — you'll need them to track review feedback and report the result to the user.
+- If push fails with an authentication error, do **not** keep retrying with variations — report the exact error and stop. Likely causes: SSH remote URL (no token support) or the token lacks `repo` scope.
+
 ## Phase 4: Review Response
 
 When receiving review feedback:
@@ -177,6 +201,17 @@ When receiving review feedback:
 | Suggestion | Accept or explain trade-off |
 | Question | Answer clearly with context |
 | Nit/style | Fix if reasonable, note if disagreed |
+
+### Commands
+
+```bash
+# Address feedback with an incremental commit (never force-push during review)
+git add <files>
+git commit -m "fix(scope): address review feedback"
+git push
+```
+
+After pushing, reply to the review thread with a summary of changes and re-request review when ready (`gh pr edit <number> --add-reviewer <login>` or ask the reviewer in the UI).
 
 ## Phase 5: Merge
 
@@ -198,7 +233,18 @@ git rebase origin/main
 # Push updated branch
 git push
 
-# After merge (clean up)
+# Merge (squash is the default choice for feature branches)
+if command -v gh >/dev/null 2>&1; then
+  gh pr merge <number> --squash --delete-branch
+else
+  REPO="${PWD#*/}"
+  curl -fsSL -X PATCH "https://api.github.com/repos/${REPO}/pulls/<number>" \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -d '{"state":"closed","merge_method":"squash"}'
+fi
+
+# After merge (clean up local branch)
 git checkout main
 git pull
 git branch -d feat/PROJ-123-description

@@ -1743,7 +1743,7 @@
         "repairTypesComplete": "Repaired page types on {count} notes",
         "repairPublicationComplete": "Repaired publication status on {repaired} notes, reindexed {reindexed}",
         "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages",
-        "reindexVectorsComplete": "Vektorindex für {reindexed} von {scanned} Notizen neu erstellt"
+        "reindexVectorsComplete": "{concepts} Notizen, {sidecars} Verzeichnisse und {assets} Bilder neu indiziert"
       },
       "errors": {
         "emptyQuery": "Bitte eine Frage eingeben",
@@ -2194,6 +2194,8 @@
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
       "reindexingVectors": "Rebuilding vectors...",
+      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
+      "reindexErrorsTruncated": "…and {count} more",
       "healthReport": {
         "title": "Wissenszustand",
         "summary": "{open, plural, =0 {No open actions} one {# open action} other {# open actions}} · {total} checked",

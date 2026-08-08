@@ -292,7 +292,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     }
             try:
                 raw = await chat.evaluate(
-                    _CLARIFY_FORM_READY_JS, await_promise=False, recv_timeout=30.0
+                    _CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
                 )
             except TimeoutError:
                 await asyncio.sleep(1.0)
@@ -374,7 +374,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             touch_wall_progress()
             heartbeat_e2e_lease()
             raw = await chat.evaluate(
-                _UI_SKIP_DONE_JS, await_promise=False, recv_timeout=15.0
+                _UI_SKIP_DONE_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True and last.get("isStreaming") is not True:
@@ -455,7 +455,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             heartbeat_e2e_lease()
             try:
                 raw = await chat.evaluate(
-                    _CLARIFY_FORM_READY_JS, await_promise=False, recv_timeout=15.0
+                    _CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
                 )
             except (TimeoutError, RuntimeError):
                 await asyncio.sleep(1.0)
@@ -469,8 +469,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     async def _release_ui_stream_for_api(chat: McpChatSession) -> dict[str, object]:
         released = await chat.evaluate(
             _RELEASE_UI_STREAM_FOR_API_JS,
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(
             released, dict
@@ -480,14 +479,14 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     async def _enable_structured_clarify(chat: McpChatSession) -> None:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         enabled = await chat.evaluate(
-            _ENABLE_STRUCTURED_CLARIFY_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_STRUCTURED_CLARIFY_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         assert isinstance(enabled, dict)
         assert (
             enabled.get("ok") is True
         ), f"Failed to enable structured_clarify: {enabled}"
         pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, await_promise=True, recv_timeout=30.0
+            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
         assert isinstance(pinned, dict)
         assert (
@@ -505,7 +504,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
 
     async def _prepare_fresh_clarify_chat(chat: McpChatSession) -> None:
         await chat.evaluate(
-            _DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0
+            _DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         await chat.dismiss_modals()
         await chat.click_new_chat()
@@ -724,7 +723,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 form_state = {**form_state, **polled}
 
         bridge = await chat.evaluate(
-            _SKIP_VIA_BRIDGE_JS, await_promise=False, recv_timeout=15.0
+            _SKIP_VIA_BRIDGE_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         if isinstance(bridge, dict) and bridge.get("ok") is True:
             try:
@@ -747,7 +746,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
 
         if form_state.get("hasSkip") is True:
             clicked = await chat.evaluate(
-                _CLICK_SKIP_JS, await_promise=False, recv_timeout=15.0
+                _CLICK_SKIP_JS, intent=EvaluateIntent.SYNC_PROBE
             )
             if isinstance(clicked, dict) and clicked.get("ok") is True:
                 try:
@@ -814,7 +813,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 await _prepare_fresh_clarify_chat(chat)
             await chat.dismiss_modals()
             await chat.evaluate(
-                _DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0
+                _DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE
             )
             try:
                 if is_e2e_signoff_runtime():

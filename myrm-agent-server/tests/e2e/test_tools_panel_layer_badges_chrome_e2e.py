@@ -29,6 +29,7 @@ from cdp_chat_support import (
     signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
 )  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
@@ -258,7 +259,7 @@ async def _wait_for_eval_ready(
     expression: str,
     *,
     timeout_sec: float,
-    recv_timeout: float = 30.0,
+    intent: EvaluateIntent = EvaluateIntent.BRIDGE_POLL,
     poll_sec: float = 1.0,
     progress_node: str = "tools_panel_eval_wait",
 ) -> dict[str, object]:
@@ -269,8 +270,7 @@ async def _wait_for_eval_ready(
         _touch_wall_progress(progress_node)
         raw = await chat.evaluate(
             expression,
-            await_promise=True,
-            recv_timeout=recv_timeout,
+            intent=intent,
         )
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True or last.get("ok") is True:
@@ -368,7 +368,7 @@ async def _run_tools_panel_layer_badges_flow(
         chat,
         _PREP_AGENT_TURN_JS,
         timeout_sec=90.0,
-        recv_timeout=60.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
         progress_node="tools_panel_prep_agent_turn",
     )
     assert chat_ready.get("sendReady") is True, chat_ready
@@ -467,7 +467,7 @@ async def _run_tools_panel_layer_badges_flow(
           };
         })()""",
         timeout_sec=signoff_parallel_force_chat_timeout_sec(120.0),
-        recv_timeout=30.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
         progress_node="tools_panel_live_ui_hydrate",
     )
 
@@ -506,7 +506,7 @@ async def _run_tools_panel_layer_badges_flow(
         chat,
         _LAYER_BADGES_READY_JS,
         timeout_sec=30.0,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
         poll_sec=0.5,
     )
     assert badges.get("hasCore") is True, badges

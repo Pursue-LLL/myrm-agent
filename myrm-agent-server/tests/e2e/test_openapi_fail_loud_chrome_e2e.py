@@ -17,6 +17,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import wait_e2e_provider_ready  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_allowlist_live_e2e import _AGENT_READY_JS
@@ -138,7 +139,7 @@ async def _wait_agent_applied(
     js = wait_agent_applied_js(expected_agent_id)
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
-        raw = await chat.evaluate(js, await_promise=True, recv_timeout=30.0)
+        raw = await chat.evaluate(js, intent=EvaluateIntent.AGENT_SUBMIT)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ok") is True:
             return
@@ -151,7 +152,7 @@ async def _wait_bridge_ready(chat: McpChatSession, *, timeout_sec: float = 90.0)
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
-        raw = await chat.evaluate(_AGENT_READY_JS, await_promise=False, recv_timeout=20.0)
+        raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
             return
@@ -200,23 +201,21 @@ async def _run_openapi_fail_loud_ui(
         await _wait_agent_applied(chat, expected_agent_id=agent_id)
         prep = await chat.evaluate(
             PREPARE_AGENT_CHAT_JS,
-            await_promise=True,
-            recv_timeout=90.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         assert isinstance(prep, dict) and prep.get("ok") is True, prep
         assert prep.get("agentId") == agent_id, prep
         assert prep.get("actionMode") == "agent", prep
         idle = await chat.evaluate(
             WAIT_CHAT_IDLE_JS,
-            await_promise=True,
-            recv_timeout=20.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         assert isinstance(idle, dict) and idle.get("ok") is True, idle
         js = send_and_wait_openapi_error_js(
             expected_error_type=expected_error_type,
             message_pattern=message_pattern,
         )
-        outcome = await chat.evaluate(js, await_promise=True, recv_timeout=150.0)
+        outcome = await chat.evaluate(js, intent=EvaluateIntent.AGENT_SUBMIT)
         return outcome if isinstance(outcome, dict) else {"ok": False, "raw": outcome}
     finally:
         if page is not None:

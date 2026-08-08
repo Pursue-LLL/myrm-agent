@@ -234,7 +234,7 @@ async def test_file_edit_batch_live_agent_webui(
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             raw = await chat.evaluate(
-                _AGENT_READY_JS, await_promise=False, recv_timeout=20.0
+                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -245,7 +245,7 @@ async def test_file_edit_batch_live_agent_webui(
     async def _pin_lite_model(chat: McpChatSession) -> dict[str, object]:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, await_promise=True, recv_timeout=30.0
+            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model: {pinned}"
@@ -335,7 +335,7 @@ async def test_file_edit_batch_live_agent_webui(
         await chat.ensure_chat_surface(BASE_URL)
 
         ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, await_promise=True, recv_timeout=30.0
+            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
         )
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
@@ -389,7 +389,7 @@ async def test_file_edit_batch_live_agent_webui(
         ), f"{_FILE_EDIT_TOOL} not found in persisted messages; result={result}"
 
         step = await chat.evaluate(
-            _FILE_EDIT_STEP_JS, await_promise=False, recv_timeout=20.0
+            _FILE_EDIT_STEP_JS, intent=EvaluateIntent.BRIDGE_POLL
         )
         assert isinstance(step, dict) and step.get("ready") is True, step
 

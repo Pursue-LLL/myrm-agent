@@ -142,7 +142,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             raw = await chat.evaluate(
-                _INLINE_UI_READY_JS, await_promise=False, recv_timeout=30.0
+                _INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -160,7 +160,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             raw = await chat.evaluate(
-                _UI_ACTION_FEEDBACK_READY_JS, await_promise=False, recv_timeout=30.0
+                _UI_ACTION_FEEDBACK_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -176,7 +176,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         await chat.ensure_chat_surface(BASE_URL)
 
         enabled = await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0
+            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         assert isinstance(enabled, dict)
         assert (
@@ -222,7 +222,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         ), f"Expected initial user message for chat {chat_id}"
 
         clicked = await chat.evaluate(
-            _CLICK_CONFIRM_BUTTON_JS, await_promise=False, recv_timeout=15.0
+            _CLICK_CONFIRM_BUTTON_JS, intent=EvaluateIntent.SYNC_PROBE
         )
         assert isinstance(clicked, dict)
         assert (

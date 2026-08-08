@@ -2326,6 +2326,8 @@
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
       "reindexingVectors": "Rebuilding vectors...",
+      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
+      "reindexErrorsTruncated": "…and {count} more",
       "stats": {
         "title": "Wiki Statistics",
         "description": "Overview of your knowledge base",
@@ -2455,7 +2457,7 @@
         "repairTypesComplete": "Repaired page types on {count} notes",
         "repairPublicationComplete": "Repaired publication status on {repaired} notes, reindexed {reindexed}",
         "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages",
-        "reindexVectorsComplete": "Rebuilt vectors for {reindexed} of {scanned} notes",
+        "reindexVectorsComplete": "Rebuilt {concepts} notes, {sidecars} directories, and {assets} images",
         "approveComplete": "Edit approved successfully",
         "rejectComplete": "Edit rejected successfully",
         "purposeSaved": "Knowledge direction saved"

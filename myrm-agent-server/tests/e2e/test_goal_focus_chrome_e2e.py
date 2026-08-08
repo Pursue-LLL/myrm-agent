@@ -25,6 +25,7 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -71,7 +72,10 @@ async def test_chrome_ui_goal_mode_stream(
         chat_id = chat_id_from_path(str(state.get("url") or ""))
         if chat_id:
             return chat_id
-        path = await chat.evaluate("(() => location.pathname)()", await_promise=False)
+        path = await chat.evaluate(
+            "(() => location.pathname)()",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
         return chat_id_from_path(str(path) if path else "")
 
     async def _run_goal_flow(chat: McpChatSession) -> tuple[str, str]:

@@ -258,7 +258,7 @@ async def _wait_for_eval(chat: McpChatSession, expression: str, *, timeout_sec: 
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
-        raw = await chat.evaluate(expression, await_promise=False, recv_timeout=30.0)
+        raw = await chat.evaluate(expression, intent=EvaluateIntent.SYNC_PROBE)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True or last.get("ok") is True:
             return last
@@ -307,8 +307,7 @@ async def _assert_fresh_chat_surface(chat: McpChatSession) -> None:
     """Fail fast when resetChat left an old thread (stale POOLED security + history)."""
     raw = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {})()""",
-        await_promise=False,
-        recv_timeout=10.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     snap = raw if isinstance(raw, dict) else {}
     user_count = int(snap.get("userCount") or 0)
@@ -324,7 +323,7 @@ async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
-        raw = await chat.evaluate(_AGENT_READY_JS, await_promise=False, recv_timeout=20.0)
+        raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
             return
@@ -335,7 +334,7 @@ async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0
 async def _assert_stream_api_binding(chat: McpChatSession, *, expected_api: str) -> None:
     """Fail fast when chat stream would hit Next /api/v1 proxy (:8080 YOLO drift)."""
     expected_origin = _api_origin(expected_api)
-    raw = await chat.evaluate(STREAM_API_BINDING_JS, await_promise=False, recv_timeout=15.0)
+    raw = await chat.evaluate(STREAM_API_BINDING_JS, intent=EvaluateIntent.SYNC_PROBE)
     binding = raw if isinstance(raw, dict) else {}
     if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
         raise AssertionError(
@@ -351,7 +350,7 @@ async def _assert_stream_api_binding(chat: McpChatSession, *, expected_api: str)
 
 async def _assert_runtime_binding(chat: McpChatSession, *, expected_api: str) -> None:
     expected_origin = _api_origin(expected_api)
-    raw = await chat.evaluate(_RUNTIME_BINDING_JS, await_promise=False, recv_timeout=15.0)
+    raw = await chat.evaluate(_RUNTIME_BINDING_JS, intent=EvaluateIntent.SYNC_PROBE)
     binding = raw if isinstance(raw, dict) else {}
     bound = str(binding.get("apiBase") or binding.get("runtimeApi") or "").strip()
     if _api_origin(bound) != expected_origin:
@@ -375,7 +374,7 @@ async def _wait_for_shell_approval_ui(
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
         await chat.dismiss_modals()
-        raw = await chat.evaluate(_APPROVAL_VISIBLE_JS, await_promise=False, recv_timeout=20.0)
+        raw = await chat.evaluate(_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last_ui = _parse_browser_eval(raw)
         if last_ui.get("ready") is True:
             return last_ui
@@ -384,8 +383,7 @@ async def _wait_for_shell_approval_ui(
         last_invoked = invoked
         bridge = await chat.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {})()""",
-            await_promise=False,
-            recv_timeout=10.0,
+            intent=EvaluateIntent.BRIDGE_POLL,
         )
         bridge_snap = bridge if isinstance(bridge, dict) else {}
         assistant_sample = str(bridge_snap.get("lastAssistantSample") or "")
@@ -411,8 +409,7 @@ async def _wait_for_shell_approval_ui(
                 try:
                     recover_raw = await chat.evaluate(
                         f"({ _RECOVER_HITL_JS })({json.dumps(chat_id)})",
-                        await_promise=True,
-                        recv_timeout=20.0,
+                        intent=EvaluateIntent.AGENT_SUBMIT,
                     )
                 except RuntimeError as exc:
                     if "timed out" not in str(exc).lower():
@@ -455,8 +452,7 @@ async def _wait_for_shell_approval_ui(
                           workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
                           multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
                         }))()""",
-                        await_promise=False,
-                        recv_timeout=10.0,
+                        intent=EvaluateIntent.SYNC_PROBE,
                     )
                     audit = _fetch_recent_audit_decisions(api_url)
                     hitl = _hitl_probe(api_url, chat_id=chat_id)
@@ -519,8 +515,7 @@ async def _run_live_pattern_flow(chat: McpChatSession, agent_id: str, *, api_url
     # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
     path_probe = await chat.evaluate(
         "(() => ({ path: location.pathname }))()",
-        await_promise=False,
-        recv_timeout=10.0,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     current_path = str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     if current_path != f"/{chat_id}":
@@ -529,19 +524,18 @@ async def _run_live_pattern_flow(chat: McpChatSession, agent_id: str, *, api_url
     await _assert_stream_api_binding(chat, expected_api=api_url)
     await _wait_for_shell_approval_ui(chat, chat_id, api_url=api_url, timeout_sec=_APPROVAL_WAIT_SEC)
 
-    click_always = await chat.evaluate(_CLICK_ALLOW_ALWAYS_JS, await_promise=False)
+    click_always = await chat.evaluate(_CLICK_ALLOW_ALWAYS_JS, intent=EvaluateIntent.SYNC_PROBE)
     assert isinstance(click_always, dict) and click_always.get("ok") is True, click_always
     await asyncio.sleep(0.8)
 
     select_scope = await chat.evaluate(
         _SELECT_PATTERN_SCOPE_JS,
-        await_promise=True,
-        recv_timeout=20.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(select_scope, dict) and select_scope.get("ok") is True, select_scope
     await asyncio.sleep(0.3)
 
-    confirm = await chat.evaluate(_CONFIRM_ALLOW_ALWAYS_DIALOG_JS, await_promise=False)
+    confirm = await chat.evaluate(_CONFIRM_ALLOW_ALWAYS_DIALOG_JS, intent=EvaluateIntent.SYNC_PROBE)
     assert isinstance(confirm, dict) and confirm.get("ok") is True, confirm
 
     await _wait_for_pattern_allowlist_on_api(api_url, timeout_sec=120.0)

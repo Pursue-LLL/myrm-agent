@@ -37,6 +37,7 @@ from cdp_chat_support import (
 )  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import (
+    EvaluateIntent,
     MUX_RECLAIM_STALL_TOKEN,
     SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
@@ -613,9 +614,23 @@ def reload_mcp_page(
     *,
     timeout_ms: int = 60_000,
     target_url: str | None = None,
+    ignore_cache: bool = False,
 ) -> None:
-    """Full page reload with SHPOIB runtime rebind when private backend is active."""
-    client.reload(page, timeout_ms=timeout_ms)
+    """Full page reload with SHPOIB runtime rebind when private backend is active.
+
+    ``ignore_cache=True`` forces ``location.reload(true)``: stale Turbopack chunks
+    on long-lived warm-shell pages can mount an outdated ``__MYRM_E2E_CHAT__``
+    bridge (missing attachToChat/syncSearchServicesFromE2eApi), stranding the
+    shared-UI contract; a cache-bypassing reload pulls the latest bundle.
+    """
+    if ignore_cache:
+        client.evaluate(
+            page,
+            "(() => { window.location.reload(true); return true; })()",
+            timeout_sec=max(5.0, timeout_ms / 1000),
+        )
+    else:
+        client.reload(page, timeout_ms=timeout_ms)
     # Isolated stacks use Next.js rewrites — skip expensive SHPOIB rebind (TAB-6b).
     if (
         e2e_runtime_binding() is not None
@@ -2197,6 +2212,7 @@ class _OrchestratorSharedUiChat:
         *,
         await_promise: bool = False,
         recv_timeout: float = 30.0,
+        intent: EvaluateIntent | None = None,
     ) -> object:
         timeout = max(5.0, recv_timeout)
         expr = expression
@@ -2237,6 +2253,7 @@ class _OrchestratorSharedUiChat:
             self.page,
             timeout_sec=timeout_sec,
             page_url=get_e2e_ui_url(),
+            require_attach=True,
         )
 
 
@@ -2275,6 +2292,7 @@ def _ensure_orchestrator_shared_ui_session(
                 page,
                 timeout_sec=90.0,
                 page_url=get_e2e_ui_url(),
+                require_attach=True,
             )
     if last_exc is not None:
         raise last_exc
@@ -2580,8 +2598,15 @@ def wait_for_react_e2e_bridge(
     *,
     timeout_sec: float = 90.0,
     page_url: str | None = None,
+    require_attach: bool = False,
 ) -> dict[str, object]:
-    """Wait for full React E2E bridge (attachToChat); reload-heal when clientHot was skipped at ADMIT."""
+    """Wait for full React E2E bridge (attachToChat); reload-heal when clientHot was skipped at ADMIT.
+
+    ``require_attach=True`` (shared-UI contract path) disables the softReady
+    shortcut: SEARCH_POLICY/HYDRATE_PRIVATE_SEARCH_JS needs
+    ``window.__MYRM_E2E_CHAT__`` methods, so reporting ready on app-layout alone
+    strands the contract with a transient ``no-bridge``.
+    """
     target_url = page_url or getattr(page, "url", None)
     _trigger_attach_client_warmup_once(
         page_url=target_url if isinstance(target_url, str) else None
@@ -2639,6 +2664,7 @@ def wait_for_react_e2e_bridge(
             last.get("hasAppLayout") is True
             and last.get("hasInput") is True
             and last.get("fallback") is not True
+            and not require_attach
             and polls >= 8
         ):
             return {**last, "ready": True, "softReady": True}
@@ -2656,7 +2682,16 @@ def wait_for_react_e2e_bridge(
                 pass
             if isinstance(target_url, str) and reload_passes < max_reload_passes:
                 reload_passes += 1
-                reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
+                # Stale-Turbopack warm shells can render the app shell with an old
+                # bridge object missing attachToChat — cache-bypassing reload pulls
+                # the latest bundle so the contract's SEARCH_POLICY can bind.
+                reload_mcp_page(
+                    client,
+                    page,
+                    target_url=target_url,
+                    timeout_ms=120_000,
+                    ignore_cache=True,
+                )
                 time.sleep(2.0)
                 continue
         should_home_heal = (
@@ -2682,7 +2717,13 @@ def wait_for_react_e2e_bridge(
             and isinstance(target_url, str)
         ):
             reload_passes += 1
-            reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
+            reload_mcp_page(
+                client,
+                page,
+                target_url=target_url,
+                timeout_ms=120_000,
+                ignore_cache=True,
+            )
             dismiss_blocking_modals(client, page)
             time.sleep(2.0)
             continue

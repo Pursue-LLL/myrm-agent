@@ -1743,7 +1743,7 @@
         "repairTypesComplete": "{count}개 노트의 페이지 유형 복구됨",
         "repairPublicationComplete": "{repaired}개 노트 복구, {reindexed}개 재인덱싱",
         "repairPublicationCompleteWithSkips": "{repaired}개 노트 복구, {reindexed}개 재인덱싱, {skippedDrafts}개 초안 페이지 보존",
-        "reindexVectorsComplete": "{scanned}개 중 {reindexed}개 노트의 벡터 인덱스를 재구축했습니다"
+        "reindexVectorsComplete": "노트 {concepts}개, 디렉터리 {sidecars}개, 이미지 {assets}개의 벡터를 재구축했습니다"
       },
       "errors": {
         "emptyQuery": "질문을 입력하세요",
@@ -2194,6 +2194,8 @@
       "repairingTypes": "복구 중...",
       "repairingPublication": "게시 상태 복구 중...",
       "reindexingVectors": "벡터 인덱스 재구축 중...",
+      "reindexErrorsTitle": "{count}개 항목을 재구축하지 못했습니다",
+      "reindexErrorsTruncated": "…외 {count}개",
       "healthReport": {
         "title": "지식 상태",
         "summary": "{open, plural, =0 {열린 작업 없음} one {#개 열린 작업} other {#개 열린 작업}} · {total}개 검사됨",

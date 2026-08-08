@@ -36,6 +36,7 @@ from e2e_orchestrator import (  # noqa: E402
     remaining_wall_sec,
     touch_wall_progress,
 )
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json, open_mcp_page_async  # noqa: E402
@@ -532,8 +533,7 @@ async def _poll_fast_search_progress(
         raw = await asyncio.wait_for(
             chat.evaluate(
                 _VERIFY_FAST_SEARCH_PROGRESS_JS,
-                await_promise=False,
-                recv_timeout=45.0,
+                intent=EvaluateIntent.BRIDGE_POLL,
             ),
             timeout=50.0,
         )
@@ -639,8 +639,7 @@ async def _abort_fast_search_stream(chat: McpChatSession) -> None:
     try:
         await chat.evaluate(
             _FAST_SEARCH_ABORT_STREAM_JS,
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
     except (RuntimeError, TimeoutError):
         pass
@@ -671,8 +670,7 @@ async def _restore_fast_search_bridge_light(
     if normalized_chat_id:
         attach_raw = await chat.evaluate(
             _fast_search_attach_js(normalized_chat_id),
-            await_promise=True,
-            recv_timeout=90.0,
+            intent=EvaluateIntent.ROUTE_ATTACH,
         )
         attach = (
             attach_raw
@@ -694,8 +692,7 @@ async def _restore_fast_search_bridge_light(
                 await ensure_bridge(timeout_sec=60.0)
             attach_raw = await chat.evaluate(
                 _fast_search_attach_js(normalized_chat_id),
-                await_promise=True,
-                recv_timeout=90.0,
+                intent=EvaluateIntent.ROUTE_ATTACH,
             )
             attach = (
                 attach_raw
@@ -704,8 +701,7 @@ async def _restore_fast_search_bridge_light(
             )
     search_raw = await chat.evaluate(
         _SYNC_PRIVATE_SEARCH_JS,
-        await_promise=True,
-        recv_timeout=45.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
     )
     search = (
         search_raw if isinstance(search_raw, dict) else {"ok": False, "err": search_raw}
@@ -757,7 +753,7 @@ async def _heal_fast_search_bridge_after_mux_loss(
             }
     _ensure_private_search_configured(api_base)
     _ensure_private_providers_configured(api_base)
-    raw_prep = await chat.evaluate(prep_js, await_promise=True, recv_timeout=90.0)
+    raw_prep = await chat.evaluate(prep_js, intent=EvaluateIntent.AGENT_SUBMIT)
     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
         return raw_prep
     return (
@@ -837,7 +833,7 @@ async def _kickoff_fast_search_with_retries(
                     _ensure_private_search_configured(api_base)
                     _ensure_private_providers_configured(api_base)
                     raw_prep = await chat.evaluate(
-                        prep_js, await_promise=True, recv_timeout=90.0
+                        prep_js, intent=EvaluateIntent.AGENT_SUBMIT
                     )
                     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                         prep = raw_prep
@@ -887,7 +883,7 @@ async def _kickoff_fast_search_with_retries(
                     _ensure_private_search_configured(api_base)
                     _ensure_private_providers_configured(api_base)
                     raw_prep = await chat.evaluate(
-                        prep_js, await_promise=True, recv_timeout=90.0
+                        prep_js, intent=EvaluateIntent.AGENT_SUBMIT
                     )
                     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                         prep = raw_prep
@@ -896,7 +892,7 @@ async def _kickoff_fast_search_with_retries(
                 _ensure_private_search_configured(api_base)
                 _ensure_private_providers_configured(api_base)
                 raw_prep = await chat.evaluate(
-                    prep_js, await_promise=True, recv_timeout=90.0
+                    prep_js, intent=EvaluateIntent.AGENT_SUBMIT
                 )
                 if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                     prep = raw_prep
@@ -925,8 +921,7 @@ async def _resolve_stream_request_message_id(
     try:
         raw = await chat.evaluate(
             _UI_STREAM_REQUEST_MESSAGE_ID_JS,
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
     except RuntimeError:
         return ""
@@ -965,7 +960,7 @@ async def _recover_stalled_fast_search_turn(
         }})()"""
         try:
             retry = await chat.evaluate(
-                retry_js, await_promise=True, recv_timeout=120.0
+                retry_js, intent=EvaluateIntent.AGENT_SUBMIT
             )
         except RuntimeError as exc:
             if "MUX" not in str(exc) and "orphan" not in str(exc).lower():
@@ -1050,7 +1045,7 @@ async def _resume_orphaned_stream_after_web_fetch(
       );
     }})()"""
     try:
-        retry = await chat.evaluate(retry_js, await_promise=True, recv_timeout=120.0)
+        retry = await chat.evaluate(retry_js, intent=EvaluateIntent.AGENT_SUBMIT)
     except (RuntimeError, TimeoutError, asyncio.TimeoutError) as exc:
         exc_msg = str(exc)
         if (
@@ -1161,8 +1156,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
                 else:
                     reset_raw = await chat.evaluate(
                         _IN_PAGE_RESET_CHAT_JS,
-                        await_promise=False,
-                        recv_timeout=15.0,
+                        intent=EvaluateIntent.SYNC_PROBE,
                     )
                     if (
                         not isinstance(reset_raw, dict)

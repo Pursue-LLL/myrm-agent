@@ -28,6 +28,7 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
@@ -84,7 +85,10 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
     async def _run_session(chat: McpChatSession) -> tuple[str, str]:
         api_base = await _resolve_bound_api_base(chat)
         await chat.dismiss_modals()
-        path_probe = await chat.evaluate("(() => location.pathname)()", await_promise=False)
+        path_probe = await chat.evaluate(
+            "(() => location.pathname)()",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
         if isinstance(path_probe, str) and (
             path_probe.startswith("/settings") or path_probe.startswith("/login")
         ):

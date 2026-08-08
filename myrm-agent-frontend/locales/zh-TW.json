@@ -2249,7 +2249,7 @@
         "repairTypesComplete": "\"已修復 {count} 篇筆記的頁面類型\"",
         "repairPublicationComplete": "\"已修復 {repaired} 篇筆記的發布狀態，重新索引 {reindexed} 篇\"",
         "repairPublicationCompleteWithSkips": "已修復 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未發布",
-        "reindexVectorsComplete": "已為 {reindexed}/{scanned} 篇筆記重建向量索引"
+        "reindexVectorsComplete": "已重建 {concepts} 篇筆記、{sidecars} 個目錄與 {assets} 張圖片的向量索引"
       },
       "errors": {
         "emptyQuery": "請輸入問題",
@@ -2686,6 +2686,8 @@
       "repairingTypes": "\"修復中...\"",
       "repairingPublication": "修復發布狀態中...",
       "reindexingVectors": "重建向量索引中...",
+      "reindexErrorsTitle": "{count} 項未能重建索引",
+      "reindexErrorsTruncated": "…另有 {count} 項",
       "healthReport": {
         "title": "\"知識庫健康\"",
         "summary": "\"{open, plural, =0 {無待處理項} other {# 項待處理}} · 已檢查 {total} 項\"",
