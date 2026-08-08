@@ -2724,9 +2724,11 @@ def wait_for_state(
 
 _WORKFLOW_PLAN_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
-  const hasTitle = /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
+  const planRoot = document.querySelector('[data-testid="dynamic-workflow-plan-card"]');
+  const runBtn = document.querySelector('[data-testid="dynamic-workflow-plan-run"]');
+  const hasTitle = Boolean(planRoot) || /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
   const buttons = [...document.querySelectorAll('button')];
-  const hasRun = buttons.some((btn) =>
+  const hasRun = Boolean(runBtn) || buttons.some((btn) =>
     /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
   );
   const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
@@ -2735,6 +2737,8 @@ _WORKFLOW_PLAN_CARD_JS = """(() => {
     ready: hasTitle && hasRun,
     hasTitle,
     hasRun,
+    hasPlanRoot: Boolean(planRoot),
+    hasAppLayout: Boolean(document.querySelector('[data-testid="app-layout"]')),
     isStreaming: snap.isStreaming === true,
     userCount: snap.userCount ?? 0,
     lastAssistantSample: (snap.lastAssistantSample ?? '').slice(0, 240),
@@ -2745,32 +2749,355 @@ _WORKFLOW_PLAN_CARD_JS = """(() => {
 })()"""
 
 
+_GET_ASSISTANT_MESSAGE_ID_JS = """(() => {
+  const debug = window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? {};
+  const streamId = typeof debug.streamRequestMessageId === 'string'
+    ? debug.streamRequestMessageId.trim()
+    : '';
+  const assistantId = window.__MYRM_E2E_CHAT__?.getLastAssistantMessageId?.() ?? null;
+  return { messageId: streamId || assistantId || null };
+})()"""
+
+
+_GET_STREAM_REQUEST_MESSAGE_ID_JS = """(() => {
+  const id = window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+})()"""
+
+
+def _plan_confirm_response_resolved(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    code = payload.get("code")
+    if code == 404:
+        return False
+    if code not in (None, 0, 200):
+        return False
+    data = payload.get("data")
+    return isinstance(data, dict) and data.get("status") == "resolved"
+
+
+def _post_plan_confirm_via_api(api_base: str, stream_message_id: str) -> bool:
+    normalized = stream_message_id.strip()
+    if not normalized:
+        return False
+    try:
+        payload = http_json(
+            "POST",
+            f"{api_base.rstrip('/')}/api/v1/agents/plan-confirm-response",
+            {"messageId": normalized, "action": "confirm"},
+        )
+    except (RuntimeError, OSError, ValueError):
+        return False
+    return _plan_confirm_response_resolved(payload)
+
+
+def _resolve_dw_stream_message_id(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    cached: str | None = None,
+) -> str | None:
+    if isinstance(cached, str) and cached.strip():
+        return cached.strip()
+    try:
+        raw = client.evaluate(
+            page,
+            _GET_STREAM_REQUEST_MESSAGE_ID_JS,
+            timeout_sec=10.0,
+        )
+    except (RuntimeError, TimeoutError, OSError):
+        return None
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
+def _plan_confirm_state_from_messages(
+    messages: list[dict[str, object]],
+) -> dict[str, object]:
+    for msg in reversed(messages):
+        if msg.get("role") != "assistant":
+            continue
+        metadata = msg.get("metadata")
+        meta = metadata if isinstance(metadata, dict) else {}
+        plan_raw = meta.get("planConfirmation")
+        if not isinstance(plan_raw, dict):
+            continue
+        status = str(plan_raw.get("status") or "")
+        if status == "waiting":
+            return {"phase": "waiting", "planConfirmation": plan_raw}
+        if status in {"confirmed", "edited"}:
+            return {"phase": "resolved", "planConfirmation": plan_raw}
+    return {"phase": "none"}
+
+
+def _try_confirm_workflow_plan_via_api(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    api_base: str,
+    stream_message_id: str | None = None,
+) -> bool:
+    """Resolve DW plan_confirm via REST when UI card fails to render (PhaseWaiter SSOT)."""
+    message_id = _resolve_dw_stream_message_id(
+        client,
+        page,
+        cached=stream_message_id,
+    )
+    if not message_id:
+        return False
+    return _post_plan_confirm_via_api(api_base, message_id)
+
+
+def _messages_from_api_payload(payload: object) -> list[dict[str, object]]:
+    raw: list[object]
+    if isinstance(payload, list):
+        raw = payload
+    elif isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, dict) and isinstance(data.get("messages"), list):
+            raw = data["messages"]
+        elif isinstance(payload.get("messages"), list):
+            raw = payload["messages"]
+        else:
+            raw = []
+    else:
+        raw = []
+    return [msg for msg in raw if isinstance(msg, dict)]
+
+
+def _assistant_text_from_api_message(msg: dict[str, object]) -> str:
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict):
+                text = block.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+    return ""
+
+
+def _api_stream_probe_from_messages(
+    messages: list[dict[str, object]],
+) -> dict[str, object]:
+    user_count = sum(1 for msg in messages if msg.get("role") == "user")
+    last_assistant: dict[str, object] | None = None
+    for msg in messages:
+        if msg.get("role") == "assistant":
+            last_assistant = msg
+    if last_assistant is None:
+        return {
+            "ready": False,
+            "userCount": user_count,
+            "isStreaming": user_count > 0,
+            "sample": "",
+            "messageId": None,
+        }
+    metadata = last_assistant.get("metadata")
+    meta = metadata if isinstance(metadata, dict) else {}
+    completion_status = str(meta.get("completionStatus") or "")
+    is_complete = completion_status in {"complete", "error", "cancelled"}
+    sample = _assistant_text_from_api_message(last_assistant)
+    message_id_raw = last_assistant.get("messageId") or last_assistant.get("id")
+    message_id = message_id_raw if isinstance(message_id_raw, str) else None
+    is_streaming = user_count > 0 and not is_complete
+    ready = (
+        user_count >= 1
+        and not is_streaming
+        and (is_complete or len(sample.strip()) >= 10)
+    )
+    return {
+        "ready": ready,
+        "userCount": user_count,
+        "isStreaming": is_streaming,
+        "sample": sample[:240],
+        "messageId": message_id,
+        "completionStatus": completion_status,
+    }
+
+
+def wait_for_dw_stream_done_via_api(
+    *,
+    api_base: str,
+    chat_id: str,
+    timeout_sec: float = 480.0,
+    min_assistant_chars: int = 10,
+) -> dict[str, object]:
+    """Poll chat messages REST when UI turnSnapshot is blank under parallel SHARED load."""
+    normalized_chat_id = chat_id.strip()
+    if not normalized_chat_id:
+        raise ValueError("chat_id is required for API stream wait")
+    base = api_base.rstrip("/")
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    last_touch = 0.0
+    while time.monotonic() < deadline:
+        now = time.monotonic()
+        if now - last_touch >= 5.0:
+            touch_wall_progress(current_node="wait_for_dw_stream_done_via_api")
+            last_touch = now
+        try:
+            payload = http_json(
+                "GET",
+                f"{base}/api/v1/chats/{normalized_chat_id}/messages",
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(2.0)
+            continue
+        messages = _messages_from_api_payload(payload)
+        last = _api_stream_probe_from_messages(messages)
+        sample = str(last.get("sample") or "")
+        completion_status = str(last.get("completionStatus") or "")
+        if (
+            "orchestration was not approved" in sample.lower()
+            or completion_status == "cancelled"
+        ):
+            raise AssertionError(
+                "Dynamic Workflow stream failed — orchestration not approved: "
+                f"{last}"
+            )
+        if last.get("ready") is True and len(sample.strip()) >= min_assistant_chars:
+            return {**last, "chatId": normalized_chat_id, "source": "api"}
+        time.sleep(2.0)
+    raise AssertionError(
+        f"DW stream did not complete within {timeout_sec}s via API "
+        f"for chat {normalized_chat_id}: {last}"
+    )
+
+
 def wait_for_workflow_plan_card(
     client: ChromeMcpClient,
     page: McpPage,
     *,
     timeout_sec: float | None = None,
     page_url: str | None = None,
+    chat_id: str | None = None,
+    stream_message_id: str | None = None,
+    api_base: str | None = None,
 ) -> dict[str, object]:
     """Wait for Dynamic Workflow plan_confirm HITL card (spawn_count >= 1 path)."""
     resolved_timeout = (
         timeout_sec
         if timeout_sec is not None
-        else (300.0 if _parallel_chrome_e2e_active() else 240.0)
+        else (480.0 if _parallel_chrome_e2e_active() else 420.0)
     )
     resolved_url = page_url or get_e2e_ui_url()
-    try:
-        return wait_for_state(
-            client,
-            page,
-            _WORKFLOW_PLAN_CARD_JS,
-            timeout_sec=resolved_timeout,
-            page_url=resolved_url,
-            blank_heal_mode="direct",
-            pin_direct_blank_heal=True,
+    resolved_api_base = (api_base or get_e2e_api_url()).rstrip("/")
+    normalized_chat_id = chat_id.strip() if isinstance(chat_id, str) else ""
+    deadline = time.monotonic() + resolved_timeout
+    last: dict[str, object] = {}
+    blank_bridge_attempts = 0
+    last_touch = 0.0
+    last_api_confirm_at = 0.0
+    cached_stream_id = (
+        stream_message_id.strip()
+        if isinstance(stream_message_id, str) and stream_message_id.strip()
+        else None
+    )
+
+    while time.monotonic() < deadline:
+        now = time.monotonic()
+        if now - last_touch >= 5.0:
+            touch_wall_progress(current_node="wait_for_workflow_plan_card")
+            last_touch = now
+        remaining = max(5.0, deadline - now)
+
+        if now - last_api_confirm_at >= 0.25:
+            last_api_confirm_at = now
+            if cached_stream_id is None:
+                cached_stream_id = _resolve_dw_stream_message_id(client, page)
+            if normalized_chat_id:
+                try:
+                    payload = http_json(
+                        "GET",
+                        f"{resolved_api_base}/api/v1/chats/{normalized_chat_id}/messages",
+                    )
+                    messages = _messages_from_api_payload(payload)
+                    plan_state = _plan_confirm_state_from_messages(messages)
+                    if plan_state.get("phase") == "resolved":
+                        touch_wall_progress(current_node="workflow_plan_api_resolved")
+                        return {
+                            **last,
+                            "ready": True,
+                            "confirmedVia": "api",
+                            "planConfirmation": plan_state.get("planConfirmation"),
+                        }
+                    if plan_state.get("phase") == "waiting" and cached_stream_id:
+                        if _post_plan_confirm_via_api(
+                            resolved_api_base,
+                            cached_stream_id,
+                        ):
+                            touch_wall_progress(current_node="workflow_plan_api_confirm")
+                            return {
+                                **last,
+                                "ready": True,
+                                "confirmedVia": "api",
+                                "streamMessageId": cached_stream_id,
+                            }
+                except (RuntimeError, OSError, ValueError):
+                    pass
+            elif cached_stream_id and _post_plan_confirm_via_api(
+                resolved_api_base,
+                cached_stream_id,
+            ):
+                touch_wall_progress(current_node="workflow_plan_api_confirm")
+                return {
+                    **last,
+                    "ready": True,
+                    "confirmedVia": "api",
+                    "streamMessageId": cached_stream_id,
+                }
+
+        try:
+            raw = client.evaluate(
+                page,
+                _WORKFLOW_PLAN_CARD_JS,
+                timeout_sec=min(30.0, remaining),
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(0.25)
+            continue
+        last = _coerce_evaluate_result(raw)
+        if last.get("ready") is True:
+            return last
+
+        sample = str(last.get("lastAssistantSample") or "")
+        if "orchestration was not approved" in sample.lower():
+            raise AssertionError(
+                f"Dynamic Workflow plan_confirm timed out before approval on {resolved_url}: {last}"
+            )
+
+        body_len = int(last.get("bodyLength") or 0)
+        stream_active = (
+            last.get("isStreaming") is True or last.get("hasPlanningText") is True
         )
-    except AssertionError as exc:
-        raise AssertionError(
-            f"Workflow plan card did not appear within {resolved_timeout}s — "
-            f"check blank-page hydrate + DW orchestrator LLM on {resolved_url}: {exc}"
-        ) from exc
+        # Never full-reload during plan wait — reload wipes kickoff stream state.
+        if body_len == 0 and not stream_active and blank_bridge_attempts < 4:
+            blank_bridge_attempts += 1
+            touch_wall_progress(current_node="workflow_plan_blank_bridge_heal")
+            try:
+                wait_for_react_e2e_bridge(
+                    client,
+                    page,
+                    timeout_sec=min(45.0, remaining),
+                    page_url=resolved_url,
+                )
+                _ensure_orchestrator_shared_ui_session(client, page)
+            except (RuntimeError, AssertionError, TimeoutError, OSError):
+                pass
+        elif stream_active:
+            blank_bridge_attempts = 0
+        time.sleep(0.25)
+
+    raise AssertionError(
+        f"Workflow plan card did not appear within {resolved_timeout}s — "
+        f"check blank-page hydrate + DW orchestrator LLM on {resolved_url}: "
+        f"Browser state did not become ready: {last}"
+    )

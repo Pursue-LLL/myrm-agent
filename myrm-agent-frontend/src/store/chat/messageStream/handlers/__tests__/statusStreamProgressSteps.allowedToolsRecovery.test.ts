@@ -7,6 +7,14 @@ describe('statusStreamProgressSteps allowed_tools recovery', () => {
     expect(isStatusProgressStep('allowed_tools_rejected_recovery')).toBe(true);
   });
 
+  it('recognizes stream recovery progress steps', () => {
+    expect(isStatusProgressStep('thinking_signature_recovery')).toBe(true);
+    expect(isStatusProgressStep('tool_history_recovery')).toBe(true);
+    expect(isStatusProgressStep('image_shrink_recovery')).toBe(true);
+    expect(isStatusProgressStep('long_context_tier_recovery')).toBe(true);
+    expect(isStatusProgressStep('media_rejected_recovery')).toBe(true);
+  });
+
   it('recognizes turn prewarm progress steps', () => {
     expect(isStatusProgressStep('turn_prewarm_agent')).toBe(true);
     expect(isStatusProgressStep('turn_prewarm_memory')).toBe(true);

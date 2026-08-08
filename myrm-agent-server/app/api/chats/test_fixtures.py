@@ -22,6 +22,7 @@ Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup revi
 RevertFiles fixture 见 test_fixtures_revert.py。
 clarify refresh / file_edit batch / UECD evicted seed 见子模块 test_fixtures_*（子路由挂载）。
 seed_guardrail_bash_fixture: 见 test_fixtures_guardrail_bash.py（Chrome guardrail bash Badge E2E）
+seed_tool_history_recovery_fixture: 见 test_fixtures_tool_history_recovery.py（tool_history_recovery progress step Chrome E2E）
 seed_wiki_dedup_fixture: 见 test_fixtures_wiki_dedup.py（duplicate raw + sync scan · Wiki Duplicate Review Chrome E2E）
 seed_wiki_provenance_gap_fixture: 见 test_fixtures_wiki_provenance.py（compiled concept missing sources · Wiki Health Chrome E2E）
 """
@@ -46,6 +47,9 @@ from app.services.kanban import KanbanService
 
 from .test_fixtures_allowed_tools_recovery import (
     router as allowed_tools_recovery_fixture_router,
+)
+from .test_fixtures_tool_history_recovery import (
+    router as tool_history_recovery_fixture_router,
 )
 from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_copilot import router as copilot_fixture_router
@@ -383,6 +387,7 @@ router.include_router(evicted_fixture_router)
 router.include_router(revert_fixture_router)
 router.include_router(stream_retry_busy_fixture_router)
 router.include_router(allowed_tools_recovery_fixture_router)
+router.include_router(tool_history_recovery_fixture_router)
 router.include_router(guardrail_bash_fixture_router)
 router.include_router(wiki_dedup_fixture_router)
 router.include_router(wiki_provenance_fixture_router)

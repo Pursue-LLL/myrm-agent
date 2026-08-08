@@ -15,7 +15,7 @@
 | `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批；ERROR/CANCEL 后 `scheduleFlushPendingGapRetry` | ✅ |
 | `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、CLARIFICATION_REQUIRED（unwrap `{type,form}`；`source=deep_research` 或 `actionMode=deep_research` → `isResumeMode=false`）、进度项合并 | ✅ |
 | `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | ✅ |
-| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 `turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
+| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 stream recovery、`turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
 | `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
@@ -36,7 +36,7 @@
 | `__tests__/completionEvents.workspaceMerge.test.ts` | 测试 | WORKSPACE_MERGE_FAILED → message workspaceMergeFailures/count/truncated | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
-| `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
+| `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
 
 ## 依赖
 

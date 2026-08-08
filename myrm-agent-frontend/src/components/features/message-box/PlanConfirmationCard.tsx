@@ -200,7 +200,7 @@ const PlanConfirmationCard = ({
   }
 
   return (
-    <div className="mt-3 sm:mt-4">
+    <div className="mt-3 sm:mt-4" data-testid="dynamic-workflow-plan-card">
       <div className="relative overflow-hidden rounded-2xl border border-blue-500/40 bg-card/90 backdrop-blur-xl">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/5 dark:from-blue-500/15 dark:to-cyan-500/10" />
 
@@ -278,6 +278,7 @@ const PlanConfirmationCard = ({
                 </button>
                 <button
                   type="button"
+                  data-testid="dynamic-workflow-plan-run"
                   onClick={handleConfirm}
                   disabled={submitting}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"

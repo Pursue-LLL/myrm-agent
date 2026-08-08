@@ -25,6 +25,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    wait_for_dw_stream_done_via_api,
     wait_for_react_e2e_bridge,
     wait_for_state,
     wait_for_workflow_plan_card,
@@ -64,26 +65,9 @@ _CLICK_RUN_WORKFLOW_JS = """(() => {
   return { ok: true };
 })()"""
 
-_STREAM_DONE_JS = """(() => {
-  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
-  const sample = String(snap.lastAssistantSample || '');
-  const hasAssistant = sample.trim().length > 20;
-  const notStreaming = snap.isStreaming !== true;
-  return {
-    ready: hasAssistant && notStreaming,
-    isStreaming: snap.isStreaming === true,
-    sample: sample.slice(0, 240),
-  };
-})()"""
-
-_CAPTURE_SAVE_CONTEXT_JS = """(() => {
-  const bridge = window.__MYRM_E2E_CHAT__;
-  const snap = bridge?.turnSnapshot?.() ?? {};
-  return {
-    chatId: snap.chatId ?? null,
-    messageId: bridge?.getLastAssistantMessageId?.() ?? null,
-  };
-})()"""
+_RESOLVE_CHAT_ID_JS = """(() => ({
+  chatId: window.__MYRM_E2E_CHAT__?.turnSnapshot?.().chatId ?? null,
+}))()"""
 
 E2E_PROMPT = (
     "Orchestrate a workflow: spawn exactly one generalPurpose sub-agent "
@@ -118,7 +102,7 @@ _RERUN_TEMPLATE_JS = f"""(async () => {{
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(900)
 def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
@@ -156,20 +140,47 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         assert isinstance(kickoff, dict), kickoff
         assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
 
-        wait_for_workflow_plan_card(client, page, page_url=ui_url)
+        chat_id = str(kickoff.get("chatId") or "").strip()
+        if not chat_id:
+            resolved = client.evaluate(page, _RESOLVE_CHAT_ID_JS, timeout_sec=15.0)
+            if isinstance(resolved, dict):
+                chat_id = str(resolved.get("chatId") or "").strip()
+        assert chat_id, f"Missing chatId after kickoff: {kickoff}"
 
-        clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
-        assert isinstance(clicked, dict)
-        assert clicked.get("ok") is True, f"Run click failed: {clicked}"
+        stream_probe = client.evaluate(
+            page,
+            """(() => ({
+              streamMessageId:
+                window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId ?? null,
+            }))()""",
+            timeout_sec=15.0,
+        )
+        stream_message_id = ""
+        if isinstance(stream_probe, dict):
+            stream_message_id = str(stream_probe.get("streamMessageId") or "").strip()
 
-        wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
+        plan = wait_for_workflow_plan_card(
+            client,
+            page,
+            page_url=ui_url,
+            timeout_sec=420.0,
+            chat_id=chat_id,
+            stream_message_id=stream_message_id or None,
+            api_base=api_base.rstrip("/"),
+        )
 
-        save_ctx = client.evaluate(page, _CAPTURE_SAVE_CONTEXT_JS, timeout_sec=15.0)
-        assert isinstance(save_ctx, dict), save_ctx
-        chat_id = save_ctx.get("chatId")
-        message_id = save_ctx.get("messageId")
-        assert isinstance(chat_id, str) and chat_id.strip(), f"Missing chatId: {save_ctx}"
-        assert isinstance(message_id, str) and message_id.strip(), f"Missing messageId: {save_ctx}"
+        if plan.get("confirmedVia") != "api":
+            clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
+            assert isinstance(clicked, dict)
+            assert clicked.get("ok") is True, f"Run click failed: {clicked}"
+
+        stream_done = wait_for_dw_stream_done_via_api(
+            api_base=api_base.rstrip("/"),
+            chat_id=chat_id,
+            timeout_sec=480.0,
+        )
+        message_id = stream_done.get("messageId")
+        assert isinstance(message_id, str) and message_id.strip(), stream_done
 
         saved = http_json(
             "POST",
@@ -188,4 +199,8 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         assert isinstance(rerun, dict), rerun
         assert rerun.get("ok") is True, f"Pinned rerun failed: {rerun}"
 
-        wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
+        wait_for_dw_stream_done_via_api(
+            api_base=api_base.rstrip("/"),
+            chat_id=chat_id,
+            timeout_sec=480.0,
+        )

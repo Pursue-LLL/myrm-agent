@@ -1079,7 +1079,27 @@ export default function E2EChatBridge() {
         const users = state.messages.filter((message) => message.role === 'user');
         const assistants = state.messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
-        const assistantText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        const assistantText = (() => {
+          const content = lastAssistant?.content;
+          if (typeof content === 'string') {
+            return content;
+          }
+          if (Array.isArray(content)) {
+            return content
+              .map((part) => {
+                if (typeof part === 'string') {
+                  return part;
+                }
+                if (part && typeof part === 'object' && 'text' in part) {
+                  const text = (part as { text?: unknown }).text;
+                  return typeof text === 'string' ? text : '';
+                }
+                return '';
+              })
+              .join('');
+          }
+          return '';
+        })();
         const pending = state.pendingExplicitSkillActivation;
         const boundSkillIds = state.agentConfig?.selectedSkillIds ?? [];
         const skillCatalog = useSkillStore.getState();

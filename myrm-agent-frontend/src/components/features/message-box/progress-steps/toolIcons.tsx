@@ -246,6 +246,11 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   archive_checkpoint: 'thinking',
   memory_archived: 'thinking',
   allowed_tools_rejected_recovery: 'safety',
+  thinking_signature_recovery: 'safety',
+  tool_history_recovery: 'safety',
+  image_shrink_recovery: 'safety',
+  long_context_tier_recovery: 'safety',
+  media_rejected_recovery: 'safety',
 };
 
 // 默认类别
