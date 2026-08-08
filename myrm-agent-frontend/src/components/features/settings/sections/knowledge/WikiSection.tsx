@@ -194,6 +194,7 @@ export function WikiSection() {
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isRepairingPublication, setIsRepairingPublication] = useState(false);
   const [isReindexingVectors, setIsReindexingVectors] = useState(false);
+  const [reindexErrors, setReindexErrors] = useState<string[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [purposeDraft, setPurposeDraft] = useState('');
@@ -1061,13 +1062,18 @@ export function WikiSection() {
 
   const handleReindexVectors = async () => {
     setIsReindexingVectors(true);
+    setReindexErrors([]);
     try {
       const result = await wikiService.reindexVectors(agentScopeId);
+      setReindexErrors(result.errors ?? []);
       if (result.success) {
         toast.success(
           t('success.reindexVectorsComplete', {
-            reindexed: result.reindexed,
+            concepts: result.concepts_reindexed,
+            sidecars: result.sidecars_reindexed,
+            assets: result.assets_indexed,
             scanned: result.scanned,
+            skippedDrafts: result.skipped_drafts,
           }),
         );
       } else {
@@ -1783,6 +1789,28 @@ export function WikiSection() {
                 {isReindexingVectors ? t('reindexingVectors') : t('actions.reindexVectors')}
               </Button>
               </div>
+              {reindexErrors.length > 0 ? (
+                <div
+                  className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm"
+                  data-testid="wiki-reindex-errors"
+                >
+                  <p className="font-medium text-amber-800 dark:text-amber-200">
+                    {t('reindexErrorsTitle', { count: reindexErrors.length })}
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                    {reindexErrors.slice(0, 8).map((entry) => (
+                      <li key={entry} className="break-all">
+                        {entry}
+                      </li>
+                    ))}
+                  </ul>
+                  {reindexErrors.length > 8 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t('reindexErrorsTruncated', { count: reindexErrors.length - 8 })}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

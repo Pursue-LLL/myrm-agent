@@ -2,6 +2,7 @@
 
 [INPUT]
 - Feishu OpenAPI /docx/v1/documents/{id}/blocks payload (raw JSON)
+- app.services.wiki.source_sync.feishu_render_inline (POS: inline element renderers)
 
 [OUTPUT]
 - feishu_docx_blocks_to_markdown: full docx block payload → GFM Markdown
@@ -15,8 +16,14 @@ are resolved by the caller (feishu.py) after download.
 from __future__ import annotations
 
 import re
-from datetime import datetime
-from urllib.parse import unquote
+
+from app.services.wiki.source_sync.feishu_render_inline import (
+    _as_elements,
+    _decode_url,
+    _escape_md,
+    _plain_text,
+    _render_elements,
+)
 
 # Docx block_type enum (Feishu OpenAPI, verified against official docs)
 _BLOCK_TEXT = 2
@@ -43,22 +50,6 @@ _ROOT_PARENT = "<root>"
 
 FEISHU_IMAGE_PREFIX = "feishu-image:"
 FEISHU_IMAGE_RE = re.compile(rf"{FEISHU_IMAGE_PREFIX}([^\s)]+)")
-
-_MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-!|>~$])")
-
-
-def _escape_md(text: str) -> str:
-    """Escape Markdown special characters in plain text."""
-    return _MARKDOWN_SPECIAL.sub(r"\\\1", text)
-
-
-def _wrap_inline_code(text: str) -> str:
-    """Wrap text in inline code, handling nested backticks."""
-    max_run = max((len(m) for m in re.findall(r"`+", text)), default=0)
-    fence = "`" * (max_run + 1)
-    needs_padding = text.startswith("`") or text.endswith("`")
-    body = f" {text} " if needs_padding else text
-    return f"{fence}{body}{fence}"
 
 
 def feishu_docx_blocks_to_markdown(payload: dict[str, object]) -> str | None:
@@ -302,94 +293,6 @@ def _block_text(block: dict[str, object]) -> str:
     return ""
 
 
-def _render_elements(elements: object) -> str:
-    parts: list[str] = []
-    for element in _as_elements(elements):
-        rendered = _render_element(element)
-        if rendered:
-            parts.append(rendered)
-    return "".join(parts).strip()
-
-
-def _render_element(element: dict[str, object]) -> str:
-    text_run = element.get("text_run")
-    if isinstance(text_run, dict):
-        raw = text_run.get("content")
-        content = raw if isinstance(raw, str) else ""
-        style = text_run.get("text_element_style")
-        style_dict = style if isinstance(style, dict) else {}
-        link = style_dict.get("link")
-        if isinstance(link, dict):
-            url = _decode_url(link.get("url"))
-            if url:
-                return f"[{_apply_inline_style(content, style_dict)}](<{url}>)"
-        return _apply_inline_style(content, style_dict)
-
-    # @用户: Feishu only returns the OpenID, which is meaningless in rendered
-    # docs; keep a semantic placeholder so the mention is not silently dropped.
-    if isinstance(element.get("mention_user"), dict):
-        return "@用户"
-
-    mention_doc = element.get("mention_doc")
-    if isinstance(mention_doc, dict):
-        doc_url = _decode_url(mention_doc.get("url"))
-        return f"[@文档](<{doc_url}>)" if doc_url else "@文档"
-
-    reminder = element.get("reminder")
-    if isinstance(reminder, dict):
-        return _render_reminder(reminder)
-
-    # Inline formula: Feishu stores KaTeX-compatible source, which MarkdownContent
-    # renders via rehype-katex.
-    equation = element.get("equation")
-    if isinstance(equation, dict):
-        eq_content = equation.get("content")
-        if isinstance(eq_content, str) and eq_content:
-            return f"${eq_content}$"
-
-    return ""
-
-
-def _render_reminder(reminder: dict[str, object]) -> str:
-    """Render a Feishu date reminder (millisecond epoch) as a readable date."""
-    raw = reminder.get("expire_time")
-    if not isinstance(raw, int) or raw <= 0:
-        return "@日期"
-    try:
-        date = datetime.fromtimestamp(raw / 1000).strftime("%Y-%m-%d")
-    except (OverflowError, OSError, ValueError):
-        return "@日期"
-    return f"@{date}"
-
-
-def _decode_url(raw: object) -> str:
-    """Decode percent-encoded Feishu link URLs (e.g. https%3A%2F%2F...)."""
-    url = raw if isinstance(raw, str) else ""
-    url = unquote(url).strip()
-    if url.startswith("<") and url.endswith(">"):
-        return url[1:-1]
-    return url
-
-
-def _apply_inline_style(text: str, style: dict[str, object]) -> str:
-    """Apply Feishu inline text styles to Markdown (syntax aligned with parser.py)."""
-    if style.get("inline_code"):
-        return _wrap_inline_code(text)
-
-    rendered = _escape_md(text)
-    if not rendered:
-        return ""
-    if style.get("bold"):
-        rendered = f"**{rendered}**"
-    if style.get("italic"):
-        rendered = f"*{rendered}*"
-    if style.get("underline"):
-        rendered = f"<u>{rendered}</u>"
-    if style.get("strikethrough"):
-        rendered = f"~~{rendered}~~"
-    return rendered
-
-
 def _render_code_block(block: dict[str, object]) -> str:
     section = block.get("code")
     if not isinstance(section, dict):
@@ -405,21 +308,6 @@ def _render_code_block(block: dict[str, object]) -> str:
     fence = "`" * max(3, max_run + 1)
     trailing = "" if code.endswith("\n") else "\n"
     return f"{fence}{language}\n{code}{trailing}{fence}"
-
-
-def _plain_text(element: dict[str, object]) -> str:
-    text_run = element.get("text_run")
-    if isinstance(text_run, dict):
-        content = text_run.get("content")
-        if isinstance(content, str):
-            return content
-    return ""
-
-
-def _as_elements(elements: object) -> list[dict[str, object]]:
-    if not isinstance(elements, list):
-        return []
-    return [element for element in elements if isinstance(element, dict)]
 
 
 def _todo_done(block: dict[str, object]) -> bool:
@@ -459,3 +347,10 @@ def _render_link_preview(block: dict[str, object]) -> str:
     if title:
         return title
     return ""
+
+
+__all__ = [
+    "FEISHU_IMAGE_PREFIX",
+    "FEISHU_IMAGE_RE",
+    "feishu_docx_blocks_to_markdown",
+]

@@ -36,13 +36,12 @@ from mcp_chat_ui import McpChatSession
 from resume_turn_contract import (
     RESUME_BUSY_BACKOFF_SEC,
     RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC,
-    RESUME_UI_ACK_EVALUATE_TIMEOUT_SEC,
     parallel_active_test_count,
     resolve_done_poll_fetch_timeout_sec,
     resolve_stream_converge_poll_timeout_sec,
 )
 from e2e_lease_heartbeat import heartbeat_e2e_lease
-from mcp_chat_ui import McpChatSession
+from dev_gate_contract import EvaluateIntent
 from e2e_resource_ledger import E2EResourceLedger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -224,8 +223,7 @@ async def run_browser_takeover_live_flow(
                 lastAssistantSample: turn.lastAssistantSample ?? null,
               };
             })()""",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.BRIDGE_POLL,
         )
     _p(f"pre-Done diag: {pre_done_diag}")
 
@@ -244,8 +242,7 @@ async def run_browser_takeover_live_flow(
         try:
             await chat.evaluate(
                 """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
-                await_promise=False,
-                recv_timeout=15.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
         except (RuntimeError, TimeoutError):
             pass
@@ -261,8 +258,7 @@ async def run_browser_takeover_live_flow(
               }
               return await bridge.completeBrowserTakeoverWithResume();
             })()""",
-            await_promise=True,
-            recv_timeout=RESUME_UI_ACK_EVALUATE_TIMEOUT_SEC,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
     except TimeoutError:
         _p("ResumeTurnContract UI_ACK MUX timeout — quiesce then STREAM_CONVERGE")

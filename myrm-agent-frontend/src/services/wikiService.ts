@@ -378,7 +378,12 @@ export interface ReindexVectorsResponse {
   success: boolean;
   scanned: number;
   reindexed: number;
+  concepts_reindexed: number;
+  sidecars_reindexed: number;
+  assets_indexed: number;
+  skipped_drafts: number;
   failed: number;
+  errors: string[];
   message: string;
 }
 

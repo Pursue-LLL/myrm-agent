@@ -16,6 +16,7 @@ myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
 myrm_agent_harness.agent.context_management.infra.cache_policy
+myrm_agent_harness.agent.context_management.infra.context_budget
 myrm_agent_harness.agent.context_management.infra.evicted_content
 myrm_agent_harness.agent.context_management.infra.evicted_reader
 myrm_agent_harness.agent.context_management.infra.schemas
@@ -208,6 +209,7 @@ myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
+myrm_agent_harness.core.config.model_tier
 myrm_agent_harness.core.events
 myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
@@ -470,6 +472,7 @@ myrm_agent_harness.toolkits.wiki.portability.vault_archive
 myrm_agent_harness.toolkits.wiki.portability.vault_git
 myrm_agent_harness.toolkits.wiki.retrieval.asset_index
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
+myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors
 myrm_agent_harness.toolkits.wiki.retrieval.source_citations
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils
@@ -489,6 +492,7 @@ myrm_agent_harness.utils.logger_utils
 myrm_agent_harness.utils.media
 myrm_agent_harness.utils.media.image_compressor
 myrm_agent_harness.utils.mime_types
+myrm_agent_harness.utils.response_locale
 myrm_agent_harness.utils.runtime.cancellation
 myrm_agent_harness.utils.runtime.progress_sink
 myrm_agent_harness.utils.runtime.steering

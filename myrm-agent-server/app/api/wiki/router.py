@@ -448,7 +448,12 @@ class ReindexVectorsResponse(BaseModel):
     success: bool
     scanned: int
     reindexed: int
+    concepts_reindexed: int
+    sidecars_reindexed: int
+    assets_indexed: int
+    skipped_drafts: int
     failed: int
+    errors: list[str] = Field(default_factory=list)
     message: str
 
 
@@ -1977,19 +1982,27 @@ async def reindex_wiki_vectors(
         str | None, Query(description="Agent whose wiki vault to use")
     ] = None,
 ) -> ReindexVectorsResponse:
-    """Rebuild published concept vectors with the current embedding model and chunk policy."""
+    """Rebuild published concept, sidecar, and optional asset vectors with the current embedding model."""
+    from app.services.wiki.asset_index_service import ensure_archiver_asset_indexer
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
     from myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors import (
         reindex_published_vectors,
     )
 
+    await ensure_archiver_asset_indexer(archiver)
     result = await reindex_published_vectors(
         archiver._structure,
         archiver._query_engine._indexer,
+        asset_indexer=archiver._asset_indexer,
     )
     message = (
-        f"Reindexed {result.reindexed} of {result.scanned} scanned concepts"
+        f"Reindexed {result.concepts_reindexed} concepts, "
+        f"{result.sidecars_reindexed} sidecars, {result.assets_indexed} assets "
+        f"({result.scanned} concepts scanned"
     )
+    if result.skipped_drafts:
+        message = f"{message}; {result.skipped_drafts} drafts skipped"
+    message = f"{message})"
     if result.failed:
         message = f"{message}; {result.failed} failed"
     if result.reindexed > 0 or result.failed > 0:
@@ -1999,7 +2012,12 @@ async def reindex_wiki_vectors(
         success=result.failed == 0,
         scanned=result.scanned,
         reindexed=result.reindexed,
+        concepts_reindexed=result.concepts_reindexed,
+        sidecars_reindexed=result.sidecars_reindexed,
+        assets_indexed=result.assets_indexed,
+        skipped_drafts=result.skipped_drafts,
         failed=result.failed,
+        errors=list(result.errors),
         message=message,
     )
 

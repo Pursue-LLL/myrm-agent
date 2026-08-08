@@ -6,6 +6,7 @@ import asyncio
 import time
 
 from mcp_chat_ui import McpChatSession
+from dev_gate_contract import EvaluateIntent
 
 
 def is_gate_mux_stall(exc: BaseException) -> bool:
@@ -31,15 +32,14 @@ async def gate_probe_evaluate(
     chat: McpChatSession,
     expression: str,
     *,
-    await_promise: bool = False,
+    intent: EvaluateIntent = EvaluateIntent.SYNC_PROBE,
     label: str = "evaluate",
 ) -> object | None:
     """Probe-mode evaluate that tolerates transient MUX stalls during LLM streaming."""
     try:
         return await chat.evaluate(
             expression,
-            await_promise=await_promise,
-            recv_timeout=15.0,
+            intent=intent,
         )
     except RuntimeError as exc:
         if is_gate_mux_stall(exc):
@@ -63,8 +63,7 @@ async def quiesce_mux_before_retry(chat: McpChatSession) -> None:
     try:
         await chat.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
-            await_promise=False,
-            recv_timeout=15.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
     except (RuntimeError, TimeoutError):
         pass

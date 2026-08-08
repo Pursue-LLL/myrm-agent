@@ -13,7 +13,7 @@ from cdp_chat_support import (
 )
 from mcp_chat_ui import McpChatSession
 from e2e_lease_heartbeat import heartbeat_e2e_lease
-from dev_gate_contract import GATE_MUX_STALL_FAIL_FAST_SEC
+from dev_gate_contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
@@ -166,7 +166,7 @@ async def maybe_recover_browser_takeover(
     recover = await gate_probe_evaluate(
         chat,
         RECOVER_BROWSER_TAKEOVER_JS,
-        await_promise=True,
+        intent=EvaluateIntent.AGENT_SUBMIT,
         label="recover_takeover",
     )
     if recover is None:
@@ -346,13 +346,13 @@ async def wait_takeover_banner(
 
 async def prepare_browser_turn(chat: McpChatSession) -> None:
     connect = await chat.evaluate(
-        SET_BROWSER_CONNECT_JS, await_promise=False, recv_timeout=15.0
+        SET_BROWSER_CONNECT_JS, intent=EvaluateIntent.SYNC_PROBE
     )
     assert isinstance(connect, dict)
     assert connect.get("ok") is True, f"Failed to set browser source connect: {connect}"
     enabled = await chat.evaluate(
-        ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0
+        ENABLE_BROWSER_JS, intent=EvaluateIntent.SYNC_PROBE
     )
     assert isinstance(enabled, dict)
     assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
-    await chat.evaluate(ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
+    await chat.evaluate(ENABLE_YOLO_JS, intent=EvaluateIntent.SYNC_PROBE)

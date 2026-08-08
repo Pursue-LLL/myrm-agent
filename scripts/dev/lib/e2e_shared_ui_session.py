@@ -24,6 +24,7 @@ import urllib.error
 from typing import Literal, Protocol, runtime_checkable
 
 from cdp_chat_support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
+from dev_gate_contract import EvaluateIntent
 
 E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"
 SearchPolicy = Literal["empty", "hydrate_private"]
@@ -76,17 +77,24 @@ RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS = """(() => {
 
 HYDRATE_PRIVATE_SEARCH_JS = """(async () => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.syncSearchServicesFromE2eApi) {
-    return { ok: false, err: 'no-bridge', phase: 'SEARCH_POLICY' };
-  }
+  // BRIDGE_READY may pass, then a parallel warm-shell reclaim / navigate can
+  // reload the page and momentarily drop __MYRM_E2E_CHAT__ before React remounts
+  // the bridge. Fail-fast on a transient no-bridge strands the SEARCH_POLICY
+  // contract; instead poll for the bridge inside the deadline like BRIDGE_READY.
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) {
-    const sync = await bridge.syncSearchServicesFromE2eApi();
-    if (sync?.ok && (sync.count ?? 0) > 0) {
-      return { ok: true, count: sync.count, phase: 'SEARCH_POLICY' };
+    const liveBridge = window.__MYRM_E2E_CHAT__;
+    if (liveBridge?.syncSearchServicesFromE2eApi) {
+      const sync = await liveBridge.syncSearchServicesFromE2eApi();
+      if (sync?.ok && (sync.count ?? 0) > 0) {
+        return { ok: true, count: sync.count, phase: 'SEARCH_POLICY' };
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const finalBridge = window.__MYRM_E2E_CHAT__;
+  if (!finalBridge?.syncSearchServicesFromE2eApi) {
+    return { ok: false, err: 'no-bridge', phase: 'SEARCH_POLICY' };
   }
   return { ok: false, err: 'empty-search-configs', phase: 'SEARCH_POLICY' };
 })()"""
@@ -144,6 +152,7 @@ class SharedUiSessionChat(Protocol):
         *,
         await_promise: bool = False,
         recv_timeout: float = 30.0,
+        intent: EvaluateIntent | None = None,
     ) -> object: ...
 
     async def ensure_e2e_api_base_binding(self) -> None: ...
@@ -248,8 +257,7 @@ def _extend_shared_ui_deadline_if_wall_allows(
 async def _evaluate_bridge_probe(chat: SharedUiSessionChat) -> dict[str, object]:
     probe_raw = await chat.evaluate(
         BRIDGE_READY_PROBE_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
     )
     return probe_raw if isinstance(probe_raw, dict) else {"value": probe_raw}
 
@@ -274,8 +282,7 @@ async def _apply_empty_search_block(
         try:
             probe = await chat.evaluate(
                 "(() => ({ ok: true, blocked: !!window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ }))()",
-                await_promise=False,
-                recv_timeout=10.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
         except (RuntimeError, TimeoutError):
             probe = None
@@ -289,8 +296,7 @@ async def _apply_empty_search_block(
         pass
     block_raw = await chat.evaluate(
         SET_EMPTY_SEARCH_BLOCK_JS,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
     )
     if not isinstance(block_raw, dict) or block_raw.get("ok") is not True:
         raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", block_raw)
@@ -436,8 +442,7 @@ async def apply_shared_ui_session_contract(
     )
     reset_raw = await chat.evaluate(
         reset_js,
-        await_promise=False,
-        recv_timeout=15.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
     )
     if not isinstance(reset_raw, dict) or reset_raw.get("ok") is not True:
         raise _session_error("E2E_SHARED_UI_SESSION_RESET", reset_raw)
@@ -602,8 +607,7 @@ async def apply_shared_ui_session_contract(
     else:
         search_raw = await chat.evaluate(
             HYDRATE_PRIVATE_SEARCH_JS,
-            await_promise=True,
-            recv_timeout=45.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         search_result = (
             search_raw if isinstance(search_raw, dict) else {"value": search_raw}

@@ -21,7 +21,7 @@ class CdpChatTransport:
         self._ws = ws
         self._mid = mid if mid is not None else [0]
 
-    async def bridge_chat_id(self, *, recv_timeout: float = 15.0) -> str | None:
+    async def bridge_chat_id(self) -> str | None:
         from cdp_chat_support import BRIDGE_CHAT_ID_JS
 
         result = await self.evaluate(
@@ -37,7 +37,6 @@ class CdpChatTransport:
         *,
         path: str | None = None,
         hint: str | None = None,
-        recv_timeout: float = 15.0,
     ) -> str | None:
         from cdp_chat_support import chat_id_from_path
 
@@ -47,7 +46,7 @@ class CdpChatTransport:
             chat_id = chat_id_from_path(path)
             if chat_id:
                 return chat_id
-        return await self.bridge_chat_id(recv_timeout=recv_timeout)
+        return await self.bridge_chat_id()
 
     async def evaluate(
         self,
