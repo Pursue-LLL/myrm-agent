@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /**
- * Export remaining translation shells for a locale using verify-i18n gate logic.
+ * [INPUT] locales/en.json + locales/<locale>.json (POS: 六语翻译 SSOT)
+ *         scripts/i18n-shell-core.mjs (POS: 壳检测共享逻辑)
+ *         scripts/i18n-shell-allowlist.json (POS: 壳检测豁免清单)
+ * [OUTPUT] 剩余翻译壳清单（TSV 或 JSON，stdout 或 --out 文件）
+ * [POS] 批量翻译工作流辅助脚本。按 verify-i18n 同款壳检测逻辑导出待翻译键清单。
  *
  * Usage:
  *   node scripts/i18n-dump-remaining.mjs <locale>
  *   node scripts/i18n-dump-remaining.mjs de --json --limit 250 --offset 0
  *   node scripts/i18n-dump-remaining.mjs de --stats
- *
- * Output (default TSV): dottedKey<TAB>enValue
- * With --json: [{ "key", "en" }, ...]
  */
 
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { collectTranslationShells, loadShellAllowlist } from './i18n-shell-core.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -34,100 +36,13 @@ const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;
 const offset = offsetIdx >= 0 ? Number(args[offsetIdx + 1]) : 0;
 const outFile = outIdx >= 0 ? args[outIdx + 1] : undefined;
 
-let ALLOWED_SAME_VALUES = new Set();
-let ALLOWED_SAME_KEYS = new Set();
+let allowlists;
 try {
-  const allowlist = JSON.parse(
-    readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'),
-  );
-  ALLOWED_SAME_VALUES = new Set(allowlist.allowedSameValues || []);
-  ALLOWED_SAME_KEYS = new Set(allowlist.allowedSameKeys || []);
+  allowlists = loadShellAllowlist(rootDir);
 } catch (error) {
-  console.error(`无法加载 i18n-shell-allowlist.json: ${error.message}`);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`无法加载 i18n-shell-allowlist.json: ${message}`);
   process.exit(1);
-}
-
-function walkTypes(obj, prefix, out) {
-  if (Array.isArray(obj)) {
-    out.set(prefix, 'array');
-    return;
-  }
-  if (obj && typeof obj === 'object') {
-    const keys = Object.keys(obj);
-    if (keys.length === 0) {
-      out.set(prefix, 'object');
-      return;
-    }
-    for (const key of keys) {
-      walkTypes(obj[key], prefix ? `${prefix}.${key}` : key, out);
-    }
-    return;
-  }
-  out.set(prefix, typeof obj);
-}
-
-function resolvePath(obj, dottedPath) {
-  let node = obj;
-  for (const part of dottedPath.split('.')) {
-    if (node == null || typeof node !== 'object') return undefined;
-    node = node[part];
-  }
-  return node;
-}
-
-function isLegitSameValue(value) {
-  if (!value) return true;
-  if (value.length < 3) return true;
-  if (/[\u0080-\uFFFF]/.test(value)) return true;
-  if (/[{}$%^]/.test(value)) return true;
-  if (/https?:\/\//.test(value) || value.includes('/') || value.includes('\\')) return true;
-  if (/^[\d\s.,-]+$/.test(value)) return true;
-  if (value.includes('...')) return true;
-  if (!value.includes(' ') && /^[A-Z0-9][A-Z0-9._-]*$/.test(value)) return true;
-  return false;
-}
-
-function isShell(key, enValue, localeValue) {
-  if (typeof enValue !== 'string' || typeof localeValue !== 'string') return false;
-  if (localeValue !== enValue || enValue.length <= 2) return false;
-  if (isLegitSameValue(enValue)) return false;
-  if (ALLOWED_SAME_VALUES.has(enValue)) return false;
-  if (ALLOWED_SAME_KEYS.has(key)) return false;
-  return true;
-}
-
-function collectShells(enData, localeData) {
-  const enTypes = new Map();
-  walkTypes(enData, '', enTypes);
-  const shells = [];
-
-  const visit = (key, enValue, localeValue) => {
-    if (Array.isArray(enValue)) {
-      enValue.forEach((item, index) => {
-        const localeItem = Array.isArray(localeValue) ? localeValue[index] : undefined;
-        if (typeof item === 'string' && typeof localeItem === 'string') {
-          visit(`${key}[${index}]`, item, localeItem);
-        }
-      });
-      return;
-    }
-    if (typeof enValue === 'string' && typeof localeValue === 'string') {
-      if (isShell(key, enValue, localeValue)) {
-        shells.push({ key, en: enValue });
-      }
-    }
-  };
-
-  for (const key of enTypes.keys()) {
-    if (!key) continue;
-    const enValue = resolvePath(enData, key);
-    const localeValue = resolvePath(localeData, key);
-    if (enValue === undefined || localeValue === undefined) continue;
-    visit(key, enValue, localeValue);
-  }
-
-  shells.sort((a, b) => a.key.localeCompare(b.key));
-  return shells;
 }
 
 function namespaceStats(shells) {
@@ -141,7 +56,7 @@ function namespaceStats(shells) {
 
 const enData = JSON.parse(readFileSync(resolve(rootDir, 'locales/en.json'), 'utf-8'));
 const localeData = JSON.parse(readFileSync(resolve(rootDir, `locales/${locale}.json`), 'utf-8'));
-const shells = collectShells(enData, localeData);
+const shells = collectTranslationShells(enData, localeData, allowlists);
 
 if (statsOnly) {
   console.log(`${locale}.json shells: ${shells.length}`);

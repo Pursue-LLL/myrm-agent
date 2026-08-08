@@ -1,9 +1,30 @@
 #!/usr/bin/env bash
-# Dev stack pid/log path SSOT. State under MYRM_DEV_STATE_DIR (default ~/.local/state/myrm-dev).
+# Dev stack pid/log path SSOT. State under MYRM_DEV_STATE_DIR
+# (default: real user home, mirroring wave_orchestrator/paths.py `_real_user_home()`
+# which bypasses sandboxed HOME such as ~/.cursor2 injected by the Cursor runtime).
 set -euo pipefail
 
 dev_state_dir() {
-  echo "${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  # WAVE override wins over DEV (mirror resolve_dev_state_dir()).
+  if [[ -n "${MYRM_WAVE_STATE_DIR:-}" ]]; then
+    echo "${MYRM_WAVE_STATE_DIR}"
+    return 0
+  fi
+  if [[ -n "${MYRM_DEV_STATE_DIR:-}" ]]; then
+    echo "${MYRM_DEV_STATE_DIR}"
+    return 0
+  fi
+  local real_home
+  real_home="$(python3 -c '
+import os
+import pwd
+try:
+    print(pwd.getpwuid(os.getuid()).pw_dir)
+except (KeyError, OSError):
+    print(os.path.expanduser("~"))
+' 2>/dev/null || true)"
+  real_home="${real_home:-${HOME}}"
+  printf '%s/.local/state/myrm-dev' "${real_home}"
 }
 
 dev_backend_pid_file() {

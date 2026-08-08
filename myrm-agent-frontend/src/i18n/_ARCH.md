@@ -47,4 +47,5 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 
 deferred 顶层 namespace 仅 `channels`；`memory` 必须在 SSR shell（`ChatWindow` 等首屏组件引用）。
 home-route `settings.*` 引用必须通过 `scripts/scan-home-i18n-shell.mjs`（CI 在 verify-i18n 内执行）。
-i18n 质量门禁（`bun run verify:i18n`）：en 为唯一 SSOT，各语言必须与 en 键全集一致、叶子类型一致、ICU 占位符变量一致，且不得存在「与英文相同的翻译壳」（豁免清单 `scripts/i18n-shell-allowlist.json`）。
+i18n 质量门禁（`bun run verify:i18n`）：en 为唯一 SSOT，各语言必须与 en 键全集一致、叶子类型一致、ICU 占位符变量一致，且不得存在「与英文相同的翻译壳」（豁免清单 `scripts/i18n-shell-allowlist.json`；壳检测逻辑 SSOT 在 `scripts/i18n-shell-core.mjs`）。
+内容补齐工作流：`scripts/i18n-dump-remaining.mjs` 导出剩余壳 → `scripts/translation-patches/<locale>/batch-NN.json` → `scripts/i18n-patch-apply.mjs`；术语约束见 `scripts/i18n-glossary.json`（de Sie-Form / ko 敬语）。

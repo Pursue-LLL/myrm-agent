@@ -1,4 +1,11 @@
-"""Effective Managed Approval Policy API (read-only, sandbox env derived)."""
+"""Effective Managed Approval Policy API (read-only, sandbox env derived).
+
+[INPUT]
+- myrm_agent_harness.agent.security.managed_approval_policy::get_process_managed_approval_policy (POS: 进程级 MAP)
+
+[OUTPUT]
+- REST GET /security/managed-policy/effective → public MAP payload + active flag
+"""
 
 from __future__ import annotations
 

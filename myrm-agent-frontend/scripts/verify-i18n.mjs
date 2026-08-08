@@ -18,6 +18,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { execSync } from 'node:child_process';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { isLegitSameValue, resolvePath, walkTypes } from './i18n-shell-core.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -498,34 +499,6 @@ try {
   hasErrors = true;
 }
 
-function walkTypes(obj, prefix, out) {
-  if (Array.isArray(obj)) {
-    out.set(prefix, 'array');
-    return;
-  }
-  if (obj && typeof obj === 'object') {
-    const keys = Object.keys(obj);
-    if (keys.length === 0) {
-      out.set(prefix, 'object');
-      return;
-    }
-    for (const key of keys) {
-      walkTypes(obj[key], prefix ? `${prefix}.${key}` : key, out);
-    }
-    return;
-  }
-  out.set(prefix, typeof obj);
-}
-
-function resolvePath(obj, dottedPath) {
-  let node = obj;
-  for (const part of dottedPath.split('.')) {
-    if (node == null || typeof node !== 'object') return undefined;
-    node = node[part];
-  }
-  return node;
-}
-
 function placeholderSet(value) {
   const matches = String(value).match(/\{([a-zA-Z_][\w.-]*)(?:,|})/g) || [];
   return matches
@@ -564,22 +537,6 @@ function isBilingualDirty(value) {
   const asciiOnly = (s) => /^[\x00-\x7F]+$/.test(s);
   const cjkOnly = (s) => !/[a-zA-Z]/.test(s) && /[\u4e00-\u9fff]/.test(s);
   return (asciiOnly(a) && cjkOnly(b)) || (cjkOnly(a) && asciiOnly(b));
-}
-
-/**
- * 值“合法保留英文”：极短词/含非 ASCII（原生文字）/模板/URL/路径/纯数字/全大写缩写豁免；
- * 其余（含单 token 英文，如 "Yes"/"GitHub"/"Webhook"）一律视为壳，仅品牌 allowlist 可豁免。
- */
-function isLegitSameValue(value) {
-  if (!value) return true;
-  if (value.length < 3) return true; // "OK"/"No" 等极短词不判壳
-  if (/[\u0080-\uFFFF]/.test(value)) return true; // 含非 ASCII（已是本地化文字）
-  if (/[{}$%^]/.test(value)) return true; // 模板 / 金额 / 指数
-  if (/https?:\/\//.test(value) || value.includes('/') || value.includes('\\')) return true;
-  if (/^[\d\s.,-]+$/.test(value)) return true;
-  if (value.includes('...')) return true;
-  if (!value.includes(' ') && /^[A-Z0-9][A-Z0-9._-]*$/.test(value)) return true; // 全大写缩写（MCP/API/RPM…）
-  return false;
 }
 
 function reportShells(locale, shells) {
