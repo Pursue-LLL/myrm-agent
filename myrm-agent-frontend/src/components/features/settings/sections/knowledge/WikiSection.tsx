@@ -48,6 +48,8 @@ import { useWikiIngestSubscription } from './useWikiIngestSubscription';
 import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
 import { ObsidianVaultActions } from './ObsidianVaultActions';
+import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
+import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
 
 interface WikiStats {
   total_concepts: number;
@@ -62,6 +64,7 @@ interface WikiStats {
   structural_issues?: {
     broken_links: number;
     invalid_frontmatter_types: number;
+    provenance_gaps: number;
     scanned_concepts: number;
   };
   asset_index?: {
@@ -179,6 +182,7 @@ export function WikiSection() {
   const [healthReport, setHealthReport] = useState<WikiHealthReport | null>(null);
   const [healthReportExpanded, setHealthReportExpanded] = useState(false);
   const [isLoadingHealthReport, setIsLoadingHealthReport] = useState(false);
+  const [healthReportLoadError, setHealthReportLoadError] = useState(false);
   const [rawTreeData, setRawTreeData] = useState<TreeNode[]>([]);
   const [treeSyncNonce, setTreeSyncNonce] = useState(0);
   const [isLoadingRawTree, setIsLoadingRawTree] = useState(false);
@@ -246,6 +250,7 @@ export function WikiSection() {
   }, [searchParams]);
 
   const rawPathFromUrl = searchParams.get('rawPath');
+  const conceptPathFromUrl = searchParams.get('conceptPath');
 
   useEffect(() => {
     const focus = searchParams.get('focus');
@@ -269,11 +274,23 @@ export function WikiSection() {
       action: {
         label: t('obsidianVault.postWorkflowAction'),
         onClick: () => {
-          document.getElementById('wiki-obsidian-vault-actions')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const params = new URLSearchParams({ tab: 'graph' });
+          if (agentScopeId) {
+            params.set('agentId', agentScopeId);
+          }
+          router.push(`/library?${params.toString()}`);
         },
       },
     });
-  }, [t]);
+  }, [agentScopeId, router, t]);
+
+  const goToKnowledgeGraph = useCallback(() => {
+    const params = new URLSearchParams({ tab: 'graph' });
+    if (agentScopeId) {
+      params.set('agentId', agentScopeId);
+    }
+    router.push(`/library?${params.toString()}`);
+  }, [agentScopeId, router]);
 
   const showObsidianResult = (result: ObsidianImportResultResponse) => {
     toast.success(
@@ -318,6 +335,39 @@ export function WikiSection() {
       toast.error(result.message);
     }
   };
+
+  const migrationVaultHandoffRef = useRef(false);
+  useEffect(() => {
+    if (migrationVaultHandoffRef.current || typeof window === 'undefined') {
+      return;
+    }
+    if (!window.location.hash.includes('wiki-obsidian-import')) {
+      return;
+    }
+    const handoff = consumeMigrationObsidianVaultImport(agentScopeId ?? undefined);
+    if (!handoff?.vaultPath) {
+      return;
+    }
+    migrationVaultHandoffRef.current = true;
+    document.getElementById('wiki-obsidian-import')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast.message(t('import.migrationVaultHandoff', { path: handoff.vaultPath }));
+    setIsImportingObsidian(true);
+    void wikiService
+      .importObsidianFolder(handoff.vaultPath, true, agentScopeId)
+      .then(async (result) => {
+        await finishImportResult(
+          result,
+          { kind: 'obsidian-folder', folderPath: handoff.vaultPath },
+          'obsidian',
+        );
+      })
+      .catch(() => {
+        toast.error(t('import.migrationVaultHandoffFailed'));
+      })
+      .finally(() => {
+        setIsImportingObsidian(false);
+      });
+  }, [agentScopeId, finishImportResult, t]);
 
   const retryImportWithSupersede = async (reason: string) => {
     if (!pendingImportRetry) {
@@ -563,6 +613,43 @@ export function WikiSection() {
 
   const loadHealthReport = useCallback(async () => {
     setIsLoadingHealthReport(true);
+    setHealthReportLoadError(false);
+    const tryE2eFetch = async (): Promise<boolean> => {
+      if (
+        typeof window === 'undefined' ||
+        sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true'
+      ) {
+        return false;
+      }
+      try {
+        const response = await fetch(
+          buildWikiApiPath('/wiki/health-report', agentScopeId),
+          { cache: 'no-store' },
+        );
+        if (!response.ok) {
+          return false;
+        }
+        const payload = (await response.json()) as WikiHealthReport | { data?: WikiHealthReport };
+        const resolved =
+          payload && typeof payload === 'object' && 'data' in payload && payload.data
+            ? payload.data
+            : (payload as WikiHealthReport);
+        setHealthReport(resolved);
+        if (resolved.open_actions_count > 0) {
+          setHealthReportExpanded(true);
+        }
+        return true;
+      } catch (fallbackError) {
+        console.warn('Wiki health report E2E fallback failed:', fallbackError);
+        return false;
+      }
+    };
+
+    if (await tryE2eFetch()) {
+      setIsLoadingHealthReport(false);
+      return;
+    }
+
     try {
       const report = await wikiService.getHealthReport(agentScopeId);
       setHealthReport(report);
@@ -571,29 +658,155 @@ export function WikiSection() {
       }
     } catch (error) {
       console.error('Failed to load wiki health report:', error);
+      if (await tryE2eFetch()) {
+        setIsLoadingHealthReport(false);
+        return;
+      }
+      setHealthReportLoadError(true);
     } finally {
       setIsLoadingHealthReport(false);
     }
   }, [agentScopeId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const host = window.location.hostname;
+    if (host !== '127.0.0.1' && host !== 'localhost') {
+      return undefined;
+    }
+
+    const applyStats = (detail: WikiStats) => {
+      setStats(detail);
+      setIsLoadingStats(false);
+    };
+    const applyHealth = (detail: WikiHealthReport) => {
+      setHealthReport(detail);
+      setHealthReportExpanded(true);
+      setHealthReportLoadError(false);
+      setIsLoadingHealthReport(false);
+    };
+
+    const bridge = window.__MYRM_E2E_WIKI__;
+    if (bridge?.registerHandlers) {
+      bridge.registerHandlers({
+        applyStats: (stats) => applyStats(stats as WikiStats),
+        applyHealth: (health) => applyHealth(health as WikiHealthReport),
+      });
+    }
+
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<WikiStats>).detail;
+      if (!detail || typeof detail !== 'object') {
+        return;
+      }
+      applyStats(detail);
+      void loadHealthReport();
+    };
+
+    window.addEventListener('myrm-e2e-wiki-stats', handler as EventListener);
+    const healthHandler = (event: Event) => {
+      const detail = (event as CustomEvent<WikiHealthReport>).detail;
+      if (!detail || typeof detail !== 'object') {
+        return;
+      }
+      applyHealth(detail);
+    };
+    window.addEventListener('myrm-e2e-wiki-health-report', healthHandler as EventListener);
+    return () => {
+      bridge?.unregisterHandlers?.();
+      window.removeEventListener('myrm-e2e-wiki-stats', handler as EventListener);
+      window.removeEventListener('myrm-e2e-wiki-health-report', healthHandler as EventListener);
+    };
+  }, [loadHealthReport]);
+
+  const navigateToHealthIssue = useCallback(
+    (location: string) => {
+      const target = resolveHealthIssueNavigationTarget(location);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('rawPath');
+      params.delete('conceptPath');
+      if (target.kind === 'raw') {
+        params.delete('wikiTab');
+        params.set('rawPath', target.path);
+        setActiveTab('overview');
+      } else {
+        params.set('wikiTab', 'concepts');
+        params.set('conceptPath', target.path);
+        setActiveTab('concepts');
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
   const loadStats = async () => {
     setIsLoadingStats(true);
     setIsLoadingRawTree(true);
+
+    const tryE2eStatsFetch = async (): Promise<boolean> => {
+      if (
+        typeof window === 'undefined' ||
+        sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true'
+      ) {
+        return false;
+      }
+      try {
+        const response = await fetch(
+          buildWikiApiPath('/wiki/stats', agentScopeId),
+          { cache: 'no-store' },
+        );
+        if (!response.ok) {
+          return false;
+        }
+        const payload = (await response.json()) as WikiStats | { data?: WikiStats };
+        const resolved =
+          payload && typeof payload === 'object' && 'data' in payload && payload.data
+            ? payload.data
+            : (payload as WikiStats);
+        setStats(resolved);
+        void loadHealthReport();
+        return true;
+      } catch (fallbackError) {
+        console.warn('Wiki stats E2E fallback failed:', fallbackError);
+        return false;
+      }
+    };
+
+    if (await tryE2eStatsFetch()) {
+      setIsLoadingStats(false);
+      setIsLoadingRawTree(false);
+      return;
+    }
+
     try {
-      const [data, rawTree, queueStatus] = await Promise.all([
-        apiRequest<WikiStats>(buildWikiApiPath('/wiki/stats', agentScopeId)),
-        wikiService.getRawTree(agentScopeId),
-        wikiService.getQueueStatus(agentScopeId),
-      ]);
+      const data = await apiRequest<WikiStats>(buildWikiApiPath('/wiki/stats', agentScopeId));
       setStats(data);
-      setRawTreeData(rawTree);
-      setCompileRun(queueStatus.compile_run ?? null);
-      await loadHealthReport();
+      void loadHealthReport();
     } catch (error) {
       console.error('Failed to load Wiki stats:', error);
+      if (await tryE2eStatsFetch()) {
+        setIsLoadingStats(false);
+        setIsLoadingRawTree(false);
+        return;
+      }
       toast.error(t('errors.loadStatsFailed'));
     } finally {
       setIsLoadingStats(false);
+    }
+
+    try {
+      const [rawTree, queueStatus] = await Promise.all([
+        wikiService.getRawTree(agentScopeId),
+        wikiService.getQueueStatus(agentScopeId),
+      ]);
+      setRawTreeData(rawTree);
+      setCompileRun(queueStatus.compile_run ?? null);
+    } catch (error) {
+      console.warn('Failed to load wiki ingest trees:', error);
+    } finally {
       setIsLoadingRawTree(false);
     }
   };
@@ -776,18 +989,14 @@ export function WikiSection() {
           toast.success(t('success.maintainComplete'));
         }
       }
-      setHealthReport({
-        mode: maintainMode,
-        generated_at: new Date().toISOString(),
-        open_actions_count: result.open_actions_count,
-        issues_found: result.issues_found,
-        issues: result.issues,
-        drift_sampled: maintainMode === 'full',
-        duplicate_groups_pending: healthReport?.duplicate_groups_pending ?? 0,
-        synthesis_pending: healthReport?.synthesis_pending ?? 0,
-      });
       setHealthReportExpanded(true);
       await loadStats();
+      setHealthReport((prev) =>
+        healthReportFromMaintainResponse(result, maintainMode, {
+          duplicate_groups_pending: prev?.duplicate_groups_pending ?? 0,
+          synthesis_pending: prev?.synthesis_pending ?? 0,
+        }),
+      );
       setTreeSyncNonce((value) => value + 1);
     } catch (error) {
       console.error('Maintain failed:', error);
@@ -855,7 +1064,7 @@ export function WikiSection() {
       scopeRevision={scopeRevision}
       scopeLabel={scopeLabel}
     >
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="wiki-settings-shell">
       <div>
         <h2 className="text-2xl font-semibold mb-2">{t('title')}</h2>
         <p className="text-muted-foreground">{t('description')}</p>
@@ -910,6 +1119,7 @@ export function WikiSection() {
             }
             onGoToProviders={() => router.push('/settings/models')}
             onGoToDuplicateReview={handleOpenDuplicateReview}
+            onGoToGraph={goToKnowledgeGraph}
           />
 
           <WikiSourceSyncPanel onGoToIntegrations={() => router.push('/settings/credentials')} />
@@ -965,15 +1175,22 @@ export function WikiSection() {
             </CardHeader>
             <CardContent>
               {!stats && !isLoadingStats && (
-                <Button onClick={loadStats} variant="outline">
+                <Button onClick={loadStats} variant="outline" data-testid="wiki-load-stats-btn">
                   {t('actions.loadStats')}
                 </Button>
               )}
 
-              {isLoadingStats && <div className="text-center py-4 text-muted-foreground">{t('loading')}</div>}
+              {isLoadingStats && (
+                <div
+                  className="text-center py-4 text-muted-foreground"
+                  data-testid="wiki-stats-loading"
+                >
+                  {t('loading')}
+                </div>
+              )}
 
               {stats && (
-                <div className="space-y-4">
+                <div className="space-y-4" data-testid="wiki-stats-panel">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span
                       className={
@@ -1002,6 +1219,13 @@ export function WikiSection() {
                       <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
                         {t('stats.invalidPageTypes', {
                           count: stats.structural_issues?.invalid_frontmatter_types ?? 0,
+                        })}
+                      </span>
+                    )}
+                    {(stats.structural_issues?.provenance_gaps ?? 0) > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
+                        {t('stats.provenanceGaps', {
+                          count: stats.structural_issues?.provenance_gaps ?? 0,
                         })}
                       </span>
                     )}
@@ -1068,20 +1292,29 @@ export function WikiSection() {
                     </p>
                   ) : null}
                   {(stats.structural_issues?.broken_links ?? 0) > 0 ||
-                  (stats.structural_issues?.invalid_frontmatter_types ?? 0) > 0 ? (
-                    <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
-                      {t('stats.structuralHint')}
-                    </p>
+                  (stats.structural_issues?.invalid_frontmatter_types ?? 0) > 0 ||
+                  (stats.structural_issues?.provenance_gaps ?? 0) > 0 ? (
+                    !healthReport && !isLoadingHealthReport && !healthReportLoadError ? (
+                      <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+                        {t('stats.structuralHint')}
+                      </p>
+                    ) : null
                   ) : null}
                   <WikiHealthIssuesSection
                     report={healthReport}
-                    isLoading={isLoadingHealthReport}
+                    isLoading={
+                      isLoadingHealthReport ||
+                      (healthReport == null && !healthReportLoadError)
+                    }
+                    loadError={healthReportLoadError}
                     expanded={healthReportExpanded}
                     onToggleExpanded={() => setHealthReportExpanded((value) => !value)}
                     onRecompile={() => void handleCompile()}
                     isRecompiling={isCompiling}
+                    onRepair={() => void handleRepairPageTypes()}
+                    isRepairing={isRepairingTypes}
+                    onNavigateIssue={navigateToHealthIssue}
                     onOpenDuplicateReview={handleOpenDuplicateReview}
-                    onOpenConcepts={() => handleWikiTabChange('concepts')}
                     onOpenPendingEdits={() => handleWikiTabChange('pendingEdits')}
                     onRefresh={() => void loadHealthReport()}
                   />
@@ -1610,6 +1843,7 @@ export function WikiSection() {
             key={`${agentScopeId ?? 'default'}-${scopeRevision}`}
             treeSyncNonce={treeSyncNonce}
             agentScopeId={agentScopeId}
+            highlightConceptPath={conceptPathFromUrl}
             onVaultMutated={() => {
               void loadStats();
             }}

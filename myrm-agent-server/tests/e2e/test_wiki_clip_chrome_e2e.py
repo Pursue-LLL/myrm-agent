@@ -36,9 +36,7 @@ def _multipart_clip_post(
     body = bytearray()
     for key, value in fields.items():
         body.extend(f"--{boundary}\r\n".encode())
-        body.extend(
-            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode()
-        )
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode())
         body.extend(value.encode("utf-8"))
         body.extend(b"\r\n")
     body.extend(f"--{boundary}--\r\n".encode())
@@ -69,7 +67,9 @@ def _multipart_clip_post(
     return payload
 
 
-def _poll_clip_job(api_url: str, job_id: str, *, timeout_sec: float = 30.0) -> dict[str, object]:
+def _poll_clip_job(
+    api_url: str, job_id: str, *, timeout_sec: float = 30.0
+) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -208,7 +208,6 @@ def _run_clip_conflict_assertions(api_url: str) -> None:
     repeat = _poll_clip_job(api_url, str(accepted_repeat.get("job_id", "")))
     assert repeat.get("conflict") is True, repeat
     assert repeat.get("written") is False, repeat
-
 
 
 @pytest.mark.chrome_e2e(

@@ -7,6 +7,7 @@ import fcntl
 import hashlib
 import json
 import os
+import select
 import socket
 import socketserver
 import tempfile
@@ -553,6 +554,30 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
             pass
 
 
+def _recv_until_newline(
+    connection: socket.socket,
+    *,
+    deadline: float,
+    max_bytes: int,
+) -> bytes:
+    """Read one newline-terminated response with select() hard deadline (R-coordinator-zombie)."""
+    raw = bytearray()
+    while len(raw) <= max_bytes:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("coordinator request timed out")
+        readable, _, _ = select.select([connection], [], [], remaining)
+        if not readable:
+            raise TimeoutError("coordinator request timed out")
+        chunk = connection.recv(min(65_536, max_bytes + 1 - len(raw)))
+        if not chunk:
+            break
+        raw.extend(chunk)
+        if b"\n" in chunk:
+            break
+    return bytes(raw)
+
+
 def request(
     payload: dict[str, object],
     *,
@@ -563,6 +588,7 @@ def request(
     deadline = time.monotonic() + max(0.1, timeout_sec)
     last_refused: ConnectionRefusedError | None = None
     last_decode: json.JSONDecodeError | None = None
+    last_timeout: TimeoutError | None = None
     while True:
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
@@ -575,16 +601,11 @@ def request(
                     json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
                     + b"\n"
                 )
-                raw = bytearray()
-                while len(raw) <= _MAX_REQUEST_BYTES:
-                    chunk = connection.recv(
-                        min(65_536, _MAX_REQUEST_BYTES + 1 - len(raw))
-                    )
-                    if not chunk:
-                        break
-                    raw.extend(chunk)
-                    if b"\n" in chunk:
-                        break
+                raw = _recv_until_newline(
+                    connection,
+                    deadline=deadline,
+                    max_bytes=_MAX_REQUEST_BYTES,
+                )
             if not raw:
                 raise json.JSONDecodeError("empty coordinator response", "", 0)
             response: object = json.loads(bytes(raw).split(b"\n", 1)[0].decode("utf-8"))
@@ -605,12 +626,19 @@ def request(
             if time.monotonic() >= deadline:
                 break
             time.sleep(min(0.05, deadline - time.monotonic()))
+        except TimeoutError as exc:
+            last_timeout = exc
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(min(0.02, deadline - time.monotonic()))
     if last_decode is not None:
         raise RuntimeError(
             f"DEV_GATE_COORDINATOR_ERROR: {last_decode.msg}"
         ) from last_decode
     if last_refused is not None:
         raise last_refused
+    if last_timeout is not None:
+        raise last_timeout
     raise TimeoutError("coordinator request timed out")
 
 

@@ -80,11 +80,20 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
     async def run_chat_flow(chat: McpChatSession) -> int:
         ui_base = _base_url()
-        await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
+        await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         await chat.click_new_chat()
         log_offset = snapshot_backend_log_offset()
-        await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-        after_first = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
+        first_send = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+        first_chat_id = str(
+            first_send.get("started", {}).get("chatId")
+            or first_send.get("submit", {}).get("chatId")
+            or ""
+        ).strip() or None
+        after_first = await chat.wait_turn_done(
+            E2E_PROMPT,
+            chat_id_hint=first_chat_id,
+            timeout_sec=TURN_WAIT_SEC,
+        )
         if str(after_first.get("path", "")).startswith("/settings"):
             pytest.fail(f"Send redirected to settings: {after_first}")
 

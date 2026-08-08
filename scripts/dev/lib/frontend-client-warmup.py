@@ -28,7 +28,9 @@ except ImportError:
     PAGE_PROBE_JS = ""
     e2e_api_base_inject_js = None  # type: ignore[assignment]
 
-_HYDRATED_EXPRESSION = PAGE_PROBE_JS or """
+_HYDRATED_EXPRESSION = (
+    PAGE_PROBE_JS
+    or """
 (() => {
   const input = document.querySelector('[data-chat-input]');
   const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
@@ -37,15 +39,20 @@ _HYDRATED_EXPRESSION = PAGE_PROBE_JS or """
   return !!fiberKey || !!(window.__MYRM_E2E_CHAT__?.setInputMessage);
 })()
 """.strip()
+)
+
 
 def _probe_hydrated(probe_value: object) -> bool:
     if not isinstance(probe_value, dict):
         return probe_value is True
+    if probe_value.get("wikiHandlersReady") is True:
+        return True
     if probe_value.get("skeleton"):
         return False
     if probe_value.get("hasInput") and probe_value.get("clientHydrated"):
         return True
     return False
+
 
 _RESET_CHAT_EXPRESSION = """
 (() => {
@@ -69,6 +76,28 @@ class CdpSocket(Protocol):
     async def send(self, message: str) -> None: ...
 
     async def recv(self) -> str | bytes: ...
+
+
+def _count_page_targets(cdp_port: int) -> int:
+    try:
+        targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
+    except (urllib.error.URLError, TimeoutError, OSError, RuntimeError):
+        return -1
+    if not isinstance(targets, list):
+        return -1
+    return sum(
+        1
+        for entry in targets
+        if isinstance(entry, dict) and entry.get("type") == "page"
+    )
+
+
+def _reuse_page_target_ceiling() -> int:
+    raw = os.environ.get("MYRM_CLIENT_WARMUP_REUSE_PAGE_CEILING", "8").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 8
 
 
 def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> object:
@@ -193,7 +222,9 @@ def _collect_page_targets(cdp_port: int) -> list[dict[str, object]]:
         ui_base = os.environ.get("APP_URL", "http://127.0.0.1:3000").strip().rstrip("/")
     ui_host = ui_base or "http://127.0.0.1:3000"
 
-    preferred: list[dict[str, object]] = []
+    home_exact = f"{ui_host}/"
+    home_preferred: list[dict[str, object]] = []
+    ui_other: list[dict[str, object]] = []
     localhost: list[dict[str, object]] = []
     for entry in targets:
         if not isinstance(entry, dict) or entry.get("type") != "page":
@@ -208,12 +239,15 @@ def _collect_page_targets(cdp_port: int) -> list[dict[str, object]]:
             continue
         item = dict(entry)
         item["__warmup_owned_target"] = False
-        if url == f"{ui_host}/" or url.startswith(f"{ui_host}/"):
-            preferred.append(item)
+        normalized = url.rstrip("/") + "/"
+        if normalized == home_exact:
+            home_preferred.append(item)
+        elif url.startswith(f"{ui_host}/"):
+            ui_other.append(item)
         elif "127.0.0.1" in url or "localhost" in url:
             localhost.append(item)
 
-    return preferred + localhost
+    return home_preferred + ui_other + localhost
 
 
 def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
@@ -276,6 +310,72 @@ def _chrome_e2e_lifecycle(event: str) -> None:
         pass
 
 
+_SETTINGS_HYDRATED_EXPRESSION = """
+(() => {
+  const deferred = document.querySelector('[data-testid="settings-deferred-loading"]');
+  const layout = document.querySelector('[data-testid="settings-layout"]');
+  const bodyLen = document.body?.innerText?.length ?? 0;
+  if (layout && !deferred) {
+    return { clientHydrated: true, hasInput: true, skeleton: false };
+  }
+  if (
+    location.pathname.startsWith('/settings') &&
+    !deferred &&
+    bodyLen > 40
+  ) {
+    return { clientHydrated: true, hasInput: true, skeleton: false };
+  }
+  return { clientHydrated: false, hasInput: false, skeleton: !!deferred };
+})()
+""".strip()
+
+_WIKI_HYDRATED_EXPRESSION = """
+(() => {
+  const deferred = document.querySelector('[data-testid="settings-deferred-loading"]');
+  const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+  const handlersReady =
+    typeof window.__MYRM_E2E_WIKI__?.isHandlersReady === 'function' &&
+    window.__MYRM_E2E_WIKI__.isHandlersReady() === true;
+  const pitfallPanel = document.querySelector('[data-testid="second-brain-pitfall-panel"]');
+  if (shell && handlersReady && !deferred && pitfallPanel) {
+    return {
+      clientHydrated: true,
+      hasInput: true,
+      skeleton: false,
+      wikiHandlersReady: true,
+      wikiPitfallReady: true,
+    };
+  }
+  if (shell && handlersReady && !deferred) {
+    return {
+      clientHydrated: true,
+      hasInput: true,
+      skeleton: false,
+      wikiHandlersReady: true,
+    };
+  }
+  if (shell && !deferred) {
+    return {
+      clientHydrated: false,
+      hasInput: false,
+      skeleton: false,
+      wikiHandlersReady: handlersReady,
+      hasShell: true,
+    };
+  }
+  return { clientHydrated: false, hasInput: false, skeleton: !!deferred, hasShell: !!shell };
+})()
+""".strip()
+
+
+def _hydration_probe_for_url(page_url: str) -> str:
+    if "/settings/wiki" in page_url:
+        return _WIKI_HYDRATED_EXPRESSION
+    if "/settings" in page_url:
+        return _SETTINGS_HYDRATED_EXPRESSION
+    return _HYDRATED_EXPRESSION
+
+
 async def _wait_for_hydration(
     ws_url: str,
     page_url: str,
@@ -292,6 +392,7 @@ async def _wait_for_hydration(
         ) from exc
 
     deadline = time.monotonic() + timeout_sec
+    hydration_probe = _hydration_probe_for_url(page_url)
 
     try:
         async with websockets.connect(
@@ -343,7 +444,7 @@ async def _wait_for_hydration(
                         ws,
                         await next_id(),
                         "Runtime.evaluate",
-                        {"expression": _HYDRATED_EXPRESSION, "returnByValue": True},
+                        {"expression": hydration_probe, "returnByValue": True},
                         deadline=deadline,
                     )
                 except (TimeoutError, RuntimeError):
@@ -452,15 +553,29 @@ async def _run_warmup(
         60.0,
         max(20.0, timeout_sec / max(1, max_attempts)),
     )
+    seal_target = os.environ.get("MYRM_WARM_SHELL_SEAL_TARGET", "").strip() == "1"
     for attempt in range(1, max_attempts + 1):
         candidates: list[dict[str, object]] = []
-        if attempt <= 2:
+        page_count = _count_page_targets(cdp_port)
+        reuse_ceiling = _reuse_page_target_ceiling()
+        force_new_target = (
+            os.environ.get("MYRM_WARM_SHELL_SEAL_APPEND", "").strip() == "1"
+            or os.environ.get("MYRM_WARM_SHELL_SEAL_TARGET", "").strip() == "1"
+        )
+        if (
+            not force_new_target
+            and attempt <= 2
+            and page_count >= 0
+            and page_count <= reuse_ceiling
+        ):
             candidates = _collect_page_targets(cdp_port)[:1]
         if not candidates:
             try:
                 candidates = [await _create_background_target(cdp_port)]
             except Exception as exc:
-                last_error = f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+                last_error = (
+                    f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+                )
                 if attempt < max_attempts:
                     await asyncio.sleep(retry_sleep_sec)
                 continue
@@ -473,13 +588,9 @@ async def _run_warmup(
             if not isinstance(target_id, str) or not target_id:
                 continue
             target_url = str(target.get("url") or "")
-            skip_navigate = (
-                not owned_target
-                and (
-                    target_url == page_url.rstrip("/")
-                    or target_url.startswith(page_url.rstrip("/") + "/")
-                    or target_url.rstrip("/") == page_url.rstrip("/")
-                )
+            home_url = page_url.rstrip("/") + "/"
+            skip_navigate = not owned_target and (
+                target_url.rstrip("/") + "/" == home_url
             )
             register_infra_target(target_id, page_url)
             ready = False
@@ -506,24 +617,51 @@ async def _run_warmup(
                 )
             finally:
                 if owned_target:
-                    try:
-                        closed = await _close_target(cdp_port, target_id)
-                    finally:
-                        if closed:
-                            unregister_infra_target(target_id)
+                    if seal_target:
+                        closed = False
+                    else:
+                        try:
+                            closed = await _close_target(cdp_port, target_id)
+                        finally:
+                            if closed:
+                                unregister_infra_target(target_id)
                 else:
                     closed = True
                     unregister_infra_target(target_id)
 
-            if ready and closed:
+            if ready and closed and not seal_target:
                 return
             if ready:
+                if seal_target and isinstance(target_id, str) and target_id:
+                    try:
+                        from warm_shell_registry import seal_platform_shell
+
+                        seal_platform_shell(
+                            ui_url=page_url,
+                            route_path="/",
+                            sealed_target_id=target_id,
+                            append_sealed_target=(
+                                os.environ.get(
+                                    "MYRM_WARM_SHELL_SEAL_APPEND", ""
+                                ).strip()
+                                == "1"
+                                or seal_target
+                            ),
+                        )
+                    except ImportError:
+                        pass
+                    print(
+                        f"CLIENT_WARMUP_SEAL: kept epoch shell target {target_id[:8]}",
+                        file=sys.stderr,
+                    )
+                    hydrated = True
+                    break
                 last_error = f"hydrated target {target_id} could not be closed"
                 hydrated = True
                 break
 
         if hydrated:
-            break
+            return
         if attempt < max_attempts:
             await asyncio.sleep(retry_sleep_sec)
 

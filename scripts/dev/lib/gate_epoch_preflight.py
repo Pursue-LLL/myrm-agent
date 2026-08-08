@@ -80,9 +80,7 @@ def read_solo_snapshot() -> SoloSnapshot:
 
 def solo_cluster_clear(snapshot: SoloSnapshot) -> bool:
     return (
-        snapshot.peers == 0
-        and snapshot.active_leases == 0
-        and snapshot.mux_peers <= 1
+        snapshot.peers == 0 and snapshot.active_leases == 0 and snapshot.mux_peers <= 1
     )
 
 
@@ -117,6 +115,58 @@ def count_cdp_page_targets() -> int | None:
     return count if count >= 0 else None
 
 
+def _chrome_e2e_listener_pids() -> list[str]:
+    import subprocess
+
+    from browser_tab_hygiene import _chrome_port
+
+    port = _chrome_port()
+    result = subprocess.run(
+        ["lsof", "-tiTCP:{port}", "-sTCP:LISTEN"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _kill_chrome_e2e_browser(*, wait_sec: float = 45.0) -> bool:
+    """Terminate dedicated Myrm E2E Chrome (CDP listener) — clears tab storms."""
+    import subprocess
+    import time
+
+    pids = _chrome_e2e_listener_pids()
+    if not pids:
+        return False
+    for pid in pids:
+        subprocess.run(["kill", "-TERM", pid], check=False)
+    deadline = time.monotonic() + min(wait_sec, 15.0)
+    while time.monotonic() < deadline:
+        if not _chrome_e2e_listener_pids():
+            return True
+        time.sleep(0.5)
+    for pid in _chrome_e2e_listener_pids():
+        subprocess.run(["kill", "-KILL", pid], check=False)
+    time.sleep(1.0)
+    return not _chrome_e2e_listener_pids()
+
+
+def _ensure_chrome_e2e_browser(monorepo_root: Path) -> int:
+    import subprocess
+
+    ensure = (
+        monorepo_root / "myrm-agent" / "scripts" / "dev" / "ensure-myrm-chrome-e2e.sh"
+    )
+    if not ensure.is_file():
+        return 1
+    completed = subprocess.run(
+        ["bash", str(ensure)],
+        cwd=str(monorepo_root),
+        check=False,
+    )
+    return int(completed.returncode)
+
+
 def restart_chrome_if_cdp_page_surge(
     monorepo_root: Path,
     *,
@@ -128,16 +178,26 @@ def restart_chrome_if_cdp_page_surge(
         return False
     _emit(
         "GATE_CDP_SURGE_HEAL: "
-        f"pages={count} ceiling={ceiling} — restart --chrome (solo; no peer kill)"
+        f"pages={count} ceiling={ceiling} — kill E2E Chrome + ensure + attach ready"
     )
+    if not _kill_chrome_e2e_browser():
+        _emit("GATE_CDP_SURGE_HEAL_WARN: E2E Chrome listener still up after kill")
+    if _ensure_chrome_e2e_browser(monorepo_root) != 0:
+        _emit("GATE_CDP_SURGE_HEAL_WARN: ensure-myrm-chrome-e2e failed")
+        return False
+    after = count_cdp_page_targets()
+    if after is not None and after > ceiling:
+        _emit(
+            f"GATE_CDP_SURGE_HEAL_WARN: pages={after} still above ceiling={ceiling} after ensure"
+        )
     rc = _run_heal_flocked(
-        _myrm_cmd(monorepo_root, "restart", "--chrome"),
+        _myrm_cmd(monorepo_root, "ready", "--attach", "--chrome"),
         wait_sec=180.0,
     )
     if rc == 0:
-        _emit("GATE_CDP_SURGE_HEAL_OK: restart --chrome")
+        _emit("GATE_CDP_SURGE_HEAL_OK: attach ready --chrome after CDP surge kill")
         return True
-    _emit(f"GATE_CDP_SURGE_HEAL_WARN: restart rc={rc}")
+    _emit(f"GATE_CDP_SURGE_HEAL_WARN: attach ready rc={rc}")
     return False
 
 
@@ -239,7 +299,9 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
         if rc == 0:
             _emit("GATE_MUX_HEAL: restart --chrome ok (wave reap)")
         else:
-            _emit("GATE_MUX_HEAL_WARN: restart failed — stack-supervisor ensure (flocked)")
+            _emit(
+                "GATE_MUX_HEAL_WARN: restart failed — stack-supervisor ensure (flocked)"
+            )
             ensure = monorepo_root / "myrm-agent/scripts/dev/stack-supervisor.sh"
             _run_heal_flocked(["bash", str(ensure), "rpc", "ensure"], wait_sec=180.0)
     else:
@@ -281,7 +343,9 @@ def _apply_drift_when_idle(monorepo_root: Path) -> None:
 def _verify_api_seed(monorepo_root: Path) -> None:
     _emit("GATE_EPOCH_HEAL: verify-api --ensure-backend (solo; no peer kill)")
     subprocess.run(
-        _myrm_cmd(monorepo_root, "verify-api", "--ensure-backend", "GET", "/api/v1/health"),
+        _myrm_cmd(
+            monorepo_root, "verify-api", "--ensure-backend", "GET", "/api/v1/health"
+        ),
         check=False,
         cwd=str(monorepo_root),
     )
@@ -297,16 +361,14 @@ def _build_signoff_stack_core_health_payload():
     ctx = probe_runtime_context()
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
-    frontend_dir = (
-        Path(str(ctx["frontend_dir"]))
-        if ctx.get("frontend_dir")
+    frontend_dir = Path(str(ctx["frontend_dir"])) if ctx.get("frontend_dir") else None
+    profile_dir = Path(str(ctx["profile_dir"])) if ctx.get("profile_dir") else None
+    cdp_port_raw = ctx.get("cdp_port")
+    cdp_port = (
+        int(cdp_port_raw)
+        if isinstance(cdp_port_raw, int) and cdp_port_raw > 0
         else None
     )
-    profile_dir = (
-        Path(str(ctx["profile_dir"])) if ctx.get("profile_dir") else None
-    )
-    cdp_port_raw = ctx.get("cdp_port")
-    cdp_port = int(cdp_port_raw) if isinstance(cdp_port_raw, int) and cdp_port_raw > 0 else None
     return build_health_json(
         ui_base=ui_base,
         api_base=api_base,
@@ -346,7 +408,10 @@ def _try_signoff_stack_core_fast_path(monorepo_root: Path) -> bool:
 
 
 def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
-    if os.environ.get("MYRM_E2E_P0A_GATE") == "1" or os.environ.get("E2E_SIGNOFF") == "1":
+    if (
+        os.environ.get("MYRM_E2E_P0A_GATE") == "1"
+        or os.environ.get("E2E_SIGNOFF") == "1"
+    ):
         if _try_signoff_stack_core_fast_path(monorepo_root):
             return
         from signoff_stack_preflight import run_signoff_ready_under_flock
@@ -357,7 +422,11 @@ def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
         return
     env = os.environ.copy()
     env["MYRM_READY_CHROME_SOLO_WALL_SEC"] = str(wall_sec)
-    cmd = ["env", f"MYRM_READY_CHROME_SOLO_WALL_SEC={wall_sec}", *_myrm_cmd(monorepo_root, "ready", "--chrome")]
+    cmd = [
+        "env",
+        f"MYRM_READY_CHROME_SOLO_WALL_SEC={wall_sec}",
+        *_myrm_cmd(monorepo_root, "ready", "--chrome"),
+    ]
     rc = _run_heal_flocked(cmd, wait_sec=180.0)
     if rc != 0:
         _emit(f"GATE_EPOCH_PREFLIGHT_WARN: ready --chrome subprocess rc={rc}")

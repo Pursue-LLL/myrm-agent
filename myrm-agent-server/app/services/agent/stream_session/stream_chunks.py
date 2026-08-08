@@ -217,28 +217,47 @@ async def generate_cancellable_stream(
                 isinstance(item, dict) and item.get("type") == "video_url"
                 for item in session.params.query
             ) and not getattr(session.params.model_cfg, "supports_video", False)
+            from app.core.channel_bridge.config_parsers import (
+                extract_video_fallback_model_configs,
+            )
+
+            video_fallback_cfgs = session.params.video_fallback_model_cfgs
+            if not video_fallback_cfgs and configs and configs.providers_dict:
+                video_fallback_cfgs = extract_video_fallback_model_configs(
+                    configs.providers_dict
+                )
+
             if has_images:
-                yield SSEEnvelope.from_any(
-                    {
-                        "type": "status",
-                        "messageId": session.params.message_id,
-                        "step_key": "analyzing_image",
-                    }
-                ).to_sse_chunk()
+                image_status: dict[str, object] = {
+                    "type": "status",
+                    "messageId": session.params.message_id,
+                    "step_key": "analyzing_image",
+                }
+                if session.params.vision_fallback_model_cfg or session.params.vision_fallback_model_cfgs:
+                    image_status["data"] = {"vision_backend": "vlm"}
+                yield SSEEnvelope.from_any(image_status).to_sse_chunk()
             if has_videos:
-                yield SSEEnvelope.from_any(
-                    {
-                        "type": "status",
-                        "messageId": session.params.message_id,
-                        "step_key": "analyzing_video",
+                video_status: dict[str, object] = {
+                    "type": "status",
+                    "messageId": session.params.message_id,
+                    "step_key": "analyzing_video",
+                }
+                if video_fallback_cfgs:
+                    use_native = any(
+                        getattr(cfg, "supports_video", False) for cfg in video_fallback_cfgs
+                    )
+                    video_status["data"] = {
+                        "vision_backend": "native_video" if use_native else "frame"
                     }
-                ).to_sse_chunk()
+                yield SSEEnvelope.from_any(video_status).to_sse_chunk()
 
             processed_query = await _process_human_content(
                 session.params.query,
                 meta=meta,
                 model_cfg=session.params.model_cfg,
                 vision_fallback_model_cfg=session.params.vision_fallback_model_cfg,
+                vision_fallback_model_cfgs=session.params.vision_fallback_model_cfgs,
+                video_fallback_model_cfgs=video_fallback_cfgs or None,
             )
             session.params.query = processed_query
 

@@ -88,10 +88,11 @@ class DevGateAsyncWriter:
         operation = request.get("operation")
         if isinstance(operation, str) and operation in _ADMIT_OPERATIONS:
             return self._service.handle(request)
-        if isinstance(operation, str) and operation in _WRITE_OPERATIONS:
-            timeout_sec = max(timeout_sec, 30.0)
-        if not isinstance(operation, str) or operation not in _WRITE_OPERATIONS:
+        if isinstance(operation, str) and operation not in _WRITE_OPERATIONS:
+            # Read-only ops (snapshot, health) must never queue behind cleanup/reap writes.
             return self._service.handle(request)
+        if isinstance(operation, str) and operation in _WRITE_OPERATIONS:
+            timeout_sec = max(timeout_sec, 120.0)
         future: concurrent.futures.Future[dict[str, object]] = (
             concurrent.futures.Future()
         )

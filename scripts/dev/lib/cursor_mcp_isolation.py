@@ -229,7 +229,9 @@ def inspect_mcp_json(path: Path) -> McpInspection:
             "ok": False,
             "path": str(path),
             "present": True,
-            "violations": [_violation_message("MCP_MISSING_CHROME_DEVTOOLS", path=path)],
+            "violations": [
+                _violation_message("MCP_MISSING_CHROME_DEVTOOLS", path=path)
+            ],
             "chrome_devtools_command": None,
         }
 
@@ -330,7 +332,9 @@ def _probe_cdp_port(port: int) -> bool:
 
 def probe_daily_chrome_reachable() -> ChromeProbe:
     home = Path.home()
-    active_port_file = home / "Library/Application Support/Google/Chrome/DevToolsActivePort"
+    active_port_file = (
+        home / "Library/Application Support/Google/Chrome/DevToolsActivePort"
+    )
     active_port = _read_devtools_active_port(active_port_file)
     if active_port is not None:
         if _probe_cdp_port(active_port):
@@ -367,7 +371,9 @@ def probe_daily_chrome_reachable() -> ChromeProbe:
     }
 
 
-def build_doctor_report(*, skip_live: bool = False, strict_live: bool = False) -> DoctorReport:
+def build_doctor_report(
+    *, skip_live: bool = False, strict_live: bool = False
+) -> DoctorReport:
     contract = assert_agent_mcp_contract(
         extra_paths=project_cursor_mcp_paths(),
         require_present_paths=False,

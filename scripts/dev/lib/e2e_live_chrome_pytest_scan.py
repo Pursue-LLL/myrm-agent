@@ -19,6 +19,8 @@ import shlex
 import subprocess
 from dataclasses import dataclass, replace
 
+_PS_PROBE_TIMEOUT_SEC = 2.0
+
 from e2e_session_snapshot import (
     read_session_snapshot,
     read_session_snapshot_by_test_id,
@@ -133,14 +135,23 @@ def _pick_canonical_row(group: tuple[LiveChromeE2ERow, ...]) -> LiveChromeE2ERow
     return row
 
 
+def _run_ps_probe() -> subprocess.CompletedProcess[str] | None:
+    """Bounded ps scan — must not block wait_for_state hot path under parallel load."""
+    try:
+        return subprocess.run(
+            ["ps", "-eo", "pid=,stat=,etime=,command="],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_PS_PROBE_TIMEOUT_SEC,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
 def list_live_chrome_e2e_pytest_rows() -> tuple[LiveChromeE2ERow, ...]:
-    proc = subprocess.run(
-        ["ps", "-eo", "pid=,stat=,etime=,command="],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
+    proc = _run_ps_probe()
+    if proc is None or proc.returncode != 0:
         return ()
     grouped: dict[str, list[LiveChromeE2ERow]] = {}
     for line in proc.stdout.splitlines():

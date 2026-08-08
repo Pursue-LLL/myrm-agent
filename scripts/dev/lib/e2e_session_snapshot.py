@@ -128,6 +128,35 @@ def touch_holder_session_progress(
     )
 
 
+def _resolve_body_started_monotonic(
+    *,
+    now: float,
+    resolved_phase: str,
+    existing: dict[str, object] | None,
+) -> float:
+    """Body clock for hung-reap — ADMIT/BOOTSTRAP queue must not consume BODY budget (R62)."""
+    if resolved_phase != "body":
+        if existing is not None:
+            raw = existing.get("bodyStartedMonotonic")
+            if raw is not None:
+                try:
+                    return float(raw)
+                except (TypeError, ValueError):
+                    pass
+        return wall_started_monotonic() or now
+    prev_phase = ""
+    if existing is not None:
+        prev_phase = str(existing.get("phase") or "").strip().lower()
+    if prev_phase == "body" and existing is not None:
+        raw = existing.get("bodyStartedMonotonic")
+        if raw is not None:
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                pass
+    return now
+
+
 def write_session_snapshot(
     *,
     current_node: str,
@@ -137,9 +166,13 @@ def write_session_snapshot(
     """Persist per-pytest session state for e2e-context + hung reap (parallel-safe)."""
     now = time.monotonic()
     resolved_phase = (phase or current_phase()).strip().lower() or "body"
-    started = wall_started_monotonic() or now
-    node_started = now
     existing = read_session_snapshot(os.getpid())
+    started = _resolve_body_started_monotonic(
+        now=now,
+        resolved_phase=resolved_phase,
+        existing=existing,
+    )
+    node_started = now
     session_started = _session_started_monotonic(existing, now=started)
     if existing is not None:
         prev_node = str(existing.get("currentNode") or "").strip()

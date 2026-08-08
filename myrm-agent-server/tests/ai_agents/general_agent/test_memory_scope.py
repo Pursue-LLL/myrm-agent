@@ -187,3 +187,28 @@ def test_build_runtime_context_string_ratio_passthrough() -> None:
     )
 
     assert context["compress_start_ratio"] == "0.7"
+
+
+def test_build_runtime_context_injects_video_fallback_and_supports_video() -> None:
+    video_cfgs = [
+        ModelConfig(provider="google", model="gemini-2.5-flash", api_key="video-key", supports_video=True),
+    ]
+    agent = _build_agent(
+        model_cfg=ModelConfig(
+            provider="deepseek",
+            model="deepseek-chat",
+            api_key="chat-key",
+            supports_vision=False,
+            supports_video=False,
+        ),
+        video_fallback_model_cfgs=video_cfgs,
+    )
+
+    context = agent._build_runtime_context(
+        query="analyze demo.mp4",
+        chat_history=[],
+        effective_chat_id="chat-video-fallback",
+    )
+
+    assert context["supports_video"] is False
+    assert context["video_fallback_model_cfgs"] == video_cfgs

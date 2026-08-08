@@ -55,3 +55,4 @@ suggestion_prompts:
 prebuilt_skill_ids:
   - "ui-design"
   - "frontend-development"
+  - "vision-toolkit"

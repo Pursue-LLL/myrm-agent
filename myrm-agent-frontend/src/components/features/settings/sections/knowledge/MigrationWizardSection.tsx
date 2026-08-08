@@ -373,6 +373,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
           onDone={handleBackToScan}
           vaultBindHandoffMode={vaultBindHandoffMode}
           workspaceBindCandidates={workspaceBindCandidates}
+          migrationSource={selectedSource?.competitor ?? null}
           t={t}
         />
       )}

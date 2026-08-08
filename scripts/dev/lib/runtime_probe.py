@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -40,6 +41,21 @@ def _default_frontend_dir() -> Path | None:
     candidate = lib_dir.parent.parent.parent / "myrm-agent-frontend"
     if candidate.is_dir():
         return candidate
+    return None
+
+
+def _resolve_node_executable() -> str | None:
+    """Resolve node for mux status probes (attach ADMIT must not false-fail on PATH)."""
+    override = os.getenv("MYRM_NODE_BIN", "").strip()
+    if override:
+        path = Path(override)
+        return str(path) if path.is_file() else override
+    found = shutil.which("node")
+    if found:
+        return found
+    for candidate in (Path("/opt/homebrew/bin/node"), Path("/usr/local/bin/node")):
+        if candidate.is_file():
+            return str(candidate)
     return None
 
 
@@ -161,19 +177,37 @@ def _mux_owned_daemon_count() -> int:
     return 1 if socket_pids else 0
 
 
+def _mux_status_timeout_sec() -> float:
+    raw = os.getenv("MYRM_MUX_STATUS_PROBE_TIMEOUT_SEC", "").strip()
+    if raw:
+        try:
+            return max(2.0, float(raw))
+        except ValueError:
+            pass
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot
+
+        if parallel_active_test_count_ssot() > 1:
+            return 15.0
+    except ImportError:
+        pass
+    return 10.0
+
+
 def _mux_status_snapshot() -> tuple[bool, int]:
     if _mux_owned_daemon_count() < 1:
         return False, 0
     mux_bin = _resolve_mux_bin()
-    if mux_bin is None:
+    node_bin = _resolve_node_executable()
+    if mux_bin is None or node_bin is None:
         return False, 0
     try:
         proc = subprocess.run(
-            ["node", str(mux_bin), "status"],
+            [node_bin, str(mux_bin), "status"],
             capture_output=True,
             text=True,
             check=False,
-            timeout=10,
+            timeout=_mux_status_timeout_sec(),
         )
     except (OSError, subprocess.TimeoutExpired):
         return False, 0

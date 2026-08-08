@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import select
 import socket
 import tempfile
 import time
@@ -30,6 +31,63 @@ _LOGGER = logging.getLogger(__name__)
 # Socket read budget = openPageTransaction wall + fair-scheduler grace (R299).
 _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
 _SIGNOFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
+_WAVE_LEASE_CACHE_TTL_SEC = 5.0
+_wave_lease_cache: tuple[float, int] | None = None
+_socket_timeout_cap_cache: tuple[float, float] | None = None
+_SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC = 5.0
+
+
+def _parallel_load_from_env() -> int:
+    burst_lanes = 0
+    for key in (
+        "MYRM_E2E_PARALLEL_ACTIVE_LEASES",
+        "MYRM_E2E_PHASE_C_BURST_LANES",
+        "MYRM_E2E_PARALLEL_ACTIVE_COUNT",
+    ):
+        raw = os.environ.get(key, "").strip()
+        if raw.isdigit():
+            burst_lanes = max(burst_lanes, int(raw))
+    return burst_lanes
+
+
+def _cached_parallel_load() -> int:
+    """Env-first parallel load — never block evaluate hot path on wave.sh."""
+    global _wave_lease_cache
+    env_load = _parallel_load_from_env()
+    if env_load >= 2:
+        return env_load
+    now = time.monotonic()
+    if _wave_lease_cache is not None:
+        cached_at, cached = _wave_lease_cache
+        if now - cached_at < _WAVE_LEASE_CACHE_TTL_SEC:
+            return cached
+    load = 0
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot
+
+        load = parallel_active_test_count_ssot()
+    except ImportError:
+        load = _wave_lease_count_probe()
+    _wave_lease_cache = (now, load)
+    return load
+
+
+def _parallel_scaled_evaluate_timeout_sec(base: float) -> float:
+    """Scale orchestrator CDP evaluate under parallel chrome_e2e mux queue (R124)."""
+    load = _cached_parallel_load()
+    if load < 2:
+        return base
+    return min(180.0, base + float(load) * 15.0)
+
+
+def _wave_lease_count_probe() -> int:
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        root = Path(__file__).resolve().parents[4]
+        return wave_active_lease_count(root)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return 0
 
 
 def orchestrator_open_tx_wall_sec() -> float:
@@ -62,18 +120,20 @@ def orchestrator_open_tx_wall_sec() -> float:
 
 def orchestrator_socket_timeout_cap_sec() -> float:
     """Return socket read cap aligned with openPageTransaction wall (no 480s retry storm)."""
+    global _socket_timeout_cap_cache
+    now = time.monotonic()
+    if _socket_timeout_cap_cache is not None:
+        cached_at, cached = _socket_timeout_cap_cache
+        if now - cached_at < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC:
+            return cached
     wall = orchestrator_open_tx_wall_sec()
-    burst_lanes = 0
-    for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
-        raw = os.environ.get(key, "").strip()
-        try:
-            count = int(raw)
-        except ValueError:
-            continue
-        if count >= 2:
-            burst_lanes = max(burst_lanes, count)
+    burst_lanes = _parallel_load_from_env()
+    if burst_lanes < 2:
+        burst_lanes = max(burst_lanes, _cached_parallel_load())
     queue_headroom = 15.0 * float(max(0, burst_lanes - 1))
-    return wall + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + queue_headroom
+    cap = wall + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + queue_headroom
+    _socket_timeout_cap_cache = (now, cap)
+    return cap
 
 
 def _default_socket_path() -> str:
@@ -101,6 +161,13 @@ class OpenPageTransactionResult(TypedDict):
     pageId: int
     targetId: str
     url: str
+
+
+class ReclaimPageResult(TypedDict):
+    pageId: int
+    targetId: str
+    url: str
+    reclaimed: bool
 
 
 class CloseResult(TypedDict):
@@ -189,6 +256,32 @@ class BrowserOrchestratorClient:
         result = self._request("page/create", params)
         return PageResult(pageId=result["pageId"], targetId=result["targetId"])
 
+    def reclaim_page(
+        self,
+        session_id: str,
+        *,
+        url: str,
+        sealed_target_id: str,
+    ) -> ReclaimPageResult:
+        """Attach epoch-sealed shell tab or fall back to createPage (§19.11 TAB-6b)."""
+        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+
+        lease_id = assert_orchestrator_lease_allowed()
+        params: dict[str, object] = {
+            "sessionId": session_id,
+            "url": url,
+            "sealedTargetId": sealed_target_id,
+        }
+        if lease_id:
+            params["leaseId"] = lease_id
+        result = self._request("page/reclaim", params)
+        return ReclaimPageResult(
+            pageId=int(result["pageId"]),
+            targetId=str(result["targetId"]),
+            url=str(result.get("url", url)),
+            reclaimed=bool(result.get("reclaimed", False)),
+        )
+
     def open_page_transaction(
         self,
         session_id: str,
@@ -236,21 +329,29 @@ class BrowserOrchestratorClient:
         expression: str,
         *,
         timeout_sec: float | None = None,
+        await_promise: bool = True,
     ) -> dict[str, object]:
         """Evaluate JavaScript in an owned page."""
         prior_timeout = self._timeout_sec
         cdp_sec: float | None = None
         if timeout_sec is not None:
-            cdp_sec = min(max(5.0, timeout_sec), 180.0)
+            bounded = min(max(5.0, timeout_sec), 180.0)
+            if bounded <= 20.0:
+                cdp_sec = bounded
+            else:
+                cdp_sec = _parallel_scaled_evaluate_timeout_sec(bounded)
             self._timeout_sec = min(
+                prior_timeout,
                 orchestrator_socket_timeout_cap_sec(),
                 cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC,
+                90.0,
             )
         try:
             payload: dict[str, object] = {
                 "sessionId": session_id,
                 "targetId": target_id,
                 "expression": expression,
+                "awaitPromise": await_promise,
             }
             if cdp_sec is not None:
                 payload["timeoutMs"] = int(cdp_sec * 1000)
@@ -328,13 +429,29 @@ class BrowserOrchestratorClient:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            sock.settimeout(min(remaining, 5.0))
+            wait_sec = min(remaining, 5.0)
+            try:
+                if sock.fileno() < 0:
+                    raise RuntimeError(
+                        "Browser Orchestrator connection closed before response"
+                    )
+            except OSError as exc:
+                raise RuntimeError(
+                    "Browser Orchestrator connection closed before response"
+                ) from exc
+            readable, _, _ = select.select([sock], [], [], wait_sec)
+            if not readable:
+                continue
             try:
                 chunk = sock.recv(65536)
-            except TimeoutError:
-                continue
+            except OSError as exc:
+                raise RuntimeError(
+                    f"Browser Orchestrator connection lost: {exc}"
+                ) from exc
             if not chunk:
-                break
+                raise RuntimeError(
+                    "Browser Orchestrator connection closed before response"
+                )
             buf += chunk
             nl = buf.find(b"\n")
             if nl >= 0:

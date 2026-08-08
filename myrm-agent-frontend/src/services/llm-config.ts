@@ -624,6 +624,14 @@ export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRe
   });
 };
 
+export type VideoHealthResult = VisionHealthResult;
+
+export const checkVideoFallbackHealth = async (): Promise<VideoHealthResult> => {
+  return apiRequest<VideoHealthResult>('/config/video-health', {
+    method: 'POST',
+  });
+};
+
 export const checkVisionFallbackHealth = async (): Promise<VisionHealthResult> => {
   return apiRequest<VisionHealthResult>('/config/vision-health', {
     method: 'POST',

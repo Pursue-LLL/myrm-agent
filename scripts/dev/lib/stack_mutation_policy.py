@@ -454,7 +454,7 @@ def wave_active_lease_count(monorepo_root: Path) -> int:
             ["bash", str(wave_bin), "status"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=2,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):

@@ -83,6 +83,24 @@ describe('ClientIntlProvider deferred locale', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it('skips deferred fetch when e2e sessionStorage flag is set', async () => {
+    sessionStorage.setItem('e2e_skip_deferred_locale', 'true');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <ClientIntlProvider locale="en" shellMessages={shellMessages}>
+        <DeferredReadyProbe />
+      </ClientIntlProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    sessionStorage.removeItem('e2e_skip_deferred_locale');
+  });
+
   it('succeeds on a later retry attempt', async () => {
     let calls = 0;
     vi.stubGlobal(

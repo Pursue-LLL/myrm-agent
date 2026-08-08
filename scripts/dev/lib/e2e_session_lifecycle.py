@@ -35,6 +35,7 @@ SessionPhase = Literal["admit", "bootstrap", "body", "teardown"]
 LifecycleProfile = Literal["dev", "signoff"]
 
 ENV_WALL_STARTED: Final[str] = "MYRM_E2E_WALL_STARTED_MONOTONIC"
+ENV_MONO_STARTED: Final[str] = "MYRM_E2E_MONO_STARTED_MONOTONIC"
 ENV_PROGRESS_AT: Final[str] = "MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"
 ENV_WALL_PHASE: Final[str] = "MYRM_E2E_WALL_PHASE"
 
@@ -136,9 +137,11 @@ def resolve_budget_policy() -> BudgetPolicy:
             body_sec=body_sec,
             teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
         )
+    from dev_gate_contract import admit_wall_clock_sec
+
     return BudgetPolicy(
         profile=profile,
-        admit_sec=E2E_ADMISSION_WALL_CLOCK_SEC,
+        admit_sec=admit_wall_clock_sec(),
         bootstrap_sec=bootstrap_sec,
         body_sec=body_sec,
         teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
@@ -166,6 +169,45 @@ def wall_started_monotonic() -> float | None:
         return float(raw)
     except ValueError:
         return None
+
+
+def mono_started_monotonic() -> float | None:
+    raw = os.environ.get(ENV_MONO_STARTED, "").strip()
+    if not raw:
+        return wall_started_monotonic()
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _ensure_mono_started() -> float:
+    existing = mono_started_monotonic()
+    if existing is not None:
+        return existing
+    now = time.monotonic()
+    stamp = str(now)
+    os.environ[ENV_MONO_STARTED] = stamp
+    if wall_started_monotonic() is None:
+        os.environ[ENV_WALL_STARTED] = stamp
+        os.environ[ENV_PROGRESS_AT] = stamp
+    return now
+
+
+def _cumulative_phase_cap_sec(phase: SessionPhase) -> int:
+    policy = resolve_budget_policy()
+    if phase == "admit":
+        return policy.admit_sec
+    if phase == "bootstrap":
+        return policy.admit_sec + policy.bootstrap_sec
+    if phase == "body":
+        return policy.admit_sec + policy.bootstrap_sec + policy.body_sec
+    return (
+        policy.admit_sec
+        + policy.bootstrap_sec
+        + policy.body_sec
+        + policy.teardown_sec
+    )
 
 
 def touch_wall_progress(*, current_node: str | None = None) -> None:
@@ -248,7 +290,7 @@ def assert_phase_budget(phase_label: str) -> None:
 
 
 def elapsed_wall_sec() -> float:
-    started = wall_started_monotonic()
+    started = mono_started_monotonic()
     if started is None:
         return 0.0
     return max(0.0, time.monotonic() - started)
@@ -256,23 +298,27 @@ def elapsed_wall_sec() -> float:
 
 def phase_cap_sec(phase: SessionPhase | None = None) -> int:
     resolved = phase or current_phase()
-    return resolve_budget_policy().cap_for(resolved)
+    return _cumulative_phase_cap_sec(resolved)
 
 
 def remaining_wall_sec() -> float:
-    return max(0.0, float(phase_cap_sec()) - elapsed_wall_sec())
+    return max(0.0, float(_cumulative_phase_cap_sec(current_phase())) - elapsed_wall_sec())
 
 
 def transition_to_phase(phase: SessionPhase, *, label: str = "") -> None:
-    started = time.monotonic()
-    stamp = str(started)
-    os.environ[ENV_WALL_STARTED] = stamp
-    os.environ[ENV_PROGRESS_AT] = stamp
+    _ensure_mono_started()
+    if wall_started_monotonic() is None:
+        stamp = str(time.monotonic())
+        os.environ[ENV_WALL_STARTED] = stamp
+        os.environ[ENV_PROGRESS_AT] = stamp
+    else:
+        touch_wall_progress(current_node=label or phase)
     os.environ[ENV_WALL_PHASE] = phase
-    cap = phase_cap_sec(phase)
+    cap = _cumulative_phase_cap_sec(phase)
     note = f" label={label}" if label else ""
     print(
         f"E2E_SESSION_PHASE: phase={phase} cap={cap}s "
+        f"mono_elapsed={int(elapsed_wall_sec())}s "
         f"profile={resolve_lifecycle_profile()}{note}",
         file=sys.stderr,
         flush=True,
@@ -283,6 +329,7 @@ def export_session_env(*, phase: SessionPhase = "admit") -> dict[str, str]:
     started = time.monotonic()
     stamp = str(started)
     return {
+        ENV_MONO_STARTED: stamp,
         ENV_WALL_STARTED: stamp,
         ENV_PROGRESS_AT: stamp,
         ENV_WALL_PHASE: phase,
@@ -358,7 +405,8 @@ def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
     except ImportError:
         pass
     print(
-        f"E2E_WALL_BUDGET_BODY_START: cap={phase_cap_sec('body')}s phase={phase_label}",
+        f"E2E_WALL_BUDGET_BODY_START: cap={phase_cap_sec('body')}s "
+        f"mono_elapsed={int(elapsed_wall_sec())}s phase={phase_label}",
         file=sys.stderr,
         flush=True,
     )

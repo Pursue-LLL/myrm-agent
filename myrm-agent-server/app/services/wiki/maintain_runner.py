@@ -75,7 +75,9 @@ async def run_wiki_maintain_job(
             summary_text="[SILENT]",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
+            await save_wiki_maintain_state(
+                db, state_from_run_result(skipped), agent_id=agent_id
+            )
         return skipped
 
     from app.services.wiki.asset_index_service import run_wiki_asset_index
@@ -93,7 +95,9 @@ async def run_wiki_maintain_job(
             summary_text="[SILENT]",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
+            await save_wiki_maintain_state(
+                db, state_from_run_result(skipped), agent_id=agent_id
+            )
         return skipped
 
     try:
@@ -101,16 +105,22 @@ async def run_wiki_maintain_job(
         await run_wiki_asset_index(archiver)
         await after_wiki_vault_mutation(archiver, "maintain")
 
-        from myrm_agent_harness.toolkits.wiki.maintenance.issue_kind import count_open_actions
+        from myrm_agent_harness.toolkits.wiki.maintenance.issue_kind import (
+            count_open_actions,
+        )
 
+        from app.services.wiki.dedup_runner import get_wiki_dedup_stats
         from app.services.wiki.health_report_service import (
             persist_wiki_health_snapshot,
             report_from_lint_issues,
         )
 
+        dedup = get_wiki_dedup_stats(agent_id=agent_id)
         health_report = report_from_lint_issues(
             mode="full" if mode_literal == "full" else "structural",
             issues=list(lint_result.issues),
+            duplicate_groups_pending=dedup.duplicate_groups_pending,
+            synthesis_pending=archiver._pending_mgr.count_synthesis_pending(),
         )
         persist_wiki_health_snapshot(archiver._structure, health_report)
 
@@ -139,7 +149,9 @@ async def run_wiki_maintain_job(
         )
         result.summary_text = _build_summary_text(result=result)
         async with get_session() as db:
-            await save_wiki_maintain_state(db, state_from_run_result(result), agent_id=agent_id)
+            await save_wiki_maintain_state(
+                db, state_from_run_result(result), agent_id=agent_id
+            )
         return result
     except Exception as exc:
         logger.error("Wiki maintain job failed for agent %s: %s", agent_id, exc)
@@ -150,5 +162,7 @@ async def run_wiki_maintain_job(
             summary_text=f"Wiki maintain failed: {exc}",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(db, state_from_run_result(failed), agent_id=agent_id)
+            await save_wiki_maintain_state(
+                db, state_from_run_result(failed), agent_id=agent_id
+            )
         raise

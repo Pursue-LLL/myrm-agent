@@ -7,20 +7,15 @@ import uuid
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
+    wait_for_agent_settings_editor,
     wait_for_state,
-    warm_ui_route,
 )
-
-_AGENT_EDITOR_READY_JS = """(() => ({
-  ready:
-    !!document.querySelector('[data-testid="app-layout"]') &&
-    !!document.querySelector('[data-testid="agent-tab-capabilities"]'),
-}))()"""
 
 _CLICK_CAPABILITIES_JS = """(() => {
   const capTab = document.querySelector('[data-testid="agent-tab-capabilities"]');
@@ -117,20 +112,31 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
+@pytest.mark.timeout(600)
 def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> None:
     """skill_market / skill_manage cards visible; default OFF; skill_market toggles ON."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    agent_id = _create_agent(api_url)
-    agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}"
     prepare_e2e_ui_session(api_url)
-    warm_ui_route(f"/settings/agents?agentId={agent_id}")
+    agent_id = _create_agent(api_url)
+    agent_subroute = f"/settings/agents?agentId={agent_id}#loadout"
 
     try:
-        with open_mcp_page(agent_settings_url) as (client, page):
-            wait_for_state(client, page, _AGENT_EDITOR_READY_JS, timeout_sec=90.0)
+        with open_settings_subroute(
+            agent_subroute,
+            layout_timeout_sec=90.0,
+        ) as (client, page):
+            editor_ready = wait_for_agent_settings_editor(
+                client,
+                page,
+                page_url=f"{ui_url.rstrip('/')}{agent_subroute}",
+                timeout_sec=90.0,
+            )
+            assert editor_ready.get("ready") is True, editor_ready
             client.evaluate(page, _CLICK_CAPABILITIES_JS, timeout_sec=10.0)
             wait_for_state(
                 client,

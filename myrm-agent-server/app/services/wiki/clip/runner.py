@@ -99,7 +99,9 @@ async def schedule_wiki_clip(
 ) -> str:
     await _purge_stale_jobs()
     job_id = uuid.uuid4().hex
-    record = WikiClipJobRecord(job_id=job_id, state=WikiClipJobState.PENDING, agent_id=agent_id)
+    record = WikiClipJobRecord(
+        job_id=job_id, state=WikiClipJobState.PENDING, agent_id=agent_id
+    )
     async with _lock:
         _jobs[job_id] = record
 
@@ -124,7 +126,9 @@ async def schedule_wiki_clip(
             )
             record.result = ingress_result
             if ingress_result.written and queue_compile:
-                raw_path = archiver._structure.get_raw_file_path(ingress_result.relative_path)
+                raw_path = archiver._structure.get_raw_file_path(
+                    ingress_result.relative_path
+                )
                 if raw_path.exists():
                     archiver._queue.add_batch([str(raw_path)])
                     archiver._compiler.start_background_worker()

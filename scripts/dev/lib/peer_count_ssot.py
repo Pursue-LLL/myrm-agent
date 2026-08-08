@@ -12,15 +12,21 @@ import os
 import subprocess
 import time
 
-_PEER_PROBE_TIMEOUT_SEC = 2.0
-_PEER_COUNT_CACHE_TTL_SEC = 2.0
+_PEER_PROBE_TIMEOUT_SEC = 1.0
+_PEER_SCAN_WALL_SEC = 2.5
+_MAX_PIDS_PER_SCAN = 8
+_ANCESTOR_MAX_DEPTH = 6
+_PEER_COUNT_CACHE_TTL_SEC = 5.0
+_PARALLEL_COUNT_CACHE_TTL_SEC = 5.0
 _pytest_peer_count_cache: tuple[float, int] | None = None
+_parallel_count_cache: tuple[float, int] | None = None
 
 
 def clear_pytest_peer_count_cache() -> None:
     """Invalidate cached pgrep peer count after signoff reap."""
-    global _pytest_peer_count_cache
+    global _pytest_peer_count_cache, _parallel_count_cache
     _pytest_peer_count_cache = None
+    _parallel_count_cache = None
 
 
 def _run_subprocess_probe(args: list[str]) -> subprocess.CompletedProcess[str] | None:
@@ -37,11 +43,18 @@ def _run_subprocess_probe(args: list[str]) -> subprocess.CompletedProcess[str] |
         return None
 
 
-def _process_ancestor_pids(pid: int, *, max_depth: int = 24) -> frozenset[int]:
+def _process_ancestor_pids(
+    pid: int,
+    *,
+    max_depth: int = _ANCESTOR_MAX_DEPTH,
+    wall_deadline: float | None = None,
+) -> frozenset[int]:
     """Walk parent chain including pid itself."""
     seen: set[int] = {pid}
     current = pid
     for _ in range(max_depth):
+        if wall_deadline is not None and time.monotonic() >= wall_deadline:
+            break
         ps_proc = _run_subprocess_probe(["ps", "-p", str(current), "-o", "ppid="])
         if ps_proc is None:
             break
@@ -72,10 +85,17 @@ def _active_session_owner_pids() -> frozenset[int] | None:
         return None
 
 
-def _pytest_pid_serves_active_session(pid: int, owners: frozenset[int]) -> bool:
+def _pytest_pid_serves_active_session(
+    pid: int,
+    owners: frozenset[int],
+    *,
+    wall_deadline: float | None = None,
+) -> bool:
     if not owners:
         return False
-    return bool(_process_ancestor_pids(pid) & owners)
+    return bool(
+        _process_ancestor_pids(pid, wall_deadline=wall_deadline) & owners
+    )
 
 
 def chrome_e2e_pytest_peer_count() -> int:
@@ -96,7 +116,10 @@ def chrome_e2e_pytest_peer_count() -> int:
         _pytest_peer_count_cache = (now, 0)
         return 0
     peers = 0
-    for line in proc.stdout.splitlines():
+    wall_deadline = now + _PEER_SCAN_WALL_SEC
+    for line in proc.stdout.splitlines()[:_MAX_PIDS_PER_SCAN]:
+        if time.monotonic() >= wall_deadline:
+            break
         pid_raw = line.strip()
         if not pid_raw.isdigit():
             continue
@@ -108,7 +131,9 @@ def chrome_e2e_pytest_peer_count() -> int:
         cmd = ps_proc.stdout.strip()
         if "run_pytest_safe" in cmd or "--collect-only" in cmd:
             continue
-        if owners is not None and not _pytest_pid_serves_active_session(pid, owners):
+        if owners is not None and not _pytest_pid_serves_active_session(
+            pid, owners, wall_deadline=wall_deadline
+        ):
             continue
         peers += 1
     _pytest_peer_count_cache = (now, peers)
@@ -124,24 +149,36 @@ def solo_gate_active_mux_peer_count() -> int:
 
 def parallel_active_test_count_ssot() -> int:
     """Parallel chrome_e2e count for recovery mutex scaling."""
+    global _parallel_count_cache
+    now = time.monotonic()
+    if _parallel_count_cache is not None:
+        cached_at, cached = _parallel_count_cache
+        if now - cached_at < _PARALLEL_COUNT_CACHE_TTL_SEC:
+            return cached
+
     pytest_peers = chrome_e2e_pytest_peer_count()
     session_peers = 0
-    try:
-        from e2e_session_registry import list_live_e2e_sessions
+    if pytest_peers < 2:
+        try:
+            from e2e_session_registry import list_live_e2e_sessions
 
-        session_peers = len(list_live_e2e_sessions())
-    except ImportError:
-        session_peers = 0
+            session_peers = len(list_live_e2e_sessions())
+        except ImportError:
+            session_peers = 0
     combined = max(pytest_peers, session_peers)
     if combined > 0:
+        _parallel_count_cache = (now, combined)
         return combined
     raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
     if raw.isdigit():
-        return max(1, int(raw))
+        result = max(1, int(raw))
+        _parallel_count_cache = (now, result)
+        return result
     try:
         from e2e_runtime_cell import prune_dead_runtime_cells
 
         prune_dead_runtime_cells()
     except ImportError:
         pass
+    _parallel_count_cache = (now, 1)
     return 1

@@ -390,7 +390,12 @@ class ChromeMcpClient:
             raise
 
     def _daemon_evaluate(
-        self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
+        self,
+        page: McpPage,
+        expression: str,
+        *,
+        timeout_sec: float = 15.0,
+        await_promise: bool = True,
     ) -> object:
         client = self._ensure_daemon_session()
         session_id = self._daemon_session_id
@@ -400,6 +405,7 @@ class ChromeMcpClient:
             page.target_id,
             expression,
             timeout_sec=timeout_sec,
+            await_promise=await_promise,
         )
         return result.get("value")
 
@@ -1302,10 +1308,20 @@ class ChromeMcpClient:
         )
 
     def evaluate(
-        self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
+        self,
+        page: McpPage,
+        expression: str,
+        *,
+        timeout_sec: float = 15.0,
+        await_promise: bool = True,
     ) -> object:
         if self._use_daemon:
-            return self._daemon_evaluate(page, expression, timeout_sec=timeout_sec)
+            return self._daemon_evaluate(
+                page,
+                expression,
+                timeout_sec=timeout_sec,
+                await_promise=await_promise,
+            )
         resolved = self._resolve_page(page)
         self._ensure_page_tracked_for_recovery(resolved)
         function = f"async () => await (0, eval)({json.dumps(expression)})"

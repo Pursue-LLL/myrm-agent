@@ -27,6 +27,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
@@ -56,6 +57,8 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "recover_mux_transport",
     "recover_mux",
     "chrome-error",
+    "warm_ui_route",
+    "Connection refused",
     "E2E_ORCHESTRATOR_LEASE_DENIED",
     "ORCHESTRATOR_LEASE_DENIED",
     "wave is not open",
@@ -351,6 +354,17 @@ def _bridge_ready_timeout_sec() -> float:
     return 90.0
 
 
+def _chat_ui_wait_timeout_sec(base: float = 60.0) -> float:
+    try:
+        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+        if parallel_shared_ui_hydrate_queue_enabled():
+            return max(base, 120.0)
+    except ImportError:
+        pass
+    return base
+
+
 def _wait_orchestrator_lease_ready(*, timeout_sec: float = 120.0) -> None:
     """Wait until wave is open and MYRM_E2E_LEASE_ID is active (admit→pytest handoff race)."""
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
@@ -473,12 +487,14 @@ def _run_lifecycle_assertions(
     chat_id = seeded["chat_id"]
     chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
     home_url = f"{ui_url.rstrip('/')}/"
+    ui_wait_sec = _chat_ui_wait_timeout_sec(90.0)
+    attach_wait_sec = max(45.0, min(_attach_eval_timeout_sec(), 120.0))
 
     if warm_route:
         warm_ui_route("/")
         warm_ui_route(f"/{chat_id}")
 
-    with open_mcp_page(home_url, timeout_ms=90_000) as (client, page):
+    with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page, recover_url=home_url)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
@@ -490,15 +506,37 @@ def _run_lifecycle_assertions(
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
         attached = _await_attach_memory_chat(
-            client, page, chat_id, timeout_sec=45.0, ui_url=ui_url
+            client,
+            page,
+            chat_id,
+            timeout_sec=attach_wait_sec,
+            ui_url=ui_url,
         )
         assert attached.get("ok") is True, json.dumps(attached, ensure_ascii=False)
 
         dismiss_blocking_modals(client, page, recover_url=chat_url)
         _poke_chat_route_render(client, page, chat_id)
 
-        chat_ui_probe = _probe_chat_ui_state(client, page, timeout_sec=30.0)
-        if chat_ui_probe.get("ready") is not True:
+        chat_ui_probe = _probe_chat_ui_state(
+            client, page, timeout_sec=min(45.0, ui_wait_sec * 0.5)
+        )
+        if (
+            chat_ui_probe.get("ready") is not True
+            and chat_ui_probe.get("hasMessageListSkeleton") is True
+        ):
+            reload_mcp_page(client, page, target_url=chat_url, timeout_ms=120_000)
+            dismiss_blocking_modals(client, page, recover_url=chat_url)
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            attached = _await_attach_memory_chat(
+                client,
+                page,
+                chat_id,
+                timeout_sec=attach_wait_sec,
+                ui_url=ui_url,
+            )
+            assert attached.get("ok") is True, attached
+            _poke_chat_route_render(client, page, chat_id)
+        elif chat_ui_probe.get("ready") is not True:
             client.navigate(page, home_url)  # type: ignore[attr-defined]
             time.sleep(1.5)
             _ensure_react_bridge_on_home(client, page, ui_url=ui_url)
@@ -507,23 +545,21 @@ def _run_lifecycle_assertions(
             dismiss_blocking_modals(client, page, recover_url=chat_url)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             attached = _await_attach_memory_chat(
-                client, page, chat_id, timeout_sec=60.0, ui_url=ui_url
+                client,
+                page,
+                chat_id,
+                timeout_sec=attach_wait_sec,
+                ui_url=ui_url,
             )
             assert attached.get("ok") is True, attached
             _poke_chat_route_render(client, page, chat_id)
-
-        chat_ui_probe = wait_for_state(
-            client,
-            page,
-            _CHAT_UI_READY_JS,
-            timeout_sec=60.0,
-        )
 
         route_ready = wait_for_state(
             client,
             page,
             _ROUTE_SEGMENT_CLEARED_JS,
             timeout_sec=30.0,
+            page_url=chat_url,
         )
         assert route_ready.get("ready") is True, route_ready
 
@@ -531,7 +567,8 @@ def _run_lifecycle_assertions(
             client,
             page,
             _CHAT_HYDRATED_JS,
-            timeout_sec=30.0,
+            timeout_sec=_chat_ui_wait_timeout_sec(45.0),
+            page_url=chat_url,
         )
         assert hydrated.get("ready") is True, hydrated
 
@@ -539,7 +576,8 @@ def _run_lifecycle_assertions(
             client,
             page,
             _CHAT_UI_READY_JS,
-            timeout_sec=45.0,
+            timeout_sec=ui_wait_sec,
+            page_url=chat_url,
         )
         assert chat_ui_probe.get("ready") is True, json.dumps(
             chat_ui_probe, ensure_ascii=False
@@ -552,7 +590,8 @@ def _run_lifecycle_assertions(
             client,
             page,
             _MEMORY_LIFECYCLE_PROBE_JS,
-            timeout_sec=45.0,
+            timeout_sec=_chat_ui_wait_timeout_sec(45.0),
+            page_url=chat_url,
         )
         assert state.get("ready") is True, json.dumps(
             state, indent=2, ensure_ascii=False

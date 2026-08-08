@@ -64,8 +64,12 @@ async def extension_ws(
 
     expected_token = settings.extension_auth_token.get_secret_value()
     if is_webui_remote_mode() and not expected_token:
-        logger.error("Rejected extension WS: EXTENSION_AUTH_TOKEN is required in remote mode")
-        await websocket.close(code=4002, reason="Extension auth token required in remote mode")
+        logger.error(
+            "Rejected extension WS: EXTENSION_AUTH_TOKEN is required in remote mode"
+        )
+        await websocket.close(
+            code=4002, reason="Extension auth token required in remote mode"
+        )
         return
 
     if expected_token and token != expected_token:
@@ -126,7 +130,9 @@ class DomainsUpdateResponse(BaseModel):
     warnings: list[DomainPolicyWarningResponse] = Field(default_factory=list)
 
 
-def _to_warning_responses(warnings: list[DomainPolicyWarning]) -> list[DomainPolicyWarningResponse]:
+def _to_warning_responses(
+    warnings: list[DomainPolicyWarning],
+) -> list[DomainPolicyWarningResponse]:
     return [
         DomainPolicyWarningResponse(
             code="wildcard_includes_root",
@@ -175,7 +181,9 @@ async def get_authorized_domains() -> DomainsUpdateResponse:
 
 
 @router.put("/extension/domains", response_model=DomainsUpdateResponse)
-async def update_authorized_domains(body: DomainsUpdateRequest) -> DomainsUpdateResponse:
+async def update_authorized_domains(
+    body: DomainsUpdateRequest,
+) -> DomainsUpdateResponse:
     """Update the list of authorized domains for extension control.
 
     Only tabs on authorized domains can be controlled by the Agent.
@@ -247,6 +255,8 @@ async def get_extension_setup_hints() -> ExtensionSetupHintsResponse:
     )
 
 
-from app.api.extension.routes.clip_agent import router as clip_agent_router  # noqa: E402
+from app.api.extension.routes.clip_agent import (
+    router as clip_agent_router,
+)  # noqa: E402
 
 router.include_router(clip_agent_router)

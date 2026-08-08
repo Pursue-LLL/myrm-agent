@@ -243,6 +243,32 @@ interface Window {
   __MYRM_E2E_MOBILE_CC__?: {
     setLoading: (loading: boolean) => void;
   };
+  /** Dev-only bridge for Wiki settings Chrome E2E (E2EWikiBridge + WikiSection). */
+  __MYRM_E2E_WIKI__?: {
+    inject: (payload: {
+      stats?: Record<string, unknown>;
+      health?: Record<string, unknown>;
+    }) => void;
+    isHandlersReady: () => boolean;
+    registerHandlers: (handlers: {
+      applyStats: (stats: Record<string, unknown>) => void;
+      applyHealth: (health: Record<string, unknown>) => void;
+    }) => void;
+    unregisterHandlers: () => void;
+  };
+  /** Dev-only bridge for migration wizard Chrome E2E (E2EMigrationBridge). */
+  __MYRM_E2E_MIGRATION__?: {
+    showCodexCompletionLane: (payload: {
+      targetAgentId: string;
+      vaultCandidate?: {
+        path: string;
+        label: string;
+        has_obsidian_config: boolean;
+        markdown_file_count: number;
+      } | null;
+    }) => void;
+    clearCodexCompletionLane: () => void;
+  };
   /** Dev-only bridge for companion health-check Chrome E2E (AppLayout E2ECompanionBridge). */
   __MYRM_E2E_COMPANION__?: {
     enableCompanionModeForE2e: () => void;

@@ -77,6 +77,7 @@ class GeneralAgent(ToolSetupMixin):
         fallback_lite_model_cfg: ModelConfig | None = None,
         vision_fallback_model_cfg: ModelConfig | None = None,
         vision_fallback_model_cfgs: list[ModelConfig] | None = None,
+        video_fallback_model_cfgs: list[ModelConfig] | None = None,
         memory_require_confirmation: bool = False,
         enable_memory_auto_extraction: bool = True,
         enable_conversation_search: bool = False,
@@ -174,6 +175,7 @@ class GeneralAgent(ToolSetupMixin):
         self.fallback_lite_model_cfg = fallback_lite_model_cfg
         self.vision_fallback_model_cfg = vision_fallback_model_cfg
         self.vision_fallback_model_cfgs = vision_fallback_model_cfgs
+        self.video_fallback_model_cfgs = video_fallback_model_cfgs
         self.mcp_config = mcp_config
         self.search_service_cfg = search_service_cfg
         self.user_instructions = user_instructions
@@ -406,10 +408,13 @@ class GeneralAgent(ToolSetupMixin):
             context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
 
         context["supports_vision"] = self.model_cfg.supports_vision
+        context["supports_video"] = bool(getattr(self.model_cfg, "supports_video", False))
         if self.vision_fallback_model_cfgs:
             context["vision_fallback_model_cfgs"] = self.vision_fallback_model_cfgs
         if self.vision_fallback_model_cfg:
             context["vision_fallback_model_cfg"] = self.vision_fallback_model_cfg
+        if self.video_fallback_model_cfgs:
+            context["video_fallback_model_cfgs"] = self.video_fallback_model_cfgs
 
         from app.core.utils.media_file_reader import read_uploaded_media_file_content
 

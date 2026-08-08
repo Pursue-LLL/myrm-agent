@@ -49,17 +49,33 @@ class DocumentExtractRequest(BaseModel):
     """
 
     file_id: str | None = Field(default=None, description="File ID (sandbox mode)")
-    file_path: str | None = Field(default=None, description="Local file path (local mode)")
+    file_path: str | None = Field(
+        default=None, description="Local file path (local mode)"
+    )
 
     class Config:
         alias_generator = to_camel
         populate_by_name = True
 
 
+class DocumentImageItemResponse(BaseModel):
+    data: str = Field(default="", description="Base64-encoded image bytes")
+    mime_type: str = Field(default="image/png", description="MIME type")
+    embed_id: str = Field(
+        default="", description="OOXML relationship id when available"
+    )
+
+
 class DocumentExtractResponse(BaseModel):
     text: str = Field(default="", description="Extracted Markdown text")
-    format: str = Field(default="", description="Source format (docx/xlsx/xls/pptx/ppt/ipynb)")
+    format: str = Field(
+        default="", description="Source format (docx/xlsx/xls/pptx/ppt/ipynb)"
+    )
     char_count: int = Field(default=0, description="Character count of extracted text")
+    images: list[DocumentImageItemResponse] = Field(
+        default_factory=list,
+        description="Embedded image payloads (docx)",
+    )
 
     class Config:
         alias_generator = to_camel
@@ -75,7 +91,9 @@ def _validate_extension(filename: str) -> str:
     return ext
 
 
-async def _resolve_document_path(body: DocumentExtractRequest) -> tuple[Path, str, bool]:
+async def _resolve_document_path(
+    body: DocumentExtractRequest,
+) -> tuple[Path, str, bool]:
     """Resolve the actual filesystem path from the request.
 
     Returns: (path, extension, is_temp_file)
@@ -119,9 +137,11 @@ async def extract_document(
     file_path, ext, is_temp = await _resolve_document_path(body)
 
     try:
+        import base64
+
         from app.services.files.content_extraction import extract_document_from_path
 
-        text = await extract_document_from_path(file_path, ext)
+        extracted = await extract_document_from_path(file_path, ext)
     except Exception as e:
         logger.error("Document extraction failed for %s: %s", file_path, e)
         raise internal_error(operation="Document extraction", exception=e) from e
@@ -130,9 +150,17 @@ async def extract_document(
             file_path.unlink(missing_ok=True)
 
     response_data = DocumentExtractResponse(
-        text=text,
-        format=ext.lstrip("."),
-        char_count=len(text),
+        text=extracted.text,
+        format=extracted.format,
+        char_count=len(extracted.text),
+        images=[
+            DocumentImageItemResponse(
+                data=base64.b64encode(item.data).decode("ascii"),
+                mime_type=item.mime_type,
+                embed_id=item.embed_id,
+            )
+            for item in extracted.images
+        ],
     )
 
     return success_response(data=response_data.model_dump(by_alias=True))

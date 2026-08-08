@@ -2,7 +2,11 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { Loader2, RefreshCw, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/primitives/button';
+import { getApiUrl } from '@/lib/api';
+import { buildWikiApiPath } from '@/services/wikiService';
 import { useTranslations } from 'next-intl';
 
 const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), { ssr: false });
@@ -59,7 +63,7 @@ const GROUP_COLORS = [
 
 const getGroupColor = (group: number) => GROUP_COLORS[group % GROUP_COLORS.length];
 
-export default function WikiGraph3D() {
+export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
   const t = useTranslations('library');
   const [data, setData] = useState<ForceGraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,7 +138,7 @@ export default function WikiGraph3D() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch('/api/v1/wiki/graph');
+        const response = await fetch(getApiUrl(buildWikiApiPath('/wiki/graph', agentId)));
 
         if (!response.ok) {
           throw new Error('Failed to fetch graph data');
@@ -152,14 +156,21 @@ export default function WikiGraph3D() {
     };
 
     fetchGraph();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, agentId, t]);
 
   const handleNodeClick = useCallback(async (node: GraphNode) => {
     try {
       const center = node.id || node.name;
       if (!center) return;
 
-      const response = await fetch(`/api/v1/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`);
+      const response = await fetch(
+        getApiUrl(
+          buildWikiApiPath(
+            `/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`,
+            agentId,
+          ),
+        ),
+      );
       if (response.ok) {
         const newApi: ApiResponse = await response.json();
         const newData = apiToForceGraph(newApi);
@@ -337,8 +348,12 @@ export default function WikiGraph3D() {
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full">
+        <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center" data-testid="wiki-graph-empty">
           <p className="text-muted-foreground">{t('graph.empty')}</p>
+          <p className="max-w-md text-xs text-muted-foreground">{t('graph.emptyFirstWin')}</p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings/wiki">{t('graph.goSetupWiki')}</Link>
+          </Button>
         </div>
       )}
     </div>

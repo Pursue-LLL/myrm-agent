@@ -581,12 +581,19 @@ const MessageBox = ({
     <div data-test-id="assistant-message" className="flex flex-col space-y-9 relative">
       <div className="flex flex-col space-y-6 w-full">
         {message.mediaAnalysisStatus && (
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary backdrop-blur-sm">
-            <span
-              className="inline-block h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin"
-              aria-hidden="true"
-            />
-            <span>{tProgress(message.mediaAnalysisStatus)}</span>
+          <div className="inline-flex flex-col gap-1">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary backdrop-blur-sm">
+              <span
+                className="inline-block h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin"
+                aria-hidden="true"
+              />
+              <span>{tProgress(message.mediaAnalysisStatus)}</span>
+            </div>
+            {message.visionBackend && (
+              <span className="text-xs text-muted-foreground px-1">
+                {tProgress(`visionBackend.${message.visionBackend}` as 'visionBackend.vlm')}
+              </span>
+            )}
           </div>
         )}
 

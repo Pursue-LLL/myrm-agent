@@ -68,6 +68,8 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
       setSaving(true);
       const updated = await updateWikiSourceSyncConfig(
         {
+          feishu_enabled: status.config.feishu_enabled,
+          feishu_folder_token: status.config.feishu_folder_token,
           gmail_enabled: status.config.gmail_enabled,
           gmail_label: status.config.gmail_label,
           gdrive_enabled: status.config.gdrive_enabled,
@@ -221,6 +223,49 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
                 setStatus((prev) =>
                   prev
                     ? { ...prev, config: { ...prev.config, gdrive_folder_id: event.target.value } }
+                    : prev,
+                )
+              }
+            />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="wiki-feishu-enabled">{t('feishuLabel')}</Label>
+            <p className="text-xs text-muted-foreground">
+              {status.feishu_connected ? t('feishuConnected') : t('feishuDisconnected')}
+            </p>
+          </div>
+          <Switch
+            id="wiki-feishu-enabled"
+            checked={status.config.feishu_enabled}
+            disabled={!status.feishu_connected}
+            onCheckedChange={(checked) =>
+              setStatus((prev) =>
+                prev
+                  ? { ...prev, config: { ...prev.config, feishu_enabled: checked } }
+                  : prev,
+              )
+            }
+          />
+        </div>
+
+        {status.config.feishu_enabled && (
+          <div className="space-y-2">
+            <Label htmlFor="wiki-feishu-folder">{t('feishuFolderLabel')}</Label>
+            <p className="text-xs text-muted-foreground">{t('feishuFolderHint')}</p>
+            <Input
+              id="wiki-feishu-folder"
+              value={status.config.feishu_folder_token}
+              placeholder={t('feishuFolderPlaceholder')}
+              onChange={(event) =>
+                setStatus((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        config: { ...prev.config, feishu_folder_token: event.target.value },
+                      }
                     : prev,
                 )
               }

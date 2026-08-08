@@ -793,6 +793,11 @@ async def convert_to_general_agent_params(
         )
     )
 
+    from app.core.channel_bridge.config_parsers import extract_video_fallback_model_configs
+
+    video_fallback_cfgs = extract_video_fallback_model_configs(providers_dict)
+    video_fallback_model_cfgs = video_fallback_cfgs if video_fallback_cfgs else None
+
     jit_subagents = request.ephemeral_subagents
     session_access_roots_raw: list[dict[str, object]] | None = None
     sandbox_base_dir: str | None = None
@@ -1103,6 +1108,7 @@ async def convert_to_general_agent_params(
         fallback_lite_model_cfg=fallback_lite_model_cfg,
         vision_fallback_model_cfg=vision_fallback_model_cfg,
         vision_fallback_model_cfgs=vision_fallback_model_cfgs,
+        video_fallback_model_cfgs=video_fallback_model_cfgs,
         search_service_cfg=search_cfg,
         mcp_cfg=mcp_configs,
         user_instructions=user_instructions,

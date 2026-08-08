@@ -334,22 +334,12 @@ function SettingsLayout() {
   };
 
   const deferredLocaleReady = useDeferredLocaleReady();
-  if (!deferredLocaleReady) {
-    return (
-      <div
-        className="h-full w-full flex items-center justify-center p-8"
-        data-testid="settings-deferred-loading"
-        aria-busy="true"
-      >
-        <SettingsSkeleton />
-      </div>
-    );
-  }
 
   return (
     <div
       className="h-full w-full flex flex-col lg:flex-row overflow-hidden"
       data-testid="settings-layout"
+      aria-busy={deferredLocaleReady ? undefined : true}
     >
       {/* 移动端头部 */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-border/50 backdrop-blur-xl bg-background/80">

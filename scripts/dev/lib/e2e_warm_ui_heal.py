@@ -152,19 +152,28 @@ def heal_shared_frontend_debounced(
         if warm_ui_heal_recently_applied(debounce_sec=debounce_sec):
             return False
         try:
+            parallel = False
+            try:
+                from transport_supervisor import parallel_active_test_count
+
+                parallel = parallel_active_test_count() > 1
+            except ImportError:
+                pass
+            heal_env = {
+                **os.environ,
+                "MYRM_SUPERVISOR_BYPASS": "1",
+                "MYRM_E2E_SHPOIB": os.environ.get("MYRM_E2E_SHPOIB", "1"),
+                "MYRM_CHROME_E2E_FRONTEND_HEAL": "1",
+                "MYRM_FRONTEND_ENSURE_INNER": "1",
+                "MYRM_STACK_FRONTEND_WAIT_SEC": os.environ.get(
+                    "MYRM_STACK_FRONTEND_WAIT_SEC",
+                    "90" if parallel else "360",
+                ),
+            }
             subprocess.run(
                 ["bash", str(dev_stack), "frontend-only", "ensure"],
                 cwd=str(monorepo_root),
-                env={
-                    **os.environ,
-                    "MYRM_SUPERVISOR_BYPASS": "1",
-                    "MYRM_E2E_SHPOIB": os.environ.get("MYRM_E2E_SHPOIB", "1"),
-                    "MYRM_CHROME_E2E_FRONTEND_HEAL": "1",
-                    "MYRM_FRONTEND_ENSURE_INNER": "1",
-                    "MYRM_STACK_FRONTEND_WAIT_SEC": os.environ.get(
-                        "MYRM_STACK_FRONTEND_WAIT_SEC", "360"
-                    ),
-                },
+                env=heal_env,
                 capture_output=True,
                 text=True,
                 timeout=subprocess_timeout_sec,
@@ -215,6 +224,9 @@ def heal_shared_frontend_attach(
     poll_sec: float = 5.0,
 ) -> str:
     """Single-writer attach frontend heal across parallel chrome_e2e ADMIT sessions."""
+    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
+        if _shared_ui_probe_ok():
+            return "follower_ok"
     dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     if not dev_stack.is_file():
         return "missing_stack"
@@ -245,6 +257,8 @@ def heal_shared_frontend_attach(
                         file=sys.stderr,
                     )
                 if time.monotonic() >= deadline:
+                    if _shared_ui_probe_ok():
+                        return "follower_ok"
                     print(
                         "CHROME_E2E_HEAL_DEFER_TIMEOUT: attach frontend heal flock busy "
                         f"elapsed={elapsed:.0f}s leader_pid={leader_pid or 'unknown'} "

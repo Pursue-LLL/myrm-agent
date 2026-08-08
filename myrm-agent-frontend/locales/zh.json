@@ -268,7 +268,7 @@
       "tokens_per_hour": "TPH",
       "warning": "{provider} ({model}) 速率限制已达 {pct}%。Agent 可能会放缓速度。"
     },
-    "title": "记忆归档",
+    "title": "设置",
     "autoSaveFailed": "自动保存失败，请手动保存后再离开。",
     "common": {
       "providerDisabledWarning": "该模型所属提供商已禁用，请重新选择",
@@ -1589,6 +1589,10 @@
       "visionFallbackModel": "视觉降级模型",
       "visionFallbackModelDescription": "当主模型不支持视觉能力时，将自动调用此模型进行图像转文本分析。建议配置如 gpt-4o-mini 等廉价多模态模型",
       "visionFallbackModelFallbackDescription": "当主视觉模型遇到计费、限流或过载等问题时，自动尝试此备用模型，再回退到支持视觉的主 Agent 模型。",
+      "videoFallbackModel": "视频降级模型",
+      "videoFallbackModelDescription": "当主模型不支持原生视频时使用。建议配置支持视频的模型（如 Gemini）。",
+      "videoFallbackModelFallbackDescription": "主视频降级模型不可用时的备用模型。",
+      "selectVideoFallbackModel": "选择视频备用模型",
       "selectVisionFallbackModel": "选择视觉备用模型",
       "visionHealthTest": "测试视觉链路",
       "visionHealthChecking": "测试中…",
@@ -1601,6 +1605,17 @@
       "visionHealthNotConfigured": "请先配置视觉降级模型",
       "visionHealthUnknown": "未知错误",
       "visionHealthNetworkError": "网络请求失败",
+      "videoHealthTest": "测试视频链路",
+      "videoHealthChecking": "测试中…",
+      "videoHealthOk": "视频链路正常（{latency} ms）",
+      "videoHealthOkHint": "仅验证 API 连通性，不代表完整视频分析能力。",
+      "videoHealthResolvedModel": "配置的主视频模型 {configured} 不可用，探活由 {resolved} 成功完成。",
+      "videoHealthFailed": "视频链路失败：{error}",
+      "videoHealthFailedModel": "模型：{model}",
+      "videoHealthFailedEndpoint": "接口地址：{endpoint}",
+      "videoHealthNotConfigured": "请先配置视频降级模型",
+      "videoHealthUnknown": "未知错误",
+      "videoHealthNetworkError": "网络请求失败",
       "visionRecommendHint": "当前主模型无法读图。可一键从已启用的 Provider 中选用视觉模型。",
       "visionRecommendPreview": "推荐：{provider} / {model}",
       "visionRecommendButton": "使用此模型",
@@ -2163,11 +2178,76 @@
         },
         "goImport": "导入知识库",
         "goDuplicateReview": "审核重复",
-        "goProviders": "配置模型"
+        "goProviders": "配置模型",
+        "goGraph": "探索知识图谱",
+        "pitfalls": {
+          "checklist": {
+            "agentTools": "请重新应用预设，或在「智能体」中确认该智能体已启用 wiki、memory、cron 工具。",
+            "cronJob": "重新应用预设以恢复 6:00 稍后读与 7:00 知识库增量任务；若手动删过定时任务，请到「设置 → 定时任务」检查。",
+            "vaultContent": "导入 Obsidian、上传文件或通过浏览器剪藏，让 raw/ 有内容后再编译。",
+            "corpusDedup": "打开「重复审核」，处理阻塞性的精确或归一化重复组后再做首次全量编译。",
+            "providerReady": "在「设置 → 模型」添加 API Key 与默认对话模型；使用代理或自定义 Base URL 时请验证连通性。"
+          },
+          "actions": {
+            "repairPreset": "修复预设任务"
+          },
+          "syncExpectation": {
+            "title": "首次同步耗时",
+            "body": "大型 Obsidian 导入或首次外部来源同步，通常需要 18–25 分钟编译与图谱才会完整可用。进度在「队列」与统计中可见——属于正常现象，并非卡死。"
+          },
+          "obsidianGit": {
+            "title": "Obsidian 双写与 Git",
+            "body": "若在 Myrm 自动拉取时同时在 Obsidian 编辑同一 vault，请暂停 Obsidian 同步或启用版本控制（vault git），避免合并冲突。首次导入期间尽量单一写入方。",
+            "cta": "跳转到导入与 vault 设置"
+          },
+          "ladder": {
+            "title": "遇到问题怎么办",
+            "stepDocs": "阅读 Wiki 设置指南（概念、导入、编译）",
+            "stepAgent": "把报错信息发给 Second Brain 智能体——它可查看 vault 状态并给出修复建议",
+            "stepCoach": "仍无法解决？在「设置 → 关于」导出日志，并注明部署方式（本地、桌面或云托管）联系支持"
+          },
+          "teamKb": {
+            "title": "团队知识库起步",
+            "description": "四步：选场景 → 与 AI 聊出草稿 → 存入 wiki 待审核 → 编译后在聊天中分享 wiki 链接，而非口头回答。",
+            "wikiLinkTip": "遇到重复问题时，回复已编译的 wiki 链接，而不是一次性聊天答案。",
+            "scenarios": {
+              "opsSop": {
+                "label": "运营 SOP",
+                "prompt": "帮我起草一份团队运营 SOP：范围、角色、分步流程、升级路径与检查清单。内容适合保存为 wiki 待审核条目。"
+              },
+              "onboardingGuide": {
+                "label": "新人指南",
+                "prompt": "创建新人入职指南大纲：首周任务、工具权限、关键联系人及 FAQ。输出适合 wiki 待审核的结构化 markdown。"
+              },
+              "projectRetro": {
+                "label": "项目复盘",
+                "prompt": "生成项目复盘模板：做得好的、问题、行动项与负责人。输出适合 wiki 暂存的 markdown。"
+              },
+              "customerFaq": {
+                "label": "客户 FAQ",
+                "prompt": "根据常见支持主题起草客户 FAQ：问题、简答、深链锚点与最后复核日期。适合 wiki 编译。"
+              },
+              "inspectionMaint": {
+                "label": "巡检维护",
+                "prompt": "编写巡检与维护手册：周期、检查点、合格/不合格标准与安全注意事项。目标为 wiki 待审核入库。"
+              }
+            }
+          },
+          "extractFailures": {
+            "title": "文档导入失败类型",
+            "body": "加密 PDF、损坏的 Office、不支持格式、需 OCR 的扫描件、超大附件各有对应处理方式——请先查看导入错误标记与队列详情再重试。"
+          }
+        }
       },
       "sources": {
         "title": "外部来源",
-        "description": "定时将 Gmail 标签、Google Drive 文件夹与 RSS 订阅拉入知识库（同步过程不消耗 AI 额度）。长文与笔记进 Wiki；关于你的简短事实进 Memory。",
+        "description": "定时将 Gmail 标签、Google Drive 文件夹、飞书/ Lark 文档与 RSS 订阅拉入知识库（同步过程不消耗 AI 额度）。长文与笔记进 Wiki；关于你的简短事实进 Memory。",
+        "feishuLabel": "飞书 / Lark 文档",
+        "feishuFolderLabel": "飞书文件夹 token",
+        "feishuFolderPlaceholder": "留空表示根目录",
+        "feishuFolderHint": "从飞书云文档 Drive 复制文件夹 token；留空同步根目录",
+        "feishuConnected": "飞书已连接",
+        "feishuDisconnected": "请先在渠道设置中配置飞书凭证",
         "gmailLabel": "Gmail 稍后读",
         "gmailTagLabel": "Gmail 标签",
         "gdriveLabel": "Google Drive 文件夹",
@@ -2227,8 +2307,8 @@
         "exportSuccess": "已下载 Obsidian 包 — 解压后在 Obsidian 中选择「Open folder as vault」",
         "exportFailed": "下载失败",
         "cloudHint": "云托管：请下载知识库包后在本地电脑用 Obsidian 打开。",
-        "postWorkflowHint": "可在下方 Obsidian 卡片中打开 Graph 视图或下载 Obsidian 包。",
-        "postWorkflowAction": "定位 Obsidian 卡片",
+        "postWorkflowHint": "可在 Library 打开知识图谱，或在下方 Obsidian 卡片下载 Obsidian 包。",
+        "postWorkflowAction": "打开图谱",
         "gitHistoryHint": "本地知识库会记录 git 变更历史，便于审计与回溯。",
         "gitHistoryHintWithCommit": "最近快照：{commit}"
       },
@@ -2257,6 +2337,7 @@
         "cognitiveHotEmpty": "尚未刷新",
         "brokenLinks": "{count, plural, other {# 处断链}}",
         "invalidPageTypes": "{count, plural, other {# 处页面类型无效}}",
+        "provenanceGaps": "{count, plural, other {# 处缺少溯源}}",
         "structuralHint": "请在下方 Wiki 操作中使用「维护」或「修复页面类型」处理结构问题。",
         "lastMaintain": "上次维护：{time}",
         "lastMaintainNever": "尚未运行维护",
@@ -2282,8 +2363,13 @@
         "reviewPending": "审核待发布 ({count})",
         "actionRecompile": "重新编译",
         "actionRepair": "修复元数据",
-        "actionOpen": "打开词条",
+        "actionOpen": "打开",
         "driftSampleHint": "完整维护最多抽样 5 篇文章检测漂移，并非全量审计。",
+        "lastDriftCheck": "上次全面 drift 检查：{checkedAt}",
+        "structuralScopeHint": "当前为结构扫描。请在下方「操作」中运行「完整维护」以抽样检测漂移。",
+        "truncatedList": "显示 {shown} / {total} 项问题。",
+        "loadFailed": "无法加载健康报告。",
+        "retry": "重试",
         "maintainToastOpen": "仍有 {open} 项需您处理 · 已自动修复 {fixed} 项",
         "issueType": {
           "broken_link": "断链",
@@ -2293,6 +2379,7 @@
           "drift": "可能漂移",
           "incomplete": "内容不完整",
           "knowledge_gap": "图谱缺口",
+          "provenance_gap": "缺少溯源",
           "security_redacted": "内容已脱敏",
           "security_removed": "内容已移除"
         }
@@ -2395,6 +2482,8 @@
         "obsidianZip": "上传仓库 ZIP",
         "selectObsidianVault": "选择 Obsidian 仓库文件夹",
         "obsidianResult": "已导入 {processed} 篇笔记（{tags} 个标签、{images} 张图片），跳过 {skipped} 个",
+        "migrationVaultHandoff": "正在从 Codex 迁移导入 Obsidian 库：{path}",
+        "migrationVaultHandoffFailed": "无法自动导入迁移接续的 Obsidian 库",
         "dedupScanStarted": "已在后台启动重复扫描 — 请在「重复审核」查看结果",
         "conflictTitle": "检测到导入冲突",
         "conflictDescription": "有 {count} 个 raw 源文件已存在且内容不同。可保留现有文件，或用导入版本覆盖。",
@@ -2501,6 +2590,7 @@
         "updateSuccess": "概念更新成功",
         "updateFailed": "更新概念失败",
         "loadFailed": "加载概念失败",
+        "highlightNotFound": "在概念树中找不到「{path}」，可能已被移动或删除。",
         "selectToView": "选择一个概念以查看详情",
         "editPlaceholder": "在此编辑 Markdown 内容...",
         "editTabTruth": "Compiled Truth",
@@ -8090,8 +8180,23 @@
     "graph": {
       "loading": "加载知识图谱...",
       "empty": "暂无知识概念可供展示",
+      "emptyFirstWin": "请先在 Wiki 设置中导入笔记或应用 Second Brain 预设，再返回此处探索关联。",
+      "goSetupWiki": "打开 Wiki 设置",
       "error": "加载知识图谱失败，请检查后端服务",
-      "retry": "重试"
+      "retry": "重试",
+      "insights": {
+        "title": "图谱洞察",
+        "description": "来自 Wiki 图谱的结构化信号：缺口、意外关联与主题簇。",
+        "loading": "加载洞察中…",
+        "error": "无法加载图谱洞察。",
+        "retry": "重试",
+        "gapsTitle": "知识缺口（{count}）",
+        "connectionsTitle": "意外关联（{count}）",
+        "communitiesTitle": "主题簇（{count}）",
+        "emptyGaps": "未检测到知识缺口。",
+        "emptyConnections": "暂无意外关联。",
+        "emptyCommunities": "暂无主题簇 — 向知识库添加更多概念。"
+      }
     },
     "gallery": {
       "title": "媒体图库",
@@ -8296,6 +8401,13 @@
     "tool_call_truncated": "工具参数可能因输出长度限制而不完整",
     "analyzing_image": "分析图片中...",
     "analyzing_video": "分析视频中...",
+    "visionBackend": {
+      "vlm": "视觉模型",
+      "ocr": "OCR 降级",
+      "frame": "抽帧分析",
+      "native_video": "原生视频",
+      "geometry": "像素分析"
+    },
     "text_continuation": "回复被截断，自动续写中...",
     "text_continuation_exhausted": "达到最大续写次数后回复仍不完整",
     "context_truncation": "正在裁剪旧上下文以适应窗口",
@@ -9495,7 +9607,23 @@
         "rollbackAvailable": "支持一键回滚",
         "done": "完成",
         "rollbackButton": "回滚此批次",
-        "rollingBack": "正在回滚..."
+        "rollingBack": "正在回滚...",
+        "codexCompletion": {
+          "title": "完成知识库（Codex + Obsidian）",
+          "description": "Codex 迁移已将智能体指令导入 Myrm。多数 Codex+Obsidian 用户的笔记仍在 Obsidian vault 中——请将其导入 Wiki，再启用 Second Brain 自动化。",
+          "steps": {
+            "importVault": "将 Obsidian vault 导入 Wiki（raw → 编译 → 待审核）",
+            "secondBrain": "应用 Second Brain 预设（定时摄入 + 早间增量 + 维护）",
+            "graph": "打开知识图谱，核对链接与缺口"
+          },
+          "actions": {
+            "importWiki": "导入 Obsidian 到 Wiki",
+            "secondBrain": "应用 Second Brain",
+            "viewGraph": "查看知识图谱"
+          },
+          "applyFailed": "无法应用 Second Brain 预设",
+          "vaultHint": "已从 Codex 配置检测到该 Obsidian vault。「导入 Wiki」将自动使用该路径。"
+        }
       }
     },
     "pendingReview": {

@@ -50,3 +50,22 @@ def test_general_agent_params_json_dump_validate_preserves_enable_render_ui() ->
 
     restored = GeneralAgentParams.model_validate(payload)
     assert restored.enable_render_ui is True
+
+
+def test_general_agent_params_json_dump_validate_preserves_video_fallback_chain() -> None:
+    video_cfgs = [
+        ModelConfig(model="gemini-2.5-flash", api_key="video-key", supports_video=True),
+        ModelConfig(model="qwen-vl-max", api_key="vision-key", supports_vision=True),
+    ]
+    original = GeneralAgentParams(
+        query="task",
+        model_cfg=ModelConfig(model="gpt-4o", api_key="test-key"),
+        video_fallback_model_cfgs=video_cfgs,
+    )
+    payload = original.model_dump(mode="json")
+    assert len(payload["video_fallback_model_cfgs"]) == 2
+    assert payload["video_fallback_model_cfgs"][0]["model"] == "gemini-2.5-flash"
+
+    restored = GeneralAgentParams.model_validate(payload)
+    assert restored.video_fallback_model_cfgs is not None
+    assert restored.video_fallback_model_cfgs[0].model == "gemini-2.5-flash"

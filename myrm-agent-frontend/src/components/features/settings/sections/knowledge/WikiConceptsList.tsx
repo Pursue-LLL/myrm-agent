@@ -31,10 +31,12 @@ import { WikiFolderSelectTree } from './wiki/WikiFolderSelectTree';
 export function WikiConceptsList({
   treeSyncNonce = 0,
   agentScopeId = null,
+  highlightConceptPath = null,
   onVaultMutated,
 }: {
   treeSyncNonce?: number;
   agentScopeId?: string | null;
+  highlightConceptPath?: string | null;
   onVaultMutated?: () => void;
 }) {
   const t = useTranslations('settings.wiki.concepts');
@@ -81,7 +83,7 @@ export function WikiConceptsList({
     handleEdit,
     handleSave,
     confirmDelete,
-  } = useWikiConceptsList({ treeSyncNonce, agentScopeId, onVaultMutated });
+  } = useWikiConceptsList({ treeSyncNonce, agentScopeId, highlightConceptPath, onVaultMutated });
 
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [treeHeight, setTreeHeight] = useState(400);

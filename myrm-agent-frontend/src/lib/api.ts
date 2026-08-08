@@ -326,6 +326,9 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return;
   }
+  if (sessionStorage.getItem('e2e_warm_platform_readiness') === 'true') {
+    return;
+  }
   const e2eBase = resolveE2eApiBase();
   if (e2eBase) {
     const runtimeReady = (

@@ -838,7 +838,7 @@ export default function E2EChatBridge() {
         const attachMs =
           Number.isFinite(configuredAttachMs) && configuredAttachMs >= 60_000
             ? configuredAttachMs
-            : 60_000;
+            : 90_000;
         const deadline = Date.now() + attachMs;
         while (Date.now() < deadline) {
           const state = useChatStore.getState();

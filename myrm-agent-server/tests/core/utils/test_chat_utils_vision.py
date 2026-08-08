@@ -85,8 +85,9 @@ async def test_process_image_cache_hit_skips_engine() -> None:
     import hashlib
 
     img_hash = hashlib.md5(url.encode("utf-8")).hexdigest()
+    cache_key = f"{img_hash}:chat_fallback"
     meta: dict[str, object] = {
-        "extra_data": {"vision_cache": {img_hash: "[Image Analysis]:\ncached"}},
+        "extra_data": {"vision_cache": {cache_key: "[Image Analysis]:\ncached"}},
     }
     item = {"type": "image_url", "image_url": {"url": url}}
 
@@ -191,5 +192,9 @@ async def test_process_video_emits_analyzing_and_uses_engine() -> None:
 
     assert result["type"] == "text"
     assert "[Video Analysis]" in str(result["text"])
-    mock_engine.analyze_video_url.assert_awaited_once_with("https://example.com/v.mp4")
+    mock_engine.analyze_video_url.assert_awaited_once_with(
+        "https://example.com/v.mp4",
+        supports_video=False,
+        native_video_required=False,
+    )
     mock_bus.publish.assert_called()

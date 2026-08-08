@@ -7,8 +7,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage
-from myrm_agent_harness.toolkits.wiki.core.claims_contract import parse_claims_from_content
-from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import load_frontmatter_metadata
+from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
+    parse_claims_from_content,
+)
+from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
+    load_frontmatter_metadata,
+)
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 

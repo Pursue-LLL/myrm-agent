@@ -14,11 +14,17 @@ export const MIGRATION_CHAT_AGENT_STORAGE_KEY = 'myrm:migration-chat-agent-id';
 const MIGRATION_READINESS_ANCHOR_STORAGE_KEY = 'myrm:migration-readiness-anchor';
 const MIGRATION_BOUND_PROJECT_STORAGE_KEY = 'myrm:migration-bound-project-id';
 const MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY = 'myrm:migration-workspace-bind-candidates';
+const MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY = 'myrm:migration-obsidian-vault-import';
 const LEGACY_MIGRATION_READINESS_ANCHOR_SESSION_KEY = 'myrm:migration-readiness-anchor';
 const MIGRATION_READINESS_ANCHOR_TTL_MS = 30 * 60 * 1000;
 const MIGRATION_HANDOFF_TTL_MS = 30 * 60 * 1000;
 
 export type MigrationReadinessStatus = 'ready' | 'warning' | 'critical';
+
+export interface MigrationObsidianVaultHandoff {
+  vaultPath: string;
+  targetAgentId: string;
+}
 
 export interface MigrationWorkspaceBindCandidate {
   path: string;
@@ -361,6 +367,80 @@ export function clearMigrationWorkspaceBindCandidates(): void {
     return;
   }
   storage.removeItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
+}
+
+interface StoredMigrationObsidianVaultHandoff {
+  vaultPath: string;
+  targetAgentId: string;
+  queuedAt: string;
+}
+
+function parseStoredObsidianVaultHandoff(raw: string): StoredMigrationObsidianVaultHandoff | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      vaultPath?: unknown;
+      targetAgentId?: unknown;
+      queuedAt?: unknown;
+    };
+    const vaultPath = typeof parsed.vaultPath === 'string' ? parsed.vaultPath.trim() : '';
+    const targetAgentId = typeof parsed.targetAgentId === 'string' ? parsed.targetAgentId.trim() : '';
+    const queuedAt = typeof parsed.queuedAt === 'string' ? parsed.queuedAt.trim() : '';
+    if (!vaultPath || !targetAgentId || !queuedAt) {
+      return null;
+    }
+    const queuedAtMs = Date.parse(queuedAt);
+    if (Number.isNaN(queuedAtMs) || Date.now() - queuedAtMs > MIGRATION_HANDOFF_TTL_MS) {
+      return null;
+    }
+    return { vaultPath, targetAgentId, queuedAt };
+  } catch {
+    return null;
+  }
+}
+
+export function queueMigrationObsidianVaultImport(handoff: MigrationObsidianVaultHandoff): void {
+  const storage = readHandoffStorage();
+  if (storage === null || !handoff.vaultPath.trim() || !handoff.targetAgentId.trim()) {
+    return;
+  }
+  storage.setItem(
+    MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY,
+    JSON.stringify({
+      vaultPath: handoff.vaultPath.trim(),
+      targetAgentId: handoff.targetAgentId.trim(),
+      queuedAt: new Date().toISOString(),
+    } satisfies StoredMigrationObsidianVaultHandoff),
+  );
+}
+
+export function peekMigrationObsidianVaultImport(): MigrationObsidianVaultHandoff | null {
+  const storage = readHandoffStorage();
+  if (storage === null) {
+    return null;
+  }
+  const raw = storage.getItem(MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  const parsed = parseStoredObsidianVaultHandoff(raw);
+  if (!parsed) {
+    storage.removeItem(MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY);
+    return null;
+  }
+  return { vaultPath: parsed.vaultPath, targetAgentId: parsed.targetAgentId };
+}
+
+export function consumeMigrationObsidianVaultImport(expectedAgentId?: string): MigrationObsidianVaultHandoff | null {
+  const handoff = peekMigrationObsidianVaultImport();
+  if (!handoff) {
+    return null;
+  }
+  if (expectedAgentId?.trim() && handoff.targetAgentId !== expectedAgentId.trim()) {
+    return null;
+  }
+  const storage = readHandoffStorage();
+  storage?.removeItem(MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY);
+  return handoff;
 }
 
 /** Apply queued migration project bind to an existing chat (Settings bind while chat already in DB). */

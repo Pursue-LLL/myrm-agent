@@ -57,6 +57,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
               (step) => step.step_key !== analysisStepKey,
             );
             state.messages[messageIndex].mediaAnalysisStatus = null;
+            state.messages[messageIndex].visionBackend = null;
           }
         });
       }, 250);

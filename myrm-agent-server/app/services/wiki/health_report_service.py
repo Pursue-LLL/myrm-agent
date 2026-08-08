@@ -6,8 +6,9 @@
 - app.services.wiki.vault_service::get_wiki_archiver (POS: archiver accessor)
 
 [OUTPUT]
-- build_wiki_health_report: structural scan snapshot for GET /wiki/health-report
-- persist_wiki_health_snapshot / load_wiki_health_snapshot: vault JSON SSOT
+- build_wiki_health_report: structural scan + optional vault drift merge for GET /wiki/health-report
+- load_wiki_health_snapshot: read vault reports/last-health.json
+- persist_wiki_health_snapshot: vault JSON SSOT after maintain
 
 [POS]
 Server-only health report orchestration. Zero LLM on structural GET; snapshots written after maintain.
@@ -15,7 +16,6 @@ Server-only health report orchestration. Zero LLM on structural GET; snapshots w
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,6 +50,7 @@ class WikiHealthReportResponse(BaseModel):
     issues_found: int
     issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
     drift_sampled: bool = False
+    drift_checked_at: str | None = None
     duplicate_groups_pending: int = 0
     synthesis_pending: int = 0
 
@@ -77,6 +78,67 @@ def _cap_issues(issues: list[LintIssue]) -> list[LintIssue]:
     return issues[:_MAX_PERSISTED_ISSUES]
 
 
+def _response_to_lint_issue(item: WikiHealthIssueResponse) -> LintIssue:
+    return LintIssue(
+        issue_type=item.issue_type,
+        severity=item.severity,
+        location=item.location,
+        description=item.description,
+        action_kind=item.action_kind,
+        suggested_fix=item.suggested_fix,
+    )
+
+
+def load_wiki_health_snapshot(
+    structure: WikiStructure,
+) -> WikiHealthReportResponse | None:
+    """Load the latest maintain health snapshot from the vault, if present."""
+    path = _health_report_path(structure)
+    if not path.is_file():
+        return None
+    try:
+        return WikiHealthReportResponse.model_validate_json(
+            path.read_text(encoding="utf-8")
+        )
+    except Exception as exc:
+        logger.warning("Failed to load wiki health snapshot from %s: %s", path, exc)
+        return None
+
+
+def _merge_drift_from_snapshot(
+    structural_issues: list[LintIssue],
+    snapshot: WikiHealthReportResponse,
+) -> tuple[list[LintIssue], bool]:
+    """Append persisted full-maintain drift samples not already present in structural scan."""
+    if snapshot.mode != "full":
+        return structural_issues, False
+
+    existing_locations = {item.location for item in structural_issues}
+    merged = list(structural_issues)
+    for item in snapshot.issues:
+        if item.issue_type != "drift":
+            continue
+        if item.location in existing_locations:
+            continue
+        merged.append(_response_to_lint_issue(item))
+        existing_locations.add(item.location)
+
+    return merged, any(item.issue_type == "drift" for item in merged)
+
+
+def _drift_checked_at(
+    *,
+    drift_sampled: bool,
+    snapshot: WikiHealthReportResponse | None,
+    fallback_at: str | None = None,
+) -> str | None:
+    if not drift_sampled:
+        return None
+    if snapshot is not None and snapshot.mode == "full":
+        return snapshot.generated_at
+    return fallback_at
+
+
 async def build_wiki_health_report(
     *,
     linter: object,
@@ -85,22 +147,35 @@ async def build_wiki_health_report(
     duplicate_groups_pending: int = 0,
     synthesis_pending: int = 0,
 ) -> WikiHealthReportResponse:
-    """Build a read-only health report (structural mode avoids raw security mutation)."""
-    maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
-    include_raw_security = mode == "full"
+    """Build a read-only health report for GET /wiki/health-report.
+
+    Always runs a zero-LLM structural scan. When a full-maintain snapshot exists in the
+    vault, drift samples from that snapshot are merged in so refresh preserves them.
+    """
+    del mode  # GET remains structural; full-mode drift comes from vault snapshot merge.
     issues, _raw_scan = await linter.scan(  # type: ignore[attr-defined]
-        maintain_mode,
-        include_raw_security=include_raw_security,
+        MaintainMode.STRUCTURAL,
+        include_raw_security=False,
     )
+    drift_sampled = False
+    snapshot = load_wiki_health_snapshot(structure)
+    if snapshot is not None:
+        issues, drift_sampled = _merge_drift_from_snapshot(issues, snapshot)
+
     capped = _cap_issues(issues)
     open_count = count_open_actions(capped)
+    generated_at = datetime.now(UTC).isoformat()
     return WikiHealthReportResponse(
-        mode=mode,
-        generated_at=datetime.now(UTC).isoformat(),
+        mode="structural",
+        generated_at=generated_at,
         open_actions_count=open_count,
         issues_found=len(issues),
         issues=[_issue_to_response(item) for item in capped],
-        drift_sampled=mode == "full",
+        drift_sampled=drift_sampled,
+        drift_checked_at=_drift_checked_at(
+            drift_sampled=drift_sampled,
+            snapshot=snapshot,
+        ),
         duplicate_groups_pending=duplicate_groups_pending,
         synthesis_pending=synthesis_pending,
     )
@@ -115,19 +190,6 @@ def persist_wiki_health_snapshot(
     path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
 
 
-def load_wiki_health_snapshot(structure: WikiStructure) -> WikiHealthReportResponse | None:
-    """Load persisted health report from vault when present."""
-    path = _health_report_path(structure)
-    if not path.is_file():
-        return None
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        return WikiHealthReportResponse.model_validate(payload)
-    except (json.JSONDecodeError, ValueError) as exc:
-        logger.warning("Invalid wiki health snapshot at %s: %s", path, exc)
-        return None
-
-
 def report_from_lint_issues(
     *,
     mode: WikiHealthReportMode,
@@ -137,13 +199,22 @@ def report_from_lint_issues(
 ) -> WikiHealthReportResponse:
     """Build a health report DTO from an in-memory lint issue list."""
     capped = _cap_issues(issues)
+    generated_at = datetime.now(UTC).isoformat()
+    drift_sampled = mode == "full" and any(
+        item.issue_type == "drift" for item in issues
+    )
     return WikiHealthReportResponse(
         mode=mode,
-        generated_at=datetime.now(UTC).isoformat(),
+        generated_at=generated_at,
         open_actions_count=count_open_actions(capped),
         issues_found=len(issues),
         issues=[_issue_to_response(item) for item in capped],
-        drift_sampled=mode == "full",
+        drift_sampled=drift_sampled,
+        drift_checked_at=_drift_checked_at(
+            drift_sampled=drift_sampled,
+            snapshot=None,
+            fallback_at=generated_at if drift_sampled else None,
+        ),
         duplicate_groups_pending=duplicate_groups_pending,
         synthesis_pending=synthesis_pending,
     )

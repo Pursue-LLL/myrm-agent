@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -9,14 +9,25 @@ import type { WikiHealthIssue, WikiHealthReport } from '@/services/wikiService';
 interface WikiHealthIssuesSectionProps {
   report: WikiHealthReport | null;
   isLoading?: boolean;
+  loadError?: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
   onRecompile: () => void;
   isRecompiling?: boolean;
+  onRepair: () => void;
+  isRepairing?: boolean;
+  onNavigateIssue: (location: string) => void;
   onOpenDuplicateReview: () => void;
-  onOpenConcepts: () => void;
   onOpenPendingEdits: () => void;
   onRefresh: () => void;
+}
+
+function formatDriftCheckedAt(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function severityClass(severity: string): string {
@@ -41,6 +52,7 @@ function issueTypeLabel(
     'drift',
     'incomplete',
     'knowledge_gap',
+    'provenance_gap',
     'security_redacted',
     'security_removed',
   ] as const;
@@ -59,21 +71,44 @@ function locationLabel(location: string): string {
 export function WikiHealthIssuesSection({
   report,
   isLoading = false,
+  loadError = false,
   expanded,
   onToggleExpanded,
   onRecompile,
   isRecompiling = false,
+  onRepair,
+  isRepairing = false,
+  onNavigateIssue,
   onOpenDuplicateReview,
-  onOpenConcepts,
   onOpenPendingEdits,
   onRefresh,
 }: WikiHealthIssuesSectionProps) {
   const t = useTranslations('settings.wiki.healthReport');
+  const locale = useLocale();
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div
+        className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground"
+        data-testid="wiki-health-section"
+        data-state="loading"
+      >
         {t('loading')}
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div
+        className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 space-y-2"
+        data-testid="wiki-health-section"
+        data-state="error"
+      >
+        <p className="text-sm text-rose-800 dark:text-rose-200">{t('loadFailed')}</p>
+        <Button type="button" variant="outline" size="sm" onClick={onRefresh}>
+          {t('retry')}
+        </Button>
       </div>
     );
   }
@@ -86,23 +121,34 @@ export function WikiHealthIssuesSection({
   const hasIssues = report.issues.length > 0;
   const showCrossLinks =
     report.duplicate_groups_pending > 0 || report.synthesis_pending > 0;
+  const isTruncated = report.issues_found > report.issues.length;
 
   if (openCount === 0 && !showCrossLinks && !hasIssues) {
     return (
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200">
-        {t('allClear')}
+      <div
+        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-1"
+        data-testid="wiki-health-section"
+        data-state="clear"
+      >
+        <p className="text-sm text-emerald-800 dark:text-emerald-200">{t('allClear')}</p>
+        <p className="text-xs text-muted-foreground">{t('structuralScopeHint')}</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+    <div
+      className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3"
+      data-testid="wiki-health-section"
+      data-state="issues"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">{t('title')}</div>
           <p className="text-xs text-muted-foreground">
             {t('summary', { open: openCount, total: report.issues_found })}
           </p>
+          <p className="text-xs text-muted-foreground">{t('structuralScopeHint')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onRefresh}>
@@ -125,6 +171,12 @@ export function WikiHealthIssuesSection({
           ) : null}
         </div>
       </div>
+
+      {isTruncated ? (
+        <p className="text-xs text-muted-foreground">
+          {t('truncatedList', { shown: report.issues.length, total: report.issues_found })}
+        </p>
+      ) : null}
 
       {showCrossLinks ? (
         <div className="flex flex-wrap gap-2">
@@ -149,14 +201,25 @@ export function WikiHealthIssuesSection({
               issue={issue}
               onRecompile={onRecompile}
               isRecompiling={isRecompiling}
-              onOpenConcepts={onOpenConcepts}
+              onRepair={onRepair}
+              isRepairing={isRepairing}
+              onNavigateIssue={onNavigateIssue}
             />
           ))}
         </ul>
       ) : null}
 
       {report.drift_sampled ? (
-        <p className="text-xs text-muted-foreground">{t('driftSampleHint')}</p>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{t('driftSampleHint')}</p>
+          {report.drift_checked_at ? (
+            <p className="text-xs text-muted-foreground">
+              {t('lastDriftCheck', {
+                checkedAt: formatDriftCheckedAt(report.drift_checked_at, locale),
+              })}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -166,12 +229,16 @@ function HealthIssueRow({
   issue,
   onRecompile,
   isRecompiling,
-  onOpenConcepts,
+  onRepair,
+  isRepairing,
+  onNavigateIssue,
 }: {
   issue: WikiHealthIssue;
   onRecompile: () => void;
   isRecompiling: boolean;
-  onOpenConcepts: () => void;
+  onRepair: () => void;
+  isRepairing: boolean;
+  onNavigateIssue: (location: string) => void;
 }) {
   const t = useTranslations('settings.wiki.healthReport');
 
@@ -187,9 +254,17 @@ function HealthIssueRow({
   const onAction =
     issue.action_kind === 'recompile'
       ? onRecompile
-      : issue.action_kind === 'repair' || issue.action_kind === 'navigate'
-        ? onOpenConcepts
-        : undefined;
+      : issue.action_kind === 'repair' && issue.issue_type === 'invalid_frontmatter_type'
+        ? onRepair
+        : issue.action_kind === 'repair' || issue.action_kind === 'navigate'
+          ? () => onNavigateIssue(issue.location)
+          : undefined;
+
+  const actionDisabled =
+    (issue.action_kind === 'recompile' && isRecompiling) ||
+    (issue.action_kind === 'repair' &&
+      issue.issue_type === 'invalid_frontmatter_type' &&
+      isRepairing);
 
   return (
     <li className="rounded-md border border-border/60 bg-background/80 p-3">
@@ -213,7 +288,7 @@ function HealthIssueRow({
             type="button"
             size="sm"
             variant="outline"
-            disabled={issue.action_kind === 'recompile' && isRecompiling}
+            disabled={actionDisabled}
             onClick={onAction}
           >
             {actionLabel}

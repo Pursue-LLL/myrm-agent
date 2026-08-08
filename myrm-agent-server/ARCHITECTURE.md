@@ -120,6 +120,15 @@
 
 因此，本层新增任何竞品借鉴项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至外部控制服务（SaaS 部署场景）。
 
+### 0.07 Vision 媒体路由（Settings → chat 预处理 + agent sandbox）
+
+- **路由 SSOT**：`app/core/vision/media_router.py` — 图/视频降级槽决策（native / frame / vlm）；`pick_video_fallback_configs` 委托 harness `pick_video_fallback_model_cfgs`
+- **配置解析**：`app/core/channel_bridge/config_parsers.py` — `visionFallbackModel` + `videoFallbackModel` 链
+- **预处理**：`app/core/utils/chat_utils.py` — `_process_image_item` / `_process_video_item` + SSE `vision_backend`
+- **Agent 运行时**：`GeneralAgent._build_runtime_context` 注入 `video_fallback_model_cfgs` + `supports_video` → harness `file_read_tool` / `video_reader`
+- **探活**：`POST /api/v1/config/vision-health` · `POST /api/v1/config/video-health`
+- **Harness 引擎**：`myrm-agent-harness/toolkits/llms/vision/` — fallback / video / agent tools（EXTENDED · `vision-toolkit` skill）
+
 ### 代码智能（外部 MCP 集成）
 
 - 代码智能通过外部 MCP 服务提供。用户可在 **Settings → Communication & Integrations** 的 Integration Catalog 中一键接入 `code-review-graph`（28 工具）或 `CodeGraph`（10 工具）等社区 MCP 服务。

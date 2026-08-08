@@ -262,4 +262,33 @@ describe('ResultStep conversation search opt-in', () => {
 
     expect(screen.queryByRole('button', { name: 'result.enableConversationSearch' })).not.toBeInTheDocument();
   });
+
+  it('renders Codex wiki completion lane when migration source is codex', () => {
+    render(
+      <ResultStep
+        result={baseResult}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        migrationSource="codex"
+        workspaceBindCandidates={[
+          {
+            path: '/tmp/vault',
+            label: 'Codex Obsidian vault',
+            has_obsidian_config: true,
+            markdown_file_count: 2,
+          },
+        ]}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByTestId('codex-wiki-completion-lane')).toBeTruthy();
+    expect(screen.getByTestId('codex-completion-vault-hint')).toBeTruthy();
+  });
 });

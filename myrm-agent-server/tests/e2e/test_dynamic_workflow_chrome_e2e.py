@@ -23,6 +23,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     open_mcp_page,
     wait_for_state,
+    wait_for_workflow_plan_card,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
@@ -45,16 +46,6 @@ _PREPARE_DW_TURN_JS = """(async () => {
     sendReady: bridge.isSendReady?.() === true,
     debug: bridge.debugProviderState?.() ?? null,
   };
-})()"""
-
-_PLAN_CARD_WAITING_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTitle = /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
-  const buttons = [...document.querySelectorAll('button')];
-  const hasRun = buttons.some((btn) =>
-    /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
-  );
-  return { ready: hasTitle && hasRun, hasTitle, hasRun };
 })()"""
 
 _CLICK_RUN_WORKFLOW_JS = """(() => {
@@ -101,8 +92,11 @@ _KICKOFF_DW_JS = f"""(async () => {{
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e() -> None:
+def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
     """Full UI path: workflow toggle, plan card, confirm, summarized output."""
+    _ = e2e_resource_ledger
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail(
             "Provider not ready — run ./myrm ready --chrome then ./myrm test -m chrome_e2e "
@@ -112,29 +106,28 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e() -> None:
     ensure_e2e_yolo_mode()
     ui_url = get_e2e_ui_url()
 
-    with E2EResourceLedger(label="dynamic-workflow-chrome-e2e"):
-        with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
-            dismiss_blocking_modals(client, page)
-            client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
-            wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
+    with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
 
-            prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
-            assert isinstance(prepared, dict), prepared
-            assert prepared.get("ok") is True, f"Workflow mode prep failed: {prepared}"
-            assert prepared.get("sendReady") is True, f"Send not ready: {prepared}"
+        prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
+        assert isinstance(prepared, dict), prepared
+        assert prepared.get("ok") is True, f"Workflow mode prep failed: {prepared}"
+        assert prepared.get("sendReady") is True, f"Send not ready: {prepared}"
 
-            kickoff = client.evaluate(
-                page,
-                _KICKOFF_DW_JS,
-                timeout_sec=120.0,
-            )
-            assert isinstance(kickoff, dict), kickoff
-            assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
+        kickoff = client.evaluate(
+            page,
+            _KICKOFF_DW_JS,
+            timeout_sec=120.0,
+        )
+        assert isinstance(kickoff, dict), kickoff
+        assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
 
-            wait_for_state(client, page, _PLAN_CARD_WAITING_JS, timeout_sec=180.0)
+        wait_for_workflow_plan_card(client, page, page_url=ui_url)
 
-            clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
-            assert isinstance(clicked, dict)
-            assert clicked.get("ok") is True, f"Run click failed: {clicked}"
+        clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
+        assert isinstance(clicked, dict)
+        assert clicked.get("ok") is True, f"Run click failed: {clicked}"
 
-            wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)
+        wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)

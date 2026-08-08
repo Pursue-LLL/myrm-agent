@@ -71,11 +71,11 @@ def active_page_lease_ceiling() -> int:
         wave_lease_counts,
     )
     from e2e_parallel_status import (  # noqa: PLC0415
-        load_parallel_runtime_snapshot,
+        resolve_parallel_runtime_snapshot,
         safe_active_test_count,
     )
 
-    parallel, _ = load_parallel_runtime_snapshot()
+    parallel, _ = resolve_parallel_runtime_snapshot()
     active_tests = safe_active_test_count(parallel)
     wave_snapshot = load_wave_snapshot_observation()
     counts = wave_lease_counts(wave_snapshot)

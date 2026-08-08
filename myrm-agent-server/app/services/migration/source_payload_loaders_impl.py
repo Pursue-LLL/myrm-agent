@@ -36,11 +36,15 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if soul_path:
         result["soul_md"] = read_text(soul_path)
 
-    memory_path = path_by_kind(file_paths, "MEMORY.md") or find_file(root, "memories", "MEMORY.md")
+    memory_path = path_by_kind(file_paths, "MEMORY.md") or find_file(
+        root, "memories", "MEMORY.md"
+    )
     if memory_path:
         result["memory_md"] = read_text(memory_path)
 
-    user_path = path_by_kind(file_paths, "USER.md") or find_file(root, "memories", "USER.md")
+    user_path = path_by_kind(file_paths, "USER.md") or find_file(
+        root, "memories", "USER.md"
+    )
     if user_path:
         result["user_md"] = read_text(user_path)
 
@@ -52,7 +56,9 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if env_path:
         result["env_keys"] = extract_env_key_names(env_path)
 
-    config_path = path_by_kind(file_paths, "config.yaml") or find_file(root, "config.yaml")
+    config_path = path_by_kind(file_paths, "config.yaml") or find_file(
+        root, "config.yaml"
+    )
     if config_path:
         config_data = read_yaml(config_path)
         if isinstance(config_data, dict):
@@ -73,7 +79,10 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                         skill_item["usage_stats"] = usage_record
             result["skills"] = skills
 
-    from .hermes_cron_converter import build_hermes_cron_migration_plan, load_hermes_cron_jobs
+    from .hermes_cron_converter import (
+        build_hermes_cron_migration_plan,
+        load_hermes_cron_jobs,
+    )
 
     raw_cron_jobs = load_hermes_cron_jobs(root, file_paths)
     if raw_cron_jobs:
@@ -86,20 +95,31 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
 
 def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     from ._loader_utils import read_json
+    from .obsidian_vault_hints import collect_codex_obsidian_vault_hints
 
     result: dict[str, object] = {}
+    settings_data: dict[str, object] | None = None
 
-    instructions_path = path_by_kind(file_paths, "instructions.md") or find_file(root, "instructions.md")
+    instructions_path = path_by_kind(file_paths, "instructions.md") or find_file(
+        root, "instructions.md"
+    )
     if instructions_path:
         result["codex_instructions"] = read_text(instructions_path)
 
     for settings_name in ("config.json", "settings.json"):
-        settings_path = path_by_kind(file_paths, settings_name) or find_file(root, settings_name)
+        settings_path = path_by_kind(file_paths, settings_name) or find_file(
+            root, settings_name
+        )
         if settings_path:
-            settings_data = read_json(settings_path)
-            if isinstance(settings_data, dict):
-                result["codex_settings"] = settings_data
+            parsed = read_json(settings_path)
+            if isinstance(parsed, dict):
+                settings_data = parsed
+                result["codex_settings"] = parsed
             break
+
+    vault_hints = collect_codex_obsidian_vault_hints(settings_data, discovery_root=root)
+    if vault_hints:
+        result["obsidian_vault_hints"] = vault_hints
 
     return result
 
@@ -122,16 +142,22 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
                 },
             ]
 
-    settings_path = path_by_kind(file_paths, "settings.json") or find_file(root, "settings.json")
+    settings_path = path_by_kind(file_paths, "settings.json") or find_file(
+        root, "settings.json"
+    )
     if settings_path:
         settings_data = read_json(settings_path)
         if isinstance(settings_data, dict):
             result["claude_settings"] = settings_data
-            mcp_servers = settings_data.get("mcpServers") or settings_data.get("mcp_servers")
+            mcp_servers = settings_data.get("mcpServers") or settings_data.get(
+                "mcp_servers"
+            )
             if isinstance(mcp_servers, dict) and mcp_servers:
                 result["mcp_servers"] = mcp_servers
 
-    config_path = path_by_kind(file_paths, "config.yaml") or find_file(root, "config.yaml")
+    config_path = path_by_kind(file_paths, "config.yaml") or find_file(
+        root, "config.yaml"
+    )
     if config_path:
         config_data = read_yaml(config_path)
         if isinstance(config_data, dict):
@@ -156,7 +182,9 @@ def load_chatgpt(root: Path, file_paths: list[str]) -> dict[str, object]:
 
     result: dict[str, object] = {}
 
-    conversations_path = path_by_kind(file_paths, "conversations.json") or find_file(root, "conversations.json")
+    conversations_path = path_by_kind(file_paths, "conversations.json") or find_file(
+        root, "conversations.json"
+    )
     if conversations_path:
         data = read_json(conversations_path)
         if isinstance(data, list):
@@ -195,7 +223,7 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
             continue
 
         frontmatter_raw = content[3:end_idx].strip()
-        body = content[end_idx + 4:].strip()
+        body = content[end_idx + 4 :].strip()
 
         try:
             frontmatter = yaml.safe_load(frontmatter_raw)
@@ -214,15 +242,17 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
                 timeline = parts[1].strip()
                 break
 
-        pages.append({
-            "slug": str(md_path.relative_to(root)).removesuffix(".md"),
-            "type": str(frontmatter.get("type", "")),
-            "title": str(frontmatter.get("title", "")),
-            "tags": frontmatter.get("tags", []),
-            "compiled_truth": compiled_truth,
-            "timeline": timeline,
-            "frontmatter": frontmatter,
-        })
+        pages.append(
+            {
+                "slug": str(md_path.relative_to(root)).removesuffix(".md"),
+                "type": str(frontmatter.get("type", "")),
+                "title": str(frontmatter.get("title", "")),
+                "tags": frontmatter.get("tags", []),
+                "compiled_truth": compiled_truth,
+                "timeline": timeline,
+                "frontmatter": frontmatter,
+            }
+        )
 
     return {"gbrain_pages": pages, "_source": "gbrain"}
 

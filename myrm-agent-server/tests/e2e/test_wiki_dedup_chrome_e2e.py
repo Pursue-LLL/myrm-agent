@@ -26,9 +26,11 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    open_wiki_settings_mcp_page,
     prepare_e2e_ui_session,
     reload_mcp_page,
     wait_for_state,
+    wait_for_wiki_settings_shell,
     warm_ui_route,
 )
 
@@ -90,18 +92,6 @@ _ACTIVATE_DEDUP_TAB_JS = """(() => {
   return {
     ok: true,
     active: tab.getAttribute('data-state') === 'active',
-  };
-})()"""
-
-_WIKI_SHELL_JS = """(() => {
-  const bodyText = document.body.innerText || '';
-  return {
-    ready:
-      location.pathname.endsWith('/settings/wiki') &&
-      bodyText.length > 20 &&
-      !!document.querySelector('[data-testid="wiki-dedup-tab"]'),
-    pathname: location.pathname,
-    bodyLength: bodyText.length,
   };
 })()"""
 
@@ -250,37 +240,20 @@ def _run_duplicate_review_assertions(
         except ImportError:
             pass
 
-    with open_mcp_page(
+    with open_wiki_settings_mcp_page(
         wiki_page_url,
-        timeout_ms=90_000,
-        request_timeout_sec=90.0,
+        timeout_ms=120_000,
+        request_timeout_sec=180.0,
     ) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page, recover_url=wiki_page_url)
 
-        wiki_shell: dict[str, object] = {}
-        for attempt in range(3):
-            try:
-                wiki_shell = wait_for_state(
-                    client,
-                    page,
-                    _WIKI_SHELL_JS,
-                    timeout_sec=_warm_ui_parallel_wait_sec(_WIKI_SHELL_WAIT_SEC),
-                    page_url=wiki_page_url,
-                )
-                if wiki_shell.get("ready") is True:
-                    break
-            except AssertionError:
-                if attempt >= 2:
-                    raise
-            if attempt < 2:
-                reload_mcp_page(
-                    client,
-                    page,
-                    target_url=wiki_page_url,
-                    timeout_ms=90_000,
-                )
-                dismiss_blocking_modals(client, page, recover_url=wiki_page_url)
+        wiki_shell = wait_for_wiki_settings_shell(
+            client,
+            page,
+            page_url=wiki_page_url,
+            timeout_sec=_WIKI_SHELL_WAIT_SEC,
+        )
         assert wiki_shell.get("ready") is True, json.dumps(
             wiki_shell, indent=2, ensure_ascii=False
         )

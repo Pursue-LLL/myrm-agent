@@ -467,6 +467,161 @@ def extract_vision_fallback_model_config(
     return configs[0] if configs else None
 
 
+def _infer_supports_video(
+    model: str,
+    providers_dict: dict[str, object] | None,
+) -> bool:
+    """Infer native video support from custom model info or model id."""
+    from app.core.channel_bridge.model_resolver import _lookup_custom_model_info
+
+    custom = _lookup_custom_model_info(model, providers_dict)
+    if custom is not None:
+        if "supports_video" in custom:
+            return bool(custom["supports_video"])
+        if "supports_video_input" in custom:
+            return bool(custom["supports_video_input"])
+    return False
+
+
+def _resolve_video_fallback_primary_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Resolve videoFallbackModel primary selection to ModelConfig."""
+    from app.core.types import ModelConfig
+
+    if not providers_dict:
+        return None
+
+    default_model_cfg = providers_dict.get("defaultModelConfig")
+    if not isinstance(default_model_cfg, dict):
+        return None
+
+    video_slot = default_model_cfg.get("videoFallbackModel")
+    if not isinstance(video_slot, dict):
+        return None
+
+    if "providerId" in video_slot and "primary" not in video_slot:
+        selection: object = video_slot
+    else:
+        selection = video_slot.get("primary") or video_slot.get("selection")
+    if not isinstance(selection, dict):
+        return None
+
+    provider_id = str(selection.get("providerId", ""))
+    model = str(selection.get("model", ""))
+    if not provider_id or not model:
+        return None
+
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return None
+
+    provider = next(
+        (
+            p
+            for p in providers
+            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+        ),
+        None,
+    )
+    if not provider:
+        return None
+
+    api_key = _extract_active_key(provider)
+    if not api_key:
+        return None
+
+    ptype = str(provider.get("providerType", "")) or None
+    full_model = _to_litellm_model(provider_id, model, ptype)
+    api_url = str(provider.get("apiUrl", "")) or None
+
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+        _lookup_custom_model_info,
+    )
+
+    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
+    cfg = enrich_model_capabilities(
+        cfg,
+        providers_dict,
+        selection_supports_vision=True,
+    )
+    custom = _lookup_custom_model_info(cfg.model, providers_dict)
+    cfg = cfg.model_copy(update={"supports_video": _infer_supports_video(cfg.model, providers_dict)})
+    return enrich_model_context_window(cfg, providers_dict)
+
+
+def build_video_fallback_config_chain(
+    providers_dict: dict[str, object] | None,
+    *,
+    primary_override: "ModelConfig | None" = None,
+) -> list["ModelConfig"]:
+    """Build ordered video auxiliary provider chain from videoFallbackModel slot."""
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+
+    configs: list[ModelConfig] = []
+    seen: set[tuple[str, str | None]] = set()
+
+    primary = primary_override or _resolve_video_fallback_primary_config(providers_dict)
+    _append_unique_model_config(configs, seen, primary)
+
+    if providers_dict:
+        default_model_cfg = providers_dict.get("defaultModelConfig")
+        providers = providers_dict.get("providers")
+        if isinstance(default_model_cfg, dict) and isinstance(providers, list):
+            video_slot = default_model_cfg.get("videoFallbackModel")
+            slot_fallback = _resolve_slot_fallback(video_slot, providers)
+            if slot_fallback is not None:
+                slot_fallback = enrich_model_capabilities(
+                    slot_fallback,
+                    providers_dict,
+                    selection_supports_vision=True,
+                )
+                slot_fallback = enrich_model_context_window(slot_fallback, providers_dict)
+                slot_fallback = slot_fallback.model_copy(
+                    update={"supports_video": _infer_supports_video(slot_fallback.model, providers_dict)}
+                )
+                _append_unique_model_config(configs, seen, slot_fallback)
+
+    return configs
+
+
+def extract_video_fallback_model_configs(
+    providers_dict: dict[str, object] | None,
+) -> list["ModelConfig"]:
+    """Extract ordered video auxiliary provider chain from WebUI settings."""
+    return build_video_fallback_config_chain(providers_dict)
+
+
+def extract_video_fallback_model_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    configs = extract_video_fallback_model_configs(providers_dict)
+    return configs[0] if configs else None
+
+
+def build_video_fallback_probe_engine_from_providers(
+    providers_dict: dict[str, object] | None,
+) -> object | None:
+    """Build a VisionFallbackEngine for the video fallback chain connectivity probe."""
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+        create_vision_fallback_engine,
+    )
+
+    from app.core.vision.media_router import pick_video_fallback_configs
+
+    video_cfgs = extract_video_fallback_model_configs(providers_dict)
+    vision_cfgs = extract_vision_fallback_model_configs(providers_dict)
+    chain = pick_video_fallback_configs(video_cfgs, vision_cfgs)
+    if not chain:
+        return None
+    return create_vision_fallback_engine(chain[0], chain)
+
+
 def extract_user_instructions(
     personal_settings_dict: dict[str, object] | None,
 ) -> str | None:

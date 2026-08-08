@@ -14,6 +14,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (  # noqa: E402
     DISMISS_MODALS_JS,
+    E2E_API_BINDING_PROBE_JS,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
     wait_e2e_provider_ready,
@@ -24,7 +25,9 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    wait_for_react_e2e_bridge,
     wait_for_state,
+    wait_for_workflow_plan_card,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
@@ -47,16 +50,6 @@ _PREPARE_DW_TURN_JS = """(async () => {
     ok: bridge.isWorkflowMode?.() === true,
     sendReady: bridge.isSendReady?.() === true,
   };
-})()"""
-
-_PLAN_CARD_WAITING_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTitle = /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
-  const buttons = [...document.querySelectorAll('button')];
-  const hasRun = buttons.some((btn) =>
-    /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
-  );
-  return { ready: hasTitle && hasRun, hasTitle, hasRun };
 })()"""
 
 _CLICK_RUN_WORKFLOW_JS = """(() => {
@@ -145,6 +138,15 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         dismiss_blocking_modals(client, page)
         client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
+        wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=ui_url)
+
+        binding = client.evaluate(page, E2E_API_BINDING_PROBE_JS, timeout_sec=10.0)
+        assert isinstance(binding, dict), binding
+        expected_api = get_e2e_api_url().rstrip("/")
+        bound_api = str(binding.get("apiBase") or "").rstrip("/")
+        assert bound_api == expected_api, (
+            f"PRIVATE SHPOIB API binding drift: bound={bound_api!r} expected={expected_api!r}"
+        )
 
         prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
         assert isinstance(prepared, dict), prepared
@@ -154,7 +156,7 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         assert isinstance(kickoff, dict), kickoff
         assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
 
-        wait_for_state(client, page, _PLAN_CARD_WAITING_JS, timeout_sec=180.0)
+        wait_for_workflow_plan_card(client, page, page_url=ui_url)
 
         clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
         assert isinstance(clicked, dict)

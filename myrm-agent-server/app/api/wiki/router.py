@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.services.wiki import MemoryToWikiArchiver
+
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
@@ -141,16 +142,6 @@ class WikiClaimItem(BaseModel):
     evidence: list[WikiClaimEvidenceItem] = Field(default_factory=list)
 
 
-class WikiStaleFileItem(BaseModel):
-    relative_path: str
-
-
-class WikiStaleSummaryResponse(BaseModel):
-    stale_count: int
-    last_compile_time: str | None = None
-    stale_files: list[WikiStaleFileItem] = Field(default_factory=list)
-
-
 class WikiRetrievalTraceIndexHit(BaseModel):
     link_name: str
     summary: str
@@ -230,6 +221,7 @@ class WikiHealthReportResponse(BaseModel):
     issues_found: int
     issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
     drift_sampled: bool = False
+    drift_checked_at: str | None = None
     duplicate_groups_pending: int = 0
     synthesis_pending: int = 0
 
@@ -237,6 +229,7 @@ class WikiHealthReportResponse(BaseModel):
 class WikiStructuralIssuesResponse(BaseModel):
     broken_links: int = 0
     invalid_frontmatter_types: int = 0
+    provenance_gaps: int = 0
     scanned_concepts: int = 0
 
 
@@ -767,7 +760,9 @@ async def maintain_wiki(
                     description=str(item["description"]),
                     action_kind=str(item["action_kind"]),
                     suggested_fix=(
-                        str(item["suggested_fix"]) if item.get("suggested_fix") is not None else None
+                        str(item["suggested_fix"])
+                        if item.get("suggested_fix") is not None
+                        else None
                     ),
                 )
                 for item in result.lint_issues
@@ -1202,6 +1197,7 @@ async def get_wiki_stats(
             structural_issues=WikiStructuralIssuesResponse(
                 broken_links=structural.broken_links,
                 invalid_frontmatter_types=structural.invalid_frontmatter_types,
+                provenance_gaps=structural.provenance_gaps,
                 scanned_concepts=structural.scanned_concepts,
             ),
             dedup_stats=dedup_stats,
@@ -1213,26 +1209,6 @@ async def get_wiki_stats(
         raise HTTPException(
             status_code=500, detail="Wiki state retrieval failed"
         ) from e
-
-
-@router.get("/stale-summary", response_model=WikiStaleSummaryResponse)
-async def get_wiki_stale_summary(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-) -> WikiStaleSummaryResponse:
-    """Return raw files modified after the last wiki compilation."""
-    from myrm_agent_harness.toolkits.wiki.maintenance.stale_summary import (
-        collect_stale_raw_files,
-    )
-
-    summary = collect_stale_raw_files(archiver._structure)
-    return WikiStaleSummaryResponse(
-        stale_count=summary.stale_count,
-        last_compile_time=summary.last_compile_time,
-        stale_files=[
-            WikiStaleFileItem(relative_path=item.relative_path)
-            for item in summary.stale_files
-        ],
-    )
 
 
 # --- Concepts CRUD Endpoints ---
@@ -1673,7 +1649,9 @@ async def compound_chat_message_to_wiki(
         ) from exc
     except Exception as exc:
         logger.error("Wiki chat compound failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Wiki chat compound failed") from exc
+        raise HTTPException(
+            status_code=500, detail="Wiki chat compound failed"
+        ) from exc
 
     return WikiCompoundResponse(
         success=True,

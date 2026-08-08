@@ -14,7 +14,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
+    wait_for_settings_layout,
     wait_for_state,
     warm_ui_route,
 )
@@ -83,11 +83,11 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
 
     with open_mcp_page(bridge_url, timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(
+        wait_for_settings_layout(
             client,
             page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
             page_url=bridge_url,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
         client.navigate(page, bridge_url, timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
@@ -165,11 +165,11 @@ def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None
 
         with open_mcp_page(bridge_url, timeout_ms=90_000) as (client, page):
             dismiss_blocking_modals(client, page)
-            wait_for_react_e2e_bridge(
+            wait_for_settings_layout(
                 client,
                 page,
-                timeout_sec=_warm_ui_parallel_wait_sec(90.0),
                 page_url=bridge_url,
+                timeout_sec=_warm_ui_parallel_wait_sec(90.0),
             )
             client.navigate(page, bridge_url, timeout_ms=90_000)
             dismiss_blocking_modals(client, page)

@@ -152,9 +152,40 @@ def signoff_stream_holder_health_errors(payload: HealthJsonPayload) -> list[str]
     return errors
 
 
+def _read_attach_cdp_live(payload: HealthJsonPayload) -> bool:
+    """True when mux CDP identity is live for READ attach.
+
+    ``upstreamReady`` can flap false while mux reconnects under parallel load;
+    ``wsStampMatch`` + chrome/mux epochs prove the stamped CDP endpoint is current.
+    """
+    if payload["upstreamReady"]:
+        return True
+    return (
+        payload["wsStampMatch"]
+        and payload["chromeEpoch"] is not None
+        and payload["muxEpoch"] is not None
+    )
+
+
 def read_attach_health_errors(payload: HealthJsonPayload) -> list[str]:
     """READ lane attach without shared_hot — mux/backend/chrome live; SMP may defer frontendEpoch."""
-    return signoff_stream_holder_health_errors(payload)
+    errors: list[str] = []
+    if payload["muxDaemons"] != 1:
+        errors.append(f"muxDaemons={payload['muxDaemons']}")
+    if not payload["wsStampMatch"]:
+        errors.append("wsStampMatch=false")
+    if not _read_attach_cdp_live(payload):
+        errors.append("upstreamReady=false")
+    if not payload["runtimeId"]:
+        errors.append("runtimeId=empty")
+    for name, epoch in (
+        ("backendEpoch", payload["backendEpoch"]),
+        ("chromeEpoch", payload["chromeEpoch"]),
+        ("muxEpoch", payload["muxEpoch"]),
+    ):
+        if epoch is None:
+            errors.append(f"{name}=missing")
+    return errors
 
 
 def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:
@@ -281,8 +312,16 @@ def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
         return "api=unreachable"
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="attach-health") as pool:
-        ui_error = pool.submit(probe_ui).result()
-        api_error = pool.submit(probe_api).result()
+        ui_future = pool.submit(probe_ui)
+        api_future = pool.submit(probe_api)
+        try:
+            ui_error = ui_future.result(timeout=ui_timeout + 3.0)
+        except TimeoutError:
+            ui_error = "ui=probe_timeout"
+        try:
+            api_error = api_future.result(timeout=api_timeout + 3.0)
+        except TimeoutError:
+            api_error = "api=probe_timeout"
     errors: list[str] = []
     if ui_error is not None:
         errors.append(ui_error)
@@ -298,7 +337,13 @@ def _state_dir() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     if override:
         return Path(override)
-    return Path.home() / ".local/state/myrm-dev"
+    dev_dir = Path(__file__).resolve().parent.parent
+    dev_dir_str = str(dev_dir)
+    if dev_dir_str not in sys.path:
+        sys.path.insert(0, dev_dir_str)
+    from wave_orchestrator.paths import resolve_dev_state_dir
+
+    return resolve_dev_state_dir()
 
 
 def _stack_epoch_file() -> Path:
@@ -349,7 +394,18 @@ def _read_json_file(path: Path) -> dict[str, object] | None:
 
 
 def read_backend_epoch() -> BackendEpoch | None:
-    raw = _read_json_file(_stack_epoch_file())
+    epoch_path = _stack_epoch_file()
+    raw = _read_json_file(epoch_path)
+    if raw is None:
+        dev_dir = Path(__file__).resolve().parent.parent
+        dev_dir_str = str(dev_dir)
+        if dev_dir_str not in sys.path:
+            sys.path.insert(0, dev_dir_str)
+        from wave_orchestrator.paths import _real_user_home
+
+        fallback = _real_user_home() / ".local/state/myrm-dev/stack-epoch.json"
+        if fallback != epoch_path:
+            raw = _read_json_file(fallback)
     if raw is None:
         return None
     epoch = raw.get("epoch")

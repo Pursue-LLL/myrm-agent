@@ -49,6 +49,7 @@ class BaseAgentParams(BaseModel):
     fallback_lite_model_cfg: ModelConfig | None = None
     vision_fallback_model_cfg: ModelConfig | None = None
     vision_fallback_model_cfgs: list[ModelConfig] | None = None
+    video_fallback_model_cfgs: list[ModelConfig] | None = None
     search_service_cfg: SearchServiceConfig | None = None
     mcp_cfg: list[MCPServerConfig] | None = None
     user_instructions: str | None = None
@@ -270,6 +271,7 @@ class AgentFactory:
             fallback_lite_model_cfg=params.fallback_lite_model_cfg,
             vision_fallback_model_cfg=params.vision_fallback_model_cfg,
             vision_fallback_model_cfgs=params.vision_fallback_model_cfgs,
+            video_fallback_model_cfgs=params.video_fallback_model_cfgs,
             mcp_config=params.mcp_cfg,
             search_service_cfg=params.search_service_cfg,
             user_instructions=params.user_instructions,

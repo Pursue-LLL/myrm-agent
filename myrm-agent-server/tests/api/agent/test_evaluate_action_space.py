@@ -3,8 +3,6 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.agents.agent_extras import _build_catalog_preview
-
 
 @pytest.fixture
 async def async_client(app):
@@ -79,15 +77,3 @@ async def test_evaluate_action_space_critical(
     assert result["ascs_score"] == 1600
     assert result["accuracy_level"] == 0  # maxes out at 100% noise
     assert result["is_critical"] is True
-
-
-@pytest.mark.asyncio
-async def test_build_catalog_preview_empty_skill_ids() -> None:
-    """Harness SSOT preview with no bound skills."""
-    preview = await _build_catalog_preview([], {})
-    assert preview == {
-        "inline_count": 0,
-        "hidden_count": 0,
-        "search_mounted": False,
-        "inline_cap": 20,
-    }

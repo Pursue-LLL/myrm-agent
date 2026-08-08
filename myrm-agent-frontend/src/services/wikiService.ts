@@ -74,12 +74,6 @@ export interface WikiClaim {
   evidence: WikiClaimEvidence[];
 }
 
-export interface WikiStaleSummary {
-  stale_count: number;
-  last_compile_time: string | null;
-  stale_files: Array<{ relative_path: string }>;
-}
-
 export type WikiHealthIssueActionKind = 'repair' | 'recompile' | 'navigate' | 'info';
 
 export interface WikiHealthIssue {
@@ -98,8 +92,19 @@ export interface WikiHealthReport {
   issues_found: number;
   issues: WikiHealthIssue[];
   drift_sampled: boolean;
+  drift_checked_at?: string | null;
   duplicate_groups_pending: number;
   synthesis_pending: number;
+}
+
+export interface WikiGraphInsightRecord {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+export interface WikiGraphInsights {
+  unexpected_connections: WikiGraphInsightRecord[];
+  knowledge_gaps: WikiGraphInsightRecord[];
+  communities: WikiGraphInsightRecord[];
 }
 
 export interface WikiMaintainResponse {
@@ -613,6 +618,10 @@ export const wikiService = {
     return apiRequest<WikiHealthReport>(buildWikiApiPath('/wiki/health-report', agentId));
   },
 
+  getGraphInsights: async (agentId?: string | null): Promise<WikiGraphInsights> => {
+    return apiRequest<WikiGraphInsights>(buildWikiApiPath('/wiki/graph/insights', agentId));
+  },
+
   maintainWiki: async (
     mode: 'structural' | 'full',
     agentId?: string | null,
@@ -622,10 +631,6 @@ export const wikiService = {
       buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId),
       { method: 'POST' },
     );
-  },
-
-  getStaleSummary: async (agentId?: string | null): Promise<WikiStaleSummary> => {
-    return apiRequest<WikiStaleSummary>(buildWikiApiPath('/wiki/stale-summary', agentId));
   },
 
   exportVault: async (agentId?: string | null): Promise<void> => {

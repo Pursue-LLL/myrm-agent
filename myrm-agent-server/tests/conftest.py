@@ -448,21 +448,27 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
 
     # P0-F / R287-R289: STANDARD SHARED tests defer verify pin when shared :8080 is healthy.
     if workload.strip().upper() == "STANDARD":
+        # Attach preflight already passed chrome MCP; body must not skip on drift guard.
+        if (
+            os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
+            and os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1"
+        ):
+            return
+        shared_base = str(
+            getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080"
+        ).strip()
         shared_healthy = any(
             getattr(item, "source", "") == "shared"
             and getattr(item, "health_ok", False)
             for item in getattr(ctx, "candidates", ())
         )
-        if not shared_healthy:
-            try:
-                from epoch_delivery_plane import _health_runtime_id
-            except ImportError:
-                pass
-            else:
-                shared_base = str(
-                    getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080"
-                ).strip()
-                shared_healthy = bool(_health_runtime_id(shared_base))
+        try:
+            from epoch_delivery_plane import _health_runtime_id
+        except ImportError:
+            _health_runtime_id = None  # type: ignore[misc, assignment]
+        if _health_runtime_id is not None and shared_base:
+            # Candidate probes can false-negative under parallel attach; live probe is SSOT.
+            shared_healthy = shared_healthy or bool(_health_runtime_id(shared_base))
         if shared_healthy:
             return
 
@@ -513,7 +519,11 @@ def _chrome_e2e_epoch_pin(
         workload=profile[2],
     )
     _EPOCH_PIN_DEFER_DETAILS = frozenset(
-        {"shared_epoch_aligned", "shared_healthy_defer_verify_pin", "verify_seed_failed_defer_shared"}
+        {
+            "shared_epoch_aligned",
+            "shared_healthy_defer_verify_pin",
+            "verify_seed_failed_defer_shared",
+        }
     )
     if not outcome.applied:
         if (

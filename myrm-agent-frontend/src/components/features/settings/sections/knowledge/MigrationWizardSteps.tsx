@@ -44,6 +44,7 @@ import {
   IMPORT_READINESS_STYLES,
 } from './MigrationWizardReadiness';
 import MigrationVaultBindPanel from './MigrationVaultBindPanel';
+import CodexWikiCompletionLane from './CodexWikiCompletionLane';
 import type { MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
 import { isLocalMode } from '@/lib/deploy-mode';
 
@@ -762,6 +763,7 @@ export function ResultStep({
   onDone,
   vaultBindHandoffMode = 'settings',
   workspaceBindCandidates = [],
+  migrationSource = null,
   t,
 }: {
   result: MemoryImportConfirmResponse;
@@ -775,6 +777,7 @@ export function ResultStep({
   onDone: () => void;
   vaultBindHandoffMode?: 'settings' | 'onboarding';
   workspaceBindCandidates?: MigrationWorkspaceBindCandidate[];
+  migrationSource?: string | null;
   t: TranslationFn;
 }) {
   const router = useRouter();
@@ -797,6 +800,10 @@ export function ResultStep({
   const readinessIsCritical = readinessStatus === 'critical';
   const resultAnchorQueuedRef = useRef(false);
   const showSettingsVaultBind = vaultBindHandoffMode === 'settings' && isLocalMode();
+  const primaryObsidianCandidate =
+    workspaceBindCandidates.find((candidate) => candidate.has_obsidian_config) ??
+    workspaceBindCandidates[0] ??
+    null;
 
   useEffect(() => {
     if (resultAnchorQueuedRef.current || !result.target_agent_id) {
@@ -941,6 +948,13 @@ export function ResultStep({
       {showSettingsVaultBind && (
         <MigrationVaultBindPanel candidates={workspaceBindCandidates} className="mx-auto max-w-xl w-full" />
       )}
+
+      {migrationSource === 'codex' && result.target_agent_id ? (
+        <CodexWikiCompletionLane
+          targetAgentId={result.target_agent_id}
+          vaultCandidate={primaryObsidianCandidate}
+        />
+      ) : null}
 
       <div className="flex flex-wrap justify-center gap-4 text-[11px] text-muted-foreground/50">
         <span>

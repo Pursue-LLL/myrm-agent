@@ -30,6 +30,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（SHARED+READ×1：seed-after-warm → duplicateReview exact group panel） |
 | `e2e/test_wiki_compound_chrome_e2e.py` | 模块 | Wiki chat compound Chrome E2E（SHARED+READ×3：`POST /chats/` seed Q&A → `POST /wiki/compound` happy+409 dedup · incognito 403 · user role 422） |
+| `e2e/test_wiki_health_report_chrome_e2e.py` | 模块 | Wiki health report Chrome E2E（SHARED+READ×1：API structural health + seed provenance gap → 单 tab Overview `[data-testid=wiki-health-section]` + stats badge；shell 探针 `wiki-settings-shell`；transport retry 同 dedup） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume（R73 solo PASS；并行 m3-signoff 待补） |
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |

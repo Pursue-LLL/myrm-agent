@@ -120,7 +120,9 @@ class _ChatMessageMixin(_ChatServiceBase):
                     id=chat_id,
                     agent_id=agent_id,
                     action_mode=action_mode,
-                    active_moa_preset_id=active_moa_preset_id if persist_moa_preset else None,
+                    active_moa_preset_id=(
+                        active_moa_preset_id if persist_moa_preset else None
+                    ),
                     ephemeral_subagents=ephemeral_subagents,
                     is_incognito=is_incognito,
                     created_at=datetime.utcnow(),
@@ -222,7 +224,9 @@ class _ChatMessageMixin(_ChatServiceBase):
     @staticmethod
     async def get_message_by_id(chat_id: str, message_id: str) -> MessageDTO | None:
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
+            return await _ChatServiceBase._cr(uow).get_message_by_id(
+                chat_id, message_id
+            )
 
     @staticmethod
     async def persist_assistant_message_safe(

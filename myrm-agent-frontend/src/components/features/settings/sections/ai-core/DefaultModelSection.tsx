@@ -29,7 +29,7 @@ import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalP
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/primitives/hover-card';
 import MediaGenerationSection from '../system/MediaGenerationSection';
-import { checkVisionFallbackHealth, type VisionHealthResult } from '@/services/llm-config';
+import { checkVisionFallbackHealth, checkVideoFallbackHealth, type VisionHealthResult } from '@/services/llm-config';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import {
   findRecommendedVisionFallbackSelection,
@@ -60,6 +60,8 @@ const DefaultModelSection = memo(() => {
     setRoutingReasoningModelFallback,
     setVisionFallbackModel,
     setVisionFallbackModelFallback,
+    setVideoFallbackModel,
+    setVideoFallbackModelFallback,
     getEnabledModels,
     getModelInfo,
   } = useProviderStore(
@@ -82,6 +84,8 @@ const DefaultModelSection = memo(() => {
       setRoutingReasoningModelFallback: state.setRoutingReasoningModelFallback,
       setVisionFallbackModel: state.setVisionFallbackModel,
       setVisionFallbackModelFallback: state.setVisionFallbackModelFallback,
+      setVideoFallbackModel: state.setVideoFallbackModel,
+      setVideoFallbackModelFallback: state.setVideoFallbackModelFallback,
       getEnabledModels: state.getEnabledModels,
       getModelInfo: state.getModelInfo,
     })),
@@ -130,6 +134,8 @@ const DefaultModelSection = memo(() => {
   const [reindexing, setReindexing] = useState(false);
   const [visionHealthState, setVisionHealthState] = useState<'idle' | 'checking' | 'done'>('idle');
   const [visionHealthResult, setVisionHealthResult] = useState<VisionHealthResult | null>(null);
+  const [videoHealthState, setVideoHealthState] = useState<'idle' | 'checking' | 'done'>('idle');
+  const [videoHealthResult, setVideoHealthResult] = useState<VisionHealthResult | null>(null);
 
   const handleVisionHealthCheck = useCallback(async () => {
     setVisionHealthState('checking');
@@ -145,6 +151,23 @@ const DefaultModelSection = memo(() => {
       });
     } finally {
       setVisionHealthState('done');
+    }
+  }, [t]);
+
+  const handleVideoHealthCheck = useCallback(async () => {
+    setVideoHealthState('checking');
+    setVideoHealthResult(null);
+    try {
+      const result = await checkVideoFallbackHealth();
+      setVideoHealthResult(result);
+    } catch {
+      setVideoHealthResult({
+        configured: false,
+        healthy: false,
+        error: t('videoHealthNetworkError'),
+      });
+    } finally {
+      setVideoHealthState('done');
     }
   }, [t]);
 
@@ -216,6 +239,12 @@ const DefaultModelSection = memo(() => {
     if (!isSelectionValid(defaultModelConfig.visionFallbackModel?.fallback ?? null)) {
       setVisionFallbackModelFallback(null);
     }
+    if (!isSelectionValid(defaultModelConfig.videoFallbackModel?.primary ?? null)) {
+      setVideoFallbackModel(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.videoFallbackModel?.fallback ?? null)) {
+      setVideoFallbackModelFallback(null);
+    }
 
     hasCleanedModelsRef.current = true;
   }, [
@@ -232,6 +261,8 @@ const DefaultModelSection = memo(() => {
     setRoutingReasoningModelFallback,
     setVisionFallbackModel,
     setVisionFallbackModelFallback,
+    setVideoFallbackModel,
+    setVideoFallbackModelFallback,
   ]);
 
   const handleBaseModelChange = useCallback(
@@ -274,6 +305,20 @@ const DefaultModelSection = memo(() => {
       setVisionFallbackModelFallback(selection);
     },
     [setVisionFallbackModelFallback],
+  );
+
+  const handleVideoFallbackModelChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setVideoFallbackModel(selection);
+    },
+    [setVideoFallbackModel],
+  );
+
+  const handleVideoFallbackModelFallbackChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setVideoFallbackModelFallback(selection);
+    },
+    [setVideoFallbackModelFallback],
   );
 
   const baseModelPrimary = defaultModelConfig.baseModel?.primary ?? null;
@@ -592,6 +637,125 @@ const DefaultModelSection = memo(() => {
                     openModelConfig(
                       defaultModelConfig.visionFallbackModel!.fallback!.providerId,
                       defaultModelConfig.visionFallbackModel!.fallback!.model,
+                    )
+                  }
+                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                  title={t('configureModel')}
+                >
+                  <IconSliders className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Video Fallback Model */}
+          <div className="p-5 bg-background/50 rounded-xl border border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <IconRoute className="w-4 h-4 text-sky-500" />
+              <span className="text-sm font-medium text-foreground">{t('videoFallbackModel')}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">{t('videoFallbackModelDescription')}</p>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <button
+                type="button"
+                onClick={handleVideoHealthCheck}
+                disabled={videoHealthState === 'checking'}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+              >
+                <IconRefresh
+                  className={`h-3.5 w-3.5 ${videoHealthState === 'checking' ? 'animate-spin' : ''}`}
+                />
+                {videoHealthState === 'checking' ? t('videoHealthChecking') : t('videoHealthTest')}
+              </button>
+              {videoHealthState === 'done' && videoHealthResult && (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span
+                    className={`text-xs ${
+                      videoHealthResult.healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                    }`}
+                  >
+                    {videoHealthResult.healthy
+                      ? t('videoHealthOk', { latency: videoHealthResult.latency_ms ?? 0 })
+                      : videoHealthResult.configured
+                        ? t('videoHealthFailed', { error: videoHealthResult.error ?? t('videoHealthUnknown') })
+                        : t('videoHealthNotConfigured')}
+                  </span>
+                  {!videoHealthResult.healthy && videoHealthResult.configured && videoHealthResult.model && (
+                    <span className="text-[11px] text-muted-foreground break-all">
+                      {t('videoHealthFailedModel', { model: videoHealthResult.model })}
+                    </span>
+                  )}
+                  {!videoHealthResult.healthy &&
+                    videoHealthResult.configured &&
+                    videoHealthResult.base_url && (
+                      <span className="text-[11px] text-muted-foreground break-all">
+                        {t('videoHealthFailedEndpoint', { endpoint: videoHealthResult.base_url })}
+                      </span>
+                    )}
+                  {videoHealthResult.healthy && (
+                    <>
+                      <span className="text-[11px] text-muted-foreground">{t('videoHealthOkHint')}</span>
+                      {videoHealthResult.resolved_model &&
+                        videoHealthResult.model &&
+                        videoHealthResult.resolved_model !== videoHealthResult.model && (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 break-all">
+                            {t('videoHealthResolvedModel', {
+                              configured: videoHealthResult.model,
+                              resolved: videoHealthResult.resolved_model,
+                            })}
+                          </span>
+                        )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <EnabledModelSelect
+                  label={t('selectModel')}
+                  value={defaultModelConfig.videoFallbackModel?.primary ?? null}
+                  onChange={handleVideoFallbackModelChange}
+                  enabledModels={enabledModels}
+                  providers={providers}
+                  isModelRestricted={isModelRestricted}
+                />
+              </div>
+              {defaultModelConfig.videoFallbackModel?.primary && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openModelConfig(
+                      defaultModelConfig.videoFallbackModel!.primary!.providerId,
+                      defaultModelConfig.videoFallbackModel!.primary!.model,
+                    )
+                  }
+                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                  title={t('configureModel')}
+                >
+                  <IconSliders className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 mb-4">{t('videoFallbackModelFallbackDescription')}</p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <EnabledModelSelect
+                  label={t('selectVideoFallbackModel')}
+                  value={defaultModelConfig.videoFallbackModel?.fallback ?? null}
+                  onChange={handleVideoFallbackModelFallbackChange}
+                  enabledModels={enabledModels}
+                  providers={providers}
+                  isModelRestricted={isModelRestricted}
+                />
+              </div>
+              {defaultModelConfig.videoFallbackModel?.fallback && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openModelConfig(
+                      defaultModelConfig.videoFallbackModel!.fallback!.providerId,
+                      defaultModelConfig.videoFallbackModel!.fallback!.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"

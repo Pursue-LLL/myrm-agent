@@ -86,6 +86,8 @@ interface ProviderState {
   setRoutingReasoningModelFallback: (selection: SingleModelSelection | null) => void;
   setVisionFallbackModel: (selection: SingleModelSelection | null) => void;
   setVisionFallbackModelFallback: (selection: SingleModelSelection | null) => void;
+  setVideoFallbackModel: (selection: SingleModelSelection | null) => void;
+  setVideoFallbackModelFallback: (selection: SingleModelSelection | null) => void;
 
   // 自定义模型信息操作
   getModelInfo: (providerId: string, model: string) => CustomModelInfo | undefined;
@@ -604,6 +606,42 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     const config: DefaultModelConfig = {
       ...current,
       visionFallbackModel:
+        selection || existing?.primary
+          ? {
+              primary: existing?.primary ?? null,
+              fallback: selection,
+            }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setVideoFallbackModel: (selection) => {
+    const current = get().defaultModelConfig;
+    const config: DefaultModelConfig = {
+      ...current,
+      videoFallbackModel: selection
+        ? {
+            primary: selection,
+            fallback: current.videoFallbackModel?.fallback ?? null,
+          }
+        : current.videoFallbackModel?.fallback
+          ? { primary: null, fallback: current.videoFallbackModel.fallback }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setVideoFallbackModelFallback: (selection) => {
+    const current = get().defaultModelConfig;
+    const existing = current.videoFallbackModel;
+    const config: DefaultModelConfig = {
+      ...current,
+      videoFallbackModel:
         selection || existing?.primary
           ? {
               primary: existing?.primary ?? null,

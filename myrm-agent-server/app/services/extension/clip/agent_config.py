@@ -31,9 +31,13 @@ def _parse_config(raw: object) -> ExtensionClipAgentConfig:
         return ExtensionClipAgentConfig()
     agent_raw = raw.get("agent_id")
     origin_raw = raw.get("web_ui_origin")
-    agent_id = agent_raw.strip() if isinstance(agent_raw, str) and agent_raw.strip() else None
+    agent_id = (
+        agent_raw.strip() if isinstance(agent_raw, str) and agent_raw.strip() else None
+    )
     web_ui_origin = (
-        origin_raw.rstrip("/") if isinstance(origin_raw, str) and origin_raw.strip() else None
+        origin_raw.rstrip("/")
+        if isinstance(origin_raw, str) and origin_raw.strip()
+        else None
     )
     return ExtensionClipAgentConfig(agent_id=agent_id, web_ui_origin=web_ui_origin)
 
@@ -54,9 +58,11 @@ async def set_extension_clip_agent_config(
     service = ConfigService()
     normalized = ExtensionClipAgentConfig(
         agent_id=agent_id.strip() if agent_id and agent_id.strip() else None,
-        web_ui_origin=web_ui_origin.rstrip("/")
-        if web_ui_origin and web_ui_origin.strip()
-        else None,
+        web_ui_origin=(
+            web_ui_origin.rstrip("/")
+            if web_ui_origin and web_ui_origin.strip()
+            else None
+        ),
     )
     payload: dict[str, object] = {
         "agent_id": normalized.agent_id,

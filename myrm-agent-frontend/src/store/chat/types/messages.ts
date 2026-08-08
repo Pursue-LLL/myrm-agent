@@ -56,7 +56,8 @@ export type Message = {
   costStatus?: CostStatus; // 成本计算来源 (actual/estimated/unknown)
   cacheBreakReason?: string; // Prompt cache break 归因原因
   cacheSuggestedActions?: string; // Cache break 行动建议
-  mediaAnalysisStatus?: 'analyzing_image' | 'analyzing_video' | null; // 媒体分析中的实时状态（图片/视频）
+  mediaAnalysisStatus?: 'analyzing_image' | 'analyzing_video' | null;
+  visionBackend?: string | null;
   consensusMeta?: {
     models_used: number;
     models_succeeded: number;

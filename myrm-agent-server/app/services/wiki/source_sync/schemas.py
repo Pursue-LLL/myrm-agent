@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 
 
 class WikiSourceSyncConfig(BaseModel):
+    feishu_enabled: bool = False
+    feishu_folder_token: str = Field(default="", max_length=256)
     gmail_enabled: bool = False
     gmail_label: str = Field(default="ReadLater", max_length=128)
     gdrive_enabled: bool = False
@@ -63,5 +65,7 @@ class WikiSourceSyncRunSummary(BaseModel):
         parts: list[str] = []
         for item in self.results:
             if item.published or item.failed:
-                parts.append(f"{item.source}: +{item.published} skip {item.skipped} fail {item.failed}")
+                parts.append(
+                    f"{item.source}: +{item.published} skip {item.skipped} fail {item.failed}"
+                )
         return "; ".join(parts) if parts else "[SILENT]"

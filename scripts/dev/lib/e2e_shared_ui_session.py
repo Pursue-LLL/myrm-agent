@@ -197,6 +197,19 @@ def current_search_policy() -> SearchPolicy | None:
     return None
 
 
+def _bootstrap_hot_path_reused() -> bool:
+    return os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "reused"
+
+
+def _bootstrap_hot_path_fast() -> bool:
+    if _bootstrap_hot_path_reused():
+        return True
+    return (
+        os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
+        and os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "fast_create"
+    )
+
+
 def _session_error(token: str, detail: object) -> RuntimeError:
     return RuntimeError(f"{token}: {detail}")
 
@@ -434,6 +447,31 @@ async def apply_shared_ui_session_contract(
 
     resolved_api = _normalize_api_url(api_url or get_e2e_api_url())
 
+    if policy == "hydrate_private" and _bootstrap_hot_path_fast():
+        reused_probe = await _evaluate_bridge_probe(chat)
+        if _bridge_probe_ready(reused_probe, policy=policy):
+            fast_reason = (
+                "reused_warm_shell"
+                if _bootstrap_hot_path_reused()
+                else "presealed_fast_create"
+            )
+            print(
+                f"E2E_SHARED_UI_SESSION_FASTPATH_HYDRATE: reason={fast_reason}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return {
+                "ok": True,
+                "policy": policy,
+                "search": {
+                    "ok": True,
+                    "phase": "SEARCH_POLICY",
+                    "short_circuit": True,
+                    "short_circuit_reason": fast_reason,
+                },
+                "bridge": reused_probe,
+            }
+
     bridge_timeout = _resolve_bridge_ready_timeout_sec(timeout_sec)
     if deadline is not None:
         # R269: long open_mcp can expire inner bridge_deadline while BODY wall still
@@ -511,6 +549,12 @@ async def apply_shared_ui_session_contract(
                 file=sys.stderr,
                 flush=True,
             )
+            try:
+                from e2e_session_lifecycle import touch_wall_progress
+
+                touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_FASTPATH_EMPTY")
+            except ImportError:
+                pass
             search_result["short_circuit"] = True
             search_result["short_circuit_reason"] = short_circuit_reason
         else:
@@ -565,7 +609,33 @@ async def apply_shared_ui_session_contract(
             search_raw if isinstance(search_raw, dict) else {"value": search_raw}
         )
         if search_result.get("ok") is not True:
-            raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", search_result)
+            err = str(search_result.get("err") or "")
+            if err == "empty-search-configs":
+                probe_pre = await _evaluate_bridge_probe(chat)
+                if _bridge_probe_ready(probe_pre, policy=policy):
+                    print(
+                        "E2E_SHARED_UI_SESSION_WARN: hydrate_private search empty — "
+                        "bridge ready; continue (chat/workflow legs)",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    search_result = {
+                        "ok": True,
+                        "phase": "SEARCH_POLICY",
+                        "warn": "empty-search-configs-bridge-ready",
+                        "count": 0,
+                    }
+                    # Probe already verified — skip redundant rehydrate loop (CDP hang under load).
+                    return {
+                        "ok": True,
+                        "policy": policy,
+                        "search": search_result,
+                        "bridge": probe_pre,
+                    }
+                else:
+                    raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", search_result)
+            else:
+                raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", search_result)
 
     probe = await _ensure_bridge_probe_ready(
         chat,
@@ -580,6 +650,63 @@ async def apply_shared_ui_session_contract(
         "search": search_result,
         "bridge": probe,
     }
+
+
+async def reapply_shared_ui_session_after_new_chat(
+    chat: SharedUiSessionChat,
+    *,
+    deadline: float | None = None,
+) -> dict[str, object] | None:
+    """After resetChat when bootstrap already ran full contract — avoid Page.reload (R124).
+
+    Re-bind empty search block and probe bridge; fall back to full contract only if probe fails.
+    """
+    policy = current_search_policy()
+    if policy is None:
+        return None
+    if not isinstance(chat, SharedUiSessionChat):
+        raise TypeError("E2E_SHARED_UI_SESSION: chat session missing evaluate hooks")
+
+    print(
+        "E2E_SHARED_UI_SESSION_REAPPLY: phase=after_new_chat lightweight",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        from e2e_session_lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_REAPPLY")
+    except ImportError:
+        pass
+
+    search_result: dict[str, object] | None = None
+    if policy == "empty":
+        search_result = await _apply_empty_search_block(
+            chat,
+            skip_reason="block_preserved",
+        )
+
+    probe = await _evaluate_bridge_probe(chat)
+    if _bridge_probe_ready(probe, policy=policy):
+        return {
+            "ok": True,
+            "policy": policy,
+            "reapply": "lightweight",
+            "search": search_result,
+            "bridge": probe,
+        }
+
+    print(
+        "E2E_SHARED_UI_SESSION_REAPPLY: bridge probe stale — full contract fallback "
+        f"probe={probe}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return await apply_shared_ui_session_contract(
+        chat,
+        search_policy=policy,
+        deadline=deadline,
+    )
 
 
 async def maybe_apply_shared_ui_session_contract(

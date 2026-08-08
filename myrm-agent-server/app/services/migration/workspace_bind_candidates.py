@@ -28,7 +28,9 @@ class WorkspaceBindCandidate:
     markdown_file_count: int
 
 
-def discover_workspace_bind_candidates(loaded_payload: dict[str, object]) -> list[WorkspaceBindCandidate]:
+def discover_workspace_bind_candidates(
+    loaded_payload: dict[str, object],
+) -> list[WorkspaceBindCandidate]:
     """Return validated workspace bind suggestions for a competitor import payload."""
     competitor = str(loaded_payload.get("_source", "")).strip().lower()
     root_raw = loaded_payload.get("_discovery_root")
@@ -42,10 +44,15 @@ def discover_workspace_bind_candidates(loaded_payload: dict[str, object]) -> lis
     if competitor == "openclaw":
         return _candidates_from_openclaw_root(root)
 
+    if competitor == "codex":
+        return _candidates_from_codex_payload(loaded_payload)
+
     return []
 
 
-def candidates_to_metadata(candidates: list[WorkspaceBindCandidate]) -> list[dict[str, object]]:
+def candidates_to_metadata(
+    candidates: list[WorkspaceBindCandidate],
+) -> list[dict[str, object]]:
     return [
         {
             "path": item.path,
@@ -80,6 +87,57 @@ def candidates_from_metadata(raw: object) -> list[WorkspaceBindCandidate]:
             )
         )
     return parsed
+
+
+def _candidates_from_codex_payload(
+    loaded_payload: dict[str, object],
+) -> list[WorkspaceBindCandidate]:
+    from app.services.project.workspace_path_resolve import (
+        WorkspacePathValidationError,
+        normalize_project_workspace_path,
+    )
+
+    raw_hints = loaded_payload.get("obsidian_vault_hints")
+    hint_paths: list[str] = []
+    if isinstance(raw_hints, list):
+        hint_paths = [
+            str(item).strip()
+            for item in raw_hints
+            if isinstance(item, str) and str(item).strip()
+        ]
+
+    seen: set[str] = set()
+    candidates: list[WorkspaceBindCandidate] = []
+    for raw_path in hint_paths:
+        try:
+            normalized = normalize_project_workspace_path(
+                str(Path(raw_path).expanduser())
+            )
+        except WorkspacePathValidationError:
+            continue
+        if not normalized or normalized in seen:
+            continue
+        directory = Path(normalized)
+        if not directory.is_dir():
+            continue
+        seen.add(normalized)
+        fingerprint = _fingerprint_directory(directory)
+        candidates.append(
+            WorkspaceBindCandidate(
+                path=normalized,
+                label=_codex_vault_label(normalized),
+                has_obsidian_config=fingerprint.has_obsidian_config,
+                markdown_file_count=fingerprint.markdown_file_count,
+            )
+        )
+    return candidates
+
+
+def _codex_vault_label(normalized_path: str) -> str:
+    lowered = normalized_path.lower()
+    if "openhuman" in lowered:
+        return "OpenHuman memory vault"
+    return "Codex Obsidian vault"
 
 
 def _candidates_from_openclaw_root(root: Path) -> list[WorkspaceBindCandidate]:
@@ -148,5 +206,9 @@ def _fingerprint_directory(directory: Path) -> _DirectoryFingerprint:
                             markdown_file_count=md_count,
                         )
     except OSError:
-        return _DirectoryFingerprint(has_obsidian_config=has_obsidian, markdown_file_count=md_count)
-    return _DirectoryFingerprint(has_obsidian_config=has_obsidian, markdown_file_count=md_count)
+        return _DirectoryFingerprint(
+            has_obsidian_config=has_obsidian, markdown_file_count=md_count
+        )
+    return _DirectoryFingerprint(
+        has_obsidian_config=has_obsidian, markdown_file_count=md_count
+    )

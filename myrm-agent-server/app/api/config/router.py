@@ -949,6 +949,82 @@ async def vision_health_check() -> VisionHealthResult:
         )
 
 
+VideoHealthResult = VisionHealthResult
+
+
+@router.post("/video-health", response_model=VideoHealthResult)
+async def video_health_check() -> VideoHealthResult:
+    """Probe the configured video fallback chain with a tiny test image."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import (
+        build_video_fallback_probe_engine_from_providers,
+        extract_video_fallback_model_config,
+    )
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+        VisionDescriptionError,
+    )
+
+    user_cfgs = await load_user_configs()
+    model_cfg = extract_video_fallback_model_config(user_cfgs.providers_dict)
+    if model_cfg is None:
+        return VideoHealthResult(
+            configured=False,
+            healthy=False,
+            error="Video fallback model is not configured",
+        )
+
+    try:
+        engine = build_video_fallback_probe_engine_from_providers(user_cfgs.providers_dict)
+        if engine is None:
+            return VideoHealthResult(
+                configured=False,
+                healthy=False,
+                error="Video fallback model is not configured",
+            )
+
+        start = time.monotonic()
+        try:
+            await engine.describe_image_b64(
+                _TINY_VISION_HEALTH_PNG_B64,
+                "image/png",
+                prompt="Health check",
+            )
+        except VisionDescriptionError as exc:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            resolved_model = engine.last_success_model or model_cfg.model
+            return VideoHealthResult(
+                configured=True,
+                healthy=False,
+                latency_ms=latency_ms,
+                error=str(exc),
+                model=model_cfg.model,
+                resolved_model=(
+                    resolved_model if resolved_model != model_cfg.model else None
+                ),
+                base_url=model_cfg.base_url,
+            )
+        latency_ms = int((time.monotonic() - start) * 1000)
+        resolved_model = engine.last_success_model or model_cfg.model
+        return VideoHealthResult(
+            configured=True,
+            healthy=True,
+            latency_ms=latency_ms,
+            model=model_cfg.model,
+            resolved_model=(
+                resolved_model if resolved_model != model_cfg.model else None
+            ),
+        )
+    except Exception as exc:
+        logger.warning("Video fallback health check failed: %s", exc)
+        return VideoHealthResult(
+            configured=True,
+            healthy=False,
+            error=str(exc),
+            model=model_cfg.model,
+            base_url=model_cfg.base_url,
+        )
+
+
 @router.get("/onboarding/probe-local")
 async def probe_local_models_endpoint() -> dict[str, object]:
     """Probe local model services and search backends for zero-config setup.

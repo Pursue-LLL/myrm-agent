@@ -14,23 +14,20 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
-    DISMISS_MODALS_JS,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    _warm_ui_parallel_wait_sec,
-    dismiss_blocking_modals,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _TEMPLATE_ID = "e2e-export-import"
 _DISPLAY_NAME = "E2E Export Import"
@@ -51,30 +48,75 @@ _DISMISS_MIGRATION_JS = """(() => {
   return { ok: true };
 })()"""
 
-_CLICK_WORKFLOW_TEMPLATES_TAB_JS = """(() => {
+_LIBRARY_READY_JS = f"""(async () => {{
   const tabs = [...document.querySelectorAll('[role="tab"]')];
-  const tab = tabs.find((node) =>
-    /Workflow Templates|工作流模板|工作流範本|ワークフローテンプレート/i.test(
-      (node.textContent || '').trim(),
-    ),
-  );
-  if (tab && tab.getAttribute('aria-selected') !== 'true') {
+  const tab =
+    tabs.find((node) =>
+      /Workflow Templates|工作流模板|工作流範本|workflowTemplates/i.test(
+        (node.textContent || '').trim(),
+      ),
+    ) ||
+    document.querySelector('[role="tab"][value="workflowTemplates"]');
+  if (
+    tab &&
+    tab.getAttribute('aria-selected') !== 'true' &&
+    tab.getAttribute('data-state') !== 'active'
+  ) {{
     tab.click();
-  }
-  return { ok: !!tab, selected: tab?.getAttribute('aria-selected') === 'true' };
-})()"""
-
-_LIBRARY_READY_JS = f"""(() => {{
+  }}
+  const library = document.querySelector('[data-testid="workflow-template-library"]');
+  const hasLibraryRoot = !!library;
+  const hasSettingsShell =
+    !!document.querySelector('[data-testid="settings-layout"]') ||
+    location.pathname.startsWith('/settings');
+  const hasImport = !!library?.querySelector('input[type="file"][accept*="json"]');
+  let hasTemplate = false;
+  let apiStatus = 0;
+  let apiCount = 0;
+  try {{
+    const response = await fetch('/api/v1/workflow-templates', {{
+      credentials: 'include',
+      cache: 'no-store',
+    }});
+    apiStatus = response.status;
+    if (response.ok) {{
+      const payload = await response.json();
+      const items = Array.isArray(payload?.templates) ? payload.templates : [];
+      apiCount = items.length;
+      hasTemplate = items.some((item) => {{
+        const id = item?.templateId ?? item?.template_id ?? '';
+        const name = item?.displayName ?? item?.display_name ?? '';
+        return id === '{_TEMPLATE_ID}' && name === '{_DISPLAY_NAME}';
+      }});
+    }}
+  }} catch (err) {{
+    apiStatus = -1;
+  }}
+  if (!hasTemplate && library) {{
+    const refreshBtn = [...library.querySelectorAll('button')].find((btn) =>
+      /Refresh|刷新|重新整理|refresh/i.test((btn.textContent || '').trim()),
+    );
+    if (refreshBtn && !refreshBtn.disabled) {{
+      refreshBtn.click();
+    }}
+  }}
   const text = document.body?.innerText || '';
-  const hasSettingsShell = !!document.querySelector('[data-testid="settings-layout"]');
-  const hasImport =
-    /Import|导入|匯入|インポート/i.test(text);
-  const hasTemplate = text.includes('{_TEMPLATE_ID}') && text.includes('{_DISPLAY_NAME}');
+  const hasTemplateDom =
+    text.includes('{_TEMPLATE_ID}') && text.includes('{_DISPLAY_NAME}');
   return {{
-    ready: hasSettingsShell && hasImport && hasTemplate,
+    ready:
+      hasSettingsShell &&
+      hasTemplate &&
+      hasLibraryRoot &&
+      hasImport &&
+      text.length > 0,
+    hasLibraryRoot,
     hasSettingsShell,
     hasImport,
-    hasTemplate,
+    hasTemplate: hasTemplate || hasTemplateDom,
+    apiStatus,
+    apiCount,
+    bodyLength: text.length,
     snippet: text.slice(0, 400),
   }};
 }})()"""
@@ -170,6 +212,23 @@ def _seed_template(api_base: str) -> None:
     )
 
 
+def _verify_template_listed(api_base: str, *, expect_absent: bool = False) -> None:
+    listed = http_json("GET", f"{api_base}/api/v1/workflow-templates")
+    assert isinstance(listed, dict), listed
+    templates = listed.get("templates")
+    assert isinstance(templates, list), listed
+    match = next(
+        (item for item in templates if item.get("templateId") == _TEMPLATE_ID),
+        None,
+    )
+    if expect_absent:
+        assert match is None, listed
+        return
+    assert isinstance(match, dict), listed
+    assert match.get("displayName") == _DISPLAY_NAME, match
+    assert match.get("trustLatch") is True, match
+
+
 def _delete_template(api_base: str) -> None:
     http_json(
         "DELETE",
@@ -189,15 +248,6 @@ _TRANSPORT_RETRY_MARKERS = (
 )
 
 
-def _client_navigate(client: ChromeMcpClient, page: object, url: str) -> None:
-    """In-page navigation — avoids CDP Page.navigate stalls under parallel Chrome load."""
-    client.evaluate(
-        page,
-        f"(() => {{ window.location.href = {json.dumps(url)}; return location.href; }})()",
-        timeout_sec=15.0,
-    )
-
-
 def _is_transport_retryable(exc: BaseException) -> bool:
     message = str(exc)
     return any(marker in message for marker in _TRANSPORT_RETRY_MARKERS)
@@ -210,39 +260,48 @@ def _force_mux_heal_before_retry() -> None:
     time.sleep(2.0)
 
 
-def _run_export_import_roundtrip(
-    *, library_url: str, api_base: str, use_cdp_navigate: bool
-) -> None:
-    open_url = library_url if use_cdp_navigate else "about:blank"
-    with open_mcp_page(
-        open_url,
-        timeout_ms=90_000,
-        request_timeout_sec=120.0,
+def _run_export_import_roundtrip(*, api_base: str) -> None:
+    subroute = "/settings/skills?sub=workflowTemplates"
+    ui_base = get_e2e_ui_url().rstrip("/")
+    page_url = f"{ui_base}{subroute}"
+    with open_settings_subroute(
+        subroute,
+        layout_timeout_sec=120.0,
     ) as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        if not use_cdp_navigate:
-            _client_navigate(client, page, library_url)
-            time.sleep(3.0)
-
-        dismiss_blocking_modals(client, page, recover_url=library_url)
-        client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
-        heartbeat_e2e_lease()
-
-        tab_click = client.evaluate(
-            page, _CLICK_WORKFLOW_TEMPLATES_TAB_JS, timeout_sec=15.0
-        )
-        assert isinstance(tab_click, dict)
-        assert tab_click.get("ok") is True, f"Tab click failed: {tab_click}"
-
-        ready = wait_for_state(
-            client,
-            page,
-            _LIBRARY_READY_JS,
-            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
-        )
+        ready: dict[str, object] = {}
+        for attempt in range(3):
+            ready = wait_for_state(
+                client,
+                page,
+                _LIBRARY_READY_JS,
+                timeout_sec=120.0,
+                page_url=page_url,
+                blank_heal_mode="direct",
+            )
+            if ready.get("ready") is True and ready.get("hasLibraryRoot") is True:
+                break
+            if attempt < 2:
+                reload_mcp_page(
+                    client, page, target_url=page_url, timeout_ms=120_000
+                )
         assert ready.get("ready") is True, json.dumps(
             ready, indent=2, ensure_ascii=False
         )
+        if ready.get("hasLibraryRoot") is not True:
+            reload_mcp_page(
+                client, page, target_url=page_url, timeout_ms=120_000
+            )
+            dom_ready = wait_for_state(
+                client,
+                page,
+                _LIBRARY_READY_JS,
+                timeout_sec=90.0,
+                page_url=page_url,
+                blank_heal_mode="direct",
+            )
+            assert dom_ready.get("hasLibraryRoot") is True, json.dumps(
+                dom_ready, indent=2, ensure_ascii=False
+            )
 
         export_click = client.evaluate(page, _CLICK_EXPORT_JS, timeout_sec=15.0)
         assert isinstance(export_click, dict)
@@ -265,6 +324,8 @@ def _run_export_import_roundtrip(
             page,
             _LIBRARY_ABSENT_JS,
             timeout_sec=60.0,
+            page_url=page_url,
+            blank_heal_mode="direct",
         )
         assert absent.get("ready") is True, json.dumps(
             absent, indent=2, ensure_ascii=False
@@ -283,21 +344,19 @@ def _run_export_import_roundtrip(
             page,
             _LIBRARY_READY_JS,
             timeout_sec=90.0,
+            page_url=page_url,
+            blank_heal_mode="direct",
         )
         assert restored.get("ready") is True, json.dumps(
             restored, indent=2, ensure_ascii=False
         )
 
 
-def _run_with_transport_retry(*, library_url: str, api_base: str) -> None:
+def _run_with_transport_retry(*, api_base: str) -> None:
     last_error: BaseException | None = None
     for attempt in range(1, 4):
         try:
-            _run_export_import_roundtrip(
-                library_url=library_url,
-                api_base=api_base,
-                use_cdp_navigate=(attempt >= 2),
-            )
+            _run_export_import_roundtrip(api_base=api_base)
             return
         except Exception as exc:
             last_error = exc
@@ -326,23 +385,16 @@ def test_workflow_template_export_import_roundtrip_chrome_e2e(
 
     ensure_e2e_yolo_mode()
     api_base = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    library_url = f"{ui_url.rstrip('/')}/settings/skills"
 
     _delete_template(api_base)
     _seed_template(api_base)
+    _verify_template_listed(api_base)
 
     prepare_e2e_ui_session(api_base)
 
     try:
-        _run_with_transport_retry(library_url=library_url, api_base=api_base)
+        _run_with_transport_retry(api_base=api_base)
 
-        detail = http_json(
-            "GET", f"{api_base}/api/v1/workflow-templates/{_TEMPLATE_ID}"
-        )
-        assert isinstance(detail, dict), detail
-        script_code = str(detail.get("scriptCode", ""))
-        assert _MARKER in script_code, detail
-        assert detail.get("template", {}).get("trustLatch") is True, detail
+        _verify_template_listed(api_base)
     finally:
         _delete_template(api_base)

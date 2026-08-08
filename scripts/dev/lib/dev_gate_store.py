@@ -166,6 +166,19 @@ class OwnershipConflictError(RuntimeError):
     """Raised when an ownership CAS update loses against a newer session version."""
 
 
+def _dev_gate_sqlite_busy_timeout_ms() -> int:
+    override = os.environ.get("MYRM_DEV_GATE_BUSY_TIMEOUT_MS", "").strip()
+    if override.isdigit():
+        return max(1000, int(override))
+    burst_flag = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-phase-c-burst-active"
+    try:
+        if burst_flag.is_file() and (time.time() - burst_flag.stat().st_mtime) < 7200.0:
+            return 5000
+    except OSError:
+        pass
+    return 30000
+
+
 class DevGateStore:
     def __init__(self, path: Path | None = None) -> None:
         self.path = (path or default_store_path()).resolve()
@@ -178,7 +191,8 @@ class DevGateStore:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=30000")
+        busy_ms = _dev_gate_sqlite_busy_timeout_ms()
+        connection.execute(f"PRAGMA busy_timeout={busy_ms}")
         return connection
 
     def _initialize(self) -> None:

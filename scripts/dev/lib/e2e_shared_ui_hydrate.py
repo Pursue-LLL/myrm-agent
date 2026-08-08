@@ -58,6 +58,8 @@ def shpoib_shared_ui_queue_enabled() -> bool:
 
 def parallel_shared_ui_hydrate_queue_enabled() -> bool:
     """Serialize shared :3000 compile bursts for parallel Chrome E2E (SHPOIB + READ shared-hot)."""
+    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
+        return False
     if shpoib_shared_ui_queue_enabled():
         return True
     if os.environ.get("MYRM_PRIVATE_BACKEND", "").strip() == "1":

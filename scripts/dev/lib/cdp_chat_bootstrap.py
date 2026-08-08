@@ -70,6 +70,41 @@ def split_bootstrap_deadlines(
     return shell_deadline, total_deadline
 
 
+def _bootstrap_hot_path_reused() -> bool:
+    return os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "reused"
+
+
+def _bootstrap_hot_path_fast() -> bool:
+    if os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "reused":
+        return True
+    return (
+        os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
+        and os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip() == "fast_create"
+    )
+
+
+async def _warm_shell_bootstrap_probe(chat: CdpChatTransport) -> dict[str, object] | None:
+    """Return PAGE_PROBE when warm/presealed shell is already chat-ready."""
+    if not _bootstrap_hot_path_fast():
+        return None
+    probe_raw = await chat.evaluate(
+        PAGE_PROBE_JS,
+        await_promise=False,
+        recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+    )
+    if not isinstance(probe_raw, dict):
+        return None
+    if (
+        probe_raw.get("hasInput") is True
+        and probe_raw.get("hasBridge") is True
+        and probe_raw.get("clientHydrated") is True
+        and probe_raw.get("skeleton") is not True
+        and probe_raw.get("hasLayout") is True
+    ):
+        return probe_raw
+    return None
+
+
 def _shell_probe_stall_cap_sec() -> float:
     from dev_gate_contract import SHELL_PROBE_STALL_FAIL_FAST_SEC
 
@@ -126,6 +161,7 @@ def _bootstrap_shell_heal_wall_cap_sec(parallel_active: int) -> float:
 
 class CdpChatBootstrap(CdpChatTransport):
     _e2e_api_base_bound: bool = False
+    _shared_ui_session_contract_applied: bool = False
     _bootstrap_started_monotonic: float | None = None
     # Session SSOT: hydrate re-entry must not reset shell-layout stall clock (R51).
     _shell_layout_wait_started: float | None = None
@@ -313,7 +349,12 @@ class CdpChatBootstrap(CdpChatTransport):
         )
 
         begin_bootstrap_phase(phase_label="cdp_bootstrap")
-        await asyncio.to_thread(provider_readiness_gate_sync)
+        skip_provider_gate = (
+            os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+            and os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
+        )
+        if not skip_provider_gate:
+            await asyncio.to_thread(provider_readiness_gate_sync)
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         shell_deadline, bridge_deadline = split_bootstrap_deadlines(timeout_sec)
         self._reset_shell_layout_wait_clock()
@@ -367,6 +408,16 @@ class CdpChatBootstrap(CdpChatTransport):
                 )
                 await asyncio.sleep(2)
         else:
+            reused_probe = await _warm_shell_bootstrap_probe(self)
+            if reused_probe is not None:
+                import sys
+
+                print(
+                    "E2E_BOOTSTRAP_SHELL_FASTPATH: reused warm shell ready",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return reused_probe
             await asyncio.sleep(2)
         if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
             remaining_timeout = max(5.0, deadline - time.monotonic())
@@ -395,21 +446,32 @@ class CdpChatBootstrap(CdpChatTransport):
                 deadline = time.monotonic() + min(bridge_cap, remaining - 5.0)
                 bridge_timeout = max(0.0, deadline - time.monotonic())
         if bridge_timeout > 0:
-            hydrate_cap = _signoff_bridge_hydrate_cap_sec()
-            await self.ensure_dev_bridge(timeout_sec=min(bridge_timeout, hydrate_cap))
-            hydrate_timeout = max(0.0, deadline - time.monotonic())
-            if hydrate_timeout > 0:
-                await self._wait_react_hydration(timeout_sec=hydrate_timeout)
-            provider_timeout = max(0.0, deadline - time.monotonic())
-            if provider_timeout > 0:
-                await self._wait_providers_hydrated(
-                    timeout_sec=min(provider_timeout, hydrate_cap)
+            reused_probe = await _warm_shell_bootstrap_probe(self)
+            if reused_probe is not None:
+                import sys
+
+                print(
+                    "E2E_BOOTSTRAP_HOT_PATH_FASTPATH: skip bridge hydrate (reused warm shell)",
+                    file=sys.stderr,
+                    flush=True,
                 )
-            probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
-            if isinstance(probe, dict):
-                last = probe
+                last = reused_probe
             else:
-                last = {"probeError": probe}
+                hydrate_cap = _signoff_bridge_hydrate_cap_sec()
+                await self.ensure_dev_bridge(timeout_sec=min(bridge_timeout, hydrate_cap))
+                hydrate_timeout = max(0.0, deadline - time.monotonic())
+                if hydrate_timeout > 0:
+                    await self._wait_react_hydration(timeout_sec=hydrate_timeout)
+                provider_timeout = max(0.0, deadline - time.monotonic())
+                if provider_timeout > 0:
+                    await self._wait_providers_hydrated(
+                        timeout_sec=min(provider_timeout, hydrate_cap)
+                    )
+                probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+                if isinstance(probe, dict):
+                    last = probe
+                else:
+                    last = {"probeError": probe}
         await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
         from e2e_session_lifecycle import complete_bootstrap_phase
 
@@ -423,11 +485,22 @@ class CdpChatBootstrap(CdpChatTransport):
     ) -> None:
         from e2e_shared_ui_session import maybe_apply_shared_ui_session_contract
 
-        await maybe_apply_shared_ui_session_contract(
+        result = await maybe_apply_shared_ui_session_contract(
             self,
             timeout_sec=_signoff_bridge_hydrate_cap_sec(),
             deadline=deadline,
         )
+        if result is not None and result.get("skipped") is not True:
+            self._shared_ui_session_contract_applied = True
+
+    async def _reapply_shared_ui_after_new_chat(
+        self,
+        *,
+        deadline: float | None = None,
+    ) -> None:
+        from e2e_shared_ui_session import reapply_shared_ui_session_after_new_chat
+
+        await reapply_shared_ui_session_after_new_chat(self, deadline=deadline)
 
     async def _bootstrap_inner(
         self,
@@ -1173,7 +1246,45 @@ class CdpChatBootstrap(CdpChatTransport):
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
         await self.ensure_e2e_api_base_binding()
         if not skip_shared_ui_contract:
-            await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
+            if self._shared_ui_session_contract_applied:
+                await self._reapply_shared_ui_after_new_chat(deadline=deadline)
+            else:
+                await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
+        if self._shared_ui_session_contract_applied:
+            bridge_cap = 90.0
+            if deadline is not None:
+                bridge_cap = max(
+                    15.0,
+                    min(90.0, deadline - time.monotonic()),
+                )
+            try:
+                recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
+                if deadline is not None:
+                    remaining = max(0.0, deadline - time.monotonic())
+                    recv_cap = max(
+                        5.0,
+                        min(
+                            _SHELL_PROBE_RECV_TIMEOUT_SEC,
+                            shpoib_shell_wait_slice_cap(remaining),
+                        ),
+                    )
+                await self.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
+                      bridge.prepareAutomationSend?.();
+                      return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+                    })()""",
+                    await_promise=True,
+                    recv_timeout=recv_cap,
+                )
+            except (RuntimeError, TimeoutError):
+                pass
+            await self.ensure_react_e2e_bridge(
+                timeout_sec=bridge_cap,
+                allow_reload=False,
+            )
+            return
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError("Chat surface provider reset budget exhausted")
         recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
@@ -1216,7 +1327,10 @@ class CdpChatBootstrap(CdpChatTransport):
             )
         except TimeoutError:
             bridge_cap = min(45.0, shell_cap)
-            await self.ensure_dev_bridge(timeout_sec=bridge_cap, allow_reload=True)
+            await self.ensure_dev_bridge(
+                timeout_sec=bridge_cap,
+                allow_reload=not self._shared_ui_session_contract_applied,
+            )
 
     async def click_new_chat(
         self,

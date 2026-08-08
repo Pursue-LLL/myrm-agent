@@ -93,7 +93,11 @@ def get_e2e_api_url() -> str:
 
 
 def get_open_page_api_url() -> str:
-    """Orchestrator page-open API base — epoch pin uses E2E_API_BASE; else SHARED hot :8080."""
+    """Orchestrator page-open API base — epoch pin uses E2E_API_BASE; else SHARED hot :8080.
+
+    :8080 is a sentinel for SHARED+RESOURCE_WRITE: skip CDP API inject and rely on
+    Next.js rewrites (including isolated stacks on custom UI/API ports).
+    """
     try:
         from epoch_delivery_plane import epoch_pin_active
 
@@ -106,6 +110,13 @@ def get_open_page_api_url() -> str:
     if mode == "SHARED" and lane == "RESOURCE_WRITE":
         return "http://127.0.0.1:8080"
     return get_e2e_api_url()
+
+
+def e2e_page_binding_source(api_base: str | None = None) -> str | None:
+    """Page window.name runtime binding — disabled on isolated stacks (Next proxy SSOT)."""
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        return None
+    return e2e_runtime_binding_source(api_base)
 
 
 def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None:
@@ -623,6 +634,8 @@ def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
 
 def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
     """Apply binding + health-ready promise after navigation (MCP mux path)."""
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        return None
     binding = e2e_runtime_binding(api_base)
     if binding is None:
         return None

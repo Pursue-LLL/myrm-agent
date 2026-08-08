@@ -523,7 +523,9 @@ class TestActionCapabilityContract:
             bridge._pending_requests[req_id].set_result({"detached": True, "tabId": 42})
 
         task = asyncio.create_task(set_result_later())
-        result = await bridge._send_request("detach_debugger", {"tabId": 42}, timeout=2.0)
+        result = await bridge._send_request(
+            "detach_debugger", {"tabId": 42}, timeout=2.0
+        )
         await task
 
         assert result == {"detached": True, "tabId": 42}

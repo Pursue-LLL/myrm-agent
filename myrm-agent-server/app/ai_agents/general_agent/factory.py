@@ -257,6 +257,9 @@ async def build_general_agent(
     if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
         agent_wrapper._setup_computer_use_tools(tools)
 
+    if runtime_skill_ids and "vision-toolkit" in runtime_skill_ids:
+        agent_wrapper._setup_vision_toolkit_tools(tools)
+
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 

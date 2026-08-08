@@ -25,6 +25,7 @@ import ast
 import os
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Final, Literal
 
@@ -83,6 +84,75 @@ PAGE_OWNERSHIP_ERROR_TOKENS: Final[tuple[str, ...]] = (
 NEW_PAGE_TOOL_RETRY_ATTEMPTS: Final[int] = 5
 TOOL_RETRY_ATTEMPTS: Final[int] = 3
 LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC: Final[float] = 15.0
+
+# --- EvaluateIntent SSOT (§24 W3) ---
+
+
+class EvaluateIntent(StrEnum):
+    """CDP evaluate semantic intent — drives awaitPromise, timeout, MUX retry."""
+
+    SYNC_PROBE = "sync_probe"
+    BRIDGE_POLL = "bridge_poll"
+    ROUTE_ATTACH = "route_attach"
+    AGENT_SUBMIT = "agent_submit"
+    NAV_HEAVY = "nav_heavy"
+
+
+@dataclass(frozen=True)
+class EvaluateBudget:
+    await_promise: bool
+    cdp_timeout_sec: float
+    mux_max_attempts: int
+    mux_recv_grace_sec: float
+
+
+E2E_ATTACH_FRONTEND_MS: Final[int] = 90_000
+E2E_ATTACH_CDP_GRACE_SEC: Final[float] = 30.0
+
+
+def resolve_evaluate_budget(
+    intent: EvaluateIntent,
+    *,
+    live: bool = True,
+) -> EvaluateBudget:
+    """Single SSOT for evaluate budgets — no scattered magic timeouts."""
+    if intent is EvaluateIntent.SYNC_PROBE:
+        return EvaluateBudget(
+            await_promise=False,
+            cdp_timeout_sec=12.0,
+            mux_max_attempts=0,
+            mux_recv_grace_sec=5.0,
+        )
+    if intent is EvaluateIntent.BRIDGE_POLL:
+        return EvaluateBudget(
+            await_promise=False,
+            cdp_timeout_sec=45.0 if live else 15.0,
+            mux_max_attempts=1,
+            mux_recv_grace_sec=10.0,
+        )
+    if intent is EvaluateIntent.ROUTE_ATTACH:
+        attach_sec = E2E_ATTACH_FRONTEND_MS / 1000.0 + E2E_ATTACH_CDP_GRACE_SEC
+        return EvaluateBudget(
+            await_promise=True,
+            cdp_timeout_sec=attach_sec,
+            mux_max_attempts=2,
+            mux_recv_grace_sec=15.0,
+        )
+    if intent is EvaluateIntent.AGENT_SUBMIT:
+        return EvaluateBudget(
+            await_promise=True,
+            cdp_timeout_sec=180.0,
+            mux_max_attempts=2,
+            mux_recv_grace_sec=15.0,
+        )
+    # NAV_HEAVY — aligned with W4 silk path operation budgets
+    return EvaluateBudget(
+        await_promise=False,
+        cdp_timeout_sec=120.0,
+        mux_max_attempts=1,
+        mux_recv_grace_sec=20.0,
+    )
+
 
 # --- Parallel caps ---
 
@@ -156,6 +226,8 @@ SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 # Holder / progress stale detection while queueing on shared_hot stream.
 STALL_PROGRESS_SEC: Final[int] = 90
+# LIVE WebUI turns (TURN_WAIT_SEC=300) may legitimately stall snapshot progress >90s.
+LIVE_AGENT_STALL_PROGRESS_FLOOR_SEC: Final[int] = 240
 # R281: M3 signoff desktop wait_shell_layout may block on mux evaluate >90s even solo.
 SIGNOFF_STALL_PROGRESS_FLOOR_SEC: Final[int] = 150
 # Watchdog: expire heartbeat-stale leases (display stale remains STALL_PROGRESS_SEC).
@@ -172,13 +244,25 @@ def private_shpoib_runtime_active() -> bool:
     )
 
 
-def shpoib_parallel_stall_progress_sec() -> float:
+def shpoib_parallel_stall_progress_sec(
+    *,
+    lane: str | None = None,
+    workload: str | None = None,
+) -> float:
     """Scale BODY progress-stale cap under parallel SHPOIB load (R124).
 
     Matches file_write LIVE scaling: base 90s + 10s per active wave lease (max 150s).
+    LIVE_AGENT/RESOURCE_WRITE: floor 240s (LLM turn wait) + 30s/lease (max 360s).
     R219/R281: signoff (incl. desktop soak) extends cap for wait_shell_layout mux evaluate.
+
+    Coordinator hung-reap must pass lane/workload from session snapshot — not its own env.
     """
     base = float(STALL_PROGRESS_SEC)
+    lane_val = (lane or os.environ.get("MYRM_E2E_LANE", "")).strip().upper()
+    workload_val = (workload or os.environ.get("MYRM_E2E_WORKLOAD", "")).strip().upper()
+    is_live_lane = lane_val in {"LIVE_AGENT", "RESOURCE_WRITE"} or workload_val == "LIVE"
+    if is_live_lane:
+        base = max(base, float(LIVE_AGENT_STALL_PROGRESS_FLOOR_SEC))
     active_leases = 0
     try:
         from pathlib import Path
@@ -197,6 +281,8 @@ def shpoib_parallel_stall_progress_sec() -> float:
         return base
     if active_leases < 2:
         return base
+    if is_live_lane:
+        return min(360.0, base + active_leases * 30.0)
     return min(150.0, base + active_leases * 10.0)
 
 
@@ -692,6 +778,10 @@ def admit_wall_clock_sec() -> int:
                 scaled + bootstrap_headroom + ui_heal_headroom,
             )
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    pressure = _parallel_signoff_pressure_peers()
+    if pressure >= 2:
+        scaled = E2E_ADMISSION_WALL_CLOCK_SEC + int(pressure) * 180
+        return min(1830, max(E2E_ADMISSION_WALL_CLOCK_SEC, scaled))
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
@@ -1656,6 +1746,25 @@ def chrome_e2e_pytest_safe_timeout_sec(
     return min(raw, wave_cap) + PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC + queue_buffer
 
 
+def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
+    """Extend pytest-timeout when parallel mux inflates in-test bootstrap (R124).
+
+    Observed: leases=5 bootstrap mono_elapsed≈730s before BODY — 810s floor kills at REAPPLY.
+    """
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        load = wave_active_lease_count(Path(__file__).resolve().parents[4])
+    except (ImportError, OSError, RuntimeError, ValueError):
+        load = 0
+    if load < 2:
+        return base
+    scaled = base + int(load) * 180
+    return min(1830, max(base, scaled))
+
+
 def parallel_ramp_pytest_timeout_override_sec() -> int | None:
     """Phase C parallel ramp raises READ solo floor (510s) for mux queue depth."""
     raw = os.environ.get("E2E_PARALLEL_RAMP_PYTEST_TIMEOUT_SEC", "").strip()
@@ -1693,6 +1802,8 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     ramp_override = parallel_ramp_pytest_timeout_override_sec()
     if ramp_override is not None:
         floor = max(floor, ramp_override)
+    if normalized_lane in {"LIVE_AGENT", "RESOURCE_WRITE"}:
+        floor = parallel_live_pytest_timeout_floor_sec(floor)
     return floor
 
 

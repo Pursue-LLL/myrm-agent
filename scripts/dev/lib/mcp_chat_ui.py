@@ -22,6 +22,7 @@ from chrome_mcp_client import (
     is_context_reset_error,
     is_page_ownership_error,
 )
+from dev_gate_contract import EvaluateIntent
 
 _DETACHED_FRAME_TOKENS = (
     "detached Frame",
@@ -98,18 +99,36 @@ class McpChatSession(CdpChatSession):
         expression: str,
         *,
         await_promise: bool = True,
-        recv_timeout: float = 60.0,
+        recv_timeout: float | None = None,
+        intent: EvaluateIntent | None = None,
     ) -> object:
-        del await_promise
+        from dev_gate_contract import (
+            MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
+            MUX_RECLAIM_STALL_TOKEN,
+            resolve_evaluate_budget,
+        )
+        from send_turn_contract import is_live_send_turn_profile
+
+        if intent is not None:
+            budget = resolve_evaluate_budget(intent, live=is_live_send_turn_profile())
+            await_promise = budget.await_promise
+            recv_timeout = budget.cdp_timeout_sec
+            max_mux_attempts = budget.mux_max_attempts
+            recv_grace = budget.mux_recv_grace_sec
+        else:
+            if recv_timeout is None:
+                recv_timeout = 60.0
+            shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+            max_mux_attempts = 3 if shpoib_parallel else (
+                1 if recv_timeout <= 15.0 else 2
+            )
+            recv_grace = 10.0 if recv_timeout <= 15.0 else 15.0
+
         if recv_timeout <= 0:
             raise TimeoutError(
                 f"MCP evaluate budget exhausted (recv_timeout={recv_timeout:.3f}s)"
             )
         recv_timeout = min(recv_timeout, 180.0)
-        from dev_gate_contract import (
-            MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
-            MUX_RECLAIM_STALL_TOKEN,
-        )
 
         shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
         reclaim_budget = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0
@@ -121,7 +140,6 @@ class McpChatSession(CdpChatSession):
         heal_attempts = 0
         max_heal_attempts = 0 if recv_timeout <= 15.0 else 3
         mux_attempts = 0
-        max_mux_attempts = 3 if shpoib_parallel else (1 if recv_timeout <= 15.0 else 2)
         loop = asyncio.get_running_loop()
 
         async def _reset_mux_after_orphan() -> None:
@@ -165,13 +183,14 @@ class McpChatSession(CdpChatSession):
 
         while time.monotonic() < wall_deadline:
             remaining = wall_deadline - time.monotonic()
-            attempt_timeout = min(recv_timeout + 10.0, remaining)
+            attempt_timeout = min(recv_timeout + recv_grace, remaining)
             eval_future = loop.run_in_executor(
                 self._client.mux_eval_executor(),
                 lambda: self._client.evaluate(
                     self._page,
                     expression,
                     timeout_sec=recv_timeout,
+                    await_promise=await_promise,
                 ),
             )
             eval_task = asyncio.ensure_future(eval_future)
@@ -194,6 +213,10 @@ class McpChatSession(CdpChatSession):
                     await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
+                if max_mux_attempts == 0:
+                    raise TimeoutError(
+                        f"sync evaluate orphaned after {attempt_timeout:.0f}s"
+                    )
                 raise TimeoutError(
                     f"{MUX_RECLAIM_STALL_TOKEN}: evaluate orphaned after "
                     f"{attempt_timeout:.0f}s"

@@ -23,6 +23,7 @@ from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.database.connection import get_session
 from app.services.wiki.source_sync.config_store import load_wiki_source_sync_config
+from app.services.wiki.source_sync.feishu import sync_feishu_docs_to_wiki
 from app.services.wiki.source_sync.gdrive import sync_gdrive_folder_to_wiki
 from app.services.wiki.source_sync.gmail import sync_gmail_label_to_wiki
 from app.services.wiki.source_sync.integration_mirror import (
@@ -100,6 +101,16 @@ async def run_wiki_source_sync(
             compiler_enqueue=compiler_enqueue,
         )
         run.results.append(gdrive_result)
+
+    if effective_config.feishu_enabled:
+        feishu_result = await sync_feishu_docs_to_wiki(
+            structure,
+            folder_token=effective_config.feishu_folder_token,
+            max_items=max_items,
+            auto_compile=auto_compile,
+            compiler_enqueue=compiler_enqueue,
+        )
+        run.results.append(feishu_result)
 
     if (
         effective_config.mirror_integrations_to_wiki

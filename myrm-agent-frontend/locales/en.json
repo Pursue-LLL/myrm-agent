@@ -1589,6 +1589,10 @@
       "visionFallbackModel": "Vision Fallback Model",
       "visionFallbackModelDescription": "Automatically converts images to text when the primary model lacks vision support. Recommended: cheap multimodal models like gpt-4o-mini.",
       "visionFallbackModelFallbackDescription": "When the primary vision model hits billing, rate limits, or overload, automatically tries this backup before falling back to a vision-capable main agent model.",
+      "videoFallbackModel": "Video Fallback Model",
+      "videoFallbackModelDescription": "Used when the primary model does not support native video. Prefer video-capable models such as Gemini.",
+      "videoFallbackModelFallbackDescription": "Backup video model when the primary video fallback is unavailable.",
+      "selectVideoFallbackModel": "Select Video Backup Model",
       "selectVisionFallbackModel": "Select Vision Backup Model",
       "visionHealthTest": "Test vision chain",
       "visionHealthChecking": "Testing…",
@@ -1601,6 +1605,17 @@
       "visionHealthNotConfigured": "Configure a vision fallback model first",
       "visionHealthUnknown": "Unknown error",
       "visionHealthNetworkError": "Network request failed",
+      "videoHealthTest": "Test video chain",
+      "videoHealthChecking": "Testing…",
+      "videoHealthOk": "Video chain OK ({latency} ms)",
+      "videoHealthOkHint": "Connectivity check only — does not guarantee full video analysis.",
+      "videoHealthResolvedModel": "Configured primary {configured} is unavailable; probe succeeded via {resolved}.",
+      "videoHealthFailed": "Video chain failed: {error}",
+      "videoHealthFailedModel": "Model: {model}",
+      "videoHealthFailedEndpoint": "API address: {endpoint}",
+      "videoHealthNotConfigured": "Configure a video fallback model first",
+      "videoHealthUnknown": "Unknown error",
+      "videoHealthNetworkError": "Network request failed",
       "visionRecommendHint": "Your primary model cannot read images. Pick a vision model from your enabled providers with one click.",
       "visionRecommendPreview": "Suggested: {provider} / {model}",
       "visionRecommendButton": "Use this model",
@@ -2163,11 +2178,76 @@
         },
         "goImport": "Import knowledge",
         "goDuplicateReview": "Review duplicates",
-        "goProviders": "Configure models"
+        "goProviders": "Configure models",
+        "goGraph": "Explore knowledge graph",
+        "pitfalls": {
+          "checklist": {
+            "agentTools": "Re-apply the preset or open Agents to confirm wiki, memory, and cron tools are enabled for this agent.",
+            "cronJob": "Re-apply the preset to recreate the 6:00 read-it-later and 7:00 wiki delta jobs. Check Settings → Scheduled tasks if jobs were deleted manually.",
+            "vaultContent": "Import Obsidian, upload files, or clip from the browser so raw/ has content before compiling.",
+            "corpusDedup": "Open Duplicate Review and resolve blocking exact or normalized duplicates before your first full compile.",
+            "providerReady": "Add an API key and default chat model under Settings → Models. Verify reachability if you use a proxy or custom base URL."
+          },
+          "actions": {
+            "repairPreset": "Repair preset jobs"
+          },
+          "syncExpectation": {
+            "title": "First sync timing",
+            "body": "Large Obsidian imports or first-time source sync usually take 18–25 minutes before compile and graph feel complete. Progress appears in Queue and stats—this is normal, not a hang."
+          },
+          "obsidianGit": {
+            "title": "Obsidian dual-write & git",
+            "body": "If you edit the same vault in Obsidian while Myrm auto-fetch runs, pause Obsidian sync or enable version control (vault git) to avoid merge conflicts. Prefer one writer at a time during the first import.",
+            "cta": "Jump to import & vault settings"
+          },
+          "ladder": {
+            "title": "When something fails",
+            "stepDocs": "Read the wiki setup guide (concepts, import, compile)",
+            "stepAgent": "Ask your Second Brain agent with the error message—it can inspect vault status and suggest fixes",
+            "stepCoach": "Still stuck? Export logs from Settings → About and contact support with your deployment mode (local, desktop, or cloud)"
+          },
+          "teamKb": {
+            "title": "Team knowledge starters",
+            "description": "Four-step flow: pick a scenario → chat a draft with AI → save to wiki pending → compile and share the wiki link instead of answering in chat.",
+            "wikiLinkTip": "When someone asks a repeat question, reply with the compiled wiki URL—not a one-off chat answer.",
+            "scenarios": {
+              "opsSop": {
+                "label": "Ops SOP",
+                "prompt": "Help me draft an operations SOP for our team: scope, roles, step-by-step procedure, escalation, and checklist. Keep it ready to save into our wiki as a pending article."
+              },
+              "onboardingGuide": {
+                "label": "Onboarding guide",
+                "prompt": "Create a new-hire onboarding guide outline: first-week tasks, tools access, key contacts, and FAQ. Format for wiki pending review."
+              },
+              "projectRetro": {
+                "label": "Project retro",
+                "prompt": "Facilitate a project retrospective template: what went well, issues, action items, and owners. Output structured markdown for wiki staging."
+              },
+              "customerFaq": {
+                "label": "Customer FAQ",
+                "prompt": "Draft a customer FAQ from our top support themes: question, short answer, deep link anchor, and last-reviewed date. Suitable for wiki compile."
+              },
+              "inspectionMaint": {
+                "label": "Inspection & maintenance",
+                "prompt": "Write an inspection and maintenance runbook: schedule, checkpoints, pass/fail criteria, and safety notes. Target wiki pending ingestion."
+              }
+            }
+          },
+          "extractFailures": {
+            "title": "Document import failures",
+            "body": "Encrypted PDF, corrupt Office files, unsupported formats, scanned PDFs needing OCR, and oversize attachments each have distinct fixes—check the import error badge and Queue details before retrying."
+          }
+        }
       },
       "sources": {
         "title": "External sources",
-        "description": "Pull Gmail labels, Google Drive folders, and RSS feeds into your knowledge base on a schedule (zero AI cost for sync). Long articles and notes belong in Wiki; short personal facts belong in Memory.",
+        "description": "Pull Gmail labels, Google Drive folders, Feishu/Lark docs, and RSS feeds into your knowledge base on a schedule (zero AI cost for sync). Long articles and notes belong in Wiki; short personal facts belong in Memory.",
+        "feishuLabel": "Feishu / Lark docs",
+        "feishuFolderLabel": "Feishu folder token",
+        "feishuFolderPlaceholder": "Leave empty for root space",
+        "feishuFolderHint": "Paste the folder token from Feishu Drive; empty uses the root folder",
+        "feishuConnected": "Feishu connected",
+        "feishuDisconnected": "Configure Feishu channel credentials first",
         "gmailLabel": "Gmail read-later",
         "gmailTagLabel": "Gmail label",
         "gdriveLabel": "Google Drive folder",
@@ -2227,8 +2307,8 @@
         "exportSuccess": "Obsidian pack downloaded — unzip and use Open folder as vault",
         "exportFailed": "Download failed",
         "cloudHint": "Cloud hosting: download the pack and open it in Obsidian on your computer.",
-        "postWorkflowHint": "Open Graph view or download an Obsidian pack from the card below.",
-        "postWorkflowAction": "Show Obsidian card",
+        "postWorkflowHint": "Open the knowledge graph in Library or download an Obsidian pack from the card below.",
+        "postWorkflowAction": "Open Graph",
         "gitHistoryHint": "This vault keeps a local git history for auditing changes.",
         "gitHistoryHintWithCommit": "Latest snapshot: {commit}"
       },
@@ -2257,6 +2337,7 @@
         "cognitiveHotEmpty": "Not refreshed yet",
         "brokenLinks": "{count, plural, one {# broken link} other {# broken links}}",
         "invalidPageTypes": "{count, plural, one {# invalid page type} other {# invalid page types}}",
+        "provenanceGaps": "{count, plural, one {# missing provenance} other {# missing provenance}}",
         "structuralHint": "Use Maintain or Repair Page Types in Wiki Actions below to fix structural issues.",
         "lastMaintain": "Last maintenance: {time}",
         "lastMaintainNever": "No maintenance run yet",
@@ -2282,8 +2363,13 @@
         "reviewPending": "Review pending edits ({count})",
         "actionRecompile": "Recompile",
         "actionRepair": "Repair metadata",
-        "actionOpen": "Open concepts",
+        "actionOpen": "Open",
         "driftSampleHint": "Full maintenance samples up to five articles for drift — not an exhaustive audit.",
+        "lastDriftCheck": "Last full drift check: {checkedAt}",
+        "structuralScopeHint": "Structural scan only. Run Full Maintain in Actions for drift sampling.",
+        "truncatedList": "Showing {shown} of {total} issues.",
+        "loadFailed": "Could not load the health report.",
+        "retry": "Retry",
         "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
         "issueType": {
           "broken_link": "Broken link",
@@ -2293,6 +2379,7 @@
           "drift": "Possible drift",
           "incomplete": "Incomplete article",
           "knowledge_gap": "Graph gap",
+          "provenance_gap": "Missing provenance",
           "security_redacted": "Redacted content",
           "security_removed": "Removed content"
         }
@@ -2395,6 +2482,8 @@
         "obsidianZip": "Upload Vault ZIP",
         "selectObsidianVault": "Select Obsidian vault folder",
         "obsidianResult": "Imported {processed} notes ({tags} tags, {images} images), {skipped} skipped",
+        "migrationVaultHandoff": "Importing Obsidian vault from Codex migration: {path}",
+        "migrationVaultHandoffFailed": "Could not auto-import the Obsidian vault from migration handoff",
         "dedupScanStarted": "Duplicate scan started in the background — review results in Duplicate Review",
         "conflictTitle": "Import conflicts detected",
         "conflictDescription": "{count} raw source file(s) already exist with different content. Keep the existing copies or supersede them with the imported versions.",
@@ -2501,6 +2590,7 @@
         "updateSuccess": "Concept updated successfully",
         "updateFailed": "Failed to update concept",
         "loadFailed": "Failed to load concept",
+        "highlightNotFound": "Could not locate \"{path}\" in the concept tree. It may have been moved or deleted.",
         "selectToView": "Select a concept to view details",
         "editPlaceholder": "Edit Markdown content here...",
         "editTabTruth": "Compiled Truth",
@@ -8090,8 +8180,23 @@
     "graph": {
       "loading": "Loading Knowledge Graph...",
       "empty": "No concepts found to build the graph.",
+      "emptyFirstWin": "Import notes or apply the Second Brain preset in Wiki Settings, then return here to explore connections.",
+      "goSetupWiki": "Open Wiki Settings",
       "error": "Failed to load Knowledge Graph. Please check the backend service.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "insights": {
+        "title": "Graph insights",
+        "description": "Structural signals from your wiki graph — gaps, surprising links, and topic clusters.",
+        "loading": "Loading insights…",
+        "error": "Could not load graph insights.",
+        "retry": "Retry",
+        "gapsTitle": "Knowledge gaps ({count})",
+        "connectionsTitle": "Unexpected links ({count})",
+        "communitiesTitle": "Topic clusters ({count})",
+        "emptyGaps": "No knowledge gaps detected.",
+        "emptyConnections": "No unexpected links yet.",
+        "emptyCommunities": "No clusters yet — add more concepts to the vault."
+      }
     },
     "gallery": {
       "title": "Media Gallery",
@@ -8296,6 +8401,13 @@
     "tool_call_truncated": "Tool arguments may be incomplete due to output length limit",
     "analyzing_image": "Analyzing image...",
     "analyzing_video": "Analyzing video...",
+    "visionBackend": {
+      "vlm": "Vision model",
+      "ocr": "OCR fallback",
+      "frame": "Frame extraction",
+      "native_video": "Native video",
+      "geometry": "Pixel analysis"
+    },
     "text_continuation": "Response truncated, auto-continuing...",
     "text_continuation_exhausted": "Response still incomplete after max retries",
     "context_truncation": "Trimming old context to fit window",
@@ -9492,7 +9604,23 @@
         "rollbackAvailable": "One-click rollback available",
         "done": "Done",
         "rollbackButton": "Rollback This Batch",
-        "rollingBack": "Rolling back..."
+        "rollingBack": "Rolling back...",
+        "codexCompletion": {
+          "title": "Finish your knowledge base (Codex + Obsidian)",
+          "description": "Codex import moved agent instructions into Myrm. Most Codex+Obsidian users still keep notes in an Obsidian vault — import that vault into Wiki, then enable Second Brain automation.",
+          "steps": {
+            "importVault": "Import Obsidian vault into Wiki (raw → compile → pending review)",
+            "secondBrain": "Apply Second Brain preset (cron ingest + morning delta + maintenance)",
+            "graph": "Open the knowledge graph to verify links and gaps"
+          },
+          "actions": {
+            "importWiki": "Import Obsidian to Wiki",
+            "secondBrain": "Apply Second Brain",
+            "viewGraph": "View knowledge graph"
+          },
+          "applyFailed": "Could not apply Second Brain preset",
+          "vaultHint": "We detected this Obsidian vault from your Codex setup. Import Wiki will use this path automatically."
+        }
       }
     },
     "pendingReview": {

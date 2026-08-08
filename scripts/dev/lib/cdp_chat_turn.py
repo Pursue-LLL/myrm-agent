@@ -20,6 +20,27 @@ from cdp_chat_support import (
 )
 from e2e_wave_ledger import maybe_register_e2e_chat
 from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
+from dev_gate_contract import EvaluateIntent
+
+
+def _touch_live_turn_progress(node: str) -> None:
+    """Refresh hung-reap progress during LIVE LLM turn waits (parallel-safe)."""
+    try:
+        from e2e_session_snapshot import touch_session_progress
+
+        touch_session_progress(current_node=node)
+    except ImportError:
+        pass
+
+
+def _bridge_poll_eval_timeout_sec() -> float:
+    """Deprecated — prefer evaluate(..., intent=EvaluateIntent.BRIDGE_POLL)."""
+    from dev_gate_contract import resolve_evaluate_budget
+
+    return resolve_evaluate_budget(
+        EvaluateIntent.BRIDGE_POLL,
+        live=is_live_send_turn_profile(),
+    ).cdp_timeout_sec
 
 
 def _bridge_has_completion(bridge: dict[str, object]) -> bool:
@@ -149,7 +170,9 @@ class CdpChatTurn(CdpChatSubmit):
     async def _bridge_turn_snapshot(self) -> dict[str, object] | None:
         try:
             result = await self.evaluate(
-                BRIDGE_TURN_SNAPSHOT_JS, await_promise=False, recv_timeout=8.0
+                BRIDGE_TURN_SNAPSHOT_JS,
+                await_promise=False,
+                recv_timeout=_bridge_poll_eval_timeout_sec(),
             )
         except (RuntimeError, TimeoutError):
             return None
@@ -211,6 +234,14 @@ class CdpChatTurn(CdpChatSubmit):
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
+        last_progress_touch = time.monotonic()
+
+        def _maybe_touch_progress(node: str = "wait_turn_done") -> None:
+            nonlocal last_progress_touch
+            now = time.monotonic()
+            if now - last_progress_touch >= 30.0:
+                _touch_live_turn_progress(node)
+                last_progress_touch = now
 
         def _finish(chat_id: str, payload: dict[str, object]) -> dict[str, object]:
             if is_live_send_turn_profile() and bool(payload.get("okViaApi")):
@@ -226,6 +257,7 @@ class CdpChatTurn(CdpChatSubmit):
         if chat_id_hint:
             api_deadline = deadline
             while time.monotonic() < api_deadline:
+                _maybe_touch_progress("wait_turn_done_api")
                 finished = await self._finish_if_api_ok(
                     chat_id_hint, prompt, min_user_msgs=min_user_msgs
                 )
@@ -249,6 +281,7 @@ class CdpChatTurn(CdpChatSubmit):
                 await asyncio.sleep(1.5)
 
         while time.monotonic() < deadline:
+            _maybe_touch_progress("wait_turn_done_bridge")
             bridge = await self._bridge_turn_snapshot()
             if isinstance(bridge, dict):
                 last = bridge
@@ -266,7 +299,9 @@ class CdpChatTurn(CdpChatSubmit):
             chat_id = chat_id_hint
             if not chat_id:
                 try:
-                    probe = await self.main_state(prompt, recv_timeout=8.0)
+                    probe = await self.main_state(
+                        prompt, recv_timeout=_bridge_poll_eval_timeout_sec()
+                    )
                     if isinstance(probe, dict):
                         last = probe
                         chat_id = await self.resolve_chat_id(
@@ -295,7 +330,9 @@ class CdpChatTurn(CdpChatSubmit):
                 if finished is not None:
                     return finished
             try:
-                last = await self.main_state(prompt, recv_timeout=8.0)
+                last = await self.main_state(
+                    prompt, recv_timeout=_bridge_poll_eval_timeout_sec()
+                )
             except RuntimeError as exc:
                 message = str(exc)
                 if any(
@@ -358,8 +395,7 @@ class CdpChatTurn(CdpChatSubmit):
               window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
               return { ok: true };
             })()""",
-            await_promise=False,
-            recv_timeout=8.0,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
 
     async def wait_input_empty(
@@ -416,7 +452,7 @@ class CdpChatTurn(CdpChatSubmit):
                   hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
                   fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
                 }))()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if isinstance(bridge_probe, dict) and not bridge_probe.get("hasAttach"):
                 try:
@@ -430,13 +466,6 @@ class CdpChatTurn(CdpChatSubmit):
                         timeout_sec=90.0,
                     )
                     continue
-            attach_recv_timeout = 60.0
-            try:
-                from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
-
-                attach_recv_timeout = signoff_parallel_force_chat_timeout_sec(120.0)
-            except ImportError:
-                pass
             try:
                 result = await self.evaluate(
                     f"""(() => {{
@@ -448,8 +477,7 @@ class CdpChatTurn(CdpChatSubmit):
                         .then(() => ({{ ok: true }}))
                         .catch((err) => ({{ ok: false, err: String(err) }}));
                     }})()""",
-                    await_promise=True,
-                    recv_timeout=attach_recv_timeout,
+                    intent=EvaluateIntent.ROUTE_ATTACH,
                 )
             except RuntimeError as exc:
                 message = str(exc)
@@ -770,9 +798,9 @@ class CdpChatTurn(CdpChatSubmit):
                 picked = await self.evaluate(
                     picker_js,
                     await_promise=True,
-                    recv_timeout=12.0,
+                    recv_timeout=45.0 if is_live_send_turn_profile() else 12.0,
                 )
-            except TimeoutError:
+            except (RuntimeError, TimeoutError):
                 continue
             if isinstance(picked, dict) and picked.get("ok"):
                 return
@@ -828,7 +856,8 @@ class CdpChatTurn(CdpChatSubmit):
                 await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
             if chat_id:
                 await self.ensure_react_e2e_bridge(timeout_sec=60.0)
-                await self._attach_chat_session(chat_id)
+                if baseline_user_msgs > 0:
+                    await self._attach_chat_session(chat_id)
             else:
                 await self.evaluate(
                     """(() => {
@@ -938,6 +967,11 @@ class CdpChatTurn(CdpChatSubmit):
             if isinstance(debug, dict):
                 started["userMsgs"] = debug.get("userCount")
                 started["sending"] = debug.get("streaming")
+            if is_live_send_turn_profile():
+                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+                await self._attach_chat_session(chat_id)
+            _touch_live_turn_progress("send_turn_sealed")
             return {"fill": fill, "submit": submit, "started": started}
         finally:
             self._baseline_user_msgs = 0

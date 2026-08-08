@@ -46,7 +46,9 @@ def mock_archiver() -> MagicMock:
     return archiver
 
 
-def test_maintain_default_structural_mode(client: TestClient, mock_archiver: MagicMock) -> None:
+def test_maintain_default_structural_mode(
+    client: TestClient, mock_archiver: MagicMock
+) -> None:
     from app.api.wiki.router import _get_wiki_archiver
 
     success = WikiMaintainRunResult(
@@ -55,6 +57,17 @@ def test_maintain_default_structural_mode(client: TestClient, mock_archiver: Mag
         issues_fixed=1,
         connections_discovered=0,
         duration_ms=5,
+        open_actions_count=1,
+        lint_issues=[
+            {
+                "issue_type": "broken_link",
+                "severity": "medium",
+                "location": "notes/alpha",
+                "description": "Broken link to missing.md",
+                "action_kind": "navigate",
+                "suggested_fix": None,
+            }
+        ],
     )
 
     client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
@@ -66,6 +79,10 @@ def test_maintain_default_structural_mode(client: TestClient, mock_archiver: Mag
             response = client.post("/api/v1/wiki/maintain")
 
         assert response.status_code == 200
+        data = response.json()
+        assert data["open_actions_count"] == 1
+        assert len(data["issues"]) == 1
+        assert data["issues"][0]["action_kind"] == "navigate"
         run_mock.assert_awaited_once()
         assert run_mock.await_args.kwargs["mode"] == MaintainMode.STRUCTURAL
     finally:
@@ -97,7 +114,9 @@ def test_maintain_full_mode_query(client: TestClient, mock_archiver: MagicMock) 
         client.app.dependency_overrides.pop(_get_wiki_archiver, None)
 
 
-def test_maintain_compile_busy_returns_409(client: TestClient, mock_archiver: MagicMock) -> None:
+def test_maintain_compile_busy_returns_409(
+    client: TestClient, mock_archiver: MagicMock
+) -> None:
     from app.api.wiki.router import _get_wiki_archiver
 
     skipped = WikiMaintainRunResult(

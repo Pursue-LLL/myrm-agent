@@ -1,107 +1,58 @@
 import { describe, expect, it } from 'vitest';
+import type { CustomModelInfo, DefaultModelConfig } from '../providerTypes';
+import { hasVisionFallbackForVideo } from '../visionCapability';
 
-import { getInitialDefaultModelConfig } from '../providerTypes';
-import {
-  findRecommendedVisionFallbackSelection,
-  hasConfiguredVisionCapability,
-  hasVisionFallbackForVideo,
-  shouldOfferVisionFallbackRecommendation,
-} from '../visionCapability';
-
-describe('visionCapability', () => {
-  const getModelInfo = (providerId: string, model: string) => {
-    if (providerId === 'openai' && model === 'gpt-4o-mini') {
-      return { supports_vision: true };
-    }
-    if (providerId === 'openai' && model === 'gpt-4o') {
-      return { supports_vision: true };
-    }
-    if (providerId === 'deepseek' && model === 'deepseek-chat') {
-      return { supports_vision: false };
-    }
-    return undefined;
+function modelInfo(supportsVision: boolean, supportsVideoInput = false): CustomModelInfo {
+  return {
+    supports_vision: supportsVision,
+    supports_video_input: supportsVideoInput,
   };
+}
 
-  it('detects vision via slot fallback when primary is empty', () => {
-    const config = {
-      ...getInitialDefaultModelConfig(),
-      baseModel: {
-        primary: { providerId: 'deepseek', model: 'deepseek-chat' },
-        fallback: null,
+describe('hasVisionFallbackForVideo', () => {
+  it('prefers videoFallbackModel primary when it supports native video input', () => {
+    const config: DefaultModelConfig = {
+      baseModel: { primary: { providerId: 'openai', model: 'gpt-4o' } },
+      videoFallbackModel: {
+        primary: { providerId: 'google', model: 'gemini-2.5-flash' },
+      },
+    };
+    const getModelInfo = (providerId: string, model: string) => {
+      if (providerId === 'google' && model === 'gemini-2.5-flash') {
+        return modelInfo(true, true);
+      }
+      return modelInfo(false, false);
+    };
+
+    expect(hasVisionFallbackForVideo(config, getModelInfo)).toBe(true);
+  });
+
+  it('falls back to visionFallbackModel when video slot lacks native video', () => {
+    const config: DefaultModelConfig = {
+      baseModel: { primary: { providerId: 'openai', model: 'gpt-4o' } },
+      videoFallbackModel: {
+        primary: { providerId: 'openai', model: 'gpt-4o' },
       },
       visionFallbackModel: {
-        primary: null,
-        fallback: { providerId: 'openai', model: 'gpt-4o' },
+        primary: { providerId: 'qwen', model: 'qwen-vl-max' },
       },
     };
+    const getModelInfo = (providerId: string, model: string) => {
+      if (providerId === 'qwen' && model === 'qwen-vl-max') {
+        return modelInfo(true, false);
+      }
+      return modelInfo(false, false);
+    };
 
-    expect(hasConfiguredVisionCapability(config, getModelInfo)).toBe(true);
+    expect(hasVisionFallbackForVideo(config, getModelInfo)).toBe(true);
   });
 
-  it('detects vision via base model when no vision slot is configured', () => {
-    const config = {
-      ...getInitialDefaultModelConfig(),
-      baseModel: {
-        primary: { providerId: 'openai', model: 'gpt-4o' },
-        fallback: null,
-      },
-      visionFallbackModel: null,
+  it('returns false when no video or vision fallback is configured', () => {
+    const config: DefaultModelConfig = {
+      baseModel: { primary: { providerId: 'openai', model: 'gpt-4o' } },
     };
+    const getModelInfo = () => modelInfo(false, false);
 
-    expect(hasConfiguredVisionCapability(config, getModelInfo)).toBe(true);
-  });
-
-  it('returns false when no vision path exists', () => {
-    const config = {
-      ...getInitialDefaultModelConfig(),
-      baseModel: {
-        primary: { providerId: 'deepseek', model: 'deepseek-chat' },
-        fallback: null,
-      },
-      visionFallbackModel: null,
-    };
-
-    expect(hasConfiguredVisionCapability(config, getModelInfo)).toBe(false);
     expect(hasVisionFallbackForVideo(config, getModelInfo)).toBe(false);
-  });
-
-  it('offers recommendation when base is text-only and vision slot is empty', () => {
-    const config = {
-      ...getInitialDefaultModelConfig(),
-      baseModel: {
-        primary: { providerId: 'deepseek', model: 'deepseek-chat' },
-        fallback: null,
-      },
-      visionFallbackModel: null,
-    };
-
-    expect(shouldOfferVisionFallbackRecommendation(config, getModelInfo)).toBe(true);
-  });
-
-  it('finds first enabled vision model in provider order', () => {
-    const enabledModels = [
-      { providerId: 'deepseek', providerName: 'DeepSeek', model: 'deepseek-chat' },
-      { providerId: 'openai', providerName: 'OpenAI', model: 'gpt-4o-mini' },
-    ];
-
-    expect(
-      findRecommendedVisionFallbackSelection(enabledModels, getModelInfo, {
-        providerId: 'deepseek',
-        model: 'deepseek-chat',
-      }),
-    ).toEqual({ providerId: 'openai', model: 'gpt-4o-mini' });
-  });
-
-  it('does not offer recommendation when base model already supports vision', () => {
-    const config = {
-      ...getInitialDefaultModelConfig(),
-      baseModel: {
-        primary: { providerId: 'openai', model: 'gpt-4o' },
-        fallback: null,
-      },
-      visionFallbackModel: null,
-    };
-
-    expect(shouldOfferVisionFallbackRecommendation(config, getModelInfo)).toBe(false);
   });
 });

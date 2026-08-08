@@ -388,7 +388,9 @@ def ensure_sealed_target_pool(
 ) -> int:
     """Ensure epoch warm-shell pool has enough CDP tabs for parallel reclaim (§19.13 W3b)."""
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() != "1":
-        return count_sealed_target_pool(route_path=route_path, workspace_fp=workspace_fp)
+        return count_sealed_target_pool(
+            route_path=route_path, workspace_fp=workspace_fp
+        )
     if not platform_shell_fresh(route_path=route_path, workspace_fp=workspace_fp):
         return 0
     need = min_pool_size

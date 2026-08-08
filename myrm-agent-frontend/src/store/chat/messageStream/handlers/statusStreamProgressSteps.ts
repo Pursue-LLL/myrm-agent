@@ -120,6 +120,11 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         role: 'assistant',
         progressSteps: [],
         mediaAnalysisStatus: isMediaAnalysis ? (stepKey as 'analyzing_image' | 'analyzing_video') : null,
+        visionBackend:
+          isMediaAnalysis &&
+          typeof (data.data as Record<string, unknown> | undefined)?.vision_backend === 'string'
+            ? ((data.data as Record<string, unknown>).vision_backend as string)
+            : null,
         createdAt: new Date(),
         metadata: data.metadata,
       });
@@ -249,6 +254,10 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       }
       if (isMediaAnalysis) {
         state.messages[messageIndex].mediaAnalysisStatus = stepKey as 'analyzing_image' | 'analyzing_video';
+        const visionBackend = (data.data as Record<string, unknown> | undefined)?.vision_backend;
+        if (typeof visionBackend === 'string' && visionBackend.length > 0) {
+          state.messages[messageIndex].visionBackend = visionBackend;
+        }
       }
     }
   });

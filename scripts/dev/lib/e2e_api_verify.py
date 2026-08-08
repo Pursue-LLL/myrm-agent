@@ -152,7 +152,8 @@ def _context_probe_wall_sec() -> float:
         parsed = float(raw)
     except ValueError:
         return DEFAULT_CONTEXT_PROBE_WALL_SEC
-    return parsed if parsed > 0 else 0.0
+    # Never disable the probe wall: port scan without a cap caused 510s pytest hangs.
+    return parsed if parsed > 0 else DEFAULT_CONTEXT_PROBE_WALL_SEC
 
 
 def _begin_context_probe_wall() -> None:
@@ -195,7 +196,13 @@ def _api_health_ok(
             with urllib.request.urlopen(url, timeout=timeout_sec) as resp:  # noqa: S310
                 if 200 <= resp.status < 300:
                     return True
-        except (urllib.error.URLError, TimeoutError, OSError):
+        except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, ConnectionRefusedError | ConnectionResetError):
+                continue
+            if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
+                return True
+        except (TimeoutError, OSError):
             if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
                 return True
     return False
@@ -397,9 +404,22 @@ def _build_candidates_from_specs(
 
 def enumerate_backend_candidates(*, workspace_fp: str) -> list[BackendCandidate]:
     specs: list[tuple[str, int, str, str]] = []
+    pinned_api = os.environ.get("E2E_API_BASE", "").strip().rstrip("/")
+    if pinned_api:
+        pinned_port = _port_from_api_base(pinned_api)
+        pinned_state = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
+        specs.append(
+            (
+                pinned_api,
+                pinned_port,
+                pinned_state or str(shared_dev_state_dir()),
+                "pinned_e2e_api_base",
+            )
+        )
     shared = shared_api_base()
     shared_port = _port_from_api_base(shared)
-    specs.append((shared, shared_port, str(shared_dev_state_dir()), "shared"))
+    if not pinned_api or pinned_api.rstrip("/") != shared.rstrip("/"):
+        specs.append((shared, shared_port, str(shared_dev_state_dir()), "shared"))
     specs.extend(_enumerate_registry_candidates())
 
     candidates = _build_candidates_from_specs(specs, workspace_fp=workspace_fp)
@@ -654,12 +674,13 @@ def _compute_next_action(
     parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
     from dev_gate_contract import (  # noqa: PLC0415
-        E2E_ADMISSION_WALL_CLOCK_SEC,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+        admit_wall_clock_sec,
     )
 
+    admit_wall_cap = float(admit_wall_clock_sec())
     admit_active = 0
     for row in active_tests:
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
@@ -667,7 +688,7 @@ def _compute_next_action(
         if wall_phase == "admit":
             admit_active += 1
             if isinstance(admit_elapsed, (int, float)):
-                if float(admit_elapsed) >= float(E2E_ADMISSION_WALL_CLOCK_SEC):
+                if float(admit_elapsed) >= admit_wall_cap:
                     from e2e_cluster_launch_policy import (  # noqa: PLC0415
                         cluster_fail_fast_suppressed_for_active_test,
                     )

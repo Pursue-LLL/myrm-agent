@@ -160,7 +160,7 @@ def _startup_lock(database_path: Path) -> Iterator[None]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def _ping(socket_path: Path, *, timeout_sec: float = 0.5) -> bool:
+def _ping(socket_path: Path, *, timeout_sec: float = 3.0) -> bool:
     try:
         request(
             {"operation": "snapshot", "session_id": "__health__"},
@@ -327,8 +327,14 @@ def ensure_coordinator(
             except FileNotFoundError:
                 disabled_age = 60.0
             if disabled_age < 60.0:
-                return None
-            disabled_path.unlink(missing_ok=True)
+                # Parallel burst callers must wait for restart, not fail instantly (Phase C 4-lane).
+                restart_budget = min(max(60.0 - disabled_age, 0.5), 45.0)
+                if _wait_for_ping(socket_target, budget_sec=restart_budget):
+                    disabled_path.unlink(missing_ok=True)
+                    return socket_target
+                disabled_path.unlink(missing_ok=True)
+            else:
+                disabled_path.unlink(missing_ok=True)
     _reconcile_coordinator_singleton(
         socket_target=socket_target,
         database_target=database_target,

@@ -22,10 +22,17 @@ import httpx
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.database.connection import get_session
-from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER, refresh_oauth_token
+from app.services.agent.oauth_refresher import (
+    GOOGLE_WORKSPACE_ISSUER,
+    refresh_oauth_token,
+)
 from app.services.integrations.oauth_store import is_oauth_issuer_connected
 from app.services.wiki.source_sync.content_convert import bytes_to_wiki_markdown
-from app.services.wiki.source_sync.publish_helpers import build_frontmatter, publish_source_markdown, sanitize_path_segment
+from app.services.wiki.source_sync.publish_helpers import (
+    build_frontmatter,
+    publish_source_markdown,
+    sanitize_path_segment,
+)
 from app.services.wiki.source_sync.schemas import WikiSourceSyncResult
 
 logger = logging.getLogger(__name__)
@@ -75,12 +82,23 @@ async def sync_gdrive_folder_to_wiki(
         mime_type = str(item.get("mimeType", ""))
         modified = str(item.get("modifiedTime", ""))[:10]
         try:
-            body = await _download_as_markdown(token, file_id=file_id, name=name, mime_type=mime_type)
+            safe_name = sanitize_path_segment(
+                name.rsplit(".", 1)[0] if "." in name else name
+            )
+            relative_path = (
+                f"gdrive/{month}/{safe_name}-{sanitize_path_segment(file_id)}.md"
+            )
+            body = await _download_as_markdown(
+                token,
+                file_id=file_id,
+                name=name,
+                mime_type=mime_type,
+                structure=structure,
+                raw_relative=relative_path,
+            )
             if not body:
                 result.skipped += 1
                 continue
-            safe_name = sanitize_path_segment(name.rsplit(".", 1)[0] if "." in name else name)
-            relative_path = f"gdrive/{month}/{safe_name}-{sanitize_path_segment(file_id)}.md"
             frontmatter = build_frontmatter(
                 source="gdrive",
                 title=name,
@@ -112,7 +130,9 @@ async def sync_gdrive_folder_to_wiki(
     return result
 
 
-async def _list_files(token: str, *, folder_id: str, max_results: int) -> list[dict[str, Any]]:
+async def _list_files(
+    token: str, *, folder_id: str, max_results: int
+) -> list[dict[str, Any]]:
     parent = folder_id if folder_id != "root" else "root"
     query = f"'{parent}' in parents and trashed=false"
     params = {
@@ -142,7 +162,15 @@ async def _list_files(token: str, *, folder_id: str, max_results: int) -> list[d
     return files[:max_results]
 
 
-async def _download_as_markdown(token: str, *, file_id: str, name: str, mime_type: str) -> str | None:
+async def _download_as_markdown(
+    token: str,
+    *,
+    file_id: str,
+    name: str,
+    mime_type: str,
+    structure: WikiStructure,
+    raw_relative: str,
+) -> str | None:
     if mime_type == _MIME_GDOC:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.get(
@@ -152,7 +180,13 @@ async def _download_as_markdown(token: str, *, file_id: str, name: str, mime_typ
             )
             resp.raise_for_status()
             content = resp.content
-        return await bytes_to_wiki_markdown(content, filename=f"{name}.txt", mime_type=_MIME_TXT)
+        return await bytes_to_wiki_markdown(
+            content,
+            filename=f"{name}.txt",
+            mime_type=_MIME_TXT,
+            structure=structure,
+            raw_relative=raw_relative,
+        )
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.get(
@@ -162,4 +196,10 @@ async def _download_as_markdown(token: str, *, file_id: str, name: str, mime_typ
         )
         resp.raise_for_status()
         content = resp.content
-    return await bytes_to_wiki_markdown(content, filename=name, mime_type=mime_type)
+    return await bytes_to_wiki_markdown(
+        content,
+        filename=name,
+        mime_type=mime_type,
+        structure=structure,
+        raw_relative=raw_relative,
+    )

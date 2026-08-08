@@ -46,10 +46,15 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
-    getStaleSummary: vi.fn().mockResolvedValue({
-      stale_count: 0,
-      last_compile_time: null,
-      stale_files: [],
+    getHealthReport: vi.fn().mockResolvedValue({
+      mode: 'structural',
+      generated_at: new Date().toISOString(),
+      open_actions_count: 0,
+      issues_found: 0,
+      issues: [],
+      drift_sampled: false,
+      duplicate_groups_pending: 0,
+      synthesis_pending: 0,
     }),
     getRawTree: vi.fn().mockResolvedValue([]),
     getQueueStatus: vi.fn().mockResolvedValue({

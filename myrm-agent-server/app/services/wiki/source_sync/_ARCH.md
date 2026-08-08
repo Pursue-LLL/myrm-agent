@@ -16,8 +16,9 @@ Wiki 外部来源确定性同步：Gmail 标签 / Google Drive 文件夹 / RSS /
 | `config_store.py` | 持久化 | UserConfig `wikiSourceSync` 按 agent 读写 + exists 探测 | ✅ |
 | `state_store.py` | 持久化 | UserConfig `wikiSourceSyncState` 上次同步状态（按 agent） | ✅ |
 | `html_body.py` | 辅助 | Gmail HTML → Markdown（`HTML2Markdown`，ignore_images） | ✅ |
-| `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（docx/pdf/text） | ✅ |
+| `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（sniff+docx embed→wiki/assets） | ✅ |
 | `publish_helpers.py` | 辅助 | 统一 `publish_raw(caller=settings)` + frontmatter | ✅ |
+| `feishu.py` | 连接器 | Feishu channel creds + Drive folder + Docx blocks → raw/feishu/ | ✅ |
 | `gmail.py` | 连接器 | Google OAuth + Gmail API → raw/gmail/ | ✅ |
 | `gdrive.py` | 连接器 | Google OAuth + Drive API → raw/gdrive/ | ✅ |
 | `rss.py` | 连接器 | RSS/Atom HTTP → raw/rss/ | ✅ |

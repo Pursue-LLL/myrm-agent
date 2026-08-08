@@ -5,6 +5,7 @@
  * CDP Chrome E2E can reach attachToChat when Turbopack/RSC is slow under parallel load.
  */
 import E2EChatBridge from '@/components/dev/E2EChatBridge';
+import E2EWikiBridge from '@/components/dev/E2EWikiBridge';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') {
@@ -18,5 +19,10 @@ export default function E2eBridgeLoader() {
   if (!isLocalDevHost()) {
     return null;
   }
-  return <E2EChatBridge />;
+  return (
+    <>
+      <E2EChatBridge />
+      <E2EWikiBridge />
+    </>
+  );
 }

@@ -3,7 +3,7 @@
 
 ## 架构概述
 
-Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。REST `/api/wiki/stats` 返回 **cognitive map** 字段与 **`structural_issues`**（deterministic broken markdown/wikilink links — path + frontmatter title alias — and invalid frontmatter types，120s TTL 缓存 via `structural_stats_cache.py`）。
+Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。REST `/api/wiki/stats` 返回 **cognitive map** 字段与 **`structural_issues`**（deterministic broken markdown/wikilink links — path + frontmatter title alias — invalid frontmatter types，raw-backed provenance gaps，120s TTL 缓存 via `structural_stats_cache.py`）。
 
 ## Vault SSOT
 
@@ -32,7 +32,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `knowledge_query_service.py` | SSOT | `execute_wiki_knowledge_query` — Settings POST /query 与 Chat Wiki Knowledge Lane 共用零 LLM 检索 + citations | ✅ |
 | `chat_compound_service.py` | SSOT | `stage_chat_compound_from_message` — POST /compound DB hydrate Q&A + trust → harness pending；reject inactive/incognito assistant messages | ✅ |
 | `maintain_runner.py` | SSOT | `run_wiki_maintain_job` — POST /maintain?mode= 与 Cron `__wiki_maintain__` 共用；compile 进行中 skip；返回 lint issues + vault `reports/last-health.json` 快照 | ✅ |
-| `health_report_service.py` | SSOT | GET /wiki/health-report structural scan + `count_open_actions`；maintain 快照读写 | ✅ |
+| `health_report_service.py` | SSOT | GET /wiki/health-report structural scan + merge vault full snapshot drift + `count_open_actions`；maintain 写入/读取 `reports/last-health.json` | ✅ |
 | `dedup_runner.py` | SSOT | `schedule_wiki_dedup_scan` (202 background) / `run_wiki_dedup_scan_job` (cron blocking) / `apply_wiki_dedup_disposition` / `wiki_dedup_checklist_ready` — POST /dedup/* 与 Cron `__wiki_dedup__` 共用；compile 进行中 skip scan | ✅ |
 | `clip/` | 核心 | Browser extension clip — `form.py` 8MB cap · `runner.py` async jobs → harness `publish_clip_ingress` · post-write ingest SSE；见 [`clip/_ARCH.md`](clip/_ARCH.md) | ✅ |
 | `maintain_state_store.py` | 持久化 | UserConfig `wikiMaintainState` 上次维护 observability（按 agent） | ✅ |

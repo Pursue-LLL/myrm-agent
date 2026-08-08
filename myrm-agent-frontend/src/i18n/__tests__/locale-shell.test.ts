@@ -20,6 +20,7 @@ function readSettingsSection(locale: string, section: string): Record<string, un
 
 describe('locale shell settings', () => {
   it('includes chat-critical defaultModel keys in SSR shell sections', () => {
+    expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('title');
     expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('defaultModel');
     expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('modelCapabilities');
 

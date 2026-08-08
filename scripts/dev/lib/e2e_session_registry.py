@@ -83,8 +83,9 @@ def _pid_state_elapsed(pid: int) -> tuple[str, float]:
             check=False,
             capture_output=True,
             text=True,
+            timeout=2.0,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return "?", 0.0
     if proc is None or proc.returncode != 0:
         return "?", 0.0

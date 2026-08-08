@@ -31,6 +31,35 @@ def test_epoch_drift_entry_skip_bypassed_when_desktop_soak() -> None:
         _epoch_drift_entry_skip_if_shared(request)
 
 
+def test_epoch_drift_entry_skip_bypassed_when_launch_force_attach() -> None:
+    from tests.conftest import _epoch_drift_entry_skip_if_shared
+
+    request = MagicMock()
+    blocked_ctx = MagicMock(
+        epoch_match=False,
+        blocked=True,
+        blocked_reason="no backend at workspace epoch (4 active leases)",
+        candidates=(),
+    )
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"E2E_SIGNOFF", "MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE"}
+    }
+    env["MYRM_E2E_LAUNCH_FORCE"] = "1"
+    env["MYRM_CHROME_E2E_ATTACH"] = "1"
+    with patch.dict(os.environ, env, clear=True):
+        with patch(
+            "tests.conftest._chrome_e2e_profile",
+            return_value=("SHARED", "NAMESPACE_WRITE", "STANDARD"),
+        ):
+            with patch(
+                "e2e_api_verify.resolve_e2e_api_context",
+                return_value=blocked_ctx,
+            ):
+                _epoch_drift_entry_skip_if_shared(request)
+
+
 def test_epoch_drift_entry_skip_raises_when_not_signoff() -> None:
     from tests.conftest import _epoch_drift_entry_skip_if_shared
 
@@ -40,7 +69,11 @@ def test_epoch_drift_entry_skip_raises_when_not_signoff() -> None:
         blocked=True,
         blocked_reason="no backend at workspace epoch (1 active leases)",
     )
-    env = {k: v for k, v in os.environ.items() if k not in {"E2E_SIGNOFF", "MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE"}}
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"E2E_SIGNOFF", "MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE"}
+    }
     with patch.dict(os.environ, env, clear=True):
         with patch(
             "tests.conftest._chrome_e2e_profile",

@@ -16,6 +16,14 @@ function selectionSupportsVision(
   return getModelInfo(selection.providerId, selection.model)?.supports_vision ?? false;
 }
 
+function selectionSupportsVideoInput(
+  selection: SingleModelSelection | null | undefined,
+  getModelInfo: ModelInfoLookup,
+): boolean {
+  if (!selection) return false;
+  return getModelInfo(selection.providerId, selection.model)?.supports_video_input ?? false;
+}
+
 /** Whether the configured model stack can handle images via native vision or vision fallback chain. */
 export function hasConfiguredVisionCapability(
   defaultModelConfig: DefaultModelConfig | undefined,
@@ -60,12 +68,16 @@ export function shouldOfferVisionFallbackRecommendation(
   return !selectionSupportsVision(defaultModelConfig.baseModel?.primary, getModelInfo);
 }
 
-/** Whether video uploads need vision fallback because the base model lacks video input. */
+/** Whether video uploads can be analyzed when the base model lacks native video input. */
 export function hasVisionFallbackForVideo(
   defaultModelConfig: DefaultModelConfig | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
   if (!defaultModelConfig) return false;
+
+  const videoSlot = defaultModelConfig.videoFallbackModel;
+  if (selectionSupportsVideoInput(videoSlot?.primary, getModelInfo)) return true;
+  if (selectionSupportsVideoInput(videoSlot?.fallback, getModelInfo)) return true;
 
   const visionSlot = defaultModelConfig.visionFallbackModel;
   return (

@@ -101,6 +101,9 @@ if os.environ.get('MYRM_E2E_EPOCH_PIN', '').strip() == '1':
 if os.environ.get('E2E_SIGNOFF', '').strip() == '1':
     print(0)
     raise SystemExit(0)
+if os.environ.get('MYRM_E2E_LAUNCH_FORCE', '').strip() == '1':
+    print(0)
+    raise SystemExit(0)
 try:
     ctx = resolve_e2e_api_context(retry_after_apply=False)
 except Exception:
@@ -551,6 +554,22 @@ _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
   local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
   local wait_sec poll_sec active_leases errors require_ready
+  # R291: launch-force + skip attach wait — match solo PASS (46138): dev servers + CDP verified
+  # above; do not burn 590s hot-pool BOOTSTRAP (shellHot=false acceptable under attach).
+  if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" == "1" ]] \
+    && myrm_chrome_e2e_cdp_healthy; then
+    health="$("${PREFLIGHT_PY}" "${runtime_py}" \
+      --auto-probe \
+      --auto-hot \
+      --ui "${UI_BASE}" \
+      --api "${API_BASE}" \
+      --attach-mode 2>&1)" || health=""
+    echo "CHROME_E2E_ATTACH: launch-force fast path (CDP live; defer hot-pool gate)" >&2
+    echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+    echo "${health}"
+    _maybe_reseal_auth_template_after_attach
+    return 0
+  fi
   require_ready="$(_attach_health_require_args)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   active_leases="$(_parallel_attach_active_leases)"
@@ -1439,7 +1458,11 @@ if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
 fi
 if [[ "${MUX_USING}" -eq 1 ]]; then
   if [[ "${VANILLA_MCP_COUNT}" -gt 0 ]]; then
-    fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use --auto-connect (./myrm doctor --mcp-isolation)"
+    if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
+      echo "CHROME_E2E_WARN: legacy vanilla chrome-devtools-mcp (${VANILLA_MCP_COUNT}) ignored — formal E2E uses browser orchestrator RPC-only" >&2
+    else
+      fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use --auto-connect (./myrm doctor --mcp-isolation)"
+    fi
   fi
   if [[ ! -f "${MUX_PID_FILE}" ]]; then
     fail "cdmcp-mux daemon not running — run: ./myrm ready --chrome"

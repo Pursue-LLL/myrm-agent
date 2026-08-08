@@ -8,9 +8,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
 )
 
@@ -56,7 +55,6 @@ _GROWTH_DASHBOARD_STATE = """(() => {
 @pytest.mark.timeout(180)
 def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     seed_url = (
         f"{api_url}/api/v1/skills/drafts/test/seed-mock?"
@@ -82,7 +80,7 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     assert "original_content" not in case_items[0]
     assert "proposed_content" not in case_items[0]
 
-    with open_mcp_page(f"{ui_url}/settings/skills?sub=pending") as (client, page):
+    with open_settings_subroute("/settings/skills?sub=pending") as (client, page):
         dashboard = wait_for_state(
             client, page, _GROWTH_DASHBOARD_STATE, timeout_sec=90.0
         )

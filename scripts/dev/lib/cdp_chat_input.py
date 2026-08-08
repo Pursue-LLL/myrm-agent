@@ -194,8 +194,14 @@ class CdpChatInput(CdpChatBootstrap):
         await asyncio.sleep(2.0)
         await self.ensure_e2e_api_base_binding()
 
-    async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
+    async def ensure_react_e2e_bridge(
+        self, *, timeout_sec: float = 90.0, allow_reload: bool | None = None
+    ) -> None:
         """Wait for the full React E2E bridge (not DOM-only fallback)."""
+        if allow_reload is None:
+            allow_reload = not getattr(
+                self, "_shared_ui_session_contract_applied", False
+            )
         deadline = time.monotonic() + timeout_sec
         polls = 0
         probe: object = None
@@ -237,8 +243,27 @@ class CdpChatInput(CdpChatBootstrap):
                 and probe.get("hasSendCapability")
             ):
                 return
-            should_reload = polls in {15, 30, 45}
-            if isinstance(probe, dict) and probe.get("fallback"):
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasSendCapability")
+                and not (probe.get("hasPinLite") or probe.get("hasPinBasic"))
+                and polls % 5 == 0
+            ):
+                try:
+                    await self.evaluate(
+                        """(() => {
+                          const bridge = window.__MYRM_E2E_CHAT__;
+                          if (!bridge?.ensureProviders) return { ok: false };
+                          bridge.prepareAutomationSend?.();
+                          return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+                        })()""",
+                        await_promise=True,
+                        recv_timeout=30.0,
+                    )
+                except (RuntimeError, TimeoutError):
+                    pass
+            should_reload = allow_reload and polls in {15, 30, 45}
+            if isinstance(probe, dict) and probe.get("fallback") and allow_reload:
                 should_reload = True
             if (
                 isinstance(probe, dict)

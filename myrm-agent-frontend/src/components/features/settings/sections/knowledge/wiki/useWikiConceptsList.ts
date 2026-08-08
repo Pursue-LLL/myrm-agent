@@ -19,6 +19,23 @@ import {
 } from './wikiTreeUtils';
 import { splitTagsInput } from './wikiSectionUtils';
 
+function findConceptNodeId(nodes: TreeNode[], conceptPath: string): string | null {
+  const normalized = conceptPath.replace(/\\/g, '/').replace(/^\//, '').replace(/\.md$/i, '');
+  for (const node of nodes) {
+    const nodeId = node.id.replace(/\\/g, '/');
+    if (!node.is_dir && (nodeId === normalized || nodeId.endsWith(`/${normalized}`))) {
+      return node.id;
+    }
+    if (node.children?.length) {
+      const found = findConceptNodeId(node.children, normalized);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
 export type WikiEditTab = 'truth' | 'timeline' | 'metadata' | 'advanced';
 
 export interface DeleteTarget {
@@ -30,6 +47,7 @@ export interface DeleteTarget {
 export function useWikiConceptsList(options?: {
   treeSyncNonce?: number;
   agentScopeId?: string | null;
+  highlightConceptPath?: string | null;
   onVaultMutated?: () => void;
 }) {
   const t = useTranslations('settings.wiki.concepts');
@@ -60,6 +78,7 @@ export function useWikiConceptsList(options?: {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const treeRef = useRef<TreeApi<TreeNode> | null>(null);
+  const lastHighlightedConceptRef = useRef<string | null>(null);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -79,6 +98,7 @@ export function useWikiConceptsList(options?: {
     setIsEditing(false);
     setEditContent('');
     setTreeData([]);
+    lastHighlightedConceptRef.current = null;
     void fetchTree();
   }, [fetchTree, options?.treeSyncNonce, agentScopeId]);
 
@@ -91,6 +111,26 @@ export function useWikiConceptsList(options?: {
       toast.error(t('loadFailed'));
     }
   };
+
+  useEffect(() => {
+    const highlight = options?.highlightConceptPath?.replace(/\\/g, '/').replace(/\.md$/i, '') ?? null;
+    if (!highlight || isLoading || treeData.length === 0) {
+      return;
+    }
+    if (lastHighlightedConceptRef.current === highlight) {
+      return;
+    }
+    const nodeId = findConceptNodeId(treeData, highlight);
+    if (!nodeId) {
+      if (lastHighlightedConceptRef.current !== highlight) {
+        lastHighlightedConceptRef.current = highlight;
+        toast.message(t('highlightNotFound', { path: highlight }));
+      }
+      return;
+    }
+    lastHighlightedConceptRef.current = highlight;
+    void handleSelectConcept(nodeId);
+  }, [options?.highlightConceptPath, isLoading, treeData]);
 
   const handleMove = async ({ dragIds, parentId }: { dragIds: string[]; parentId: string | null; index: number }) => {
     const sourceId = dragIds[0];

@@ -19,7 +19,7 @@ from browser_orchestrator_client import BrowserOrchestratorClient
 from cdp_chat_support import (
     e2e_api_base_inject_js,
     e2e_private_api_ready_timeout_sec,
-    e2e_runtime_binding_source,
+    e2e_page_binding_source,
     get_e2e_api_url,
     get_open_page_api_url,
     wait_e2e_provider_ready,
@@ -92,6 +92,14 @@ class OrchestratorChromeClient:
     def _is_terminal_tab_error(self, message: str) -> bool:
         return "E2E_USER_CLOSED_TAB" in message
 
+    def _is_orphan_target_error(self, message: str) -> bool:
+        lowered = message.lower()
+        return (
+            "inspected target navigated or closed" in lowered
+            or "navigated or closed" in lowered
+            or self._is_missing_session_context(message)
+        )
+
     def _is_missing_session_context(self, message: str) -> bool:
         lowered = message.lower()
         return (
@@ -100,6 +108,8 @@ class OrchestratorChromeClient:
             or "session with given id not found" in lowered
             or "does not own target" in lowered
             or "no target with given id" in lowered
+            or "inspected target navigated or closed" in lowered
+            or "navigated or closed" in lowered
         )
 
     def _ensure_session_context(self) -> None:
@@ -110,8 +120,14 @@ class OrchestratorChromeClient:
         try:
             self._daemon.create_session(self._session_id)
         except RuntimeError as exc:
-            if "already" not in str(exc).lower():
-                raise
+            message = str(exc)
+            if "already" in message.lower():
+                return
+            if _orchestrator_daemon_unreachable(message):
+                _recover_orchestrator_daemon(self._daemon, message, wall_sec=45.0)
+                self._daemon.create_session(self._session_id)
+                return
+            raise
 
     def _reopen_primary_page(
         self, url: str, *, page: OrchestratorMcpPage | None = None
@@ -272,6 +288,7 @@ class OrchestratorChromeClient:
             or "daemon not running" in lowered
             or "connection reset" in lowered
             or "broken pipe" in lowered
+            or "connection closed before response" in lowered
             or self._is_missing_session_context(message)
         )
 
@@ -284,16 +301,19 @@ class OrchestratorChromeClient:
         expression: str,
         *,
         timeout_sec: float = 15.0,
+        await_promise: bool = True,
     ) -> object:
         effective = min(max(5.0, timeout_sec), self._request_timeout_sec)
         last_exc: BaseException | None = None
-        for attempt in range(1, 6):
+        max_attempts = 2 if _effective_parallel_load() >= 2 else 5
+        for attempt in range(1, max_attempts + 1):
             try:
                 payload = self._daemon.evaluate_page(
                     self._session_id,
                     page.target_id,
                     expression,
                     timeout_sec=effective,
+                    await_promise=await_promise,
                 )
                 return payload.get("value")
             except (TimeoutError, OSError, RuntimeError) as exc:
@@ -301,12 +321,24 @@ class OrchestratorChromeClient:
                 message = str(exc)
                 if self._recover_daemon_if_needed(message):
                     continue
+                if self._is_orphan_target_error(message) and attempt < max_attempts:
+                    fallback_url = page.url or "http://127.0.0.1:3000/"
+                    try:
+                        self._reopen_primary_page(fallback_url, page=page)
+                    except (RuntimeError, TimeoutError, OSError) as reopen_exc:
+                        if not self._recover_daemon_if_needed(str(reopen_exc)):
+                            raise
+                    continue
                 if self._is_missing_session_context(message):
+                    if self._recover_daemon_if_needed(message):
+                        fallback_url = page.url or "http://127.0.0.1:3000/"
+                        self._reopen_primary_page(fallback_url, page=page)
+                        continue
                     self._ensure_session_context()
                     fallback_url = page.url or "http://127.0.0.1:3000/"
                     self._reopen_primary_page(fallback_url, page=page)
                     continue
-                if self._is_terminal_tab_error(message) and attempt < 5:
+                if self._is_terminal_tab_error(message) and attempt < max_attempts:
                     fallback = page.url or "http://127.0.0.1:3000/"
                     try:
                         self._reopen_primary_page(fallback, page=page)
@@ -314,7 +346,7 @@ class OrchestratorChromeClient:
                         pass
                     continue
                 retryable = self._is_retryable_transport_error(message)
-                if not retryable or attempt >= 5:
+                if not retryable or attempt >= max_attempts:
                     raise
                 time.sleep(min(2.0 * float(attempt), 6.0))
         if last_exc is not None:
@@ -375,7 +407,7 @@ class OrchestratorChromeClient:
             "(() => { window.location.reload(); return true; })()",
             timeout_sec=eval_timeout,
         )
-        binding_source = e2e_runtime_binding_source()
+        binding_source = e2e_page_binding_source()
         if binding_source:
             inject_expr = f"(() => {{{binding_source} return true; }})()"
             deadline = time.monotonic() + eval_timeout
@@ -417,7 +449,11 @@ def _monorepo_root() -> Path:
 def _orchestrator_daemon_unreachable(message: str) -> bool:
     """True when daemon socket is gone or hung under parallel burst (fix#14)."""
     lowered = message.lower()
-    if "daemon not running" in lowered or "connection refused" in lowered:
+    if (
+        "daemon not running" in lowered
+        or "connection refused" in lowered
+        or "cdp not connected" in lowered
+    ):
         return True
     if "browser orchestrator response timeout" in lowered:
         return (
@@ -502,6 +538,8 @@ def _is_retryable_open_page_error(message: str) -> bool:
         or "does not own target" in lowered
         or "session with given id not found" in lowered
         or "no target with given id" in lowered
+        or "inspected target navigated or closed" in lowered
+        or "navigated or closed" in lowered
         or "e2e_user_closed_tab" in lowered
     )
 
@@ -515,19 +553,22 @@ def _effective_parallel_load() -> int:
             continue
         if count >= 2:
             return count
-    return 0
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot
+
+        return max(0, parallel_active_test_count_ssot())
+    except ImportError:
+        return 0
 
 
 def _parallel_open_page_max_attempts() -> int:
-    """R299: cap retries — orchestrator fail-fast wall makes 8×480s storms pointless."""
+    """R299: cap retries — orchestrator fail-fast wall makes multi-minute storms pointless."""
     try:
         from peer_count_ssot import parallel_active_test_count_ssot
 
         peers = parallel_active_test_count_ssot()
         if peers <= 1:
             return 1
-        if peers > 0:
-            return 6
     except ImportError:
         pass
     return 3
@@ -545,6 +586,31 @@ def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
     return min(cap, wall, daemon_budget)
 
 
+def _reclaim_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
+    """Reclaim should be fast; cap harder under parallel load (§19.13 W3b)."""
+    base = _parallel_open_page_timeout_sec(daemon)
+    try:
+        from peer_count_ssot import parallel_active_test_count_ssot
+
+        if parallel_active_test_count_ssot() > 1:
+            return min(base, 45.0)
+    except ImportError:
+        pass
+    return min(base, 90.0)
+
+
+def _ensure_orchestrator_session(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+) -> None:
+    """Ensure mux session exists; reuse live BrowserContext (orchestrator session/create SSOT)."""
+    try:
+        daemon.create_session(session_id)
+    except RuntimeError as create_exc:
+        if "already" not in str(create_exc).lower():
+            raise
+
+
 def _recreate_orchestrator_session(
     daemon: BrowserOrchestratorClient,
     session_id: str,
@@ -554,11 +620,7 @@ def _recreate_orchestrator_session(
         daemon.destroy_session(session_id)
     except (RuntimeError, TimeoutError, OSError):
         pass
-    try:
-        daemon.create_session(session_id)
-    except RuntimeError as create_exc:
-        if "already" not in str(create_exc).lower():
-            raise
+    _ensure_orchestrator_session(daemon, session_id)
     time.sleep(0.15)
 
 
@@ -583,14 +645,19 @@ def _open_page_fast_create_with_retry(
 
             touch_wall_progress(current_node="open_page_fast_create")
             target_url = url.strip() or "about:blank"
-            # Single RPC: orchestrator createPage runs create+navigate in one daemon
-            # transaction — avoids client round-trip window (§19.11 TAB-6b).
+            # Create about:blank first — CDP Target.createTarget+navigate to SPA routes
+            # (e.g. /settings) can stall the whole RPC; client navigate after bind is safer.
             with daemon.elevated_request_timeout(open_timeout_sec):
-                created = daemon.create_page(session_id, url=target_url)
+                created = daemon.create_page(session_id, url="about:blank")
             payload = dict(created)
+            page_id = int(payload["pageId"])
+            target_id = str(payload["targetId"])
+            if target_url != "about:blank":
+                with daemon.elevated_request_timeout(open_timeout_sec):
+                    daemon.navigate_page(session_id, target_id, target_url)
             return {
-                "pageId": int(payload["pageId"]),
-                "targetId": str(payload["targetId"]),
+                "pageId": page_id,
+                "targetId": target_id,
                 "url": target_url,
             }
         except (TimeoutError, OSError, RuntimeError) as exc:
@@ -608,6 +675,58 @@ def _open_page_fast_create_with_retry(
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("open_page_fast_create failed without exception")
+
+
+def _open_page_reclaim_with_retry(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    *,
+    url: str,
+    sealed_target_id: str,
+    max_attempts: int | None = None,
+) -> dict[str, object]:
+    """Epoch shell reclaim for solo SHARED+READ bootstrap (§19.11 TAB-6b)."""
+    attempts = (
+        max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
+    )
+    open_timeout_sec = _reclaim_open_page_timeout_sec(daemon)
+    last_exc: BaseException | None = None
+    target_url = url.strip() or "about:blank"
+    for attempt in range(1, attempts + 1):
+        try:
+            if attempt > 1:
+                _recreate_orchestrator_session(daemon, session_id)
+            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+
+            touch_wall_progress(current_node="open_page_reclaim")
+            with daemon.bounded_request_timeout(open_timeout_sec):
+                created = daemon.reclaim_page(
+                    session_id,
+                    url=target_url,
+                    sealed_target_id=sealed_target_id,
+                )
+            payload = dict(created)
+            return {
+                "pageId": int(payload["pageId"]),
+                "targetId": str(payload["targetId"]),
+                "url": str(payload.get("url", target_url)),
+                "reclaimed": bool(payload.get("reclaimed", False)),
+            }
+        except (TimeoutError, OSError, RuntimeError) as exc:
+            last_exc = exc
+            message = str(exc)
+            if not _is_retryable_open_page_error(message):
+                raise
+            if _recover_orchestrator_daemon(daemon, message):
+                _recreate_orchestrator_session(daemon, session_id)
+            elif _open_page_error_needs_session_recreate(message):
+                _recreate_orchestrator_session(daemon, session_id)
+            if attempt >= attempts:
+                break
+            time.sleep(min(3.0 * float(attempt), 8.0))
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("open_page_reclaim failed without exception")
 
 
 def _open_page_transaction_with_retry(
@@ -701,7 +820,7 @@ def _apply_orchestrator_shpoib_binding(
         raise RuntimeError(
             f"E2E_RUNTIME_BINDING_FAILED: private API not ready before binding: {api_base}"
         )
-    source = e2e_runtime_binding_source()
+    source = e2e_page_binding_source()
     if source:
         client.evaluate(
             page,
@@ -718,28 +837,183 @@ def _apply_orchestrator_shpoib_binding(
     page.url = url
 
 
+def _normalize_hot_route(url: str) -> str:
+    from urllib.parse import urlsplit
+
+    parsed = urlsplit(url.strip())
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+    return path or "/"
+
+
+@dataclass(frozen=True, slots=True)
+class SettingsOpenPlan:
+    """Orchestrator open plan for nested /settings/* (§19.11 TAB-6b)."""
+
+    reclaim_route: str
+    reclaim_url: str
+    post_navigate_url: str | None
+
+
+def _settings_open_plan(url: str) -> SettingsOpenPlan:
+    """Shell reclaim at /settings, then CDP navigate to nested subroute when needed."""
+    from urllib.parse import urlsplit
+
+    stripped = url.strip()
+    parsed = urlsplit(stripped)
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/") or "/"
+
+    if parsed.scheme and parsed.netloc:
+        origin = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+    else:
+        try:
+            from cdp_chat_support import get_e2e_ui_url
+
+            origin = get_e2e_ui_url().rstrip("/")
+        except ImportError:
+            origin = "http://127.0.0.1:3000"
+
+    if path.startswith("/settings/") and path != "/settings":
+        return SettingsOpenPlan(
+            reclaim_route="/settings",
+            reclaim_url=f"{origin}/settings",
+            post_navigate_url=stripped,
+        )
+    return SettingsOpenPlan(
+        reclaim_route=path,
+        reclaim_url=stripped,
+        post_navigate_url=None,
+    )
+
+
+def _parallel_nested_settings_open(
+    open_plan: SettingsOpenPlan, parallel_load: int
+) -> bool:
+    return parallel_load >= 2 and open_plan.post_navigate_url is not None
+
+
+def _open_parallel_nested_settings_page(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    *,
+    url: str,
+    burst_preassigned: bool,
+) -> dict[str, object]:
+    """Parallel nested /settings/* — prefer fast_create; transaction fallback (11455 SSOT)."""
+    from warm_shell_registry import set_bootstrap_hot_path  # noqa: PLC0415
+
+    max_attempts = 4 if burst_preassigned else None
+    set_bootstrap_hot_path("fast_create")
+    try:
+        return _open_page_fast_create_with_retry(
+            daemon,
+            session_id,
+            url=url,
+            max_attempts=max_attempts,
+        )
+    except (RuntimeError, TimeoutError, OSError) as fast_exc:
+        if not _is_retryable_open_page_error(str(fast_exc)):
+            raise
+        set_bootstrap_hot_path("transaction")
+        _recreate_orchestrator_session(daemon, session_id)
+        return _open_page_transaction_with_retry(
+            daemon,
+            session_id,
+            url=url,
+            max_attempts=max_attempts,
+        )
+
+
+def _orchestrator_navigate_owned_page(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    page: OrchestratorMcpPage,
+    target_url: str,
+) -> None:
+    nav_timeout_sec = _parallel_open_page_timeout_sec(daemon)
+    if _effective_parallel_load() >= 2:
+        nav_timeout_sec = min(nav_timeout_sec, 45.0)
+    else:
+        nav_timeout_sec = max(nav_timeout_sec, 90.0)
+    with daemon.bounded_request_timeout(nav_timeout_sec):
+        daemon.navigate_page(session_id, page.target_id, target_url)
+    page.url = target_url
+
+
+def _apply_settings_post_navigate(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    page: OrchestratorMcpPage,
+    plan: SettingsOpenPlan,
+) -> None:
+    if plan.post_navigate_url is None:
+        return
+    _orchestrator_navigate_owned_page(
+        daemon,
+        session_id,
+        page,
+        plan.post_navigate_url,
+    )
+
+
+def _resolve_pending_binding(
+    binding_source: str | None,
+    *,
+    needs_binding: bool,
+    force_binding: bool = False,
+) -> str | None:
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        if binding_source and binding_source.strip():
+            return binding_source.strip()
+        return None
+    if binding_source and binding_source.strip():
+        return binding_source.strip()
+    if not needs_binding and not force_binding:
+        return None
+    from cdp_chat_support import (  # noqa: PLC0415
+        e2e_page_binding_source,
+        e2e_runtime_bootstrap_apply_js,
+    )
+
+    bootstrap = e2e_runtime_bootstrap_apply_js()
+    if bootstrap and bootstrap.strip():
+        return bootstrap.strip()
+    retry = e2e_page_binding_source()
+    if retry and retry.strip():
+        return retry.strip()
+    return None
+
+
 @contextmanager
 def open_orchestrator_mcp_page(
     url: str,
     *,
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
-    effective_timeout = request_timeout_sec
-    if _effective_parallel_load() >= 2:
-        from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
+    from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
 
-        effective_timeout = max(
-            request_timeout_sec,
-            orchestrator_socket_timeout_cap_sec(),
+    effective_timeout = request_timeout_sec
+    parallel_load = _effective_parallel_load()
+    if parallel_load >= 2:
+        cap = orchestrator_socket_timeout_cap_sec()
+        # Fail-fast under parallel: never grow socket budget with burst queue headroom.
+        effective_timeout = min(request_timeout_sec, cap, 60.0)
+    daemon = BrowserOrchestratorClient(
+        timeout_sec=(
+            effective_timeout if parallel_load >= 2 else max(effective_timeout, 90.0)
         )
-    daemon = BrowserOrchestratorClient(timeout_sec=max(effective_timeout, 90.0))
+    )
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
     session_id = _resolve_session_id()
-    if _effective_parallel_load() >= 2:
-        _recreate_orchestrator_session(daemon, session_id)
-    else:
-        daemon.create_session(session_id)
+    _ensure_orchestrator_session(daemon, session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
     client = OrchestratorChromeClient(
         session_id=session_id,
@@ -748,35 +1022,129 @@ def open_orchestrator_mcp_page(
     )
     try:
         from warm_shell_registry import (  # noqa: PLC0415
+            claim_sealed_target_id,
+            read_sealed_target_id,
             seal_platform_shell,
             set_bootstrap_hot_path,
             shared_read_hot_path_decision,
         )
 
         hot = shared_read_hot_path_decision(url=url)
-        binding_source = e2e_runtime_binding_source()
+        binding_source = e2e_page_binding_source()
         pending_binding: str | None = None
+        force_runtime_binding = (
+            parallel_load >= 2 and os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        )
+        open_plan = _settings_open_plan(url)
+        # Atomic open to nested /settings/* — avoid shell open + separate navigate (82894 45s timeout).
+        atomic_open_url = open_plan.post_navigate_url or open_plan.reclaim_url
+        open_url = atomic_open_url
 
         if hot.eligible:
-            set_bootstrap_hot_path("fast_create")
-            try:
-                created = _open_page_fast_create_with_retry(
-                    daemon,
-                    session_id,
-                    url=url,
-                )
-                if binding_source or hot.needs_binding:
-                    pending_binding = binding_source or None
-            except RuntimeError as hot_exc:
-                if not _is_retryable_open_page_error(str(hot_exc)):
-                    raise
-                set_bootstrap_hot_path("cold")
-                _recreate_orchestrator_session(daemon, session_id)
-                created = _open_page_transaction_with_retry(
-                    daemon,
-                    session_id,
-                    url=url,
-                )
+            route = _normalize_hot_route(url)
+            reclaim_route = open_plan.reclaim_route
+            parallel_load = _effective_parallel_load()
+            sealed_target: str | None = None
+            preassigned = os.environ.get(
+                "MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", ""
+            ).strip()
+            burst_preassigned = bool(preassigned)
+            if preassigned:
+                sealed_target = preassigned
+            # Parallel: atomic claim from TargetPool; solo: read registry (§19.13 W3b).
+            elif parallel_load >= 2:
+                sealed_target = claim_sealed_target_id(route_path=reclaim_route)
+            if sealed_target is None:
+                sealed_target = read_sealed_target_id(route_path=reclaim_route)
+            # TAB-6b: reclaim shell then post-navigate nested /settings/* (solo + parallel).
+            use_reclaim = sealed_target is not None
+            if use_reclaim and sealed_target is not None:
+                set_bootstrap_hot_path("reused")
+                try:
+                    reclaim_attempts = 1 if parallel_load >= 2 else None
+                    created = _open_page_reclaim_with_retry(
+                        daemon,
+                        session_id,
+                        url=open_plan.reclaim_url,
+                        sealed_target_id=sealed_target,
+                        max_attempts=reclaim_attempts,
+                    )
+                    if not bool(created.get("reclaimed")):
+                        set_bootstrap_hot_path("fast_create")
+                        _recreate_orchestrator_session(daemon, session_id)
+                        created = _open_page_fast_create_with_retry(
+                            daemon,
+                            session_id,
+                            url=open_url,
+                            max_attempts=4 if burst_preassigned else None,
+                        )
+                    elif parallel_load >= 2 and open_plan.post_navigate_url is None:
+                        with daemon.elevated_request_timeout(
+                            _parallel_open_page_timeout_sec(daemon)
+                        ):
+                            daemon.navigate_page(
+                                session_id,
+                                str(created["targetId"]),
+                                open_url,
+                            )
+                        created["url"] = open_url
+                    if binding_source or hot.needs_binding or force_runtime_binding:
+                        pending_binding = _resolve_pending_binding(
+                            binding_source,
+                            needs_binding=hot.needs_binding,
+                            force_binding=force_runtime_binding,
+                        )
+                except (RuntimeError, TimeoutError, OSError) as reclaim_exc:
+                    if not _is_retryable_open_page_error(str(reclaim_exc)):
+                        raise
+                    set_bootstrap_hot_path("fast_create")
+                    _recreate_orchestrator_session(daemon, session_id)
+                    created = _open_page_fast_create_with_retry(
+                        daemon,
+                        session_id,
+                        url=open_url,
+                        max_attempts=4 if burst_preassigned else None,
+                    )
+                    if binding_source or hot.needs_binding or force_runtime_binding:
+                        pending_binding = _resolve_pending_binding(
+                            binding_source,
+                            needs_binding=hot.needs_binding,
+                            force_binding=force_runtime_binding,
+                        )
+            else:
+                if _parallel_nested_settings_open(open_plan, parallel_load):
+                    created = _open_parallel_nested_settings_page(
+                        daemon,
+                        session_id,
+                        url=open_url,
+                        burst_preassigned=burst_preassigned,
+                    )
+                else:
+                    set_bootstrap_hot_path("fast_create")
+                    try:
+                        created = _open_page_fast_create_with_retry(
+                            daemon,
+                            session_id,
+                            url=open_url,
+                            max_attempts=4 if burst_preassigned else None,
+                        )
+                    except (RuntimeError, TimeoutError, OSError) as hot_exc:
+                        if not _is_retryable_open_page_error(str(hot_exc)):
+                            raise
+                        set_bootstrap_hot_path("fast_create")
+                        _recreate_orchestrator_session(daemon, session_id)
+                        created = _open_page_fast_create_with_retry(
+                            daemon,
+                            session_id,
+                            url=open_url,
+                            max_attempts=4 if burst_preassigned else None,
+                        )
+                if binding_source or hot.needs_binding or force_runtime_binding:
+                    pending_binding = _resolve_pending_binding(
+                        binding_source,
+                        needs_binding=hot.needs_binding,
+                        force_binding=force_runtime_binding,
+                    )
         elif binding_source:
             set_bootstrap_hot_path("cold")
             try:
@@ -799,6 +1167,10 @@ def open_orchestrator_mcp_page(
                 )
         else:
             api_base = get_open_page_api_url().rstrip("/")
+            parallel_load = _effective_parallel_load()
+            burst_preassigned = bool(
+                os.environ.get("MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", "").strip()
+            )
             if api_base and api_base != "http://127.0.0.1:8080":
                 if not wait_e2e_provider_ready(
                     api_url=api_base,
@@ -826,13 +1198,30 @@ def open_orchestrator_mcp_page(
                         url=url,
                         binding_expression=f"(() => {{{inject} return true; }})()",
                     )
-            else:
-                set_bootstrap_hot_path("cold")
-                created = _open_page_transaction_with_retry(
+            elif _parallel_nested_settings_open(open_plan, parallel_load):
+                created = _open_parallel_nested_settings_page(
                     daemon,
                     session_id,
-                    url=url,
+                    url=open_url,
+                    burst_preassigned=burst_preassigned,
                 )
+            else:
+                set_bootstrap_hot_path("cold")
+                try:
+                    created = _open_page_fast_create_with_retry(
+                        daemon,
+                        session_id,
+                        url=open_url,
+                    )
+                except (RuntimeError, TimeoutError, OSError) as cold_exc:
+                    if not _is_retryable_open_page_error(str(cold_exc)):
+                        raise
+                    _recreate_orchestrator_session(daemon, session_id)
+                    created = _open_page_transaction_with_retry(
+                        daemon,
+                        session_id,
+                        url=open_url,
+                    )
         seal_platform_shell(ui_url=url)
         page.page_id = int(created["pageId"])
         page.target_id = str(created["targetId"])
@@ -851,6 +1240,12 @@ def open_orchestrator_mcp_page(
                 ):
                     daemon.navigate_page(session_id, page.target_id, target_url)
                 page.url = target_url
+        elif open_plan.post_navigate_url is not None:
+            created_url = str(page.url or "").strip().rstrip("/")
+            target_url = open_plan.post_navigate_url.strip().rstrip("/")
+            # Transaction/fast_create may open nested /settings/* atomically — skip redundant navigate (83122).
+            if created_url != target_url:
+                _apply_settings_post_navigate(daemon, session_id, page, open_plan)
         try:
             from chrome_e2e.gates.orphan_budget import (
                 assert_orphan_budget_invariant,

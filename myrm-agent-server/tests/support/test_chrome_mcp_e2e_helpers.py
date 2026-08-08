@@ -63,6 +63,7 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     reload_block = source.split("def reload_mcp_page", 1)[1].split("\ndef ", 1)[0]
     assert "client.reload" in reload_block
     assert "_reapply_shpoib_runtime_after_reload" in reload_block
+    assert "MYRM_E2E_ISOLATED" in reload_block
     assert reload_block.index("client.reload") < reload_block.index(
         "_reapply_shpoib_runtime_after_reload"
     )

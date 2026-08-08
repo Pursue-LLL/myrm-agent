@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import ast
 import json
 import os
 import subprocess
@@ -22,12 +23,15 @@ if str(_DEV_LIB) not in sys.path:
 
 from cdp_chat_support import (
     DISMISS_MODALS_JS,
+    E2E_API_BINDING_PROBE_JS,
     _e2e_api_urlopen,
+    e2e_api_base_inject_js,
     e2e_runtime_binding,
     e2e_runtime_binding_source,
     e2e_runtime_bootstrap_apply_js,
     get_e2e_api_url,
     get_e2e_ui_url,
+    require_e2e_api_binding_probe,
     wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
 )  # noqa: E402
@@ -59,13 +63,19 @@ __all__ = [
     "get_e2e_ui_url",
     "guarded_httpx_request",
     "http_json",
+    "navigate_mcp_page",
+    "navigate_settings_subroute",
     "open_mcp_page",
     "open_mcp_page_async",
+    "open_settings_subroute",
     "OpenMcpPageSession",
     "prepare_e2e_ui_session",
     "reload_mcp_page",
+    "wait_for_agent_settings_editor",
     "wait_for_react_e2e_bridge",
+    "wait_for_settings_layout",
     "wait_for_state",
+    "wait_for_workflow_plan_card",
     "warm_ui_route",
 ]
 
@@ -104,19 +114,66 @@ def dismiss_blocking_modals(
     """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
     target_url = recover_url or getattr(page, "url", None)
     last: dict[str, object] = {}
-    for attempt in range(3):
+    max_attempts = 2 if _parallel_chrome_e2e_active() else 5
+    for attempt in range(max_attempts):
         raw = client.evaluate(page, _LOCALHOST_PAGE_JS, timeout_sec=15.0)
         last = _coerce_evaluate_result(raw)
         href = str(last.get("href", ""))
         if last.get("ready") is True and "chrome-error://" not in href:
             break
-        if attempt >= 2 or not isinstance(target_url, str) or not target_url.strip():
+        if (
+            attempt >= max_attempts - 1
+            or not isinstance(target_url, str)
+            or not target_url.strip()
+        ):
             raise AssertionError(
                 f"Page not on localhost after chrome-error recovery: {last}"
             )
-        reload_mcp_page(client, page, target_url=target_url, timeout_ms=90_000)
+        if "chrome-error://" in href:
+            _trigger_attach_frontend_heal_once()
+            try:
+                from runtime_identity import classify_ui_endpoint_error
+
+                ui_probe_error = classify_ui_endpoint_error(
+                    get_e2e_ui_url(),
+                    timeout_sec=5.0,
+                )
+                if ui_probe_error is None:
+                    warm_ui_route("/settings", timeout_sec=30.0)
+            except (ImportError, RuntimeError, OSError, TimeoutError):
+                pass
+        reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
     dismissed = client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
     assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
+
+
+def _recover_chrome_error_page(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    target_url: str,
+) -> None:
+    """Heal shared FE + reload when CDP tab landed on chrome-error:// under parallel burst."""
+    raw = client.evaluate(page, _LOCALHOST_PAGE_JS, timeout_sec=10.0)
+    last = _coerce_evaluate_result(raw)
+    href = str(last.get("href", ""))
+    if last.get("ready") is True and "chrome-error://" not in href:
+        return
+    _trigger_attach_frontend_heal_once()
+    try:
+        from runtime_identity import classify_ui_endpoint_error
+
+        if classify_ui_endpoint_error(get_e2e_ui_url(), timeout_sec=8.0) is not None:
+            warm_ui_route("/settings", timeout_sec=_warm_ui_parallel_wait_sec(25.0))
+    except (ImportError, RuntimeError, OSError, TimeoutError):
+        warm_ui_route("/settings", timeout_sec=_warm_ui_parallel_wait_sec(25.0))
+    reload_mcp_page(
+        client,
+        page,
+        target_url=target_url,
+        timeout_ms=_settings_heal_reload_timeout_ms(),
+    )
+    dismiss_blocking_modals(client, page, recover_url=target_url)
 
 
 def prepare_e2e_ui_session(api_url: str) -> None:
@@ -238,9 +295,17 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             touch_wall_progress(current_node="warm_ui_route_skipped_registry_reuse")
             request = urllib.request.Request(url, method="GET")  # noqa: S310
             try:
-                with urllib.request.urlopen(request, timeout=5.0) as response:  # noqa: S310
+                with urllib.request.urlopen(
+                    request, timeout=5.0
+                ) as response:  # noqa: S310
                     if int(response.status) == 200:
                         seal_platform_shell(ui_url=url, route_path=path)
+                        try:
+                            from warm_shell_registry import ensure_sealed_target_pool
+
+                            ensure_sealed_target_pool(ui_url=url, route_path=path)
+                        except ImportError:
+                            pass
                         return
             except (
                 urllib.error.HTTPError,
@@ -269,17 +334,31 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     def _heal_shared_frontend() -> None:
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
             return
+        heal_timeout = 60.0
+        try:
+            from transport_supervisor import parallel_active_test_count
+
+            if parallel_active_test_count() > 1:
+                heal_timeout = 20.0
+        except ImportError:
+            pass
         heal_shared_frontend_debounced(
             monorepo_root,
             debounce_sec=60.0,
-            subprocess_timeout_sec=60.0,
+            subprocess_timeout_sec=heal_timeout,
         )
 
     def _attempt_warm_get() -> bool:
         """Single GET attempt; True when HTTP 200."""
         nonlocal last_error, next_heal_at
-        heartbeat_e2e_lease()
-        touch_wall_progress(current_node="warm_ui_route")
+        try:
+            from e2e_unified_heartbeat import shell_heartbeat_loop_active
+        except ImportError:
+            shell_heartbeat_loop_active = None  # type: ignore[misc, assignment]
+        if shell_heartbeat_loop_active is not None and shell_heartbeat_loop_active():
+            touch_wall_progress(current_node="warm_ui_route")
+        else:
+            heartbeat_e2e_lease()
         if time.monotonic() >= next_heal_at:
             next_heal_at = time.monotonic() + heal_interval
             _heal_shared_frontend()
@@ -302,10 +381,14 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
                 status = _do_get()
             if status == 200:
                 try:
-                    from warm_shell_registry import seal_platform_shell
+                    from warm_shell_registry import (
+                        ensure_sealed_target_pool,
+                        seal_platform_shell,
+                    )
 
                     seal_platform_shell(ui_url=url, route_path=path)
-                except ImportError:
+                    ensure_sealed_target_pool(ui_url=url, route_path=path)
+                except (ImportError, AttributeError, RuntimeError, OSError):
                     pass
                 return True
             last_error = RuntimeError(f"warm_ui_route GET {url} returned HTTP {status}")
@@ -315,6 +398,9 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         except urllib.error.HTTPError as exc:
             if exc.code in {404, 502, 503}:
                 last_error = exc
+                # Nested /settings/* often 404 on HTTP GET pre-orchestrator-navigate — heal cannot fix (85292).
+                if exc.code == 404 and path.startswith("/settings"):
+                    return False
                 _heal_shared_frontend()
                 next_heal_at = time.monotonic() + heal_interval
             else:
@@ -515,13 +601,600 @@ def reload_mcp_page(
 ) -> None:
     """Full page reload with SHPOIB runtime rebind when private backend is active."""
     client.reload(page, timeout_ms=timeout_ms)
-    if e2e_runtime_binding() is not None:
+    # Isolated stacks use Next.js rewrites — skip expensive SHPOIB rebind (TAB-6b).
+    if (
+        e2e_runtime_binding() is not None
+        and os.environ.get("MYRM_E2E_ISOLATED", "").strip() != "1"
+    ):
         resolved_url = _normalize_rebind_target_url(target_url)
         if resolved_url is None:
             resolved_url = _resolve_page_target_url(
                 client, page, timeout_sec=min(30.0, timeout_ms / 1000)
             )
         _reapply_shpoib_runtime_after_reload(client, page, target_url=resolved_url)
+
+
+_AGENT_SETTINGS_EDITOR_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="agent-tab-capabilities"]'),
+  hasAppLayout: !!document.querySelector('[data-testid="app-layout"]'),
+  hasDeferredLoading: !!document.querySelector('[data-testid="settings-deferred-loading"]'),
+  apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+  runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
+  bodyLength: (document.body?.innerText || '').length,
+  pathname: location.pathname,
+  url: location.href,
+}))()"""
+
+_WIKI_SETTINGS_SHELL_READY_JS = """(() => {
+  const bodyText = document.body?.innerText || '';
+  const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+  const dedupTab = document.querySelector('[data-testid="wiki-dedup-tab"]');
+  const layout = document.querySelector('[data-testid="app-layout"]');
+  const settingsLayout = document.querySelector('[data-testid="settings-layout"]');
+  const deferredLoading = document.querySelector('[data-testid="settings-deferred-loading"]');
+  return {
+    ready:
+      location.pathname.endsWith('/settings/wiki') &&
+      !!layout &&
+      !deferredLoading &&
+      (!!shell || !!dedupTab),
+    pathname: location.pathname,
+    bodyLength: bodyText.length,
+    hasShell: !!shell,
+    hasDedupTab: !!dedupTab,
+    hasAppLayout: !!layout,
+    hasSettingsLayout: !!settingsLayout,
+    hasDeferredLoading: !!deferredLoading,
+  };
+})()"""
+
+
+def _bounded_settings_ui_wait_sec(base_wait_sec: float) -> float:
+    cap = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC) if is_e2e_signoff_runtime() else 90.0
+    parallel = _parallel_chrome_e2e_active()
+    if parallel and is_e2e_signoff_runtime():
+        cap = max(cap, 180.0)
+    elif parallel:
+        # Dev parallel: settings turbopack compile needs multiple reload heals.
+        cap = min(cap, 120.0)
+    return min(_warm_ui_parallel_wait_sec(base_wait_sec), cap)
+
+
+def _settings_heal_reload_timeout_ms(*, base_ms: int = 120_000) -> int:
+    if _parallel_chrome_e2e_active():
+        return min(base_ms, 90_000)
+    return base_ms
+
+
+_PARALLEL_ACTIVE_CACHE_TTL_SEC = 600.0
+_parallel_active_cache: tuple[float, bool] | None = None
+
+
+def _parallel_chrome_e2e_active() -> bool:
+    """Fast parallel probe for wait_for_state hot path — never pgrep/ps on poll loop."""
+    global _parallel_active_cache
+    now = time.monotonic()
+    if _parallel_active_cache is not None:
+        cached_at, cached = _parallel_active_cache
+        if now - cached_at < _PARALLEL_ACTIVE_CACHE_TTL_SEC:
+            return cached
+    for key in ("MYRM_E2E_PARALLEL_ACTIVE_LEASES", "MYRM_E2E_PHASE_C_BURST_LANES"):
+        raw = os.environ.get(key, "").strip()
+        if raw.isdigit() and int(raw) >= 2:
+            _parallel_active_cache = (now, True)
+            return True
+    raw_count = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
+    if raw_count.isdigit() and int(raw_count) >= 2:
+        _parallel_active_cache = (now, True)
+        return True
+    if raw_count.isdigit() and int(raw_count) <= 1:
+        _parallel_active_cache = (now, False)
+        return False
+    active = _parallel_chrome_e2e_active_from_context()
+    _parallel_active_cache = (now, active)
+    return active
+
+
+def _parallel_chrome_e2e_active_from_context() -> bool:
+    """Read coordinator snapshot — file-only, no subprocess."""
+    state_dir = os.environ.get(
+        "MYRM_DEV_STATE_DIR",
+        str(Path.home() / ".local" / "state" / "myrm-dev"),
+    )
+    context_path = Path(state_dir) / "e2e-context.json"
+    if not context_path.is_file():
+        return False
+    try:
+        import json
+
+        payload = json.loads(context_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    leases = payload.get("active_leases")
+    if isinstance(leases, int) and leases >= 2:
+        return True
+    active_tests = payload.get("active_tests")
+    if isinstance(active_tests, list) and len(active_tests) >= 2:
+        return True
+    return False
+
+
+def _settings_layout_visible(client: ChromeMcpClient, page: McpPage) -> bool:
+    raw = client.evaluate(
+        page,
+        "!!document.querySelector('[data-testid=\"settings-layout\"]')",
+        timeout_sec=15.0,
+    )
+    return raw is True
+
+
+def _heal_settings_deferred_loading(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    page_url: str,
+) -> None:
+    """Reload + client warmup when SettingsLayout stuck on settings-deferred-loading."""
+    if _settings_layout_visible(client, page):
+        return
+    body_empty = False
+    try:
+        raw_len = client.evaluate(
+            page,
+            "document.body?.innerText?.length ?? 0",
+            timeout_sec=10.0,
+        )
+        body_empty = int(raw_len or 0) == 0
+    except (RuntimeError, TimeoutError, OSError, TypeError, ValueError):
+        body_empty = True
+    if not _parallel_chrome_e2e_active() or body_empty:
+        _trigger_attach_frontend_heal_once()
+    _trigger_attach_client_warmup_once(page_url=page_url)
+    reload_mcp_page(
+        client,
+        page,
+        target_url=page_url,
+        timeout_ms=_settings_heal_reload_timeout_ms(),
+    )
+    if _parallel_chrome_e2e_active():
+        return
+    try:
+        dismiss_blocking_modals(client, page, recover_url=page_url)
+    except (AssertionError, RuntimeError, TimeoutError, OSError):
+        pass
+
+
+def navigate_mcp_page(
+    client: ChromeMcpClient,
+    page: McpPage,
+    url: str,
+    *,
+    timeout_ms: int = 90_000,
+) -> None:
+    """Navigate preserving SHPOIB private API binding (full reload clears window globals)."""
+    if e2e_runtime_binding() is not None:
+        _reapply_shpoib_runtime_after_reload(
+            client,
+            page,
+            target_url=url,
+            timeout_sec=min(120.0, timeout_ms / 1000),
+        )
+        return
+    api_base = get_e2e_api_url().rstrip("/")
+    if api_base != "http://127.0.0.1:8080":
+        client.evaluate(
+            page,
+            e2e_api_base_inject_js(),
+            timeout_sec=min(15.0, timeout_ms / 1000),
+        )
+    client.navigate(page, url, timeout_ms=timeout_ms)
+
+
+def _ensure_e2e_private_api_live(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float,
+) -> None:
+    """Ensure SHPOIB private API binding is applied and health-ready on the active page."""
+    api_base = get_e2e_api_url().rstrip("/")
+    shared_api = "http://127.0.0.1:8080"
+    if api_base == shared_api:
+        return
+
+    bootstrap_js = e2e_runtime_bootstrap_apply_js()
+    binding_source = e2e_runtime_binding_source()
+    if bootstrap_js is not None:
+        if binding_source is not None:
+            client.evaluate(
+                page,
+                f"(() => {{{binding_source} return true; }})()",
+                timeout_sec=min(15.0, timeout_sec),
+            )
+        observed = client.evaluate(
+            page,
+            bootstrap_js,
+            timeout_sec=min(60.0, timeout_sec),
+        )
+        if isinstance(observed, dict) and observed.get("ok") is True:
+            _wait_for_shpoib_runtime_ready(
+                client,
+                page,
+                timeout_sec=min(60.0, timeout_sec),
+            )
+            return
+
+    probe_raw = client.evaluate(
+        page,
+        E2E_API_BINDING_PROBE_JS,
+        timeout_sec=10.0,
+    )
+    require_e2e_api_binding_probe(probe_raw, api_base)
+    health_js = f"""(async () => {{
+      const base = {json.dumps(api_base)};
+      try {{
+        const response = await fetch(`${{base}}/api/v1/health`, {{ cache: 'no-store' }});
+        return {{ ready: response.ok }};
+      }} catch (error) {{
+        return {{ ready: false, error: String(error) }};
+      }}
+    }})()"""
+    wait_for_state(
+        client,
+        page,
+        health_js,
+        timeout_sec=min(45.0, timeout_sec),
+    )
+
+
+def wait_for_agent_settings_editor(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    page_url: str,
+    timeout_sec: float = 120.0,
+) -> dict[str, object]:
+    """Wait for Agent settings editor tabs after SHPOIB private API binding is live."""
+    editor_ready: dict[str, object] = {}
+    per_attempt_sec = min(90.0, max(35.0, timeout_sec / 3.0))
+    _trigger_attach_client_warmup_once(page_url=page_url)
+
+    for attempt in range(3):
+        _ensure_e2e_private_api_live(
+            client,
+            page,
+            timeout_sec=min(45.0, max(15.0, per_attempt_sec / 2)),
+        )
+        dismiss_blocking_modals(client, page, recover_url=page_url)
+        if _is_settings_route(page_url):
+            try:
+                wait_for_settings_layout(
+                    client,
+                    page,
+                    page_url=page_url,
+                    timeout_sec=min(45.0, per_attempt_sec),
+                )
+            except AssertionError:
+                if attempt >= 2:
+                    raise
+
+        try:
+            editor_ready = wait_for_state(
+                client,
+                page,
+                _AGENT_SETTINGS_EDITOR_READY_JS,
+                timeout_sec=per_attempt_sec,
+                page_url=page_url,
+                blank_heal_mode="direct",
+            )
+            if editor_ready.get("ready") is True:
+                return editor_ready
+            if (
+                editor_ready.get("apiBase") is None
+                and e2e_runtime_binding() is not None
+                and attempt < 2
+            ):
+                reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
+                dismiss_blocking_modals(client, page, recover_url=page_url)
+                continue
+        except AssertionError:
+            if attempt >= 2:
+                raise
+        if attempt < 2:
+            _trigger_attach_client_warmup_once(page_url=page_url)
+            reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
+            dismiss_blocking_modals(client, page, recover_url=page_url)
+
+    raise AssertionError(f"Agent settings editor did not become ready: {editor_ready}")
+
+
+def wait_for_wiki_settings_shell(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    page_url: str,
+    timeout_sec: float = 45.0,
+    require_shell: bool = False,
+) -> dict[str, object]:
+    """Wait for Settings Wiki dynamic section after warm route / open_mcp_page."""
+    wiki_ready: dict[str, object] = {}
+    bounded = _bounded_settings_ui_wait_sec(timeout_sec)
+    parallel = _parallel_chrome_e2e_active()
+    # Settings routes: direct reload + deferred heal SSOT. chat_bridge navigates
+    # home+back (90s+60s+90s per pass) and burns pytest budget under parallel.
+    heal_mode = "direct"
+    attempts = 1 if parallel else 2
+
+    for attempt in range(attempts):
+        try:
+            wiki_ready = wait_for_state(
+                client,
+                page,
+                _WIKI_SETTINGS_SHELL_READY_JS,
+                timeout_sec=bounded,
+                page_url=page_url,
+                blank_heal_mode=heal_mode,
+            )
+            if wiki_ready.get("ready") is True and (
+                not require_shell or wiki_ready.get("hasShell") is True
+            ):
+                return wiki_ready
+        except AssertionError:
+            if attempt >= attempts - 1:
+                raise
+        if attempt < attempts - 1 and not parallel:
+            reload_mcp_page(client, page, target_url=page_url, timeout_ms=90_000)
+            try:
+                dismiss_blocking_modals(client, page, recover_url=page_url)
+            except (AssertionError, RuntimeError, TimeoutError, OSError):
+                pass
+
+    raise AssertionError(f"Wiki settings shell did not become ready: {wiki_ready}")
+
+
+def _settings_route_path(url_or_path: str) -> str:
+    from urllib.parse import urlparse
+
+    raw = url_or_path.strip()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        path = urlparse(raw).path or "/"
+    else:
+        path = raw.split("?", 1)[0].split("#", 1)[0]
+        path = path if path.startswith("/") else f"/{path}"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/") or "/"
+    return path
+
+
+def _is_settings_route(url_or_path: str) -> bool:
+    return _settings_route_path(url_or_path).startswith("/settings")
+
+
+def wait_for_settings_layout(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    page_url: str,
+    timeout_sec: float = 45.0,
+) -> dict[str, object]:
+    """Wait for SettingsLayout hydration — never use chat bridge on /settings/*."""
+    bounded = _bounded_settings_ui_wait_sec(timeout_sec)
+    layout_ready: dict[str, object] = {}
+    max_attempts = 2 if _parallel_chrome_e2e_active() else 3
+    for attempt in range(max_attempts):
+        touch_wall_progress(current_node="wait_for_settings_layout")
+        if attempt == 0:
+            _trigger_attach_client_warmup_once(page_url=page_url)
+        try:
+            layout_ready = wait_for_state(
+                client,
+                page,
+                _SETTINGS_LAYOUT_READY_JS,
+                timeout_sec=bounded,
+                page_url=page_url,
+                blank_heal_mode="direct",
+            )
+            if layout_ready.get("ready") is True:
+                return layout_ready
+        except (AssertionError, RuntimeError) as exc:
+            err_text = str(exc)
+            marker = "did not become ready:"
+            if marker in err_text:
+                tail = err_text.split(marker, 1)[1].strip()
+                try:
+                    parsed = ast.literal_eval(tail)
+                    if isinstance(parsed, dict):
+                        layout_ready = parsed
+                except (ValueError, SyntaxError):
+                    layout_ready = {"ready": False, "err": err_text}
+            elif not layout_ready:
+                layout_ready = {"ready": False, "err": err_text}
+        if attempt < max_attempts - 1:
+            _heal_settings_deferred_loading(client, page, page_url=page_url)
+    err_text = str(layout_ready.get("err", ""))
+    if "chrome-error" in err_text:
+        raise RuntimeError(
+            f"chrome-error: Settings layout did not become ready: {layout_ready}"
+        )
+    raise AssertionError(f"Settings layout did not become ready: {layout_ready}")
+
+
+def navigate_settings_subroute(
+    client: ChromeMcpClient,
+    page: McpPage,
+    target_url: str,
+    *,
+    timeout_ms: int = 90_000,
+    layout_timeout_sec: float = 45.0,
+) -> dict[str, object]:
+    """CDP navigate to a nested Settings URL and wait for settings-layout SSOT."""
+    expected_path = _settings_route_path(target_url)
+    navigate_mcp_page(client, page, target_url, timeout_ms=timeout_ms)
+    dismiss_blocking_modals(client, page, recover_url=target_url)
+    path = client.evaluate(page, "location.pathname", timeout_sec=15.0)
+    if not isinstance(path, str) or not path.startswith(expected_path):
+        raise AssertionError(
+            "Settings subroute navigate missed target: "
+            f"expected={expected_path!r} path={path!r}"
+        )
+    return wait_for_settings_layout(
+        client,
+        page,
+        page_url=target_url,
+        timeout_sec=layout_timeout_sec,
+    )
+
+
+def _settings_http_warm_skippable(route_path: str) -> bool:
+    """Skip redundant HTTP warm when bootstrap hot path + registry shell are fresh."""
+    hot = os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip()
+    if hot not in {"reused", "fast_create", "transaction"}:
+        return False
+    shell_route = (
+        "/settings"
+        if route_path.startswith("/settings/") and route_path != "/settings"
+        else route_path
+    )
+    try:
+        from warm_shell_registry import platform_shell_fresh
+
+        return platform_shell_fresh(route_path=shell_route)
+    except ImportError:
+        return hot == "reused"
+
+
+@contextmanager
+def open_settings_subroute(
+    subroute_path: str,
+    *,
+    timeout_ms: int = 120_000,
+    request_timeout_sec: float = 180.0,
+    warm: bool = True,
+    layout_timeout_sec: float = 45.0,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    """SSOT: open /settings shell, navigate to nested subroute, wait settings-layout."""
+    touch_wall_progress(current_node="open_settings_subroute")
+    ui_base = get_e2e_ui_url().rstrip("/")
+    route_path = _settings_route_path(subroute_path)
+    if not route_path.startswith("/settings"):
+        raise ValueError(
+            f"open_settings_subroute expects a /settings path, got: {subroute_path!r}"
+        )
+    shell_url = f"{ui_base}/settings"
+    path_only = route_path
+    query = ""
+    if "?" in subroute_path:
+        query = "?" + subroute_path.split("?", 1)[1]
+    if path_only == "/settings":
+        target_url = shell_url
+    else:
+        target_url = f"{ui_base}{path_only}{query}"
+
+    if _parallel_chrome_e2e_active():
+        timeout_ms = min(timeout_ms, 60_000)
+        request_timeout_sec = min(request_timeout_sec, 60.0)
+
+    if warm:
+        skip_parallel_http_warm = _parallel_chrome_e2e_active()
+        try:
+            from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+            skip_parallel_http_warm = (
+                skip_parallel_http_warm or parallel_shared_ui_hydrate_queue_enabled()
+            )
+        except ImportError:
+            pass
+        if (
+            not _settings_http_warm_skippable("/settings")
+            and not skip_parallel_http_warm
+        ):
+            warm_ui_route(
+                "/settings",
+                timeout_sec=_warm_ui_parallel_wait_sec(20.0),
+            )
+        if route_path != "/settings" and not _settings_http_warm_skippable(route_path):
+            # §19.11.9 W3c: orchestrator _settings_open_plan atomic navigate — skip nested HTTP warm (85292: 404→heal→510s).
+            pass
+        _trigger_attach_client_warmup_once(page_url=target_url)
+
+    # Orchestrator absorbs shell reclaim + subroute navigate atomically via
+    # _settings_open_plan — avoid test-layer navigate_mcp_page (§19.11.9 / W3c).
+    touch_wall_progress(current_node="open_settings_subroute_page_open")
+    with open_mcp_page(
+        target_url,
+        timeout_ms=timeout_ms,
+        request_timeout_sec=request_timeout_sec,
+        skip_settings_layout_wait=True,
+    ) as (client, page):
+        client.evaluate(
+            page,
+            """(() => {
+              try {
+                sessionStorage.setItem('migration_discovery_dismissed', 'true');
+                sessionStorage.setItem('competitor_migration_dismissed', 'true');
+                sessionStorage.setItem('e2e_skip_deferred_locale', 'true');
+                sessionStorage.removeItem('e2e_warm_platform_readiness');
+              } catch (err) {
+                return { ok: false, err: String(err) };
+              }
+              return { ok: true };
+            })()""",
+            timeout_sec=15.0,
+        )
+        _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
+        reload_mcp_page(
+            client,
+            page,
+            target_url=target_url,
+            timeout_ms=_settings_heal_reload_timeout_ms(base_ms=timeout_ms),
+        )
+        try:
+            dismiss_blocking_modals(client, page, recover_url=target_url)
+        except (AssertionError, RuntimeError, TimeoutError, OSError):
+            pass
+        _recover_chrome_error_page(client, page, target_url=target_url)
+        if _is_settings_route(target_url):
+            wait_for_settings_layout(
+                client,
+                page,
+                page_url=target_url,
+                timeout_sec=layout_timeout_sec,
+            )
+        _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
+        heartbeat_e2e_lease()
+        yield client, page
+
+
+@contextmanager
+def open_wiki_settings_mcp_page(
+    wiki_page_url: str,
+    *,
+    timeout_ms: int = 120_000,
+    request_timeout_sec: float = 180.0,
+    warm: bool = True,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    """Shell-first navigation for nested /settings/wiki (SettingsSubrouteNavigate SSOT)."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(wiki_page_url)
+    subroute = parsed.path or "/settings/wiki"
+    if parsed.query:
+        subroute = f"{subroute}?{parsed.query}"
+    with open_settings_subroute(
+        subroute,
+        timeout_ms=timeout_ms,
+        request_timeout_sec=request_timeout_sec,
+        warm=warm,
+        layout_timeout_sec=90.0,
+    ) as (client, page):
+        wait_for_wiki_settings_shell(
+            client,
+            page,
+            page_url=wiki_page_url,
+            timeout_sec=_bounded_settings_ui_wait_sec(45.0),
+            require_shell=True,
+        )
+        yield client, page
 
 
 _OPEN_PAGE_REQUEST_TIMEOUT_SEC = 60.0
@@ -1451,12 +2124,110 @@ def _require_orchestrator_for_formal_e2e() -> None:
     )
 
 
+@dataclass(slots=True)
+class _OrchestratorSharedUiChat:
+    """Adapter so orchestrator MCP pages run apply_shared_ui_session_contract."""
+
+    client: ChromeMcpClient
+    page: McpPage
+    _runtime_bootstrapped: bool = False
+
+    async def evaluate(
+        self,
+        expression: str,
+        *,
+        await_promise: bool = False,
+        recv_timeout: float = 30.0,
+    ) -> object:
+        timeout = max(5.0, recv_timeout)
+        expr = expression
+        if await_promise and "async" not in expression[:48]:
+            expr = f"(async () => {{ return await ({expression}); }})()"
+        return await asyncio.to_thread(
+            self.client.evaluate,
+            self.page,
+            expr,
+            timeout_sec=timeout,
+        )
+
+    async def ensure_e2e_api_base_binding(self) -> None:
+        from cdp_chat_support import (
+            e2e_api_base_persist_source,
+            e2e_runtime_bootstrap_apply_js,
+        )
+
+        if not e2e_api_base_persist_source():
+            return
+        inject = e2e_api_base_inject_js()
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js is not None and not self._runtime_bootstrapped:
+            result = await self.evaluate(
+                bootstrap_js,
+                await_promise=True,
+                recv_timeout=60.0,
+            )
+            if isinstance(result, dict) and result.get("ok") is True:
+                self._runtime_bootstrapped = True
+                return
+        await self.evaluate(inject, recv_timeout=30.0)
+
+    async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
+        await asyncio.to_thread(
+            wait_for_react_e2e_bridge,
+            self.client,
+            self.page,
+            timeout_sec=timeout_sec,
+            page_url=get_e2e_ui_url(),
+        )
+
+
+def _ensure_orchestrator_shared_ui_session(
+    client: ChromeMcpClient,
+    page: McpPage,
+) -> None:
+    """Orchestrator open_page skips cdp_chat bootstrap — run UI session contract here."""
+    from e2e_shared_ui_session import (
+        current_search_policy,
+        maybe_apply_shared_ui_session_contract,
+    )
+
+    if current_search_policy() is None:
+        return
+    chat = _OrchestratorSharedUiChat(client=client, page=page)
+    last_exc: BaseException | None = None
+    for attempt in range(2):
+        try:
+            asyncio.run(
+                maybe_apply_shared_ui_session_contract(
+                    chat,
+                    timeout_sec=120.0,
+                )
+            )
+            return
+        except RuntimeError as exc:
+            last_exc = exc
+            err_text = str(exc)
+            if attempt >= 1 or "navigated or closed" not in err_text.lower():
+                raise
+            touch_wall_progress(current_node="orchestrator_ui_session_retry")
+            time.sleep(2.0)
+            wait_for_react_e2e_bridge(
+                client,
+                page,
+                timeout_sec=90.0,
+                page_url=get_e2e_ui_url(),
+            )
+    if last_exc is not None:
+        raise last_exc
+
+
 @contextmanager
 def open_mcp_page(
     url: str,
     *,
     timeout_ms: int | None = None,
     request_timeout_sec: float = 180.0,
+    skip_settings_layout_wait: bool = False,
 ) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     _require_orchestrator_for_formal_e2e()
     resolved_timeout_ms = timeout_ms if timeout_ms is not None else 90_000
@@ -1469,6 +2240,14 @@ def open_mcp_page(
             url,
             request_timeout_sec=request_timeout_sec,
         ) as (client, page):
+            _ensure_orchestrator_shared_ui_session(client, page)
+            if _is_settings_route(url) and not skip_settings_layout_wait:
+                wait_for_settings_layout(
+                    client,
+                    page,
+                    page_url=url,
+                    timeout_sec=_bounded_settings_ui_wait_sec(45.0),
+                )
             yield client, page  # type: ignore[misc]
         return
     from dev_gate_contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN
@@ -1539,15 +2318,22 @@ _REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
   href: location.href,
 }))()"""
 
-_ATTACH_CLIENT_WARMUP_TRIGGERED = False
-_ATTACH_CLIENT_WARMUP_URL: str | None = None
+_ATTACH_CLIENT_WARMUP_URLS: set[str] = set()
 _ATTACH_FRONTEND_HEAL_TRIGGERED = False
 
 
 def _trigger_attach_frontend_heal_once() -> None:
     """Restart Turbopack when HTTP 200 shell persists without client hydration (R284 body SSOT)."""
-    global _ATTACH_CLIENT_WARMUP_TRIGGERED, _ATTACH_FRONTEND_HEAL_TRIGGERED
+    global _ATTACH_CLIENT_WARMUP_URLS, _ATTACH_FRONTEND_HEAL_TRIGGERED
+    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
+        return
     if _ATTACH_FRONTEND_HEAL_TRIGGERED:
+        return
+    # R291: launch-force preflight fast-path validated attach — avoid 61s heal flock under parallel.
+    if (
+        os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
+        and _parallel_chrome_e2e_active()
+    ):
         return
     _ATTACH_FRONTEND_HEAL_TRIGGERED = True
     monorepo_root = Path(__file__).resolve().parents[4]
@@ -1555,8 +2341,13 @@ def _trigger_attach_frontend_heal_once() -> None:
         from e2e_warm_ui_heal import heal_shared_frontend_attach
 
         touch_wall_progress(current_node="attach_frontend_heal")
-        heal_shared_frontend_attach(monorepo_root)
-        _ATTACH_CLIENT_WARMUP_TRIGGERED = False
+        flock_wait = 8.0 if _parallel_chrome_e2e_active() else 45.0
+        heal_shared_frontend_attach(
+            monorepo_root,
+            flock_wait_sec=flock_wait,
+            subprocess_timeout_sec=90.0,
+        )
+        _ATTACH_CLIENT_WARMUP_URLS.clear()
     except ImportError:
         pass
 
@@ -1565,12 +2356,11 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
     """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT)."""
     import subprocess
 
-    global _ATTACH_CLIENT_WARMUP_TRIGGERED, _ATTACH_CLIENT_WARMUP_URL
+    global _ATTACH_CLIENT_WARMUP_URLS
     ui = (page_url or f"{get_e2e_ui_url().rstrip('/')}/").rstrip("/") + "/"
-    if _ATTACH_CLIENT_WARMUP_TRIGGERED and _ATTACH_CLIENT_WARMUP_URL == ui:
+    if ui in _ATTACH_CLIENT_WARMUP_URLS:
         return
-    _ATTACH_CLIENT_WARMUP_TRIGGERED = True
-    _ATTACH_CLIENT_WARMUP_URL = ui
+    _ATTACH_CLIENT_WARMUP_URLS.add(ui)
     monorepo_root = Path(__file__).resolve().parents[4]
     warmup_py = monorepo_root / "myrm-agent/scripts/dev/lib/frontend-client-warmup.py"
     if not warmup_py.is_file():
@@ -1580,6 +2370,7 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
     py = str(venv_py) if venv_py.is_file() else sys.executable
     cdp_port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
     touch_wall_progress(current_node="attach_client_warmup")
+    cli_timeout_sec = 30 if _parallel_chrome_e2e_active() else 90
     try:
         subprocess.run(
             [
@@ -1590,9 +2381,9 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
                 "--url",
                 ui,
                 "--timeout-sec",
-                "90",
+                str(cli_timeout_sec),
             ],
-            timeout=120.0,
+            timeout=float(cli_timeout_sec + 10),
             check=False,
             capture_output=True,
             cwd=str(server_root),
@@ -1729,17 +2520,33 @@ def wait_for_react_e2e_bridge(
     raise AssertionError(f"React E2E bridge did not become ready: {last}")
 
 
+def _resolve_probe_pathname(last: dict[str, object]) -> str:
+    pathname = str(last.get("pathname") or "").strip()
+    if pathname:
+        return pathname
+    from urllib.parse import urlparse
+
+    for key in ("url", "href"):
+        raw = last.get(key)
+        if isinstance(raw, str) and raw.strip():
+            return urlparse(raw.strip()).path or ""
+    return ""
+
+
 def _state_looks_blank(last: dict[str, object]) -> bool:
-    body_len = last.get("bodyLength")
-    if body_len is not None and int(body_len or 0) == 0:
+    body_raw = last.get("bodyLength", last.get("bodyLen"))
+    body_len = int(body_raw or 0) if body_raw is not None else 0
+    if body_len == 0:
+        return True
+    if last.get("deferredLoading") is True and body_len < 80:
         return True
     if last.get("hasActiveSection") is False and int(last.get("matrixHits") or 0) == 0:
         heading = str(last.get("heading") or "")
         relay = str(last.get("relayLine") or "")
         if not heading and not relay and last.get("pathname"):
             return True
-    pathname = str(last.get("pathname") or "")
-    if pathname in {"", "/"} or "blank" in pathname.lower():
+    pathname = _resolve_probe_pathname(last)
+    if pathname == "/" or (pathname and "blank" in pathname.lower()):
         return True
     return False
 
@@ -1758,6 +2565,7 @@ def _looks_like_cdp_transport_error(message: str) -> bool:
         or "no target with given id" in lowered
         or "connection reset" in lowered
         or "broken pipe" in lowered
+        or "connection closed before response" in lowered
     )
 
 
@@ -1768,15 +2576,38 @@ def wait_for_state(
     *,
     timeout_sec: float = 45.0,
     page_url: str | None = None,
+    blank_heal_mode: str = "chat_bridge",
+    pin_direct_blank_heal: bool = False,
 ) -> dict[str, object]:
+    settings_route = bool(page_url and "/settings" in page_url)
+    if settings_route:
+        blank_heal_mode = "direct"
+    elif (
+        not pin_direct_blank_heal
+        and _parallel_chrome_e2e_active()
+        and blank_heal_mode == "direct"
+        and not settings_route
+    ):
+        blank_heal_mode = "chat_bridge"
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     last_touch = 0.0
     polls = 0
     reload_passes = 0
-    max_reload_passes = 3
+    parallel_active = _parallel_chrome_e2e_active()
+    max_reload_passes = (
+        3
+        if pin_direct_blank_heal
+        else (
+            1
+            if settings_route and parallel_active
+            else (3 if settings_route else (1 if parallel_active else 3))
+        )
+    )
     transport_streak = 0
     ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
+    eval_cap = 25.0 if parallel_active else 60.0
+    reload_timeout_ms = _settings_heal_reload_timeout_ms()
 
     while time.monotonic() < deadline:
         polls += 1
@@ -1785,7 +2616,6 @@ def wait_for_state(
         if now - last_touch >= 5.0:
             touch_wall_progress(current_node="wait_for_state")
             last_touch = now
-        eval_cap = 60.0
         try:
             raw = client.evaluate(
                 page,
@@ -1807,6 +2637,52 @@ def wait_for_state(
         last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last
+        body_probe = int(last.get("bodyLength") or last.get("bodyLen") or 0)
+        if (
+            page_url
+            and reload_passes < max_reload_passes
+            and body_probe == 0
+            and polls in {2, 5, 10, 20, 40}
+        ):
+            reload_passes += 1
+            touch_wall_progress(current_node="wait_for_state_empty_body_heal")
+            _trigger_attach_client_warmup_once(
+                page_url=page_url if isinstance(page_url, str) else None
+            )
+            if settings_route:
+                _heal_settings_deferred_loading(client, page, page_url=page_url)
+            else:
+                reload_mcp_page(
+                    client, page, target_url=page_url, timeout_ms=reload_timeout_ms
+                )
+                dismiss_blocking_modals(client, page, recover_url=page_url)
+            continue
+        if (
+            blank_heal_mode == "direct"
+            and polls in {4, 12, 24}
+            and last.get("hasAppLayout") is not True
+            and body_probe < 80
+        ):
+            _trigger_attach_client_warmup_once(
+                page_url=page_url if isinstance(page_url, str) else None
+            )
+        if (
+            page_url
+            and reload_passes < max_reload_passes
+            and blank_heal_mode == "direct"
+            and polls in {4, 8, 16, 32, 56}
+            and (_state_looks_blank(last) or last.get("deferredLoading") is True)
+        ):
+            reload_passes += 1
+            touch_wall_progress(current_node="wait_for_state_deferred_heal")
+            _trigger_attach_client_warmup_once(
+                page_url=page_url if isinstance(page_url, str) else None
+            )
+            reload_mcp_page(
+                client, page, target_url=page_url, timeout_ms=reload_timeout_ms
+            )
+            dismiss_blocking_modals(client, page, recover_url=page_url)
+            continue
         if (
             page_url
             and reload_passes < max_reload_passes
@@ -1816,20 +2692,85 @@ def wait_for_state(
             reload_passes += 1
             touch_wall_progress(current_node="wait_for_state_blank_heal")
             try:
-                client.navigate(page, ui_home, timeout_ms=90_000)
-                time.sleep(2.0)
-                dismiss_blocking_modals(client, page)
-                wait_for_react_e2e_bridge(
-                    client,
-                    page,
-                    timeout_sec=min(60.0, max(5.0, deadline - time.monotonic())),
-                    page_url=ui_home,
-                )
-                client.navigate(page, page_url, timeout_ms=90_000)
-                dismiss_blocking_modals(client, page)
+                if blank_heal_mode == "direct" or settings_route:
+                    reload_mcp_page(
+                        client,
+                        page,
+                        target_url=page_url,
+                        timeout_ms=reload_timeout_ms,
+                    )
+                    dismiss_blocking_modals(client, page, recover_url=page_url)
+                else:
+                    client.navigate(page, ui_home, timeout_ms=90_000)
+                    time.sleep(2.0)
+                    dismiss_blocking_modals(client, page)
+                    wait_for_react_e2e_bridge(
+                        client,
+                        page,
+                        timeout_sec=min(60.0, max(5.0, deadline - time.monotonic())),
+                        page_url=ui_home,
+                    )
+                    client.navigate(page, page_url, timeout_ms=90_000)
+                    dismiss_blocking_modals(client, page)
             except (RuntimeError, TimeoutError, OSError, AssertionError):
-                reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
-                dismiss_blocking_modals(client, page)
+                reload_mcp_page(
+                    client, page, target_url=page_url, timeout_ms=reload_timeout_ms
+                )
+                dismiss_blocking_modals(client, page, recover_url=page_url)
             continue
         time.sleep(0.25)
     raise AssertionError(f"Browser state did not become ready: {last}")
+
+
+_WORKFLOW_PLAN_CARD_JS = """(() => {
+  const text = document.body?.innerText || '';
+  const hasTitle = /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
+  const buttons = [...document.querySelectorAll('button')];
+  const hasRun = buttons.some((btn) =>
+    /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
+  );
+  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+  const apiBase = window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null;
+  return {
+    ready: hasTitle && hasRun,
+    hasTitle,
+    hasRun,
+    isStreaming: snap.isStreaming === true,
+    userCount: snap.userCount ?? 0,
+    lastAssistantSample: (snap.lastAssistantSample ?? '').slice(0, 240),
+    apiBase,
+    bodyLength: text.length,
+    hasPlanningText: /Generating orchestration|正在生成编排|workflow_planning/i.test(text),
+  };
+})()"""
+
+
+def wait_for_workflow_plan_card(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float | None = None,
+    page_url: str | None = None,
+) -> dict[str, object]:
+    """Wait for Dynamic Workflow plan_confirm HITL card (spawn_count >= 1 path)."""
+    resolved_timeout = (
+        timeout_sec
+        if timeout_sec is not None
+        else (300.0 if _parallel_chrome_e2e_active() else 240.0)
+    )
+    resolved_url = page_url or get_e2e_ui_url()
+    try:
+        return wait_for_state(
+            client,
+            page,
+            _WORKFLOW_PLAN_CARD_JS,
+            timeout_sec=resolved_timeout,
+            page_url=resolved_url,
+            blank_heal_mode="direct",
+            pin_direct_blank_heal=True,
+        )
+    except AssertionError as exc:
+        raise AssertionError(
+            f"Workflow plan card did not appear within {resolved_timeout}s — "
+            f"check blank-page hydrate + DW orchestrator LLM on {resolved_url}: {exc}"
+        ) from exc

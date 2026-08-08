@@ -22,6 +22,7 @@ export const SETTINGS_SECTIONS = manifest.settingsSections as readonly SettingsS
  * Chat model picker + shared settings helpers must not wait for /api/i18n/deferred.
  */
 export const SSR_SHELL_SETTINGS_SECTIONS = [
+  'title',
   'menu',
   'defaultModel',
   'modelCapabilities',

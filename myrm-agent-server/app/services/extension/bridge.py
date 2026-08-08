@@ -58,6 +58,7 @@ except ImportError:
         last_heartbeat_at: float = 0.0
         capabilities: list[str] = field(default_factory=list)
 
+
 if TYPE_CHECKING:
     from patchright.async_api import Playwright
 
@@ -159,12 +160,16 @@ class ExtensionBridgeService:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
         if self._cdp_endpoint:
             return self._cdp_endpoint
-        from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import discover_chrome_cdp_endpoint
+        from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import (
+            discover_chrome_cdp_endpoint,
+        )
 
         discovered = discover_chrome_cdp_endpoint()
         if discovered:
             self._cdp_endpoint = discovered
-            logger.info("Extension bridge: discovered main Chrome CDP at %s", discovered)
+            logger.info(
+                "Extension bridge: discovered main Chrome CDP at %s", discovered
+            )
         return self._cdp_endpoint
 
     def has_direct_cdp_endpoint(self, *, probe_ttl_s: float = 15.0) -> bool:
@@ -274,7 +279,9 @@ class ExtensionBridgeService:
             )
 
         self._warn_direct_cdp_risk_once()
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        browser = await pw.chromium.connect_over_cdp(
+            cdp_endpoint, timeout=timeout * 1000
+        )
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -282,7 +289,9 @@ class ExtensionBridgeService:
             _pid=None,
         )
 
-    async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> BrowserInstance:
+    async def connect_to_domain(
+        self, domain: str, *, timeout: float = 10.0
+    ) -> BrowserInstance:
         if not self._match_domain(domain, self._authorized_domains):
             raise ExtensionBridgeNotAvailable(
                 f"Domain '{domain}' is not authorized. "
@@ -304,7 +313,9 @@ class ExtensionBridgeService:
             )
 
         self._warn_direct_cdp_risk_once(domain=domain)
-        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
+        browser = await pw.chromium.connect_over_cdp(
+            cdp_endpoint, timeout=timeout * 1000
+        )
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -325,7 +336,9 @@ class ExtensionBridgeService:
 
         target_domain = (urlparse(url).hostname or "").strip().lower().rstrip(".")
         if not target_domain:
-            raise ExtensionBridgeNotAvailable(f"Cannot navigate '{url}': unable to resolve target domain")
+            raise ExtensionBridgeNotAvailable(
+                f"Cannot navigate '{url}': unable to resolve target domain"
+            )
 
         requested_domain = (domain or "").strip().lower().rstrip(".")
         if (
@@ -351,11 +364,15 @@ class ExtensionBridgeService:
             timeout=timeout,
         )
         if not isinstance(result, dict):
-            raise ExtensionBridgeNotAvailable("Extension returned invalid navigate_url response")
+            raise ExtensionBridgeNotAvailable(
+                "Extension returned invalid navigate_url response"
+            )
 
         tab_id_raw = result.get("tabId") or result.get("id")
         if tab_id_raw is None:
-            raise ExtensionBridgeNotAvailable("Extension navigate_url did not return tab ID")
+            raise ExtensionBridgeNotAvailable(
+                "Extension navigate_url did not return tab ID"
+            )
 
         return ExtensionTab(
             tab_id=int(tab_id_raw),
@@ -384,7 +401,11 @@ class ExtensionBridgeService:
         if not self._connected:
             return []
         await self._refresh_tabs()
-        return [t for t in self._tabs if self._match_domain(t.domain, self._authorized_domains)]
+        return [
+            t
+            for t in self._tabs
+            if self._match_domain(t.domain, self._authorized_domains)
+        ]
 
     async def disconnect(self) -> None:
         if self._heartbeat_task and not self._heartbeat_task.done():
@@ -462,7 +483,9 @@ class ExtensionBridgeService:
                 elif msg_type == "hello":
                     self._extension_version = msg.get("version", "")
                     self._browser_name = msg.get("browser", "")
-                    self._capabilities = self._normalize_capabilities(msg.get("capabilities"))
+                    self._capabilities = self._normalize_capabilities(
+                        msg.get("capabilities")
+                    )
                     self._hello_received = True
                     logger.info(
                         "Extension hello: %s on %s (capabilities=%s)",
@@ -488,9 +511,7 @@ class ExtensionBridgeService:
                     if req_id in self._pending_requests:
                         fut = self._pending_requests.pop(req_id)
                         if msg.get("error"):
-                            fut.set_exception(
-                                ExtensionBridgeNotAvailable(msg["error"])
-                            )
+                            fut.set_exception(ExtensionBridgeNotAvailable(msg["error"]))
                         else:
                             fut.set_result(msg.get("data"))
 
@@ -512,7 +533,9 @@ class ExtensionBridgeService:
 
                 elapsed = time.monotonic() - self._last_heartbeat
                 if elapsed > _HEARTBEAT_TIMEOUT:
-                    logger.warning("Extension heartbeat timeout (%.1fs), disconnecting", elapsed)
+                    logger.warning(
+                        "Extension heartbeat timeout (%.1fs), disconnecting", elapsed
+                    )
                     await self.disconnect()
                     break
 
@@ -525,7 +548,13 @@ class ExtensionBridgeService:
 
     # --- Internal Helpers ---
 
-    async def _send_request(self, action: str, payload: dict[str, object] | None = None, *, timeout: float = 10.0) -> object:
+    async def _send_request(
+        self,
+        action: str,
+        payload: dict[str, object] | None = None,
+        *,
+        timeout: float = 10.0,
+    ) -> object:
         """Send a request to the extension and wait for response."""
         if not self._connected or not self._ws:
             raise ExtensionBridgeNotAvailable("Extension not connected")
@@ -547,7 +576,9 @@ class ExtensionBridgeService:
             return await asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError as exc:
             self._pending_requests.pop(req_id, None)
-            raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out") from exc
+            raise ExtensionBridgeNotAvailable(
+                f"Extension request '{action}' timed out"
+            ) from exc
 
     async def _request_debugger_attach(
         self,
@@ -576,11 +607,15 @@ class ExtensionBridgeService:
 
         result = await self._send_request("attach_debugger", payload, timeout=timeout)
         if not isinstance(result, dict):
-            raise ExtensionBridgeNotAvailable("Extension returned invalid attach_debugger response")
+            raise ExtensionBridgeNotAvailable(
+                "Extension returned invalid attach_debugger response"
+            )
 
         attached_tab_id = result.get("tabId") or result.get("tab_id")
         if not attached_tab_id:
-            raise ExtensionBridgeNotAvailable("Extension did not return attached tab ID")
+            raise ExtensionBridgeNotAvailable(
+                "Extension did not return attached tab ID"
+            )
         return int(attached_tab_id)
 
     async def _refresh_tabs(self) -> None:
@@ -612,10 +647,14 @@ class ExtensionBridgeService:
         self._authorized_domains = domains
         if self._connected and self._ws:
             try:
-                await self._ws.send_text(json.dumps({
-                    "type": "set_domains",
-                    "domains": domains,
-                }))
+                await self._ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "set_domains",
+                            "domains": domains,
+                        }
+                    )
+                )
             except Exception as exc:
                 logger.warning("Failed to notify extension of domain change: %s", exc)
 
@@ -628,11 +667,15 @@ class ExtensionBridgeService:
         if not self._connected or not self._ws:
             return
         try:
-            await self._ws.send_text(json.dumps({
-                "type": "clip_agent_update",
-                "agent_id": agent_id,
-                "web_ui_origin": web_ui_origin,
-            }))
+            await self._ws.send_text(
+                json.dumps(
+                    {
+                        "type": "clip_agent_update",
+                        "agent_id": agent_id,
+                        "web_ui_origin": web_ui_origin,
+                    }
+                )
+            )
         except Exception as exc:
             logger.warning("Failed to notify extension of clip agent change: %s", exc)
 

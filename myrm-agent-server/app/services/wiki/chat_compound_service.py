@@ -46,7 +46,9 @@ class ChatCompoundServiceError(Exception):
         return self.message
 
 
-def _extract_knowledge_sources(extra_data: dict[str, object] | None) -> list[dict[str, object]]:
+def _extract_knowledge_sources(
+    extra_data: dict[str, object] | None,
+) -> list[dict[str, object]]:
     if not extra_data:
         return []
     raw_sources = extra_data.get("sources")
@@ -54,12 +56,17 @@ def _extract_knowledge_sources(extra_data: dict[str, object] | None) -> list[dic
         return []
     knowledge: list[dict[str, object]] = []
     for item in raw_sources:
-        if isinstance(item, dict) and str(item.get("type") or "").strip() == "knowledge":
+        if (
+            isinstance(item, dict)
+            and str(item.get("type") or "").strip() == "knowledge"
+        ):
             knowledge.append(item)
     return knowledge
 
 
-def build_trust_context(extra_data: dict[str, object] | None) -> ChatCompoundTrustContext:
+def build_trust_context(
+    extra_data: dict[str, object] | None,
+) -> ChatCompoundTrustContext:
     """Derive wiki trust signals from persisted message citation metadata."""
     knowledge_sources = _extract_knowledge_sources(extra_data)
     has_verified = any(
@@ -78,7 +85,11 @@ def resolve_preceding_user_question(
 ) -> str:
     """Return the nearest preceding non-empty user message before the assistant reply."""
     assistant_index = next(
-        (index for index, message in enumerate(messages) if message.id == assistant_message_id),
+        (
+            index
+            for index, message in enumerate(messages)
+            if message.id == assistant_message_id
+        ),
         None,
     )
     if assistant_index is None:
@@ -138,7 +149,9 @@ async def stage_chat_compound_from_message(
     source_message: str,
 ) -> ChatCompoundResult:
     """Stage a chat assistant message into wiki pending edits using DB SSOT."""
-    assistant_message = await load_assistant_message(source_chat.strip(), source_message.strip())
+    assistant_message = await load_assistant_message(
+        source_chat.strip(), source_message.strip()
+    )
     assistant_content = normalize_assistant_content(assistant_message.content)
     all_messages = await ChatService.get_all_messages(source_chat.strip())
     user_question = resolve_preceding_user_question(all_messages, assistant_message.id)

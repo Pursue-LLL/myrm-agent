@@ -2,6 +2,8 @@ import { apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 
 export interface WikiSourceSyncConfig {
+  feishu_enabled: boolean;
+  feishu_folder_token: string;
   gmail_enabled: boolean;
   gmail_label: string;
   gdrive_enabled: boolean;
@@ -33,6 +35,7 @@ export interface WikiSourceSyncStatus {
   config: WikiSourceSyncConfig;
   google_connected: boolean;
   google_drive_authorized: boolean;
+  feishu_connected: boolean;
   state: WikiSourceSyncState;
 }
 

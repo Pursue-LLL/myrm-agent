@@ -327,6 +327,7 @@ async def _process_human_content(
     model_cfg: object | None = None,
     vision_fallback_model_cfg: object | None = None,
     vision_fallback_model_cfgs: object | None = None,
+    video_fallback_model_cfgs: object | None = None,
 ) -> str | list[str | dict[str, object]]:
     """处理人类消息内容，支持文本和图片，使用 asyncio.gather 并发提升多图处理性能"""
     if meta is None:
@@ -358,6 +359,7 @@ async def _process_human_content(
                             model_cfg,
                             vision_fallback_model_cfg,
                             vision_fallback_model_cfgs,
+                            video_fallback_model_cfgs,
                         )
                     )
                 elif item.get("type") == "text":
@@ -452,12 +454,13 @@ async def _process_image_item(
 
         # 计算图片哈希用于字典缓存隔离
         img_hash = hashlib.md5(image_url.encode("utf-8")).hexdigest()
+        cache_key = f"{img_hash}:chat_fallback"
+        extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
 
         if not supports_vision and vision_fallback_model_cfg:
-            extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
             vision_cache = extra_data.get("vision_cache", {})
-            if img_hash in vision_cache:
-                return {"type": "text", "text": vision_cache[img_hash]}
+            if cache_key in vision_cache:
+                return {"type": "text", "text": vision_cache[cache_key]}
 
         if is_base64_data_url(image_url):
             byte_size = estimate_base64_byte_size(image_url)
@@ -528,16 +531,26 @@ async def _process_image_item(
                 # 标记该 meta 经历了图像分析，用于外部清除状态
                 meta["_analyzed_image"] = True
 
-                # Notify frontend that vision fallback is running
                 chat_id = meta.get("chat_id")
                 if chat_id:
+                    from app.core.vision.media_router import resolve_image_route
                     from app.services.event.app_event_bus import (
                         AppEvent,
                         AppEventType,
                         get_event_bus,
                     )
 
+                    image_route = resolve_image_route(
+                        supports_vision=supports_vision,
+                        has_fallback=True,
+                    )
                     bus = get_event_bus()
+                    status_data: dict[str, object] = {
+                        "status": "analyzing_image",
+                        "message": "Analyzing image with vision model...",
+                    }
+                    if image_route.backend_badge:
+                        status_data["vision_backend"] = image_route.backend_badge
                     bus.publish(
                         AppEvent(
                             event_type=AppEventType.ASYNC_AGENT_STREAM_CHUNK,
@@ -546,10 +559,7 @@ async def _process_image_item(
                                 "chunk": {
                                     "type": "agent_status",
                                     "messageId": meta.get("message_id") or "system",
-                                    "data": {
-                                        "status": "analyzing_image",
-                                        "message": "Analyzing image with vision model...",
-                                    },
+                                    "data": status_data,
                                 },
                             },
                         )
@@ -564,7 +574,7 @@ async def _process_image_item(
                 if message_id and isinstance(message_id, str):
                     if "vision_cache" not in extra_data:
                         extra_data["vision_cache"] = {}
-                    extra_data["vision_cache"][img_hash] = fallback_text
+                    extra_data["vision_cache"][cache_key] = fallback_text
 
                 return {"type": "text", "text": fallback_text}
             except Exception as e:
@@ -587,6 +597,7 @@ async def _process_video_item(
     model_cfg: object | None = None,
     vision_fallback_model_cfg: object | None = None,
     vision_fallback_model_cfgs: object | None = None,
+    video_fallback_model_cfgs: object | None = None,
 ) -> dict[str, object]:
     """Process a video content item.
 
@@ -612,13 +623,34 @@ async def _process_video_item(
 
         video_hash = hashlib.md5(video_url.encode("utf-8")).hexdigest()
 
+        from app.core.vision.media_router import pick_video_fallback_configs, resolve_video_route
+
+        video_cfgs = (
+            list(video_fallback_model_cfgs)
+            if isinstance(video_fallback_model_cfgs, list)
+            else []
+        )
+        vision_cfgs = (
+            list(vision_fallback_model_cfgs)
+            if isinstance(vision_fallback_model_cfgs, list)
+            else []
+        )
+        route = resolve_video_route(
+            supports_video=supports_video,
+            has_video_fallback=bool(video_cfgs),
+            has_vision_fallback=bool(vision_cfgs or vision_fallback_model_cfg),
+        )
+        cache_key = f"{video_hash}:{route.cache_namespace}"
+        extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
+
         if not supports_video and (
-            vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None
+            vision_fallback_model_cfg is not None
+            or vision_fallback_model_cfgs is not None
+            or video_cfgs
         ):
-            extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
             video_cache = extra_data.get("video_cache", {})
-            if video_hash in video_cache:
-                return {"type": "text", "text": video_cache[video_hash]}
+            if cache_key in video_cache:
+                return {"type": "text", "text": video_cache[cache_key]}
 
         if supports_video:
             mime = str(vu_dict.get("mime_type", "video/mp4"))
@@ -628,7 +660,7 @@ async def _process_video_item(
                 "_mime_type": mime,
             }
 
-        if vision_fallback_model_cfg or vision_fallback_model_cfgs:
+        if vision_fallback_model_cfg or vision_fallback_model_cfgs or video_cfgs:
             from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
                 resolve_vision_fallback_llm_configs,
             )
@@ -637,10 +669,12 @@ async def _process_video_item(
             )
 
             try:
-                fallback_configs = resolve_vision_fallback_llm_configs(
-                    vision_fallback_model_cfg,
-                    vision_fallback_model_cfgs,
-                )
+                fallback_configs = pick_video_fallback_configs(video_cfgs, vision_cfgs)
+                if not fallback_configs:
+                    fallback_configs = resolve_vision_fallback_llm_configs(
+                        vision_fallback_model_cfg,
+                        vision_fallback_model_cfgs,
+                    )
                 engine = VideoAnalysisEngine(fallback_configs)
 
                 meta["_analyzed_video"] = True
@@ -654,6 +688,12 @@ async def _process_video_item(
                     )
 
                     bus = get_event_bus()
+                    status_data: dict[str, object] = {
+                        "status": "analyzing_video",
+                        "message": "Analyzing video content...",
+                    }
+                    if route.backend_badge:
+                        status_data["vision_backend"] = route.backend_badge
                     bus.publish(
                         AppEvent(
                             event_type=AppEventType.ASYNC_AGENT_STREAM_CHUNK,
@@ -662,23 +702,27 @@ async def _process_video_item(
                                 "chunk": {
                                     "type": "agent_status",
                                     "messageId": meta.get("message_id") or "system",
-                                    "data": {
-                                        "status": "analyzing_video",
-                                        "message": "Analyzing video content...",
-                                    },
+                                    "data": status_data,
                                 },
                             },
                         )
                     )
 
-                fallback_text = await engine.analyze_video_url(video_url)
+                use_native = route.use_native_video or any(
+                    getattr(cfg, "supports_video", False) for cfg in fallback_configs
+                )
+                fallback_text = await engine.analyze_video_url(
+                    video_url,
+                    supports_video=use_native,
+                    native_video_required=route.native_video_required,
+                )
                 fallback_text = f"[Video Analysis]:\n{fallback_text}"
 
                 message_id = meta.get("message_id")
                 if message_id and isinstance(message_id, str):
                     if "video_cache" not in extra_data:
                         extra_data["video_cache"] = {}
-                    extra_data["video_cache"][video_hash] = fallback_text
+                    extra_data["video_cache"][cache_key] = fallback_text
 
                 return {"type": "text", "text": fallback_text}
             except Exception as e:

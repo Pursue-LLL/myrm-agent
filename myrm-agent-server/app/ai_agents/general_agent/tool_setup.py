@@ -1223,6 +1223,30 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
+    def _setup_vision_toolkit_tools(self, tools: list[object]) -> None:
+        """Mount vision toolkit tools when vision-toolkit skill is enabled."""
+        try:
+            from myrm_agent_harness.toolkits.llms.vision import create_vision_agent_tools
+
+            if self.executor is None:
+                logger.warning("vision-toolkit skipped: executor unavailable")
+                return
+            vision_tools = create_vision_agent_tools(
+                self.executor,
+                vision_fallback_model_cfg=getattr(self, "vision_fallback_model_cfg", None),
+                vision_fallback_model_cfgs=getattr(self, "vision_fallback_model_cfgs", None),
+                include_geometry=True,
+            )
+            if not vision_tools:
+                logger.warning(
+                    "vision-toolkit skill enabled but vision fallback model is not configured"
+                )
+                return
+            tools.extend(vision_tools)
+            logger.info("Loaded %d vision toolkit tools", len(vision_tools))
+        except Exception as e:
+            logger.warning("vision-toolkit tools skipped: %s", e)
+
 
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.

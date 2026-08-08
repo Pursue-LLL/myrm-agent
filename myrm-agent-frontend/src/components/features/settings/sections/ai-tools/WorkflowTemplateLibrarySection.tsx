@@ -171,7 +171,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
   }, [deleteTarget, t, toast]);
 
   return (
-    <div className={cn('space-y-5', className)}>
+    <div className={cn('space-y-5', className)} data-testid="workflow-template-library">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <Input
           value={runQuery}

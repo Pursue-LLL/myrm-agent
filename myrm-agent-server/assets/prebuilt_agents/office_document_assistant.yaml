@@ -42,3 +42,4 @@ suggestion_prompts:
   - "Fill in this Word template with the employee data, keeping all formatting intact."
 prebuilt_skill_ids:
   - "office-document"
+  - "vision-toolkit"

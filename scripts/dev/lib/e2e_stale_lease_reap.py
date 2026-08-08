@@ -171,8 +171,6 @@ def _hung_reason_for_row(
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
-
-    stall_cap = shpoib_parallel_stall_progress_sec()
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         phase_elapsed_from_snapshot,
@@ -291,6 +289,10 @@ def _hung_reason_for_row(
                     f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
                     f"body_elapsed={int(body_elapsed)}s>={int(body_cap)}s"
                 )
+            stall_cap = shpoib_parallel_stall_progress_sec(
+                lane=str(snapshot.get("lane") or ""),
+                workload=str(snapshot.get("workload") or ""),
+            )
             stale = progress_stale_sec(snapshot)
             if stale is not None and stale >= stall_cap:
                 return (
@@ -302,6 +304,10 @@ def _hung_reason_for_row(
         node_stuck = node_stuck_reason_from_snapshot(snapshot)
         if node_stuck is not None:
             return node_stuck
+        stall_cap = shpoib_parallel_stall_progress_sec(
+            lane=str(snapshot.get("lane") or ""),
+            workload=str(snapshot.get("workload") or ""),
+        )
         stale = progress_stale_sec(snapshot)
         if (
             body_elapsed is not None
@@ -661,6 +667,11 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
             )  # noqa: PLC0415
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
+            bootstrap_elapsed = (
+                phase_elapsed_from_snapshot(snapshot)
+                if snapshot is not None
+                else row.node_elapsed_sec
+            )
         elif snapshot is not None:
             from dev_gate_contract import (  # noqa: PLC0415
                 dev_bootstrap_wall_cap_for_hung_reap,
@@ -738,7 +749,10 @@ def _session_row_is_healthy_body(row: LiveE2ESessionRow) -> bool:
     if node_stuck_reason_from_snapshot(snapshot) is not None:
         return False
     stale = progress_stale_sec(snapshot)
-    stall_cap = shpoib_parallel_stall_progress_sec()
+    stall_cap = shpoib_parallel_stall_progress_sec(
+        lane=str(snapshot.get("lane") or ""),
+        workload=str(snapshot.get("workload") or ""),
+    )
     if stale is not None and stale >= stall_cap:
         return False
     return True
@@ -784,6 +798,17 @@ def maybe_reap_stale_heartbeat_leases() -> bool:
 
     for row in rows:
         if not row.lease_id:
+            continue
+        if not row.owner_alive:
+            print(
+                f"E2E_OWNER_DEAD_LEASE_REAP: lease={row.lease_id[:8]} "
+                f"owner_pid={row.owner_pid} linked_pytest={row.linked_pytest or 'none'} "
+                "(do not stop other pytest)",
+                file=sys.stderr,
+                flush=True,
+            )
+            if expire_lease_watchdog(row.lease_id):
+                reaped = True
             continue
         hb_age = row.heartbeat_age_sec
         if hb_age is None or hb_age < E2E_STALE_HEARTBEAT_REAP_SEC:

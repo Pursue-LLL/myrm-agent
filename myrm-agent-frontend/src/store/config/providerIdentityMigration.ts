@@ -82,6 +82,7 @@ export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultMo
     fastModeModel: config.fastModeModel ? migrateModelSlot(config.fastModeModel) : null,
     routingConfig: migrateRouting(config.routingConfig),
     visionFallbackModel: migrateVisionFallbackModel(config.visionFallbackModel),
+    videoFallbackModel: migrateVisionFallbackModel(config.videoFallbackModel),
   };
 }
 
