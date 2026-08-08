@@ -114,7 +114,7 @@ _RUN_CLEARED_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

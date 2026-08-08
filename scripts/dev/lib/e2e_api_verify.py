@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pwd
 import subprocess
 import sys
 import time
@@ -98,18 +99,27 @@ def shared_api_base() -> str:
     return f"http://127.0.0.1:{port}"
 
 
+def _real_user_home() -> Path:
+    """Resolve the real login user home, bypassing sandboxed HOME (e.g.
+    Cursor's ~/.cursor2) so dev state stays on the user's real data dir."""
+    try:
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (KeyError, OSError):
+        return Path.home()
+
+
 def shared_dev_state_dir() -> Path:
     override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-dev"
+    return _real_user_home() / ".local/state/myrm-dev"
 
 
 def isolated_registry_root() -> Path:
     override = os.environ.get("MYRM_ISOLATED_ROOT", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-isolated"
+    return _real_user_home() / ".local/state/myrm-isolated"
 
 
 def workspace_backend_fingerprint() -> str:

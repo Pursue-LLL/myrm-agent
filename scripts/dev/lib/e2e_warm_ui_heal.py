@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from real_user_home import real_user_home
 
 _DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
@@ -20,7 +21,7 @@ _ATTACH_FRONTEND_ENSURE_WAIT_SEC = 120.0
 def _state_dir() -> Path:
     raw = os.environ.get(
         "MYRM_E2E_STATE_DIR",
-        str(Path.home() / ".local" / "state" / "myrm-e2e"),
+        str(real_user_home() / ".local" / "state" / "myrm-e2e"),
     )
     path = Path(raw)
     path.mkdir(parents=True, exist_ok=True)

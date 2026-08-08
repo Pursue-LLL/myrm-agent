@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
+from real_user_home import real_user_home
 
 MAX_BROWSER_SLOTS = 4
 MIN_BROWSER_SLOTS = 1
@@ -146,7 +147,7 @@ def _pressure_low(snapshot: HostPressureSnapshot) -> bool:
 
 def _transition_log_path() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    base = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    base = Path(override) if override else real_user_home() / ".local/state/myrm-dev"
     return base / "host-governor-transitions.jsonl"
 
 

@@ -22,6 +22,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TypedDict
+from real_user_home import real_user_home
 
 
 class TabHygieneReport(TypedDict):
@@ -56,7 +57,7 @@ def _count_cdp_targets(cdp_port: int) -> int:
 
 def _count_wave_bound_leases() -> int:
     state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
     )
     state_file = state_dir / "wave-orchestrator.json"
     try:
@@ -119,7 +120,7 @@ def _protected_target_ids() -> set[str] | None:
     """Return protected target ids, or None when ledgers are unreadable (fail-closed)."""
     protected: set[str] = set()
     state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
     )
     state_file = state_dir / "wave-orchestrator.json"
     wave_readable = True

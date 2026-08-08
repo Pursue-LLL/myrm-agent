@@ -27,6 +27,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
+from real_user_home import real_user_home
 
 _CELL_ENV = "MYRM_E2E_CELL_ID"
 _CELL_META_FILE = "cell-meta.json"
@@ -46,7 +47,7 @@ def _state_dir() -> Path:
     raw = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     if raw:
         return Path(raw)
-    return Path.home() / ".local/state/myrm-dev"
+    return real_user_home() / ".local/state/myrm-dev"
 
 
 def _cells_root() -> Path:

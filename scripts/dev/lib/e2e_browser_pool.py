@@ -7,6 +7,7 @@ import platform
 from pathlib import Path
 
 from dev_gate_contract import SHARED_BROWSER_WORKERS
+from real_user_home import real_user_home
 
 DEFAULT_CHROME_PORT = 9333
 
@@ -22,7 +23,7 @@ def resolve_chrome_data_dir() -> str:
     override = os.environ.get("MYRM_CHROME_E2E_DATA_DIR", "").strip()
     if override:
         return override
-    home = Path.home()
+    home = real_user_home()
     if platform.system() == "Darwin":
         return str(home / "Library" / "Application Support/Myrm/ChromeE2E")
     if os.name == "nt":

@@ -20,6 +20,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, TypedDict
+from real_user_home import real_user_home
 
 DEFAULT_POOL_SIZE: Final[int] = 2
 POOL_PROGRESS_INTERVAL_SEC: Final[float] = 30.0
@@ -60,7 +61,7 @@ def _monorepo_root() -> Path:
 
 def _pool_root() -> Path:
     raw = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-    base = Path(raw) if raw else Path.home() / ".local/state/myrm-dev"
+    base = Path(raw) if raw else real_user_home() / ".local/state/myrm-dev"
     return base / "shpoib-warm-pool"
 
 

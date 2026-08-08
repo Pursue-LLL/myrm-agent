@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
+from real_user_home import real_user_home
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -2806,7 +2807,7 @@ def backend_log_path() -> Path:
     state_dir = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     if state_dir:
         return Path(state_dir) / "backend.log"
-    default = Path.home() / ".local/state/myrm-dev/backend.log"
+    default = real_user_home() / ".local/state/myrm-dev/backend.log"
     if default.is_file():
         return default
     server_root = Path(__file__).resolve().parents[3] / "myrm-agent-server"

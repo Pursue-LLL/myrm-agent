@@ -6,7 +6,7 @@
  * - agent.configPanel / kanban / artifacts / cron 关键 string 键在全部 6 种语言均存在（防 MISSING_MESSAGE）
  * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
  * - home-route settings i18n shell contract（scan-home-i18n-shell.mjs）
- * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=WARNING）、叶子类型一致、ICU 占位符变量一致、
+ * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、ICU 花括号平衡、
  *   ICU 花括号平衡、翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
  *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
@@ -622,12 +622,13 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   }
 
-// 9b. extra keys（en 中不存在的孤儿键 → 警告，建议清理）
+// 9b. extra keys（en 中不存在的孤儿键 → ERROR，须清理）
 const extras = [...localeTypes.keys()].filter((key) => !enTypes.has(key));
 const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   if (realExtras.length > 0) {
-    console.warn(`  ⚠️  ${lang}.json 存在 ${realExtras.length} 个 en 中没有的键（孤儿键，建议清理）：`);
-    realExtras.slice(0, 10).forEach((key) => console.warn(`     - ${key}`));
+    console.error(`  ❌ ${lang}.json 存在 ${realExtras.length} 个 en 中没有的键（孤儿键，须清理）：`);
+    realExtras.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
   }
 
   // 9c. 类型一致

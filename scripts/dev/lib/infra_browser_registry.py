@@ -23,6 +23,7 @@ import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, TypedDict
+from real_user_home import real_user_home
 
 
 class InfraBrowserTarget(TypedDict):
@@ -34,7 +35,7 @@ class InfraBrowserTarget(TypedDict):
 
 def _state_dir() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    return Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    return Path(override) if override else real_user_home() / ".local/state/myrm-dev"
 
 
 def _ledger_path() -> Path:

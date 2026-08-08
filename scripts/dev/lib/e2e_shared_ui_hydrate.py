@@ -15,6 +15,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import AsyncIterator, Iterator
+from real_user_home import real_user_home
 
 DEFAULT_POLL_SEC = 2
 
@@ -35,7 +36,7 @@ def _state_dir() -> Path:
     raw = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     if raw:
         return Path(raw)
-    return Path.home() / ".local/state/myrm-dev"
+    return real_user_home() / ".local/state/myrm-dev"
 
 
 def _lock_path() -> Path:

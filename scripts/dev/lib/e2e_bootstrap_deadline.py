@@ -25,6 +25,7 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from real_user_home import real_user_home
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +41,7 @@ def dev_state_dir() -> Path:
     override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-dev"
+    return real_user_home() / ".local/state/myrm-dev"
 
 
 def _holder_pid() -> int:

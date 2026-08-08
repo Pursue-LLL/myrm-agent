@@ -18,6 +18,8 @@ from host_resource_governor import (
     tick_governor,
 )
 
+from real_user_home import real_user_home
+
 
 class SlotCalibrationRow(TypedDict):
     forced_slots: int
@@ -82,7 +84,7 @@ def run_slot_calibration_benchmark(*, now: float | None = None) -> dict[str, obj
 
 def default_output_path() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    base = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    base = Path(override) if override else real_user_home() / ".local/state/myrm-dev"
     return base / "host-governor-benchmark.json"
 
 

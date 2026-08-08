@@ -24,6 +24,8 @@ from dev_gate_session import (
     initial_state,
 )
 
+from real_user_home import real_user_home
+
 
 def _cleanup_dict_from_row(row: sqlite3.Row) -> dict[str, object]:
     try:
@@ -159,7 +161,7 @@ def default_store_path() -> Path:
     override = os.environ.get("MYRM_DEV_GATE_DB", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-dev-gate/coordinator.sqlite3"
+    return real_user_home() / ".local/state/myrm-dev-gate/coordinator.sqlite3"
 
 
 class OwnershipConflictError(RuntimeError):

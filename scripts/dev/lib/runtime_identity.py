@@ -30,6 +30,8 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
+
+from real_user_home import real_user_home
 from pathlib import Path
 from typing import TypedDict
 
@@ -357,7 +359,7 @@ def _mux_state_dir() -> Path:
     override = os.getenv("CDMCP_MUX_STATE_DIR", "").strip()
     if override:
         return Path(override)
-    return Path.home() / ".local/state/cdmcp-mux"
+    return real_user_home() / ".local/state/cdmcp-mux"
 
 
 def _default_chrome_data_dir() -> Path:
@@ -368,10 +370,10 @@ def _default_chrome_data_dir() -> Path:
     if from_env:
         return Path(from_env)
     if os.name == "nt":
-        return Path.home() / "AppData/Local/Myrm/ChromeE2E"
+        return real_user_home() / "AppData/Local/Myrm/ChromeE2E"
     if platform.system() == "Darwin":
-        return Path.home() / "Library/Application Support/Myrm/ChromeE2E"
-    return Path.home() / ".local/share/myrm/chrome-e2e"
+        return real_user_home() / "Library/Application Support/Myrm/ChromeE2E"
+    return real_user_home() / ".local/share/myrm/chrome-e2e"
 
 
 def _resolve_e2e_port() -> int:

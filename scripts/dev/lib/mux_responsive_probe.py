@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 from dev_gate_contract import LEGACY_MUX_REQUEST_TIMEOUT_MS
+from real_user_home import real_user_home
 
 MUX_UPSTREAM_TIMEOUT_EFFECTIVE_STAMP = "upstream-request-timeout-ms-effective"
 
@@ -146,7 +147,7 @@ def mux_tools_list_responsive(*, timeout_sec: float = 8.0) -> bool:
     """Lightweight mux daemon responsiveness check (tools/list over Unix socket)."""
     socket_path = os.environ.get("CDMCP_MUX_SOCKET", "").strip()
     if not socket_path:
-        socket_path = str(Path.home() / ".local/state/cdmcp-mux/daemon.sock")
+        socket_path = str(real_user_home() / ".local/state/cdmcp-mux/daemon.sock")
     if not socket_path or not os.path.exists(socket_path):
         return False
     bounded = max(0.5, min(timeout_sec, 60.0))

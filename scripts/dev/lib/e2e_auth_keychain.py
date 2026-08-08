@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from real_user_home import real_user_home
 
 _KEYCHAIN_ACCOUNT = "myrm-e2e-auth"
 _SERVICE_PREFIX = "myrm-e2e-auth-cookies"
@@ -26,7 +27,7 @@ def keychain_storage_enabled() -> bool:
 
 def _fallback_secrets_path(template_fingerprint: str) -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    base = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    base = Path(override) if override else real_user_home() / ".local/state/myrm-dev"
     safe_fp = template_fingerprint.strip().replace("/", "_") or "unknown"
     return base / f"e2e-auth-cookies-{safe_fp}.blob"
 

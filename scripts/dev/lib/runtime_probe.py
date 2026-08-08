@@ -32,6 +32,8 @@ from runtime_identity import (
     runtime_ids_equal,
 )
 
+from real_user_home import real_user_home
+
 
 def _default_frontend_dir() -> Path | None:
     override = os.getenv("MYRM_FRONTEND_DIR", "").strip()
@@ -263,7 +265,7 @@ def probe_runtime_context() -> RuntimeProbeContext:
 
 def _read_shared_hot_stack_runtime_id() -> str:
     """Stable shared hot-pool identity for SHPOIB and the supervisor reaper."""
-    shared_state = Path.home() / ".local/state/myrm-dev"
+    shared_state = real_user_home() / ".local/state/myrm-dev"
     overrides = {
         "MYRM_DEV_STATE_DIR": str(shared_state),
         "MYRM_STACK_EPOCH_FILE": str(shared_state / "stack-epoch.json"),

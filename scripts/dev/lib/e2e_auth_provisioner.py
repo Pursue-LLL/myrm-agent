@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from e2e_browser_pool import resolve_chrome_data_dir, resolve_chrome_port
+from real_user_home import real_user_home
 
 SCHEMA_VERSION = 1
 DEFAULT_TEMPLATE_TTL_SEC = 7 * 86400
@@ -142,7 +143,7 @@ def hydrate_auth_template_for_context(
 
 def _state_dir() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    return Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    return Path(override) if override else real_user_home() / ".local/state/myrm-dev"
 
 
 def _template_path() -> Path:
