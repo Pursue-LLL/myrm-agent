@@ -48,10 +48,10 @@ source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
 AGENT_ROOT="${MYRM_AGENT_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 export MYRM_DEV_STACK="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
-STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
-FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 # shellcheck source=lib/dev_state_paths.sh
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
+STATE_DIR="$(dev_state_dir)"
+FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 export_myrm_next_dist_dir
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 FRONTEND_LOG="${STATE_DIR}/frontend.log"

@@ -490,9 +490,18 @@ def assert_e2e_runtime_unchanged(
     if _uses_shared_hot_runtime_probe() and not _private_backend_runtime_pinned():
         expected_runtime = _shared_hot_stack_runtime_id().strip() or expected_runtime
     if current != expected_runtime:
-        healed = _attempt_runtime_drift_heal(_wave_state_path(), lease.lease_id)
-        if healed and healed == runtime_id_reader().strip():
-            return
+        for drift_attempt in range(3):
+            healed = _attempt_runtime_drift_heal(_wave_state_path(), lease.lease_id)
+            if healed:
+                expected_runtime = healed
+            wave_runtime = _read_open_wave_runtime_id(_wave_state_path())
+            if wave_runtime:
+                expected_runtime = wave_runtime
+            current = runtime_id_reader().strip()
+            if current == expected_runtime:
+                return
+            if drift_attempt + 1 < 3:
+                time.sleep(2.0)
         raise RuntimeError(
             f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}"
         )

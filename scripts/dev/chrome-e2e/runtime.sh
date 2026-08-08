@@ -2,19 +2,22 @@
 # Myrm E2E Chrome runtime paths and CDP health (SSOT).
 set -euo pipefail
 
+# shellcheck source=../lib/dev_state_paths.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/dev_state_paths.sh"
+
 MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT:-9333}"
 MYRM_CHROME_E2E_BROWSER_URL="http://127.0.0.1:${MYRM_CHROME_E2E_PORT}"
 
 if [[ -z "${MYRM_CHROME_E2E_DATA_DIR:-}" ]]; then
   case "$(uname -s)" in
     Darwin)
-      MYRM_CHROME_E2E_DATA_DIR="${HOME}/Library/Application Support/Myrm/ChromeE2E"
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/Library/Application Support/Myrm/ChromeE2E"
       ;;
     Linux)
-      MYRM_CHROME_E2E_DATA_DIR="${HOME}/.local/share/myrm/chrome-e2e"
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/.local/share/myrm/chrome-e2e"
       ;;
     *)
-      MYRM_CHROME_E2E_DATA_DIR="${HOME}/.myrm/chrome-e2e"
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/.myrm/chrome-e2e"
       ;;
   esac
 fi
@@ -37,7 +40,13 @@ if [[ -z "${MYRM_CHROME_BIN:-}" || ! -x "${MYRM_CHROME_BIN}" ]]; then
 fi
 
 MYRM_CHROME_E2E_ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_DATA_DIR}/DevToolsActivePort"
-MYRM_CHROME_E2E_STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+MYRM_CHROME_E2E_STATE_DIR="${MYRM_DEV_STATE_DIR:-$(python3 -c '
+import os, pwd
+try:
+    print(pwd.getpwuid(os.getuid()).pw_dir)
+except (KeyError, OSError):
+    print(os.path.expanduser("~"))
+')/.local/state/myrm-dev}"
 
 chrome_e2e_default_app() {
   if [[ -n "${MYRM_CHROME_APP:-}" ]]; then

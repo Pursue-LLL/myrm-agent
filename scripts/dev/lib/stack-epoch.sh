@@ -3,8 +3,11 @@
 # Sourced by dev-stack.sh and backend_bg.sh; do not execute directly.
 set -euo pipefail
 
+# shellcheck source=dev_state_paths.sh
+source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
+
 _stack_epoch_state_dir() {
-  echo "${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  dev_state_dir
 }
 
 _stack_epoch_file() {

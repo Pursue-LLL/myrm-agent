@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from myrm_agent_harness.agent.security.managed_approval_policy import (
+from myrm_agent_harness.api.security import (
     ManagedApprovalPolicy,
     get_process_managed_approval_policy,
 )

@@ -13273,7 +13273,7 @@
       "description": "Beschreibung",
       "descriptionPlaceholder": "Beschreiben Sie kurz, was dieser Agent tut",
       "systemPrompt": "Systemprompt",
-      "systemPromptPlaceholder": "Du bist ein hilfreicher Assistent...",
+      "systemPromptPlaceholder": "Sie sind ein hilfreicher Assistent...",
       "commandBindings": "Slash Command Bindings",
       "commandBindingsHint": "Bind custom slash commands to Skills for IM channels. e.g. /daily-report triggers a daily summary skill.",
       "commandName": "Command Name",
@@ -14307,7 +14307,7 @@
   },
   "followUps": {
     "title": "Follow-ups",
-    "description": "Proaktive Follow-ups aus Gesprächen. Der Agent erkennt implizite Nachverfolgungen und erinnert dich bei Heartbeat-Prüfungen.",
+    "description": "Proaktive Follow-ups aus Gesprächen. Der Agent erkennt implizite Nachverfolgungen und erinnert Sie bei Heartbeat-Prüfungen.",
     "empty": "Noch keine Follow-ups. Sie erscheinen hier, wenn die Erinnerung aktiviert ist.",
     "loadError": "Follow-ups konnten nicht geladen werden",
     "actionError": "Aktion fehlgeschlagen, bitte erneut versuchen",

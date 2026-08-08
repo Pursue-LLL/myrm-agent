@@ -18,7 +18,12 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { execSync } from 'node:child_process';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { isLegitSameValue, resolvePath, walkTypes } from './i18n-shell-core.mjs';
+import {
+  collectTranslationShells,
+  loadShellAllowlist,
+  resolvePath,
+  walkTypes,
+} from './i18n-shell-core.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -482,20 +487,31 @@ try {
 console.log('\n📋 验证全量 key parity / 类型 / 占位符 / 翻译壳 / 异常哨兵...');
 
 // 壳检测 allowlist（scripts/i18n-shell-allowlist.json）
+let shellAllowlists = { allowedSameValues: new Set(), allowedSameKeys: new Set() };
 let ALLOWED_SAME_VALUES = new Set();
 let ALLOWED_SAME_KEYS = new Set();
 let ALLOWED_MIXED_VALUES = new Set();
 let ALLOWED_MIXED_KEYS = new Set();
+/** @type {Record<string, string[]>} */
+let glossaryForbiddenByLocale = {};
 try {
+  shellAllowlists = loadShellAllowlist(rootDir);
+  ALLOWED_SAME_VALUES = shellAllowlists.allowedSameValues;
+  ALLOWED_SAME_KEYS = shellAllowlists.allowedSameKeys;
   const allowlist = JSON.parse(
     readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'),
   );
-  ALLOWED_SAME_VALUES = new Set(allowlist.allowedSameValues || []);
-  ALLOWED_SAME_KEYS = new Set(allowlist.allowedSameKeys || []);
   ALLOWED_MIXED_VALUES = new Set(allowlist.allowedMixedValues || []);
   ALLOWED_MIXED_KEYS = new Set(allowlist.allowedMixedKeys || []);
+  const glossary = JSON.parse(
+    readFileSync(resolve(rootDir, 'scripts/i18n-glossary.json'), 'utf-8'),
+  );
+  for (const [locale, config] of Object.entries(glossary.locales || {})) {
+    glossaryForbiddenByLocale[locale] = (config.forbidden || []).map((p) => String(p).toLowerCase());
+  }
 } catch (error) {
-  console.error(`  ❌ 无法加载 scripts/i18n-shell-allowlist.json: ${error.message}`);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`  ❌ 无法加载 i18n allowlist/glossary: ${message}`);
   hasErrors = true;
 }
 
@@ -627,12 +643,13 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     hasErrors = true;
   }
 
-  // 9d. 占位符一致 + 翻译壳 + 双语对照 + 哨兵 + ICU 花括号
-  const shellErrors = [];
+  // 9d. 占位符一致 + glossary forbidden + 双语对照 + 哨兵 + ICU 花括号（壳检测见 collectTranslationShells）
   const placeholderErrors = [];
+  const glossaryErrors = [];
   const bilingualErrors = [];
   const sentinelErrors = [];
   const braceErrors = [];
+  const forbiddenPatterns = glossaryForbiddenByLocale[lang] || [];
 
   const checkValue = (key, enValue, localeValue) => {
     if (typeof enValue !== 'string') return;
@@ -655,17 +672,19 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
       );
       return;
     }
+    if (forbiddenPatterns.length > 0) {
+      const lower = localeValue.toLowerCase();
+      for (const pattern of forbiddenPatterns) {
+        if (lower.includes(pattern)) {
+          glossaryErrors.push(`${key} = forbidden pattern ${JSON.stringify(pattern)}`);
+          break;
+        }
+      }
+    }
     if (isBilingualDirty(localeValue) && !enValue.includes(' / ')) {
       if (!ALLOWED_MIXED_VALUES.has(localeValue) && !ALLOWED_MIXED_KEYS.has(key)) {
         bilingualErrors.push(`${key} = ${JSON.stringify(localeValue.slice(0, 80))}`);
       }
-      return;
-    }
-    if (localeValue === enValue && enValue.length > 2) {
-      if (isLegitSameValue(enValue)) return;
-      if (ALLOWED_SAME_VALUES.has(enValue)) return;
-      if (ALLOWED_SAME_KEYS.has(key)) return;
-      shellErrors.push({ path: key, value: enValue });
     }
   };
 
@@ -689,7 +708,15 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     }
   }
 
+  const shellErrors = collectTranslationShells(translations.en, data, shellAllowlists).map(
+    ({ key, en }) => ({ path: key, value: en }),
+  );
   reportShells(lang, shellErrors);
+  if (glossaryErrors.length > 0) {
+    console.error(`  ❌ ${lang}.json 存在 ${glossaryErrors.length} 个 glossary forbidden 违规：`);
+    glossaryErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    hasErrors = true;
+  }
   if (placeholderErrors.length > 0) {
     console.error(`  ❌ ${lang}.json 存在 ${placeholderErrors.length} 个占位符不匹配：`);
     placeholderErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
@@ -711,9 +738,9 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     hasErrors = true;
   }
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
-    && placeholderErrors.length === 0 && bilingualErrors.length === 0
+    && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
     && sentinelErrors.length === 0 && braceErrors.length === 0) {
-    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / 双语对照 检测 通过`);
+    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 检测 通过`);
   }
 }
 

@@ -35,7 +35,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-_MAX_ATTEMPTS = 2
+_MAX_ATTEMPTS = 3
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "open_mcp_page",
     "MUX",
@@ -58,6 +58,8 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "recover_mux_transport",
     "recover_mux",
     "chrome-error",
+    "chromewebdata",
+    "Page not on localhost",
     "warm_ui_route",
     "Connection refused",
     "E2E_ORCHESTRATOR_LEASE_DENIED",
@@ -67,6 +69,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "E2E_LEASE_INVALID",
     "LEASE_NOT_ACTIVE",
     "MUX_ATTACH_RESTART_BLOCKED_PARALLEL",
+    "RUNTIME_DRIFT",
     "timed out",
     "QueuePool limit",
 )
@@ -656,6 +659,7 @@ def _run_with_transport_retry(
             if attempt >= _MAX_ATTEMPTS or not _is_transport_retryable(exc):
                 raise
             _force_mux_heal_before_retry()
+            time.sleep(5.0)
     if last_error is not None:
         raise last_error
 

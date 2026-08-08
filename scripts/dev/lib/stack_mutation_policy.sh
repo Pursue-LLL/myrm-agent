@@ -2,6 +2,9 @@
 # Stack mutation policy shell helpers — SSOT for attach/supervisor drift heal.
 set -euo pipefail
 
+# shellcheck source=dev_state_paths.sh
+source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
+
 _smp_policy_py() {
   local lib_dir="${1:-}"
   if [[ -z "${lib_dir}" ]]; then
@@ -11,7 +14,7 @@ _smp_policy_py() {
 }
 
 _smp_state_dir() {
-  printf '%s' "${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  dev_state_dir
 }
 
 _smp_python() {

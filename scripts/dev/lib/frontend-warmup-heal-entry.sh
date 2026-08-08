@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="${SCRIPT_DIR:?SCRIPT_DIR required}"
 UI_BASE="${UI_BASE:-http://127.0.0.1:3000}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
-STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+STATE_DIR="$(dev_state_dir)"
 FRONTEND_DIR="${MYRM_FRONTEND_DIR:-$(cd "${SCRIPT_DIR}/../../myrm-agent-frontend" && pwd)}"
 # shellcheck source=../myrm-chrome-e2e-lib.sh
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"

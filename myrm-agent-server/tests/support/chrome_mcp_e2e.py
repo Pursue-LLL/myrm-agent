@@ -111,7 +111,12 @@ def dismiss_blocking_modals(
     recover_url: str | None = None,
 ) -> None:
     """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
-    target_url = recover_url or getattr(page, "url", None)
+    page_url = getattr(page, "url", None)
+    target_url = recover_url or (
+        page_url if isinstance(page_url, str) and page_url.strip() else None
+    )
+    if not target_url:
+        target_url = f"{get_e2e_ui_url().rstrip('/')}/"
     last: dict[str, object] = {}
     max_attempts = 2 if _parallel_chrome_e2e_active() else 5
     for attempt in range(max_attempts):

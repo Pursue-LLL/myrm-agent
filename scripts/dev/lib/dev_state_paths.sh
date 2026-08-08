@@ -4,6 +4,30 @@
 # which bypasses sandboxed HOME such as ~/.cursor2 injected by the Cursor runtime).
 set -euo pipefail
 
+# Resolve the real login user home, bypassing sandboxed HOME (e.g. Cursor's
+# ~/.cursor2). Used for the dev state dir and for spawning stack processes so
+# that harness data (Path.home()/.myrm) stays on the user's real data dir.
+real_user_home() {
+  local real_home
+  real_home="$(python3 -c '
+import os
+import pwd
+try:
+    print(pwd.getpwuid(os.getuid()).pw_dir)
+except (KeyError, OSError):
+    print(os.path.expanduser("~"))
+' 2>/dev/null || true)"
+  real_home="${real_home:-${HOME}}"
+  printf '%s' "${real_home}"
+}
+
+# Export HOME/MYRM_DATA_DIR for stack child processes (backend/frontend).
+# Prevents sandboxed HOME from leaking harness data into e.g. ~/.cursor2/.myrm.
+export_spawn_home() {
+  export HOME="$(real_user_home)"
+  export MYRM_DATA_DIR="${HOME}/.myrm"
+}
+
 dev_state_dir() {
   # WAVE override wins over DEV (mirror resolve_dev_state_dir()).
   if [[ -n "${MYRM_WAVE_STATE_DIR:-}" ]]; then
@@ -18,17 +42,7 @@ dev_state_dir() {
 }
 
 _real_home_default_state_dir() {
-  local real_home
-  real_home="$(python3 -c '
-import os
-import pwd
-try:
-    print(pwd.getpwuid(os.getuid()).pw_dir)
-except (KeyError, OSError):
-    print(os.path.expanduser("~"))
-' 2>/dev/null || true)"
-  real_home="${real_home:-${HOME}}"
-  printf '%s/.local/state/myrm-dev' "${real_home}"
+  printf '%s/.local/state/myrm-dev' "$(real_user_home)"
 }
 
 dev_backend_pid_file() {

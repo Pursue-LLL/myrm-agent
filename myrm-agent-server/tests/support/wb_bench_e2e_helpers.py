@@ -44,7 +44,7 @@ _ACTIVATE_SOURCES_TAB_JS = """(() => {
 # (default tab is the case editor), so the probe first activates that tab.
 # Counts and buttons are checked per card container so unrelated page numbers
 # (e.g. home stats) cannot satisfy the probe.
-_SOURCES_READY_JS = (
+SOURCES_READY_JS = (
     _ACTIVATE_SOURCES_TAB_JS
     + """(() => {
   // innerText reads '' while the E2E Chrome window is backgrounded; fall back to

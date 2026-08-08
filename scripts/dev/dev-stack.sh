@@ -382,6 +382,9 @@ _launch_frontend_supervisor() {
     webpack_args=(--webpack)
   fi
   cd "${FRONTEND_DIR}"
+  # Frontend child must run under real user home so next cache/harness paths
+  # don't leak into sandboxed ~/.cursor2.
+  export_spawn_home
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   if [[ -f "${FRONTEND_LOG}" ]]; then
     local log_bytes=0

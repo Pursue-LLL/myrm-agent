@@ -9,6 +9,9 @@
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
+# shellcheck source=dev_state_paths.sh
+source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
+
 _require_harness_editable_for_monorepo() {
   local server_dir="$1"
   local agent_root harness_src expected_src py mode pkg_dir
@@ -67,7 +70,8 @@ print(pkg)
 
 _start_backend_bg() {
   local server_dir="$1"
-  local state_dir="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  local state_dir
+  state_dir="$(dev_state_dir)"
   local backend_port="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
   local pid_file="${MYRM_BACKEND_PID_FILE:-${state_dir}/backend.pid}"
   local log_file="${MYRM_BACKEND_LOG_FILE:-${state_dir}/backend.log}"
@@ -228,6 +232,10 @@ except Exception:
   export PORT="${backend_port}"
   export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-15}"
   export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${state_dir}/stack-epoch.json}"
+  # Child backend must run under the real user home: sandboxed HOME (e.g.
+  # ~/.cursor2) would split harness data into ~/.cursor2/.myrm, desyncing
+  # memory/cron/task state from the rest of the stack.
+  export_spawn_home
 
   _require_harness_editable_for_monorepo "${server_dir}"
 
