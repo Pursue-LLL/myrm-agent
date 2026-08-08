@@ -20,6 +20,7 @@ Supports two resolution modes:
 Document content extraction API. Converts .docx/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via Harness parsers.
 """
 
+import base64
 import logging
 import tempfile
 from pathlib import Path
@@ -137,8 +138,6 @@ async def extract_document(
     file_path, ext, is_temp = await _resolve_document_path(body)
 
     try:
-        import base64
-
         from app.services.files.content_extraction import extract_document_from_path
 
         extracted = await extract_document_from_path(file_path, ext)

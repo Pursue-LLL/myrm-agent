@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
 - app.services.wiki.source_sync.schemas (POS: WikiSourceSyncResult)
+- app.channels.providers.feishu.sdk.client::FeishuClient (POS: Feishu OpenAPI client)
 
 [OUTPUT]
 - sync_feishu_docs_to_wiki: pull Feishu docs into wiki raw/feishu/
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
@@ -24,6 +26,9 @@ from app.services.wiki.source_sync.publish_helpers import (
     sanitize_path_segment,
 )
 from app.services.wiki.source_sync.schemas import WikiSourceSyncResult
+
+if TYPE_CHECKING:
+    from app.channels.providers.feishu.sdk.client import FeishuClient
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +49,13 @@ async def sync_feishu_docs_to_wiki(
         result.errors.append("Feishu is not connected")
         return result
 
-    target_folder = folder_token.strip()
-    files = await client.list_drive_folder_files(target_folder, max_items=max_items)
-    month = datetime.now(UTC).strftime("%Y-%m")
-
     try:
+        target_folder = folder_token.strip()
+        files = await client.list_drive_folder_files(
+            target_folder, max_items=max_items
+        )
+        month = datetime.now(UTC).strftime("%Y-%m")
+
         for item in files:
             file_token = item.get("token", "")
             file_type = item.get("type", "")
@@ -102,13 +109,11 @@ async def is_feishu_wiki_sync_available() -> bool:
     client = await _resolve_feishu_client()
     if client is None:
         return False
-    close = getattr(client, "close", None)
-    if callable(close):
-        await close()
+    await client.close()
     return True
 
 
-async def _resolve_feishu_client() -> object | None:
+async def _resolve_feishu_client() -> FeishuClient | None:
     from app.channels.core.credentials import parse_bool
     from app.channels.providers.feishu.sdk.client import FeishuClient
     from app.core.channel_bridge.credential_spec import load_from_db
@@ -135,11 +140,8 @@ async def _resolve_feishu_client() -> object | None:
     return FeishuClient(app_id, app_secret, use_lark=use_lark)
 
 
-async def _fetch_doc_markdown(client: object, document_id: str) -> str | None:
-    get_blocks = getattr(client, "get_docx_blocks", None)
-    if not callable(get_blocks):
-        return None
-    payload = await get_blocks(document_id)
+async def _fetch_doc_markdown(client: FeishuClient, document_id: str) -> str | None:
+    payload = await client.get_docx_blocks(document_id)
     return feishu_docx_blocks_to_markdown(payload)
 
 
