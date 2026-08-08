@@ -2222,7 +2222,8 @@
         "maintainModeFullHint": "AIによるドリフトレビューと新規リンクの発見を含みます。設定済みモデルを使用する場合があります。",
         "maintainCompileBusyHint": "コンパイル中は利用できません。完了後に再度お試しください。",
         "repairPageTypes": "ページタイプを修復",
-        "repairPublication": "公開状態を修復"
+        "repairPublication": "公開状態を修復",
+        "reindexVectors": "ベクトル索引を再構築"
       },
       "purpose": {
         "title": "知识方向",
@@ -2247,7 +2248,8 @@
         "maintainRemovedSensitive": "メンテナンスは {count} 件の機密rawファイルを削除しました: {paths}",
         "repairTypesComplete": "{count} 件のノートのページタイプを修復しました",
         "repairPublicationComplete": "{repaired} 件を修復、{reindexed} 件を再索引付けしました",
-        "repairPublicationCompleteWithSkips": "{repaired} 件を修復、{reindexed} 件を再索引付け、{skippedDrafts} 件の草稿ページを保持しました"
+        "repairPublicationCompleteWithSkips": "{repaired} 件を修復、{reindexed} 件を再索引付け、{skippedDrafts} 件の草稿ページを保持しました",
+        "reindexVectorsComplete": "{scanned} 件中 {reindexed} 件のベクトル索引を再構築しました"
       },
       "errors": {
         "emptyQuery": "してください入力質問",
@@ -2265,6 +2267,7 @@
         "maintainCompileBusy": "Wikiがコンパイル中です。完了後に再度お試しください。",
         "repairTypesFailed": "ページタイプの修復に失敗しました",
         "repairPublicationFailed": "公開状態の修復に失敗しました",
+        "reindexVectorsFailed": "ベクトル索引の再構築に失敗しました",
         "approveTypeRequired": "承認する前にノートヘッダーに有効なページタイプを追加してください",
         "approveStaleSources": "ソースファイルが変更されました — この草稿を承認する前にWikiを再コンパイルしてください"
       },
@@ -2343,7 +2346,8 @@
           "overloaded": "過負荷",
           "timeout": "タイムアウト",
           "io_missing": "ファイル欠落",
-          "cancelled": "キャンセル"
+          "cancelled": "キャンセル",
+          "embed_window_violation": "埋め込みウィンドウ超過"
         },
         "refresh": "更新",
         "refreshStale": "キューの状態が古い可能性があります。接続を確認して「更新」を押してください。",
@@ -2557,6 +2561,7 @@
       },
       "repairingTypes": "修復中…",
       "repairingPublication": "公開状態を修復中…",
+      "reindexingVectors": "ベクトル索引を再構築中…",
       "healthReport": {
         "title": "ナレッジ健全性",
         "summary": "{open, plural, =0 {未対応アクションなし} one {# 件の未対応アクション} other {# 件の未対応アクション}} · チェック済み {total}",

@@ -263,8 +263,7 @@ class McpChatSession(CdpChatSession):
             try:
                 result = await self.evaluate(
                     bootstrap_js,
-                    await_promise=True,
-                    recv_timeout=60.0,
+                    intent=EvaluateIntent.ROUTE_ATTACH,
                 )
                 if isinstance(result, dict) and result.get("ok") is True:
                     return
@@ -280,7 +279,7 @@ class McpChatSession(CdpChatSession):
         if not inject_js:
             return
         try:
-            await self.evaluate(inject_js, await_promise=False, recv_timeout=15.0)
+            await self.evaluate(inject_js, intent=EvaluateIntent.SYNC_PROBE)
         except RuntimeError as exc:
             if is_target_closed_error(exc) or is_page_ownership_error(exc):
                 raise
@@ -400,8 +399,7 @@ class McpChatSession(CdpChatSession):
         try:
             probe = await self.evaluate(
                 PAGE_PROBE_JS,
-                await_promise=False,
-                recv_timeout=15.0,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
         except (RuntimeError, TimeoutError):
             probe = None

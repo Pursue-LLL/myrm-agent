@@ -65,7 +65,9 @@ def build_obsidian_graph_json() -> dict[str, object]:
     }
 
 
-def build_obsidian_vault_zip(structure: WikiStructure, agent_id: str | None = None) -> io.BytesIO:
+def build_obsidian_vault_zip(
+    structure: WikiStructure, agent_id: str | None = None
+) -> io.BytesIO:
     """Build a full vault ZIP with Obsidian graph preset and README."""
     graph_json = json.dumps(build_obsidian_graph_json(), indent=2, ensure_ascii=False)
     extra_entries: dict[str, str | bytes] = {

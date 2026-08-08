@@ -1725,7 +1725,8 @@
         "maintainModeFullHint": "Enthält KI-Drift-Überprüfung und neue Linkerkennung. Kann Ihr konfiguriertes Modell verwenden.",
         "maintainCompileBusyHint": "Während der Kompilierung nicht verfügbar. Versuchen Sie es nach Abschluss der Kompilierung erneut.",
         "repairPageTypes": "Seitentypen reparieren",
-        "repairPublication": "Veröffentlichungsstatus reparieren"
+        "repairPublication": "Veröffentlichungsstatus reparieren",
+        "reindexVectors": "Vektorindex neu erstellen"
       },
       "success": {
         "queryComplete": "Abfrage erfolgreich abgeschlossen",
@@ -1741,7 +1742,8 @@
         "maintainRemovedSensitive": "Maintenance removed {count} sensitive raw file(s): {paths}",
         "repairTypesComplete": "Repaired page types on {count} notes",
         "repairPublicationComplete": "Repaired publication status on {repaired} notes, reindexed {reindexed}",
-        "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages"
+        "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages",
+        "reindexVectorsComplete": "Vektorindex für {reindexed} von {scanned} Notizen neu erstellt"
       },
       "errors": {
         "emptyQuery": "Bitte eine Frage eingeben",
@@ -1759,6 +1761,7 @@
         "maintainCompileBusy": "Wiki kompiliert. Versuchen Sie die Wartung nach Abschluss der Kompilierung erneut.",
         "repairTypesFailed": "Reparatur der Seitentypen fehlgeschlagen",
         "repairPublicationFailed": "Reparatur des Veröffentlichungsstatus fehlgeschlagen",
+        "reindexVectorsFailed": "Neuerstellung des Vektorindex fehlgeschlagen",
         "approveTypeRequired": "Fügen Sie vor der Genehmigung einen gültigen Seitentyp in der Notiz-Kopfzeile hinzu",
         "approveStaleSources": "Source files changed — recompile Wiki before approving this draft"
       },
@@ -1952,7 +1955,8 @@
           "overloaded": "Überlastet",
           "timeout": "Time-out",
           "io_missing": "Fehlende Datei",
-          "cancelled": "Abgebrochen"
+          "cancelled": "Abgebrochen",
+          "embed_window_violation": "Embedding-Fenster überschritten"
         },
         "refresh": "Aktualisieren",
         "pendingItems": "Ausstehende Elemente:",
@@ -2189,6 +2193,7 @@
       },
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
+      "reindexingVectors": "Rebuilding vectors...",
       "healthReport": {
         "title": "Wissenszustand",
         "summary": "{open, plural, =0 {No open actions} one {# open action} other {# open actions}} · {total} checked",

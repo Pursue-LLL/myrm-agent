@@ -33,6 +33,7 @@ from dev_gate_contract import (  # noqa: E402
 )
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 
 from tests.api.agent.utils import (
     _strip_provider_prefix,
@@ -886,7 +887,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             after_skip.get("answered") is True or after_skip.get("doneSkipped") is True
         ), after_skip
 
-        after_turn = await chat.main_state(E2E_PROMPT, recv_timeout=30.0)
+        after_turn = await chat.main_state(E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
         chat_id = chat_id_hint or chat_id_from_path(str(after_turn.get("path") or ""))
         if not chat_id:
             chat_id = str(after_turn.get("bridgeChatId") or "").strip()

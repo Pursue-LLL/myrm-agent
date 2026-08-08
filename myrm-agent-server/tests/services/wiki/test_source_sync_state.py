@@ -8,7 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.wiki.agent_scope import DEFAULT_AGENT_SCOPE
-from app.services.wiki.source_sync.schemas import WikiSourceSyncResult, WikiSourceSyncRunSummary, WikiSourceSyncState
+from app.services.wiki.source_sync.schemas import (
+    WikiSourceSyncResult,
+    WikiSourceSyncRunSummary,
+    WikiSourceSyncState,
+)
 from app.services.wiki.source_sync.state_store import (
     STATE_KEY,
     load_wiki_source_sync_state,
@@ -21,7 +25,9 @@ def test_state_from_run_summary_maps_counts() -> None:
     summary = WikiSourceSyncRunSummary(
         results=[
             WikiSourceSyncResult(source="gmail", published=2, skipped=1, failed=0),
-            WikiSourceSyncResult(source="rss", published=0, skipped=3, failed=1, errors=["timeout"]),
+            WikiSourceSyncResult(
+                source="rss", published=0, skipped=3, failed=1, errors=["timeout"]
+            ),
         ],
         total_published=2,
         total_skipped=4,
@@ -79,7 +85,10 @@ async def test_runner_persists_state_with_agent_scope() -> None:
             "app.services.wiki.source_sync.state_store.save_wiki_source_sync_state",
             new=AsyncMock(),
         ) as save_state,
-        patch("app.services.wiki.source_sync.runner.resolve_wiki_vault_path", return_value="/tmp/wiki"),
+        patch(
+            "app.services.wiki.source_sync.runner.resolve_wiki_vault_path",
+            return_value="/tmp/wiki",
+        ),
     ):
         db = AsyncMock()
         session_ctx.return_value.__aenter__ = AsyncMock(return_value=db)
@@ -109,13 +118,18 @@ async def test_runner_invokes_gdrive_when_enabled() -> None:
             "app.services.wiki.source_sync.state_store.save_wiki_source_sync_state",
             new=AsyncMock(),
         ),
-        patch("app.services.wiki.source_sync.runner.resolve_wiki_vault_path", return_value="/tmp/wiki"),
+        patch(
+            "app.services.wiki.source_sync.runner.resolve_wiki_vault_path",
+            return_value="/tmp/wiki",
+        ),
     ):
         db = AsyncMock()
         session_ctx.return_value.__aenter__ = AsyncMock(return_value=db)
         session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        summary = await run_wiki_source_sync(llm=None, agent_id="agent-99", config=config)
+        summary = await run_wiki_source_sync(
+            llm=None, agent_id="agent-99", config=config
+        )
 
     sync_gdrive.assert_awaited_once()
     assert sync_gdrive.await_args.kwargs["folder_id"] == "folder-abc"

@@ -193,6 +193,7 @@ export function WikiSection() {
   const [isMaintaining, setIsMaintaining] = useState(false);
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isRepairingPublication, setIsRepairingPublication] = useState(false);
+  const [isReindexingVectors, setIsReindexingVectors] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [purposeDraft, setPurposeDraft] = useState('');
@@ -1058,6 +1059,30 @@ export function WikiSection() {
     }
   };
 
+  const handleReindexVectors = async () => {
+    setIsReindexingVectors(true);
+    try {
+      const result = await wikiService.reindexVectors(agentScopeId);
+      if (result.success) {
+        toast.success(
+          t('success.reindexVectorsComplete', {
+            reindexed: result.reindexed,
+            scanned: result.scanned,
+          }),
+        );
+      } else {
+        toast.warning(result.message);
+      }
+      await loadStats();
+      setTreeSyncNonce((value) => value + 1);
+    } catch (error) {
+      console.error('Reindex wiki vectors failed:', error);
+      toast.error(t('errors.reindexVectorsFailed'));
+    } finally {
+      setIsReindexingVectors(false);
+    }
+  };
+
   return (
     <WikiAgentScopeProvider
       agentScopeId={agentScopeId}
@@ -1747,6 +1772,15 @@ export function WikiSection() {
               >
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isRepairingPublication ? t('repairingPublication') : t('actions.repairPublication')}
+              </Button>
+              <Button
+                onClick={() => void handleReindexVectors()}
+                disabled={isReindexingVectors || isWikiCompileBusy}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconDatabase className="w-4 h-4 mr-2" />
+                {isReindexingVectors ? t('reindexingVectors') : t('actions.reindexVectors')}
               </Button>
               </div>
             </CardContent>

@@ -5,11 +5,11 @@
 
 [OUTPUT]
 - feishu_docx_blocks_to_markdown: full docx block payload → GFM Markdown
-- FEISHU_IMAGE_PREFIX / FEISHU_IMAGE_RE: image placeholder protocol shared with feishu/__init__.py
+- FEISHU_IMAGE_PREFIX / FEISHU_IMAGE_RE: image placeholder protocol shared with feishu.py
 
 [POS]
 Pure block→Markdown converter for Feishu docs. No I/O or state; image placeholders
-are resolved by the caller (feishu/__init__.py) after download.
+are resolved by the caller (feishu.py) after download.
 """
 
 from __future__ import annotations

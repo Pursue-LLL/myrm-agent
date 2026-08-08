@@ -48,6 +48,7 @@ function errorKindLabel(kind: string | undefined, t: ReturnType<typeof useTransl
     timeout: t('errorKind.timeout'),
     io_missing: t('errorKind.io_missing'),
     cancelled: t('errorKind.cancelled'),
+    embed_window_violation: t('errorKind.embed_window_violation'),
   };
   return labels[kind] ?? t('errorKindUnknown');
 }

@@ -14,6 +14,16 @@ import pytest
 from app.database.models import UserConfig
 
 
+def _make_token_dict() -> dict[str, object]:
+    return {
+        "test_issuer": {
+            "refresh_token": "rt",
+            "token_url": "https://t.example.com",
+            "expires_at": 0,
+        }
+    }
+
+
 class _MockResponse:
     status_code = 200
 
@@ -21,27 +31,26 @@ class _MockResponse:
         return {"access_token": "new-token", "expires_in": 3600}
 
 
-def _build_row(is_encrypted: bool) -> UserConfig:
-    return UserConfig(
-        id="row-id",
-        config_key="oauthCredentials",
-        config_value={
-            "test_issuer": {
-                "refresh_token": "rt",
-                "token_url": "https://t.example.com",
-                "expires_at": 0,
-            }
-        },
-        version="1.0.0",
-        last_device_id="sandbox",
-        is_encrypted=is_encrypted,
-    )
-
-
-async def _run_refresh(service: MagicMock) -> tuple[UserConfig, MagicMock]:
+async def _run_refresh(
+    *,
+    row_config_value: object,
+    row_is_encrypted: bool,
+    encrypt_result: tuple[object, bool],
+) -> tuple[UserConfig, MagicMock]:
     from app.services.agent import oauth_refresher
 
-    row = _build_row(is_encrypted=True)
+    row = UserConfig(
+        id="row-id",
+        config_key="oauthCredentials",
+        config_value=row_config_value,
+        version="1.0.0",
+        last_device_id="sandbox",
+        is_encrypted=row_is_encrypted,
+    )
+
+    service = MagicMock()
+    service.decrypt = MagicMock(return_value=_make_token_dict())
+    service.encrypt_if_needed = MagicMock(return_value=encrypt_result)
 
     mock_result = MagicMock()
     mock_result.scalars.return_value.first.return_value = row
@@ -66,32 +75,47 @@ async def _run_refresh(service: MagicMock) -> tuple[UserConfig, MagicMock]:
         mock_httpx.AsyncClient.return_value = mock_client
         from app.services.agent.oauth_refresher import refresh_oauth_token
 
-        result = await refresh_oauth_token("test_issuer")
+        await refresh_oauth_token("test_issuer")
 
-    assert result is not None
-    return row, mock_session
+    return row, service
 
 
 @pytest.mark.asyncio
-async def test_refresh_persists_is_encrypted_true() -> None:
-    """When encrypt_if_needed encrypts, the persisted row must be marked encrypted."""
-    service = MagicMock()
-    service.encrypt_if_needed = MagicMock(return_value=("cipher-payload", True))
+async def test_refresh_reencrypts_and_persists_flag() -> None:
+    """An already-encrypted row stays encrypted after a refresh."""
+    row, service = await _run_refresh(
+        row_config_value={"_cipher": "old-cipher"},
+        row_is_encrypted=True,
+        encrypt_result=("new-cipher", True),
+    )
 
-    row, _ = await _run_refresh(service)
-
+    service.decrypt.assert_called_once_with("old-cipher")
     assert row.is_encrypted is True
-    assert row.config_value == {"_cipher": "cipher-payload"}
+    assert row.config_value == {"_cipher": "new-cipher"}
 
 
 @pytest.mark.asyncio
-async def test_refresh_persists_is_encrypted_false_when_not_sensitive() -> None:
-    """When the key is not sensitive, the plaintext payload must keep is_encrypted False."""
-    service = MagicMock()
-    payload = {"issuer": {"token": "plain"}}
-    service.encrypt_if_needed = MagicMock(return_value=(payload, False))
+async def test_refresh_upgrades_legacy_plaintext_to_encrypted() -> None:
+    """A legacy plaintext row (pre-sensitive-key) becomes encrypted on refresh."""
+    row, service = await _run_refresh(
+        row_config_value=_make_token_dict(),
+        row_is_encrypted=False,
+        encrypt_result=("fresh-cipher", True),
+    )
 
-    row, _ = await _run_refresh(service)
+    service.decrypt.assert_not_called()
+    assert row.is_encrypted is True
+    assert row.config_value == {"_cipher": "fresh-cipher"}
+
+
+@pytest.mark.asyncio
+async def test_refresh_keeps_flag_false_when_not_encrypting() -> None:
+    """When the policy returns plaintext, the flag must not be stuck True."""
+    row, _ = await _run_refresh(
+        row_config_value=_make_token_dict(),
+        row_is_encrypted=True,
+        encrypt_result=(_make_token_dict(), False),
+    )
 
     assert row.is_encrypted is False
-    assert row.config_value == payload
+    assert row.config_value == _make_token_dict()

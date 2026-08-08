@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
 from real_user_home import real_user_home
+from dev_gate_contract import EvaluateIntent
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -2160,8 +2161,12 @@ async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
     max_attempts, _request_timeout_sec = _hitl_pin_retry_policy()
     last_observed: dict[str, object] | None = None
     for attempt in range(1, max_attempts + 1):
-        await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
-        raw = await chat.evaluate(PUT_E2E_HITL_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
+        await chat.evaluate(  # type: ignore[attr-defined]
+            CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, intent=EvaluateIntent.SYNC_PROBE
+        )
+        raw = await chat.evaluate(  # type: ignore[attr-defined]
+            PUT_E2E_HITL_CONFIG_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
         observed = raw if isinstance(raw, dict) else {"value": raw}
         if observed.get("ok") is True:
             return
@@ -2206,16 +2211,14 @@ async def ensure_e2e_search_cleared_in_browser(
     )
     await chat.evaluate(  # type: ignore[attr-defined]
         CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS,
-        await_promise=False,
-        recv_timeout=min(20.0, recv_timeout),
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     last_err: object = None
     for attempt in range(attempts):
         try:
             raw = await chat.evaluate(  # type: ignore[attr-defined]
                 PUT_E2E_CLEAR_SEARCH_CONFIG_JS,
-                await_promise=True,
-                recv_timeout=recv_timeout,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
         except TimeoutError as exc:
             last_err = exc

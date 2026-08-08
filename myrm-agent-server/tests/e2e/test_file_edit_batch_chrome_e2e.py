@@ -25,6 +25,7 @@ from cdp_chat_support import (  # noqa: E402
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
     _strip_provider_prefix,
@@ -362,7 +363,9 @@ async def test_file_edit_batch_live_agent_webui(
             chat_id_hint or str(started.get("chatId") or "").strip() or None
         )
         if not resolved_chat_id:
-            after_start = await chat.main_state(_LIVE_USER_PROMPT, recv_timeout=30.0)
+            after_start = await chat.main_state(
+                _LIVE_USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
+            )
             resolved_chat_id = (
                 chat_id_from_path(str(after_start.get("path") or ""))
                 or str(after_start.get("bridgeChatId") or "").strip()

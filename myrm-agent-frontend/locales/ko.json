@@ -1725,7 +1725,8 @@
         "maintainModeFullHint": "AI 표류 검토 및 새 링크 발견 포함. 구성된 모델을 사용할 수 있습니다.",
         "maintainCompileBusyHint": "컴파일 실행 중에는 사용할 수 없습니다. 컴파일 완료 후 다시 시도하세요.",
         "repairPageTypes": "페이지 유형 복구",
-        "repairPublication": "게시 상태 복구"
+        "repairPublication": "게시 상태 복구",
+        "reindexVectors": "벡터 인덱스 재구축"
       },
       "success": {
         "queryComplete": "쿼리 성공적으로 완료됨",
@@ -1741,7 +1742,8 @@
         "maintainRemovedSensitive": "유지보수에서 {count}개 민감 원본 파일 제거: {paths}",
         "repairTypesComplete": "{count}개 노트의 페이지 유형 복구됨",
         "repairPublicationComplete": "{repaired}개 노트 복구, {reindexed}개 재인덱싱",
-        "repairPublicationCompleteWithSkips": "{repaired}개 노트 복구, {reindexed}개 재인덱싱, {skippedDrafts}개 초안 페이지 보존"
+        "repairPublicationCompleteWithSkips": "{repaired}개 노트 복구, {reindexed}개 재인덱싱, {skippedDrafts}개 초안 페이지 보존",
+        "reindexVectorsComplete": "{scanned}개 중 {reindexed}개 노트의 벡터 인덱스를 재구축했습니다"
       },
       "errors": {
         "emptyQuery": "질문을 입력하세요",
@@ -1759,6 +1761,7 @@
         "maintainCompileBusy": "위키가 컴파일 중입니다. 컴파일 완료 후 유지보수를 다시 시도하세요.",
         "repairTypesFailed": "페이지 유형 복구 실패",
         "repairPublicationFailed": "게시 상태 복구 실패",
+        "reindexVectorsFailed": "벡터 인덱스 재구축 실패",
         "approveTypeRequired": "승인 전에 노트 헤더에 유효한 페이지 유형을 추가하세요",
         "approveStaleSources": "소스 파일이 변경되었습니다 — 이 초안을 승인하기 전에 위키를 다시 컴파일하세요"
       },
@@ -1952,7 +1955,8 @@
           "overloaded": "과부하",
           "timeout": "시간 초과",
           "io_missing": "파일 누락",
-          "cancelled": "취소됨"
+          "cancelled": "취소됨",
+          "embed_window_violation": "임베딩 창 초과"
         },
         "refresh": "새로고침",
         "pendingItems": "대기 항목:",
@@ -2189,6 +2193,7 @@
       },
       "repairingTypes": "복구 중...",
       "repairingPublication": "게시 상태 복구 중...",
+      "reindexingVectors": "벡터 인덱스 재구축 중...",
       "healthReport": {
         "title": "지식 상태",
         "summary": "{open, plural, =0 {열린 작업 없음} one {#개 열린 작업} other {#개 열린 작업}} · {total}개 검사됨",

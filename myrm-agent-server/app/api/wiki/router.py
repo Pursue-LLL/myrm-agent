@@ -444,6 +444,14 @@ class RepairPublicationResponse(BaseModel):
     message: str
 
 
+class ReindexVectorsResponse(BaseModel):
+    success: bool
+    scanned: int
+    reindexed: int
+    failed: int
+    message: str
+
+
 async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
@@ -1958,6 +1966,40 @@ async def repair_wiki_publication(
         files_skipped=result.files_skipped,
         files_skipped_intentional_drafts=result.files_skipped_intentional_drafts,
         reindexed=result.reindexed,
+        message=message,
+    )
+
+
+@router.post("/reindex-vectors", response_model=ReindexVectorsResponse)
+async def reindex_wiki_vectors(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[
+        str | None, Query(description="Agent whose wiki vault to use")
+    ] = None,
+) -> ReindexVectorsResponse:
+    """Rebuild published concept vectors with the current embedding model and chunk policy."""
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
+    from myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors import (
+        reindex_published_vectors,
+    )
+
+    result = await reindex_published_vectors(
+        archiver._structure,
+        archiver._query_engine._indexer,
+    )
+    message = (
+        f"Reindexed {result.reindexed} of {result.scanned} scanned concepts"
+    )
+    if result.failed:
+        message = f"{message}; {result.failed} failed"
+    if result.reindexed > 0 or result.failed > 0:
+        await _after_wiki_vault_mutation(archiver, "reindex wiki vectors")
+    await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
+    return ReindexVectorsResponse(
+        success=result.failed == 0,
+        scanned=result.scanned,
+        reindexed=result.reindexed,
+        failed=result.failed,
         message=message,
     )
 

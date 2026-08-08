@@ -98,13 +98,17 @@ class MemoryToWikiArchiver:
             resolved_wiki_dir = resolve_wiki_vault_path()
 
         public_dirs: list[Path] = []
-        from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+        from app.platform_utils.deployment_capabilities import (
+            get_deployment_capabilities,
+        )
 
         if get_deployment_capabilities().is_sandbox_instance:
             import os
 
             public_vols_env = os.getenv("MYRM_PUBLIC_WIKI_VOLUMES", "")
-            public_dirs = [Path(v.strip()) for v in public_vols_env.split(";") if v.strip()]
+            public_dirs = [
+                Path(v.strip()) for v in public_vols_env.split(";") if v.strip()
+            ]
 
         self._structure = WikiStructure(resolved_wiki_dir, public_dirs=public_dirs)
         self._structure.ensure_structure()
@@ -115,9 +119,16 @@ class MemoryToWikiArchiver:
         vector_store = getattr(manager, "_vector", None) if manager else None
         embedding = getattr(manager, "_embedding", None) if manager else None
 
-        indexer = WikiIndexer(self._structure, self._config, vector_store=vector_store, embedding=embedding)
+        indexer = WikiIndexer(
+            self._structure,
+            self._config,
+            vector_store=vector_store,
+            embedding=embedding,
+        )
 
-        self._compiler = WikiCompiler(llm, self._structure, self._config, indexer=indexer)
+        self._compiler = WikiCompiler(
+            llm, self._structure, self._config, indexer=indexer
+        )
         self._query_engine = WikiQueryEngine(
             llm,
             self._structure,
@@ -160,7 +171,9 @@ class MemoryToWikiArchiver:
             return False
 
         if conversation_turns < self._config.auto_archive_min_turns:
-            logger.debug(f"Skipping archive: {conversation_turns} < {self._config.auto_archive_min_turns} turns")
+            logger.debug(
+                f"Skipping archive: {conversation_turns} < {self._config.auto_archive_min_turns} turns"
+            )
             return False
 
         try:
@@ -329,8 +342,12 @@ class MemoryToWikiArchiver:
         if query_mode and query_mode != "auto":
             from dataclasses import replace
 
-            effective_config = replace(self._query_engine._query_config, query_mode=query_mode)
-            return await self._query_engine.query(question, query_config=effective_config)
+            effective_config = replace(
+                self._query_engine._query_config, query_mode=query_mode
+            )
+            return await self._query_engine.query(
+                question, query_config=effective_config
+            )
         return await self._query_engine.query(question)
 
     async def maintain_wiki(self) -> None:

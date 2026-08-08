@@ -164,6 +164,53 @@ class TestConfigHandshake:
                 ws.send_text(json.dumps({"type": "config", "keyterms": []}))
                 ws.send_text(json.dumps({"type": "close"}))
 
+    def test_config_with_unsafe_chat_id_rejects(self, client: TestClient) -> None:
+        """An unsafe chat_id in config must reject the connection."""
+        with _patch_voice_config(_FakeVoiceConfig()):
+            with client.websocket_connect("/ws/voice/session") as ws:
+                ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "config",
+                            "mode": "agent_bridge",
+                            "chat_id": "../../etc/passwd",
+                        }
+                    )
+                )
+                with pytest.raises(WebSocketDisconnect):
+                    ws.receive_text()
+
+    def test_config_with_safe_chat_id_accepted(self, client: TestClient) -> None:
+        """A legitimate chat_id passes the whitelist and reaches the bridge."""
+        with _patch_voice_config(_FakeVoiceConfig()):
+            with client.websocket_connect("/ws/voice/session") as ws:
+                ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "config",
+                            "mode": "agent_bridge",
+                            "chat_id": "voice-abc123",
+                        }
+                    )
+                )
+                ws.send_text(json.dumps({"type": "close"}))
+
+    def test_config_with_non_string_chat_id_rejects(self, client: TestClient) -> None:
+        """A non-string chat_id (no Pydantic coercion on the WS path) must reject."""
+        with _patch_voice_config(_FakeVoiceConfig()):
+            with client.websocket_connect("/ws/voice/session") as ws:
+                ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "config",
+                            "mode": "agent_bridge",
+                            "chat_id": 123,
+                        }
+                    )
+                )
+                with pytest.raises(WebSocketDisconnect):
+                    ws.receive_text()
+
 
 class TestStreamingSTT:
     """Tests for the streaming STT path (Deepgram mock)."""

@@ -13,7 +13,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database.connection import init_database
-from app.services.wiki.vault import seed_agent_vault_from_default, vault_has_wiki_content
+from app.services.wiki.vault import (
+    seed_agent_vault_from_default,
+    vault_has_wiki_content,
+)
 from tests.support.minimal_app import build_minimal_app
 
 TEST_WS = Path(os.environ["MYRM_DATA_DIR"])
@@ -62,7 +65,8 @@ def _mock_agent_profile(
         id=agent_id,
         display_name=name,
         built_in=False,
-        tools_allowed=tools or ["web_search", "memory", "wiki", "cron", "structured_clarify"],
+        tools_allowed=tools
+        or ["web_search", "memory", "wiki", "cron", "structured_clarify"],
     )
 
 
@@ -117,7 +121,9 @@ def _triple_cron_mock_mgr(
     )
 
 
-def test_seed_agent_vault_from_default_copies_content(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_seed_agent_vault_from_default_copies_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.config.settings import settings
 
     harness_dir = tmp_path / "harness"
@@ -131,9 +137,18 @@ def test_seed_agent_vault_from_default_copies_content(tmp_path: Path, monkeypatc
     result = seed_agent_vault_from_default("agent-second-brain-1")
     assert result.skipped is False
     assert result.files_copied == 1
-    copied_note = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "raw" / "migration-note.md"
+    copied_note = (
+        harness_dir
+        / "wiki"
+        / "agents"
+        / "agent-second-brain-1"
+        / "raw"
+        / "migration-note.md"
+    )
     assert copied_note.is_file()
-    schema_path = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "wiki" / "SCHEMA.md"
+    schema_path = (
+        harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "wiki" / "SCHEMA.md"
+    )
     assert schema_path.is_file()
     assert vault_has_wiki_content("agent-second-brain-1") is True
 
@@ -168,7 +183,10 @@ def test_apply_second_brain_preset_success() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -181,8 +199,14 @@ def test_apply_second_brain_preset_success() -> None:
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=AsyncMock(return_value=created_profile),
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
-            patch("app.services.onboarding.second_brain_preset._wiki_has_content", return_value=True),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._wiki_has_content",
+                return_value=True,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=True),
@@ -202,8 +226,14 @@ def test_apply_second_brain_preset_success() -> None:
             assert payload["delta_cron_job_id"] == "cron-wiki-delta-1"
             assert payload["maintain_cron_job_id"] == "cron-wiki-maintain-1"
             assert mock_mgr.create_job.call_count == 3
-            assert any(item["id"] == "agent_tools" and item["ready"] for item in payload["checklist"])
-            assert any(item["id"] == "cron_job" and item["ready"] for item in payload["checklist"])
+            assert any(
+                item["id"] == "agent_tools" and item["ready"]
+                for item in payload["checklist"]
+            )
+            assert any(
+                item["id"] == "cron_job" and item["ready"]
+                for item in payload["checklist"]
+            )
 
             status_resp = client.get("/api/v1/config/onboarding/second-brain/status")
             assert status_resp.status_code == 200
@@ -246,7 +276,9 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
         return _jobs_by_id.get(job_id)
 
     mock_mgr = SimpleNamespace(
-        list_jobs=AsyncMock(return_value=[existing_read_later, existing_delta, existing_maintain]),
+        list_jobs=AsyncMock(
+            return_value=[existing_read_later, existing_delta, existing_maintain]
+        ),
         get_job=AsyncMock(side_effect=_get_job),
         create_job=AsyncMock(),
         update_job=AsyncMock(),
@@ -256,7 +288,10 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -269,8 +304,14 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=AsyncMock(return_value=profile),
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
-            patch("app.services.onboarding.second_brain_preset._wiki_has_content", return_value=False),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
+            patch(
+                "app.services.onboarding.second_brain_preset._wiki_has_content",
+                return_value=False,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=False),
@@ -322,7 +363,9 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
     )
     create_calls = {"count": 0}
 
-    async def _create_job_side_effect(*_args: object, **_kwargs: object) -> SimpleNamespace:
+    async def _create_job_side_effect(
+        *_args: object, **_kwargs: object
+    ) -> SimpleNamespace:
         create_calls["count"] += 1
         if create_calls["count"] == 1:
             return read_later_job
@@ -340,7 +383,10 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -357,7 +403,10 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
                 "app.services.onboarding.second_brain_preset.AgentService.delete_agent",
                 new=delete_agent,
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=False, files_copied=1),
@@ -372,7 +421,9 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
         app.router.lifespan_context = original_lifespan
 
 
-def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_apply_seeds_when_reusing_named_agent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.config.settings import settings
 
     harness_dir = tmp_path / "harness"
@@ -390,7 +441,10 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[existing_profile]),
@@ -403,7 +457,10 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=create_agent,
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=True),
@@ -413,13 +470,22 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
             response = client.post("/api/v1/config/onboarding/second-brain/apply")
             assert response.status_code == 200, response.text
             create_agent.assert_not_called()
-            seeded_note = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "raw" / "existing-import.md"
+            seeded_note = (
+                harness_dir
+                / "wiki"
+                / "agents"
+                / "agent-second-brain-1"
+                / "raw"
+                / "existing-import.md"
+            )
             assert seeded_note.is_file()
     finally:
         app.router.lifespan_context = original_lifespan
 
 
-def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_apply_second_brain_preset_seeds_default_vault(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.config.settings import settings
 
     harness_dir = tmp_path / "harness"
@@ -436,7 +502,10 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -449,7 +518,10 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=AsyncMock(return_value=created_profile),
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=True),
@@ -460,8 +532,18 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
             assert response.status_code == 200, response.text
             payload = response.json()
             assert payload["success"] is True
-            assert any(item["id"] == "vault_content" and item["ready"] for item in payload["checklist"])
-            seeded_note = harness_dir / "wiki" / "agents" / "agent-second-brain-1" / "raw" / "obsidian-note.md"
+            assert any(
+                item["id"] == "vault_content" and item["ready"]
+                for item in payload["checklist"]
+            )
+            seeded_note = (
+                harness_dir
+                / "wiki"
+                / "agents"
+                / "agent-second-brain-1"
+                / "raw"
+                / "obsidian-note.md"
+            )
             assert seeded_note.is_file()
     finally:
         app.router.lifespan_context = original_lifespan
@@ -521,7 +603,10 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -534,7 +619,10 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=AsyncMock(return_value=created_profile),
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=True),
@@ -549,7 +637,9 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
             assert response.status_code == 200, response.text
             payload = response.json()
             assert "3" in payload["message"]
-            assert "wiki files" in payload["message"] or "wiki 文件" in payload["message"]
+            assert (
+                "wiki files" in payload["message"] or "wiki 文件" in payload["message"]
+            )
     finally:
         app.router.lifespan_context = original_lifespan
 
@@ -562,7 +652,10 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.services.onboarding.second_brain_preset.ensure_skills_enabled", new=AsyncMock()),
+            patch(
+                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                new=AsyncMock(),
+            ),
             patch(
                 "app.services.agent.agent_service.AgentService.get_agents_by_name",
                 new=AsyncMock(return_value=[]),
@@ -575,7 +668,10 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
                 "app.services.agent.agent_service.AgentService.create_agent",
                 new=AsyncMock(return_value=created_profile),
             ),
-            patch("app.services.onboarding.second_brain_preset.get_cron_manager", return_value=mock_mgr),
+            patch(
+                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                return_value=mock_mgr,
+            ),
             patch(
                 "app.services.onboarding.second_brain_preset._provider_is_ready",
                 new=AsyncMock(return_value=True),

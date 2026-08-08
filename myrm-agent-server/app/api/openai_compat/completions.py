@@ -3,6 +3,8 @@
 [INPUT]
 - app.api.openai_compat.types::ChatCompletionRequest (POS: OpenAI request schema)
 - app.api.openai_compat.auth::verify_api_key (POS: Bearer token auth)
+- app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
+- app.core.utils.errors::validation_error (POS: HTTP 400 factory)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent stream engine)
 - app.services.agent.params::convert_to_general_agent_params (POS: Param builder)
 
@@ -36,6 +38,8 @@ from app.api.openai_compat.types import (
     StreamChoice,
     UsageInfo,
 )
+from app.core.utils.errors import validation_error
+from app.core.utils.session_id import is_safe_session_id
 from app.services.agent.streaming import ai_agent_service_stream
 
 logger = logging.getLogger(__name__)
@@ -197,6 +201,9 @@ async def chat_completions(
     _key_prefix: str = Depends(verify_api_key),
 ) -> ChatCompletionResponse | StreamingResponse:
     """OpenAI-compatible chat completions endpoint (Agent execution only)."""
+    if request.chat_id and not is_safe_session_id(request.chat_id):
+        raise validation_error(f"Invalid chat_id: {request.chat_id!r}")
+
     if request.stream:
         return StreamingResponse(
             _stream_response(request),

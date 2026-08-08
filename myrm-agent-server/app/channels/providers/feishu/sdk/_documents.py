@@ -486,7 +486,9 @@ class FeishuDocumentsMixin:
             if body.get("code", -1) != 0:
                 if not all_items:
                     return body
-                logger.warning("Feishu get_docx_blocks page failed: %s", body.get("msg"))
+                logger.warning(
+                    "Feishu get_docx_blocks page failed: %s", body.get("msg")
+                )
                 break
             data = body.get("data", {})
             if not isinstance(data, dict):
@@ -501,8 +503,6 @@ class FeishuDocumentsMixin:
                 break
 
         return {"code": 0, "data": {"items": all_items}}
-
-
 
     async def list_drive_folder_files(
         self,

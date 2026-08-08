@@ -68,9 +68,16 @@ async def test_structural_maintain_persists_state() -> None:
     )
 
     with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
-        with patch("app.services.wiki.asset_index_service.run_wiki_asset_index", new=AsyncMock()):
-            with patch("app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()):
-                with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+        with patch(
+            "app.services.wiki.asset_index_service.run_wiki_asset_index",
+            new=AsyncMock(),
+        ):
+            with patch(
+                "app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()
+            ):
+                with patch(
+                    "app.services.wiki.maintain.runner.get_session", _fake_session
+                ):
                     with patch(
                         "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
                         return_value=MagicMock(duplicate_groups_pending=0),
@@ -86,7 +93,10 @@ async def test_structural_maintain_persists_state() -> None:
                             )
 
     mock_archiver._linter.lint_and_maintain.assert_awaited_once()
-    assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["mode"] == MaintainMode.STRUCTURAL
+    assert (
+        mock_archiver._linter.lint_and_maintain.await_args.kwargs["mode"]
+        == MaintainMode.STRUCTURAL
+    )
     assert result.issues_found == 2
     assert result.issues_fixed == 1
     assert "fixed" in result.summary_text.lower()

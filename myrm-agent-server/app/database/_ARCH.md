@@ -17,7 +17,7 @@
 | `repositories/` | ✅ 核心 | 领域仓储层（Repository Pattern），封装 Agent/Chat 等聚合的读写与 ORM 映射 | ✅ |
 | `operations/` | ✅ 辅助 | 数据库运维工具子包：备份工厂、容灾恢复、SQLite 忙/锁检测、FastAPI 异常处理器、遗留数据清理 |
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前通过 `get_sqlite_backup_manager()` 执行 fail-closed pre-migration safety snapshot：备份失败时阻断迁移（raise），由上层 lifespan 3 级恢复体系兜底 |
-| `factory.py` | ✅ 核心 | SQLite 数据库引擎和会话工厂创建。`PRAGMA foreign_keys=ON` + WAL + 异步连接池（`SQLITE_POOL_SIZE` 默认 5，`max_overflow=0`）+ `PRAGMA busy_timeout`（`get_sqlite_busy_timeout_ms()` / `SQLITE_BUSY_TIMEOUT_MS`）+ mmap。Sandbox 模式下 `settings.database.sqlite_path` 指向 CP 挂载卷 |
+| `factory.py` | ✅ 核心 | SQLite 数据库引擎和会话工厂创建。`PRAGMA foreign_keys=ON` + WAL + 异步连接池（`SQLITE_POOL_SIZE` 默认 5 / `max_overflow` 默认 10，dev stack 注入 8/8）+ `PRAGMA busy_timeout`（`get_sqlite_busy_timeout_ms()` / `SQLITE_BUSY_TIMEOUT_MS`，dev stack 注入 15s）+ mmap。`begin` 事件执行 `BEGIN IMMEDIATE` 抢占写锁；锁竞争等待由 SQLite busy handler 在 aiosqlite worker 线程完成，**不阻塞 asyncio 事件循环**（早期实现用 `time.sleep` 重试，会在并行 E2E 写竞争时冻结事件循环导致 API 全线变慢）。Sandbox 模式下 `settings.database.sqlite_path` 指向 CP 挂载卷 |
 | `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
 | `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` param per protocol. Provides load/save/remove operations with UUID primary keys |
 | `dto.py` | ✅ 核心 | 数据传输对象（DTO）定义 |

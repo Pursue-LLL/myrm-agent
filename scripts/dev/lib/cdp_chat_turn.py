@@ -47,8 +47,7 @@ class CdpChatTurn(CdpChatSubmit):
         self,
         prompt: str,
         *,
-        recv_timeout: float = 90.0,
-        intent: EvaluateIntent | None = None,
+        intent: EvaluateIntent = EvaluateIntent.BRIDGE_POLL,
     ) -> dict[str, object]:
         result = await self.evaluate(
             f"""( () => {{
@@ -87,8 +86,6 @@ class CdpChatTurn(CdpChatSubmit):
                 assistantSample: assistantText.slice(0, 300),
               }};
             }})()""",
-            await_promise=False,
-            recv_timeout=recv_timeout,
             intent=intent,
         )
         return (
@@ -109,7 +106,7 @@ class CdpChatTurn(CdpChatSubmit):
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             try:
-                last = await self.main_state(prompt)
+                last = await self.main_state(prompt, intent=EvaluateIntent.BRIDGE_POLL)
             except TimeoutError:
                 await asyncio.sleep(1)
                 continue
@@ -522,14 +519,17 @@ class CdpChatTurn(CdpChatSubmit):
         await self.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
         if chat_id:
             await self._attach_chat_session(chat_id)
-        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        await self.evaluate(
+            PREPARE_AUTOMATION_SEND_JS,
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
         await self.evaluate(
             f"""(() => {{
               const bridge = window.__MYRM_E2E_CHAT__;
               bridge?.setInputMessage?.({json.dumps(text)});
               return {{ ok: true, inputLen: {len(text)} }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         submit = await self.submit_native_click()
         recoverable_submit_errors = {"no send button", "send disabled"}
@@ -570,14 +570,17 @@ class CdpChatTurn(CdpChatSubmit):
                     )
                 except TimeoutError:
                     pass
-            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+            await self.evaluate(
+                PREPARE_AUTOMATION_SEND_JS,
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
             await self.evaluate(
                 f"""(() => {{
                   const bridge = window.__MYRM_E2E_CHAT__;
                   bridge?.setInputMessage?.({json.dumps(text)});
                   return {{ ok: true, inputLen: {len(text)} }};
                 }})()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             submit = await self.submit_native_click()
         if (
@@ -603,7 +606,9 @@ class CdpChatTurn(CdpChatSubmit):
                     timeout=45.0,
                 )
             except TimeoutError:
-                started = await self.main_state(prompt_for_wait)
+                started = await self.main_state(
+                    prompt_for_wait, intent=EvaluateIntent.BRIDGE_POLL
+                )
                 started["streamProbe"] = "deferred_to_wait_turn_done"
         else:
             started = {
@@ -650,7 +655,7 @@ class CdpChatTurn(CdpChatSubmit):
               }}
               return await bridge.submitSteerNudge({payload});
             }})()""",
-            await_promise=True,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if isinstance(bridge_steer, dict) and bridge_steer.get("ok"):
             return {
@@ -667,7 +672,7 @@ class CdpChatTurn(CdpChatSubmit):
                   const href = String(location.href || '');
                   return {{ onChat: href.startsWith({chat_target!r}) }};
                 }})()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if not (isinstance(on_chat, dict) and on_chat.get("onChat")):
                 await asyncio.to_thread(
@@ -677,13 +682,16 @@ class CdpChatTurn(CdpChatSubmit):
                     timeout_ms=120_000,
                 )
                 await self.ensure_react_e2e_bridge(timeout_sec=20.0)
-                await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+                await self.evaluate(
+                    PREPARE_AUTOMATION_SEND_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
                 await self.evaluate(
                     f"""(() => {{
                       window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
                       return {{ ok: true, inputLen: {len(text)} }};
                     }})()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 steer = await self.evaluate(
                     """(() => {
@@ -703,7 +711,7 @@ class CdpChatTurn(CdpChatSubmit):
                       }
                       return { ok: false, err: 'no-steer-button' };
                     })()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 if isinstance(steer, dict) and steer.get("ok"):
                     return {"submit": steer, "mode": "steerClick"}
@@ -726,10 +734,13 @@ class CdpChatTurn(CdpChatSubmit):
               bridge?.clearStreamRequestMessageId?.();
               return { ok: true };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         for _ in range(40):
-            snap = await self.evaluate(BRIDGE_TURN_SNAPSHOT_JS, await_promise=False)
+            snap = await self.evaluate(
+                BRIDGE_TURN_SNAPSHOT_JS,
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
             if isinstance(snap, dict) and not snap.get("isStreaming"):
                 break
             await asyncio.sleep(0.5)
@@ -738,7 +749,7 @@ class CdpChatTurn(CdpChatSubmit):
               window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
               return {{ ok: true, inputLen: {len(text)} }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         for _ in range(40):
             probe = await self.evaluate(
@@ -750,7 +761,7 @@ class CdpChatTurn(CdpChatSubmit):
                     sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
                   };
                 })()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if (
                 isinstance(probe, dict)
@@ -769,7 +780,7 @@ class CdpChatTurn(CdpChatSubmit):
             raise RuntimeError(f"desktop nudge submit failed: {submit}")
         return {"submit": submit, "mode": submit.get("mode", "nudge")}
 
-    async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
+    async def _sync_model_selection(self) -> None:
         await self.ensure_e2e_api_base_binding()
         try:
             await self.evaluate(
@@ -779,8 +790,7 @@ class CdpChatTurn(CdpChatSubmit):
                   bridge.prepareAutomationSend?.();
                   return bridge.ensureProviders().then(() => ({ ok: true }));
                 })()""",
-                await_promise=True,
-                recv_timeout=timeout_sec,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
         except (RuntimeError, TimeoutError):
             pass
@@ -788,8 +798,7 @@ class CdpChatTurn(CdpChatSubmit):
             try:
                 picked = await self.evaluate(
                     picker_js,
-                    await_promise=True,
-                    recv_timeout=45.0 if is_live_send_turn_profile() else 12.0,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 )
             except (RuntimeError, TimeoutError):
                 continue
@@ -819,8 +828,7 @@ class CdpChatTurn(CdpChatSubmit):
                     """(() => ({
                       path: location.pathname,
                     }))()""",
-                    await_promise=False,
-                    recv_timeout=10.0,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 if isinstance(probe, dict):
                     on_chat_page = (
@@ -844,7 +852,10 @@ class CdpChatTurn(CdpChatSubmit):
             if baseline_user_msgs == 0:
                 await self._sync_model_selection()
             else:
-                await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+                await self.evaluate(
+                    PREPARE_AUTOMATION_SEND_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
             if chat_id:
                 await self.ensure_react_e2e_bridge(timeout_sec=60.0)
                 if baseline_user_msgs > 0:
@@ -856,8 +867,7 @@ class CdpChatTurn(CdpChatSubmit):
                       if (!bridge?.ensureChatSession) return { ok: false, err: 'no ensureChatSession' };
                       return Promise.resolve(bridge.ensureChatSession()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=True,
-                    recv_timeout=30.0,
+                    intent=EvaluateIntent.ROUTE_ATTACH,
                 )
             ready = await self._ensure_send_ready()
             if baseline_user_msgs > 0:
@@ -870,20 +880,19 @@ class CdpChatTurn(CdpChatSubmit):
                       }
                       return { ok: false, mode: 'no-clear-hook' };
                     })()""",
-                    await_promise=False,
-                    recv_timeout=10.0,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
             send_probe = await self.evaluate(
                 """(() => ({
                   sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
                   path: location.pathname,
                 }))()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if not isinstance(send_probe, dict) or not send_probe.get("sendReady"):
                 debug = await self.evaluate(
                     """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 raise RuntimeError(
                     f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
@@ -892,8 +901,7 @@ class CdpChatTurn(CdpChatSubmit):
             if is_live_send_turn_profile():
                 workspace_ready = await self.evaluate(
                     WAIT_WORKSPACE_STREAM_JS,
-                    await_promise=True,
-                    recv_timeout=35.0,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 )
                 if not isinstance(workspace_ready, dict) or not workspace_ready.get(
                     "ok"
@@ -907,7 +915,7 @@ class CdpChatTurn(CdpChatSubmit):
                         ?? window.__MYRM_E2E_CHAT__?.sendTurnRev?.()
                         ?? 'unknown',
                     }))()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 if isinstance(send_rev, dict):
                     print(

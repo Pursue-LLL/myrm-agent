@@ -374,6 +374,14 @@ export interface RepairPublicationResponse {
   message: string;
 }
 
+export interface ReindexVectorsResponse {
+  success: boolean;
+  scanned: number;
+  reindexed: number;
+  failed: number;
+  message: string;
+}
+
 export interface ConceptListResponse {
   concepts: string[];
   total: number;
@@ -688,6 +696,12 @@ export const wikiService = {
 
   repairPublication: async (agentId?: string | null): Promise<RepairPublicationResponse> => {
     return apiRequest<RepairPublicationResponse>(buildWikiApiPath('/wiki/repair-publication', agentId), {
+      method: 'POST',
+    });
+  },
+
+  reindexVectors: async (agentId?: string | null): Promise<ReindexVectorsResponse> => {
+    return apiRequest<ReindexVectorsResponse>(buildWikiApiPath('/wiki/reindex-vectors', agentId), {
       method: 'POST',
     });
   },

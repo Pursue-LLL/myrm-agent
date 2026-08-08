@@ -19,7 +19,10 @@ def setup_local_mode():
 
 def test_local_mode_encryption_service():
     """Test that Local mode encryption service initializes with a valid key."""
-    from app.services.config.encryption import get_encryption_service, is_sensitive_config
+    from app.services.config.encryption import (
+        get_encryption_service,
+        is_sensitive_config,
+    )
 
     svc = get_encryption_service()
 

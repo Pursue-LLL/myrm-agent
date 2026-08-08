@@ -21,7 +21,9 @@ _B_LINK_PREVIEW = 48
 _B_AGENDA_ITEM_TITLE = 46
 
 
-def _block(block_type: int, field: str, content: str, block_id: str, parent: str = "") -> dict[str, object]:
+def _block(
+    block_type: int, field: str, content: str, block_id: str, parent: str = ""
+) -> dict[str, object]:
     return {
         "block_id": block_id,
         "block_type": block_type,
@@ -211,7 +213,16 @@ def test_todo_renders_checkbox_state() -> None:
 
 def test_divider_renders_horizontal_rule() -> None:
     text = feishu_docx_blocks_to_markdown(
-        _payload([{"block_id": "d1", "block_type": _B_DIVIDER, "parent_id": "", "divider": {}}])
+        _payload(
+            [
+                {
+                    "block_id": "d1",
+                    "block_type": _B_DIVIDER,
+                    "parent_id": "",
+                    "divider": {},
+                }
+            ]
+        )
     )
     assert text is not None
     assert text == "---"
@@ -277,9 +288,7 @@ def test_inline_styles_link_and_code_use_official_api_structure() -> None:
                             "text_run": {
                                 "content": "link text",
                                 "text_element_style": {
-                                    "link": {
-                                        "url": "https%3A%2F%2Fexample.com%2Fpath"
-                                    }
+                                    "link": {"url": "https%3A%2F%2Fexample.com%2Fpath"}
                                 },
                             }
                         },

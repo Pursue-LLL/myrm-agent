@@ -27,7 +27,13 @@ from app.core.utils.session_id import is_safe_session_id
         ("a@b", False),
         ("", False),
         (None, False),
+        # 非字符串输入：WS 等无 Pydantic 保护的路径可能传来任意 JSON 值，
+        # 必须返回 False 而非抛 TypeError（见 is_safe_session_id docstring）
+        (123, False),
+        (True, False),
+        (b"../etc", False),
+        (["chat-1"], False),
     ],
 )
-def test_is_safe_session_id(session_id: str, expected: bool) -> None:
+def test_is_safe_session_id(session_id: object, expected: bool) -> None:
     assert is_safe_session_id(session_id) is expected

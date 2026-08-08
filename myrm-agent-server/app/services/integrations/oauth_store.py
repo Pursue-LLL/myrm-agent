@@ -15,6 +15,7 @@ Shared persistence layer for integrations/oauth CRUD and google_workspace_oauth 
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -26,11 +27,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import UserConfig
-from app.services.config.encryption import ConfigEncryptionService, get_encryption_service
+from app.services.config.encryption import (
+    ConfigEncryptionService,
+    get_encryption_service,
+)
 
 logger = logging.getLogger(__name__)
 
 CONFIG_KEY = "oauthCredentials"
+
+# Serializes read-modify-write of the shared ``oauthCredentials`` row across
+# concurrent writers. Background token refresh (``oauth_refresher``) and manual
+# connect/disconnect both merge into the same blob; without a shared lock, a
+# slow refresh of one issuer can be overwritten by another issuer's write.
+oauth_credentials_lock = asyncio.Lock()
 
 GOOGLE_WORKSPACE_WRITE_SCOPE_MARKERS: tuple[str, ...] = (
     "https://www.googleapis.com/auth/gmail.send",
@@ -101,7 +111,15 @@ def encrypt_oauth_credentials(
 
 
 async def load_oauth_credentials_row(db: AsyncSession) -> UserConfig | None:
-    return (await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))).scalars().first()
+    return (
+        (
+            await db.execute(
+                select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
+            )
+        )
+        .scalars()
+        .first()
+    )
 
 
 async def is_oauth_issuer_connected(db: AsyncSession, issuer: str) -> bool:
@@ -120,37 +138,40 @@ async def upsert_oauth_credential(
     entry: dict[str, Any],
 ) -> None:
     """Insert or update a single issuer entry in oauthCredentials."""
-    service = get_encryption_service()
-    row = await load_oauth_credentials_row(db)
+    async with oauth_credentials_lock:
+        service = get_encryption_service()
+        row = await load_oauth_credentials_row(db)
 
-    credentials: dict[str, object] = {}
-    if row:
-        credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
-
-    credentials[issuer] = entry
-
-    final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
-    if is_encrypted and isinstance(final_value, str):
-        final_value = {"_cipher": final_value}
-
-    if row:
-        row.config_value = final_value
-        row.is_encrypted = is_encrypted
-        flag_modified(row, "config_value")
-    else:
-        db.add(
-            UserConfig(
-                id=str(uuid.uuid4()),
-                config_key=CONFIG_KEY,
-                config_value=final_value,
-                version="1.0.0",
-                last_device_id="sandbox",
-                is_encrypted=is_encrypted,
+        credentials: dict[str, object] = {}
+        if row:
+            credentials = decrypt_oauth_credentials(
+                row.config_value, row.is_encrypted, service
             )
-        )
 
-    await db.commit()
-    logger.info("Persisted OAuth credentials for issuer '%s'", issuer)
+        credentials[issuer] = entry
+
+        final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
+        if is_encrypted and isinstance(final_value, str):
+            final_value = {"_cipher": final_value}
+
+        if row:
+            row.config_value = final_value
+            row.is_encrypted = is_encrypted
+            flag_modified(row, "config_value")
+        else:
+            db.add(
+                UserConfig(
+                    id=str(uuid.uuid4()),
+                    config_key=CONFIG_KEY,
+                    config_value=final_value,
+                    version="1.0.0",
+                    last_device_id="sandbox",
+                    is_encrypted=is_encrypted,
+                )
+            )
+
+        await db.commit()
+        logger.info("Persisted OAuth credentials for issuer '%s'", issuer)
 
 
 _COPILOT_DEFAULT_BASE_URL = "https://api.individual.githubcopilot.com"
@@ -171,24 +192,27 @@ def extract_copilot_base_url(token: str) -> str:
 
 async def delete_oauth_credential(db: AsyncSession, issuer: str) -> bool:
     """Remove issuer from oauthCredentials. Returns False if not found."""
-    row = await load_oauth_credentials_row(db)
-    if not row:
-        return False
+    async with oauth_credentials_lock:
+        row = await load_oauth_credentials_row(db)
+        if not row:
+            return False
 
-    service = get_encryption_service()
-    credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
-    if issuer not in credentials:
-        return False
+        service = get_encryption_service()
+        credentials = decrypt_oauth_credentials(
+            row.config_value, row.is_encrypted, service
+        )
+        if issuer not in credentials:
+            return False
 
-    del credentials[issuer]
+        del credentials[issuer]
 
-    final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
-    if is_encrypted and isinstance(final_value, str):
-        final_value = {"_cipher": final_value}
+        final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
+        if is_encrypted and isinstance(final_value, str):
+            final_value = {"_cipher": final_value}
 
-    row.config_value = final_value
-    row.is_encrypted = is_encrypted
-    flag_modified(row, "config_value")
-    await db.commit()
-    logger.info("Deleted OAuth credentials for issuer '%s'", issuer)
-    return True
+        row.config_value = final_value
+        row.is_encrypted = is_encrypted
+        flag_modified(row, "config_value")
+        await db.commit()
+        logger.info("Deleted OAuth credentials for issuer '%s'", issuer)
+        return True

@@ -29,9 +29,7 @@ async def test_localize_images_success_and_failure_degrade(
     monkeypatch.setattr(
         asset_store,
         "store_asset_bytes",
-        lambda structure, *, data, content_type: "abc123.png"
-        if data == png
-        else None,
+        lambda structure, *, data, content_type: "abc123.png" if data == png else None,
     )
     structure = WikiStructure(tmp_path)
     markdown = "![image](feishu-image:tok_ok) and ![image](feishu-image:tok_fail)"

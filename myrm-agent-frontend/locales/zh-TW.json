@@ -2222,7 +2222,8 @@
         "maintainModeFullHint": "\"包含 AI 漂移檢查與新連結發現，可能消耗已配置的模型額度。\"",
         "maintainCompileBusyHint": "\"編譯進行中，暫無法維護，請編譯完成後再試。\"",
         "repairPageTypes": "\"修復頁面類型\"",
-        "repairPublication": "\"修復發布狀態\""
+        "repairPublication": "修復發布狀態",
+        "reindexVectors": "重建向量索引"
       },
       "purpose": {
         "title": "知識方向",
@@ -2247,7 +2248,8 @@
         "maintainRemovedSensitive": "\"維護已移除 {count} 個含敏感內容的 raw 文件：{paths}\"",
         "repairTypesComplete": "\"已修復 {count} 篇筆記的頁面類型\"",
         "repairPublicationComplete": "\"已修復 {repaired} 篇筆記的發布狀態，重新索引 {reindexed} 篇\"",
-        "repairPublicationCompleteWithSkips": "\"已修復 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未發布\""
+        "repairPublicationCompleteWithSkips": "已修復 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未發布",
+        "reindexVectorsComplete": "已為 {reindexed}/{scanned} 篇筆記重建向量索引"
       },
       "errors": {
         "emptyQuery": "請輸入問題",
@@ -2264,7 +2266,8 @@
         "compileBlockedByDedup": "\"請先處理精確或歸一化重複組，再執行編譯\"",
         "maintainCompileBusy": "\"Wiki 正在編譯中，請編譯完成後再試。\"",
         "repairTypesFailed": "\"修復頁面類型失敗\"",
-        "repairPublicationFailed": "\"修復發布狀態失敗\"",
+        "repairPublicationFailed": "修復發布狀態失敗",
+        "reindexVectorsFailed": "重建向量索引失敗",
         "approveTypeRequired": "\"批准前請在筆記開頭添加有效的頁面類型\"",
         "approveStaleSources": "\"源文件已更新，請先重新編譯 Wiki 後再批准\""
       },
@@ -2343,7 +2346,8 @@
           "overloaded": "服務過載",
           "timeout": "逾時",
           "io_missing": "檔案缺失",
-          "cancelled": "已取消"
+          "cancelled": "已取消",
+          "embed_window_violation": "嵌入視窗超限"
         },
         "refresh": "重新整理",
         "refreshStale": "佇列狀態可能已過期，請檢查網路後點擊重新整理。",
@@ -2680,7 +2684,8 @@
         "gitHistoryHintWithCommit": "\"最近快照：{commit}\""
       },
       "repairingTypes": "\"修復中...\"",
-      "repairingPublication": "\"修復發布狀態中...\"",
+      "repairingPublication": "修復發布狀態中...",
+      "reindexingVectors": "重建向量索引中...",
       "healthReport": {
         "title": "\"知識庫健康\"",
         "summary": "\"{open, plural, =0 {無待處理項} other {# 項待處理}} · 已檢查 {total} 項\"",

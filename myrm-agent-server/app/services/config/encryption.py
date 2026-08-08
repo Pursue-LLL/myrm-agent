@@ -24,7 +24,11 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError, EncryptionError
+from myrm_agent_harness.utils.crypto import (
+    ConfigCrypto,
+    DecryptionError,
+    EncryptionError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +115,9 @@ class ConfigEncryptionService:
         """
         return (self._is_sandbox or self._is_local) and is_sensitive_config(config_key)
 
-    def encrypt_if_needed(self, key: str, value: dict[str, object]) -> tuple[dict[str, object] | str, bool]:
+    def encrypt_if_needed(
+        self, key: str, value: dict[str, object]
+    ) -> tuple[dict[str, object] | str, bool]:
         """Conditionally encrypt based on policy.
 
         Args:
@@ -172,7 +178,9 @@ def get_encryption_service() -> ConfigEncryptionService:
 
         from app.config.deploy_mode import is_local_mode
         from app.config.settings import settings
-        from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+        from app.platform_utils.deployment_capabilities import (
+            get_deployment_capabilities,
+        )
 
         caps = get_deployment_capabilities()
         sandbox = caps.uses_config_encryption

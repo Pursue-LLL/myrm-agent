@@ -2325,6 +2325,7 @@
       "maintaining": "Maintaining...",
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
+      "reindexingVectors": "Rebuilding vectors...",
       "stats": {
         "title": "Wiki Statistics",
         "description": "Overview of your knowledge base",
@@ -2425,7 +2426,8 @@
         "maintainModeFullHint": "Includes AI drift review and new link discovery. May use your configured model.",
         "maintainCompileBusyHint": "Unavailable while compilation is running. Try again after compile finishes.",
         "repairPageTypes": "Repair Page Types",
-        "repairPublication": "Repair Publication Status"
+        "repairPublication": "Repair Publication Status",
+        "reindexVectors": "Rebuild Vector Index"
       },
       "stale": {
         "bannerTitle": "Sources updated",
@@ -2453,6 +2455,7 @@
         "repairTypesComplete": "Repaired page types on {count} notes",
         "repairPublicationComplete": "Repaired publication status on {repaired} notes, reindexed {reindexed}",
         "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages",
+        "reindexVectorsComplete": "Rebuilt vectors for {reindexed} of {scanned} notes",
         "approveComplete": "Edit approved successfully",
         "rejectComplete": "Edit rejected successfully",
         "purposeSaved": "Knowledge direction saved"
@@ -2467,6 +2470,7 @@
         "maintainCompileBusy": "Wiki is compiling. Try maintenance again after compile finishes.",
         "repairTypesFailed": "Failed to repair page types",
         "repairPublicationFailed": "Failed to repair publication status",
+        "reindexVectorsFailed": "Failed to rebuild vector index",
         "loadStatsFailed": "Failed to load wiki statistics",
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
@@ -2551,7 +2555,8 @@
           "overloaded": "Overloaded",
           "timeout": "Timeout",
           "io_missing": "Missing file",
-          "cancelled": "Cancelled"
+          "cancelled": "Cancelled",
+          "embed_window_violation": "Embedding window exceeded"
         },
         "refresh": "Refresh",
         "refreshStale": "Queue status may be outdated. Check your connection and tap Refresh.",

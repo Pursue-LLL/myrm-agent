@@ -32,7 +32,9 @@ async def test_load_parses_scoped_config() -> None:
     row = MagicMock()
     row.config_value = {
         "agents": {
-            "agent-a": WikiSourceSyncConfig(gmail_enabled=True, rss_feeds=["https://a.test/feed"]).model_dump(),
+            "agent-a": WikiSourceSyncConfig(
+                gmail_enabled=True, rss_feeds=["https://a.test/feed"]
+            ).model_dump(),
         }
     }
     db = AsyncMock()
@@ -48,7 +50,10 @@ async def test_load_parses_scoped_config() -> None:
 @pytest.mark.asyncio
 async def test_load_maps_legacy_bare_payload_to_default_scope() -> None:
     row = MagicMock()
-    row.config_value = {"gmail_enabled": True, "rss_feeds": ["https://legacy.test/feed"]}
+    row.config_value = {
+        "gmail_enabled": True,
+        "rss_feeds": ["https://legacy.test/feed"],
+    }
     db = AsyncMock()
     result_mock = MagicMock()
     result_mock.scalars.return_value.first.return_value = row

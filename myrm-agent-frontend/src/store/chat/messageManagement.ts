@@ -96,8 +96,30 @@ export const loadMessages = async (
       state.loadError = false;
     });
 
-    const chatData = await getChatDetail(chatId, true);
-    const page = await getMessages(chatId, { limit: 10, silent: true });
+    // Retry transient API failures (e.g. backend restart under parallel E2E).
+    // Without this, one failed fetch left isMessagesLoaded=true with an empty
+    // list and never retried, stranding the UI on a skeleton until reload.
+    let chatData: Awaited<ReturnType<typeof getChatDetail>> | null = null;
+    let page: Awaited<ReturnType<typeof getMessages>> | null = null;
+    let lastFetchError: unknown;
+    const maxFetchAttempts = 3;
+    for (let attempt = 1; attempt <= maxFetchAttempts; attempt++) {
+      try {
+        [chatData, page] = await Promise.all([
+          getChatDetail(chatId, true),
+          getMessages(chatId, { limit: 10, silent: true }),
+        ]);
+        break;
+      } catch (error) {
+        lastFetchError = error;
+        if (attempt < maxFetchAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        }
+      }
+    }
+    if (!chatData || !page) {
+      throw lastFetchError;
+    }
 
     const messages = parseMessages(page.messages);
 

@@ -32,6 +32,7 @@ Protocol (JSON text frames + binary audio frames):
 - app.core.channel_bridge.config_loader (POS: user config loader)
 - app.channels.voice.tts::synthesize_stream (POS: streaming TTS)
 - app.channels.voice.stt::transcribe (POS: batch STT fallback)
+- app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
 
 [OUTPUT]
 - ws_voice_session: Full-duplex voice WebSocket (audio_only or agent_bridge)
@@ -53,6 +54,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies import verify_voice_enabled
 from app.core.infra.ws_origin_guard import verify_ws_origin
+from app.core.utils.session_id import is_safe_session_id
 
 if TYPE_CHECKING:
     from app.api.voice.agent_bridge import VoiceAgentBridge
@@ -94,6 +96,11 @@ async def ws_voice_session(ws: WebSocket) -> None:
         return
 
     mode = client_config.get("mode", "audio_only")
+
+    chat_id = client_config.get("chat_id")
+    if chat_id and not is_safe_session_id(chat_id):
+        await _close_ws(ws, _WS_CLOSE_ERROR, "Invalid chat_id")
+        return
 
     if mode == "agent_bridge":
         from app.api.voice.agent_bridge import VoiceAgentBridge

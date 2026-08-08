@@ -211,3 +211,111 @@ async def test_completions_unauthorized(client: AsyncClient):
         },
     )
     assert resp.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "unsafe_chat_id",
+    [
+        "../../etc/passwd",
+        "chat_../../etc",
+        "..\\..\\windows\\system32",
+        "foo/bar",
+    ],
+)
+@pytest.mark.asyncio
+async def test_completions_rejects_unsafe_chat_id_non_streaming(
+    client: AsyncClient, api_key: str, unsafe_chat_id: str
+):
+    """Path-traversal chat_ids must fail fast with 400 before any agent work."""
+    resp = await client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "default",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "chat_id": unsafe_chat_id,
+            "stream": False,
+        },
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+
+    assert resp.status_code == 400
+    assert "chat_id" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_completions_rejects_unsafe_chat_id_streaming(
+    client: AsyncClient, api_key: str
+):
+    """Streaming must also reject unsafe chat_ids with 400 before opening SSE."""
+    resp = await client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "default",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "chat_id": "../../etc/passwd",
+            "stream": True,
+        },
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+
+    assert resp.status_code == 400
+    assert "chat_id" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_completions_accepts_safe_custom_chat_id(client: AsyncClient, api_key: str):
+    """Safe custom chat_ids must pass the whitelist and reach the agent flow."""
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=_mock_agent_stream,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "default",
+                "messages": [{"role": "user", "content": "Hello"}],
+                "chat_id": "my-test-session-01",
+                "stream": False,
+            },
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["choices"][0]["message"]["content"] == "Hello world!"
+
+
+@pytest.mark.asyncio
+async def test_completions_empty_chat_id_falls_back_to_default(
+    client: AsyncClient, api_key: str
+):
+    """Empty chat_id is falsy and must fall back to a generated session, not 400."""
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=_mock_agent_stream,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "default",
+                "messages": [{"role": "user", "content": "Hello"}],
+                "chat_id": "",
+                "stream": False,
+            },
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+
+    assert resp.status_code == 200

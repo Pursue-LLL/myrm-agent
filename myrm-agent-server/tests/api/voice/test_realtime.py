@@ -814,6 +814,90 @@ async def test_execute_tool_failure() -> None:
 
 
 @pytest.mark.asyncio
+async def test_execute_tool_rejects_unsafe_chat_id() -> None:
+    """A malicious chat_id must fail fast with 400 before any agent work."""
+    from fastapi import HTTPException
+
+    from app.api.voice.realtime import execute_realtime_tool
+
+    with patch(
+        "app.services.agent.streaming.ai_agent_service_stream",
+        AsyncMock(side_effect=AssertionError("agent must not run")),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await execute_realtime_tool(
+                RealtimeToolExecRequest(
+                    tool_name="memory_search_tool",
+                    arguments={"query": "x"},
+                    chat_id="../../etc/passwd",
+                )
+            )
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_execute_tool_accepts_safe_chat_id() -> None:
+    """A legitimate chat_id passes the whitelist guard and reaches the agent."""
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.model_cfg = MagicMock()
+    mock_configs.personal_settings_dict = {"enableMemory": False}
+    mock_configs.retrieval_dict = {}
+
+    mock_profile = MagicMock()
+    mock_profile.enabled_builtin_tools = ("memory",)
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
+
+    captured: dict[str, object] = {}
+
+    def capture_params(**kwargs: object) -> MagicMock:
+        captured.update(kwargs)
+        return MagicMock()
+
+    async def mock_stream(params):
+        yield {"type": "message", "data": "ok"}
+
+    with (
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=mock_configs),
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.extract_lite_model_config",
+            return_value=None,
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.extract_retrieval_models",
+            return_value=(None, None),
+        ),
+        patch(
+            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            return_value=mock_resolver,
+        ),
+        patch(
+            "app.api.voice.realtime._ensure_model_rebuild_for_tool_exec",
+            return_value=None,
+        ),
+        patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
+        patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="memory_search_tool",
+                arguments={"query": "budget"},
+                chat_id="voice-abc123",
+            )
+        )
+
+    assert result.error is None
+    assert captured.get("chat_id") == "voice-abc123"
+
+
+@pytest.mark.asyncio
 async def test_run_background_task_spawns_without_agent_stream() -> None:
     from app.api.voice.realtime import execute_realtime_tool
 

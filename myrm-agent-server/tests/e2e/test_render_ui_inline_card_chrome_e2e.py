@@ -18,6 +18,7 @@ from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
@@ -106,7 +107,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint)
         ui_state = await _wait_inline_ui(chat, timeout_sec=300.0)
 
-        after_turn = await chat.main_state(E2E_PROMPT, recv_timeout=30.0)
+        after_turn = await chat.main_state(E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
         if str(after_turn.get("path", "")).startswith("/settings"):
             pytest.fail(f"Send redirected to settings: {after_turn}")
 

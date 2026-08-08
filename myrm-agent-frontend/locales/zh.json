@@ -2325,6 +2325,7 @@
       "maintaining": "维护中...",
       "repairingTypes": "修复中...",
       "repairingPublication": "修复发布状态中...",
+      "reindexingVectors": "重建向量索引中...",
       "stats": {
         "title": "Wiki 统计",
         "description": "知识库概览",
@@ -2425,7 +2426,8 @@
         "maintainModeFullHint": "包含 AI 漂移检查与新链接发现，可能消耗已配置的模型额度。",
         "maintainCompileBusyHint": "编译进行中，暂无法维护，请编译完成后再试。",
         "repairPageTypes": "修复页面类型",
-        "repairPublication": "修复发布状态"
+        "repairPublication": "修复发布状态",
+        "reindexVectors": "重建向量索引"
       },
       "stale": {
         "bannerTitle": "源文件已更新",
@@ -2453,6 +2455,7 @@
         "repairTypesComplete": "已修复 {count} 篇笔记的页面类型",
         "repairPublicationComplete": "已修复 {repaired} 篇笔记的发布状态，重新索引 {reindexed} 篇",
         "repairPublicationCompleteWithSkips": "已修复 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未发布",
+        "reindexVectorsComplete": "已为 {reindexed}/{scanned} 篇笔记重建向量索引",
         "approveComplete": "草稿已批准",
         "rejectComplete": "草稿已拒绝",
         "purposeSaved": "知识方向已保存"
@@ -2467,6 +2470,7 @@
         "maintainCompileBusy": "Wiki 正在编译中，请编译完成后再试。",
         "repairTypesFailed": "修复页面类型失败",
         "repairPublicationFailed": "修复发布状态失败",
+        "reindexVectorsFailed": "重建向量索引失败",
         "loadStatsFailed": "加载统计数据失败",
         "loadConceptsFailed": "加载词条失败",
         "loadPendingFailed": "加载审核队列失败",
@@ -2551,7 +2555,8 @@
           "overloaded": "服务过载",
           "timeout": "超时",
           "io_missing": "文件缺失",
-          "cancelled": "已取消"
+          "cancelled": "已取消",
+          "embed_window_violation": "嵌入窗口超限"
         },
         "refresh": "刷新",
         "refreshStale": "队列状态可能已过期，请检查网络后点击刷新。",

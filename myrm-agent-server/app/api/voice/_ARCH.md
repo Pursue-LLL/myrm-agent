@@ -23,6 +23,6 @@
 | `tool_catalog.py` | 核心 | 动态 `memory_search_tool` 声明（Realtime + Gemini） | ✅ |
 | `agent_bridge.py` | 模块 | Voice STT→Agent bridge；`enable_web_fetch` 由 profile `net_fetch` 门控 | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live API integration (token + WebSocket URL + tool declarations). | ✅ |
-| `realtime.py` | 模块 | OpenAI Realtime token/tools；tool-exec 路由（background lifecycle 委托 `realtime_background`；其余走 Agent 代理） | ✅ |
+| `realtime.py` | 模块 | OpenAI Realtime token/tools；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle 委托与 Agent 代理） | ✅ |
 | `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |
-| `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint. | ✅ |
+| `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint；type:config 用 `is_safe_session_id` 校验 `chat_id`，非法拒绝连接 | ✅ |

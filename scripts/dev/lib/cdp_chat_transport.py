@@ -26,8 +26,7 @@ class CdpChatTransport:
 
         result = await self.evaluate(
             BRIDGE_CHAT_ID_JS,
-            await_promise=False,
-            recv_timeout=recv_timeout,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(result, str) and result.strip():
             return result.strip()

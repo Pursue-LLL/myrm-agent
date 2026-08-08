@@ -10,7 +10,7 @@ import time
 from cdp_chat_input import CdpChatInput
 from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS
 from dev_gate_contract import (
-    SEND_TURN_EVAL_RECV_SEC,
+    EvaluateIntent,
     SEND_TURN_LOG_TOKEN,
     SEND_TURN_PYTHON_WALL_SEC,
 )
@@ -44,8 +44,7 @@ class CdpChatSubmit(CdpChatInput):
                       }}
                       return {{ ok: false, err: 'no-submitAndObserveTurn', mode: 'sendTurnBridgeMissing' }};
                     }})()""",
-                    await_promise=True,
-                    recv_timeout=SEND_TURN_EVAL_RECV_SEC,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 ),
                 timeout=SEND_TURN_PYTHON_WALL_SEC,
             )
@@ -97,7 +96,7 @@ class CdpChatSubmit(CdpChatInput):
                     href: String(location.href || ''),
                   };
                 })()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if isinstance(probe, dict):
                 last = probe
@@ -118,7 +117,9 @@ class CdpChatSubmit(CdpChatInput):
         ready = await self.wait_send_button_ready(timeout_sec=60.0)
         if not ready.get("ok"):
             return {"ok": False, "err": "no send button", "probe": ready}
-        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        await self.evaluate(
+            PREPARE_AUTOMATION_SEND_JS, intent=EvaluateIntent.SYNC_PROBE
+        )
         native = await self.evaluate(
             """(() => {
               const btn = document.querySelector('.message-send-btn');
@@ -127,7 +128,7 @@ class CdpChatSubmit(CdpChatInput):
               btn.click();
               return { ok: true, mode: 'nativeClick' };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             native
@@ -160,8 +161,7 @@ class CdpChatSubmit(CdpChatInput):
                     }}),
                   );
                 }})()""",
-                await_promise=True,
-                recv_timeout=180.0,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
             return (
                 result
@@ -189,8 +189,7 @@ class CdpChatSubmit(CdpChatInput):
                 }};
               }});
             }})()""",
-            await_promise=True,
-            recv_timeout=120.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if not (isinstance(dev_submit, dict) and dev_submit.get("ok")):
             return (
@@ -208,7 +207,7 @@ class CdpChatSubmit(CdpChatInput):
             await asyncio.sleep(1.5)
             bridge_result = await self.evaluate(
                 """(() => window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null)()""",
-                await_promise=False,
+                intent=EvaluateIntent.BRIDGE_POLL,
             )
             if isinstance(bridge_result, dict) and bridge_result.get("ok") is False:
                 err = str(bridge_result.get("err") or "bridge-submit-failed")

@@ -21,6 +21,7 @@ from cdp_chat_support import (
     shpoib_shell_wait_slice_cap,
 )
 from cdp_chat_transport import CdpChatTransport
+from dev_gate_contract import EvaluateIntent
 
 _SHELL_PROBE_RECV_TIMEOUT_SEC = 15.0
 
@@ -89,8 +90,7 @@ async def _warm_shell_bootstrap_probe(chat: CdpChatTransport) -> dict[str, objec
         return None
     probe_raw = await chat.evaluate(
         PAGE_PROBE_JS,
-        await_promise=False,
-        recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+        intent=EvaluateIntent.SYNC_PROBE,
     )
     if not isinstance(probe_raw, dict):
         return None
@@ -312,28 +312,24 @@ class CdpChatBootstrap(CdpChatTransport):
             if getattr(self, "_e2e_runtime_bootstrapped", False):
                 await self.evaluate(
                     e2e_api_base_inject_js(),
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 return
             result = await self.evaluate(
                 bootstrap_js,
-                await_promise=True,
-                recv_timeout=60.0,
+                intent=EvaluateIntent.ROUTE_ATTACH,
             )
             if isinstance(result, dict) and result.get("ok") is True:
                 self._e2e_runtime_bootstrapped = True
                 return
             await self.evaluate(
                 e2e_api_base_inject_js(),
-                await_promise=False,
-                recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             return
         await self.evaluate(
             e2e_api_base_inject_js(),
-            await_promise=False,
-            recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
 
     async def bootstrap(
@@ -390,8 +386,7 @@ class CdpChatBootstrap(CdpChatTransport):
         if navigate:
             probe = await self.evaluate(
                 PAGE_PROBE_JS,
-                await_promise=False,
-                recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if not (
                 isinstance(probe, dict)
@@ -467,7 +462,10 @@ class CdpChatBootstrap(CdpChatTransport):
                     await self._wait_providers_hydrated(
                         timeout_sec=min(provider_timeout, hydrate_cap)
                     )
-                probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+                probe = await self.evaluate(
+                    PAGE_PROBE_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
                 if isinstance(probe, dict):
                     last = probe
                 else:
@@ -638,8 +636,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 evaluate_task = asyncio.create_task(
                     self.evaluate(
                         PAGE_PROBE_JS,
-                        await_promise=False,
-                        recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                        intent=EvaluateIntent.SYNC_PROBE,
                     )
                 )
                 done, pending = await asyncio.wait(
@@ -805,10 +802,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 try:
                     probe = await self.evaluate(
                         PAGE_PROBE_JS,
-                        await_promise=False,
-                        recv_timeout=min(
-                            15.0, max(5.0, settle_deadline - time.monotonic())
-                        ),
+                        intent=EvaluateIntent.SYNC_PROBE,
                     )
                 except RuntimeError as exc:
                     message = str(exc)
@@ -854,8 +848,7 @@ class CdpChatBootstrap(CdpChatTransport):
             try:
                 state = await self.evaluate(
                     PAGE_PROBE_JS,
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
             except RuntimeError as exc:
                 message = str(exc)
@@ -888,10 +881,7 @@ class CdpChatBootstrap(CdpChatTransport):
                         try:
                             probe = await self.evaluate(
                                 PAGE_PROBE_JS,
-                                await_promise=False,
-                                recv_timeout=min(
-                                    15.0, max(5.0, settle_deadline - time.monotonic())
-                                ),
+                                intent=EvaluateIntent.SYNC_PROBE,
                             )
                         except RuntimeError as exc:
                             message = str(exc)
@@ -988,7 +978,7 @@ class CdpChatBootstrap(CdpChatTransport):
                   const bridge = window.__MYRM_E2E_CHAT__;
                   return !!(inputFiber || btnFiber || bridge?.__e2eFallback === false);
                 })()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
             except RuntimeError as exc:
                 if "Target closed" in str(exc) or "No page found" in str(exc):
@@ -1034,8 +1024,7 @@ class CdpChatBootstrap(CdpChatTransport):
                       if (!bridge?.ensureProviders) return { ok: false };
                       return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=True,
-                    recv_timeout=min(timeout_sec, 60.0),
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 )
             except (TimeoutError, RuntimeError):
                 pass
@@ -1046,7 +1035,7 @@ class CdpChatBootstrap(CdpChatTransport):
                           init: !!window.__MYRM_E2E_CHAT__?.isProvidersInitialized?.(),
                           sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
                         }))()""",
-                        await_promise=False,
+                        intent=EvaluateIntent.SYNC_PROBE,
                     )
                 except RuntimeError:
                     await asyncio.sleep(0.5)
@@ -1059,7 +1048,9 @@ class CdpChatBootstrap(CdpChatTransport):
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             try:
-                probe = await self.evaluate(MODEL_PROBE_JS, await_promise=False)
+                probe = await self.evaluate(
+                    MODEL_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE
+                )
             except RuntimeError:
                 await asyncio.sleep(0.5)
                 continue
@@ -1075,7 +1066,7 @@ class CdpChatBootstrap(CdpChatTransport):
             await asyncio.sleep(1)
 
     async def dismiss_modals(self) -> None:
-        await self.evaluate(DISMISS_MODALS_JS, await_promise=False)
+        await self.evaluate(DISMISS_MODALS_JS, intent=EvaluateIntent.SYNC_PROBE)
         await asyncio.sleep(0.5)
 
     async def navigate_to_chat(
@@ -1089,7 +1080,7 @@ class CdpChatBootstrap(CdpChatTransport):
         try:
             probe = await self.evaluate(
                 "(() => ({ path: location.pathname }))()",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
         except RuntimeError:
             probe = None
@@ -1191,8 +1182,7 @@ class CdpChatBootstrap(CdpChatTransport):
             try:
                 probe = await self.evaluate(
                     PAGE_PROBE_JS,
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
             except RuntimeError as exc:
                 from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
@@ -1258,16 +1248,6 @@ class CdpChatBootstrap(CdpChatTransport):
                     min(90.0, deadline - time.monotonic()),
                 )
             try:
-                recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
-                if deadline is not None:
-                    remaining = max(0.0, deadline - time.monotonic())
-                    recv_cap = max(
-                        5.0,
-                        min(
-                            _SHELL_PROBE_RECV_TIMEOUT_SEC,
-                            shpoib_shell_wait_slice_cap(remaining),
-                        ),
-                    )
                 await self.evaluate(
                     """(() => {
                       const bridge = window.__MYRM_E2E_CHAT__;
@@ -1275,8 +1255,7 @@ class CdpChatBootstrap(CdpChatTransport):
                       bridge.prepareAutomationSend?.();
                       return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=True,
-                    recv_timeout=recv_cap,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 )
             except (RuntimeError, TimeoutError):
                 pass
@@ -1287,18 +1266,6 @@ class CdpChatBootstrap(CdpChatTransport):
             return
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError("Chat surface provider reset budget exhausted")
-        recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
-        if deadline is not None:
-            remaining = max(0.0, deadline - time.monotonic())
-            if remaining <= 0:
-                return
-            recv_cap = max(
-                5.0,
-                min(
-                    _SHELL_PROBE_RECV_TIMEOUT_SEC,
-                    shpoib_shell_wait_slice_cap(remaining),
-                ),
-            )
         try:
             await self.evaluate(
                 """(() => {
@@ -1307,8 +1274,7 @@ class CdpChatBootstrap(CdpChatTransport):
                   bridge.prepareAutomationSend?.();
                   return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                 })()""",
-                await_promise=True,
-                recv_timeout=recv_cap,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
         except (RuntimeError, TimeoutError):
             pass
@@ -1369,7 +1335,9 @@ class CdpChatBootstrap(CdpChatTransport):
             if deadline is not None and time.monotonic() >= deadline:
                 break
             try:
-                result = await self.evaluate(reset_js, await_promise=False)
+                result = await self.evaluate(
+                    reset_js, intent=EvaluateIntent.SYNC_PROBE
+                )
                 last = (
                     result
                     if isinstance(result, dict)

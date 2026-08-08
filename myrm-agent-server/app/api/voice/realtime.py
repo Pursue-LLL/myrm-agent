@@ -17,6 +17,8 @@ The server's role is limited to:
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - app.api.voice.tool_catalog (POS: dynamic memory_search_tool voice declarations)
+- app.core.utils.errors::validation_error (POS: HTTP 400 factory)
+- app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
 
 [OUTPUT]
 - router: FastAPI APIRouter with Realtime voice endpoints
@@ -40,6 +42,8 @@ from app.api.voice.voice_memory_context import (
     VoiceMemoryContext,
     voice_memory_context_from,
 )
+from app.core.utils.errors import validation_error
+from app.core.utils.session_id import is_safe_session_id
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +229,9 @@ async def execute_realtime_tool(
     Uses a lightweight Agent invocation (single-tool mode) to execute the tool
     within the Agent's security and permission context.
     """
+    if req.chat_id and not is_safe_session_id(req.chat_id):
+        raise validation_error(f"Invalid chat_id: {req.chat_id!r}")
+
     from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
 
     bg_handler = BACKGROUND_TOOL_HANDLERS.get(req.tool_name)

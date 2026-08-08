@@ -21,6 +21,7 @@ from cdp_chat_support import (
     get_e2e_ui_url,
     PREPARE_AUTOMATION_SEND_JS,
 )
+from dev_gate_contract import EvaluateIntent
 
 
 class CdpChatInput(CdpChatBootstrap):
@@ -50,12 +51,13 @@ class CdpChatInput(CdpChatBootstrap):
                 try:
                     await self.evaluate(
                         _ENSURE_PROVIDERS_JS,
-                        await_promise=True,
-                        recv_timeout=min(timeout_sec, 60.0),
+                        intent=EvaluateIntent.AGENT_SUBMIT,
                     )
                 except (TimeoutError, RuntimeError):
                     pass
-                probe = await self.evaluate(_SEND_READY_PROBE_JS, await_promise=False)
+                probe = await self.evaluate(
+                    _SEND_READY_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE
+                )
                 if isinstance(probe, dict) and probe.get("sendReady"):
                     result = dict(probe)
                     result["ok"] = True
@@ -70,12 +72,13 @@ class CdpChatInput(CdpChatBootstrap):
                 try:
                     await self.evaluate(
                         _ENSURE_PROVIDERS_JS,
-                        await_promise=True,
-                        recv_timeout=min(timeout_sec, 60.0),
+                        intent=EvaluateIntent.AGENT_SUBMIT,
                     )
                 except (TimeoutError, RuntimeError):
                     pass
-                probe = await self.evaluate(_SEND_READY_PROBE_JS, await_promise=False)
+                probe = await self.evaluate(
+                    _SEND_READY_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE
+                )
                 last = (
                     probe
                     if isinstance(probe, dict)
@@ -88,8 +91,7 @@ class CdpChatInput(CdpChatBootstrap):
                     try:
                         picked = await self.evaluate(
                             picker_js,
-                            await_promise=True,
-                            recv_timeout=10.0,
+                            intent=EvaluateIntent.AGENT_SUBMIT,
                         )
                     except TimeoutError:
                         continue
@@ -99,7 +101,7 @@ class CdpChatInput(CdpChatBootstrap):
                 await asyncio.sleep(0.5)
             debug = await self.evaluate(
                 """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if isinstance(debug, dict):
                 last["debug"] = debug
@@ -114,7 +116,9 @@ class CdpChatInput(CdpChatBootstrap):
         last: dict[str, object] = {"ok": False}
         reloads = 0
         while time.monotonic() < deadline:
-            probe = await self.evaluate(MODEL_PROBE_JS, await_promise=False)
+            probe = await self.evaluate(
+                MODEL_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE
+            )
             last = (
                 probe if isinstance(probe, dict) else {"ok": False, "probeError": probe}
             )
@@ -126,8 +130,7 @@ class CdpChatInput(CdpChatBootstrap):
                     try:
                         picked = await self.evaluate(
                             picker_js,
-                            await_promise=True,
-                            recv_timeout=8.0,
+                            intent=EvaluateIntent.AGENT_SUBMIT,
                         )
                     except TimeoutError:
                         picked = {"ok": False, "err": "picker_timeout"}
@@ -164,7 +167,7 @@ class CdpChatInput(CdpChatBootstrap):
               bridge.setGoalConvergenceWindow?.({conv_js});
               return {{ ok: true, goalMode: bridge.getGoalMode?.() === true }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -176,7 +179,7 @@ class CdpChatInput(CdpChatBootstrap):
               const trigger = document.querySelector('[data-testid="goal-pause-trigger"]');
               return { hasPauseTrigger: Boolean(trigger) };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return result if isinstance(result, dict) else {"hasPauseTrigger": False}
 
@@ -233,7 +236,7 @@ class CdpChatInput(CdpChatBootstrap):
                   fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
                   hasInput: Boolean(document.querySelector('[data-chat-input]')),
                 }))()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if (
                 isinstance(probe, dict)
@@ -257,8 +260,7 @@ class CdpChatInput(CdpChatBootstrap):
                           bridge.prepareAutomationSend?.();
                           return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                         })()""",
-                        await_promise=True,
-                        recv_timeout=30.0,
+                        intent=EvaluateIntent.AGENT_SUBMIT,
                     )
                 except (RuntimeError, TimeoutError):
                     pass
@@ -304,7 +306,7 @@ class CdpChatInput(CdpChatBootstrap):
                 actionMode: bridge.getActionMode?.() ?? null,
               };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -320,7 +322,7 @@ class CdpChatInput(CdpChatBootstrap):
               btn.click();
               return { ok: true };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -336,7 +338,7 @@ class CdpChatInput(CdpChatBootstrap):
               btn.click();
               return { ok: true };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -352,7 +354,7 @@ class CdpChatInput(CdpChatBootstrap):
               btn.click();
               return { ok: true };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -368,7 +370,7 @@ class CdpChatInput(CdpChatBootstrap):
               btn.click();
               return { ok: true };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -401,7 +403,7 @@ class CdpChatInput(CdpChatBootstrap):
                 lastAssistantSample: String(turn.lastAssistantSample ?? ''),
               };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return probe if isinstance(probe, dict) else {"pending": False}
 
@@ -440,7 +442,7 @@ class CdpChatInput(CdpChatBootstrap):
                               const snap = window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {};
                               return snap;
                             })()""",
-                            await_promise=False,
+                            intent=EvaluateIntent.SYNC_PROBE,
                         )
                         if isinstance(tool_probe, dict) and (
                             tool_probe.get("active") or tool_probe.get("pending")
@@ -478,7 +480,7 @@ class CdpChatInput(CdpChatBootstrap):
                   const snap = bridge?.getDesktopToolProgress?.() ?? { active: false };
                   return snap;
                 })()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if isinstance(probe, dict):
                 last = probe
@@ -498,7 +500,7 @@ class CdpChatInput(CdpChatBootstrap):
                 sendDisabled: !!btn?.disabled,
               };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -533,7 +535,7 @@ class CdpChatInput(CdpChatBootstrap):
                 providersReady,
               }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -545,7 +547,9 @@ class CdpChatInput(CdpChatBootstrap):
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"ok": False}
         while time.monotonic() < deadline:
-            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+            await self.evaluate(
+                PREPARE_AUTOMATION_SEND_JS, intent=EvaluateIntent.SYNC_PROBE
+            )
             last = await self._fill_ready_state(text)
             if last.get("ok"):
                 last["mode"] = "awaitFillReady"
@@ -564,8 +568,10 @@ class CdpChatInput(CdpChatBootstrap):
             polls += 1
             await self.dismiss_modals()
             await self.ensure_e2e_api_base_binding()
-            await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
-            probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+            await self.evaluate(
+                E2E_BRIDGE_INSTALL_JS, intent=EvaluateIntent.SYNC_PROBE
+            )
+            probe = await self.evaluate(PAGE_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE)
             if (
                 isinstance(probe, dict)
                 and probe.get("hasBridge")
@@ -597,7 +603,9 @@ class CdpChatInput(CdpChatBootstrap):
         last: dict[str, object] = {"ok": False, "mode": "bridgeRetry"}
         while time.monotonic() < deadline:
             await self.ensure_e2e_api_base_binding()
-            await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
+            await self.evaluate(
+                E2E_BRIDGE_INSTALL_JS, intent=EvaluateIntent.SYNC_PROBE
+            )
             try:
                 await self.evaluate(
                     """(() => {
@@ -605,12 +613,13 @@ class CdpChatInput(CdpChatBootstrap):
                       if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
                       return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=True,
-                    recv_timeout=60.0,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
                 )
             except (TimeoutError, RuntimeError):
                 pass
-            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+            await self.evaluate(
+                PREPARE_AUTOMATION_SEND_JS, intent=EvaluateIntent.SYNC_PROBE
+            )
             await self.evaluate(
                 f"""( () => {{
                   const bridge = window.__MYRM_E2E_CHAT__;
@@ -620,7 +629,7 @@ class CdpChatInput(CdpChatBootstrap):
                   bridge.setInputMessage({payload});
                   return {{ ok: true, mode: 'devBridgeSet' }};
                 }})()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             last = await self._await_fill_ready(text, timeout_sec=5.0)
             if last.get("ok"):
@@ -629,7 +638,7 @@ class CdpChatInput(CdpChatBootstrap):
             await asyncio.sleep(1.0)
         debug = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(debug, dict):
             last["debug"] = debug
@@ -637,7 +646,7 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def fill_input(self, text: str) -> dict[str, object]:
         await self.ensure_dev_bridge(timeout_sec=90.0, allow_reload=True)
-        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, intent=EvaluateIntent.SYNC_PROBE)
 
         dev_bridge = await self.evaluate(
             f"""( () => {{
@@ -648,7 +657,7 @@ class CdpChatInput(CdpChatBootstrap):
               bridge.setInputMessage({json.dumps(text)});
               return {{ ok: true, mode: 'devBridgeSet' }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(dev_bridge, dict) and dev_bridge.get("ok"):
             for _ in range(3):
@@ -661,7 +670,7 @@ class CdpChatInput(CdpChatBootstrap):
                       window.__MYRM_E2E_CHAT__?.setInputMessage?.({json.dumps(text)});
                       return {{ ok: true }};
                     }})()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 await asyncio.sleep(1)
 
@@ -669,7 +678,7 @@ class CdpChatInput(CdpChatBootstrap):
             """(() => ({
               hasBridge: !!window.__MYRM_E2E_CHAT__?.setInputMessage,
             }))()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(bridge_probe, dict) and bridge_probe.get("hasBridge"):
             bridge_fill = await self._retry_bridge_fill(text, timeout_sec=120.0)
@@ -687,7 +696,7 @@ class CdpChatInput(CdpChatBootstrap):
                   input.click();
                   return { ok: true, path: location.pathname };
                 })()""",
-                await_promise=False,
+                intent=EvaluateIntent.SYNC_PROBE,
             )
             if isinstance(focus, dict) and focus.get("ok"):
                 break
@@ -705,7 +714,7 @@ class CdpChatInput(CdpChatBootstrap):
               bridge.setInputMessage({json.dumps(text)});
               return {{ ok: true, mode: 'devBridgeSet' }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if isinstance(dev_bridge_retry, dict) and dev_bridge_retry.get("ok"):
             for _ in range(3):
@@ -718,7 +727,7 @@ class CdpChatInput(CdpChatBootstrap):
                       window.__MYRM_E2E_CHAT__?.setInputMessage?.({json.dumps(text)});
                       return {{ ok: true }};
                     }})()""",
-                    await_promise=False,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
                 await asyncio.sleep(1)
 
@@ -749,10 +758,10 @@ class CdpChatInput(CdpChatBootstrap):
                       mode: 'nativeSetter+inputEvent',
                     }});
                   }});
-                }});
+                  }});
               }});
             }})()""",
-            await_promise=True,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if isinstance(native_fill, dict) and native_fill.get("ok"):
             return native_fill
@@ -811,7 +820,7 @@ class CdpChatInput(CdpChatBootstrap):
                 }});
               }});
             }})()""",
-            await_promise=True,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if isinstance(react_fill, dict) and react_fill.get("ok"):
             return react_fill
@@ -871,7 +880,7 @@ class CdpChatInput(CdpChatBootstrap):
                 }});
               }});
             }})()""",
-            await_promise=True,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         if isinstance(exec_fill, dict):
             if exec_fill.get("ok"):
@@ -910,7 +919,7 @@ class CdpChatInput(CdpChatBootstrap):
                 bridgeChatId,
               };
             })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result
@@ -928,7 +937,7 @@ class CdpChatInput(CdpChatBootstrap):
             return True
         turn_probe = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
-            await_promise=False,
+            intent=EvaluateIntent.BRIDGE_POLL,
         )
         if isinstance(turn_probe, dict):
             if turn_probe.get("isStreaming"):
@@ -953,7 +962,7 @@ class CdpChatInput(CdpChatBootstrap):
     async def get_active_goal_snapshot(self) -> dict[str, object] | None:
         result = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.getActiveGoalSnapshot?.() ?? null)()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return result if isinstance(result, dict) else None
 
@@ -964,8 +973,7 @@ class CdpChatInput(CdpChatBootstrap):
               if (!bridge?.loadActiveGoalFromApi) return { ok: false, err: 'no-bridge' };
               return bridge.loadActiveGoalFromApi();
             })()""",
-            await_promise=True,
-            recv_timeout=30.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -980,7 +988,7 @@ class CdpChatInput(CdpChatBootstrap):
               trigger.click();
               return {{ ok: true, step: 'opened' }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if not isinstance(result, dict) or not result.get("ok"):
             return (
@@ -1004,7 +1012,7 @@ class CdpChatInput(CdpChatBootstrap):
               confirm.click();
               return {{ ok: true, step: 'submitted' }};
             }})()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         if not isinstance(filled, dict) or not filled.get("ok"):
             return (
@@ -1031,8 +1039,7 @@ class CdpChatInput(CdpChatBootstrap):
               if (!bridge?.runGoalDraftFromComposer) return { ok: false, err: 'no-bridge' };
               return bridge.runGoalDraftFromComposer();
             })()""",
-            await_promise=True,
-            recv_timeout=150.0,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -1041,7 +1048,7 @@ class CdpChatInput(CdpChatBootstrap):
     async def get_goal_draft_state(self) -> dict[str, object]:
         result = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.getGoalDraftState?.() ?? { ok: false, err: 'no-bridge' })()""",
-            await_promise=False,
+            intent=EvaluateIntent.SYNC_PROBE,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}
@@ -1063,7 +1070,7 @@ class CdpChatInput(CdpChatBootstrap):
               }});
               return {{ ok: true, deferred: true }};
             }})()""",
-            await_promise=True,
+            intent=EvaluateIntent.AGENT_SUBMIT,
         )
         return (
             result if isinstance(result, dict) else {"ok": False, "probeError": result}

@@ -17,6 +17,7 @@ Copilot uses non-standard refresh via GitHub access_token exchange.
 OAuth token refresh service. Manages token lifecycle for all OAuth-connected integrations
 and model providers, with per-issuer locking and reauth notification.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -31,7 +32,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database.connection import get_session
 from app.database.models import UserConfig
 from app.services.config.encryption import get_encryption_service
-from app.services.integrations.oauth_store import extract_copilot_base_url
+from app.services.integrations.oauth_store import (
+    extract_copilot_base_url,
+    oauth_credentials_lock,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +64,11 @@ def _emit_reauth_if_needed(issuer: str, reason: str) -> None:
                 data={"issuer": issuer, "reason": reason},
             )
         )
-        logger.info("Published OAUTH_REAUTH_REQUIRED for issuer '%s' (reason: %s)", issuer, reason)
+        logger.info(
+            "Published OAUTH_REAUTH_REQUIRED for issuer '%s' (reason: %s)",
+            issuer,
+            reason,
+        )
     except Exception as exc:
         logger.warning("Failed to publish OAUTH_REAUTH_REQUIRED: %s", exc)
 
@@ -98,13 +106,21 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
     async with lock:
         async with get_session() as db_session:
             row = (
-                (await db_session.execute(select(UserConfig).where(UserConfig.config_key == "oauthCredentials")))
+                (
+                    await db_session.execute(
+                        select(UserConfig).where(
+                            UserConfig.config_key == "oauthCredentials"
+                        )
+                    )
+                )
                 .scalars()
                 .first()
             )
 
             if not row:
-                logger.warning("refresh_oauth_token: 'oauthCredentials' config not found in DB")
+                logger.warning(
+                    "refresh_oauth_token: 'oauthCredentials' config not found in DB"
+                )
                 return None
 
             service = get_encryption_service()
@@ -112,7 +128,9 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
             if row.is_encrypted:
                 if isinstance(credentials_dict, str):
                     credentials_dict = service.decrypt(credentials_dict)
-                elif isinstance(credentials_dict, dict) and "_cipher" in credentials_dict:
+                elif (
+                    isinstance(credentials_dict, dict) and "_cipher" in credentials_dict
+                ):
                     credentials_dict = service.decrypt(credentials_dict["_cipher"])
 
             if isinstance(credentials_dict, str):
@@ -142,7 +160,11 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                 )
                 from app.services.agent.session_credential_assembler import XAI_ISSUER
 
-                scope = str(cred_val.get("base_url", "")) if issuer == XAI_ISSUER else str(cred_val.get("scope", ""))
+                scope = (
+                    str(cred_val.get("base_url", ""))
+                    if issuer == XAI_ISSUER
+                    else str(cred_val.get("scope", ""))
+                )
                 return EphemeralUserCredential(
                     issuer=issuer,
                     token=str(cred_val.get("token", "")),
@@ -154,11 +176,15 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
 
             # Copilot uses non-standard refresh: GitHub access_token → /copilot_internal/v2/token
             if issuer == COPILOT_ISSUER:
-                return await _refresh_copilot_token(cred_val, credentials_dict, row, db_session, service)
+                return await _refresh_copilot_token(
+                    cred_val, credentials_dict, row, db_session, service
+                )
 
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
-            client_id, client_secret = _resolve_oauth_client_credentials(issuer, cred_val)
+            client_id, client_secret = _resolve_oauth_client_credentials(
+                issuer, cred_val
+            )
 
             if not refresh_token or not token_url:
                 logger.warning(
@@ -193,7 +219,9 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         expires_in = res_json.get("expires_in", 3600)
 
                         if not new_token:
-                            logger.error("refresh_oauth_token: response did not contain 'access_token'")
+                            logger.error(
+                                "refresh_oauth_token: response did not contain 'access_token'"
+                            )
                             return None
 
                         # Update and persist
@@ -211,7 +239,11 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             "oauthCredentials",
                             credentials_dict,
                         )
-                        final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
+                        final_value = (
+                            {"_cipher": enc_value}
+                            if is_enc and isinstance(enc_value, str)
+                            else enc_value
+                        )
 
                         row.config_value = final_value
                         row.is_encrypted = is_enc
@@ -222,10 +254,13 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             "refresh_oauth_token: successfully refreshed and saved token for '%s'",
                             issuer,
                         )
-                        from app.services.agent.session_credential_assembler import XAI_ISSUER
+                        from app.services.agent.session_credential_assembler import (
+                            XAI_ISSUER,
+                        )
 
                         refresh_scope = (
-                            str(updated_cred.get("base_url", "")) if issuer == XAI_ISSUER
+                            str(updated_cred.get("base_url", ""))
+                            if issuer == XAI_ISSUER
                             else str(updated_cred.get("scope", ""))
                         )
                         return EphemeralUserCredential(
@@ -247,12 +282,20 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             reason = "token_expired"
                             try:
                                 err_body = response.json()
-                                reason = err_body.get("error_description") or err_body.get("error") or reason
+                                reason = (
+                                    err_body.get("error_description")
+                                    or err_body.get("error")
+                                    or reason
+                                )
                             except Exception:
                                 pass
                             _emit_reauth_if_needed(issuer, str(reason))
             except Exception as exc:
-                logger.error("refresh_oauth_token: failed to refresh token for '%s': %s", issuer, exc)
+                logger.error(
+                    "refresh_oauth_token: failed to refresh token for '%s': %s",
+                    issuer,
+                    exc,
+                )
 
     return None
 
@@ -271,7 +314,9 @@ async def _refresh_copilot_token(
     """
     github_access_token = cred_val.get("refresh_token")
     if not github_access_token:
-        logger.warning("refresh_copilot_token: missing GitHub access token (refresh_token)")
+        logger.warning(
+            "refresh_copilot_token: missing GitHub access token (refresh_token)"
+        )
         _emit_reauth_if_needed(COPILOT_ISSUER, "missing_github_token")
         return None
 
@@ -317,8 +362,14 @@ async def _refresh_copilot_token(
 
             credentials_dict[COPILOT_ISSUER] = updated_cred
 
-            enc_value, is_enc = service.encrypt_if_needed("oauthCredentials", credentials_dict)
-            final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
+            enc_value, is_enc = service.encrypt_if_needed(
+                "oauthCredentials", credentials_dict
+            )
+            final_value = (
+                {"_cipher": enc_value}
+                if is_enc and isinstance(enc_value, str)
+                else enc_value
+            )
 
             row.config_value = final_value
             row.is_encrypted = is_enc
