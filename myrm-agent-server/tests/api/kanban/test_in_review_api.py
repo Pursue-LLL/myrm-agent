@@ -189,3 +189,31 @@ class TestRejectEndpoint:
             json={"reason": "why"},
         )
         assert resp.status_code == 409
+
+
+class TestFallbackNotification:
+
+    def test_approve_without_dispatcher_emits_completion_notification(
+        self, client: TestClient
+    ) -> None:
+        board = _create_board(client)
+        task = _create_task(client, board["board_id"], require_approval=True)
+        tid = str(task["task_id"])
+        asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW))
+
+        with (
+            patch(
+                "app.services.kanban.review_ops.emit_source_chat_done"
+            ) as mock_source,
+            patch("app.services.kanban.review_ops.emit_btw_done") as mock_btw,
+        ):
+            resp = client.post(
+                f"/api/v1/kanban/tasks/{tid}/approve",
+                json={"approver": "alice"},
+            )
+            assert resp.status_code == 200
+
+        mock_source.assert_called_once()
+        assert mock_source.call_args.args[0] == "task_completed"
+        mock_btw.assert_called_once()
+        assert mock_btw.call_args.args[0] == "task_completed"

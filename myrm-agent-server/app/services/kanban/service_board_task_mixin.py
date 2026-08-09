@@ -5,6 +5,7 @@
 - board_ops (POS: Board CRUD operations.)
 - task_ops (POS: Task CRUD operations.)
 - move_orchestrator (POS: Task state transition orchestration.)
+- review_ops (POS: IN_REVIEW approval/rejection orchestration.)
 - dependency_ops (POS: Dependency graph operations.)
 - service_core (POS: KanbanService core state.)
 
@@ -12,7 +13,7 @@
 - KanbanServiceBoardTaskMixin: Mixin providing board/task mutation methods.
 
 [POS]
-Board and task mutation mixin: create, update, delete, move, reclaim, and dependency ops.
+Board and task mutation mixin: create, update, delete, move, reclaim, approve/reject, and dependency ops.
 """
 
 from __future__ import annotations

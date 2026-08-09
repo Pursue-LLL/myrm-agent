@@ -132,7 +132,12 @@ class CdpChatTurn(CdpChatSubmit):
                     )
                 except OSError:
                     api_ok = False
-                if api_ok and bridge_id == chat_id and not is_live_send_turn_profile() and ui_progress:
+                if (
+                    api_ok
+                    and bridge_id == chat_id
+                    and not is_live_send_turn_profile()
+                    and ui_progress
+                ):
                     last["chatId"] = chat_id
                     last["okViaApi"] = True
                     return last
@@ -376,9 +381,7 @@ class CdpChatTurn(CdpChatSubmit):
                     return finished
 
             try:
-                last = await self.main_state(
-                    prompt, intent=EvaluateIntent.BRIDGE_POLL
-                )
+                last = await self.main_state(prompt, intent=EvaluateIntent.BRIDGE_POLL)
             except RuntimeError as exc:
                 message = str(exc)
                 if any(
@@ -558,9 +561,7 @@ class CdpChatTurn(CdpChatSubmit):
                     or "attach-timeout" in message
                 ):
                     if "attach-timeout" in message:
-                        await self.navigate_to_chat(
-                            chat_id, ui_base, timeout_sec=90.0
-                        )
+                        await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
                     await asyncio.sleep(2.0 + attempt)
                     continue
                 raise

@@ -126,7 +126,7 @@ def test_eval_router_coverage(client: TestClient):
         test_file = tmp_path / "test.jsonl"
         test_file.write_text('{"type": "summary"}\n{"type": "result"}')
 
-        with patch("app.core.eval.service.DEFAULT_REPORTS_DIR", tmp_path):
+        with patch("app.core.eval.reports.DEFAULT_REPORTS_DIR", tmp_path):
             res11 = client.get("/api/v1/eval/reports/test.jsonl")
             assert res11.status_code == 200
 

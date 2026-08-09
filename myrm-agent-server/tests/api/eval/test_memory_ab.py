@@ -103,7 +103,7 @@ class TestMemoryAbService:
 
     @pytest.mark.asyncio
     async def test_run_memory_ab_flow(self, tmp_path: Path) -> None:
-        import app.core.eval.service as service_mod
+        import app.core.eval.memory_ab as memory_ab_mod
 
         class FakeMatrixResult:
             per_profile_results: dict[str, object] = {}
@@ -129,12 +129,12 @@ class TestMemoryAbService:
         reports_dir = tmp_path / "memory_ab_reports"
         memory_dir = tmp_path / "eval_memory_ab"
 
-        service_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
-        service_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
 
         with (
             patch(
-                "app.core.eval.service._memory_ab_state",
+                "app.core.eval.memory_ab._memory_ab_state",
                 {"is_running": False, "abort_requested": False},
             ),
             patch(
@@ -145,7 +145,7 @@ class TestMemoryAbService:
                 "app.core.memory.adapters.setup.evict_cached_memory_manager", evict_mock
             ),
         ):
-            await service_mod.run_memory_ab_background("code", profile_id="agent_x")
+            await memory_ab_mod.run_memory_ab_background("code", profile_id="agent_x")
 
         latest = reports_dir / "latest.json"
         assert latest.exists()
@@ -158,7 +158,7 @@ class TestMemoryAbService:
     @pytest.mark.asyncio
     async def test_run_memory_ab_builds_two_arms(self, tmp_path: Path) -> None:
         """Both executors share benchmark_mode; memory_on gets an isolated volume."""
-        import app.core.eval.service as service_mod
+        import app.core.eval.memory_ab as memory_ab_mod
 
         captured_executors: dict[str, LocalEvalExecutor] = {}
 
@@ -178,12 +178,12 @@ class TestMemoryAbService:
         cases = [MagicMock()]
         cases[0].turns = [MagicMock()]
 
-        service_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
-        service_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
 
         with (
             patch(
-                "app.core.eval.service._memory_ab_state",
+                "app.core.eval.memory_ab._memory_ab_state",
                 {"is_running": False, "abort_requested": False},
             ),
             patch(
@@ -196,7 +196,7 @@ class TestMemoryAbService:
                 AsyncMock(),
             ),
         ):
-            await service_mod.run_memory_ab_background("code")
+            await memory_ab_mod.run_memory_ab_background("code")
 
         assert set(captured_executors) == {"memory_off", "memory_on"}
         off_executor = captured_executors["memory_off"]
@@ -214,7 +214,7 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
     """Each arm's per_profile summary records how many memory_* tools were actually called."""
     from myrm_agent_harness.eval.protocols import AgentResponse
 
-    import app.core.eval.service as service_mod
+    import app.core.eval.memory_ab as memory_ab_mod
 
     class FakeTurn:
         def __init__(self, tools_called: list[str | dict[str, object]]) -> None:
@@ -254,8 +254,8 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
 
     reports_dir = tmp_path / "reports"
     memory_dir = tmp_path / "memory"
-    service_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
-    service_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+    memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+    memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
 
     class FakeMatrixRunner:
         def __init__(self, executors, **kwargs):
@@ -269,7 +269,7 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
 
     with (
         patch(
-            "app.core.eval.service._memory_ab_state",
+            "app.core.eval.memory_ab._memory_ab_state",
             {"is_running": False, "abort_requested": False},
         ),
         patch("app.core.eval.wb_bench.build_wb_bench_cases", return_value=(cases, {})),
@@ -278,7 +278,7 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
             "app.core.memory.adapters.setup.evict_cached_memory_manager", AsyncMock()
         ),
     ):
-        await service_mod.run_memory_ab_background("code")
+        await memory_ab_mod.run_memory_ab_background("code")
 
     report = json.loads((reports_dir / "latest.json").read_text())
     assert report["per_profile"]["memory_off"]["memory_tool_calls"] == 0
@@ -302,14 +302,14 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
 
     # already running
     with patch(
-        "app.api.eval.router.get_memory_ab_status", return_value={"is_running": True}
+        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": True}
     ):
         res = client.post("/api/v1/eval/memory-ab/run", json={"subset_id": subset_id})
         assert res.json()["status"] == "already_running"
 
     # unknown subset
     with patch(
-        "app.api.eval.router.get_memory_ab_status", return_value={"is_running": False}
+        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
     ):
         res = client.post("/api/v1/eval/memory-ab/run", json={"subset_id": "nope"})
         assert res.json()["status"] == "error"
@@ -317,14 +317,14 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     # started → background task receives subset_id + profile_id
     with (
         patch(
-            "app.api.eval.router.get_memory_ab_status",
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
             return_value={"is_running": False},
         ),
         patch(
             "app.services.agent.platform_config.verify_platform_embedding_ready",
             new=AsyncMock(),
         ),
-        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
             "/api/v1/eval/memory-ab/run",
@@ -341,7 +341,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
 
     with (
         patch(
-            "app.api.eval.router.get_memory_ab_status",
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
             return_value={"is_running": False},
         ),
         patch(
@@ -358,7 +358,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
                 error_code="embedding_not_configured",
             ),
         ) as mock_req,
-        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
             "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
@@ -372,7 +372,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     # embedding configured but unreachable → explicit error, task not started
     with (
         patch(
-            "app.api.eval.router.get_memory_ab_status",
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
             return_value={"is_running": False},
         ),
         patch(
@@ -392,7 +392,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
                 error_code="embedding_unavailable",
             ),
         ) as mock_verify,
-        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
             "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
@@ -407,7 +407,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     # post-probe re-check closes the concurrent-start window)
     with (
         patch(
-            "app.api.eval.router.get_memory_ab_status",
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
             side_effect=[
                 {"is_running": False},
                 {"is_running": True, "stage": "downloading"},
@@ -417,7 +417,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
             "app.services.agent.platform_config.verify_platform_embedding_ready",
             new=AsyncMock(),
         ),
-        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
             "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
@@ -427,30 +427,30 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         mock_bg.assert_not_called()
 
     # abort not running
-    with patch("app.api.eval.router.abort_memory_ab", return_value=False):
+    with patch("app.api.eval.memory_ab_router.abort_memory_ab", return_value=False):
         res = client.post("/api/v1/eval/memory-ab/abort")
         assert res.json()["status"] == "not_running"
 
     # abort running
-    with patch("app.api.eval.router.abort_memory_ab", return_value=True):
+    with patch("app.api.eval.memory_ab_router.abort_memory_ab", return_value=True):
         res = client.post("/api/v1/eval/memory-ab/abort")
         assert res.json()["status"] == "aborted"
 
     # status passthrough
     with patch(
-        "app.api.eval.router.get_memory_ab_status", return_value={"is_running": False}
+        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
     ):
         res = client.get("/api/v1/eval/memory-ab/status")
         assert res.json()["is_running"] is False
 
     # report not found
-    with patch("app.api.eval.router.get_latest_memory_ab_report", return_value=None):
+    with patch("app.api.eval.memory_ab_router.get_latest_memory_ab_report", return_value=None):
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
         assert res.json()["status"] == "not_found"
 
     # report found
     with patch(
-        "app.api.eval.router.get_latest_memory_ab_report",
+        "app.api.eval.memory_ab_router.get_latest_memory_ab_report",
         return_value={"profile_ids": []},
     ):
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
@@ -525,7 +525,7 @@ class TestMemoryAbReportHistory:
     """Verify the report history helpers return newest-first summaries."""
 
     def test_report_history_sorted_newest_first(self, tmp_path: Path) -> None:
-        import app.core.eval.service as service_mod
+        import app.core.eval.memory_ab as memory_ab_mod
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
@@ -548,13 +548,13 @@ class TestMemoryAbReportHistory:
             )
         )
 
-        history = service_mod.get_memory_ab_report_history(reports_dir)
+        history = memory_ab_mod.get_memory_ab_report_history(reports_dir)
         assert [h["timestamp"] for h in history] == [2000, 1000]
         assert history[0]["dataset_id"] == "wb-bench-research"
         assert history[0]["per_profile"]["memory_off"]["pass_rate"] == 0.8
 
     def test_report_history_skips_corrupt_files(self, tmp_path: Path) -> None:
-        import app.core.eval.service as service_mod
+        import app.core.eval.memory_ab as memory_ab_mod
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
@@ -563,26 +563,26 @@ class TestMemoryAbReportHistory:
             json.dumps({"timestamp": 2000})
         )
 
-        history = service_mod.get_memory_ab_report_history(reports_dir)
+        history = memory_ab_mod.get_memory_ab_report_history(reports_dir)
         assert [h["timestamp"] for h in history] == [2000]
 
     def test_report_by_timestamp(self, tmp_path: Path) -> None:
-        import app.core.eval.service as service_mod
+        import app.core.eval.memory_ab as memory_ab_mod
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
         data = {"timestamp": 42, "profile_ids": ["memory_off", "memory_on"]}
         (reports_dir / "memory_ab_report_42.json").write_text(json.dumps(data))
-        service_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
 
-        assert service_mod.get_memory_ab_report(42) == data
-        assert service_mod.get_memory_ab_report(43) is None
+        assert memory_ab_mod.get_memory_ab_report(42) == data
+        assert memory_ab_mod.get_memory_ab_report(43) is None
 
 
 def test_memory_ab_router_report_history(client: TestClient) -> None:
     # history passthrough
     with patch(
-        "app.api.eval.router.get_memory_ab_report_history",
+        "app.api.eval.memory_ab_router.get_memory_ab_report_history",
         return_value=[{"timestamp": 2000, "dataset_id": "wb-bench-code"}],
     ):
         res = client.get("/api/v1/eval/memory-ab/reports/history")
@@ -593,13 +593,13 @@ def test_memory_ab_router_report_history(client: TestClient) -> None:
 
     # specific report found
     with patch(
-        "app.api.eval.router.get_memory_ab_report", return_value={"profile_ids": []}
+        "app.api.eval.memory_ab_router.get_memory_ab_report", return_value={"profile_ids": []}
     ):
         res = client.get("/api/v1/eval/memory-ab/reports/123")
         assert res.status_code == 200
         assert res.json()["status"] == "success"
 
     # specific report not found
-    with patch("app.api.eval.router.get_memory_ab_report", return_value=None):
+    with patch("app.api.eval.memory_ab_router.get_memory_ab_report", return_value=None):
         res = client.get("/api/v1/eval/memory-ab/reports/123")
         assert res.json()["status"] == "not_found"

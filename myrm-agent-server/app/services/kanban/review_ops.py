@@ -27,7 +27,11 @@ from myrm_agent_harness.toolkits.kanban.types import (
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.kanban.dependency_ops import promote_dependents
-from app.services.kanban.event_publisher import publish_kanban_event
+from app.services.kanban.event_publisher import (
+    emit_btw_done,
+    emit_source_chat_done,
+    publish_kanban_event,
+)
 
 
 async def approve_task(
@@ -55,6 +59,9 @@ async def approve_task(
         )
     task.status = TaskStatus.COMPLETED
     task.completed_at = datetime.now(UTC)
+    task.consecutive_failures = 0
+    task.block_cycle_count = 0
+    task.progress_note = None
     await store.save_task(task)
     await store.append_event(
         task_id,
@@ -70,6 +77,10 @@ async def approve_task(
         detail=task.result or "",
         status=task.status.value,
     )
+    # Mirror the dispatcher's terminal event so btw / source-chat users
+    # receive the completion notification even without a running dispatcher.
+    emit_btw_done("task_completed", task)
+    emit_source_chat_done("task_completed", task)
     return task
 
 
@@ -100,6 +111,8 @@ async def reject_task(
     task.status = TaskStatus.READY
     task.error = reason
     task.consecutive_failures = 0
+    task.last_heartbeat_at = None
+    task.progress_note = None
     await store.save_task(task)
     await store.append_event(
         task_id,

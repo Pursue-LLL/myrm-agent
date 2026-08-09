@@ -4,7 +4,8 @@ import pytest
 from pydantic import BaseModel
 
 from app.core.eval.capture import capture_case_from_chat
-from app.core.eval.service import get_all_report_summaries, get_eval_cases, get_latest_report_summary, save_eval_cases
+from app.core.eval.datasets import get_eval_cases, save_eval_cases
+from app.core.eval.reports import get_all_report_summaries, get_latest_report_summary
 
 
 class MockMsg:
@@ -84,7 +85,7 @@ def test_eval_service_exceptions(tmp_path):
     # test read/write exceptions gracefully handled
     invalid_path = tmp_path / "non_existent"
 
-    with patch("app.core.eval.service.get_dataset_path", return_value=invalid_path):
+    with patch("app.core.eval.datasets.get_dataset_path", return_value=invalid_path):
         assert get_eval_cases("test") == ""
         # writing to a directory that is not writable
         readonly_dir = tmp_path / "readonly"
@@ -92,5 +93,5 @@ def test_eval_service_exceptions(tmp_path):
         readonly_file = readonly_dir / "cases.jsonl"
         readonly_file.touch()
         readonly_file.chmod(0o444)
-        with patch("app.core.eval.service.get_dataset_path", return_value=readonly_file):
+        with patch("app.core.eval.datasets.get_dataset_path", return_value=readonly_file):
             save_eval_cases("test", "test")  # Should log warning, return False or handle gracefully

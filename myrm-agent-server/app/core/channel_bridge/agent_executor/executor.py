@@ -28,7 +28,7 @@ import os
 from collections.abc import AsyncGenerator
 from uuid import uuid4
 
-from myrm_agent_harness.api import ConfigIncompleteError
+from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.api.hooks import set_approval_user_id
 from myrm_agent_harness.toolkits.code_execution.interceptor import set_execution_interceptor
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError

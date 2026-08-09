@@ -178,13 +178,13 @@ yolo_off_expired =  YOLO mode is **OFF** (expired)
 yolo_on_no_expiration =  YOLO mode is **ON** (no expiration)
 yolo_disabled =  YOLO mode **disabled** - tool approvals re-enabled
 yolo_activated =
-     **YOLO mode activated** - all tool calls will auto-approve
+     { "**" }YOLO mode activated** - all tool calls will auto-approve
     
-     **Warning**: This bypasses all security checks. Use with caution!
+     { "**" }Warning**: This bypasses all security checks. Use with caution!
 yolo_activated_timeout =
-     **YOLO mode activated** - expires in { $timeout }s
+     { "**" }YOLO mode activated** - expires in { $timeout }s
     
-     **Warning**: All tool calls will auto-approve. Use with caution!
+     { "**" }Warning**: All tool calls will auto-approve. Use with caution!
 yolo_already_off = ℹ YOLO mode was already OFF
 yolo_invalid =  Invalid YOLO action. Use: /yolo [on|off|toggle|status]
 yolo_invalid_usage =  Invalid /yolo command. Use: `/yolo [on|off|toggle|status] [timeout_seconds]`
@@ -232,7 +232,7 @@ channel_budget_blocked = This channel's daily budget has been reached. Other cha
 cooldown_retry =
     
     
-    ⏱️ Please retry in {seconds:.0f} seconds.
+    ⏱️ Please retry in { $seconds } seconds.
 config_next_steps =
     
     
@@ -249,7 +249,7 @@ placeholder_request_timeout =  Request timed out.
 placeholder_retrying =
     
     
-    [Retrying... { $attempt }/{ $max_retries }]
+    { "[" }Retrying... { $attempt }/{ $max_retries }]
 durable_outbound_recovered = Recovered delivery — you may receive a duplicate message.
 error_rate_limit = API rate limit reached — the model couldn't generate a response. Please try again in a moment.
 error_overloaded = The AI service is temporarily overloaded. Please try again in a moment.

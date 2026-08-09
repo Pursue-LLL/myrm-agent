@@ -6,10 +6,15 @@ notes). Missing keys silently degrade a locale to another language through the
 BCP 47 fallback chain, so a gap in e.g. `ja.ftl` shows English (or Simplified
 Chinese) to Japanese users.
 
-These guards enforce that every locale file exposes the exact same key set as the
-`en.ftl` reference:
-1. No key is missing from any locale.
-2. No locale carries an orphan key the reference does not have.
+These guards enforce structural consistency across all locale files:
+
+1. Every locale file exposes the exact same key set as the `en.ftl` reference.
+2. Every key's placeholder set (`{ $var }` references) matches across locales;
+   a missing or mistyped placeholder renders as a bare key name or truncated
+   text through the Fluent engine, which never raises.
+3. Every `{...}` reference is legal Fluent syntax (a `$`-prefixed variable, a
+   function like `{NUMBER($var)}`, or a `-`-prefixed term). Bare identifiers
+   such as `{seconds:.0f}` are invalid and silently break the whole message.
 """
 
 from __future__ import annotations
@@ -34,21 +39,70 @@ _REFERENCE_LOCALE = "en"
 # to the same message, so only lines starting at column 0 count as keys.
 _KEY_RE = re.compile(r"^([A-Za-z0-9_-]+) =")
 
+# Legal Fluent in-message references:
+# - variable:    { $seconds } / {$seconds}
+# - function:    {NUMBER($seconds)} / {SELECT(...)}
+# - term:        {-brand} / {brand}
+_VAR_RE = re.compile(r"\{ ?\$([A-Za-z_][A-Za-z0-9_]*) ?\}")
+_FUNC_RE = re.compile(r"\{[A-Z][A-Z0-9_]*\([^{}]*\) ?\}")
+_TERM_RE = re.compile(r"\{-?[A-Za-z_][A-Za-z0-9_.-]* ?\}")
+
+# A Fluent string literal, e.g. `{ "**" }` or `{ '[' }`.  Used to escape
+# markdown-leading characters (`*`, `[`) at the start of an indented line,
+# which are otherwise reserved selector syntax in multiline patterns.
+_LITERAL_RE = re.compile(r"\{ ?['\"][^'\"]{1,8}['\"] ?\}")
+
+# Any `{...}` group that matches none of the legal shapes above (e.g. the
+# bare-identifier `{seconds:.0f}`) breaks the whole Fluent message.
+_ILLEGAL_RE = re.compile(r"\{[^}]*\}")
+
 
 def _locale_names() -> tuple[str, ...]:
     """Every `.ftl` file present; new languages join the parity check automatically."""
     return tuple(sorted(path.stem for path in _LOCALES_DIR.glob("*.ftl")))
 
 
-def _ftl_keys(locale: str) -> frozenset[str]:
+def _message_bodies(locale: str) -> dict[str, str]:
+    """Parse a locale file into ``{message key: full body}``.
+
+    Fluent continuation lines are indented and belong to the previous key, so a
+    message body may span several lines until the next column-0 key line.
+    """
     path = _LOCALES_DIR / f"{locale}.ftl"
     assert path.exists(), f"Missing locale file: {path}"
-    keys: set[str] = set()
+    keys: dict[str, str] = {}
+    current_key: str | None = None
+    body_lines: list[str] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         match = _KEY_RE.match(line)
         if match:
-            keys.add(match.group(1))
-    return frozenset(keys)
+            if current_key is not None:
+                keys[current_key] = "\n".join(body_lines)
+            current_key, body_lines = match.group(1), [line.split("=", 1)[1]]
+        elif current_key is not None and line.startswith(" "):
+            body_lines.append(line)
+    if current_key is not None:
+        keys[current_key] = "\n".join(body_lines)
+    return keys
+
+
+def _placeholders(body: str) -> frozenset[str]:
+    """Variable names referenced by a message body, e.g. `seconds` for `{ $seconds }`."""
+    return frozenset(_VAR_RE.findall(body))
+
+
+def _illegal_references(body: str) -> list[str]:
+    """All `{...}` groups in a body that are not valid Fluent references."""
+    return [
+        ref
+        for ref in (match.group(0).strip() for match in _ILLEGAL_RE.finditer(body))
+        if not (
+            _VAR_RE.fullmatch(ref)
+            or _FUNC_RE.fullmatch(ref)
+            or _TERM_RE.fullmatch(ref)
+            or _LITERAL_RE.fullmatch(ref)
+        )
+    ]
 
 
 @pytest.mark.architecture
@@ -58,7 +112,7 @@ def test_ftl_locales_share_identical_key_sets() -> None:
     assert _REFERENCE_LOCALE in locales, (
         f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
     )
-    key_sets = {locale: _ftl_keys(locale) for locale in locales}
+    key_sets = {locale: frozenset(_message_bodies(locale)) for locale in locales}
     reference_keys = key_sets[_REFERENCE_LOCALE]
 
     for locale, keys in key_sets.items():
@@ -70,3 +124,155 @@ def test_ftl_locales_share_identical_key_sets() -> None:
             f"silently fall back to another language via BCP 47; add the "
             f"translation in {locale}.ftl."
         )
+
+
+@pytest.mark.architecture
+def test_ftl_locales_share_identical_placeholders() -> None:
+    """The same message must reference the same variables in every locale.
+
+    A locale that drops a `{ $var }` renders incomplete text, and one that
+    mistypes a variable name renders the bare key through the Fluent engine —
+    neither case raises, so only this parity guard catches it.
+    """
+    locales = _locale_names()
+    assert _REFERENCE_LOCALE in locales, (
+        f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
+    )
+    bodies_by_locale = {locale: _message_bodies(locale) for locale in locales}
+    reference = bodies_by_locale[_REFERENCE_LOCALE]
+
+    for locale, bodies in bodies_by_locale.items():
+        for key, body in reference.items():
+            ref_placeholders = _placeholders(body)
+            locale_placeholders = _placeholders(bodies[key])
+            assert ref_placeholders == locale_placeholders, (
+                f"Placeholder mismatch for `{key}` between {_REFERENCE_LOCALE} "
+                f"and {locale}: reference={sorted(ref_placeholders)}, "
+                f"{locale}={sorted(locale_placeholders)}. Missing or mistyped "
+                f"variables silently render a bare key or truncated text."
+            )
+
+
+@pytest.mark.architecture
+def test_ftl_locales_have_only_legal_references() -> None:
+    """Every `{...}` group must be a valid Fluent reference.
+
+    Bare identifiers like `{seconds:.0f}` (no `$` prefix) are not valid Fluent
+    and cause the entire message to render as its key name.
+    """
+    for locale in _locale_names():
+        for key, body in _message_bodies(locale).items():
+            illegal = _illegal_references(body)
+            assert not illegal, (
+                f"[{locale}] `{key}` contains invalid Fluent references: {illegal}. "
+                f"Use `{{ $var }}`, a function like `{{NUMBER($var)}}`, a `-`-prefixed "
+                f"term, or a string literal like `{{ \"**\" }}`."
+            )
+
+
+# Sample values used by the render-level guard.  Every message placeholder gets
+# a value so the Fluent engine is forced to actually format the message instead
+# of silently returning the bare key name.
+_RENDER_SAMPLES: dict[str, str | int] = {
+    "agent_id": "agent-1",
+    "agent_label": "General",
+    "aliases": "g,gen",
+    "always_count": 1,
+    "approve_count": 1,
+    "attempt": 2,
+    "bound_at": "2026-08-09",
+    "bound_label": "bound",
+    "cmd": "status",
+    "command": "ls -la",
+    "constraint": "no rm",
+    "count": 3,
+    "created_at": "2026-08-09",
+    "daily_limit": 100,
+    "description": "desc",
+    "duration": "1m",
+    "elapsed": "5",
+    "emoji": "x",
+    "error": "err",
+    "error_category": "cat",
+    "exit_code": 1,
+    "filename": "a.txt",
+    "files": 2,
+    "from_agent": "A",
+    "goal": "g",
+    "hour": 2,
+    "id": 1,
+    "index": 0,
+    "items": 2,
+    "last_activity": "now",
+    "max": 10,
+    "max_pending": 3,
+    "max_retries": 3,
+    "max_turns": 5,
+    "message_count": 10,
+    "minutes": 5,
+    "model_name": "gpt-4o",
+    "name": "test",
+    "objective": "task",
+    "parts": 2,
+    "pid": 123,
+    "position": 1,
+    "preview": "prev",
+    "reason": "why",
+    "reject_count": 0,
+    "result": "ok",
+    "scope": "chat",
+    "seconds": 12,
+    "session_id": "s1",
+    "size": "1.5MB",
+    "stage": "step",
+    "status": "running",
+    "steps": "a\nb",
+    "style": "s",
+    "target": "t",
+    "task_id": "t1",
+    "text": "text",
+    "timeout": 30,
+    "title": "t",
+    "to_agent": "B",
+    "today_cost": "$0.5",
+    "tokens_saved": 100,
+    "topic_hint": "hint",
+    "total_calls": 5,
+    "total_tokens": 1000,
+    "total_usd": "$1",
+    "turns": 3,
+    "usage_pct": "50%",
+    "used": 50,
+    "workspace": "ws",
+    "workspace_label": "（workdir）",
+}
+
+
+@pytest.mark.architecture
+def test_ftl_messages_never_render_bare_keys() -> None:
+    """Rendering a message with sample arguments must never produce a bare key.
+
+    The structural guards above catch *static* issues, but a structurally valid
+    message can still fail at render time — e.g. a multiline pattern whose first
+    line starts with a selector character (`*`/`[`) parses as a broken entry and
+    the Fluent engine returns the key name verbatim.  This guard formats every
+    key in every locale and asserts the engine actually resolved it.
+    """
+    from app.channels.i18n import channel_t
+
+    locales = _locale_names()
+    assert _REFERENCE_LOCALE in locales
+    reference = _message_bodies(_REFERENCE_LOCALE)
+
+    for locale in locales:
+        bodies = _message_bodies(locale)
+        assert reference.keys() == bodies.keys()
+        for key, body in bodies.items():
+            placeholders = _placeholders(body)
+            args = {name: _RENDER_SAMPLES[name] for name in placeholders}
+            rendered = channel_t(locale, key, **args)
+            assert rendered != key and rendered != "", (
+                f"[{locale}] `{key}` rendered to {rendered!r} with args "
+                f"{args}. Multiline patterns whose first line starts with `*` "
+                f"or `[` fail to parse; escape them as `{{ \"**\" }}`/`{{ \"[\" }}`."
+            )

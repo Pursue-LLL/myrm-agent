@@ -550,9 +550,7 @@ def _e2e_api_get_json(
     timeout_sec: float = 15.0,
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
-    req = urllib.request.Request(
-        url, headers={"Accept": "application/json"}
-    )
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with _e2e_api_urlopen(
         req, timeout_sec=timeout_sec, max_attempts=max_attempts
     ) as resp:
@@ -1197,9 +1195,7 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
         try:
             warm_url = base_url.rstrip("/") + "/"
             _validate_loopback_http_url(warm_url)
-            with urllib.request.urlopen(
-                warm_url, timeout=45
-            ) as resp:
+            with urllib.request.urlopen(warm_url, timeout=45) as resp:
                 if resp.status == 200:
                     return
                 last_error = f"HTTP {resp.status}"

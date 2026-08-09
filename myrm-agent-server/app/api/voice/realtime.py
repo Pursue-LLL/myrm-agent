@@ -16,7 +16,7 @@ The server's role is limited to:
 - app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task lifecycle)
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
-- app.api.voice.tool_catalog (POS: dynamic memory_search_tool voice declarations)
+- app.api.voice.tool_catalog (POS: Realtime tool declarations + memory_search_tool)
 - app.core.utils.errors::validation_error (POS: HTTP 400 factory)
 - app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
 
@@ -32,16 +32,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Sequence
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import verify_voice_enabled
-from app.api.voice.voice_memory_context import (
-    VoiceMemoryContext,
-    voice_memory_context_from,
-)
+from app.api.voice.tool_catalog import RealtimeToolDef, build_realtime_tools
+from app.api.voice.voice_memory_context import voice_memory_context_from
 from app.core.utils.errors import validation_error
 from app.core.utils.session_id import is_safe_session_id
 
@@ -71,13 +69,6 @@ class RealtimeTokenRequest(BaseModel):
     agent_id: str | None = None
     voice: str | None = None
     model: str | None = None
-
-
-class RealtimeToolDef(BaseModel):
-    type: str = "function"
-    name: str
-    description: str
-    parameters: dict[str, Any]
 
 
 class RealtimeTokenResponse(BaseModel):
@@ -158,7 +149,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
         configs.personal_settings_dict or {},
         profile.enabled_builtin_tools if profile else (),
     )
-    tools = _build_realtime_tools(
+    tools = build_realtime_tools(
         profile.enabled_builtin_tools if profile else (),
         memory_context,
     )
@@ -443,159 +434,6 @@ def _safe_json_str(obj: object) -> str:
         return json.dumps(obj, ensure_ascii=False, default=str)
     except Exception:
         return str(obj)
-
-
-_REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
-    "web_search": RealtimeToolDef(
-        name="web_search",
-        description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
-        parameters={
-            "type": "object",
-            "properties": {"query": {"type": "string", "description": "Search query"}},
-            "required": ["query"],
-        },
-    ),
-    "file_ops": RealtimeToolDef(
-        name="file_ops",
-        description="Read, write, or list files in the workspace.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": ["read", "write", "list"],
-                    "description": "File operation",
-                },
-                "path": {"type": "string", "description": "File path"},
-            },
-            "required": ["action", "path"],
-        },
-    ),
-    "code_execute": RealtimeToolDef(
-        name="code_execute",
-        description="Execute code (Python, shell, etc.) in a sandboxed environment and return the result.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "code": {"type": "string", "description": "Code to execute"},
-                "language": {
-                    "type": "string",
-                    "description": "Programming language",
-                    "default": "python",
-                },
-            },
-            "required": ["code"],
-        },
-    ),
-    "browser": RealtimeToolDef(
-        name="browser",
-        description="Browse a webpage and extract its content.",
-        parameters={
-            "type": "object",
-            "properties": {"url": {"type": "string", "description": "URL to browse"}},
-            "required": ["url"],
-        },
-    ),
-    "kanban": RealtimeToolDef(
-        name="kanban",
-        description="Manage tasks on the kanban board: create, update, or query tasks.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": ["create", "update", "query"],
-                    "description": "Kanban action",
-                },
-                "description": {
-                    "type": "string",
-                    "description": "Task description or query",
-                },
-            },
-            "required": ["action", "description"],
-        },
-    ),
-}
-
-_ALWAYS_AVAILABLE_TOOLS: list[RealtimeToolDef] = [
-    RealtimeToolDef(
-        name="run_background_task",
-        description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation. The result will be available later.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "task": {
-                    "type": "string",
-                    "description": "Detailed description of the task to run",
-                }
-            },
-            "required": ["task"],
-        },
-    ),
-    RealtimeToolDef(
-        name="get_background_tasks_status",
-        description="Check the status of background tasks. Use when the user asks about task progress or whether a task is done.",
-        parameters={
-            "type": "object",
-            "properties": {},
-        },
-    ),
-    RealtimeToolDef(
-        name="cancel_background_task",
-        description="Cancel a running background task by its task_id.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "task_id": {
-                    "type": "string",
-                    "description": "ID of the background task to cancel",
-                }
-            },
-            "required": ["task_id"],
-        },
-    ),
-    RealtimeToolDef(
-        name="steer_background_task",
-        description="Send a new instruction to redirect a running background task.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "task_id": {
-                    "type": "string",
-                    "description": "ID of the background task to steer",
-                },
-                "instruction": {
-                    "type": "string",
-                    "description": "New instruction to apply to the task",
-                },
-            },
-            "required": ["task_id", "instruction"],
-        },
-    ),
-]
-
-
-def _build_realtime_tools(
-    enabled_builtin_tools: tuple[str, ...] | Sequence[str],
-    memory_context: VoiceMemoryContext,
-) -> list[RealtimeToolDef]:
-    """Build tool definitions for OpenAI Realtime session from agent tools and memory ACL."""
-    from app.api.voice.tool_catalog import (
-        build_realtime_memory_tool,
-        include_memory_search_in_voice_catalog,
-    )
-
-    tools: list[RealtimeToolDef] = list(_ALWAYS_AVAILABLE_TOOLS)
-    for tool_key in enabled_builtin_tools:
-        if tool_key == "memory":
-            if include_memory_search_in_voice_catalog(
-                memory_context, enabled_builtin_tools
-            ):
-                tools.append(build_realtime_memory_tool(memory_context))
-            continue
-        if tool_key in _REALTIME_TOOL_CATALOG:
-            tools.append(_REALTIME_TOOL_CATALOG[tool_key])
-    return tools
 
 
 _tool_exec_model_rebuilt = False

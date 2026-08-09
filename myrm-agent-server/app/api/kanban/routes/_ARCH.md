@@ -16,7 +16,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 |------|------|------|-------|
 | `__init__.py` | 入口 | 触发子模块路由注册 | — |
 | `boards.py` | 路由 | Board CRUD、summary、board 级 events | ✅ |
-| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim | ✅ |
+| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject | ✅ |
 | `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/reclaim/delete | ✅ |
 | `task_meta.py` | 路由 | runs、events、comments、diagnostics、依赖边 | ✅ |
 | `specify.py` | 路由 | specify/apply-spec/specify-all、decompose/apply-decompose | ✅ |
@@ -41,6 +41,8 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | POST | `/tasks/{task_id}/move` | - |
 | POST | `/tasks/{task_id}/promote` | - |
 | POST | `/tasks/{task_id}/reclaim` | - |
+| POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 409） |
+| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填，回写 error；非 IN_REVIEW 409） |
 
 ### `bulk.py`
 

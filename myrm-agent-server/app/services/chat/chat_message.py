@@ -53,7 +53,7 @@ class _ChatMessageMixin(_ChatServiceBase):
             )
 
         try:
-            from app.core.eval.service import mark_chat_activity
+            from app.core.eval.adaptive import mark_chat_activity
 
             mark_chat_activity()
         except ImportError:
@@ -108,7 +108,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         persist_moa_preset: bool = False,
     ) -> MessageDTO:
         try:
-            from app.core.eval.service import mark_chat_activity
+            from app.core.eval.adaptive import mark_chat_activity
 
             mark_chat_activity()
         except ImportError:

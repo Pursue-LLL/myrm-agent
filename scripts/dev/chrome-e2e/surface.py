@@ -125,6 +125,35 @@ async def _window_for_target(ws: CdpSocket, msg_id: int, target_id: str, *, dead
     return window_id if isinstance(window_id, int) else None
 
 
+async def _adopt_live_anchor(
+    ws: CdpSocket,
+    cdp_port: int,
+    *,
+    deadline: float,
+) -> tuple[str, int]:
+    """Pick the first live page target as the AOS anchor and park it offscreen.
+
+    Chrome recycles `Target.createTarget(newWindow=true)` blank windows and their
+    windowIds are not reliably addressable afterwards (§26.24). Adopting a real
+    page window — the same window `_park_all_page_windows_offscreen` parks —
+    gives us a stable, addressable anchor that stays valid between ensure runs.
+    """
+    targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=5.0)
+    if isinstance(targets, list):
+        for entry in targets:
+            if not isinstance(entry, dict) or entry.get("type") != "page":
+                continue
+            target_id = entry.get("id")
+            if not isinstance(target_id, str) or not target_id:
+                continue
+            window_id = await _window_for_target(ws, 5, target_id, deadline=deadline)
+            if isinstance(window_id, int):
+                await _park_window_offscreen(ws, 6, window_id, deadline=deadline)
+                return target_id, window_id
+    # No live page yet — fall back to creating a dedicated blank window.
+    return await _create_agent_window(ws, deadline=deadline)
+
+
 async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, int]:
     msg_id = 1
     result = await _cdp_request(
@@ -142,7 +171,13 @@ async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, 
     if window_id is None:
         raise RuntimeError("Browser.getWindowForTarget missing windowId")
     msg_id += 1
-    await _park_window_offscreen(ws, msg_id, window_id, deadline=deadline)
+    try:
+        await _park_window_offscreen(ws, msg_id, window_id, deadline=deadline)
+    except (TimeoutError, RuntimeError, asyncio.TimeoutError):
+        # Best-effort: a freshly created new-window target may not yet expose a
+        # valid windowId to Browser.setWindowBounds (§26.24). The anchor is
+        # still recorded; re-parking happens on the next ensure pass.
+        pass
     return target_id, window_id
 
 
@@ -200,7 +235,10 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
                 valid = False
 
         if not valid:
-            anchor_target, window_id = await _create_agent_window(ws, deadline=deadline)
+            # Reuse a live page window as the anchor instead of creating a new
+            # one: Target.createTarget(newWindow=true) targets are recycled by
+            # Chrome and their windowId is not reliably addressable (§26.24).
+            anchor_target, window_id = await _adopt_live_anchor(ws, cdp_port, deadline=deadline)
             registry = {
                 "windowId": window_id,
                 "anchorTargetId": anchor_target,
@@ -208,7 +246,18 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
             }
             _save_registry(registry)
         else:
-            await _park_window_offscreen(ws, 2, window_id, deadline=deadline)
+            try:
+                await _park_window_offscreen(ws, 2, window_id, deadline=deadline)
+            except (TimeoutError, RuntimeError, asyncio.TimeoutError):
+                # anchor window was closed since the registry was written —
+                # adopt a live window so the offscreen surface stays intact.
+                anchor_target, window_id = await _adopt_live_anchor(ws, cdp_port, deadline=deadline)
+                registry = {
+                    "windowId": window_id,
+                    "anchorTargetId": anchor_target,
+                    "updatedAt": int(time.time()),
+                }
+                _save_registry(registry)
 
         await _park_all_page_windows_offscreen(ws, cdp_port, deadline=deadline)
 

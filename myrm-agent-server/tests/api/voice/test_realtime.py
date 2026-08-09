@@ -20,12 +20,12 @@ from app.api.voice.realtime import (
     RealtimeTokenRequest,
     RealtimeToolExecRequest,
     RealtimeTranscriptRequest,
-    _build_realtime_tools,
     _extract_openai_api_key,
     _extract_openai_base_url,
     _find_openai_provider,
     _safe_json_str,
 )
+from app.api.voice.tool_catalog import build_realtime_tools
 from app.api.voice.voice_memory_context import VoiceMemoryContext
 
 _ALL_MEMORY = VoiceMemoryContext(
@@ -173,12 +173,12 @@ class TestSafeJsonStr:
         assert _safe_json_str({}) == "{}"
 
 
-# ── _build_realtime_tools tests ───────────────────────────────────────
+# ── build_realtime_tools tests ───────────────────────────────────────
 
 
 class TestBuildRealtimeTools:
     def test_always_includes_background_lifecycle_tools(self) -> None:
-        tools = _build_realtime_tools((), _MEMORY_ONLY)
+        tools = build_realtime_tools((), _MEMORY_ONLY)
         names = {t.name for t in tools}
         assert "run_background_task" in names
         assert "get_background_tasks_status" in names
@@ -187,7 +187,7 @@ class TestBuildRealtimeTools:
         assert len(tools) == 4
 
     def test_adds_known_tools(self) -> None:
-        tools = _build_realtime_tools(("web_search", "memory"), _ALL_MEMORY)
+        tools = build_realtime_tools(("web_search", "memory"), _ALL_MEMORY)
         names = [t.name for t in tools]
         assert "run_background_task" in names
         assert "web_search" in names
@@ -195,13 +195,13 @@ class TestBuildRealtimeTools:
         assert len(tools) == 6
 
     def test_memory_tool_omits_sessions_when_opt_in_off(self) -> None:
-        tools = _build_realtime_tools(("memory",), _MEMORY_ONLY)
+        tools = build_realtime_tools(("memory",), _MEMORY_ONLY)
         memory_tool = next(t for t in tools if t.name == "memory_search_tool")
         corpus_prop = memory_tool.parameters.get("properties", {}).get("corpus")
         assert corpus_prop is None
 
     def test_memory_tool_includes_sessions_when_opt_in_on(self) -> None:
-        tools = _build_realtime_tools(("memory",), _ALL_MEMORY)
+        tools = build_realtime_tools(("memory",), _ALL_MEMORY)
         memory_tool = next(t for t in tools if t.name == "memory_search_tool")
         corpus_enum = memory_tool.parameters["properties"]["corpus"]["enum"]
         assert "sessions" in corpus_enum
@@ -211,17 +211,17 @@ class TestBuildRealtimeTools:
         disabled = VoiceMemoryContext(
             enable_memory=False, enable_conversation_search=False, enable_wiki=False
         )
-        tools = _build_realtime_tools(("memory", "web_search"), disabled)
+        tools = build_realtime_tools(("memory", "web_search"), disabled)
         names = [t.name for t in tools]
         assert "memory_search_tool" not in names
         assert "web_search" in names
 
     def test_ignores_unknown_tools(self) -> None:
-        tools = _build_realtime_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
+        tools = build_realtime_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
         assert len(tools) == 5
 
     def test_all_catalog_tools(self) -> None:
-        tools = _build_realtime_tools(
+        tools = build_realtime_tools(
             ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
             _ALL_MEMORY,
         )
@@ -229,7 +229,7 @@ class TestBuildRealtimeTools:
 
     def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
         """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
-        tools = _build_realtime_tools(
+        tools = build_realtime_tools(
             ("web_search", "render_ui", "kanban"), _MEMORY_ONLY
         )
         names = [t.name for t in tools]
@@ -238,7 +238,7 @@ class TestBuildRealtimeTools:
         assert "kanban" in names
 
     def test_tool_structure_valid(self) -> None:
-        tools = _build_realtime_tools(("web_search",), _MEMORY_ONLY)
+        tools = build_realtime_tools(("web_search",), _MEMORY_ONLY)
         ws_tool = next(t for t in tools if t.name == "web_search")
         assert ws_tool.type == "function"
         assert ws_tool.description

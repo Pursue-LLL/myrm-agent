@@ -21,6 +21,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定 | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete | ❌ |
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排 | ❌ |
+| `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents）、reject→READY（reason 回写 error），优先委托 dispatcher，fallback 直接 store 流转 + 完成通知补发 | ✅ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |
 | `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery | ❌ |

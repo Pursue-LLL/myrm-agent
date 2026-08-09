@@ -178,13 +178,13 @@ yolo_off_expired =  YOLO モードは **オフ**（期限切れ）
 yolo_on_no_expiration =  YOLO モードは **オン**（期限なし）
 yolo_disabled =  YOLO モード **無効化** — ツール承認が復元されました
 yolo_activated =
-     **YOLO モードを有効化しました** — すべてのツール呼び出しが自動承認されます
+     { "**" }YOLO モードを有効化しました** — すべてのツール呼び出しが自動承認されます
     
-     **警告**：すべてのセキュリティチェックがバイパスされます。慎重にご利用ください！
+     { "**" }警告**：すべてのセキュリティチェックがバイパスされます。慎重にご利用ください！
 yolo_activated_timeout =
-     **YOLO モードを有効化しました** — { $timeout } 秒後に期限切れ
+     { "**" }YOLO モードを有効化しました** — { $timeout } 秒後に期限切れ
     
-     **警告**：すべてのツール呼び出しが自動承認されます。慎重にご利用ください！
+     { "**" }警告**：すべてのツール呼び出しが自動承認されます。慎重にご利用ください！
 yolo_already_off = ℹ YOLO モードは既にオフです
 yolo_invalid =  無効な YOLO 操作です。使い方：/yolo [on|off|toggle|status]
 yolo_invalid_usage =  無効な /yolo コマンドです。使い方：`/yolo [on|off|toggle|status] [timeout_seconds]`
@@ -232,7 +232,7 @@ channel_budget_blocked = このチャンネルの日次予算に達しました�
 cooldown_retry =
     
     
-    ⏱️ {seconds:.0f} 秒後にリトライしてください。
+    ⏱️ { $seconds } 秒後にリトライしてください。
 config_next_steps =
     
     
@@ -249,7 +249,7 @@ placeholder_request_timeout =  リクエストがタイムアウトしました�
 placeholder_retrying =
     
     
-    [リトライ中... { $attempt }/{ $max_retries }]
+    { "[" }リトライ中... { $attempt }/{ $max_retries }]
 durable_outbound_recovered = 配信を復旧しました。重複メッセージが届く場合があります。
 error_rate_limit = API レート制限に達しました — モデルが応答を生成できませんでした。しばらくしてから再試行してください。
 error_overloaded = AI サービスが一時的に過負荷状態です。しばらくしてから再試行してください。

@@ -178,13 +178,13 @@ yolo_off_expired =  YOLO 模式 **关闭**（已过期）
 yolo_on_no_expiration =  YOLO 模式 **开启**（无过期时间）
 yolo_disabled =  YOLO 模式 **已关闭** — 工具审批已恢复
 yolo_activated =
-     **YOLO 模式已激活** — 所有工具调用将自动批准
+     { "**" }YOLO 模式已激活** — 所有工具调用将自动批准
     
-     **警告**：这将绕过所有安全检查，请谨慎使用！
+     { "**" }警告**：这将绕过所有安全检查，请谨慎使用！
 yolo_activated_timeout =
-     **YOLO 模式已激活** — { $timeout } 秒后过期
+     { "**" }YOLO 模式已激活** — { $timeout } 秒后过期
     
-     **警告**：所有工具调用将自动批准，请谨慎使用！
+     { "**" }警告**：所有工具调用将自动批准，请谨慎使用！
 yolo_already_off = ℹ YOLO 模式已经是关闭状态
 yolo_invalid =  无效的 YOLO 操作。用法：/yolo [on|off|toggle|status]
 yolo_invalid_usage =  无效的 /yolo 命令。用法：`/yolo [on|off|toggle|status] [timeout_seconds]`
@@ -232,7 +232,7 @@ channel_budget_blocked = 此频道的每日预算已用完。其他频道和 Web
 cooldown_retry =
     
     
-    ⏱️ 请在 {seconds:.0f} 秒后重试。
+    ⏱️ 请在 { $seconds } 秒后重试。
 config_next_steps =
     
     
@@ -249,7 +249,7 @@ placeholder_request_timeout =  请求超时。
 placeholder_retrying =
     
     
-    [重试中... { $attempt }/{ $max_retries }]
+    { "[" }重试中... { $attempt }/{ $max_retries }]
 durable_outbound_recovered = 已恢复投递，您可能会收到重复消息。
 error_rate_limit = API 速率限制 — 模型暂时无法生成回复，请稍后再试。
 error_overloaded = AI 服务暂时过载，请稍后再试。

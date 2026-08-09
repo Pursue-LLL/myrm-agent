@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.eval.builder::extract_case_from_trajectory
 - app.services.chat.chat_service::ChatService
-- app.core.eval.service::save_eval_cases, get_eval_cases
+- app.core.eval.datasets::save_eval_cases, get_eval_cases
 
 [OUTPUT]
 - capture_case_from_chat: Extract EvalCase from a chat session and append it.
@@ -21,7 +21,7 @@ import logging
 
 from myrm_agent_harness.eval.builder import extract_case_from_trajectory
 
-from app.core.eval.service import get_eval_cases, save_eval_cases
+from app.core.eval.datasets import get_eval_cases, save_eval_cases
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
