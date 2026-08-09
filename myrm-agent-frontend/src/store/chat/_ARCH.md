@@ -22,6 +22,7 @@
 | `moaPresetStorage.ts` | per-chat localStorage + DB PATCH（`persistMoaPresetToServer` fail-visible rollback）+ `resolveHydratedMoaPresetId` |
 | `useChatStore.ts`（根 store） | `refreshCompactionState`：压缩 SSE 后并行 refresh summary/branches/pins（`Promise.allSettled`，detail 失败不阻断 metadata） |
 | `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
+| `useSubagentStore.ts` | 子代理运行时状态 store（`SubagentNode`/`SubagentStatus` 类型、SSE 树更新、teammate 消息、预算 metadata `budget`/`token_usage`、overtime/stale 告警） |
 | `__tests__/` | 请求组装、SSE schema、stream consumer 异常恢复与 handler reducer 回归测试 |
 | `goals/` | Goal 队列与 Plan 步骤 store | [_ARCH.md](goals/_ARCH.md) |
 

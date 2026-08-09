@@ -11,6 +11,7 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
+    get_first_enabled_model,
     http_json,
     open_mcp_page,
     open_settings_subroute,
@@ -592,8 +593,8 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
     board_name = f"Chrome Model Board {marker}"
     task_title = f"Chrome Model Task {marker}"
     file_id = f"chrome-e2e-model-file-{marker}"
-    model_override = os.environ.get("BASIC_MODEL") or "openai-like/deepseek-v4-flash"
     api_url = get_e2e_api_url()
+    model_override = get_first_enabled_model(api_url)
 
     board = http_json(
         "POST",

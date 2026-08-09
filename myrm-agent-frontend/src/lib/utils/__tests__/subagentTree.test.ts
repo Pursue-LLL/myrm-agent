@@ -61,6 +61,11 @@ describe('extractTotalTokens', () => {
     expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: -5 } })).toBe(0);
     expect(extractTotalTokens(mkNode({ task_id: 'a' }))).toBe(0);
   });
+
+  it('parses string token count', () => {
+    expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: '4321' } })).toBe(4321);
+    expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: 'abc' } })).toBe(0);
+  });
 });
 
 describe('extractBudgetTokens / extractMaxCostUsd', () => {

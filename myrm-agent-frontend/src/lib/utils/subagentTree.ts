@@ -2,7 +2,8 @@
  * [POS] Subagent tree data utilities. Pure functions for building, aggregating,
  *       sorting, filtering, and formatting subagent tree data.
  * [INPUT] useSubagentStore::SubagentNode, SubagentStatus (POS: Subagent state store)
- * [OUTPUT] buildTree, aggregate, treeTotals, sortNodes, filterNodes, flattenTree, fmtCost, fmtTokens
+ * [OUTPUT] buildTree, aggregate, treeTotals, sortNodes, filterNodes, flattenTree,
+ *       fmtCost, fmtTokens, extractCostUsd, extractTotalTokens, extractBudgetTokens, extractMaxCostUsd
  */
 import type { SubagentMetadataValue, SubagentNode, SubagentStatus } from '@/store/chat/useSubagentStore';
 
@@ -70,7 +71,12 @@ export function extractCostUsd(node: SubagentNode): number {
 
 export function extractTotalTokens(node: SubagentNode): number {
   const raw = node.token_usage?.total_tokens;
-  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  return 0;
 }
 
 function toFiniteNumber(raw: SubagentMetadataValue | undefined): number {

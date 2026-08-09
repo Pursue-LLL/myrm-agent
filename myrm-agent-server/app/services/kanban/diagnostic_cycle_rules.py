@@ -18,13 +18,12 @@ from myrm_agent_harness.toolkits.kanban.diagnostics import (
     DiagnosticAction,
     DiagnosticContext,
     TaskDiagnostic,
-    TaskDiagnosticSeverity,
 )
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
 from app.services.kanban.diagnostic_rules import (
-    DiagnosticThresholds,
     _DEFAULT_THRESHOLDS,
+    DiagnosticThresholds,
     _escalate_severity,
     _format_age,
     _hours_since,

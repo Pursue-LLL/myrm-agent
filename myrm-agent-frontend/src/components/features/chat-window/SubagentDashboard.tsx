@@ -312,7 +312,7 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
               {node.description || node.agent_type}
               <AggregateBadge node={node} />
             </span>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
               {node.role && (
                 <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] leading-none dark:border-gray-700">
                   {formatRole(node.role, t)}

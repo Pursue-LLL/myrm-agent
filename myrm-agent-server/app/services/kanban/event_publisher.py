@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 - app.services.event.app_event_bus (POS: Global SSE event bus.)
+- app.core.channel_bridge.persistent_background (POS: Background task source constants.)
 
 [OUTPUT]
 - publish_kanban_event, emit_btw_done, emit_review_requested, emit_task_rejected, emit_source_chat_done (completed/failed/blocked for source_chat; skips scheduled blocks)

@@ -408,11 +408,11 @@ async def test_create_memory_tools_for_user_propagates_optional_kwargs(
     tmp_path: Path,
 ) -> None:
     """Optional tool kwargs are forwarded only when provided."""
-    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import patch as mock_patch
 
     from app.core.memory.adapters.setup import create_memory_tools_for_user
 
-    custom_base_path = tmp_path / "tools_memory"
     embedding_config = EmbeddingConfig(
         model="openai/text-embedding-3-small", api_key="sk-test"
     )
@@ -457,7 +457,8 @@ async def test_create_memory_tools_for_user_propagates_optional_kwargs(
 @pytest.mark.asyncio
 async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) -> None:
     """The conflict callback writes a PendingMemory row and returns PENDING."""
-    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import patch as mock_patch
 
     from app.core.memory.adapters.setup import create_conflict_callback
 
@@ -495,7 +496,8 @@ async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) 
 @pytest.mark.asyncio
 async def test_create_conflict_callback_falls_back_on_db_error(tmp_path: Path) -> None:
     """A DB failure inside the callback falls back to KEEP_OLD."""
-    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import patch as mock_patch
 
     from app.core.memory.adapters.setup import create_conflict_callback
 

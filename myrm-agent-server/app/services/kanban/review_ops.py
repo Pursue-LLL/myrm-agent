@@ -7,7 +7,8 @@
 - event_publisher (POS: Kanban SSE event publishing helpers.)
 
 [OUTPUT]
-- approve_task, reject_task (with rejection notice via emit_task_rejected)
+- approve_task (with completion notices via emit_btw_done / emit_source_chat_done),
+  reject_task (with rejection notice via emit_task_rejected)
 
 [POS]
 Human-in-the-loop review transitions for require_approval tasks: approve

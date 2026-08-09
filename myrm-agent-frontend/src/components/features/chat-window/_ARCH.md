@@ -33,11 +33,6 @@
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + revoke）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列可视化与 DnD 拖拽排序（复用 @dnd-kit 模式） | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
-| `MobileActionSheet.tsx` | 组件 | 移动端底部动作 Sheet（`useMobileSheetEntries` 驱动） | ✅ |
-| `MobileStatusBoard.tsx` | 组件 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入 + Co-Pilot chip/Advisor；run 中「查看完整对话」→ 主 Chat 复用 QuoteToolbar 划词） | ✅ |
-| `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块 | ✅ |
-| `MobileStatusLivePreview.tsx` | 组件 | 浏览器/桌面 Live Preview 与 Lightbox | ✅ |
-| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤；run 结束后 result 卡片「查看完整对话」跳转主 Chat | ✅ |
 | `Navbar.tsx` | 组件 | 对话页顶栏：模型/Agent/后台任务/通知入口 | ✅ |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |
@@ -51,8 +46,15 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
+| `SubagentDashboard.tsx` | 核心 | 子代理控制面板：树形视图、排序/过滤、预算 token/cost 已用上限（`extractBudgetTokens`/`extractMaxCostUsd`）、甘特图、取消/steer/resume、overtime/stale 告警、teammate 消息 | ✅ |
+| `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时） | ✅ |
+| `SubagentPromptButton.tsx` | 组件 | 子代理 prompt 入口按钮（5s 倒计时自动 sendMessage） | ✅ |
+| `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |
 | `WorkspaceDirPicker.tsx` | 组件 | 工作目录选择器 Popover：路径直接输入+Enter导航、子目录过滤（>8项）、最近使用 LRU 5（localStorage）、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）；Web/Cloud 走 Popover+Input，后端 `GET /browse` 零改动 | ✅ |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
+| `mobile/` | 目录 | 移动端 Command Center 壳层与状态面板（MobileStatusBoard 等） | 见下表 |
+| `catchup/` | 目录 | 会话 catch-up 摘要收件箱 UI（Companion SSE `catchup_snapshot` 消费） | 见 [catchup/_ARCH.md](catchup/_ARCH.md) |
+| `virtual-message-list/` | 目录 | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存） | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
 
 ## agent-config-panel/
 
@@ -75,6 +77,17 @@
 | `GoalQueueSection.tsx` | 核心 | Goal 队列区块 | ✅ |
 | `GoalStatusCard.tsx` | 核心 | 单 Goal 状态卡片 | ✅ |
 | `goal-icons.tsx` | 辅助 | Goal 图标集 | ✅ |
+
+## mobile/
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `MobileActionSheet.tsx` | 组件 | 移动端底部动作 Sheet（`useMobileSheetEntries` 驱动） | ✅ |
+| `MobileStatusBoard.tsx` | 核心 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入 + Co-Pilot chip/Advisor；run 中「查看完整对话」→ 主 Chat 复用 QuoteToolbar 划词） | ✅ |
+| `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块 | ✅ |
+| `MobileStatusLivePreview.tsx` | 组件 | 浏览器/桌面 Live Preview 与 Lightbox | ✅ |
+| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤；run 结束后 result 卡片「查看完整对话」跳转主 Chat | ✅ |
+| `useMobileSheetEntries.tsx` | 辅助 | 移动端动作 Sheet 条目 hook | ✅ |
 
 ## Visual Approval（工具 HITL 截图审批）
 

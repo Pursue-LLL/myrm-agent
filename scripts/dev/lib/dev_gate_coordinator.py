@@ -747,7 +747,15 @@ class _BackgroundReaper:
                 pass
 
     def _maybe_apply_pending_drift(self) -> None:
-        """P0-A: drift apply moved here from readiness observation path."""
+        """P0-A: drift apply moved here from readiness observation path.
+
+        Coordinator only *applies* drift recorded by the attach path
+        (chrome-e2e-preflight.sh / backend_bg.sh) — it deliberately does not
+        actively detect new drift. Detection costs a git fingerprint walk and
+        is done once by attach; applying here defers the shared-backend restart
+        until no active wave leases remain, so parallel tests never get
+        interrupted by a mid-run reload (§26.27 end-to-end verified).
+        """
         try:
             from stack_mutation_policy import (  # noqa: PLC0415
                 apply_pending_drift_if_idle,

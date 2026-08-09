@@ -671,6 +671,7 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   const bilingualErrors = [];
   const sentinelErrors = [];
   const braceErrors = [];
+  let foreignScriptErrors = [];
   const forbiddenPatterns = glossaryForbiddenByLocale[lang] || [];
 
   const checkValue = (key, enValue, localeValue) => {
@@ -763,7 +764,6 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   // 9g. 拉丁/谚文系语言（ko/de）非本语言文字纯净门禁：文案中出现汉字或日文假名即残留
   //（豁免见 FOREIGN_SCRIPT_ALLOWED_KEYS）。与 en 9f SSOT 纯净门禁对称。
   if (lang === 'ko' || lang === 'de') {
-    const foreignScriptErrors = [];
     for (const key of enLeaves) {
       if (FOREIGN_SCRIPT_ALLOWED_KEYS.has(key)) continue;
       const localeValue = resolvePath(data, key);
@@ -780,8 +780,8 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
 
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
     && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
-    && sentinelErrors.length === 0 && braceErrors.length === 0) {
-    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 检测 通过`);
+    && sentinelErrors.length === 0 && braceErrors.length === 0 && foreignScriptErrors.length === 0) {
+    console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 / 纯净门禁 检测 通过`);
   }
 }
 
