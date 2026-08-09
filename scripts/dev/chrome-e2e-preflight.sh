@@ -3,6 +3,20 @@
 # Exit 0 prints CHROME_E2E_READY; exit 1 prints actionable failures.
 set -euo pipefail
 
+# Ensure toolchain bins (bun for model seed, node for orchestrator) are
+# reachable even when the caller's shell lacks the standard Homebrew PATH
+# (e.g. Cursor agent shells that never sourced .zshrc). Mirror the explicit
+# candidate lookup used by ensure-browser-orchestrator.sh.
+for _tool_dir in /opt/homebrew/bin /usr/local/bin /usr/bin "$HOME/.bun/bin"; do
+  if [[ -d "${_tool_dir}" ]]; then
+    case ":${PATH}:" in
+      *":${_tool_dir}:"*) ;;
+      *) PATH="${_tool_dir}:${PATH}" ;;
+    esac
+  fi
+done
+export PATH
+
 UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
 SHARED_API_BASE="${MYRM_SHARED_API_BASE:-http://127.0.0.1:8080}"
 API_BASE="${E2E_API_BASE:-${SHARED_API_BASE}}"
@@ -1449,7 +1463,6 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     echo "CHROME_E2E_ATTACH: parallel leases=${attach_parallel_leases} — skip SMP stack heal (R123-D; ADMIT queue SSOT)" >&2
   elif [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
     _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
-    _smp_apply_pending_drift_if_idle "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
   _heal_mux_request_timeout_drift
