@@ -234,3 +234,64 @@ def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
     assert oversized == []
     assert compressed == []
     assert tmp_paths == []
+
+
+@pytest.mark.asyncio
+async def test_resolve_chat_workspace_root_db_hit() -> None:
+    """Returns a non-empty workspace_dir from the Chat row."""
+    from unittest.mock import AsyncMock, patch
+
+    from app.core.channel_bridge.agent_executor.deliverable.scanner import (
+        resolve_chat_workspace_root,
+    )
+
+    mock_result = AsyncMock()
+    mock_result.scalar_one_or_none.return_value = " /tmp/ws "
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_result
+
+    with (
+        patch(
+            "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
+        ) as get_session,
+        patch(
+            "app.core.channel_bridge.agent_executor.deliverable.scanner.select",
+        ) as select_mock,
+    ):
+        get_session.return_value.__aenter__.return_value = mock_db
+        result = await resolve_chat_workspace_root("chat-1")
+
+    assert result == "/tmp/ws"
+    select_mock.assert_called_once()
+    assert "workspace_dir" in str(select_mock.call_args)
+
+
+@pytest.mark.asyncio
+async def test_resolve_chat_workspace_root_empty_or_error() -> None:
+    """Empty/None workspace_dir or a DB exception both yield None."""
+    from unittest.mock import AsyncMock, patch
+
+    from app.core.channel_bridge.agent_executor.deliverable.scanner import (
+        resolve_chat_workspace_root,
+    )
+
+    for value in (None, "   "):
+        mock_result = AsyncMock()
+        mock_result.scalar_one_or_none.return_value = value
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+        with (
+            patch(
+                "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
+            ) as get_session,
+        ):
+            get_session.return_value.__aenter__.return_value = mock_db
+            assert await resolve_chat_workspace_root("chat-1") is None
+
+    mock_db = AsyncMock()
+    mock_db.execute.side_effect = RuntimeError("db down")
+    with patch(
+        "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
+    ) as get_session:
+        get_session.return_value.__aenter__.return_value = mock_db
+        assert await resolve_chat_workspace_root("chat-1") is None

@@ -37,6 +37,12 @@ def _make_message() -> InboundMessage:
 async def _finalize(
     acc: StreamAccumulator,
     build_result: tuple[tuple, frozenset],
+    *,
+    channel_budget_key: str | None = None,
+    memory_settings: dict[str, object] | None = None,
+    chat_history: list[object] | None = None,
+    session_was_auto_reset: bool = False,
+    lite_model_cfg: object | None = None,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
     with (
@@ -62,11 +68,11 @@ async def _finalize(
             _make_message(),
             acc=acc,
             chat_id="chat-1",
-            channel_budget_key=None,
-            memory_settings={},
-            lite_model_cfg=None,
-            chat_history=[object()],
-            session_was_auto_reset=False,
+            channel_budget_key=channel_budget_key,
+            memory_settings=memory_settings or {},
+            lite_model_cfg=lite_model_cfg,  # type: ignore[arg-type]
+            chat_history=chat_history if chat_history is not None else [object()],
+            session_was_auto_reset=session_was_auto_reset,
             session_policy=SessionPolicy(),
         )
     return persist_mock, reply
