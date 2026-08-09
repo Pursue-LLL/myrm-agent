@@ -347,14 +347,14 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                 const budgetTokens = extractBudgetTokens(node);
                 if (budgetTokens > 0) {
                   return (
-                    <span className="tabular-nums shrink-0" title={t('tokenBudgetTitle', { used: totalTokens.toLocaleString(), limit: budgetTokens.toLocaleString() })}>
+                    <span className="tabular-nums shrink-0" title={t('tokenBudgetTitle', { used: totalTokens.toLocaleString('en-US'), limit: budgetTokens.toLocaleString('en-US') })}>
                       {fmtTokens(totalTokens)}/{fmtTokens(budgetTokens)} tok
                     </span>
                   );
                 }
                 return (
                   <span className="tabular-nums shrink-0">
-                    {totalTokens.toLocaleString()} tok
+                    {totalTokens.toLocaleString('en-US')} tok
                   </span>
                 );
               })()}
