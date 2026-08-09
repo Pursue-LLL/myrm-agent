@@ -11615,6 +11615,7 @@
       "backlog": "Backlog",
       "ready": "Ready",
       "running": "Running",
+      "runningWithLimit": "Running: {count}/{limit}",
       "verifying": "Verifying",
       "blocked": "Blocked",
       "in_review": "In Review",

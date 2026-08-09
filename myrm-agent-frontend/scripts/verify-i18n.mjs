@@ -12,6 +12,7 @@
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
  * - ko/de 非本语言文字纯净门禁：拉丁/谚文系语言（ko/de）文案中出现汉字或日文假名即残留
  *   （语言名/跨语言术语豁免），与 en 9f 对称
+ * - zh-TW 简体独有字形纯净门禁：繁体中文文案中出现简体独有字形即残留（语言名/跨语言术语豁免）
  *
  * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
@@ -612,6 +613,22 @@ const FOREIGN_SCRIPT_ALLOWED_KEYS = new Set([
   ...EN_PURITY_ALLOWED_KEYS,
   'agent.formalKoreanReplies.title',
 ]);
+
+/**
+ * zh-TW 简体独有字形纯净门禁：繁体中文文案中出现简体独有字形即残留。
+ * 仅收录简体独有字形（繁体另有写法，如 设→設），排除简繁同形字（感/收/效/等）
+ * 与语言名/跨语言术语豁免键，确保零误伤。与 en 9f / ko-de 9g 纯净门禁对称。
+ */
+const SIMPLIFIED_GLYPH_RE = /[设发过这见样为实处与关历广卫组单号乡争办队传约员结据线红纸经继严业产长车声压条张华观团记忆语认识讲课专项级联词买卖双对错时间现点营让请询论证谈该谁调计划开览选权础码库还边个东说话给觉复环变习额题态视页体举尘当惊亲务减测网场帮协阶断写读伟伪汉归问阳阴际险隐顶项顾显风飞马验鸟鸡钟层齐参击势转辆轻较]/;
+
+/**
+ * zh-TW 简体字形门禁豁免键：语言名（同 en 9f）+ 跨语言术语 합니다体（de/ko 9g 同源豁免）。
+ */
+const SIMPLIFIED_GLYPH_ALLOWED_KEYS = new Set([
+  ...EN_PURITY_ALLOWED_KEYS,
+  'agent.formalKoreanReplies.title',
+  'agent.formalKoreanReplies.description',
+]);
 const enNonLatinErrors = [];
 for (const key of enLeaves) {
   if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
@@ -672,6 +689,7 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   const sentinelErrors = [];
   const braceErrors = [];
   let foreignScriptErrors = [];
+  let simplifiedGlyphErrors = [];
   const forbiddenPatterns = glossaryForbiddenByLocale[lang] || [];
 
   const checkValue = (key, enValue, localeValue) => {
@@ -778,9 +796,27 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     }
   }
 
+  // 9h. 繁体中文（zh-TW）简体独有字形纯净门禁：繁体文案出现简体字形即残留
+  //（豁免见 SIMPLIFIED_GLYPH_ALLOWED_KEYS）。与 en 9f / ko-de 9g 纯净门禁对称。
+  if (lang === 'zh-TW') {
+    for (const key of enLeaves) {
+      if (SIMPLIFIED_GLYPH_ALLOWED_KEYS.has(key)) continue;
+      const localeValue = resolvePath(data, key);
+      if (typeof localeValue === 'string' && SIMPLIFIED_GLYPH_RE.test(localeValue)) {
+        simplifiedGlyphErrors.push(key);
+      }
+    }
+    if (simplifiedGlyphErrors.length > 0) {
+      console.error(`  ❌ ${lang}.json 存在 ${simplifiedGlyphErrors.length} 个含简体独有字形的键（须转繁体）：`);
+      simplifiedGlyphErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+      hasErrors = true;
+    }
+  }
+
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
     && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
-    && sentinelErrors.length === 0 && braceErrors.length === 0 && foreignScriptErrors.length === 0) {
+    && sentinelErrors.length === 0 && braceErrors.length === 0 && foreignScriptErrors.length === 0
+    && simplifiedGlyphErrors.length === 0) {
     console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 / 纯净门禁 检测 通过`);
   }
 }
