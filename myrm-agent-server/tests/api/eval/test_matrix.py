@@ -15,7 +15,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.eval.matrix import (
-    DEFAULT_MATRIX_REPORTS_DIR,
     _active_matrix_runner,
     _matrix_state,
     _run_matrix_eval,
@@ -317,6 +316,15 @@ class TestMatrixRouterEndpoints:
         ):
             res = client.get("/api/v1/eval/matrix/status")
         assert res.json() == {"is_running": True, "case_completed": 2}
+
+    def test_stream_passthrough(self, client: TestClient) -> None:
+        with patch(
+            "app.api.eval.matrix_router.get_matrix_eval_status",
+            return_value={"is_running": False},
+        ):
+            res = client.get("/api/v1/eval/matrix/stream")
+        assert res.status_code == 200
+        assert "text/event-stream" in res.headers["content-type"]
 
     def test_report_not_found(self, client: TestClient) -> None:
         with patch(

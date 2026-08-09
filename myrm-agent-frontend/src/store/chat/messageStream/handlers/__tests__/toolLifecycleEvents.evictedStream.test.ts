@@ -19,8 +19,11 @@ vi.mock('../handlerDeps', () => ({
 }));
 
 import { toolLifecycleEvents } from '../toolLifecycleEvents';
+import { AdaptiveScheduler } from '../../../adaptiveScheduler';
 import type { AgentStreamEvent } from '@/store/chat/types';
+import type { ProgressItem } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../../streamContext';
+import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 
 const MESSAGE_ID = 'msg-evict-1';
 
@@ -32,14 +35,16 @@ function makeStep(overrides: Record<string, unknown> = {}) {
     status: 'error',
     stdout: 'processed row 149',
     ...overrides,
-  };
+  } as ProgressItem;
 }
 
 function createCtx(evictedPayload: Record<string, unknown>): StreamCtx {
-  const state = {
+  const state: StreamHandlerState = {
     messages: [
       {
         messageId: MESSAGE_ID,
+        chatId: 'chat-evict',
+        createdAt: new Date(),
         role: 'assistant',
         content: '',
         progressSteps: [makeStep()],
@@ -47,10 +52,10 @@ function createCtx(evictedPayload: Record<string, unknown>): StreamCtx {
     ],
     messageAppeared: false,
     loading: true,
-    scheduler: { run: vi.fn(), stop: vi.fn() },
+    scheduler: new AdaptiveScheduler(),
   };
-  const actions = {
-    setMessages: (updater: (s: typeof state) => void) => updater(state),
+  const actions: StreamHandlerActions = {
+    setMessages: (updater) => updater(state),
     setMessageAppeared: () => undefined,
     setLoading: () => undefined,
     _processSuggestions: async () => undefined,
@@ -73,10 +78,12 @@ function createCtx(evictedPayload: Record<string, unknown>): StreamCtx {
   };
 }
 
-async function runAndStep(ctx: StreamCtx): Promise<typeof ctx.state.messages[0]['progressSteps'][0]> {
+async function runAndStep(ctx: StreamCtx): Promise<ProgressItem> {
   const result: StreamTurn | null = await toolLifecycleEvents(ctx);
   expect(result).not.toBeNull();
-  return ctx.state.messages[0].progressSteps[0];
+  const step = ctx.state.messages[0]?.progressSteps?.[0];
+  expect(step).toBeDefined();
+  return step as ProgressItem;
 }
 
 describe('toolLifecycleEvents tool_evicted_ref stream routing', () => {
@@ -147,7 +154,7 @@ describe('toolLifecycleEvents tool_evicted_ref stream routing', () => {
 
     const result = await toolLifecycleEvents(ctx);
     expect(result).not.toBeNull();
-    expect(ctx.state.messages[0].progressSteps[0].evicted_file_ref).toBeUndefined();
+    expect(ctx.state.messages[0]?.progressSteps?.[0]?.evicted_file_ref).toBeUndefined();
   });
 
   it('no-ops when evicted_ref is missing', async () => {

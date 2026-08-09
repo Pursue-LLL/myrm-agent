@@ -312,7 +312,7 @@ class CdpChatBootstrap(CdpChatTransport):
             if getattr(self, "_e2e_runtime_bootstrapped", False):
                 await self.evaluate(
                     e2e_api_base_inject_js(),
-                    intent=EvaluateIntent.SYNC_PROBE,
+                    intent=EvaluateIntent.ROUTE_ATTACH,
                 )
                 return
             result = await self.evaluate(
@@ -324,12 +324,12 @@ class CdpChatBootstrap(CdpChatTransport):
                 return
             await self.evaluate(
                 e2e_api_base_inject_js(),
-                intent=EvaluateIntent.SYNC_PROBE,
+                intent=EvaluateIntent.ROUTE_ATTACH,
             )
             return
         await self.evaluate(
             e2e_api_base_inject_js(),
-            intent=EvaluateIntent.SYNC_PROBE,
+            intent=EvaluateIntent.ROUTE_ATTACH,
         )
 
     async def bootstrap(

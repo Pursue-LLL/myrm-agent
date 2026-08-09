@@ -10,6 +10,8 @@
  *   ICU 花括号平衡、翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
  *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
+ * - ko/de 汉字纯净门禁：拉丁/谚文系语言（ko/de）文案中出现汉字即中文残留（语言名/跨语言术语豁免），
+ *   与 en 9f 对称，防 Item B 类中文残留漏检复发
  *
  * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
@@ -540,6 +542,13 @@ function isBraceBalanced(value) {
 const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
+ * 汉字范围（U+4E00–U+9FFF），仅用于拉丁/谚文系语言（ko/de）的纯净性门禁：
+ * ko（谚文）与 de（拉丁）文案中不应出现任何汉字，出现即代表中文残留。
+ * 与 NON_LATIN_RE 的差异：不含假名/谚文/全角符号，避免误伤这两门语言的合法字符。
+ */
+const CJK_HANZI_RE = /[\u4e00-\u9fff]/;
+
+/**
  * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
  * 判定：恰好两段，一段纯 ASCII（英文），另一段含非拉丁文字（本地语），且不含 ICU 占位符对照。
  * 排除合理情形：占位符对照（{shown} / {total}）、术语对照（MCP / 技能设置）、路径/URL。
@@ -740,6 +749,26 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     braceErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
     hasErrors = true;
   }
+
+  // 9g. 拉丁/谚文系语言（ko/de）汉字纯净门禁：文案中出现汉字即中文残留
+  //（语言名、跨语言术语豁免）。与 en 9f SSOT 纯净门禁对称，补齐 Item B 残留漏检。
+  if (lang === 'ko' || lang === 'de') {
+    const hanziErrors = [];
+    for (const key of enLeaves) {
+      if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
+      if (key === 'agent.formalKoreanReplies.title') continue;
+      const localeValue = resolvePath(data, key);
+      if (typeof localeValue === 'string' && CJK_HANZI_RE.test(localeValue)) {
+        hanziErrors.push(key);
+      }
+    }
+    if (hanziErrors.length > 0) {
+      console.error(`  ❌ ${lang}.json 存在 ${hanziErrors.length} 个含汉字（中文残留）的键：`);
+      hanziErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+      hasErrors = true;
+    }
+  }
+
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
     && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
     && sentinelErrors.length === 0 && braceErrors.length === 0) {

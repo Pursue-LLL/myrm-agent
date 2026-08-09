@@ -26,8 +26,7 @@ from app.channels.types import (
     SelectOption,
     ToolStep,
 )
-
-from ...channel_test_base import ChannelTestBase
+from tests.channels.channel_test_base import ChannelTestBase
 
 
 class TestDiscordChannelContract(ChannelTestBase):

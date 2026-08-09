@@ -13499,6 +13499,8 @@
     "active": "aktiv",
     "failed": "fehlgeschlagen",
     "approvalCardNotFound": "Keine ausstehende Genehmigungskarte gefunden",
+    "costBudgetTitle": "Kosten: ${used} / ${limit}",
+    "tokenBudgetTitle": "Token-Budget: {used} / {limit}",
     "staleTitle": "Subagent stalled — no progress detected",
     "staleDescription": "No token or tool progress for {duration}min ({tokens} tokens consumed). The subagent may be stuck. Consider cancelling it.",
     "delegationPauseButton": "Delegation pausieren",

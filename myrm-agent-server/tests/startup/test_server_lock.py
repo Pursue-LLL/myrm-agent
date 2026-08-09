@@ -13,11 +13,8 @@ import sys
 import time
 from pathlib import Path
 
-import pytest
-
 
 def _import_lock_module(tmp_path: Path):
-    import sys
 
     from app.startup import server_lock
 

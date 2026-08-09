@@ -14163,7 +14163,9 @@
     "agents": "agents",
     "active": "active",
     "failed": "failed",
-    "approvalCardNotFound": "No pending approval card found"
+    "approvalCardNotFound": "No pending approval card found",
+    "costBudgetTitle": "Cost: ${used} / ${limit}",
+    "tokenBudgetTitle": "Token budget: {used} / {limit}"
   },
   "evalLab": {
     "pageTitle": "Eval Lab",

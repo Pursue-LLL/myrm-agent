@@ -17,14 +17,14 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `service_ai_mixin.py` | ✅ 核心 | specify/decompose 工作流薄壳（直连 orchestrator） | ❌ |
 | `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
 | `service_types.py` | ✅ 核心 | DTO/异常/常量 | ❌ |
-| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done`（completed/failed/blocked，scheduled block 跳过）、`emit_review_requested`（IN_REVIEW 进入时 pending_review 通知） | ❌ |
+| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done`（completed/failed/blocked，scheduled block 跳过）、`emit_review_requested`（IN_REVIEW 进入时 pending_review 通知）、`emit_task_rejected`（reject 时 rejected 通知，共用 `_publish_task_notice`） | ❌ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定 | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete | ❌ |
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止） | ❌ |
-| `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成通知补发；非 IN_REVIEW 幂等 no-op | ✅ |
+| `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |
-| `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery；注册 task_completed/failed/blocked 与 task_review_requested 通知回调 | ❌ |
+| `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery；注册 task_completed/failed/blocked、task_review_requested 与 task_rejected 通知回调 | ❌ |
 | `task_runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆** | ✅ |
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径 + HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
 | `task_runner_stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |

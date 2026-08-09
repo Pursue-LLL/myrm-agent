@@ -125,7 +125,11 @@ async def reject_task(
     await store.append_event(
         task_id,
         TaskEventKind.REJECTED,
-        payload={"reason": reason, "approver": approver or "human"},
+        payload={
+            "reason": reason,
+            "approver": approver or "human",
+            "from": TaskStatus.IN_REVIEW.value,
+        },
     )
     publish_kanban_event(
         task.board_id,

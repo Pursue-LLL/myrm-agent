@@ -50,6 +50,10 @@ import {
   flattenTree,
   fmtCost,
   fmtTokens,
+  extractCostUsd,
+  extractTotalTokens,
+  extractBudgetTokens,
+  extractMaxCostUsd,
   type TreeNode,
   type SortMode,
   type FilterMode,
@@ -319,22 +323,41 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                   {formatScope(node.control_scope, t)}
                 </span>
               )}
-              {node.budget?.cost_usd !== undefined && 
-               (typeof node.budget.cost_usd === 'number' || (typeof node.budget.cost_usd === 'string' && !isNaN(Number(node.budget.cost_usd)))) && (
-                <span className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
-                  ${Number(node.budget.cost_usd).toFixed(3)}
-                </span>
-              )}
+              {(() => {
+                const costUsd = extractCostUsd(node);
+                const maxCostUsd = extractMaxCostUsd(node);
+                if (costUsd <= 0) return null;
+                return (
+                  <span
+                    className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800"
+                    title={maxCostUsd > 0 ? t('costBudgetTitle', { used: costUsd.toFixed(3), limit: maxCostUsd.toFixed(2) }) : undefined}
+                  >
+                    {maxCostUsd > 0 ? `$${costUsd.toFixed(3)}/${maxCostUsd.toFixed(2)}` : `$${costUsd.toFixed(3)}`}
+                  </span>
+                );
+              })()}
               {node.effective_model && (
                 <span className="truncate max-w-[8rem]" title={node.effective_model}>
                   {node.effective_model}
                 </span>
               )}
-              {typeof node.token_usage?.total_tokens === 'number' && node.token_usage.total_tokens > 0 && (
-                <span className="tabular-nums shrink-0">
-                  {node.token_usage.total_tokens.toLocaleString()} tok
-                </span>
-              )}
+              {(() => {
+                const totalTokens = extractTotalTokens(node);
+                if (totalTokens <= 0) return null;
+                const budgetTokens = extractBudgetTokens(node);
+                if (budgetTokens > 0) {
+                  return (
+                    <span className="tabular-nums shrink-0" title={t('tokenBudgetTitle', { used: totalTokens.toLocaleString(), limit: budgetTokens.toLocaleString() })}>
+                      {fmtTokens(totalTokens)}/{fmtTokens(budgetTokens)} tok
+                    </span>
+                  );
+                }
+                return (
+                  <span className="tabular-nums shrink-0">
+                    {totalTokens.toLocaleString()} tok
+                  </span>
+                );
+              })()}
               <span className="truncate">{node.last_tool || t('processing')}</span>
               <span>{Math.round(node.progress)}%</span>
               {isRunningNode && node.startedAt && (

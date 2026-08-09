@@ -14069,7 +14069,9 @@
     "agents": "代理",
     "active": "運行中",
     "failed": "失敗",
-    "approvalCardNotFound": "未找到待審批卡片"
+    "approvalCardNotFound": "未找到待審批卡片",
+    "costBudgetTitle": "成本：${used} / ${limit}",
+    "tokenBudgetTitle": "Token 預算：{used} / {limit}"
   },
   "evalLab": {
     "pageTitle": "評測實驗室",

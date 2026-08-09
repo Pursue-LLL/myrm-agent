@@ -52,6 +52,50 @@ async def test_capture_case_from_chat_edge_cases(tmp_path):
                     mock_save.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_capture_case_from_chat_dataclass_and_name_only_tools():
+    """Dataclass tool calls dump via asdict; plain name-only objects via name attr."""
+    from dataclasses import dataclass
+    from unittest.mock import patch
+
+    from app.core.eval.capture import capture_case_from_chat
+
+    @dataclass
+    class DCTool:
+        name: str = "dc_tool"
+        args: dict = None
+
+    class NameOnlyTool:
+        name = "name_tool"
+
+    msgs = [
+        MockMsg("user", "hello", {"tool_calls": [DCTool()]}),
+        MockMsg("assistant", "world", {"tool_calls": [NameOnlyTool()]}),
+    ]
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", return_value=msgs):
+        with patch("app.services.chat.chat_service.ChatService.get_chat_metadata", return_value=MagicMock(agent_id="test_agent")):
+            with patch("app.core.eval.capture.save_eval_cases", return_value=True) as mock_save:
+                with patch("app.core.eval.capture.get_eval_cases", return_value="{}"):
+                    assert await capture_case_from_chat("chat-dc", "ds-dc") is True
+                    mock_save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_capture_case_from_chat_empty_existing_cases():
+    """When no existing cases, content starts fresh (no leading newline handling)."""
+    from unittest.mock import patch
+
+    from app.core.eval.capture import capture_case_from_chat
+
+    msgs = [MockMsg("user", "hello", None), MockMsg("assistant", "world", None)]
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", return_value=msgs):
+        with patch("app.services.chat.chat_service.ChatService.get_chat_metadata", return_value=MagicMock(agent_id="test_agent")):
+            with patch("app.core.eval.capture.save_eval_cases", return_value=True) as mock_save:
+                with patch("app.core.eval.capture.get_eval_cases", return_value=""):
+                    assert await capture_case_from_chat("chat-empty", "ds-empty") is True
+                    mock_save.assert_called_once()
+
+
 def test_eval_service_report_summaries(tmp_path):
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
@@ -95,3 +139,56 @@ def test_eval_service_exceptions(tmp_path):
         readonly_file.chmod(0o444)
         with patch("app.core.eval.datasets.get_dataset_path", return_value=readonly_file):
             save_eval_cases("test", "test")  # Should log warning, return False or handle gracefully
+
+
+def test_report_summary_edge_cases(tmp_path):
+    """Edge branches of report summary readers (missing dirs, empty files, non-summary)."""
+    from app.core.eval.reports import get_all_report_summaries, get_latest_report_summary
+
+    # Missing reports dir
+    missing = tmp_path / "missing"
+    assert get_latest_report_summary(missing) is None
+    assert get_all_report_summaries(missing) == []
+
+    # Empty latest file
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    (empty_dir / "latest.jsonl").write_text("")
+    assert get_latest_report_summary(empty_dir) is None
+
+    # First line is not a summary
+    non_summary_dir = tmp_path / "non_summary"
+    non_summary_dir.mkdir()
+    (non_summary_dir / "latest.jsonl").write_text('{"type": "result"}')
+    assert get_latest_report_summary(non_summary_dir) is None
+
+    # First line not a dict
+    not_dict_dir = tmp_path / "not_dict"
+    not_dict_dir.mkdir()
+    (not_dict_dir / "latest.jsonl").write_text('["array"]')
+    assert get_latest_report_summary(not_dict_dir) is None
+
+    # Corrupt JSON in latest
+    corrupt_dir = tmp_path / "corrupt"
+    corrupt_dir.mkdir()
+    (corrupt_dir / "latest.jsonl").write_text("{bad json")
+    assert get_latest_report_summary(corrupt_dir) is None
+
+    # Historical reports: corrupt file skipped; non-summary first line skipped
+    hist_dir = tmp_path / "hist"
+    hist_dir.mkdir()
+    (hist_dir / "eval_report_bad.jsonl").write_text("{oops")
+    (hist_dir / "eval_report_300.jsonl").write_text('{"type": "result"}')
+    assert get_all_report_summaries(hist_dir) == []
+
+    # Historical reports: non-numeric filename timestamp falls back to mtime
+    import json as _json
+
+    ts_dir = tmp_path / "ts"
+    ts_dir.mkdir()
+    target = ts_dir / "eval_report_abc.jsonl"
+    target.write_text(_json.dumps({"type": "summary", "pass_rate": 0.9}) + "\n")
+    summaries = get_all_report_summaries(ts_dir)
+    assert len(summaries) == 1
+    assert summaries[0]["filename"] == "eval_report_abc.jsonl"
+    assert isinstance(summaries[0]["timestamp"], int)

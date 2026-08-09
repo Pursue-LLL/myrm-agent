@@ -18,7 +18,6 @@ from app.core.eval.adaptive import (
     mark_chat_activity,
 )
 from app.core.eval.datasets import (
-    DEFAULT_DATASETS_DIR,
     _dataset_sort_key,
     get_all_datasets,
     get_dataset_path,

@@ -1,5 +1,6 @@
 """Integration tests for chat turn prewarm endpoints."""
 
+import logging
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -52,7 +53,7 @@ class TestPrewarmEndpoint:
         assert body["success"] is True
         assert body["data"]["started"] is False
 
-    def test_prewarm_starts_warming(self, client: TestClient) -> None:
+    def test_prewarm_starts_warming(self, client: TestClient, caplog) -> None:
         mock_params = MagicMock()
         mock_params.chat_id = "c-prewarm-ok"
         with patch(
@@ -66,10 +67,16 @@ class TestPrewarmEndpoint:
             coordinator.ensure_warming = AsyncMock()
             mock_get_coordinator.return_value = coordinator
 
-            resp = client.post(
-                "/api/v1/agents/chats/c-prewarm-ok/prewarm",
-                json={"agentId": "default", "actionMode": "agent"},
-            )
+            with caplog.at_level(logging.WARNING, logger="app.api.agents.general_agent.prewarm"):
+                resp = client.post(
+                    "/api/v1/agents/chats/c-prewarm-ok/prewarm",
+                    json={"agentId": "default", "actionMode": "agent"},
+                )
+                # 非 DEBUG 下 root logger 为 WARNING，INFO 被过滤；prewarm 观测行
+                # 必须用 WARNING 保证 E2E count_turn_prewarm_in_log 可读（BUG-R015）。
+                assert any(
+                    "Turn prewarm requested" in rec.message for rec in caplog.records
+                )
 
         assert resp.status_code == 200
         body = resp.json()

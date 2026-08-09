@@ -14098,7 +14098,9 @@
     "agents": "エージェント",
     "active": "実行中",
     "failed": "失敗",
-    "approvalCardNotFound": "承認カードが見つかりません"
+    "approvalCardNotFound": "承認カードが見つかりません",
+    "costBudgetTitle": "コスト：${used} / ${limit}",
+    "tokenBudgetTitle": "トークン予算：{used} / {limit}"
   },
   "evalLab": {
     "pageTitle": "評価ラボ",

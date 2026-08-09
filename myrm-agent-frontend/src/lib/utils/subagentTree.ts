@@ -4,7 +4,7 @@
  * [INPUT] useSubagentStore::SubagentNode, SubagentStatus (POS: Subagent state store)
  * [OUTPUT] buildTree, aggregate, treeTotals, sortNodes, filterNodes, flattenTree, fmtCost, fmtTokens
  */
-import type { SubagentNode, SubagentStatus } from '@/store/chat/useSubagentStore';
+import type { SubagentMetadataValue, SubagentNode, SubagentStatus } from '@/store/chat/useSubagentStore';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -54,8 +54,12 @@ export function buildTree(nodes: Record<string, SubagentNode>): TreeNode[] {
 
 // ── Aggregate ────────────────────────────────────────────────────────
 
-function extractCostUsd(node: SubagentNode): number {
-  const raw = node.budget?.cost_usd;
+/** Actual cost consumed by the subagent (from token_usage, the only source the harness provides). */
+export function extractCostUsd(node: SubagentNode): number {
+  // Real cost arrives via running/final token_usage (harness event_forwarder
+  // emits total_cost_usd in SUBAGENT_PROGRESS and observability snapshots).
+  // `budget.cost_usd` never exists (budget only carries timeout/max_cost/budget_tokens).
+  const raw = node.token_usage?.total_cost_usd;
   if (typeof raw === 'number') return raw;
   if (typeof raw === 'string') {
     const n = Number(raw);
@@ -64,9 +68,28 @@ function extractCostUsd(node: SubagentNode): number {
   return 0;
 }
 
-function extractTotalTokens(node: SubagentNode): number {
+export function extractTotalTokens(node: SubagentNode): number {
   const raw = node.token_usage?.total_tokens;
   return typeof raw === 'number' && raw > 0 ? raw : 0;
+}
+
+function toFiniteNumber(raw: SubagentMetadataValue | undefined): number {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+  if (typeof raw === 'string') {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/** Token budget ceiling (budget_tokens) when the subagent was spawned with one. */
+export function extractBudgetTokens(node: SubagentNode): number {
+  return toFiniteNumber(node.budget?.budget_tokens);
+}
+
+/** Optional cost ceiling (max_cost_usd) when the subagent was spawned with one. */
+export function extractMaxCostUsd(node: SubagentNode): number {
+  return toFiniteNumber(node.budget?.max_cost_usd);
 }
 
 export function aggregate(node: TreeNode): SubtreeAggregate {

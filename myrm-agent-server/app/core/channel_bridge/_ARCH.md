@@ -35,7 +35,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `background_task_handler.py` | ✅ 核心 | ChannelBackgroundTaskHandler：/btw + **voice** `run_background_task` spawn → Kanban；`spawn_background(..., background_source=, agent_id=)`；cancel/steer/list 同 /btw | ✅ |
 | `persistent_background.py` | ✅ 核心 | `is_persistent_background()` metadata SSOT（btw \| voice） | ✅ |
 | `webui_voice_work_notifier.py` | ✅ 核心 | voice Kanban terminal → Web chat `append_message` + SYSTEM_NOTIFICATION + panel refresh | ✅ |
-| `btw_notifier.py` | ✅ 核心 | BtwTaskNotifier：ServerEventBus 订阅器，监听 `BACKGROUND_TASK_DONE` 事件，将 /btw 或带 `source_chat_id` 的 Kanban 任务完成/失败/阻塞（非 scheduled）结果通过 `send_with_retry` 回推到原始发起渠道（channel/chat_id/thread_id 或从 Chat 解析 channel_session_key），支持 i18n 多语言通知。与 NotificationDispatcher 并行运行，互不干扰 | ✅ |
+| `btw_notifier.py` | ✅ 核心 | BtwTaskNotifier：ServerEventBus 订阅器，监听 `BACKGROUND_TASK_DONE` 事件，将 /btw 或带 `source_chat_id` 的 Kanban 任务完成/失败/阻塞/待审批（pending_review）/驳回（rejected，非 scheduled）结果通过 `send_with_retry` 回推到原始发起渠道（channel/chat_id/thread_id 或从 Chat 解析 channel_session_key），支持 i18n 多语言通知。与 NotificationDispatcher 并行运行，互不干扰 | ✅ |
 | `goal_terminal_notifier.py` | ✅ 核心 | GoalTerminalNotifier：ServerEventBus 订阅器，监听 `GOAL_TERMINAL` 事件，将 Goal 完成/失败结果通过 `send_with_retry` 回推到原始发起的 IM 渠道（channel/chat_id/thread_id），仅处理携带 source channel metadata 的 IM 发起 Goal（WebUI/Cron 发起的自动跳过），支持 deeplink 按钮和 i18n 多语言通知 | ✅ |
 | `status_handler.py` | ✅ 核心 | ChannelStatusProvider：StatusProvider 协议的业务层实现。查询最近的 Chat 会话元数据（session_id、title、tokens、cost、calls、model、created_at、last_activity）供 /status 命令显示 | ✅ |
 | `route_registry.py` | ✅ 辅助 | ChannelRouteRegistry 运行时持有者（startup 写入、routes management 读取） | ✅ |

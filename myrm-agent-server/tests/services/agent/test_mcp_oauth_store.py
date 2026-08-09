@@ -8,19 +8,18 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.mcp.oauth import (
+    MCPOAuthConfig,
+    MCPOAuthToken,
+)
 from sqlalchemy import delete, select
 
 from app.database.connection import get_session
 from app.database.models import UserConfig
 from app.services.config.encryption import get_encryption_service
-from myrm_agent_harness.toolkits.mcp.oauth import (
-    MCPOAuthConfig,
-    MCPOAuthToken,
-)
 
 CONFIG_KEY = "mcpOAuthTokens"
 SERVER_NAME = "notion-test"

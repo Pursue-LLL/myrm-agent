@@ -16,7 +16,7 @@
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
-| `verify-i18n.mjs` | 六语系 i18n 全量门禁：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、翻译壳检测（`collectTranslationShells` + 豁免见 `i18n-shell-allowlist.json`）、glossary forbidden（de/ko/ja，`i18n-glossary.json`）、双语对照脏值检测（非拉丁文字区间 `NON_LATIN_RE` 覆盖汉字+假名+谚文，拦截 "はい / Yes" 类脏值）、异常哨兵；另含 SSR shell/deferred namespace 门禁 + 关键 namespace keys（`pretest` + CI） |
+| `verify-i18n.mjs` | 六语系 i18n 全量门禁：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、翻译壳检测（`collectTranslationShells` + 豁免见 `i18n-shell-allowlist.json`）、glossary forbidden（de/ko/ja，`i18n-glossary.json`）、双语对照脏值检测（非拉丁文字区间 `NON_LATIN_RE` 覆盖汉字+假名+谚文，拦截 "はい / Yes" 类脏值）、异常哨兵；另含 en 纯净门禁（SSOT 不得混入非拉丁）+ ko/de 汉字纯净门禁（拉丁/谚文系语言文案出现汉字即中文残留，语言名与 합니다体 术语豁免）；另有 SSR shell/deferred namespace 门禁 + 关键 namespace keys（`pretest` + CI） |
 | `verify-stable-mocks.mjs` | next-intl mock 稳定性门禁：扫描全部测试文件，硬拦截不稳定 mock（`useTranslations: () => (key) => ...` 箭头简写 / `() => { return (key) => ... }` 块体返回），防 Vitest OOM 复发（`lint` + `pretest` 前置） |
 | `i18n-shell-core.mjs` | 翻译壳检测共享逻辑（`isLegitSameValue` / `collectTranslationShells` 等；verify-i18n 与 dump-remaining 共用，防 gate 口径漂移） |
 | `i18n-patch-apply.mjs` | 将 `translation-patches/<locale>/*.json` 深度合并进 `locales/<locale>.json`（内容补齐工作流） |
@@ -25,7 +25,7 @@
 | `i18n-de-apply-cache.py` | 将 `auto-translated-overrides.json` 回写到 `locales/de.json`（壳清零前的增量应用） |
 | `i18n-de-fix-remaining.mjs` | de 收尾：认知词/渠道 Connect 文案壳 + glossary forbidden 键修正 |
 | `i18n-dump-remaining.mjs` | 按 `i18n-shell-core.mjs` 同款壳检测逻辑导出某语言剩余翻译壳清单（TSV/JSON，支持 `--limit`/`--offset`/`--stats`） |
-| `i18n-glossary.json` | Native QA 术语表 SSOT（de Sie-Form + ko 敬语约束 + ja です・ます体约束与禁止模式；`forbidden` 由 `verify-i18n.mjs` 强制执行，ja 用于拦截中文乱码残留（词汇级中文独有词 + 语序乱码 + 简体独有词）复发） |
+| `i18n-glossary.json` | Native QA 术语表 SSOT（de Sie-Form + ko 敬语约束 + ja です・ます体约束与禁止模式；`forbidden` 由 `verify-i18n.mjs` 强制执行，ja 用于拦截中文乱码残留（词汇级中文独有词 + 语序乱码 + 简体独有词）复发；de/ko rules 声明汉字纯净约束） |
 | `i18n-shell-allowlist.json` | 翻译壳检测豁免清单：真正不可翻译的值（品牌/凭据字段名/占位示例）与键路径 |
 | `translation-patches/` | 各语言内容补齐补丁目录（`<locale>/batch-NN.json` 等嵌套 JSON 补丁，供 `i18n-patch-apply.mjs` 深度合并；应用前以 `i18n-dump-remaining.mjs` 导出剩余壳清单） |
 | `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`build:sw-inject` + Serwist inject-manifest + CI） |

@@ -7,6 +7,7 @@ from myrm_agent_harness.toolkits.memory.config import (
     MemoryWritePolicy,
 )
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.core.memory.adapters.setup import (
@@ -316,6 +317,215 @@ def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
     assert binding.agent_overlay.memory_scenes_pinned is True
     assert binding.bundle_id == "default"
     assert binding.schema_version == 1
+
+
+@pytest.mark.asyncio
+async def test_evict_cached_memory_manager_unknown_base_path_noop(tmp_path: Path) -> None:
+    """Evicting a base_path with no cached manager is a quiet no-op."""
+    from app.core.memory.adapters.setup import evict_cached_memory_manager
+
+    assert len(_memory_manager_cache) == 0
+    await evict_cached_memory_manager(tmp_path / "never_cached")
+    assert len(_memory_manager_cache) == 0
+
+
+@pytest.mark.asyncio
+async def test_evict_cached_memory_manager_logs_close_failure(tmp_path: Path) -> None:
+    """A manager whose close() raises is logged and still evicted from cache."""
+    from unittest.mock import AsyncMock
+    from unittest.mock import patch as mock_patch
+
+    from app.core.memory.adapters.setup import evict_cached_memory_manager
+
+    custom_base_path = tmp_path / "close_failure_memory"
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
+
+    with mock_patch(
+        "app.core.retriever.vector.defaults.create_default_vector_store",
+        new=AsyncMock(),
+    ):
+        manager = await create_memory_manager(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id=None,
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            base_path=custom_base_path,
+        )
+
+    manager.close = AsyncMock(side_effect=RuntimeError("close exploded"))
+    with mock_patch("app.core.memory.adapters.setup.logger.warning") as mock_warning:
+        await evict_cached_memory_manager(custom_base_path)
+
+    mock_warning.assert_called_once()
+    assert len(_memory_manager_cache) == 0
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cached_memory_managers_logs_close_failure(tmp_path: Path) -> None:
+    """shutdown gathers close failures without propagating them."""
+    from unittest.mock import AsyncMock
+    from unittest.mock import patch as mock_patch
+
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+
+    custom_base_path = tmp_path / "shutdown_failure_memory"
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
+
+    with mock_patch(
+        "app.core.retriever.vector.defaults.create_default_vector_store",
+        new=AsyncMock(),
+    ):
+        manager = await create_memory_manager(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id=None,
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            base_path=custom_base_path,
+        )
+
+    manager.close = AsyncMock(side_effect=RuntimeError("close exploded"))
+    with mock_patch("app.core.memory.adapters.setup.logger.warning") as mock_warning:
+        await shutdown_cached_memory_managers()
+
+    mock_warning.assert_called_once()
+    assert len(_memory_manager_cache) == 0
+
+
+@pytest.mark.asyncio
+async def test_create_memory_tools_for_user_propagates_optional_kwargs(
+    tmp_path: Path,
+) -> None:
+    """Optional tool kwargs are forwarded only when provided."""
+    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+
+    from app.core.memory.adapters.setup import create_memory_tools_for_user
+
+    custom_base_path = tmp_path / "tools_memory"
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
+    fake_manager = MagicMock()
+    fake_tools = [MagicMock(), MagicMock()]
+
+    async def _fake_create_manager(*_args: object, **_kwargs: object):
+        return fake_manager
+
+    with (
+        mock_patch(
+            "app.core.memory.adapters.setup.create_memory_manager",
+            new=AsyncMock(side_effect=_fake_create_manager),
+        ),
+        mock_patch(
+            "myrm_agent_harness.toolkits.create_memory_tools",
+            return_value=fake_tools,
+        ) as mock_tools,
+    ):
+        manager, tools = await create_memory_tools_for_user(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id="builder",
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            search_policy={"k": "v"},
+            search_backends=["qdrant"],
+            description_locale="zh",
+        )
+
+    assert manager is fake_manager
+    assert tools is fake_tools
+    call_kwargs = mock_tools.call_args.kwargs
+    assert call_kwargs["search_policy"] == {"k": "v"}
+    assert call_kwargs["search_backends"] == ["qdrant"]
+    assert call_kwargs["description_locale"] == "zh"
+
+
+@pytest.mark.asyncio
+async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) -> None:
+    """The conflict callback writes a PendingMemory row and returns PENDING."""
+    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+
+    from app.core.memory.adapters.setup import create_conflict_callback
+
+    fake_db = MagicMock()
+    fake_db.__aenter__ = AsyncMock(return_value=fake_db)
+    fake_db.__aexit__ = AsyncMock(return_value=False)
+    fake_db.add = MagicMock()
+    fake_db.commit = AsyncMock()
+
+    ctx = MagicMock(
+        new_content="conflicting fact",
+        merge_suggestion="merge note",
+        accuracy_score=0.8,
+        old_memory_id="mem-old-1",
+        old_content="old fact",
+        importance=0.9,
+    )
+
+    with mock_patch(
+        "app.database.connection.get_session",
+        return_value=fake_db,
+    ):
+        callback = create_conflict_callback(agent_id="agent-x")
+        result = await callback(ctx)
+
+    assert result == ConflictResolution.PENDING
+    fake_db.add.assert_called_once()
+    record = fake_db.add.call_args.args[0]
+    assert record.agent_id == "agent-x"
+    assert record.is_conflict is True
+    assert record.status == "pending"
+    fake_db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_conflict_callback_falls_back_on_db_error(tmp_path: Path) -> None:
+    """A DB failure inside the callback falls back to KEEP_OLD."""
+    from unittest.mock import AsyncMock, MagicMock, patch as mock_patch
+
+    from app.core.memory.adapters.setup import create_conflict_callback
+
+    fake_db = MagicMock()
+    fake_db.__aenter__ = AsyncMock(
+        side_effect=RuntimeError("db unavailable"),
+    )
+    fake_db.__aexit__ = AsyncMock(return_value=False)
+
+    ctx = MagicMock(
+        new_content="conflicting fact",
+        merge_suggestion="merge note",
+        accuracy_score=0.8,
+        old_memory_id="mem-old-1",
+        old_content="old fact",
+        importance=0.9,
+    )
+
+    with (
+        mock_patch(
+            "app.database.connection.get_session",
+            return_value=fake_db,
+        ),
+        mock_patch("app.core.memory.adapters.setup.logger.warning") as mock_warning,
+    ):
+        callback = create_conflict_callback(agent_id="agent-x")
+        result = await callback(ctx)
+
+    assert result == ConflictResolution.KEEP_OLD
+    mock_warning.assert_called_once()
 
 
 @pytest.mark.asyncio

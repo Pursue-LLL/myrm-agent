@@ -132,3 +132,107 @@ def test_eval_router_coverage(client: TestClient):
 
             res12 = client.get("/api/v1/eval/reports/nonexistent.jsonl")
             assert res12.status_code == 404
+
+            # Empty report file → 404
+            empty_file = tmp_path / "empty.jsonl"
+            empty_file.write_text("")
+            res_empty = client.get("/api/v1/eval/reports/empty.jsonl")
+            assert res_empty.status_code == 404
+
+            # Non-summary first line → error status
+            result_file = tmp_path / "result.jsonl"
+            result_file.write_text('{"type": "result"}')
+            res_result = client.get("/api/v1/eval/reports/result.jsonl")
+            assert res_result.status_code == 200
+            assert res_result.json()["status"] == "error"
+
+            # Corrupt report → 500
+            corrupt_file = tmp_path / "corrupt.jsonl"
+            corrupt_file.write_text("{broken json")
+            res_corrupt = client.get("/api/v1/eval/reports/corrupt.jsonl")
+            assert res_corrupt.status_code == 500
+
+
+def test_eval_router_remaining_branches(client: TestClient):
+    """Cover wb-bench run/download, datasets read, cases read, metrics, stream."""
+    from app.core.eval import wb_bench as wb
+
+    # --- wb-bench/run: already running ---
+    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
+        res = client.post("/api/v1/eval/wb-bench/run", json={"subset_id": "web"})
+        assert res.json()["status"] == "already_running"
+
+    # --- wb-bench/run: started (synchronous state init + background task) ---
+    subset_id = next(iter(wb.WB_BENCH_SUBSETS))
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_wb_bench_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/wb-bench/run",
+            json={"subset_id": subset_id, "profile_id": "agent_x", "benchmark_mode": True},
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "started"
+        _, call_kwargs = mock_bg.call_args
+        assert call_kwargs["subset_id"] == subset_id
+        assert call_kwargs["profile_id"] == "agent_x"
+        assert call_kwargs["benchmark_mode"] is True
+
+    # --- wb-bench/download: already running ---
+    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
+        res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": "web"})
+        assert res.json()["status"] == "already_running"
+
+    # --- wb-bench/download: started ---
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_wb_bench_download_background") as mock_dl,
+    ):
+        res = client.post(
+            "/api/v1/eval/wb-bench/download", json={"subset_id": subset_id}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "started"
+        _, call_kwargs = mock_dl.call_args
+        assert call_kwargs["subset_id"] == subset_id
+
+    # --- datasets read + cases read ---
+    with patch("app.api.eval.router.get_all_datasets", return_value=[]):
+        res = client.get("/api/v1/eval/datasets")
+        assert res.json()["status"] == "success"
+
+    with patch("app.api.eval.router.get_eval_cases", return_value="x"):
+        res = client.get("/api/v1/eval/datasets/custom")
+        assert res.json()["content"] == "x"
+        res = client.get("/api/v1/eval/cases")
+        assert res.json()["content"] == "x"
+
+    # --- dataset write failure → 500 ---
+    with patch("app.api.eval.router.save_eval_cases", return_value=False):
+        res = client.put("/api/v1/eval/datasets/x", json={"content": "{}"})
+        assert res.status_code == 500
+
+    # --- metrics: not found ---
+    with patch("app.api.eval.router.get_latest_report_summary", return_value=None):
+        res = client.get("/api/v1/eval/internal/metrics/eval")
+        assert res.json()["status"] == "not_found"
+
+    # --- metrics: found ---
+    with patch(
+        "app.api.eval.router.get_latest_report_summary",
+        return_value={"total_cases": 10, "pass_rate": 0.8, "pass_count": 8},
+    ):
+        res = client.get("/api/v1/eval/internal/metrics/eval")
+        assert res.json()["status"] == "success"
+        assert res.json()["metrics"]["total_cases"] == 10
+
+    # --- status + stream endpoints ---
+    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}):
+        res = client.get("/api/v1/eval/status")
+        assert res.json()["is_running"] is False
+
+    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}):
+        res = client.get("/api/v1/eval/stream")
+        assert res.status_code == 200
+        assert "text/event-stream" in res.headers["content-type"]

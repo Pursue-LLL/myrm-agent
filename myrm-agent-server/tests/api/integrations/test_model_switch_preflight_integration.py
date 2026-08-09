@@ -182,6 +182,7 @@ def test_preflight_tier_inference_matches_small_model_tuning(
 ) -> None:
     """Real tier inference agrees with the agent factory's small-model tuning."""
     from myrm_agent_harness.core.config.model_tier import infer_model_tier
+
     from tests.support.test_secrets import resolve_test_env
 
     model = resolve_test_env("BASIC_MODEL", "openai-like/deepseek-v4-flash")

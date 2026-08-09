@@ -9,7 +9,7 @@ interface ReportItem {
   pass_count?: number;
   skip_count?: number;
   pass_rate?: number;
-  avg_pass_rate?: number;
+  avg_pass_rate?: number | null;
   manifest?: {
     task_set_id?: string;
   };

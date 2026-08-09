@@ -14134,7 +14134,9 @@
     "agents": "代理",
     "active": "运行中",
     "failed": "失败",
-    "approvalCardNotFound": "未找到待审批卡片"
+    "approvalCardNotFound": "未找到待审批卡片",
+    "costBudgetTitle": "成本：${used} / ${limit}",
+    "tokenBudgetTitle": "Token 预算：{used} / {limit}"
   },
   "evalLab": {
     "pageTitle": "评测实验室",

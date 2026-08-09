@@ -87,8 +87,7 @@ describe('aggregate', () => {
     const leaf: TreeNode = {
       ...mkNode({ task_id: 'a', duration_seconds: 5 }),
       children: [],
-      budget: { cost_usd: 0.5 },
-      token_usage: { total_tokens: 1000 },
+      token_usage: { total_tokens: 1000, total_cost_usd: 0.5 },
     };
     const agg = aggregate(leaf);
     expect(agg.descendantCount).toBe(0);
@@ -101,14 +100,12 @@ describe('aggregate', () => {
     const child: TreeNode = {
       ...mkNode({ task_id: 'c', duration_seconds: 3, status: 'running' }),
       children: [],
-      budget: { cost_usd: 0.2 },
-      token_usage: { total_tokens: 500 },
+      token_usage: { total_tokens: 500, total_cost_usd: 0.2 },
     };
     const parent: TreeNode = {
       ...mkNode({ task_id: 'p', duration_seconds: 10 }),
       children: [child],
-      budget: { cost_usd: 1.0 },
-      token_usage: { total_tokens: 2000 },
+      token_usage: { total_tokens: 2000, total_cost_usd: 1.0 },
     };
     const agg = aggregate(parent);
     expect(agg.descendantCount).toBe(1);
@@ -118,14 +115,25 @@ describe('aggregate', () => {
     expect(agg.activeCount).toBe(1);
   });
 
-  it('handles string cost_usd gracefully', () => {
+  it('handles string cost gracefully', () => {
     const node: TreeNode = {
       ...mkNode({ task_id: 'x' }),
       children: [],
-      budget: { cost_usd: '0.75' },
+      token_usage: { total_cost_usd: '0.75' },
     };
     const agg = aggregate(node);
     expect(agg.totalCostUsd).toBeCloseTo(0.75);
+  });
+
+  it('ignores legacy budget.cost_usd (never produced by harness)', () => {
+    const node: TreeNode = {
+      ...mkNode({ task_id: 'y' }),
+      children: [],
+      budget: { cost_usd: 9.99 },
+      token_usage: { total_cost_usd: 0.3 },
+    };
+    const agg = aggregate(node);
+    expect(agg.totalCostUsd).toBeCloseTo(0.3);
   });
 
   it('handles missing budget/token_usage', () => {
@@ -168,9 +176,9 @@ describe('treeTotals', () => {
 
 describe('sortNodes', () => {
   const makeNodes = (): TreeNode[] => [
-    { ...mkNode({ task_id: 'a', status: 'completed', duration_seconds: 5 }), children: [], budget: { cost_usd: 0.1 } },
-    { ...mkNode({ task_id: 'b', status: 'failed', duration_seconds: 20 }), children: [], budget: { cost_usd: 2.0 } },
-    { ...mkNode({ task_id: 'c', status: 'running', duration_seconds: 10 }), children: [], budget: { cost_usd: 0.5 } },
+    { ...mkNode({ task_id: 'a', status: 'completed', duration_seconds: 5 }), children: [], token_usage: { total_cost_usd: 0.1 } },
+    { ...mkNode({ task_id: 'b', status: 'failed', duration_seconds: 20 }), children: [], token_usage: { total_cost_usd: 2.0 } },
+    { ...mkNode({ task_id: 'c', status: 'running', duration_seconds: 10 }), children: [], token_usage: { total_cost_usd: 0.5 } },
   ];
 
   it('spawn mode preserves order', () => {

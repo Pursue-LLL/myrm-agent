@@ -63,6 +63,7 @@ __all__ = [
     "ensure_desktop_viewport",
     "get_e2e_api_url",
     "get_e2e_ui_url",
+    "get_first_enabled_model",
     "guarded_httpx_request",
     "http_json",
     "navigate_mcp_page",
@@ -217,6 +218,40 @@ def guarded_httpx_request(
     from e2e_effect_guard import guarded_httpx_request as _guard
 
     return _guard(client, method, url, **kwargs)
+
+
+def get_first_enabled_model(api_url: str | None = None) -> str:
+    """Return the first model from the backend's enabled providers.
+
+    Mirrors the Kanban UI model select (single data source: /config/providers),
+    so tests never hard-code a model that the target backend may not have.
+    """
+    base = (api_url or get_e2e_api_url()).rstrip("/")
+    payload = http_json("GET", f"{base}/api/v1/config/providers")
+    value = payload.get("value") if isinstance(payload, dict) else payload
+    if not isinstance(value, dict):
+        raise RuntimeError(f"E2E: providers config malformed on {base}")
+    providers = value.get("providers")
+    if not isinstance(providers, list):
+        raise RuntimeError(f"E2E: providers list missing on {base}")
+    for provider in providers:
+        if not isinstance(provider, dict):
+            continue
+        if not (provider.get("isEnabled") or provider.get("enabled")):
+            continue
+        keys = provider.get("apiKeys")
+        has_key = isinstance(keys, list) and any(
+            isinstance(k, dict) and k.get("isActive") for k in keys
+        )
+        if not has_key:
+            continue
+        provider_id = str(provider.get("id", ""))
+        models = provider.get("enabledModels")
+        if isinstance(models, list):
+            for model in models:
+                if isinstance(model, str) and model:
+                    return f"{provider_id}/{model}"
+    raise RuntimeError(f"E2E: no enabled provider model found on {base}")
 
 
 def http_json(

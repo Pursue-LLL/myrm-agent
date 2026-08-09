@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Native QA glossary SSOT for batch translation pipelines (de Sie-Form + ko honorific).",
+  "description": "Native QA glossary SSOT for batch translation pipelines (de Sie-Form + ko honorific; ko/de 汉字纯净门禁由 verify-i18n.mjs 强制执行).",
   "locales": {
     "de": {
       "formality": "formal",
@@ -10,7 +10,8 @@
         "Preserve ICU placeholders exactly ({count}, {name}, plural/select blocks).",
         "Keep product brands untranslated: Myrm, MyrmAgent, MCP, OpenAI, GitHub, Telegram, Discord, Slack, Webhook.",
         "Prefer established UI terms: Einstellungen, Fähigkeiten, Agent, Modell, Kanal, Speicher.",
-        "Button labels: short imperative (Speichern, Abbrechen, Löschen, Bestätigen)."
+        "Button labels: short imperative (Speichern, Abbrechen, Löschen, Bestätigen).",
+        "Never mix Han characters into German UI copy; only language-name labels (中文/日本語) and the cross-language term 합니다体 are exempt (enforced by verify-i18n)."
       ],
       "terms": {
         "Agent": "Agent",
@@ -52,7 +53,8 @@
         "Default to polite honorific (합니다/해요체); avoid 반말 in product UI.",
         "Preserve ICU placeholders exactly.",
         "Keep brands in Latin script: Myrm, MCP, OpenAI, GitHub, Webhook.",
-        "Use consistent product terms: 설정, 스킬, 에이전트, 모델, 채널, 메모리."
+        "Use consistent product terms: 설정, 스킬, 에이전트, 모델, 채널, 메모리.",
+        "Never mix Han characters into Korean UI copy; write native Hangul (설정 not 设置); only language-name labels (中文/日本語) are exempt (enforced by verify-i18n)."
       ],
       "terms": {
         "Settings": "설정",
@@ -81,6 +83,7 @@
         "Distinguish 新規 (new item) from 最新 (latest); never write 新規規 / 最新規.",
         "可用 is 利用可能; never 利用可能性 for the adjective 利用可能.",
         "Invalid state label is 無効 (disabled) — never 未有効.",
+        "Forbidden patterns must be minimal unique substrings that never occur in legit Japanese (e.g. 聚合, なし效, 検出まで); avoid generic kanji or kana like 管理ど that also appear in valid words (管理どのように, 管理どれ).",
         "Prefer native terms: リージョン (region), ステップ (step), 詳細 (details), 異常 (abnormal), 診断 (diagnostics), ガバナンス (governance), トレース (trace), ライフサイクル (lifecycle), スケジュール (schedule)."
       ],
       "terms": {
@@ -117,7 +120,7 @@
         "優先度分", "受管理器", "有効管理器", "なし效", "検出まで", "再割り場合て",
         "30日内可", "からごみ箱", "因ない", "完反すべき", "空片段", "一般のな",
         "コマンド名前", "未設定い", "変更使用", "設定管理者", "入力管理者", "管理あなた",
-        "管理ど", "管理セキュリティ", "管理どの", "なし内容", "存储", "子任务", "回显示", "回试",
+        "管理セキュリティ", "なし内容", "存储", "子任务", "回显示", "回试",
         "薪酬", "公司名", "职位", "薪资"
       ]
     }

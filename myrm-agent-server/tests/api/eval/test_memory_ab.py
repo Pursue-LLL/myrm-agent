@@ -443,6 +443,14 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         res = client.get("/api/v1/eval/memory-ab/status")
         assert res.json()["is_running"] is False
 
+    # SSE stream passthrough
+    with patch(
+        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
+    ):
+        res = client.get("/api/v1/eval/memory-ab/stream")
+        assert res.status_code == 200
+        assert "text/event-stream" in res.headers["content-type"]
+
     # report not found
     with patch("app.api.eval.memory_ab_router.get_latest_memory_ab_report", return_value=None):
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
@@ -603,3 +611,150 @@ def test_memory_ab_router_report_history(client: TestClient) -> None:
     with patch("app.api.eval.memory_ab_router.get_memory_ab_report", return_value=None):
         res = client.get("/api/v1/eval/memory-ab/reports/123")
         assert res.json()["status"] == "not_found"
+
+
+class TestMemoryAbEdgeBranches:
+    """Edge branches of the memory A/B state helpers and report readers."""
+
+    def test_get_memory_ab_status_returns_snapshot(self) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod._memory_ab_state["case_completed"] = 5
+        status = memory_ab_mod.get_memory_ab_status()
+        assert status["case_completed"] == 5
+        status["case_completed"] = 99
+        assert memory_ab_mod._memory_ab_state["case_completed"] == 5
+
+    def test_abort_not_running_returns_false(self) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod._memory_ab_state["is_running"] = False
+        assert memory_ab_mod.abort_memory_ab() is False
+
+    def test_abort_running_sets_flag_and_aborts_runner(self) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod._memory_ab_state["is_running"] = True
+        memory_ab_mod._memory_ab_state["abort_requested"] = False
+        runner = MagicMock()
+        memory_ab_mod._active_memory_ab_runner = runner
+        assert memory_ab_mod.abort_memory_ab() is True
+        assert memory_ab_mod._memory_ab_state["abort_requested"] is True
+        runner.abort.assert_called_once()
+        memory_ab_mod._active_memory_ab_runner = None
+
+    def test_abort_running_without_runner_still_succeeds(self) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod._memory_ab_state["is_running"] = True
+        memory_ab_mod._active_memory_ab_runner = None
+        assert memory_ab_mod.abort_memory_ab() is True
+        memory_ab_mod._memory_ab_state["is_running"] = False
+
+    @pytest.mark.asyncio
+    async def test_abort_before_evaluation_stops_run(self, tmp_path: Path) -> None:
+        """Abort during download aborts before evaluation starts."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": True, "abort_requested": True},
+            ),
+            patch(
+                "app.core.eval.wb_bench.build_wb_bench_cases",
+                return_value=([MagicMock()], {}),
+            ),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("code")
+
+        # No report should be written when aborted before evaluation.
+        assert not (tmp_path / "reports").exists()
+
+    @pytest.mark.asyncio
+    async def test_run_records_abort_error(self, tmp_path: Path) -> None:
+        """Non-abort failures surface in the error field and cleanup still runs."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+        memory_ab_mod._memory_ab_state["is_running"] = False
+        memory_ab_mod._memory_ab_state["abort_requested"] = False
+
+        with (
+            patch(
+                "app.core.eval.wb_bench.build_wb_bench_cases",
+                side_effect=RuntimeError("download exploded"),
+            ),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("code")
+
+        assert memory_ab_mod._memory_ab_state["error"] == "download exploded"
+        assert memory_ab_mod._memory_ab_state["is_running"] is False
+
+    def test_latest_report_missing_dir(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "absent"
+        assert memory_ab_mod.get_latest_memory_ab_report() is None
+
+    def test_latest_report_non_object(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "latest.json").write_text('["not", "an", "object"]')
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        assert memory_ab_mod.get_latest_memory_ab_report() is None
+
+    def test_latest_report_corrupt(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "latest.json").write_text("{broken")
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        assert memory_ab_mod.get_latest_memory_ab_report() is None
+
+    def test_report_by_timestamp_non_object(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "memory_ab_report_7.json").write_text("[1, 2]")
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        assert memory_ab_mod.get_memory_ab_report(7) is None
+
+    def test_report_by_timestamp_corrupt(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "memory_ab_report_7.json").write_text("{oops")
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        assert memory_ab_mod.get_memory_ab_report(7) is None
+
+    def test_report_history_missing_dir_returns_empty(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        assert memory_ab_mod.get_memory_ab_report_history(tmp_path / "absent") == []
+
+    def test_report_history_skips_non_object(self, tmp_path: Path) -> None:
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "memory_ab_report_1.json").write_text("[1]")
+        history = memory_ab_mod.get_memory_ab_report_history(reports_dir)
+        assert history == []

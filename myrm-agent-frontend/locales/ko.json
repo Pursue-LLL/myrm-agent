@@ -13499,6 +13499,8 @@
     "active": "실행 중",
     "failed": "실패",
     "approvalCardNotFound": "승인 카드를 찾을 수 없습니다",
+    "costBudgetTitle": "비용: ${used} / ${limit}",
+    "tokenBudgetTitle": "토큰 예산: {used} / {limit}",
     "staleTitle": "하위 에이전트 중단됨 — 진행이 감지되지 않음",
     "staleDescription": "{duration}분 동안 토큰 또는 도구 진행이 없습니다 ({tokens} 토큰 소모). 하위 에이전트가 멈췄을 수 있습니다. 취소를 고려하세요.",
     "delegationPauseButton": "위임 일시 중지",
