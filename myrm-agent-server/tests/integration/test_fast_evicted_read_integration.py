@@ -15,6 +15,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 from myrm_agent_harness.agent.meta_tools import get_meta_tools
+from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
+    create_bash_code_execute_tool,
+)
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
     create_file_read_tool,
 )
@@ -254,6 +257,88 @@ async def test_fast_evicted_file_read_allows_uploaded_path_on_disk(
 
     assert isinstance(result, str)
     assert marker in result
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_failed_bash_stdout_evicted_and_readable_via_file_read(
+    workspace: Path,
+) -> None:
+    """Failed bash keeps large stdout recoverable: evicted on disk + file_read back.
+
+    Real LocalExecutor failure path (no mock on execution/eviction): a command that
+    prints a large stdout and then crashes must surface the truncation banner in the
+    error and keep the full stdout readable from sandbox storage via file_read_tool.
+    """
+    chat_id = f"chat-fail-bash-{uuid.uuid4().hex[:8]}"
+    executor = _make_local_executor(workspace)
+    exec_token = set_executor(executor)
+    ws_token = workspace_root_var.set(str(workspace))
+    chat_token = chat_id_var.set(chat_id)
+    result: str | None = None
+    try:
+        bash_tool = create_bash_code_execute_tool()
+        config = RunnableConfig(
+            configurable={
+                "context": {
+                    "session_id": chat_id,
+                    "workspace_path": str(workspace),
+                    "workspaces_storage_root": str(workspace),
+                },
+                "supports_vision": False,
+            }
+        )
+        with (
+            patch(
+                "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+                AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
+                return_value=AsyncMock(
+                    __aenter__=AsyncMock(return_value=None),
+                    __aexit__=AsyncMock(return_value=False),
+                ),
+            ),
+            pytest.raises(ToolError) as exc_info,
+        ):
+            await bash_tool.ainvoke(
+                {
+                    "command": (
+                        "python3 -c \"import sys; "
+                        "[print(i) for i in range(2000)]; 1/0\""
+                    ),
+                    "reason": "integration verify failed bash stdout eviction",
+                },
+                config=config,
+            )
+
+        assert "[LARGE OUTPUT TRUNCATED (2000 lines" in str(exc_info.value)
+
+        evicted_dir = workspace / ".context" / chat_id / "evicted"
+        files = sorted(evicted_dir.glob("output_*.txt"))
+        assert files, "failed stdout must be evicted to sandbox storage"
+        rel = f".context/{chat_id}/evicted/{files[0].name}"
+
+        read_tool = create_file_read_tool(path_policy="evicted_uploaded")
+        read = await read_tool.ainvoke(
+            {"paths": [rel], "mode": "all"},
+            config=RunnableConfig(
+                configurable={"chat_id": chat_id, "supports_vision": False}
+            ),
+        )
+        result = read if isinstance(read, str) else str(read)
+    finally:
+        reset_executor(exec_token)
+        workspace_root_var.reset(ws_token)
+        chat_id_var.reset(chat_token)
+
+    assert result is not None
+    disk_text = files[0].read_text(encoding="utf-8")
+    assert "1999" in disk_text, (
+        "full stdout must be persisted to sandbox storage"
+    )
+    assert files[0].name in result, "file_read must resolve the evicted file"
 
 
 @pytest.mark.integration

@@ -2,7 +2,7 @@
 """Agent Operating Surface (AOS) — dedicated OFFSCREEN-NORMAL window for Myrm E2E Chrome.
 
 Offscreen-normal (never minimized) keeps rAF running so Next.js hydration never
-freezes and the test layer never needs focus-stealing activation (§26.21/§26.23).
+freezes and the test layer never needs focus-stealing activation (§26.21/§26.25).
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ async def _adopt_live_anchor(
     """Pick the first live page target as the AOS anchor and park it offscreen.
 
     Chrome recycles `Target.createTarget(newWindow=true)` blank windows and their
-    windowIds are not reliably addressable afterwards (§26.24). Adopting a real
+    windowIds are not reliably addressable afterwards (§26.25). Adopting a real
     page window — the same window `_park_all_page_windows_offscreen` parks —
     gives us a stable, addressable anchor that stays valid between ensure runs.
     """
@@ -175,7 +175,7 @@ async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, 
         await _park_window_offscreen(ws, msg_id, window_id, deadline=deadline)
     except (TimeoutError, RuntimeError, asyncio.TimeoutError):
         # Best-effort: a freshly created new-window target may not yet expose a
-        # valid windowId to Browser.setWindowBounds (§26.24). The anchor is
+        # valid windowId to Browser.setWindowBounds (§26.25). The anchor is
         # still recorded; re-parking happens on the next ensure pass.
         pass
     return target_id, window_id
@@ -237,7 +237,7 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
         if not valid:
             # Reuse a live page window as the anchor instead of creating a new
             # one: Target.createTarget(newWindow=true) targets are recycled by
-            # Chrome and their windowId is not reliably addressable (§26.24).
+            # Chrome and their windowId is not reliably addressable (§26.25).
             anchor_target, window_id = await _adopt_live_anchor(ws, cdp_port, deadline=deadline)
             registry = {
                 "windowId": window_id,

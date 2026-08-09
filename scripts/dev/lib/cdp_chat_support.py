@@ -825,6 +825,20 @@ def wait_e2e_provider_ready(
     )
 
 
+GOAL_PERSISTED_STATUSES = frozenset(
+    {"active", "budget_limited", "complete", "paused"}
+)
+
+
+def is_persisted_e2e_goal(goal: dict[str, object] | None) -> bool:
+    """True when a goal record matches Goal Chrome E2E persistence assertions."""
+    if goal is None:
+        return False
+    objective = str(goal.get("objective") or "").strip()
+    status = str(goal.get("status") or "").strip()
+    return bool(objective) and status in GOAL_PERSISTED_STATUSES
+
+
 def fetch_e2e_goal_status(
     chat_id: str,
     *,
@@ -850,11 +864,15 @@ def wait_e2e_goal_status(
     poll_interval_sec: float = 1.0,
     api_url: str | None = None,
 ) -> dict[str, object] | None:
-    """Poll private-backend goal persistence (orchestrator may lag turn completion)."""
+    """Poll private-backend goal persistence (orchestrator may lag turn completion).
+
+    Returns only records that pass ``is_persisted_e2e_goal`` — same bar as
+    ``wait_turn_done`` okViaGoal and Goal Chrome E2E assertions.
+    """
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         goal = fetch_e2e_goal_status(chat_id, api_url=api_url)
-        if goal is not None:
+        if is_persisted_e2e_goal(goal):
             return goal
         time.sleep(poll_interval_sec)
     return None

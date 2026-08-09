@@ -3,8 +3,10 @@
 Covers the task-level human approval flow over HTTP:
 - require_approval flag on create/update
 - approve: IN_REVIEW -> COMPLETED (+ dependent promotion)
-- reject: IN_REVIEW -> READY with reason
-- error semantics: 404 unknown task, 409 non-reviewable status
+- reject: IN_REVIEW -> READY with reason (retry_count reset)
+- idempotent no-ops: approve/reject on non-IN_REVIEW return 200 unchanged
+- manual move into/out of IN_REVIEW rejected with 409
+- pending_review IM notification on IN_REVIEW entry
 """
 
 from __future__ import annotations
@@ -148,12 +150,14 @@ class TestApproveEndpoint:
         resp = client.post("/api/v1/kanban/tasks/nope/approve", json={})
         assert resp.status_code == 404
 
-    def test_approve_non_review_task_returns_409(self, client: TestClient) -> None:
+    def test_approve_non_review_task_is_idempotent(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"])
         tid = str(task["task_id"])
         resp = client.post(f"/api/v1/kanban/tasks/{tid}/approve", json={})
-        assert resp.status_code == 409
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ready"
+        assert resp.json()["error"] == ""
 
 
 class TestRejectEndpoint:
@@ -172,6 +176,7 @@ class TestRejectEndpoint:
         data = resp.json()
         assert data["status"] == "ready"
         assert data["error"] == "add source citations"
+        assert data["retry_count"] == 0
 
     def test_reject_unknown_task_returns_404(self, client: TestClient) -> None:
         resp = client.post(
@@ -180,13 +185,36 @@ class TestRejectEndpoint:
         )
         assert resp.status_code == 404
 
-    def test_reject_non_review_task_returns_409(self, client: TestClient) -> None:
+    def test_reject_non_review_task_is_idempotent(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"])
         tid = str(task["task_id"])
         resp = client.post(
             f"/api/v1/kanban/tasks/{tid}/reject",
             json={"reason": "why"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ready"
+
+
+class TestManualMoveGuard:
+
+    def test_move_out_of_in_review_returns_409(self, client: TestClient) -> None:
+        """Manual moves cannot bypass the approval gate."""
+        board = _create_board(client)
+        task = _create_task(client, board["board_id"], require_approval=True)
+        tid = str(task["task_id"])
+        asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW))
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed"},
+        )
+        assert resp.status_code == 409
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "ready"},
         )
         assert resp.status_code == 409
 
@@ -217,3 +245,68 @@ class TestFallbackNotification:
         assert mock_source.call_args.args[0] == "task_completed"
         mock_btw.assert_called_once()
         assert mock_btw.call_args.args[0] == "task_completed"
+
+
+class TestPendingReviewNotification:
+
+    def test_source_chat_task_publishes_pending_review_event(self) -> None:
+        """IN_REVIEW entry notifies the source chat via BACKGROUND_TASK_DONE."""
+        from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
+
+        from app.services.event.app_event_bus import AppEventType
+        from app.services.kanban.event_publisher import emit_review_requested
+
+        task = KanbanTask(
+            task_id="t-review",
+            board_id="b1",
+            title="Deploy v2.1",
+            status=TaskStatus.IN_REVIEW,
+            priority=TaskPriority.NORMAL,
+            result="build ok",
+            metadata={
+                "source_chat_id": "chat-9",
+                "locale": "en",
+                "user_id": "u1",
+            },
+        )
+        published: list[object] = []
+
+        with patch(
+            "app.services.kanban.event_publisher.get_event_bus"
+        ) as mock_bus:
+            bus = mock_bus.return_value
+            bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
+            emit_review_requested(task)
+
+        assert len(published) == 1
+        event = published[0]
+        assert event.event_type == AppEventType.BACKGROUND_TASK_DONE
+        assert event.data["status"] == "pending_review"
+        assert event.data["chat_id"] == "chat-9"
+        assert event.data["title"] == "Deploy v2.1"
+        assert event.data["suppress_web_push"] is True
+
+    def test_pending_review_skipped_without_source_chat(self) -> None:
+        """No source chat / btw target means no notification is published."""
+        from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
+
+        from app.services.kanban.event_publisher import emit_review_requested
+
+        task = KanbanTask(
+            task_id="t-plain",
+            board_id="b1",
+            title="Plain task",
+            status=TaskStatus.IN_REVIEW,
+            priority=TaskPriority.NORMAL,
+            metadata={},
+        )
+        published: list[object] = []
+
+        with patch(
+            "app.services.kanban.event_publisher.get_event_bus"
+        ) as mock_bus:
+            bus = mock_bus.return_value
+            bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
+            emit_review_requested(task)
+
+        assert published == []

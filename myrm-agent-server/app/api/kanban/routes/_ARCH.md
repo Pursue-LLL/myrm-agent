@@ -41,8 +41,8 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | POST | `/tasks/{task_id}/move` | - |
 | POST | `/tasks/{task_id}/promote` | - |
 | POST | `/tasks/{task_id}/reclaim` | - |
-| POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 409） |
-| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填，回写 error；非 IN_REVIEW 409） |
+| POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 幂等 200 返回当前状态） |
+| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填，回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
 
 ### `bulk.py`
 

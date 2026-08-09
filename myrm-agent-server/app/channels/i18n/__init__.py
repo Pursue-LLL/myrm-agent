@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.types::InboundMessage (POS: locale in metadata)
-- utils.locale::LocaleResolver helpers (POS: normalization)
+- myrm_agent_harness.utils.locale::normalize_locale / resolve_locale (POS: BCP-47 normalization)
 
 [OUTPUT]
 - channel_t: Translate by locale string
@@ -30,51 +30,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_locale_from_metadata(metadata: dict[str, object] | None) -> str:
-    """Resolve locale from a metadata dict (inbound/outbound messages)."""
-    from myrm_agent_harness.utils.locale import normalize_locale
+def _locale_from_meta(meta: dict[str, object], channel: str | None) -> str:
+    """Resolve the effective locale from a message metadata dict.
 
-    if not metadata:
-        return normalize_locale(None)
-
-    platform_locale = metadata.get("platform_locale")
-    if not platform_locale:
-        language_code = metadata.get("language_code")
-        if language_code:
-            platform_locale = language_code
-
-    platform_val = str(platform_locale) if platform_locale else None
-    locale_val = metadata.get("locale")
-    metadata_val = str(locale_val) if locale_val else None
-    return resolve_locale(
-        metadata_locale=metadata_val,
-        platform_locale=platform_val,
-        channel=None,
-    )
-
-
-def resolve_message_locale(msg: InboundMessage) -> str:
-    """Resolve locale from inbound message metadata."""
-    meta = msg.metadata or {}
+    Priority follows :func:`myrm_agent_harness.utils.locale.resolve_locale`:
+    explicit ``metadata.locale`` wins over ``platform_locale``/``language_code``,
+    with the channel's platform default as fallback.
+    """
     platform_locale = meta.get("platform_locale")
     if not platform_locale:
         language_code = meta.get("language_code")
         if language_code:
             platform_locale = language_code
     platform_val = str(platform_locale) if platform_locale else None
-    metadata_locale = meta.get("locale")
-    metadata_val = str(metadata_locale) if metadata_locale else None
+    locale_val = meta.get("locale")
+    metadata_val = str(locale_val) if locale_val else None
     return resolve_locale(
         metadata_locale=metadata_val,
         platform_locale=platform_val,
-        channel=msg.channel,
+        channel=channel,
     )
+
+
+def get_locale_from_metadata(metadata: dict[str, object] | None) -> str:
+    """Resolve locale from a metadata dict (inbound/outbound messages)."""
+    from myrm_agent_harness.utils.locale import normalize_locale
+
+    if not metadata:
+        return normalize_locale(None)
+    return _locale_from_meta(metadata, None)
+
+
+def resolve_message_locale(msg: InboundMessage) -> str:
+    """Resolve locale from inbound message metadata."""
+    return _locale_from_meta(msg.metadata or {}, msg.channel)
 
 
 def get_text(msg: InboundMessage, key: str, **kwargs: Any) -> str:
     """Translate a catalog key using the locale from an InboundMessage."""
     locale = resolve_message_locale(msg)
-    return channel_t(locale, key, **kwargs)
+    return str(channel_t(locale, key, **kwargs))
 
 
 __all__ = [

@@ -19,6 +19,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
+    GOAL_PERSISTED_STATUSES,
     get_e2e_api_url,
     wait_e2e_goal_status,
     wait_e2e_provider_ready,
@@ -151,6 +152,6 @@ async def test_chrome_ui_goal_mode_stream(
         f"Goal status missing for chat {chat_id} on {api_base} after {goal_timeout_sec:.0f}s"
     )
     assert goal.get("objective"), f"Goal objective empty: {goal}"
-    assert goal.get("status") in {"active", "budget_limited", "complete", "paused"}, (
+    assert goal.get("status") in GOAL_PERSISTED_STATUSES, (
         f"Unexpected goal status: {goal.get('status')}"
     )

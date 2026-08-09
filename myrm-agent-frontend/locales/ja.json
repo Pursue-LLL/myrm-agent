@@ -23,7 +23,7 @@
     "reviewFailedHint": "エラーを指摘して Agent に修正させることができます。または強制承認できます。",
     "feedbackPlaceholder": "Agent に送るフィードバック…",
     "resetRetriesMessage": "試行回数をリセットしました。エラーログに基づいて続行してください。",
-    "rejectAndRetry": "打回やり直し",
+    "rejectAndRetry": "却下して再試行",
     "forceApprove": "強制承認",
     "notificationEnabled": "バックグラウンド通知を有効化しました",
     "notificationDenied": "通知権限が取得できませんでした",
@@ -75,7 +75,7 @@
     "maxTimePlaceholder": "例: 60",
     "maxTurnsLabel": "最大ターン",
     "maxTurnsPlaceholder": "例: 30",
-    "protectedPathsLabel": "受保护ファイル",
+    "protectedPathsLabel": "保護されたファイル",
     "addProtectedPath": "+ 追加パス",
     "protectedPathPlaceholder": "例: .env, data/*.csv",
     "noProtectedPathsHint": "（保護ファイルなし — Agent は任意のファイルを変更できます）",
@@ -1042,7 +1042,7 @@
           },
           "personal_address_keywords": {
             "name": "個人住址",
-            "desc": "一般のな個人住所の表現を検出"
+            "desc": "一般的な個人住所の表現を検出"
           },
           "resume_cv_keywords": {
             "name": "履歴書・CV の内容",
@@ -1050,7 +1050,7 @@
           },
           "private_key_marker": {
             "name": "秘密鍵の素材",
-            "desc": "検出 PEM 私钥マーク"
+            "desc": "PEM 秘密鍵マーカーを検出"
           },
           "api_key_like": {
             "name": "APIキー / 云認証情報",
@@ -1062,7 +1062,7 @@
           },
           "jwt_token_like": {
             "name": "JWTトークン",
-            "desc": "検出 JWT フォーマットの Bearer Token"
+            "desc": "JWT 形式の Bearer Token を検出"
           },
           "cookie_session_like": {
             "name": "Cookie / Session 認証情報",
@@ -1078,7 +1078,7 @@
           },
           "env_file_secret": {
             "name": "環境変数キー",
-            "desc": "検出 env ファイル中の一般のなキー変数名"
+            "desc": "env 形式のコンテンツ内の一般的なシークレット変数名を検出"
           },
           "private_ip": {
             "name": "プライベートネットワーク IP アドレス",
@@ -1105,7 +1105,7 @@
             "desc": "組織図、名簿、内部ディレクトリを検出します。"
           },
           "salary_hr_keywords": {
-            "name": "薪酬 / HR データ",
+            "name": "給与 / HR データ",
             "desc": "給与、業績、人事評価関連の表現を検出します。"
           },
           "customer_list_keywords": {
@@ -1129,7 +1129,7 @@
             "desc": "請求書と税識別番号の表現を検出します。"
           },
           "legal_document_keywords": {
-            "name": "法律 / 合规ファイル",
+            "name": "法律 / コンプライアンス文書",
             "desc": "法務意見、紛争、NDA 風の文言を検出します。"
           },
           "political_person_org_keywords": {
@@ -1478,7 +1478,7 @@
         "creative": "クリエイティブ",
         "extraParams": "モデル特有パラメータ",
         "extraParamsHint": "プロバイダー固有のパラメータで、API に直接渡されます。例：\nOpenAI: '{' \"reasoning_effort\": \"high\" '}'\nAnthropic/MiniMax: '{' \"thinking\": '{' \"type\": \"enabled\", \"budget_tokens\": 5000 '}' '}'",
-        "invalidJson": "JSON フォーマットなし效",
+        "invalidJson": "JSON フォーマットが無効です",
         "jsonMustBeObject": "必須はい JSON に対する象",
         "pricing": "料金",
         "inputCostPerToken": "入力コスト ($/百万 tokens)",
@@ -1601,7 +1601,7 @@
       "creative": "クリエイティブ",
       "modelParams": "モデル特定パラメータ (JSON)",
       "formatJson": "フォーマット化",
-      "invalidJson": "JSON フォーマットなし效",
+      "invalidJson": "JSON フォーマットが無効です",
       "addModel": "追加モデル",
       "weight": "重み",
       "rpm": "RPM",
@@ -2007,7 +2007,7 @@
       "successRate": "成功率",
       "tokenEfficiency": "Token効率",
       "executionTime": "実行時間",
-      "userSatisfaction": "ユーザー满意度",
+      "userSatisfaction": "ユーザー満足度",
       "callFrequency": "呼び出し頻度",
       "radarChart": "5 次元品質レーダーチャート",
       "optimizationHistory": "最適化履歴",
@@ -2491,7 +2491,7 @@
       },
       "pending": {
         "title": "レビュー待ち下書き",
-        "description": "審査し判断はいいいえマージ AI 自動生成の Wiki 内容",
+        "description": "AI が自動生成した Wiki 編集をマージ前にレビュー",
         "approve": "承認",
         "reject": "拒否",
         "noPending": "レビュー待ちの下書きはありません",
@@ -3004,7 +3004,7 @@
       },
       "personal": {
         "title": "個人スキル",
-        "description": "管理あなたアップロードのカスタムスキル",
+        "description": "アップロードしたカスタムスキルを管理",
         "empty": "個人スキルはありません",
         "emptyDesc": "上のボタンをクリックして最初のカスタムスキルをアップロード",
         "uploadButton": "アップロードスキル"
@@ -3119,9 +3119,9 @@
       },
       "curator": {
         "safetyPromise": "スキルが削除されることはありません。最悪の場合でもアーカイブされるだけで、いつでもワンクリックで復元できます。",
-        "title": "スキル管理器",
+        "title": "スキルキュレーター",
         "description": "スキルのライフサイクルを自動管理 — 未使用のスキルを非アクティブとしてマークし、長期間アイドルのものをアーカイブ",
-        "enabled": "有効管理器",
+        "enabled": "キュレーターを有効化",
         "enabledDesc": "スキルのライフサイクルステータスを定期的にスキャンして管理します",
         "intervalHours": "スキャン間隔（時間）",
         "staleAfterDays": "未使用判定（日）",
@@ -3131,7 +3131,7 @@
         "gracePeriodDays": "猶予期間（日）",
         "gracePeriodDaysDesc": "新しく作成したスキルはこの期間中、キュレーターの影響を受けません",
         "protectInstalled": "インストール済みスキルを保護",
-        "protectInstalledDesc": "から適用商店インストールのスキルない受管理器影响",
+        "protectInstalledDesc": "ハブ/レジストリのスキルはキュレーターの影響を受けません",
         "maxSkills": "最大アクティブスキル数",
         "maxSkillsDesc": "超過すると、最も長く使用されていないスキルが非アクティブとしてマークされます",
         "runNow": "今すぐ実行",
@@ -3361,7 +3361,7 @@
         "success": "アップロードしました",
         "successDesc": "スキル「{name}」をアップロードしました",
         "failed": "アップロード失敗",
-        "invalidFile": "なし效のファイルフォーマット",
+        "invalidFile": "ファイルフォーマットが無効です",
         "missingSkillMd": "SKILL.md ファイルがありません",
         "networkWarning": "スキルはネットワークアクセスなしのセキュアなサンドボックスで実行されます。ネットワーク依存のスキルはサポートされていません。ネットワーク操作には MCP サービスを使用するか、Myrm AI をローカルにデプロイしてください。"
       },
@@ -3491,7 +3491,7 @@
           "foundSkills": "{count} 個のスキルが見つかりました"
         },
         "error": {
-          "invalidPath": "パスフォーマットなし效",
+          "invalidPath": "パスフォーマットが無効です",
           "pathFormat": "パスは絶対パスまたは ~ で始まる必要があります",
           "addFailed": "追加パス失敗",
           "removeFailed": "パスの削除に失敗しました",
@@ -3690,7 +3690,7 @@
     },
     "font": "フォント",
     "modelSettings": "モデル設定",
-    "baseModel": "基础モデル",
+    "baseModel": "ベースモデル",
     "visionModel": "ビジョンモデル",
     "embeddingModel": "エンベディングモデル",
     "optimizationMode": "最適化モード",
@@ -3718,7 +3718,7 @@
     "baseUrlFormatError": "ベース URL は有効な URL 形式で、http または https で始まる必要があります",
     "modelKwargsPlaceholder": "以JSONフォーマット入力パラメータ",
     "modelAndApiKeyRequired": "モデルと API キーは必須です",
-    "invalidModelKwargs": "なし效のモデルパラメータ JSON",
+    "invalidModelKwargs": "モデルパラメータの JSON が無効です",
     "modelValidationFailed": "モデルの検証に失敗しました。設定を確認してください。",
     "inferenceModel": "推論モデル",
     "modelTooltip": "litellm ベース。対応モデルはこちらを参照してください",
@@ -3742,7 +3742,7 @@
     "noImChannelsConnected": "利用可能な IM チャンネルがありません。まず「チャンネル」設定で IM チャンネルを設定して有効にしてください。",
     "save": "保存",
     "saved": "保存しました",
-    "jsonFormatError": "JSONフォーマットなし效",
+    "jsonFormatError": "JSON フォーマットが無効です",
     "formatJson": "フォーマット化JSON",
     "searchServiceConfig": "検索サービス設定",
     "searchService": {
@@ -3792,8 +3792,8 @@
     "searchServiceType": "検索サービスタイプ",
     "searchServiceTypeTooltip": "検索サービスプロバイダーを選択（組み込み検索サービスまたはサードパーティプロバイダー）",
     "searchApiKey": "APIキー",
-    "apiBase": "API 基础アドレス",
-    "apiBaseTooltip": "検索サービスインスタンスの基础 URL（SearxNG 必須）",
+    "apiBase": "API ベース URL",
+    "apiBaseTooltip": "検索サービスインスタンスのベース URL（SearxNG 必須）",
     "apiBaseRequired": "API ベース URL は必須です",
     "extraParams": "追加パラメータ",
     "extraParamsTooltip": "プロバイダー固有パラメータ、JSON 形式（例: Tavily の topic・search_depth、SearxNG の engines・categories）",
@@ -3977,7 +3977,7 @@
       "generalSettings": "一般設定",
       "itemCount": "{count} 件",
       "versionMismatch": "バージョン通知：インポートファイルのバージョンは {version} です。自動互換処理されます",
-      "invalidFormat": "なし效の設定ファイルフォーマット",
+      "invalidFormat": "設定ファイルのフォーマットが無効です",
       "mcpImportSecurityBlocked": "インポートをブロックしました：MCP 設定がセキュリティスキャンに合格しませんでした",
       "mcpImportSecurityAckRequired": "インポートをブロックしました：先に MCP 設定で高リスク設定を承認してください",
       "parseError": "設定ファイルの解析に失敗しました",
@@ -4792,7 +4792,7 @@
       "description": "WebDAV または S3 互換クラウドストレージに自動バックアップを同期し、デバイスをまたいだデータ安全性を確保します。",
       "provider": "ストレージプロバイダー",
       "webdav": "WebDAV",
-      "s3": "S3 兼容ストレージ",
+      "s3": "S3 互換ストレージ",
       "webdavHost": "WebDAV サービス器アドレス",
       "webdavHostPlaceholder": "https://dav.example.com",
       "webdavUsername": "ユーザー名",
@@ -4810,7 +4810,7 @@
       "syncInterval": "同期間隔（分）",
       "maxBackups": "デバイスごとの最大バックアップ数",
       "deviceName": "デバイス名",
-      "deviceNamePlaceholder": "留空は自動検出",
+      "deviceNamePlaceholder": "空欄の場合は自動検出",
       "testConnection": "テスト接続",
       "testing": "テスト中...",
       "connectionSuccess": "接続しました",
@@ -4860,15 +4860,15 @@
       "cost": "コスト",
       "toolBreakdown": "ツール使用詳細",
       "eventsTimeline": "イベントタイムライン",
-      "yes": "はい / Yes",
-      "no": "いいえ / No",
+      "yes": "はい",
+      "no": "いいえ",
       "performance": "パフォーマンス",
       "contextHealth": {
-        "title": "コンテキストヘルス / Context Health",
+        "title": "コンテキストヘルス",
         "description": "コンパクションの安定性とプロンプトキャッシュ再利用の健全性を表示します。",
         "status": {
           "inactive": "非アクティブ",
-          "healthy": "ヘルス / Healthy",
+          "healthy": "健全",
           "warning": "警告",
           "critical": "重大"
         },
@@ -4948,7 +4948,7 @@
           "contentFeatures": {
             "jsonKeys": "JSON キー",
             "jsonArray": "JSON 項目",
-            "markdownHeadings": "タイトル / Headings",
+            "markdownHeadings": "見出し",
             "codeBlocks": "コードブロック",
             "tables": "テーブル",
             "lists": "リスト",
@@ -4996,18 +4996,18 @@
           "refetchWarning": "アーカイブ回読み取り偏高、本セッション剪枝可能性した激。/ Archive reads are high; pruning may be too aggressive for this session."
         },
         "cache": {
-          "title": "キャッシュヘルス / Prompt Cache",
+          "title": "プロンプトキャッシュ",
           "description": "このセッションのプレフィックス再利用効率。",
           "calls": "呼び出し回数",
           "inputTokens": "入力 Token / Input",
           "cachedTokens": "キャッシュ済み",
           "hitRate": "ヒット率",
-          "provider": "プロバイダー / Provider",
+          "provider": "プロバイダー",
           "ttl": "保持 TTL",
           "policy": "保持ポリシー",
           "observation": "保持シグナル",
           "sample": "観測サンプル",
-          "strategy": "ポリシー / Strategy",
+          "strategy": "戦略",
           "strategies": {
             "inactive": "非アクティブ",
             "hotProtected": "ホットキャッシュ保護中",
@@ -5036,7 +5036,7 @@
         "loading": "読み込み中...",
         "input": "タスク入力",
         "output": "タスク出力",
-        "events": "イベント / events",
+        "events": "イベント",
         "approved": "承認済み",
         "rejected": "拒否済み",
         "outcome": {
@@ -5065,7 +5065,7 @@
         "result": "結果",
         "emptyState": "この時点ではメッセージがまだありません",
         "noPayload": "イベントフレームへドラッグ",
-        "userMessage": "ユーザーメッセージ / User Message",
+        "userMessage": "ユーザーメッセージ",
         "assistantMessage": "アシスタントメッセージ",
         "loading": "リプレイデータを読み込み中...",
         "humanFeedback": "人間による承認",
@@ -5073,16 +5073,16 @@
         "llmCallTitle": "LLM 呼び出し: {model}",
         "approved": "承認済み",
         "rejected": "拒否済み",
-        "promptPreview": "Prompt プレビュー / Prompt Preview",
+        "promptPreview": "プロンプトプレビュー",
         "memoryEventTitle": "メモリ: {phase}",
         "preCompactEventTitle": "圧縮前のメモリ想起",
         "toolFailed": "ツール実行に失敗しました",
         "scrubSnapHint": "離して最近のイベントにスナップ",
         "marker": {
-          "tool": "ツール / Tool",
-          "llm": "モデル / LLM",
-          "message": "メッセージ / Message",
-          "memory": "メモリ / Memory",
+          "tool": "ツール",
+          "llm": "LLM",
+          "message": "メッセージ",
+          "memory": "メモリ",
           "error": "エラー"
         }
       }
@@ -5921,7 +5921,7 @@
     "truncated": "ファイルリストが切り詰められました（エントリが多すぎます）",
     "download": "ダウンロード",
     "close": "閉じる",
-    "noContent": "なし内容可プレビュー",
+    "noContent": "プレビューする内容はありません",
     "selectDir": "ファイルを閲覧するワークスペースディレクトリを選択",
     "selectDirButton": "ディレクトリを選択",
     "upload": "アップロードファイル",
@@ -6152,7 +6152,7 @@
     "topPDesc": "ニュークリアスサンプリングパラメータ。候補トークンの範囲を制限します",
     "maxTokens": "最大出力トークン数",
     "maxTokensDesc": "単一応答の最大トークン数を制限",
-    "maxTokensPlaceholder": "留空使用モデルデフォルト値",
+    "maxTokensPlaceholder": "空欄のままにするとモデルのデフォルト値を使用",
     "precise": "高精度",
     "creative": "クリエイティブ",
     "focused": "集中",
@@ -6170,7 +6170,7 @@
     "maxParallelFissionPlaceholder": "デフォルト 3",
     "consensusTitle": "マルチモデルコンセンサス (MoA)",
     "consensusDesc": "Mixture-of-Agents を有効化: 複数のモデルを並列でクエリし、精錬された回答を統合生成します",
-    "consensusAggTemp": "聚合モデル温度",
+    "consensusAggTemp": "集約モデル温度",
     "consensusMinSuccessful": "最小成功数",
     "consensusTimeout": "総タイムアウト (秒)",
     "consensusRefMaxTokens": "参照出力の上限",
@@ -6178,7 +6178,7 @@
     "consensusRefModels": "参考モデル",
     "consensusRefModelsDesc": "並列分析用のモデルを追加します。少なくとも2つ推奨。",
     "consensusAddModel": "追加モデル",
-    "consensusAggModel": "聚合モデル",
+    "consensusAggModel": "集約モデル",
     "consensusAggModelDesc": "すべての参照応答を統合します。未設定の場合はメインモデルを使用します。",
     "consensusNoModels": "参照モデルが未選択 — プライマリモデルにフォールバックします",
     "consensusUsingPrimary": "使用主モデル",
@@ -6700,7 +6700,7 @@
       "noNetworkBlocklist": "追加ブロックなし — グローバルネットワークブラックリストのみを使用。",
       "addBlockedDomain": "追加",
       "blockedDomainPlaceholder": "例: facebook.com または .social.com",
-      "invalidBlockedDomain": "ドメインフォーマットなし效。",
+      "invalidBlockedDomain": "ドメインパターンが無効です。",
       "duplicateBlockedDomain": "このドメインはすでにブラックリストに含まれています。",
       "commandDenylistTitle": "コマンド禁止リスト",
       "commandDenylistDesc": "これらのパターンに一致するコマンドは、YOLOモードでも永久にブロックされます。グロブ構文を使用します（例: git push --force*）。",
@@ -6733,7 +6733,7 @@
     "secrets": {
       "tabTitle": "キー管理",
       "title": "エージェントキー",
-      "description": "管理セキュリティ注入までエージェント中の環境変数と APIキー。",
+      "description": "エージェントに安全に注入される環境変数と API キーを管理します。",
       "saveFirstTitle": "先にエージェントを保存してください",
       "saveFirstDesc": "シークレットを追加する前にエージェントを保存する必要があります。",
       "addBtn": "追加キー",
@@ -6893,7 +6893,7 @@
     },
     "jsonEditor": {
       "mustBeObject": "必須はい JSON に対する象",
-      "invalidJson": "JSON フォーマットなし效"
+      "invalidJson": "JSON フォーマットが無効です"
     },
     "schemaForm": {
       "resetDefaults": "デフォルト値にリセット",
@@ -7072,7 +7072,7 @@
       "confirm": "削除",
       "deleting": "削除中...",
       "movedToTrash": "ゴミ箱に移動しました",
-      "undoHint": "30日内可元に戻すまたはからごみ箱復元。",
+      "undoHint": "30日以内であれば元に戻すか、ゴミ箱から復元できます。",
       "undo": "元に戻す",
       "undoFailed": "元に戻す失敗",
       "error": "削除セッション失敗"
@@ -7241,7 +7241,7 @@
     "dragDropFiles": "ファイルをここにドラッグ＆ドロップ",
     "supportedFormats": "支持のフォーマット",
     "maxFileSize": "最大ファイルサイズ",
-    "baseModel": "基础モデル",
+    "baseModel": "基本モデル",
     "visionModel": "ビジョンモデル",
     "reasoningModel": "推論モデル",
     "researchBegins": "何を知りたいですか？",
@@ -7783,7 +7783,7 @@
       "startSearxngDocker": "起動 SearXNG（Docker）",
       "startingSearxng": "SearXNG 起動中…",
       "startSearxngFailed": "SearXNG を起動できませんでした。Docker がインストールされているか確認してください",
-      "usePaidSearchSettings": "変更使用付费検索サービス",
+      "usePaidSearchSettings": "代わりに有料の検索プロバイダーを使用",
       "configureSearch": "設定検索",
       "chipLabel": "有効検索",
       "searchEnabled": "{service} 検索を有効化しました",
@@ -7964,7 +7964,7 @@
     "settingsPageTitle": "設定 - MyrmAgent",
     "settingsPageDescription": "MyrmAgent の設定",
     "libraryPageTitle": "ライブラリ - MyrmAgent",
-    "libraryPageDescription": "浏览あなたの対話履歴",
+    "libraryPageDescription": "会話履歴を閲覧",
     "subscriptionPageTitle": "サブスクリプション - MyrmAgent",
     "subscriptionPageDescription": "サブスクリプションの状態と更新スケジュールを確認します。",
     "landingPageTitle": "Myrm - あなたの AI 工作伙伴",
@@ -7992,7 +7992,7 @@
       },
       "agents": {
         "title": "エージェント",
-        "description": "作成し管理あなたのカスタムエージェント"
+        "description": "カスタム AI エージェントを作成・管理"
       },
       "security": {
         "title": "セキュリティポリシー",
@@ -8020,7 +8020,7 @@
       },
       "skills": {
         "title": "スキル",
-        "description": "浏览し管理 AI スキル"
+        "description": "AI スキルを閲覧・管理"
       },
       "credentials": {
         "title": "資格情報",
@@ -8032,7 +8032,7 @@
       },
       "cron": {
         "title": "スケジュールタスク",
-        "description": "管理由 Agent 作成の自動スケジュールタスク"
+        "description": "Agent が作成した自動スケジュールタスクを管理"
       },
       "kanban": {
         "title": "カンバンタスク",
@@ -8074,11 +8074,11 @@
       },
       "openaiApi": {
         "title": "API アクセス",
-        "description": "管理 OpenAI 兼容エンドポイントの APIキー"
+        "description": "OpenAI 互換のエージェントエンドポイントの API キーを管理"
       },
       "integrationCatalog": {
         "title": "サービスカタログ",
-        "description": "浏览し接続第三方サービス"
+        "description": "サードパーティのサービスを閲覧・接続"
       },
       "integrationMemory": {
         "title": "インテグレーションメモリ",
@@ -8168,7 +8168,7 @@
         "description": "スキルとツールの実行品質と安定性を監視・分析します"
       },
       "memory": {
-        "title": "メモリ管理中心",
+        "title": "メモリ管理センター",
         "description": "長期メモリ、バックアップ、アーカイブポリシーを管理"
       },
       "experimentalFeatures": {
@@ -8728,7 +8728,7 @@
     "enableConversationSearchDesc": "有効にすると、アシスタントが以前の決定や続きのトピックについて質問されたときに過去のチャットを検索できます。デフォルトはオフ。",
     "incognitoMode": "シークレットモード",
     "incognitoModeDesc": "有効にすると、このセッションはメモリの読み書きをしません（グローバルメモリ設定は変更されません）。チャット後は痕跡が残りません。",
-    "preCompactEnabled": "圧縮前メモリ召回",
+    "preCompactEnabled": "圧縮前のメモリリコール",
     "preCompactEnabledDesc": "コンテキスト圧縮前に、永続メモリバンクから関連する制約を自動検索して現在の会話に注入します。",
     "preCompactBudget": "リコール token 予算",
     "comingSoonTitle": "お楽しみに、まもなく登場します",
@@ -8795,7 +8795,7 @@
         "index": "インデックス",
         "recall": "リコール",
         "inject": "注入",
-        "pre_compact": "圧縮前召回",
+        "pre_compact": "圧縮前のリコール",
         "archive_checkpoint": "アーカイブチェックポイント",
         "cite": "引用",
         "verify": "検証",
@@ -8960,7 +8960,7 @@
         "index": "インデックス",
         "recall": "リコール",
         "inject": "注入",
-        "pre_compact": "圧縮前召回",
+        "pre_compact": "圧縮前のリコール",
         "archive_checkpoint": "アーカイブチェックポイント",
         "cite": "引用",
         "verify": "検証"
@@ -9281,7 +9281,7 @@
         "pending_memory": "待承認メモリ",
         "shared_context_write_proposal": "共有コンテキスト提案",
         "shared_context": "共有コンテキスト",
-        "memory_manager": "メモリ管理器"
+        "memory_manager": "メモリマネージャー"
       },
       "allProjects": "すべてのプロジェクト",
       "clearFilter": "クリア",
@@ -9743,7 +9743,7 @@
       },
       "warningMessages": {
         "section_not_selected": "このセクションは復元対象として選択されていません。",
-        "memory_section_invalid": "メモリ分区フォーマットなし效。",
+        "memory_section_invalid": "メモリセクションの形式が無効です。",
         "no_native_buckets": "復元可能なネイティブメモリバケットが見つかりません。",
         "shared_context_conflicts": "一部の共有コンテキストはすでに存在し、安全マージモードではスキップされます。",
         "conversation_conflicts": "一部の会話はすでに存在し、安全マージモードではスキップされます。",
@@ -9765,9 +9765,9 @@
     "clearAllSuccessDesc": "すべてのメモリを完全に削除しました",
     "clearAllFailed": "清空失敗",
     "conversationRecall": {
-      "tab": "セッション召回",
-      "title": "セッション召回",
-      "description": "管理どの履歴セッション可されたエージェント召回。",
+      "tab": "リコール",
+      "title": "会話リコール",
+      "description": "エージェントがリコールできる履歴セッションを管理します。",
       "refresh": "更新",
       "filters": {
         "excluded": "除外済み",
@@ -9784,7 +9784,7 @@
       "restore": "復元",
       "exclude": "除外",
       "emptySnippet": "メッセージプレビューがありません",
-      "loadFailed": "読み込みセッション召回失敗",
+      "loadFailed": "会話リコールの読み込みに失敗しました",
       "restoreSuccess": "会話を復元しました",
       "restoreSuccessDesc": "このセッションは再び履歴のリコールに参加できるようになります。",
       "restoreFailed": "復元失敗",
@@ -10051,7 +10051,7 @@
     },
     "artifacts": {
       "title": "アーティファクト",
-      "desc": "浏览と管理バージョン化工件と交付物"
+      "desc": "バージョン管理された成果物と納品物を閲覧・管理"
     },
     "memorySpaces": {
       "title": "メモリスペース",
@@ -10079,7 +10079,7 @@
     "copyCode": "コードをコピー",
     "copied": "コピーしました",
     "openInNewTab": "で新規タグページ開く",
-    "revealInFileManager": "でファイル管理器中表示",
+    "revealInFileManager": "ファイルマネージャーで表示",
     "openWithDefaultApp": "使用デフォルト適用開く",
     "copyPath": "コピーファイルパス",
     "fileInfo": "ファイル情報",
@@ -10132,7 +10132,7 @@
     "videoLoadError": "動画読み込みに失敗しました",
     "docxLoadError": "ドキュメント読み込みに失敗しました",
     "pptxLoadError": "演示文稿読み込みに失敗しました",
-    "noContent": "なし内容可プレビュー",
+    "noContent": "プレビューする内容はありません",
     "sharePreview": {
       "open": "共有",
       "title": "共有リンク",
@@ -10331,7 +10331,7 @@
       "packageFailed": "打包失敗",
       "registerSuccess": "スキルを登録しました",
       "registerFailed": "スキル登録失敗",
-      "skillDetected": "検出までスキル",
+      "skillDetected": "スキルを検出しました",
       "skillDetectedDesc": "ワークスペースに SKILL.md が含まれています。スキルとして登録できます",
       "packageAndDownload": "打包ダウンロード",
       "packageAndRegister": "登録スキル",
@@ -10416,7 +10416,7 @@
     "calls": "コールバック使用",
     "relevance_score": "関連度",
     "conversation_source": "履歴セッション",
-    "exclude_conversation": "から召回中排除",
+    "exclude_conversation": "リコールから除外",
     "delete_conversation": "削除セッション",
     "delete_conversation_desc": "この操作により元のチャット履歴が削除され、元に戻すことはできません。",
     "delete_confirm": "削除",
@@ -10428,10 +10428,10 @@
   },
   "auth": {
     "setup": {
-      "title": "設定管理者アカウント",
+      "title": "管理者アカウントの設定",
       "description": "WebUI アクセスを保護するために管理者アカウントを作成します",
       "labelUsername": "管理者ユーザー名",
-      "placeholderUsername": "入力管理者ユーザー名",
+      "placeholderUsername": "管理者ユーザー名を入力",
       "labelPassword": "パスワード",
       "placeholderPassword": "パスワードを入力してください",
       "labelConfirmPassword": "確認パスワード",
@@ -10473,7 +10473,7 @@
       "placeholderPassword": "パスワードを入力してください",
       "buttonLogin": "ログイン",
       "buttonLoggingIn": "ログイン中...",
-      "errorGeneric": "ユーザー名またはパスワードなし效",
+      "errorGeneric": "ユーザー名またはパスワードが無効です",
       "errorNetwork": "ネットワークエラーです。接続を確認してください。",
       "errorRateLimit": "ログイン試行回数が多すぎます。{seconds} 秒後に再試行してください。",
       "tooManyAttempts": "試行回数が多すぎます。しばらくしてからもう一度お試しください。",
@@ -10498,7 +10498,7 @@
   "migration": {
     "title": "ローカルデータが見つかりました",
     "description": "未同期のローカルデータを検出しました。クラウドに移行しますか？",
-    "dataFound": "検出まで以下データ",
+    "dataFound": "以下のデータを検出しました",
     "modelConfigs": "個モデル設定",
     "chatRecords": "件対話記録",
     "syncNote": "移行後、任意のデバイスでこのデータにアクセスできます。API キーは暗号化されます。",
@@ -10887,12 +10887,12 @@
     "stopReasonTimedOut": "実行タイムアウト",
     "stopReasonCancelled": "実行キャンセル済み",
     "stopReasonError": "実行失敗",
-    "stopReasonUnknown": "因ない明理由停止",
+    "stopReasonUnknown": "不明な理由で停止",
     "executionTrace": "実行トレース"
   },
   "cron": {
     "sectionTitle": "スケジュールタスク",
-    "sectionDesc": "管理由 Agent 作成の自動スケジュールタスク。",
+    "sectionDesc": "Agent が作成した自動スケジュールタスクを管理します。",
     "agentChatHint": "チャットで「毎朝8時にAIニュースを要約して」などと言えます。エージェント設定で「スケジュールタスク（チャット）」を有効にすると、能力発見なしで直接作成できます。",
     "title": "スケジュールタスク",
     "loading": "読み込み中...",
@@ -11509,7 +11509,7 @@
     "bulkSelected": "{count} 選択済み",
     "bulkArchive": "アーカイブ",
     "bulkMove": "移動まで",
-    "bulkReassign": "再割り場合て",
+    "bulkReassign": "再割り当て",
     "bulkDelete": "削除",
     "bulkDeleteConfirm": "{count} 件のタスクを削除しますか？",
     "bulkSuccess": "{count} 件のタスクを更新しました",
@@ -11526,7 +11526,7 @@
     "reclaimDesc": "このタスクを実行中のエージェントを即座に停止し、準備完了状態にリセットします。",
     "reclaimConfirm": "回収",
     "reclaimReasonPlaceholder": "理由（任意）",
-    "reclaimReassignLabel": "エージェントに再割り場合て（任意）",
+    "reclaimReassignLabel": "エージェントに再割り当て（任意）",
     "reclaimSuccess": "タスクの回収に成功しました",
     "reclaimFailed": "タスクの回収に失敗しました",
     "approve": "承認",
@@ -11839,7 +11839,7 @@
     "senderIdHintDingtalk": "管理者は DingTalk 管理コンソール → 連絡先で staffId を確認できます",
     "senderIdHintEmail": "ユーザーのメールアドレスを直接入力するだけです",
     "senderIdHintWecom": "管理者は企業微信管理コンソール → 連絡先で userId を確認できます",
-    "senderIdHintTeams": "管理者可で Microsoft 365 管理中心表示ユーザー ID",
+    "senderIdHintTeams": "管理者は Microsoft 365 管理センターでユーザー ID を表示できます",
     "senderIdHintLine": "ユーザーの LINE userId は LINE Developers Console で取得できます",
     "senderIdHintSignal": "ユーザーの電話番号（国番号付き）または Signal UUID",
     "senderIdPlaceholderWecom": "企業微信 userId",
@@ -12135,7 +12135,7 @@
     "reactionSimple": "シンプル",
     "reactionSimpleDesc": "完了時のみリアクション",
     "reactionFull": "完全",
-    "reactionFullDesc": "処理中 + 完反すべき",
+    "reactionFullDesc": "処理中 + 完了リアクション",
     "processingEmojiLabel": "処理中表情",
     "completionEmojiLabel": "完表情",
     "failureEmojiLabel": "失敗表情",
@@ -12221,7 +12221,7 @@
     "googlechatTestSuccess": "Google Chat API への接続に成功しました",
     "googlechatTestFailed": "Google Chat API への接続に失敗しました",
     "googlechatCredentialsRequired": "先に Service Account JSON を入力してください",
-    "googlechatJsonInvalid": "JSON フォーマットなし效",
+    "googlechatJsonInvalid": "JSON フォーマットが無効です",
     "googlechatJsonMissingFields": "client_email または private_key フィールドが不足しています",
     "qqTitle": "QQ",
     "qqDesc": "QQ ボットの認証情報を設定して QQ メッセージチャネルを有効にします。",
@@ -12684,7 +12684,7 @@
     "ttsPlaybackFailedDesc": "音声合成でオーディオが生成されませんでした。音声設定を確認するか、別のプロバイダーをお試しください。",
     "ttsApiKey": "APIキー",
     "ttsApiKeyPlaceholder": "API キーを入力（Edge TTS では不要）",
-    "ttsBaseUrl": "API 基础アドレス",
+    "ttsBaseUrl": "API ベース URL",
     "ttsBaseUrlPlaceholder": "https://api.openai.com/v1",
     "ttsVoice": "音色",
     "ttsVoicePlaceholder": "デフォルト音色",
@@ -12910,7 +12910,7 @@
     "viewChanges": "変更を表示",
     "hideChanges": "変更を非表示",
     "memoryUpdate": "メモリを更新",
-    "noContent": "なし内容可プレビュー",
+    "noContent": "プレビューする内容はありません",
     "payloadData": "承認データ",
     "commentsOptional": "備考（任意）",
     "addCommentPlaceholder": "この承認へのコメントを追加...",
@@ -12998,7 +12998,7 @@
     },
     "spanRiskReasons": {
       "safe": "安全 — 読み取り専用コマンド、自動的に許可済み",
-      "empty_segment": "空片段 — 未検出までコマンド",
+      "empty_segment": "空セグメント — コマンドを検出できませんでした",
       "redirect": "ファイルに書き込みます — 対象パスを確認してください",
       "unknown_command": "認識できないコマンド — 確認が必要です",
       "unknown_subcommand": "認識できないサブコマンド — 確認が必要です",
@@ -13614,7 +13614,7 @@
     "successRate": "成功率",
     "tokenEfficiency": "Token効率",
     "executionTime": "実行時間",
-    "userSatisfaction": "ユーザー满意度",
+    "userSatisfaction": "ユーザー満足度",
     "callFrequency": "呼び出し頻度",
     "loading": "読み込み中...",
     "noData": "データなし",
@@ -13630,7 +13630,7 @@
     "avgExecutionTime": "平均実行時間",
     "recommendedToOptimize": "おすすめ最適化スキル",
     "optimizeAll": "すべて最適化",
-    "priorityScore": "優先度分",
+    "priorityScore": "優先度スコア",
     "optimize": "最適化",
     "optimizing": "最適化中...",
     "noRecommendations": "最適化を推奨されるスキルはありません"
@@ -13658,7 +13658,7 @@
       "systemPromptPlaceholder": "あなたは親切なアシスタントです...",
       "commandBindings": "スラッシュコマンドのバインド",
       "commandBindingsHint": "IM チャンネルのカスタムスラッシュコマンドをスキルにバインドします。複数のスキルを選択してバンドルにできます。",
-      "commandName": "コマンド名前",
+      "commandName": "コマンド名",
       "commandNamePlaceholder": "例：daily-report",
       "commandSkillId": "スキル",
       "commandSkillIdPlaceholder": "クリック選択スキル",
@@ -13670,7 +13670,7 @@
       "commandAliasesPlaceholder": "カンマ区切り、例: dr, report",
       "addCommandBinding": "追加コマンド",
       "removeCommandBinding": "削除",
-      "noCommandBindings": "未設定いかなるコマンドバインド。",
+      "noCommandBindings": "コマンドバインドが設定されていません。",
       "agentType": "エージェントタイプ",
       "agentTypeIndividual": "個体",
       "agentTypeIndividualDesc": "標準のシングルエージェント",
@@ -13853,7 +13853,7 @@
       "reason": "理由：{reason}",
       "consensusMetaTitle": "マルチモデルコンセンサス",
       "consensusMetaModels": "{succeeded}/{total} 個モデル参と",
-      "consensusMetaAggregator": "聚合モデル: {model}",
+      "consensusMetaAggregator": "集約モデル: {model}",
       "consensusMetaElapsed": "総所要時間: {seconds}s",
       "consensusActive": "残りのモデルを待っています…"
     }

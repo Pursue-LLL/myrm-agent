@@ -77,6 +77,9 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
       const task = tasks.find((tk) => tk.task_id === taskId);
       if (!task || task.status === targetStatus) return;
 
+      // IN_REVIEW is an approval-gate state: no drag source/target escapes it.
+      if (task.status === 'in_review' || targetStatus === 'in_review') return;
+
       const movingIds = selectedTaskIds.includes(taskId) && selectedTaskIds.length > 1 ? selectedTaskIds : [taskId];
 
       if (DESTRUCTIVE_STATUSES.includes(targetStatus)) {

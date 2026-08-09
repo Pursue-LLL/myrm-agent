@@ -318,3 +318,77 @@ def test_goal_completion_probe_uses_bound_api_base() -> None:
         return_value=None,
     ):
         assert asyncio.run(turn._goal_completion_if_persisted("g1")) is None
+
+
+def test_goal_completion_rejects_empty_objective() -> None:
+    """Stub goal records without objective must not complete the turn."""
+    turn = _turn()
+    turn._goal_api_base_cached = "http://127.0.0.1:18095"
+
+    with patch(
+        "cdp_chat_turn.cdp_chat_support.fetch_e2e_goal_status",
+        return_value={"status": "active", "objective": ""},
+    ):
+        assert asyncio.run(turn._goal_completion_if_persisted("g1")) is None
+
+
+def test_goal_completion_rejects_unknown_status() -> None:
+    """Goal probe must align with Goal E2E status allow-list."""
+    turn = _turn()
+    turn._goal_api_base_cached = "http://127.0.0.1:18095"
+
+    with patch(
+        "cdp_chat_turn.cdp_chat_support.fetch_e2e_goal_status",
+        return_value={"status": "pending", "objective": "research topic"},
+    ):
+        assert asyncio.run(turn._goal_completion_if_persisted("g1")) is None
+
+
+def test_wait_turn_done_chat_id_hint_used_when_bridge_null_first() -> None:
+    """chat_id_hint must be bound before bridge probe so goal/API paths never see unbound locals."""
+    turn = _turn()
+    goal_calls: list[str] = []
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return None
+
+    async def fake_goal(chat_id: str) -> dict[str, object] | None:
+        goal_calls.append(chat_id)
+        return None
+
+    async def fake_main_state(_prompt: str, *, intent: object) -> dict[str, object]:
+        return {"hasUserPrompt": False, "okInMain": False, "path": "/chat/h1"}
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn._goal_completion_if_persisted = fake_goal  # type: ignore[method-assign]
+    turn.main_state = fake_main_state  # type: ignore[method-assign]
+    turn._finish_if_api_ok = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    turn.bridge_chat_id = AsyncMock(return_value="h1")  # type: ignore[method-assign]
+
+    with pytest.raises(TimeoutError, match="h1"):
+        asyncio.run(
+            _run(
+                lambda: turn.wait_turn_done("hi", chat_id_hint="h1", timeout_sec=0.05)
+            )
+        )
+    assert goal_calls == []
+
+
+def test_wait_e2e_goal_status_skips_non_persisted_records() -> None:
+    """Poll must ignore stub goals until objective+status match SSOT."""
+    from cdp_chat_support import wait_e2e_goal_status
+
+    calls = {"n": 0}
+
+    def fake_fetch(_chat_id: str, *, api_url: str | None = None) -> dict[str, object] | None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"status": "active", "objective": ""}
+        return {"status": "active", "objective": "research topic"}
+
+    with patch("cdp_chat_support.fetch_e2e_goal_status", side_effect=fake_fetch):
+        with patch("cdp_chat_support.time.sleep", return_value=None):
+            goal = wait_e2e_goal_status("g1", timeout_sec=5.0, poll_interval_sec=0.01)
+    assert goal is not None
+    assert goal.get("objective") == "research topic"
+    assert calls["n"] == 2

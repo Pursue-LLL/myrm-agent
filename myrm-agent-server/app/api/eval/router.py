@@ -2,6 +2,7 @@
 
 [INPUT]
 - fastapi::APIRouter, Depends, HTTPException
+- app.api.eval.streaming::stream_status_events (POS: eval SSE 状态流公共 helper)
 - app.core.eval.service::run_eval_suite, get_eval_status, ...
 - app.core.eval.datasets::get_eval_cases, save_eval_cases, get_all_datasets
 - app.core.eval.reports::DEFAULT_REPORTS_DIR, get_latest_report_summary, ...
@@ -18,10 +19,8 @@ under the /eval prefix.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -29,6 +28,7 @@ from pydantic import BaseModel
 
 from app.api.eval.matrix_router import router as matrix_router
 from app.api.eval.memory_ab_router import router as memory_ab_router
+from app.api.eval.streaming import stream_status_events
 from app.core.eval.capture import capture_case_from_chat
 from app.core.eval.datasets import (
     get_all_datasets,
@@ -251,27 +251,11 @@ async def abort_evaluation() -> dict[str, object]:
     return {"status": "aborted"}
 
 
-async def _eval_status_generator() -> AsyncGenerator[str, None]:
-    last_state_str = ""
-    while True:
-        status_info = get_eval_status()
-        current_state_str = json.dumps(status_info)
-        if current_state_str != last_state_str:
-            yield f"data: {current_state_str}\n\n"
-            last_state_str = current_state_str
-
-        if not status_info.get("is_running"):
-            yield "event: close\ndata: {}\n\n"
-            break
-
-        await asyncio.sleep(0.5)
-
-
 @router.get("/stream")
 async def stream_evaluation_status() -> StreamingResponse:
     """Stream the current status of the evaluation suite via SSE."""
     return StreamingResponse(
-        _eval_status_generator(),
+        stream_status_events(get_eval_status),
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )

@@ -158,6 +158,16 @@ def _wave_is_open(wave: object) -> bool:
     return isinstance(wave, dict) and str(wave.get("status", "")).strip() == "open"
 
 
+def validated_wave_state_file(*, state_file: Path | None = None) -> Path:
+    """Resolve the wave state file the caller's environment actually uses.
+
+    Mirrors assert_orchestrator_lease_allowed's path resolution so the
+    Browser Orchestrator daemon can re-validate the *same* file (isolated
+    runtimes carry their own wave-orchestrator.json under MYRM_WAVE_STATE_DIR).
+    """
+    return state_file or resolve_wave_state_file()
+
+
 def assert_orchestrator_lease_allowed(
     *,
     lease_id: str | None = None,
@@ -166,7 +176,7 @@ def assert_orchestrator_lease_allowed(
     resolved = resolve_required_lease_id(explicit=lease_id)
     if not resolved:
         return ""
-    path = state_file or resolve_wave_state_file()
+    path = validated_wave_state_file(state_file=state_file)
     payload = _load_wave_payload(path)
     wave = payload.get("wave")
     if not _wave_is_open(wave):

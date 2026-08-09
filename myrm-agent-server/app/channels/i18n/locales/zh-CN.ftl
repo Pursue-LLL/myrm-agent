@@ -1,5 +1,4 @@
 mobile_hitl_open = 打开手机审批
-mobile_btw_open = 手机查看结果
 web_continue_chat = 在浏览器继续
 
 no_active_task_to_stop = ℹ 当前没有正在执行的任务。
@@ -80,7 +79,6 @@ goal_status_constraints = **约束：** { $items }
 goal_status_criteria = **验收标准：** { $items }
 goal_status_subgoals = **子目标：** { $items }
 no_goal_to_resume = 没有可以恢复的目标。
-goal_already_active = 目标已经处于活动状态。
 no_goal_to_clear = 没有可以清除的目标。
 no_active_goal_to_clear = 没有可以清除的活动目标。
 no_active_goal_set_first = 没有活动目标。请先使用 `/goal <目标>` 设定一个目标。
@@ -109,6 +107,9 @@ background_failed =
     { $result }
 background_blocked =
     ⚠️ 后台任务已阻塞："{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ 后台任务等待你的审批："{ $title }"
     { $result }
 bash_bg_finish_title = 后台任务已完成
 bash_bg_finish_success =
@@ -285,8 +286,9 @@ cat_Topic = 话题
 cat_Goals = 目标
 cat_Execution = 执行
 cat_Info = 信息
+cat_Tasks = 任务
 cmd_handoff = 将当前对话转移到其他平台/渠道
-usage_handoff = 用法：`/handoff <目标渠道>`
+cmd_kanban = 管理看板任务，无需打断 Agent
 handoff_success =
      对话已转移至 **{ $target }**。
     你现在可以在 { $target } 上继续此对话。

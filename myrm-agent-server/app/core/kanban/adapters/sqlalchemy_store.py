@@ -517,6 +517,29 @@ class SqlAlchemyKanbanStore:
             await session.commit()
             return True
 
+    async def transition_task_status(
+        self,
+        task_id: str,
+        expected_status: TaskStatus,
+        new_status: TaskStatus,
+    ) -> KanbanTask | None:
+        async with get_session() as session:
+            stmt = (
+                update(KanbanTaskModel)
+                .where(
+                    KanbanTaskModel.id == task_id,
+                    KanbanTaskModel.status == expected_status.value,
+                )
+                .values(status=new_status.value)
+            )
+            result = await session.execute(stmt)
+            if _exec_rowcount(result) == 0:
+                await session.rollback()
+                return None
+            await session.commit()
+            m = await session.get(KanbanTaskModel, task_id)
+            return task_to_domain(m) if m else None
+
     async def list_ready_tasks(self, board_id: str) -> list[KanbanTask]:
         async with get_session() as session:
             stmt = (

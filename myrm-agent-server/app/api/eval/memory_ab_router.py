@@ -2,6 +2,7 @@
 
 [INPUT]
 - fastapi::APIRouter, BackgroundTasks
+- app.api.eval.streaming::stream_status_events (POS: eval SSE 状态流公共 helper)
 - app.core.eval.memory_ab::run_memory_ab_background, get_memory_ab_status, ...
 - app.services.agent.platform_config::verify_platform_embedding_ready
 
@@ -18,15 +19,13 @@ misleading "memory has no effect" result.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.api.eval.streaming import stream_status_events
 from app.core.eval.memory_ab import (
     _init_memory_ab_state,
     abort_memory_ab,
@@ -120,27 +119,11 @@ async def get_memory_ab_evaluation_status() -> dict[str, object]:
     return get_memory_ab_status()
 
 
-async def _memory_ab_status_generator() -> AsyncGenerator[str, None]:
-    last_state_str = ""
-    while True:
-        status_info = get_memory_ab_status()
-        current_state_str = json.dumps(status_info)
-        if current_state_str != last_state_str:
-            yield f"data: {current_state_str}\n\n"
-            last_state_str = current_state_str
-
-        if not status_info.get("is_running"):
-            yield "event: close\ndata: {}\n\n"
-            break
-
-        await asyncio.sleep(0.5)
-
-
 @router.get("/memory-ab/stream")
 async def stream_memory_ab_evaluation_status() -> StreamingResponse:
     """Stream the current status of the memory A/B evaluation via SSE."""
     return StreamingResponse(
-        _memory_ab_status_generator(),
+        stream_status_events(get_memory_ab_status),
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )

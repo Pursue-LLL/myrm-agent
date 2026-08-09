@@ -73,7 +73,10 @@ export function KanbanDropColumn({
   footer,
   t,
 }: KanbanDropColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    disabled: status === 'in_review',
+  });
   const isHighlighted = (isOver || dragOverColumn === status) && draggedTaskId !== null;
 
   const agentLanes = useMemo(() => {
@@ -199,7 +202,10 @@ function DraggableTaskCard({
   onOpenTaskDrawer,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.task_id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.task_id,
+    disabled: task.status === 'in_review',
+  });
 
   return (
     <div
@@ -220,7 +226,8 @@ function DraggableTaskCard({
       }}
       title={onOpenTaskDrawer ? t('openDetailsHint') : undefined}
       className={cn(
-        'relative rounded-md transition-all cursor-grab active:cursor-grabbing touch-none',
+        'relative rounded-md transition-all touch-none',
+        task.status !== 'in_review' && 'cursor-grab active:cursor-grabbing',
         selectedTaskIds.includes(task.task_id) && 'ring-2 ring-primary/60 ring-offset-1',
         (isDragging || draggedTaskId === task.task_id) && 'opacity-40 scale-95',
       )}

@@ -16,6 +16,7 @@ from cdp_chat_support import (
     WAIT_WORKSPACE_STREAM_JS,
     chat_id_from_path,
     chat_messages_have_ok,
+    is_persisted_e2e_goal,
 )
 from dev_gate_contract import EvaluateIntent
 from e2e_wave_ledger import maybe_register_e2e_chat
@@ -229,7 +230,7 @@ class CdpChatTurn(CdpChatSubmit):
             )
         except (TimeoutError, OSError):
             return None
-        if goal is None:
+        if not is_persisted_e2e_goal(goal):
             return None
         return {
             "okViaGoal": True,
@@ -300,6 +301,7 @@ class CdpChatTurn(CdpChatSubmit):
         """
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
+        chat_id = chat_id_hint
         last_progress_touch = time.monotonic()
 
         def _maybe_touch_progress(node: str = "wait_turn_done") -> None:

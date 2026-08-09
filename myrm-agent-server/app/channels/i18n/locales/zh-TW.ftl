@@ -1,5 +1,4 @@
 mobile_hitl_open = 開啟手機審批
-mobile_btw_open = 手機檢視結果
 web_continue_chat = 在瀏覽器繼續
 
 no_active_task_to_stop = ℹ 當前沒有正在執行的任務。
@@ -80,7 +79,6 @@ goal_status_constraints = **約束：** { $items }
 goal_status_criteria = **驗收標準：** { $items }
 goal_status_subgoals = **子目標：** { $items }
 no_goal_to_resume = 沒有可以恢復的目標。
-goal_already_active = 目標已經處於活動狀態。
 no_goal_to_clear = 沒有可以清除的目標。
 no_active_goal_to_clear = 沒有可以清除的活動目標。
 no_active_goal_set_first = 沒有活動目標。請先使用 `/goal <目標>` 設定一個目標。
@@ -109,6 +107,9 @@ background_failed =
     { $result }
 background_blocked =
     ⚠️ 後臺任務已阻塞："{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ 後臺任務等待你的審批："{ $title }"
     { $result }
 bash_bg_finish_title = 後臺任務已完成
 bash_bg_finish_success =
@@ -285,8 +286,9 @@ cat_Topic = 話題
 cat_Goals = 目標
 cat_Execution = 執行
 cat_Info = 資訊
+cat_Tasks = 任務
 cmd_handoff = 將當前對話轉移到其他平臺/渠道
-usage_handoff = 用法：`/handoff <目標渠道>`
+cmd_kanban = 管理看板任務，無需打斷 Agent
 handoff_success =
      對話已轉移至 **{ $target }**。
     你現在可以在 { $target } 上繼續此對話。

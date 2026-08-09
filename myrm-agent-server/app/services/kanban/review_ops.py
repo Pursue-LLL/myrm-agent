@@ -44,7 +44,8 @@ async def approve_task(
     """Approve an IN_REVIEW task: promote to COMPLETED and release dependents.
 
     Delegates to the board dispatcher (source of truth for the state machine).
-    Falls back to a direct store transition when no dispatcher is running.
+    Falls back to an atomic CAS transition when no dispatcher is running.
+    Non-IN_REVIEW tasks are returned unchanged (idempotent double-submit).
     """
     task = await store.get_task(task_id)
     if task is None:
@@ -53,11 +54,13 @@ async def approve_task(
     if dispatcher:
         return await dispatcher.approve_task(task_id, approver=approver)
 
-    if task.status != TaskStatus.IN_REVIEW:
-        raise ValueError(
-            f"Cannot approve task in status '{task.status.value}'; only IN_REVIEW tasks can be approved"
-        )
-    task.status = TaskStatus.COMPLETED
+    task = await store.transition_task_status(
+        task_id,
+        TaskStatus.IN_REVIEW,
+        TaskStatus.COMPLETED,
+    )
+    if task is None:
+        return await store.get_task(task_id)
     task.completed_at = datetime.now(UTC)
     task.consecutive_failures = 0
     task.block_cycle_count = 0
@@ -72,7 +75,7 @@ async def approve_task(
     publish_kanban_event(
         task.board_id,
         task_id,
-        "approved",
+        "task_completed",
         title=task.title,
         detail=task.result or "",
         status=task.status.value,
@@ -96,6 +99,7 @@ async def reject_task(
 
     The rejection reason is persisted on the event trail and echoed into the
     worker context (via prior-attempt error) so a re-run adapts.
+    Non-IN_REVIEW tasks are returned unchanged (idempotent double-submit).
     """
     task = await store.get_task(task_id)
     if task is None:
@@ -104,13 +108,16 @@ async def reject_task(
     if dispatcher:
         return await dispatcher.reject_task(task_id, reason=reason, approver=approver)
 
-    if task.status != TaskStatus.IN_REVIEW:
-        raise ValueError(
-            f"Cannot reject task in status '{task.status.value}'; only IN_REVIEW tasks can be rejected"
-        )
-    task.status = TaskStatus.READY
-    task.error = reason
+    task = await store.transition_task_status(
+        task_id,
+        TaskStatus.IN_REVIEW,
+        TaskStatus.READY,
+    )
+    if task is None:
+        return await store.get_task(task_id)
     task.consecutive_failures = 0
+    task.retry_count = 0
+    task.error = reason
     task.last_heartbeat_at = None
     task.progress_note = None
     await store.save_task(task)
@@ -122,7 +129,7 @@ async def reject_task(
     publish_kanban_event(
         task.board_id,
         task_id,
-        "rejected",
+        "task_rejected",
         title=task.title,
         detail=reason,
         status=task.status.value,

@@ -6,15 +6,26 @@ notes). Missing keys silently degrade a locale to another language through the
 BCP 47 fallback chain, so a gap in e.g. `ja.ftl` shows English (or Simplified
 Chinese) to Japanese users.
 
-These guards enforce structural consistency across all locale files:
+These guards enforce structural and behavioral consistency across all locale
+files:
 
 1. Every locale file exposes the exact same key set as the `en.ftl` reference.
 2. Every key's placeholder set (`{ $var }` references) matches across locales;
    a missing or mistyped placeholder renders as a bare key name or truncated
    text through the Fluent engine, which never raises.
 3. Every `{...}` reference is legal Fluent syntax (a `$`-prefixed variable, a
-   function like `{NUMBER($var)}`, or a `-`-prefixed term). Bare identifiers
-   such as `{seconds:.0f}` are invalid and silently break the whole message.
+   function like `{NUMBER($var)}`, a `-`-prefixed term, or a string literal
+   like `{ "**" }`). Bare identifiers such as `{seconds:.0f}` are invalid and
+   silently break the whole message.
+4. Every message renders successfully with sample arguments. This catches
+   runtime failures a static scan cannot — e.g. a multiline pattern whose first
+   line starts with a selector character (`*`/`[`) parses as a broken entry and
+   the engine returns the bare key name verbatim.
+5. Every key is reachable from production code. A translated key with no call
+   site is dead weight that must still be maintained across every locale; the
+   `cmd_*`/`cat_*` help keys are validated against the live command registry
+   in both directions — an orphaned key and a registered command missing its
+   translation both break /help.
 """
 
 from __future__ import annotations
@@ -31,6 +42,8 @@ _LOCALES_DIR = (
     / "i18n"
     / "locales"
 )
+
+_APP_DIR = Path(__file__).resolve().parents[3] / "app"
 
 _REFERENCE_LOCALE = "en"
 
@@ -168,6 +181,77 @@ def test_ftl_locales_have_only_legal_references() -> None:
                 f"Use `{{ $var }}`, a function like `{{NUMBER($var)}}`, a `-`-prefixed "
                 f"term, or a string literal like `{{ \"**\" }}`."
             )
+
+
+def _source_files() -> list[Path]:
+    """Every `.py` file under ``app/`` except generated/packaging paths."""
+    return [
+        p
+        for p in _APP_DIR.rglob("*.py")
+        if "__pycache__" not in p.parts
+    ]
+
+
+def _referenced_keys() -> frozenset[str]:
+    """Keys referenced as string literals anywhere in production source.
+
+    Slash-command help text is looked up dynamically as ``cmd_<name>`` /
+    ``cat_<category>`` in :func:`CommandRegistry.help_lines`, so those keys are
+    validated against the live registry below rather than a literal scan.
+    """
+    keys = frozenset(_message_bodies(_REFERENCE_LOCALE))
+    referenced: set[str] = set()
+    for path in _source_files():
+        text = path.read_text(encoding="utf-8")
+        for key in keys:
+            if f'"{key}"' in text or f"'{key}'" in text:
+                referenced.add(key)
+    return frozenset(referenced)
+
+
+@pytest.mark.architecture
+def test_ftl_locales_have_no_orphaned_keys() -> None:
+    """Every message key must be reachable from production code.
+
+    A key that exists in every locale but is never called renders nothing — it
+    is dead weight that still has to be maintained (translated, kept in sync)
+    across all four files.  ``cmd_*``/``cat_*`` are generated at runtime from
+    ``SYSTEM_COMMANDS`` so they are validated through the registry in both
+    directions: an orphaned ``cmd_*`` key (registered but never rendered) and
+    a registered command missing its translation both break /help.
+    """
+    from app.channels.routing.command_defs import SYSTEM_COMMANDS
+
+    keys = frozenset(_message_bodies(_REFERENCE_LOCALE))
+    referenced = _referenced_keys()
+
+    dynamic = {
+        f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS
+    } | {
+        f"cat_{cmd.category.replace(' ', '_')}" for cmd in SYSTEM_COMMANDS
+    }
+
+    orphaned = sorted(keys - referenced - dynamic)
+    assert not orphaned, (
+        f"Orphaned channel message keys: {orphaned}. These keys are translated "
+        f"but never referenced by production code — either wire them up or "
+        f"delete them from every locale file."
+    )
+
+    missing_cmd = sorted(
+        f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS if f"cmd_{cmd.name}" not in keys
+    )
+    missing_cat = sorted(
+        f"cat_{cmd.category.replace(' ', '_')}"
+        for cmd in SYSTEM_COMMANDS
+        if f"cat_{cmd.category.replace(' ', '_')}" not in keys
+    )
+    assert not missing_cmd and not missing_cat, (
+        f"Registered slash commands missing translations: "
+        f"{missing_cmd + missing_cat}. The /help list falls back to the raw "
+        f"English description for these commands; add the key to every locale "
+        f"file."
+    )
 
 
 # Sample values used by the render-level guard.  Every message placeholder gets

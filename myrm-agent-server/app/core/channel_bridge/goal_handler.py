@@ -363,7 +363,7 @@ class ChannelGoalCommandHandler:
             return get_text(msg, "no_goal_to_resume")
 
         if goal.status == GoalStatus.ACTIVE:
-            return get_text(msg, "goal_already_active")
+            return get_text(msg, "goal_active_exists", objective=goal.objective[:60])
 
         if goal.status not in {GoalStatus.PAUSED, GoalStatus.BUDGET_LIMITED}:
             return get_text(msg, "goal_cannot_resume", status=goal.status.value)

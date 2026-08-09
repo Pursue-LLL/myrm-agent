@@ -214,19 +214,20 @@ components: []
 
 **Channel Command i18n（slash 命令静态回复）**：
 
-渠道 slash 命令的系统静态回复（非 Agent LLM 输出）通过 `app/channels/i18n/` 包提供 en / zh-CN 双语 catalog。
+渠道 slash 命令的系统静态回复（非 Agent LLM 输出）通过 `app/channels/i18n/` 包提供 en / zh-CN / zh-TW / ja 四语 catalog（`.ftl` 文件）。
 
 | 组件 | 职责 |
 |------|------|
-| `utils/locale.py` | BCP-47 归一化、`resolve_locale` 优先级链 |
-| `i18n/catalog/en.py` / `zh_cn.py` | 扁平 key → 模板字符串（~180 key） |
-| `i18n/__init__.py` | `channel_t` / `get_text` / `resolve_message_locale` |
+| `myrm_agent_harness.utils.locale::resolve_locale` | BCP-47 归一化、locale 解析优先级链 |
+| `i18n/engine.py::I18nEngine` | Fluent + JSON 双引擎：`format_value`、BCP 47 fallback 链、`add_locale_root` |
+| `i18n/locales/*.ftl` | 渠道静态消息 catalog（slash 命令、风险门禁、预算拦截等） |
+| `i18n/__init__.py` | `channel_t` / `get_text` / `resolve_message_locale` / `add_locale_root` 导出 |
 | `protocols/locale.py` | `LocaleProvider` 协议（业务层注入） |
 | `routing/router.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
 
 **Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`。
 
-**测试**：`tests/channels/test_channel_i18n.py` 断言 en/zh key 集合一致、placeholder 一致，并覆盖 `/goal`、`/topic` 等关键中文模板。
+**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言四语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化。
 
 **前端联动**：设置 → 偏好 → 语言区块说明「同步应用于 Web 界面与 IM 渠道命令」；与 `personalSettings.locale` 写入链路一致。
 

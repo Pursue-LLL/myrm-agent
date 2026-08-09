@@ -1,5 +1,4 @@
 mobile_hitl_open = Open mobile approval
-mobile_btw_open = View on mobile
 web_continue_chat = Continue in browser
 
 no_active_task_to_stop = ℹ No active task to stop.
@@ -80,7 +79,6 @@ goal_status_constraints = **Constraints:** { $items }
 goal_status_criteria = **Acceptance Criteria:** { $items }
 goal_status_subgoals = **Subgoals:** { $items }
 no_goal_to_resume = No goal to resume.
-goal_already_active = Goal is already active.
 no_goal_to_clear = No goal to clear.
 no_active_goal_to_clear = No active goal to clear.
 no_active_goal_set_first = No active goal. Set a goal first with `/goal <objective>`.
@@ -109,6 +107,9 @@ background_failed =
     { $result }
 background_blocked =
     ⚠️ Background task blocked: "{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ Background task awaits your review: "{ $title }"
     { $result }
 bash_bg_finish_title = Background task finished
 bash_bg_finish_success =
@@ -285,8 +286,9 @@ cat_Topic = Topic
 cat_Goals = Goals
 cat_Execution = Execution
 cat_Info = Info
+cat_Tasks = Tasks
 cmd_handoff = Transfer this conversation to another platform/channel
-usage_handoff = Usage: `/handoff <target_channel>`
+cmd_kanban = Manage kanban board tasks without interrupting the agent
 handoff_success =
      Conversation transferred to **{ $target }**.
     You can continue this conversation on { $target } now.

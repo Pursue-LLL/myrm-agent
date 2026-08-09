@@ -534,25 +534,29 @@ function isBraceBalanced(value) {
   return depth === 0;
 }
 
-/** CJK 汉字区间（含中文日文共用汉字），用于 en 纯净性与双语对照检测。 */
-const CJK_RE = /[\u4e00-\u9fff]/;
+/**
+ * 非拉丁文字区间（汉字 \u4e00-\u9fff、日文假名 \u3040-\u30ff、韩文谚文 \uac00-\ud7af、
+ * 全角标点 \u3000-\u303f / \uff00-\uffef），用于 en 纯净性与双语对照检测。
+ * 覆盖全部 6 语言（zh / en / ja / ko / de / zh-TW），杜绝假名/谚文双语脏值漏检。
+ */
+const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
- * 双语对照脏值：同一语义被写成"本地语 / English"（如 "是 / Yes"、"上下文健康 / Context Health"）。
- * 判定：恰好两段，一段纯 ASCII（英文），另一段纯 CJK（本地语），且不含 ICU 占位符对照。
+ * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
+ * 判定：恰好两段，一段纯 ASCII（英文），另一段含非拉丁文字（本地语），且不含 ICU 占位符对照。
  * 排除合理情形：占位符对照（{shown} / {total}）、术语对照（MCP / 技能设置）、路径/URL。
  */
 function isBilingualDirty(value) {
   if (typeof value !== 'string' || value.length > 160) return false;
-  if (!CJK_RE.test(value) || !/[a-zA-Z]/.test(value)) return false;
+  if (!NON_LATIN_RE.test(value) || !/[a-zA-Z]/.test(value)) return false;
   if (!value.includes(' / ') || /\{/.test(value)) return false;
   const parts = value.split(' / ');
   if (parts.length !== 2) return false;
   const [a, b] = parts.map((s) => s.trim());
   if (!a || !b) return false;
   const asciiOnly = (s) => /^[\x00-\x7F]+$/.test(s);
-  const cjkOnly = (s) => !/[a-zA-Z]/.test(s) && /[\u4e00-\u9fff]/.test(s);
-  return (asciiOnly(a) && cjkOnly(b)) || (cjkOnly(a) && asciiOnly(b));
+  const nonLatinOnly = (s) => !/[a-zA-Z]/.test(s) && NON_LATIN_RE.test(s);
+  return (asciiOnly(a) && nonLatinOnly(b)) || (nonLatinOnly(a) && asciiOnly(b));
 }
 
 function reportShells(locale, shells) {
@@ -591,18 +595,18 @@ const EN_PURITY_ALLOWED_KEYS = new Set([
   'settings.languageOptions.korean',
   'settings.languageOptions.german',
 ]);
-const enCjkErrors = [];
+const enNonLatinErrors = [];
 for (const key of enLeaves) {
   if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
   if (ALLOWED_SAME_KEYS.has(key) || ALLOWED_MIXED_KEYS.has(key)) continue;
   const enValue = resolvePath(translations.en, key);
-  if (typeof enValue === 'string' && CJK_RE.test(enValue)) {
-    enCjkErrors.push(key);
+  if (typeof enValue === 'string' && NON_LATIN_RE.test(enValue)) {
+    enNonLatinErrors.push(key);
   }
 }
-if (enCjkErrors.length > 0) {
-  console.error(`  ❌ en.json 存在 ${enCjkErrors.length} 个混入 CJK 的键（SSOT 污染，须修复为纯英文）：`);
-  enCjkErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+if (enNonLatinErrors.length > 0) {
+  console.error(`  ❌ en.json 存在 ${enNonLatinErrors.length} 个混入非拉丁文字的键（SSOT 污染，须修复为纯英文）：`);
+  enNonLatinErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
   hasErrors = true;
 }
 

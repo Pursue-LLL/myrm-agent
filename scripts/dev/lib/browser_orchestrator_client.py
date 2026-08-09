@@ -330,12 +330,16 @@ class BrowserOrchestratorClient:
 
     def create_session(self, session_id: str) -> SessionResult:
         """Create a new isolated BrowserContext for the given session."""
-        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+        from chrome_e2e.gates.lease_gate import (
+            assert_orchestrator_lease_allowed,
+            validated_wave_state_file,
+        )
 
         lease_id = assert_orchestrator_lease_allowed()
         params: dict[str, object] = {"sessionId": session_id}
         if lease_id:
             params["leaseId"] = lease_id
+        params["waveStateFile"] = str(validated_wave_state_file())
         result = self._request("session/create", params)
         return SessionResult(contextId=result["contextId"])
 
@@ -352,12 +356,16 @@ class BrowserOrchestratorClient:
 
     def create_page(self, session_id: str, url: str = "") -> PageResult:
         """Create a new page in the session's BrowserContext."""
-        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+        from chrome_e2e.gates.lease_gate import (
+            assert_orchestrator_lease_allowed,
+            validated_wave_state_file,
+        )
 
         lease_id = assert_orchestrator_lease_allowed()
         params: dict[str, object] = {"sessionId": session_id, "url": url}
         if lease_id:
             params["leaseId"] = lease_id
+        params["waveStateFile"] = str(validated_wave_state_file())
         result = self._request("page/create", params)
         return PageResult(pageId=result["pageId"], targetId=result["targetId"])
 
@@ -369,7 +377,10 @@ class BrowserOrchestratorClient:
         sealed_target_id: str,
     ) -> ReclaimPageResult:
         """Attach epoch-sealed shell tab or fall back to createPage (§19.11 TAB-6b)."""
-        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+        from chrome_e2e.gates.lease_gate import (
+            assert_orchestrator_lease_allowed,
+            validated_wave_state_file,
+        )
 
         lease_id = assert_orchestrator_lease_allowed()
         params: dict[str, object] = {
@@ -379,6 +390,7 @@ class BrowserOrchestratorClient:
         }
         if lease_id:
             params["leaseId"] = lease_id
+        params["waveStateFile"] = str(validated_wave_state_file())
         result = self._request("page/reclaim", params)
         return ReclaimPageResult(
             pageId=int(result["pageId"]),
@@ -405,7 +417,10 @@ class BrowserOrchestratorClient:
         navigates the subroute, then polls the RouteManifest hydration probe until
         ready or deadline.
         """
-        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+        from chrome_e2e.gates.lease_gate import (
+            assert_orchestrator_lease_allowed,
+            validated_wave_state_file,
+        )
 
         lease_id = assert_orchestrator_lease_allowed()
         params: dict[str, object] = {
@@ -423,6 +438,7 @@ class BrowserOrchestratorClient:
             params["bindingExpression"] = binding_expression
         if lease_id:
             params["leaseId"] = lease_id
+        params["waveStateFile"] = str(validated_wave_state_file())
         prior_timeout = self._timeout_sec
         # Hydration wait lives inside the daemon RPC — give the socket budget
         # headroom above the hydration deadline (scheduler grace + poll granularity).
@@ -451,12 +467,16 @@ class BrowserOrchestratorClient:
         binding_expression: str | None = None,
     ) -> OpenPageTransactionResult:
         """Atomically open a page: background create → optional inject → navigate."""
-        from chrome_e2e.gates.lease_gate import assert_orchestrator_lease_allowed
+        from chrome_e2e.gates.lease_gate import (
+            assert_orchestrator_lease_allowed,
+            validated_wave_state_file,
+        )
 
         lease_id = assert_orchestrator_lease_allowed()
         params: dict[str, object] = {"sessionId": session_id, "url": url}
         if lease_id:
             params["leaseId"] = lease_id
+        params["waveStateFile"] = str(validated_wave_state_file())
         if binding_expression is not None:
             params["bindingExpression"] = binding_expression
         result = self._request("page/openTransaction", params)

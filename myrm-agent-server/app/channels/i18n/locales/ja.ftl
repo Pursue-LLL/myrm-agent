@@ -1,5 +1,4 @@
 mobile_hitl_open = モバイルで承認を開く
-mobile_btw_open = モバイルで結果を確認
 web_continue_chat = ブラウザで続ける
 
 no_active_task_to_stop = ℹ 停止するアクティブなタスクがありません。
@@ -80,7 +79,6 @@ goal_status_constraints = **制約：** { $items }
 goal_status_criteria = **受け入れ基準：** { $items }
 goal_status_subgoals = **サブゴール：** { $items }
 no_goal_to_resume = 再開するゴールがありません。
-goal_already_active = ゴールは既にアクティブです。
 no_goal_to_clear = クリアするゴールがありません。
 no_active_goal_to_clear = クリアするアクティブなゴールがありません。
 no_active_goal_set_first = アクティブなゴールがありません。先に `/goal <目標>` でゴールを設定してください。
@@ -109,6 +107,9 @@ background_failed =
     { $result }
 background_blocked =
     ⚠️ バックグラウンドタスクがブロックされました："{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ バックグラウンドタスクが承認待ちです："{ $title }"
     { $result }
 bash_bg_finish_title = バックグラウンドタスク完了
 bash_bg_finish_success =
@@ -285,8 +286,9 @@ cat_Topic = トピック
 cat_Goals = ゴール
 cat_Execution = 実行
 cat_Info = 情報
+cat_Tasks = タスク
 cmd_handoff = この会話を他のプラットフォーム/チャンネルに転送
-usage_handoff = 使い方：`/handoff <対象チャンネル>`
+cmd_kanban = エージェントを中断せずにカンバンボードのタスクを管理
 handoff_success =
      会話を **{ $target }** に転送しました。
     { $target } でこの会話を続けることができます。

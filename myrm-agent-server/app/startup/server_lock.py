@@ -35,8 +35,56 @@ def _process_alive(pid: int) -> bool:
         return False
 
 
-def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
-    """获取 OS 原子锁，保证单实例运行，支持僵尸锁接管。"""
+def _pid_listens_port(pid: int, port: int) -> bool:
+    """True when ``pid`` actually LISTENs on ``port`` (port-ownership is crash truth)."""
+    try:
+        proc = psutil.Process(pid)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+    try:
+        for conn in proc.net_connections(kind="inet"):
+            if conn.status == psutil.CONN_LISTEN and conn.laddr.port == port:
+                return True
+    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.Error):
+        # 无法检查连接时不接管（fail-closed，避免误杀合法实例）。
+        return True
+    return False
+
+
+def _wait_for_listen(
+    pid: int,
+    port: int,
+    *,
+    timeout_sec: float,
+) -> bool:
+    """Poll until ``pid`` starts LISTENing on ``port`` or the window expires.
+
+    启动时序：run.py 先取锁再起 uvicorn，因此刚启动的合法实例不会立即监听端口；
+    宽限期让它在 timeout_sec 内开始监听。僵尸 run.py（进程存活但从不监听端口）
+    则会被识别为不可用，由新实例接管。
+    """
+    import time
+
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if _pid_listens_port(pid, port):
+            return True
+        time.sleep(0.3)
+    return _pid_listens_port(pid, port)
+
+
+def acquire_server_lock(
+    target_port: int,
+    target_host: str = "0.0.0.0",
+    *,
+    holder_listen_grace_sec: float = 5.0,
+) -> None:
+    """获取 OS 原子锁，保证单实例运行，支持僵尸锁接管。
+
+    活跃实例 = 持锁进程 alive **且** 最终监听 ``target_port``。进程存活但从不监听
+    端口的（僵尸 run.py）不视为活跃实例，新实例清理锁后接管——否则僵尸会永久
+    阻塞 backend 启动，表现为「backend 反复崩溃」（BUG-DG-2026-08-09-R014 家族）。
+    """
     import socket
     import time
 
@@ -82,19 +130,27 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
         # shared backend 反复崩溃的根因（见 BUG-DG-2026-08-09-R010）。
         holder_pid = _read_pid_file(pid_file)
         if holder_pid is not None and _process_alive(holder_pid):
-            print(
-                f"⚠️  另一 backend 实例正在运行 (pid={holder_pid}, port={target_port})，"
-                "本次启动退出，避免互杀。如需重启请先停止旧实例。",
-                flush=True,
-            )
-            # 必须用 os._exit()：sys.exit() 抛 SystemExit 后解释器会等待所有
-            # 非 daemon 线程退出，而 run.py 模块导入阶段已创建 libuv 事件循环
-            # 等线程，第二实例会被永久卡在 wait_for_thread_shutdown —— 进程
-            # 存活但僵尸化，持续占用数据库/端口探测，诱使 supervisor 误判
-            # "backend 活着但无响应"（见 BUG-DG-2026-08-09-R014）。
-            os._exit(1)
+            # 持锁进程存活。仅当它最终监听 target_port 才视为「活跃实例」：
+            # 僵尸 run.py（alive 但不监听端口）不阻塞新实例，走僵尸锁接管。
+            if _wait_for_listen(
+                holder_pid,
+                target_port,
+                timeout_sec=holder_listen_grace_sec,
+            ):
+                print(
+                    f"⚠️  另一 backend 实例正在运行 (pid={holder_pid}, port={target_port})，"
+                    "本次启动退出，避免互杀。如需重启请先停止旧实例。",
+                    flush=True,
+                )
+                # 必须用 os._exit()：sys.exit() 抛 SystemExit 后解释器会等待所有
+                # 非 daemon 线程退出，而 run.py 模块导入阶段已创建 libuv 事件循环
+                # 等线程，第二实例会被永久卡在 wait_for_thread_shutdown —— 进程
+                # 存活但僵尸化，持续占用数据库/端口探测，诱使 supervisor 误判
+                # "backend 活着但无响应"（见 BUG-DG-2026-08-09-R014）。
+                os._exit(1)
+            # 持锁者 alive 但从未监听端口（僵尸 run.py）：落到下方僵尸锁接管。
 
-        # 僵尸锁：持锁者已死，清理锁文件并接管（无感重启）。
+        # 僵尸锁：持锁者已死或存活但不监听端口，清理锁文件并接管（无感重启）。
         try:
             os.remove(lock_file)
         except OSError:

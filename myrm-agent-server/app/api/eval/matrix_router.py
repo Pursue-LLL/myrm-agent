@@ -2,6 +2,7 @@
 
 [INPUT]
 - fastapi::APIRouter, BackgroundTasks, HTTPException
+- app.api.eval.streaming::stream_status_events (POS: eval SSE 状态流公共 helper)
 - app.core.eval.matrix::run_matrix_eval_background, get_matrix_eval_status, ...
 
 [OUTPUT]
@@ -9,21 +10,19 @@
 
 [POS]
 HTTP layer for cross-profile matrix evaluation (multi-profile comparison on
-the same dataset). Kept in its own module so app.api.eval.router stays a
-thin aggregator within the eval module's line budget.
+the same dataset). Provides its own endpoints so the matrix feature stays a
+self-contained sub-router under the /eval prefix.
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.api.eval.streaming import stream_status_events
 from app.core.eval.matrix import (
     abort_matrix_eval,
     get_latest_matrix_report,
@@ -83,27 +82,11 @@ async def get_matrix_evaluation_status() -> dict[str, object]:
     return get_matrix_eval_status()
 
 
-async def _matrix_status_generator() -> AsyncGenerator[str, None]:
-    last_state_str = ""
-    while True:
-        status_info = get_matrix_eval_status()
-        current_state_str = json.dumps(status_info)
-        if current_state_str != last_state_str:
-            yield f"data: {current_state_str}\n\n"
-            last_state_str = current_state_str
-
-        if not status_info.get("is_running"):
-            yield "event: close\ndata: {}\n\n"
-            break
-
-        await asyncio.sleep(0.5)
-
-
 @router.get("/matrix/stream")
 async def stream_matrix_evaluation_status() -> StreamingResponse:
     """Stream the current status of the matrix evaluation via SSE."""
     return StreamingResponse(
-        _matrix_status_generator(),
+        stream_status_events(get_matrix_eval_status),
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )

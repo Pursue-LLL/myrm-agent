@@ -11,7 +11,7 @@
 - move_task, reclaim_task, cancel_task_execution (approve/reject live in review_ops)
 
 [POS]
-Task state transition orchestration: move, reclaim, cancel with dependency and event handling.
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
 """
 
 from __future__ import annotations
@@ -118,6 +118,11 @@ async def move_task(
         raise ValueError(
             "IN_REVIEW is entered by the dispatcher when a require_approval task "
             "passes verification; use the approve/reject endpoints to resolve it"
+        )
+    if task.status == TaskStatus.IN_REVIEW:
+        raise ValueError(
+            "IN_REVIEW tasks must be resolved via the approve/reject endpoints; "
+            "manual moves out of review are not allowed"
         )
     old_status = task.status
     task.status = target_status
