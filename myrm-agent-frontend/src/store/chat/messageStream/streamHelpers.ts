@@ -153,10 +153,19 @@ interface FriendlyError {
 }
 
 export async function getUserFriendlyError(
-  _errorKind: ErrorKind | undefined,
+  errorKind: ErrorKind | undefined,
   rawError: string,
   _cooldownMs?: number,
 ): Promise<FriendlyError> {
+  if (errorKind === 'concurrency_limit') {
+    const isZh =
+      typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh');
+    return {
+      message: isZh
+        ? '并发会话已达上限，无法接收新请求。请先结束部分运行中的任务后重试。'
+        : 'Concurrency limit reached; the request could not be accepted. Please finish or stop some running tasks and retry.',
+    };
+  }
   return { message: rawError };
 }
 

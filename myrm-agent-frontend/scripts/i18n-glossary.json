@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Native QA glossary SSOT for batch translation pipelines (de Sie-Form + ko honorific; ko/de 汉字纯净门禁由 verify-i18n.mjs 强制执行).",
+  "description": "Native QA glossary SSOT for batch translation pipelines (de Sie-Form + ko honorific; ko/de 非本语言文字与 zh-TW 简体字形纯净门禁由 verify-i18n.mjs 强制执行).",
   "locales": {
     "de": {
       "formality": "formal",

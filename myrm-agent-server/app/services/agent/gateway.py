@@ -36,7 +36,25 @@ logger = logging.getLogger(__name__)
 
 
 class AgentQueueTimeout(Exception):
-    """Raised when waiting for an execution slot exceeds the queue timeout."""
+    """Raised when waiting for an execution slot exceeds the queue timeout.
+
+    Attributes:
+        reason: Machine-readable category for user-facing routing:
+            "memory_pressure" | "user_limit" | "global_limit".
+        active_sessions: Snapshot of currently active session metadata,
+            used to name the holders of occupied slots.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str = "global_limit",
+        active_sessions: list[dict[str, object]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.active_sessions = active_sessions or []
 
 
 class AgentExecutionTimeout(Exception):
@@ -517,13 +535,25 @@ class AgentGateway:
             if session_id:
                 self._active_sessions.discard(session_id)
                 self._session_info.pop(session_id, None)
-            reason = (
-                f"Memory pressure ({self._memory_pressure_level.name})"
-                if not self._pressure_resolved.is_set()
-                else f"active={self._active_count}/{self._config.max_global}"
-            )
+            if not self._pressure_resolved.is_set():
+                reason = "memory_pressure"
+                detail = f"Memory pressure ({self._memory_pressure_level.name})"
+            elif self._global_sem._value <= 0:
+                reason = "global_limit"
+                detail = f"active={self._active_count}/{self._config.max_global}"
+            elif user_sem._value <= 0:
+                reason = "user_limit"
+                detail = (
+                    f"user concurrency limit reached "
+                    f"({self._config.max_per_user} active)"
+                )
+            else:
+                reason = "global_limit"
+                detail = f"active={self._active_count}/{self._config.max_global}"
             raise AgentQueueTimeout(
-                f"Queue timeout ({self._config.queue_timeout:.0f}s) — {reason}"
+                f"Queue timeout ({self._config.queue_timeout:.0f}s) — {detail}",
+                reason=reason,
+                active_sessions=self.get_active_sessions(),
             ) from None
 
         self._active_count += 1

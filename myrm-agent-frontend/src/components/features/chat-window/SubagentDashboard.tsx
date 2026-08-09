@@ -50,6 +50,7 @@ import {
   flattenTree,
   fmtCost,
   fmtTokens,
+  fmtBudgetCost,
   extractCostUsd,
   extractTotalTokens,
   extractBudgetTokens,
@@ -332,7 +333,7 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                     className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800"
                     title={maxCostUsd > 0 ? t('costBudgetTitle', { used: costUsd.toFixed(3), limit: maxCostUsd.toFixed(2) }) : undefined}
                   >
-                    {maxCostUsd > 0 ? `$${costUsd.toFixed(3)}/${maxCostUsd.toFixed(2)}` : `$${costUsd.toFixed(3)}`}
+                    {fmtBudgetCost(costUsd, maxCostUsd)}
                   </span>
                 );
               })()}

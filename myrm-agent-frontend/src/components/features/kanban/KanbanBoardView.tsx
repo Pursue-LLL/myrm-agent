@@ -519,7 +519,12 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         {STATUS_COLUMNS.map((status) => (
           <span key={status} className="flex items-center gap-1">
             <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_DOT_COLORS[status])} />
-            {t(`status.${status}`)}: {summary[status] || 0}
+            {status === 'running'
+              ? t('status.runningWithLimit', {
+                  count: summary[status] || 0,
+                  limit: summaryData?.board.settings.max_concurrent_tasks ?? 0,
+                })
+              : `${t(`status.${status}`)}: ${summary[status] || 0}`}
           </span>
         ))}
         {summaryData?.oldest_ready_age_seconds != null && summaryData.oldest_ready_age_seconds >= 300 && (

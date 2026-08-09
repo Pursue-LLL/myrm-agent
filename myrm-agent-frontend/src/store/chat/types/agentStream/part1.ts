@@ -114,6 +114,7 @@ export type ErrorKind =
   | 'format_error'
   | 'safety_block'
   | 'response_format_error'
+  | 'concurrency_limit'
   | 'unknown';
 
 export interface DiagnosticResult {

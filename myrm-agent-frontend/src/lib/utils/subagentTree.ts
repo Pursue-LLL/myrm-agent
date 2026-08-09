@@ -3,7 +3,7 @@
  *       sorting, filtering, and formatting subagent tree data.
  * [INPUT] useSubagentStore::SubagentNode, SubagentStatus (POS: Subagent state store)
  * [OUTPUT] buildTree, aggregate, treeTotals, sortNodes, filterNodes, flattenTree,
- *       fmtCost, fmtTokens, extractCostUsd, extractTotalTokens, extractBudgetTokens, extractMaxCostUsd
+ *       fmtCost, fmtTokens, fmtBudgetCost, extractCostUsd, extractTotalTokens, extractBudgetTokens, extractMaxCostUsd
  */
 import type { SubagentMetadataValue, SubagentNode, SubagentStatus } from '@/store/chat/useSubagentStore';
 
@@ -252,4 +252,10 @@ export function fmtTokens(n: number): string {
   if (n < 1000) return String(Math.round(n));
   if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
   return `${Math.round(n / 1000)}k`;
+}
+
+/** Format used/limit cost for a budgeted subagent; tiny amounts stay readable via `<` prefix. */
+export function fmtBudgetCost(used: number, limit: number): string {
+  const usedStr = used > 0 && used < 0.001 ? '<$0.001' : `$${used.toFixed(3)}`;
+  return limit > 0 ? `${usedStr}/${limit.toFixed(2)}` : usedStr;
 }

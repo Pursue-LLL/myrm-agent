@@ -333,12 +333,12 @@
     "memoryCenter": {
       "tabs": {
         "followUps": "智慧跟進",
-        "teamHub": "团队资产"
+        "teamHub": "團隊資產"
       },
       "tabDescriptions": {
         "followUps": "檢視並管理從對話中自動提取的隱式跟進事項，可忽略或延後",
         "migration": "掃描 Hermes、OpenClaw、Claude Code、Codex — 預覽匯入；技能需稽核；MCP 與渠道需手動配置",
-        "teamHub": "共享上下文、Wiki、技能与记忆 — 团队配置一屏入口"
+        "teamHub": "共享上下文、Wiki、技能與記憶 — 團隊配置一屏入口"
       },
       "migrationUnavailable": {
         "title": "助手匯入僅支援本地與桌面版",
@@ -7009,7 +7009,7 @@
   },
   "chat": {
     "skillActivation": {
-      "remove": "移除已选技能"
+      "remove": "移除已選技能"
     },
     "jumpBar": {
       "ariaLabel": "對話導航",

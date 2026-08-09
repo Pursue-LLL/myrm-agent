@@ -9,6 +9,7 @@ import {
   flattenTree,
   fmtCost,
   fmtTokens,
+  fmtBudgetCost,
   extractCostUsd,
   extractTotalTokens,
   extractBudgetTokens,
@@ -329,6 +330,23 @@ describe('flattenTree', () => {
     expect(flat).toHaveLength(2);
     expect(flat[0].task_id).toBe('r');
     expect(flat[1].task_id).toBe('c');
+  });
+});
+
+// ── fmtBudgetCost ────────────────────────────────────────────────────
+
+describe('fmtBudgetCost', () => {
+  it('formats used/limit with 3+2 decimals', () => {
+    expect(fmtBudgetCost(0.5, 2.5)).toBe('$0.500/2.50');
+  });
+
+  it('omits limit when not set', () => {
+    expect(fmtBudgetCost(0.5, 0)).toBe('$0.500');
+  });
+
+  it('keeps tiny amounts readable instead of $0.000', () => {
+    expect(fmtBudgetCost(0.0004, 2.5)).toBe('<$0.001/2.50');
+    expect(fmtBudgetCost(0.0004, 0)).toBe('<$0.001');
   });
 });
 
