@@ -1034,7 +1034,7 @@ async def convert_to_general_agent_params(
         # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
         # bypass stale config-cache reads so web_search_tool mounts on the same turn.
         if search_cfg is None:
-            from app.core.channel_bridge.config_loader import (
+            from app.core.channel_bridge.config_cache import (
                 invalidate_user_configs_cache,
             )
             from app.core.channel_bridge.config_loader import (
