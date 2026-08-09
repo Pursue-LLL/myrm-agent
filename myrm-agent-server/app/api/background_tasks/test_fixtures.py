@@ -120,7 +120,7 @@ async def _spawn_shell_fixture(
     return int(spawn_result["metadata"]["pid"])
 
 
-async def _ensure_e2e_chat(chat_id: str) -> None:
+async def _ensure_e2e_chat(chat_id: str, *, workspace_dir: str | None = None) -> None:
     agents, _total = await AgentService.get_agent_list(1, 100)
     agent_id = agents[0].id if agents else None
     await ChatService.create_or_update_chat(
@@ -131,6 +131,11 @@ async def _ensure_e2e_chat(chat_id: str) -> None:
             messages=[],
         ),
     )
+    if workspace_dir:
+        await ChatService.update_chat_fields(
+            chat_id,
+            {"workspace_dir": workspace_dir},
+        )
 
 
 async def _wait_registry_pid(
@@ -279,13 +284,12 @@ async def seed_shell_fixture(
         raise HTTPException(status_code=404, detail="Not found")
 
     chat_id = f"e2e-shell-{uuid.uuid4().hex[:10]}"
-    if mode in {"success", "completed_with_vault"}:
-        await _ensure_e2e_chat(chat_id)
-
     settings = get_settings()
     workspace = (
         Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
     )
+    if mode in {"success", "completed_with_vault"}:
+        await _ensure_e2e_chat(chat_id, workspace_dir=str(workspace))
 
     if mode == "running":
         command = f"{sys.executable} -c \"import time; print('MYRM_E2E_SHELL_RUNNING', flush=True); time.sleep(120)\""

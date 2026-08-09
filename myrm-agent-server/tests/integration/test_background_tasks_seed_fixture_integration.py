@@ -110,3 +110,18 @@ async def test_seed_shell_fixture_completed_with_vault_exposes_vault_log_ref() -
         )
         assert listed is not None, payload
         assert listed.get("vault_log_ref"), listed
+
+        chat_id = str(seed["chat_id"])
+        vault_ref = str(listed["vault_log_ref"])
+        evicted_resp = await client.get(
+            "/api/v1/files/evicted",
+            params={
+                "chat_id": chat_id,
+                "filename": vault_ref,
+                "offset": 0,
+                "limit": 10,
+            },
+        )
+        assert evicted_resp.status_code == 200, evicted_resp.text
+        evicted_body = evicted_resp.json()
+        assert "MYRM_E2E_VAULT_LINE_0" in str(evicted_body.get("content", ""))

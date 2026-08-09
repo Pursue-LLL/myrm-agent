@@ -2234,13 +2234,8 @@ class _OrchestratorSharedUiChat:
         )
 
     async def ensure_e2e_api_base_binding(self) -> None:
-        from cdp_chat_support import (
-            e2e_api_base_persist_source,
-            e2e_runtime_bootstrap_apply_js,
-        )
+        from cdp_chat_support import e2e_runtime_bootstrap_apply_js
 
-        if not e2e_api_base_persist_source():
-            return
         inject = e2e_api_base_inject_js()
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
         if bootstrap_js is not None and not self._runtime_bootstrapped:
@@ -2251,14 +2246,21 @@ class _OrchestratorSharedUiChat:
             if isinstance(result, dict) and result.get("ok") is True:
                 self._runtime_bootstrapped = True
                 return
-        await self.evaluate(inject, intent=EvaluateIntent.ROUTE_ATTACH)
+        probe = await self.evaluate(inject, intent=EvaluateIntent.ROUTE_ATTACH)
+        if isinstance(probe, dict) and probe.get("ok") is False:
+            raise RuntimeError(
+                f"E2E API base inject failed: {probe.get('err', probe)}"
+            )
 
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
+        from e2e_shared_ui_session import _bootstrap_hot_path_reused
+
+        resolved_timeout = 120.0 if _bootstrap_hot_path_reused() else timeout_sec
         await asyncio.to_thread(
             wait_for_react_e2e_bridge,
             self.client,
             self.page,
-            timeout_sec=timeout_sec,
+            timeout_sec=resolved_timeout,
             page_url=get_e2e_ui_url(),
             require_attach=True,
         )

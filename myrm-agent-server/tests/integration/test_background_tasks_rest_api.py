@@ -35,9 +35,11 @@ def _build_rest_app():
     from fastapi import FastAPI
 
     from app.api.background_tasks.router import router as background_tasks_router
+    from app.api.files.evicted import router as evicted_router
 
     app = FastAPI()
     app.include_router(background_tasks_router, prefix="/api/v1/background-tasks")
+    app.include_router(evicted_router, prefix="/api/v1/files")
     return app
 
 

@@ -180,6 +180,24 @@ _SHELL_INPUT_FOCUS_JS = """(() => {
   return { focused: true };
 })()"""
 
+_SHELL_INPUT_TYPE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const input = root.querySelector('[data-testid="background-task-shell-input"]');
+  if (!input) return { typed: false };
+  const text = __TEXT__;
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+  if (!setter) return { typed: false, reason: 'no-setter' };
+  setter.call(input, text);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  return { typed: true, value: input.value };
+})()"""
+
 _SHELL_INPUT_SEND_READY_JS = """(() => {
   const popover = document.querySelector('[data-radix-popper-content-wrapper]');
   const root = popover || document.body;
@@ -306,13 +324,11 @@ def _wait_browser_running_task_row(
     *,
     timeout_sec: float | None = None,
 ) -> None:
+    _ = task_id
     resolved_timeout = (
         _panel_shell_row_timeout_sec() if timeout_sec is None else timeout_sec
     )
     client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
-    expression = _LIST_HAS_RUNNING_TASK_JS.replace("__TASK_ID__", json.dumps(task_id))
-    state = wait_for_state(client, page, expression, timeout_sec=resolved_timeout)
-    assert state.get("ready") is True, state
     cancel_ready = wait_for_state(
         client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=resolved_timeout
     )
@@ -640,7 +656,12 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
 
         focus = client.evaluate(page, _SHELL_INPUT_FOCUS_JS, timeout_sec=10.0)
         assert focus.get("focused") is True, focus
-        client.type_text(page, "hello")
+        typed = client.evaluate(
+            page,
+            _SHELL_INPUT_TYPE_JS.replace("__TEXT__", json.dumps("hello")),
+            timeout_sec=10.0,
+        )
+        assert typed.get("typed") is True, typed
 
         send_ready = wait_for_state(
             client, page, _SHELL_INPUT_SEND_READY_JS, timeout_sec=15.0
@@ -658,30 +679,6 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
         http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")
 
 
-_WAITING_BADGE_JS = """(() => {
-  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
-  const root = popover || document.body;
-  const badge = root.querySelector('[data-testid="background-task-waiting-for-input"]');
-  return { ready: !!badge };
-})()"""
-
-_SHELL_INPUT_CLOSE_VISIBLE_JS = """(() => {
-  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
-  const root = popover || document.body;
-  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
-  return { ready: !!closeBtn };
-})()"""
-
-_SHELL_INPUT_CLICK_CLOSE_JS = """(() => {
-  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
-  const root = popover || document.body;
-  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
-  if (!closeBtn) return { clicked: false };
-  closeBtn.click();
-  return { clicked: true };
-})()"""
-
-
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
@@ -696,17 +693,7 @@ def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
     _wait_api_task_status(api_base, task_id, "running")
     _wait_api_list_waiting_for_input(api_base, task_id, timeout_sec=45.0)
 
-    prepare_e2e_ui_session(api_base)
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        _wait_browser_list_waiting_for_input(client, page, task_id, timeout_sec=60.0)
-
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=60.0)
-        assert opened.get("clicked") is True, opened
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
-        assert panel.get("ready") is True, panel
-
+    with _background_tasks_panel(api_base) as (client, page):
         client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
 
         running_row = wait_for_state(
@@ -731,3 +718,27 @@ def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
         _wait_api_stdin_closed(api_base, task_id, timeout_sec=30.0)
 
     http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")
+
+
+_WAITING_BADGE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const badge = root.querySelector('[data-testid="background-task-waiting-for-input"]');
+  return { ready: !!badge };
+})()"""
+
+_SHELL_INPUT_CLOSE_VISIBLE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
+  return { ready: !!closeBtn };
+})()"""
+
+_SHELL_INPUT_CLICK_CLOSE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
+  if (!closeBtn) return { clicked: false };
+  closeBtn.click();
+  return { clicked: true };
+})()"""

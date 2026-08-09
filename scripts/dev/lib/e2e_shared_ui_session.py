@@ -107,6 +107,7 @@ SET_EMPTY_SEARCH_BLOCK_JS = """(() => {
 BRIDGE_READY_PROBE_JS = """(() => ({
   hasBridge: Boolean(window.__MYRM_E2E_CHAT__),
   hasSendChatMessage: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
+  hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
   hasProgressSnap:
     typeof window.__MYRM_E2E_CHAT__?.getFastSearchProgressSnapshot === 'function',
   blockSearchSync: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__),
@@ -478,6 +479,8 @@ async def apply_shared_ui_session_contract(
             }
 
     bridge_timeout = _resolve_bridge_ready_timeout_sec(timeout_sec)
+    if policy == "hydrate_private" and _bootstrap_hot_path_reused():
+        bridge_timeout = max(bridge_timeout, 120.0)
     if deadline is not None:
         # R269: long open_mcp can expire inner bridge_deadline while BODY wall still
         # has budget — mirror rehydrate path extension before fail-fast.

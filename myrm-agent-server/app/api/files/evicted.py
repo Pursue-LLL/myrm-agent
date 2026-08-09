@@ -44,6 +44,26 @@ _MAX_PAGE_LIMIT = 1000
 async def _get_evicted_workspace_root(chat_id: str) -> str | None:
     """Resolve the workspace root that holds `.context/{chat_id}/evicted/`."""
     try:
+        from app.services.chat.chat_service import ChatService
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        chat = await ChatService.get_chat_by_id(chat_id)
+        if chat is not None:
+            resolved = await resolve_effective_chat_workspace(
+                chat,
+                jit_fallback=True,
+                persist_jit=False,
+            )
+            if resolved and os.path.isdir(resolved):
+                return resolved
+    except Exception as exc:
+        logger.warning(
+            "Failed to resolve effective chat workspace for evicted read (chat_id=%s): %s",
+            chat_id,
+            exc,
+        )
+
+    try:
         from app.services.agent.params.workspace_resolve import (
             resolve_default_chat_workspace_dir,
         )
@@ -55,7 +75,7 @@ async def _get_evicted_workspace_root(chat_id: str) -> str | None:
             return resolved
     except Exception as exc:
         logger.warning(
-            "Failed to resolve chat workspace for evicted read (chat_id=%s): %s",
+            "Failed to resolve default chat workspace for evicted read (chat_id=%s): %s",
             chat_id,
             exc,
         )
