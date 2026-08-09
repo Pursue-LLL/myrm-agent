@@ -7624,7 +7624,7 @@
       "dismiss": "Dismiss"
     },
     "message": {
-      "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
+      "edit": "Edit",
       "contentFiltered": "Part of the response was filtered by content policy.",
       "budgetBlocked": "Execution blocked by daily budget policy. Adjust your budget limit in Settings to continue.",
       "workflowMergeWarning": "Some workspace files could not be merged back. Check the tool output for details.",
@@ -7643,7 +7643,8 @@
         "success": "Workflow template saved",
         "failed": "Failed to save workflow template",
         "fieldsRequired": "Display name and template slug are required"
-      }
+      },
+      "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest."
     },
     "toolImage": {
       "screenshotLabel": "Remote Desktop Screenshot"
@@ -8416,7 +8417,9 @@
     },
     "evictedOutput": {
       "savedHint": "Full tool output saved to sandbox storage",
+      "savedStderrHint": "Full error output saved to sandbox storage",
       "viewFull": "View Full Output",
+      "viewFullStderr": "View Full Error Output",
       "loading": "Loading full output...",
       "expiredTitle": "Output Expired",
       "expiredDesc": "This output file has been cleaned up. Evicted outputs are retained for the session duration only.",
@@ -11591,6 +11594,20 @@
     "reclaimReassignLabel": "Reassign to agent (optional)",
     "reclaimSuccess": "Task reclaimed successfully",
     "reclaimFailed": "Failed to reclaim task",
+    "approve": "Approve",
+    "approveSuccess": "Task approved and completed",
+    "approveError": "Failed to approve task",
+    "reject": "Reject",
+    "rejectTitle": "Reject Task for Rework",
+    "rejectDesc": "The task will be sent back to Ready. The reason is fed back to the agent on its next run.",
+    "rejectReasonPlaceholder": "Reason (required)",
+    "rejectReasonRequired": "Please enter a rejection reason",
+    "rejectConfirm": "Reject & Requeue",
+    "rejectSuccess": "Task rejected for rework",
+    "rejectError": "Failed to reject task",
+    "reviewRequested": "Submitted for review",
+    "approved": "Approved",
+    "rejected": "Rejected",
     "confirm": "Confirm",
     "retries": "Retries",
     "status": {
@@ -11600,6 +11617,7 @@
       "running": "Running",
       "verifying": "Verifying",
       "blocked": "Blocked",
+      "in_review": "In Review",
       "completed": "Completed",
       "failed": "Failed",
       "archived": "Archived"
@@ -11668,7 +11686,10 @@
       "specified": "Specified",
       "decomposed": "Decomposed",
       "timed_out": "Timed Out",
-      "edited": "Edited"
+      "edited": "Edited",
+      "review_requested": "Submitted for Review",
+      "approved": "Approved",
+      "rejected": "Rejected"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -11751,6 +11772,7 @@
     "goalMaxTurnsDefault": "Max turns: 10 (default)",
     "goalMaxTurnsOption": "Max turns: {turns}",
     "goalMaxTurnsLabel": "Max turns",
+    "requireApproval": "Require human approval before completion",
     "assignedAgent": "Assigned to",
     "updateError": "Failed to update task",
     "addIdea": "Quick idea",

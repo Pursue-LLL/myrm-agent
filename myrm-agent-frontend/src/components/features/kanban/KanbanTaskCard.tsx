@@ -255,6 +255,11 @@ export default function KanbanTaskCard({
               {task.progress_note}
             </p>
           )}
+          {task.status === 'in_review' && (
+            <p className="text-[10px] mt-1 text-amber-600 dark:text-amber-400 font-medium truncate">
+              {t('reviewRequested')}
+            </p>
+          )}
 
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             {task.branch && (

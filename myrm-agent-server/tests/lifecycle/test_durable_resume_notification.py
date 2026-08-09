@@ -14,6 +14,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _disable_skill_roots_collection() -> None:
+    """Keep runtime-context collection deterministic: no real storage I/O."""
+    with patch(
+        "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+        new_callable=AsyncMock,
+        return_value=[],
+    ):
+        yield
+
+
 def _make_task_record(
     *,
     task_id: str = "task-001",
@@ -178,3 +189,57 @@ async def test_no_checkpointer_skips_resume():
         await resume_durable_offline_tasks()
 
     mock_notif.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_resume_injects_runtime_context():
+    """Durable offline resume must inject execution_mode + disabled_skill_roots."""
+    task_record = _make_task_record()
+
+    stream_calls: list[dict[str, object]] = []
+
+    async def _capturing_stream(*_a, **_kw):
+        stream_calls.append(_kw)
+        if False:
+            yield "data: done\n\n"
+
+    mock_session_factory = MagicMock()
+    mock_db = AsyncMock()
+    mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+    mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=mock_session_factory),
+        patch("app.platform_utils.get_checkpointer", return_value=MagicMock()),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_capturing_stream),
+        patch(
+            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            new_callable=AsyncMock,
+            return_value=["skills/prebuilt/off"],
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(), chat_id="chat-resume-123", query="test", message_id="msg-test"
+        )
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [task_record]
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        from app.lifecycle.system import resume_durable_offline_tasks
+
+        await resume_durable_offline_tasks()
+
+        await asyncio.sleep(0.1)
+
+    assert len(stream_calls) == 1
+    extra_context = stream_calls[0].get("extra_context")
+    assert isinstance(extra_context, dict)
+    assert extra_context["execution_mode"] == "pooled"
+    assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]

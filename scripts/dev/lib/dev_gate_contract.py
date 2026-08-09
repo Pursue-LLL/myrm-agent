@@ -252,7 +252,9 @@ def shpoib_parallel_stall_progress_sec(
     base = float(STALL_PROGRESS_SEC)
     lane_val = (lane or os.environ.get("MYRM_E2E_LANE", "")).strip().upper()
     workload_val = (workload or os.environ.get("MYRM_E2E_WORKLOAD", "")).strip().upper()
-    is_live_lane = lane_val in {"LIVE_AGENT", "RESOURCE_WRITE"} or workload_val == "LIVE"
+    is_live_lane = (
+        lane_val in {"LIVE_AGENT", "RESOURCE_WRITE"} or workload_val == "LIVE"
+    )
     if is_live_lane:
         base = max(base, float(LIVE_AGENT_STALL_PROGRESS_FLOOR_SEC))
     active_leases = 0
@@ -1208,9 +1210,9 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     transport = transport_stall_cap_sec()
     if not is_transport_stall_node(current_node):
         return transport
-    open_page_family = current_node.startswith("open_mcp_page") or current_node.startswith(
-        "open_page_"
-    )
+    open_page_family = current_node.startswith(
+        "open_mcp_page"
+    ) or current_node.startswith("open_page_")
     if is_e2e_signoff_runtime():
         if open_page_family:
             try:

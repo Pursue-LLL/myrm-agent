@@ -51,6 +51,9 @@ from app.services.kanban.dependency_ops import (
     remove_dependency as run_remove_dependency,
 )
 from app.services.kanban.move_orchestrator import (
+    approve_task as run_approve_task,
+)
+from app.services.kanban.move_orchestrator import (
     cancel_task_execution as run_cancel_task_execution,
 )
 from app.services.kanban.move_orchestrator import (
@@ -58,6 +61,9 @@ from app.services.kanban.move_orchestrator import (
 )
 from app.services.kanban.move_orchestrator import (
     reclaim_task as run_reclaim_task,
+)
+from app.services.kanban.move_orchestrator import (
+    reject_task as run_reject_task,
 )
 from app.services.kanban.service_core import KanbanServiceCore
 from app.services.kanban.service_types import UNSET, PromoteResult, Sentinel
@@ -142,6 +148,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         branch: str | None = None,
         goal_mode: bool = False,
         goal_max_turns: int | None = None,
+        require_approval: bool = False,
         metadata_patch: dict[str, object] | None = None,
     ) -> KanbanTask:
         return await run_add_task(
@@ -164,6 +171,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             branch,
             goal_mode,
             goal_max_turns,
+            require_approval,
             metadata_patch,
             validate_agent_id=self._validate_agent_id,
             wake_dispatcher=self._wake_dispatcher,
@@ -183,6 +191,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         completion_criteria: str | list[dict[str, str | int]] | None = None,
         result: str | None = None,
         metadata: dict[str, object] | None = None,
+        require_approval: bool | None = None,
     ) -> KanbanTask | None:
         return await run_update_task(
             self._store,
@@ -197,6 +206,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             completion_criteria=completion_criteria,
             result=result,
             metadata=metadata,
+            require_approval=require_approval,
             validate_agent_id=self._validate_agent_id,
         )
 
@@ -229,6 +239,34 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
 
     async def cancel_task_execution(self, task_id: str) -> bool:
         return await run_cancel_task_execution(self._store, self._dispatchers, task_id)
+
+    async def approve_task(
+        self,
+        task_id: str,
+        *,
+        approver: str | None = None,
+    ) -> KanbanTask | None:
+        return await run_approve_task(
+            self._store,
+            self._dispatchers,
+            task_id,
+            approver=approver,
+        )
+
+    async def reject_task(
+        self,
+        task_id: str,
+        *,
+        reason: str,
+        approver: str | None = None,
+    ) -> KanbanTask | None:
+        return await run_reject_task(
+            self._store,
+            self._dispatchers,
+            task_id,
+            reason=reason,
+            approver=approver,
+        )
 
     async def reclaim_task(
         self,

@@ -195,7 +195,7 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
                 header = "[Shared Contact]" if len(card_lines) == 1 else "[Shared Contacts]"
                 text = f"{text}\n\n{header}\n" + "\n".join(card_lines)
 
-        if meta.get("is_forwarded"):
+        if meta is not None and meta.get("is_forwarded"):
             fwd_ctx = _format_forwarded_email_context(meta, msg.content)
             if fwd_ctx:
                 text = f"{text}\n\n{fwd_ctx}"

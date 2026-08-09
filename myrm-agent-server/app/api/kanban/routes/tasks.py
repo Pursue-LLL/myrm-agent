@@ -32,12 +32,14 @@ from app.api.kanban.http_common import (
     router,
 )
 from app.api.kanban.schemas import (
+    ApproveTaskRequest,
     AttachmentInfo,
     DiagnosticSummaryResponse,
     PromoteRequest,
     PromoteResponse,
     ReclaimRequest,
     ReclaimResponse,
+    RejectTaskRequest,
     TaskCreate,
     TaskListResponse,
     TaskMoveRequest,
@@ -124,6 +126,7 @@ async def list_tasks(
             max_runtime_seconds=t.max_runtime_seconds,
             goal_mode=t.goal_mode,
             goal_max_turns=t.goal_max_turns,
+            require_approval=t.require_approval,
             completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
             created_at=t.created_at,
             updated_at=t.updated_at,
@@ -195,6 +198,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             branch=body.branch,
             goal_mode=body.goal_mode,
             goal_max_turns=body.goal_max_turns,
+            require_approval=body.require_approval,
             metadata_patch=body.metadata,
         )
     except ValueError as exc:
@@ -256,6 +260,8 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
             kwargs["result"] = body.result
         if body.metadata is not None:
             kwargs["metadata"] = body.metadata
+        if "require_approval" in body.model_fields_set:
+            kwargs["require_approval"] = body.require_approval
         task = await svc.update_task(task_id, **kwargs)  # type: ignore[arg-type]
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -303,6 +309,32 @@ async def move_task(task_id: str, body: TaskMoveRequest) -> TaskResponse:
                 "message": str(exc),
             },
         ) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    if task is None:
+        raise HTTPException(404, f"Task {task_id} not found")
+    return await _task_response_with_attachments(task)
+
+
+@router.post("/tasks/{task_id}/approve", response_model=TaskResponse)
+async def approve_task(task_id: str, body: ApproveTaskRequest) -> TaskResponse:
+    """Approve an IN_REVIEW task — marks it completed and releases dependents."""
+    svc = get_kanban_service()
+    try:
+        task = await svc.approve_task(task_id, approver=body.approver)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    if task is None:
+        raise HTTPException(404, f"Task {task_id} not found")
+    return await _task_response_with_attachments(task)
+
+
+@router.post("/tasks/{task_id}/reject", response_model=TaskResponse)
+async def reject_task(task_id: str, body: RejectTaskRequest) -> TaskResponse:
+    """Reject an IN_REVIEW task — sends it back to READY for rework."""
+    svc = get_kanban_service()
+    try:
+        task = await svc.reject_task(task_id, reason=body.reason, approver=body.approver)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     if task is None:

@@ -64,6 +64,15 @@ CHROME_LAUNCH_ARGS=(
   --remote-debugging-address=127.0.0.1
   --no-first-run
   --no-default-browser-check
+  # Playwright-standard render flags: keep occluded/non-frontmost windows
+  # rendering so E2E never needs Page.bringToFront (which steals macOS
+  # focus from the user's active app) to unblock requestAnimationFrame.
+  # Without these, a window that is merely not frontmost is treated as
+  # occluded → document.visibilityState='hidden' → React freezes on its
+  # skeleton (§26.21 focus-theft fix).
+  --disable-backgrounding-occluded-windows
+  --disable-renderer-backgrounding
+  --disable-background-timer-throttling
 )
 if myrm_chrome_e2e_launch_background; then
   CHROME_LAUNCH_ARGS+=(--window-position=-24000,-24000)

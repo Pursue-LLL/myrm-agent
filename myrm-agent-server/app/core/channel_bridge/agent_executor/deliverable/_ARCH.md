@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | 交付域门面：聚合导出 media / scanner / deep_links 的对外能力。 | ✅ |
 | `media.py` | 模块 | 渠道附件大小上限统一常量 + 超限图片渐进压缩（Hermes parity），供 artifact 事件与路径扫描两链路复用。 | ✅ |
 | `scanner.py` | 模块 | Channel 回复正文 workspace 路径扫描 → IM 原生附件（跳过 code block/inline code；workspace 沙箱内解析）；超限图片压缩降级、超限文件提示。 | ✅ |
-| `deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集（含超限压缩/深链/提示三态，超限可分享同时记深链+提示兜底） + HMAC 深链 ActionButton 生成（返回已链接文件名供 finalize 过滤提示） + DB version 批量查询。 | ✅ |
+| `deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集（含超限压缩/深链/提示三态，超限可分享同时记深链+提示兜底） + HMAC 深链 ActionButton 生成（返回已链接文件名供 finalize 过滤提示与冗余附件） + DB version 批量查询。 | ✅ |
 
 ## 测试
 

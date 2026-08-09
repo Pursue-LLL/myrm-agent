@@ -52,6 +52,7 @@ async def add_task(
     branch: str | None = None,
     goal_mode: bool = False,
     goal_max_turns: int | None = None,
+    require_approval: bool = False,
     metadata_patch: dict[str, object] | None = None,
     *,
     validate_agent_id: ValidateAgentId,
@@ -99,6 +100,7 @@ async def add_task(
         max_runtime_seconds=max_runtime_seconds,
         goal_mode=goal_mode,
         goal_max_turns=goal_max_turns,
+        require_approval=require_approval,
         extra_skill_ids=extra_skill_ids or [],
         max_retries=max_retries,
         metadata=metadata,
@@ -147,6 +149,7 @@ async def update_task(
     completion_criteria: str | list[dict[str, str | int]] | None = None,
     result: str | None = None,
     metadata: dict[str, object] | None = None,
+    require_approval: bool | None = None,
     validate_agent_id: ValidateAgentId,
 ) -> KanbanTask | None:
     task = await store.get_task(task_id)
@@ -186,6 +189,9 @@ async def update_task(
     if metadata is not None:
         task.metadata.update(metadata)
         edited_fields.append("metadata")
+    if require_approval is not None:
+        task.require_approval = require_approval
+        edited_fields.append("require_approval")
     saved = await store.save_task(task)
     publish_kanban_event(saved.board_id, task_id, "updated", title=saved.title)
     if agent_changed:

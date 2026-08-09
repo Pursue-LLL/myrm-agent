@@ -20,7 +20,7 @@ import {
 } from '@/store/chat/types';
 export type { Message, File, ProgressItem, ChatHistoryItem, PaginationInfo, AgentConfig } from '@/store/chat/types';
 import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
-import { sendMessage, attachToChat } from './chat/messageRequest';
+import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
@@ -683,11 +683,6 @@ const useChatStore = create<ChatState>()(
           setInputMessage: (message: string) => set({ inputMessage: message }),
         };
         await loadMessages(chatId, actions);
-
-        const pane = useWorkspaceStore.getState().panes.find((p) => p.chatId === chatId);
-        if (!pane?.abortController) {
-          attachToChat(chatId, actions, get).catch(console.error);
-        }
       },
 
       loadOlderMessages: async () => {

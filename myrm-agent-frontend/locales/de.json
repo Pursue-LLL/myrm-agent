@@ -997,7 +997,7 @@
       "noEnabledModels": "Bitte aktivieren Sie zuerst mindestens ein Modell",
       "addKeyFirst": "Bitte zuerst einen API-Schlüssel hinzufügen",
       "apiUrl": "API URL",
-      "apiUrlPlaceholder": "Enter API base URL",
+      "apiUrlPlaceholder": "https://api.example.com/v1",
       "apiUrlHint": "Usually no modification needed, use default URL",
       "checkConnection": "Verbindung testen",
       "checking": "Checking...",
@@ -7161,7 +7161,7 @@
       "dismiss": "Verwerfen"
     },
     "message": {
-      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
+      "edit": "Bearbeiten",
       "contentFiltered": "Ein Teil der Antwort wurde durch die Inhaltsrichtlinie gefiltert.",
       "budgetBlocked": "Ausführung durch Tagesbudget-Richtlinie blockiert. Passen Sie Ihr Budgetlimit in den Einstellungen an.",
       "workflowMergeWarning": "Einige Arbeitsbereichsdateien konnten nicht zurückgemergt werden. Prüfen Sie die Tool-Ausgabe für Details.",
@@ -7180,7 +7180,8 @@
         "success": "Workflow-Vorlage gespeichert",
         "failed": "Speichern der Workflow-Vorlage fehlgeschlagen",
         "fieldsRequired": "Anzeigename und Vorlagen-Slug sind erforderlich"
-      }
+      },
+      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten."
     },
     "toolImage": {
       "screenshotLabel": "Remote-Desktop-Screenshot"
@@ -8121,8 +8122,10 @@
   "progressSteps": {
     "evictedOutput": {
       "savedHint": "Vollständige Tool-Ausgabe in Sandbox-Speicher gespeichert",
+      "savedStderrHint": "Vollständige Fehlerausgabe in Sandbox-Speicher gespeichert",
       "viewFull": "Vollständige Ausgabe anzeigen",
-      "loading": "Loading full output...",
+      "viewFullStderr": "Vollständige Fehlerausgabe anzeigen",
+      "loading": "Vollständige Ausgabe wird geladen...",
       "expiredTitle": "Ausgabe abgelaufen",
       "expiredDesc": "Diese Ausgabedatei wurde bereinigt. Ausgelagerte Ausgaben werden nur für die Sitzungsdauer aufbewahrt.",
       "errorTitle": "Laden der Ausgabe fehlgeschlagen",
@@ -11311,7 +11314,8 @@
       "completed": "Vollendet",
       "failed": "Fehlgeschlagen",
       "archived": "Archiviert",
-      "triage": "Eingangsprüfung"
+      "triage": "Eingangsprüfung",
+      "in_review": "In Prüfung"
     },
     "moveTo": {
       "ready": "Wechseln Sie zu „Bereit“.",
@@ -11377,7 +11381,10 @@
       "specified": "Angegeben",
       "decomposed": "Zersetzt",
       "timed_out": "Zeitüberschreitung",
-      "edited": "Bearbeitet"
+      "edited": "Bearbeitet",
+      "review_requested": "Zur Überprüfung eingereicht",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -11517,20 +11524,35 @@
     "showLess": "Weniger anzeigen",
     "openDetailsHint": "Für weitere Details doppelklicken Sie auf die Karte oder klicken Sie auf das Anhangssymbol",
     "viewAttachmentsHint": "Anhänge anzeigen",
-    "pipelineWizardSelectMode": "Wählen Sie den Workflow-Modus"
+    "pipelineWizardSelectMode": "Wählen Sie den Workflow-Modus",
+    "approve": "Genehmigen",
+    "approveSuccess": "Aufgabe genehmigt und abgeschlossen",
+    "approveError": "Genehmigung der Aufgabe fehlgeschlagen",
+    "reject": "Ablehnen",
+    "rejectTitle": "Aufgabe zur Nacharbeit ablehnen",
+    "rejectDesc": "Die Aufgabe wird an „Bereit\" zurückgesendet. Der Grund wird dem Agenten beim nächsten Lauf übermittelt.",
+    "rejectReasonPlaceholder": "Grund (erforderlich)",
+    "rejectReasonRequired": "Bitte geben Sie einen Ablehnungsgrund ein",
+    "rejectConfirm": "Ablehnen & erneut einreihen",
+    "rejectSuccess": "Aufgabe zur Nacharbeit abgelehnt",
+    "rejectError": "Ablehnung der Aufgabe fehlgeschlagen",
+    "reviewRequested": "Zur Überprüfung eingereicht",
+    "approved": "Genehmigt",
+    "rejected": "Abgelehnt",
+    "requireApproval": "Menschliche Genehmigung vor Abschluss erforderlich"
   },
   "channels": {
     "selectLoginMethod": "Wählen Sie Anmeldemethode",
     "qrCodeLogin": "QR-Code-Anmeldung",
-    "qrCodeLoginDesc": "Scan QR code with your app",
+    "qrCodeLoginDesc": "QR-Code scannen, um zu autorisieren",
     "oauth2Login": "OAuth2 Authorization",
     "oauth2LoginDesc": "Autorisieren Sie über den Browser",
-    "qr_codeLoginTitle": "Scan QR Code",
+    "qr_codeLoginTitle": "QR-Code-Anmeldung",
     "oauth2LoginTitle": "Browser Authorization",
-    "scanQrCode": "Scan this QR code with your app to login",
+    "scanQrCode": "Bitte scannen Sie den QR-Code mit der mobilen App",
     "qrExpiresAt": "Expires at {time}",
     "generatingQrCode": "Generating QR code…",
-    "oauth2Instructions": "Click the button below to authorize in your browser",
+    "oauth2Instructions": "Klicken Sie auf die Schaltfläche, um die Autorisierungsseite zu öffnen",
     "authorizeNow": "Jetzt autorisieren",
     "oauth2Wait": "Waiting for authorization…",
     "preparingOauth2": "Preparing authorization…",

@@ -15,6 +15,10 @@ interface LiveTerminalProps {
   evictedStoredChars?: number;
   evictedTotalLines?: number;
   evictedStorageTruncated?: boolean;
+  evictedStderrFileRef?: string;
+  evictedStderrStoredChars?: number;
+  evictedStderrTotalLines?: number;
+  evictedStderrStorageTruncated?: boolean;
 }
 
 function formatStoredSize(chars: number): string {
@@ -29,12 +33,17 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
   evictedStoredChars,
   evictedTotalLines,
   evictedStorageTruncated,
+  evictedStderrFileRef,
+  evictedStderrStoredChars,
+  evictedStderrTotalLines,
+  evictedStderrStorageTruncated,
 }) => {
   const t = useTranslations('progressSteps.evictedOutput');
   const containerRef = useRef<HTMLPreElement>(null);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
   const chatId = useChatStore((s) => s.chatId);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [stderrDrawerOpen, setStderrDrawerOpen] = useState(false);
 
   const evictedBadge = evictedFileRef && (evictedTotalLines || evictedStoredChars)
     ? t('sizeBadge', {
@@ -43,13 +52,21 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
       })
     : null;
 
+  const evictedStderrBadge =
+    evictedStderrFileRef && (evictedStderrTotalLines || evictedStderrStoredChars)
+      ? t('sizeBadge', {
+          lines: (evictedStderrTotalLines ?? 0).toLocaleString(),
+          size: evictedStderrStoredChars ? formatStoredSize(evictedStderrStoredChars) : '—',
+        })
+      : null;
+
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [stdout]);
 
-  if (!stdout && !evictedFileRef) return null;
+  if (!stdout && !evictedFileRef && !evictedStderrFileRef) return null;
 
   const evictedFooter = evictedFileRef ? (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1.5 px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
@@ -83,7 +100,37 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
     </div>
   ) : null;
 
-  if (!stdout && evictedFileRef) {
+  const stderrFooter = evictedStderrFileRef ? (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1.5 px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
+      <div className="flex flex-col sm:items-end gap-0.5 min-w-0">
+        {evictedStderrBadge && (
+          <span className="text-[10px] text-zinc-500 tabular-nums truncate">{evictedStderrBadge}</span>
+        )}
+        {evictedStderrStorageTruncated && (
+          <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
+        )}
+      </div>
+      <button
+        data-testid="evicted-view-full-stderr-output"
+        onClick={() => setStderrDrawerOpen(true)}
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
+          'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300',
+          'border border-amber-500/20 transition-colors duration-150',
+        )}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+        {t('viewFullStderr')}
+      </button>
+    </div>
+  ) : null;
+
+  if (!stdout && (evictedFileRef || evictedStderrFileRef)) {
     return (
       <div className="relative mt-2">
         <div
@@ -92,33 +139,74 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
             'bg-zinc-950/80 border border-zinc-800/80',
           )}
         >
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
-            {evictedBadge && (
-              <span className="text-[10px] text-zinc-500 tabular-nums">{evictedBadge}</span>
-            )}
-            {evictedStorageTruncated && (
-              <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
-            )}
+          <div className="flex flex-col gap-1 min-w-0">
+            {evictedFileRef ? (
+              <>
+                <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
+                {evictedBadge && (
+                  <span className="text-[10px] text-zinc-500 tabular-nums">{evictedBadge}</span>
+                )}
+                {evictedStorageTruncated && (
+                  <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
+                )}
+              </>
+            ) : null}
+            {evictedStderrFileRef ? (
+              <>
+                <span className="text-[11px] text-zinc-400">{t('savedStderrHint')}</span>
+                {evictedStderrBadge && (
+                  <span className="text-[10px] text-zinc-500 tabular-nums">{evictedStderrBadge}</span>
+                )}
+                {evictedStderrStorageTruncated && (
+                  <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
+                )}
+              </>
+            ) : null}
           </div>
-          <button
-            data-testid="evicted-view-full-output"
-            onClick={() => setDrawerOpen(true)}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
-              'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
-              'border border-blue-500/20 transition-colors duration-150',
-            )}
-          >
-            {t('viewFull')}
-          </button>
+          <div className="flex items-center gap-1.5">
+            {evictedFileRef ? (
+              <button
+                data-testid="evicted-view-full-output"
+                onClick={() => setDrawerOpen(true)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
+                  'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
+                  'border border-blue-500/20 transition-colors duration-150',
+                )}
+              >
+                {t('viewFull')}
+              </button>
+            ) : null}
+            {evictedStderrFileRef ? (
+              <button
+                data-testid="evicted-view-full-stderr-output"
+                onClick={() => setStderrDrawerOpen(true)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
+                  'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300',
+                  'border border-amber-500/20 transition-colors duration-150',
+                )}
+              >
+                {t('viewFullStderr')}
+              </button>
+            ) : null}
+          </div>
         </div>
-        {drawerOpen && (
+        {evictedFileRef && drawerOpen && (
           <Suspense fallback={null}>
             <EvictedOutputDrawer
               filename={evictedFileRef}
               chatId={chatId || ''}
               onClose={() => setDrawerOpen(false)}
+            />
+          </Suspense>
+        )}
+        {evictedStderrFileRef && stderrDrawerOpen && (
+          <Suspense fallback={null}>
+            <EvictedOutputDrawer
+              filename={evictedStderrFileRef}
+              chatId={chatId || ''}
+              onClose={() => setStderrDrawerOpen(false)}
             />
           </Suspense>
         )}
@@ -213,6 +301,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
         </pre>
 
         {evictedFooter}
+        {stderrFooter}
       </div>
 
       {evictedFileRef && drawerOpen && (
@@ -221,6 +310,15 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
             filename={evictedFileRef}
             chatId={chatId || ''}
             onClose={() => setDrawerOpen(false)}
+          />
+        </Suspense>
+      )}
+      {evictedStderrFileRef && stderrDrawerOpen && (
+        <Suspense fallback={null}>
+          <EvictedOutputDrawer
+            filename={evictedStderrFileRef}
+            chatId={chatId || ''}
+            onClose={() => setStderrDrawerOpen(false)}
           />
         </Suspense>
       )}

@@ -787,7 +787,9 @@ async def convert_to_general_agent_params(
         )
     )
 
-    from app.core.channel_bridge.config_parsers import extract_video_fallback_model_configs
+    from app.core.channel_bridge.config_parsers import (
+        extract_video_fallback_model_configs,
+    )
 
     video_fallback_cfgs = extract_video_fallback_model_configs(providers_dict)
     video_fallback_model_cfgs = video_fallback_cfgs if video_fallback_cfgs else None
@@ -910,14 +912,10 @@ async def convert_to_general_agent_params(
     if request.mention_references:
         max_ctx_tokens = model_cfg.max_context_tokens if model_cfg else None
         prior_chat_refs = [
-            ref
-            for ref in request.mention_references
-            if ref.type == "prior_chat"
+            ref for ref in request.mention_references if ref.type == "prior_chat"
         ]
         workspace_refs = [
-            ref
-            for ref in request.mention_references
-            if ref.type != "prior_chat"
+            ref for ref in request.mention_references if ref.type != "prior_chat"
         ]
         if workspace_refs and not chat_workspace_dir:
             mention_warnings.append(

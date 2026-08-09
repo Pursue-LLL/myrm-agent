@@ -26,6 +26,7 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   ready: 'bg-primary/5 border-primary/30',
   running: 'bg-chart-4/10 border-chart-4/40',
   blocked: 'bg-destructive/5 border-destructive/30',
+  in_review: 'bg-amber-500/5 border-amber-500/30',
   completed: 'bg-chart-2/10 border-chart-2/40',
   failed: 'bg-destructive/10 border-destructive/40',
   archived: 'bg-muted/30 border-muted-foreground/10',

@@ -997,7 +997,7 @@
       "noEnabledModels": "먼저 모델을 하나 이상 활성화하세요",
       "addKeyFirst": "먼저 API 키를 추가하세요",
       "apiUrl": "API URL",
-      "apiUrlPlaceholder": "Enter API base URL",
+      "apiUrlPlaceholder": "https://api.example.com/v1",
       "apiUrlHint": "Usually no modification needed, use default URL",
       "checkConnection": "연결 테스트",
       "checking": "확인 중...",
@@ -7161,7 +7161,7 @@
       "dismiss": "닫기"
     },
     "message": {
-      "truncated": "응답이 길이 제한으로 인해 잘렸습니다. 대화를 계속하면 나머지를 받을 수 있습니다.",
+      "edit": "편집",
       "contentFiltered": "응답의 일부가 콘텐츠 정책에 의해 필터링되었습니다.",
       "budgetBlocked": "일일 예산 정책으로 실행이 차단되었습니다. 설정에서 예산 한도를 조정하여 계속하세요.",
       "workflowMergeWarning": "일부 작업공간 파일을 병합할 수 없습니다. 자세한 내용은 도구 출력을 확인하세요.",
@@ -7180,7 +7180,8 @@
         "success": "워크플로우 템플릿이 저장되었습니다",
         "failed": "워크플로우 템플릿 저장 실패",
         "fieldsRequired": "표시 이름과 템플릿 슬러그는 필수입니다"
-      }
+      },
+      "truncated": "응답이 길이 제한으로 인해 잘렸습니다. 대화를 계속하면 나머지를 받을 수 있습니다."
     },
     "toolImage": {
       "screenshotLabel": "원격 데스크톱 스크린샷"
@@ -8121,7 +8122,9 @@
   "progressSteps": {
     "evictedOutput": {
       "savedHint": "전체 도구 출력이 샌드박스 저장소에 저장되었습니다",
+      "savedStderrHint": "전체 오류 출력이 샌드박스 저장소에 저장되었습니다",
       "viewFull": "전체 출력 보기",
+      "viewFullStderr": "전체 오류 출력 보기",
       "loading": "전체 출력 로딩 중...",
       "expiredTitle": "출력 만료됨",
       "expiredDesc": "이 출력 파일은 정리되었습니다. 축출된 출력은 세션 기간 동안만 유지됩니다.",
@@ -11300,6 +11303,20 @@
     "reclaimReassignLabel": "에이전트에 재할당 (선택사항)",
     "reclaimSuccess": "작업이 성공적으로 회수되었습니다",
     "reclaimFailed": "작업 회수에 실패했습니다",
+    "approve": "승인",
+    "approveSuccess": "작업을 승인하고 완료했습니다",
+    "approveError": "작업 승인에 실패했습니다",
+    "reject": "거부",
+    "rejectTitle": "작업을 반려하여 재작업",
+    "rejectDesc": "작업은 \"준비 완료\" 상태로 돌아갑니다. 거부 사유는 다음 실행 시 에이전트에 전달됩니다.",
+    "rejectReasonPlaceholder": "사유 (필수)",
+    "rejectReasonRequired": "거부 사유를 입력하세요",
+    "rejectConfirm": "거부 및 재대기열",
+    "rejectSuccess": "작업을 반려했습니다",
+    "rejectError": "작업 거부에 실패했습니다",
+    "reviewRequested": "검토에 제출했습니다",
+    "approved": "승인됨",
+    "rejected": "거부됨",
     "confirm": "확인",
     "retries": "재시도",
     "status": {
@@ -11311,7 +11328,8 @@
       "completed": "완료됨",
       "failed": "실패",
       "archived": "보관됨",
-      "triage": "트리아지"
+      "triage": "트리아지",
+      "in_review": "검토 중"
     },
     "moveTo": {
       "ready": "준비로 이동",
@@ -11377,7 +11395,10 @@
       "specified": "명세됨",
       "decomposed": "분해됨",
       "timed_out": "시간 초과",
-      "edited": "편집됨"
+      "edited": "편집됨",
+      "review_requested": "검토에 제출됨",
+      "approved": "승인됨",
+      "rejected": "반려됨"
     },
     "depBadge": "{count}개 의존성",
     "commentBadge": "{count}개 댓글",
@@ -11460,6 +11481,7 @@
     "goalMaxTurnsDefault": "최대 턴: 10 (기본값)",
     "goalMaxTurnsOption": "최대 턴: {turns}",
     "goalMaxTurnsLabel": "최대 턴",
+    "requireApproval": "완료 전 사람 승인 필요",
     "assignedAgent": "담당자",
     "updateError": "작업 업데이트 실패",
     "addIdea": "빠른 아이디어",
@@ -11522,15 +11544,15 @@
   "channels": {
     "selectLoginMethod": "로그인 방법 선택",
     "qrCodeLogin": "QR 코드 로그인",
-    "qrCodeLoginDesc": "Scan QR code with your app",
+    "qrCodeLoginDesc": "QR 코드를 스캔하여 인증합니다",
     "oauth2Login": "OAuth2 Authorization",
     "oauth2LoginDesc": "브라우저에서 인증",
-    "qr_codeLoginTitle": "Scan QR Code",
+    "qr_codeLoginTitle": "QR 코드 로그인",
     "oauth2LoginTitle": "Browser Authorization",
-    "scanQrCode": "Scan this QR code with your app to login",
+    "scanQrCode": "모바일 앱으로 QR 코드를 스캔하세요",
     "qrExpiresAt": "Expires at {time}",
     "generatingQrCode": "Generating QR code…",
-    "oauth2Instructions": "Click the button below to authorize in your browser",
+    "oauth2Instructions": "버튼을 클릭하여 인증 페이지를 엽니다",
     "authorizeNow": "지금 인증",
     "oauth2Wait": "Waiting for authorization…",
     "preparingOauth2": "Preparing authorization…",
@@ -13251,9 +13273,9 @@
     "empty": "체크포인트를 찾을 수 없습니다",
     "noCheckpoints": "체크포인트를 찾을 수 없습니다",
     "total": "Total: {count} checkpoints",
-    "description": "Manage saved checkpoints and resume interrupted agent tasks",
+    "description": "저장된 체크포인트를 관리하고 중단된 에이전트 작업을 재개합니다",
     "savedCheckpoints": "저장된 체크포인트",
-    "savedCheckpointsDesc": "All checkpoints are automatically saved when agent tasks are interrupted"
+    "savedCheckpointsDesc": "에이전트 작업이 중단되면 모든 체크포인트가 자동으로 저장됩니다"
   },
   "SkillOptimization": {
     "qualityScore": "품질 점수",

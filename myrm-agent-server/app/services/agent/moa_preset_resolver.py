@@ -162,10 +162,8 @@ def apply_moa_preset_activation(
         return params
 
     overlay_copy = dict(overlay)
-    configured = is_moa_preset_configured(params)
-
     activate = (
-        configured
+        overlay.get("enabled") is True
         and active_moa_preset_id is not None
         and active_moa_preset_id in VALID_MOA_PRESET_IDS
     )

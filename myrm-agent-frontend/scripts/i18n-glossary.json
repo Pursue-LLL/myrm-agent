@@ -69,6 +69,50 @@
         "Edit": "편집"
       },
       "forbidden": ["해라", "해!", "하세요?"]
+    },
+    "ja": {
+      "formality": "polite",
+      "address": "です・ます体",
+      "rules": [
+        "Use polite です/ます style consistently in product UI; plain form only for compact button labels.",
+        "Preserve ICU placeholders exactly.",
+        "Keep brands in Latin script: Myrm, MCP, OpenAI, GitHub, Webhook, OAuth, API, URL.",
+        "Use natural Japanese word order (verb last); never port Chinese word order literally.",
+        "Distinguish 新規 (new item) from 最新 (latest); never write 新規規 / 最新規.",
+        "可用 is 利用可能; never 利用可能性 for the adjective 利用可能.",
+        "Invalid state label is 無効 (disabled) — never 未有効.",
+        "Prefer native terms: リージョン (region), ステップ (step), 詳細 (details), 異常 (abnormal), 診断 (diagnostics), ガバナンス (governance), トレース (trace), ライフサイクル (lifecycle), スケジュール (schedule)."
+      ],
+      "terms": {
+        "Settings": "設定",
+        "Skill": "スキル",
+        "Skills": "スキル",
+        "Agent": "エージェント",
+        "Memory": "メモリ",
+        "Channel": "チャンネル",
+        "Model": "モデル",
+        "Cancel": "キャンセル",
+        "Confirm": "確認",
+        "Delete": "削除",
+        "Save": "保存",
+        "Edit": "編集",
+        "Region": "リージョン",
+        "Step": "ステップ",
+        "Details": "詳細",
+        "New": "新規",
+        "Latest": "最新",
+        "Schedule": "スケジュール",
+        "Lifecycle": "ライフサイクル"
+      },
+      "forbidden": [
+        "范围", "规范", "联系", "内联", "叶子", "编排", "轨迹", "治理",
+        "検索まで", "利用可能性", "未有効", "商未有効", "新規規", "最新規",
+        "ください入力", "してください選択", "してください編集", "してください手動",
+        "私理解", "説明あなた", "想做", "使用カスタム", "留空表示", "符合条件",
+        "削除步骤", "検索画像", "検索動画", "検索区域",
+        "作成自動化", "開始対話", "検索概念失敗", "削除概念失敗",
+        "コンパイル新規", "作成新規", "入力新規"
+      ]
     }
   }
 }

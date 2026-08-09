@@ -2400,14 +2400,15 @@ def _restore_e2e_window_via_cdp(page: object) -> bool:
 
     Window policy is OFFSCREEN-NORMAL: the orchestrator parks every background
     tab at an offscreen normal position (never minimized) so Chrome keeps
-    running requestAnimationFrame. However, on macOS a window that is NOT
-    frontmost still reports ``document.visibilityState === "hidden"`` (Chrome
-    occludes it), which freezes React rendering — the UI stays on its skeleton
-    while the store is already hydrated. ``document.visibilityState`` only
-    flips to ``"visible"`` once the tab is its window's active tab AND the
-    window is frontmost. This helper therefore sets normal bounds and then
-    issues ``Page.bringToFront`` to activate the tab. Cooldown-guarded; direct
-    CDP via the E2E Chrome port — no orchestrator RPC change needed.
+    running requestAnimationFrame. E2E Chrome is launched with Playwright
+    render flags (--disable-backgrounding-occluded-windows / --disable-renderer-
+    backgrounding / --disable-background-timer-throttling), so an occluded /
+    non-frontmost window keeps rendering without any activation (§26.21) — this
+    helper is now a REGRESSION FALLBACK only. It is invoked solely when a probe
+    reports ``__windowHidden`` (document.visibilityState === 'hidden'), which
+    happens only if the window policy regresses (e.g. someone reintroduces
+    minimized). Cooldown-guarded; direct CDP via the E2E Chrome port — no
+    orchestrator RPC change needed.
     """
     target_id = str(getattr(page, "target_id", "") or "")
     if not target_id:

@@ -1,8 +1,10 @@
 """Hermes-style deliverable path scanner for channel IM outbound.
 
 Scans assistant reply text (outside fenced/inline code) for workspace-relative
-or absolute file paths with supported extensions, resolves them against the
-chat workspace, and builds native IM media attachments.
+file paths with supported extensions, resolves them within the chat workspace
+sandbox, and builds native IM media attachments. Absolute paths are rejected by
+the token grammar (first char must be alphanumeric) and by the workspace-root
+containment check, so nothing outside the workspace can be attached.
 
 [INPUT]
 - Assistant reply markdown/text
@@ -25,6 +27,7 @@ import re
 from pathlib import Path
 
 from app.channels.types import MediaAttachment, MediaType, guess_media_type
+
 from .media import (
     MAX_CHANNEL_ATTACHMENT_BYTES,
     compress_oversized_image,

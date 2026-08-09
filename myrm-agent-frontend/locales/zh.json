@@ -7623,7 +7623,7 @@
       "dismiss": "不再提示"
     },
     "message": {
-      "truncated": "回复因长度限制被截断，继续对话可获取完整内容。",
+      "edit": "编辑",
       "contentFiltered": "部分回复被内容策略过滤。",
       "budgetBlocked": "已达每日预算上限，执行被拦截。请在设置中调整预算限额后继续使用。",
       "workflowMergeWarning": "部分 workspace 文件未能合并回主目录，请查看工具输出了解详情。",
@@ -7642,7 +7642,8 @@
         "success": "工作流模板已保存",
         "failed": "保存工作流模板失败",
         "fieldsRequired": "请填写显示名称和模板 slug"
-      }
+      },
+      "truncated": "回复因长度限制被截断，继续对话可获取完整内容。"
     },
     "toolImage": {
       "screenshotLabel": "远程桌面截屏"
@@ -8416,7 +8417,9 @@
     },
     "evictedOutput": {
       "savedHint": "完整工具输出已保存至沙箱",
+      "savedStderrHint": "完整错误输出已保存至沙箱",
       "viewFull": "查看完整输出",
+      "viewFullStderr": "查看完整错误输出",
       "loading": "正在加载完整输出...",
       "expiredTitle": "输出已过期",
       "expiredDesc": "该输出文件已被清理。溢出的输出仅在会话期间保留。",
@@ -11591,6 +11594,20 @@
     "reclaimReassignLabel": "重新分配给智能体（可选）",
     "reclaimSuccess": "任务已成功回收",
     "reclaimFailed": "回收任务失败",
+    "approve": "批准",
+    "approveSuccess": "任务已批准并完成",
+    "approveError": "批准任务失败",
+    "reject": "拒绝",
+    "rejectTitle": "拒绝任务以返工",
+    "rejectDesc": "任务将退回「就绪」状态。拒绝原因会在代理下次运行时反馈给它。",
+    "rejectReasonPlaceholder": "原因（必填）",
+    "rejectReasonRequired": "请输入拒绝原因",
+    "rejectConfirm": "拒绝并重新排队",
+    "rejectSuccess": "任务已拒绝，等待返工",
+    "rejectError": "拒绝任务失败",
+    "reviewRequested": "已提交审核",
+    "approved": "已批准",
+    "rejected": "已拒绝",
     "confirm": "确认",
     "retries": "重试次数",
     "status": {
@@ -11600,6 +11617,7 @@
       "running": "执行中",
       "verifying": "验收中",
       "blocked": "已阻塞",
+      "in_review": "审核中",
       "completed": "已完成",
       "failed": "失败",
       "archived": "已归档"
@@ -11668,7 +11686,10 @@
       "specified": "已规范化",
       "decomposed": "已分解",
       "timed_out": "已超时",
-      "edited": "已编辑"
+      "edited": "已编辑",
+      "review_requested": "已提交审核",
+      "approved": "已通过",
+      "rejected": "已驳回"
     },
     "depBadge": "{count} 个依赖",
     "commentBadge": "{count} 条评论",
@@ -11751,6 +11772,7 @@
     "goalMaxTurnsDefault": "最大轮次：10（默认）",
     "goalMaxTurnsOption": "最大轮次：{turns}",
     "goalMaxTurnsLabel": "最大轮次",
+    "requireApproval": "完成前需人工审批",
     "assignedAgent": "负责人",
     "updateError": "更新任务失败",
     "addIdea": "新增草稿",
@@ -12475,17 +12497,17 @@
     "loginFailed": "登录失败",
     "loginSuccess": "Login successful!",
     "loginTimeout": "登录超时",
-    "oauth2Instructions": "Click the button below to authorize in your browser",
+    "oauth2Instructions": "点击按钮打开授权页面",
     "oauth2Login": "OAuth2 Authorization",
     "oauth2LoginDesc": "通过浏览器授权",
     "oauth2LoginTitle": "Browser Authorization",
     "oauth2Wait": "Waiting for authorization…",
     "preparingOauth2": "Preparing authorization…",
     "qrCodeLogin": "扫码登录",
-    "qrCodeLoginDesc": "Scan QR code with your app",
+    "qrCodeLoginDesc": "扫码授权",
     "qrExpiresAt": "Expires at {time}",
-    "qr_codeLoginTitle": "Scan QR Code",
-    "scanQrCode": "Scan this QR code with your app to login",
+    "qr_codeLoginTitle": "扫码登录",
+    "scanQrCode": "请使用手机应用扫描二维码",
     "selectLoginMethod": "选择登录方式",
     "startLoginFailed": "启动登录失败",
     "unknownError": "未知错误",

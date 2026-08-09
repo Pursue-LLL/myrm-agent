@@ -259,11 +259,14 @@ export default function EvalLabDashboard() {
       if (data.status === 'success' && data.report) {
         setMemoryAbReport(data.report);
         setSelectedMemoryAbTs(timestamp);
+      } else {
+        toast.error(t('loadReportFailed'));
       }
     } catch (e) {
       console.error('Failed to load memory A/B report:', e);
+      toast.error(t('loadReportFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport(), fetchMemoryAbReport(), fetchMemoryAbHistory()]).finally(() =>
@@ -419,6 +422,11 @@ export default function EvalLabDashboard() {
       eventSource.onerror = () => {
         eventSource?.close();
         setMemoryAbRunning(false);
+        // A fast run can finish before the EventSource connects, making the
+        // stream EOF immediately and firing onerror instead of onmessage.
+        // Re-pull the report and history so the UI never shows stale state.
+        fetchMemoryAbReport();
+        fetchMemoryAbHistory();
       };
     }
     return () => { eventSource?.close(); };

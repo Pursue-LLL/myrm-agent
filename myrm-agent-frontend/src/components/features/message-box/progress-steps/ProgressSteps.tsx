@@ -82,7 +82,9 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
   useEffect(() => {
     const hasEvictedOutput = steps.some(
-      (step) => typeof step.evicted_file_ref === 'string' && step.evicted_file_ref.length > 0,
+      (step) =>
+        (typeof step.evicted_file_ref === 'string' && step.evicted_file_ref.length > 0) ||
+        (typeof step.evicted_stderr_file_ref === 'string' && step.evicted_stderr_file_ref.length > 0),
     );
     if (hasEvictedOutput) {
       setIsExpanded(true);
@@ -130,8 +132,13 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   })();
   const collapsedEvictedStep = (() => {
     for (let index = steps.length - 1; index >= 0; index -= 1) {
-      const ref = steps[index]?.evicted_file_ref;
-      if (typeof ref === 'string' && ref.length > 0) {
+      const step = steps[index];
+      const ref = step?.evicted_file_ref;
+      const stderrRef = step?.evicted_stderr_file_ref;
+      if (
+        (typeof ref === 'string' && ref.length > 0) ||
+        (typeof stderrRef === 'string' && stderrRef.length > 0)
+      ) {
         return steps[index];
       }
     }
@@ -420,6 +427,10 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 evictedStoredChars={step.evicted_stored_chars}
                 evictedTotalLines={step.evicted_total_lines}
                 evictedStorageTruncated={step.evicted_storage_truncated}
+                evictedStderrFileRef={step.evicted_stderr_file_ref}
+                evictedStderrStoredChars={step.evicted_stderr_stored_chars}
+                evictedStderrTotalLines={step.evicted_stderr_total_lines}
+                evictedStderrStorageTruncated={step.evicted_stderr_storage_truncated}
               />
             </>
           )}
@@ -650,6 +661,10 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             evictedStoredChars={collapsedEvictedStep.evicted_stored_chars}
             evictedTotalLines={collapsedEvictedStep.evicted_total_lines}
             evictedStorageTruncated={collapsedEvictedStep.evicted_storage_truncated}
+            evictedStderrFileRef={collapsedEvictedStep.evicted_stderr_file_ref}
+            evictedStderrStoredChars={collapsedEvictedStep.evicted_stderr_stored_chars}
+            evictedStderrTotalLines={collapsedEvictedStep.evicted_stderr_total_lines}
+            evictedStderrStorageTruncated={collapsedEvictedStep.evicted_stderr_storage_truncated}
           />
         )}
 

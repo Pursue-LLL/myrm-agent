@@ -143,16 +143,21 @@ undo_reverted = ↩ 已還原 { $count } 個檔案。
 undo_files_not_revertible = ↩ 有 { $count } 個檔案變更無法自動還原（檔案過大或緩衝區已滿）。
 topic_not_configured = ℹ 未配置話題管理。
 topic_search_agent_rejected =
-    搜尋類智能体不能绑定到渠道。
-    请绑定 General 智能体；轻量搜索请使用 Web Fast 模式。
+    搜尋類智慧體不能繫結到渠道。
+    請繫結 General 智慧體；輕量搜尋請使用 Web Fast 模式。
 topic_bound =
-     { $scope } 已繫結{ $agent_label }。
+     { $scope } 已繫結{ $agent_label }{ $workspace_label }。
     使用 /unbind 解除繫結。
+topic_workspace_only = （工作目錄：{ $workspace }）
+topic_workspace_unavailable =  工作目錄繫結失敗：{ $error }
+topic_status_workspace = 工作目錄：{ $workspace }
+topic_status_workspace_default = 工作目錄：預設
 topic_unbound =  { $scope } 已解除繫結。
 topic_no_binding = ℹ 此 { $scope } 沒有繫結。
 topic_status =
      { $scope } 狀態
     { $agent_label }
+    { $workspace_label }
     狀態：{ $status }{ $bound_label }
 topic_no_binding_defaults =  此 { $scope } 無繫結（使用預設配置）。
 topic_command_failed =  { $scope } 命令失敗：{ $error }
@@ -220,6 +225,7 @@ pairing_pending = 您的訪問請求正在等待管理員審批。
 pairing_submitted = 您的訪問請求已提交，管理員將盡快稽核。
 mute_confirm = 已閉嘴，接下來我只會在被 @ 時回應。
 search_not_configured = 當前智慧體需要網路搜尋能力，但搜尋服務尚未配置。請先在設定中新增並啟用搜尋服務。
+analyzing_image = 正在分析圖片…
 search_unreachable = 搜尋服務已配置但當前無法連線。請檢查搜尋服務是否正常執行後重試。
 daily_budget_blocked = 已達每日預算上限，執行被攔截。請在 Web 設定中調整預算限額後繼續使用。
 channel_budget_blocked = 此頻道的每日預算已用完。其他頻道和 Web 會話不受影響。頻道所有者可在設定 > 預算中調整限額。
@@ -322,6 +328,8 @@ cat_Skills = 技能
 learn_not_configured = ℹ 當前環境未配置技能學習功能。
 learn_failed = ❌ 構建學習提示失敗，請重試。
 reassurance_still_running = ⏳ 工作中 — { $elapsed } 分鐘（{ $steps } 步{ $stage }）
+busy_ack_queued = ✅ 收到！Agent 正忙，您的訊息已排隊（第 { $position }/{ $max_pending } 則）。
+busy_ack_queue_full = ⚠️ 佇列已滿，訊息未儲存，請稍後重送。
 agent_picker_no_agents = 未配置任何智慧體。
 agent_picker_select = 選擇一個智慧體：
 agent_picker_switched = 已切換至：{ $name }
@@ -333,5 +341,6 @@ goal_completed =
 goal_failed =
     ❌ 目標已結束：「{ $objective }」
     { $turns } 輪 · { $duration } 分鐘 · { $files } 個檔案變更
+deliverable_attached_only = 交付物已附上。
 deliverable_oversized_note = { $filename }（{ $size }）超出管道附件大小限制，未作為附件傳送。
 deliverable_compressed_note = { $filename }（{ $size }）超出管道大小限制，已傳送壓縮版本。

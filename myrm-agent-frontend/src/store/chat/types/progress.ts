@@ -70,4 +70,8 @@ export type ProgressItem = {
   evicted_stored_chars?: number; // evicted 文件字节大小（GUI badge）
   evicted_total_lines?: number; // evicted 文件总行数（GUI badge / 分页）
   evicted_storage_truncated?: boolean; // 磁盘写入是否被截断
+  evicted_stderr_file_ref?: string; // 被 evict 的 stderr 完整输出文件名（stderr 独立落盘时使用）
+  evicted_stderr_stored_chars?: number; // evicted stderr 文件字节大小（GUI badge）
+  evicted_stderr_total_lines?: number; // evicted stderr 文件总行数（GUI badge / 分页）
+  evicted_stderr_storage_truncated?: boolean; // stderr 磁盘写入是否被截断
 };

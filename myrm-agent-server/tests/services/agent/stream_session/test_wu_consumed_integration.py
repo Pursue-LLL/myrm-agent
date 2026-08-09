@@ -37,13 +37,19 @@ def _collect_sse_events_via_requests(query: str) -> list[dict]:
         "modelSelection": get_model_selection(),
         "searchServiceCfg": get_search_service_config(),
     }
-    resp = requests.post(
-        f"{server_base}/api/v1/agents/agent-stream",
-        json=payload,
-        stream=True,
-        timeout=120,
-    )
-    resp.raise_for_status()
+    try:
+        resp = requests.post(
+            f"{server_base}/api/v1/agents/agent-stream",
+            json=payload,
+            stream=True,
+            timeout=120,
+        )
+        resp.raise_for_status()
+    except requests.ConnectionError:
+        pytest.skip(
+            "Live server is not running; start the backend on :8080 "
+            "or run from tests/api/agent/ with the ASGI client fixture"
+        )
 
     events: list[dict] = []
     for line in resp.iter_lines(decode_unicode=True):
@@ -77,11 +83,15 @@ def test_live_message_end_sse_chain() -> None:
 
     error_events = [e for e in events if e.get("type") == "error"]
     if error_events:
-        error_data = error_events[0].get("data", "")
-        if "Stream setup failed" in str(error_data):
+        error_data = str(error_events[0].get("data", ""))
+        if (
+            "Stream setup failed" in error_data
+            or "Search service not configured" in error_data
+            or "requires full session context" in error_data
+        ):
             pytest.skip(
-                "Live server returned 'Stream setup failed' - "
-                "requires full session context (run via tests/api/agent/ with client fixture)"
+                "Live server lacks full session context "
+                "(run via tests/api/agent/ with client fixture)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]
@@ -123,11 +133,15 @@ def test_live_message_end_has_usage_field() -> None:
 
     error_events = [e for e in events if e.get("type") == "error"]
     if error_events:
-        error_data = error_events[0].get("data", "")
-        if "Stream setup failed" in str(error_data):
+        error_data = str(error_events[0].get("data", ""))
+        if (
+            "Stream setup failed" in error_data
+            or "Search service not configured" in error_data
+            or "requires full session context" in error_data
+        ):
             pytest.skip(
-                "Live server returned 'Stream setup failed' - "
-                "requires full session context (run via tests/api/agent/ with client fixture)"
+                "Live server lacks full session context "
+                "(run via tests/api/agent/ with client fixture)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]

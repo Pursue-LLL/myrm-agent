@@ -10,11 +10,12 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 from urllib.parse import urlsplit
-from real_user_home import real_user_home
+
 from dev_gate_contract import EvaluateIntent
+from real_user_home import real_user_home
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -40,9 +41,7 @@ def _connection_refused(exc: BaseException) -> bool:
             return True
         if isinstance(reason, OSError) and reason.errno == 61:
             return True
-    if isinstance(exc, OSError) and exc.errno == 61:
-        return True
-    return False
+    return bool(isinstance(exc, OSError) and exc.errno == 61)
 
 
 def _maybe_heal_shared_api_on_refused() -> None:
@@ -55,7 +54,7 @@ def _maybe_heal_shared_api_on_refused() -> None:
         attach_backend_crash_heal_inner(
             monorepo_root=monorepo_root, dev_stack=dev_stack
         )
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         return
 
 
@@ -164,7 +163,7 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     pessimistic = signoff and active_leases >= 2
     try:
@@ -192,7 +191,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import (
@@ -202,7 +201,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
 
         parallel_tests = parallel_active_test_count()
         mux_peers = parallel_mux_peer_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
@@ -234,7 +233,7 @@ def e2e_attach_timeout_ms(base_ms: int = 60_000) -> int:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import (
@@ -244,7 +243,7 @@ def e2e_attach_timeout_ms(base_ms: int = 60_000) -> int:
 
         parallel_tests = parallel_active_test_count()
         mux_peers = parallel_mux_peer_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
@@ -263,13 +262,13 @@ def e2e_private_api_ready_timeout_sec(base_sec: float = 60.0) -> float:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import parallel_active_test_count
 
         parallel_tests = parallel_active_test_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
     load = max(active_leases, parallel_tests)
     scaled = max(base_sec, 60.0 + load * 25.0)
@@ -285,13 +284,13 @@ def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import parallel_active_test_count
 
         parallel_tests = parallel_active_test_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
     load = max(active_leases, parallel_tests)
     if load <= 0:
@@ -315,7 +314,7 @@ def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> flo
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import (
@@ -325,7 +324,7 @@ def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> flo
 
         parallel_tests = parallel_active_test_count()
         mux_peers = parallel_mux_peer_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
@@ -348,7 +347,7 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import (
@@ -358,7 +357,7 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
 
         parallel_tests = parallel_active_test_count()
         mux_peers = parallel_mux_peer_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
@@ -382,7 +381,7 @@ def _signoff_desktop_soak_parallel_load() -> int:
 
         monorepo_root = Path(__file__).resolve().parents[4]
         active_leases = wave_active_lease_count(monorepo_root)
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
         from transport_supervisor import (
@@ -392,7 +391,7 @@ def _signoff_desktop_soak_parallel_load() -> int:
 
         parallel_tests = parallel_active_test_count()
         mux_peers = parallel_mux_peer_count()
-    except Exception:
+    except (ImportError, OSError, RuntimeError):
         parallel_tests = 0
         mux_peers = 0
     return max(active_leases, parallel_tests, mux_peers)
@@ -445,7 +444,6 @@ def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
     if resolved_attempts is None:
         resolved_attempts = 8
         try:
-            from dev_gate_contract import shared_ui_hydrate_wait_sec
             from stack_mutation_policy import wave_active_lease_count
             from transport_supervisor import parallel_active_test_count
 
@@ -464,7 +462,7 @@ def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
     last_error: BaseException | None = None
     for attempt in range(resolved_attempts):
         try:
-            with urllib.request.urlopen(health, timeout=5.0) as resp:  # noqa: S310
+            with urllib.request.urlopen(health, timeout=5.0) as resp:
                 if 200 <= resp.status < 300:
                     return api
         except (TimeoutError, OSError, urllib.error.URLError) as exc:
@@ -513,7 +511,7 @@ def _e2e_api_urlopen(
     last_error: BaseException | None = None
     for attempt in range(max_attempts):
         try:
-            return urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
+            return urllib.request.urlopen(req, timeout=timeout_sec)
         except urllib.error.HTTPError as exc:
             last_error = exc
             if exc.code in {409, 423, 500, 503} and attempt + 1 < max_attempts:
@@ -554,7 +552,7 @@ def _e2e_api_get_json(
 ) -> object:
     req = urllib.request.Request(
         url, headers={"Accept": "application/json"}
-    )  # noqa: S310 - validated in _e2e_api_urlopen
+    )
     with _e2e_api_urlopen(
         req, timeout_sec=timeout_sec, max_attempts=max_attempts
     ) as resp:
@@ -569,7 +567,7 @@ def _e2e_api_post_json(
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
     payload = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         url,
         data=payload,
         headers={"Content-Type": "application/json"},
@@ -718,7 +716,7 @@ def require_e2e_api_binding_probe(
 ) -> dict[str, object]:
     """Fail closed when WebUI document is not bound to the expected SHPOIB private API."""
     if not isinstance(probe, dict):
-        raise AssertionError(f"E2E API binding probe invalid: {probe!r}")
+        raise TypeError(f"E2E API binding probe invalid: {probe!r}")
     expected = expected_api_base.rstrip("/")
     actual = str(probe.get("apiBase") or "").rstrip("/")
     if actual != expected:
@@ -758,7 +756,7 @@ def _api_provider_ready(
             f"{resolved_api}/api/v1/config/readiness",
             timeout_sec=timeout_sec,
         )
-    except Exception:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError):
         return False
     provider = payload.get("provider") if isinstance(payload, dict) else None
     return isinstance(provider, dict) and bool(provider.get("is_ready"))
@@ -772,7 +770,7 @@ def fetch_provider_readiness_snapshot() -> dict[str, object]:
             f"{api_base}/api/v1/config/readiness",
             timeout_sec=5.0,
         )
-    except Exception as exc:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError) as exc:
         return {"apiBase": api_base, "error": str(exc)}
     if not isinstance(payload, dict):
         return {"apiBase": api_base, "error": "invalid_readiness_payload"}
@@ -820,7 +818,7 @@ def wait_e2e_provider_ready(
                 )
             ):
                 return True
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.URLError, ValueError):
             pass
         time.sleep(poll_interval_sec)
     return _api_provider_ready(
@@ -841,7 +839,7 @@ def fetch_e2e_goal_status(
             f"{resolved_api}/api/v1/goals/{chat_id}/status",
             timeout_sec=15.0,
         )
-    except Exception:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError):
         return None
     goal = payload.get("goal")
     return goal if isinstance(goal, dict) else None
@@ -927,7 +925,7 @@ def post_goal_status_action(
             timeout_sec=15.0,
         )
         return payload if isinstance(payload, dict) else {"value": payload}
-    except Exception as exc:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
 
 
@@ -1201,11 +1199,11 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
             _validate_loopback_http_url(warm_url)
             with urllib.request.urlopen(
                 warm_url, timeout=45
-            ) as resp:  # noqa: S310 - explicit loopback validation above
+            ) as resp:
                 if resp.status == 200:
                     return
                 last_error = f"HTTP {resp.status}"
-        except Exception as exc:
+        except (OSError, TimeoutError, urllib.error.URLError) as exc:
             last_error = str(exc)
         time.sleep(3)
     raise TimeoutError(
@@ -1221,7 +1219,7 @@ def fetch_chat_messages(
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> list[dict[str, object]]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
-    req = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
+    req = urllib.request.Request(
         f"{resolved_api}/api/v1/chats/{chat_id}/messages",
         headers={"Accept": "application/json"},
     )
@@ -1474,7 +1472,7 @@ def chat_browser_gate_from_api(
                         if not last_tool:
                             last_tool = "browser_ask_human_tool"
                         break
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.URLError, ValueError):
             pass
     return {
         "lastTool": last_tool,
@@ -1498,7 +1496,7 @@ def fetch_pending_browser_takeover_resume(
             f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
             timeout_sec=15.0,
         )
-    except Exception:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError):
         return None
     records = payload.get("approvals") if isinstance(payload, dict) else None
     if not isinstance(records, list):
@@ -1643,7 +1641,7 @@ def _config_http_json(
 ) -> dict[str, object]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"{resolved_api}{path}",
         data=data,
         headers={"Content-Type": "application/json"} if data is not None else {},
@@ -1651,7 +1649,7 @@ def _config_http_json(
     )
     with _e2e_api_urlopen(
         req, timeout_sec=timeout_sec, max_attempts=max_attempts
-    ) as resp:  # noqa: S310
+    ) as resp:
         raw = resp.read()
         if not raw:
             return {}
@@ -1715,7 +1713,7 @@ def wait_e2e_backend_ready(
             )
             if isinstance(payload, dict) and payload.get("status") == "healthy":
                 return True
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.URLError, ValueError):
             pass
         time.sleep(poll_interval_sec)
     return False
@@ -1739,10 +1737,10 @@ def wait_e2e_cdp_ready(
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         try:
-            resp = urllib.request.urlopen(endpoint, timeout=3)  # noqa: S310
+            resp = urllib.request.urlopen(endpoint, timeout=3)
             if resp.status == 200:
                 return True
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.URLError):
             pass
         time.sleep(poll_interval_sec)
     return False
@@ -1838,7 +1836,7 @@ def _pin_hitl_on_api(api_url: str, *, request_timeout_sec: float = 15.0) -> None
     reset_url = (
         f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
     )
-    reset_req = urllib.request.Request(  # noqa: S310 - loopback validated below
+    reset_req = urllib.request.Request(
         reset_url,
         data=b"{}",
         method="POST",
@@ -2149,7 +2147,7 @@ def _browser_hitl_pin_transient_failure(observed: dict[str, object]) -> bool:
         if not isinstance(row, dict):
             continue
         err = str(row.get("err", ""))
-        if err.startswith("put-5") or err.startswith("fetch-5"):
+        if err.startswith(("put-5", "fetch-5")):
             return True
     return False
 
@@ -2282,7 +2280,7 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
             f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
             timeout_sec=15.0,
         )
-    except Exception:
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError):
         return 0
     records = payload.get("approvals") if isinstance(payload, dict) else None
     if not isinstance(records, list):
@@ -2305,7 +2303,7 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
                 timeout_sec=15.0,
             )
             denied += 1
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.URLError, ValueError):
             continue
     return denied
 
@@ -2417,7 +2415,7 @@ def _collect_agent_stream_events(
 ) -> dict[str, object]:
     """POST agent-stream and collect SSE until deadline, idle, or terminal event."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"{resolved}/api/v1/agents/agent-stream",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
@@ -2434,10 +2432,14 @@ def _collect_agent_stream_events(
     if idle_timeout_sec is None and os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         # Signoff clarify/API legs: parallel wave load can stall SSE >45s between tokens.
         resolved_idle_timeout = signoff_parallel_force_chat_timeout_sec(45.0)
-        resolved_idle_timeout = min(120.0, max(resolved_idle_timeout, timeout_sec * 0.5))
+        resolved_idle_timeout = min(
+            120.0, max(resolved_idle_timeout, timeout_sec * 0.5)
+        )
         if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
             # SHPOIB pool: agent may stall >120s between progress and ask_question under wave load.
-            resolved_idle_timeout = min(240.0, max(resolved_idle_timeout, timeout_sec * 0.85))
+            resolved_idle_timeout = min(
+                240.0, max(resolved_idle_timeout, timeout_sec * 0.85)
+            )
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
     clarification_seen = False
@@ -2522,7 +2524,7 @@ def _collect_agent_stream_events(
     except urllib.error.HTTPError as exc:
         try:
             body = exc.read().decode("utf-8", errors="replace")
-        except Exception:
+        except (OSError, ValueError):
             body = ""
         error_event = {
             "type": "error",
@@ -2721,9 +2723,7 @@ def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     normalized = {str(item) for item in event_types}
     if normalized == {"progress"}:
         return True
-    if normalized == {"error"}:
-        return True
-    return False
+    return normalized == {"error"}
 
 
 def _assistant_clarification_from_message(

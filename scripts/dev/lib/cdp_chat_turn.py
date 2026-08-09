@@ -16,11 +16,10 @@ from cdp_chat_support import (
     WAIT_WORKSPACE_STREAM_JS,
     chat_id_from_path,
     chat_messages_have_ok,
-    fetch_provider_readiness_snapshot,
 )
+from dev_gate_contract import EvaluateIntent
 from e2e_wave_ledger import maybe_register_e2e_chat
 from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
-from dev_gate_contract import EvaluateIntent
 
 
 def _touch_live_turn_progress(node: str) -> None:
@@ -133,11 +132,10 @@ class CdpChatTurn(CdpChatSubmit):
                     )
                 except OSError:
                     api_ok = False
-                if api_ok and bridge_id == chat_id:
-                    if not is_live_send_turn_profile() and ui_progress:
-                        last["chatId"] = chat_id
-                        last["okViaApi"] = True
-                        return last
+                if api_ok and bridge_id == chat_id and not is_live_send_turn_profile() and ui_progress:
+                    last["chatId"] = chat_id
+                    last["okViaApi"] = True
+                    return last
                 try:
                     if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
                         if is_live_send_turn_profile():
@@ -162,9 +160,77 @@ class CdpChatTurn(CdpChatSubmit):
                 BRIDGE_TURN_SNAPSHOT_JS,
                 intent=EvaluateIntent.BRIDGE_POLL,
             )
-        except (RuntimeError, TimeoutError):
+        except (RuntimeError, TimeoutError) as exc:
+            self._emit_bridge_diag(
+                f"TRANSPORT_ERR {type(exc).__name__}: {str(exc)[:160]}"
+            )
             return None
-        return result if isinstance(result, dict) else None
+        if not isinstance(result, dict):
+            self._emit_bridge_diag(f"JS_NULL result={result!r}")
+            return None
+        return result
+
+    def _emit_bridge_diag(self, token: str) -> None:
+        """Throttled observability for bridge probe failures (max 1 per 10s)."""
+        now = time.monotonic()
+        if now - getattr(self, "_bridge_diag_last_emit", 0.0) >= 10.0:
+            self._bridge_diag_last_emit = now
+            print(f"E2E_OBSERVE: {token}", flush=True)
+
+    async def _resolved_goal_api_base(self) -> str:
+        """Resolve private-pool bound API base for goal probes (page binding first)."""
+        cached = getattr(self, "_goal_api_base_cached", None)
+        if cached:
+            return cached
+        try:
+            probe = await self.evaluate(
+                """(() => {
+                  const base = typeof window.__MYRM_E2E_API_BASE__ === 'string'
+                    ? window.__MYRM_E2E_API_BASE__.trim()
+                    : '';
+                  return base || null;
+                })()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if isinstance(probe, str) and probe.strip():
+                resolved = probe.strip().rstrip("/")
+                self._goal_api_base_cached = resolved
+                return resolved
+        except (RuntimeError, TimeoutError):
+            pass
+        resolved = cdp_chat_support.get_e2e_api_url()
+        self._goal_api_base_cached = resolved
+        return resolved
+
+    async def _goal_completion_if_persisted(
+        self,
+        chat_id: str,
+    ) -> dict[str, object] | None:
+        """Return okViaGoal payload once a goal is persisted for this chat.
+
+        Goal turns may finish without an explicit OK token in the assistant
+        message; the private-backend goal record is the authoritative signal.
+        Safe for non-Goal tests: no goal record means None, so they never match.
+        """
+        api_url = await self._resolved_goal_api_base()
+        try:
+            goal = await asyncio.wait_for(
+                asyncio.to_thread(
+                    cdp_chat_support.fetch_e2e_goal_status,
+                    chat_id,
+                    api_url=api_url,
+                ),
+                timeout=20.0,
+            )
+        except (TimeoutError, OSError):
+            return None
+        if goal is None:
+            return None
+        return {
+            "okViaGoal": True,
+            "okViaApi": False,
+            "goalStatus": str(goal.get("status") or ""),
+        }
 
     async def _best_effort_user_message_count(
         self,
@@ -220,6 +286,13 @@ class CdpChatTurn(CdpChatSubmit):
         min_user_msgs: int = 1,
         timeout_sec: float = 180.0,
     ) -> dict[str, object]:
+        """Wait until the assistant turn completes, updating ``last`` every probe.
+
+        Single unified loop: bridge snapshot → API (LIVE skipped) → DOM probe →
+        Goal signal. ``last`` always holds the freshest successful observation so
+        timeout diagnostics never show an empty dict, and the DOM/Goal fallbacks
+        remain reachable even when the bridge probe keeps failing.
+        """
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         last_progress_touch = time.monotonic()
@@ -242,34 +315,9 @@ class CdpChatTurn(CdpChatSubmit):
             maybe_register_e2e_chat(chat_id)
             return payload
 
-        if chat_id_hint:
-            api_deadline = deadline
-            while time.monotonic() < api_deadline:
-                _maybe_touch_progress("wait_turn_done_api")
-                finished = await self._finish_if_api_ok(
-                    chat_id_hint, prompt, min_user_msgs=min_user_msgs
-                )
-                if finished is not None:
-                    return finished
-                bridge = await self._bridge_turn_snapshot()
-                if (
-                    isinstance(bridge, dict)
-                    and int(bridge.get("userCount") or 0) >= min_user_msgs
-                    and _bridge_has_completion(bridge)
-                    and not bridge.get("isStreaming")
-                ):
-                    return _finish(
-                        chat_id_hint,
-                        {
-                            **bridge,
-                            "okViaBridge": True,
-                            "okViaApi": False,
-                        },
-                    )
-                await asyncio.sleep(1.5)
-
         while time.monotonic() < deadline:
-            _maybe_touch_progress("wait_turn_done_bridge")
+            _maybe_touch_progress("wait_turn_done")
+
             bridge = await self._bridge_turn_snapshot()
             if isinstance(bridge, dict):
                 last = bridge
@@ -283,9 +331,16 @@ class CdpChatTurn(CdpChatSubmit):
                     return _finish(
                         chat_id, {**bridge, "okViaBridge": True, "okViaApi": False}
                     )
+                if (
+                    chat_id
+                    and int(bridge.get("userCount") or 0) >= min_user_msgs
+                    and not bridge.get("isStreaming")
+                ):
+                    goal_finish = await self._goal_completion_if_persisted(chat_id)
+                    if goal_finish is not None:
+                        return _finish(chat_id, goal_finish)
 
-            chat_id = chat_id_hint
-            if not chat_id:
+            if not chat_id_hint:
                 try:
                     probe = await self.main_state(
                         prompt, intent=EvaluateIntent.BRIDGE_POLL
@@ -309,6 +364,8 @@ class CdpChatTurn(CdpChatSubmit):
                         await asyncio.sleep(1.5)
                         continue
                     raise
+            else:
+                chat_id = chat_id_hint
             if not chat_id:
                 chat_id = await self.bridge_chat_id()
             if chat_id:
@@ -317,6 +374,7 @@ class CdpChatTurn(CdpChatSubmit):
                 )
                 if finished is not None:
                     return finished
+
             try:
                 last = await self.main_state(
                     prompt, intent=EvaluateIntent.BRIDGE_POLL
@@ -374,6 +432,32 @@ class CdpChatTurn(CdpChatSubmit):
                 ):
                     maybe_register_e2e_chat(chat_id)
                     return {**bridge, "chatId": chat_id, "okViaBridge": True}
+            try:
+                probe = await self.main_state("", intent=EvaluateIntent.BRIDGE_POLL)
+            except RuntimeError as exc:
+                message = str(exc)
+                if any(
+                    token in message
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
+                    await asyncio.sleep(1.5)
+                    continue
+                raise
+            if isinstance(probe, dict):
+                last = probe
+                if (
+                    int(probe.get("userMsgs") or 0) >= min_user_msgs
+                    and not probe.get("sending")
+                    and str(probe.get("assistantSample") or "").strip()
+                ):
+                    chat_id = await self.resolve_chat_id(
+                        path=str(probe.get("path") or ""),
+                        hint=str(probe.get("bridgeChatId") or "").strip()
+                        or chat_id_hint,
+                    )
+                    if chat_id:
+                        maybe_register_e2e_chat(chat_id)
+                        return {**probe, "chatId": chat_id, "okViaBridge": True}
             await asyncio.sleep(1.5)
         raise TimeoutError(f"Timed out waiting for assistant reply: {last}")
 

@@ -6,6 +6,7 @@ export const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
   ready: ['running', 'blocked', 'archived'],
   running: ['completed', 'failed', 'blocked'],
   blocked: ['ready'],
+  in_review: [],
   completed: ['archived'],
   failed: ['ready', 'archived'],
 };
@@ -37,6 +38,9 @@ export const EVENT_KIND_STYLES: Record<string, string> = {
   decomposed: 'bg-blue-500/20 text-blue-500',
   timed_out: 'bg-chart-5/20 text-chart-5',
   edited: 'bg-chart-4/20 text-chart-4',
+  review_requested: 'bg-amber-500/20 text-amber-500',
+  approved: 'bg-chart-2/20 text-chart-2',
+  rejected: 'bg-chart-5/20 text-chart-5',
 };
 
 export const PRIORITY_INDICATORS: Record<TaskPriority, string> = {
@@ -61,6 +65,7 @@ export const STATUS_DOT: Record<string, string> = {
   ready: 'bg-primary',
   backlog: 'bg-muted-foreground/50',
   blocked: 'bg-chart-5',
+  in_review: 'bg-amber-500',
   archived: 'bg-muted-foreground/30',
 };
 

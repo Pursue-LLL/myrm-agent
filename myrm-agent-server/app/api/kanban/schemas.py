@@ -144,6 +144,13 @@ class TaskCreate(BaseModel):
         le=100,
         description="Maximum turns for goal loop (1–100). Defaults to 10 when goal_mode is enabled.",
     )
+    require_approval: bool = Field(
+        False,
+        description=(
+            "When true, a successfully verified task lands in in_review and waits "
+            "for a human approve/reject before it is marked completed."
+        ),
+    )
     initial_status: str | None = Field(
         None,
         description="Initial status: triage / backlog / ready / blocked. Defaults to backlog if depends_on, else ready.",
@@ -195,6 +202,10 @@ class TaskUpdate(BaseModel):
     metadata: dict[str, object] | None = Field(
         None,
         description="Structured metadata to merge into task.metadata (e.g. changed_files, test_count).",
+    )
+    require_approval: bool | None = Field(
+        None,
+        description="When true, a successfully verified task waits for human approval before completion.",
     )
 
 
@@ -263,6 +274,32 @@ class ReclaimResponse(BaseModel):
 
     reclaimed: bool
     task: TaskResponse | None = None
+
+
+class ApproveTaskRequest(BaseModel):
+    """Body for approving an IN_REVIEW task (completion gate)."""
+
+    approver: str | None = Field(
+        None,
+        max_length=100,
+        description="Optional human identifier recorded on the approval event.",
+    )
+
+
+class RejectTaskRequest(BaseModel):
+    """Body for rejecting an IN_REVIEW task (send back to READY for rework)."""
+
+    reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Why the task was rejected — injected into the re-run's context.",
+    )
+    approver: str | None = Field(
+        None,
+        max_length=100,
+        description="Optional human identifier recorded on the rejection event.",
+    )
 
 
 class BulkActionRequest(BaseModel):
@@ -372,6 +409,7 @@ class TaskResponse(BaseModel):
     max_runtime_seconds: int | None = None
     goal_mode: bool = False
     goal_max_turns: int | None = None
+    require_approval: bool = False
     completion_criteria: str | list[dict[str, str | int]] | None = None
     dep_count: int = 0
     children_total: int = 0

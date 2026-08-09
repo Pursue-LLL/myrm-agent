@@ -3,7 +3,7 @@
 ## 架构概述
 
 渠道入站消息 → GeneralAgent 执行桥。上级文档：[../../_ARCH.md](../../_ARCH.md)。
-根目录保留门面与单文件域；多文件域收进 `deliverable/` 与 `execute_preamble/` 子包。
+根目录保留门面与单文件域；多文件域位于 `deliverable/` 与 `execute_preamble/` 子包。
 
 ## 文件清单
 

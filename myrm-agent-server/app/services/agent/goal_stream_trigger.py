@@ -1,6 +1,6 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider
+[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
 """
@@ -314,8 +314,12 @@ async def trigger_goal_stream(
 
     async def _run_stream() -> None:
         try:
-            extra_context: dict[str, object] | None = (
-                {"goal_provider": provider} if provider is not None else None
+            from app.services.agent.execution_cache.types import ExecutionMode
+            from app.services.agent.runtime_context import build_agent_runtime_context
+
+            extra_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.POOLED,
+                base={"goal_provider": provider} if provider is not None else None,
             )
             async for _ in ai_agent_service_stream(params, extra_context=extra_context):
                 pass

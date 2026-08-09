@@ -2,7 +2,7 @@ import { apiRequest } from '@/lib/api';
 
 // ==================== Types ====================
 
-export type TaskStatus = 'triage' | 'backlog' | 'ready' | 'running' | 'blocked' | 'completed' | 'failed' | 'archived';
+export type TaskStatus = 'triage' | 'backlog' | 'ready' | 'running' | 'blocked' | 'in_review' | 'completed' | 'failed' | 'archived';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type BlockKind = 'human' | 'scheduled' | 'external';
 
@@ -81,6 +81,7 @@ export interface KanbanTask {
   max_runtime_seconds?: number | null;
   goal_mode?: boolean;
   goal_max_turns?: number | null;
+  require_approval?: boolean;
   completion_criteria?: string | null;
   dep_count: number;
   children_total: number;
@@ -188,6 +189,7 @@ export async function createTask(
     max_runtime_seconds?: number;
     goal_mode?: boolean;
     goal_max_turns?: number;
+    require_approval?: boolean;
     initial_status?: TaskStatus;
     workspace_path?: string;
     branch?: string;
@@ -212,6 +214,7 @@ export async function updateTask(
     attachment_ids?: string[];
     max_runtime_seconds?: number | null;
     completion_criteria?: string | null;
+    require_approval?: boolean;
     result?: string;
     metadata?: Record<string, unknown>;
   },
@@ -262,6 +265,20 @@ export async function reclaimTask(taskId: string, reason?: string, newAgentId?: 
 
 export async function deleteTask(taskId: string): Promise<void> {
   return apiRequest(`/kanban/tasks/${taskId}`, { method: 'DELETE' });
+}
+
+export async function approveTask(taskId: string, approver?: string): Promise<KanbanTask> {
+  return apiRequest(`/kanban/tasks/${taskId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ approver: approver ?? null }),
+  });
+}
+
+export async function rejectTask(taskId: string, reason: string, approver?: string): Promise<KanbanTask> {
+  return apiRequest(`/kanban/tasks/${taskId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, approver: approver ?? null }),
+  });
 }
 
 // ==================== Bulk Actions ====================

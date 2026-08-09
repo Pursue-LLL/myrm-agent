@@ -1,22 +1,20 @@
-"""SoloLaunchGate — LIVE workload must launch solo (§19.12 W5 · §23.4 W5 #17).
+"""SoloLaunchGate — LIVE workload signoff solo window (§19.12 W5 · §23.4 W5 #17).
 
-A LIVE workload (``workload="LIVE"``) is the acceptance window for a real-user
-chat: it must never run while parallel chrome_e2e lanes monopolize the browser
-plane. This gate fail-closes when:
+SSOT: ``ifm/profile.yaml`` browser-mcp L49-52 · ``CHROME_MCP_E2E.md`` Playbook 6.
 
-- effective wave leases > 1 (another lane holds the pool), or
-- ``:3000`` TCP+HTML probe is not green, or
-- the browser orchestrator daemon is not READY.
+并行是目标：多个 ``./myrm test`` 同时运行是正常用法；日常 LIVE workload 并行由
+``wave_orchestrator/lanes.py`` 的并发上限（SHPOIB cap=4 / shared_hot 共享）控制，
+门禁只拒错误 launch（同 run id、FAIL_FAST），不拒并行。
 
-The exact contract is the four-term §19.12.2 chain — PreflightContract → this
-gate → MuxChatBody → PytestEvidenceSeal → LLMReceipt. Host CPU/memory pressure
-is intentionally *not* an admission term: the governor only shrinks operation
-credits (it never kills a running private backend), and a local dev machine
-running the IDE itself routinely sits above any load floor, which would make
-the solo signoff window permanently unavailable.
+「solo 窗口」仅适用于 guardrail 维护者 formal signoff batch：
+当显式 ``E2E_SIGNOFF=1`` 或 ``MYRM_E2E_SOLO_SIGNOFF=1`` 时，本 gate 强制 solo：
 
-Non-LIVE workloads (READ/RESOURCE_WRITE/…, i.e. ``workload != "LIVE"``) are not
-intercepted — parallel lanes keep their normal launch gate semantics.
+- 有其他 LIVE lease 在跑 → 拒绝（QUIT/等待维护者确认）
+- ``:3000`` TCP+HTML probe 不绿 → 拒绝
+- browser orchestrator daemon 非 READY → 拒绝
+
+日常 LIVE（无 signoff 标记）仅保留环境健康检查（:3000 + orchestrator READY），
+不拦截并行。
 """
 
 from __future__ import annotations
@@ -32,28 +30,19 @@ class SoloLaunchVerdict:
     reason: str = ""
 
 
+def _signoff_mode() -> bool:
+    """True when this is a guardrail maintainer formal signoff batch."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return True
+    return os.environ.get("MYRM_E2E_SOLO_SIGNOFF", "").strip() == "1"
+
+
 def solo_launch_denial_reason(*, workload: str) -> str | None:
     """Return a fail-closed denial line for LIVE workload, or None when allowed."""
     if workload != "LIVE":
         return None
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return None
-
-    from e2e_lease_liveness import (
-        load_wave_snapshot,
-        wave_lease_counts,
-    )
-
-    counts = wave_lease_counts(load_wave_snapshot())
-    other_live = (
-        counts.effective_live_agent_shpoib + counts.effective_live_agent_shared_hot
-    )
-    if other_live > 0:
-        return (
-            f"SOLO_LAUNCH_DENIED: other LIVE leases={other_live}>0; "
-            "LIVE must launch solo — QUEUE with progress; do not LAUNCH_FORCE "
-            "as a default (run ./myrm test -m chrome_e2e solo after peers finish)"
-        )
 
     from runtime_identity import frontend_tcp_html_probe_ok
 
@@ -73,6 +62,25 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
         return (
             f"SOLO_LAUNCH_DENIED: orchestrator health={health} != READY; "
             "run ensure-browser-orchestrator before LIVE signoff"
+        )
+
+    if not _signoff_mode():
+        # 日常并行 LIVE：并发由 lanes.py 控制，此处不做 solo 拦截。
+        return None
+
+    from e2e_lease_liveness import (
+        load_wave_snapshot,
+        wave_lease_counts,
+    )
+
+    counts = wave_lease_counts(load_wave_snapshot())
+    other_live = (
+        counts.effective_live_agent_shpoib + counts.effective_live_agent_shared_hot
+    )
+    if other_live > 0:
+        return (
+            f"SOLO_LAUNCH_DENIED: signoff requires solo — other LIVE leases={other_live}>0; "
+            "wait for peers to finish, do not LAUNCH_FORCE during formal signoff"
         )
     return None
 

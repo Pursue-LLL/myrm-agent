@@ -7527,7 +7527,7 @@
       "dismiss": "不再提示"
     },
     "message": {
-      "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。",
+      "edit": "編輯",
       "contentFiltered": "部分回覆被內容策略過濾。",
       "budgetBlocked": "已達每日預算上限，執行被攔截。請在設定中調整預算限額後繼續使用。",
       "workflowMergeWarning": "部分 workspace 檔案未能合併回主目錄，請查看工具輸出了解詳情。",
@@ -7546,7 +7546,8 @@
         "success": "工作流模板已保存",
         "failed": "保存工作流模板失敗",
         "fieldsRequired": "請填寫顯示名稱和模板 slug"
-      }
+      },
+      "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。"
     },
     "toolImage": {
       "screenshotLabel": "遠端桌面截圖"
@@ -8351,7 +8352,9 @@
     },
     "evictedOutput": {
       "savedHint": "完整工具輸出已保存至沙箱",
+      "savedStderrHint": "完整錯誤輸出已保存至沙箱",
       "viewFull": "檢視完整輸出",
+      "viewFullStderr": "檢視完整錯誤輸出",
       "loading": "正在載入完整輸出...",
       "expiredTitle": "輸出已過期",
       "expiredDesc": "該輸出檔案已被清理。溢出的輸出僅在會話期間保留。",
@@ -11526,6 +11529,20 @@
     "reclaimReassignLabel": "重新分配給智慧體（可選）",
     "reclaimSuccess": "任務已成功回收",
     "reclaimFailed": "回收任務失敗",
+    "approve": "批准",
+    "approveSuccess": "任務已批准並完成",
+    "approveError": "批准任務失敗",
+    "reject": "拒絕",
+    "rejectTitle": "拒絕任務以返工",
+    "rejectDesc": "任務將退回「就緒」狀態。拒絕原因會在代理下次執行時回饋給它。",
+    "rejectReasonPlaceholder": "原因（必填）",
+    "rejectReasonRequired": "請輸入拒絕原因",
+    "rejectConfirm": "拒絕並重新排隊",
+    "rejectSuccess": "任務已拒絕，等待返工",
+    "rejectError": "拒絕任務失敗",
+    "reviewRequested": "已提交審核",
+    "approved": "已批准",
+    "rejected": "已拒絕",
     "confirm": "確認",
     "retries": "重試次數",
     "status": {
@@ -11537,7 +11554,8 @@
       "blocked": "已阻塞",
       "completed": "已完成",
       "failed": "失敗",
-      "archived": "已歸檔"
+      "archived": "已歸檔",
+      "in_review": "審核中"
     },
     "moveTo": {
       "ready": "移至就緒",
@@ -11603,7 +11621,10 @@
       "specified": "已規範化",
       "decomposed": "已分解",
       "timed_out": "已超時",
-      "edited": "已編輯"
+      "edited": "已編輯",
+      "review_requested": "已提交審核",
+      "approved": "已通過",
+      "rejected": "已駁回"
     },
     "depBadge": "{count} 個依賴",
     "commentBadge": "{count} 條評論",
@@ -11686,6 +11707,7 @@
     "goalMaxTurnsDefault": "最大輪次：10（預設）",
     "goalMaxTurnsOption": "最大輪次：{turns}",
     "goalMaxTurnsLabel": "最大輪次",
+    "requireApproval": "完成前需人工審批",
     "assignedAgent": "負責人",
     "updateError": "更新任務失敗",
     "addIdea": "新增草稿",
@@ -12393,17 +12415,17 @@
     "loginFailed": "登錄失敗",
     "loginSuccess": "Login successful!",
     "loginTimeout": "登錄超時",
-    "oauth2Instructions": "Click the button below to authorize in your browser",
+    "oauth2Instructions": "點擊按鈕打開授權頁面",
     "oauth2Login": "OAuth2 Authorization",
     "oauth2LoginDesc": "通過瀏覽器授權",
     "oauth2LoginTitle": "Browser Authorization",
     "oauth2Wait": "Waiting for authorization…",
     "preparingOauth2": "Preparing authorization…",
     "qrCodeLogin": "掃碼登錄",
-    "qrCodeLoginDesc": "Scan QR code with your app",
+    "qrCodeLoginDesc": "掃碼授權",
     "qrExpiresAt": "Expires at {time}",
-    "qr_codeLoginTitle": "Scan QR Code",
-    "scanQrCode": "Scan this QR code with your app to login",
+    "qr_codeLoginTitle": "掃碼登入",
+    "scanQrCode": "請使用手機應用程式掃描 QR Code",
     "selectLoginMethod": "選擇登錄方式",
     "startLoginFailed": "啟動登錄失敗",
     "unknownError": "未知錯誤",

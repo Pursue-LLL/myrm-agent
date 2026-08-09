@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';
-import { moveTask, promoteTask, reclaimTask } from '@/services/kanban';
+import { moveTask, promoteTask, reclaimTask, approveTask, rejectTask } from '@/services/kanban';
 
 interface UseKanbanTaskDrawerWorkflowParams {
   task: KanbanTask | null;
@@ -22,6 +22,44 @@ export function useKanbanTaskDrawerWorkflow({
   const [reclaimReason, setReclaimReason] = useState('');
   const [reclaimAgentId, setReclaimAgentId] = useState('');
   const [reclaiming, setReclaiming] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+
+  const handleApprove = useCallback(async () => {
+    if (!task) return;
+    setApproving(true);
+    try {
+      await approveTask(task.task_id);
+      onRefresh();
+      onOpenChange(false);
+      toast.success(t('approveSuccess'));
+    } catch {
+      toast.error(t('approveError'));
+    }
+    setApproving(false);
+  }, [task, onRefresh, onOpenChange, t]);
+
+  const handleReject = useCallback(async () => {
+    if (!task) return;
+    if (!rejectReason.trim()) {
+      toast.error(t('rejectReasonRequired'));
+      return;
+    }
+    setRejecting(true);
+    try {
+      await rejectTask(task.task_id, rejectReason.trim());
+      setShowRejectDialog(false);
+      setRejectReason('');
+      onRefresh();
+      onOpenChange(false);
+      toast.success(t('rejectSuccess'));
+    } catch {
+      toast.error(t('rejectError'));
+    }
+    setRejecting(false);
+  }, [task, rejectReason, onRefresh, onOpenChange, t]);
 
   const handleMove = useCallback(
     async (targetStatus: TaskStatus) => {
@@ -100,8 +138,16 @@ export function useKanbanTaskDrawerWorkflow({
     reclaimAgentId,
     setReclaimAgentId,
     reclaiming,
+    showRejectDialog,
+    setShowRejectDialog,
+    rejectReason,
+    setRejectReason,
+    approving,
+    rejecting,
     handleMove,
     handleForcePromote,
     handleReclaim,
+    handleApprove,
+    handleReject,
   };
 }

@@ -131,11 +131,12 @@ async def finalize_channel_stream_reply(
 
     artifact_components, linked_filenames = await build_artifact_deep_links(
         acc,
-        media_list,
         resolve_message_locale(msg),
     )
 
-    # Deep-linked artifacts get buttons, so their fallback note is suppressed.
+    # Deep-linked artifacts get buttons, so their duplicate attachment and
+    # fallback note are suppressed.
+    media_list = [m for m in media_list if m.filename not in linked_filenames]
     oversized_notes = [
         (fname, size) for fname, size in oversized_raw if fname not in linked_filenames
     ]

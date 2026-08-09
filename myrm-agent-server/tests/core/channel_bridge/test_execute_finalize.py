@@ -88,6 +88,48 @@ async def test_deep_link_success_suppresses_oversized_note() -> None:
 
 
 @pytest.mark.asyncio
+async def test_deep_link_success_drops_duplicate_attachment() -> None:
+    """Linked artifacts get a button, so their plain attachment is removed."""
+    acc = StreamAccumulator()
+    acc.file_attachments.append(
+        MediaAttachment(
+            media_type=MediaType.DOCUMENT,
+            path="/tmp/report.pdf",
+            filename="report.pdf",
+            mime_type="application/pdf",
+        )
+    )
+    acc.shareable_artifacts.append(
+        ShareableArtifact("art-1", "report.pdf", "application/pdf")
+    )
+    button = MagicMock()
+    _persist_mock, reply = await _finalize(acc, ((button,), frozenset({"report.pdf"})))
+    assert reply.media == ()
+    assert reply.components == (button,)
+
+
+@pytest.mark.asyncio
+async def test_deep_link_failure_keeps_attachment() -> None:
+    """When no button is produced, the plain attachment must survive."""
+    acc = StreamAccumulator()
+    acc.file_attachments.append(
+        MediaAttachment(
+            media_type=MediaType.DOCUMENT,
+            path="/tmp/report.pdf",
+            filename="report.pdf",
+            mime_type="application/pdf",
+        )
+    )
+    acc.shareable_artifacts.append(
+        ShareableArtifact("art-1", "report.pdf", "application/pdf")
+    )
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert len(reply.media) == 1
+    assert reply.media[0].filename == "report.pdf"
+    assert reply.components == ()
+
+
+@pytest.mark.asyncio
 async def test_deep_link_failure_keeps_oversized_note() -> None:
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))

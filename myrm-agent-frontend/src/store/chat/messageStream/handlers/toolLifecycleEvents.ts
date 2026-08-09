@@ -201,6 +201,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     let storedChars: number | undefined;
     let totalLines: number | undefined;
     let storageTruncated: boolean | undefined;
+    let stream: string | undefined;
 
     if (typeof rawPayload === 'string') {
       ref = rawPayload;
@@ -227,11 +228,16 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       if (payload.storage_truncated === true) {
         storageTruncated = true;
       }
+      if (typeof payload.stream === 'string') {
+        stream = payload.stream;
+      }
     }
 
     if (!ref) {
       return done(ctx);
     }
+
+    const isStderr = stream === 'stderr';
 
     let target =
       toolCallId !== undefined
@@ -240,14 +246,33 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     if (!target && toolName) {
       for (let index = steps.length - 1; index >= 0; index -= 1) {
         const step = steps[index];
-        if (step.tool_name === toolName && !step.evicted_file_ref) {
-          target = step;
-          break;
+        if (step.tool_name === toolName) {
+          const alreadyClaimed = isStderr
+            ? step.evicted_stderr_file_ref
+            : step.evicted_file_ref;
+          if (!alreadyClaimed) {
+            target = step;
+            break;
+          }
         }
       }
     }
     if (!target) {
       target = steps[steps.length - 1];
+    }
+
+    if (isStderr) {
+      target.evicted_stderr_file_ref = ref;
+      if (storedChars !== undefined) {
+        target.evicted_stderr_stored_chars = storedChars;
+      }
+      if (totalLines !== undefined) {
+        target.evicted_stderr_total_lines = totalLines;
+      }
+      if (storageTruncated === true) {
+        target.evicted_stderr_storage_truncated = true;
+      }
+      return done(ctx);
     }
 
     target.evicted_file_ref = ref;

@@ -320,6 +320,15 @@ export function TaskDetailsSection({
         </div>
       )}
 
+      {/* Human approval gate */}
+      {task.require_approval && (
+        <div className="text-xs bg-amber-500/5 rounded px-2 py-1.5 mt-1">
+          <p className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+            {t('requireApproval')}
+          </p>
+        </div>
+      )}
+
       {/* Progress note & blocked */}
       {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (
         <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 rounded px-2 py-1 mt-1 font-medium">

@@ -30,8 +30,8 @@ from app.core.channel_bridge.executor_helpers import (
 from app.core.channel_bridge.executor_helpers.topic_workspace_sync import ChannelWorkspaceSyncError
 from app.services.agent.profile_resolver import ResolvedAgentProfile
 
-from .backfill import maybe_backfill_channel_history
 from ..session import resolve_session_key
+from .backfill import maybe_backfill_channel_history
 
 if TYPE_CHECKING:
     from ..executor import ChannelAgentExecutor
@@ -46,7 +46,7 @@ class ChannelSessionContext:
     chat_history: list[object]
     session_was_auto_reset: bool
     session_policy: SessionPolicy
-    query: str
+    query: str | list[dict[str, object]]
     pre_events: tuple[ProgressUpdate | OutboundMessage, ...]
 
 
@@ -54,7 +54,7 @@ async def resolve_channel_session_context(
     executor: "ChannelAgentExecutor",
     msg: InboundMessage,
     *,
-    query: str,
+    query: str | list[dict[str, object]],
     is_resume: bool,
     topic_context: TopicContext | None,
     resolved_agent_id: str | None,
@@ -91,13 +91,17 @@ async def resolve_channel_session_context(
         and not force_new
         and session_policy.mode != SessionResetMode.PERSISTENT
     )
-    working_query = query
+    working_query: str | list[dict[str, object]] = query
     if session_was_auto_reset and session_policy.notify_on_reset:
         context_note = (
             "[System note: This is a fresh conversation with no prior context. "
             "Do not reference any previous conversation.]"
         )
-        working_query = f"{context_note}\n{query}"
+        if isinstance(query, str):
+            working_query = f"{context_note}\n{query}"
+        else:
+            head_part: dict[str, object] = {"type": "text", "text": context_note}
+            working_query = [head_part, *query]
 
         if session_policy.mode == SessionResetMode.IDLE:
             reset_label = get_text(

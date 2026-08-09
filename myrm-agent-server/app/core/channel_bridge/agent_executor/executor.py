@@ -65,6 +65,9 @@ class ChannelAgentExecutor:
     model, filter model, search, MCP, retrieval, memory, and user instructions.
     """
 
+    def __init__(self) -> None:
+        self._backfill_locks: set[str] = set()
+
     async def execute_stream(
         self,
         msg: InboundMessage,

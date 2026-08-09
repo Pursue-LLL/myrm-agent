@@ -21,6 +21,14 @@ interface StatusActionsBarProps {
   handleMove: (status: TaskStatus) => void;
   handleReclaim: () => void;
   handleForcePromote: () => void;
+  showRejectDialog: boolean;
+  setShowRejectDialog: (v: boolean) => void;
+  rejectReason: string;
+  setRejectReason: (v: string) => void;
+  approving: boolean;
+  rejecting: boolean;
+  handleApprove: () => void;
+  handleReject: () => void;
   t: (key: string) => string;
 }
 
@@ -40,12 +48,39 @@ export function StatusActionsBar({
   handleMove,
   handleReclaim,
   handleForcePromote,
+  showRejectDialog,
+  setShowRejectDialog,
+  rejectReason,
+  setRejectReason,
+  approving,
+  rejecting,
+  handleApprove,
+  handleReject,
   t,
 }: StatusActionsBarProps) {
   const nextStatuses = NEXT_STATUSES[task.status] ?? [];
 
   return (
     <>
+      {task.status === 'in_review' && (
+        <div className="flex gap-1.5 mt-2 flex-wrap">
+          <button
+            onClick={handleApprove}
+            disabled={approving}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-chart-2/15 hover:bg-chart-2/25 text-chart-2 font-medium transition-colors disabled:opacity-50"
+          >
+            {t('approve')}
+          </button>
+          <button
+            onClick={() => setShowRejectDialog(true)}
+            disabled={rejecting}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive font-medium transition-colors disabled:opacity-50"
+          >
+            {t('reject')}
+          </button>
+        </div>
+      )}
+
       {(nextStatuses.length > 0 || task.status === 'running') && (
         <div className="flex gap-1.5 mt-2 flex-wrap">
           {nextStatuses.map((ns) => (
@@ -66,6 +101,38 @@ export function StatusActionsBar({
               {t('reclaimConfirm')}
             </button>
           )}
+        </div>
+      )}
+
+      {showRejectDialog && (
+        <div className="mt-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
+          <p className="text-[11px] font-medium text-destructive">{t('rejectTitle')}</p>
+          <p className="text-[10px] text-muted-foreground">{t('rejectDesc')}</p>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder={t('rejectReasonPlaceholder')}
+            rows={3}
+            className="w-full text-[10px] px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-destructive/50 resize-none"
+          />
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleReject}
+              disabled={rejecting}
+              className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium disabled:opacity-50"
+            >
+              {t('rejectConfirm')}
+            </button>
+            <button
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectReason('');
+              }}
+              className="text-[10px] px-2.5 py-1 rounded-full bg-muted hover:bg-muted-foreground/20 font-medium"
+            >
+              {t('cancel')}
+            </button>
+          </div>
         </div>
       )}
 

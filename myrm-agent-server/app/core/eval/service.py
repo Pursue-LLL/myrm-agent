@@ -974,7 +974,10 @@ async def run_memory_ab_background(
                     "memory_"
                 )
             )
-            profile_summary = report_data.get("per_profile", {}).get(arm_id)
+            per_profile = report_data.get("per_profile")
+            if not isinstance(per_profile, dict):
+                continue
+            profile_summary = per_profile.get(arm_id)
             if isinstance(profile_summary, dict):
                 profile_summary["memory_tool_calls"] = memory_calls
 

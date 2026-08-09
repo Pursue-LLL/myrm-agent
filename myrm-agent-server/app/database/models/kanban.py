@@ -139,6 +139,13 @@ class KanbanTaskModel(Base):
         default=None,
     )
 
+    require_approval: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default="0",
+    )
+
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

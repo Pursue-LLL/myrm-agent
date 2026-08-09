@@ -53,6 +53,7 @@ interface KanbanInlineAddFormProps {
   branch: string;
   goalMode: boolean;
   goalMaxTurns: number | null;
+  requireApproval: boolean;
   agents: AgentListItem[];
   enabledModels: KanbanModelOption[];
   allTasks: KanbanTask[];
@@ -71,6 +72,7 @@ interface KanbanInlineAddFormProps {
   onBranchChange: (value: string) => void;
   onGoalModeChange: (value: boolean) => void;
   onGoalMaxTurnsChange: (value: number | null) => void;
+  onRequireApprovalChange: (value: boolean) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -90,6 +92,7 @@ export default function KanbanInlineAddForm({
   branch,
   goalMode,
   goalMaxTurns,
+  requireApproval,
   agents,
   enabledModels,
   allTasks,
@@ -108,6 +111,7 @@ export default function KanbanInlineAddForm({
   onBranchChange,
   onGoalModeChange,
   onGoalMaxTurnsChange,
+  onRequireApprovalChange,
   onSubmit,
   onCancel,
 }: KanbanInlineAddFormProps) {
@@ -379,6 +383,18 @@ export default function KanbanInlineAddForm({
           ))}
         </select>
       )}
+
+      {/* Human approval gate */}
+      <label className="flex items-center gap-2 text-[10px]">
+        <input
+          type="checkbox"
+          checked={requireApproval}
+          onChange={(e) => onRequireApprovalChange(e.target.checked)}
+          className="rounded border-muted-foreground/30"
+          data-testid="kanban-create-require-approval"
+        />
+        <span className="text-primary/70">{t('requireApproval')}</span>
+      </label>
 
       {/* Attachments */}
       <div>

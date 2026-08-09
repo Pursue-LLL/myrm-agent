@@ -145,9 +145,18 @@ async def resume_durable_offline_tasks() -> None:
                                 context={"session_id": params.chat_id or ""},
                             )
                         else:
+                            from app.services.agent.execution_cache.types import ExecutionMode
+                            from app.services.agent.runtime_context import build_agent_runtime_context
                             from app.services.agent.streaming import ai_agent_service_stream
 
-                            stream = ai_agent_service_stream(params=params, cancel_token=token)
+                            runtime_context = await build_agent_runtime_context(
+                                execution_mode=ExecutionMode.POOLED,
+                            )
+                            stream = ai_agent_service_stream(
+                                params=params,
+                                cancel_token=token,
+                                extra_context=runtime_context,
+                            )
 
                         # Consume stream silently
                         async for _chunk in stream:
@@ -292,6 +301,8 @@ async def _dispatch_auto_continue(
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
         from app.ai_agents import GeneralAgentParams
+        from app.services.agent.execution_cache.types import ExecutionMode
+        from app.services.agent.runtime_context import build_agent_runtime_context
         from app.services.agent.streaming import ai_agent_service_stream
         from app.services.chat.chat_service import ChatService
 
@@ -309,8 +320,16 @@ async def _dispatch_auto_continue(
 
         logger.info("[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id)
 
+        runtime_context = await build_agent_runtime_context(
+            execution_mode=ExecutionMode.POOLED,
+        )
+
         collected_parts: list[str] = []
-        stream = ai_agent_service_stream(params=params, cancel_token=token)
+        stream = ai_agent_service_stream(
+            params=params,
+            cancel_token=token,
+            extra_context=runtime_context,
+        )
         async for chunk in stream:
             if isinstance(chunk, dict) and chunk.get("type") == "message":
                 data = chunk.get("data")

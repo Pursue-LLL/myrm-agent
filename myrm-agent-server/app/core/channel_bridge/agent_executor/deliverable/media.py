@@ -97,7 +97,7 @@ def compress_oversized_image(src: str | Path, *, max_bytes: int) -> Path | None:
     for _ in range(_MAX_COMPRESSION_ROUNDS):
         for q in quality_steps:
             buf = io.BytesIO()
-            save_kwargs = {"format": out_format}
+            save_kwargs: dict[str, str | int] = {"format": out_format}
             if q is not None:
                 save_kwargs["quality"] = q
             try:

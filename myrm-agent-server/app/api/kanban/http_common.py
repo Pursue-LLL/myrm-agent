@@ -149,6 +149,7 @@ async def _task_to_response(
         max_runtime_seconds=task.max_runtime_seconds,
         goal_mode=task.goal_mode,
         goal_max_turns=task.goal_max_turns,
+        require_approval=task.require_approval,
         completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
         created_at=task.created_at,
         updated_at=task.updated_at,

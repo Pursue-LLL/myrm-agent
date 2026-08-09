@@ -32,12 +32,12 @@ from app.core.types import MCPServerConfig
 from app.core.types.business import ModelConfig
 from app.services.agent.profile_resolver import ResolvedAgentProfile
 
+from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 from .types import (
     ChannelAgentBuildOutcome,
     ChannelAgentBuildResult,
     build_security_config,
 )
-from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 async def build_channel_execution_agent(
     msg: InboundMessage,
     *,
-    query: str,
+    query: str | list[dict[str, object]],
     is_resume: bool,
     configs: UserConfigs,
     memory_settings: dict[str, object],

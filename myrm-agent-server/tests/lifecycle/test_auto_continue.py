@@ -22,6 +22,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _disable_skill_roots_collection() -> None:
+    """Keep runtime-context collection deterministic: no real storage I/O."""
+    with patch(
+        "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+        new_callable=AsyncMock,
+        return_value=[],
+    ):
+        yield
+
+
 def _make_marker(
     *,
     marker_id: str = "marker-001",
@@ -390,3 +401,50 @@ async def test_dispatch_loads_chat_history():
         await _dispatch_auto_continue(marker, factory)
 
     mock_load_history.assert_awaited_once_with("chat-auto-001")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_injects_runtime_context():
+    """Auto-continue dispatch must inject execution_mode + disabled_skill_roots."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    stream_calls: list[dict[str, object]] = []
+
+    async def _capturing_stream(*_a, **_kw):
+        stream_calls.append(_kw)
+        if False:
+            yield {"type": "message", "data": "ok"}
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_capturing_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+        patch(
+            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            new_callable=AsyncMock,
+            return_value=["skills/prebuilt/off"],
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    assert len(stream_calls) == 1
+    extra_context = stream_calls[0].get("extra_context")
+    assert isinstance(extra_context, dict)
+    assert extra_context["execution_mode"] == "pooled"
+    assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]

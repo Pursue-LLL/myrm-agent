@@ -142,14 +142,22 @@ undo_success = ↩ 取り消しました：{ $count } メッセージを削除�
 undo_reverted = ↩ { $count } ファイルを元に戻しました。
 undo_files_not_revertible = ↩ { $count } 件のファイル変更は自動的に元に戻せません（ファイルが大きすぎるかバッファが満杯です）。
 topic_not_configured = ℹ トピック管理が設定されていません。
+topic_search_agent_rejected =
+    検索エージェントはチャンネルにバインドできません。
+    General エージェントを使用してください。軽量検索には Web Fast モードを使用してください。
 topic_bound =
-     { $scope } をバインドしました{ $agent_label }。
+     { $scope } をバインドしました{ $agent_label }{ $workspace_label }。
     /unbind で解除できます。
+topic_workspace_only = （ワークスペース：{ $workspace }）
+topic_workspace_unavailable =  ワークスペースのバインドに失敗しました：{ $error }
+topic_status_workspace = ワークスペース：{ $workspace }
+topic_status_workspace_default = ワークスペース：デフォルト
 topic_unbound =  { $scope } のバインドを解除しました。
 topic_no_binding = ℹ この { $scope } にバインドはありません。
 topic_status =
      { $scope } ステータス
     { $agent_label }
+    { $workspace_label }
     ステータス：{ $status }{ $bound_label }
 topic_no_binding_defaults =  この { $scope } にバインドはありません（デフォルト設定を使用中）。
 topic_command_failed =  { $scope } コマンドが失敗しました：{ $error }
@@ -217,6 +225,7 @@ pairing_pending = アクセスリクエストは管理者の承認待ちです�
 pairing_submitted = アクセスリクエストを送信しました。管理者が近日中に審査します。
 mute_confirm = ミュートしました。今後はメンション時のみ応答します。
 search_not_configured = このエージェントにはウェブ検索が必要ですが、検索サービスが設定されていません。先に設定で検索サービスを追加・有効化してください。
+analyzing_image = 画像を解析中...
 search_unreachable = 検索サービスは設定されていますが、現在接続できません。検索サービスが正常に動作しているか確認してから再試行してください。
 daily_budget_blocked = 日次予算の上限に達しました。実行がブロックされました。Web 設定で予算上限を調整してから再試行してください。
 channel_budget_blocked = このチャンネルの日次予算に達しました。他のチャンネルや Web セッションには影響しません。チャンネルオーナーが設定 > 予算で上限を調整できます。
@@ -319,6 +328,8 @@ cat_Skills = スキル
 learn_not_configured = ℹ この環境ではスキル学習が設定されていません。
 learn_failed = ❌ 学習プロンプトの構築に失敗しました。再試行してください。
 reassurance_still_running = ⏳ 作業中 — { $elapsed } 分（{ $steps } ステップ{ $stage }）
+busy_ack_queued = ✅ 受信しました！Agent がビジーです — メッセージはキューに追加されました（{ $position }/{ $max_pending }）。
+busy_ack_queue_full = ⚠️ キューが満杯です — メッセージは保存されませんでした。後ほど再送してください。
 agent_picker_no_agents = エージェントが設定されていません。
 agent_picker_select = エージェントを選択してください：
 agent_picker_switched = 切り替えました：{ $name }
@@ -330,5 +341,6 @@ goal_completed =
 goal_failed =
     ❌ ゴール終了：「{ $objective }」
     { $turns } ターン · { $duration } 分 · { $files } ファイル変更
+deliverable_attached_only = 成果物が添付されました。
 deliverable_oversized_note = { $filename }（{ $size }）がチャンネルの添付ファイルサイズ上限を超えたため、添付されませんでした。
 deliverable_compressed_note = { $filename }（{ $size }）がチャンネルのサイズ制限を超えたため、圧縮版を送信しました。

@@ -93,6 +93,14 @@ export default function KanbanTaskDrawer({
             handleMove={drawer.handleMove}
             handleReclaim={drawer.handleReclaim}
             handleForcePromote={drawer.handleForcePromote}
+            showRejectDialog={drawer.showRejectDialog}
+            setShowRejectDialog={drawer.setShowRejectDialog}
+            rejectReason={drawer.rejectReason}
+            setRejectReason={drawer.setRejectReason}
+            approving={drawer.approving}
+            rejecting={drawer.rejecting}
+            handleApprove={drawer.handleApprove}
+            handleReject={drawer.handleReject}
             t={t}
           />
         </div>

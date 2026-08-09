@@ -200,6 +200,11 @@ async def test_runtime_stream_failure_invokes_failure_handler():
             new_callable=AsyncMock,
             return_value=False,
         ),
+        patch(
+            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         await trigger_goal_stream(
             "chat-4",

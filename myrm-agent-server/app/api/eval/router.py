@@ -465,6 +465,33 @@ async def run_memory_ab_evaluation(
             "error": f"Unknown WBBench subset: {request.subset_id}",
         }
 
+    # A memory A/B test is only meaningful when an embedding model is both
+    # configured and reachable: without one the memory-on arm silently
+    # degrades to a memory-free agent (tool_setup._create_memory_tools) and
+    # the run yields a misleading "memory has no effect" result. Fail fast
+    # before the WBBench download so the user gets explicit guidance instead.
+    from myrm_agent_harness.api.config import ConfigIncompleteError
+
+    from app.services.agent.platform_config import (
+        verify_platform_embedding_ready,
+    )
+
+    try:
+        await verify_platform_embedding_ready()
+    except ConfigIncompleteError as exc:
+        return {
+            "status": "error",
+            "error": exc.user_friendly_message.get("en", str(exc)),
+        }
+
+    # Re-check after the (potentially slow) embedding probe: two concurrent
+    # requests can both pass the pre-probe guard, and only the probe keeps
+    # the window open long enough to matter. The re-check is synchronous, so
+    # the following _init_memory_ab_state cannot be interleaved.
+    post_probe_status = get_memory_ab_status()
+    if post_probe_status.get("is_running"):
+        return {"status": "already_running", "info": post_probe_status}
+
     # Mark state as running synchronously before the response is sent (same
     # race guard as the WBBench run flow: BackgroundTasks start after the
     # response, so the SSE stream would otherwise read a stale idle frame).

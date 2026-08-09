@@ -320,6 +320,10 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
             "app.api.eval.router.get_memory_ab_status",
             return_value={"is_running": False},
         ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            new=AsyncMock(),
+        ),
         patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
@@ -331,6 +335,96 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         _, call_kwargs = mock_bg.call_args
         assert call_kwargs["subset_id"] == subset_id
         assert call_kwargs["profile_id"] == "agent_abc"
+
+    # missing embedding → explicit error, background task not started
+    from myrm_agent_harness.api.config import ConfigIncompleteError
+
+    with (
+        patch(
+            "app.api.eval.router.get_memory_ab_status",
+            return_value={"is_running": False},
+        ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            side_effect=ConfigIncompleteError(
+                user_friendly_message={
+                    "en": (
+                        "Embedding model is not configured. Set it in Settings "
+                        "> Retrieval."
+                    )
+                },
+                technical_details="missing embedding config",
+                resolution_steps=["Configure an embedding provider"],
+                error_code="embedding_not_configured",
+            ),
+        ) as mock_req,
+        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "Embedding" in res.json()["error"]
+        mock_req.assert_awaited_once()
+        mock_bg.assert_not_called()
+
+    # embedding configured but unreachable → explicit error, task not started
+    with (
+        patch(
+            "app.api.eval.router.get_memory_ab_status",
+            return_value={"is_running": False},
+        ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            side_effect=ConfigIncompleteError(
+                user_friendly_message={
+                    "en": (
+                        "Embedding model is configured but unreachable. Check "
+                        "the model name and API key in Settings > Retrieval."
+                    )
+                },
+                technical_details="embedding probe failed",
+                resolution_steps=[
+                    "Verify the model name and API key",
+                    "Verify the provider endpoint is reachable",
+                ],
+                error_code="embedding_unavailable",
+            ),
+        ) as mock_verify,
+        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "unreachable" in res.json()["error"]
+        mock_verify.assert_awaited_once()
+        mock_bg.assert_not_called()
+
+    # a run started while the probe was in flight → already_running (the
+    # post-probe re-check closes the concurrent-start window)
+    with (
+        patch(
+            "app.api.eval.router.get_memory_ab_status",
+            side_effect=[
+                {"is_running": False},
+                {"is_running": True, "stage": "downloading"},
+            ],
+        ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            new=AsyncMock(),
+        ),
+        patch("app.api.eval.router.run_memory_ab_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "already_running"
+        mock_bg.assert_not_called()
 
     # abort not running
     with patch("app.api.eval.router.abort_memory_ab", return_value=False):
@@ -362,6 +456,69 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
         assert res.status_code == 200
         assert res.json()["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_verify_platform_embedding_ready_probe_success() -> None:
+    """Readiness check returns the embedding config when the probe succeeds."""
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+        EmbeddingConfig,
+    )
+
+    from app.services.agent.platform_config import (
+        verify_platform_embedding_ready,
+    )
+
+    cfg = EmbeddingConfig(model="text-embedding-3-small", api_key="test-key")
+    mock_service = MagicMock()
+    mock_service.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+
+    with (
+        patch(
+            "app.services.agent.platform_config.require_platform_embedding_config",
+            new=AsyncMock(return_value=cfg),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.retriever.embedding.factory.get_embedding_service",
+            return_value=mock_service,
+        ),
+    ):
+        result = await verify_platform_embedding_ready()
+    assert result is cfg
+    mock_service.embed.assert_awaited_once_with("embedding readiness probe")
+
+
+@pytest.mark.asyncio
+async def test_verify_platform_embedding_ready_probe_failure() -> None:
+    """Readiness check raises embedding_unavailable when the probe fails."""
+    from myrm_agent_harness.api.config import ConfigIncompleteError
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+        EmbeddingConfig,
+    )
+
+    from app.services.agent.platform_config import (
+        verify_platform_embedding_ready,
+    )
+
+    cfg = EmbeddingConfig(model="text-embedding-3-small", api_key="bad-key")
+    mock_service = MagicMock()
+    mock_service.embed = AsyncMock(side_effect=RuntimeError("404 model not found"))
+
+    with (
+        patch(
+            "app.services.agent.platform_config.require_platform_embedding_config",
+            new=AsyncMock(return_value=cfg),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.retriever.embedding.factory.get_embedding_service",
+            return_value=mock_service,
+        ),
+    ):
+        with pytest.raises(ConfigIncompleteError) as excinfo:
+            await verify_platform_embedding_ready()
+    assert excinfo.value.error_code == "embedding_unavailable"
+    assert "unreachable" in excinfo.value.user_friendly_message["en"]
+    assert "404 model not found" in excinfo.value.technical_details
 
 
 class TestMemoryAbReportHistory:

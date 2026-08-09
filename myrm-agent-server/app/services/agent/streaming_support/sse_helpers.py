@@ -169,6 +169,7 @@ def schedule_clarification_timeout(
     async def resume_callback(resume_value: dict[str, object]) -> None:
         from langgraph.types import Command
 
+        from app.services.agent.runtime_context import build_agent_runtime_context, resolve_stream_execution_mode
         from app.services.agent.streaming import ai_agent_service_stream
         from app.services.chat.chat_service import ChatService
 
@@ -179,7 +180,8 @@ def schedule_clarification_timeout(
         next_approval_timeout: dict[str, object] | None = None
         clarification_pending = False
         directory_pending = False
-        async for chunk in ai_agent_service_stream(params=resume_params):
+        extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
+        async for chunk in ai_agent_service_stream(params=resume_params, extra_context=extra_context):
             sse_line = f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
             resume_collector.feed_sse(sse_line)
             next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
@@ -222,6 +224,7 @@ def schedule_directory_timeout(
     async def resume_callback(resume_value: dict[str, object]) -> None:
         from langgraph.types import Command
 
+        from app.services.agent.runtime_context import build_agent_runtime_context, resolve_stream_execution_mode
         from app.services.agent.streaming import ai_agent_service_stream
         from app.services.chat.chat_service import ChatService
 
@@ -232,7 +235,8 @@ def schedule_directory_timeout(
         next_approval_timeout: dict[str, object] | None = None
         clarification_pending = False
         directory_pending = False
-        async for chunk in ai_agent_service_stream(params=resume_params):
+        extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
+        async for chunk in ai_agent_service_stream(params=resume_params, extra_context=extra_context):
             sse_line = f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
             resume_collector.feed_sse(sse_line)
             next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
@@ -282,6 +286,7 @@ def schedule_approval_timeout(
     async def resume_callback(resume_value: dict[str, object]) -> None:
         from langgraph.types import Command
 
+        from app.services.agent.runtime_context import build_agent_runtime_context, resolve_stream_execution_mode
         from app.services.agent.streaming import ai_agent_service_stream
         from app.services.chat.chat_service import ChatService
 
@@ -290,7 +295,8 @@ def schedule_approval_timeout(
 
         resume_collector = StreamContentCollector()
         next_approval_timeout: dict[str, object] | None = None
-        async for chunk in ai_agent_service_stream(params=resume_params):
+        extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
+        async for chunk in ai_agent_service_stream(params=resume_params, extra_context=extra_context):
             sse_line = f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
             resume_collector.feed_sse(sse_line)
             next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout

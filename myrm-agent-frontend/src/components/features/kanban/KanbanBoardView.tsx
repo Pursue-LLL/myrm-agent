@@ -50,7 +50,7 @@ const KanbanGraphView = dynamic(() => import('./KanbanGraphView'), { ssr: false 
 const KanbanPipelineWizard = dynamic(() => import('./KanbanPipelineWizard'), { ssr: false });
 const BoardActivityFeed = dynamic(() => import('./BoardActivityFeed'), { ssr: false });
 
-const STATUS_COLUMNS: TaskStatus[] = ['triage', 'backlog', 'ready', 'running', 'blocked', 'completed', 'failed'];
+const STATUS_COLUMNS: TaskStatus[] = ['triage', 'backlog', 'ready', 'running', 'blocked', 'in_review', 'completed', 'failed'];
 
 const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   triage: 'bg-purple-500',
@@ -58,6 +58,7 @@ const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   ready: 'bg-primary',
   running: 'bg-chart-4',
   blocked: 'bg-destructive',
+  in_review: 'bg-amber-500',
   completed: 'bg-chart-2',
   failed: 'bg-destructive',
   archived: 'bg-muted-foreground/30',
@@ -262,6 +263,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       ready: [],
       running: [],
       blocked: [],
+      in_review: [],
       completed: [],
       failed: [],
       archived: [],
@@ -303,6 +305,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     setNewTaskGoalMode,
     newTaskGoalMaxTurns,
     setNewTaskGoalMaxTurns,
+    newTaskRequireApproval,
+    setNewTaskRequireApproval,
     newTaskAttachments,
     setNewTaskAttachments,
     toggleDep,
@@ -623,6 +627,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               branch={newTaskBranch}
                               goalMode={newTaskGoalMode}
                               goalMaxTurns={newTaskGoalMaxTurns}
+                              requireApproval={newTaskRequireApproval}
                               agents={agents}
                               enabledModels={kanbanEnabledModels}
                               allTasks={tasks}
@@ -641,6 +646,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                               onBranchChange={setNewTaskBranch}
                               onGoalModeChange={setNewTaskGoalMode}
                               onGoalMaxTurnsChange={setNewTaskGoalMaxTurns}
+                              onRequireApprovalChange={setNewTaskRequireApproval}
                               onSubmit={handleAddTask}
                               onCancel={resetAddForm}
                             />

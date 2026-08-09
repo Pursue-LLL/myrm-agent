@@ -17,7 +17,7 @@
 Artifact delivery helpers for ChannelAgentExecutor. Converts harness artifact
 events into IM media attachments and optional share-link buttons for HTML/PDF/docs.
 Oversized artifacts degrade to share buttons or user-facing notes; callers drop
-the note when a share button was produced.
+the note and matching attachments when a share button was produced.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from app.core.channel_bridge.executor_helpers import (
     ShareableArtifact,
     StreamAccumulator,
 )
+
 from .media import (
     MAX_CHANNEL_ATTACHMENT_BYTES,
     compress_oversized_image,
@@ -135,14 +136,14 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
 
 async def build_artifact_deep_links(
     acc: StreamAccumulator,
-    media_list: list[MediaAttachment],
     locale: str,
 ) -> tuple[tuple[ComponentRow, ...], frozenset[str]]:
     """Generate public share link buttons for shareable artifacts.
 
     Returns ``(components, linked_filenames)``. ``linked_filenames`` names the
     artifacts that received a working share button, so callers can suppress the
-    matching oversized-deliverable notes when deep links succeed.
+    matching oversized-deliverable notes and redundant attachments when deep
+    links succeed.
     """
     if not acc.shareable_artifacts:
         return (), frozenset()
@@ -199,9 +200,6 @@ async def build_artifact_deep_links(
             )
         )
         linked_filenames.add(filename)
-
-    if linked_filenames:
-        media_list[:] = [m for m in media_list if m.filename not in linked_filenames]
 
     if not buttons:
         return (), frozenset()

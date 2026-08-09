@@ -39,6 +39,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
   const [newTaskBranch, setNewTaskBranch] = useState('');
   const [newTaskGoalMode, setNewTaskGoalMode] = useState(false);
   const [newTaskGoalMaxTurns, setNewTaskGoalMaxTurns] = useState<number | null>(null);
+  const [newTaskRequireApproval, setNewTaskRequireApproval] = useState(false);
   const [newTaskAttachments, setNewTaskAttachments] = useState<KanbanAttachment[]>([]);
 
   const toggleDep = (taskId: string) => {
@@ -60,6 +61,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setNewTaskBranch('');
     setNewTaskGoalMode(false);
     setNewTaskGoalMaxTurns(null);
+    setNewTaskRequireApproval(false);
     setNewTaskAttachments([]);
   }, []);
 
@@ -85,6 +87,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
         max_runtime_seconds: newTaskMaxRuntime ?? undefined,
         goal_mode: newTaskGoalMode || undefined,
         goal_max_turns: newTaskGoalMaxTurns ?? undefined,
+        require_approval: newTaskRequireApproval || undefined,
         branch: newTaskBranch.trim() || undefined,
         initial_status: isTriageColumn ? 'triage' : undefined,
       });
@@ -101,6 +104,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
       setNewTaskBranch('');
       setNewTaskGoalMode(false);
       setNewTaskGoalMaxTurns(null);
+      setNewTaskRequireApproval(false);
       setNewTaskAttachments([]);
       setAddingColumn(null);
       await onCreated();
@@ -155,6 +159,8 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     setNewTaskGoalMode,
     newTaskGoalMaxTurns,
     setNewTaskGoalMaxTurns,
+    newTaskRequireApproval,
+    setNewTaskRequireApproval,
     newTaskAttachments,
     setNewTaskAttachments,
     toggleDep,

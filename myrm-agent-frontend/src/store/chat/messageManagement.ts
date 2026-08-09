@@ -48,6 +48,8 @@ const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_resear
 
 export interface LoadMessagesOptions {
   preserveInstantSessionConfig?: boolean;
+  /** 内部使用：attach 404 后重拉最新消息时跳过再次 attach，防止恢复循环。 */
+  skipActiveTurnAttach?: boolean;
 }
 
 function normalizeActionMode(actionMode: string | null | undefined): ActionMode {
@@ -84,7 +86,6 @@ export const loadMessages = async (
   options?: LoadMessagesOptions,
 ): Promise<void> => {
   const preserveInstantSessionConfig = options?.preserveInstantSessionConfig ?? false;
-
   try {
     actions.setMessages((state) => {
       state.loading = true;
@@ -165,6 +166,21 @@ export const loadMessages = async (
       restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
     }
 
+    if (!preserveInstantSessionConfig && !options?.skipActiveTurnAttach) {
+      console.log('[MYRM-ATTACH] loadMessages triggers maybeAttachToActiveTurn', {
+        chatId,
+        preserveInstantSessionConfig,
+        skip: options?.skipActiveTurnAttach,
+      });
+      void maybeAttachToActiveTurn(chatId, actions);
+    } else {
+      console.log('[MYRM-ATTACH] loadMessages SKIPS attach', {
+        chatId,
+        preserveInstantSessionConfig,
+        skip: options?.skipActiveTurnAttach,
+      });
+    }
+
     apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`).then((res) => {
       if (res?.active && useChatStore.getState().chatId === chatId) {
         useChatStore.getState().setSandboxMode(true);
@@ -213,6 +229,49 @@ export const loadMessages = async (
     });
   }
 };
+
+/** 正在尝试恢复进行中 agent 执行的 chat，防止并发重复 attach。 */
+const activeTurnAttachInFlight = new Set<string>();
+
+/**
+ * 页面重载 / 重新进入 chat 后，若最后一条是 user 消息且无 assistant 回复，
+ * agent 可能仍在后端执行。尝试 attachToChat 恢复 SSE 流；
+ * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在"已发送未回复"。
+ */
+async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMethods): Promise<void> {
+  if (activeTurnAttachInFlight.has(chatId)) return;
+
+  const state = useChatStore.getState();
+  console.log('[MYRM-ATTACH] maybeAttachToActiveTurn guard check', {
+    chatId,
+    stateChatId: state.chatId,
+    loading: state.loading,
+    hasAbort: Boolean(state.abortController),
+    msgCount: (state.messages ?? []).length,
+    lastRole: (state.messages ?? [])[(state.messages ?? []).length - 1]?.role,
+  });
+  if (state.chatId !== chatId || state.loading || state.abortController) return;
+
+  const messages = state.messages ?? [];
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== 'user') return;
+
+  activeTurnAttachInFlight.add(chatId);
+  try {
+    console.log('[MYRM-ATTACH] calling attachToChat', chatId);
+    const { attachToChat } = await import('./messageRequest');
+    const attached = await attachToChat(chatId, actions, useChatStore.getState);
+    console.log('[MYRM-ATTACH] attachToChat done', { chatId, attached });
+    if (!attached) {
+      // Agent finished before we could attach — refetch final messages.
+      await loadMessages(chatId, actions, { skipActiveTurnAttach: true });
+    }
+  } catch (error) {
+    console.warn('Failed to resume active agent turn:', error);
+  } finally {
+    activeTurnAttachInFlight.delete(chatId);
+  }
+}
 
 /**
  * 加载更早的消息（向上滚动触发）

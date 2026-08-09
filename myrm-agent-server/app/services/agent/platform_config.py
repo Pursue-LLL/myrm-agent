@@ -8,6 +8,8 @@
 - build_platform_litellm_kwargs: LiteLLM 调用参数（无 env fallback）
 - webui_model_preflight_warning: local/tauri 启动前 WebUI 模型缺失 warning（不阻塞）
 - resolve_xai_search_config: 从 providers 解析 xAI 凭据
+- require_platform_embedding_config: WebUI 检索设置中 embedding 配置结构检查（缺失即抛 ConfigIncompleteError）
+- verify_platform_embedding_ready: embedding 配置结构检查 + 真实探活（不可用即抛 ConfigIncompleteError）
 
 [POS]
 业务级模型/检索配置入口。禁止从进程环境读取 LLM/Embedding 密钥。
@@ -21,7 +23,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from myrm_agent_harness.api import ConfigIncompleteError
+from myrm_agent_harness.api.config import ConfigIncompleteError
 
 from app.core.types import ModelConfig
 
@@ -114,8 +116,6 @@ async def load_platform_retrieval_configs() -> tuple[object | None, object | Non
 
 async def require_platform_embedding_config() -> object:
     """Embedding config from WebUI; raises if not configured."""
-    from myrm_agent_harness.api import ConfigIncompleteError
-
     embedding_cfg, _ = await load_platform_retrieval_configs()
     if embedding_cfg is None:
         raise ConfigIncompleteError(
@@ -130,6 +130,48 @@ async def require_platform_embedding_config() -> object:
             ],
             error_code="embedding_not_configured",
         )
+    return embedding_cfg
+
+
+async def verify_platform_embedding_ready() -> object:
+    """Embedding config from WebUI; raises if missing or unreachable.
+
+    Structural check from ``require_platform_embedding_config`` plus a real
+    embedding probe. A memory-on evaluation arm silently degrades to a
+    memory-free agent when the embedding backend is unusable (tool_setup
+    drops memory tools on any exception), so a configured-but-unreachable
+    model would yield a misleading "memory has no effect" result. This
+    readiness check is only used by heavy eval entry points, never by the
+    shared ``require_platform_embedding_config`` callers.
+    """
+    from typing import cast
+
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+        EmbeddingConfig,
+        get_embedding_service,
+    )
+
+    embedding_cfg = await require_platform_embedding_config()
+    service = get_embedding_service(cast(EmbeddingConfig, embedding_cfg))
+    try:
+        await service.embed("embedding readiness probe")
+    except Exception as exc:
+        raise ConfigIncompleteError(
+            user_friendly_message={
+                "en": (
+                    "Embedding model is configured but unreachable. Check the "
+                    "model name and API key in Settings > Retrieval."
+                ),
+                "zh": "Embedding 模型已配置但无法访问，请在设置 > 检索中检查模型名称与 API Key。",
+            },
+            technical_details=f"embedding readiness probe failed: {exc}",
+            resolution_steps=[
+                "Go to Settings > Retrieval / Memory",
+                "Verify the model name and API key are correct",
+                "Verify the provider endpoint is reachable",
+            ],
+            error_code="embedding_unavailable",
+        ) from exc
     return embedding_cfg
 
 

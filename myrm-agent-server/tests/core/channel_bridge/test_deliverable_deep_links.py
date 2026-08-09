@@ -1,7 +1,7 @@
 """Unit tests for artifact deep link injection in ChannelAgentExecutor.
 
 Tests collect_channel_artifacts shareable artifact tracking,
-build_artifact_deep_links URL generation + redundant attachment removal,
+build_artifact_deep_links URL generation + linked-filename reporting,
 and _fetch_artifact_versions DB batch lookup.
 """
 
@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.types import MediaAttachment, MediaType
 from app.core.channel_bridge.executor_helpers import (
     ShareableArtifact,
     StreamAccumulator,
@@ -126,7 +125,7 @@ class TestBuildArtifactDeepLinks:
         )
 
         acc = StreamAccumulator()
-        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        buttons, linked = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
         assert linked == frozenset()
 
@@ -169,21 +168,12 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        media_list = [
-            MediaAttachment(
-                media_type=MediaType.DOCUMENT,
-                path="/tmp/chart.html",
-                filename="chart.html",
-                mime_type="text/html",
-            ),
-        ]
-        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
+        buttons, linked = await build_artifact_deep_links(acc, "en")
         assert len(buttons) == 1
         btn = buttons[0]
         assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
         assert btn.label == "View interactive page"
         assert linked == frozenset({"chart.html"})
-        assert len(media_list) == 0
 
     @pytest.mark.asyncio
     @patch(
@@ -214,7 +204,7 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        buttons, linked = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
         assert linked == frozenset()
 
@@ -241,18 +231,9 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        media_list = [
-            MediaAttachment(
-                media_type=MediaType.DOCUMENT,
-                path="/tmp/chart.html",
-                filename="chart.html",
-                mime_type="text/html",
-            ),
-        ]
-        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
+        buttons, linked = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
         assert linked == frozenset()
-        assert len(media_list) == 1
 
     @pytest.mark.asyncio
     @patch(
@@ -296,34 +277,11 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-002", "b.pdf", "application/pdf")
         )
-        media_list = [
-            MediaAttachment(
-                media_type=MediaType.DOCUMENT,
-                path="/tmp/a.html",
-                filename="a.html",
-                mime_type="text/html",
-            ),
-            MediaAttachment(
-                media_type=MediaType.DOCUMENT,
-                path="/tmp/b.pdf",
-                filename="b.pdf",
-                mime_type="application/pdf",
-            ),
-            MediaAttachment(
-                media_type=MediaType.IMAGE,
-                path="/tmp/photo.jpg",
-                filename="photo.jpg",
-                mime_type="image/jpeg",
-            ),
-        ]
-        buttons, linked = await build_artifact_deep_links(acc, media_list, "zh")
+        buttons, linked = await build_artifact_deep_links(acc, "zh")
         assert len(buttons) == 2
         # channel_t called with artifact_deep_link_named for multi
         assert mock_t.call_args_list[0].args[1] == "artifact_deep_link_named"
-        # Only non-linked attachment remains
         assert linked == frozenset({"a.html", "b.pdf"})
-        assert len(media_list) == 1
-        assert media_list[0].filename == "photo.jpg"
 
     @pytest.mark.asyncio
     @patch(
@@ -361,19 +319,10 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html")
         )
-        media_list = [
-            MediaAttachment(
-                media_type=MediaType.DOCUMENT,
-                path="/tmp/chart.html",
-                filename="chart.html",
-                mime_type="text/html",
-            ),
-        ]
-        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
-        # Token failed, no buttons generated, but media_list untouched
+        buttons, linked = await build_artifact_deep_links(acc, "en")
+        # Token failed, no buttons generated, nothing linked.
         assert buttons == ()
         assert linked == frozenset()
-        assert len(media_list) == 1
 
 
 class TestCollectMultipleArtifacts:
@@ -430,7 +379,7 @@ class TestCollectMultipleArtifacts:
             ShareableArtifact("art-001", "report.pdf", "application/pdf"),
         )
         acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
-        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        buttons, linked = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
         assert linked == frozenset()
         # Note must stay present when no button was produced.

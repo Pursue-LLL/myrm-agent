@@ -79,7 +79,7 @@ def test_oversized_image_compressed_into_attachment(
 
     stripped, attachments, oversized, compressed, tmp_paths = (
         collect_deliverable_paths_from_text(
-            f"Chart: workspace/big_chart.png",
+            "Chart: workspace/big_chart.png",
             workspace_root=str(tmp_path),
         )
     )

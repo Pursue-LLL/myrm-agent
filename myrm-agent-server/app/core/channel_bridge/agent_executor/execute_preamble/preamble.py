@@ -34,12 +34,12 @@ from app.services.agent.profile_resolver import (
     get_agent_profile_resolver,
 )
 
+from ..helpers import build_channel_inbound_query
+from ..session import build_channel_budget_key
 from .agent import build_channel_execution_agent
 from .instructions import enrich_channel_user_instructions
 from .session import resolve_channel_session_context
 from .types import ChannelExecutionPrep, PrepareChannelExecutionResult
-from ..helpers import build_channel_inbound_query
-from ..session import build_channel_budget_key
 
 if TYPE_CHECKING:
     from ..executor import ChannelAgentExecutor

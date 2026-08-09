@@ -92,6 +92,7 @@ def task_to_domain(m: KanbanTaskModel) -> KanbanTask:
         max_runtime_seconds=m.max_runtime_seconds,
         goal_mode=m.goal_mode,
         goal_max_turns=m.goal_max_turns,
+        require_approval=m.require_approval,
         extra_skill_ids=m.extra_skill_ids_json or [],
         retry_count=m.retry_count,
         max_retries=m.max_retries,
@@ -127,6 +128,7 @@ def task_to_model(t: KanbanTask) -> KanbanTaskModel:
         max_runtime_seconds=t.max_runtime_seconds,
         goal_mode=t.goal_mode,
         goal_max_turns=t.goal_max_turns,
+        require_approval=t.require_approval,
         retry_count=t.retry_count,
         max_retries=t.max_retries,
         consecutive_failures=t.consecutive_failures,
@@ -158,6 +160,7 @@ def apply_task_to_model(t: KanbanTask, m: KanbanTaskModel) -> None:
     m.max_runtime_seconds = t.max_runtime_seconds
     m.goal_mode = t.goal_mode
     m.goal_max_turns = t.goal_max_turns
+    m.require_approval = t.require_approval
     m.retry_count = t.retry_count
     m.max_retries = t.max_retries
     m.consecutive_failures = t.consecutive_failures

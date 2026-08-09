@@ -210,6 +210,11 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
             "app.core.channel_bridge.config_parsers.resolve_vision_fallback_chain_for_agent",
             return_value=(None, []),
         ),
+        patch(
+            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         await trigger_goal_stream("chat-ko-1", goal)
         await asyncio.sleep(0.05)
@@ -323,6 +328,11 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
             "app.core.channel_bridge.config_parsers.resolve_vision_fallback_chain_for_agent",
             return_value=(None, []),
         ),
+        patch(
+            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            new_callable=AsyncMock,
+            return_value=["skills/prebuilt/off"],
+        ),
     ):
         await trigger_goal_stream("chat-provider-1", goal, provider=provider)
         await asyncio.sleep(0.05)
@@ -330,7 +340,11 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     assert captured_params.get("enable_memory") is True  # enableMemory=True → enabled
     assert len(stream_calls) == 1
     _, stream_kwargs = stream_calls[0]
-    assert stream_kwargs.get("extra_context") == {"goal_provider": provider}
+    extra_context = stream_kwargs.get("extra_context")
+    assert isinstance(extra_context, dict)
+    assert extra_context["goal_provider"] is provider
+    assert extra_context["execution_mode"] == "pooled"
+    assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]
 
 
 @pytest.mark.asyncio

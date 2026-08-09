@@ -8,8 +8,9 @@
 - build_agent_runtime_context: merge execution_mode + disabled_skill_roots into a context dict
 
 [POS]
-Business-layer helper so every agent entrypoint (Web, IM, Cron, Kanban, eval, wakeup)
-passes the same runtime context keys to the harness, including disabled skill path filtering.
+Business-layer helper so every agent entrypoint (Web, IM, Cron, Kanban, Eval, Wakeup,
+Goal stream, timeout auto-resume, offline recovery) passes the same runtime context keys
+to the harness, including disabled skill path filtering.
 """
 
 from __future__ import annotations
