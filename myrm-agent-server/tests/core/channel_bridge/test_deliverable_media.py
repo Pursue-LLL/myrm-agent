@@ -96,3 +96,55 @@ def test_compress_returns_none_when_cap_too_small(tmp_path: Path) -> None:
     src = tmp_path / "tiny.png"
     Image.new("RGB", (8, 8), (1, 1, 1)).save(src, format="PNG")
     assert compress_oversized_image(src, max_bytes=1) is None
+
+
+def test_compress_webp_rgba_flattened_to_white(tmp_path: Path) -> None:
+    """Quality-mode image (WEBP) with transparency is flattened onto white."""
+    from PIL import Image
+
+    src = tmp_path / "overlay.webp"
+    Image.new("RGBA", (400, 400), (0, 0, 0, 0)).save(src, format="WEBP")
+
+    result = compress_oversized_image(src, max_bytes=50_000)
+    assert result is not None
+    try:
+        with Image.open(result) as out:
+            assert out.mode == "RGB"
+            # Original fully transparent → flattened onto white → pixel is white.
+            assert out.getpixel((0, 0)) == (255, 255, 255)
+    finally:
+        result.unlink(missing_ok=True)
+
+
+def test_compress_jpeg_greyscale_converted(tmp_path: Path) -> None:
+    """Greyscale (L) JPEG is re-encoded as RGB JPEG."""
+    from PIL import Image
+
+    src = tmp_path / "gray.jpg"
+    Image.new("L", (300, 300), 128).save(src, format="JPEG", quality=95)
+
+    result = compress_oversized_image(src, max_bytes=30_000)
+    assert result is not None
+    try:
+        with Image.open(result) as out:
+            assert out.mode == "RGB"
+            assert out.format == "JPEG"
+    finally:
+        result.unlink(missing_ok=True)
+
+
+def test_compress_png_palette_converted(tmp_path: Path) -> None:
+    """Palette (P) PNG is expanded to RGBA before re-encoding."""
+    from PIL import Image
+
+    src = tmp_path / "palette.png"
+    rgb = Image.new("RGB", (200, 200), (30, 60, 90))
+    rgb.convert("P", palette=Image.ADAPTIVE).save(src, format="PNG")
+
+    result = compress_oversized_image(src, max_bytes=40_000)
+    assert result is not None
+    try:
+        with Image.open(result) as out:
+            assert out.mode in {"RGBA", "LA"}
+    finally:
+        result.unlink(missing_ok=True)

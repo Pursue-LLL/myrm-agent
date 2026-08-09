@@ -166,3 +166,71 @@ def test_oversized_uncompressible_image_reported_as_note(
     assert compressed == []
     assert tmp_paths == []
     assert oversized[0][0] == "photo.gif"
+
+
+def test_resolve_rejects_path_traversal(tmp_path: Path) -> None:
+    """Tokens escaping the workspace root must never resolve to a file."""
+    secret = tmp_path.parent / "secret.pdf"
+    secret.write_bytes(b"%PDF-1.4")
+    resolved = resolve_deliverable_path("../secret.pdf", str(tmp_path))
+    assert resolved is None
+
+
+def test_resolve_rejects_missing_extension(tmp_path: Path) -> None:
+    f = tmp_path / "notes.txt"
+    f.write_text("hello")
+    assert resolve_deliverable_path("workspace/notes", str(tmp_path)) is None
+    assert resolve_deliverable_path("", str(tmp_path)) is None
+    assert resolve_deliverable_path("workspace/notes.txt", None) is None
+
+
+def test_resolve_plain_relative_path(tmp_path: Path) -> None:
+    """A bare relative path (no workspace/ prefix) resolves inside root."""
+    report = tmp_path / "out.md"
+    report.write_text("# done")
+    assert resolve_deliverable_path("out.md", str(tmp_path)) == report.resolve()
+
+
+def test_collect_skips_empty_file(tmp_path: Path) -> None:
+    empty = tmp_path / "empty.csv"
+    empty.write_bytes(b"")
+    text, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            "Here: workspace/empty.csv",
+            workspace_root=str(tmp_path),
+        )
+    )
+    assert attachments == []
+    assert oversized == []
+    assert compressed == []
+    assert tmp_paths == []
+    assert "workspace/empty.csv" in text
+
+
+def test_collect_deduplicates_against_existing_filenames(tmp_path: Path) -> None:
+    """A filename already attached by another source is dropped (token removed)."""
+    dup = tmp_path / "report.pdf"
+    dup.write_bytes(b"%PDF-1.4")
+    text, attachments, _oversized, _compressed, _tmp = (
+        collect_deliverable_paths_from_text(
+            "See workspace/report.pdf",
+            workspace_root=str(tmp_path),
+            existing_filenames={"report.pdf"},
+        )
+    )
+    assert attachments == []
+    assert "workspace/report.pdf" not in text
+
+
+def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
+    text, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            "No files here.",
+            workspace_root=str(tmp_path),
+        )
+    )
+    assert text == "No files here."
+    assert attachments == []
+    assert oversized == []
+    assert compressed == []
+    assert tmp_paths == []

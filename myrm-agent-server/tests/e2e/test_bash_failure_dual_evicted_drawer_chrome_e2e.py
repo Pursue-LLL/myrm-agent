@@ -174,7 +174,27 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
         page,
     ):
         dismiss_blocking_modals(client, page)
-        loaded = wait_for_state(client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0)
+        try:
+            loaded = wait_for_state(
+                client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0
+            )
+        except AssertionError:
+            try:
+                diag = client.evaluate(
+                    page,
+                    """(() => ({
+                      body: (document.body?.innerText || '').slice(0, 1600),
+                      hasStore: !!window.__myrmChatStore,
+                      storeMsgs: (window.__myrmChatStore?.getState?.()?.messages || []).length,
+                      apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+                      href: location.href,
+                    }))()""",
+                    timeout_sec=10.0,
+                )
+                print(f"PAGE_DIAG={json.dumps(diag, ensure_ascii=False)}")
+            except Exception as diag_exc:  # noqa: BLE001 - diagnostic only
+                print(f"PAGE_DIAG_FAILED={diag_exc!r}")
+            raise
         assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
         dom_ready = wait_for_state(client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0)
