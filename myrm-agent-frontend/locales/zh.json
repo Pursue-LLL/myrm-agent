@@ -11615,6 +11615,7 @@
       "backlog": "待办",
       "ready": "就绪",
       "running": "执行中",
+      "runningWithLimit": "执行中: {count}/{limit}",
       "verifying": "验收中",
       "blocked": "已阻塞",
       "in_review": "审核中",

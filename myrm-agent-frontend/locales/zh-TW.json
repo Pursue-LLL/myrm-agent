@@ -11550,6 +11550,7 @@
       "backlog": "待辦",
       "ready": "就緒",
       "running": "執行中",
+      "runningWithLimit": "執行中: {count}/{limit}",
       "verifying": "驗收中",
       "blocked": "已阻塞",
       "completed": "已完成",

@@ -11323,6 +11323,7 @@
       "backlog": "백로그",
       "ready": "준비됨",
       "running": "실행 중",
+      "runningWithLimit": "실행 중: {count}/{limit}",
       "verifying": "검증 중",
       "blocked": "차단됨",
       "completed": "완료됨",
