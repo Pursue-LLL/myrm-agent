@@ -542,11 +542,11 @@ function isBraceBalanced(value) {
 const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 
 /**
- * 拉丁/谚文系语言（ko/de）纯净性门禁的非本语言文字范围：汉字（U+4E00–U+9FFF）
- * + 日文假名（U+3040–U+30FF）。ko（谚文）与 de（拉丁）文案中出现即代表残留。
- * 不含谚文（ko 合法字符）与全角符号；与 NON_LATIN_RE 的差异在于不误伤这两门语言的合法字符。
+ * 拉丁/谚文系语言（ko/de）纯净性门禁的非本语言文字范围：汉字（U+3400–U+9FFF，
+ * 含扩展A区）+ 日文假名（U+3040–U+30FF）。ko（谚文）与 de（拉丁）文案中出现即代表残留。
+ * 不含谚文（ko 合法字符）与全角符号；汉字范围与 en 9f NON_LATIN_RE 对齐。
  */
-const FOREIGN_SCRIPT_RE = /[\u3040-\u30ff\u4e00-\u9fff]/;
+const FOREIGN_SCRIPT_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/;
 
 /**
  * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
