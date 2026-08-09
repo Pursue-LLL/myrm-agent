@@ -365,6 +365,6 @@ def _scoring_mode_for(subset: WbBenchSubset) -> str:
 # patches keep working; the implementation lives in wb_bench_workspace. The
 # import stays at the bottom to avoid a module-level cycle (wb_bench_workspace
 # imports this module at top level).
-from .wb_bench_workspace import (
-    build_wb_bench_cases as build_wb_bench_cases,  # noqa: E402, F401
+from .wb_bench_workspace import (  # noqa: E402
+    build_wb_bench_cases as build_wb_bench_cases,  # noqa: F401
 )

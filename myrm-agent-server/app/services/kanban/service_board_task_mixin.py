@@ -51,9 +51,6 @@ from app.services.kanban.dependency_ops import (
     remove_dependency as run_remove_dependency,
 )
 from app.services.kanban.move_orchestrator import (
-    approve_task as run_approve_task,
-)
-from app.services.kanban.move_orchestrator import (
     cancel_task_execution as run_cancel_task_execution,
 )
 from app.services.kanban.move_orchestrator import (
@@ -62,7 +59,10 @@ from app.services.kanban.move_orchestrator import (
 from app.services.kanban.move_orchestrator import (
     reclaim_task as run_reclaim_task,
 )
-from app.services.kanban.move_orchestrator import (
+from app.services.kanban.review_ops import (
+    approve_task as run_approve_task,
+)
+from app.services.kanban.review_ops import (
     reject_task as run_reject_task,
 )
 from app.services.kanban.service_core import KanbanServiceCore

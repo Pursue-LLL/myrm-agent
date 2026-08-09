@@ -8,7 +8,7 @@
 - service_types (POS: Kanban service shared types.)
 
 [OUTPUT]
-- move_task, reclaim_task, cancel_running_task
+- move_task, reclaim_task, cancel_task_execution (approve/reject live in review_ops)
 
 [POS]
 Task state transition orchestration: move, reclaim, cancel with dependency and event handling.
@@ -237,93 +237,6 @@ async def move_task(
         status=saved.status.value,
     )
     return saved
-
-
-async def approve_task(
-    store: SqlAlchemyKanbanStore,
-    dispatchers: dict[str, KanbanDispatcher],
-    task_id: str,
-    *,
-    approver: str | None = None,
-) -> KanbanTask | None:
-    """Approve an IN_REVIEW task: promote to COMPLETED and release dependents.
-
-    Delegates to the board dispatcher (source of truth for the state machine).
-    Falls back to a direct store transition when no dispatcher is running.
-    """
-    task = await store.get_task(task_id)
-    if task is None:
-        return None
-    dispatcher = dispatchers.get(task.board_id)
-    if dispatcher:
-        return await dispatcher.approve_task(task_id, approver=approver)
-
-    if task.status != TaskStatus.IN_REVIEW:
-        raise ValueError(
-            f"Cannot approve task in status '{task.status.value}'; only IN_REVIEW tasks can be approved"
-        )
-    task.status = TaskStatus.COMPLETED
-    task.completed_at = datetime.now(UTC)
-    await store.save_task(task)
-    await store.append_event(
-        task_id,
-        TaskEventKind.APPROVED,
-        payload={"approver": approver or "human"},
-    )
-    await promote_dependents(store, task_id)
-    publish_kanban_event(
-        task.board_id,
-        task_id,
-        "approved",
-        title=task.title,
-        detail=task.result or "",
-        status=task.status.value,
-    )
-    return task
-
-
-async def reject_task(
-    store: SqlAlchemyKanbanStore,
-    dispatchers: dict[str, KanbanDispatcher],
-    task_id: str,
-    *,
-    reason: str,
-    approver: str | None = None,
-) -> KanbanTask | None:
-    """Reject an IN_REVIEW task: send it back to READY for rework.
-
-    The rejection reason is persisted on the event trail and echoed into the
-    worker context (via prior-attempt error) so a re-run adapts.
-    """
-    task = await store.get_task(task_id)
-    if task is None:
-        return None
-    dispatcher = dispatchers.get(task.board_id)
-    if dispatcher:
-        return await dispatcher.reject_task(task_id, reason=reason, approver=approver)
-
-    if task.status != TaskStatus.IN_REVIEW:
-        raise ValueError(
-            f"Cannot reject task in status '{task.status.value}'; only IN_REVIEW tasks can be rejected"
-        )
-    task.status = TaskStatus.READY
-    task.error = reason
-    task.consecutive_failures = 0
-    await store.save_task(task)
-    await store.append_event(
-        task_id,
-        TaskEventKind.REJECTED,
-        payload={"reason": reason, "approver": approver or "human"},
-    )
-    publish_kanban_event(
-        task.board_id,
-        task_id,
-        "rejected",
-        title=task.title,
-        detail=reason,
-        status=task.status.value,
-    )
-    return task
 
 
 async def cancel_task_execution(
