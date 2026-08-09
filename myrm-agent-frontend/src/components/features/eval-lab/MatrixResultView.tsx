@@ -10,6 +10,7 @@ interface MatrixProfileResult {
   total_tokens: number;
   total_cost: number;
   total_ms: number;
+  memory_tool_calls?: number;
 }
 
 interface MatrixCell {
@@ -47,6 +48,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
 
   const getProfileLabel = (pid: string) => profileNames?.[pid] || pid.slice(0, 8);
   const failedAllCount = report.total_cases - report.stable_count - report.regression_count;
+  const showMemoryCalls = report.profile_ids.some((pid) => report.per_profile[pid]?.memory_tool_calls != null);
 
   return (
     <div className="space-y-6 max-w-full mx-auto overflow-x-auto">
@@ -90,6 +92,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
               <th className="px-4 py-3 font-medium">{t('tokens')}</th>
               <th className="px-4 py-3 font-medium">{t('cost')}</th>
               <th className="px-4 py-3 font-medium">{t('time')}</th>
+              {showMemoryCalls && <th className="px-4 py-3 font-medium">{t('memoryCalls')}</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -108,6 +111,9 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                   <td className="px-4 py-3">{pr.total_tokens.toLocaleString()}</td>
                   <td className="px-4 py-3">${pr.total_cost.toFixed(4)}</td>
                   <td className="px-4 py-3">{(pr.total_ms / 1000).toFixed(1)}s</td>
+                  {showMemoryCalls && (
+                    <td className="px-4 py-3">{pr.memory_tool_calls ?? 0}</td>
+                  )}
                 </tr>
               );
             })}

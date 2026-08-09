@@ -115,7 +115,8 @@ _start_backend_bg() {
         fi
         rm -f "${pid_file}" "${identity_file}"
       else
-        if ! curl -sf --max-time 3 "${health_url}" >/dev/null 2>&1; then
+        local health_timeout="${MYRM_BACKEND_HEALTH_TIMEOUT_SEC:-8}"
+        if ! curl -sf --max-time "${health_timeout}" "${health_url}" >/dev/null 2>&1; then
           local stack_epoch_lib_heal monorepo_root_heal agent_root_heal active_leases_heal
           stack_epoch_lib_heal="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
           if [[ -f "${stack_epoch_lib_heal}" ]]; then
@@ -154,6 +155,16 @@ except Exception:
               echo "Backend starting (pid ${old_pid})"
               return 0
             fi
+          fi
+          # Port truth: process alive AND port still owned by old_pid ⇒ slow health probe,
+          # not a crash. Under high load the HTTP probe can time out while the backend
+          # keeps serving — never heal-kill a backend that still owns its listen port.
+          local port_listener_pid
+          port_listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+          if [[ "${port_listener_pid}" == "${old_pid}" ]]; then
+            echo "STACK_WARN: backend alive on :${backend_port} but health probe slow (pid=${old_pid}) — defer kill" >&2
+            echo "Backend already running (pid ${old_pid})"
+            return 0
           fi
           echo "STACK_HEAL: backend PID alive but not responding (pid=${old_pid}) — kill and restart" >&2
           kill -TERM "${old_pid}" 2>/dev/null || true
@@ -250,10 +261,20 @@ except Exception:
   : >"${log_file}"
   export PYTHONUNBUFFERED=1
   # Record $! against the Python backend, not a nohup wrapper (macOS ps shows "(nohup)").
+  # macOS has no setsid(1). Without a dedicated session the backend inherits the
+  # caller's process group and dies whenever that group is signalled (test
+  # cleanup, supervisor kill). Use a tiny Python launcher that calls
+  # os.setsid() before exec'ing run.py, guaranteeing an independent session on
+  # every platform. The launcher keeps the exact argv of run.py so the
+  # ownership identity record (expected-command-token "run.py") stays valid.
   if command -v setsid >/dev/null 2>&1; then
     setsid "${py}" run.py >>"${log_file}" 2>&1 &
   else
-    "${py}" run.py >>"${log_file}" 2>&1 &
+    "${py}" -c '
+import os, sys
+os.setsid()
+os.execv(sys.argv[1], sys.argv[1:])
+' "${py}" run.py >>"${log_file}" 2>&1 &
     disown -h $! 2>/dev/null || true
   fi
   local new_pid

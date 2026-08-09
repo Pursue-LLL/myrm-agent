@@ -29,7 +29,7 @@ Vitest 全局测试基础设施与**跨模块集成测试**入口。`setup.ts` �
 
 ## 依赖
 
-- `vitest.config.ts` — alias `@`、`@shared`、`#locales`
+- `vitest.config.ts` — alias `@`、`@shared`、`#locales`；`server.deps.inline: ['zod']`（zod v4 ESM 命名空间再导出在 bun 运行时 Vite SSR transform 下丢失 `z` 绑定，inline 走 vite 解析编译入口，修复 `z.object` undefined）
 - `bun run verify:i18n` — `pretest` 门禁
 
 ## 约束

@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, DownloadCloud, HardDrive, Play, RefreshCw, Boxes } from 'lucide-react';
+import { Database, DownloadCloud, HardDrive, Play, RefreshCw, Boxes, BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/primitives/dialog';
 
 interface WbBenchSource {
   id: string;
@@ -32,6 +40,7 @@ interface Props {
   history: ReportItem[];
   onRun: (subsetId: string) => void;
   onDownload: (subsetId: string) => void;
+  onMemoryAb: (subsetId: string) => void;
   refreshToken: number;
   downloadingSubsetId: string | null;
   downloadProgress: { downloaded_bytes: number; total_bytes: number } | null;
@@ -49,14 +58,17 @@ export default function WbBenchSources({
   history,
   onRun,
   onDownload,
+  onMemoryAb,
   refreshToken,
   downloadingSubsetId,
   downloadProgress,
 }: Props) {
   const t = useTranslations('evalLab.wbBench');
+  const tMemoryAb = useTranslations('evalLab.memoryAb');
   const [sources, setSources] = useState<WbBenchSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingMemoryAbSubset, setPendingMemoryAbSubset] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
     try {
@@ -231,20 +243,30 @@ export default function WbBenchSources({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2 mt-auto">
+                  <div className="flex items-center justify-between gap-2 mt-auto flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onDownload(source.id)}
                       disabled={running || source.is_downloaded}
-                      className="flex-1"
+                      className="flex-1 min-w-[96px]"
                     >
                       <DownloadCloud className="w-4 h-4" />
                       {source.is_downloaded ? t('downloaded') : downloadingThis ? t('downloading') : t('download')}
                     </Button>
-                    <Button size="sm" onClick={() => onRun(source.id)} disabled={running} className="flex-1">
+                    <Button size="sm" onClick={() => onRun(source.id)} disabled={running} className="flex-1 min-w-[96px]">
                       <Play className="w-4 h-4" />
                       {running ? t('running') : t('run')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setPendingMemoryAbSubset(source.id)}
+                      disabled={running}
+                      className="flex-1 min-w-[96px]"
+                    >
+                      <BrainCircuit className="w-4 h-4" />
+                      {t('memoryAb')}
                     </Button>
                   </div>
                 </CardContent>
@@ -253,6 +275,35 @@ export default function WbBenchSources({
           })}
         </div>
       </div>
+
+      <Dialog
+        open={pendingMemoryAbSubset != null}
+        onOpenChange={(open) => !open && setPendingMemoryAbSubset(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              {tMemoryAb('confirmTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">{tMemoryAb('confirmBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingMemoryAbSubset(null)}>
+              {tMemoryAb('confirmCancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                const subsetId = pendingMemoryAbSubset;
+                setPendingMemoryAbSubset(null);
+                if (subsetId) onMemoryAb(subsetId);
+              }}
+            >
+              {tMemoryAb('confirmStart')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

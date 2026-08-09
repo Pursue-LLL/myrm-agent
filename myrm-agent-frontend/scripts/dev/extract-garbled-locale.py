@@ -11,6 +11,7 @@ import sys
 
 ROOT = "locales"
 
+
 def walk(obj, path=""):
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -18,11 +19,15 @@ def walk(obj, path=""):
     else:
         yield path, obj
 
+
 # Chinese punctuation (ja/ko/de use 。、＃etc; comma must be ，in zh only)
 CN_PUNCT = re.compile(r"[，。；：【】]")
 # Chinese-only particles/words that should never appear in ja/ko/de
-CN_WORDS = re.compile(r"[您根据报错框移除调整更新规意见检测构建部署迁移监控资源数据文件支持使用进行以及对于可以不或]")
+CN_WORDS = re.compile(
+    r"[您根据报错框移除调整更新规意见检测构建部署迁移监控资源数据文件支持使用进行以及对于可以不或]"
+)
 HAN = re.compile(r"[\u4e00-\u9fff]")
+
 
 def is_garbled(lang, value):
     if not isinstance(value, str):
@@ -31,10 +36,16 @@ def is_garbled(lang, value):
         return True
     if lang == "ja" and HAN.search(value) and re.search(r"[\u3040-\u30ff]", value):
         return True
-    if lang != "zh" and lang != "zh-TW" and HAN.search(value) and not re.search(r"[\u3040-\u30ff]", value):
+    if (
+        lang != "zh"
+        and lang != "zh-TW"
+        and HAN.search(value)
+        and not re.search(r"[\u3040-\u30ff]", value)
+    ):
         # han chars in ko/de/ja with no kana -> likely Chinese residue
         return True
     return False
+
 
 def main():
     lang = sys.argv[1]
@@ -55,8 +66,14 @@ def main():
     out = f"/tmp/garbled_{lang}.jsonl"
     with open(out, "w") as f:
         for path, value, en_value in garbled:
-            f.write(json.dumps({"path": path, "current": value, "en": en_value}, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(
+                    {"path": path, "current": value, "en": en_value}, ensure_ascii=False
+                )
+                + "\n"
+            )
     print(f"{lang}: {len(garbled)} garbled entries -> {out}")
+
 
 if __name__ == "__main__":
     main()

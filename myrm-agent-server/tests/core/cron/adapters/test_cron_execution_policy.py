@@ -136,6 +136,24 @@ class TestToolsPolicy:
         flags = resolve_cron_runtime_tool_flags(tools, None)
         assert flags["enable_cron_eager"] is False
 
+    def test_restricted_cron_memory_stripped_from_intersection(self) -> None:
+        """tools_allowed without memory must strip memory from the effective tool set,
+        so the runner's enable_memory stays off (memory group not mounted)."""
+        tools = intersect_cron_enabled_builtin_tools(
+            ["web_search", "memory", "wiki", "cron"],
+            ("web_search",),
+        )
+        assert tools == ["web_search"]
+
+    def test_restricted_cron_memory_survives_when_allowed(self) -> None:
+        """When tools_allowed explicitly includes memory, it survives intersection."""
+        tools = intersect_cron_enabled_builtin_tools(
+            ["web_search", "memory"],
+            ("memory", "web_search"),
+        )
+        assert "memory" in tools
+        assert "web_search" in tools
+
 
 class TestCronExecutionPolicyApi:
     def test_read_it_later_fill_then_create(self, guarded_cron_client: TestClient) -> None:

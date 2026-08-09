@@ -2338,7 +2338,7 @@
       "savedCheckpoints": "Gespeicherte Kontrollpunkte",
       "savedCheckpointsDesc": "Alle Prüfpunkte werden automatisch gespeichert, wenn eine Agentenaufgabe unterbrochen wird",
       "resumeSuccess": "Checkpoint wurde erfolgreich fortgesetzt",
-      "resumeSuccessDesc": "Task {taskId} resumed",
+      "resumeSuccessDesc": "Task {taskId} fortgesetzt",
       "confirmDelete": "Möchten Sie diesen Kontrollpunkt wirklich löschen?",
       "confirmCleanup": "Möchten Sie alte Kontrollpunkte bereinigen? (7-Tage-TTL)",
       "resumable": "Fortsetzbar",
@@ -13495,6 +13495,7 @@
       "history": "Verlaufstrends (A/B-Test)",
       "diff": "Diff-Ansicht",
       "matrix": "Matrixvergleich",
+      "memoryAb": "Memory A/B",
       "sources": "Datensatzquellen"
     },
     "progress": "Fortschritt",
@@ -13598,6 +13599,7 @@
       "tokens": "Token",
       "cost": "Kosten",
       "time": "Zeit",
+      "memoryCalls": "Speicheraufrufe",
       "matrixDetail": "Case × Profile Matrix",
       "case": "Fall",
       "legend": {
@@ -13630,7 +13632,19 @@
       "scoringNativeTitle": "Bewertet durch den eigenen Bewerter jeder Aufgabe (aufgabennativ, Container-basiert)",
       "scoringCompositeTitle": "Graded by the CompositeVerifier engine (Rule + LLM/VLM)",
       "pendingScoring": "Wertung steht noch aus",
-      "testPassRate": "Ø Test-Bestehensquote"
+      "testPassRate": "Ø Test-Bestehensquote",
+      "memoryAb": "Memory A/B"
+    },
+    "memoryAb": {
+      "started": "Memory-A/B-Auswertung gestartet",
+      "running": "Memory-A/B-Auswertung läuft",
+      "noReport": "Noch kein Memory-A/B-Bericht. Starten Sie eine Auswertung über eine Benchmark-Karte. Ein Embedding-Modell ist erforderlich — ohne dieses laufen beide Arme ohne Speicher.",
+      "armNoMemory": "Ohne Speicher",
+      "armWithMemory": "Mit Speicher",
+      "confirmTitle": "Memory-A/B-Auswertung starten?",
+      "confirmBody": "Dabei wird dasselbe WBBench-Subset zweimal ausgeführt — einmal mit und einmal ohne Speicher. Hinweise: Ein Embedding-Modell ist erforderlich, sonst laufen beide Arme faktisch ohne Speicher. WBBench-Aufgaben sind einteilig; Speichervorteile zeigen sich am deutlichsten in langen Sitzungen — ein unentschiedenes Ergebnis hier bedeutet nicht, dass Speicher nutzlos ist.",
+      "confirmStart": "Auswertung starten",
+      "confirmCancel": "Abbrechen"
     }
   },
   "vault": {

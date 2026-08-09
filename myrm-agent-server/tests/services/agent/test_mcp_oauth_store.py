@@ -103,8 +103,14 @@ async def test_refresh_discards_when_server_disconnected(seeded_token) -> None:
     assert result is None
     async with get_session() as db:
         row = (
-            await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))
-        ).scalars().first()
+            (
+                await db.execute(
+                    select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
+                )
+            )
+            .scalars()
+            .first()
+        )
         assert row is not None
         assert SERVER_NAME not in _decrypt_blob(row)
 
@@ -134,8 +140,14 @@ async def test_refresh_persists_when_server_connected(seeded_token) -> None:
     assert result.access_token == "fresh-token"
     async with get_session() as db:
         row = (
-            await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))
-        ).scalars().first()
+            (
+                await db.execute(
+                    select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
+                )
+            )
+            .scalars()
+            .first()
+        )
         assert row is not None
         blob = _decrypt_blob(row)
         assert SERVER_NAME in blob

@@ -137,16 +137,12 @@ async def create_memory_manager(
 
     from app.config.settings import settings
 
-    default_base_path: Path | None = None
-    if base_path is None:
-        facade = ContextBundleFacade.from_state_dir(
-            settings.database.state_dir,
-            ensure_layout=False,
-        )
-        base_path = facade.memory_path()
-        default_base_path = Path(base_path).resolve()
-    else:
-        base_path = Path(base_path).resolve()
+    facade = ContextBundleFacade.from_state_dir(
+        settings.database.state_dir,
+        ensure_layout=False,
+    )
+    default_base_path = Path(facade.memory_path()).resolve()
+    base_path = default_base_path if base_path is None else Path(base_path).resolve()
     cache_key = _manager_cache_key(
         base_path=base_path,
         user_id="sandbox_user",
@@ -174,7 +170,7 @@ async def create_memory_manager(
 
         # Isolated base_path (eval mode) → let harness embed vector store under
         # the override dir; default path → reuse the global volume vector store.
-        is_isolated = default_base_path is not None and base_path != default_base_path
+        is_isolated = base_path != default_base_path
         store = None if is_isolated else await create_default_vector_store()
 
         manager = await create_local_memory_manager(
@@ -397,13 +393,12 @@ async def evict_cached_memory_manager(base_path: str | Path) -> None:
     resolved = str(Path(base_path).resolve())
 
     async with _memory_manager_cache_lock:
-        managers_to_close = [
-            manager
-            for key, manager in _memory_manager_cache.items()
+        keys_to_close = [
+            key
+            for key in _memory_manager_cache
             if isinstance(key, tuple) and key and key[0] == resolved
         ]
-        for key in [k for k in _memory_manager_cache if isinstance(k, tuple) and k and k[0] == resolved]:
-            _memory_manager_cache.pop(key, None)
+        managers_to_close = [_memory_manager_cache.pop(key) for key in keys_to_close]
 
     if not managers_to_close:
         return

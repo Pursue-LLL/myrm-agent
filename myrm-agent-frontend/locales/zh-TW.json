@@ -14056,7 +14056,8 @@
       "history": "歷史趨勢 (A/B Test)",
       "diff": "對比檢視 (Diff)",
       "matrix": "\"矩陣對比\"",
-      "sources": "資料集來源"
+      "sources": "資料集來源",
+      "memoryAb": "記憶 A/B"
     },
     "progress": "進度",
     "save": "儲存",
@@ -14159,6 +14160,7 @@
       "tokens": "\"Token\"",
       "cost": "\"成本\"",
       "time": "\"耗時\"",
+      "memoryCalls": "\"記憶呼叫次數\"",
       "matrixDetail": "\"用例 × 配置矩陣\"",
       "case": "\"用例\"",
       "legend": {
@@ -14191,7 +14193,19 @@
       "scoringNativeTitle": "由任務自帶的評分器在沙箱內依官方邏輯評分",
       "scoringCompositeTitle": "由 CompositeVerifier 引擎（規則 + LLM/VLM）評分",
       "pendingScoring": "評分待定",
-      "testPassRate": "平均測試通過率"
+      "testPassRate": "平均測試通過率",
+      "memoryAb": "記憶 A/B"
+    },
+    "memoryAb": {
+      "started": "記憶 A/B 評測已開始",
+      "running": "記憶 A/B 評測進行中",
+      "noReport": "尚無記憶 A/B 報告。請從基準子集卡片發起一次評測。需要已設定 embedding 模型，否則兩組都將在無記憶狀態下執行。",
+      "armNoMemory": "無記憶",
+      "armWithMemory": "啟用記憶",
+      "confirmTitle": "開始記憶 A/B 評測？",
+      "confirmBody": "這將在同一 WBBench 子集上執行兩次 —— 一次開啟記憶、一次關閉。注意事項：需要已設定 embedding 模型，否則兩組實際上都在無記憶狀態下執行；WBBench 任務為單輪，記憶效益在長對話中最明顯，此處結果持平不代表記憶無用。",
+      "confirmStart": "開始評測",
+      "confirmCancel": "取消"
     }
   },
   "vault": {

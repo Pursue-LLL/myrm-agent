@@ -707,6 +707,18 @@ _repair_orphan_private_backend() {
   if _private_backend_identity_valid; then
     return 0
   fi
+  # Port ownership truth: if the shared backend (default state dir) still owns
+  # BACKEND_PORT, never reclaim it — the kill below would take down peer work.
+  local shared_pid_file shared_pid
+  shared_pid_file="$(_real_home_default_state_dir)/backend.pid"
+  shared_pid=""
+  if [[ -f "${shared_pid_file}" ]]; then
+    shared_pid="$(tr -d '[:space:]' <"${shared_pid_file}")"
+  fi
+  if [[ -n "${shared_pid}" ]] && kill -0 "${shared_pid}" 2>/dev/null && dev_port_in_use "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} owned by shared backend pid=${shared_pid} — refuse orphan reclaim" >&2
+    return 1
+  fi
   echo "STACK_HEAL: reclaiming orphan private backend on :${BACKEND_PORT}" >&2
   if [[ -f "${BACKEND_IDENTITY}" ]]; then
     _stop_private_backend 2>/dev/null || true

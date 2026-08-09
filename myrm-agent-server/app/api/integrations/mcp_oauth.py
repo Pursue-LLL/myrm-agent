@@ -60,25 +60,35 @@ async def _refresh_connection_pool_auth(server_name: str, token: MCPOAuthToken) 
     a full connection rebuild or page refresh.
     """
     try:
-        from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
+        from myrm_agent_harness.toolkits.mcp.connection_manager import (
+            MCPConnectionManager,
+        )
 
         if MCPConnectionManager._instance is not None:
             headers = {"Authorization": f"{token.token_type} {token.access_token}"}
             MCPConnectionManager._instance.refresh_server_auth(server_name, headers)
     except Exception:
-        logger.debug("Connection pool auth refresh skipped for '%s'", server_name, exc_info=True)
+        logger.debug(
+            "Connection pool auth refresh skipped for '%s'", server_name, exc_info=True
+        )
 
 
 def _evict_expired_pending() -> None:
     """Remove pending auth entries older than 10 minutes (lazy GC)."""
     now = time.time()
     if len(_pending_auth) > _MAX_PENDING:
-        expired = [k for k, v in _pending_auth.items() if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS]
+        expired = [
+            k
+            for k, v in _pending_auth.items()
+            if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS
+        ]
         for k in expired:
             del _pending_auth[k]
 
     if len(_successful_auth) > _MAX_PENDING:
-        expired_success = [k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS]
+        expired_success = [
+            k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS
+        ]
         for k in expired_success:
             del _successful_auth[k]
 
@@ -154,7 +164,11 @@ async def start_mcp_oauth(body: MCPOAuthStartRequest, request: Request) -> JSONR
 @router.get("/callback")
 @limiter.limit("10/minute")
 async def handle_mcp_oauth_callback(
-    request: Request, code: str, state: str, error: str | None = None, error_description: str | None = None
+    request: Request,
+    code: str,
+    state: str,
+    error: str | None = None,
+    error_description: str | None = None,
 ) -> HTMLResponse:
     """Exchange authorization code for OAuth tokens.
 
@@ -163,7 +177,8 @@ async def handle_mcp_oauth_callback(
     """
     if error:
         return HTMLResponse(
-            content=f"<html><body><h1>Authorization failed</h1><p>{error_description or error}</p></body></html>", status_code=400
+            content=f"<html><body><h1>Authorization failed</h1><p>{error_description or error}</p></body></html>",
+            status_code=400,
         )
 
     pending = _pending_auth.pop(state, None)
@@ -248,7 +263,8 @@ async def handle_mcp_oauth_callback(
     except httpx.HTTPError as exc:
         logger.error("MCP OAuth token exchange network error: %s", exc)
         return HTMLResponse(
-            content=f"<html><body><h1>Network error during token exchange</h1><p>{exc}</p></body></html>", status_code=500
+            content=f"<html><body><h1>Network error during token exchange</h1><p>{exc}</p></body></html>",
+            status_code=500,
         )
 
 

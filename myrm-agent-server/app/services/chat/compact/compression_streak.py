@@ -127,7 +127,7 @@ async def load_compression_ineffective_streak(db: AsyncSession, chat_id: str) ->
         select(Chat.compression_ineffective_streak).where(Chat.id == chat_id)
     )
     value = row.scalar_one_or_none()
-    if value is None:
+    if value is None:  # pragma: no cover - column has server_default=0, never NULL in DB
         return 0
     return max(0, int(value))
 

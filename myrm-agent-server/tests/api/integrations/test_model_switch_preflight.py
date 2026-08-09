@@ -348,104 +348,52 @@ class TestModelSwitchPreflight:
 class TestPreflightAntiThrashStreak:
     """Preflight consumes compression ineffective streak (runtime anti-thrash parity)."""
 
-    def _post(
-        self,
-        client: TestClient,
-        *,
-        estimated_tokens: int,
-        chat_id: str | None,
-        streak: int | None = None,
-    ) -> dict:
-        payload: dict = {
-            "estimated_tokens": estimated_tokens,
-            "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
-        }
-        if chat_id is not None:
-            payload["chat_id"] = chat_id
-        if streak is not None:
-            payload["streak"] = streak  # not part of API; only to build the mock store
-        return payload
-
     @pytest.fixture(autouse=True)
-    def _reset_streak_store(self) -> Iterator[None]:
-        """Isolate streak store state per test via module-level mock reset."""
+    def streak_store(self) -> Iterator[_FakeStreakStore]:
+        """Provide a fresh fake streak store per test, isolated from other tests."""
         store = _FakeStreakStore()
         with patch(
             "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
             return_value=store,
         ):
-            yield
+            yield store
+
+    def _post(self, client: TestClient, *, estimated_tokens: int, chat_id: str) -> dict:
+        return client.post(
+            "/api/v1/integrations/llm/model-switch-preflight",
+            json={
+                "estimated_tokens": estimated_tokens,
+                "chat_id": chat_id,
+                "models": [
+                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
+                ],
+            },
+        ).json()["data"]["results"][0]
 
     def test_streak_below_limit_keeps_normal_judgment(
-        self, client: TestClient
+        self, client: TestClient, streak_store: _FakeStreakStore
     ) -> None:
         """streak=1 (< limit 2) does not suppress the warning."""
-        store = _FakeStreakStore()
-        store.set_streak("chat-a", 1)
-        with patch(
-            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
-            return_value=store,
-        ):
-            response = client.post(
-                "/api/v1/integrations/llm/model-switch-preflight",
-                json={
-                    "estimated_tokens": 9000,
-                    "chat_id": "chat-a",
-                    "models": [
-                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                    ],
-                },
-            )
-        assert response.status_code == 200
-        item = response.json()["data"]["results"][0]
+        streak_store.set_streak("chat-a", 1)
+        item = self._post(client, estimated_tokens=9000, chat_id="chat-a")
         # WEAK tier -> threshold ~8266; 9000 >= 8266 -> would compress
         assert item["will_compress"] is True
 
     def test_streak_at_limit_below_safety_net_suppresses_warning(
-        self, client: TestClient
+        self, client: TestClient, streak_store: _FakeStreakStore
     ) -> None:
         """streak>=2 with tokens<90% window: runtime skips compression, preflight must not warn."""
-        store = _FakeStreakStore()
-        store.set_streak("chat-a", 2)
-        with patch(
-            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
-            return_value=store,
-        ):
-            response = client.post(
-                "/api/v1/integrations/llm/model-switch-preflight",
-                json={
-                    "estimated_tokens": 9000,
-                    "chat_id": "chat-a",
-                    "models": [
-                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                    ],
-                },
-            )
-        assert response.status_code == 200
-        item = response.json()["data"]["results"][0]
+        streak_store.set_streak("chat-a", 2)
+        item = self._post(client, estimated_tokens=9000, chat_id="chat-a")
         # 9000 < 16000*0.9=14400 and streak>=2 -> anti-thrash blocks -> no warning
         assert item["will_compress"] is False
 
-    def test_streak_at_limit_above_safety_net_still_warns(self, client: TestClient) -> None:
+    def test_streak_at_limit_above_safety_net_still_warns(
+        self, client: TestClient, streak_store: _FakeStreakStore
+    ) -> None:
         """streak>=2 but tokens>=90% window: runtime force-compresses (OOM guard), warning stays."""
-        store = _FakeStreakStore()
-        store.set_streak("chat-a", 2)
-        with patch(
-            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
-            return_value=store,
-        ):
-            response = client.post(
-                "/api/v1/integrations/llm/model-switch-preflight",
-                json={
-                    "estimated_tokens": 15000,
-                    "chat_id": "chat-a",
-                    "models": [
-                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                    ],
-                },
-            )
-        assert response.status_code == 200
-        item = response.json()["data"]["results"][0]
+        streak_store.set_streak("chat-a", 2)
+        item = self._post(client, estimated_tokens=15000, chat_id="chat-a")
         # 15000 >= 14400 (90% window) -> safety net overrides anti-thrash -> warns
         assert item["will_compress"] is True
 
@@ -479,3 +427,84 @@ class _FakeStreakStore:
     def set_streak(self, chat_id: str | None, streak: int) -> None:
         if chat_id:
             self._data[chat_id] = max(0, int(streak))
+
+
+class TestPreflightWindowResolution:
+    """Window resolution edge cases in _resolve_target_max_input_tokens."""
+
+    def test_missing_window_skips_warning(self, client: TestClient) -> None:
+        """No frontend window and unknown model -> found=False, no warning."""
+        with patch(
+            "app.api.integrations.llms._try_get_model_info_exact",
+            return_value=None,
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "models": [{"model": "custom/unknown-no-window"}],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        assert item["found"] is False
+        assert item["new_window"] is None
+        assert item["will_compress"] is False
+
+    def test_backend_resolves_window_from_litellm_info(
+        self, client: TestClient
+    ) -> None:
+        """Backend resolves max_input_tokens from LiteLLM model info when not provided."""
+        with patch(
+            "app.api.integrations.llms._try_get_model_info_exact",
+            return_value={"max_input_tokens": 32000},
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "models": [{"model": "gpt-4o"}],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        assert item["found"] is True
+        assert item["new_window"] == 32000
+        # gpt-4o 32k -> MEDIUM tier (ratio 0.50) -> threshold = 32000 * (0.50 + 0.15) = 20800
+        assert item["compress_threshold"] == 20800
+
+    def test_backend_falls_back_to_max_tokens_key(self, client: TestClient) -> None:
+        """max_tokens key is honored when max_input_tokens is absent."""
+        with patch(
+            "app.api.integrations.llms._try_get_model_info_exact",
+            return_value={"max_tokens": 64000},
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "models": [{"model": "gpt-4o"}],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        assert item["found"] is True
+        assert item["new_window"] == 64000
+
+    def test_backend_ignores_nonpositive_windows(self, client: TestClient) -> None:
+        """info with only non-positive windows resolves to None -> found=False."""
+        with patch(
+            "app.api.integrations.llms._try_get_model_info_exact",
+            return_value={"max_input_tokens": 0, "max_tokens": -1},
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "models": [{"model": "gpt-4o"}],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        assert item["found"] is False
+        assert item["new_window"] is None

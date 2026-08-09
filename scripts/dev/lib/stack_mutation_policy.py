@@ -331,12 +331,30 @@ def apply_pending_drift_if_idle(
     )
 
 
+def _api_port_listening() -> bool:
+    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or "8080"
+    try:
+        result = subprocess.run(
+            ["lsof", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return bool(result.stdout.strip())
+
+
 def shared_api_http_ok() -> bool:
     try:
         urllib.request.urlopen(_api_health_url(), timeout=5)
         return True
     except (urllib.error.URLError, TimeoutError, OSError):
-        return False
+        # Under parallel load the HTTP probe can time out while the backend is
+        # still healthy and bound to its port. Never drive a crash-heal off a
+        # transient probe failure — port ownership is the crash signal.
+        return _api_port_listening()
 
 
 def _poll_shared_api_ok(*, max_wait_sec: float, interval_sec: float = 2.0) -> bool:

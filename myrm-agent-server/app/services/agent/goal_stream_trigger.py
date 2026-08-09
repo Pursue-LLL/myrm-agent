@@ -1,24 +1,8 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT]
-- app.services.agent.streaming::ai_agent_service_stream (POS: General Agent SSE 流式桥接)
-- app.core.channel_bridge.config_loader::load_user_configs (POS: WebUI 用户配置加载)
-- app.services.chat.chat_service::ChatService (POS: Chat CRUD 编排层)
-- app.services.agent.profile_resolver::get_agent_profile_resolver (POS: Agent profile 解析)
-- app.services.agent.params.profile_output_suffixes::apply_profile_output_suffixes (POS: Profile 输出后缀注入 SSOT)
-- myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal 生命周期协议)
-- myrm_agent_harness.agent.goals.types::Goal (POS: Goal 数据类型)
-
-[OUTPUT]
-- _resolve_goal_stream_agent_context: chat-bound agent_id + profile instructions (with output suffixes)
-- trigger_goal_stream: fire-and-forget unattended stream task
-- trigger_goal_stream_with_failure_policy: SSOT wrapper for setup + runtime failure handling
-- handle_unattended_goal_stream_failure: NEEDS_HUMAN_REVIEW + SYSTEM_NOTIFICATION or keep ACTIVE
-
-[POS]
-Server-side headless goal continuation entry. Shared by dequeue, background WAIT resume, and loop restart.
-Resolves chat-bound Agent profile (system_prompt + output suffixes) for parity with Kanban goal runs.
-Separated from streaming.py to keep the main streaming module under 500 lines.
+[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider
+[OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure
+[POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
 """
 
 from __future__ import annotations
@@ -26,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -37,6 +22,18 @@ logger = logging.getLogger(__name__)
 _running_goal_tasks: set[asyncio.Task[None]] = set()
 
 TriggerFailurePolicy = Literal["needs_human_review", "keep_active"]
+
+
+@dataclass(frozen=True, slots=True)
+class GoalStreamAgentContext:
+    """Profile fields needed for unattended goal continuation streams."""
+
+    agent_id: str | None = None
+    user_instructions: str | None = None
+    subagent_ids: list[str] | None = None
+    agent_skill_ids: list[str] | None = None
+    enabled_builtin_tools: list[str] | None = None
+    agent_security_raw: dict[str, object] | None = None
 
 
 async def _resolve_user_locale() -> str:
@@ -87,12 +84,6 @@ async def publish_goal_needs_review_notification(session_id: str, goal_id: str) 
     )
 
 
-async def _publish_goal_needs_review_notification(
-    session_id: str, goal_id: str
-) -> None:
-    await publish_goal_needs_review_notification(session_id, goal_id)
-
-
 async def handle_unattended_goal_stream_failure(
     session_id: str,
     goal_id: str,
@@ -126,7 +117,7 @@ async def handle_unattended_goal_stream_failure(
         return
 
     try:
-        await _publish_goal_needs_review_notification(session_id, goal_id)
+        await publish_goal_needs_review_notification(session_id, goal_id)
     except Exception:
         logger.exception(
             "Failed to publish goal_needs_review notification for goal %s",
@@ -136,8 +127,8 @@ async def handle_unattended_goal_stream_failure(
 
 async def _resolve_goal_stream_agent_context(
     session_id: str,
-) -> tuple[str | None, str | None]:
-    """Load chat-bound agent_id and profile instructions (with output suffixes)."""
+) -> GoalStreamAgentContext:
+    """Load chat-bound agent profile for unattended goal continuation."""
     from app.services.agent.params.profile_output_suffixes import (
         apply_profile_output_suffixes,
     )
@@ -152,10 +143,10 @@ async def _resolve_goal_stream_agent_context(
             session_id,
             exc_info=True,
         )
-        return None, None
+        return GoalStreamAgentContext()
 
     if chat is None or not chat.agent_id:
-        return None, None
+        return GoalStreamAgentContext()
 
     agent_id = chat.agent_id
     try:
@@ -167,19 +158,42 @@ async def _resolve_goal_stream_agent_context(
             agent_id,
             exc_info=True,
         )
-        return agent_id, None
+        return GoalStreamAgentContext(agent_id=agent_id)
 
     if profile is None:
-        return agent_id, None
+        return GoalStreamAgentContext(agent_id=agent_id)
 
+    subagent_ids = list(profile.subagent_ids) if profile.subagent_ids else None
     user_instructions = profile.system_prompt
+
+    if profile.agent_type == "team":
+        from app.ai_agents.team_protocol import build_leader_protocol_prompt
+
+        leader_protocol = await build_leader_protocol_prompt(
+            subagent_ids or [],
+            leader_id=agent_id,
+            dynamic_discovery=True,
+        )
+        user_instructions = (
+            f"{user_instructions}\n\n{leader_protocol}"
+            if user_instructions
+            else leader_protocol
+        )
+
     user_instructions = apply_profile_output_suffixes(
         user_instructions,
         personality_style=profile.personality_style,
         engine_params=profile.engine_params,
         agent_id=agent_id,
     )
-    return agent_id, user_instructions
+    return GoalStreamAgentContext(
+        agent_id=agent_id,
+        user_instructions=user_instructions,
+        subagent_ids=subagent_ids,
+        agent_skill_ids=list(profile.skill_ids) if profile.skill_ids else None,
+        enabled_builtin_tools=list(profile.enabled_builtin_tools),
+        agent_security_raw=profile.security_overrides,
+    )
 
 
 async def trigger_goal_stream(
@@ -247,16 +261,33 @@ async def trigger_goal_stream(
         security_config_raw["yolo_mode_timeout"] = None
 
     from app.core.agent.tool_description_locale import resolve_agent_params_locale
+    from app.core.memory.proactive.settings import resolve_memory_enabled
+    from app.services.agent.profile_resolver import (
+        DEFAULT_ENABLED_BUILTIN_TOOLS,
+        resolve_builtin_tool_flags,
+    )
+    from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+    from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
     memory_settings = user_cfgs.personal_settings_dict or {}
 
-    agent_id, user_instructions = await _resolve_goal_stream_agent_context(session_id)
+    agent_ctx = await _resolve_goal_stream_agent_context(session_id)
+
+    enabled_builtin_tools: list[str] = list(
+        agent_ctx.enabled_builtin_tools or DEFAULT_ENABLED_BUILTIN_TOOLS
+    )
+    tool_flags = resolve_agent_mount(
+        ExecutionSurface.WEB_CHAT,
+        resolve_builtin_tool_flags(enabled_builtin_tools),
+    )
 
     params = GeneralAgentParams(
         query=goal.objective,
         chat_id=session_id,
-        agent_id=agent_id,
-        user_instructions=user_instructions,
+        agent_id=agent_ctx.agent_id,
+        user_instructions=agent_ctx.user_instructions,
+        agent_skill_ids=agent_ctx.agent_skill_ids or [],
+        subagent_ids=agent_ctx.subagent_ids,
         model_cfg=model_cfg,
         fallback_model_cfg=fallback_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
@@ -266,9 +297,15 @@ async def trigger_goal_stream(
         embedding_config=embedding_cfg,
         reranker_config=reranker_cfg,
         security_config_raw=security_config_raw,
+        agent_security_raw=agent_ctx.agent_security_raw,
         unattended_mode=True,
+        enable_memory=resolve_memory_enabled(memory_settings),
         enable_web_search=user_cfgs.search_is_user_configured
         and await verify_search_service_available(user_cfgs.search_cfg),
+        enable_web_fetch=resolve_enable_web_fetch(agent_ctx.agent_security_raw),
+        web_search_profile_enabled="web_search" in enabled_builtin_tools,
+        search_is_user_configured=user_cfgs.search_is_user_configured,
+        **tool_flags,
         locale=resolve_agent_params_locale(
             personal_settings=memory_settings,
             channel="goal_stream",
@@ -277,7 +314,10 @@ async def trigger_goal_stream(
 
     async def _run_stream() -> None:
         try:
-            async for _ in ai_agent_service_stream(params):
+            extra_context: dict[str, object] | None = (
+                {"goal_provider": provider} if provider is not None else None
+            )
+            async for _ in ai_agent_service_stream(params, extra_context=extra_context):
                 pass
         except Exception as e:
             logger.error(

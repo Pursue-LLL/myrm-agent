@@ -17,7 +17,7 @@ class TestDeliverableDisciplineSSOT:
         assert "use the kanban board" in rules
         assert "create or update tasks" in rules
         assert "track progress, and mark done" in rules
-        assert "file_write_tool" in rules
+        assert "file tools" in rules
         assert "Do not describe file contents" in rules
         assert "heredoc" in rules
         assert "workspace/" in rules
@@ -35,5 +35,7 @@ class TestDeliverableDisciplineSSOT:
         assert again is KNOWLEDGE_WORK_SYSTEM_PROMPT
 
     def test_economy_spec_uses_ssot_prompt(self) -> None:
-        economy = next(spec for spec in _CORE_BUILTIN_AGENTS if spec.id == "builtin-economy")
+        economy = next(
+            spec for spec in _CORE_BUILTIN_AGENTS if spec.id == "builtin-economy"
+        )
         assert economy.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT

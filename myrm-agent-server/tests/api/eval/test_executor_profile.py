@@ -33,6 +33,7 @@ class MockResolvedProfile:
         self.memory_extraction_preset = None
         self.mcp_ids: list[str] | None = None
         self.mcp_tool_selections: dict[str, list[str]] | None = None
+        self.personality_style = None
 
 
 @pytest.mark.asyncio
@@ -53,7 +54,9 @@ async def test_server_eval_executor_profile(tmp_path):
     executor = LocalEvalExecutor(profile_id="mock_id")
     assert executor.profile_id == "mock_id"
 
-    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_agent_factory:
+    with patch(
+        "app.core.eval.executor.AgentFactory.create_general_agent"
+    ) as mock_agent_factory:
         # Mock the async generator for the agent's ainvoke
         async def mock_ainvoke(*args, **kwargs):
             yield {"agent": {"messages": [{"content": "Hello eval"}]}}
@@ -71,12 +74,20 @@ async def test_server_eval_executor_profile(tmp_path):
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
-            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
+            mock_cfg.model_cfg = ModelConfig(
+                provider="test", model="test", apiKey="test"
+            )
+            mock_cfg.search_cfg = SearchServiceConfig(
+                provider="tavily", searchService="tavily"
+            )
             mock_configs.return_value = mock_cfg
 
-            with patch("app.services.agent.profile_resolver.get_agent_profile_resolver") as mock_resolver_getter:
-                mock_resolver_getter.return_value = MockProfileResolver(MockResolvedProfile())
+            with patch(
+                "app.services.agent.profile_resolver.get_agent_profile_resolver"
+            ) as mock_resolver_getter:
+                mock_resolver_getter.return_value = MockProfileResolver(
+                    MockResolvedProfile()
+                )
 
                 # Execute with a fake message
                 response = await executor.execute("Hello")
@@ -91,6 +102,9 @@ async def test_server_eval_executor_profile(tmp_path):
                 assert "Custom system prompt" in params.user_instructions
                 assert params.agent_skill_ids == ["skill1", "skill2"]
                 assert params.subagent_ids == ["sub1"]
-                assert params.agent_security_raw == {"yolo_mode_enabled": True, "test_override": True}
+                assert params.agent_security_raw == {
+                    "yolo_mode_enabled": True,
+                    "test_override": True,
+                }
                 assert params.max_iterations == 5
                 assert params.memory_policy is not None

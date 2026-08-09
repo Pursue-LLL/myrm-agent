@@ -410,7 +410,9 @@ class GeneralAgent(ToolSetupMixin):
             context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
 
         context["supports_vision"] = self.model_cfg.supports_vision
-        context["supports_video"] = bool(getattr(self.model_cfg, "supports_video", False))
+        context["supports_video"] = bool(
+            getattr(self.model_cfg, "supports_video", False)
+        )
         if self.vision_fallback_model_cfgs:
             context["vision_fallback_model_cfgs"] = self.vision_fallback_model_cfgs
         if self.vision_fallback_model_cfg:

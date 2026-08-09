@@ -14149,6 +14149,7 @@
       "sources": "Dataset Sources",
       "report": "Eval Report",
       "matrix": "Matrix Comparison",
+      "memoryAb": "Memory A/B",
       "history": "History Trends (A/B Test)",
       "diff": "Diff View"
     },
@@ -14255,6 +14256,7 @@
       "tokens": "Tokens",
       "cost": "Cost",
       "time": "Time",
+      "memoryCalls": "Memory Calls",
       "matrixDetail": "Case × Profile Matrix",
       "case": "Case",
       "legend": {
@@ -14285,7 +14287,19 @@
       "scoringNativeTitle": "Graded by each task's own scorer (task-native, container-based)",
       "scoringCompositeTitle": "Graded by the CompositeVerifier engine (Rule + LLM/VLM)",
       "pendingScoring": "Scoring pending",
-      "testPassRate": "Avg test pass rate"
+      "testPassRate": "Avg test pass rate",
+      "memoryAb": "Memory A/B"
+    },
+    "memoryAb": {
+      "started": "Memory A/B evaluation started",
+      "running": "Memory A/B evaluation in progress",
+      "noReport": "No memory A/B report yet. Run one from a benchmark subset card. Requires an embedding model — without one, both arms run without memory.",
+      "armNoMemory": "No Memory",
+      "armWithMemory": "With Memory",
+      "confirmTitle": "Start Memory A/B evaluation?",
+      "confirmBody": "This runs the same WBBench subset twice — once with memory enabled and once without. Notes: an embedding model is required, otherwise both arms effectively run without memory; WBBench tasks are single-turn, so memory gains show most clearly in long sessions and a flat result here does not mean memory is useless.",
+      "confirmStart": "Start Evaluation",
+      "confirmCancel": "Cancel"
     }
   },
   "vault": {

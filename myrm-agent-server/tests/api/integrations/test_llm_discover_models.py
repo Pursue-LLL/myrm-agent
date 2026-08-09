@@ -165,3 +165,149 @@ def test_non_marker_preserves_model_kwargs() -> None:
     original = {"extra_headers": {"Authorization": "Bearer sk-real"}, "temperature": 0.2}
     result = _apply_local_no_auth_marker_transport_overrides(original, "sk-real")
     assert result == original
+
+
+def test_normalize_api_base_adds_scheme_and_strips_suffix(client: TestClient) -> None:
+    """_normalize_api_base: scheme defaulting, endpoint suffix strip, validation."""
+    from app.api.integrations.llms import _normalize_api_base
+
+    assert _normalize_api_base("127.0.0.1:8899/v1/chat/completions") == "http://127.0.0.1:8899/v1"
+    assert _normalize_api_base("https://api.openai.com/v1/models") == "https://api.openai.com/v1"
+    assert _normalize_api_base("http://localhost:8080/v1/") == "http://localhost:8080/v1"
+
+
+def test_normalize_api_base_rejects_invalid_inputs() -> None:
+    """_normalize_api_base: empty, non-http scheme, missing hostname raise."""
+    from app.api.integrations.llms import _normalize_api_base
+
+    with pytest.raises(ValueError, match="required"):
+        _normalize_api_base("   ")
+    with pytest.raises(ValueError, match="http or https"):
+        _normalize_api_base("ftp://host/v1")
+    with pytest.raises(ValueError, match="hostname"):
+        _normalize_api_base("http:///v1")
+
+
+def test_build_models_candidates_path_variants() -> None:
+    """_build_models_candidates covers /models path, parents, and root fallbacks."""
+    from app.api.integrations.llms import _build_models_candidates
+
+    with_models = _build_models_candidates("http://host/v1/models")
+    assert "http://host/v1/models" in with_models
+
+    nested = _build_models_candidates("http://host/a/b/v1")
+    assert "http://host/a/b/models" in nested
+    assert "http://host/a/models" in nested
+
+    root = _build_models_candidates("http://host")
+    assert "http://host/v1/models" in root
+    assert "http://host/api/v1/models" in root
+    assert "http://host/api/models" in root
+    assert "http://host/models" in root
+
+
+def test_extract_model_ids_all_shapes() -> None:
+    """_extract_model_ids covers data, models, and top-level list payloads."""
+    from app.api.integrations.llms import _extract_model_ids
+
+    assert _extract_model_ids({"data": [{"id": "a"}, {"id": "b"}]}) == ["a", "b"]
+    assert _extract_model_ids({"models": [{"id": "c"}]}) == ["c"]
+    assert _extract_model_ids([{"id": "d"}, {"id": "e"}]) == ["d", "e"]
+    assert _extract_model_ids({"unrelated": 1}) == []
+    assert _extract_model_ids("nope") == []
+
+
+def test_is_loopback_host_variants() -> None:
+    """_is_loopback_host covers None, localhost, IPv4/IPv6 loopback, and public IP."""
+    from app.api.integrations.llms import _is_loopback_host
+
+    assert _is_loopback_host(None) is False
+    assert _is_loopback_host("") is False
+    assert _is_loopback_host("LOCALHOST") is True
+    assert _is_loopback_host("127.0.0.1") is True
+    assert _is_loopback_host("::1") is True
+    assert _is_loopback_host("0.0.0.0") is True
+    assert _is_loopback_host("8.8.8.8") is False
+    assert _is_loopback_host("not-an-ip") is False
+
+
+def test_discover_models_rejects_invalid_url(client: TestClient) -> None:
+    """Invalid API URL surfaces the normalization error."""
+    response = client.post(
+        "/api/v1/integrations/llm/discover-models",
+        json={"api_url": "   ", "api_key": "sk-test"},
+    )
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is False
+    assert payload["error"] is not None
+
+
+def test_discover_models_provider_http_error(client: TestClient) -> None:
+    """Provider 4xx/5xx response is recorded and probing continues."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"error": "boom"}, status_code=503
+            ),
+        ),
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "127.0.0.1:8899/v1"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is False
+    assert "Provider returned 503" in (payload.get("error") or "")
+
+
+def test_discover_models_invalid_json(client: TestClient) -> None:
+    """Invalid JSON payload is recorded and probing continues."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=httpx.Response(
+                status_code=200,
+                content=b"<html>not json</html>",
+                headers={"content-type": "text/html"},
+                request=httpx.Request("GET", "http://127.0.0.1:8899/v1/models"),
+            ),
+        ),
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "127.0.0.1:8899/v1"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is False
+    assert "invalid JSON" in (payload.get("error") or "")
+
+
+def test_discover_models_generic_error(client: TestClient) -> None:
+    """Generic transport error surfaces as last_error."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            side_effect=RuntimeError("connection refused"),
+        ),
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "127.0.0.1:8899/v1"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is False
+    assert "connection refused" in (payload.get("error") or "")

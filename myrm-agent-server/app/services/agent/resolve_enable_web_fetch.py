@@ -7,8 +7,8 @@
 - resolve_enable_web_fetch: bool gate for web_fetch_tool Turn1 bind
 
 [POS]
-Shared server helper so Web, Channel, Cron, Kanban, Eval, and Voice entry points apply the
-same net_fetch capability gate without duplicating parsing logic.
+Shared server helper so Web, Channel, Cron, Kanban, Eval, Voice, and Goal stream entry
+points apply the same net_fetch capability gate without duplicating parsing logic.
 """
 
 from __future__ import annotations

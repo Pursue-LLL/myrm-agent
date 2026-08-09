@@ -21,7 +21,10 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner import (
+    _resolve_cron_enable_memory,
+    AgentJobRunner,
+)
 
 _BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
 _LOAD_USER_CONFIGS = "app.core.channel_bridge.config_loader.load_user_configs"
@@ -62,6 +65,34 @@ def _make_regular_job(**overrides: object) -> CronJob:
     }
     defaults.update(overrides)
     return CronJob(**defaults)  # type: ignore[arg-type]
+
+
+class TestResolveCronEnableMemory:
+    """Tests for the cron memory enable predicate.
+
+    Memory mounts for cron only when the per-job tool allow-list contains
+    memory AND the user-level ``enableMemory`` personal setting is on —
+    mirroring the channel/voice entry points.
+    """
+
+    def test_memory_enabled_when_allowed_and_global_on(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings) is True
+
+    def test_memory_disabled_when_global_switch_off(self) -> None:
+        settings = {"enableMemory": False}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings) is False
+
+    def test_memory_disabled_when_global_setting_missing(self) -> None:
+        assert _resolve_cron_enable_memory(["web_search", "memory"], None) is False
+
+    def test_memory_disabled_when_stripped_by_whitelist(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search"], settings) is False
+
+    def test_memory_disabled_for_empty_tools(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory([], settings) is False
 
 
 class TestInjectSituationReport:

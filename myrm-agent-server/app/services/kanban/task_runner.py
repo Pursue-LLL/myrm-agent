@@ -437,6 +437,7 @@ class KanbanTaskRunner:
         from app.core.agent.tool_description_locale import resolve_agent_params_locale
         from app.core.memory.proactive.settings import (
             resolve_conversation_search_enabled,
+            resolve_memory_enabled,
         )
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -474,6 +475,7 @@ class KanbanTaskRunner:
             ),
             auto_restore_domains=list(profile.auto_restore_domains) if profile else [],
             unattended_mode=True,
+            enable_memory=resolve_memory_enabled(memory_settings),
             user_instructions=task_user_instructions,
             agent_skill_ids=list(
                 dict.fromkeys(

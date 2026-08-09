@@ -826,7 +826,9 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
     from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 
     ineffective_streak = (
-        get_compression_streak_store().get_streak(request.chat_id)
+        await asyncio.to_thread(
+            get_compression_streak_store().get_streak, request.chat_id
+        )
         if request.chat_id
         else 0
     )
@@ -864,7 +866,9 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
             ineffective_streak >= ANTI_THRASHING_STREAK_LIMIT
             and request.estimated_tokens < int(window * SAFETY_NET_RATIO)
         )
-        will_compress = not anti_thrash_blocked and request.estimated_tokens >= threshold
+        will_compress = (
+            not anti_thrash_blocked and request.estimated_tokens >= threshold
+        )
 
         results.append(
             ModelSwitchPreflightResult(

@@ -73,7 +73,10 @@ async def _run_refresh(
     with (
         patch.object(oauth_refresher, "get_session", return_value=mock_session),
         patch.object(oauth_refresher, "get_encryption_service", return_value=service),
-        patch("app.services.integrations.oauth_store.get_encryption_service", return_value=service),
+        patch(
+            "app.services.integrations.oauth_store.get_encryption_service",
+            return_value=service,
+        ),
         patch.object(oauth_refresher, "httpx") as mock_httpx,
     ):
         mock_httpx.AsyncClient.return_value = mock_client

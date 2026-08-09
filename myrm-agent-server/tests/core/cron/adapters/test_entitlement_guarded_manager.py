@@ -42,6 +42,28 @@ async def test_create_job_maps_entitlement_error_to_value_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_job_passes_workflow_template_to_inner() -> None:
+    inner = MagicMock()
+    inner.count_jobs = AsyncMock(return_value=0)
+    inner.create_job = AsyncMock(return_value=MagicMock(id="job-1"))
+    mgr = EntitlementGuardedCronManager(inner)
+
+    with patch(_SLOT_FN):
+        await mgr.create_job(
+            "user-1",
+            name="t",
+            job_type=MagicMock(),
+            schedule=MagicMock(),
+            workflow_template_id="wt-1",
+            workflow_template_args={"branch": "main"},
+        )
+
+    call_kwargs = inner.create_job.await_args.kwargs
+    assert call_kwargs["workflow_template_id"] == "wt-1"
+    assert call_kwargs["workflow_template_args"] == {"branch": "main"}
+
+
+@pytest.mark.asyncio
 async def test_duplicate_job_delegates_after_slot_check() -> None:
     inner = MagicMock()
     inner.count_jobs = AsyncMock(return_value=1)

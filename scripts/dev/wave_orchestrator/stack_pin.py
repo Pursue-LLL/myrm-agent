@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from pathlib import Path
 from typing import TypedDict
 
@@ -64,9 +65,15 @@ def write_stack_pin(wave: WaveRecord, *, paths: WavePaths, pinned_at: str) -> St
     }
     pin_path = _pin_file(paths)
     pin_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = pin_path.with_suffix(".json.tmp")
+    # Unique tmp name: concurrent writers (supervisor watchdog reap, attach heal,
+    # pytest coordinators) share one pin path. A fixed `.tmp` name races — one
+    # process os.replace() consumes the tmp file, the next gets FileNotFoundError.
+    tmp = pin_path.with_name(f".{pin_path.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
     tmp.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, pin_path)
+    try:
+        os.replace(tmp, pin_path)
+    finally:
+        tmp.unlink(missing_ok=True)
     return record
 
 

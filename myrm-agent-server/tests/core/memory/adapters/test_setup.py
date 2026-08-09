@@ -1,11 +1,19 @@
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryScopeLevel, MemoryWritePolicy
+from myrm_agent_harness.toolkits.memory.config import (
+    AgentMemoryPolicy,
+    MemoryScopeLevel,
+    MemoryWritePolicy,
+)
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
-from app.core.memory.adapters.setup import _memory_manager_cache, create_memory_manager, resolve_context_binding
+from app.core.memory.adapters.setup import (
+    _memory_manager_cache,
+    create_memory_manager,
+    resolve_context_binding,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +39,9 @@ def _patch_memory_path(path: str):
 async def test_create_memory_manager_with_custom_path(tmp_path: Path):
     custom_base_path = tmp_path / "custom_memory_path"
 
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -54,7 +64,9 @@ async def test_create_memory_manager_with_custom_path(tmp_path: Path):
 async def test_create_memory_manager_default_path(tmp_path: Path):
     default_path = tmp_path / "default_memory"
 
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(default_path)):
         manager = await create_memory_manager(
@@ -76,7 +88,9 @@ async def test_create_memory_manager_default_path(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_create_memory_manager_merges_scope_namespaces(tmp_path: Path):
     custom_base_path = tmp_path / "scoped_memory"
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -103,7 +117,9 @@ async def test_create_memory_manager_merges_scope_namespaces(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path: Path):
     custom_base_path = tmp_path / "shared_context_memory"
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -132,7 +148,9 @@ async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path:
 @pytest.mark.asyncio
 async def test_create_memory_manager_applies_binding_memory_policy(tmp_path: Path):
     custom_base_path = tmp_path / "policy_memory"
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -162,9 +180,13 @@ async def test_create_memory_manager_applies_binding_memory_policy(tmp_path: Pat
 
 
 @pytest.mark.asyncio
-async def test_create_memory_manager_reuses_vector_backend_across_approval_modes(tmp_path: Path):
+async def test_create_memory_manager_reuses_vector_backend_across_approval_modes(
+    tmp_path: Path,
+):
     custom_base_path = tmp_path / "shared_backend_memory"
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     with _patch_memory_path(str(custom_base_path)):
         binding = resolve_context_binding(
@@ -191,6 +213,95 @@ async def test_create_memory_manager_reuses_vector_backend_across_approval_modes
     assert direct_manager.approval_required is False
 
 
+@pytest.mark.asyncio
+async def test_create_memory_manager_isolated_base_path_skips_global_vector_store(
+    tmp_path: Path,
+):
+    """Explicit base_path (eval isolation) must NOT reuse the global Qdrant volume."""
+    from unittest.mock import AsyncMock
+    from unittest.mock import patch as mock_patch
+
+    custom_base_path = tmp_path / "isolated_memory"
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
+
+    with mock_patch(
+        "app.core.retriever.vector.defaults.create_default_vector_store",
+        new=AsyncMock(),
+    ) as mock_store:
+        manager = await create_memory_manager(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id=None,
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            base_path=custom_base_path,
+        )
+
+    mock_store.assert_not_awaited()
+    assert isinstance(manager, MemoryManager)
+    assert custom_base_path.exists()
+    assert (custom_base_path / "vector_store").exists()
+
+
+@pytest.mark.asyncio
+async def test_create_memory_manager_isolated_base_path_evicts_only_that_volume(
+    tmp_path: Path,
+):
+    """evict_cached_memory_manager removes only the matching base_path manager."""
+    from unittest.mock import AsyncMock
+    from unittest.mock import patch as mock_patch
+
+    from app.core.memory.adapters.setup import evict_cached_memory_manager
+
+    iso_a = tmp_path / "iso_a"
+    iso_b = tmp_path / "iso_b"
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
+
+    with mock_patch(
+        "app.core.retriever.vector.defaults.create_default_vector_store",
+        new=AsyncMock(),
+    ):
+        manager_a = await create_memory_manager(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id=None,
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            base_path=iso_a,
+        )
+        manager_b = await create_memory_manager(
+            resolve_context_binding(
+                namespaces=None,
+                agent_id=None,
+                channel_id=None,
+                conversation_id=None,
+                task_id=None,
+            ),
+            embedding_config=embedding_config,
+            base_path=iso_b,
+        )
+
+    assert manager_a is not manager_b
+    assert len(_memory_manager_cache) == 2
+
+    manager_a.close = AsyncMock()
+    await evict_cached_memory_manager(iso_a)
+
+    assert len(_memory_manager_cache) == 1
+    manager_a.close.assert_awaited_once()
+    assert manager_b in _memory_manager_cache.values()
+
+
 def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
     binding = resolve_context_binding(
         namespaces=None,
@@ -208,9 +319,13 @@ def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(tmp_path: Path) -> None:
+async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(
+    tmp_path: Path,
+) -> None:
     custom_base_path = tmp_path / "callback_refresh_memory"
-    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    embedding_config = EmbeddingConfig(
+        model="openai/text-embedding-3-small", api_key="sk-test"
+    )
 
     async def _wiki_hook(_stats: object) -> None:
         return None

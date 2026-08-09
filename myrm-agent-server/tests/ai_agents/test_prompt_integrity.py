@@ -57,7 +57,9 @@ class TestCoreSystemPrompt:
         security_pos = prompt.index("<security_rules>")
         integrity_pos = prompt.index("<task_integrity>")
 
-        assert identity_pos < obedience_pos < response_pos < security_pos < integrity_pos
+        assert (
+            identity_pos < obedience_pos < response_pos < security_pos < integrity_pos
+        )
 
     def test_shared_rules_exports(self) -> None:
         assert len(ABSOLUTE_OBEDIENCE_RULES) > 0
@@ -195,7 +197,9 @@ class TestMemoryRulesConditionalInjection:
 
     def test_both_disabled_full_mode_still_has_core_rules(self) -> None:
         """enable_answer_tool=False + enable_memory=False still has core rules."""
-        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
+        prompt = get_core_system_prompt(
+            "full", enable_answer_tool=False, enable_memory=False
+        )
         assert "<identity>" in prompt
         assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
@@ -204,7 +208,9 @@ class TestMemoryRulesConditionalInjection:
 
     def test_both_disabled_no_answer_tool_references(self) -> None:
         """No answer tool references when both features disabled."""
-        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
+        prompt = get_core_system_prompt(
+            "full", enable_answer_tool=False, enable_memory=False
+        )
         assert "answer_tool_required" not in prompt
 
     def test_invalid_mode_with_memory_disabled_falls_back(self) -> None:
@@ -241,23 +247,23 @@ class TestPromptTokenBudgetGate:
         """Full prompt must stay within budget to control Turn1 cost."""
         full = get_core_system_prompt("full")
         tokens = self._token_count(full)
-        assert tokens <= self._FULL_TOKEN_CAP, (
-            f"full prompt {tokens} tokens exceeds cap {self._FULL_TOKEN_CAP}"
-        )
+        assert (
+            tokens <= self._FULL_TOKEN_CAP
+        ), f"full prompt {tokens} tokens exceeds cap {self._FULL_TOKEN_CAP}"
 
     def test_lean_mode_prompt_token_cap(self) -> None:
         """Lean prompt must be materially smaller than full."""
         lean = get_core_system_prompt("lean")
         tokens = self._token_count(lean)
-        assert tokens <= self._LEAN_TOKEN_CAP, (
-            f"lean prompt {tokens} tokens exceeds cap {self._LEAN_TOKEN_CAP}"
-        )
+        assert (
+            tokens <= self._LEAN_TOKEN_CAP
+        ), f"lean prompt {tokens} tokens exceeds cap {self._LEAN_TOKEN_CAP}"
 
     def test_lean_full_ratio_within_budget(self) -> None:
         """Lean must deliver genuine savings vs full — not creep toward parity."""
         full_tokens = self._token_count(get_core_system_prompt("full"))
         lean_tokens = self._token_count(get_core_system_prompt("lean"))
         ratio = lean_tokens / full_tokens
-        assert ratio <= self._LEAN_FULL_RATIO_CAP, (
-            f"lean/full ratio {ratio:.3f} exceeds cap {self._LEAN_FULL_RATIO_CAP}"
-        )
+        assert (
+            ratio <= self._LEAN_FULL_RATIO_CAP
+        ), f"lean/full ratio {ratio:.3f} exceeds cap {self._LEAN_FULL_RATIO_CAP}"

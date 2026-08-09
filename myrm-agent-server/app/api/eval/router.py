@@ -26,14 +26,18 @@ from app.core.eval.capture import capture_case_from_chat
 from app.core.eval.service import (
     abort_eval,
     abort_matrix_eval,
+    abort_memory_ab,
     get_all_report_summaries,
     get_eval_cases,
     get_eval_status,
     get_latest_matrix_report,
+    get_latest_memory_ab_report,
     get_latest_report_summary,
     get_matrix_eval_status,
+    get_memory_ab_status,
     run_eval_suite_background,
     run_matrix_eval_background,
+    run_memory_ab_background,
     run_wb_bench_background,
     run_wb_bench_download_background,
     save_eval_cases,
@@ -86,7 +90,10 @@ async def run_wb_bench(
     from app.core.eval.wb_bench import WB_BENCH_SUBSETS
 
     if request.subset_id not in WB_BENCH_SUBSETS:
-        return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
+        return {
+            "status": "error",
+            "error": f"Unknown WBBench subset: {request.subset_id}",
+        }
 
     # Mark the eval state as running synchronously before the response is sent.
     # FastAPI BackgroundTasks run only after the response, so the SSE stream the
@@ -120,7 +127,10 @@ async def download_wb_bench(
     from app.core.eval.wb_bench import WB_BENCH_SUBSETS
 
     if request.subset_id not in WB_BENCH_SUBSETS:
-        return {"status": "error", "error": f"Unknown WBBench subset: {request.subset_id}"}
+        return {
+            "status": "error",
+            "error": f"Unknown WBBench subset: {request.subset_id}",
+        }
 
     _init_wb_bench_state(request.subset_id)
     background_tasks.add_task(
@@ -185,7 +195,9 @@ async def update_cases(
 
 
 @router.post("/cases/from-chat/{chat_id}")
-async def capture_case(chat_id: str, dataset_id: str | None = None) -> dict[str, object]:
+async def capture_case(
+    chat_id: str, dataset_id: str | None = None
+) -> dict[str, object]:
     """Capture a chat session and append it to evaluation cases."""
     success = await capture_case_from_chat(chat_id, dataset_id)
     if not success:
@@ -310,7 +322,9 @@ async def get_specific_report(filename: str) -> dict[str, object]:
                 return {"status": "success", "summary": data}
     except Exception as exc:
         logger.error("Eval result retrieval failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Eval result retrieval failed") from exc
+        raise HTTPException(
+            status_code=500, detail="Eval result retrieval failed"
+        ) from exc
 
     return {"status": "error"}
 
@@ -415,6 +429,97 @@ async def stream_matrix_evaluation_status() -> StreamingResponse:
 async def get_latest_matrix_evaluation_report() -> dict[str, object]:
     """Get the latest matrix evaluation report."""
     report = get_latest_matrix_report()
+    if not report:
+        return {"status": "not_found", "report": None}
+    return {"status": "success", "report": report}
+
+
+# ---------------------------------------------------------------------------
+# Memory A/B Eval — memory-on vs memory-off comparison endpoints
+# ---------------------------------------------------------------------------
+
+
+class RunMemoryAbRequest(BaseModel):
+    subset_id: str
+    profile_id: str | None = None
+
+
+@router.post("/memory-ab/run")
+async def run_memory_ab_evaluation(
+    background_tasks: BackgroundTasks,
+    request: RunMemoryAbRequest,
+) -> dict[str, object]:
+    """Start a memory-on vs memory-off A/B comparison on a WBBench subset."""
+    status_info = get_memory_ab_status()
+    if status_info.get("is_running"):
+        return {"status": "already_running", "info": status_info}
+
+    from app.core.eval.service import _init_memory_ab_state
+    from app.core.eval.wb_bench import WB_BENCH_SUBSETS
+
+    if request.subset_id not in WB_BENCH_SUBSETS:
+        return {
+            "status": "error",
+            "error": f"Unknown WBBench subset: {request.subset_id}",
+        }
+
+    # Mark state as running synchronously before the response is sent (same
+    # race guard as the WBBench run flow: BackgroundTasks start after the
+    # response, so the SSE stream would otherwise read a stale idle frame).
+    _init_memory_ab_state(request.subset_id)
+    background_tasks.add_task(
+        run_memory_ab_background,
+        subset_id=request.subset_id,
+        profile_id=request.profile_id,
+    )
+    return {"status": "started"}
+
+
+@router.post("/memory-ab/abort")
+async def abort_memory_ab_evaluation() -> dict[str, object]:
+    """Abort the currently running memory A/B evaluation."""
+    success = abort_memory_ab()
+    if not success:
+        return {"status": "not_running"}
+    return {"status": "aborted"}
+
+
+@router.get("/memory-ab/status")
+async def get_memory_ab_evaluation_status() -> dict[str, object]:
+    """Get the current status of the memory A/B evaluation."""
+    return get_memory_ab_status()
+
+
+async def _memory_ab_status_generator() -> AsyncGenerator[str, None]:
+    last_state_str = ""
+    while True:
+        status_info = get_memory_ab_status()
+        current_state_str = json.dumps(status_info)
+        if current_state_str != last_state_str:
+            yield f"data: {current_state_str}\n\n"
+            last_state_str = current_state_str
+
+        if not status_info.get("is_running"):
+            yield "event: close\ndata: {}\n\n"
+            break
+
+        await asyncio.sleep(0.5)
+
+
+@router.get("/memory-ab/stream")
+async def stream_memory_ab_evaluation_status() -> StreamingResponse:
+    """Stream the current status of the memory A/B evaluation via SSE."""
+    return StreamingResponse(
+        _memory_ab_status_generator(),
+        media_type="text/event-stream",
+        headers=SSE_RESPONSE_HEADERS,
+    )
+
+
+@router.get("/memory-ab/reports/latest")
+async def get_latest_memory_ab_evaluation_report() -> dict[str, object]:
+    """Get the latest memory A/B evaluation report."""
+    report = get_latest_memory_ab_report()
     if not report:
         return {"status": "not_found", "report": None}
     return {"status": "success", "report": report}

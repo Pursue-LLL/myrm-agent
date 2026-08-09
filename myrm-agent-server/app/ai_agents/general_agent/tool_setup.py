@@ -1228,15 +1228,21 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _setup_vision_toolkit_tools(self, tools: list[object]) -> None:
         """Mount vision toolkit tools when vision-toolkit skill is enabled."""
         try:
-            from myrm_agent_harness.toolkits.llms.vision import create_vision_agent_tools
+            from myrm_agent_harness.toolkits.llms.vision import (
+                create_vision_agent_tools,
+            )
 
             if self.executor is None:
                 logger.warning("vision-toolkit skipped: executor unavailable")
                 return
             vision_tools = create_vision_agent_tools(
                 self.executor,
-                vision_fallback_model_cfg=getattr(self, "vision_fallback_model_cfg", None),
-                vision_fallback_model_cfgs=getattr(self, "vision_fallback_model_cfgs", None),
+                vision_fallback_model_cfg=getattr(
+                    self, "vision_fallback_model_cfg", None
+                ),
+                vision_fallback_model_cfgs=getattr(
+                    self, "vision_fallback_model_cfgs", None
+                ),
                 include_geometry=True,
             )
             if not vision_tools:

@@ -84,7 +84,7 @@ Design notes:
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，Goal 完成时收集 session artifacts 写入 metadata.deliverables 供前端 bundle 展示；semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 | ✅ |
-| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；从 chat 绑定 profile 注入 `agent_id` + `user_instructions`（含 output suffixes，与 Kanban goal 对齐）；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
+| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；从 chat 绑定 profile 注入 `agent_id` + `user_instructions`（team protocol + output suffixes + `subagent_ids` + `agent_skill_ids` + `enabled_builtin_tools` → `resolve_agent_mount(WEB_CHAT)` + `agent_security_raw`/`enable_web_fetch`，与 Web turn1 对齐）；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
 | `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |

@@ -18,7 +18,7 @@
     "build:tauri": "bun run i18n:split && BUILD_MODE=tauri next build",
     "prestart": "bun run i18n:split",
     "start": "next start",
-    "lint": "bun node_modules/oxlint/bin/oxlint --ignore-path .oxlintignore",
+    "lint": "bun run verify:stable-mocks && bun node_modules/oxlint/bin/oxlint --ignore-path .oxlintignore",
     "lint:fix": "bun node_modules/oxlint/bin/oxlint --ignore-path .oxlintignore --fix",
     "lint:watch": "watch 'bun run lint' src",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -32,7 +32,9 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "verify:i18n": "bun scripts/verify-i18n.mjs",
-    "pretest": "bun run i18n:split && bun run verify:i18n"
+    "verify:stable-mocks": "bun scripts/verify-stable-mocks.mjs",
+    "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
+    "pretest": "bun run i18n:split && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",
@@ -43,6 +45,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.7.1",
+    "@lobehub/icons-static-svg": "1.94.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@monaco-editor/react": "^4.7.0",
     "@novnc/novnc": "^1.7.0",

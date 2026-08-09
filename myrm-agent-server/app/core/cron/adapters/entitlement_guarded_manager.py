@@ -87,6 +87,8 @@ class EntitlementGuardedCronManager:
         context_from: tuple[str, ...] = (),
         pre_condition_script: str | None = None,
         acceptance_criteria: tuple[dict[str, object], ...] = (),
+        workflow_template_id: str | None = None,
+        workflow_template_args: dict[str, str] | None = None,
     ) -> CronJob:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
         from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
@@ -131,6 +133,8 @@ class EntitlementGuardedCronManager:
             context_from=context_from,
             pre_condition_script=pre_condition_script,
             acceptance_criteria=acceptance_criteria,
+            workflow_template_id=workflow_template_id,
+            workflow_template_args=workflow_template_args,
         )
 
     async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:

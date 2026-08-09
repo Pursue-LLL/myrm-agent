@@ -137,7 +137,9 @@ def list_wb_bench_sources() -> list[dict[str, object]]:
                 "task_count": subset.task_count,
                 "approx_size_mb": subset.approx_size_mb,
                 "is_downloaded": (local_root / "tasks").is_dir(),
-                "local_size_bytes": archive_path.stat().st_size if archive_path.exists() else 0,
+                "local_size_bytes": (
+                    archive_path.stat().st_size if archive_path.exists() else 0
+                ),
                 "scoring": _scoring_mode_for(subset),
             }
         )
@@ -254,7 +256,9 @@ async def ensure_wb_bench_source(
     expected = await asyncio.to_thread(_fetch_expected_sha256, subset)
     if should_abort and should_abort():
         raise DownloadAbortedError(f"Download of {subset.archive} aborted")
-    if archive_path.exists() and await asyncio.to_thread(_verify_sha256, archive_path, expected):
+    if archive_path.exists() and await asyncio.to_thread(
+        _verify_sha256, archive_path, expected
+    ):
         logger.info("Reusing existing archive for %s", subset_id)
     else:
         logger.info("Downloading WBBench %s (%d MB)…", subset_id, subset.approx_size_mb)
@@ -301,7 +305,9 @@ async def _download_archive(
                     with tmp.open("wb") as f:
                         async for chunk in resp.aiter_bytes(CHUNK_SIZE):
                             if should_abort and should_abort():
-                                raise DownloadAbortedError(f"Download of {subset.archive} aborted")
+                                raise DownloadAbortedError(
+                                    f"Download of {subset.archive} aborted"
+                                )
                             f.write(chunk)
                             downloaded += len(chunk)
                             if progress_callback:

@@ -1,15 +1,18 @@
 'use client';
 
 /**
- * [INPUT] llm-provider-icons::LLM_PROVIDER_BRAND_ICONS (POS: 内置 Provider 品牌图标)
+ * [INPUT] provider-brand-icon-loaders::loadProviderBrandIconUrl (POS: 内置 Provider 品牌 SVG 按需加载)
  * [OUTPUT] ProviderIcon: 内置/自定义 Provider 头像组件
  * [POS] model-service 统一 Provider 头像：设置页列表、模型选择器、智能体能力面板、默认模型选择。
  */
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { BUILT_IN_PROVIDERS, type BuiltInProviderId } from '@/store/config/providerTypes';
-import { LLM_PROVIDER_BRAND_ICONS } from './llm-provider-icons';
+import {
+  getCachedProviderBrandIconUrl,
+  loadProviderBrandIconUrl,
+} from './provider-brand-icon-loaders';
 
 interface ProviderIconProps {
   providerId: string;
@@ -64,11 +67,61 @@ const LetterAvatar = memo<{ name: string; size: number }>(({ name, size }) => {
 LetterAvatar.displayName = 'LetterAvatar';
 
 const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size = 20, className }) => {
-  const BrandIcon = isBuiltInProviderId(providerId) ? LLM_PROVIDER_BRAND_ICONS[providerId] : undefined;
+  const builtIn = isBuiltInProviderId(providerId);
+  const [iconUrl, setIconUrl] = useState<string | null>(() => {
+    if (!builtIn) return null;
+    return getCachedProviderBrandIconUrl(providerId) ?? null;
+  });
+
+  useEffect(() => {
+    if (!builtIn) {
+      setIconUrl(null);
+      return;
+    }
+
+    const cached = getCachedProviderBrandIconUrl(providerId);
+    if (cached) {
+      setIconUrl(cached);
+      return;
+    }
+
+    let cancelled = false;
+    void loadProviderBrandIconUrl(providerId).then((url) => {
+      if (!cancelled && url) {
+        setIconUrl(url);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [builtIn, providerId]);
 
   return (
-    <div className={cn('flex items-center justify-center', className)}>
-      {BrandIcon ? <BrandIcon size={size} /> : <LetterAvatar name={providerName || providerId} size={size} />}
+    <div
+      className={cn('flex items-center justify-center shrink-0', className)}
+      style={{ width: size, height: size }}
+    >
+      {builtIn && iconUrl ? (
+        <img
+          src={iconUrl}
+          alt=""
+          width={size}
+          height={size}
+          className="rounded-md object-contain"
+          aria-hidden="true"
+          draggable={false}
+        />
+      ) : builtIn ? (
+        // Reserve space while lazy-loading; avoid flashing LetterAvatar for built-in vendors.
+        <div
+          className="rounded-md bg-muted/20"
+          style={{ width: size, height: size }}
+          aria-hidden="true"
+        />
+      ) : (
+        <LetterAvatar name={providerName || providerId} size={size} />
+      )}
     </div>
   );
 });

@@ -13495,6 +13495,7 @@
       "history": "히스토리 트렌드 (A/B Test)",
       "diff": "비교 뷰 (Diff)",
       "matrix": "매트릭스 비교",
+      "memoryAb": "메모리 A/B",
       "sources": "데이터셋 소스"
     },
     "progress": "진행",
@@ -13598,6 +13599,7 @@
       "tokens": "토큰",
       "cost": "비용",
       "time": "시간",
+      "memoryCalls": "메모리 호출 횟수",
       "matrixDetail": "케이스 × 프로필 매트릭스",
       "case": "케이스",
       "legend": {
@@ -13630,7 +13632,19 @@
       "scoringNativeTitle": "각 작업의 자체 채점기로 평가 (작업 네이티브, 컨테이너 기반)",
       "scoringCompositeTitle": "CompositeVerifier 엔진으로 평가 (Rule + LLM/VLM)",
       "pendingScoring": "채점 대기 중",
-      "testPassRate": "평균 테스트 통과율"
+      "testPassRate": "평균 테스트 통과율",
+      "memoryAb": "메모리 A/B"
+    },
+    "memoryAb": {
+      "started": "메모리 A/B 평가가 시작되었습니다",
+      "running": "메모리 A/B 평가 실행 중",
+      "noReport": "아직 메모리 A/B 보고서가 없습니다. 벤치마크 카드에서 평가를 시작하세요. embedding 모델 구성이 필요하며, 구성하지 않으면 두 그룹 모두 메모리 없이 실행됩니다.",
+      "armNoMemory": "메모리 없음",
+      "armWithMemory": "메모리 사용",
+      "confirmTitle": "메모리 A/B 평가를 시작할까요?",
+      "confirmBody": "동일한 WBBench 하위 집합을 두 번 실행합니다(메모리 켜기/끄기). 참고: embedding 모델 구성이 필요하며, 구성하지 않으면 두 그룹 모두 실질적으로 메모리 없이 실행됩니다. WBBench 작업은 단일 턴이므로 메모리 효과는 긴 세션에서 가장 두드러집니다. 여기서 결과가 같더라도 메모리가 무용하다는 뜻은 아닙니다.",
+      "confirmStart": "평가 시작",
+      "confirmCancel": "취소"
     }
   },
   "vault": {

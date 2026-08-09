@@ -55,7 +55,9 @@ def _decrypt_blob(row: UserConfig) -> dict[str, object]:
 @pytest.fixture
 async def setup_two_issuer_credentials():
     async with get_session() as db:
-        await db.execute(delete(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
+        await db.execute(
+            delete(UserConfig).where(UserConfig.config_key == "oauthCredentials")
+        )
         await db.commit()
 
         service = get_encryption_service()
@@ -85,13 +87,17 @@ async def setup_two_issuer_credentials():
     _refresh_locks.clear()
     yield
     async with get_session() as db:
-        await db.execute(delete(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
+        await db.execute(
+            delete(UserConfig).where(UserConfig.config_key == "oauthCredentials")
+        )
         await db.commit()
     _refresh_locks.clear()
 
 
 @pytest.mark.asyncio
-async def test_concurrent_cross_issuer_refresh_preserves_both(setup_two_issuer_credentials):
+async def test_concurrent_cross_issuer_refresh_preserves_both(
+    setup_two_issuer_credentials,
+):
     """Two issuers refreshing concurrently both keep their new tokens in the blob."""
 
     # Rendezvous barrier: both POST requests must have started before either
@@ -130,8 +136,16 @@ async def test_concurrent_cross_issuer_refresh_preserves_both(setup_two_issuer_c
 
     async with get_session() as db:
         row = (
-            await db.execute(select(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
-        ).scalars().first()
+            (
+                await db.execute(
+                    select(UserConfig).where(
+                        UserConfig.config_key == "oauthCredentials"
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
         assert row is not None
 
         val = _decrypt_blob(row)
@@ -140,7 +154,9 @@ async def test_concurrent_cross_issuer_refresh_preserves_both(setup_two_issuer_c
 
 
 @pytest.mark.asyncio
-async def test_refresh_does_not_resurrect_disconnected_issuer(setup_two_issuer_credentials):
+async def test_refresh_does_not_resurrect_disconnected_issuer(
+    setup_two_issuer_credentials,
+):
     """A disconnect during an in-flight refresh must not be resurrected by the write-back."""
 
     from app.services.integrations.oauth_store import delete_oauth_credential
@@ -169,8 +185,16 @@ async def test_refresh_does_not_resurrect_disconnected_issuer(setup_two_issuer_c
 
     async with get_session() as db:
         row = (
-            await db.execute(select(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
-        ).scalars().first()
+            (
+                await db.execute(
+                    select(UserConfig).where(
+                        UserConfig.config_key == "oauthCredentials"
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
         assert row is not None
 
         val = _decrypt_blob(row)

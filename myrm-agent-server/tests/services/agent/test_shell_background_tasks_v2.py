@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.meta_tools.bash._background_types import (
+from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     BackgroundProcessInfo,
 )
 

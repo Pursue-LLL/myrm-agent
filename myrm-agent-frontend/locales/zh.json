@@ -14120,6 +14120,7 @@
       "sources": "数据集源",
       "report": "评测报告",
       "matrix": "矩阵对比",
+      "memoryAb": "记忆 A/B",
       "history": "历史趋势 (A/B Test)",
       "diff": "对比视图 (Diff)"
     },
@@ -14226,6 +14227,7 @@
       "tokens": "Token",
       "cost": "成本",
       "time": "耗时",
+      "memoryCalls": "记忆调用次数",
       "matrixDetail": "用例 × 配置矩阵",
       "case": "用例",
       "legend": {
@@ -14256,7 +14258,19 @@
       "scoringNativeTitle": "由任务自带的评分器在沙箱内按官方逻辑评分",
       "scoringCompositeTitle": "由 CompositeVerifier 引擎（规则 + LLM/VLM）评分",
       "pendingScoring": "评分待定",
-      "testPassRate": "平均测试通过率"
+      "testPassRate": "平均测试通过率",
+      "memoryAb": "记忆 A/B"
+    },
+    "memoryAb": {
+      "started": "记忆 A/B 评测已开始",
+      "running": "记忆 A/B 评测进行中",
+      "noReport": "暂无记忆 A/B 报告。请从基准子集卡片发起一次评测。需要已配置 embedding 模型，否则双臂都将在无记忆状态下运行。",
+      "armNoMemory": "无记忆",
+      "armWithMemory": "开启记忆",
+      "confirmTitle": "开始记忆 A/B 评测？",
+      "confirmBody": "这将在同一 WBBench 子集上运行两次 —— 一次开启记忆、一次关闭。注意事项：需要已配置 embedding 模型，否则双臂实际上都在无记忆状态下运行；WBBench 任务为单轮，记忆收益在长会话中最明显，此处结果持平不代表记忆无用。",
+      "confirmStart": "开始评测",
+      "confirmCancel": "取消"
     }
   },
   "vault": {

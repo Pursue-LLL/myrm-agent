@@ -169,12 +169,14 @@ def test_opencode_go_settings_fetch_models_dialog(
         )
         assert isinstance(result, dict) and "ok" in result, result
         assert result.get("ok") is True, result
-        e2e_resource_ledger.register("page", page.target_id or "settings-models")
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

@@ -330,6 +330,7 @@ class AgentFactory:
             memory_conversation_id=params.memory_conversation_id,
             memory_task_id=params.memory_task_id,
             memory_shared_context_ids=params.memory_shared_context_ids,
+            memory_base_path=params.memory_base_path,
             declared_capabilities=params.declared_capabilities,
             declared_allowed_roots=params.declared_allowed_roots,
             external_agents_config=params.external_agents_config,

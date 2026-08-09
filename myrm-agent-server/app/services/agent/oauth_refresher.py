@@ -119,7 +119,9 @@ async def _merge_refreshed_credential(
             row = await load_oauth_credentials_row(db)
             credentials: dict[str, object] = {}
             if row is not None:
-                credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
+                credentials = decrypt_oauth_credentials(
+                    row.config_value, row.is_encrypted
+                )
 
             if issuer not in credentials:
                 # The issuer was disconnected while the refresh HTTP request
@@ -140,9 +142,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
             row = (
                 (
                     await db_session.execute(
-                        select(UserConfig).where(
-                            UserConfig.config_key == CONFIG_KEY
-                        )
+                        select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
                     )
                 )
                 .scalars()
@@ -173,7 +173,10 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
             # If another parallel coroutine refreshed this token while we were waiting for the lock,
             # its expires_at will be greater than now + 300s. We can use it directly!
             expires_at = cred_val.get("expires_at")
-            if expires_at is not None and expires_at > time.time() + _TOKEN_FRESH_GRACE_S:
+            if (
+                expires_at is not None
+                and expires_at > time.time() + _TOKEN_FRESH_GRACE_S
+            ):
                 logger.info(
                     "refresh_oauth_token: Token for '%s' was already refreshed by a parallel task. Skipping HTTP POST.",
                     issuer,

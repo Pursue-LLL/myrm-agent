@@ -14,6 +14,7 @@ import {
   Grid3X3,
   Loader2,
   Clock,
+  BrainCircuit,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
@@ -114,8 +115,19 @@ export default function EvalLabDashboard() {
   const [matrixReport, setMatrixReport] = useState<MatrixReportData | null>(null);
   const [matrixRunning, setMatrixRunning] = useState(false);
   const [matrixProgress, setMatrixProgress] = useState({ current_profile: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0 });
+  const [memoryAbReport, setMemoryAbReport] = useState<MatrixReportData | null>(null);
+  const [memoryAbRunning, setMemoryAbRunning] = useState(false);
+  const [memoryAbProgress, setMemoryAbProgress] = useState({ current_arm: '', stage: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0, download_progress: null as { downloaded_bytes: number; total_bytes: number } | null });
 
   const isMatrixMode = selectedProfileIds.length >= 2;
+
+  const memoryAbProfileNames = useCallback(
+    () => ({
+      memory_off: t('memoryAb.armNoMemory'),
+      memory_on: t('memoryAb.armWithMemory'),
+    }),
+    [t],
+  );
 
   const fetchDatasets = useCallback(async () => {
     try {
@@ -211,8 +223,20 @@ export default function EvalLabDashboard() {
     }
   }, []);
 
+  const fetchMemoryAbReport = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/eval/memory-ab/reports/latest');
+      const data = await res.json();
+      if (data.status === 'success' && data.report) {
+        setMemoryAbReport(data.report as MatrixReportData);
+      }
+    } catch (e) {
+      console.error('Failed to fetch memory A/B report:', e);
+    }
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport()]).finally(() =>
+    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport(), fetchMemoryAbReport()]).finally(() =>
       setLoading(false),
     );
   }, []);
@@ -324,6 +348,51 @@ export default function EvalLabDashboard() {
     return () => { eventSource?.close(); };
   }, [matrixRunning]);
 
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    if (memoryAbRunning) {
+      eventSource = new EventSource('/api/v1/eval/memory-ab/stream');
+
+      let finalized = false;
+      const finalize = () => {
+        if (finalized) return;
+        finalized = true;
+        eventSource?.close();
+        setMemoryAbRunning(false);
+        setSourcesRefreshToken((prev) => prev + 1);
+        fetchMemoryAbReport();
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setMemoryAbRunning(!!data.is_running);
+          setMemoryAbProgress({
+            current_arm: data.current_arm || '',
+            stage: data.stage || '',
+            profile_progress: data.profile_progress || 0,
+            profile_total: data.profile_total || 0,
+            case_completed: data.case_completed || 0,
+            case_total: data.case_total || 0,
+            download_progress: data.download_progress || null,
+          });
+          if (!data.is_running) {
+            if (data.error) { toast.error(data.error); }
+            finalize();
+          }
+        } catch (e) {
+          console.error('Memory A/B SSE parse error', e);
+        }
+      };
+      eventSource.addEventListener('close', finalize);
+      eventSource.onerror = () => {
+        eventSource?.close();
+        setMemoryAbRunning(false);
+      };
+    }
+    return () => { eventSource?.close(); };
+  }, [memoryAbRunning, fetchMemoryAbReport]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -346,7 +415,7 @@ export default function EvalLabDashboard() {
   };
 
   const handleRun = async () => {
-    if (running || matrixRunning) return;
+    if (running || matrixRunning || memoryAbRunning) return;
     if (cases !== casesDraft) {
       toast.error(t('saveFirst'));
       return;
@@ -396,7 +465,7 @@ export default function EvalLabDashboard() {
   };
 
   const handleWbRun = async (subsetId: string) => {
-    if (running || matrixRunning) return;
+    if (running || matrixRunning || memoryAbRunning) return;
     try {
       const res = await fetch('/api/v1/eval/wb-bench/run', {
         method: 'POST',
@@ -423,7 +492,7 @@ export default function EvalLabDashboard() {
   };
 
   const handleWbDownload = async (subsetId: string) => {
-    if (running || matrixRunning) return;
+    if (running || matrixRunning || memoryAbRunning) return;
     try {
       const res = await fetch('/api/v1/eval/wb-bench/download', {
         method: 'POST',
@@ -444,9 +513,39 @@ export default function EvalLabDashboard() {
     }
   };
 
+  const handleMemoryAbRun = async (subsetId: string) => {
+    if (running || matrixRunning || memoryAbRunning) return;
+    try {
+      const res = await fetch('/api/v1/eval/memory-ab/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subset_id: subsetId,
+          profile_id: selectedProfileIds[0] || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === 'started') {
+        setMemoryAbRunning(true);
+        toast.success(t('memoryAb.started'));
+        setActiveTab('memory-ab');
+      } else if (data.status === 'already_running') {
+        toast.info(t('alreadyRunning'));
+      } else {
+        toast.error(data.error || t('evalStartFailed'));
+      }
+    } catch {
+      toast.error(t('evalStartFailed'));
+    }
+  };
+
   const handleAbort = async () => {
     try {
-      const endpoint = matrixRunning ? '/api/v1/eval/matrix/abort' : '/api/v1/eval/abort';
+      const endpoint = memoryAbRunning
+        ? '/api/v1/eval/memory-ab/abort'
+        : matrixRunning
+          ? '/api/v1/eval/matrix/abort'
+          : '/api/v1/eval/abort';
       const res = await fetch(endpoint, { method: 'POST' });
       if (res.ok) {
         toast.success(t('abortSent'));
@@ -503,6 +602,9 @@ export default function EvalLabDashboard() {
               <TabsTrigger value="sources">{t('tabs.sources')}</TabsTrigger>
               <TabsTrigger value="report">{t('tabs.report')}</TabsTrigger>
               {(matrixReport || matrixRunning) && <TabsTrigger value="matrix">{t('tabs.matrix')}</TabsTrigger>}
+              {(memoryAbReport || memoryAbRunning) && (
+                <TabsTrigger value="memory-ab">{t('tabs.memoryAb')}</TabsTrigger>
+              )}
               <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
               {diffView && <TabsTrigger value="diff">{t('tabs.diff')}</TabsTrigger>}
             </TabsList>
@@ -567,12 +669,12 @@ export default function EvalLabDashboard() {
                 <button
                   key={p.agent_id}
                   onClick={() => {
-                    if (running || matrixRunning) return;
+                    if (running || matrixRunning || memoryAbRunning) return;
                     setSelectedProfileIds((prev) =>
                       isSelected ? prev.filter((id) => id !== p.agent_id) : [...prev, p.agent_id],
                     );
                   }}
-                  disabled={running || matrixRunning}
+                  disabled={running || matrixRunning || memoryAbRunning}
                   className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -596,7 +698,7 @@ export default function EvalLabDashboard() {
               type="checkbox"
               checked={benchmarkMode}
               onChange={(e) => setBenchmarkMode(e.target.checked)}
-              disabled={running || matrixRunning}
+              disabled={running || matrixRunning || memoryAbRunning}
               className="rounded border-border text-primary focus:ring-primary"
             />
             {t('benchmarkMode')}
@@ -604,14 +706,14 @@ export default function EvalLabDashboard() {
 
           <button
             onClick={handleRun}
-            disabled={running || matrixRunning}
+            disabled={running || matrixRunning || memoryAbRunning}
             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:bg-gray-400"
           >
             <Play className="w-4 h-4" />
-            {running || matrixRunning ? t('running') : isMatrixMode ? t('runMatrix') : t('run')}
+            {running || matrixRunning || memoryAbRunning ? t('running') : isMatrixMode ? t('runMatrix') : t('run')}
           </button>
 
-          {(running || matrixRunning) && (
+          {(running || matrixRunning || memoryAbRunning) && (
             <button
               onClick={handleAbort}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600 text-white rounded-full hover:bg-red-700"
@@ -641,10 +743,11 @@ export default function EvalLabDashboard() {
 
           <TabsContent value="sources" className="h-full p-6 m-0">
             <WbBenchSources
-              running={running || matrixRunning}
+              running={running || matrixRunning || memoryAbRunning}
               history={history}
               onRun={handleWbRun}
               onDownload={handleWbDownload}
+              onMemoryAb={handleMemoryAbRun}
               refreshToken={sourcesRefreshToken}
               downloadingSubsetId={evalStage === 'downloading' ? evalStageSubsetId : null}
               downloadProgress={downloadProgress}
@@ -876,6 +979,42 @@ export default function EvalLabDashboard() {
               <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                 <Grid3X3 className="w-12 h-12 opacity-20" />
                 <p>{t('matrix.noReport')}</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="memory-ab" className="h-full p-6 overflow-y-auto">
+            {memoryAbRunning ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+                <p>
+                  {memoryAbProgress.stage === 'downloading'
+                    ? `${t('wbBench.downloading')}: ${formatMib(memoryAbProgress.download_progress?.downloaded_bytes ?? 0)} / ${
+                        memoryAbProgress.download_progress && memoryAbProgress.download_progress.total_bytes > 0
+                          ? formatMib(memoryAbProgress.download_progress.total_bytes)
+                          : '?'
+                      }`
+                    : `${t('memoryAb.running')} — ${memoryAbProgress.current_arm || '...'}`}
+                </p>
+                <p className="text-sm">
+                  {t('matrix.profileProgress')}: {memoryAbProgress.profile_progress}/{memoryAbProgress.profile_total} |{' '}
+                  {t('matrix.caseProgress')}: {memoryAbProgress.case_completed}/{memoryAbProgress.case_total}
+                </p>
+                <div className="w-64 h-2 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{
+                      width: `${memoryAbProgress.case_total > 0 ? (memoryAbProgress.case_completed / memoryAbProgress.case_total) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : memoryAbReport ? (
+              <MatrixResultView report={memoryAbReport} profileNames={memoryAbProfileNames()} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                <BrainCircuit className="w-12 h-12 opacity-20" />
+                <p>{t('memoryAb.noReport')}</p>
               </div>
             )}
           </TabsContent>

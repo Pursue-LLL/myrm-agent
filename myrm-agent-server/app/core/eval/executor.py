@@ -41,7 +41,6 @@ from app.core.channel_bridge.config_parsers import (
 logger = logging.getLogger(__name__)
 
 
-
 class LocalEvalExecutor:
     """Executes Agent eval cases using the Server's Agent configuration."""
 
@@ -51,6 +50,8 @@ class LocalEvalExecutor:
         *,
         benchmark_mode: bool = False,
         workspace_seed_map: dict[str, str] | None = None,
+        enable_memory: bool | None = None,
+        memory_base_path: str | None = None,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
@@ -61,6 +62,16 @@ class LocalEvalExecutor:
         self._workspace_seed_map = workspace_seed_map or {}
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
+        # Memory participation in this run. `None` means "inherit benchmark
+        # semantics": benchmark runs disable memory for a fair, uncontaminated
+        # baseline; interactive runs keep it on. Pass an explicit bool to
+        # override (e.g. the memory-on arm of a memory A/B comparison).
+        self._enable_memory = (
+            enable_memory if enable_memory is not None else not benchmark_mode
+        )
+        # Override memory storage root so eval never touches the user's real
+        # memory volume (isolated temp dir created by the caller).
+        self._memory_base_path = memory_base_path
 
     async def create_session(self) -> str:
         """Create a new session ID.
@@ -174,7 +185,9 @@ class LocalEvalExecutor:
                 raw_decay = resolved.memory_decay_profile
                 memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
                 raw_preset = resolved.memory_extraction_preset
-                memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
+                memory_extraction_preset = (
+                    raw_preset if isinstance(raw_preset, str) else None
+                )
 
                 if mcp_configs:
                     from app.services.agent.params.mcp_selection import (
@@ -295,6 +308,8 @@ class LocalEvalExecutor:
             memory_extraction_preset=memory_extraction_preset,
             engine_params=agent_engine_params,
             memory_shared_context_ids=memory_shared_context_ids,
+            enable_memory=self._enable_memory,
+            memory_base_path=self._memory_base_path,
             enable_conversation_search=resolve_conversation_search_enabled(
                 configs.personal_settings_dict
             ),

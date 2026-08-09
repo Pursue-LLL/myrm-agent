@@ -281,6 +281,24 @@ def _build_effective_prompt(job: CronJob) -> str:
     return prompt
 
 
+def _resolve_cron_enable_memory(
+    enabled_builtin_tools: list[str],
+    memory_settings: dict[str, object] | None,
+) -> bool:
+    """Enable memory for cron only when both gates pass.
+
+    1. The intersected tool set allows memory (``tools_allowed`` per-job
+       allow-list, parallel to web_search/file/shell handling).
+    2. The user-level memory master switch is on (``enableMemory`` personal
+       setting), keeping cron consistent with channel/voice entry points.
+    """
+    from app.core.memory.proactive.settings import resolve_memory_enabled
+
+    return "memory" in enabled_builtin_tools and resolve_memory_enabled(
+        memory_settings
+    )
+
+
 async def _resolve_cron_enable_web_search(
     *,
     enabled_builtin_tools: list[str],
@@ -717,6 +735,9 @@ class AgentJobRunner:
                 declared_capabilities=job.required_capabilities,
                 declared_allowed_roots=job.allowed_roots,
                 **cron_tool_flags,
+                enable_memory=_resolve_cron_enable_memory(
+                    enabled_builtin_tools, memory_settings
+                ),
                 enable_web_search=await _resolve_cron_enable_web_search(
                     enabled_builtin_tools=enabled_builtin_tools,
                     job=job,
@@ -805,12 +826,16 @@ class AgentJobRunner:
                             unattended=True,
                         )
                         result = await asyncio.wait_for(
-                            _consume_dynamic_workflow_stream(dw_stream, job, model_name),
+                            _consume_dynamic_workflow_stream(
+                                dw_stream, job, model_name
+                            ),
                             timeout=timeout,
                         )
                     else:
                         result = await asyncio.wait_for(
-                            _consume_stream(agent, job, effective_prompt, runtime_context),
+                            _consume_stream(
+                                agent, job, effective_prompt, runtime_context
+                            ),
                             timeout=timeout,
                         )
                     if cron_post_run_verify:

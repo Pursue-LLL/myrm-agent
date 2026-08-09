@@ -8,8 +8,9 @@
 - resolve_conversation_search_enabled: Whether memory_search_tool sessions corpus is enabled for the user.
 
 [POS]
-Single source of truth for enableMemory interpretation in server cron, channels,
-and voice paths. Matches schema default in app.schemas.config (False when unset).
+Single source of truth for enableMemory interpretation in server cron, kanban,
+channels, and voice paths. Matches schema default in app.schemas.config (False
+when unset).
 """
 
 from __future__ import annotations

@@ -92,9 +92,7 @@ class DatabaseMCPOAuthTokenStore:
                 .scalars()
                 .first()
             )
-            await persist_credentials_locked(
-                db, row, tokens, config_key=_CONFIG_KEY
-            )
+            await persist_credentials_locked(db, row, tokens, config_key=_CONFIG_KEY)
 
     async def get_token(self, server_name: str) -> MCPOAuthToken | None:
         tokens = await self._load_tokens()

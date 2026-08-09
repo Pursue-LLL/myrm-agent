@@ -33,6 +33,11 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
         "resolve_agent_mount",
         "ExecutionSurface.KANBAN",
     ),
+    (
+        "app/services/agent/goal_stream_trigger.py",
+        "resolve_agent_mount",
+        "ExecutionSurface.WEB_CHAT",
+    ),
     ("app/api/voice/agent_bridge.py", "resolve_agent_mount", "ExecutionSurface.VOICE"),
     (
         "app/api/voice/voice_memory_context.py",

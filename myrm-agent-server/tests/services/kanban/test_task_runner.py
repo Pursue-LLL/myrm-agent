@@ -764,3 +764,101 @@ class TestTaskModelOverride:
                 f"resolve_model_config must receive {expected!r} as model_override "
                 f"(task={task_model!r}, profile={profile_model!r})"
             )
+
+
+class TestKanbanEnableMemory:
+    """Kanban tasks must honor the user-level memory master switch.
+
+    Kanban runs unattended (``unattended_mode=True``); mounting the memory
+    group / enabling auto-extraction when the user disabled memory globally
+    would write task outputs into a memory store the user turned off.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("personal_settings", "expected"),
+        [
+            ({"enableMemory": True}, True),
+            ({"enableMemory": False}, False),
+            (None, False),
+            ({}, False),
+        ],
+    )
+    async def test_enable_memory_follows_global_switch(
+        self, personal_settings, expected
+    ):
+        task = KanbanTask(
+            task_id="memory-task-1",
+            board_id="board-1",
+            title="Memory Switch Task",
+            agent_id="agent-1",
+        )
+
+        mock_store = AsyncMock()
+        mock_store.get_board.return_value = None
+        runner = KanbanTaskRunner(mock_store)
+
+        mock_model_cfg = ModelConfig(model="test-model", api_key="test-key")
+
+        mock_settings = MagicMock()
+        mock_settings.database = MagicMock()
+        mock_settings.database.event_log_dir = "/tmp/test-event-logs"
+        mock_settings.event_log_max_jsonl_line_bytes = 1024
+
+        with (
+            patch(
+                "app.ai_agents.agents.AgentFactory.create_general_agent"
+            ) as mock_create_agent,
+            patch(
+                "app.services.kanban.task_runner.build_task_context",
+                new_callable=AsyncMock,
+            ) as mock_build_context,
+            patch.object(
+                runner, "_resolve_profile", new_callable=AsyncMock
+            ) as mock_resolve_profile,
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+            ) as mock_load_user_configs,
+            patch(
+                "app.core.channel_bridge.model_resolver.resolve_model_config",
+                return_value=mock_model_cfg,
+            ),
+            patch(
+                "app.core.channel_bridge.model_resolver.enrich_model_context_window",
+                return_value=mock_model_cfg,
+            ),
+            patch(
+                "app.services.agent.swarm_fission_resume.stream_with_swarm_fission_resume",
+                new_callable=AsyncMock,
+            ) as mock_stream,
+            patch(
+                "app.config.settings.get_settings",
+                return_value=mock_settings,
+            ),
+        ):
+            mock_build_context.return_value = "test context"
+            mock_resolve_profile.return_value = None
+
+            mock_configs = MagicMock()
+            mock_configs.retrieval_dict = {}
+            mock_configs.providers_dict = {"providers": []}
+            mock_configs.security_config_dict = {}
+            mock_configs.search_cfg = {"searchService": "tavily"}
+            mock_configs.search_is_user_configured = False
+            mock_configs.personal_settings_dict = personal_settings
+            mock_load_user_configs.return_value = mock_configs
+
+            mock_agent = AsyncMock()
+            mock_create_agent.return_value = mock_agent
+
+            async def mock_stream_gen(*args, **kwargs):
+                yield {"type": "message_end", "usage": {}}
+
+            mock_stream.side_effect = mock_stream_gen
+
+            await runner.run(task)
+
+            mock_create_agent.assert_called_once()
+            params = mock_create_agent.call_args[0][0]
+            assert params.enable_memory is expected
