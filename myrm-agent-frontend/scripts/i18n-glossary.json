@@ -131,7 +131,7 @@
         "Write traditional Chinese (繁體) consistently; never port simplified Chinese glyphs directly.",
         "Preserve ICU placeholders exactly.",
         "Keep brands in Latin script: Myrm, MCP, OpenAI, GitHub, Webhook, OAuth, API, URL.",
-        "Simplified-only glyphs (设/发/过/这/门/见/样/为/实/处/与/关/历/广/卫/组/单/号/乡/争/办/队/传/约/员/结/据/线/红/纸/经/继/严/业/产/长/车/声/压/条/张/华/观/团/记/忆/语/认/识/讲/课/专/项/级/联/词/买/卖/双/对/错/时/间/现/点/营/让/请/询/论/证/谈/该/谁/调/计/划/开/览/选/择/权/础/码/库/还/边/个/东/说/话/给/觉/复/环/变/习/额/题/态/视/页/体/举/尘/当/惊/亲/务/减/测/网/场/帮/协/阶/断/写/读/伟/伪/汉/归/问/阳/阴/际/险/隐/顶/项/顾/显/风/飞/马/验/鸟/鸡/钟/层/齐/参/击/势/转/辆/轻/较) are rejected (enforced by verify-i18n); only language-name labels and the cross-language term 합니다体 are exempt.",
+        "Simplified-only glyphs (设/发/过/这/门/见/样/为/实/处/与/关/历/广/卫/组/单/号/乡/争/办/队/传/约/员/结/据/线/红/纸/经/继/严/业/产/长/车/声/压/条/张/华/观/团/记/忆/语/认/识/讲/课/专/项/级/联/词/买/卖/双/对/错/时/间/现/点/营/让/请/询/论/证/谈/该/谁/调/计/划/开/览/选/择/权/础/码/库/还/边/个/东/说/话/给/觉/复/环/变/习/额/题/态/视/页/体/举/尘/当/惊/亲/务/减/测/网/场/帮/协/阶/断/写/读/伟/伪/汉/归/问/阳/阴/际/险/隐/顶/项/顾/显/风/飞/马/验/鸟/鸡/钟/层/齐/参/击/势/转/辆/轻/较/汇/纤/纪/细/绳/维/绿/讨/训/评/试/资/赞/针/钢/钥/钱/铁/银/链/锁) are rejected (enforced by verify-i18n); only language-name labels and the cross-language term 합니다体 are exempt.",
         "Use established Traditional terms: 設定 not 设置, 儲存 not 保存, 刪除 not 删除, 複製 not 复制."
       ],
       "terms": {
