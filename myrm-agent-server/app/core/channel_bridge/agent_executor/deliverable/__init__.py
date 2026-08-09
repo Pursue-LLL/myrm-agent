@@ -1,4 +1,16 @@
-"""Channel deliverable delivery: attachment cap, path scanner, artifact deep links."""
+"""Channel deliverable package exports.
+
+[INPUT]
+- deliverable.deep_links (POS: artifact deep links for IM delivery)
+- deliverable.media (POS: attachment size cap and image compression)
+- deliverable.scanner (POS: deliverable path token scan and resolve)
+
+[OUTPUT]
+- Re-exports for channel executor deliverable helpers
+
+[POS]
+Public surface for channel deliverable path scanning, media compression, and artifact links.
+"""
 
 from .deep_links import (
     build_artifact_deep_links,
