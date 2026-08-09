@@ -16,7 +16,7 @@
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
-| `verify-i18n.mjs` | 六语系 i18n 全量门禁：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、翻译壳检测（`collectTranslationShells` + 豁免见 `i18n-shell-allowlist.json`）、glossary forbidden（de/ko/ja，`i18n-glossary.json`）、双语对照脏值检测（非拉丁文字区间 `NON_LATIN_RE` 覆盖汉字+假名+谚文，拦截 "はい / Yes" 类脏值）、异常哨兵；另含 en 纯净门禁（SSOT 不得混入非拉丁）+ ko/de 汉字纯净门禁（拉丁/谚文系语言文案出现汉字即中文残留，语言名与 합니다体 术语豁免）；另有 SSR shell/deferred namespace 门禁 + 关键 namespace keys（`pretest` + CI） |
+| `verify-i18n.mjs` | 六语系 i18n 全量门禁：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、翻译壳检测（`collectTranslationShells` + 豁免见 `i18n-shell-allowlist.json`）、glossary forbidden（de/ko/ja，`i18n-glossary.json`）、双语对照脏值检测（非拉丁文字区间 `NON_LATIN_RE` 覆盖汉字+假名+谚文，拦截 "はい / Yes" 类脏值）、异常哨兵；另含 en 纯净门禁（SSOT 不得混入非拉丁）+ ko/de 非本语言文字纯净门禁（拉丁/谚文系语言文案出现汉字或日文假名即残留，语言名与 합니다体 术语豁免）；另有 SSR shell/deferred namespace 门禁 + 关键 namespace keys（`pretest` + CI） |
 | `verify-stable-mocks.mjs` | next-intl mock 稳定性门禁：扫描全部测试文件，硬拦截不稳定 mock（`useTranslations: () => (key) => ...` 箭头简写 / `() => { return (key) => ... }` 块体返回），防 Vitest OOM 复发（`lint` + `pretest` 前置） |
 | `i18n-shell-core.mjs` | 翻译壳检测共享逻辑（`isLegitSameValue` / `collectTranslationShells` 等；verify-i18n 与 dump-remaining 共用，防 gate 口径漂移） |
 | `i18n-patch-apply.mjs` | 将 `translation-patches/<locale>/*.json` 深度合并进 `locales/<locale>.json`（内容补齐工作流） |

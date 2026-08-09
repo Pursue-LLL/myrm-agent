@@ -11,7 +11,7 @@
         "Keep product brands untranslated: Myrm, MyrmAgent, MCP, OpenAI, GitHub, Telegram, Discord, Slack, Webhook.",
         "Prefer established UI terms: Einstellungen, Fähigkeiten, Agent, Modell, Kanal, Speicher.",
         "Button labels: short imperative (Speichern, Abbrechen, Löschen, Bestätigen).",
-        "Never mix Han characters into German UI copy; only language-name labels (中文/日本語) and the cross-language term 합니다体 are exempt (enforced by verify-i18n)."
+        "Never mix Han characters or Japanese kana into German UI copy; only language-name labels (中文/日本語) and the cross-language term 합니다体 are exempt (enforced by verify-i18n)."
       ],
       "terms": {
         "Agent": "Agent",
@@ -54,7 +54,7 @@
         "Preserve ICU placeholders exactly.",
         "Keep brands in Latin script: Myrm, MCP, OpenAI, GitHub, Webhook.",
         "Use consistent product terms: 설정, 스킬, 에이전트, 모델, 채널, 메모리.",
-        "Never mix Han characters into Korean UI copy; write native Hangul (설정 not 设置); only language-name labels (中文/日本語) are exempt (enforced by verify-i18n)."
+        "Never mix Han characters or Japanese kana into Korean UI copy; write native Hangul (설정 not 设置); only language-name labels (中文/日本語) are exempt (enforced by verify-i18n)."
       ],
       "terms": {
         "Settings": "설정",
