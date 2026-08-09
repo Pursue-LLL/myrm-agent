@@ -551,6 +551,95 @@ class TestFetchArtifactVersions:
         result = await fetch_artifact_versions(["art-001"])
         assert result == {}
 
+    @pytest.mark.asyncio
+    async def test_real_db_latest_version_selected(self) -> None:
+        """Real SQLite lookup picks the newest version per artifact."""
+        import pytest_asyncio
+        from sqlalchemy import select
+        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+        from sqlalchemy.orm import sessionmaker
+
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            fetch_artifact_versions,
+        )
+        from app.database.models import Base
+        from app.database.models.artifact import Artifact, ArtifactVersion
+
+        engine = create_async_engine(
+            "sqlite+aiosqlite:///file:deep_links_test?mode=memory&cache=shared&uri=true"
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with session_factory() as db:
+            db.add_all(
+                [
+                    Artifact(
+                        id="art-1",
+                        title="report",
+                        file_name="report.pdf",
+                        versions=[
+                            ArtifactVersion(id="v-old", content_type="application/pdf"),
+                            ArtifactVersion(id="v-new", content_type="application/pdf"),
+                        ],
+                    ),
+                    Artifact(
+                        id="art-2",
+                        title="notes",
+                        file_name="notes.md",
+                        versions=[
+                            ArtifactVersion(id="v-solo", content_type="text/markdown"),
+                        ],
+                    ),
+                    Artifact(
+                        id="art-3",
+                        title="no versions",
+                        file_name="empty.html",
+                        versions=[],
+                    ),
+                    Artifact(
+                        id="art-4",
+                        title="deleted",
+                        file_name="gone.pdf",
+                        is_deleted=True,
+                        versions=[
+                            ArtifactVersion(id="v-del", content_type="application/pdf"),
+                        ],
+                    ),
+                ]
+            )
+            await db.commit()
+
+            # Give the two versions distinct creation times so the max pick is deterministic.
+            stmt = select(ArtifactVersion).where(
+                ArtifactVersion.artifact_id == "art-1"
+            )
+            rows = (await db.execute(stmt)).scalars().all()
+            import datetime
+
+            rows[0].created_at = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+            rows[1].created_at = datetime.datetime(2025, 6, 1, tzinfo=datetime.timezone.utc)
+            await db.commit()
+
+            async def fake_get_session():
+                yield db
+
+            from app.core.channel_bridge.agent_executor.deliverable import (
+                deep_links as dl_mod,
+            )
+
+            original = dl_mod.get_session
+            dl_mod.get_session = fake_get_session  # type: ignore[assignment]
+            try:
+                result = await fetch_artifact_versions(
+                    ["art-1", "art-2", "art-3", "art-4"]
+                )
+            finally:
+                dl_mod.get_session = original  # type: ignore[assignment]
+
+        assert result == {"art-1": "v-new", "art-2": "v-solo"}
+        await engine.dispose()
+
 
 class TestCollectEmptyFileSkipped:
     """Zero-byte files must be skipped."""

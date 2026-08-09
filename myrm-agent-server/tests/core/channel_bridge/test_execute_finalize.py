@@ -188,3 +188,137 @@ async def test_empty_content_with_plain_attachment_uses_deliverable_text() -> No
     persisted = persist_mock.call_args.args[1]
     assert persisted == "Deliverable attached."
     assert reply.components == ()
+
+
+@pytest.mark.asyncio
+async def test_screenshot_base64_saved_to_temp_file() -> None:
+    """A screenshot reported as base64 is decoded into a temp attachment."""
+    import base64
+
+    acc = StreamAccumulator()
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"fakedata").decode()
+    acc.last_image_base64 = png
+    acc.last_image_mime = "image/png"
+    acc.chunks.append("Here is the screenshot.")
+
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert len(reply.media) == 1
+    assert reply.media[0].media_type == MediaType.IMAGE
+    assert reply.media[0].filename == "screenshot.png"
+
+
+@pytest.mark.asyncio
+async def test_screenshot_base64_save_failure_is_graceful() -> None:
+    """A corrupt base64 payload must not crash finalize."""
+    acc = StreamAccumulator()
+    acc.last_image_base64 = "not-a-valid-base64!!!"
+    acc.last_image_mime = "image/jpeg"
+    acc.chunks.append("Screenshot failed but reply continues.")
+
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert reply.media == ()
+
+
+@pytest.mark.asyncio
+async def test_screenshot_url_attachment() -> None:
+    """A screenshot reported as a URL becomes a URL media attachment."""
+    acc = StreamAccumulator()
+    acc.last_image_url = "https://example.com/shot.jpg"
+    acc.last_image_mime = "image/jpeg"
+    acc.chunks.append("See the screenshot.")
+
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert len(reply.media) == 1
+    assert reply.media[0].url == "https://example.com/shot.jpg"
+    assert reply.media[0].filename == "screenshot.jpg"
+
+
+@pytest.mark.asyncio
+async def test_error_message_becomes_error_reply() -> None:
+    acc = StreamAccumulator()
+    acc.error_message = "tool crashed"
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert "[Error] tool crashed" in reply.content
+
+
+@pytest.mark.asyncio
+async def test_empty_response_fallback() -> None:
+    acc = StreamAccumulator()
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert reply.content == "[No response generated]"
+
+
+@pytest.mark.asyncio
+async def test_channel_cost_recorded_when_budget_key() -> None:
+    acc = StreamAccumulator()
+    acc.cost_usd = 0.12
+    acc.chunks.append("Done.")
+    with patch(
+        "app.services.budget.channel_budget.record_channel_cost",
+    ) as record_mock:
+        await _finalize(acc, ((), frozenset()), channel_budget_key="tg:user-1")
+    record_mock.assert_called_once_with("tg:user-1", 0.12)
+
+
+@pytest.mark.asyncio
+async def test_auto_title_generated_for_new_chat() -> None:
+    acc = StreamAccumulator()
+    acc.chunks.append("First reply.")
+    with patch(
+        "app.core.channel_bridge.agent_executor.execute_finalize.generate_channel_title",
+    ) as title_mock:
+        await _finalize(acc, ((), frozenset()), chat_history=[])
+    title_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_no_auto_title_for_existing_chat() -> None:
+    acc = StreamAccumulator()
+    acc.chunks.append("Follow-up reply.")
+    with patch(
+        "app.core.channel_bridge.agent_executor.execute_finalize.generate_channel_title",
+    ) as title_mock:
+        await _finalize(acc, ((), frozenset()), chat_history=[object()])
+    title_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_session_auto_reset_metadata() -> None:
+    acc = StreamAccumulator()
+    acc.chunks.append("Continuing after reset.")
+    _persist_mock, reply = await _finalize(
+        acc, ((), frozenset()), session_was_auto_reset=True
+    )
+    assert reply.metadata is not None
+    assert "session_auto_reset" in reply.metadata
+
+
+@pytest.mark.asyncio
+async def test_cost_metadata_when_enabled() -> None:
+    acc = StreamAccumulator()
+    acc.cost_usd = 0.05
+    acc.model_name = "agn-2.5"
+    acc.total_tokens = 1234
+    acc.chunks.append("Done.")
+    _persist_mock, reply = await _finalize(
+        acc,
+        ((), frozenset()),
+        memory_settings={"enableCostEstimation": True},
+    )
+    assert reply.metadata is not None
+    assert reply.metadata["cost_metadata"]["cost_usd"] == 0.05
+
+
+@pytest.mark.asyncio
+async def test_sources_sorted_by_index_metadata() -> None:
+    acc = StreamAccumulator()
+    acc.sources = [
+        {"index": 2, "title": "b"},
+        {"index": 1, "title": "a"},
+        {"index": "not-a-number", "title": "c"},
+    ]
+    acc.chunks.append("Sourced reply.")
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    assert reply.metadata is not None
+    titles = [s["title"] for s in reply.metadata["sources"]]  # type: ignore[typeddict-item]
+    assert titles == ["a", "b", "c"]

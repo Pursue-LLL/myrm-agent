@@ -201,7 +201,7 @@ class TestGatewayQueueTimeout:
         _task = asyncio.create_task(run_blocker())
         await asyncio.sleep(0.05)
 
-        with pytest.raises(AgentQueueTimeout):
+        with pytest.raises(AgentQueueTimeout) as exc_info:
             async for _ in gw.execute_stream(
                 _dummy_stream(), agent_type="test", session_id="waiter"
             ):
@@ -209,12 +209,64 @@ class TestGatewayQueueTimeout:
 
         assert "waiter" not in gw._session_info
         assert "waiter" not in gw._active_sessions
+        assert exc_info.value.reason == "global_limit"
+        # The holder snapshot excludes the waiter itself and names the blocker.
+        assert any(h.get("chatId") == "blocker" for h in exc_info.value.active_sessions)
 
         _task.cancel()
         try:
             await _task
         except (asyncio.CancelledError, GeneratorExit):
             pass
+
+    @pytest.mark.asyncio
+    async def test_queue_timeout_reason_user_limit(self) -> None:
+        """Per-user semaphore exhaustion must surface as user_limit, not global."""
+        gw = AgentGateway(_cfg(max_global=10, max_per_user=1, queue_timeout=0.1))
+
+        async def blocker():
+            await asyncio.sleep(2)
+            yield {}
+
+        async def run_blocker():
+            async for _ in gw.execute_stream(
+                blocker(), agent_type="test", session_id="blocker"
+            ):
+                pass
+
+        _task = asyncio.create_task(run_blocker())
+        await asyncio.sleep(0.05)
+
+        with pytest.raises(AgentQueueTimeout) as exc_info:
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="waiter"
+            ):
+                pass
+
+        assert exc_info.value.reason == "user_limit"
+        assert any(h.get("chatId") == "blocker" for h in exc_info.value.active_sessions)
+
+        _task.cancel()
+        try:
+            await _task
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+
+    @pytest.mark.asyncio
+    async def test_queue_timeout_reason_memory_pressure(self) -> None:
+        """CRITICAL memory pressure must surface as memory_pressure reason."""
+        gw = AgentGateway(_cfg(queue_timeout=0.1))
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.CRITICAL))
+
+        with pytest.raises(AgentQueueTimeout) as exc_info:
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="blocked"
+            ):
+                pass
+
+        assert exc_info.value.reason == "memory_pressure"
+        assert "Memory pressure" in str(exc_info.value)
 
 
 class TestGatewayInterrupt:
