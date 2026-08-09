@@ -34,15 +34,14 @@ _supervisor_alive() {
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && [[ -S "${SOCK_FILE}" ]]
 }
 
-_supervisor_responsive() {
-  _supervisor_alive || return 1
+_supervisor_ping() {
   "${PY}" - "${SOCK_FILE}" <<'PY'
 import json
 import socket
 import sys
 
 client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-client.settimeout(1.0)
+client.settimeout(3.0)
 try:
     client.connect(sys.argv[1])
     client.sendall(b'{"cmd":"ping","env":{}}\n')
@@ -59,6 +58,18 @@ except (OSError, ValueError, socket.timeout):
 finally:
     client.close()
 PY
+}
+
+_supervisor_responsive() {
+  _supervisor_alive || return 1
+  local attempt
+  for attempt in 1 2 3; do
+    if _supervisor_ping; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
 }
 
 _supervisor_daemon_pids() {
@@ -164,6 +175,14 @@ cmd_start() {
     _release_start_lock
     return 0
   elif [[ "$(_daemon_count)" != "0" ]]; then
+    # Under heavy host load the daemon may answer the first ping slowly.
+    # Wait up to START_WAIT_SEC before tearing it down, so concurrent
+    # launchers (multiple Cursor agent sessions) never kill a healthy daemon.
+    if _wait_for_supervisor; then
+      echo "SUPERVISOR_OK: existing daemon recovered pid=$(tr -d '[:space:]' <"${PID_FILE}")"
+      _release_start_lock
+      return 0
+    fi
     echo "SUPERVISOR_WARN: recovering unhealthy supervisor daemon" >&2
     if ! _stack_write_allowed; then
       echo "SUPERVISOR_BLOCKED: unhealthy daemon recovery requires an idle Wave" >&2
