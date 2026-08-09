@@ -382,13 +382,25 @@ class VoiceAgentBridge:
         turn_id: str,
     ) -> tuple[str, bool]:
         """Consume agent stream, sentence-split TTS, return (full_text, has_approval)."""
+        from app.services.agent.runtime_context import (
+            build_agent_runtime_context,
+            resolve_stream_execution_mode,
+        )
         from app.services.agent.streaming import ai_agent_service_stream
+
+        extra_context = await build_agent_runtime_context(
+            execution_mode=resolve_stream_execution_mode()
+        )
 
         full_text_parts: list[str] = []
         pending_text = ""
         has_approval = False
 
-        async for event in ai_agent_service_stream(params, cancel_token=cancel_token):
+        async for event in ai_agent_service_stream(
+            params,
+            cancel_token=cancel_token,
+            extra_context=extra_context,
+        ):
             if self._current_turn != turn_id or self._closed:
                 break
 

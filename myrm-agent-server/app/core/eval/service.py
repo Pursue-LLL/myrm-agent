@@ -26,7 +26,12 @@ from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from myrm_agent_harness.eval import EvalManifest, EvalRunner, JsonlReporter
+from myrm_agent_harness.eval import (
+    AgentExecutor,
+    EvalManifest,
+    EvalRunner,
+    JsonlReporter,
+)
 
 from app.core.eval.executor import LocalEvalExecutor
 
@@ -58,7 +63,7 @@ class AdaptiveEvalManager:
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._idle_wait_seconds = idle_wait_seconds
 
-    async def __aenter__(self) -> "AdaptiveEvalManager":
+    async def __aenter__(self) -> None:
         # Always yield briefly to the event loop
         await asyncio.sleep(0.01)
 
@@ -71,7 +76,6 @@ class AdaptiveEvalManager:
             await asyncio.sleep(1.0)
 
         await self._semaphore.acquire()
-        return self
 
     async def __aexit__(
         self, exc_type: object, exc_val: object, exc_tb: object
@@ -242,9 +246,13 @@ async def _build_eval_manifest(
                 thinking_effort = str(
                     resolved.engine_params.get("thinking_effort", "default")
                 )
-                budget_max_tokens = int(
-                    resolved.engine_params.get("max_tokens", budget_max_tokens)
+                max_tokens_value = resolved.engine_params.get(
+                    "max_tokens", budget_max_tokens
                 )
+                if isinstance(max_tokens_value, int):
+                    budget_max_tokens = max_tokens_value
+                elif isinstance(max_tokens_value, str) and max_tokens_value.isdigit():
+                    budget_max_tokens = int(max_tokens_value)
             tool_policy = list(resolved.enabled_builtin_tools)
             if resolved.system_prompt:
                 prompt_fingerprint = hashlib.sha256(
@@ -724,7 +732,7 @@ async def _run_matrix_eval(
 
     _matrix_state["case_total"] = total_turns * len(profile_ids)
 
-    executors: dict[str, LocalEvalExecutor] = {}
+    executors: dict[str, AgentExecutor] = {}
     for pid in profile_ids:
         executors[pid] = LocalEvalExecutor(
             profile_id=pid, benchmark_mode=benchmark_mode
@@ -786,7 +794,7 @@ def get_latest_matrix_report() -> dict[str, object] | None:
         return None
     try:
         with latest_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            return cast(dict[str, object], json.load(f))
     except Exception as exc:
         logger.warning("Failed to read matrix report: %s", exc)
         return None
@@ -908,7 +916,7 @@ async def run_memory_ab_background(
 
         from myrm_agent_harness.eval import MatrixRunner
 
-        executors: dict[str, LocalEvalExecutor] = {
+        executors: dict[str, AgentExecutor] = {
             "memory_off": LocalEvalExecutor(
                 profile_id=profile_id,
                 benchmark_mode=True,

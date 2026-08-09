@@ -9,8 +9,8 @@
 
 [POS]
 Business-layer helper so every agent entrypoint (Web, IM, Cron, Kanban, Eval, Wakeup,
-Goal stream, timeout auto-resume, offline recovery) passes the same runtime context keys
-to the harness, including disabled skill path filtering.
+Goal stream, timeout auto-resume, offline recovery, OpenAI-compatible API, voice)
+passes the same runtime context keys to the harness, including disabled skill path filtering.
 """
 
 from __future__ import annotations

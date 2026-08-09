@@ -21,6 +21,7 @@ import shutil
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -37,6 +38,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_user_instructions,
     verify_search_service_available,
 )
+from app.core.types import MCPServerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +134,9 @@ class LocalEvalExecutor:
         configs = await load_user_configs()
 
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
-        mcp_configs = extract_mcp_configs(configs.mcp_dict)
+        mcp_configs: list[MCPServerConfig] | None = extract_mcp_configs(
+            configs.mcp_dict
+        )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
             configs.providers_dict
@@ -147,10 +151,8 @@ class LocalEvalExecutor:
         agent_engine_params = None
 
         agent_model_override: str | None = None
-        from app.services.agent.profile_resolver import (
-            DEFAULT_ENABLED_BUILTIN_TOOLS,
-            resolve_builtin_tool_flags,
-        )
+        from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
         from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
         enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
@@ -330,7 +332,7 @@ class LocalEvalExecutor:
 
         start_time = time.perf_counter()
         chunks: list[str] = []
-        tools_called: list[str] = []
+        tools_called: list[str | dict[str, Any]] = []
         total_input_tokens = 0
         total_output_tokens = 0
 

@@ -21,8 +21,8 @@
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `voice_memory_context.py` | 核心 | Voice memory ACL SSOT（settings + profile → flags） | ✅ |
 | `tool_catalog.py` | 核心 | 动态 `memory_search_tool` 声明（Realtime + Gemini） | ✅ |
-| `agent_bridge.py` | 模块 | Voice STT→Agent bridge；merge profile `system_prompt` + **`profile_output_suffixes`**；`enable_web_fetch` 由 profile `net_fetch` 门控 | ✅ |
+| `agent_bridge.py` | 模块 | Voice STT→Agent bridge；merge profile `system_prompt` + **`profile_output_suffixes`**；`enable_web_fetch` 由 profile `net_fetch` 门控；`_consume_agent_stream` 注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live token/WS；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`** | ✅ |
-| `realtime.py` | 模块 | OpenAI Realtime token/tools；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle 委托与 Agent 代理） | ✅ |
+| `realtime.py` | 模块 | OpenAI Realtime token/tools；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle 委托与 Agent 代理）；tool-exec Agent 代理注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
 | `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint；type:config 用 `is_safe_session_id` 校验 `chat_id`，非法拒绝连接 | ✅ |

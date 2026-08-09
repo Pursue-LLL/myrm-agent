@@ -23,7 +23,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from myrm_agent_harness.api.config import ConfigIncompleteError
+from myrm_agent_harness.api import ConfigIncompleteError
 
 from app.core.types import ModelConfig
 

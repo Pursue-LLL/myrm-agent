@@ -153,7 +153,15 @@ async def _stream_response(
     request: ChatCompletionRequest,
 ) -> AsyncGenerator[str, None]:
     """Generate OpenAI-format SSE chunks from Agent stream."""
+    from app.services.agent.runtime_context import (
+        build_agent_runtime_context,
+        resolve_stream_execution_mode,
+    )
+
     params = await _build_agent_params(request)
+    extra_context = await build_agent_runtime_context(
+        execution_mode=resolve_stream_execution_mode()
+    )
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
     model_name = request.model
@@ -166,7 +174,7 @@ async def _stream_response(
     )
     yield f"data: {first_chunk.model_dump_json()}\n\n"
 
-    async for event in ai_agent_service_stream(params):
+    async for event in ai_agent_service_stream(params, extra_context=extra_context):
         normalized = _normalize_agent_event(event)
         if normalized is None:
             continue
@@ -215,12 +223,20 @@ async def chat_completions(
             },
         )
 
+    from app.services.agent.runtime_context import (
+        build_agent_runtime_context,
+        resolve_stream_execution_mode,
+    )
+
     params = await _build_agent_params(request)
+    extra_context = await build_agent_runtime_context(
+        execution_mode=resolve_stream_execution_mode()
+    )
 
     full_content = ""
     usage_data: dict[str, object] = {}
 
-    async for event in ai_agent_service_stream(params):
+    async for event in ai_agent_service_stream(params, extra_context=extra_context):
         normalized = _normalize_agent_event(event)
         if normalized is None:
             continue

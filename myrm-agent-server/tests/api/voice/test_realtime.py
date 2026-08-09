@@ -632,7 +632,7 @@ async def test_execute_tool_success() -> None:
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "result: sunny"}
 
     with (
@@ -696,7 +696,7 @@ async def test_execute_tool_honors_disabled_conversation_search() -> None:
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "ok"}
 
     with (
@@ -758,7 +758,7 @@ async def test_execute_tool_honors_net_fetch_gate() -> None:
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "ok"}
 
     with (
@@ -858,7 +858,7 @@ async def test_execute_tool_accepts_safe_chat_id() -> None:
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "ok"}
 
     with (

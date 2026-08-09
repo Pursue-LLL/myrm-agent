@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Agent Operating Surface (AOS) — dedicated minimized window for Myrm E2E Chrome."""
+"""Agent Operating Surface (AOS) — dedicated OFFSCREEN-NORMAL window for Myrm E2E Chrome.
+
+Offscreen-normal (never minimized) keeps rAF running so Next.js hydration never
+freezes and the test layer never needs focus-stealing activation (§26.21/§26.23).
+"""
 
 from __future__ import annotations
 
@@ -81,12 +85,30 @@ async def _cdp_request(
     raise TimeoutError(f"CDP request timed out: {method}")
 
 
-async def _minimize_window(ws: CdpSocket, msg_id: int, window_id: int, *, deadline: float) -> None:
+async def _park_window_offscreen(ws: CdpSocket, msg_id: int, window_id: int, *, deadline: float) -> None:
+    """Park a window OFFSCREEN-NORMAL (§26.21/§26.23 focus-theft fix).
+
+    `windowState:'minimized'` pauses requestAnimationFrame, which stalls
+    Next.js 16's $RV Suspense flush — rendering freezes, probes report
+    `__windowHidden`, and the test layer falls back to `Page.bringToFront`,
+    stealing macOS focus from the user. An offscreen normal window keeps
+    `visibilityState==='visible'` so rendering never stops while staying away
+    from the user's desktop. This mirrors `cdp-plane.ts::parkTargetWindowOffscreen`.
+    """
     await _cdp_request(
         ws,
         msg_id,
         "Browser.setWindowBounds",
-        {"windowId": window_id, "bounds": {"windowState": "minimized"}},
+        {
+            "windowId": window_id,
+            "bounds": {
+                "windowState": "normal",
+                "left": -24000,
+                "top": -24000,
+                "width": 1400,
+                "height": 900,
+            },
+        },
         deadline=deadline,
     )
 
@@ -120,11 +142,11 @@ async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, 
     if window_id is None:
         raise RuntimeError("Browser.getWindowForTarget missing windowId")
     msg_id += 1
-    await _minimize_window(ws, msg_id, window_id, deadline=deadline)
+    await _park_window_offscreen(ws, msg_id, window_id, deadline=deadline)
     return target_id, window_id
 
 
-async def _minimize_all_page_windows(ws: CdpSocket, cdp_port: int, *, deadline: float) -> None:
+async def _park_all_page_windows_offscreen(ws: CdpSocket, cdp_port: int, *, deadline: float) -> None:
     targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=5.0)
     if not isinstance(targets, list):
         return
@@ -144,7 +166,7 @@ async def _minimize_all_page_windows(ws: CdpSocket, cdp_port: int, *, deadline: 
             if window_id is None or window_id in seen:
                 continue
             seen.add(window_id)
-            await _minimize_window(ws, msg_id, window_id, deadline=deadline)
+            await _park_window_offscreen(ws, msg_id, window_id, deadline=deadline)
             msg_id += 1
         except (TimeoutError, RuntimeError, asyncio.TimeoutError):
             continue
@@ -186,9 +208,9 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
             }
             _save_registry(registry)
         else:
-            await _minimize_window(ws, 2, window_id, deadline=deadline)
+            await _park_window_offscreen(ws, 2, window_id, deadline=deadline)
 
-        await _minimize_all_page_windows(ws, cdp_port, deadline=deadline)
+        await _park_all_page_windows_offscreen(ws, cdp_port, deadline=deadline)
 
     return registry
 

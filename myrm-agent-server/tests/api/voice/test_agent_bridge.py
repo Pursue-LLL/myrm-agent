@@ -252,7 +252,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         mock_params = MagicMock()
 
         async def fake_stream(
-            params: object, cancel_token: object
+            params: object, cancel_token: object, **kwargs
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Hello."}
 
@@ -297,6 +297,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         async def fake_stream_with_approval(
             params: object,
             cancel_token: object,
+            **kwargs,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "approval_required",
@@ -329,6 +330,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         async def fake_stream_tool_approval(
             params: object,
             cancel_token: object,
+            **kwargs,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "tool_approval_request",
@@ -527,6 +529,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
+            **kwargs,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "I need to run a command."}
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
@@ -561,6 +564,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
+            **kwargs,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
             yield {"type": "tool_approval_request", "data": {"actionRequests": []}}
@@ -594,6 +598,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
+            **kwargs,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Running command."}
             yield {"type": "approval_required", "data": {}}

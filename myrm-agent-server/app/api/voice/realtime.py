@@ -325,8 +325,16 @@ async def execute_realtime_tool(
             ),
         )
 
+        from app.services.agent.runtime_context import (
+            build_agent_runtime_context,
+            resolve_stream_execution_mode,
+        )
+
+        extra_context = await build_agent_runtime_context(
+            execution_mode=resolve_stream_execution_mode()
+        )
         result_parts: list[str] = []
-        async for event in ai_agent_service_stream(params):
+        async for event in ai_agent_service_stream(params, extra_context=extra_context):
             if event.get("type") == "message":
                 chunk = str(event.get("data", ""))
                 if chunk:

@@ -93,7 +93,7 @@ async def test_realtime_tool_exec_http_passes_conversation_search_acl() -> None:
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "integration-ok"}
 
     app = _voice_app()
@@ -145,7 +145,7 @@ async def test_realtime_tool_exec_http_blocks_sessions_when_opt_in_off() -> None
         captured.update(kwargs)
         return MagicMock()
 
-    async def mock_stream(params):
+    async def mock_stream(params, **kwargs):
         yield {"type": "message", "data": "ok"}
 
     app = _voice_app()

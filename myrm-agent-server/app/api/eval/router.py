@@ -470,7 +470,7 @@ async def run_memory_ab_evaluation(
     # degrades to a memory-free agent (tool_setup._create_memory_tools) and
     # the run yields a misleading "memory has no effect" result. Fail fast
     # before the WBBench download so the user gets explicit guidance instead.
-    from myrm_agent_harness.api.config import ConfigIncompleteError
+    from myrm_agent_harness.api import ConfigIncompleteError
 
     from app.services.agent.platform_config import (
         verify_platform_embedding_ready,
