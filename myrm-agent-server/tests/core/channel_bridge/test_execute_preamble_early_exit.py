@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.types import InboundMessage, OutboundMessage
-from app.core.channel_bridge.agent_executor.execute_preamble_agent import (
+from app.core.channel_bridge.agent_executor.execute_preamble.agent import (
     build_channel_execution_agent,
 )
-from app.core.channel_bridge.agent_executor.execute_preamble_types import (
+from app.core.channel_bridge.agent_executor.execute_preamble.types import (
     ChannelAgentBuildOutcome,
     ChannelAgentBuildResult,
 )
@@ -91,7 +91,7 @@ async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved
 
     with (
         patch(
-            "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory.create_general_agent",
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
         ) as mock_create_agent,
         patch(
             "myrm_agent_harness.agent.middlewares.approval.scheduler.ApprovalTimeoutScheduler.get",
@@ -122,7 +122,7 @@ async def test_build_agent_returns_search_unreachable_when_service_down() -> Non
     msg = _inbound_message()
 
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_preamble_agent.verify_search_service_available",
+        "app.core.channel_bridge.agent_executor.execute_preamble.agent.verify_search_service_available",
         new_callable=AsyncMock,
         return_value=False,
     ):
@@ -179,7 +179,7 @@ async def test_build_agent_passes_message_locale_to_general_agent_params() -> No
             return_value=[],
         ),
         patch(
-            "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory.create_general_agent",
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
             side_effect=_capture_create_agent,
         ),
         patch(

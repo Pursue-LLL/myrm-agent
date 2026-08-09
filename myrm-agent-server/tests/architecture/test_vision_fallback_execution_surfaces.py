@@ -11,7 +11,7 @@ _SERVER_ROOT = _REPO_ROOT
 
 _REQUIRED_SURFACE_FILES: tuple[tuple[str, str], ...] = (
     (
-        "app/core/channel_bridge/agent_executor/execute_preamble.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/preamble.py",
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (

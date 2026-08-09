@@ -23,7 +23,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
         "app/api/voice/realtime.py",
         "app/services/agent/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
-        "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/core/eval/executor.py",
         "app/services/kanban/task_runner.py",
@@ -42,7 +42,7 @@ LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES: frozenset[str] = frozenset(
     {
         "app/api/voice/agent_bridge.py",
         "app/api/voice/realtime.py",
-        "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/services/agent/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
@@ -126,4 +126,4 @@ def test_discover_callsites_ignores_pos_docstring_references() -> None:
     """File-header INPUT lines like ``GeneralAgentParams (POS: ...)`` are not constructors."""
     direct, _ = _discover_callsites()
     assert "app/services/agent/stream_session/memory_brief.py" not in direct
-    assert "app/core/channel_bridge/agent_executor/execute_preamble_types.py" not in direct
+    assert "app/core/channel_bridge/agent_executor/execute_preamble/types.py" not in direct

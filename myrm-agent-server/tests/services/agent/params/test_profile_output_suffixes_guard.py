@@ -15,7 +15,7 @@ SERVER_ROOT = Path(__file__).resolve().parents[4]
 PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
     {
         "app/services/agent/params/converter.py",
-        "app/core/channel_bridge/agent_executor/execute_preamble_instructions.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/instructions.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/services/kanban/task_runner.py",
         "app/core/eval/executor.py",

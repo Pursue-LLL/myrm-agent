@@ -14299,7 +14299,12 @@
       "confirmTitle": "Start Memory A/B evaluation?",
       "confirmBody": "This runs the same WBBench subset twice — once with memory enabled and once without. Notes: an embedding model is required, otherwise both arms effectively run without memory; WBBench tasks are single-turn, so memory gains show most clearly in long sessions and a flat result here does not mean memory is useless.",
       "confirmStart": "Start Evaluation",
-      "confirmCancel": "Cancel"
+      "confirmCancel": "Cancel",
+      "historyTitle": "Run History",
+      "historyTime": "Time",
+      "historyDataset": "Dataset",
+      "historyCurrent": "Current",
+      "historyView": "View"
     }
   },
   "vault": {

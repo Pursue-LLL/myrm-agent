@@ -322,11 +322,13 @@ reassurance_still_running = ⏳ 作業中 — { $elapsed } 分（{ $steps } ス�
 agent_picker_no_agents = エージェントが設定されていません。
 agent_picker_select = エージェントを選択してください：
 agent_picker_switched = 切り替えました：{ $name }
-artifact_deep_link = 💻 インタラクティブページを表示
-artifact_deep_link_named = 💻 { $filename }
+artifact_deep_link = インタラクティブページを表示
+artifact_deep_link_named = { $filename }
 goal_completed =
     ✅ ゴール達成：「{ $objective }」
     { $turns } ターン · { $duration } 分 · { $files } ファイル変更
 goal_failed =
     ❌ ゴール終了：「{ $objective }」
     { $turns } ターン · { $duration } 分 · { $files } ファイル変更
+deliverable_oversized_note = { $filename }（{ $size }）がチャンネルの添付ファイルサイズ上限を超えたため、添付されませんでした。
+deliverable_compressed_note = { $filename }（{ $size }）がチャンネルのサイズ制限を超えたため、圧縮版を送信しました。

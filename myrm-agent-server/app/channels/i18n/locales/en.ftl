@@ -333,9 +333,11 @@ busy_ack_queue_full = ⚠️ Queue is full — message was not saved. Please res
 agent_picker_no_agents = No agents configured.
 agent_picker_select = Select an agent:
 agent_picker_switched = Switched to: { $name }
-artifact_deep_link = 💻 View interactive page
-artifact_deep_link_named = 💻 { $filename }
+artifact_deep_link = View interactive page
+artifact_deep_link_named = { $filename }
 deliverable_attached_only = Deliverable attached.
+deliverable_oversized_note = { $filename } ({ $size }) exceeds the channel attachment size limit and wasn't attached.
+deliverable_compressed_note = { $filename } ({ $size }) exceeded the channel size limit — a compressed version was sent.
 goal_completed =
     ✅ Goal completed: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified

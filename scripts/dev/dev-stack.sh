@@ -480,7 +480,7 @@ _ensure_backend() {
     echo "STACK_FAIL: backend start failed" >&2
     return 1
   fi
-  if _api_healthy 30; then
+  if _api_healthy "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
     echo "STACK_OK: backend → ${API_BASE}"
     return 0
   fi
@@ -787,7 +787,7 @@ cmd_backend_only_ensure() {
     exit 0
   fi
 
-  if _api_healthy 30; then
+  if _api_healthy "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
     exit 0
   fi

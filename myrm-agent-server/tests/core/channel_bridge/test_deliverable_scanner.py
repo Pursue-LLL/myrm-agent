@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.core.channel_bridge.agent_executor.deliverable_path_scanner import (
+import pytest
+
+from app.core.channel_bridge.agent_executor.deliverable.scanner import (
     collect_deliverable_paths_from_text,
     extract_deliverable_path_tokens,
     resolve_deliverable_path,
@@ -29,19 +31,24 @@ def test_collect_attachments_and_strip_text(tmp_path: Path) -> None:
     report = tmp_path / "output.csv"
     report.write_text("a,b\n1,2")
     text = "Done. Delivered workspace/output.csv for review."
-    stripped, attachments = collect_deliverable_paths_from_text(
-        text,
-        workspace_root=str(tmp_path),
+    stripped, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            text,
+            workspace_root=str(tmp_path),
+        )
     )
     assert len(attachments) == 1
     assert attachments[0].filename == "output.csv"
     assert "workspace/output.csv" not in stripped
+    assert oversized == []
+    assert compressed == []
+    assert tmp_paths == []
 
 
 def test_attachment_only_reply_strips_path_only_content(tmp_path: Path) -> None:
     report = tmp_path / "only.pdf"
     report.write_bytes(b"%PDF")
-    stripped, attachments = collect_deliverable_paths_from_text(
+    stripped, attachments, _, _, _ = collect_deliverable_paths_from_text(
         "workspace/only.pdf",
         workspace_root=str(tmp_path),
     )
@@ -50,8 +57,112 @@ def test_attachment_only_reply_strips_path_only_content(tmp_path: Path) -> None:
 
 
 def test_skips_missing_files(tmp_path: Path) -> None:
-    _, attachments = collect_deliverable_paths_from_text(
+    _, attachments, _, _, _ = collect_deliverable_paths_from_text(
         "See workspace/missing.pdf",
         workspace_root=str(tmp_path),
     )
     assert attachments == []
+
+
+def test_oversized_image_compressed_into_attachment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from PIL import Image
+
+    from app.core.channel_bridge.agent_executor.deliverable import scanner
+
+    monkeypatch.setattr(
+        scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000
+    )
+    img = tmp_path / "big_chart.png"
+    Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="PNG")
+
+    stripped, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            f"Chart: workspace/big_chart.png",
+            workspace_root=str(tmp_path),
+        )
+    )
+    assert oversized == []
+    assert len(compressed) == 1
+    assert compressed[0][0] == "big_chart.png"
+    assert len(attachments) == 1
+    assert attachments[0].filename == "big_chart.png"
+    assert attachments[0].path is not None
+    assert attachments[0].path != str(img.resolve())
+    assert attachments[0].mime_type == "image/png"
+    assert len(tmp_paths) == 1
+    assert tmp_paths[0] == attachments[0].path
+    assert "workspace/big_chart.png" not in stripped
+    for p in tmp_paths:
+        Path(p).unlink(missing_ok=True)
+
+
+def test_oversized_webp_compressed_filename_aligned(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WEBP sources re-encode as JPEG; the attachment filename and mime must follow."""
+    from PIL import Image
+
+    from app.core.channel_bridge.agent_executor.deliverable import scanner
+
+    monkeypatch.setattr(
+        scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000
+    )
+    img = tmp_path / "hero.webp"
+    Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="WEBP")
+
+    _, attachments, _, _, tmp_paths = collect_deliverable_paths_from_text(
+        "Poster: workspace/hero.webp",
+        workspace_root=str(tmp_path),
+    )
+    assert len(attachments) == 1
+    assert attachments[0].filename == "hero.jpg"
+    assert attachments[0].mime_type == "image/jpeg"
+    assert attachments[0].path is not None
+    assert attachments[0].path.endswith(".jpg")
+    for p in tmp_paths:
+        Path(p).unlink(missing_ok=True)
+
+
+def test_oversized_non_image_reported_as_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.channel_bridge.agent_executor.deliverable import scanner
+
+    monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 100)
+    doc = tmp_path / "report.pdf"
+    doc.write_bytes(b"%PDF-1.4" + b"x" * 500)
+
+    stripped, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            "See workspace/report.pdf",
+            workspace_root=str(tmp_path),
+        )
+    )
+    assert attachments == []
+    assert compressed == []
+    assert tmp_paths == []
+    assert oversized == [("report.pdf", "508 B")]
+    assert "workspace/report.pdf" not in stripped
+
+
+def test_oversized_uncompressible_image_reported_as_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.channel_bridge.agent_executor.deliverable import scanner
+
+    monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 100)
+    img = tmp_path / "photo.gif"
+    img.write_bytes(b"GIF89a" + b"x" * 500)
+
+    _, attachments, oversized, compressed, tmp_paths = (
+        collect_deliverable_paths_from_text(
+            "Photo: workspace/photo.gif",
+            workspace_root=str(tmp_path),
+        )
+    )
+    assert attachments == []
+    assert compressed == []
+    assert tmp_paths == []
+    assert oversized[0][0] == "photo.gif"

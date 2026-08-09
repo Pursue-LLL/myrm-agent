@@ -325,11 +325,13 @@ reassurance_still_running = ⏳ 工作中 — { $elapsed } 分鐘（{ $steps } �
 agent_picker_no_agents = 未配置任何智慧體。
 agent_picker_select = 選擇一個智慧體：
 agent_picker_switched = 已切換至：{ $name }
-artifact_deep_link = 💻 檢視互動網頁
-artifact_deep_link_named = 💻 { $filename }
+artifact_deep_link = 檢視互動網頁
+artifact_deep_link_named = { $filename }
 goal_completed =
     ✅ 目標已完成：「{ $objective }」
     { $turns } 輪 · { $duration } 分鐘 · { $files } 個檔案變更
 goal_failed =
     ❌ 目標已結束：「{ $objective }」
     { $turns } 輪 · { $duration } 分鐘 · { $files } 個檔案變更
+deliverable_oversized_note = { $filename }（{ $size }）超出管道附件大小限制，未作為附件傳送。
+deliverable_compressed_note = { $filename }（{ $size }）超出管道大小限制，已傳送壓縮版本。

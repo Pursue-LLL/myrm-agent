@@ -1,7 +1,7 @@
 """Channel execution preamble: config, session, agent creation.
 
 [INPUT]
-execute_preamble_{types,session,agent,instructions} (POS: preamble 子模块)
+preamble 子模块 types / session / agent / instructions (POS: preamble 编排）
 app.core.channel_bridge.config_loader (POS: UserConfig 加载)
 
 [OUTPUT]
@@ -34,15 +34,15 @@ from app.services.agent.profile_resolver import (
     get_agent_profile_resolver,
 )
 
-from .execute_preamble_agent import build_channel_execution_agent
-from .execute_preamble_instructions import enrich_channel_user_instructions
-from .execute_preamble_session import resolve_channel_session_context
-from .execute_preamble_types import ChannelExecutionPrep, PrepareChannelExecutionResult
-from .helpers import build_channel_inbound_query
-from .session import build_channel_budget_key
+from .agent import build_channel_execution_agent
+from .instructions import enrich_channel_user_instructions
+from .session import resolve_channel_session_context
+from .types import ChannelExecutionPrep, PrepareChannelExecutionResult
+from ..helpers import build_channel_inbound_query
+from ..session import build_channel_budget_key
 
 if TYPE_CHECKING:
-    from .executor import ChannelAgentExecutor
+    from ..executor import ChannelAgentExecutor
 
 logger = logging.getLogger(__name__)
 

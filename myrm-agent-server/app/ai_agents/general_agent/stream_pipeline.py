@@ -279,16 +279,17 @@ async def execute_stream_pipeline(
         if extra_context:
             context.update(extra_context)
 
-        # Inject goal terminal callback for learnings extraction
-        if context.get("goal_provider") and agent_wrapper.agent.memory_manager:
+        # Inject goal terminal callback for learnings extraction and queue advancement
+        if context.get("goal_provider"):
             from app.ai_agents.general_agent.goal_learnings import (
                 build_goal_terminal_callback,
                 build_loop_restart_callback,
                 retrieve_relevant_learnings,
             )
 
+            memory_manager = agent_wrapper.agent.memory_manager
             context["on_goal_terminal"] = build_goal_terminal_callback(
-                memory_manager=agent_wrapper.agent.memory_manager,
+                memory_manager=memory_manager,
                 llm=agent_wrapper.agent._extraction_llm or agent_wrapper.agent.llm,
             )
             context["on_loop_restart"] = build_loop_restart_callback()
@@ -296,9 +297,13 @@ async def execute_stream_pipeline(
             # Enrich active goal with relevant historical learnings
             goal_provider = context["goal_provider"]
             active_goal = await goal_provider.get_active_goal(effective_chat_id)
-            if active_goal and not active_goal.metadata.get("relevant_learnings"):
+            if (
+                active_goal
+                and memory_manager is not None
+                and not active_goal.metadata.get("relevant_learnings")
+            ):
                 learnings = await retrieve_relevant_learnings(
-                    agent_wrapper.agent.memory_manager,
+                    memory_manager,
                     active_goal.objective,
                 )
                 if learnings:

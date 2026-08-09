@@ -1,7 +1,7 @@
 """Channel preamble agent assembly: params, factory, resume gate, credentials.
 
 [INPUT]
-execute_preamble_types (POS: preamble 数据结构)
+types (POS: preamble 数据结构)
 app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 
@@ -9,7 +9,7 @@ app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。
 
 [POS]
-execute_preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
+preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
 """
 
 from __future__ import annotations
@@ -32,12 +32,12 @@ from app.core.types import MCPServerConfig
 from app.core.types.business import ModelConfig
 from app.services.agent.profile_resolver import ResolvedAgentProfile
 
-from .execute_preamble_types import (
+from .types import (
     ChannelAgentBuildOutcome,
     ChannelAgentBuildResult,
     build_security_config,
 )
-from .helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
+from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 
 logger = logging.getLogger(__name__)
 

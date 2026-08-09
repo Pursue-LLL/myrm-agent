@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from app.channels.types import ChannelCapabilities, InboundMessage
-from app.core.channel_bridge.agent_executor.execute_preamble_instructions import (
+from app.core.channel_bridge.agent_executor.execute_preamble.instructions import (
     enrich_channel_user_instructions,
 )
 

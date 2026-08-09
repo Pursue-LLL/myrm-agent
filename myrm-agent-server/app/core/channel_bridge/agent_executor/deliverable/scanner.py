@@ -7,13 +7,15 @@ chat workspace, and builds native IM media attachments.
 [INPUT]
 - Assistant reply markdown/text
 - Chat workspace root directory
+- deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
 
 [OUTPUT]
-- collect_deliverable_paths_from_text(): attachments + stripped visible text
+- collect_deliverable_paths_from_text(): attachments + stripped text + oversized/compressed notes + tmp paths
+- extract_deliverable_path_tokens / resolve_deliverable_path / resolve_chat_workspace_root
 
 [POS]
 Channel deliverable attachment mode (Hermes parity). Complements artifact event
-collection in artifact_deep_links.collect_channel_artifacts.
+collection in deliverable.deep_links.collect_channel_artifacts.
 """
 
 from __future__ import annotations
@@ -22,9 +24,13 @@ import mimetypes
 import re
 from pathlib import Path
 
-from app.channels.types import MediaAttachment, guess_media_type
-
-_MAX_CHANNEL_ARTIFACT_BYTES = 5 * 1024 * 1024
+from app.channels.types import MediaAttachment, MediaType, guess_media_type
+from .media import (
+    MAX_CHANNEL_ATTACHMENT_BYTES,
+    compress_oversized_image,
+    format_human_size,
+    is_compressible_image,
+)
 
 _DELIVERABLE_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -150,13 +156,30 @@ def collect_deliverable_paths_from_text(
     *,
     workspace_root: str | None,
     existing_filenames: set[str] | None = None,
-) -> tuple[str, list[MediaAttachment]]:
-    """Scan reply text, attach deliverable files, and strip matched path tokens."""
+) -> tuple[
+    str,
+    list[MediaAttachment],
+    list[tuple[str, str]],
+    list[tuple[str, str]],
+    list[str],
+]:
+    """Scan reply text, attach deliverable files, and strip matched path tokens.
+
+    Returns ``(stripped_text, attachments, oversized_notes, compressed_notes, tmp_paths)``:
+    - oversized_notes: ``(filename, size_str)`` pairs that exceed the channel cap
+      and could not be delivered as attachments.
+    - compressed_notes: ``(filename, size_str)`` pairs whose oversized images were
+      compressed and sent as attachments instead.
+    - tmp_paths: temp files produced by image compression, cleaned by caller.
+    """
     tokens = extract_deliverable_path_tokens(text)
     if not tokens:
-        return text, []
+        return text, [], [], [], []
 
     attachments: list[MediaAttachment] = []
+    oversized_notes: list[tuple[str, str]] = []
+    compressed_notes: list[tuple[str, str]] = []
+    tmp_paths: list[str] = []
     used_filenames = set(existing_filenames or ())
     stripped = text
 
@@ -168,12 +191,39 @@ def collect_deliverable_paths_from_text(
             size = resolved.stat().st_size
         except OSError:
             continue
-        if size == 0 or size > _MAX_CHANNEL_ARTIFACT_BYTES:
+        if size == 0:
             continue
 
         filename = resolved.name
         if filename in used_filenames:
             stripped = stripped.replace(token, "")
+            continue
+
+        if size > MAX_CHANNEL_ATTACHMENT_BYTES:
+            stripped = stripped.replace(token, "")
+            if is_compressible_image(filename):
+                compressed = compress_oversized_image(
+                    resolved,
+                    max_bytes=MAX_CHANNEL_ATTACHMENT_BYTES,
+                )
+                if compressed is not None:
+                    tmp_paths.append(str(compressed))
+                    mime = (
+                        mimetypes.guess_type(str(compressed))[0]
+                        or "application/octet-stream"
+                    )
+                    attachments.append(
+                        MediaAttachment(
+                            media_type=MediaType.IMAGE,
+                            path=str(compressed),
+                            filename=Path(filename).stem + Path(str(compressed)).suffix,
+                            mime_type=mime,
+                        )
+                    )
+                    compressed_notes.append((filename, format_human_size(size)))
+                    used_filenames.add(filename)
+                    continue
+            oversized_notes.append((filename, format_human_size(size)))
             continue
 
         mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
@@ -188,7 +238,7 @@ def collect_deliverable_paths_from_text(
         used_filenames.add(filename)
         stripped = stripped.replace(token, "")
 
-    return stripped.strip(), attachments
+    return stripped.strip(), attachments, oversized_notes, compressed_notes, tmp_paths
 
 
 async def resolve_chat_workspace_root(chat_id: str) -> str | None:
@@ -200,7 +250,9 @@ async def resolve_chat_workspace_root(chat_id: str) -> str | None:
         from app.database.models.chat import Chat
 
         async with get_session() as db:
-            result = await db.execute(select(Chat.workspace_dir).where(Chat.id == chat_id))
+            result = await db.execute(
+                select(Chat.workspace_dir).where(Chat.id == chat_id)
+            )
             workspace_dir = result.scalar_one_or_none()
             if isinstance(workspace_dir, str) and workspace_dir.strip():
                 return workspace_dir.strip()

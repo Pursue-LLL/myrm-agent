@@ -12,7 +12,7 @@ ChannelExecutionPrep, PrepareChannelExecutionResult, ChannelAgentBuildResult,
 ChannelAgentBuildOutcome (XOR: result | early_reply), build_security_config()
 
 [POS]
-execute_preamble 子模块：preamble 阶段数据结构与安全配置组装。
+preamble 子模块：preamble 阶段数据结构与安全配置组装。
 """
 
 from __future__ import annotations

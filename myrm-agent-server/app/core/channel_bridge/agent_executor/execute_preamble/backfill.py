@@ -8,7 +8,7 @@ app.services.chat.chat_service::ChatService (POS: 渠道会话持久化)
 maybe_backfill_channel_history(): 冷启动时从 IM 拉取近期消息写入 DB。
 
 [POS]
-execute_preamble 子模块：防止新 epoch 会话丢失渠道侧近期上下文。
+preamble 子模块：防止新 epoch 会话丢失渠道侧近期上下文。
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from app.channels.types import InboundMessage
 
 if TYPE_CHECKING:
-    from .executor import ChannelAgentExecutor
+    from ..executor import ChannelAgentExecutor
 
 logger = logging.getLogger(__name__)
 

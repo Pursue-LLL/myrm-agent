@@ -8,7 +8,7 @@ enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM
 profile_output_suffixes（人格 + response_locale_policy）后的 instructions。
 
 [POS]
-execute_preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部。
+preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部。
 """
 
 from __future__ import annotations

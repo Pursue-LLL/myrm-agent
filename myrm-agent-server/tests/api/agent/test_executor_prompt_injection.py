@@ -15,7 +15,7 @@ from app.services.agent.profile_resolver import get_agent_profile_resolver
 @pytest.fixture
 def mock_agent_factory():
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory",
+        "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory",
     ) as factory:
         mock_agent = MagicMock()
         mock_agent.close = AsyncMock()
@@ -33,11 +33,11 @@ def mock_agent_factory():
 @pytest.fixture
 def mock_load_user_configs():
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_preamble.load_user_configs",
+        "app.core.channel_bridge.agent_executor.execute_preamble.preamble.load_user_configs",
         new_callable=AsyncMock,
     ) as loader:
         with patch(
-            "app.core.channel_bridge.agent_executor.execute_preamble_agent.verify_search_service_available",
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.verify_search_service_available",
             new_callable=AsyncMock,
         ) as mock_verify:
             mock_verify.return_value = True
@@ -326,7 +326,7 @@ async def test_channel_injects_auto_restore_domains_from_resolved_profile(
     mock_resolver.resolve = AsyncMock(return_value=resolved)
 
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_preamble.get_agent_profile_resolver",
+        "app.core.channel_bridge.agent_executor.execute_preamble.preamble.get_agent_profile_resolver",
         return_value=mock_resolver,
     ):
         executor = ChannelAgentExecutor()

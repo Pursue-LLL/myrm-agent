@@ -121,7 +121,9 @@
     ".next-isolated-e2e-parent-1-34237-7d8240c1/types/**/*.ts",
     ".next-isolated-e2e-parent-1-34237-7d8240c1/dev/types/**/*.ts",
     ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-2191-565c3955/types/**/*.ts",
-    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-2191-565c3955/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-2191-565c3955/dev/types/**/*.ts",
+    ".next-isolated-kanban-e2e-1/types/**/*.ts",
+    ".next-isolated-kanban-e2e-1/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

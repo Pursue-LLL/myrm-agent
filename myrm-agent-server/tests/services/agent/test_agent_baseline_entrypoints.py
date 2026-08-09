@@ -19,7 +19,7 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
         "ExecutionSurface.WEB_CHAT",
     ),
     (
-        "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "resolve_agent_mount",
         "ExecutionSurface.CHANNEL",
     ),

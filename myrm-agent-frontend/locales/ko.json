@@ -13644,7 +13644,12 @@
       "confirmTitle": "메모리 A/B 평가를 시작할까요?",
       "confirmBody": "동일한 WBBench 하위 집합을 두 번 실행합니다(메모리 켜기/끄기). 참고: embedding 모델 구성이 필요하며, 구성하지 않으면 두 그룹 모두 실질적으로 메모리 없이 실행됩니다. WBBench 작업은 단일 턴이므로 메모리 효과는 긴 세션에서 가장 두드러집니다. 여기서 결과가 같더라도 메모리가 무용하다는 뜻은 아닙니다.",
       "confirmStart": "평가 시작",
-      "confirmCancel": "취소"
+      "confirmCancel": "취소",
+      "historyTitle": "실행 기록",
+      "historyTime": "시간",
+      "historyDataset": "데이터셋",
+      "historyCurrent": "현재",
+      "historyView": "보기"
     }
   },
   "vault": {

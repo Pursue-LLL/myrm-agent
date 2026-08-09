@@ -13,7 +13,7 @@
 | 严重程度 | P1（阻塞开发流程） |
 | 影响范围 | `scripts/dev/stack_supervisor/daemon.py`, `scripts/dev/wave_orchestrator/core.py` |
 | 出现次数 | 1（首次发现并一次性彻底修复） |
-| 关联 roadmap | `temp-docs/repair/DEV_GATE_CHROME_MCP_ROADMAP.md` §45 R60 |
+| 关联 roadmap | Wave Lease Reaper 修复方案（dev-shell 内部 roadmap，未归档进本仓） |
 
 ### 现象
 
@@ -189,7 +189,7 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 | 严重程度 | P2（测试假红，非生产逻辑 bug） |
 | 影响范围 | `app/api/chats/test_fixtures_stream_retry_busy.py`, Chrome READ E2E |
 | 出现次数 | 1 |
-| 关联 roadmap | `temp-docs/repair/AGENT_STREAM_RETRY_IDEMPOTENCY_PERFECT_CLOSURE_ROADMAP.md` |
+| 关联 roadmap | Stream-Retry 幂等闭合修复方案（dev-shell 内部 roadmap，未归档进本仓） |
 
 ### 现象
 

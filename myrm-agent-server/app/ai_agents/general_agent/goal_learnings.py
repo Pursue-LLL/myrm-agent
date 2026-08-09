@@ -14,7 +14,8 @@
 Server-layer integration for goal lifecycle callbacks. Provides the concrete
 callback implementations injected into StreamContext.on_goal_terminal and
 StreamContext.on_loop_restart, plus retrieval logic for enriching new goals
-with relevant historical learnings.
+with relevant historical learnings. Learnings extraction only runs when a
+memory manager is available; the goal queue advancement always runs.
 """
 
 from __future__ import annotations
@@ -33,14 +34,13 @@ logger = logging.getLogger(__name__)
 
 
 def build_goal_terminal_callback(
-    memory_manager: "MemoryManager",
+    memory_manager: "MemoryManager | None",
     llm: "BaseChatModel",
 ) -> Callable[["Goal", list["BaseMessage"], "GoalExecutionSummary"], Awaitable[None]]:
     """Build the on_goal_terminal callback for goal learnings extraction and summary storage.
 
-    This callback is fire-and-forget: it extracts forward-looking learnings from
-    the full goal execution trace and persists them as SemanticMemory with
-    'goal_learning' tag for future retrieval.
+    The callback always advances the goal queue; learnings extraction (which needs a
+    memory manager) is skipped when memory is disabled.
     """
 
     async def _on_goal_terminal(goal: "Goal", messages: list["BaseMessage"], summary: "GoalExecutionSummary") -> None:
@@ -80,47 +80,53 @@ def build_goal_terminal_callback(
             logger.warning("Failed to publish goal terminal event (non-fatal): %s", e)
 
         try:
-            from myrm_agent_harness.api.hooks import (
-                create_extraction_llm_func,
-                persist_extracted_memories,
-            )
-            from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-                extract_goal_learnings,
-            )
-
-            dict_messages = [
-                {
-                    "role": "assistant" if msg.type == "ai" else "user",
-                    "content": str(msg.content),
-                }
-                for msg in messages
-                if hasattr(msg, "content") and msg.content
-            ]
-
-            if len(dict_messages) < 3:
-                logger.info("Goal %s: too few messages for learnings extraction", goal.goal_id)
+            if memory_manager is None:
+                logger.debug(
+                    "Goal %s: memory disabled, skipping learnings extraction",
+                    goal.goal_id,
+                )
             else:
-                llm_func = create_extraction_llm_func(llm)
-                learnings = await extract_goal_learnings(
-                    messages=dict_messages,
-                    goal_objective=goal.objective,
-                    llm_func=llm_func,
+                from myrm_agent_harness.api.hooks import (
+                    create_extraction_llm_func,
+                    persist_extracted_memories,
+                )
+                from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+                    extract_goal_learnings,
                 )
 
-                if learnings:
-                    stored_count = await persist_extracted_memories(
-                        learnings,
-                        memory_manager,
-                        source_chat_id=goal.session_id,
-                    )
-                    logger.info(
-                        "Goal %s: extracted %d learnings, stored %d",
-                        goal.goal_id,
-                        len(learnings),
-                        stored_count,
-                    )
+                dict_messages = [
+                    {
+                        "role": "assistant" if msg.type == "ai" else "user",
+                        "content": str(msg.content),
+                    }
+                    for msg in messages
+                    if hasattr(msg, "content") and msg.content
+                ]
+
+                if len(dict_messages) < 3:
+                    logger.info("Goal %s: too few messages for learnings extraction", goal.goal_id)
                 else:
-                    logger.info("Goal %s: no learnings extracted", goal.goal_id)
+                    llm_func = create_extraction_llm_func(llm)
+                    learnings = await extract_goal_learnings(
+                        messages=dict_messages,
+                        goal_objective=goal.objective,
+                        llm_func=llm_func,
+                    )
+
+                    if learnings:
+                        stored_count = await persist_extracted_memories(
+                            learnings,
+                            memory_manager,
+                            source_chat_id=goal.session_id,
+                        )
+                        logger.info(
+                            "Goal %s: extracted %d learnings, stored %d",
+                            goal.goal_id,
+                            len(learnings),
+                            stored_count,
+                        )
+                    else:
+                        logger.info("Goal %s: no learnings extracted", goal.goal_id)
         except Exception as e:
             logger.warning("Goal learnings extraction failed (non-fatal): %s", e, exc_info=True)
 

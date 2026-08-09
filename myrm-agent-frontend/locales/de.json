@@ -13644,7 +13644,12 @@
       "confirmTitle": "Memory-A/B-Auswertung starten?",
       "confirmBody": "Dabei wird dasselbe WBBench-Subset zweimal ausgeführt — einmal mit und einmal ohne Speicher. Hinweise: Ein Embedding-Modell ist erforderlich, sonst laufen beide Arme faktisch ohne Speicher. WBBench-Aufgaben sind einteilig; Speichervorteile zeigen sich am deutlichsten in langen Sitzungen — ein unentschiedenes Ergebnis hier bedeutet nicht, dass Speicher nutzlos ist.",
       "confirmStart": "Auswertung starten",
-      "confirmCancel": "Abbrechen"
+      "confirmCancel": "Abbrechen",
+      "historyTitle": "Verlauf",
+      "historyTime": "Zeit",
+      "historyDataset": "Datensatz",
+      "historyCurrent": "Aktuell",
+      "historyView": "Anzeigen"
     }
   },
   "vault": {

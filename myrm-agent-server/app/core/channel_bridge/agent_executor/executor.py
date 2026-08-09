@@ -17,8 +17,8 @@
 Business-layer executor for IM/channel inbound messages. Bridges channel routing
 to the SkillAgent runtime with session-aware context, auto-reset notification,
 and streaming response assembly. Preamble, artifact deep links, and stream event
-mapping live in sibling modules execute_preamble.py, artifact_deep_links.py,
-and stream_events.py.
+mapping live in subpackage execute_preamble/, deliverable/ (deep_links),
+and sibling module stream_events.py.
 """
 
 from __future__ import annotations

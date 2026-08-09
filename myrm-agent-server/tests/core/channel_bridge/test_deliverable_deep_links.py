@@ -1,32 +1,40 @@
 """Unit tests for artifact deep link injection in ChannelAgentExecutor.
 
-Tests _collect_channel_artifacts shareable artifact tracking,
-_build_artifact_deep_links URL generation + redundant attachment removal,
+Tests collect_channel_artifacts shareable artifact tracking,
+build_artifact_deep_links URL generation + redundant attachment removal,
 and _fetch_artifact_versions DB batch lookup.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.types import MediaAttachment, MediaType
-from app.core.channel_bridge.executor_helpers import ShareableArtifact, StreamAccumulator
+from app.core.channel_bridge.executor_helpers import (
+    ShareableArtifact,
+    StreamAccumulator,
+)
 
 
 class TestCollectChannelArtifacts:
-    """Tests for _collect_channel_artifacts shareable artifact tracking."""
+    """Tests for collect_channel_artifacts shareable artifact tracking."""
 
     def _call(self, event: dict, acc: StreamAccumulator) -> None:
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
         collect_channel_artifacts(event, acc)
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
-    def test_shareable_artifact_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_shareable_artifact_tracked(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
         f = tmp_path / "chart.html"
         f.write_text("<html></html>")
         acc = StreamAccumulator()
@@ -50,8 +58,12 @@ class TestCollectChannelArtifacts:
         assert sa.filename == "chart.html"
         assert sa.artifact_type == "text/html"
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=False)
-    def test_non_shareable_not_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=False
+    )
+    def test_non_shareable_not_tracked(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
         f = tmp_path / "data.csv"
         f.write_text("a,b\n1,2")
         acc = StreamAccumulator()
@@ -70,8 +82,12 @@ class TestCollectChannelArtifacts:
         assert len(acc.file_attachments) == 1
         assert len(acc.shareable_artifacts) == 0
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
-    def test_missing_artifact_id_not_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_missing_artifact_id_not_tracked(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
         f = tmp_path / "page.html"
         f.write_text("<html></html>")
         acc = StreamAccumulator()
@@ -90,7 +106,7 @@ class TestCollectChannelArtifacts:
 
     def test_empty_event_ignored(self):
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
@@ -101,21 +117,22 @@ class TestCollectChannelArtifacts:
 
 
 class TestBuildArtifactDeepLinks:
-    """Tests for _build_artifact_deep_links URL generation."""
+    """Tests for build_artifact_deep_links URL generation."""
 
     @pytest.mark.asyncio
     async def test_empty_shareable_returns_empty(self):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
-        result = await build_artifact_deep_links(acc, [], "en")
-        assert result == ()
+        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        assert buttons == ()
+        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
@@ -144,7 +161,7 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
@@ -160,18 +177,17 @@ class TestBuildArtifactDeepLinks:
                 mime_type="text/html",
             ),
         ]
-        result = await build_artifact_deep_links(acc, media_list, "en")
-        assert len(result) == 1
-        buttons = result[0]
+        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
         assert len(buttons) == 1
         btn = buttons[0]
         assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
         assert btn.label == "View interactive page"
+        assert linked == frozenset({"chart.html"})
         assert len(media_list) == 0
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={},
     )
@@ -190,7 +206,7 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
@@ -198,8 +214,9 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        result = await build_artifact_deep_links(acc, [], "en")
-        assert result == ()
+        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        assert buttons == ()
+        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -216,7 +233,7 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_ingress: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
@@ -232,14 +249,14 @@ class TestBuildArtifactDeepLinks:
                 mime_type="text/html",
             ),
         ]
-        result = await build_artifact_deep_links(acc, media_list, "en")
-        assert result == ()
+        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
+        assert buttons == ()
+        assert linked == frozenset()
         assert len(media_list) == 1
-
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001", "art-002": "ver-002"},
     )
@@ -256,7 +273,10 @@ class TestBuildArtifactDeepLinks:
         "app.services.artifacts.share_token.create_artifact_share_token",
         return_value=("tok-multi", 604800),
     )
-    @patch("app.channels.i18n.channel_t", side_effect=lambda _l, _k, **kw: kw.get("filename", "view"))
+    @patch(
+        "app.channels.i18n.channel_t",
+        side_effect=lambda _l, _k, **kw: kw.get("filename", "view"),
+    )
     async def test_multi_artifact_uses_named_label(
         self,
         mock_t: MagicMock,
@@ -265,31 +285,49 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
-        acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
-        acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-001", "a.html", "text/html")
+        )
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-002", "b.pdf", "application/pdf")
+        )
         media_list = [
-            MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/a.html", filename="a.html", mime_type="text/html"),
-            MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/b.pdf", filename="b.pdf", mime_type="application/pdf"),
-            MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/photo.jpg", filename="photo.jpg", mime_type="image/jpeg"),
+            MediaAttachment(
+                media_type=MediaType.DOCUMENT,
+                path="/tmp/a.html",
+                filename="a.html",
+                mime_type="text/html",
+            ),
+            MediaAttachment(
+                media_type=MediaType.DOCUMENT,
+                path="/tmp/b.pdf",
+                filename="b.pdf",
+                mime_type="application/pdf",
+            ),
+            MediaAttachment(
+                media_type=MediaType.IMAGE,
+                path="/tmp/photo.jpg",
+                filename="photo.jpg",
+                mime_type="image/jpeg",
+            ),
         ]
-        result = await build_artifact_deep_links(acc, media_list, "zh")
-        assert len(result) == 1
-        buttons = result[0]
+        buttons, linked = await build_artifact_deep_links(acc, media_list, "zh")
         assert len(buttons) == 2
         # channel_t called with artifact_deep_link_named for multi
         assert mock_t.call_args_list[0].args[1] == "artifact_deep_link_named"
         # Only non-linked attachment remains
+        assert linked == frozenset({"a.html", "b.pdf"})
         assert len(media_list) == 1
         assert media_list[0].filename == "photo.jpg"
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
@@ -315,49 +353,215 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
-        acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "text/html"))
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-001", "chart.html", "text/html")
+        )
         media_list = [
-            MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/chart.html", filename="chart.html", mime_type="text/html"),
+            MediaAttachment(
+                media_type=MediaType.DOCUMENT,
+                path="/tmp/chart.html",
+                filename="chart.html",
+                mime_type="text/html",
+            ),
         ]
-        result = await build_artifact_deep_links(acc, media_list, "en")
+        buttons, linked = await build_artifact_deep_links(acc, media_list, "en")
         # Token failed, no buttons generated, but media_list untouched
-        assert result == ()
+        assert buttons == ()
+        assert linked == frozenset()
         assert len(media_list) == 1
 
 
 class TestCollectMultipleArtifacts:
     """Edge cases for collecting multiple artifacts."""
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
-    def test_oversized_file_skipped(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_oversized_shareable_tracked_with_fallback_note(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
         f = tmp_path / "huge.html"
         f.write_bytes(b"x" * (6 * 1024 * 1024))  # 6MB > 5MB limit
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
         collect_channel_artifacts(
-            {"data": [{"id": "art-big", "type": "text/html", "file_path": str(f), "filename": "huge.html", "content_type": "text/html"}]},
+            {
+                "data": [
+                    {
+                        "id": "art-big",
+                        "type": "text/html",
+                        "file_path": str(f),
+                        "filename": "huge.html",
+                        "content_type": "text/html",
+                    }
+                ]
+            },
+            acc,
+        )
+        # Oversized shareable artifacts are both deep-linked AND carry a fallback
+        # note, so a failed deep-link build still surfaces the file to the user.
+        assert len(acc.file_attachments) == 0
+        assert len(acc.shareable_artifacts) == 1
+        assert acc.oversized_deliverables == [("huge.html", "6.0 MB")]
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="",
+    )
+    async def test_deep_link_failure_keeps_fallback_note(
+        self, mock_base: MagicMock
+    ):  # noqa: ANN001
+        """No public base URL → no button, but the fallback note survives."""
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-001", "report.pdf", "application/pdf"),
+        )
+        acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
+        buttons, linked = await build_artifact_deep_links(acc, [], "en")
+        assert buttons == ()
+        assert linked == frozenset()
+        # Note must stay present when no button was produced.
+        assert acc.oversized_deliverables == [("report.pdf", "8.0 MB")]
+
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=False
+    )
+    def test_oversized_non_shareable_reported(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
+        f = tmp_path / "huge.csv"
+        f.write_bytes(b"x" * (6 * 1024 * 1024))  # 6MB > 5MB limit
+        acc = StreamAccumulator()
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            collect_channel_artifacts,
+        )
+
+        collect_channel_artifacts(
+            {
+                "data": [
+                    {
+                        "id": "art-big",
+                        "type": "text/csv",
+                        "file_path": str(f),
+                        "filename": "huge.csv",
+                        "content_type": "text/csv",
+                    }
+                ]
+            },
             acc,
         )
         assert len(acc.file_attachments) == 0
         assert len(acc.shareable_artifacts) == 0
+        assert acc.oversized_deliverables == [("huge.csv", "6.0 MB")]
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
-    def test_nonexistent_file_skipped(self, mock_shareable: MagicMock):  # noqa: ANN001
+    def test_oversized_image_compressed_into_attachment(
+        self, tmp_path, monkeypatch
+    ):  # noqa: ANN001
+        from PIL import Image
+
+        from app.core.channel_bridge.agent_executor.deliverable import deep_links
+
+        monkeypatch.setattr(deep_links, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000)
+        img = tmp_path / "huge.png"
+        Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="PNG")
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
         collect_channel_artifacts(
-            {"data": [{"id": "art-ghost", "type": "text/html", "file_path": "/nonexistent/chart.html", "filename": "chart.html"}]},
+            {
+                "data": [
+                    {
+                        "id": "art-img",
+                        "type": "image/png",
+                        "file_path": str(img),
+                        "filename": "huge.png",
+                        "content_type": "image/png",
+                    }
+                ]
+            },
+            acc,
+        )
+        assert len(acc.file_attachments) == 1
+        assert acc.file_attachments[0].filename == "huge.png"
+        assert acc.file_attachments[0].mime_type == "image/png"
+        assert len(acc.pending_tmp_paths) == 1
+        assert acc.oversized_deliverables == []
+        assert len(acc.compressed_deliverables) == 1
+        assert acc.compressed_deliverables[0][0] == "huge.png"
+        for p in acc.pending_tmp_paths:
+            Path(p).unlink(missing_ok=True)
+
+    def test_oversized_webp_compressed_filename_aligned(
+        self, tmp_path, monkeypatch
+    ):  # noqa: ANN001
+        from PIL import Image
+
+        from app.core.channel_bridge.agent_executor.deliverable import deep_links
+
+        monkeypatch.setattr(deep_links, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000)
+        img = tmp_path / "hero.webp"
+        Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="WEBP")
+        acc = StreamAccumulator()
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            collect_channel_artifacts,
+        )
+
+        collect_channel_artifacts(
+            {
+                "data": [
+                    {
+                        "id": "art-webp",
+                        "type": "image/webp",
+                        "file_path": str(img),
+                        "filename": "hero.webp",
+                        "content_type": "image/webp",
+                    }
+                ]
+            },
+            acc,
+        )
+        assert len(acc.file_attachments) == 1
+        assert acc.file_attachments[0].filename == "hero.jpg"
+        assert acc.file_attachments[0].mime_type == "image/jpeg"
+        assert acc.file_attachments[0].path.endswith(".jpg")
+        for p in acc.pending_tmp_paths:
+            Path(p).unlink(missing_ok=True)
+
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_nonexistent_file_skipped(self, mock_shareable: MagicMock):  # noqa: ANN001
+        acc = StreamAccumulator()
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            collect_channel_artifacts,
+        )
+
+        collect_channel_artifacts(
+            {
+                "data": [
+                    {
+                        "id": "art-ghost",
+                        "type": "text/html",
+                        "file_path": "/nonexistent/chart.html",
+                        "filename": "chart.html",
+                    }
+                ]
+            },
             acc,
         )
         assert len(acc.file_attachments) == 0
@@ -365,7 +569,7 @@ class TestCollectMultipleArtifacts:
 
     def test_invalid_data_types_skipped(self):
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
@@ -374,11 +578,11 @@ class TestCollectMultipleArtifacts:
 
 
 class TestFetchArtifactVersions:
-    """Tests for _fetch_artifact_versions DB batch lookup."""
+    """Tests for fetch_artifact_versions DB batch lookup."""
 
     @pytest.mark.asyncio
     async def test_empty_ids_returns_empty(self):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             fetch_artifact_versions,
         )
 
@@ -391,7 +595,7 @@ class TestFetchArtifactVersions:
         side_effect=RuntimeError("DB unavailable"),
     )
     async def test_db_exception_returns_empty(self, mock_session: MagicMock):
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             fetch_artifact_versions,
         )
 
@@ -402,17 +606,31 @@ class TestFetchArtifactVersions:
 class TestCollectEmptyFileSkipped:
     """Zero-byte files must be skipped."""
 
-    @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
-    def test_zero_byte_file_skipped(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_zero_byte_file_skipped(
+        self, mock_shareable: MagicMock, tmp_path
+    ):  # noqa: ANN001
         f = tmp_path / "empty.html"
         f.write_bytes(b"")
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
         collect_channel_artifacts(
-            {"data": [{"id": "art-empty", "type": "text/html", "file_path": str(f), "filename": "empty.html", "content_type": "text/html"}]},
+            {
+                "data": [
+                    {
+                        "id": "art-empty",
+                        "type": "text/html",
+                        "file_path": str(f),
+                        "filename": "empty.html",
+                        "content_type": "text/html",
+                    }
+                ]
+            },
             acc,
         )
         assert len(acc.file_attachments) == 0

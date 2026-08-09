@@ -1013,7 +1013,68 @@ def get_latest_memory_ab_report() -> dict[str, object] | None:
         return None
     try:
         with latest_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        if not isinstance(data, dict):
+            logger.warning("Latest memory A/B report is not an object")
+            return None
+        return data
     except Exception as exc:
         logger.warning("Failed to read memory A/B report: %s", exc)
         return None
+
+
+def get_memory_ab_report(timestamp: int) -> dict[str, object] | None:
+    """Get a specific memory A/B report by its run timestamp."""
+    report_path = DEFAULT_MEMORY_AB_REPORTS_DIR / f"memory_ab_report_{timestamp}.json"
+    if not report_path.exists():
+        return None
+    try:
+        with report_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            logger.warning("Memory A/B report %s is not an object", report_path)
+            return None
+        return data
+    except Exception as exc:
+        logger.warning("Failed to read memory A/B report %s: %s", report_path, exc)
+        return None
+
+
+def _report_sort_key(item: dict[str, object]) -> int:
+    """Sort key for report summaries: run timestamp, missing treated as 0."""
+    ts = item.get("timestamp")
+    return ts if isinstance(ts, int) else 0
+
+
+def get_memory_ab_report_history(
+    reports_dir: Path | None = None,
+) -> list[dict[str, object]]:
+    """Get all memory A/B reports, newest first.
+
+    Returns a lightweight summary per run (timestamp, dataset, arms) so the
+    UI can show a history list without shipping the full per-case matrix.
+    """
+    reports_dir = reports_dir or DEFAULT_MEMORY_AB_REPORTS_DIR
+    if not reports_dir.exists():
+        return []
+
+    summaries: list[dict[str, object]] = []
+    for report_path in reports_dir.glob("memory_ab_report_*.json"):
+        try:
+            with report_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                continue
+            summaries.append(
+                {
+                    "timestamp": data.get("timestamp"),
+                    "dataset_id": data.get("dataset_id"),
+                    "profile_id": data.get("profile_id"),
+                    "per_profile": data.get("per_profile", {}),
+                }
+            )
+        except Exception as exc:
+            logger.warning("Failed to read memory A/B report %s: %s", report_path, exc)
+
+    summaries.sort(key=_report_sort_key, reverse=True)
+    return summaries

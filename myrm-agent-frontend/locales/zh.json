@@ -14270,7 +14270,12 @@
       "confirmTitle": "开始记忆 A/B 评测？",
       "confirmBody": "这将在同一 WBBench 子集上运行两次 —— 一次开启记忆、一次关闭。注意事项：需要已配置 embedding 模型，否则双臂实际上都在无记忆状态下运行；WBBench 任务为单轮，记忆收益在长会话中最明显，此处结果持平不代表记忆无用。",
       "confirmStart": "开始评测",
-      "confirmCancel": "取消"
+      "confirmCancel": "取消",
+      "historyTitle": "运行历史",
+      "historyTime": "时间",
+      "historyDataset": "数据集",
+      "historyCurrent": "当前",
+      "historyView": "查看"
     }
   },
   "vault": {

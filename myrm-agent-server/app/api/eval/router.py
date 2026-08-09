@@ -34,6 +34,8 @@ from app.core.eval.service import (
     get_latest_memory_ab_report,
     get_latest_report_summary,
     get_matrix_eval_status,
+    get_memory_ab_report,
+    get_memory_ab_report_history,
     get_memory_ab_status,
     run_eval_suite_background,
     run_matrix_eval_background,
@@ -520,6 +522,22 @@ async def stream_memory_ab_evaluation_status() -> StreamingResponse:
 async def get_latest_memory_ab_evaluation_report() -> dict[str, object]:
     """Get the latest memory A/B evaluation report."""
     report = get_latest_memory_ab_report()
+    if not report:
+        return {"status": "not_found", "report": None}
+    return {"status": "success", "report": report}
+
+
+@router.get("/memory-ab/reports/history")
+async def get_memory_ab_report_history_endpoint() -> dict[str, object]:
+    """Get the history of memory A/B evaluation reports, newest first."""
+    history = get_memory_ab_report_history()
+    return {"status": "success", "reports": history}
+
+
+@router.get("/memory-ab/reports/{timestamp}")
+async def get_memory_ab_report_by_timestamp(timestamp: int) -> dict[str, object]:
+    """Get a specific memory A/B report by its run timestamp."""
+    report = get_memory_ab_report(timestamp)
     if not report:
         return {"status": "not_found", "report": None}
     return {"status": "success", "report": report}

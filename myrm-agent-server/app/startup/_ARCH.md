@@ -12,7 +12,7 @@
 | env_loader.py | 核心 | 分层加载 .env（[P]/[O]/[S]）+ 清理 __pycache__ + 浏览器路径；[T] 测试密钥不在此加载 | ✅ |
 | config_check.py | 核心 | 配置迁移、预检、变更追踪 | ✅ |
 | health_check.py | 核心 | 启动前资源健康检查与自动恢复 | ✅ |
-| server_lock.py | 核心 | OS 级文件锁 + 僵尸进程猎杀 | ✅ |
+| server_lock.py | 核心 | OS 级文件锁 + 僵尸锁接管（活跃实例并存时新实例退出，禁止互杀） | ✅ |
 | uvicorn_runner.py | 核心 | uvicorn 单进程启动（含 WebUI 模式） | ✅ |
 | granian_runner.py | 核心 | granian 多进程启动（仅无嵌入式数据库场景） | ✅ |
 

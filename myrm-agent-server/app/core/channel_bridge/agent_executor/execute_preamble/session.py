@@ -2,13 +2,13 @@
 
 [INPUT]
 app.core.channel_bridge.executor_helpers (POS: 渠道历史持久化/加载)
-execute_preamble_backfill (POS: 冷启动 backfill)
+backfill (POS: 冷启动 backfill)
 
 [OUTPUT]
 resolve_channel_session_context(): session_key、历史、冷启动标记与 reset 预事件。
 
 [POS]
-execute_preamble 子模块：会话键解析、backfill、历史加载与 auto-reset 通知。
+preamble 子模块：会话键解析、backfill、历史加载与 auto-reset 通知。
 """
 
 from __future__ import annotations
@@ -30,11 +30,11 @@ from app.core.channel_bridge.executor_helpers import (
 from app.core.channel_bridge.executor_helpers.topic_workspace_sync import ChannelWorkspaceSyncError
 from app.services.agent.profile_resolver import ResolvedAgentProfile
 
-from .execute_preamble_backfill import maybe_backfill_channel_history
-from .session import resolve_session_key
+from .backfill import maybe_backfill_channel_history
+from ..session import resolve_session_key
 
 if TYPE_CHECKING:
-    from .executor import ChannelAgentExecutor
+    from ..executor import ChannelAgentExecutor
 
 logger = logging.getLogger(__name__)
 

@@ -94,6 +94,43 @@ class TestBuildGoalTerminalCallback:
         memory_manager.store_batch.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_callback_with_memory_disabled_still_publishes_and_dequeues(self):
+        """memory_manager=None must skip learnings extraction but keep event + dequeue."""
+        llm = MagicMock()
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
+                new_callable=AsyncMock,
+            ) as mock_extract,
+            patch(
+                "app.ai_agents.general_agent.goal_learnings._try_dequeue_next",
+                new_callable=AsyncMock,
+            ) as mock_dequeue,
+        ):
+            callback = build_goal_terminal_callback(None, llm)
+
+            goal = MagicMock()
+            goal.goal_id = "goal-mem-off"
+            goal.objective = "Task without memory"
+            goal.session_id = "session-mem-off"
+            goal.status.value = "complete"
+
+            messages = [
+                HumanMessage(content="Do A"),
+                AIMessage(content="Doing A..."),
+                HumanMessage(content="Now B"),
+                AIMessage(content="Done B."),
+            ]
+
+            await callback(goal, messages, _make_summary())
+
+            # Learnings extraction must be skipped entirely (no llm func creation).
+            mock_extract.assert_not_called()
+            # Event publishing (fire-and-forget) must still run.
+            mock_dequeue.assert_awaited_once_with("session-mem-off")
+
+    @pytest.mark.asyncio
     async def test_callback_handles_llm_failure_gracefully(self):
         """Callback should not raise on LLM failure."""
         memory_manager = AsyncMock()

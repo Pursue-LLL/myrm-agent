@@ -32,6 +32,7 @@ import {
 import MatrixResultView, { type MatrixReportData } from './MatrixResultView';
 import CaseFormatReference from './CaseFormatReference';
 import WbBenchSources from './WbBenchSources';
+import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from './MemoryAbHistoryTable';
 
 interface EvalDataset {
   id: string;
@@ -118,6 +119,8 @@ export default function EvalLabDashboard() {
   const [memoryAbReport, setMemoryAbReport] = useState<MatrixReportData | null>(null);
   const [memoryAbRunning, setMemoryAbRunning] = useState(false);
   const [memoryAbProgress, setMemoryAbProgress] = useState({ current_arm: '', stage: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0, download_progress: null as { downloaded_bytes: number; total_bytes: number } | null });
+  const [memoryAbHistory, setMemoryAbHistory] = useState<MemoryAbHistoryItem[]>([]);
+  const [selectedMemoryAbTs, setSelectedMemoryAbTs] = useState<number | null>(null);
 
   const isMatrixMode = selectedProfileIds.length >= 2;
 
@@ -228,15 +231,42 @@ export default function EvalLabDashboard() {
       const res = await fetch('/api/v1/eval/memory-ab/reports/latest');
       const data = await res.json();
       if (data.status === 'success' && data.report) {
-        setMemoryAbReport(data.report as MatrixReportData);
+        const report = data.report as MatrixReportData & { timestamp?: number };
+        setMemoryAbReport(report);
+        setSelectedMemoryAbTs(report.timestamp ?? null);
       }
     } catch (e) {
       console.error('Failed to fetch memory A/B report:', e);
     }
   }, []);
 
+  const fetchMemoryAbHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/eval/memory-ab/reports/history');
+      const data = (await res.json()) as { status?: string; reports?: MemoryAbHistoryItem[] };
+      if (data.status === 'success' && Array.isArray(data.reports)) {
+        setMemoryAbHistory(data.reports);
+      }
+    } catch (e) {
+      console.error('Failed to fetch memory A/B history:', e);
+    }
+  }, []);
+
+  const loadMemoryAbReport = useCallback(async (timestamp: number) => {
+    try {
+      const res = await fetch(`/api/v1/eval/memory-ab/reports/${timestamp}`);
+      const data = (await res.json()) as { status?: string; report?: MatrixReportData | null };
+      if (data.status === 'success' && data.report) {
+        setMemoryAbReport(data.report);
+        setSelectedMemoryAbTs(timestamp);
+      }
+    } catch (e) {
+      console.error('Failed to load memory A/B report:', e);
+    }
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport(), fetchMemoryAbReport()]).finally(() =>
+    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport(), fetchMemoryAbReport(), fetchMemoryAbHistory()]).finally(() =>
       setLoading(false),
     );
   }, []);
@@ -361,6 +391,7 @@ export default function EvalLabDashboard() {
         setMemoryAbRunning(false);
         setSourcesRefreshToken((prev) => prev + 1);
         fetchMemoryAbReport();
+        fetchMemoryAbHistory();
       };
 
       eventSource.onmessage = (event) => {
@@ -391,7 +422,7 @@ export default function EvalLabDashboard() {
       };
     }
     return () => { eventSource?.close(); };
-  }, [memoryAbRunning, fetchMemoryAbReport]);
+  }, [memoryAbRunning, fetchMemoryAbReport, fetchMemoryAbHistory]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -1010,7 +1041,14 @@ export default function EvalLabDashboard() {
                 </div>
               </div>
             ) : memoryAbReport ? (
-              <MatrixResultView report={memoryAbReport} profileNames={memoryAbProfileNames()} />
+              <div className="space-y-6 max-w-5xl mx-auto">
+                <MatrixResultView report={memoryAbReport} profileNames={memoryAbProfileNames()} />
+                <MemoryAbHistoryTable
+                  items={memoryAbHistory}
+                  selectedTimestamp={selectedMemoryAbTs}
+                  onSelect={loadMemoryAbReport}
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                 <BrainCircuit className="w-12 h-12 opacity-20" />

@@ -333,9 +333,11 @@ busy_ack_queue_full = ⚠️ 队列已满，消息未保存，请稍后重发。
 agent_picker_no_agents = 未配置任何智能体。
 agent_picker_select = 选择一个智能体：
 agent_picker_switched = 已切换至：{ $name }
-artifact_deep_link = 💻 查看交互网页
-artifact_deep_link_named = 💻 { $filename }
+artifact_deep_link = 查看交互网页
+artifact_deep_link_named = { $filename }
 deliverable_attached_only = 交付物已附上。
+deliverable_oversized_note = { $filename }（{ $size }）超出渠道附件大小限制，未作为附件发送。
+deliverable_compressed_note = { $filename }（{ $size }）超出渠道大小限制，已发送压缩版本。
 goal_completed =
     ✅ 目标已完成："{ $objective }"
     { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更

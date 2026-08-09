@@ -9,7 +9,7 @@ SERVER_ROOT = Path(__file__).resolve().parents[3]
 REQUIRED_WIRES: frozenset[str] = frozenset(
     {
         "app/services/agent/params/converter.py",
-        "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
+        "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/core/eval/executor.py",
         "app/services/kanban/task_runner.py",

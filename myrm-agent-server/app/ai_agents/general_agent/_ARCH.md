@@ -38,7 +38,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `factory.py` | ✅ 核心 | Agent 实例组装工厂…Org Model Policy：build 时薄委托 `services/org_model_policy/enforce.enforce_org_model_policy()` 检查 primary/fallback 及 **`moa_overlay.reference_model_selections`**（fail-closed sandbox；无 policy 则放行）。 | ✅ |
 | `active_tool_groups.py` | ✅ 核心 | GeneralAgent enable 标志 → harness `TOOL_GROUP_MAP` 组名列表（Gap + `AgentRuntimeSpec.tool_groups`）。 | ❌ |
 | `kanban_tool_mode.py` | ✅ 辅助 | 解析 `KanbanToolMode`：TaskRunner 强制 worker（6）；chat 默认 orchestrator（3）；board CRUD 仅 REST/GUI | ❌ |
-| `stream_pipeline.py` | ✅ 核心 | 执行流水线：POOLED 路径经 `coalesced_acquire` 复用 `BuiltExecutionUnit`；acquire 后 emit `turn_prewarm_*_clear`（agent：`still_warming`；memory：`brief_pending` 时 dismiss waiting）；`guard_turn` 串行同 chat；按 `channel_name` 解析 delivery banner → browser checkpoint → `SkillAgent.run` | ✅ |
+| `stream_pipeline.py` | ✅ 核心 | 执行流水线：POOLED 路径经 `coalesced_acquire` 复用 `BuiltExecutionUnit`；acquire 后 emit `turn_prewarm_*_clear`（agent：`still_warming`；memory：`brief_pending` 时 dismiss waiting）；`guard_turn` 串行同 chat；按 `channel_name` 解析 delivery banner → browser checkpoint → `SkillAgent.run`。当 `context["goal_provider"]` 存在时注入 `on_goal_terminal`/`on_loop_restart` 回调与相关 learnings 充实（回调注入只依赖 goal_provider，不再依赖 memory_manager） | ✅ |
 | `config_builders.py` | ✅ 核心 | 分离出的配置构建器，包含运行时执行、隐私路由、环境变量解析。 | ✅ |
 | `callbacks.py` | ✅ 核心 | 会话清理与持久化回调：`make_commitment_extraction_callback`、`make_correction_propagation_callback`（两阶段隐式反馈检测 → 结构化纠错提案 → 双目标路由 PendingMemory/SharedContext）、`make_loaded_skills_persist_callback`（turn-end 写入 `Chat.session_loaded_skill_names`）、`make_notes_persist` / `make_notes_load`、`make_summary_persist_with_wiki_archive`（compaction persist 后 Wiki 归档，绑 `on_summary_persist`）。 | ✅ |
 | `tool_setup.py` | ✅ 核心 | 工具初始化混入（ToolSetupMixin）。… `factory.py` 条件挂载 `skill_market_tool`（profile `skill_market`）与 `skill_manage_tool`（profile `skill_manage` 或 `/learn` `force_skill_manage`）。… | ✅ |
@@ -46,7 +46,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `external_agents_runtime_config.py` | ✅ 核心 | 外部 Agent 配置归一化层。集中 `_default_cli_args` / `_auth_mode` / `_cfg_int`、RuntimeConfig 对齐指纹、本地 auto-detect 配置解析、RuntimePool backend 注册，供 `external_agents.py` 复用。 | ✅ |
 | `blueprint_materializer.py` | ✅ 核心 | JIT 虚拟子 Agent 即时物化器，将会话级 `ephemeral_subagents`（含 display_name/theme_color）转换为 `SubagentConfig`。 | ✅ |
 | `compression_intent.py` | ✅ 核心 | 从 query + 最近 HumanMessage + 历史 ToolMessage 生成聚焦文件、模块、目标提示、失败工具调用 ID，供 harness 压缩策略消费。 | ✅ |
-| `goal_learnings.py` | ✅ 核心 | Goal 终态回调工厂：`build_goal_terminal_callback` 在 Goal 终态时提取 learnings 存入 SemanticMemory，发布 `GOAL_TERMINAL` ServerEventBus 事件（触发 IM 通知），并 dequeue 下一个排队 Goal。`retrieve_relevant_learnings` 为新 Goal 检索历史经验。 | ✅ |
+| `goal_learnings.py` | ✅ 核心 | Goal 终态回调工厂：`build_goal_terminal_callback` 在 Goal 终态时提取 learnings 存入 SemanticMemory（`memory_manager` 可选，memory 关闭时跳过提取但 dequeue 仍执行），发布 `GOAL_TERMINAL` ServerEventBus 事件（触发 IM 通知），并 dequeue 下一个排队 Goal。`retrieve_relevant_learnings` 为新 Goal 检索历史经验。 | ✅ |
 | `tool_setup.py` | ✅ 核心 | GeneralAgent 工具装配；`_create_memory_tools` 绑定 `memory_search_tool` sessions/wiki ACL。 | ✅ |
 | `checkpoint_helpers.py` | ✅ 辅助 | Browser checkpoint 生命周期辅助函数 | ✅ |
 | `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback 创建；主模型优先选 function calling 候选；lite 注入 `reasoning_effort='low'`；`apply_lite_context_downgrade` Dynamic Ratio Shield SSOT） | ✅ |

@@ -177,14 +177,6 @@ MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
 E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
 E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
 E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
-# R210: signoff attach mux probe — after retry exhaustion under parallel, WAIT not fail-closed.
-SIGNOFF_MUX_PROBE_PARALLEL_WAIT_BASE_SEC: Final[float] = 60.0
-SIGNOFF_MUX_PROBE_PARALLEL_WAIT_LEASE_SCALE_SEC: Final[float] = 15.0
-SIGNOFF_MUX_PROBE_PARALLEL_WAIT_MAX_SEC: Final[float] = 120.0
-SIGNOFF_MUX_PROBE_PARALLEL_WAIT_MIN_LEASES: Final[int] = 2
-E2E_SIGNOFF_MUX_PROBE_PARALLEL_WAIT_TOKEN: Final[str] = (
-    "E2E_SIGNOFF_MUX_PROBE_PARALLEL_WAIT"
-)
 # R170: bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
 PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
@@ -544,31 +536,6 @@ def mux_responsive_probe_timeout_sec(*, active_leases: int | None = None) -> flo
         MUX_RESPONSIVE_PROBE_BASE_SEC + leases * MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC
     )
     return min(MUX_RESPONSIVE_PROBE_MAX_SEC, scaled)
-
-
-def signoff_mux_probe_parallel_wait_sec(
-    *,
-    active_leases: int | None = None,
-) -> int:
-    """R210: signoff mux probe WAIT budget after retry exhaustion (DG-007).
-
-    Solo signoff or peers<2: 0 (preserve fail-closed). Parallel signoff:
-    min(120, 60+leases×15)s — QUEUE until mux stamp+probe recover; never stop peer.
-    """
-    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
-        return 0
-    leases = (
-        active_leases
-        if active_leases is not None
-        else _parallel_signoff_pressure_peers()
-    )
-    if leases < SIGNOFF_MUX_PROBE_PARALLEL_WAIT_MIN_LEASES:
-        return 0
-    scaled = (
-        SIGNOFF_MUX_PROBE_PARALLEL_WAIT_BASE_SEC
-        + leases * SIGNOFF_MUX_PROBE_PARALLEL_WAIT_LEASE_SCALE_SEC
-    )
-    return int(min(SIGNOFF_MUX_PROBE_PARALLEL_WAIT_MAX_SEC, scaled))
 
 
 def signoff_wave_open_wait_sec() -> int:

@@ -362,3 +362,87 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
         assert res.status_code == 200
         assert res.json()["status"] == "success"
+
+
+class TestMemoryAbReportHistory:
+    """Verify the report history helpers return newest-first summaries."""
+
+    def test_report_history_sorted_newest_first(self, tmp_path: Path) -> None:
+        import app.core.eval.service as service_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "memory_ab_report_1000.json").write_text(
+            json.dumps(
+                {
+                    "timestamp": 1000,
+                    "dataset_id": "wb-bench-code",
+                    "per_profile": {"memory_off": {"pass_rate": 0.5}},
+                }
+            )
+        )
+        (reports_dir / "memory_ab_report_2000.json").write_text(
+            json.dumps(
+                {
+                    "timestamp": 2000,
+                    "dataset_id": "wb-bench-research",
+                    "per_profile": {"memory_off": {"pass_rate": 0.8}},
+                }
+            )
+        )
+
+        history = service_mod.get_memory_ab_report_history(reports_dir)
+        assert [h["timestamp"] for h in history] == [2000, 1000]
+        assert history[0]["dataset_id"] == "wb-bench-research"
+        assert history[0]["per_profile"]["memory_off"]["pass_rate"] == 0.8
+
+    def test_report_history_skips_corrupt_files(self, tmp_path: Path) -> None:
+        import app.core.eval.service as service_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "memory_ab_report_1000.json").write_text("{not json")
+        (reports_dir / "memory_ab_report_2000.json").write_text(
+            json.dumps({"timestamp": 2000})
+        )
+
+        history = service_mod.get_memory_ab_report_history(reports_dir)
+        assert [h["timestamp"] for h in history] == [2000]
+
+    def test_report_by_timestamp(self, tmp_path: Path) -> None:
+        import app.core.eval.service as service_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        data = {"timestamp": 42, "profile_ids": ["memory_off", "memory_on"]}
+        (reports_dir / "memory_ab_report_42.json").write_text(json.dumps(data))
+        service_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+
+        assert service_mod.get_memory_ab_report(42) == data
+        assert service_mod.get_memory_ab_report(43) is None
+
+
+def test_memory_ab_router_report_history(client: TestClient) -> None:
+    # history passthrough
+    with patch(
+        "app.api.eval.router.get_memory_ab_report_history",
+        return_value=[{"timestamp": 2000, "dataset_id": "wb-bench-code"}],
+    ):
+        res = client.get("/api/v1/eval/memory-ab/reports/history")
+        assert res.json()["status"] == "success"
+        assert res.json()["reports"] == [
+            {"timestamp": 2000, "dataset_id": "wb-bench-code"}
+        ]
+
+    # specific report found
+    with patch(
+        "app.api.eval.router.get_memory_ab_report", return_value={"profile_ids": []}
+    ):
+        res = client.get("/api/v1/eval/memory-ab/reports/123")
+        assert res.status_code == 200
+        assert res.json()["status"] == "success"
+
+    # specific report not found
+    with patch("app.api.eval.router.get_memory_ab_report", return_value=None):
+        res = client.get("/api/v1/eval/memory-ab/reports/123")
+        assert res.json()["status"] == "not_found"

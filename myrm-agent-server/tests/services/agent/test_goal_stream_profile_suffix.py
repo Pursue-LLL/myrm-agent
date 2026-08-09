@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -231,6 +232,105 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
     assert getattr(file_access_mode, "value", file_access_mode) == "full"
     assert captured.get("agent_security_raw") == {"capabilities": ["file_read"]}
     assert captured.get("enable_web_fetch") is False
+    assert captured.get("enable_memory") is False  # enableMemory unset → disabled
+
+
+@pytest.mark.asyncio
+async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> None:
+    """GoalProvider must reach the stream via extra_context; enable_memory follows user switch."""
+    goal = Goal(
+        goal_id="g-provider",
+        session_id="chat-provider-1",
+        objective="Continue with goal lifecycle",
+        status=GoalStatus.ACTIVE,
+        budget=GoalBudget(max_turns=5),
+    )
+    provider = AsyncMock()
+    agent_ctx = GoalStreamAgentContext(
+        agent_id=None,
+        user_instructions=None,
+        subagent_ids=None,
+        agent_skill_ids=[],
+        enabled_builtin_tools=None,
+        agent_security_raw=None,
+    )
+    captured_params: dict[str, object] = {}
+    stream_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    async def capturing_stream(
+        *_args: object, **_kwargs: object
+    ) -> AsyncGenerator[object, None]:
+        stream_calls.append((_args, _kwargs))
+        if False:
+            yield None
+
+    def capture_params(**kwargs: object) -> MagicMock:
+        captured_params.update(kwargs)
+        return MagicMock(**kwargs)
+
+    with (
+        patch(
+            "app.services.agent.goal_stream_trigger._resolve_goal_stream_agent_context",
+            new_callable=AsyncMock,
+            return_value=agent_ctx,
+        ),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            capturing_stream,
+        ),
+        patch(
+            "app.ai_agents.GeneralAgentParams",
+            side_effect=capture_params,
+        ),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new_callable=AsyncMock,
+            return_value=MagicMock(
+                providers_dict={},
+                retrieval_dict={},
+                security_config_dict={"yolo_mode_enabled": True},
+                personal_settings_dict={"enableMemory": True},
+                search_cfg=None,
+                search_is_user_configured=False,
+            ),
+        ),
+        patch(
+            "app.core.channel_bridge.model_resolver.resolve_model_config",
+            return_value=MagicMock(supports_vision=False, model="fake/test"),
+        ),
+        patch(
+            "app.core.channel_bridge.model_resolver.enrich_model_capabilities",
+            side_effect=lambda cfg, *_args, **_kwargs: cfg,
+        ),
+        patch(
+            "app.core.channel_bridge.model_resolver.enrich_model_context_window",
+            side_effect=lambda cfg, _: cfg,
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.extract_fallback_model_configs",
+            return_value=(None, None),
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.extract_retrieval_models",
+            return_value=(None, None),
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+        patch(
+            "app.core.channel_bridge.config_parsers.resolve_vision_fallback_chain_for_agent",
+            return_value=(None, []),
+        ),
+    ):
+        await trigger_goal_stream("chat-provider-1", goal, provider=provider)
+        await asyncio.sleep(0.05)
+
+    assert captured_params.get("enable_memory") is True  # enableMemory=True → enabled
+    assert len(stream_calls) == 1
+    _, stream_kwargs = stream_calls[0]
+    assert stream_kwargs.get("extra_context") == {"goal_provider": provider}
 
 
 @pytest.mark.asyncio

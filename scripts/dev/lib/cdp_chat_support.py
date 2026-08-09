@@ -695,9 +695,7 @@ def e2e_api_base_inject_js(api_base: str | None = None) -> str:
         binding = e2e_runtime_binding(api_base)
         assert binding is not None
         return f"(() => {{{runtime_source} return {{ ok: true, base: {json.dumps(binding['apiBase'])}, runtimeId: {json.dumps(binding['runtimeId'])} }}; }})()"
-    base = resolve_e2e_api_base(api_base)
-    if not base:
-        return "(() => ({ ok: false, err: 'no-api-base' }))()"
+    base = resolve_e2e_api_base(api_base) or get_e2e_api_url()
     encoded = json.dumps(base)
     return f"""(() => {{
   window.__MYRM_E2E_API_BASE__ = {encoded};

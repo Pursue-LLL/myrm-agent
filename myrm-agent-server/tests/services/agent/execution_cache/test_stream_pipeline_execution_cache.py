@@ -304,3 +304,96 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
     assert seeded, "expected set_security_config before SkillAgent.run"
     assert seeded[0] is not None
     assert seeded[0].yolo_mode_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
+    """on_goal_terminal must inject whenever goal_provider exists, even with memory disabled.
+
+    Regression guard for the fix that decoupled callback injection from
+    `agent.memory_manager` (memory disabled → memory_manager is None, but the
+    goal lifecycle callbacks must still be wired so dequeue/learnings-notify
+    keep working).
+    """
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+        chat_id="chat-goal-provider",
+    )
+    skill_agent = _skill_agent_mock()  # memory_manager = None
+    provider = AsyncMock()
+    provider.get_active_goal = AsyncMock(return_value=None)
+    captured_contexts: list[dict[str, object]] = []
+
+    async def fake_run(
+        *_args: object,
+        **_kwargs: object,
+    ) -> AsyncGenerator[dict[str, object], None]:
+        captured_contexts.append(_kwargs.get("context", {}))
+        yield {"type": "message", "data": "ok"}
+
+    skill_agent.run = fake_run
+
+    async def fake_build(
+        agent_wrapper: GeneralAgent,
+        effective_chat_id: str,
+        user_id: str | None = None,
+    ) -> MagicMock:
+        agent_wrapper.agent = skill_agent
+        return skill_agent
+
+    @asynccontextmanager
+    async def noop_async_context(*_args: object, **_kwargs: object):
+        yield
+
+    with (
+        patch(
+            "app.ai_agents.general_agent.factory.build_general_agent",
+            side_effect=fake_build,
+        ),
+        patch.object(
+            wrapper,
+            "_build_runtime_context",
+            return_value={
+                "session_id": "sess-goal-provider",
+                "goal_provider": provider,
+                "query": "hello",
+            },
+        ),
+        patch("app.platform_utils.get_artifact_processor") as artifact_mock,
+        patch(
+            "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
+        ),
+        patch(
+            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
+        ),
+        patch(
+            "app.services.web_fetch.binding.open_web_fetch_escalation_context",
+            noop_async_context,
+        ),
+        patch(
+            "app.ai_agents.general_agent.goal_learnings.retrieve_relevant_learnings",
+            new_callable=AsyncMock,
+        ) as mock_retrieve,
+    ):
+        artifact_mock.return_value.process_artifacts_ready = MagicMock()
+
+        async for _ in execute_stream_pipeline(
+            wrapper,
+            query="hello",
+            chat_id="chat-goal-provider",
+            extra_context={"goal_provider": provider},
+        ):
+            pass
+
+    assert captured_contexts, "expected agent.run to be invoked"
+    run_context = captured_contexts[0]
+    # Callback must be wired even though memory_manager is None (memory disabled).
+    assert run_context.get("on_goal_terminal") is not None
+    assert run_context.get("on_loop_restart") is not None
+    # Active-goal probe still runs (get_active_goal is called and returns None) …
+    provider.get_active_goal.assert_awaited_once_with("chat-goal-provider")
+    # … but learnings enrichment must be skipped when memory is unavailable.
+    mock_retrieve.assert_not_called()

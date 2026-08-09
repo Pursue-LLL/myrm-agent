@@ -169,7 +169,7 @@ _smp_attach_backend_crash_heal() {
 
 _smp_attach_backend_drift_heal() {
   local monorepo_root="${1:?}" server_dir="${2:?}" dev_stack="${3:?}"
-  local stack_epoch_lib active_leases policy_py state_dir action
+  local stack_epoch_lib active_leases policy_py state_dir
   stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
   policy_py="$(_smp_policy_py "$(dirname "${stack_epoch_lib}")")"
   state_dir="$(_smp_state_dir)"
@@ -182,24 +182,16 @@ _smp_attach_backend_drift_heal() {
     fi
     return 0
   fi
-  action="$("$(_smp_python)" "${policy_py}" decide-drift \
-    --active-leases "${active_leases}" \
-    --drift-pending 1)"
-  case "${action}" in
-    defer)
-      "$(_smp_python)" "${policy_py}" record-pending \
-        --state-dir "${state_dir}" \
-        --reason backend_source_drift \
-        --server-dir "${server_dir}" >/dev/null
-      echo "CHROME_E2E_ATTACH: defer backend-only ensure (${active_leases} active wave leases)" >&2
-      ;;
-    apply)
-      echo "CHROME_E2E_ATTACH_HEAL: backend-only ensure (source drift, no active leases)" >&2
-      _smp_apply_backend_drift_ensure "${dev_stack}" "${policy_py}" "${state_dir}"
-      ;;
-    *)
-      ;;
-  esac
+  # Attach is about to run tests against this backend — never reload it here:
+  # a drift reload kills the backend the tests are about to use (cold start
+  # 45-60s) and shows up as "backend repeatedly crashing" under concurrent
+  # development churn. Record the drift so an idle-time ensure (supervisor /
+  # verify-api / manual ensure) applies it when no tests are in flight.
+  "$(_smp_python)" "${policy_py}" record-pending \
+    --state-dir "${state_dir}" \
+    --reason backend_source_drift \
+    --server-dir "${server_dir}" >/dev/null 2>&1 || true
+  echo "CHROME_E2E_ATTACH: defer backend drift reload during attach (${active_leases} active wave leases)" >&2
 }
 
 _smp_should_defer_harness_install() {

@@ -53,6 +53,9 @@ class StreamAccumulator:
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)
     shareable_artifacts: list[ShareableArtifact] = field(default_factory=list)
+    oversized_deliverables: list[tuple[str, str]] = field(default_factory=list)
+    compressed_deliverables: list[tuple[str, str]] = field(default_factory=list)
+    pending_tmp_paths: list[str] = field(default_factory=list)
     cost_usd: float = 0.0
     model_name: str = ""
     total_tokens: int = 0

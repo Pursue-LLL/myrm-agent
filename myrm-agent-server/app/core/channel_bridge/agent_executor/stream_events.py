@@ -3,7 +3,7 @@
 [INPUT]
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, step_to_label (POS: Stream accumulation for channel turns.)
 - app.channels.types::ProgressUpdate, StreamingText, QuickReply, ToolStep (POS: Channel message types.)
-- agent_executor.artifact_deep_links::collect_channel_artifacts (POS: Artifact delivery helpers for channel executor.)
+- agent_executor.deliverable::collect_channel_artifacts (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
@@ -17,13 +17,14 @@ harness agent.process_stream events into ProgressUpdate/StreamingText for IM rou
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass, field
 
 from app.channels.types import ProgressUpdate, QuickReply, StreamingText, ToolStep
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, step_to_label
 
-from .artifact_deep_links import collect_channel_artifacts
+from .deliverable import collect_channel_artifacts
 
 
 @dataclass
@@ -118,12 +119,9 @@ async def iter_channel_stream_progress(
                 )
 
                 review_configs = data.get("reviewConfigs", [])
-                has_smart_denied = (
-                    isinstance(review_configs, list)
-                    and any(
-                        isinstance(rc, dict) and rc.get("smartDenied") is True
-                        for rc in review_configs
-                    )
+                has_smart_denied = isinstance(review_configs, list) and any(
+                    isinstance(rc, dict) and rc.get("smartDenied") is True
+                    for rc in review_configs
                 )
                 smart_prefix = (
                     "⚠️ [Security reviewer recommends denial] "
@@ -172,7 +170,7 @@ async def iter_channel_stream_progress(
                 acc.last_image_tool = str(event.get("tool_name", ""))
 
         elif event_type == "artifacts":
-            collect_channel_artifacts(event, acc)
+            await asyncio.to_thread(collect_channel_artifacts, event, acc)
 
         elif event_type == "error":
             error_msg = str(event.get("error", "Unknown error"))

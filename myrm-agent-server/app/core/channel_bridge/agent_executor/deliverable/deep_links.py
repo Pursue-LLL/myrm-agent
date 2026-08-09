@@ -3,18 +3,21 @@
 [INPUT]
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, ShareableArtifact (POS: Stream accumulation for channel turns.)
 - app.channels.types::MediaAttachment (POS: Channel message types.)
+- deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
 - app.services.artifacts.share_token (POS: HMAC share token for artifact deep links.)
 - app.core.infra.ingress::get_public_ingress_base_url (POS: Public ingress URL for share links.)
 - app.remote_access.mobile_deep_link::resolve_mobile_remote_base_url (POS: Public URL resolution for deep links.)
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events
-- build_artifact_deep_links: ActionButton rows with signed public share URLs
+- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
 Artifact delivery helpers for ChannelAgentExecutor. Converts harness artifact
 events into IM media attachments and optional share-link buttons for HTML/PDF/docs.
+Oversized artifacts degrade to share buttons or user-facing notes; callers drop
+the note when a share button was produced.
 """
 
 from __future__ import annotations
@@ -22,17 +25,25 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.channels.types import MediaAttachment, guess_media_type
-from app.core.channel_bridge.executor_helpers import ShareableArtifact, StreamAccumulator
+from app.channels.types import MediaAttachment, MediaType, guess_media_type
+from app.core.channel_bridge.executor_helpers import (
+    ShareableArtifact,
+    StreamAccumulator,
+)
+from .media import (
+    MAX_CHANNEL_ATTACHMENT_BYTES,
+    compress_oversized_image,
+    format_human_size,
+    is_compressible_image,
+)
 
 if TYPE_CHECKING:
     from app.channels.types.components import ComponentRow
 
 logger = logging.getLogger(__name__)
-
-_MAX_CHANNEL_ARTIFACT_BYTES = 5 * 1024 * 1024  # 5MB, matches BaseArtifactProcessor limit
 
 
 def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) -> None:
@@ -58,10 +69,54 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
             file_size = os.path.getsize(file_path)
         except OSError:
             continue
-        if file_size > _MAX_CHANNEL_ARTIFACT_BYTES or file_size == 0:
+        if file_size == 0:
             continue
         fname = str(filename)
-        mime = str(content_type) if content_type else (mimetypes.guess_type(fname)[0] or "application/octet-stream")
+        mime = (
+            str(content_type)
+            if content_type
+            else (mimetypes.guess_type(fname)[0] or "application/octet-stream")
+        )
+
+        if file_size > MAX_CHANNEL_ATTACHMENT_BYTES:
+            # Oversized: compress raster images into attachments; shareable
+            # artifacts get a share button plus a fallback note (so deep-link
+            # failure still surfaces the file to the user); otherwise note only.
+            if is_compressible_image(fname):
+                compressed = compress_oversized_image(
+                    file_path,
+                    max_bytes=MAX_CHANNEL_ATTACHMENT_BYTES,
+                )
+                if compressed is not None:
+                    acc.pending_tmp_paths.append(str(compressed))
+                    out_mime = (
+                        mimetypes.guess_type(str(compressed))[0]
+                        or "application/octet-stream"
+                    )
+                    acc.file_attachments.append(
+                        MediaAttachment(
+                            media_type=MediaType.IMAGE,
+                            path=str(compressed),
+                            filename=Path(fname).stem + Path(str(compressed)).suffix,
+                            mime_type=out_mime,
+                        )
+                    )
+                    acc.compressed_deliverables.append(
+                        (fname, format_human_size(file_size))
+                    )
+                    continue
+            atype = str(artifact_type) if artifact_type else None
+            if (
+                isinstance(artifact_id, str)
+                and artifact_id
+                and is_shareable_artifact(fname, atype)
+            ):
+                acc.shareable_artifacts.append(
+                    ShareableArtifact(artifact_id, fname, atype or ""),
+                )
+            acc.oversized_deliverables.append((fname, format_human_size(file_size)))
+            continue
+
         acc.file_attachments.append(
             MediaAttachment(
                 media_type=guess_media_type(fname, mime),
@@ -82,10 +137,15 @@ async def build_artifact_deep_links(
     acc: StreamAccumulator,
     media_list: list[MediaAttachment],
     locale: str,
-) -> tuple[ComponentRow, ...]:
-    """Generate public share link buttons for shareable artifacts."""
+) -> tuple[tuple[ComponentRow, ...], frozenset[str]]:
+    """Generate public share link buttons for shareable artifacts.
+
+    Returns ``(components, linked_filenames)``. ``linked_filenames`` names the
+    artifacts that received a working share button, so callers can suppress the
+    matching oversized-deliverable notes when deep links succeed.
+    """
     if not acc.shareable_artifacts:
-        return ()
+        return (), frozenset()
 
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
@@ -99,13 +159,13 @@ async def build_artifact_deep_links(
         ingress = ""
     base_url = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
     if not base_url:
-        return ()
+        return (), frozenset()
 
     version_map = await fetch_artifact_versions(
         [aid for aid, _, _ in acc.shareable_artifacts],
     )
     if not version_map:
-        return ()
+        return (), frozenset()
 
     buttons: list[ActionButton] = []
     linked_filenames: set[str] = set()
@@ -117,7 +177,9 @@ async def build_artifact_deep_links(
             continue
         try:
             token, _ = create_artifact_share_token(
-                artifact_id, version_id, artifact_type=artifact_type or None,
+                artifact_id,
+                version_id,
+                artifact_type=artifact_type or None,
             )
         except Exception:
             logger.warning("Failed to create share token for artifact %s", artifact_id)
@@ -128,23 +190,22 @@ async def build_artifact_deep_links(
             label = channel_t(locale, "artifact_deep_link_named", filename=filename)
         else:
             label = channel_t(locale, "artifact_deep_link")
-        buttons.append(ActionButton(
-            label=str(label),
-            action_id=f"artifact:share:{artifact_id}",
-            style=ButtonStyle.PRIMARY,
-            url=share_url,
-        ))
+        buttons.append(
+            ActionButton(
+                label=str(label),
+                action_id=f"artifact:share:{artifact_id}",
+                style=ButtonStyle.PRIMARY,
+                url=share_url,
+            )
+        )
         linked_filenames.add(filename)
 
     if linked_filenames:
-        media_list[:] = [
-            m for m in media_list
-            if m.filename not in linked_filenames
-        ]
+        media_list[:] = [m for m in media_list if m.filename not in linked_filenames]
 
     if not buttons:
-        return ()
-    return (tuple(buttons),)
+        return (), frozenset()
+    return (tuple(buttons), frozenset(linked_filenames))
 
 
 async def fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:
@@ -173,5 +234,7 @@ async def fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:
                     version_map[artifact.id] = latest.id
             return version_map
     except Exception:
-        logger.warning("Failed to fetch artifact versions for deep links", exc_info=True)
+        logger.warning(
+            "Failed to fetch artifact versions for deep links", exc_info=True
+        )
         return {}
