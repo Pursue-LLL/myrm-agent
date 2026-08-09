@@ -111,6 +111,9 @@ background_blocked =
 background_pending_review =
     ⏳ 後臺任務等待你的審批："{ $title }"
     { $result }
+background_rejected =
+    ↩️ 後臺任務被駁回，將重新處理："{ $title }"
+    { $result }
 bash_bg_finish_title = 後臺任務已完成
 bash_bg_finish_success =
     後臺任務已完成 (pid={ $pid })。

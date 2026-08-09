@@ -21,8 +21,11 @@ from myrm_agent_harness.toolkits.kanban.diagnostics import (
     TaskDiagnosticSeverity,
 )
 
-from app.services.kanban.diagnostic_rules import (
+from app.services.kanban.diagnostic_cycle_rules import (
     BlockUnblockCyclingRule,
+    StrandedInReviewRule,
+)
+from app.services.kanban.diagnostic_rules import (
     DeadDependencyRule,
     DiagnosticThresholds,
     RepeatedFailuresRule,
@@ -43,6 +46,7 @@ __all__ = [
     "DiagnosticThresholds",
     "RepeatedFailuresRule",
     "StrandedInReadyRule",
+    "StrandedInReviewRule",
     "StrandedInTriageRule",
     "StuckInBlockedRule",
     "_error_snippet",
@@ -60,6 +64,7 @@ CARD_FAST_RULES: frozenset[str] = frozenset(
         "stuck_in_blocked",
         "stranded_in_triage",
         "block_unblock_cycling",
+        "stranded_in_review",
     }
 )
 
@@ -67,7 +72,7 @@ CARD_FAST_RULES: frozenset[str] = frozenset(
 def create_diagnostic_engine(
     thresholds: DiagnosticThresholds | None = None,
 ) -> DiagnosticEngine:
-    """Create a DiagnosticEngine with all 6 rules registered."""
+    """Create a DiagnosticEngine with all 7 rules registered."""
     t = thresholds or DiagnosticThresholds()
     engine = DiagnosticEngine()
     engine.register(StrandedInReadyRule(t))
@@ -76,6 +81,7 @@ def create_diagnostic_engine(
     engine.register(DeadDependencyRule())
     engine.register(StrandedInTriageRule(t))
     engine.register(BlockUnblockCyclingRule(t))
+    engine.register(StrandedInReviewRule(t))
     return engine
 
 

@@ -1,6 +1,6 @@
 """Tests for kanban diagnostic rules (server layer).
 
-Covers all 6 rules, severity escalation, helpers, engine factory, and summary.
+Covers all 7 rules, severity escalation, helpers, engine factory, and summary.
 Target: ≥80% coverage for app.services.kanban.diagnostics.
 """
 
@@ -27,6 +27,7 @@ from app.services.kanban.diagnostics import (
     DiagnosticThresholds,
     RepeatedFailuresRule,
     StrandedInReadyRule,
+    StrandedInReviewRule,
     StuckInBlockedRule,
     _error_snippet,
     _escalate_severity,
@@ -531,6 +532,72 @@ class TestBlockUnblockCyclingRule:
 
 
 # ---------------------------------------------------------------------------
+# Rule 7: StrandedInReviewRule
+# ---------------------------------------------------------------------------
+
+
+class TestStrandedInReviewRule:
+    def setup_method(self) -> None:
+        self.rule = StrandedInReviewRule()
+
+    def test_not_in_review_returns_empty(self) -> None:
+        task = _make_task(status=TaskStatus.READY, hours_ago=100)
+        assert self.rule.evaluate(task) == []
+
+    def test_recent_in_review_returns_empty(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=10)
+        assert self.rule.evaluate(task) == []
+
+    def test_stranded_returns_diagnostic(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=50)
+        result = self.rule.evaluate(task)
+        assert len(result) == 1
+        assert result[0].rule_id == "stranded_in_review"
+        assert result[0].severity == TaskDiagnosticSeverity.WARNING
+
+    def test_severity_escalation_to_error(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=100)
+        result = self.rule.evaluate(task)
+        assert result[0].severity == TaskDiagnosticSeverity.ERROR
+
+    def test_critical_severity(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=340)
+        result = self.rule.evaluate(task)
+        assert result[0].severity == TaskDiagnosticSeverity.CRITICAL
+
+    def test_title_contains_age(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=50)
+        result = self.rule.evaluate(task)
+        assert "2d" in result[0].title
+        assert "approval" in result[0].title
+
+    def test_detail_mentions_approve_and_reject(self) -> None:
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=50)
+        result = self.rule.evaluate(task)
+        assert "approve" in result[0].detail
+        assert "reject" in result[0].detail
+
+    def test_no_actions(self) -> None:
+        # Approval actions live in the task drawer; the diagnostic only flags.
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=50)
+        result = self.rule.evaluate(task)
+        assert result[0].actions == ()
+
+    def test_custom_threshold(self) -> None:
+        rule = StrandedInReviewRule(DiagnosticThresholds(stranded_in_review_hours=1.0))
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=2)
+        result = rule.evaluate(task)
+        assert len(result) == 1
+
+    def test_engine_integration(self) -> None:
+        engine = create_diagnostic_engine()
+        task = _make_task(status=TaskStatus.IN_REVIEW, hours_ago=50)
+        results = engine.evaluate(task)
+        review_diags = [d for d in results if d.rule_id == "stranded_in_review"]
+        assert len(review_diags) == 1
+
+
+# ---------------------------------------------------------------------------
 # Factory & summary
 # ---------------------------------------------------------------------------
 
@@ -538,7 +605,7 @@ class TestBlockUnblockCyclingRule:
 class TestCreateDiagnosticEngine:
     def test_default_creates_all_rules(self) -> None:
         engine = create_diagnostic_engine()
-        assert len(engine.rule_ids) == 6
+        assert len(engine.rule_ids) == 7
         assert set(engine.rule_ids) == {
             "stranded_in_ready",
             "repeated_failures",
@@ -546,6 +613,7 @@ class TestCreateDiagnosticEngine:
             "dead_dependency",
             "stranded_in_triage",
             "block_unblock_cycling",
+            "stranded_in_review",
         }
 
     def test_custom_thresholds(self) -> None:
@@ -567,6 +635,7 @@ class TestCardFastRules:
                 "stuck_in_blocked",
                 "stranded_in_triage",
                 "block_unblock_cycling",
+                "stranded_in_review",
             }
         )
 

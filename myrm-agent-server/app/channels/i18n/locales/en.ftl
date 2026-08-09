@@ -111,6 +111,9 @@ background_blocked =
 background_pending_review =
     ⏳ Background task awaits your review: "{ $title }"
     { $result }
+background_rejected =
+    ↩️ Background task was rejected for rework: "{ $title }"
+    { $result }
 bash_bg_finish_title = Background task finished
 bash_bg_finish_success =
     Background task completed (pid={ $pid }).

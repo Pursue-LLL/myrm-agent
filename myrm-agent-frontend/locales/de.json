@@ -11505,6 +11505,8 @@
     "decomposeApply": "Create {count} children",
     "decomposedChildren": "{count} child tasks created",
     "timedOutDetail": "Timed out after {elapsed}s (limit {limit}s)",
+    "approvedBy": "Genehmigt von {approver}",
+    "rejectedBy": "Abgelehnt von {approver}",
     "pipelineFromTemplate": "Aus Vorlage",
     "pipelineFromTemplateHint": "Erstellen Sie ein Aufgabendiagramm aus einer Pipeline-Vorlage",
     "pipelineSelectTitle": "Pipeline-Vorlagen",

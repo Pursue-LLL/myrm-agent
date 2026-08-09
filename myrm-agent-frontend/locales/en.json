@@ -11811,6 +11811,8 @@
     "decomposeApply": "Create {count} children",
     "decomposedChildren": "{count} child tasks created",
     "timedOutDetail": "Timed out after {elapsed}s (limit {limit}s)",
+    "approvedBy": "Approved by {approver}",
+    "rejectedBy": "Rejected by {approver}",
     "pipelineFromTemplate": "From template",
     "pipelineFromTemplateHint": "Create a task graph from a pipeline template",
     "pipelineSelectTitle": "Pipeline Templates",

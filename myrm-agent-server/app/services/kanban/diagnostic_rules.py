@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - DiagnosticThresholds, StrandedReadyRule, StuckBlockedRule, RepeatedFailureRule,
-  StrandedTriageRule, BlockCycleRule, CARD_FAST_RULES
+  DeadDependencyRule, StrandedTriageRule
 
 [POS]
 Concrete diagnostic rule implementations for kanban task health checks.
@@ -35,6 +35,7 @@ class DiagnosticThresholds:
     repeated_failure_threshold: int = 3
     stranded_triage_hours: float = 8.0
     block_cycle_threshold: int = 3
+    stranded_in_review_hours: float = 48.0
 
 
 _DEFAULT_THRESHOLDS = DiagnosticThresholds()
@@ -315,58 +316,6 @@ class StrandedInTriageRule:
                     DiagnosticAction(
                         kind="specify",
                         label="Specify with LLM",
-                        payload={},
-                        suggested=True,
-                    ),
-                    DiagnosticAction(
-                        kind="archive",
-                        label="Archive",
-                        payload={"target_status": "archived"},
-                    ),
-                ),
-            )
-        ]
-
-
-class BlockUnblockCyclingRule:
-    def __init__(self, thresholds: DiagnosticThresholds = _DEFAULT_THRESHOLDS) -> None:
-        self._threshold = thresholds.block_cycle_threshold
-
-    @property
-    def rule_id(self) -> str:
-        return "block_unblock_cycling"
-
-    def evaluate(
-        self,
-        task: KanbanTask,
-        *,
-        context: DiagnosticContext | None = None,
-    ) -> list[TaskDiagnostic]:
-        cycles = task.block_cycle_count
-        if cycles < self._threshold:
-            return []
-        severity = _escalate_severity(cycles, self._threshold)
-        reason_snippet = task.blocked_reason[:100] if task.blocked_reason else ""
-        title = (
-            f"Block→unblock cycled {cycles}x: {reason_snippet}"
-            if reason_snippet
-            else f"Block→unblock cycled {cycles}x"
-        )
-        return [
-            TaskDiagnostic(
-                rule_id=self.rule_id,
-                severity=severity,
-                title=title,
-                detail=(
-                    f"This task has been blocked {cycles} times by the worker agent. "
-                    f"Unblocking alone is not resolving the root cause. "
-                    f"Review the block reasons and consider a different intervention: "
-                    f"update the task description, reassign, or archive."
-                ),
-                actions=(
-                    DiagnosticAction(
-                        kind="comment",
-                        label="Add comment",
                         payload={},
                         suggested=True,
                     ),

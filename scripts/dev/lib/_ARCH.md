@@ -32,7 +32,7 @@
 | `e2e_session_registry.py` | Unix | 统一 E2E session registry — ADMIT through BODY (R144 SSOT)；`list_live_e2e_sessions()` 去重 session 列表；P0-A: coordinator 活跃时禁用 ps fallback |
 | `e2e_stale_lease_reap.py` | Unix | hung pytest SIGINT + wave reap + stale hb reap + `maybe_reap_stale_empty_mux_contexts` + `maybe_reap_epoch_drift_stale_sessions`（coordinator-only）；body≥600 · epoch drift 兜底 reap（bootstrap/admit + epoch_match=no + >180s） |
 | `cleanup_observed_seal.py` | Unix | P0-A observed cleanup seal：验证 lease released + CDP targets physically absent + ownership cleared；`observe_cleanup_seal()` 返回 `(ledger_cleaned, sealed)` |
-| `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；… **`fetch_e2e_goal_status` / `wait_e2e_goal_status` / `is_persisted_e2e_goal` / `GOAL_PERSISTED_STATUSES`**（Goal 持久化断言 SSOT，与 okViaGoal 同尺）… |
+| `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`get_e2e_api_url/get_e2e_ui_url` loopback allowlist + config/messages 短重试；**`fetch_e2e_goal_status` / `wait_e2e_goal_status` / `is_persisted_e2e_goal` / `GOAL_PERSISTED_STATUSES`**（Goal 持久化 SSOT，与 okViaGoal 同尺）；**`wait_e2e_provider_ready`**；**`E2E_API_BINDING_PROBE_JS` / `require_e2e_api_binding_probe`**；**`chat_user_message_count`** kickoff 硬锚；**`start_clarify_turn_via_api`**；**`_collect_agent_stream_events`** SSE 采集 |
 | `e2e_resource_ledger.py` | Unix | **R98** E2E runtime resource ledger SSOT；`E2EResourceLedger` · wave `ledger register`；SHPOIB ephemeral 跳过 register |
 | `infra_browser_registry.py` | Unix | client warmup 短生命周期 target 归属 ledger；`wave reap` 与 preflight prune 回收死亡 owner 的 exact targetId |
 | `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
@@ -46,7 +46,7 @@
 | `dev_state_paths.sh` | Unix | Dev 栈 pid/log SSOT + `MYRM_NEXT_DIST_DIR` / `dev-server.lock` 路径（`resolve_myrm_next_dist_dir`）；`cleanup_legacy_dev_artifacts` 清理旧 pid 路径与 `scripts/dev/myrm-agent-*` 遗留目录；`prune_stale_isolated_next_dirs` 删除非当前 active 的全部 `.next-isolated-*`（含非空残留） |
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；source drift 时 **leases>0 defer reload + record-pending**（R31-G），leases=0 才 TERM reload；**R61** health-aware self-healing：identity mismatch 时回收 state files；health probe 失败 + leases=0 时 kill+restart，leases>0 时 defer kill；health probe 分支提前 source `stack-epoch.sh`（**R61-A** 修复 `_wave_active_lease_count` 未定义）+ `2>/dev/null \|\| echo 0` 防御 |
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
-| `e2e_shpoib_warm_pool.py` | Unix | **R159**：SHPOIB warm backend pool borrow/maintain · cuts cold bootstrap |
+| `e2e_shpoib_warm_pool.py` | Unix | **R159**：SHPOIB warm backend pool borrow/maintain · cuts cold bootstrap；**§26.26** borrow/prune 补源码指纹门（`sourceFingerprint` + `stack_epoch.source_fingerprint` 比对）——旧代码 warm 后端不再被借出 |
 | `e2e_runtime_cell.py` | Unix | **R73-F** E2E Runtime Cell：per-slot `MYRM_E2E_CELL_ID` · per-cell UI hydrate flock · `runtime_cell_snapshot()` |
 | `e2e_shared_ui_hydrate.py` | Unix | SHPOIB 并行 navigate/reload burst flock（R36 窄化锁；queue ≤900s）；**R73-F** 有 cell 时走 `e2e_runtime_cell.cell_ui_hydrate_slot` |
 | `e2e_shared_ui_session.py` | Unix | chrome_e2e Shared UI Session Contract（marker `e2e_search_policy` · RESET/BIND/BRIDGE/SEARCH 四阶段 · bootstrap + `click_new_chat` hook；**R55** empty 两态契约；**R67** 各步 `assert_phase_budget` + bridge `asyncio.wait_for` fail-fast；**R158** 最终 probe fail → `ensure_react_e2e_bridge` 最多 3 次 re-hydrate + empty policy re-block） |

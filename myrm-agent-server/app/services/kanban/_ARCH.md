@@ -31,7 +31,8 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `task_runner_worktree.py` | ✅ 核心 | Git worktree 隔离 | ❌ |
 | `task_runner_profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
 | `diagnostics.py` | ✅ 核心 | 诊断引擎工厂、摘要 | ✅ |
-| `diagnostic_rules.py` | ✅ 核心 | 6 条诊断规则 | ❌ |
+| `diagnostic_rules.py` | ✅ 核心 | 5 条诊断规则（滞留/失败/阻塞/死依赖/triage）+ 阈值与 helpers | ❌ |
+| `diagnostic_cycle_rules.py` | ✅ 核心 | 循环阻塞 / IN_REVIEW 审批滞留 2 条诊断规则 | ❌ |
 | `specifier.py` | ✅ 核心 | PlatformTaskSpecifier | ✅ |
 | `specify_orchestrator.py` | ✅ 核心 | TRIAGE→spec 编排 | ✅ |
 | `llm_utils.py` | ✅ 核心 | LLM 辅助工具（specifier/decomposer 共用） | ✅ |

@@ -7,6 +7,7 @@ Covers the task-level human approval flow over HTTP:
 - idempotent no-ops: approve/reject on non-IN_REVIEW return 200 unchanged
 - manual move into/out of IN_REVIEW rejected with 409
 - pending_review IM notification on IN_REVIEW entry
+- rejected IM notification on rejection (dispatcher + fallback paths)
 """
 
 from __future__ import annotations
@@ -310,3 +311,92 @@ class TestPendingReviewNotification:
             emit_review_requested(task)
 
         assert published == []
+
+
+class TestRejectedNotification:
+
+    def test_source_chat_task_publishes_rejected_event(self) -> None:
+        """Rejection notifies the source chat with the reason via BACKGROUND_TASK_DONE."""
+        from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
+
+        from app.services.event.app_event_bus import AppEventType
+        from app.services.kanban.event_publisher import emit_task_rejected
+
+        task = KanbanTask(
+            task_id="t-reject",
+            board_id="b1",
+            title="Deploy v2.1",
+            status=TaskStatus.READY,
+            priority=TaskPriority.NORMAL,
+            error="add unit tests",
+            metadata={
+                "source_chat_id": "chat-9",
+                "locale": "en",
+                "user_id": "u1",
+            },
+        )
+        published: list[object] = []
+
+        with patch(
+            "app.services.kanban.event_publisher.get_event_bus"
+        ) as mock_bus:
+            bus = mock_bus.return_value
+            bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
+            emit_task_rejected(task)
+
+        assert len(published) == 1
+        event = published[0]
+        assert event.event_type == AppEventType.BACKGROUND_TASK_DONE
+        assert event.data["status"] == "rejected"
+        assert event.data["chat_id"] == "chat-9"
+        assert event.data["result"] == "add unit tests"
+        assert event.data["title"] == "Deploy v2.1"
+        assert event.data["suppress_web_push"] is True
+
+    def test_rejected_skipped_without_source_chat(self) -> None:
+        """No source chat / btw target means no rejection notification."""
+        from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
+
+        from app.services.kanban.event_publisher import emit_task_rejected
+
+        task = KanbanTask(
+            task_id="t-plain",
+            board_id="b1",
+            title="Plain task",
+            status=TaskStatus.READY,
+            priority=TaskPriority.NORMAL,
+            error="rework",
+            metadata={},
+        )
+        published: list[object] = []
+
+        with patch(
+            "app.services.kanban.event_publisher.get_event_bus"
+        ) as mock_bus:
+            bus = mock_bus.return_value
+            bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
+            emit_task_rejected(task)
+
+        assert published == []
+
+    def test_reject_without_dispatcher_emits_rejection_notification(
+        self, client: TestClient
+    ) -> None:
+        """The fallback reject path notifies the originating chat."""
+        board = _create_board(client)
+        task = _create_task(client, board["board_id"], require_approval=True)
+        tid = str(task["task_id"])
+        asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW))
+
+        with patch(
+            "app.services.kanban.review_ops.emit_task_rejected"
+        ) as mock_rejected:
+            resp = client.post(
+                f"/api/v1/kanban/tasks/{tid}/reject",
+                json={"reason": "needs citations"},
+            )
+            assert resp.status_code == 200
+
+        mock_rejected.assert_called_once()
+        assert mock_rejected.call_args.args[0].status == TaskStatus.READY
+        assert mock_rejected.call_args.args[0].error == "needs citations"

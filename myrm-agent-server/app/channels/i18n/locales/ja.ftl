@@ -111,6 +111,9 @@ background_blocked =
 background_pending_review =
     ⏳ バックグラウンドタスクが承認待ちです："{ $title }"
     { $result }
+background_rejected =
+    ↩️ バックグラウンドタスクが却下され、再処理されます："{ $title }"
+    { $result }
 bash_bg_finish_title = バックグラウンドタスク完了
 bash_bg_finish_success =
     バックグラウンドタスクが完了しました (pid={ $pid })。

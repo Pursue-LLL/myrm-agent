@@ -11746,6 +11746,8 @@
     "decomposeApply": "作成 {count} 個子タスク",
     "decomposedChildren": "{count} 個の子タスクを作成しました",
     "timedOutDetail": "タイムアウト：{elapsed} 秒実行（制限 {limit} 秒）",
+    "approvedBy": "{approver} により承認",
+    "rejectedBy": "{approver} により却下",
     "pipelineFromTemplate": "からテンプレート作成",
     "pipelineFromTemplateHint": "パイプラインテンプレートからタスクグラフをワンクリック作成",
     "pipelineSelectTitle": "パイプラインテンプレート",

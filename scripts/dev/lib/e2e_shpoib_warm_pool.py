@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Final, TypedDict
 from real_user_home import real_user_home
@@ -27,7 +28,7 @@ POOL_PROGRESS_INTERVAL_SEC: Final[float] = 30.0
 _SCHEMA_VERSION: Final[int] = 1
 
 
-class WarmBackendRecord(TypedDict):
+class WarmBackendRecord(TypedDict, total=False):
     runtimeId: str
     ownerToken: str
     apiBase: str
@@ -35,6 +36,7 @@ class WarmBackendRecord(TypedDict):
     ownerPid: int
     heartbeatAt: float
     acquiredAt: float
+    sourceFingerprint: str
 
 
 class WarmPoolRegistry(TypedDict):
@@ -113,17 +115,23 @@ def _save_registry(registry: WarmPoolRegistry) -> None:
     tmp.replace(path)
 
 
-def warm_backend_health_ok(api_base: str, runtime_id: str) -> bool:
-    """Quick probe before borrow — stale registry rows must not block LIVE bootstrap."""
+def _fetch_health_payload(api_base: str) -> dict[str, object] | None:
+    """Fetch ``/api/v1/health`` and return its payload dict, or None on any failure."""
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
         with urllib.request.urlopen(url, timeout=2.0) as resp:  # noqa: S310
             if not (200 <= resp.status < 300):
-                return False
+                return None
             payload = json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
-        return False
-    if not isinstance(payload, dict):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def warm_backend_health_ok(api_base: str, runtime_id: str) -> bool:
+    """Quick probe before borrow — stale registry rows must not block LIVE bootstrap."""
+    payload = _fetch_health_payload(api_base)
+    if payload is None:
         return False
     if payload.get("status") != "healthy":
         return False
@@ -131,25 +139,63 @@ def warm_backend_health_ok(api_base: str, runtime_id: str) -> bool:
     return not observed or observed == runtime_id
 
 
+def warm_backend_source_fingerprint(api_base: str) -> str:
+    """Source fingerprint of a warm backend, from ``stack_epoch.source_fingerprint``.
+
+    Empty string when the endpoint is unreachable or the field is absent —
+    callers treat empty as "unknown" (fail-open) rather than stale.
+    """
+    payload = _fetch_health_payload(api_base)
+    if payload is None:
+        return ""
+    stack_epoch = payload.get("stack_epoch")
+    if not isinstance(stack_epoch, dict):
+        return ""
+    fingerprint = stack_epoch.get("source_fingerprint")
+    return fingerprint.strip() if isinstance(fingerprint, str) else ""
+
+
+@lru_cache(maxsize=1)
+def _workspace_source_fingerprint() -> str:
+    """Current workspace backend source fingerprint (lazy; cached per process)."""
+    try:
+        from runtime_identity import _backend_source_fingerprint  # noqa: PLC0415
+    except ImportError:
+        return ""
+    try:
+        return _backend_source_fingerprint()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
 def _record_is_stale(record: WarmBackendRecord, *, now: float) -> bool:
     owner_pid = record.get("ownerPid")
     heartbeat_at = record.get("heartbeatAt")
     state = record.get("state")
-    if state == "borrowed":
-        return False
     if not isinstance(owner_pid, int) or not isinstance(heartbeat_at, (int, float)):
         return True
     if not _pid_alive(owner_pid):
+        # Zombie: borrowed backend whose owner died before release_warm_backend.
+        # Leaving it would leak a dead row (user rule: no zombie residue).
         return True
-    if now - float(heartbeat_at) > 900.0:
+    if now - float(heartbeat_at) > 900.0 and state != "borrowed":
         return True
-    if state != "ready":
+    if state == "borrowed":
         return False
     api_base = record.get("apiBase")
     runtime_id = str(record.get("runtimeId") or "")
     if not isinstance(api_base, str) or not runtime_id:
         return True
-    return not warm_backend_health_ok(api_base, runtime_id)
+    if not warm_backend_health_ok(api_base, runtime_id):
+        return True
+    # §26.26: a backend spawned from older source must not linger in the pool —
+    # borrowing it would run tests against stale code.
+    stored_fp = record.get("sourceFingerprint")
+    if isinstance(stored_fp, str) and stored_fp:
+        workspace_fp = _workspace_source_fingerprint()
+        if workspace_fp and stored_fp != workspace_fp:
+            return True
+    return False
 
 
 def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
@@ -242,6 +288,7 @@ def maintain_warm_pool(*, target_size: int | None = None) -> int:
                     "ownerPid": os.getpid(),
                     "heartbeatAt": now,
                     "acquiredAt": now,
+                    "sourceFingerprint": _workspace_source_fingerprint(),
                 }
                 spawned += 1
                 print(
@@ -267,6 +314,7 @@ def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowRes
             now = time.time()
             registry = _load_registry()
             _prune_stale(registry, now=now)
+            workspace_fp = _workspace_source_fingerprint()
             for key, record in list(registry["backends"].items()):
                 if record.get("state") != "ready":
                     continue
@@ -284,6 +332,24 @@ def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowRes
                     )
                     registry["backends"].pop(key, None)
                     continue
+                # §26.26: never borrow a backend whose source differs from the
+                # current workspace — it would run tests against stale code.
+                # Records spawned by newer maintain already carry the fingerprint;
+                # legacy rows (no fingerprint) are probed live.
+                stored_fp = record.get("sourceFingerprint")
+                if workspace_fp:
+                    if isinstance(stored_fp, str) and stored_fp:
+                        backend_fp = stored_fp
+                    else:
+                        backend_fp = warm_backend_source_fingerprint(api_base)
+                    if backend_fp and backend_fp != workspace_fp:
+                        print(
+                            "E2E_SHPOIB_WARM_POOL_STALE_CODE: "
+                            f"runtime={runtime_id} api={api_base}",
+                            file=sys.stderr,
+                        )
+                        registry["backends"].pop(key, None)
+                        continue
                 record["state"] = "borrowed"
                 record["ownerPid"] = resolved_pid
                 record["heartbeatAt"] = now
@@ -308,6 +374,10 @@ def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowRes
                     detail="borrowed",
                     environment=environment,
                 )
+            # Persist pruned rows (unhealthy / stale-code backends removed during
+            # this pass) even when nothing was borrowed, so the next maintain or
+            # borrow does not re-probe them.
+            _save_registry(registry)
             return None
         finally:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)

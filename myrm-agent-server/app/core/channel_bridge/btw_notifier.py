@@ -219,6 +219,8 @@ def _format_notification(
         key = "background_blocked"
     elif status == "pending_review":
         key = "background_pending_review"
+    elif status == "rejected":
+        key = "background_rejected"
     else:
         key = "background_failed"
     return channel_t(locale, key, title=preview, result=summary).strip()

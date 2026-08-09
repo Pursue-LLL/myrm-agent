@@ -117,6 +117,27 @@ export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
                   })}
                 </p>
               )}
+              {ev.kind === 'approved' && ev.payload && (
+                <p className="ml-[52px] text-[10px] text-muted-foreground mt-0.5">
+                  {t('approvedBy', {
+                    approver: String(ev.payload.approver ?? 'human'),
+                  })}
+                </p>
+              )}
+              {ev.kind === 'rejected' && ev.payload && (
+                <div className="ml-[52px] mt-0.5">
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    {t('rejectedBy', {
+                      approver: String(ev.payload.approver ?? 'human'),
+                    })}
+                  </span>
+                  {typeof ev.payload.reason === 'string' && ev.payload.reason && (
+                    <KanbanMarkdown className="text-chart-5/80 mt-0.5" maxLines={4}>
+                      {ev.payload.reason}
+                    </KanbanMarkdown>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

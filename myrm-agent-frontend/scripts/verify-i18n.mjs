@@ -488,7 +488,6 @@ console.log('\n📋 验证全量 key parity / 类型 / 占位符 / 翻译壳 / �
 
 // 壳检测 allowlist（scripts/i18n-shell-allowlist.json）
 let shellAllowlists = { allowedSameValues: new Set(), allowedSameKeys: new Set() };
-let ALLOWED_SAME_VALUES = new Set();
 let ALLOWED_SAME_KEYS = new Set();
 let ALLOWED_MIXED_VALUES = new Set();
 let ALLOWED_MIXED_KEYS = new Set();
@@ -496,7 +495,6 @@ let ALLOWED_MIXED_KEYS = new Set();
 let glossaryForbiddenByLocale = {};
 try {
   shellAllowlists = loadShellAllowlist(rootDir);
-  ALLOWED_SAME_VALUES = shellAllowlists.allowedSameValues;
   ALLOWED_SAME_KEYS = shellAllowlists.allowedSameKeys;
   const allowlist = JSON.parse(
     readFileSync(resolve(rootDir, 'scripts/i18n-shell-allowlist.json'), 'utf-8'),
@@ -554,7 +552,7 @@ function isBilingualDirty(value) {
   if (parts.length !== 2) return false;
   const [a, b] = parts.map((s) => s.trim());
   if (!a || !b) return false;
-  const asciiOnly = (s) => /^[\x00-\x7F]+$/.test(s);
+  const asciiOnly = (s) => s.length > 0 && [...s].every((c) => c.charCodeAt(0) <= 0x7f);
   const nonLatinOnly = (s) => !/[a-zA-Z]/.test(s) && NON_LATIN_RE.test(s);
   return (asciiOnly(a) && nonLatinOnly(b)) || (nonLatinOnly(a) && asciiOnly(b));
 }
@@ -587,7 +585,7 @@ if (enBraceErrors.length > 0) {
   hasErrors = true;
 }
 
-// 9f. en.json 纯净性（SSOT 语言纯净门禁）：en 叶子值不得混入 CJK（语言名/品牌 allowlist 豁免）
+// 9f. en.json 纯净性（SSOT 语言纯净门禁）：en 叶子值不得混入非拉丁文字（语言名/品牌 allowlist 豁免）
 const EN_PURITY_ALLOWED_KEYS = new Set([
   'settings.languageOptions.chinese',
   'settings.languageOptions.chineseTraditional',

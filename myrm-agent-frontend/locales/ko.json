@@ -11520,6 +11520,8 @@
     "decomposeApply": "{count}개 하위 작업 생성",
     "decomposedChildren": "{count}개 하위 작업이 생성되었습니다",
     "timedOutDetail": "{limit}초 제한에서 {elapsed}초 후 시간 초과",
+    "approvedBy": "{approver} 님이 승인함",
+    "rejectedBy": "{approver} 님이 반려함",
     "pipelineFromTemplate": "템플릿에서",
     "pipelineFromTemplateHint": "파이프라인 템플릿에서 작업 그래프 만들기",
     "pipelineSelectTitle": "파이프라인 템플릿",

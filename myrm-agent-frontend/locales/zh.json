@@ -11811,6 +11811,8 @@
     "decomposeApply": "创建 {count} 个子任务",
     "decomposedChildren": "已创建 {count} 个子任务",
     "timedOutDetail": "执行超时，已运行 {elapsed} 秒（限制 {limit} 秒）",
+    "approvedBy": "由 {approver} 批准",
+    "rejectedBy": "由 {approver} 驳回",
     "pipelineFromTemplate": "从模板创建",
     "pipelineFromTemplateHint": "从流水线模板一键创建任务图",
     "pipelineSelectTitle": "流水线模板",

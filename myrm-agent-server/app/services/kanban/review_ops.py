@@ -7,7 +7,7 @@
 - event_publisher (POS: Kanban SSE event publishing helpers.)
 
 [OUTPUT]
-- approve_task, reject_task
+- approve_task, reject_task (with rejection notice via emit_task_rejected)
 
 [POS]
 Human-in-the-loop review transitions for require_approval tasks: approve
@@ -30,6 +30,7 @@ from app.services.kanban.dependency_ops import promote_dependents
 from app.services.kanban.event_publisher import (
     emit_btw_done,
     emit_source_chat_done,
+    emit_task_rejected,
     publish_kanban_event,
 )
 
@@ -134,4 +135,7 @@ async def reject_task(
         detail=reason,
         status=task.status.value,
     )
+    # Mirror the dispatcher's task_rejected event so btw / source-chat users
+    # receive the rejection notice even without a running dispatcher.
+    emit_task_rejected(task)
     return task

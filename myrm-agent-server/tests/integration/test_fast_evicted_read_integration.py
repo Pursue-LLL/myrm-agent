@@ -343,6 +343,89 @@ async def test_failed_bash_stdout_evicted_and_readable_via_file_read(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_failed_bash_stderr_evicted_and_readable_via_file_read(
+    workspace: Path,
+) -> None:
+    """Failed bash keeps large stderr recoverable: evicted on disk + file_read back.
+
+    Symmetric to the stdout path: a command that writes a large stderr stream and
+    then crashes must surface the truncation banner in the error and keep the full
+    stderr readable from sandbox storage via file_read_tool.
+    """
+    chat_id = f"chat-fail-bash-stderr-{uuid.uuid4().hex[:8]}"
+    executor = _make_local_executor(workspace)
+    exec_token = set_executor(executor)
+    ws_token = workspace_root_var.set(str(workspace))
+    chat_token = chat_id_var.set(chat_id)
+    result: str | None = None
+    try:
+        bash_tool = create_bash_code_execute_tool()
+        config = RunnableConfig(
+            configurable={
+                "context": {
+                    "session_id": chat_id,
+                    "workspace_path": str(workspace),
+                    "workspaces_storage_root": str(workspace),
+                },
+                "supports_vision": False,
+            }
+        )
+        with (
+            patch(
+                "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+                AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
+                return_value=AsyncMock(
+                    __aenter__=AsyncMock(return_value=None),
+                    __aexit__=AsyncMock(return_value=False),
+                ),
+            ),
+            pytest.raises(ToolError) as exc_info,
+        ):
+            await bash_tool.ainvoke(
+                {
+                    "command": (
+                        "python3 -c \"import sys; "
+                        "[print(i, file=sys.stderr) for i in range(2000)]; 1/0\""
+                    ),
+                    "reason": "integration verify failed bash stderr eviction",
+                },
+                config=config,
+            )
+
+        assert "[LARGE OUTPUT TRUNCATED (" in str(exc_info.value)
+        assert "ZeroDivisionError" in str(exc_info.value)
+
+        evicted_dir = workspace / ".context" / chat_id / "evicted"
+        files = sorted(evicted_dir.glob("output_*.txt"))
+        assert files, "failed stderr must be evicted to sandbox storage"
+        rel = f".context/{chat_id}/evicted/{files[0].name}"
+
+        read_tool = create_file_read_tool(path_policy="evicted_uploaded")
+        read = await read_tool.ainvoke(
+            {"paths": [rel], "mode": "all"},
+            config=RunnableConfig(
+                configurable={"chat_id": chat_id, "supports_vision": False}
+            ),
+        )
+        result = read if isinstance(read, str) else str(read)
+    finally:
+        reset_executor(exec_token)
+        workspace_root_var.reset(ws_token)
+        chat_id_var.reset(chat_token)
+
+    assert result is not None
+    disk_text = files[0].read_text(encoding="utf-8")
+    assert "1999" in disk_text, (
+        "full stderr must be persisted to sandbox storage"
+    )
+    assert files[0].name in result, "file_read must resolve the evicted file"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_skill_agent_build_tools_mounts_evicted_read_at_turn1() -> None:
     from unittest.mock import AsyncMock
 
