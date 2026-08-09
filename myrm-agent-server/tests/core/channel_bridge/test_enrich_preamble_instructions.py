@@ -153,6 +153,34 @@ async def test_personality_template_coexists_with_im_persona() -> None:
 
 
 @pytest.mark.asyncio
+async def test_response_locale_suffix_from_profile() -> None:
+    """Agent profile response_locale_policy appends Korean honorific suffix."""
+    from app.services.agent.profile_resolver import ResolvedAgentProfile
+
+    profile = ResolvedAgentProfile(
+        agent_id="agent-ko",
+        skill_ids=(),
+        mcp_ids=(),
+        enabled_builtin_tools=(),
+        engine_params={
+            "response_locale_policy": {
+                "locale": "ko-KR",
+                "formality": "formal-polite",
+            }
+        },
+    )
+    result = await enrich_channel_user_instructions(
+        _msg(None),
+        user_instructions="Base",
+        resolved_profile=profile,
+        agent_subagent_ids=None,
+        resolved_agent_id="agent-ko",
+    )
+    assert "Base" in result
+    assert "합니다" in result
+
+
+@pytest.mark.asyncio
 async def test_both_edit_and_markdown_true_no_persona() -> None:
     """Full-featured channel (edit=True, markdown=True) gets no persona/warnings."""
     caps = ChannelCapabilities(edit=True, markdown=True, media=True, file_upload=True)

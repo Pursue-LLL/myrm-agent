@@ -76,7 +76,18 @@ const EnterpriseApprovalPolicyTab = memo(() => {
       if (!res.ok) {
         throw new Error(await res.text());
       }
+      const saved = (await res.json()) as ApprovalPolicyState & {
+        fanout?: { failed?: number; synced?: number };
+      };
       toast.success(t('approvalPolicy.saved', { default: 'Approval policy saved' }));
+      if ((saved.fanout?.failed ?? 0) > 0) {
+        toast.warning(
+          t('approvalPolicy.fanoutPartial', {
+            default: 'Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.',
+            failed: String(saved.fanout?.failed ?? 0),
+          }),
+        );
+      }
       await fetchPolicy();
     } catch (error) {
       toast.error(

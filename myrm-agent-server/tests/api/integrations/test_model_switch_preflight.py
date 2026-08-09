@@ -343,3 +343,139 @@ class TestModelSwitchPreflight:
         expected = int(16000 * (0.30 + (0.95 - 0.30) / 3.0))
         assert item["compress_threshold"] == expected
         assert item["will_compress"] is False
+
+
+class TestPreflightAntiThrashStreak:
+    """Preflight consumes compression ineffective streak (runtime anti-thrash parity)."""
+
+    def _post(
+        self,
+        client: TestClient,
+        *,
+        estimated_tokens: int,
+        chat_id: str | None,
+        streak: int | None = None,
+    ) -> dict:
+        payload: dict = {
+            "estimated_tokens": estimated_tokens,
+            "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
+        }
+        if chat_id is not None:
+            payload["chat_id"] = chat_id
+        if streak is not None:
+            payload["streak"] = streak  # not part of API; only to build the mock store
+        return payload
+
+    @pytest.fixture(autouse=True)
+    def _reset_streak_store(self) -> Iterator[None]:
+        """Isolate streak store state per test via module-level mock reset."""
+        store = _FakeStreakStore()
+        with patch(
+            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
+            return_value=store,
+        ):
+            yield
+
+    def test_streak_below_limit_keeps_normal_judgment(
+        self, client: TestClient
+    ) -> None:
+        """streak=1 (< limit 2) does not suppress the warning."""
+        store = _FakeStreakStore()
+        store.set_streak("chat-a", 1)
+        with patch(
+            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
+            return_value=store,
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "chat_id": "chat-a",
+                    "models": [
+                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
+                    ],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        # WEAK tier -> threshold ~8266; 9000 >= 8266 -> would compress
+        assert item["will_compress"] is True
+
+    def test_streak_at_limit_below_safety_net_suppresses_warning(
+        self, client: TestClient
+    ) -> None:
+        """streak>=2 with tokens<90% window: runtime skips compression, preflight must not warn."""
+        store = _FakeStreakStore()
+        store.set_streak("chat-a", 2)
+        with patch(
+            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
+            return_value=store,
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 9000,
+                    "chat_id": "chat-a",
+                    "models": [
+                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
+                    ],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        # 9000 < 16000*0.9=14400 and streak>=2 -> anti-thrash blocks -> no warning
+        assert item["will_compress"] is False
+
+    def test_streak_at_limit_above_safety_net_still_warns(self, client: TestClient) -> None:
+        """streak>=2 but tokens>=90% window: runtime force-compresses (OOM guard), warning stays."""
+        store = _FakeStreakStore()
+        store.set_streak("chat-a", 2)
+        with patch(
+            "myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store.get_compression_streak_store",
+            return_value=store,
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/model-switch-preflight",
+                json={
+                    "estimated_tokens": 15000,
+                    "chat_id": "chat-a",
+                    "models": [
+                        {"model": "custom/mystery-model", "max_input_tokens": 16000}
+                    ],
+                },
+            )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        # 15000 >= 14400 (90% window) -> safety net overrides anti-thrash -> warns
+        assert item["will_compress"] is True
+
+    def test_no_chat_id_ignores_streak(self, client: TestClient) -> None:
+        """Absent chat_id keeps previous behavior (no streak lookup, no suppression)."""
+        response = client.post(
+            "/api/v1/integrations/llm/model-switch-preflight",
+            json={
+                "estimated_tokens": 9000,
+                "models": [
+                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
+                ],
+            },
+        )
+        assert response.status_code == 200
+        item = response.json()["data"]["results"][0]
+        assert item["will_compress"] is True
+
+
+class _FakeStreakStore:
+    """Minimal harness CompressionStreakStore stub for preflight tests."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, int] = {}
+
+    def get_streak(self, chat_id: str | None) -> int:
+        if not chat_id:
+            return 0
+        return self._data.get(chat_id, 0)
+
+    def set_streak(self, chat_id: str | None, streak: int) -> None:
+        if chat_id:
+            self._data[chat_id] = max(0, int(streak))

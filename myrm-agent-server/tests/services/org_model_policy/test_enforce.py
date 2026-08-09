@@ -1,4 +1,4 @@
-"""Tests for _enforce_org_model_policy in factory.py."""
+"""Tests for enforce_org_model_policy in org_model_policy service."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.ai_agents.general_agent.factory import (
+from app.services.org_model_policy.enforce import (
     OrgModelPolicyViolation,
-    _enforce_org_model_policy,
+    enforce_org_model_policy,
 )
 
 
@@ -36,7 +36,7 @@ def _make_agent_wrapper(
 
 
 def _mock_config_service(return_value):
-    """Patch ConfigService inside factory module (lazy-imported)."""
+    """Patch ConfigService used by enforce_org_model_policy."""
     mock_svc = AsyncMock()
     mock_svc.get = AsyncMock(return_value=return_value)
     return patch(
@@ -53,21 +53,21 @@ def _make_record(patterns: list[str]) -> SimpleNamespace:
 async def test_no_policy_is_noop() -> None:
     wrapper = _make_agent_wrapper()
     with _mock_config_service(None):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
 async def test_empty_patterns_is_noop() -> None:
     wrapper = _make_agent_wrapper()
     with _mock_config_service(_make_record([])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
 async def test_allowed_model_passes() -> None:
     wrapper = _make_agent_wrapper(model="openai/gpt-4o-mini")
     with _mock_config_service(_make_record(["openai/*"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_disallowed_model_raises() -> None:
     wrapper = _make_agent_wrapper(model="anthropic/claude-4-opus")
     with _mock_config_service(_make_record(["openai/*"])):
         with pytest.raises(OrgModelPolicyViolation) as exc_info:
-            await _enforce_org_model_policy(wrapper)
+            await enforce_org_model_policy(wrapper)
         assert "anthropic/claude-4-opus" in str(exc_info.value)
 
 
@@ -87,7 +87,7 @@ async def test_multiple_models_all_allowed() -> None:
         fallback_model="deepseek/deepseek-chat",
     )
     with _mock_config_service(_make_record(["openai/*", "deepseek/*"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -98,13 +98,13 @@ async def test_one_disallowed_among_multiple_raises() -> None:
     )
     with _mock_config_service(_make_record(["openai/*"])):
         with pytest.raises(OrgModelPolicyViolation) as exc_info:
-            await _enforce_org_model_policy(wrapper)
+            await enforce_org_model_policy(wrapper)
         assert "anthropic/claude-3-haiku" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
-async def test_config_service_exception_is_fail_open() -> None:
-    """When ConfigService raises, policy enforcement is skipped (fail-open)."""
+async def test_config_service_exception_is_fail_closed_in_sandbox() -> None:
+    """Sandbox: ConfigService failure denies agent build (fail-closed)."""
     wrapper = _make_agent_wrapper(model="anthropic/claude-4-opus")
     mock_svc = AsyncMock()
     mock_svc.get = AsyncMock(side_effect=RuntimeError("DB unavailable"))
@@ -112,7 +112,24 @@ async def test_config_service_exception_is_fail_open() -> None:
         "app.services.config.service.ConfigService",
         return_value=mock_svc,
     ):
-        await _enforce_org_model_policy(wrapper)
+        with patch("app.config.deploy_mode.is_sandbox", return_value=True):
+            with pytest.raises(OrgModelPolicyViolation) as exc_info:
+                await enforce_org_model_policy(wrapper)
+            assert "could not be verified" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_config_service_exception_is_noop_outside_sandbox() -> None:
+    """Local/Tauri: ConfigService failure skips enforcement."""
+    wrapper = _make_agent_wrapper(model="anthropic/claude-4-opus")
+    mock_svc = AsyncMock()
+    mock_svc.get = AsyncMock(side_effect=RuntimeError("DB unavailable"))
+    with patch(
+        "app.services.config.service.ConfigService",
+        return_value=mock_svc,
+    ):
+        with patch("app.config.deploy_mode.is_sandbox", return_value=False):
+            await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -124,7 +141,15 @@ async def test_duplicate_models_deduped() -> None:
         fallback_model="openai/gpt-4o-mini",
     )
     with _mock_config_service(_make_record(["openai/*"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
+
+
+@pytest.mark.asyncio
+async def test_legacy_slug_glob_matches_litellm_name() -> None:
+    """Legacy slug-style patterns still match provider/model names."""
+    wrapper = _make_agent_wrapper(model="deepseek/deepseek-chat")
+    with _mock_config_service(_make_record(["deepseek-*"])):
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -132,7 +157,7 @@ async def test_exact_match_pattern() -> None:
     """Exact pattern (non-glob) should match exactly."""
     wrapper = _make_agent_wrapper(model="openai/gpt-4o-mini")
     with _mock_config_service(_make_record(["openai/gpt-4o-mini"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -141,7 +166,7 @@ async def test_exact_match_pattern_rejects_similar() -> None:
     wrapper = _make_agent_wrapper(model="openai/gpt-4o")
     with _mock_config_service(_make_record(["openai/gpt-4o-mini"])):
         with pytest.raises(OrgModelPolicyViolation):
-            await _enforce_org_model_policy(wrapper)
+            await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -151,7 +176,7 @@ async def test_violation_carries_metadata() -> None:
     patterns = ["openai/*", "anthropic/*"]
     with _mock_config_service(_make_record(patterns)):
         with pytest.raises(OrgModelPolicyViolation) as exc_info:
-            await _enforce_org_model_policy(wrapper)
+            await enforce_org_model_policy(wrapper)
         assert exc_info.value.model_name == "xai/grok-3"
         assert exc_info.value.allowed_patterns == patterns
 
@@ -165,7 +190,7 @@ async def test_none_model_cfg_slots_skipped() -> None:
         fallback_model=None,
     )
     with _mock_config_service(_make_record(["openai/*"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -182,7 +207,7 @@ async def test_moa_overlay_reference_model_allowed() -> None:
         },
     )
     with _mock_config_service(_make_record(["openai/*"])):
-        await _enforce_org_model_policy(wrapper)
+        await enforce_org_model_policy(wrapper)
 
 
 @pytest.mark.asyncio
@@ -200,5 +225,5 @@ async def test_moa_overlay_reference_model_disallowed_raises() -> None:
     )
     with _mock_config_service(_make_record(["openai/*"])):
         with pytest.raises(OrgModelPolicyViolation) as exc_info:
-            await _enforce_org_model_policy(wrapper)
+            await enforce_org_model_policy(wrapper)
         assert "anthropic/claude-3-5-sonnet" in str(exc_info.value)

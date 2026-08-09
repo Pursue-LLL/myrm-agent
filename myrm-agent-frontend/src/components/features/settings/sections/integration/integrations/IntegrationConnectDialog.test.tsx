@@ -10,8 +10,10 @@ const mockGateMcpEnable = vi.fn();
 const mockIsSandbox = vi.fn();
 const mockToast = vi.fn();
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({

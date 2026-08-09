@@ -582,7 +582,7 @@ def _reload_mcp_page(client, page) -> None:
     raise AssertionError(f"MCP page reload did not recover: {last}")
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:

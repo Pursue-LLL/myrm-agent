@@ -28,12 +28,12 @@ from cdp_chat_support import (  # noqa: E402
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import (  # noqa: E402
+    EvaluateIntent,  # noqa: E402
     clarify_skip_api_wait_sec,
     is_e2e_signoff_runtime,
 )
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
 
 from tests.api.agent.utils import (
     _strip_provider_prefix,
@@ -230,7 +230,7 @@ def _is_resume_retryable_transient_error(result: dict[str, object]) -> bool:
     return False
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_clarify_skip_button_resumes_agent_in_real_chat(

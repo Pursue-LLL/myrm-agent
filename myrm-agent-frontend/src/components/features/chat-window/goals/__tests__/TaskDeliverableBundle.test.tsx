@@ -4,16 +4,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { GoalState } from '../goalStatusTypes';
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    deliverableBundle: 'Task Deliverables',
+    bundleDownloadAll: 'Download All',
+    bundleDownloading: 'Downloading…',
+    bundleDownloadFailed: 'Failed to download deliverables',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      deliverableBundle: 'Task Deliverables',
-      bundleDownloadAll: 'Download All',
-      bundleDownloading: 'Downloading…',
-      bundleDownloadFailed: 'Failed to download deliverables',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));

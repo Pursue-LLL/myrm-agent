@@ -212,7 +212,7 @@ describe('toolsProgressEvents clarification notification', () => {
     await vi.dynamicImportSettled();
 
     expect(mockNotify).toHaveBeenCalledWith(
-      'Agentがあなたの入力を必須としています',
+      'Agentがあなたの入力を必要としています',
       expect.objectContaining({ fallbackToToast: false }),
     );
 

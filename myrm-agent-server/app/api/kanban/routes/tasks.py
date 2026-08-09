@@ -247,7 +247,7 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
                 err = validate_model_override(user_cfgs.providers_dict, value)
                 if err:
                     raise HTTPException(400, err)
-            kwargs["model_override"] = value
+            kwargs["model_override"] = value or None
         if "extra_skill_ids" in body.model_fields_set:
             kwargs["extra_skill_ids"] = body.extra_skill_ids
         if "max_runtime_seconds" in body.model_fields_set:

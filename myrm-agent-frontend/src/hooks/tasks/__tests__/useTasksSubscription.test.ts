@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { resetTaskUpdateEventStreamForTests } from '@/services/taskEventStream';
 
+const stableT = (key: string, params?: Record<string, string>) => {
+  if (key === 'taskCompleted') return `${params?.taskType} completed`;
+  if (key === 'taskFailed') return `${params?.taskType} failed`;
+  if (key === 'taskUnknownError') return 'Unknown error';
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, string>) => {
-    if (key === 'taskCompleted') return `${params?.taskType} completed`;
-    if (key === 'taskFailed') return `${params?.taskType} failed`;
-    if (key === 'taskUnknownError') return 'Unknown error';
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 const mockNotify = vi.fn();

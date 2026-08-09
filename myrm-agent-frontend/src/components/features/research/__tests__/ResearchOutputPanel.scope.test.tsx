@@ -26,8 +26,10 @@ const mockActiveTab = {
   lastAccessedAt: Date.now(),
 };
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -59,14 +61,26 @@ vi.mock('@/services/wikiService', () => ({
   },
 }));
 
-vi.mock('@/store/useArtifactPortalStore', () => ({
-  useActiveTab: () => mockActiveTab,
-  useArtifactContent: () => mockActiveTab.content,
-  useArtifactLoading: () => false,
-  useIsGenerating: () => false,
-  useDisplayMode: () => mockActiveTab.displayMode,
-  useOpenTabs: () => ({ tabs: [mockActiveTab] }),
-}));
+vi.mock('@/store/useArtifactPortalStore', () => {
+  const store = Object.assign(
+    () => ({
+      switchTab: () => {},
+      closeTab: () => {},
+      closeOtherTabs: () => {},
+      closeAllTabs: () => {},
+    }),
+    {},
+  );
+  return {
+    default: store,
+    useActiveTab: () => mockActiveTab,
+    useArtifactContent: () => mockActiveTab.content,
+    useArtifactLoading: () => false,
+    useIsGenerating: () => false,
+    useDisplayMode: () => mockActiveTab.displayMode,
+    useOpenTabs: () => ({ tabs: [mockActiveTab] }),
+  };
+});
 
 vi.mock('../../artifacts/ArtifactRenderer', () => ({
   default: () => <div data-testid="artifact-renderer" />,

@@ -9,7 +9,9 @@
 
 [POS]
 Receives org model whitelist from Control Plane and persists locally.
-Frontend reads this to grey-out restricted models in the model selector.
+Bumps org_model_policy_revision and closes execution cache so pooled agents
+re-run `enforce_org_model_policy` on the next turn. Frontend reads patterns
+for model picker grey-out.
 """
 
 from __future__ import annotations
@@ -21,7 +23,10 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.services.agent.execution_cache import get_execution_cache
 from app.services.config.service import ConfigService
+from app.services.org_model_policy.normalize import normalize_org_model_policy_pattern
+from app.services.org_model_policy.revision import bump_org_model_policy_revision
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -69,6 +74,8 @@ async def org_model_policy_sync(
     )
 
     invalidate_user_configs_cache()
+    bump_org_model_policy_revision()
+    await get_execution_cache().close_all()
     logger.info("Org model policy sync: %d patterns", len(body.allowed_patterns))
     return OrgModelPolicySyncResponse(
         status="synced", pattern_count=len(body.allowed_patterns)
@@ -87,7 +94,10 @@ async def get_allowed_models() -> AllowedModelsResponse:
         return AllowedModelsResponse(allowed_patterns=[], restricted=False)
 
     patterns = record.value.get("allowed_patterns", []) if isinstance(record.value, dict) else []
+    if not patterns:
+        return AllowedModelsResponse(allowed_patterns=[], restricted=False)
+
     return AllowedModelsResponse(
-        allowed_patterns=patterns,
-        restricted=len(patterns) > 0,
+        allowed_patterns=[normalize_org_model_policy_pattern(p) for p in patterns],
+        restricted=True,
     )

@@ -27,7 +27,7 @@ from cdp_chat_support import (  # noqa: E402
     steer_chat_message,
     wait_e2e_provider_ready,
 )
-from dev_gate_contract import EvaluateIntent, STALL_PROGRESS_SEC  # noqa: E402
+from dev_gate_contract import STALL_PROGRESS_SEC, EvaluateIntent  # noqa: E402
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from live_turn_wait import (  # noqa: E402
     live_empty_write_parallel_scaled_cap_sec,
@@ -305,7 +305,7 @@ def _seed_file_mutation_fixture(api_url: str) -> dict[str, object]:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
 @pytest.mark.timeout(240)
@@ -380,7 +380,7 @@ def test_file_write_empty_shows_mutation_warning_banner() -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
 @pytest.mark.timeout(240)
@@ -587,7 +587,7 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio

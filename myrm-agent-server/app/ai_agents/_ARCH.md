@@ -69,7 +69,8 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 ## GeneralAgentParams 装配点
 
-- 新增任何 `app/**/*.py` 内对 `GeneralAgentParams(` 或 `GeneralAgentParams.model_validate` 的调用前，必须核对 Web / Channel / Cron / Eval 与 `ResolvedAgentProfile` 字段一致性（含 `auto_restore_domains`、`enable_browser`、`enable_render_ui` 等）。
+- 新增任何 `app/**/*.py` 内对 `GeneralAgentParams(` 或 `GeneralAgentParams.model_validate` 的调用前，必须核对 Web / Channel / Cron / Kanban / Eval / Voice 与 `ResolvedAgentProfile` 字段一致性（含 `auto_restore_domains`、`enable_browser`、`enable_render_ui` 等）。
+- **Profile 输出后缀**：Web / Channel / Cron / Kanban / Eval / Voice（agent_bridge + realtime + gemini_live）/ Subagent / Goal stream 入口在 profile 解析后调用 `apply_profile_output_suffixes()`。EphemeralAgentFactory（JIT 蓝图）无 DB engine_params，不在守卫范围。守卫：`test_profile_output_suffixes_guard.py`（10 路径）。
 - 仓库守卫单测：`tests/core/agents/test_general_agent_params_callsites_guard.py`（改点后须同步更新 allowlist）。
 - 离线续跑：`app/api/agents/general_agent/streaming.py` 使用 `params.model_dump(mode="json")` 写入 `OfflineDurableTask.serialized_params`；`app/lifecycle/system.py` 用 `model_validate` 恢复，故新增到 `GeneralAgentParams` 的**运行时关键字段**应默认可被 Pydantic 序列化/反序列化；往返约束见 `tests/core/agents/test_general_agent_params_serialization_roundtrip.py`。
 

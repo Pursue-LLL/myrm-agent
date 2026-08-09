@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { IconPlus, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -37,15 +38,28 @@ const EnterpriseModelPolicyTab = memo(() => {
         setPolicies(data.patterns || []);
       }
     } catch {
-      // Fail silently
+      toast.error(t('modelPolicy.loadFailed', { default: 'Failed to load model policy' }));
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, t]);
 
   useEffect(() => {
-    fetchPolicies();
+    void fetchPolicies();
   }, [fetchPolicies]);
+
+  const warnFanoutPartial = (failed: number) => {
+    if (failed <= 0) {
+      return;
+    }
+    toast.warning(
+      t('modelPolicy.fanoutPartial', {
+        default:
+          'Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.',
+        failed: String(failed),
+      }),
+    );
+  };
 
   const handleAdd = async () => {
     if (!newPattern.trim() || !orgId) return;
@@ -56,11 +70,21 @@ const EnterpriseModelPolicyTab = memo(() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pattern: newPattern.trim(), description: newDescription.trim() }),
       });
-      if (res.ok) {
-        setNewPattern('');
-        setNewDescription('');
-        await fetchPolicies();
+      if (!res.ok) {
+        throw new Error(await res.text());
       }
+      const saved = (await res.json()) as { fanout?: { failed?: number } };
+      toast.success(t('modelPolicy.added', { default: 'Model policy updated' }));
+      warnFanoutPartial(saved.fanout?.failed ?? 0);
+      setNewPattern('');
+      setNewDescription('');
+      await fetchPolicies();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t('modelPolicy.addFailed', { default: 'Failed to update model policy' }),
+      );
     } finally {
       setAdding(false);
     }
@@ -68,10 +92,24 @@ const EnterpriseModelPolicyTab = memo(() => {
 
   const handleRemove = async (entryId: string) => {
     if (!orgId) return;
-    await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy/${entryId}`), {
-      method: 'DELETE',
-    });
-    await fetchPolicies();
+    try {
+      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy/${entryId}`), {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const saved = (await res.json()) as { fanout?: { failed?: number } };
+      toast.success(t('modelPolicy.removed', { default: 'Pattern removed' }));
+      warnFanoutPartial(saved.fanout?.failed ?? 0);
+      await fetchPolicies();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t('modelPolicy.removeFailed', { default: 'Failed to remove pattern' }),
+      );
+    }
   };
 
   if (loading) {
@@ -94,18 +132,18 @@ const EnterpriseModelPolicyTab = memo(() => {
         </h3>
         <p className="text-xs text-muted-foreground">
           {t('modelPolicy.description', {
-            default: 'Define which models members can use. Supports glob patterns (e.g. deepseek-*, claude-*). Empty list = no restriction.',
+            default:
+              'Define which models members can use. Supports patterns like openai/*, deepseek/*, or claude/*. Empty list = no restriction.',
           })}
         </p>
       </div>
 
-      {/* Add new pattern */}
       <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
         <div className="flex-1 space-y-1">
           <Input
             value={newPattern}
             onChange={(e) => setNewPattern(e.target.value)}
-            placeholder="e.g. deepseek-*, qwen-*, glm-*"
+            placeholder="e.g. openai/*, deepseek/*, claude/*"
             className="text-sm"
           />
         </div>
@@ -128,7 +166,6 @@ const EnterpriseModelPolicyTab = memo(() => {
         </Button>
       </div>
 
-      {/* Current policies */}
       {policies.length === 0 ? (
         <div className="text-center text-muted-foreground py-6 border border-dashed border-border rounded-lg">
           {t('modelPolicy.empty', { default: 'No model restrictions. All models are accessible.' })}

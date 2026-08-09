@@ -129,6 +129,7 @@ class GeneralAgent(ToolSetupMixin):
         memory_conversation_id: str | None = None,
         memory_task_id: str | None = None,
         memory_shared_context_ids: list[str] | None = None,
+        memory_base_path: str | None = None,
         declared_capabilities: tuple[str, ...] = (),
         declared_allowed_roots: tuple[str, ...] = (),
         external_agents_config: list[dict[str, object]] | None = None,
@@ -234,6 +235,7 @@ class GeneralAgent(ToolSetupMixin):
         self.memory_conversation_id = memory_conversation_id
         self.memory_task_id = memory_task_id
         self.memory_shared_context_ids = list(memory_shared_context_ids or [])
+        self.memory_base_path = memory_base_path
         self.declared_capabilities = declared_capabilities
         self.declared_allowed_roots = declared_allowed_roots
         self.external_agents_config = external_agents_config

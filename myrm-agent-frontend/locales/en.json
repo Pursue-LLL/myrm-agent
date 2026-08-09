@@ -1649,8 +1649,8 @@
       "noEnabledModels": "Please enable models in Model Service first",
       "noMatchingModels": "No matching models",
       "orgPolicyRestricted": "Restricted by organization policy",
-      "preflightCompress": "Compresses",
-      "preflightCompressDetail": "Switching now will compress context on the next message (threshold: {threshold} tokens)",
+      "preflightCompress": "May compress",
+      "preflightCompressDetail": "Switching now may compress context on the next message (threshold: {threshold} tokens)",
       "moaPreset": {
         "groupTitle": "Mixture of Agents",
         "defaultLabel": "Standard",
@@ -4394,6 +4394,21 @@
       "mcpDeleteDesc": "Remove \"{name}\" from the organization? Members will lose this tool on next sync.",
       "membersTab": "Members",
       "modelPolicyTab": "Model Policy",
+      "modelPolicy": {
+        "title": "Allowed Models",
+        "description": "Define which models members can use. Supports patterns like openai/*, deepseek/*, or claude/*. Empty list = no restriction.",
+        "noOrg": "Organization not configured",
+        "loadFailed": "Failed to load model policy",
+        "addFailed": "Failed to update model policy",
+        "removeFailed": "Failed to remove pattern",
+        "added": "Model policy updated",
+        "removed": "Pattern removed",
+        "fanoutPartial": "Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.",
+        "descPlaceholder": "Description (optional)",
+        "add": "Add",
+        "empty": "No model restrictions. All models are accessible.",
+        "note": "Members can only use models matching the patterns above. Changes apply immediately."
+      },
       "approvalPolicyTab": "Approval Policy",
       "approvalPolicy": {
         "title": "Approval Policy",
@@ -4402,6 +4417,7 @@
         "loadFailed": "Failed to load approval policy",
         "saveFailed": "Failed to save approval policy",
         "saved": "Approval policy saved",
+        "fanoutPartial": "Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.",
         "saving": "Saving…",
         "save": "Save policy",
         "addPattern": "Add",
@@ -8437,6 +8453,7 @@
     "model_failover_timeout": "Service timeout, switched to backup model",
     "model_failover_billing": "Billing issue, switched to backup model",
     "model_failover_context_overflow": "Context too long, switched to backup model",
+    "model_failover_response_format_error": "Response format error, switched to backup model",
     "safety_fallback_active": "Safety filter triggered, isolated fallback active",
     "context_compaction": "Compressing context",
     "context_compaction_active": "Compressing context",
@@ -14175,7 +14192,8 @@
       "llm_judge": "LLM semantic judgment",
       "llm_judge_threshold": "Soft scoring (0-1 score)",
       "llm_judge_prompt": "Custom judge prompt",
-      "sandbox": "Sandbox file/command verification"
+      "sandbox": "Sandbox file/command verification",
+      "test_suite": "Run task test suite (pytest/scorer), score by JUnit XML or reward JSON"
     },
     "report": {
       "totalCases": "Total Cases",
@@ -14199,6 +14217,7 @@
       "actions": "Actions",
       "passed": "Passed",
       "failed": "Failed",
+      "pending": "Pending",
       "multiTurn": "<Multi-turn>",
       "viewDiff": "View Diff",
       "noReport": "No eval report yet. Click \"Run Eval\" to start.",
@@ -14265,7 +14284,8 @@
       "scoringComposite": "Composite",
       "scoringNativeTitle": "Graded by each task's own scorer (task-native, container-based)",
       "scoringCompositeTitle": "Graded by the CompositeVerifier engine (Rule + LLM/VLM)",
-      "pendingScoring": "Scoring pending"
+      "pendingScoring": "Scoring pending",
+      "testPassRate": "Avg test pass rate"
     }
   },
   "vault": {

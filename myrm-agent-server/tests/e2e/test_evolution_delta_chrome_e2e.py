@@ -65,7 +65,7 @@ _SKILL_HISTORY_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_evolution_delta_badge_renders_in_history_panel() -> None:
@@ -147,7 +147,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
         assert state.get("recordCount", 0) >= 0, "Panel should render even with no records"
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_evolution_events_in_trend_chart_api() -> None:

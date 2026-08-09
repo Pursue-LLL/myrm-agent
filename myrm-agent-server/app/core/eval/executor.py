@@ -187,6 +187,17 @@ class LocalEvalExecutor:
                         mcp_tool_selections=resolved.mcp_tool_selections or None,
                     )
 
+                from app.services.agent.params.profile_output_suffixes import (
+                    apply_profile_output_suffixes,
+                )
+
+                user_instructions = apply_profile_output_suffixes(
+                    user_instructions,
+                    personality_style=resolved.personality_style,
+                    engine_params=resolved.engine_params,
+                    agent_id=self.profile_id,
+                )
+
         if self.benchmark_mode:
             user_instructions = ""
             enabled_builtin_tools = []

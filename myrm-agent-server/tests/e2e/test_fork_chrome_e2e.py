@@ -81,7 +81,7 @@ def sandbox_parent_chat_id() -> str:
 
 
 @pytest.mark.asyncio
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 async def test_fork_sandbox_isolation_chrome_e2e(

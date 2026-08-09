@@ -25,17 +25,22 @@ class ChromeE2EMarkerProfile(TypedDict):
     execution_mode: ExecutionMode
     access_scope: AccessScope
     workload: Workload
+    private_reason: str
 
 
-# Live signoff target: SHARED + NAMESPACE_WRITE (no new backend epoch; shared hot pool).
-EXECUTION_MODE: Final[ExecutionMode] = "SHARED"
+# TAB-9: bash safety interceptor needs process isolation from shared-stack peers —
+# a peer's bash sandbox mutation must never interleave with the guardrail verdict.
+# Live signoff evidence: 96881/30528 PRIVATE 3/3 GREEN. SHARED flip needs re-signoff (§20).
+EXECUTION_MODE: Final[ExecutionMode] = "PRIVATE"
 ACCESS_SCOPE: Final[AccessScope] = "NAMESPACE_WRITE"
 WORKLOAD: Final[Workload] = "STANDARD"
+PRIVATE_REASON: Final[str] = "exclusive_backend"
 
 CHROME_E2E_MARKER_KWARGS: Final[ChromeE2EMarkerProfile] = {
     "execution_mode": EXECUTION_MODE,
     "access_scope": ACCESS_SCOPE,
     "workload": WORKLOAD,
+    "private_reason": PRIVATE_REASON,
 }
 
 # Grep-compatible literal for test.sh / legacy static checks.

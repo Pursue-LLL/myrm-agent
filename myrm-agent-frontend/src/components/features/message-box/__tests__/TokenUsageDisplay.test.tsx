@@ -26,8 +26,10 @@ vi.mock('@/services/statistics', () => ({
   getSessionAnalytics: vi.fn().mockResolvedValue(null),
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/primitives/tooltip', () => ({

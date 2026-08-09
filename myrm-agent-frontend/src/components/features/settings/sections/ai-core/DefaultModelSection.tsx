@@ -21,7 +21,7 @@ import { useShallow } from 'zustand/react/shallow';
 import useProviderStore from '@/store/useProviderStore';
 import { SingleModelSelection, getProviderCategory } from '@/store/config/providerTypes';
 import EnabledModelSelect from '../../default-model/EnabledModelSelect';
-import { useOrgModelPolicy } from '@/hooks/billing/useOrgModelPolicy';
+import { useOrgModelPolicy } from '@/hooks/useOrgModelPolicy';
 import { ModelInfoDialog } from '../../model-service/ModelInfoCard';
 import SettingsSection from '../SettingsSection';
 import ProviderModelSelector from '../../retrieval/ProviderModelSelector';

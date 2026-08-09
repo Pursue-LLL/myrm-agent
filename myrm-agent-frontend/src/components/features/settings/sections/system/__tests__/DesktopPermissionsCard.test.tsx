@@ -9,13 +9,15 @@ const { mockApiRequest, mockOpenPermissionDeepLink } = vi.hoisted(() => ({
   mockOpenPermissionDeepLink: vi.fn(),
 }));
 
+const stableT = (key: string, values?: Record<string, string>) => {
+  if (key === 'platform' && values?.name) {
+    return `platform:${values.name}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) => {
-    if (key === 'platform' && values?.name) {
-      return `platform:${values.name}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({

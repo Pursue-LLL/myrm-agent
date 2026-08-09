@@ -49,7 +49,7 @@
 | `lazy-monaco-editor.tsx` | 辅助 | Monaco 动态 import 懒加载包装 | ✅ |
 | `lazy-recharts.tsx` | 辅助 | Recharts 图表组件动态 import 包装（SSR 关闭，统一懒加载入口） | ✅ |
 | `login-prompt.tsx` | 组件 | 未登录态全局登录引导条 | ✅ |
-| `model-picker-popover.tsx` | 组件 | 模型选择弹出面板：Provider 分组 + 可选 **Mixture of Agents** 虚拟 preset 分组 + 搜索 + 3 层 Slot（Primary/Fallback/Safety）+ Context Window / 成本 Badge + 能力图标 + 模型切换压缩预检 inline 预警（防骚扰 ≥2 次确认，请求签名含 estimatedTokens/compressStartRatio/promptMode/turnCount，任一变化即重新预检） | ✅ |
+| `model-picker-popover.tsx` | 组件 | 模型选择弹出面板：Provider 分组 + 可选 **Mixture of Agents** 虚拟 preset 分组 + 搜索 + 3 层 Slot（Primary/Fallback/Safety）+ Context Window / 成本 Badge + 能力图标 + org model policy 打开时 refetch + 灰显 + 模型切换压缩预检 inline 预警（防骚扰 ≥2 次确认，请求签名含 chatId/estimatedTokens/compressStartRatio/promptMode/turnCount，任一变化即重新预检；chatId 由聊天场景透传，供 server 消费压缩无效 streak 避免误报）；E2E hook：`data-testid=model-picker-popover` · `model-item-{providerId}-{model}` · `data-model-name` | ✅ |
 
 ## 测试
 
@@ -60,7 +60,7 @@
 | `__tests__/crash-recovery-dialog.test.tsx` | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见 |
 | `__tests__/flow-pad-inline-mode.test.tsx` | Inline 路由切换、请求级中断隔离、专家模板召唤与场景预填回归 |
 | `__tests__/search-dialog.cite.test.tsx` | Cmd+K cite：跨会话 prior_chat chip · 同会话 citeSameChat toast |
-| `__tests__/model-picker-popover.preflight.test.tsx` | 模型切换压缩预检：预警 badge 展示/隐藏、tokens 缺省跳过、防骚扰 ≥2 次确认、compressStartRatio/promptMode/turnCount 透传与配置/轮数变化重预检 |
+| `__tests__/model-picker-popover.preflight.test.tsx` | 模型切换压缩预检：预警 badge 展示/隐藏、tokens 缺省跳过、防骚扰 ≥2 次确认、compressStartRatio/promptMode/turnCount/chatId 透传与配置/轮数变化重预检 |
 | `__tests__/` | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、FlowPad、PWA 等壳层组件 |
 
 ## 依赖

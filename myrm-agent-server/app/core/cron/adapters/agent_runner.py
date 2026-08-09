@@ -619,6 +619,17 @@ class AgentJobRunner:
                             else leader_protocol
                         )
 
+                    from app.services.agent.params.profile_output_suffixes import (
+                        apply_profile_output_suffixes,
+                    )
+
+                    user_instructions = apply_profile_output_suffixes(
+                        user_instructions,
+                        personality_style=resolved.personality_style,
+                        engine_params=resolved.engine_params,
+                        agent_id=job.agent_id,
+                    )
+
             from app.core.cron.adapters.tools_policy import (
                 intersect_cron_enabled_builtin_tools,
             )

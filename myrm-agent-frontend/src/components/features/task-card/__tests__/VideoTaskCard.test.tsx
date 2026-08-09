@@ -22,7 +22,7 @@ describe('VideoTaskCard', () => {
   it('renders placeholder while task is loading', () => {
     mockUseTaskSubscription.mockReturnValue(undefined);
     render(<VideoTaskCard task_id="vid-1" />);
-    expect(screen.getByText('Queued...')).toBeInTheDocument();
+    expect(screen.getByText('queued')).toBeInTheDocument();
   });
 
   it('renders playable video on success', () => {

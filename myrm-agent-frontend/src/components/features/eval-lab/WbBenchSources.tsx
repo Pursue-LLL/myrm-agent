@@ -20,6 +20,8 @@ interface ReportItem {
   total_cases?: number;
   pass_count?: number;
   skip_count?: number;
+  pass_rate?: number;
+  avg_pass_rate?: number;
   manifest?: {
     task_set_id?: string;
   };
@@ -129,6 +131,8 @@ export default function WbBenchSources({
               report && report.total_cases && report.pass_count != null && isScored
                 ? Math.round((report.pass_count / report.total_cases) * 100)
                 : null;
+            const testPassRate =
+              report?.avg_pass_rate != null && isScored ? Math.round(report.avg_pass_rate * 100) : null;
             return (
               <Card key={source.id} className="flex flex-col">
                 <CardHeader className="pb-2">
@@ -194,6 +198,14 @@ export default function WbBenchSources({
                           <span className="text-xs text-muted-foreground">{t('pendingScoring')}</span>
                         )}
                       </div>
+                      {testPassRate !== null && (
+                        <div className="flex items-center justify-between mt-0.5 text-xs">
+                          <span className="text-muted-foreground">{t('testPassRate')}</span>
+                          <span className={`font-medium ${testPassRate >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                            {testPassRate}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground text-center">

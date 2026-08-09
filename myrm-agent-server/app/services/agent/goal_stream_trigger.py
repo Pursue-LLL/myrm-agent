@@ -3,16 +3,21 @@
 [INPUT]
 - app.services.agent.streaming::ai_agent_service_stream (POS: General Agent SSE 流式桥接)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: WebUI 用户配置加载)
+- app.services.chat.chat_service::ChatService (POS: Chat CRUD 编排层)
+- app.services.agent.profile_resolver::get_agent_profile_resolver (POS: Agent profile 解析)
+- app.services.agent.params.profile_output_suffixes::apply_profile_output_suffixes (POS: Profile 输出后缀注入 SSOT)
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal 生命周期协议)
 - myrm_agent_harness.agent.goals.types::Goal (POS: Goal 数据类型)
 
 [OUTPUT]
+- _resolve_goal_stream_agent_context: chat-bound agent_id + profile instructions (with output suffixes)
 - trigger_goal_stream: fire-and-forget unattended stream task
 - trigger_goal_stream_with_failure_policy: SSOT wrapper for setup + runtime failure handling
 - handle_unattended_goal_stream_failure: NEEDS_HUMAN_REVIEW + SYSTEM_NOTIFICATION or keep ACTIVE
 
 [POS]
 Server-side headless goal continuation entry. Shared by dequeue, background WAIT resume, and loop restart.
+Resolves chat-bound Agent profile (system_prompt + output suffixes) for parity with Kanban goal runs.
 Separated from streaming.py to keep the main streaming module under 500 lines.
 """
 
@@ -129,6 +134,54 @@ async def handle_unattended_goal_stream_failure(
         )
 
 
+async def _resolve_goal_stream_agent_context(
+    session_id: str,
+) -> tuple[str | None, str | None]:
+    """Load chat-bound agent_id and profile instructions (with output suffixes)."""
+    from app.services.agent.params.profile_output_suffixes import (
+        apply_profile_output_suffixes,
+    )
+    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.chat.chat_service import ChatService
+
+    try:
+        chat = await ChatService.get_chat_metadata(session_id)
+    except Exception:
+        logger.warning(
+            "Failed to load chat metadata for goal stream session %s",
+            session_id,
+            exc_info=True,
+        )
+        return None, None
+
+    if chat is None or not chat.agent_id:
+        return None, None
+
+    agent_id = chat.agent_id
+    try:
+        profile = await get_agent_profile_resolver().resolve(agent_id)
+    except Exception:
+        logger.warning(
+            "Failed to resolve agent profile for goal stream session %s agent %s",
+            session_id,
+            agent_id,
+            exc_info=True,
+        )
+        return agent_id, None
+
+    if profile is None:
+        return agent_id, None
+
+    user_instructions = profile.system_prompt
+    user_instructions = apply_profile_output_suffixes(
+        user_instructions,
+        personality_style=profile.personality_style,
+        engine_params=profile.engine_params,
+        agent_id=agent_id,
+    )
+    return agent_id, user_instructions
+
+
 async def trigger_goal_stream(
     session_id: str,
     goal: Goal,
@@ -197,9 +250,13 @@ async def trigger_goal_stream(
 
     memory_settings = user_cfgs.personal_settings_dict or {}
 
+    agent_id, user_instructions = await _resolve_goal_stream_agent_context(session_id)
+
     params = GeneralAgentParams(
         query=goal.objective,
         chat_id=session_id,
+        agent_id=agent_id,
+        user_instructions=user_instructions,
         model_cfg=model_cfg,
         fallback_model_cfg=fallback_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,

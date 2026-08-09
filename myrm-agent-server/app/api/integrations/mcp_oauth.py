@@ -212,7 +212,7 @@ async def handle_mcp_oauth_callback(
                 access_token=result["access_token"],
                 token_type=result.get("token_type", "Bearer"),
                 refresh_token=result.get("refresh_token"),
-                expires_at=time.time() + result.get("expires_in", 3600),
+                expires_at=time.time() + int(result.get("expires_in") or 3600),
                 scope=result.get("scope") or pending["scope"],
             )
 

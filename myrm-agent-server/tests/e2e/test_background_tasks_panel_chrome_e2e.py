@@ -93,7 +93,7 @@ def _background_tasks_panel(
         yield client, page
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(180)
 def test_background_tasks_panel_opens_and_lists_api() -> None:
     api_base = get_e2e_api_url()
@@ -111,7 +111,7 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
             assert notice.get("hasNotice") is True, notice
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(180)
 def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
     api_base = get_e2e_api_url()
@@ -354,7 +354,7 @@ def _wait_browser_list_waiting_for_input(
     assert state.get("ready") is True, state
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
     api_base = get_e2e_api_url()
@@ -492,7 +492,7 @@ _SUCCESS_FINISH_TOAST_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(240)
 def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
     api_base = get_e2e_api_url()
@@ -530,7 +530,7 @@ def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
         assert drawer.get("ready") is True, drawer
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(240)
 def test_background_tasks_success_finish_toast_from_seed() -> None:
     api_base = get_e2e_api_url()
@@ -607,7 +607,7 @@ def _wait_api_stdin_closed(
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(240)
 def test_background_tasks_panel_shell_stdin_via_ui() -> None:
     api_base = get_e2e_api_url()
@@ -682,7 +682,7 @@ _SHELL_INPUT_CLICK_CLOSE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
     api_base = get_e2e_api_url()

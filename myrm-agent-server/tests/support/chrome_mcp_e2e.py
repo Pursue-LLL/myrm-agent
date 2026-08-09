@@ -37,10 +37,10 @@ from cdp_chat_support import (
 )  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import (
-    EvaluateIntent,
     MUX_RECLAIM_STALL_TOKEN,
     SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
+    EvaluateIntent,
     is_e2e_signoff_runtime,
     resolve_evaluate_budget,
     shpoib_rebind_location_wait_cap_sec,

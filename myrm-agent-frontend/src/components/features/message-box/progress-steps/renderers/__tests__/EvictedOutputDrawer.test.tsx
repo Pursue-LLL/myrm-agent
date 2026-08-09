@@ -27,8 +27,10 @@ vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => '/api/v1',
 }));
 
+const stableT = (key: string) => evictedOutputCopy[key as keyof typeof evictedOutputCopy] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => evictedOutputCopy[key as keyof typeof evictedOutputCopy] ?? key,
+  useTranslations: () => stableT,
 }));
 
 const MOCK_CONTENT = Array.from({ length: 20 }, (_, i) => {

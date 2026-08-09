@@ -10,12 +10,14 @@ vi.mock('sonner', () => ({
 }));
 
 // Mock next-intl
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (key === 'tooManyFiles') return `Too many files, maximum ${params?.max} files allowed`;
+  if (key === 'invalidFileType') return `Unsupported file type: ${params?.types}`;
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (key === 'tooManyFiles') return `Too many files, maximum ${params?.max} files allowed`;
-    if (key === 'invalidFileType') return `Unsupported file type: ${params?.types}`;
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('useDragDrop', () => {

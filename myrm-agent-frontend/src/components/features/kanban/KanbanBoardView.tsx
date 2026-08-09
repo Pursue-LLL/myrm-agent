@@ -647,6 +647,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                           ) : (
                             <button
                               onClick={() => setAddingColumn(status)}
+                              data-testid={`kanban-add-task-${status}`}
                               className={cn(
                                 'w-full flex items-center justify-center gap-1 text-xs py-1.5 rounded hover:bg-background/50 transition-colors',
                                 status === 'triage'

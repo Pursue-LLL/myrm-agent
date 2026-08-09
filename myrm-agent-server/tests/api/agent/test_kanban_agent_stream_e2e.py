@@ -17,10 +17,11 @@ from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
     _invoked_tool_names,
 )
-from tests.api.agent.utils import check_e2e_errors, get_model_selection
+from tests.api.agent.utils import check_e2e_errors, get_model_selection, resolve_test_env
 
 _E2E_TASK_TITLE = "E2E-KANBAN-AGENT-STREAM-TEST"
 _E2E_PREFERRED_BOARD_TITLE = "PREFERRED-BOARD-E2E"
+_E2E_MODEL_OVERRIDE_TITLE = "E2E-KANBAN-MODEL-OVERRIDE-TEST"
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +29,20 @@ def _reset_kanban_singleton() -> None:
     KanbanService._instance = None
     yield
     KanbanService._instance = None
+
+
+@pytest.fixture(autouse=True)
+def _noop_org_model_policy() -> None:
+    """Org model policy is control-plane driven; no-op in local e2e.
+
+    ``enforce_org_model_policy`` fail-closes on any ConfigService error, and the
+    prewarm coordinator may build agents after the test DB teardown drops the
+    ``UserConfig`` table. Local e2e must not be blocked by an unconfigured policy.
+    """
+    mock_svc = AsyncMock()
+    mock_svc.get = AsyncMock(return_value=None)
+    with patch("app.services.config.service.ConfigService", return_value=mock_svc):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -210,3 +225,73 @@ def test_agent_stream_kanban_default_board_id_prefers_chat_board(
     task = _find_task_by_title(client, _E2E_PREFERRED_BOARD_TITLE)
     assert task is not None, f"Expected task {_E2E_PREFERRED_BOARD_TITLE!r} in store"
     assert task.get("board_id") == preferred_board_id
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
+)
+def test_agent_stream_kanban_add_task_persists_model_override(
+    client: TestClient,
+    mock_load_user_configs: pytest.AsyncMock,
+) -> None:
+    """Real agent-stream: kanban_add_task(model=...) persists the per-task model_override."""
+    configs = mock_load_user_configs.return_value
+    configs.security_config_dict = {
+        **(configs.security_config_dict or {}),
+        "yoloModeEnabled": True,
+        "yoloModeEnabledAt": time.time(),
+    }
+
+    override_model = resolve_test_env("LITE_MODEL")
+    board_id = _create_board(client, f"Model Override E2E {uuid.uuid4().hex[:8]}")
+    chat_id = f"test_kanban_model_{uuid.uuid4().hex[:8]}"
+    create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+    assert create_response.status_code == 200
+
+    query = (
+        "CRITICAL: Your very first action MUST be kanban_add_task — no text reply before it. "
+        f'Call kanban_add_task with board_id="{board_id}", title exactly '
+        f'"{_E2E_MODEL_OVERRIDE_TITLE}", model EXACTLY "{override_model}" (keep the '
+        "provider prefix and the quotes). "
+        "Do not use bash, web_search, or any other tools. Do not call any completion "
+        "checks. After the call succeeds, reply with a single line: DONE."
+    )
+
+    events: list[dict[str, object]] = []
+    invoked: set[str] = set()
+    for _attempt in range(2):
+        message_id = f"msg_{uuid.uuid4().hex[:8]}"
+        payload: dict[str, object] = {
+            "messageId": message_id,
+            "chatId": chat_id,
+            "query": query,
+            "modelSelection": get_model_selection(),
+            "actionMode": "agent",
+            "enableMemory": False,
+            "agentConfig": {
+                "enabledBuiltinTools": ["kanban"],
+            },
+        }
+        events = _collect_agent_stream(client, payload)
+        check_e2e_errors(events)
+        invoked = _normalize_tool_names(_invoked_tool_names(events))
+        if "kanban_add_task" in invoked:
+            break
+
+    if "kanban_add_task" not in invoked:
+        pytest.skip(
+            "model did not invoke kanban_add_task after 2 attempts; "
+            f"invoked={sorted(invoked)}"
+        )
+
+    task = _find_task_by_title(client, _E2E_MODEL_OVERRIDE_TITLE)
+    assert task is not None, (
+        f"Expected task {_E2E_MODEL_OVERRIDE_TITLE!r} in store after kanban_add_task; "
+        f"events_blob={json.dumps(events, ensure_ascii=False)[:500]}"
+    )
+    assert task.get("model_override") == override_model, (
+        f"Expected model_override={override_model!r}, got {task.get('model_override')!r}; "
+        f"events_blob={json.dumps(events, ensure_ascii=False)[:500]}"
+    )

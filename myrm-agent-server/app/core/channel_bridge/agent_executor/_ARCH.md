@@ -14,7 +14,7 @@
 | `execute_preamble_types.py` | 模块 | preamble 数据结构；`ChannelAgentBuildOutcome` XOR（result | early_reply） | ✅ |
 | `execute_preamble_session.py` | 模块 | 会话键、冷启动检测、历史加载、auto-reset 预事件。 | ✅ |
 | `execute_preamble_agent.py` | 模块 | `build_channel_execution_agent()`：Params 装配、resume 门控、凭证注入；text-only 主模型 + visionFallback 时对入站多模态 query 调用 `preprocess_inbound_multimodal_query` 并发送 `analyzing_image` ProgressUpdate；/learn turn 经 `apply_learn_skill_manage_permission_overlay` 对齐 skill_manage 权限。 | ✅ |
-| `execute_preamble_instructions.py` | 模块 | 团队协议、渠道能力约束、IM 行为策略 Persona、人格模板注入 `user_instructions`。 | ✅ |
+| `execute_preamble_instructions.py` | 模块 | 团队协议、渠道能力约束、IM 行为策略 Persona、`profile_output_suffixes`（人格 + response_locale_policy）注入 `user_instructions` 尾。 | ✅ |
 | `execute_preamble_backfill.py` | 模块 | 冷启动渠道历史 backfill（`maybe_backfill_channel_history`）。 | ✅ |
 | `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装。 | ✅ |
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |

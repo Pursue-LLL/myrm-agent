@@ -10,8 +10,10 @@ const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
   useLocale: () => 'en',
 }));
 
@@ -127,8 +129,16 @@ vi.mock('@/components/features/icons/PremiumIcons', () => {
     IconWrench: Icon,
     IconDatabase: Icon,
     IconExplore: Icon,
+    IconCopy: Icon,
+    IconCheck: Icon,
+    IconLoader: Icon,
+    IconAlertTriangle: Icon,
   };
 });
+
+vi.mock('../WikiDuplicateReviewPanel', () => ({
+  WikiDuplicateReviewPanel: () => <div data-testid="wiki-duplicate-review-panel" />,
+}));
 
 vi.mock('@/components/primitives/button', () => ({
   Button: ({

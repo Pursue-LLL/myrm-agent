@@ -22,8 +22,8 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
@@ -116,7 +116,7 @@ def _last_user_message_has_ui_action(chat_id: str, *, api_url: str) -> bool:
     return "<ui_action_data>" in content and "ui_action" in content
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

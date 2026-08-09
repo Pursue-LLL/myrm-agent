@@ -55,6 +55,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
     """Hash wrapper-level inputs that affect ``build_general_agent`` output."""
     from app.core.skills.config_version import get_skill_config_version
     from app.server.stack_epoch import read_stack_epoch
+    from app.services.org_model_policy.revision import get_org_model_policy_revision
 
     stack_epoch = read_stack_epoch()
     harness_fp = stack_epoch["harness_fingerprint"] if stack_epoch else ""
@@ -112,6 +113,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         # Security policy must bust POOLED cache when YOLO/HITL or permissions change.
         "security_config_raw": _stable_json(agent_wrapper.security_config_raw),
         "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw),
+        # Org model policy revision busts POOLED cache after CP sandbox sync.
+        "org_model_policy_revision": get_org_model_policy_revision(),
     }
 
     encoded = json.dumps(

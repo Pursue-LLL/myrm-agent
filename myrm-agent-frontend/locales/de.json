@@ -810,7 +810,12 @@
         "lockedBadge": "Organisationsrichtlinie",
         "autoReviewLocked": "Ihre Organisation verlangt Smart Intent Guard für geschützte Agenten. Diese Einstellung kann nicht deaktiviert werden.",
         "yoloLocked": "Der YOLO-Modus ist durch Ihre Organisationsrichtlinie deaktiviert.",
-        "allowAlwaysLocked": "„Immer erlauben\" ist durch Ihre Organisationsrichtlinie deaktiviert."
+        "allowAlwaysLocked": "„Immer erlauben\" ist durch Ihre Organisationsrichtlinie deaktiviert.",
+        "allowAlwaysDisabled": "Ihre Organisation hat das Speichern dauerhafter Zulassungslisten-Einträge aus den Freigabe-Prompts deaktiviert.",
+        "orgActiveTitle": "Organisations-Freigaberichtlinie ist aktiv",
+        "orgActiveDesc": "Ihr Administrator kann Smart Intent Guard verlangen oder Zulassungslisten-Verknüpfungen für bestimmte Agentenmodelle deaktivieren. Konfigurieren Sie Agenten in AI Core, wenn Sie geschützte Modelle verwenden.",
+        "forceModels": "Erzwungene Review-Modelle: {patterns}",
+        "ignoreAllowlistModels": "Zulassungsliste ignoriert für: {patterns}"
       }
     },
     "retrieval": {
@@ -1071,7 +1076,7 @@
         "precise": "Präzise",
         "creative": "Kreativ",
         "extraParams": "Zusätzliche Parameter",
-        "extraParamsHint": "Provider-specific params passed directly to the API. Examples:\nOpenAI: '{' \"reasoning_effort\": \"high\" '}'\nAnthropic/MiniMax: '{' \"thinking\": '{' \"type\": \"enabled\", \"budget_tokens\": 5000 '}' '}'",
+        "extraParamsHint": "Provider-spezifische Parameter, die direkt an die API übergeben werden. Beispiele:\nOpenAI: '{' \"reasoning_effort\": \"high\" '}'\nAnthropic/MiniMax: '{' \"thinking\": '{' \"type\": \"enabled\", \"budget_tokens\": 5000 '}' '}'",
         "invalidJson": "Ungültiges JSON-Format",
         "jsonMustBeObject": "Muss ein JSON-Objekt sein",
         "pricing": "Preise",
@@ -1360,8 +1365,8 @@
         "skippedInsufficientRefs": "Mixture of Agents is on, but not enough advisor models succeeded. Advisor injection was skipped — check reference model availability.",
         "skippedGeneric": "Das Mixture-of-Agents-Berater-Overlay wurde für diese Nachricht übersprungen."
       },
-      "preflightCompress": "Komprimiert",
-      "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht komprimiert (Schwellenwert: {threshold} Tokens)"
+      "preflightCompress": "Wird ggf. komprimiert",
+      "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)"
     },
     "modelCapabilities": {
       "vision": "Bildverständnis",
@@ -2334,27 +2339,27 @@
       "savedCheckpointsDesc": "Alle Prüfpunkte werden automatisch gespeichert, wenn eine Agentenaufgabe unterbrochen wird",
       "resumeSuccess": "Checkpoint wurde erfolgreich fortgesetzt",
       "resumeSuccessDesc": "Task {taskId} resumed",
-      "confirmDelete": "确定要删除这个检查点吗？",
-      "confirmCleanup": "确定要清理旧检查点吗（7天TTL）？",
-      "resumable": "可恢复",
-      "notResumable": "不可恢复",
-      "progress": "进度",
-      "lastTool": "最后工具",
-      "resume": "恢复",
-      "delete": "删除",
-      "deleting": "删除中...",
-      "refresh": "刷新",
-      "cleanup": "清理",
-      "cleaning": "清理中...",
-      "loadError": "加载检查点失败",
-      "resumeError": "恢复检查点失败",
-      "deleteError": "删除检查点失败",
-      "cleanupError": "清理检查点失败",
-      "cleanupSuccess": "已清理{deleted}个检查点",
-      "loading": "加载检查点中...",
-      "empty": "没有找到检查点",
-      "noCheckpoints": "没有找到检查点",
-      "total": "共{count}个检查点"
+      "confirmDelete": "Möchten Sie diesen Kontrollpunkt wirklich löschen?",
+      "confirmCleanup": "Möchten Sie alte Kontrollpunkte bereinigen? (7-Tage-TTL)",
+      "resumable": "Fortsetzbar",
+      "notResumable": "Nicht fortsetzbar",
+      "progress": "Fortschritt",
+      "lastTool": "Letztes Werkzeug",
+      "resume": "Fortsetzen",
+      "delete": "Löschen",
+      "deleting": "Löschen...",
+      "refresh": "Aktualisieren",
+      "cleanup": "Bereinigen",
+      "cleaning": "Bereinigen...",
+      "loadError": "Kontrollpunkte konnten nicht geladen werden",
+      "resumeError": "Kontrollpunkt konnte nicht fortgesetzt werden",
+      "deleteError": "Kontrollpunkt konnte nicht gelöscht werden",
+      "cleanupError": "Kontrollpunkte konnten nicht bereinigt werden",
+      "cleanupSuccess": "{deleted} Kontrollpunkte bereinigt",
+      "loading": "Kontrollpunkte werden geladen...",
+      "empty": "Keine Kontrollpunkte gefunden",
+      "noCheckpoints": "Keine Kontrollpunkte gefunden",
+      "total": "{count} Kontrollpunkte insgesamt"
     },
     "sections": {
       "channelRouting": {
@@ -5421,6 +5426,45 @@
       "mcpDeleteTitle": "Entfernen Sie den MCP-Server",
       "mcpDeleteDesc": "Remove \"{name}\" from the organization? Members will lose this tool on next sync.",
       "membersTab": "Mitglieder",
+      "modelPolicyTab": "Modellrichtlinie",
+      "modelPolicy": {
+        "title": "Erlaubte Modelle",
+        "description": "Legen Sie fest, welche Modelle Mitglieder nutzen dürfen. Unterstützt Muster wie openai/*, deepseek/* oder claude/*. Leere Liste = keine Einschränkung.",
+        "noOrg": "Organisation nicht konfiguriert",
+        "loadFailed": "Modellrichtlinie konnte nicht geladen werden",
+        "addFailed": "Modellrichtlinie konnte nicht aktualisiert werden",
+        "removeFailed": "Muster konnte nicht entfernt werden",
+        "added": "Modellrichtlinie aktualisiert",
+        "removed": "Muster entfernt",
+        "fanoutPartial": "Richtlinie gespeichert, aber {failed} Mitglieder-Sandbox(s) wurden nicht synchronisiert. Aktive Mitglieder müssen möglicherweise aktualisieren.",
+        "descPlaceholder": "Beschreibung (optional)",
+        "add": "Hinzufügen",
+        "empty": "Keine Modellbeschränkungen. Alle Modelle sind verfügbar.",
+        "note": "Mitglieder können nur Modelle gemäß den obigen Mustern nutzen. Änderungen gelten sofort."
+      },
+      "approvalPolicyTab": "Freigaberichtlinie",
+      "approvalPolicy": {
+        "title": "Freigaberichtlinie",
+        "description": "Legen Sie organisationsweite Sicherheitsuntergrenzen für Tool-Freigaben fest. Änderungen gelten kurz nach dem Speichern in den Mitglieder-Sandboxes.",
+        "noOrg": "Organisation nicht konfiguriert",
+        "loadFailed": "Freigaberichtlinie konnte nicht geladen werden",
+        "saveFailed": "Freigaberichtlinie konnte nicht gespeichert werden",
+        "saved": "Freigaberichtlinie gespeichert",
+        "fanoutPartial": "Richtlinie gespeichert, aber {failed} Mitglieder-Sandbox(s) wurden nicht synchronisiert. Aktive Mitglieder müssen möglicherweise aktualisieren.",
+        "saving": "Speichern…",
+        "save": "Richtlinie speichern",
+        "addPattern": "Hinzufügen",
+        "removePattern": "Zum Entfernen klicken",
+        "ignoreAllowlistTitle": "Präfix-Whitelist ignorieren (nach Modell)",
+        "ignoreAllowlistDesc": "Passende Modelle können nicht über gespeicherte Whitelist-Verknüpfungen automatisch freigegeben werden; sie folgen Smart Intent Guard oder manueller Freigabe.",
+        "forceAutoReviewTitle": "Smart Intent Guard erzwingen (nach Modell)",
+        "forceAutoReviewDesc": "Passende Modelle führen vor riskanten Tool-Aufrufen immer Smart Intent Guard aus, auch wenn Mitglieder es deaktiviert haben.",
+        "disableYoloTitle": "YOLO-Modus deaktivieren",
+        "disableYoloDesc": "Mitglieder können für keinen Agenten Auto-Freigabe-für-alles aktivieren.",
+        "disableAllowAlwaysTitle": "„Immer erlauben\" deaktivieren",
+        "disableAllowAlwaysDesc": "Dauerhafte Whitelist-Einträge aus Freigabe-Prompts ausblenden und blockieren.",
+        "patternHint": "Nur den Modell-Slug angeben (z. B. claude-opus-4), nicht den Provider-Präfix."
+      },
       "usageTab": "Kosten und Nutzung",
       "auditTab": "Audit-Protokolle",
       "usage": {
@@ -5803,6 +5847,10 @@
     "view": "Ansehen",
     "modelBinding": "Modell auswählen",
     "modelBindingDesc": "Ein dediziertes Modell an diesen Agenten binden",
+    "orgMapBadgeTitle": "Organisations-Freigaberichtlinie",
+    "orgMapForceReview": "Smart Intent Guard ist für dieses Modell erforderlich.",
+    "orgMapIgnoreAllowlist": "Gespeicherte Whitelist-Verknüpfungen gelten nicht für dieses Modell.",
+    "orgMapYoloSuppressed": "Der YOLO-Modus umgeht für dieses Modell keine Freigaben.",
     "routingOverride": "Smart-Routing-Überschreibung",
     "routingOverrideDesc": "Globale Routing-Richtlinie für diesen Agenten überschreiben",
     "routingUseGlobal": "Globale Einstellungen verwenden",
@@ -8109,6 +8157,7 @@
     "model_failover_timeout": "Dienst-Timeout, zu Backup-Modell gewechselt",
     "model_failover_billing": "Abrechnungsproblem, zu Backup-Modell gewechselt",
     "model_failover_context_overflow": "Kontext zu lang, zu Backup-Modell gewechselt",
+    "model_failover_response_format_error": "Formatfehler in Antwort, zu Backup-Modell gewechselt",
     "safety_fallback_active": "Sicherheitsfilter ausgelöst, isolierter Fallback aktiv",
     "context_compaction": "Kontext komprimieren",
     "memory_archived": "Agent hat frühere Verlauf archiviert, um extreme Fokussierung aufrechtzuerhalten",
@@ -9665,7 +9714,7 @@
       "gotIt": "Habe es"
     },
     "context": {
-      "tab": "身份与关系"
+      "tab": "Identität & Beziehungen"
     },
     "conflict": {
       "title": "Speicherkonflikt",
@@ -12460,6 +12509,8 @@
   },
   "yoloBanner": {
     "message": "YOLO-Modus aktiv – Alle Tools werden automatisch genehmigt",
+    "orgConstrainedMessage": "YOLO ist aktiv, aber die Richtlinie Ihrer Organisation verlangt für dieses Agentenmodell weiterhin eine Freigabe.",
+    "orgGlobalDisabledMessage": "YOLO ist durch Ihre Organisationsrichtlinie deaktiviert.",
     "disable": "Deaktivieren"
   },
   "humanize": {
@@ -13483,7 +13534,8 @@
       "llm_judge": "LLM semantische Bewertung",
       "llm_judge_threshold": "Weiche Bewertung (0-1)",
       "llm_judge_prompt": "Benutzerdefinierter Judge-Prompt",
-      "sandbox": "Sandbox Datei-/Befehlsüberprüfung"
+      "sandbox": "Sandbox Datei-/Befehlsüberprüfung",
+      "test_suite": "Aufgabeneigene Testsuite ausführen (pytest/Scorer), bewertung per JUnit-XML oder Reward-JSON"
     },
     "report": {
       "totalCases": "Gesamtfälle",
@@ -13498,6 +13550,7 @@
       "actions": "Aktionen",
       "passed": "Bestanden",
       "failed": "Fehlgeschlagen",
+      "pending": "Ausstehend",
       "multiTurn": "<Multi-Turn>",
       "viewDiff": "Diff anzeigen",
       "noReport": "Kein Evaluierungsbericht vorhanden. Klicken Sie auf \"Evaluierung starten\".",
@@ -13576,7 +13629,8 @@
       "scoringComposite": "Zusammengesetzt",
       "scoringNativeTitle": "Bewertet durch den eigenen Bewerter jeder Aufgabe (aufgabennativ, Container-basiert)",
       "scoringCompositeTitle": "Graded by the CompositeVerifier engine (Rule + LLM/VLM)",
-      "pendingScoring": "Wertung steht noch aus"
+      "pendingScoring": "Wertung steht noch aus",
+      "testPassRate": "Ø Test-Bestehensquote"
     }
   },
   "vault": {

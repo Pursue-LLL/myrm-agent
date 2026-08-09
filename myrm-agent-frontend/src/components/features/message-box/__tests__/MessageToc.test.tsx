@@ -4,8 +4,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { MessageToc } from '../MessageToc';
 
 // Mock next-intl
+// 注意：useTranslations 必须返回稳定引用（模块级 const），禁止内联箭头函数工厂，
+// 否则 useCallback/useEffect 依赖 t 时每次渲染引用变化 → 无限渲染循环 → 测试 OOM。
+const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 // Mock IntersectionObserver

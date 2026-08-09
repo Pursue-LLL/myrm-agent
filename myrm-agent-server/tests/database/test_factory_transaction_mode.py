@@ -8,7 +8,6 @@ lock-free (deferred BEGIN), and only genuine writers escalate to IMMEDIATE.
 
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 from pathlib import Path
 

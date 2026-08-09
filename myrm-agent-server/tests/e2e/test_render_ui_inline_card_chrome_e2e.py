@@ -17,8 +17,8 @@ if str(_LIB) not in sys.path:
 from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
@@ -59,7 +59,7 @@ _INLINE_UI_READY_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

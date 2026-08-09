@@ -150,6 +150,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
 
   const focusComposerInput = useCallback(() => {
     window.setTimeout(() => {
+      if (typeof document === 'undefined') return;
       const inputElement = document.querySelector('[data-chat-input]');
       if (inputElement instanceof HTMLTextAreaElement) {
         inputElement.focus();

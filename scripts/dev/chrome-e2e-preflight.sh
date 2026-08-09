@@ -790,7 +790,7 @@ _private_backend_attach_path() {
   _wait_shared_stack_healthy_before_ready || return $?
   myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
   ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
-  local mux_pid_file="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}/daemon.pid"
+  local mux_pid_file="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}/daemon.pid"
   if [[ -f "${mux_pid_file}" ]]; then
     local mux_pid
     mux_pid="$(tr -d '[:space:]' < "${mux_pid_file}")"
@@ -967,8 +967,10 @@ fi
 
 ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
-# 4. mux daemon (parallel Agent tabs)
-MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
+# 4. mux daemon (parallel Agent tabs) — socket anchored on the fixed real-home
+# state dir (not TMPDIR): the daemon may be started by a sibling process with a
+# different TMPDIR, which would silently split the daemon/probe pair.
+MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}"
 MUX_REQUEST_TIMEOUT_MS="${CDMCP_MUX_REQUEST_TIMEOUT_MS:-180000}"
 export CDMCP_MUX_REQUEST_TIMEOUT_MS="${MUX_REQUEST_TIMEOUT_MS}"
 MUX_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms"
@@ -976,7 +978,7 @@ MUX_DAEMON_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms-at-daemon-start"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
-MUX_SOCKET="${CDMCP_MUX_SOCKET:-${TMPDIR:-/tmp}/mux-$(id -u)/cdmcp-mux.sock}"
+MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
 MUX_USING=0
 if [[ -f "${MUX_PID_FILE}" ]]; then
   MUX_USING=1

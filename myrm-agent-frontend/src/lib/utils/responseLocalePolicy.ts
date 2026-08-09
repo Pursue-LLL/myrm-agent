@@ -45,7 +45,7 @@ export function setFormalKoreanRepliesEnabled(
   engineParams: EngineParams | null,
   enabled: boolean,
 ): EngineParams | null {
-  const next: EngineParams = { ...(engineParams ?? {}) };
+  const next: EngineParams = { ...engineParams };
   if (enabled) {
     next.response_locale_policy = { locale: 'ko-KR', formality: 'formal-polite' };
   } else {

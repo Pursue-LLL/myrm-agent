@@ -60,6 +60,7 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
 // 每个测试后自动清理
 afterEach(() => {
   cleanup();
+  vi.clearAllTimers();
 });
 
 // Mock next/font/google (compiler and fonts module import at load time)
@@ -68,9 +69,23 @@ vi.mock('next/font/google', () => ({
   JetBrains_Mono: () => ({ variable: '--font-mono', className: 'mock-jbm' }),
 }));
 
-// Mock next-intl
+// ===== next-intl Mock 强制规范（全员必须遵守，违反会导致 Vitest OOM） =====
+// 根因：useTranslations() 若每次调用都返回一个新函数引用，
+// 依赖它的 useCallback/useEffect（dep 数组含 t）会在每次渲染时重建 → 组件无限重渲染 → 堆溢出 OOM。
+//
+// 规则：
+// 1. 本文件提供全局兜底：useTranslations 返回模块级单例 stableT（identity 实现，t(key)=key）。
+//    不覆盖 next-intl mock 的测试文件自动获得稳定引用。
+// 2. 测试文件需要自定义翻译时，【禁止】写成：
+//      vi.mock('next-intl', () => ({ useTranslations: () => (key) => key }))
+//    （每次调用创建新函数 = 不稳定引用）
+//    必须先将逻辑提取为模块级 const，再在 mock 中返回该引用：
+//      const stableT = (key: string) => key;
+//      vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
+// 3. 自带的参数插值逻辑同样必须放进 stableT（参见测试文件中的自定义 stableT 模式）。
+export const stableT: (key: string) => string = (key) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 // Mock next/navigation

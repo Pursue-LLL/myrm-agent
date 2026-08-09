@@ -13,6 +13,7 @@ concurrently).
 - myrm_agent_harness.toolkits.mcp.oauth (POS: MCPOAuthTokenStore protocol)
 - app.database (POS: DB session + UserConfig ORM model)
 - app.services.config.encryption (POS: encryption service)
+- app.services.integrations.oauth_store (POS: oauthCredentials 加密读写、共享行锁与加密写回原语)
 
 [OUTPUT]
 - DatabaseMCPOAuthTokenStore: concrete MCPOAuthTokenStore for DB persistence
@@ -28,7 +29,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-import uuid
+from typing import cast
 
 import httpx
 from myrm_agent_harness.toolkits.mcp.oauth import (
@@ -36,11 +37,13 @@ from myrm_agent_harness.toolkits.mcp.oauth import (
     MCPOAuthToken,
 )
 from sqlalchemy import select
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.connection import get_session
 from app.database.models import UserConfig
-from app.services.config.encryption import get_encryption_service
+from app.services.integrations.oauth_store import (
+    decrypt_oauth_credentials,
+    persist_credentials_locked,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,34 +78,10 @@ class DatabaseMCPOAuthTokenStore:
             )
             if not row:
                 return {}
-
-            service = get_encryption_service()
-            data = row.config_value
-            if row.is_encrypted:
-                if isinstance(data, str):
-                    data = service.decrypt(data)
-                elif isinstance(data, dict) and "_cipher" in data:
-                    data = service.decrypt(data["_cipher"])
-
-            if isinstance(data, str):
-                import json
-
-                try:
-                    data = json.loads(data)
-                except Exception:
-                    return {}
-
-            return data if isinstance(data, dict) else {}
+            data = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
+            return cast(dict[str, dict[str, object]], data)
 
     async def _save_tokens(self, tokens: dict[str, dict[str, object]]) -> None:
-        service = get_encryption_service()
-        enc_value, is_enc = service.encrypt_if_needed(_CONFIG_KEY, tokens)
-        final_value = (
-            {"_cipher": enc_value}
-            if is_enc and isinstance(enc_value, str)
-            else enc_value
-        )
-
         async with get_session() as db:
             row = (
                 (
@@ -113,21 +92,9 @@ class DatabaseMCPOAuthTokenStore:
                 .scalars()
                 .first()
             )
-            if row:
-                row.config_value = final_value
-                row.is_encrypted = is_enc
-                flag_modified(row, "config_value")
-            else:
-                row = UserConfig(
-                    id=str(uuid.uuid4()),
-                    config_key=_CONFIG_KEY,
-                    config_value=final_value,
-                    version="1.0.0",
-                    last_device_id="sandbox",
-                    is_encrypted=is_enc,
-                )
-                db.add(row)
-            await db.commit()
+            await persist_credentials_locked(
+                db, row, tokens, config_key=_CONFIG_KEY
+            )
 
     async def get_token(self, server_name: str) -> MCPOAuthToken | None:
         tokens = await self._load_tokens()
@@ -142,8 +109,17 @@ class DatabaseMCPOAuthTokenStore:
             return None
 
     async def save_token(self, server_name: str, token: MCPOAuthToken) -> None:
+        """Persist a token for the given MCP server.
+
+        Skips the write when the server was removed concurrently, so an
+        in-flight refresh cannot resurrect a disconnected server.
+        """
         async with _persist_lock:
             tokens = await self._load_tokens()
+            if server_name not in tokens:
+                # The server was disconnected while the refresh request was in
+                # flight; drop the write-back to keep the disconnect effective.
+                return
             entry = tokens.get(server_name)
             existing_config = (
                 entry.get("_oauth_config") if isinstance(entry, dict) else None
@@ -230,10 +206,16 @@ class DatabaseMCPOAuthTokenStore:
                         access_token=body["access_token"],
                         token_type=body.get("token_type", "Bearer"),
                         refresh_token=body.get("refresh_token") or refresh_token,
-                        expires_at=time.time() + body.get("expires_in", 3600),
+                        expires_at=time.time() + int(body.get("expires_in") or 3600),
                         scope=body.get("scope"),
                     )
                     await self.save_token(server_name, new_token)
+                    if await self.get_token(server_name) is None:
+                        logger.info(
+                            "MCP OAuth token refresh dropped for '%s': server was disconnected",
+                            server_name,
+                        )
+                        return None
                     logger.info("MCP OAuth token refreshed for '%s'", server_name)
                     return new_token
             except Exception:

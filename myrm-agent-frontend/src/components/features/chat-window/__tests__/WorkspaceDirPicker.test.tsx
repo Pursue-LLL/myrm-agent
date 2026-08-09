@@ -20,8 +20,10 @@ const translations: Record<string, string> = {
   filter: 'Filter directories...',
 };
 
+const stableT = (key: string) => translations[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => translations[key] ?? key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/chat', () => ({

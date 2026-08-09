@@ -522,6 +522,12 @@ class ModelSwitchPreflightRequest(BaseModel):
         description="当前会话 human 消息数（轮数）。提供时按运行时动态阈值判定压缩（长会话阈值收紧），"
         "与 compress_processor 的 calculate_dynamic_thresholds 口径一致；缺省回退静态阈值",
     )
+    chat_id: str | None = Field(
+        default=None,
+        description="当前会话 ID。提供时预检消费压缩无效 streak（anti-thrash）："
+        "streak>=2 且当前 tokens<目标窗口 90% 时判定不会压缩，与运行时 "
+        "should_block_automatic_compression 语义一致，避免对已跳过的压缩误报预警",
+    )
     models: list[ModelSwitchPreflightItem] = Field(..., description="目标模型列表")
 
 
@@ -794,8 +800,13 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
     非 full 模式（lean/naked/search）下 _apply_small_model_tuning 不生效，回退默认 0.5。
     传入 turn_count 时复用 harness ContextBudget 的动态阈值（长会话按紧张度收紧阈值），
     与 compress_processor 的阈值计算口径一致。已知边界：运行时 eco_mode（预算压力阈值
-    ×0.80）与 hot cache bypass（5 分钟活跃跳过压缩）为瞬态运行时状态，前端无法预知，
-    预检不模拟，预警取保守方向（可能比实际略早预警）。
+    ×0.80，compress 实际触发更早）与 hot cache bypass（5 分钟活跃跳过压缩）为瞬态运行时
+    状态，前端无法预知，预检不模拟。方向：eco_mode 下预检用未打折阈值判定，边界场景可能
+    漏报（运行时会压缩但预检判定不压缩）；hot cache 下预检可能略早（运行时会跳过压缩）。
+    预检判定与文案已按「可能触发」措辞，不做确定性断言。
+    传入 chat_id 时消费压缩无效 streak（anti-thrash）：streak>=2 且当前 tokens<目标窗口 90%
+    时判定不会压缩，与运行时 should_block_automatic_compression 语义一致，避免对运行时已
+    跳过的无效压缩误报预警；streak>=2 但 tokens>=90% 窗口（防 OOM 强制压缩）仍判定会压缩。
 
     Returns:
         每个目标模型的窗口、压缩阈值与 will_compress 判定
@@ -805,8 +816,20 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
         ContextBudget,
     )
     from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
+        ANTI_THRASHING_STREAK_LIMIT,
+        SAFETY_NET_RATIO,
+    )
+    from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
+        get_compression_streak_store,
+    )
     from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 
+    ineffective_streak = (
+        get_compression_streak_store().get_streak(request.chat_id)
+        if request.chat_id
+        else 0
+    )
     results: list[dict[str, object]] = []
     for item in request.models:
         window = _resolve_target_max_input_tokens(item.model, item.max_input_tokens)
@@ -837,13 +860,19 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
                 estimated_remaining_turns=DEFAULT_ESTIMATED_REMAINING_TURNS,
             )
 
+        anti_thrash_blocked = (
+            ineffective_streak >= ANTI_THRASHING_STREAK_LIMIT
+            and request.estimated_tokens < int(window * SAFETY_NET_RATIO)
+        )
+        will_compress = not anti_thrash_blocked and request.estimated_tokens >= threshold
+
         results.append(
             ModelSwitchPreflightResult(
                 model=item.model,
                 found=True,
                 new_window=window,
                 compress_threshold=threshold,
-                will_compress=request.estimated_tokens >= threshold,
+                will_compress=will_compress,
             ).model_dump()
         )
 

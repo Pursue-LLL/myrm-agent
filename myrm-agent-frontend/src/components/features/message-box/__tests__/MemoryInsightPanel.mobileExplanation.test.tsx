@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MemoryBriefStatus } from '@/store/chat/types';
 import MemoryInsightPanel from '../MemoryInsightPanel';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/primitives/hover-card', () => ({

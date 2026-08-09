@@ -62,8 +62,10 @@ vi.mock('@/store/chat/goals/useGoalStore', () => ({
   ),
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/primitives/scroll-area', () => ({

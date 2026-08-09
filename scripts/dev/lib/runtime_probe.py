@@ -130,10 +130,9 @@ def _mux_socket_path() -> Path:
     override = os.getenv("CDMCP_MUX_SOCKET", "").strip()
     if override:
         return Path(override)
-    tmp_root = Path(os.getenv("TMPDIR", "/tmp"))
-    getuid = getattr(os, "getuid", None)
-    uid = str(getuid()) if callable(getuid) else "0"
-    return tmp_root / f"mux-{uid}" / "cdmcp-mux.sock"
+    # Anchored on the fixed state dir (real user home), matching the mux daemon's
+    # SOCKET_PATH default — TMPDIR-derived paths silently split daemon/probe pairs.
+    return _mux_state_dir() / "cdmcp-mux.sock"
 
 
 def _owned_mux_socket_pids(socket_path: Path) -> set[int]:

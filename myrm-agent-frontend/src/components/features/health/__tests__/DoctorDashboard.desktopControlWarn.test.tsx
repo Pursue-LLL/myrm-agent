@@ -9,8 +9,10 @@ import type { DoctorResponse } from '@/services/runtime-health';
 
 const mockGetRuntimeDoctor = vi.fn<() => Promise<DoctorResponse>>();
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('sonner', () => ({

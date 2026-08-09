@@ -44,6 +44,17 @@ _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
 _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 _CHROME_PROFILE_FIELDS = frozenset({"execution_mode", "access_scope", "workload"})
+_CHROME_PROFILE_OPTIONAL_FIELDS = frozenset({"private_reason"})
+_CHROME_PROFILE_ALLOWED_FIELDS = _CHROME_PROFILE_FIELDS | _CHROME_PROFILE_OPTIONAL_FIELDS
+_PRIVATE_REASONS = frozenset(
+    {
+        "live_shpoib",
+        "fault_injection",
+        "process_isolation",
+        "exclusive_backend",
+        "global_write_non_namespace",
+    }
+)
 
 
 def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) -> bool:
@@ -224,7 +235,7 @@ def _chrome_e2e_profile(
         return None
     fields = frozenset(marker.kwargs)
     missing = sorted(_CHROME_PROFILE_FIELDS - fields)
-    unknown = sorted(fields - _CHROME_PROFILE_FIELDS)
+    unknown = sorted(fields - _CHROME_PROFILE_ALLOWED_FIELDS)
     if missing or unknown:
         raise pytest.UsageError(
             "CHROME_E2E_PROFILE_INVALID: "
@@ -234,6 +245,10 @@ def _chrome_e2e_profile(
     execution_mode = str(marker.kwargs["execution_mode"]).strip().upper()
     access_scope = str(marker.kwargs["access_scope"]).strip().upper()
     workload = str(marker.kwargs["workload"]).strip().upper()
+    private_reason_raw = marker.kwargs.get("private_reason")
+    private_reason = (
+        str(private_reason_raw).strip() if private_reason_raw is not None else None
+    )
     if execution_mode not in {"SHARED", "PRIVATE"}:
         raise pytest.UsageError(
             f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} "
@@ -252,6 +267,23 @@ def _chrome_e2e_profile(
         raise pytest.UsageError(
             f"CHROME_E2E_PROFILE_UNSAFE: node={item.nodeid} "
             "SHARED+GLOBAL_WRITE is forbidden"
+        )
+    if execution_mode == "PRIVATE":
+        if not private_reason:
+            raise pytest.UsageError(
+                "CHROME_E2E_PROFILE_INVALID: "
+                f"node={item.nodeid} PRIVATE requires private_reason "
+                f"(one of {', '.join(sorted(_PRIVATE_REASONS))})"
+            )
+        if private_reason not in _PRIVATE_REASONS:
+            raise pytest.UsageError(
+                f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} "
+                f"private_reason={private_reason!r}"
+            )
+    elif private_reason is not None:
+        raise pytest.UsageError(
+            "CHROME_E2E_PROFILE_INVALID: "
+            f"node={item.nodeid} private_reason only applies to PRIVATE"
         )
     return execution_mode, access_scope, workload
 

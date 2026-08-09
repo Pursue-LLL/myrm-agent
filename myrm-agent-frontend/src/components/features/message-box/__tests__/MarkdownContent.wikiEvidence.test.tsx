@@ -6,8 +6,10 @@ import type { Source } from '@/store/chat/types';
 
 const recordEvidenceSurfaceMock = vi.fn();
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/message-input/useSmoothStream', () => ({

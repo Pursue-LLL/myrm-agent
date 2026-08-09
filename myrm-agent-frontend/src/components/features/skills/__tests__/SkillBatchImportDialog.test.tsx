@@ -16,8 +16,10 @@ const TRANSLATIONS: Record<string, string> = {
   'batchImport.errors.archiveSecurity.totalSizeExceeded': 'Blocked: total size exceeded',
 };
 
+const stableT = (key: string) => TRANSLATIONS[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => TRANSLATIONS[key] ?? key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({

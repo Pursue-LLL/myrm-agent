@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getPendingEditsMock = vi.fn();
 const approveEditMock = vi.fn();
 
+const stableT = (key: string, values?: Record<string, string>) =>
+  values?.scope ? `${key}:${values.scope}` : key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values?.scope ? `${key}:${values.scope}` : key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('sonner', () => ({

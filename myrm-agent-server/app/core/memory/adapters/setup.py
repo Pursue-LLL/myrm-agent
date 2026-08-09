@@ -120,22 +120,33 @@ async def create_memory_manager(
     time_decay_half_life_days: float | None = None,
     on_conflict: ConflictCallback | None = None,
     on_consolidation_complete: ConsolidationCompleteCallback | None = None,
+    base_path: str | Path | None = None,
 ) -> MemoryManager:
     """Create a MemoryManager wired to local/volume-backed storage.
 
     Uses `settings.database.memory_base_path` (configurable via MEMORY_BASE_PATH env var).
     In SaaS sandbox, the Control Plane injects the path (e.g., `/persistent/memory`).
     Locally, it defaults to `{state_dir}/memory`.
+
+    ``base_path`` overrides the storage root when the caller needs an isolated
+    memory volume (e.g. evaluation runs that must never touch the user's real
+    memory). When set, an embedded vector store is created inside the override
+    directory so both relational and vector data stay fully isolated.
     """
     from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 
     from app.config.settings import settings
 
-    facade = ContextBundleFacade.from_state_dir(
-        settings.database.state_dir,
-        ensure_layout=False,
-    )
-    base_path = facade.memory_path()
+    default_base_path: Path | None = None
+    if base_path is None:
+        facade = ContextBundleFacade.from_state_dir(
+            settings.database.state_dir,
+            ensure_layout=False,
+        )
+        base_path = facade.memory_path()
+        default_base_path = Path(base_path).resolve()
+    else:
+        base_path = Path(base_path).resolve()
     cache_key = _manager_cache_key(
         base_path=base_path,
         user_id="sandbox_user",
@@ -161,7 +172,10 @@ async def create_memory_manager(
 
         from app.core.retriever.vector.defaults import create_default_vector_store
 
-        store = await create_default_vector_store()
+        # Isolated base_path (eval mode) → let harness embed vector store under
+        # the override dir; default path → reuse the global volume vector store.
+        is_isolated = default_base_path is not None and base_path != default_base_path
+        store = None if is_isolated else await create_default_vector_store()
 
         manager = await create_local_memory_manager(
             base_path=base_path,
@@ -372,3 +386,31 @@ async def shutdown_cached_memory_managers() -> None:
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close cached MemoryManager: %s", result)
+
+
+async def evict_cached_memory_manager(base_path: str | Path) -> None:
+    """Close and evict any cached MemoryManager bound to ``base_path``.
+
+    Used after an isolated evaluation run so its throwaway memory volume
+    (SQLite + embedded vector store) is closed before the directory is removed.
+    """
+    resolved = str(Path(base_path).resolve())
+
+    async with _memory_manager_cache_lock:
+        managers_to_close = [
+            manager
+            for key, manager in _memory_manager_cache.items()
+            if isinstance(key, tuple) and key and key[0] == resolved
+        ]
+        for key in [k for k in _memory_manager_cache if isinstance(k, tuple) and k and k[0] == resolved]:
+            _memory_manager_cache.pop(key, None)
+
+    if not managers_to_close:
+        return
+
+    results = await asyncio.gather(
+        *(manager.close() for manager in managers_to_close), return_exceptions=True
+    )
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("Failed to close evicted MemoryManager: %s", result)

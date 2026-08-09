@@ -1,19 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    search: 'Search...',
+    rows: 'rows',
+    of: 'of',
+    copy: 'Copy',
+    export: 'Export',
+    copyAll: 'Copy all to clipboard',
+    exportCsv: 'Export as CSV',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      search: 'Search...',
-      rows: 'rows',
-      of: 'of',
-      copy: 'Copy',
-      export: 'Export',
-      copyAll: 'Copy all to clipboard',
-      exportCsv: 'Export as CSV',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@tanstack/react-virtual', () => ({

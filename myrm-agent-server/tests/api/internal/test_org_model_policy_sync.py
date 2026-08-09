@@ -34,20 +34,32 @@ async def test_sync_stores_patterns(policy_sync_app: FastAPI) -> None:
         mock_config_cls.return_value = mock_config
 
         with patch("app.api.internal.org_model_policy_sync.invalidate_user_configs_cache"):
-            transport = ASGITransport(app=policy_sync_app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/admin/org-model-policy-sync",
-                    json={"allowed_patterns": ["deepseek-*", "qwen-*"]},
-                )
+            with patch(
+                "app.api.internal.org_model_policy_sync.bump_org_model_policy_revision",
+                return_value=1,
+            ) as bump_revision:
+                with patch(
+                    "app.api.internal.org_model_policy_sync.get_execution_cache",
+                ) as mock_get_cache:
+                    mock_cache = AsyncMock()
+                    mock_cache.close_all = AsyncMock()
+                    mock_get_cache.return_value = mock_cache
+                    transport = ASGITransport(app=policy_sync_app)
+                    async with AsyncClient(transport=transport, base_url="http://test") as client:
+                        resp = await client.post(
+                            "/api/admin/org-model-policy-sync",
+                            json={"allowed_patterns": ["*/deepseek-*", "*/qwen-*"]},
+                        )
 
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "synced"
     assert data["pattern_count"] == 2
+    bump_revision.assert_called_once()
+    mock_cache.close_all.assert_awaited_once()
 
     saved_value = mock_config.set.await_args.kwargs["value"]
-    assert saved_value["allowed_patterns"] == ["deepseek-*", "qwen-*"]
+    assert saved_value["allowed_patterns"] == ["*/deepseek-*", "*/qwen-*"]
     assert mock_config.set.await_args.kwargs["device_id"] == "control_plane"
 
 
@@ -111,7 +123,7 @@ async def test_get_allowed_models_with_patterns(policy_sync_app: FastAPI) -> Non
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["allowed_patterns"] == ["gpt-4*", "claude-*"]
+    assert data["allowed_patterns"] == ["*/gpt-4*", "*/claude-*"]
     assert data["restricted"] is True
 
 

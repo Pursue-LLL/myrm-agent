@@ -116,12 +116,16 @@ function extractSearchServiceConfigs(body: unknown): SearchServiceConfigItem[] {
 
 async function fetchSearchServiceConfigsFromApi(apiBase: string): Promise<SearchServiceConfigItem[]> {
   const normalizedApi = apiBase.replace(/\/+$/, '');
-  const resp = await fetch(`${normalizedApi}/api/v1/config/searchServices`, { cache: 'no-store' });
-  if (!resp.ok) {
+  try {
+    const resp = await fetch(`${normalizedApi}/api/v1/config/searchServices`, { cache: 'no-store' });
+    if (!resp.ok) {
+      return [];
+    }
+    const body: unknown = await resp.json();
+    return extractSearchServiceConfigs(body);
+  } catch {
     return [];
   }
-  const body: unknown = await resp.json();
-  return extractSearchServiceConfigs(body);
 }
 
 function clearSearchServicesForE2e(): { ok: boolean; count: number } {
@@ -136,28 +140,32 @@ function clearSearchServicesForE2e(): { ok: boolean; count: number } {
 }
 
 async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: string; count?: number }> {
-  const e2eApiBase = resolveE2eApiBase();
-  if (!e2eApiBase) {
-    return { ok: false, err: 'no-e2e-api-base' };
-  }
-  const blockSearchSync = typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-  const deadline = Date.now() + 15_000;
-  let configs: SearchServiceConfigItem[] = [];
-  while (Date.now() < deadline) {
-    configs = await fetchSearchServiceConfigsFromApi(e2eApiBase);
-    if (configs.length > 0 || blockSearchSync) {
-      break;
+  try {
+    const e2eApiBase = resolveE2eApiBase();
+    if (!e2eApiBase) {
+      return { ok: false, err: 'no-e2e-api-base' };
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  if (configs.length === 0 && !blockSearchSync) {
-    configs = await fetchSearchServiceConfigsFromApi('http://127.0.0.1:8080');
-  }
-  if (configs.length === 0 && !blockSearchSync) {
+    const blockSearchSync = typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
+    const deadline = Date.now() + 15_000;
+    let configs: SearchServiceConfigItem[] = [];
+    while (Date.now() < deadline) {
+      configs = await fetchSearchServiceConfigsFromApi(e2eApiBase);
+      if (configs.length > 0 || blockSearchSync) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    if (configs.length === 0 && !blockSearchSync) {
+      configs = await fetchSearchServiceConfigsFromApi('http://127.0.0.1:8080');
+    }
+    if (configs.length === 0 && !blockSearchSync) {
+      return { ok: false, err: 'empty-search-configs' };
+    }
+    useConfigStore.setState({ searchServiceConfigs: configs });
+    return { ok: true, count: configs.length };
+  } catch {
     return { ok: false, err: 'empty-search-configs' };
   }
-  useConfigStore.setState({ searchServiceConfigs: configs });
-  return { ok: true, count: configs.length };
 }
 
 async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {

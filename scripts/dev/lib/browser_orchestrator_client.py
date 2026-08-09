@@ -21,7 +21,6 @@ import os
 import select
 import socket
 import subprocess
-import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -223,10 +222,21 @@ def orchestrator_socket_timeout_cap_sec() -> float:
 
 
 def _default_socket_path() -> str:
-    runtime = os.environ.get("XDG_RUNTIME_DIR", "").strip()
-    if not runtime:
-        runtime = os.path.join(tempfile.gettempdir(), f"mux-{os.getuid()}")
-    return str(Path(runtime) / "browser-orchestrator.sock")
+    """Stable socket path independent of TMPDIR.
+
+    TMPDIR is repointed by myrm dev isolation (e.g. detach spawns a private
+    tmp.XXXX dir) while the daemon may be started by a sibling process with a
+    different TMPDIR — so a tmpdir-derived socket path silently splits the pair
+    into two worlds. Anchor on the real user home, same directory that holds
+    ``daemon.pid``.
+    """
+    from real_user_home import real_user_home  # noqa: PLC0415
+
+    return str(
+        real_user_home()
+        / ".local/state/myrm-browser-orchestrator"
+        / "browser-orchestrator.sock"
+    )
 
 
 _SOCKET_PATH = os.environ.get("BROWSER_ORCHESTRATOR_SOCKET", _default_socket_path())

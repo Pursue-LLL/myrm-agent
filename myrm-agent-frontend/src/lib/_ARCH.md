@@ -24,6 +24,7 @@
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | 内联 |
 | `product-surface.ts` | 隐藏 builtin agent / 未来上线前的产品面 SSOT（镜像 server `product_surface.py`） | 内联 |
 | `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（含 `engineParams`） | 内联 |
+| `utils/responseLocalePolicy.ts` | Agent `engine_params.response_locale_policy` 读写（正式韩语 Switch ↔ server suffix SSOT） | [utils/_ARCH.md](utils/_ARCH.md) |
 | `moaPresetUtils.ts` | MoA preset 配置检测、参考模型计数、`default`/`review`/`fast` picker 选项列表 | 内联 |
 | `model-binding.ts` | actionMode/agent 绑定的活动模型解析 + MoA preset 触发器 chip 展示 | 内联 |
 | `managedPolicyMatch.ts` | Org MAP fnmatch 匹配（对齐 harness `fnmatchcase`）+ constraints / YOLO block helpers；hook 见 [hooks/_ARCH.md](../hooks/_ARCH.md) | 内联 |

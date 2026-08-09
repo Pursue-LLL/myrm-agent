@@ -1649,8 +1649,8 @@
       "noEnabledModels": "请先在模型服务中启用模型",
       "noMatchingModels": "没有匹配的模型",
       "orgPolicyRestricted": "受组织策略限制",
-      "preflightCompress": "将压缩",
-      "preflightCompressDetail": "现在切换后下一条消息将触发上下文压缩（阈值：{threshold} tokens）",
+      "preflightCompress": "可能压缩",
+      "preflightCompressDetail": "现在切换后下一条消息可能触发上下文压缩（阈值：{threshold} tokens）",
       "moaPreset": {
         "groupTitle": "多智能体混合",
         "defaultLabel": "标准",
@@ -4394,6 +4394,21 @@
       "mcpDeleteDesc": "确定从组织中移除「{name}」？成员将在下次同步后失去该工具。",
       "membersTab": "成员管理",
       "modelPolicyTab": "模型策略",
+      "modelPolicy": {
+        "title": "允许的模型",
+        "description": "定义成员可使用的模型。支持 openai/*、deepseek/*、claude/* 等匹配模式。空列表表示不限制。",
+        "noOrg": "未配置组织",
+        "loadFailed": "加载模型策略失败",
+        "addFailed": "更新模型策略失败",
+        "removeFailed": "删除规则失败",
+        "added": "模型策略已更新",
+        "removed": "规则已删除",
+        "fanoutPartial": "策略已保存，但有 {failed} 个成员沙箱未同步成功。在线成员可能需要刷新页面。",
+        "descPlaceholder": "描述（可选）",
+        "add": "添加",
+        "empty": "暂无模型限制，所有模型均可使用。",
+        "note": "成员只能使用符合以上规则的模型，变更会立即生效。"
+      },
       "approvalPolicyTab": "审批策略",
       "approvalPolicy": {
         "title": "审批策略",
@@ -4402,6 +4417,7 @@
         "loadFailed": "加载审批策略失败",
         "saveFailed": "保存审批策略失败",
         "saved": "审批策略已保存",
+        "fanoutPartial": "策略已保存，但有 {failed} 个成员沙箱未同步成功。在线成员可能需要刷新页面。",
         "saving": "保存中…",
         "save": "保存策略",
         "addPattern": "添加",
@@ -8437,6 +8453,7 @@
     "model_failover_timeout": "服务超时，已切换到备用模型",
     "model_failover_billing": "计费问题，已切换到备用模型",
     "model_failover_context_overflow": "上下文过长，已切换到备用模型",
+    "model_failover_response_format_error": "响应格式错误，已切换到备用模型",
     "safety_fallback_active": "内容风控拦截，已隔离重试（单次降级接管）",
     "context_compaction": "正在压缩上下文",
     "context_compaction_active": "正在压缩上下文",
@@ -14146,7 +14163,8 @@
       "llm_judge": "LLM 语义判断",
       "llm_judge_threshold": "软评分 (0-1分数)",
       "llm_judge_prompt": "自定义 Judge 提示词",
-      "sandbox": "沙箱文件/命令验证"
+      "sandbox": "沙箱文件/命令验证",
+      "test_suite": "运行任务自带测试套件（pytest/评分脚本），按 JUnit XML 或 reward JSON 判分"
     },
     "report": {
       "totalCases": "总用例",
@@ -14170,6 +14188,7 @@
       "actions": "操作",
       "passed": "通过",
       "failed": "失败",
+      "pending": "待判定",
       "multiTurn": "<多轮对话>",
       "viewDiff": "查看差异",
       "noReport": "暂无最新评测报告，请点击右上角「运行评测」",
@@ -14236,7 +14255,8 @@
       "scoringComposite": "综合评分",
       "scoringNativeTitle": "由任务自带的评分器在沙箱内按官方逻辑评分",
       "scoringCompositeTitle": "由 CompositeVerifier 引擎（规则 + LLM/VLM）评分",
-      "pendingScoring": "评分待定"
+      "pendingScoring": "评分待定",
+      "testPassRate": "平均测试通过率"
     }
   },
   "vault": {

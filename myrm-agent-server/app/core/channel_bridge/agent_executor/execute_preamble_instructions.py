@@ -4,20 +4,17 @@
 app.channels.types::InboundMessage, ResolvedAgentProfile (POS: 渠道入站与 Agent 配置)
 
 [OUTPUT]
-enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM 行为策略 Persona、人格模板后的 instructions。
+enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM 行为策略 Persona、
+profile_output_suffixes（人格 + response_locale_policy）后的 instructions。
 
 [POS]
-execute_preamble 子模块：将渠道/Agent/人格约束注入 user_instructions。
+execute_preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部。
 """
 
 from __future__ import annotations
 
-import logging
-
 from app.channels.types import InboundMessage
 from app.services.agent.profile_resolver import ResolvedAgentProfile
-
-logger = logging.getLogger(__name__)
 
 
 async def enrich_channel_user_instructions(
@@ -71,10 +68,9 @@ async def enrich_channel_user_instructions(
             )
             instructions = f"{instructions}\n\n{im_persona}" if instructions else im_persona
 
-    from app.ai_agents.personality_templates import (
-        DEFAULT_PERSONALITY_STYLE,
-        PERSONALITY_TEMPLATES,
-        get_personality_template,
+    from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
+    from app.services.agent.params.profile_output_suffixes import (
+        apply_profile_output_suffixes,
     )
 
     raw_ps = (
@@ -83,18 +79,15 @@ async def enrich_channel_user_instructions(
         or DEFAULT_PERSONALITY_STYLE
     )
     personality_style_key = str(raw_ps)
-    if personality_style_key != DEFAULT_PERSONALITY_STYLE and personality_style_key in PERSONALITY_TEMPLATES:
-        try:
-            template = get_personality_template(personality_style_key)
-            personality_suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-            instructions = (
-                f"{instructions}{personality_suffix}" if instructions else personality_suffix.strip()
-            )
-        except Exception as e:
-            logger.warning(
-                "Failed to load personality template '%s': %s",
-                personality_style_key,
-                e,
-            )
+    instructions = apply_profile_output_suffixes(
+        instructions,
+        personality_style=(
+            personality_style_key
+            if personality_style_key != DEFAULT_PERSONALITY_STYLE
+            else None
+        ),
+        engine_params=resolved_profile.engine_params if resolved_profile else None,
+        agent_id=resolved_agent_id,
+    )
 
-    return instructions
+    return instructions or ""

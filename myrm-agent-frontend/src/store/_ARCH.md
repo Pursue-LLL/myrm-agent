@@ -37,7 +37,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useBudgetExceededStore.ts` | WU 耗尽阻断弹窗状态 | balance=0 时由 SSE `budget_alert` 触发 |
 | `useUpgradeNudgeStore.ts` | 升级引导弹窗状态（低余额预警 + Feature Gate） | 24h 防骚扰 localStorage 节流 |
 | `useEmbedConsentStore.ts` | Link Embeds consent（ask/always/off）与 per-provider allowlist | persist `myrm-embed-consent`；Settings Preferences + `embeds/UrlEmbed` |
-| `useOrgModelPolicyStore.ts` | 组织模型白名单策略缓存 | `loadPolicy()` 从 GET `/org-policy/allowed-models` 拉取；`isModelAllowed(name)` glob 匹配；无 policy 全放行（本地/Tauri 无影响）|
+| `useOrgModelPolicyStore.ts` | 组织模型白名单策略缓存 | sandbox：`loadPolicy()` fetch 失败 fail-closed；`isModelAllowed` 含 `restricted&&patterns空` 哨兵；local 失败 fail-open；dedupe |
 | `use*Store.ts`（根级） | 看板、伴侣、浏览器检查器等 | 一域一 store |
 
 ## 依赖

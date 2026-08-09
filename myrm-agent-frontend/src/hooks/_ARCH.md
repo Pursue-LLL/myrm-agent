@@ -32,6 +32,8 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 |------|------|-------|
 | `useProjectDefaultAgent.ts` | 新建对话时自动注入项目默认智能体的 agentConfig | ✅ |
 | `useManagedPolicyEffective.ts` | Org MAP effective 只读状态（mount + CP sync SSE + tab visible / Tauri focus refetch；共享 inflight fetch） | ✅ |
+| `useOrgModelPolicySync.ts` | Org model policy visibility / Tauri focus refetch（picker 打开时由 store.loadPolicy 拉取最新 whitelist） | ✅ |
+| `useOrgModelPolicy.ts` | Settings 等页面的 org model policy hook（`isModelAllowed` 委托 store SSOT） | ✅ |
 
 ## 测试
 
@@ -39,6 +41,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 |------|------|
 | `<domain>/__tests__/` | hook 单元测试与实现同域共置（colocated） |
 | `__tests__/useManagedPolicyEffective.test.ts` | 根级 MAP hook（mount / visibility refetch / SSE push / revision skip / inflight dedupe / stale YOLO clear） |
+| `__tests__/useOrgModelPolicy.test.ts` | 根级 org model policy hook（fail-closed 委托 store / whitelist 匹配） |
 
 政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 

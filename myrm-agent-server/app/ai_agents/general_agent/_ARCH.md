@@ -35,7 +35,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
 | `agent.py` | ✅ 核心 | GeneralAgent 门面：`release_pooled_session()` 释放 per-turn 资源但不关闭池化 SkillAgent/Browser；`close()` 全量 teardown | ✅ |
-| `factory.py` | ✅ 核心 | Agent 实例组装工厂…Org Model Policy：`_enforce_org_model_policy()` 在 LLM 创建后检查 primary/fallback 及 **`moa_overlay.reference_model_selections`** 是否符合组织白名单（fail-closed，仅云托管生效，无 policy 则放行）；`OrgModelPolicyViolation` 异常类供上层 SSE 友好展示。 | ✅ |
+| `factory.py` | ✅ 核心 | Agent 实例组装工厂…Org Model Policy：build 时薄委托 `services/org_model_policy/enforce.enforce_org_model_policy()` 检查 primary/fallback 及 **`moa_overlay.reference_model_selections`**（fail-closed sandbox；无 policy 则放行）。 | ✅ |
 | `active_tool_groups.py` | ✅ 核心 | GeneralAgent enable 标志 → harness `TOOL_GROUP_MAP` 组名列表（Gap + `AgentRuntimeSpec.tool_groups`）。 | ❌ |
 | `kanban_tool_mode.py` | ✅ 辅助 | 解析 `KanbanToolMode`：TaskRunner 强制 worker（6）；chat 默认 orchestrator（3）；board CRUD 仅 REST/GUI | ❌ |
 | `stream_pipeline.py` | ✅ 核心 | 执行流水线：POOLED 路径经 `coalesced_acquire` 复用 `BuiltExecutionUnit`；acquire 后 emit `turn_prewarm_*_clear`（agent：`still_warming`；memory：`brief_pending` 时 dismiss waiting）；`guard_turn` 串行同 chat；按 `channel_name` 解析 delivery banner → browser checkpoint → `SkillAgent.run` | ✅ |

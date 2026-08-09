@@ -121,7 +121,7 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_stream_retry_same_message_id_is_busy_without_duplicate_user_row() -> None:

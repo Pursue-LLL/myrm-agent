@@ -14,7 +14,7 @@ describe('fetchModelSwitchPreflight', () => {
     mockApiRequest.mockReset();
   });
 
-  it('posts estimated_tokens, ratio, prompt_mode, turn_count and models to the preflight endpoint', async () => {
+  it('posts estimated_tokens, ratio, prompt_mode, turn_count, chat_id and models to the preflight endpoint', async () => {
     mockApiRequest.mockResolvedValue({
       results: [
         {
@@ -33,6 +33,7 @@ describe('fetchModelSwitchPreflight', () => {
       0.3,
       'lean',
       7,
+      'chat-123',
     );
 
     expect(mockApiRequest).toHaveBeenCalledWith('/integrations/llm/model-switch-preflight', {
@@ -42,6 +43,7 @@ describe('fetchModelSwitchPreflight', () => {
         compress_start_ratio: 0.3,
         prompt_mode: 'lean',
         turn_count: 7,
+        chat_id: 'chat-123',
         models: [{ model: 'custom/a', max_input_tokens: 16000 }],
       }),
     });
@@ -57,6 +59,18 @@ describe('fetchModelSwitchPreflight', () => {
     expect(body.compress_start_ratio).toBeNull();
     expect(body.prompt_mode).toBeNull();
     expect(body.turn_count).toBeNull();
+    expect(body.chat_id).toBeNull();
+  });
+
+  it('isolates cache across chat sessions', async () => {
+    mockApiRequest.mockResolvedValue({ results: [] });
+
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, null, 'chat-1');
+    mockApiRequest.mockReset();
+    mockApiRequest.mockResolvedValue({ results: [] });
+    await fetchModelSwitchPreflight(9000, [{ model: 'custom/a', max_input_tokens: 16000 }], null, null, null, 'chat-2');
+
+    expect(mockApiRequest).toHaveBeenCalledTimes(1);
   });
 
   it('returns cached results when key is unchanged', async () => {

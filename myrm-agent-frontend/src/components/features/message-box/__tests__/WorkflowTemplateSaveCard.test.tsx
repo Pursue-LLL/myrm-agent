@@ -3,8 +3,10 @@ import { render, screen } from '@testing-library/react';
 import WorkflowTemplateSaveCard from '../WorkflowTemplateSaveCard';
 import type { Message } from '@/store/chat/types/messages';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({

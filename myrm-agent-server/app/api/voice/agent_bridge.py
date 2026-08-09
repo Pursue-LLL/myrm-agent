@@ -270,6 +270,24 @@ class VoiceAgentBridge:
 
         user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
+        if profile:
+            if profile.system_prompt:
+                user_instructions = (
+                    f"{user_instructions}\n\n{profile.system_prompt}"
+                    if user_instructions
+                    else profile.system_prompt
+                )
+            from app.services.agent.params.profile_output_suffixes import (
+                apply_profile_output_suffixes,
+            )
+
+            user_instructions = apply_profile_output_suffixes(
+                user_instructions,
+                personality_style=profile.personality_style,
+                engine_params=profile.engine_params,
+                agent_id=agent_id,
+            )
+
         voice_instructions = (user_instructions or "") + _VOICE_SYSTEM_SUFFIX
 
         transcript_ctx = ""

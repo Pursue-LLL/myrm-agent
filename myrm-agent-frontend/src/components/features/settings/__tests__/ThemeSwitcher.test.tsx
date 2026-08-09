@@ -17,15 +17,17 @@ vi.mock('next-themes', () => ({
   useTheme: () => mockUseTheme(),
 }));
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    'themeOptions.light': 'Light',
+    'themeOptions.dark': 'Dark',
+    'themeOptions.system': 'System',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      'themeOptions.light': 'Light',
-      'themeOptions.dark': 'Dark',
-      'themeOptions.system': 'System',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/utils/classnameUtils', () => ({

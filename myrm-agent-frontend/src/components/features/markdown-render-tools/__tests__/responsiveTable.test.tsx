@@ -3,19 +3,21 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    switchToTable: 'Switch to table view',
+    switchToCard: 'Switch to card view',
+    tableView: 'Table',
+    cardView: 'Card',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', async () => {
   const actual = await vi.importActual<typeof import('next-intl')>('next-intl');
   return {
     ...actual,
-    useTranslations: () => (key: string) => {
-      const map: Record<string, string> = {
-        switchToTable: 'Switch to table view',
-        switchToCard: 'Switch to card view',
-        tableView: 'Table',
-        cardView: 'Card',
-      };
-      return map[key] ?? key;
-    },
+    useTranslations: () => stableT,
   };
 });
 

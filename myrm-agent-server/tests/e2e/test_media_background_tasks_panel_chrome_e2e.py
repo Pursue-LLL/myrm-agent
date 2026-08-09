@@ -142,7 +142,7 @@ def _expand_recent_section(client: ChromeMcpClient, page: McpPage) -> None:
     assert clicked.get("clicked") is True, clicked
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(180)
 def test_media_background_tasks_panel_shows_failed_terminal_in_recent() -> None:
     api_base = get_e2e_api_url()
@@ -165,7 +165,7 @@ def test_media_background_tasks_panel_shows_failed_terminal_in_recent() -> None:
         assert failed_row.get("ready") is True, failed_row
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(180)
 def test_media_background_tasks_panel_navigate_to_chat_from_terminal() -> None:
     api_base = get_e2e_api_url()
@@ -194,7 +194,7 @@ def test_media_background_tasks_panel_navigate_to_chat_from_terminal() -> None:
         assert route.get("ready") is True, route
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(180)
 def test_media_background_tasks_panel_shows_active_running_with_cancel() -> None:
     api_base = get_e2e_api_url()

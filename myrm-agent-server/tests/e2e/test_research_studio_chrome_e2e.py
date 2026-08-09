@@ -60,7 +60,7 @@ _LAYOUT_PROBE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_research_studio_full_chrome_e2e() -> None:

@@ -37,6 +37,7 @@
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
+| `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生（含 response_format_error） | ✅ |
 
 ## 依赖
 

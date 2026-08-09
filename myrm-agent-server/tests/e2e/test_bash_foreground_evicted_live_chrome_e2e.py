@@ -482,7 +482,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.timeout(600)
 def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     """Live LLM: API stream spill SSOT + Chrome Drawer on same chat."""

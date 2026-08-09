@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { WorkspaceMergeWarning } from '../WorkspaceMergeWarning';
 
+const stableT = (key: string, params?: { count?: number }) => {
+  if (key === 'message.workspaceMergeFailedTitle') return 'Workspace Merge Failed';
+  if (key === 'message.workspaceMergeFailed') return `${params?.count ?? 0} merge errors`;
+  if (key === 'message.workspaceMergeFailedMore') return `${params?.count ?? 0} more hidden`;
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: { count?: number }) => {
-    if (key === 'message.workspaceMergeFailedTitle') return 'Workspace Merge Failed';
-    if (key === 'message.workspaceMergeFailed') return `${params?.count ?? 0} merge errors`;
-    if (key === 'message.workspaceMergeFailedMore') return `${params?.count ?? 0} more hidden`;
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('WorkspaceMergeWarning', () => {

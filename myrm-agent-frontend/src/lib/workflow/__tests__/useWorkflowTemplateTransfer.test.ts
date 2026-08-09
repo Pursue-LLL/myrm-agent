@@ -5,8 +5,10 @@ import type { ChangeEvent } from 'react';
 import { useWorkflowTemplateTransfer } from '@/lib/workflow/useWorkflowTemplateTransfer';
 import type { WorkflowTemplateSummary } from '@/services/workflowTemplates';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 const mockUpsert = vi.fn();

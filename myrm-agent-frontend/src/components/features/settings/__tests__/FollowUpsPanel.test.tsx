@@ -5,9 +5,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 const mockFetchFollowUps = vi.fn();
 const mockFetchAgents = vi.fn();
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('sonner', () => ({

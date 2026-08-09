@@ -177,7 +177,7 @@ def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) ->
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.timeout(600)
 def test_live_cron_webonly_policy_progress_steps() -> None:
     if not wait_e2e_provider_ready():

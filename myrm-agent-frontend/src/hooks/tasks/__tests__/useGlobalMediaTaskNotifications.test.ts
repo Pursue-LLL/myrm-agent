@@ -10,14 +10,16 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+const stableT = (key: string, params?: Record<string, string>) => {
+  if (key === 'completedTitle') return `${params?.type} completed`;
+  if (key === 'failedTitle') return `${params?.type} failed`;
+  if (key === 'imageGenerate') return 'Image';
+  if (key === 'videoGenerate') return 'Video';
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, string>) => {
-    if (key === 'completedTitle') return `${params?.type} completed`;
-    if (key === 'failedTitle') return `${params?.type} failed`;
-    if (key === 'imageGenerate') return 'Image';
-    if (key === 'videoGenerate') return 'Video';
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/store/useConfigStore', () => ({

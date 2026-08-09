@@ -2,8 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 const searchParams = new URLSearchParams();
@@ -19,6 +21,10 @@ vi.mock('@/hooks/settings/useSettingsSubTabUrl', () => ({
 
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: () => false,
+  getApiBaseUrl: () => 'http://localhost:8080/api/v1',
+  getBackendBaseUrl: () => 'http://localhost:8080',
+  resolveE2eApiBase: () => '',
+  shouldRedirectToLoginOnAuthFailure: () => true,
 }));
 
 vi.mock('../sections/knowledge/MemorySection', () => ({

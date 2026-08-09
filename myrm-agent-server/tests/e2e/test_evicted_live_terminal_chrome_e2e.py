@@ -169,7 +169,7 @@ def _run_drawer_flow(
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:

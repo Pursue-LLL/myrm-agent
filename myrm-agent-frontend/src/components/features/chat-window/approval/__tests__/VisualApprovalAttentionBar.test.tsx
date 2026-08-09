@@ -6,13 +6,15 @@ import type { ToolApprovalRequest } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
+const stableT = (key: string, values?: Record<string, string | number>) => {
+  if (values) {
+    return `${key}:${JSON.stringify(values)}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (values) {
-      return `${key}:${JSON.stringify(values)}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 const rejectAllMock = vi.fn();

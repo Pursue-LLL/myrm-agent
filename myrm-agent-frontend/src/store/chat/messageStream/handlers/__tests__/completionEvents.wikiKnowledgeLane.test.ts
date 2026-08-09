@@ -6,6 +6,14 @@ vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: { getState: () => ({ clearActivePlan: mockClearActivePlan }) },
 }));
 
+vi.mock('@/lib/progression/tryMarkMilestone', () => ({
+  tryMarkMilestone: vi.fn(),
+}));
+
+vi.mock('@/store/chat/pendingGapRetry', () => ({
+  scheduleFlushPendingGapRetry: vi.fn(),
+}));
+
 vi.mock('@/store/chat/goals/useGoalStore', () => ({
   useGoalStore: { getState: () => ({ setActiveGoal: vi.fn() }) },
 }));

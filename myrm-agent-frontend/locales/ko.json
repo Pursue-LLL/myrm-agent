@@ -810,7 +810,12 @@
         "lockedBadge": "조직 정책",
         "autoReviewLocked": "조직이 보호된 에이전트에 스마트 인텐트 가드를 요구합니다. 이 설정은 끌 수 없습니다.",
         "yoloLocked": "YOLO 모드는 조직 정책에 의해 비활성화되었습니다.",
-        "allowAlwaysLocked": "항상 허용은 조직 정책에 의해 비활성화되었습니다."
+        "allowAlwaysLocked": "항상 허용은 조직 정책에 의해 비활성화되었습니다.",
+        "allowAlwaysDisabled": "조직 정책에 따라 승인 프롬프트에서 영구 허용 목록 저장이 비활성화되었습니다.",
+        "orgActiveTitle": "조직 승인 정책이 활성화됨",
+        "orgActiveDesc": "관리자가 특정 에이전트 모델에 스마트 인텐트 가드를 요구하거나 허용 목록 바로가기를 비활성화할 수 있습니다. 보호된 모델을 사용할 때는 AI Core에서 에이전트를 구성하세요.",
+        "forceModels": "강제 검토 모델: {patterns}",
+        "ignoreAllowlistModels": "허용 목록이 무시되는 모델: {patterns}"
       }
     },
     "retrieval": {
@@ -1071,7 +1076,7 @@
         "precise": "정확",
         "creative": "창의적",
         "extraParams": "추가 매개변수",
-        "extraParamsHint": "API에 직접 전달되는 제공자별 매개변수. 예:",
+        "extraParamsHint": "API에 직접 전달되는 제공자별 매개변수. 예:\nOpenAI: '{' \"reasoning_effort\": \"high\" '}'\nAnthropic/MiniMax: '{' \"thinking\": '{' \"type\": \"enabled\", \"budget_tokens\": 5000 '}' '}'",
         "invalidJson": "잘못된 JSON 형식",
         "jsonMustBeObject": "JSON 객체여야 합니다",
         "pricing": "가격",
@@ -1360,8 +1365,8 @@
         "skippedInsufficientRefs": "Mixture of Agents가 켜져 있지만 충분한 어드바이저 모델이 성공하지 못했습니다. 어드바이저 주입을 건너뛰었습니다 — 참조 모델 가용성을 확인하세요.",
         "skippedGeneric": "이 메시지에 대해 Mixture of Agents 어드바이저 오버레이를 건너뛰었습니다."
       },
-      "preflightCompress": "압축합니다",
-      "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축됩니다(임계값: {threshold} tokens)"
+      "preflightCompress": "압축될 수 있음",
+      "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축될 수 있습니다(임계값: {threshold} tokens)"
     },
     "modelCapabilities": {
       "vision": "비전",
@@ -2334,27 +2339,27 @@
       "savedCheckpointsDesc": "Agent 작업이 중단될 때 모든 체크포인트가 자동으로 저장됩니다",
       "resumeSuccess": "체크포인트 재개 성공",
       "resumeSuccessDesc": "작업 {taskId}이(가) 재개되었습니다",
-      "confirmDelete": "确定要删除这个检查点吗？",
-      "confirmCleanup": "确定要清理旧检查点吗（7天TTL）？",
-      "resumable": "可恢复",
-      "notResumable": "不可恢复",
-      "progress": "进度",
-      "lastTool": "最后工具",
-      "resume": "恢复",
-      "delete": "删除",
-      "deleting": "删除中...",
-      "refresh": "刷新",
-      "cleanup": "清理",
-      "cleaning": "清理中...",
-      "loadError": "加载检查点失败",
-      "resumeError": "恢复检查点失败",
-      "deleteError": "删除检查点失败",
-      "cleanupError": "清理检查点失败",
-      "cleanupSuccess": "已清理{deleted}个检查点",
-      "loading": "加载检查点中...",
-      "empty": "没有找到检查点",
-      "noCheckpoints": "没有找到检查点",
-      "total": "共{count}个检查点"
+      "confirmDelete": "이 체크포인트를 삭제하시겠습니까?",
+      "confirmCleanup": "오래된 체크포인트를 정리하시겠습니까? (7일 TTL)",
+      "resumable": "재개 가능",
+      "notResumable": "재개 불가",
+      "progress": "진행률",
+      "lastTool": "마지막 도구",
+      "resume": "재개",
+      "delete": "삭제",
+      "deleting": "삭제 중...",
+      "refresh": "새로고침",
+      "cleanup": "정리",
+      "cleaning": "정리 중...",
+      "loadError": "체크포인트를 불러오지 못했습니다",
+      "resumeError": "체크포인트를 재개하지 못했습니다",
+      "deleteError": "체크포인트를 삭제하지 못했습니다",
+      "cleanupError": "체크포인트를 정리하지 못했습니다",
+      "cleanupSuccess": "{deleted}개 체크포인트를 정리했습니다",
+      "loading": "체크포인트 불러오는 중...",
+      "empty": "체크포인트를 찾을 수 없습니다",
+      "noCheckpoints": "체크포인트를 찾을 수 없습니다",
+      "total": "총 {count}개 체크포인트"
     },
     "sections": {
       "channelRouting": {
@@ -4116,7 +4121,7 @@
       "tabDescriptions": {
         "followUps": "대화에서 추출된 선제적 팔로우업 보기 및 관리",
         "migration": "Hermes, OpenClaw, Claude Code 또는 Codex 스캔 — 미리보기 가져오기; 스킬은 검토 필요; MCP와 채널은 수동",
-        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place / 共享上下文、Wiki、技能与记忆 — 团队配置一屏入口"
+        "teamHub": "공유 컨텍스트, Wiki, 스킬, 메모리 — 팀 구성을 한곳에서"
       },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
@@ -5421,6 +5426,45 @@
       "mcpDeleteTitle": "MCP 서버 제거",
       "mcpDeleteDesc": "조직에서 \"{name}\" 을 제거하시겠습니까? 구성원은 다음 동기화 시 이 도구를 잃게 됩니다.",
       "membersTab": "구성원",
+      "modelPolicyTab": "모델 정책",
+      "modelPolicy": {
+        "title": "허용된 모델",
+        "description": "구성원이 사용할 수 있는 모델을 정의합니다. openai/*, deepseek/*, claude/* 같은 패턴을 지원합니다. 빈 목록 = 제한 없음.",
+        "noOrg": "조직이 구성되지 않았습니다",
+        "loadFailed": "모델 정책을 불러오지 못했습니다",
+        "addFailed": "모델 정책을 업데이트하지 못했습니다",
+        "removeFailed": "패턴을 제거하지 못했습니다",
+        "added": "모델 정책이 업데이트되었습니다",
+        "removed": "패턴이 제거되었습니다",
+        "fanoutPartial": "정책이 저장되었지만 {failed}개의 구성원 샌드박스가 동기화되지 않았습니다. 활성 구성원은 새로고침이 필요할 수 있습니다.",
+        "descPlaceholder": "설명(선택)",
+        "add": "추가",
+        "empty": "모델 제한이 없습니다. 모든 모델을 사용할 수 있습니다.",
+        "note": "구성원은 위 패턴과 일치하는 모델만 사용할 수 있습니다. 변경 사항은 즉시 적용됩니다."
+      },
+      "approvalPolicyTab": "승인 정책",
+      "approvalPolicy": {
+        "title": "승인 정책",
+        "description": "도구 승인을 위한 조직 차원의 보안 최소 기준을 설정합니다. 변경 사항은 저장 직후 구성원 샌드박스에 적용됩니다.",
+        "noOrg": "조직이 구성되지 않음",
+        "loadFailed": "승인 정책을 불러오지 못했습니다",
+        "saveFailed": "승인 정책을 저장하지 못했습니다",
+        "saved": "승인 정책이 저장되었습니다",
+        "fanoutPartial": "정책이 저장되었지만 {failed}개의 구성원 샌드박스가 동기화되지 않았습니다. 활성 구성원은 새로고침이 필요할 수 있습니다.",
+        "saving": "저장 중…",
+        "save": "정책 저장",
+        "addPattern": "추가",
+        "removePattern": "클릭하여 제거",
+        "ignoreAllowlistTitle": "접두사 허용 목록 무시 (모델별)",
+        "ignoreAllowlistDesc": "일치하는 모델은 저장된 허용 목록 바로가기로 자동 승인되지 않으며, 스마트 인텐트 가드 또는 수동 승인을 따릅니다.",
+        "forceAutoReviewTitle": "스마트 인텐트 가드 강제 (모델별)",
+        "forceAutoReviewDesc": "일치하는 모델은 구성원이 꺼두었더라도 위험한 도구 호출 전에 항상 스마트 인텐트 가드를 실행합니다.",
+        "disableYoloTitle": "YOLO 모드 비활성화",
+        "disableYoloDesc": "구성원은 어떤 에이전트에서도 전체 자동 승인을 활성화할 수 없습니다.",
+        "disableAllowAlwaysTitle": "항상 허용 비활성화",
+        "disableAllowAlwaysDesc": "승인 프롬프트에서 영구 허용 목록 저장을 숨기고 차단합니다.",
+        "patternHint": "모델 슬러그만 입력하세요(예: claude-opus-4). 공급자 접두사는 포함하지 마세요."
+      },
       "usageTab": "비용 및 사용량",
       "auditTab": "감사 로그",
       "usage": {
@@ -5803,6 +5847,10 @@
     "view": "보기",
     "modelBinding": "모델 선택",
     "modelBindingDesc": "이 에이전트에 전용 모델 바인딩",
+    "orgMapBadgeTitle": "조직 승인 정책",
+    "orgMapForceReview": "이 모델에는 스마트 인텐트 가드가 필요합니다.",
+    "orgMapIgnoreAllowlist": "저장된 허용 목록 바로가기는 이 모델에 적용되지 않습니다.",
+    "orgMapYoloSuppressed": "YOLO 모드는 이 모델의 승인을 우회하지 않습니다.",
     "routingOverride": "스마트 라우팅 재정의",
     "routingOverrideDesc": "이 에이전트에 대한 전역 라우팅 정책 재정의",
     "routingUseGlobal": "전역 설정 사용",
@@ -8109,6 +8157,7 @@
     "model_failover_timeout": "서비스 시간 초과, 백업 모델로 전환됨",
     "model_failover_billing": "결제 문제, 백업 모델로 전환됨",
     "model_failover_context_overflow": "컨텍스트가 너무 김, 백업 모델로 전환됨",
+    "model_failover_response_format_error": "응답 형식 오류, 백업 모델로 전환됨",
     "safety_fallback_active": "안전 필터가 트리거되어 격리 폴백이 활성화되었습니다",
     "context_compaction": "컨텍스트 압축 중",
     "memory_archived": "Agent가 초기 이력을 아카이브하여 극한의 집중력을 유지합니다",
@@ -9665,7 +9714,7 @@
       "gotIt": "알겠습니다"
     },
     "context": {
-      "tab": "身份与关系"
+      "tab": "신원 및 관계"
     },
     "conflict": {
       "title": "메모리 충돌",
@@ -10440,7 +10489,7 @@
       "upgrade": "업그레이드",
       "workUnits": "작업 단위",
       "workUnitsSubtitle": "월간 작업 단위 잔액",
-      "billingMoR": "Creem 安全计费",
+      "billingMoR": "Creem 안전 청구",
       "proMember": "Pro 회원",
       "freeTier": "무료 등급",
       "upgradeToPro": "Pro로 업그레이드",
@@ -12460,6 +12509,8 @@
   },
   "yoloBanner": {
     "message": "YOLO 모드 활성화 – 모든 도구가 자동 승인됩니다",
+    "orgConstrainedMessage": "YOLO가 켜져 있지만 조직 정책에 따라 이 에이전트 모델에는 여전히 승인이 필요합니다.",
+    "orgGlobalDisabledMessage": "YOLO는 조직 정책에 의해 비활성화되었습니다.",
     "disable": "비활성화"
   },
   "humanize": {
@@ -13483,7 +13534,8 @@
       "llm_judge": "LLM 시맨틱 판단",
       "llm_judge_threshold": "소프트 스코어링 (0-1)",
       "llm_judge_prompt": "커스텀 Judge 프롬프트",
-      "sandbox": "샌드박스 파일/명령 검증"
+      "sandbox": "샌드박스 파일/명령 검증",
+      "test_suite": "작업 자체 테스트 스위트 실행 (pytest/스코어러), JUnit XML 또는 reward JSON으로 채점"
     },
     "report": {
       "totalCases": "총 케이스",
@@ -13498,6 +13550,7 @@
       "actions": "작업",
       "passed": "통과",
       "failed": "실패",
+      "pending": "판정 대기",
       "multiTurn": "<멀티턴>",
       "viewDiff": "차이 보기",
       "noReport": "평가 보고서가 없습니다. \"평가 실행\"을 클릭하세요.",
@@ -13576,7 +13629,8 @@
       "scoringComposite": "복합",
       "scoringNativeTitle": "각 작업의 자체 채점기로 평가 (작업 네이티브, 컨테이너 기반)",
       "scoringCompositeTitle": "CompositeVerifier 엔진으로 평가 (Rule + LLM/VLM)",
-      "pendingScoring": "채점 대기 중"
+      "pendingScoring": "채점 대기 중",
+      "testPassRate": "평균 테스트 통과율"
     }
   },
   "vault": {

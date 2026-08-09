@@ -6,6 +6,7 @@
 
 [OUTPUT]
 load/upsert/delete helpers for oauthCredentials UserConfig blob
+persist_credentials_locked: encrypt-and-write write-back primitive (shared with MCP OAuth store)
 is_oauth_issuer_connected: probe whether an issuer has a stored access token
 extract_copilot_base_url: parse API base URL from Copilot JWT proxy-ep field
 
@@ -20,7 +21,6 @@ import json
 import logging
 import re
 import uuid
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,10 +104,11 @@ def decrypt_oauth_credentials(
 def encrypt_oauth_credentials(
     credentials: dict[str, object],
     service: ConfigEncryptionService | None = None,
+    config_key: str = CONFIG_KEY,
 ) -> tuple[dict[str, object] | str, bool]:
-    """Encrypt credentials dict using the standard encrypt_if_needed API."""
+    """Encrypt a credentials dict using the standard encrypt_if_needed API."""
     enc = service or get_encryption_service()
-    return enc.encrypt_if_needed(CONFIG_KEY, credentials)
+    return enc.encrypt_if_needed(config_key, credentials)
 
 
 async def load_oauth_credentials_row(db: AsyncSession) -> UserConfig | None:
@@ -120,6 +121,45 @@ async def load_oauth_credentials_row(db: AsyncSession) -> UserConfig | None:
         .scalars()
         .first()
     )
+
+
+async def persist_credentials_locked(
+    db: AsyncSession,
+    row: UserConfig | None,
+    credentials: dict[str, object],
+    config_key: str = CONFIG_KEY,
+) -> None:
+    """Encrypt and write a UserConfig blob under a caller-held row lock.
+
+    ``row`` is the previously loaded row for ``config_key`` (None when absent);
+    re-reading it here would duplicate the SELECT since the caller already
+    serialized writes. Used by oauthCredentials writers (upsert/delete/refresh
+    merge, guarded by ``oauth_credentials_lock``) and the MCP OAuth token store
+    (guarded by its own persist lock).
+    """
+    service = get_encryption_service()
+    final_value, is_encrypted = encrypt_oauth_credentials(
+        credentials, service, config_key
+    )
+    if is_encrypted and isinstance(final_value, str):
+        final_value = {"_cipher": final_value}
+
+    if row:
+        row.config_value = final_value
+        row.is_encrypted = is_encrypted
+        flag_modified(row, "config_value")
+    else:
+        db.add(
+            UserConfig(
+                id=str(uuid.uuid4()),
+                config_key=config_key,
+                config_value=final_value,
+                version="1.0.0",
+                last_device_id="sandbox",
+                is_encrypted=is_encrypted,
+            )
+        )
+    await db.commit()
 
 
 async def is_oauth_issuer_connected(db: AsyncSession, issuer: str) -> bool:
@@ -135,7 +175,7 @@ async def is_oauth_issuer_connected(db: AsyncSession, issuer: str) -> bool:
 async def upsert_oauth_credential(
     db: AsyncSession,
     issuer: str,
-    entry: dict[str, Any],
+    entry: dict[str, object],
 ) -> None:
     """Insert or update a single issuer entry in oauthCredentials."""
     async with oauth_credentials_lock:
@@ -149,28 +189,7 @@ async def upsert_oauth_credential(
             )
 
         credentials[issuer] = entry
-
-        final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
-        if is_encrypted and isinstance(final_value, str):
-            final_value = {"_cipher": final_value}
-
-        if row:
-            row.config_value = final_value
-            row.is_encrypted = is_encrypted
-            flag_modified(row, "config_value")
-        else:
-            db.add(
-                UserConfig(
-                    id=str(uuid.uuid4()),
-                    config_key=CONFIG_KEY,
-                    config_value=final_value,
-                    version="1.0.0",
-                    last_device_id="sandbox",
-                    is_encrypted=is_encrypted,
-                )
-            )
-
-        await db.commit()
+        await persist_credentials_locked(db, row, credentials)
         logger.info("Persisted OAuth credentials for issuer '%s'", issuer)
 
 
@@ -205,14 +224,6 @@ async def delete_oauth_credential(db: AsyncSession, issuer: str) -> bool:
             return False
 
         del credentials[issuer]
-
-        final_value, is_encrypted = encrypt_oauth_credentials(credentials, service)
-        if is_encrypted and isinstance(final_value, str):
-            final_value = {"_cipher": final_value}
-
-        row.config_value = final_value
-        row.is_encrypted = is_encrypted
-        flag_modified(row, "config_value")
-        await db.commit()
+        await persist_credentials_locked(db, row, credentials)
         logger.info("Deleted OAuth credentials for issuer '%s'", issuer)
         return True

@@ -112,6 +112,8 @@ export type ErrorKind =
   | 'session_expired'
   | 'model_not_found'
   | 'format_error'
+  | 'safety_block'
+  | 'response_format_error'
   | 'unknown';
 
 export interface DiagnosticResult {
@@ -316,12 +318,21 @@ export interface CitationMapStreamEvent extends BaseAgentEvent {
 
 export interface ToolStartStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_START;
+  /** LLM 工具调用检测路径不携带 tool_name，预执行钩子路径必带，故为可选。 */
+  tool_name?: string;
 }
 
 export interface ToolEndStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_END;
   tool_name: string;
-  duration_ms: number;
+  /** MCP 工具视图事件（mcp/agent.py）不含 duration_ms，普通工具事件才携带，故为可选。 */
+  duration_ms?: number;
+  /** MCP Apps（ext-apps）视图元数据，仅 MCP 工具视图事件携带。 */
+  mcp_app?: {
+    resource_uri: string;
+    server_name?: string;
+    structured_content?: Record<string, unknown>;
+  };
   result?: unknown;
   cited_memory_ids?: string[];
   cited_memory_refs?: unknown[];
@@ -330,7 +341,8 @@ export interface ToolEndStreamEvent extends BaseAgentEvent {
 export interface ToolFailureStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_FAILURE;
   tool_name: string;
-  duration_ms: number;
+  /** 与后端 ToolCallEventData.duration_ms 可选契约对齐，防御未来缺省。 */
+  duration_ms?: number;
   error: string;
 }
 
@@ -342,7 +354,8 @@ export interface ToolStdoutChunkStreamEvent extends BaseAgentEvent {
 export interface ToolCancelledStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_CANCELLED;
   tool_name: string;
-  duration_ms: number;
+  /** 与后端 ToolCallEventData.duration_ms 可选契约对齐，防御未来缺省。 */
+  duration_ms?: number;
   error: string;
   cancel_reason?: string; // "user_cancelled" | "timeout" | "session_ended" | "unknown"
 }

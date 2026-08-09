@@ -13,6 +13,7 @@ const ASSERTION_KEYS = [
   'llm_judge_threshold',
   'llm_judge_prompt',
   'sandbox',
+  'test_suite',
 ] as const;
 
 const ASSERTION_EXAMPLES: Record<string, string> = {
@@ -29,6 +30,8 @@ const ASSERTION_EXAMPLES: Record<string, string> = {
   llm_judge_prompt:
     '"semantic_assertions": [{"type": "llm_judge", "expected": "accuracy", "judge_prompt": "Judge if {output} meets {criteria}, reply PASS or FAIL: reason"}]',
   sandbox: '"sandbox_assertions": [{"type": "file_exists", "target": "output.txt"}]',
+  test_suite:
+    '"sandbox_assertions": [{"type": "test_suite", "target": "python -m pytest --junitxml=results.xml", "result_file": "results.xml"}]',
 };
 
 export default function CaseFormatReference({ t }: { t: (key: string) => string }) {

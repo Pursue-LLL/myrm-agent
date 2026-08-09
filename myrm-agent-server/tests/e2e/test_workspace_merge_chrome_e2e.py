@@ -568,7 +568,7 @@ def _api_url_for_seed() -> str:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+, private_reason="exclusive_backend")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -584,7 +584,7 @@ def test_workspace_merge_shows_warning_panel() -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+, private_reason="exclusive_backend")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

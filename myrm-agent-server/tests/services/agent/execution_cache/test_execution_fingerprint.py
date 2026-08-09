@@ -100,3 +100,23 @@ def test_execution_fingerprint_changes_when_moa_preset_strength_changes() -> Non
     )
     review_fp = compute_execution_fingerprint(wrapper)
     assert default_fp != review_fp
+
+
+def test_execution_fingerprint_changes_when_org_model_policy_revision_bumps() -> None:
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    with patch(
+        "app.services.org_model_policy.revision.get_org_model_policy_revision",
+        return_value=0,
+    ):
+        first = compute_execution_fingerprint(wrapper)
+    with patch(
+        "app.services.org_model_policy.revision.get_org_model_policy_revision",
+        return_value=1,
+    ):
+        second = compute_execution_fingerprint(wrapper)
+    assert first != second

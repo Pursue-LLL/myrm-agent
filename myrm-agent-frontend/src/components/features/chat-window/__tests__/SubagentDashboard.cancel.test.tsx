@@ -41,8 +41,10 @@ vi.mock('@/store/chat/useSubagentStore', () => ({
   isNodeOvertime: () => false,
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/api', () => ({

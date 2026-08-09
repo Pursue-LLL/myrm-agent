@@ -1176,7 +1176,12 @@
         "lockedBadge": "\"組織策略\"",
         "autoReviewLocked": "\"您的組織要求對受保護 Agent 啟用智能意圖守護，無法關閉。\"",
         "yoloLocked": "\"組織策略已禁用 YOLO 模式。\"",
-        "allowAlwaysLocked": "\"組織策略已禁用「始終允許」。\""
+        "allowAlwaysLocked": "\"組織策略已禁用「始終允許」。\"",
+        "allowAlwaysDisabled": "組織策略已禁止在審批彈窗中儲存永久白名單條目。",
+        "orgActiveTitle": "組織審批策略已生效",
+        "orgActiveDesc": "管理員可能要求特定智能體模型走智能意圖審查或停用白名單捷徑。使用受保護模型時請在 AI Core 中設定對應智能體。",
+        "forceModels": "強制審查模型：{patterns}",
+        "ignoreAllowlistModels": "忽略白名單的模型：{patterns}"
       }
     },
     "retrieval": {
@@ -1726,8 +1731,8 @@
         "skippedInsufficientRefs": "\"多智能體已開啟，但成功顧問模型數量不足，注入已跳過 — 請檢查參考模型可用性。\"",
         "skippedGeneric": "\"本條消息的多智能體顧問疊加已跳過。\""
       },
-      "preflightCompress": "將壓縮",
-      "preflightCompressDetail": "現在切換後，下一則訊息將觸發上下文壓縮（閾值：{threshold} tokens）"
+      "preflightCompress": "可能壓縮",
+      "preflightCompressDetail": "現在切換後，下一則訊息可能觸發上下文壓縮（閾值：{threshold} tokens）"
     },
     "modelCapabilities": {
       "vision": "視覺",
@@ -4041,6 +4046,45 @@
       "mcpDeleteTitle": "刪除 MCP 服務",
       "mcpDeleteDesc": "確定從組織中移除「{name}」？成員將在下次同步後失去該工具。",
       "membersTab": "成員管理",
+      "modelPolicyTab": "模型策略",
+      "modelPolicy": {
+        "title": "允許的模型",
+        "description": "定義成員可使用的模型。支援 openai/*、deepseek/*、claude/* 等匹配模式。空清單表示不限制。",
+        "noOrg": "未設定組織",
+        "loadFailed": "載入模型策略失敗",
+        "addFailed": "更新模型策略失敗",
+        "removeFailed": "刪除規則失敗",
+        "added": "模型策略已更新",
+        "removed": "規則已刪除",
+        "fanoutPartial": "策略已儲存，但有 {failed} 個成員沙箱未同步成功。線上成員可能需要重新整理頁面。",
+        "descPlaceholder": "描述（可選）",
+        "add": "新增",
+        "empty": "暫無模型限制，所有模型均可使用。",
+        "note": "成員只能使用符合以上規則的模型，變更會立即生效。"
+      },
+      "approvalPolicyTab": "審批策略",
+      "approvalPolicy": {
+        "title": "審批策略",
+        "description": "設定組織級工具審批安全底線。儲存後會在短時間內同步到成員沙箱。",
+        "noOrg": "未設定組織",
+        "loadFailed": "載入審批策略失敗",
+        "saveFailed": "儲存審批策略失敗",
+        "saved": "審批策略已儲存",
+        "fanoutPartial": "策略已儲存，但 {failed} 個成員沙箱未同步。活躍成員可能需要重新整理。",
+        "saving": "儲存中…",
+        "save": "儲存策略",
+        "addPattern": "新增",
+        "removePattern": "點擊移除",
+        "ignoreAllowlistTitle": "依模型忽略前綴白名單",
+        "ignoreAllowlistDesc": "符合的模型無法透過已儲存的白名單捷徑自動放行，需走智能意圖審查或人工審批。",
+        "forceAutoReviewTitle": "依模型強制智能意圖審查",
+        "forceAutoReviewDesc": "符合的模型在執行高風險工具前必須走智能意圖審查，即使成員已關閉該功能。",
+        "disableYoloTitle": "停用 YOLO 模式",
+        "disableYoloDesc": "成員無法為任何智能體開啟全自動批准。",
+        "disableAllowAlwaysTitle": "停用「始終允許」",
+        "disableAllowAlwaysDesc": "在審批彈窗中隱藏並阻止儲存永久白名單條目。",
+        "patternHint": "僅填寫模型 slug（如 claude-opus-4），不要帶 provider 前綴。"
+      },
       "usageTab": "成本報表",
       "auditTab": "審計日誌",
       "usage": {
@@ -6077,6 +6121,10 @@
     "failedToLoadPrompt": "載入系統提示詞失敗，請重試",
     "systemPromptLoaded": "系統提示詞已載入",
     "modelBindingDesc": "為此智慧體繫結專用模型",
+    "orgMapBadgeTitle": "組織審批策略",
+    "orgMapForceReview": "組織要求此模型必須啟用智能意圖審查。",
+    "orgMapIgnoreAllowlist": "組織規定此模型不適用已儲存的白名單捷徑。",
+    "orgMapYoloSuppressed": "YOLO 模式不能繞過此模型的審批。",
     "routingOverride": "智慧路由覆蓋",
     "routingOverrideDesc": "為此智慧體單獨配置路由策略",
     "routingUseGlobal": "使用全域性設定",
@@ -8340,6 +8388,7 @@
     "model_failover_timeout": "服務超時，已切換到備用模型",
     "model_failover_billing": "計費問題，已切換到備用模型",
     "model_failover_context_overflow": "上下文過長，已切換到備用模型",
+    "model_failover_response_format_error": "回應格式錯誤，已切換到備用模型",
     "safety_fallback_active": "內容風控攔截，已隔離重試（單次降級接管）",
     "context_compaction": "正在壓縮上下文",
     "memory_archived": "Agent 歸檔了早期歷史，保持極致專注",
@@ -12701,6 +12750,8 @@
   },
   "yoloBanner": {
     "message": "YOLO 模式已開啟 – 所有工具自動審批",
+    "orgConstrainedMessage": "YOLO 已開啟，但組織策略仍要求對此智能體模型進行審批。",
+    "orgGlobalDisabledMessage": "組織策略已停用 YOLO 模式。",
     "disable": "關閉"
   },
   "estopBanner": {
@@ -14043,7 +14094,8 @@
       "llm_judge": "LLM 語義判斷",
       "llm_judge_threshold": "軟評分 (0-1分數)",
       "llm_judge_prompt": "自定義 Judge 提示詞",
-      "sandbox": "沙箱檔案/命令驗證"
+      "sandbox": "沙箱檔案/命令驗證",
+      "test_suite": "執行任務內建測試套件（pytest/評分腳本），按 JUnit XML 或 reward JSON 判分"
     },
     "report": {
       "totalCases": "總用例",
@@ -14065,6 +14117,7 @@
       "actions": "操作",
       "passed": "透過",
       "failed": "失敗",
+      "pending": "待判定",
       "multiTurn": "<多輪對話>",
       "viewDiff": "檢視差異",
       "noReport": "暫無最新評測報告，請點選右上角「執行評測」",
@@ -14137,7 +14190,8 @@
       "scoringComposite": "綜合評分",
       "scoringNativeTitle": "由任務自帶的評分器在沙箱內依官方邏輯評分",
       "scoringCompositeTitle": "由 CompositeVerifier 引擎（規則 + LLM/VLM）評分",
-      "pendingScoring": "評分待定"
+      "pendingScoring": "評分待定",
+      "testPassRate": "平均測試通過率"
     }
   },
   "vault": {

@@ -181,7 +181,7 @@ def _seed_copilot_fixture(api_url: str) -> dict[str, str]:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )

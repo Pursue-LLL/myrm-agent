@@ -12,7 +12,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.TOOL_START) {
     ctx.recievedMessage = '';
 
-    const toolName = String((data as unknown as { tool_name?: string }).tool_name ?? '');
+    const toolName = data.tool_name ?? '';
     if (toolName.startsWith('browser_')) {
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
       inspectorStore.getState().setBrowserActive(true);
@@ -123,7 +123,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     }
 
     // MCP Apps (ext-apps): detect mcp_app metadata and attach view to message
-    const mcpApp = (data as unknown as { mcp_app?: { resource_uri?: string; server_name?: string; structured_content?: Record<string, unknown> } }).mcp_app;
+    const mcpApp = data.mcp_app;
     if (mcpApp && mcpApp.resource_uri) {
       const view = {
         resourceUri: mcpApp.resource_uri,
@@ -157,7 +157,9 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      lastStep.duration_ms = data.duration_ms;
+      if (data.duration_ms != null) {
+        lastStep.duration_ms = data.duration_ms;
+      }
       lastStep.status = 'error';
       lastStep.error = data.error;
     }
@@ -227,11 +229,6 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     }
 
-    const eventToolName = (data as { tool_name?: string }).tool_name;
-    if (!toolName && typeof eventToolName === 'string') {
-      toolName = eventToolName;
-    }
-
     if (!ref) {
       return done(ctx);
     }
@@ -276,7 +273,9 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      lastStep.duration_ms = data.duration_ms;
+      if (data.duration_ms != null) {
+        lastStep.duration_ms = data.duration_ms;
+      }
       lastStep.status = 'warning';
 
       // Format error message with cancel reason

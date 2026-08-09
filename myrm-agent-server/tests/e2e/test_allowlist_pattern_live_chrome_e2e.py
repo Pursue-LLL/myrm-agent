@@ -41,8 +41,8 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_allowlist_live_e2e import (
     _AGENT_READY_JS,
@@ -551,7 +551,7 @@ def _clear_allowlist_before_live(_chrome_e2e_item_runtime: object | None) -> Non
     _clear_allowlist_on_api(api_base)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.asyncio
 async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(
     e2e_resource_ledger: E2EResourceLedger,

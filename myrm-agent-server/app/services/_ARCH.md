@@ -61,6 +61,7 @@
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
 | `faq/` | ✅ 辅助 | Channel FAQ 语义缓存（per-agent Q&A CRUD + 零 LLM 拦截 + 命中追踪） | [_ARCH.md](faq/_ARCH.md) |
 | `migration/` | ✅ 辅助 | 外部助手数据迁移（Wizard 封闭 4 源：Hermes/OpenClaw/Claude Code/Codex） | [_ARCH.md](migration/_ARCH.md) |
+| `org_model_policy/` | ✅ 辅助 | Org 模型白名单 revision + agent build enforce | [_ARCH.md](org_model_policy/_ARCH.md) |
 | `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
 | `extension/` | ✅ 辅助 | 浏览器扩展桥 WebSocket 生命周期与 CDP 代理 | [_ARCH.md](extension/_ARCH.md) |

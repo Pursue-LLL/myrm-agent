@@ -508,6 +508,7 @@ async def run_eval_suite(
         "total_ms": result.total_ms,
         "report_path": str(report_path),
         "manifest": manifest.to_dict(),
+        **({"avg_pass_rate": result.avg_pass_rate} if result.avg_pass_rate is not None else {}),
     }
 
 

@@ -82,7 +82,7 @@ async def test_memory_e2e_real_world(client: TestClient):
 
     request_1 = {
         "messageId": str(uuid.uuid4()),
-        "query": (f"请使用记忆工具把下面事实存入长期记忆（memory_save / memory_manage），不要只记在对话上下文里：{fact}"),
+        "query": (f"请使用记忆工具把下面事实存入长期记忆（memory_save_tool / memory_manage_tool），不要只记在对话上下文里：{fact}"),
         "chatId": chat_id_1,
         "modelSelection": get_model_selection(),
         "actionMode": "agent",

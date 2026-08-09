@@ -14,14 +14,15 @@ class TestDeliverableDisciplineSSOT:
         rules = DELIVERABLE_DISCIPLINE_RULES
         assert "<deliverable_discipline>" in rules
         assert "kanban" in rules
-        assert "kanban_add_task" in rules
-        assert "list_tasks" in rules
+        assert "use the kanban board" in rules
+        assert "create or update tasks" in rules
+        assert "track progress, and mark done" in rules
         assert "file_write_tool" in rules
         assert "Do not describe file contents" in rules
         assert "heredoc" in rules
         assert "workspace/" in rules
         assert "@file_" in rules
-        assert "ask_question_tool" in rules
+        assert "ask one focused clarifying question" in rules
 
     def test_build_composes_identity_and_discipline(self) -> None:
         prompt = build_knowledge_work_system_prompt()

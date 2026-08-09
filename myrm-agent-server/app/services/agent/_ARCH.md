@@ -84,14 +84,19 @@ Design notes:
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，Goal 完成时收集 session artifacts 写入 metadata.deliverables 供前端 bundle 展示；semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 | ✅ |
-| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
+| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；从 chat 绑定 profile 注入 `agent_id` + `user_instructions`（含 output suffixes，与 Kanban goal 对齐）；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
 | `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |
 | `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval） | ✅ |
-| `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；支持 Google Workspace / xAI / Provider OAuth (含 Copilot 非标准 GitHub token exchange)；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
+| `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + per-issuer 并发锁防 stampede + Double-Checked Locking + 共享 `oauth_credentials_lock` 合并写回防跨 issuer 丢失更新，写回前校验 issuer 仍存在防止复活已断开集成）；支持 Google Workspace / xAI / Provider OAuth (含 Copilot 非标准 GitHub token exchange)；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
 | `skill_instance_resolver.py` | ✅ 核心 | Agent profile `skill_configs.instance_name` → runtime `default_skill_instances` map（singleton / `default` / explicit）；`resolve_runtime_skill_instance_bindings` 为 factory SSOT；`validate_agent_skill_config_instances` + `serialize_agent_skill_configs` 在 Agent create/update 时校验并序列化 instance 绑定（400 / JSON persist）；`factory.py` 消费 | ✅ |
+| `browser_snapshot.py` | ✅ 辅助 | Browser snapshot payload SSOT（WebUI 与 mobile remote 路由共用，前端预览面单一来源） | ✅ |
+| `resolve_enable_web_fetch.py` | ✅ 辅助 | 从 `agent_security_raw.capabilities` 推导 `enable_web_fetch`（bool 门控 web_fetch_tool Turn1 bind）；Web/Channel/Cron/Kanban/Eval/Voice 全入口共享 | ✅ |
+| `signoff_clarify_stream_gate.py` | ✅ 辅助 | signoff clarify 合约流门控——把请求级 `signoff_clarify_contract` 合并进 params + extra_context，SHPOIB 池后端保底激活 | ✅ |
+| `template_utils.py` | ✅ 辅助 | Agent 模板实例化共享工具（`PREBUILT_AGENTS_DIR` / `resolve_i18n` / `ensure_skills_enabled`），API templates router 与 onboarding presets 复用 | ✅ |
+| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
 
 ---
 

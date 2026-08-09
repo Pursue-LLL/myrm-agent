@@ -5,8 +5,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const mockListChannelStatuses = vi.fn();
 const mockListPairings = vi.fn();
 
+const stableT = (key: string, opts?: { fallback?: string }) => opts?.fallback ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, opts?: { fallback?: string }) => opts?.fallback ?? key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/channels', () => ({

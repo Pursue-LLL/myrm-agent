@@ -45,7 +45,7 @@ E2E_PROMPT_SIGNOFF = (
 )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 def test_clarify_signoff_api_contract_on_shpoib() -> None:
     """Signoff-only: clarification_required then Skip via agent-stream API on private backend."""
     if not is_e2e_signoff_runtime():

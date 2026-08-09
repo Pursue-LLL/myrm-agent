@@ -103,7 +103,7 @@ def voice_feature_enabled() -> None:
     _ensure_voice_feature_enabled()
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")
@@ -125,7 +125,7 @@ def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
     assert settings.get("memoryEnableConversationSearch") is True
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_disables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")

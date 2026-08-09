@@ -360,7 +360,7 @@ def _wait_for_running_shell(
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     if not wait_e2e_provider_ready():

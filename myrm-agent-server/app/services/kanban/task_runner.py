@@ -418,6 +418,18 @@ class KanbanTaskRunner:
                 else leader_protocol
             )
 
+        if profile:
+            from app.services.agent.params.profile_output_suffixes import (
+                apply_profile_output_suffixes,
+            )
+
+            task_user_instructions = apply_profile_output_suffixes(
+                task_user_instructions,
+                personality_style=profile.personality_style,
+                engine_params=profile.engine_params,
+                agent_id=task.agent_id,
+            )
+
         declared_roots: tuple[str, ...] = ()
         if workspace_root:
             declared_roots = (workspace_root,)

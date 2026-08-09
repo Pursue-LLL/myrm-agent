@@ -18,23 +18,25 @@ vi.mock('@/store/useCompanionStore', () => ({
     selector(companionStoreState),
 }));
 
+const stableT = (key: string, values?: Record<string, unknown>) => {
+  if (key === 'gallery.count') return `${values?.count ?? 0} pets`;
+  const labels: Record<string, string> = {
+    'gallery.loading': 'Loading pets...',
+    'gallery.error': 'Failed to load pet gallery',
+    'gallery.installedTitle': 'Installed',
+    'gallery.manifestOffline': 'Catalog unavailable right now.',
+    'gallery.searchPlaceholder': 'Search pets...',
+    'gallery.installError': 'Failed to install pet',
+    'gallery.uninstall': 'Remove',
+    'gallery.uninstallConfirm': 'Remove this pet?',
+    'gallery.uninstallError': 'Failed to remove pet',
+    'gallery.cancel': 'Cancel',
+  };
+  return labels[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === 'gallery.count') return `${values?.count ?? 0} pets`;
-    const labels: Record<string, string> = {
-      'gallery.loading': 'Loading pets...',
-      'gallery.error': 'Failed to load pet gallery',
-      'gallery.installedTitle': 'Installed',
-      'gallery.manifestOffline': 'Catalog unavailable right now.',
-      'gallery.searchPlaceholder': 'Search pets...',
-      'gallery.installError': 'Failed to install pet',
-      'gallery.uninstall': 'Remove',
-      'gallery.uninstallConfirm': 'Remove this pet?',
-      'gallery.uninstallError': 'Failed to remove pet',
-      'gallery.cancel': 'Cancel',
-    };
-    return labels[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/utils/classnameUtils', () => ({

@@ -9,9 +9,11 @@ const openWorkspaceDeliverable = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
 );
 
+const stableT = (key: string) =>
+  key === 'awaitingArtifact' ? 'Waiting for artifact sync' : key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) =>
-    key === 'awaitingArtifact' ? 'Waiting for artifact sync' : key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/deliverable/openWorkspaceDeliverable', () => ({

@@ -18,8 +18,10 @@ const mockGetTelegramCredentials = vi.fn<
 >(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
 const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({

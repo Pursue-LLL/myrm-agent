@@ -6,8 +6,10 @@ import { describe, expect, it, vi } from 'vitest';
 import VisualApprovalUnavailableCard from '@/components/features/chat-window/approval/VisualApprovalUnavailableCard';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/features/chat-window/SingleApprovalCard', () => ({

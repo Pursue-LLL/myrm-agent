@@ -25,8 +25,10 @@ const mockSetPendingArchiveRestoreActions = vi.hoisted(() => vi.fn());
 const mockClearDraft = vi.hoisted(() => vi.fn());
 const chatStoreRef = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/billing/useQuotaGuard', () => ({

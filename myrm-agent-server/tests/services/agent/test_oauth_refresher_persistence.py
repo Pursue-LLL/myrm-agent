@@ -27,8 +27,11 @@ def _make_token_dict() -> dict[str, object]:
 class _MockResponse:
     status_code = 200
 
+    def __init__(self, expires_in: object = 3600) -> None:
+        self._expires_in = expires_in
+
     def json(self) -> dict[str, object]:
-        return {"access_token": "new-token", "expires_in": 3600}
+        return {"access_token": "new-token", "expires_in": self._expires_in}
 
 
 async def _run_refresh(
@@ -36,6 +39,7 @@ async def _run_refresh(
     row_config_value: object,
     row_is_encrypted: bool,
     encrypt_result: tuple[object, bool],
+    expires_in: object = 3600,
 ) -> tuple[UserConfig, MagicMock]:
     from app.services.agent import oauth_refresher
 
@@ -62,15 +66,15 @@ async def _run_refresh(
     mock_session.__aexit__ = AsyncMock(return_value=False)
 
     mock_client = AsyncMock()
-    mock_client.post = AsyncMock(return_value=_MockResponse())
+    mock_client.post = AsyncMock(return_value=_MockResponse(expires_in))
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
     with (
         patch.object(oauth_refresher, "get_session", return_value=mock_session),
         patch.object(oauth_refresher, "get_encryption_service", return_value=service),
+        patch("app.services.integrations.oauth_store.get_encryption_service", return_value=service),
         patch.object(oauth_refresher, "httpx") as mock_httpx,
-        patch.object(oauth_refresher, "flag_modified"),
     ):
         mock_httpx.AsyncClient.return_value = mock_client
         from app.services.agent.oauth_refresher import refresh_oauth_token
@@ -89,7 +93,7 @@ async def test_refresh_reencrypts_and_persists_flag() -> None:
         encrypt_result=("new-cipher", True),
     )
 
-    service.decrypt.assert_called_once_with("old-cipher")
+    service.decrypt.assert_any_call("old-cipher")
     assert row.is_encrypted is True
     assert row.config_value == {"_cipher": "new-cipher"}
 
@@ -103,7 +107,7 @@ async def test_refresh_upgrades_legacy_plaintext_to_encrypted() -> None:
         encrypt_result=("fresh-cipher", True),
     )
 
-    service.decrypt.assert_not_called()
+    assert not service.decrypt.called
     assert row.is_encrypted is True
     assert row.config_value == {"_cipher": "fresh-cipher"}
 
@@ -119,3 +123,21 @@ async def test_refresh_keeps_flag_false_when_not_encrypting() -> None:
 
     assert row.is_encrypted is False
     assert row.config_value == _make_token_dict()
+
+
+@pytest.mark.asyncio
+async def test_refresh_normalizes_string_expires_in() -> None:
+    """Non-compliant OAuth providers returning expires_in as a string must not crash."""
+    import time
+
+    _, service = await _run_refresh(
+        row_config_value=_make_token_dict(),
+        row_is_encrypted=True,
+        encrypt_result=("fresh-cipher", True),
+        expires_in="3600",
+    )
+
+    credentials = service.encrypt_if_needed.call_args.args[1]
+    stored_expires_at = credentials["test_issuer"]["expires_at"]
+    assert isinstance(stored_expires_at, float)
+    assert time.time() + 3590 <= stored_expires_at <= time.time() + 3610

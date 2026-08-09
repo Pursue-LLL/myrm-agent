@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RunStatusChip from '../RunStatusChip';
 import type { RunDigest } from '@/services/copilot';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 const digestMock = vi.hoisted(() => ({ current: null as RunDigest | null }));

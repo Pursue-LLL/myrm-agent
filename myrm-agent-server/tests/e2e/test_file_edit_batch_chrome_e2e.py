@@ -24,8 +24,8 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
     _strip_provider_prefix,
@@ -174,7 +174,7 @@ def _assert_batch_file_content(file_path: Path) -> None:
     assert "line_b" in content
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_edit_batch_read_ui_diff_card() -> None:
@@ -207,7 +207,7 @@ def test_file_edit_batch_read_ui_diff_card() -> None:
         assert "--- edit 1 ---" in diff_head or "-line_a" in diff_head
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

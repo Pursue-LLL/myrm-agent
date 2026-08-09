@@ -254,7 +254,7 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
         ), f"Expected no action buttons during auto-detect: {banner}"
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.chrome_e2e_browser_takeover_live
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

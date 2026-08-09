@@ -41,18 +41,20 @@ vi.mock('@/store/chat/goals/useGoalStore', () => ({
   ),
 }));
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    burnRate: 'Speed',
+    etaLabel: 'ETA',
+    etaCollecting: 'Estimating...',
+    statusActive: 'Active',
+    timeElapsed: 'Elapsed',
+    queueTitle: 'Queue',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      burnRate: 'Speed',
-      etaLabel: 'ETA',
-      etaCollecting: 'Estimating...',
-      statusActive: 'Active',
-      timeElapsed: 'Elapsed',
-      queueTitle: 'Queue',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/notification', () => ({

@@ -51,6 +51,7 @@ const BaseModelSelector = () => {
   );
 
   const messages = useChatStore(useShallow((state) => state.messages));
+  const chatId = useChatStore((state) => state.chatId);
 
   const {
     providers,
@@ -276,6 +277,7 @@ const BaseModelSelector = () => {
         compressStartRatio={compressStartRatio}
         promptMode={promptMode}
         turnCount={turnCount}
+        chatId={chatId}
         trigger={
           <button
             type="button"

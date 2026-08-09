@@ -520,6 +520,17 @@ class CustomAgentFactory:
             engine_params
         )
 
+        from app.services.agent.params.profile_output_suffixes import (
+            apply_profile_output_suffixes,
+        )
+
+        system_prompt = apply_profile_output_suffixes(
+            system_prompt,
+            personality_style=None,
+            engine_params=engine_params,
+            agent_id=self._agent_id,
+        ) or system_prompt
+
         mcp_servers = list(self._cached_mcp_configs)
         if mcp_servers:
             from app.services.agent.mcp_runtime_prepare import (

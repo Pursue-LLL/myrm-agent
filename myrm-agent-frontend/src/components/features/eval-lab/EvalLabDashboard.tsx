@@ -13,6 +13,7 @@ import {
   Plus,
   Grid3X3,
   Loader2,
+  Clock,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
@@ -62,9 +63,10 @@ interface ReportItem {
   avg_time_secs?: number;
   avg_total_tokens?: number;
   cases?: Array<{
-    passed: boolean;
+    passed: boolean | null;
     time_secs?: number;
     details?: unknown;
+    scores?: { pass_rate?: number; tests_passed?: number; tests_total?: number };
     usage?: { total_tokens?: number };
     actual_tools?: unknown[];
     actual_output?: string;
@@ -752,7 +754,7 @@ export default function EvalLabDashboard() {
 
                 <div className="space-y-3">
                   <h3 className="text-lg font-medium">{t('report.executionDetails')}</h3>
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-lg overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-muted/50 border-b">
                         <tr>
@@ -768,41 +770,66 @@ export default function EvalLabDashboard() {
                           report.cases.map((c, i: number) => (
                             <tr key={i} className="bg-card hover:bg-muted/20 transition-colors">
                               <td className="px-4 py-3">
-                                {c.passed ? (
+                                {c.passed === true ? (
                                   <span className="flex items-center gap-1 text-green-600">
                                     <CheckCircle2 className="w-4 h-4" />
                                     {t('report.passed')}
                                   </span>
-                                ) : (
+                                ) : c.passed === false ? (
                                   <span className="flex items-center gap-1 text-red-600">
                                     <XCircle className="w-4 h-4" />
                                     {t('report.failed')}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-muted-foreground">
+                                    <Clock className="w-4 h-4" />
+                                    {t('report.pending')}
                                   </span>
                                 )}
                               </td>
                               <td className="px-4 py-3 max-w-xs truncate" title={c.case?.message}>
                                 {c.case?.message || t('report.multiTurn')}
+                                {c.scores?.pass_rate != null && (
+                                  <span
+                                    className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
+                                      c.scores.pass_rate >= 1
+                                        ? 'bg-green-500/10 text-green-600'
+                                        : 'bg-amber-500/10 text-amber-600'
+                                    }`}
+                                  >
+                                    {c.scores.pass_rate >= 1
+                                      ? '100%'
+                                      : `${Math.min(99, Math.floor(c.scores.pass_rate * 100))}%`}
+                                    {c.scores.tests_total != null &&
+                                      ` · ${c.scores.tests_passed ?? 0}/${c.scores.tests_total}`}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-4 py-3">{c.usage?.total_tokens || 0}</td>
                               <td className="px-4 py-3">{c.time_secs ? c.time_secs.toFixed(2) : '-'}s</td>
                               <td className="px-4 py-3">
                                 {c.details ? (
-                                  <button
-                                    onClick={() => {
-                                      const expected = {
-                                        tools: c.case?.expected_tools || [],
-                                        output: c.case?.state_assertions?.length ? c.case.state_assertions : undefined,
-                                      };
-                                      const actual = {
-                                        tools: c.actual_tools || [],
-                                        output: c.actual_output || '',
-                                      };
-                                      viewDiff(JSON.stringify(expected, null, 2), JSON.stringify(actual, null, 2));
-                                    }}
-                                    className="flex items-center gap-1 text-primary hover:underline"
-                                  >
-                                    <Eye className="w-4 h-4" /> {t('report.viewDiff')}
-                                  </button>
+                                  <div className="flex flex-col items-start gap-1">
+                                    <p className="max-w-[320px] truncate text-xs text-muted-foreground" title={String(c.details)}>
+                                      {String(c.details)}
+                                    </p>
+                                    <button
+                                      onClick={() => {
+                                        const expected = {
+                                          tools: c.case?.expected_tools || [],
+                                          output: c.case?.state_assertions?.length ? c.case.state_assertions : undefined,
+                                        };
+                                        const actual = {
+                                          tools: c.actual_tools || [],
+                                          output: c.actual_output || '',
+                                        };
+                                        viewDiff(JSON.stringify(expected, null, 2), JSON.stringify(actual, null, 2));
+                                      }}
+                                      className="flex items-center gap-1 text-primary hover:underline"
+                                    >
+                                      <Eye className="w-4 h-4" /> {t('report.viewDiff')}
+                                    </button>
+                                  </div>
                                 ) : null}
                               </td>
                             </tr>

@@ -1983,11 +1983,12 @@ async def reindex_wiki_vectors(
     ] = None,
 ) -> ReindexVectorsResponse:
     """Rebuild published concept, sidecar, and optional asset vectors with the current embedding model."""
-    from app.services.wiki.asset_index_service import ensure_archiver_asset_indexer
-    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
     from myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors import (
         reindex_published_vectors,
     )
+
+    from app.services.wiki.asset_index_service import ensure_archiver_asset_indexer
+    from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
     await ensure_archiver_asset_indexer(archiver)
     result = await reindex_published_vectors(

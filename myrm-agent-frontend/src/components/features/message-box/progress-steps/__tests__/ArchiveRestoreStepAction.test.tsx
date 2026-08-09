@@ -4,30 +4,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { ArchiveRestoreStepAction } from '../ArchiveRestoreStepAction';
 import { ArchiveRestoreResultChip } from '../ArchiveRestoreResultChip';
 
+const stableT = (key: string, values?: Record<string, string | number>) => {
+  const templates: Record<string, string> = {
+    archiveRestoreCardDescription: 'restore actions: {count}',
+    archiveRestoreButton: 'restore {count}',
+    archiveRestoreContentFeatures: 'features: {features}',
+    archiveRestoreMetadataArchive: 'archive: {path}',
+    archiveRestoreMetadataFallback: 'fallback: {reason}',
+    archiveRestoreMetadataGuidance: 'guidance: {source}',
+    archiveRestoreMetadataReason: 'reason: {reason}',
+    archiveRestoreMetadataTokens: 'tokens: {tokens}',
+    archiveRestoreRangeReason: 'why: {reason}',
+    archiveRestoreResultArchive: 'result archive: {path}',
+    archiveRestoreResultBytes: 'result bytes: {bytes}',
+    archiveRestoreResultRange: 'result range: {range}',
+    archiveRestoreResultSummary: 'restored {lines} lines, {tokens} tokens',
+    archiveRestoreResultTokens: 'result tokens: {tokens}',
+    archiveRestoreSubmitting: 'restoring',
+  };
+  return Object.entries(values ?? {}).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+    templates[key] ?? key,
+  );
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    const templates: Record<string, string> = {
-      archiveRestoreCardDescription: 'restore actions: {count}',
-      archiveRestoreButton: 'restore {count}',
-      archiveRestoreContentFeatures: 'features: {features}',
-      archiveRestoreMetadataArchive: 'archive: {path}',
-      archiveRestoreMetadataFallback: 'fallback: {reason}',
-      archiveRestoreMetadataGuidance: 'guidance: {source}',
-      archiveRestoreMetadataReason: 'reason: {reason}',
-      archiveRestoreMetadataTokens: 'tokens: {tokens}',
-      archiveRestoreRangeReason: 'why: {reason}',
-      archiveRestoreResultArchive: 'result archive: {path}',
-      archiveRestoreResultBytes: 'result bytes: {bytes}',
-      archiveRestoreResultRange: 'result range: {range}',
-      archiveRestoreResultSummary: 'restored {lines} lines, {tokens} tokens',
-      archiveRestoreResultTokens: 'result tokens: {tokens}',
-      archiveRestoreSubmitting: 'restoring',
-    };
-    return Object.entries(values ?? {}).reduce(
-      (text, [name, value]) => text.replace(`{${name}}`, String(value)),
-      templates[key] ?? key,
-    );
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('ArchiveRestoreStepAction', () => {

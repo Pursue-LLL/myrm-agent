@@ -10,7 +10,6 @@ SaaS 配额、订阅、ingress 与用量。
 | `useBillingCatalog.ts` | CP 定价 catalog |
 | `useWuBalanceWatcher.ts` | WU 低余额 → UpgradeNudge |
 | `useUsageAnalytics.ts` | 用量分析 |
-| `useOrgModelPolicy.ts` | 组织模型策略 |
 | `useIngressRequirement.ts` / `useIngressUrl.ts` | Ingress 要求与 URL |
 
 消费者：`components/billing/`、Settings channels、NavBar。

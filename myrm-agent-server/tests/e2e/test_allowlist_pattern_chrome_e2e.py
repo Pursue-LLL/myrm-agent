@@ -29,8 +29,10 @@ def _seed_live_allowlist_pattern_row() -> None:
     listed = http_json("GET", f"{api_base}/api/v1/security/allowlist")
     assert isinstance(listed, dict)
     rows = listed.get("data")
-    assert isinstance(rows, list) and len(rows) == 1
-    row = rows[0]
+    assert isinstance(rows, list)
+    matches = [row for row in rows if row.get("command_pattern") == "npm install *"]
+    assert matches, f"seeded pattern missing from allowlist rows: {rows}"
+    row = matches[0]
     assert row.get("granularity") == "pattern"
     assert row.get("command_pattern") == "npm install *"
 
@@ -43,7 +45,7 @@ def _seed_live_allowlist_pattern_row() -> None:
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
 @pytest.mark.timeout(240)
 def test_settings_security_shows_pattern_allowlist_entry() -> None:
     warm_ui_route("/settings/security")

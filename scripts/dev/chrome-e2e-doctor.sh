@@ -66,8 +66,8 @@ else
   fail "chrome-devtools-mcp patch missing — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
 fi
 
-MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
-MUX_SOCKET="${CDMCP_MUX_SOCKET:-${TMPDIR:-/tmp}/mux-$(id -u)/cdmcp-mux.sock}"
+MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}"
+MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
 if [[ -f "${SCRIPT_DIR}/lib/mux_responsive_probe.py" ]]; then
   if "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
     --expected-ms 180000 \

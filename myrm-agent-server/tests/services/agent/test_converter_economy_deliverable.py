@@ -63,6 +63,6 @@ class TestEconomyDeliverableConverterIntegration:
 
         assert params.user_instructions is not None
         assert "<deliverable_discipline>" in params.user_instructions
-        assert "kanban_add_task" in params.user_instructions
+        assert "use the kanban board" in params.user_instructions
         assert "Do not describe file contents" in params.user_instructions
         assert KNOWLEDGE_WORK_SYSTEM_PROMPT in params.user_instructions

@@ -12,7 +12,7 @@ SaaS / sandbox 部署下的 Enterprise Org 管理 Section（`SettingsMenu` 中 `
 |------|------|------|-------|
 | `EnterpriseOrgSection.tsx` | 核心入口 | Tab 容器，lazy 加载五个子 Tab；nav 支持 `overflow-x-auto` 移动端横滑 | ✅ |
 | `EnterpriseMembersTab.tsx` | 子 Tab | 组织信息、成员 CRUD、离职交接、Volume 转移；org owner/admin 可见 Org MCP 面板 | ✅ |
-| `EnterpriseModelPolicyTab.tsx` | 子 Tab | Org 模型白名单 CRUD（fnmatch pattern 列表） | ✅ |
+| `EnterpriseModelPolicyTab.tsx` | 子 Tab | Org 模型白名单 CRUD（fnmatch pattern 列表）；add/remove 后 fanout 部分失败 warning toast | ✅ |
 | `EnterpriseApprovalPolicyTab.tsx` | 子 Tab | Org Managed Approval Policy CRUD（ignore allowlist / force auto-review patterns + YOLO / allow-always 开关） | ✅ |
 | `EnterpriseAuditTab.tsx` | 子 Tab | 安全审计大盘：KPI 卡片、时间线图表、事件列表、导出 | ✅ |
 | `EnterpriseUsageTab.tsx` | 子 Tab | 成本报表：月度用量进度、成员排行、分类分布、预算设置 | ✅ |

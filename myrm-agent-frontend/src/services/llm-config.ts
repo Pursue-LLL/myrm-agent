@@ -544,7 +544,8 @@ const PREFLIGHT_CACHE_LIMIT = 100;
 
 /**
  * 会话维度 preflight 缓存（LRU 上限，防 estimatedTokens 单调变化导致 key 无限累积）。
- * key = `${model}:${max_input_tokens}:${ratio}:${prompt_mode}:${estimatedTokens}:${turn_count}`
+ * key = `${chatId}:${model}:${max_input_tokens}:${ratio}:${prompt_mode}:${estimatedTokens}:${turn_count}`
+ * chatId 使不同会话隔离；streak 变化必伴随 estimatedTokens（current_tokens）变化，自动失效。
  */
 const preflightCache = new Map<string, ModelSwitchPreflightResult>();
 
@@ -564,6 +565,9 @@ function cacheSet(key: string, value: ModelSwitchPreflightResult): void {
  * 请求复用 harness ContextConfig 的真实压缩阈值公式（server 端计算），
  * 前端无需硬编码压缩比例，避免口径漂移。estimated_tokens 取自当前会话
  * 最近一条 assistant 消息的 provider 真实 prompt_tokens。
+ *
+ * chatId 可选：提供时 server 消费压缩无效 streak（anti-thrash），
+ * 与运行时 should_block_automatic_compression 语义一致，避免误报。
  */
 export const fetchModelSwitchPreflight = async (
   estimatedTokens: number,
@@ -571,9 +575,10 @@ export const fetchModelSwitchPreflight = async (
   compressStartRatio?: number | null,
   promptMode?: string | null,
   turnCount?: number | null,
+  chatId?: string | null,
 ): Promise<Record<string, ModelSwitchPreflightResult>> => {
   const cacheKeyFor = (item: ModelSwitchPreflightItem) =>
-    `${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
+    `${chatId ?? ''}:${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
 
   const uncached = items.filter((item) => !preflightCache.has(cacheKeyFor(item)));
   const hitMap: Record<string, ModelSwitchPreflightResult> = {};
@@ -596,6 +601,7 @@ export const fetchModelSwitchPreflight = async (
         compress_start_ratio: compressStartRatio ?? null,
         prompt_mode: promptMode ?? null,
         turn_count: turnCount ?? null,
+        chat_id: chatId ?? null,
         models: uncached,
       }),
     });

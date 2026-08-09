@@ -27,6 +27,7 @@ import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useOrgModelPolicyStore } from '@/store/useOrgModelPolicyStore';
+import { useOrgModelPolicySync } from '@/hooks/useOrgModelPolicySync';
 
 interface PickerModelSelection {
   providerId: string;
@@ -62,6 +63,8 @@ interface ModelPickerPopoverProps {
   promptMode?: string | null;
   /** 当前会话 human 消息数（轮数）；提供时 server 按运行时动态阈值判定压缩 */
   turnCount?: number | null;
+  /** 当前会话 ID（聊天场景传入）；提供时 server 消费压缩无效 streak，避免误报 */
+  chatId?: string | null;
   align?: 'start' | 'center' | 'end';
   className?: string;
 }
@@ -83,6 +86,7 @@ export default function ModelPickerPopover({
   compressStartRatio,
   promptMode,
   turnCount,
+  chatId,
   align = 'start',
   className,
 }: ModelPickerPopoverProps) {
@@ -129,13 +133,16 @@ export default function ModelPickerPopover({
     })),
   );
 
-  const { restricted, initialized: policyInitialized, loadPolicy, isModelAllowed } = useOrgModelPolicyStore();
+  const { restricted, loadPolicy, isModelAllowed } = useOrgModelPolicyStore();
+  useOrgModelPolicySync();
 
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
 
   useEffect(() => {
-    if (!policyInitialized) void loadPolicy();
-  }, [policyInitialized, loadPolicy]);
+    if (open) {
+      void loadPolicy();
+    }
+  }, [open, loadPolicy]);
 
   useEffect(() => {
     if (!open) return;
@@ -222,7 +229,7 @@ export default function ModelPickerPopover({
     }
     if (pairs.length === 0) return;
 
-    const signature = `${estimatedTokens}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${turnCount ?? ''}:${pairs
+    const signature = `${chatId ?? ''}:${estimatedTokens}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${turnCount ?? ''}:${pairs
       .map((p) => `${p.liteName}:${p.maxInput}`)
       .join('|')}`;
     if (preflightRequestedRef.current === signature) return;
@@ -234,6 +241,7 @@ export default function ModelPickerPopover({
       compressStartRatio,
       promptMode,
       turnCount,
+      chatId,
     ).then((results) => {
       const mapped: Record<string, ModelSwitchPreflightResult> = {};
       for (const p of pairs) {
@@ -242,7 +250,7 @@ export default function ModelPickerPopover({
       }
       setPreflightMap(mapped);
     });
-  }, [open, estimatedTokens, capabilities, enabledModels, providers, compressStartRatio, promptMode, turnCount]);
+  }, [open, estimatedTokens, capabilities, enabledModels, providers, compressStartRatio, promptMode, turnCount, chatId]);
 
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -294,7 +302,11 @@ export default function ModelPickerPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className={cn('w-96 max-w-[calc(100vw-2rem)] p-0', className)} align={align}>
+      <PopoverContent
+        data-testid="model-picker-popover"
+        className={cn('w-96 max-w-[calc(100vw-2rem)] p-0', className)}
+        align={align}
+      >
         {/* Segmented tab for primary/fallback slot selection */}
         {hasFallbackSupport && (
           <div className="px-2 pt-2 pb-1 border-b border-border">
@@ -451,6 +463,7 @@ export default function ModelPickerPopover({
                     const acknowledged = acknowledgedCountRef.current[preflightKey] ?? 0;
                     const showCompressWarning = !!preflight?.will_compress && acknowledged < 2;
                     const policyBlocked = restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
+                    const liteModelName = getLiteLLMModelName(provider.id, model, provider.providerType);
                     const highlightColor =
                       activeSlot === 'primary'
                         ? 'bg-primary/10 text-primary font-medium'
@@ -461,7 +474,11 @@ export default function ModelPickerPopover({
                     return (
                       <button
                         key={model}
+                        type="button"
+                        data-testid={`model-item-${provider.id}-${model}`}
+                        data-model-name={liteModelName}
                         disabled={policyBlocked}
+                        aria-disabled={policyBlocked ? 'true' : undefined}
                         onClick={() => !policyBlocked && handleModelClick(provider.id, model)}
                         title={policyBlocked ? t('orgPolicyRestricted') : undefined}
                         className={cn(

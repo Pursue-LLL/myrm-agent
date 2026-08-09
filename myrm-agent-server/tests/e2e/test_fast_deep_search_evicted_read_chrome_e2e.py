@@ -31,12 +31,12 @@ from cdp_chat_support import (  # noqa: E402
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
+from dev_gate_contract import EvaluateIntent  # noqa: E402
 from e2e_orchestrator import (  # noqa: E402
     assert_phase_budget,
     remaining_wall_sec,
     touch_wall_progress,
 )
-from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json, open_mcp_page_async  # noqa: E402
@@ -1697,7 +1697,7 @@ async def _run_fast_evicted_read_live_e2e(
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -1715,7 +1715,7 @@ async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-)
+, private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

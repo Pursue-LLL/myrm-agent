@@ -26,7 +26,6 @@ from app.ai_agents import GeneralAgentParams
 from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cfg
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
-from app.database.dto import PersonalityStyleLiteral
 from app.services.agent.moa_preset_resolver import apply_moa_preset_activation
 from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -542,43 +541,28 @@ async def convert_to_general_agent_params(
                     else leader_protocol
                 )
 
-            from app.ai_agents.personality_templates import (
-                DEFAULT_PERSONALITY_STYLE,
-                get_personality_template,
+            from app.services.agent.params.profile_output_suffixes import (
+                apply_profile_output_suffixes,
             )
 
-            if (
-                resolved.personality_style
-                and resolved.personality_style != DEFAULT_PERSONALITY_STYLE
-            ):
-                try:
-                    template = get_personality_template(
-                        cast(PersonalityStyleLiteral, resolved.personality_style)
-                    )
-                    personality_suffix = (
-                        f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-                    )
-                    user_instructions = (
-                        f"{user_instructions}{personality_suffix}"
-                        if user_instructions
-                        else personality_suffix.strip()
-                    )
-                except Exception:
-                    logger.warning(
-                        "Invalid personality style '%s' for agent '%s'",
-                        resolved.personality_style,
-                        request.agent_id,
-                    )
+            suffix_engine_params: dict[str, object] | None = (
+                dict(resolved.engine_params) if resolved.engine_params else None
+            )
+            if request.engine_params:
+                if suffix_engine_params:
+                    suffix_engine_params = {
+                        **suffix_engine_params,
+                        **request.engine_params,
+                    }
+                else:
+                    suffix_engine_params = dict(request.engine_params)
 
-            from myrm_agent_harness.utils.response_locale import build_response_locale_suffix
-
-            locale_suffix = build_response_locale_suffix(resolved.engine_params)
-            if locale_suffix:
-                user_instructions = (
-                    f"{user_instructions}{locale_suffix}"
-                    if user_instructions
-                    else locale_suffix.strip()
-                )
+            user_instructions = apply_profile_output_suffixes(
+                user_instructions,
+                personality_style=resolved.personality_style,
+                engine_params=suffix_engine_params,
+                agent_id=request.agent_id,
+            )
 
     if mcp_configs and resolved:
         from app.services.agent.params.mcp_selection import apply_agent_mcp_selection

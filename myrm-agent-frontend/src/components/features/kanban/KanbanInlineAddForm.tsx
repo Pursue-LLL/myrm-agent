@@ -342,6 +342,8 @@ export default function KanbanInlineAddForm({
         <select
           value={modelOverride}
           onChange={(e) => onModelOverrideChange(e.target.value)}
+          title={t('modelEditHint')}
+          data-testid="kanban-create-model-select"
           className="text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">{t('inheritAgentModel')}</option>
@@ -418,6 +420,7 @@ export default function KanbanInlineAddForm({
       <div className="flex gap-1">
         <button
           onClick={handleSubmit}
+          data-testid="kanban-create-submit"
           className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {t('add')}

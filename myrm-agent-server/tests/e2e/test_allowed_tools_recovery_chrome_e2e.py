@@ -228,7 +228,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
         )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_allowed_tools_recovery_progress_step_and_trust_badge_render() -> None:

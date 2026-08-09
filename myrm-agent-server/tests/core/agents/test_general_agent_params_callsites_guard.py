@@ -3,6 +3,9 @@
 When adding a new construction site, update EXPECTED_* below and verify
 `auto_restore_domains`, `enable_browser`, `enable_render_ui`, `enable_web_fetch`, and related ResolvedAgentProfile fields
 are passed consistently (Web / Channel / Cron / Eval / Voice parity).
+
+Profile output suffix parity is guarded separately by
+``tests/services/agent/params/test_profile_output_suffixes_guard.py``.
 """
 
 from __future__ import annotations
@@ -20,9 +23,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
         "app/api/voice/realtime.py",
         "app/services/agent/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
-        "app/services/agent/stream_session/memory_brief.py",
         "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
-        "app/core/channel_bridge/agent_executor/execute_preamble_types.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/core/eval/executor.py",
         "app/services/kanban/task_runner.py",
@@ -73,6 +74,8 @@ def _discover_callsites() -> tuple[set[str], set[str]]:
                 model_validate.add(rel)
                 continue
             if re.search(r"\bGeneralAgentParams\s*\(", line):
+                if "(POS:" in line:
+                    continue
                 if stripped.startswith("class ") and "GeneralAgentParams" in stripped:
                     continue
                 direct.add(rel)
@@ -117,3 +120,10 @@ def test_production_general_agent_params_pass_locale() -> None:
     assert LOCALE_EXCLUDED_GENERAL_AGENT_PARAMS_CALLSITES.isdisjoint(
         LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES
     )
+
+
+def test_discover_callsites_ignores_pos_docstring_references() -> None:
+    """File-header INPUT lines like ``GeneralAgentParams (POS: ...)`` are not constructors."""
+    direct, _ = _discover_callsites()
+    assert "app/services/agent/stream_session/memory_brief.py" not in direct
+    assert "app/core/channel_bridge/agent_executor/execute_preamble_types.py" not in direct

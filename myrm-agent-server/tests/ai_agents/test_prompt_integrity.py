@@ -152,12 +152,12 @@ class TestMemoryRulesConditionalInjection:
     def test_full_mode_includes_memory_rules_by_default(self) -> None:
         prompt = get_core_system_prompt("full")
         assert "<memory_rules>" in prompt
-        assert "memory_save" in prompt
+        assert "memory_save_tool" in prompt
 
     def test_full_mode_excludes_memory_rules_when_disabled(self) -> None:
         prompt = get_core_system_prompt("full", enable_memory=False)
         assert "<memory_rules>" not in prompt
-        assert "memory_save" not in prompt
+        assert "memory_save_tool" not in prompt
 
     def test_lean_mode_includes_memory_rules_when_enabled(self) -> None:
         prompt = get_core_system_prompt("lean", enable_memory=True)
@@ -189,9 +189,9 @@ class TestMemoryRulesConditionalInjection:
     def test_memory_disabled_no_memory_tool_references(self) -> None:
         """No memory tool names should leak when memory is disabled."""
         prompt = get_core_system_prompt("full", enable_memory=False)
-        assert "memory_save" not in prompt
-        assert "memory_manage" not in prompt
-        assert "memory_recall" not in prompt
+        assert "memory_save_tool" not in prompt
+        assert "memory_manage_tool" not in prompt
+        assert "memory_search_tool" not in prompt
 
     def test_both_disabled_full_mode_still_has_core_rules(self) -> None:
         """enable_answer_tool=False + enable_memory=False still has core rules."""

@@ -5,11 +5,24 @@ from __future__ import annotations
 import os
 from urllib.parse import urlparse
 
+# Global write prefixes audited across app/api (2026-08-09): config, features, admin,
+# security (allowlist/estop/vault), org, voice, web_push, workspace. A mutation under
+# any of these is a cross-session global write and must not run on the shared stack.
 _GLOBAL_MUTATION_PREFIXES: tuple[str, ...] = (
     "/api/v1/config/",
     "/api/v1/features/",
     "/api/v1/admin/",
+    "/api/v1/security/",
+    "/api/v1/org/",
+    "/api/v1/voice/",
+    "/api/v1/web_push/",
+    "/api/v1/workspace/",
 )
+
+# include_in_schema=False test-only fixture endpoints (e.g. /api/v1/chats/test/seed-*,
+# /api/v1/security/allowlist/test/clear-pattern-fixture). They are namespace-isolated
+# per-run seeds and safe to run as SHARED+NAMESPACE_WRITE — never treated as global write.
+_TEST_FIXTURE_SEGMENT = "/test/"
 
 # Formal chrome_e2e bootstrap helpers (prepare_e2e_ui_session) — idempotent UI gate, not tenant config.
 _NAMESPACE_WRITE_BOOTSTRAP_PATHS: frozenset[str] = frozenset(
@@ -33,6 +46,8 @@ def _normalized_path(url: str) -> str:
 
 def is_global_mutation_path(path: str) -> bool:
     normalized = path if path.startswith("/") else f"/{path}"
+    if _TEST_FIXTURE_SEGMENT in normalized:
+        return False
     return any(normalized.startswith(prefix) for prefix in _GLOBAL_MUTATION_PREFIXES)
 
 

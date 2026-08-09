@@ -117,7 +117,10 @@ def test_search_priority_chain_persists_via_omni_config_api() -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD"
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

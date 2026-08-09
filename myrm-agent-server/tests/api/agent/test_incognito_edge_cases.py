@@ -67,8 +67,8 @@ class TestIncognitoSystemPrompt:
         prompt_with_memory = get_core_system_prompt(enable_memory=True)
         prompt_without_memory = get_core_system_prompt(enable_memory=False)
         assert len(prompt_with_memory) > len(prompt_without_memory)
-        assert "memory_save" in prompt_with_memory or "MEMORY" in prompt_with_memory
-        assert "memory_save" not in prompt_without_memory
+        assert "memory_save_tool" in prompt_with_memory or "MEMORY" in prompt_with_memory
+        assert "memory_save_tool" not in prompt_without_memory
 
     def test_prompt_cache_key_stability(self) -> None:
         from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt

@@ -11,16 +11,18 @@ vi.mock('@/lib/deploy-mode', () => ({
   isTauriRuntime: () => mockIsTauri,
 }));
 
+const stableT = (key: string, values?: { count?: number; usage?: string }) => {
+  if (key === 'trayTooltipBackground' && values?.count !== undefined) {
+    return `bg:${values.count}`;
+  }
+  if (key === 'trayTooltipUsage' && values?.usage) {
+    return `Today: ${values.usage}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: { count?: number; usage?: string }) => {
-    if (key === 'trayTooltipBackground' && values?.count !== undefined) {
-      return `bg:${values.count}`;
-    }
-    if (key === 'trayTooltipUsage' && values?.usage) {
-      return `Today: ${values.usage}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 const mockGetUsageStatistics = vi.fn().mockResolvedValue({ totalTokens: 0, costUsd: 0 });

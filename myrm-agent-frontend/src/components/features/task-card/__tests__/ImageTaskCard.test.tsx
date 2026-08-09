@@ -22,7 +22,7 @@ describe('ImageTaskCard', () => {
   it('renders placeholder while task is loading', () => {
     mockUseTaskSubscription.mockReturnValue(undefined);
     render(<ImageTaskCard task_id="img-1" />);
-    expect(screen.getByText('Queued...')).toBeInTheDocument();
+    expect(screen.getByText('queued')).toBeInTheDocument();
   });
 
   it('shows structured retry error message when retry request fails', async () => {

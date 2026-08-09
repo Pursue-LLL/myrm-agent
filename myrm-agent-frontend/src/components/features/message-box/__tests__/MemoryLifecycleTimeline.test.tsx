@@ -6,8 +6,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { MemoryLifecycleTimeline } from '@/components/features/message-box/MemoryLifecycleTimeline';
 import type { MemoryLifecyclePhaseId, MemoryLifecyclePhaseState } from '@/components/features/message-box/memoryLifecyclePhases';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('next/link', () => ({

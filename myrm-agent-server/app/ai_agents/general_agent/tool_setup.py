@@ -897,6 +897,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 time_decay_half_life_days=time_decay_half_life_days,
                 on_conflict=on_conflict,
                 on_consolidation_complete=on_consolidation_complete,
+                base_path=self.memory_base_path,
             )
 
             from myrm_agent_harness.toolkits.memory.memory_search_policy import (

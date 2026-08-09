@@ -22,9 +22,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+const stableT = (key: string, values?: Record<string, string>) =>
+  values?.restoreArg ? `${key}:${values.restoreArg}` : key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values?.restoreArg ? `${key}:${values.restoreArg}` : key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('../Chat', () => ({ default: () => <div data-testid="chat" /> }));

@@ -9,11 +9,13 @@ const mockToast = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/utils/toast', () => ({ toast: mockToast }));
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params) return `${key}:${JSON.stringify(params)}`;
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`;
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 const mockUploadFiles = vi.hoisted(() => vi.fn().mockResolvedValue({ uploaded_count: 0, files: [] }));

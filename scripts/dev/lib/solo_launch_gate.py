@@ -8,6 +8,13 @@ plane. This gate fail-closes when:
 - ``:3000`` TCP+HTML probe is not green, or
 - the browser orchestrator daemon is not READY.
 
+The exact contract is the four-term §19.12.2 chain — PreflightContract → this
+gate → MuxChatBody → PytestEvidenceSeal → LLMReceipt. Host CPU/memory pressure
+is intentionally *not* an admission term: the governor only shrinks operation
+credits (it never kills a running private backend), and a local dev machine
+running the IDE itself routinely sits above any load floor, which would make
+the solo signoff window permanently unavailable.
+
 Non-LIVE workloads (READ/RESOURCE_WRITE/…, i.e. ``workload != "LIVE"``) are not
 intercepted — parallel lanes keep their normal launch gate semantics.
 """
