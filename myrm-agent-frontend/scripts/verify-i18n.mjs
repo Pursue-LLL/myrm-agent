@@ -11,7 +11,7 @@
  *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
  * - ko/de 汉字纯净门禁：拉丁/谚文系语言（ko/de）文案中出现汉字即中文残留（语言名/跨语言术语豁免），
- *   与 en 9f 对称，防 Item B 类中文残留漏检复发
+ *   与 en 9f 对称
  *
  * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
@@ -602,6 +602,16 @@ const EN_PURITY_ALLOWED_KEYS = new Set([
   'settings.languageOptions.korean',
   'settings.languageOptions.german',
 ]);
+
+/**
+ * ko/de 汉字纯净门禁豁免键：在 en 9f 语言名豁免基础上，追加跨语言术语
+ * agent.formalKoreanReplies.title（de 中写成「합니다体」，「体」为日语汉字，
+ * 描述韩语敬语体 .합니다 时有意保留，非中文残留）。
+ */
+const HANZI_PURITY_ALLOWED_KEYS = new Set([
+  ...EN_PURITY_ALLOWED_KEYS,
+  'agent.formalKoreanReplies.title',
+]);
 const enNonLatinErrors = [];
 for (const key of enLeaves) {
   if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
@@ -751,12 +761,11 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   }
 
   // 9g. 拉丁/谚文系语言（ko/de）汉字纯净门禁：文案中出现汉字即中文残留
-  //（语言名、跨语言术语豁免）。与 en 9f SSOT 纯净门禁对称，补齐 Item B 残留漏检。
+  //（豁免见 HANZI_PURITY_ALLOWED_KEYS）。与 en 9f SSOT 纯净门禁对称。
   if (lang === 'ko' || lang === 'de') {
     const hanziErrors = [];
     for (const key of enLeaves) {
-      if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
-      if (key === 'agent.formalKoreanReplies.title') continue;
+      if (HANZI_PURITY_ALLOWED_KEYS.has(key)) continue;
       const localeValue = resolvePath(data, key);
       if (typeof localeValue === 'string' && CJK_HANZI_RE.test(localeValue)) {
         hanziErrors.push(key);
