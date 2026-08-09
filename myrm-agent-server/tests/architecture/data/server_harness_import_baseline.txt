@@ -175,6 +175,7 @@ myrm_agent_harness.agent.types
 myrm_agent_harness.agent.workspace_rules
 myrm_agent_harness.agent.workspace_rules.scanner
 myrm_agent_harness.api
+myrm_agent_harness.api.config
 myrm_agent_harness.api.hooks
 myrm_agent_harness.api.security
 myrm_agent_harness.api.skills
