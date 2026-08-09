@@ -25,6 +25,10 @@ except (KeyError, OSError):
 # Prevents sandboxed HOME from leaking harness data into e.g. ~/.cursor2/.myrm.
 export_spawn_home() {
   export HOME="$(real_user_home)"
+  # Isolated SHPOIB runtimes pre-set MYRM_DATA_DIR to per-runtime dataDir; do not clobber.
+  if [[ -n "${MYRM_DATA_DIR:-}" ]]; then
+    return 0
+  fi
   export MYRM_DATA_DIR="${HOME}/.myrm"
 }
 
