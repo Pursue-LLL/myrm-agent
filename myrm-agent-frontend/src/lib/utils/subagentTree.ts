@@ -60,7 +60,7 @@ export function extractCostUsd(node: SubagentNode): number {
   // emits total_cost_usd in SUBAGENT_PROGRESS and observability snapshots).
   // `budget.cost_usd` never exists (budget only carries timeout/max_cost/budget_tokens).
   const raw = node.token_usage?.total_cost_usd;
-  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
   if (typeof raw === 'string') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
@@ -70,7 +70,7 @@ export function extractCostUsd(node: SubagentNode): number {
 
 export function extractTotalTokens(node: SubagentNode): number {
   const raw = node.token_usage?.total_tokens;
-  return typeof raw === 'number' && raw > 0 ? raw : 0;
+  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
 function toFiniteNumber(raw: SubagentMetadataValue | undefined): number {

@@ -9,6 +9,10 @@ import {
   flattenTree,
   fmtCost,
   fmtTokens,
+  extractCostUsd,
+  extractTotalTokens,
+  extractBudgetTokens,
+  extractMaxCostUsd,
   type TreeNode,
 } from '../subagentTree';
 
@@ -28,6 +32,54 @@ function mkRecord(...nodes: SubagentNode[]): Record<string, SubagentNode> {
   for (const n of nodes) r[n.task_id] = n;
   return r;
 }
+
+// ── extract* helpers ─────────────────────────────────────────────────
+
+describe('extractCostUsd', () => {
+  it('reads from token_usage.total_cost_usd', () => {
+    expect(extractCostUsd({ ...mkNode({ task_id: 'a' }), token_usage: { total_cost_usd: 1.25 } })).toBeCloseTo(1.25);
+  });
+
+  it('parses string cost', () => {
+    expect(extractCostUsd({ ...mkNode({ task_id: 'a' }), token_usage: { total_cost_usd: '0.75' } })).toBeCloseTo(0.75);
+  });
+
+  it('returns 0 for missing/invalid cost', () => {
+    expect(extractCostUsd(mkNode({ task_id: 'a' }))).toBe(0);
+    expect(extractCostUsd({ ...mkNode({ task_id: 'a' }), token_usage: { total_cost_usd: 'abc' } })).toBe(0);
+    expect(extractCostUsd({ ...mkNode({ task_id: 'a' }), token_usage: { total_cost_usd: Infinity } })).toBe(0);
+  });
+});
+
+describe('extractTotalTokens', () => {
+  it('reads positive total_tokens', () => {
+    expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: 1234 } })).toBe(1234);
+  });
+
+  it('returns 0 for zero/missing/negative', () => {
+    expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: 0 } })).toBe(0);
+    expect(extractTotalTokens({ ...mkNode({ task_id: 'a' }), token_usage: { total_tokens: -5 } })).toBe(0);
+    expect(extractTotalTokens(mkNode({ task_id: 'a' }))).toBe(0);
+  });
+});
+
+describe('extractBudgetTokens / extractMaxCostUsd', () => {
+  it('reads budget ceilings from budget payload', () => {
+    const node: SubagentNode = {
+      ...mkNode({ task_id: 'a' }),
+      budget: { budget_tokens: 50_000, max_cost_usd: 2.5 },
+    };
+    expect(extractBudgetTokens(node)).toBe(50_000);
+    expect(extractMaxCostUsd(node)).toBeCloseTo(2.5);
+  });
+
+  it('returns 0 when budget is absent or non-finite', () => {
+    expect(extractBudgetTokens(mkNode({ task_id: 'a' }))).toBe(0);
+    expect(extractMaxCostUsd(mkNode({ task_id: 'a' }))).toBe(0);
+    expect(extractBudgetTokens({ ...mkNode({ task_id: 'a' }), budget: { budget_tokens: 'abc' } })).toBe(0);
+    expect(extractMaxCostUsd({ ...mkNode({ task_id: 'a' }), budget: { max_cost_usd: Infinity } })).toBe(0);
+  });
+});
 
 // ── buildTree ────────────────────────────────────────────────────────
 
