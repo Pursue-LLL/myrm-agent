@@ -84,7 +84,7 @@ class BaseArtifactProcessor(ABC):
             return None
 
         artifacts: list[ArtifactInfo] = []
-        processed_entries: list[tuple[str, str, str]] = []
+        processed_entries: list[tuple[str, str, str, str | None]] = []
 
         for item in artifacts_data:
             filename = item.get("filename", "")
@@ -125,7 +125,9 @@ class BaseArtifactProcessor(ABC):
                     short_file_id=str(short_file_id) if isinstance(short_file_id, str) and short_file_id else None,
                 )
                 artifacts.append(artifact)
-                processed_entries.append((filename, file_path, result.file_id))
+                processed_entries.append(
+                    (filename, file_path, result.file_id, result.resolved_path),
+                )
                 logger.info(f"📦 处理工件: {filename} ({artifact_type.value}, {result.file_size} bytes)")
 
             except Exception as e:
@@ -151,7 +153,7 @@ class BaseArtifactProcessor(ABC):
                     workspace_root = str(get_workspace_root())
 
                 async with get_session() as db:
-                    for filename, file_path, file_id in processed_entries:
+                    for filename, file_path, file_id, resolved_path in processed_entries:
                         await upsert_processor_artifact(
                             db,
                             file_id=file_id,
@@ -159,6 +161,7 @@ class BaseArtifactProcessor(ABC):
                             sandbox_path=file_path,
                             workspace_root=workspace_root,
                             chat_id=self.chat_id,
+                            physical_path=resolved_path,
                         )
             except Exception as e:
                 logger.error("Failed to persist processor artifacts to DB: %s", e)

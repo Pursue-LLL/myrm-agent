@@ -58,7 +58,6 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "wiki",
         "workflow_templates",
         "workspace",
-        "plugins",
     }
 )
 
@@ -114,7 +113,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "project",
         "repair",
         "web_fetch",
-        "compliance",
     }
 )
 

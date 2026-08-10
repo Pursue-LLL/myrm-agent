@@ -13,10 +13,11 @@ from __future__ import annotations
 import pytest
 
 from app.ai_agents.general_agent.config_builders import resolve_skill_env_map
+from myrm_agent_harness.backends.skills.protocols import SkillBackend
 from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
 
 
-class _FakeSkillBackend:
+class _FakeSkillBackend(SkillBackend):
     """Minimal async SkillBackend double for list_skills()."""
 
     def __init__(self, skills: list[SkillMetadata]) -> None:
@@ -24,6 +25,15 @@ class _FakeSkillBackend:
 
     async def list_skills(self) -> list[SkillMetadata]:
         return list(self._skills)
+
+    async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
+        return [s for s in self._skills if s.name in skill_ids]
+
+    async def get_skill_content(self, skill_name: str) -> str:
+        raise NotImplementedError
+
+    async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
+        raise NotImplementedError
 
 
 def _skill(name: str, storage_skill_id: str | None = None) -> SkillMetadata:
@@ -40,7 +50,7 @@ async def test_resolve_maps_env_to_runtime_name() -> None:
         "slack_skill": {"SLACK_TOKEN": "x"},  # configured under old storage id
     }
 
-    resolved = await resolve_skill_env_map(backend, env_vars)  # type: ignore[arg-type]
+    resolved = await resolve_skill_env_map(backend, env_vars)
 
     assert resolved == {"slack_notifier_skill": {"SLACK_TOKEN": "x"}}
 
@@ -65,7 +75,7 @@ async def test_resolve_drops_env_for_uninstalled_skills() -> None:
         "removed_skill": {"GHOST": "1"},
     }
 
-    resolved = await resolve_skill_env_map(backend, env_vars)  # type: ignore[arg-type]
+    resolved = await resolve_skill_env_map(backend, env_vars)
 
     assert resolved == {"demo_skill": {"SK": "1"}}
 
@@ -75,8 +85,8 @@ async def test_resolve_returns_input_without_backend_or_env() -> None:
     """No backend or empty config short-circuits to the input as-is."""
     env_vars: dict[str, dict[str, str]] = {"demo_skill": {"SK": "1"}}
 
-    assert await resolve_skill_env_map(None, env_vars) == env_vars  # type: ignore[arg-type]
-    assert await resolve_skill_env_map(_FakeSkillBackend([]), {}) == {}  # type: ignore[arg-type]
+    assert await resolve_skill_env_map(None, env_vars) == env_vars
+    assert await resolve_skill_env_map(_FakeSkillBackend([]), {}) == {}
 
 
 @pytest.mark.asyncio
@@ -90,6 +100,6 @@ async def test_resolve_returns_input_on_backend_failure(monkeypatch: pytest.Monk
     monkeypatch.setattr(backend, "list_skills", _boom)
     env_vars: dict[str, dict[str, str]] = {"demo_skill": {"SK": "1"}}
 
-    resolved = await resolve_skill_env_map(backend, env_vars)  # type: ignore[arg-type]
+    resolved = await resolve_skill_env_map(backend, env_vars)
 
     assert resolved == env_vars

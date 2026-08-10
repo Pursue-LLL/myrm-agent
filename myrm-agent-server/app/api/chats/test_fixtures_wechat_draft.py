@@ -1,4 +1,9 @@
-"""Local-only WeChat Official draft Chrome E2E seed routes."""
+"""Local-only WeChat Official draft Chrome E2E seed routes.
+
+[POS]
+- api/chats: local-only seed endpoints for WeChat official draft Chrome E2E
+  (guarded by ``is_local_mode``; never exposed outside local dev).
+"""
 
 from __future__ import annotations
 
@@ -67,6 +72,7 @@ async def seed_wechat_draft_fixture(variant: str = "compliance_block") -> dict[s
     await config.set(
         "wechatOfficialCredentials",
         {"appId": "wx_e2e_fixture", "appSecret": "e2e_fixture_secret"},
+        device_id="wechat-draft-e2e-seed",
     )
 
     artifact: dict[str, object] = {

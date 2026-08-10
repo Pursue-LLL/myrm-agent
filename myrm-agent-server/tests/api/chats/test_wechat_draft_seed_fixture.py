@@ -51,7 +51,7 @@ def test_seed_wechat_draft_fixture_creates_html_artifact(client: TestClient, tmp
     with (
         patch("app.api.chats.test_fixtures_wechat_draft.is_local_mode", return_value=True),
         patch(
-            "app.api.chats.test_fixtures_wechat_draft.resolve_default_chat_workspace_dir",
+            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
             side_effect=_fake_resolve,
         ),
         patch(
