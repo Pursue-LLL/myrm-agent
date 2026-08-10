@@ -52,30 +52,42 @@ _ATTACH_CHAT_JS = """(async () => {
   return { ok: false, state: window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {} };
 })()"""
 
-_SELECT_WECHAT_OFFICIAL_CHANNEL_JS = """(() => {
+_SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
+  try {
+    window.resizeTo(1280, 900);
+  } catch {
+    // ignore
+  }
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm-selected-channel', 'wechat_official');
+  } catch {
+    // ignore
+  }
   const labels = ['微信公众号', 'WeChat Official Account'];
   const buttons = Array.from(document.querySelectorAll('button'));
-  const hit = buttons.find((btn) => labels.some((label) => (btn.textContent || '').includes(label)));
-  if (hit) {
-    hit.click();
-    return { ok: true, label: (hit.textContent || '').trim() };
+  const channelBtn = buttons.find((btn) =>
+    labels.some((label) => (btn.textContent || '').includes(label)),
+  );
+  if (channelBtn) {
+    channelBtn.click();
   }
-  return {
-    ok: false,
-    texts: buttons.map((btn) => (btn.textContent || '').trim()).filter(Boolean).slice(0, 30),
-  };
-})()"""
   const appId = document.querySelector('#wechat-official-app-id');
   const body = document.body.innerText || '';
   const hasHint =
     body.includes('IP 白名单') ||
     body.includes('IP whitelist') ||
     body.includes('40164');
+  const loading = !!document.querySelector('.animate-spin');
   return {
-    ready: !!appId && hasHint,
+    ready: !!appId && hasHint && !loading,
     hasAppId: !!appId,
     hasHint,
+    loading,
     pathname: location.pathname,
+    viewportWidth: window.innerWidth,
+    channelClicked: !!channelBtn,
   };
 })()"""
 
@@ -116,6 +128,29 @@ _CLICK_CONFIRM_PUSH_JS = """(() => {
 })()"""
 
 
+def _prepare_wechat_official_settings(api_url: str) -> None:
+    """Seed credentials and best-effort enable channel so config card renders."""
+    http_json(
+        "PUT",
+        f"{api_url}/api/v1/config/wechatOfficialCredentials",
+        {
+            "deviceId": "wechat-settings-e2e",
+            "value": {
+                "appId": "wx_e2e_settings",
+                "appSecret": "e2e_settings_secret",
+                "token": "",
+                "encodingAesKey": "",
+            },
+        },
+    )
+    http_json(
+        "PATCH",
+        f"{api_url}/api/v1/channels/manage/wechat_official/toggle",
+        {"enabled": True},
+        expected_statuses=frozenset({200, 409}),
+    )
+
+
 def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block") -> dict[str, object]:
     seeded = http_json(
         "POST",
@@ -133,13 +168,13 @@ def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block
 def test_wechat_official_settings_shows_ip_whitelist_hint() -> None:
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
+    _prepare_wechat_official_settings(api_url)
 
     with open_settings_subroute("/settings/channels") as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         state = wait_for_state(
             client,
             page,
-            _SETTINGS_WECHAT_OFFICIAL_READY_JS,
+            _SETTINGS_WECHAT_OFFICIAL_PROBE_JS,
             timeout_sec=90.0,
         )
         assert state.get("ready") is True, state

@@ -16,3 +16,4 @@ Agent Plugins 1.0.0 导入 HTTP 层：`preview`（解析 ZIP + 组件级预览�
 - **GUI-First**：预览阶段不落任何数据，用户逐项决策后才 confirm。
 - **错误结构化**：archive security 拦截以 `error_code` 上报（复用前端 `resolveUserFacingArchiveSecurityError`）；普通错误使用英文消息。
 - **异步清理**：过期会话清理通过 `BackgroundTasks` 调用 `PluginStaging.cleanup_expired_sessions`。
+- **存储路径**：staging 根目录取自 `get_evolution_skill_store_db_path()`（core 统一 accessor），避免经 API helper 间接构造 store。

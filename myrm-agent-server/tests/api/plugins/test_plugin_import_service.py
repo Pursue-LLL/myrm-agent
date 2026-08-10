@@ -6,8 +6,11 @@ SkillStore, MCP persistence to ``mcpServers`` UserConfig, and agent binding.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
+import os
+import time
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -293,6 +296,60 @@ class TestConfirmPluginImport:
         update = agent_service.update_agent.await_args.args[1]
         assert update.mcp_ids == ["existing", "pdf-server"]
 
+    async def test_confirm_duplicate_server_name_not_counted_or_bound(
+        self, tmp_path: Path
+    ) -> None:
+        session = self._make_session()
+        server_keys = list(session.servers_by_key.keys())
+
+        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value=[{"name": "pdf-server", "enabled": True}]
+                )
+            ),
+            set=AsyncMock(),
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(
+                return_value=SimpleNamespace(metadata={"mcp_ids": ["existing"]})
+            ),
+            update_agent=AsyncMock(),
+        )
+
+        with (
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[],
+                server_decisions=[
+                    PluginConfirmItem(
+                        component="mcp",
+                        virtual_id=server_keys[0],
+                        resolution="install",
+                        name="pdf-server",
+                    ),
+                ],
+                bind_agent_id="agent-1",
+            )
+
+        # pdf-server already exists -> skipped, not counted, not bound.
+        assert result == {
+            "imported_skills": 0,
+            "skipped_skills": 0,
+            "imported_servers": 0,
+            "skipped_servers": 0,
+        }
+        config_service.set.assert_not_awaited()
+        agent_service.update_agent.assert_not_awaited()
+
     async def test_confirm_skip_everything(self, tmp_path: Path) -> None:
         session = self._make_session()
         skill_keys = list(session.skills_by_key.keys())
@@ -470,3 +527,21 @@ class TestPluginStaging:
         staging = PluginStaging(tmp_path)
         with pytest.raises(FileNotFoundError):
             staging.load_session("nope")
+
+    def test_cleanup_expired_sessions(self, tmp_path: Path) -> None:
+        from app.services.plugins.import_service import PluginStaging
+
+        staging = PluginStaging(tmp_path)
+        session = _parse_session()
+        staging.save_session("old-session", session)
+        staging.save_session("new-session", session)
+
+        # Backdate the old-session file beyond the 24h TTL.
+        old_file = tmp_path / "plugin_staging" / "old-session.pkl"
+        old_mtime = time.time() - 86400 * 2
+        os.utime(old_file, (old_mtime, old_mtime))
+
+        asyncio.run(staging.cleanup_expired_sessions())
+
+        assert not old_file.exists()
+        assert (tmp_path / "plugin_staging" / "new-session.pkl").exists()

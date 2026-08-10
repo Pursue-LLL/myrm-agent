@@ -10,9 +10,16 @@ Covers:
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from app.ai_agents.general_agent.config_builders import resolve_skill_env_map
+from app.ai_agents.general_agent.config_builders import (
+    build_execution_config,
+    build_privacy_routing_config,
+    resolve_skill_env_map,
+    wrap_with_privacy_routing,
+)
 from myrm_agent_harness.backends.skills.protocols import SkillBackend
 from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
 
@@ -61,7 +68,7 @@ async def test_resolve_keeps_env_when_keyed_by_runtime_name() -> None:
     backend = _FakeSkillBackend([_skill("demo_skill")])
     env_vars: dict[str, dict[str, str]] = {"demo_skill": {"SK": "1"}}
 
-    resolved = await resolve_skill_env_map(backend, env_vars)  # type: ignore[arg-type]
+    resolved = await resolve_skill_env_map(backend, env_vars)
 
     assert resolved == {"demo_skill": {"SK": "1"}}
 
@@ -114,3 +121,97 @@ async def test_resolve_returns_input_on_backend_failure(monkeypatch: pytest.Monk
     resolved = await resolve_skill_env_map(backend, env_vars)
 
     assert resolved == env_vars
+
+
+def test_build_privacy_routing_config_none_without_local_model() -> None:
+    """Missing or empty raw config yields None (routing disabled)."""
+    assert build_privacy_routing_config(None) is None
+    assert build_privacy_routing_config({"other": "x"}) is None
+
+
+def test_build_privacy_routing_config_full() -> None:
+    """Full raw config maps onto PrivacyRoutingConfig with defaults."""
+    cfg = build_privacy_routing_config(
+        {
+            "localModel": "local/llama",
+            "localBaseUrl": "http://127.0.0.1:11434/v1",
+            "localApiKey": "sk-local",
+            "s2Strategy": "local",
+            "s3Strategy": "block",
+            "localFallback": "force_redact_cloud",
+        }
+    )
+    assert cfg is not None
+    assert cfg.local_model == "local/llama"
+    assert cfg.local_base_url == "http://127.0.0.1:11434/v1"
+    assert cfg.local_api_key == "sk-local"
+    assert cfg.s2_strategy == "local"
+    assert cfg.s3_strategy == "block"
+    assert cfg.local_fallback == "force_redact_cloud"
+
+
+def test_build_privacy_routing_config_applies_defaults() -> None:
+    """Missing optional fields fall back to documented defaults."""
+    cfg = build_privacy_routing_config({"localModel": "local/llama"})
+    assert cfg is not None
+    assert cfg.local_base_url is None
+    assert cfg.local_api_key is None
+    assert cfg.s2_strategy == "cloud_after_redact"
+    assert cfg.s3_strategy == "local"
+    assert cfg.local_fallback == "block"
+
+
+def test_build_execution_config_none_returns_base() -> None:
+    """None preference returns the base execution config unchanged."""
+    from myrm_agent_harness.toolkits.code_execution.config import get_execution_config
+
+    base = get_execution_config()
+    result = build_execution_config(None)
+    assert result is base
+
+
+def test_build_execution_config_applies_network_preference() -> None:
+    """Explicit network preference is applied on top of the base config."""
+    from myrm_agent_harness.toolkits.code_execution.config import get_execution_config
+
+    base = get_execution_config()
+    for allowed in (True, False):
+        result = build_execution_config(allowed)
+        assert result.network.allow_network is allowed
+        assert result.network.allowed_hosts == base.network.allowed_hosts
+        assert result.mode == base.mode
+
+
+def test_wrap_with_privacy_routing_wires_local_model() -> None:
+    """PrivacyRoutingModel is built with the configured local model."""
+    from myrm_agent_harness.core.security.types import PrivacyRoutingConfig
+
+    cloud_llm = MagicMock()
+    routing_config = PrivacyRoutingConfig(
+        local_model="local/llama",
+        local_base_url="http://127.0.0.1:11434/v1",
+        local_api_key="sk-local",
+    )
+    fake_local_llm = MagicMock()
+    fake_wrapper = MagicMock()
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.llms.create_litellm_model",
+            return_value=fake_local_llm,
+        ) as mock_create,
+        patch(
+            "myrm_agent_harness.toolkits.llms.routing.PrivacyRoutingModel",
+            return_value=fake_wrapper,
+        ),
+    ):
+        result = wrap_with_privacy_routing(cloud_llm, routing_config)
+
+    assert result is fake_wrapper
+    mock_create.assert_called_once_with(
+        model="local/llama",
+        base_url="http://127.0.0.1:11434/v1",
+        api_key="sk-local",
+        temperature=0.2,
+        streaming=True,
+    )

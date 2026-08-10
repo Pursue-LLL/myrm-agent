@@ -23,7 +23,9 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from app.api.skills.evolution.helpers import _get_skill_store
+from app.core.skills.store.evolution_store import (
+    get_evolution_skill_store_db_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +143,8 @@ async def preview_plugin_import(
     skills_by_key = {f"skill:{idx}": skill for idx, skill in enumerate(result.skills)}
     servers_by_key = {f"mcp:{idx}": server for idx, server in enumerate(result.servers)}
 
-    store = _get_skill_store()
-    staging = PluginStaging(store.db_path.parent)
+    store = get_evolution_skill_store_db_path()
+    staging = PluginStaging(store.parent)
     staging.save_session(
         session_id,
         PluginImportSession(
@@ -178,8 +180,8 @@ async def confirm_plugin_import(
         confirm_plugin_import,
     )
 
-    store = _get_skill_store()
-    staging = PluginStaging(store.db_path.parent)
+    store = get_evolution_skill_store_db_path()
+    staging = PluginStaging(store.parent)
 
     try:
         session = staging.load_session(request.session_id)

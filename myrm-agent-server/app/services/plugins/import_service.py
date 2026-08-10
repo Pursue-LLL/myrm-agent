@@ -126,18 +126,24 @@ class PluginStaging:
                     "Failed to cleanup plugin staging file %s: %s", path, exc
                 )
 
-    async def cleanup_expired_sessions(self) -> None:
-        """Remove plugin sessions older than the TTL (e.g. abandoned uploads)."""
-        await asyncio.to_thread(self._cleanup_expired_sessions_sync)
+    def _cleanup_expired_sessions_sync(self) -> None:
+        """Remove plugin sessions older than the TTL (abandoned uploads)."""
         import time
 
         now = time.time()
-        for f in self.staging_dir.glob("*.pkl"):
-            if f.is_file() and now - f.stat().st_mtime > 86400:
-                try:
-                    f.unlink()
-                except OSError:
-                    pass
+        try:
+            for f in self.staging_dir.glob("*.pkl"):
+                if f.is_file() and now - f.stat().st_mtime > 86400:
+                    try:
+                        f.unlink()
+                    except OSError:
+                        pass
+        except Exception as exc:
+            logger.warning("Failed to cleanup expired plugin sessions: %s", exc)
+
+    async def cleanup_expired_sessions(self) -> None:
+        """Remove plugin sessions older than the TTL via background thread."""
+        await asyncio.to_thread(self._cleanup_expired_sessions_sync)
 
     def _session_path(self, session_id: str) -> Path:
         safe_id = "".join(c for c in session_id if c.isalnum() or c in "-_")
@@ -263,23 +269,26 @@ async def confirm_plugin_import(
     skill_records, skill_ids, skipped_skills = _collect_skill_records(
         session, skill_decisions
     )
-    server_configs, server_names, skipped_servers = _collect_server_configs(
+    server_configs, _, skipped_servers = _collect_server_configs(
         session, server_decisions
     )
 
     if skill_records:
         await _write_skills(skill_records)
+    imported_server_names: list[str] = []
     if server_configs:
-        await _write_mcp_servers(server_configs)
-    if bind_agent_id and (skill_ids or server_names):
+        imported_server_names = await _write_mcp_servers(server_configs)
+    if bind_agent_id and (skill_ids or imported_server_names):
         await _bind_agent(
-            skill_ids=skill_ids, server_names=server_names, agent_id=bind_agent_id
+            skill_ids=skill_ids,
+            server_names=imported_server_names,
+            agent_id=bind_agent_id,
         )
 
     return {
         "imported_skills": len(skill_records),
         "skipped_skills": skipped_skills,
-        "imported_servers": len(server_configs),
+        "imported_servers": len(imported_server_names),
         "skipped_servers": skipped_servers,
     }
 
@@ -385,7 +394,14 @@ def _server_to_config_dict(server: PluginMcpServer) -> dict[str, object]:
     return cfg
 
 
-async def _write_mcp_servers(configs: list[dict[str, object]]) -> None:
+async def _write_mcp_servers(
+    configs: list[dict[str, object]],
+) -> list[str]:
+    """Persist MCP servers, skipping existing names; returns persisted names.
+
+    The returned names reflect only entries actually written so callers can
+    count/bind exactly what landed (a duplicate name is skipped, not bound).
+    """
     from app.services.config.service import config_service
 
     record = await config_service.get("mcpServers")
@@ -397,6 +413,7 @@ async def _write_mcp_servers(configs: list[dict[str, object]]) -> None:
         str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)
     }
     new_configs: list[dict[str, object]] = []
+    persisted_names: list[str] = []
     for cfg in configs:
         name = str(cfg.get("name", "")).strip()
         if not name or name in existing_names:
@@ -405,9 +422,11 @@ async def _write_mcp_servers(configs: list[dict[str, object]]) -> None:
         existing.append(entry)
         existing_names.add(name)
         new_configs.append(entry)
+        persisted_names.append(name)
 
     if new_configs:
         await config_service.set("mcpServers", existing, device_id="plugin-import")
+    return persisted_names
 
 
 async def _bind_agent(
