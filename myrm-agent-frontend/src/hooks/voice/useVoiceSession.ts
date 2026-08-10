@@ -7,11 +7,12 @@
  * hooks/voice/useVoicePttListener (POS: Bridges Tauri PTT events to DOM, provides PttScreenContext type)
  *
  * [OUTPUT]
- * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS, vision fusion, and PTT screen context
+ * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS,
+ * queue-safe TTS insertion, vision fusion, and PTT screen context
  *
  * [POS]
  * Full-duplex voice session orchestrator. Manages concurrent listening + speaking with
- * automatic barge-in detection and PTT screen context fusion (Tauri desktop).
+ * automatic barge-in detection, queue-safe TTS insertion, and PTT screen context fusion (Tauri desktop).
  */
 
 'use client';

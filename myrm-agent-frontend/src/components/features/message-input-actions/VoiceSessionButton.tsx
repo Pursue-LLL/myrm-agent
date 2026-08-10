@@ -11,7 +11,8 @@
  * [POS]
  * Voice session trigger. Renders a mic-session button that opens VoiceSessionOverlay,
  * bridging useVoiceSession with the chat store for message sending and TTS playback.
- * Supports both audio_only (frontend Agent roundtrip) and agent_bridge (server-side Agent) modes.
+ * Supports audio_only, agent_bridge, openai_realtime, and gemini_live modes; announces
+ * voice background task completion via the voice-bg-done event across all modes.
  */
 
 'use client';
