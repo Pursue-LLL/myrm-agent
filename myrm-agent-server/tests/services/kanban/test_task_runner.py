@@ -41,7 +41,7 @@ async def test_kanban_task_runner_uses_unattended_mode():
             "app.ai_agents.agents.AgentFactory.create_general_agent"
         ) as mock_create_agent,
         patch(
-            "app.services.kanban.task_runner.build_task_context", new_callable=AsyncMock
+            "app.services.kanban.task_runner.runner.build_task_context", new_callable=AsyncMock
         ) as mock_build_context,
         patch.object(
             runner, "_resolve_profile", new_callable=AsyncMock
@@ -425,6 +425,7 @@ class TestBuildMultimodalRealExtraction:
 
     @pytest.mark.asyncio
     async def test_real_pdf_extraction_in_query(self) -> None:
+        pytest.importorskip("pdfplumber")
         runner = KanbanTaskRunner(AsyncMock())
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
         pdf_bytes = _minimal_pdf_bytes()
@@ -458,7 +459,8 @@ class TestBuildMultimodalRealExtraction:
 
     @pytest.mark.asyncio
     async def test_real_docx_extraction_in_query(self, tmp_path: Path) -> None:
-        from docx import Document
+        docx = pytest.importorskip("docx")
+        Document = docx.Document
 
         docx_path = tmp_path / "spec.docx"
         doc = Document()
@@ -599,7 +601,7 @@ class TestResolveRunOutcome:
 
     @pytest.mark.asyncio
     async def test_success_without_intent_is_protocol_violation(self) -> None:
-        from app.services.kanban.task_runner import _PROTOCOL_VIOLATION_MSG
+        from app.services.kanban.task_runner.runner import _PROTOCOL_VIOLATION_MSG
 
         task = KanbanTask(
             task_id="t-violation",
@@ -684,11 +686,11 @@ class TestTaskModelOverride:
                 "app.ai_agents.agents.AgentFactory.create_general_agent"
             ) as mock_create_agent,
             patch(
-                "app.services.kanban.task_runner.build_task_context",
+                "app.services.kanban.task_runner.runner.build_task_context",
                 new_callable=AsyncMock,
             ) as mock_build_context,
             patch(
-                "app.services.kanban.task_runner.resolve_agent_profile",
+                "app.services.kanban.task_runner.runner.resolve_agent_profile",
                 new_callable=AsyncMock,
             ) as mock_resolve_profile,
             patch(
@@ -810,7 +812,7 @@ class TestKanbanEnableMemory:
                 "app.ai_agents.agents.AgentFactory.create_general_agent"
             ) as mock_create_agent,
             patch(
-                "app.services.kanban.task_runner.build_task_context",
+                "app.services.kanban.task_runner.runner.build_task_context",
                 new_callable=AsyncMock,
             ) as mock_build_context,
             patch.object(

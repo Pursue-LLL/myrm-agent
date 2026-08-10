@@ -40,7 +40,7 @@ class TestGoalProviderSetup:
         runner = KanbanTaskRunner(mock_store)
         task = _make_task(goal_mode=True)
 
-        with patch("app.services.kanban.task_runner.GoalRegistry") as mock_registry:
+        with patch("app.services.kanban.task_runner.runner.GoalRegistry") as mock_registry:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
@@ -64,7 +64,7 @@ class TestGoalProviderSetup:
         runner = KanbanTaskRunner(mock_store)
         task = _make_task(goal_mode=True, goal_max_turns=5)
 
-        with patch("app.services.kanban.task_runner.GoalRegistry") as mock_registry:
+        with patch("app.services.kanban.task_runner.runner.GoalRegistry") as mock_registry:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
@@ -83,7 +83,7 @@ class TestGoalProviderSetup:
         runner = KanbanTaskRunner(mock_store)
         task = _make_task(goal_mode=True)
 
-        with patch("app.services.kanban.task_runner.GoalRegistry") as mock_registry:
+        with patch("app.services.kanban.task_runner.runner.GoalRegistry") as mock_registry:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=MagicMock())
             mock_registry.get_or_create_provider.return_value = mock_provider
@@ -104,7 +104,7 @@ class TestGoalProviderSetup:
             metadata={"completion_criteria": "All tests pass"},
         )
 
-        with patch("app.services.kanban.task_runner.GoalRegistry") as mock_registry:
+        with patch("app.services.kanban.task_runner.runner.GoalRegistry") as mock_registry:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
