@@ -15386,11 +15386,11 @@
         "label": "回复模式",
         "auto": "自动发送",
         "draftReview": "草稿审核",
-        "tooltip": "In draft review mode, AI-generated replies require human confirmation before being sent. Ideal for sales and customer service compliance.",
+        "tooltip": "设置为草稿审核后，AI 生成的回复需经你确认后才会发送到频道。适用于面向客户的场景。",
         "timeout": "超时",
-        "onExpiry": "On Expiry",
-        "autoReject": "Auto Reject",
-        "autoSend": "Auto Send"
+        "onExpiry": "到期时",
+        "autoReject": "自动丢弃",
+        "autoSend": "自动发送"
       }
     }
   },

@@ -91,6 +91,9 @@ myrm_agent_harness.agent.middlewares.memory_context_middleware
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
+myrm_agent_harness.agent.plugins.mcp_config
+myrm_agent_harness.agent.plugins.models
+myrm_agent_harness.agent.plugins.parser
 myrm_agent_harness.agent.security
 myrm_agent_harness.agent.security.approval_flow
 myrm_agent_harness.agent.security.audit

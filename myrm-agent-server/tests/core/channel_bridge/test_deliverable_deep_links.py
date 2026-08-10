@@ -7,6 +7,7 @@ and _fetch_artifact_versions DB batch lookup.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -128,6 +129,41 @@ class TestBuildArtifactDeepLinks:
         buttons, linked = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
         assert linked == frozenset()
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="",
+    )
+    @patch(
+        "app.core.infra.ingress.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="",
+    )
+    async def test_missing_ingress_logs_warning(
+        self,
+        mock_ingress: AsyncMock,
+        mock_base: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-no-ingress", "report.html", "html"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            buttons, linked = await build_artifact_deep_links(acc, "en")
+
+        assert buttons == ()
+        assert linked == frozenset()
+        assert any(
+            "no public ingress base URL" in record.message
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     @patch(
@@ -589,27 +625,34 @@ class TestCollectMultipleArtifacts:
     @patch(
         "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
     )
-    def test_nonexistent_file_skipped(self, mock_shareable: MagicMock):  # noqa: ANN001
+    def test_nonexistent_file_skipped(
+        self, mock_shareable: MagicMock, caplog: pytest.LogCaptureFixture
+    ):  # noqa: ANN001
         acc = StreamAccumulator()
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
         )
 
-        collect_channel_artifacts(
-            {
-                "data": [
-                    {
-                        "id": "art-ghost",
-                        "type": "text/html",
-                        "file_path": "/nonexistent/chart.html",
-                        "filename": "chart.html",
-                    }
-                ]
-            },
-            acc,
-        )
+        with caplog.at_level(logging.WARNING):
+            collect_channel_artifacts(
+                {
+                    "data": [
+                        {
+                            "id": "art-ghost",
+                            "type": "text/html",
+                            "file_path": "/nonexistent/chart.html",
+                            "filename": "chart.html",
+                        }
+                    ]
+                },
+                acc,
+            )
         assert len(acc.file_attachments) == 0
         assert len(acc.shareable_artifacts) == 0
+        assert any(
+            "Skipping artifact with missing file_path" in record.message
+            for record in caplog.records
+        )
 
     def test_invalid_data_types_skipped(self):
         acc = StreamAccumulator()

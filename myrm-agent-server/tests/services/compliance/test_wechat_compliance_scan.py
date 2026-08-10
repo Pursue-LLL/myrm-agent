@@ -104,3 +104,51 @@ def test_assert_for_publish_returns_warning_when_title_has_medical_term() -> Non
     assert not result.clean
     assert not result.has_high_risk
     assert any("排毒" in hit.terms for hit in result.hits)
+
+
+def test_extract_visible_text_returns_empty_for_blank_html() -> None:
+    assert extract_visible_text_from_html("") == ""
+    assert extract_visible_text_from_html("   ") == ""
+
+
+def test_scan_empty_text_is_clean() -> None:
+    result = scan_wechat_draft_content("")
+    assert result.clean
+    assert not result.has_high_risk
+
+
+def test_format_compliance_report_clean_en_locale() -> None:
+    result = scan_wechat_draft_content("正常教程内容")
+    report = format_compliance_report(result, locale="en")
+    assert "Compliance scan passed" in report
+
+
+def test_format_compliance_report_high_risk_en_locale() -> None:
+    result = scan_wechat_draft_content("保本理财，稳赚不赔")
+    report = format_compliance_report(result, locale="en")
+    assert "Compliance scan found issues" in report
+    assert "High-risk terms must be replaced" in report
+
+
+def test_format_compliance_report_warning_only_en_locale() -> None:
+    result = scan_wechat_draft_content("这款茶能排毒养颜")
+    report = format_compliance_report(result, locale="en")
+    assert "Review warnings before publishing" in report
+
+
+def test_compliance_hits_payload_uses_en_labels() -> None:
+    result = scan_wechat_draft_content("这款茶能排毒养颜")
+    payload = compliance_hits_payload(result, locale="en")
+    assert payload[0]["label"] == "Medical efficacy claims"
+
+
+def test_format_compliance_report_warning_only_zh_locale() -> None:
+    result = scan_wechat_draft_content("这款茶能排毒养颜")
+    report = format_compliance_report(result, locale="zh")
+    assert "建议修改后再发布" in report
+
+
+def test_compliance_hits_payload_defaults_locale_to_zh() -> None:
+    result = scan_wechat_draft_content("这款茶能排毒养颜")
+    payload = compliance_hits_payload(result, locale=None)
+    assert payload[0]["label"] == "医疗功效"

@@ -11,6 +11,9 @@ from fastapi.testclient import TestClient
 
 pytest.importorskip("app.api.channels.wechat_official", reason="Backend import issues")
 
+from app.channels.core.exceptions import ChannelConnectionError
+from app.api.channels import wechat_official as wechat_official_module
+
 
 @asynccontextmanager
 async def _noop_lifespan(app):
@@ -178,3 +181,278 @@ def test_wechat_official_draft_blocks_high_risk_compliance(
     assert isinstance(detail["hits"], list)
     assert detail["hits"][0]["highRisk"] is True
     assert "集赞" in detail["hits"][0]["terms"]
+
+
+def test_wechat_official_test_connection_success(client: TestClient) -> None:
+    with patch(
+        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
+        new=AsyncMock(return_value="token_ok"),
+    ), patch(
+        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+        new=AsyncMock(),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/test",
+            json={"appId": "wx_test", "appSecret": "secret_test"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert "successful" in body["message"].lower()
+
+
+def test_wechat_official_test_connection_failure(client: TestClient) -> None:
+    with patch(
+        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
+        new=AsyncMock(side_effect=RuntimeError("bad credentials")),
+    ), patch(
+        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+        new=AsyncMock(),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/test",
+            json={"appId": "wx_test", "appSecret": "secret_test"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "bad credentials" in body["message"]
+
+
+def test_wechat_official_draft_success_without_warnings(client: TestClient, tmp_path: Path) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_file = tmp_path / "clean.wechat.html"
+    html_file.write_text(
+        '<html><body><p>这是一篇正常的家常菜教程，步骤清晰。</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.post_multipart",
+            new=AsyncMock(
+                side_effect=[
+                    {"url": "https://mmbiz.qpic.cn/content-img"},
+                    {"media_id": "thumb_media_123"},
+                ]
+            ),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.post_json",
+            new=AsyncMock(return_value={"media_id": "draft_media_456"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
+            new=AsyncMock(return_value="token_test"),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "家常菜教程"},
+            headers={"Accept-Language": "en-US"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mediaId"] == "draft_media_456"
+    assert body["complianceWarnings"] == []
+
+
+def test_wechat_official_draft_returns_404_for_missing_html(client: TestClient, tmp_path: Path) -> None:
+    with patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(tmp_path / "missing.wechat.html"), "title": "Missing"},
+        )
+    assert response.status_code == 404
+
+
+def test_wechat_official_draft_returns_400_for_cover_required(client: TestClient, tmp_path: Path) -> None:
+    html_file = tmp_path / "no-cover.wechat.html"
+    html_file.write_text("<html><body><p>无封面正文</p></body></html>", encoding="utf-8")
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "No Cover"},
+        )
+    assert response.status_code == 400
+    assert "cover" in response.json()["detail"].lower()
+
+
+def test_wechat_official_draft_returns_502_for_channel_connection_error(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_file = tmp_path / "api-error.wechat.html"
+    html_file.write_text(
+        '<html><body><p>正常正文内容</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.draft_service.WeChatDraftService.create_draft_from_html_file",
+            new=AsyncMock(
+                side_effect=ChannelConnectionError("IP 白名单", channel="wechat_official"),
+            ),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "API Error"},
+        )
+    assert response.status_code == 502
+    assert "IP 白名单" in response.json()["detail"]
+
+
+def test_wechat_official_draft_returns_502_for_unexpected_exception(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_file = tmp_path / "unexpected.wechat.html"
+    html_file.write_text(
+        '<html><body><p>正常正文内容</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.draft_service.WeChatDraftService.create_draft_from_html_file",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "Unexpected"},
+        )
+    assert response.status_code == 502
+    assert response.json()["detail"] == "WeChat API call failed"
+
+
+def test_get_workspace_root_prefers_env_variable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    workspace = tmp_path / "env-workspace"
+    workspace.mkdir()
+    monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(workspace))
+    assert wechat_official_module._get_workspace_root() == str(workspace)
+
+
+def test_get_workspace_root_returns_none_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
+    with patch.object(wechat_official_module, "is_local_mode", return_value=False):
+        assert wechat_official_module._get_workspace_root() is None
+
+
+def test_resolve_request_locale_en() -> None:
+    assert wechat_official_module._resolve_request_locale("en-US,en;q=0.9") == "en"
+    assert wechat_official_module._resolve_request_locale(None) == "zh"
+
+
+@pytest.mark.asyncio
+async def test_load_official_credentials_returns_none_for_invalid_payload() -> None:
+    with patch(
+        "app.services.config.service.ConfigService.get",
+        new=AsyncMock(return_value="not-a-dict"),
+    ):
+        assert await wechat_official_module._load_official_credentials() is None
+
+
+@pytest.mark.asyncio
+async def test_load_official_credentials_returns_none_when_missing_secret() -> None:
+    with patch(
+        "app.services.config.service.ConfigService.get",
+        new=AsyncMock(return_value={"appId": "wx_only"}),
+    ):
+        assert await wechat_official_module._load_official_credentials() is None
+
+
+@pytest.mark.asyncio
+async def test_load_official_credentials_returns_none_when_config_lookup_fails() -> None:
+    with patch(
+        "app.services.config.service.ConfigService.get",
+        new=AsyncMock(side_effect=RuntimeError("config unavailable")),
+    ):
+        assert await wechat_official_module._load_official_credentials() is None
+
+
+def test_get_workspace_root_uses_local_default_when_available(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    workspace = home / ".myrm" / "workspace"
+    workspace.mkdir(parents=True)
+    monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
+    with patch.object(wechat_official_module, "is_local_mode", return_value=True), patch(
+        "app.api.channels.wechat_official.os.path.expanduser",
+        return_value=str(home),
+    ):
+        assert wechat_official_module._get_workspace_root() == str(workspace)
+
+
+def test_wechat_official_draft_returns_404_when_service_reports_missing_cover(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    html_file = tmp_path / "cover-missing.wechat.html"
+    html_file.write_text("<html><body><p>正文</p></body></html>", encoding="utf-8")
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+        patch(
+            "app.channels.providers.wechat.draft_service.WeChatDraftService.create_draft_from_html_file",
+            new=AsyncMock(side_effect=FileNotFoundError("Cover image not found: /tmp/missing.png")),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "Cover Missing"},
+        )
+    assert response.status_code == 404
+    body = response.json()
+    assert body["success"] is False
+    assert "not found" in body["message"].lower()

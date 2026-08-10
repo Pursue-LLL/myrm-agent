@@ -15306,11 +15306,11 @@
         "label": "回復模式",
         "auto": "自動發送",
         "draftReview": "草稿審核",
-        "tooltip": "In draft review mode, AI-generated replies require human confirmation before being sent. Ideal for sales and customer service compliance.",
+        "tooltip": "設定為草稿審核後，AI 生成的回覆需經你確認後才會發送到頻道。適用於面向客戶的場景。",
         "timeout": "超時",
-        "onExpiry": "On Expiry",
-        "autoReject": "Auto Reject",
-        "autoSend": "Auto Send"
+        "onExpiry": "到期時",
+        "autoReject": "自動丟棄",
+        "autoSend": "自動發送"
       }
     }
   },

@@ -95,8 +95,11 @@ async def resolve_skill_env_map(
         all_skills = await skill_backend.list_skills()
         valid_map: dict[str, dict[str, str]] = {}
         for skill in all_skills:
-            if skill.skill_id in skill_env_vars:
-                valid_map[skill.name] = skill_env_vars[skill.skill_id]
+            configured = skill_env_vars.get(skill.name) or skill_env_vars.get(
+                skill.storage_skill_id
+            )
+            if configured is not None:
+                valid_map[skill.name] = configured
         return valid_map
     except Exception as e:
         logger.warning(f"Failed to validate skill env map: {e}")

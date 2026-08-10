@@ -10,8 +10,10 @@ import pytest
 from app.channels.providers.wechat.draft_service import (
     WeChatDraftService,
     _build_draft_content,
+    _extract_body_inner_html,
     _extract_digest,
     _resolve_author,
+    _resolve_digest,
 )
 from app.channels.providers.wechat.wechat_api_client import WeChatOfficialApiClient
 
@@ -244,3 +246,238 @@ def test_resolve_author_clamps_to_wechat_limit() -> None:
     assert _resolve_author("Myrm") == "Myrm"
     assert _resolve_author("某某科技有限公司部") == "某某科技有限公司"
     assert _resolve_author("123456789") == "12345678"
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_html_file_missing(tmp_path: Path) -> None:
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    with pytest.raises(FileNotFoundError, match="HTML file not found"):
+        await service.create_draft_from_html_file(tmp_path / "missing.html", title="Missing")
+
+    client.post_json.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_wechat_returns_no_media_id(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/content-img"},
+            {"media_id": "thumb_media_123"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"errcode": 0})
+
+    service = WeChatDraftService(client)
+    with pytest.raises(RuntimeError, match="no media_id"):
+        await service.create_draft_from_html_file(html_path, title="Broken Draft")
+
+
+@pytest.mark.asyncio
+async def test_create_draft_rejects_inline_data_uri_image(tmp_path: Path) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_path = tmp_path / "data-uri.html"
+    html_path.write_text(
+        '<html><body><img src="data:image/png;base64,abc" alt="inline"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    with pytest.raises(ValueError, match="data: URI"):
+        await service.create_draft_from_html_file(
+            html_path,
+            title="Data URI",
+            cover_path=cover,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_inline_local_image_missing(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    html_path.write_text(
+        '<html><body><p>Body</p><img src="missing.png" alt="missing"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    with pytest.raises(ValueError, match="Inline image not found"):
+        await service.create_draft_from_html_file(html_path, title="Missing Inline")
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_uploadimg_returns_no_url(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(return_value={})
+    service = WeChatDraftService(client)
+
+    with pytest.raises(RuntimeError, match="uploadimg failed"):
+        await service.create_draft_from_html_file(html_path, title="Upload Fail")
+
+
+@pytest.mark.asyncio
+async def test_create_draft_uses_explicit_cover_path(tmp_path: Path) -> None:
+    cover = tmp_path / "explicit-cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_path = tmp_path / "no-inline-images.html"
+    html_path.write_text("<html><body><p>Text only article body here for digest.</p></body></html>", encoding="utf-8")
+
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(return_value={"media_id": "thumb_from_cover"})
+    client.post_json = AsyncMock(return_value={"media_id": "draft_media_789"})
+
+    service = WeChatDraftService(client)
+    result = await service.create_draft_from_html_file(
+        html_path,
+        title="Cover Path",
+        cover_path=cover,
+    )
+
+    assert result.media_id == "draft_media_789"
+    assert client.post_multipart.await_count == 1
+    thumb_call = client.post_multipart.await_args_list[0]
+    assert thumb_call.kwargs["extra_params"] == {"type": "thumb"}
+
+
+@pytest.mark.asyncio
+async def test_create_draft_uploads_remote_image_successfully(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_path = tmp_path / "remote-success.html"
+    html_path.write_text(
+        '<html><body><p>Remote image article with enough visible text for digest extraction.</p>'
+        '<img src="https://cdn.example.com/photo.png" alt="remote"></body></html>',
+        encoding="utf-8",
+    )
+
+    class _FakeResponse:
+        status_code = 200
+        content = b"\x89PNGremote"
+
+    class _FakeAsyncClient:
+        def __init__(self, timeout: float = 30.0) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> _FakeAsyncClient:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def get(self, url: str) -> _FakeResponse:
+            assert url == "https://cdn.example.com/photo.png"
+            return _FakeResponse()
+
+    monkeypatch.setattr(
+        "app.channels.providers.wechat.draft_service.httpx.AsyncClient",
+        _FakeAsyncClient,
+    )
+
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/remote-img"},
+            {"media_id": "thumb_media_remote"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"media_id": "draft_remote"})
+
+    service = WeChatDraftService(client)
+    result = await service.create_draft_from_html_file(
+        html_path,
+        title="Remote OK",
+        cover_path=cover,
+    )
+
+    assert result.media_id == "draft_remote"
+    assert result.uploaded_image_count == 1
+    draft_payload = client.post_json.await_args.args[1]
+    assert "https://mmbiz.qpic.cn/remote-img" in str(draft_payload["articles"][0]["content"])
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_thumb_upload_returns_no_media_id(tmp_path: Path) -> None:
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_path = tmp_path / "thumb-fail.html"
+    html_path.write_text("<html><body><p>Enough text for compliance scan to pass here.</p></body></html>", encoding="utf-8")
+
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(return_value={})
+    service = WeChatDraftService(client)
+
+    with pytest.raises(RuntimeError, match="thumb upload failed"):
+        await service.create_draft_from_html_file(
+            html_path,
+            title="Thumb Fail",
+            cover_path=cover,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_draft_uses_user_provided_digest(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/content-img"},
+            {"media_id": "thumb_media_123"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"media_id": "draft_media_456"})
+
+    service = WeChatDraftService(client)
+    await service.create_draft_from_html_file(
+        html_path,
+        title="Custom Digest",
+        digest="用户自定义摘要",
+    )
+
+    draft_payload = client.post_json.await_args.args[1]
+    assert draft_payload["articles"][0]["digest"] == "用户自定义摘要"
+
+
+def test_extract_body_inner_html_without_body_tag() -> None:
+    html = "<div><p>No body wrapper</p></div>"
+    body = _extract_body_inner_html(html)
+    assert "No body wrapper" in body
+    content = _build_draft_content(html)
+    assert "No body wrapper" in content
+
+
+def test_resolve_digest_prefers_user_value() -> None:
+    html = "<html><body><p>Auto digest source text</p></body></html>"
+    assert _resolve_digest(html, "  手工摘要  ") == "手工摘要"
+
+
+@pytest.mark.asyncio
+async def test_create_draft_raises_when_cover_path_missing(tmp_path: Path) -> None:
+    html_path = tmp_path / "cover-missing.html"
+    html_path.write_text("<html><body><p>正文</p></body></html>", encoding="utf-8")
+    missing_cover = tmp_path / "missing-cover.png"
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    with pytest.raises(FileNotFoundError, match="Cover image not found"):
+        await service.create_draft_from_html_file(
+            html_path,
+            title="Missing Cover",
+            cover_path=missing_cover,
+        )

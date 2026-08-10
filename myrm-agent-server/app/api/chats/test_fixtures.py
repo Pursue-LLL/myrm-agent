@@ -69,6 +69,7 @@ from .test_fixtures_tool_history_recovery import (
 )
 from .test_fixtures_wiki_dedup import router as wiki_dedup_fixture_router
 from .test_fixtures_wiki_provenance import router as wiki_provenance_fixture_router
+from .test_fixtures_wechat_draft import router as wechat_draft_fixture_router
 from .test_fixtures_workspace_merge import router as workspace_merge_fixture_router
 
 router = APIRouter()
@@ -394,3 +395,4 @@ router.include_router(wiki_provenance_fixture_router)
 router.include_router(context_retention_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
 router.include_router(prior_chat_fixture_router)
+router.include_router(wechat_draft_fixture_router)

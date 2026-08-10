@@ -9,8 +9,8 @@
 - app.remote_access.mobile_deep_link::resolve_mobile_remote_base_url (POS: Public URL resolution for deep links.)
 
 [OUTPUT]
-- collect_channel_artifacts: extract file artifacts from harness stream events
-- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs
+- collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
+- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs (logs WARNING when ingress base URL missing)
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
@@ -65,6 +65,11 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
         if not file_path or not isinstance(file_path, str):
             continue
         if not os.path.isfile(file_path):
+            logger.warning(
+                "Skipping artifact with missing file_path for deliverable: %s (path=%s)",
+                filename,
+                file_path,
+            )
             continue
         try:
             file_size = os.path.getsize(file_path)
@@ -160,6 +165,9 @@ async def build_artifact_deep_links(
         ingress = ""
     base_url = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
     if not base_url:
+        logger.warning(
+            "Skipping artifact deep links: no public ingress base URL configured",
+        )
         return (), frozenset()
 
     version_map = await fetch_artifact_versions(

@@ -124,6 +124,51 @@ class TestParsePluginZip:
         assert not isinstance(excinfo.value, ArchiveSecurityError)
 
 
+class TestScanSkillSecurity:
+    def _make_skill(self, content: str) -> PluginSkill:
+        from myrm_agent_harness.agent.plugins.models import PluginSkill
+
+        return PluginSkill(
+            name="demo",
+            description="Do things",
+            content=content,
+            files={"SKILL.md": content.encode()},
+        )
+
+    def test_clean_skill_passes(self) -> None:
+        from app.services.plugins.import_service import _scan_skill_security
+
+        issues = _scan_skill_security(self._make_skill("Just normal work.\n"))
+        assert issues == []
+
+    def test_dangerous_pattern_flagged(self) -> None:
+        from app.services.plugins.import_service import _scan_skill_security
+
+        issues = _scan_skill_security(self._make_skill("Run `rm -rf /` now.\n"))
+        assert len(issues) > 0
+
+    def test_scanner_exception_fails_closed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.plugins import import_service as svc
+        from myrm_agent_harness.agent.skills.optimization.config import (
+            SecurityConfig,
+        )
+        from myrm_agent_harness.agent.skills.optimization.security import (
+            SkillSecurityValidator,
+        )
+
+        def _boom(_self: object) -> None:
+            raise RuntimeError("scanner exploded")
+
+        monkeypatch.setattr(SkillSecurityValidator, "_compile_patterns", _boom)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.optimization.config.SecurityConfig",
+            lambda: SecurityConfig(),
+        )
+        issues = svc._scan_skill_security(self._make_skill("fine\n"))
+        assert len(issues) == 1
+        assert "Security scan failed" in issues[0]
+
+
 class TestBuildPreviewResult:
     def test_preview_shape(self) -> None:
         result = parse_plugin_zip(_plugin_zip_bytes())
@@ -378,6 +423,53 @@ class TestConfirmPluginImport:
             patch(
                 "app.services.plugins.import_service._scan_skill_security",
                 return_value=["Dangerous pattern detected"],
+            ),
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[
+                    PluginConfirmItem(
+                        component="skill",
+                        virtual_id=skill_keys[0],
+                        resolution="install",
+                        name="summarize",
+                    ),
+                ],
+                server_decisions=[],
+                bind_agent_id=None,
+            )
+
+        assert result == {
+            "imported_skills": 0,
+            "skipped_skills": 1,
+            "imported_servers": 0,
+            "skipped_servers": 0,
+        }
+        fake_store.save_skills_batch.assert_not_awaited()
+        config_service.set.assert_not_awaited()
+
+    async def test_confirm_scan_failure_fails_closed(self, tmp_path: Path) -> None:
+        session = _parse_session()
+        skill_keys = list(session.skills_by_key.keys())
+
+        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=None), set=AsyncMock()
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.api.skills.evolution.helpers._get_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.services.plugins.import_service._scan_skill_security",
+                side_effect=RuntimeError("scanner exploded"),
             ),
         ):
             result = await confirm_plugin_import(

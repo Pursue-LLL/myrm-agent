@@ -31,6 +31,7 @@ class PersistResult:
 
     file_id: str
     file_size: int
+    resolved_path: str | None = None
 
 
 class BaseArtifactProcessor(ABC):
@@ -116,7 +117,11 @@ class BaseArtifactProcessor(ABC):
                     download_url=self._build_artifact_url(result.file_id, inline=False, content_type=content_type),
                     language=infer_language(filename),
                     created_at=datetime.now(UTC).isoformat(),
-                    file_path=self._resolve_file_path(file_path),
+                    file_path=(
+                        result.resolved_path
+                        if result.resolved_path is not None
+                        else self._resolve_file_path(file_path)
+                    ),
                     short_file_id=str(short_file_id) if isinstance(short_file_id, str) and short_file_id else None,
                 )
                 artifacts.append(artifact)
@@ -215,7 +220,7 @@ class BaseArtifactProcessor(ABC):
             read_content: 懒加载读取函数（可能为 None）
 
         Returns:
-            PersistResult(file_id, file_size) 或 None（跳过该文件）
+            PersistResult(file_id, file_size, resolved_path) 或 None（跳过该文件）
         """
         ...
 
@@ -316,22 +321,15 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
     文件已在本地沙箱中，天然持久化。
     """
 
-    def _resolve_file_path(self, sandbox_path: str) -> str | None:
-        """Return the actual local filesystem path for the artifact."""
-        if not sandbox_path:
-            return None
-
+    def _local_workspace_root(self) -> str:
         from myrm_agent_harness.toolkits.code_execution.executors.base import (
             get_executor,
         )
 
+        from app.platform_utils.workspace_root import get_workspace_root
+
         executor = get_executor()
-        if executor:
-            import os
-
-            return os.path.join(executor.workspace_path, sandbox_path)
-
-        return sandbox_path
+        return executor.workspace_path if executor else str(get_workspace_root())
 
     async def _persist_file(
         self,
@@ -342,21 +340,13 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
     ) -> PersistResult | None:
         import os
 
-        from myrm_agent_harness.toolkits.code_execution.executors.base import (
-            get_executor,
-        )
-
         from app.core.artifacts.listener import resolve_sandbox_file_path
         from app.core.storage import FilesService
-        from app.platform_utils.workspace_root import get_workspace_root
         from app.services.artifacts.share_token import is_shareable_artifact
 
         _ = read_content  # local mode uses stat-only sizing; harness may still pass read_content
 
-        executor = get_executor()
-        workspace_root = (
-            executor.workspace_path if executor else str(get_workspace_root())
-        )
+        workspace_root = self._local_workspace_root()
         resolved = resolve_sandbox_file_path(
             file_path,
             workspace_root,
@@ -399,7 +389,11 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
             file_size=file_size,
             content_type=content_type,
         )
-        return PersistResult(file_id=file.id, file_size=file_size)
+        return PersistResult(
+            file_id=file.id,
+            file_size=file_size,
+            resolved_path=resolved,
+        )
 
 
 __all__ = [

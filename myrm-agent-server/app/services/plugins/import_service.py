@@ -169,6 +169,8 @@ def _scan_skill_security(skill: PluginSkill) -> list[str]:
     """Scan a plugin skill for dangerous content (mirrors batch import).
 
     Returns a list of human-readable issues; an empty list means the skill passed.
+    A scanner failure is treated as unsafe (fail-closed) so a broken validator
+    never lets a skill install silently or aborts the whole import.
     """
     from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
     from myrm_agent_harness.agent.skills.optimization.security import (
@@ -177,7 +179,11 @@ def _scan_skill_security(skill: PluginSkill) -> list[str]:
 
     validator = SkillSecurityValidator(config=SecurityConfig())
     full_skill = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
-    result = validator.validate_skill(full_skill)
+    try:
+        result = validator.validate_skill(full_skill)
+    except Exception as exc:  # fail-closed: unable to verify -> blocked
+        logger.warning("Skill security scan failed for %r: %s", skill.name, exc)
+        return [f"Security scan failed: {exc}"]
     return result.issues if not result.passed else []
 
 
@@ -321,9 +327,9 @@ def _collect_skill_records(
 
 
 async def _write_skills(records: list[SkillRecord]) -> None:
-    from app.api.skills.evolution.helpers import _get_skill_store
+    from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-    store = _get_skill_store()
+    store = get_evolution_skill_store()
     await store.save_skills_batch(records)
 
 

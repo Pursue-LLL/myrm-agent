@@ -95,3 +95,34 @@ class TestKanbanCountRealStore:
         assert after["agent-a"] == baseline.get("agent-a", 0) + 1
         assert after[None] == baseline.get(None, 0) + 1
         assert await svc.count_tasks_by_status(TaskStatus.IN_REVIEW) == baseline_status + 2
+
+    @pytest.mark.asyncio
+    async def test_service_aggregates_across_boards(self) -> None:
+        svc = KanbanService.get_instance()
+        baseline_status = await svc.count_tasks_by_status(TaskStatus.IN_REVIEW)
+        baseline_agents = await svc.count_review_tasks_by_agent()
+
+        board_a = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Board A"))
+        board_b = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Board B"))
+        for task_id, board_id, agent_id, status in [
+            ("a1", board_a.board_id, "agent-a", TaskStatus.IN_REVIEW),
+            ("a2", board_a.board_id, "agent-b", TaskStatus.IN_REVIEW),
+            ("b1", board_b.board_id, "agent-a", TaskStatus.IN_REVIEW),
+            ("b2", board_b.board_id, "agent-a", TaskStatus.READY),
+            ("b3", board_b.board_id, "agent-a", TaskStatus.ARCHIVED),
+        ]:
+            await svc.store.save_task(
+                KanbanTask(
+                    task_id=task_id,
+                    board_id=board_id,
+                    title=task_id,
+                    agent_id=agent_id,
+                    status=status,
+                )
+            )
+
+        assert await svc.count_tasks_by_status(TaskStatus.IN_REVIEW) == baseline_status + 3
+        by_agent = await svc.count_review_tasks_by_agent()
+        assert by_agent.get("agent-a", 0) == baseline_agents.get("agent-a", 0) + 2
+        assert by_agent.get("agent-b", 0) == baseline_agents.get("agent-b", 0) + 1
+        assert sum(by_agent.values()) == sum(baseline_agents.values()) + 3

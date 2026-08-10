@@ -129,7 +129,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `budget` · `channels` · `checkpoint` · `companion` · `config` · `connect` · `context` · `extension` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `webui` · `wiki`
+`approvals` · `audit` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `plugins` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `theme` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -178,6 +178,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `services/` | Typical caller |
 |-------------|----------------|
 | `auth/` | middleware, `api/webui/`, OAuth callbacks |
+| `compliance/` | WeChat official-account compliance scan (`api/channels/wechat_official`) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
 | `mascot/` | SSE from `services/agent/` stream (companion XP) |
 | `repair/` | `api/health/` repair-action endpoints |
