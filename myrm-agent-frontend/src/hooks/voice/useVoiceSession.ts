@@ -350,11 +350,19 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, [tts, speech, fullDuplex]);
 
   const speakResponse = useCallback(
-    (text: string) => {
+    (text: string, options?: { queue?: boolean }) => {
       if (!sessionActiveRef.current) return;
 
       const segments = extractSpeakableSegments(text);
       if (segments.length === 0) return;
+
+      // Queue insertion window: append to the pending queue without
+      // interrupting an in-flight utterance (e.g. voice background task
+      // completion announcements during an active agent response).
+      if (options?.queue && isSpeakingRef.current) {
+        pendingTTSRef.current.push(...segments);
+        return;
+      }
 
       pendingTTSRef.current = segments;
       isSpeakingRef.current = true;

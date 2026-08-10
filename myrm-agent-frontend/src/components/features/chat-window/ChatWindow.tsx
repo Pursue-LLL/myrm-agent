@@ -400,6 +400,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         void initializeChat(id);
       }
 
+      if (meta?.kind === 'voice_background_task_done' && meta?.chat_id === id) {
+        void initializeChat(id);
+      }
+
       if (meta?.kind === 'goal_needs_review' && id && meta?.chat_id === id) {
         void useGoalStore.getState().refreshActiveGoal(id);
       }

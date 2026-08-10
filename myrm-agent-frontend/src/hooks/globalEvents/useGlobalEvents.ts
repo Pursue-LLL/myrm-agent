@@ -333,6 +333,14 @@ export function useGlobalEvents(): void {
         }
         if (meta.kind === 'voice_background_task_done') {
           notifyBackgroundTasksChangedForVoiceJobFinish(meta);
+          const announceChatId = typeof meta.chat_id === 'string' ? meta.chat_id : '';
+          if (announceChatId) {
+            window.dispatchEvent(
+              new CustomEvent('voice-bg-done', {
+                detail: { title, message, chat_id: announceChatId },
+              }),
+            );
+          }
         }
 
         // Only show global toast if it's not a snapshot_created event
