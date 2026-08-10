@@ -100,9 +100,11 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   const messages = useChatStore((s) => s.messages);
   const loading = useChatStore((s) => s.loading);
 
-  // In audio_only mode: watch messages store for assistant replies → TTS
+  // In audio_only mode: watch messages store for assistant replies → TTS.
+  // Non-audio_only modes stream agent audio via WebRTC/WS, so watch-TTS would
+  // double-announce voice background completions alongside voice-bg-done.
   useEffect(() => {
-    if (voiceMode === 'agent_bridge') return;
+    if (voiceMode !== 'audio_only') return;
     if (!voice.isActive || loading) return;
 
     const lastMsg = messages[messages.length - 1];
