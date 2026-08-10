@@ -4925,8 +4925,8 @@
           "integrity": "完整性跳過",
           "persisted": "已落盤摘要",
           "lastCompacted": "最近壓縮",
-          "avgElapsed": "Avg Duration\"",
-          "lastElapsed": "Last Duration\""
+          "avgElapsed": "平均耗時",
+          "lastElapsed": "上次耗時"
         },
         "pruning": {
           "title": "快取剪枝",

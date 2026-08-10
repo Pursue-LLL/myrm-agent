@@ -102,10 +102,10 @@ class KanbanReadMixin(KanbanServiceCore):
         """
         try:
             boards = await run_list_boards(self._store)
-            return sum(
-                await self._store.count_tasks(board.board_id, status=status)
-                for board in boards
-            )
+            total = 0
+            for board in boards:
+                total += await self._store.count_tasks(board.board_id, status=status)
+            return total
         except OperationalError:
             logger.warning(
                 "Kanban count for status %s unavailable; degrading to 0",

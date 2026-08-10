@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-交付域子包：IM 渠道超限交付物的统一处理（附件上限、渐进压缩、路径扫描、深链按钮）。上级文档：[../_ARCH.md](../_ARCH.md)。
+交付域子包：IM 渠道超限交付物的统一处理（附件上限、渐进压缩、路径扫描、深链按钮）。上游依赖 `core/artifacts/processor.py` Local 模式对超大可分享工件 emit artifacts 事件（reference-only persist）。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

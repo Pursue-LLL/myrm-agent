@@ -66,6 +66,7 @@ class TestKanbanCountRealStore:
     async def test_count_tasks_by_agent_real_sql(self) -> None:
         svc = KanbanService.get_instance()
         baseline = await svc.count_review_tasks_by_agent()
+        baseline_status = await svc.count_tasks_by_status(TaskStatus.IN_REVIEW)
 
         board = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Stat Board"))
         for task_id, agent_id, status in [
@@ -93,3 +94,4 @@ class TestKanbanCountRealStore:
         after = await svc.count_review_tasks_by_agent()
         assert after["agent-a"] == baseline.get("agent-a", 0) + 1
         assert after[None] == baseline.get(None, 0) + 1
+        assert await svc.count_tasks_by_status(TaskStatus.IN_REVIEW) == baseline_status + 2
