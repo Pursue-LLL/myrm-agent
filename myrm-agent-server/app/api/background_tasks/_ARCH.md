@@ -18,6 +18,7 @@
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
 | `router.py` | 路由 | 合并 Kanban + shell；Agent 任务直查 KanbanService + `is_persistent_background()` 过滤（含 `chat_id` 字段供 panel 导航）；暴露 `job_id` / `vault_log_ref` / `waiting_for_input` / `stdin_closed`；shell cancel 走 harness kill；`POST /{task_id}/stdin` GUI 手动 stdin | ✅ |
 | `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`；`mode=running` / **`running_stdin`** / **`running_stdin_waiting`** / failed / success / completed_with_vault） | ✅ |
+| `test_seed_voice_done.py` | 测试 | local-only voice 完成 seed（`POST /background-tasks/test/seed-voice-done`；构造内存 Kanban voice 任务并发布 `BACKGROUND_TASK_DONE`，驱动 `WebuiVoiceWorkNotifier` → SSE `voice_background_task_done`） | ✅ |
 
 ## 依赖
 

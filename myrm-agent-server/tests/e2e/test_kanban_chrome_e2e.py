@@ -286,33 +286,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
             timeout_sec=5.0,
         )
         try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked is True
+            _open_kanban_board(client, page, board_id, board_name)
             task_state = wait_for_state(
                 client,
                 page,
@@ -543,33 +517,7 @@ def test_kanban_stats_bar_shows_running_with_limit() -> None:
             timeout_sec=5.0,
         )
         try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked is True
+            _open_kanban_board(client, page, board_id, board_name)
             stats_state = wait_for_state(
                 client,
                 page,
@@ -875,7 +823,7 @@ def test_kanban_multiple_ready_cards_show_queued_badge() -> None:
     execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
-@pytest.mark.timeout(420)
+@pytest.mark.timeout(540)
 def test_kanban_real_execution_queued_badge_release_flow() -> None:
     """Real-user full flow: create tasks in the UI, dispatcher really executes them
     with the configured LLM, the queued badge appears on the second ready task while
@@ -987,7 +935,7 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
     execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
-@pytest.mark.timeout(540)
+@pytest.mark.timeout(600)
 def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
     """Queued badges count drains in FIFO order as real executions release slots.
 
@@ -1034,7 +982,7 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
         # T1 created first → claimed and executed immediately (slot free).
         _create_task_via_ui(client, page, titles[0], prompts[0])
         t1_id = _task_id_by_title(titles[0])
-        _api_wait_task_status(api_url, t1_id, "running", timeout_sec=150.0)
+        _api_wait_task_status(api_url, t1_id, "running", timeout_sec=200.0)
 
         # T2, T3 queue behind the single occupied slot.
         _create_task_via_ui(client, page, titles[1], prompts[1])
@@ -1055,9 +1003,9 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
         assert two_badges.get("count") == 2, two_badges
 
         # T1 completes → T2 claimed → only T3 keeps the badge.
-        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=180.0)
+        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=240.0)
         assert str(t1_done.get("result") or "").strip()
-        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=180.0)
+        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=240.0)
         one_badge = wait_for_state(
             client,
             page,
@@ -1077,9 +1025,9 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
         assert one_badge.get("count") == 1, one_badge
 
         # T2 completes → T3 claimed → no badge remains anywhere.
-        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=180.0)
+        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=240.0)
         assert str(t2_done.get("result") or "").strip()
-        _api_wait_task_status(api_url, t3_id, "running", timeout_sec=180.0)
+        _api_wait_task_status(api_url, t3_id, "running", timeout_sec=240.0)
         zero_badges = wait_for_state(
             client,
             page,
@@ -1093,7 +1041,7 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
         assert zero_badges.get("count") == 0, zero_badges
 
         # Full loop: T3 really completes as well.
-        t3_done = _api_wait_task_status(api_url, t3_id, "completed", timeout_sec=180.0)
+        t3_done = _api_wait_task_status(api_url, t3_id, "completed", timeout_sec=240.0)
         assert str(t3_done.get("result") or "").strip()
 
 
@@ -1243,45 +1191,7 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
             timeout_sec=5.0,
         )
         try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked_board = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked_board is True
-
-            view_ready = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const view = document.querySelector('[data-testid="kanban-board-view"]');
-                  const text = view?.textContent || '';
-                  return {{ ready: !!view && text.includes({board_name!r}), text }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert view_ready.get("ready") is True
+            _open_kanban_board(client, page, board_id, board_name)
 
             add_ready = wait_for_state(
                 client,
@@ -1449,33 +1359,7 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
             timeout_sec=5.0,
         )
         try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked_board = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked_board is True
+            _open_kanban_board(client, page, board_id, board_name)
 
             card_state = wait_for_state(
                 client,

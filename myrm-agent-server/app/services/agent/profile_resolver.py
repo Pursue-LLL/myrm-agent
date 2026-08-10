@@ -9,8 +9,7 @@ core.memory.adapters.policy::memory_policy_from_dict (POS: 记忆策略字典解
 
 [OUTPUT]
 DEFAULT_ENABLED_BUILTIN_TOOLS: 自 builtin_tool_ids 再导出，供各入口引用
-BuiltinToolFlags: 工具启用标志 TypedDict
-resolve_builtin_tool_flags: enabled_builtin_tools → enable_xxx flags 统一映射
+BuiltinToolFlags / resolve_builtin_tool_flags: 见 profile_builtin_tools（本模块 re-export）
 tool_mount.resolve_agent_mount: General / Fast / Cron meta mount SSOT（见 tool_mount/_ARCH.md）
 ResolvedAgentProfile: 统一的智能体配置解析结果（含 auto_restore_domains 等运行时字段）
 AgentProfileResolver: 全局单例解析器（带 TTL 缓存）
@@ -27,9 +26,8 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Sequence, TypedDict
+from typing import Sequence
 
-from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
 from app.services.agent.builtin_tool_ids import (
@@ -38,100 +36,14 @@ from app.services.agent.builtin_tool_ids import (
     normalize_enabled_builtin_tools,
 )
 
+from app.services.agent.profile_builtin_tools import (
+    BuiltinToolFlags,
+    coerce_str_tuple,
+    coerce_tool_selections,
+    resolve_builtin_tool_flags,
+)
+
 logger = logging.getLogger(__name__)
-
-
-class BuiltinToolFlags(TypedDict):
-    """Boolean flags derived from enabled_builtin_tools for GeneralAgentParams."""
-
-    enable_browser: bool
-    enable_computer_use: bool
-    file_access_mode: FileAccessMode
-    enable_shell_tools: bool
-    enable_wiki: bool
-    enable_kanban: bool
-    enable_cron_eager: bool
-    enable_answer_tool: bool
-    enable_render_ui: bool
-    enable_planning: bool
-    enable_structured_clarify: bool
-    enable_external_cli: bool
-    enable_skill_market: bool
-    enable_skill_manage: bool
-
-
-def resolve_builtin_tool_flags(
-    tools: Sequence[str],
-    *,
-    allow_answer_tool: bool = False,
-) -> BuiltinToolFlags:
-    """Map enabled_builtin_tools list to GeneralAgentParams boolean flags.
-
-    All entry points (Web, Channel, Cron, Kanban, Eval, Voice) must use this
-    function to ensure parity. Adding a new tool flag requires only a single
-    change here.
-
-    ``answer_tool`` is only mounted for Fast Search via ``allow_answer_tool=True``
-    in ``converter.py``; profile opt-in is ignored.
-    """
-    from app.services.agent.builtin_tool_ids import (
-        strip_deploy_incompatible_builtin_tools,
-    )
-
-    effective_tools = strip_deploy_incompatible_builtin_tools(tools)
-    if not allow_answer_tool:
-        effective_tools = [tool for tool in effective_tools if tool != "answer_tool"]
-    from app.config.computer_use_deploy import is_computer_use_deploy_supported
-    from app.config.external_cli_deploy import is_external_cli_deploy_supported
-
-    deploy_supports_computer_use = is_computer_use_deploy_supported()
-    deploy_supports_external_cli = is_external_cli_deploy_supported()
-    return BuiltinToolFlags(
-        enable_browser="browser" in effective_tools,
-        enable_computer_use=(
-            "computer_use" in effective_tools and deploy_supports_computer_use
-        ),
-        file_access_mode=(
-            FileAccessMode.FULL
-            if "file_ops" in effective_tools
-            else FileAccessMode.NONE
-        ),
-        enable_shell_tools="code_execute" in effective_tools,
-        enable_wiki="wiki" in effective_tools,
-        enable_kanban="kanban" in effective_tools,
-        enable_cron_eager="cron" in effective_tools,
-        enable_answer_tool="answer_tool" in effective_tools,
-        enable_render_ui="render_ui" in effective_tools,
-        enable_planning="planning" in effective_tools,
-        enable_structured_clarify="structured_clarify" in effective_tools,
-        enable_external_cli=(
-            "external_cli" in effective_tools and deploy_supports_external_cli
-        ),
-        enable_skill_market="skill_market" in effective_tools,
-        enable_skill_manage="skill_manage" in effective_tools,
-    )
-
-
-def _coerce_str_tuple(val: object) -> tuple[str, ...]:
-    """Normalize metadata list/tuple/scalar values into a tuple of strings."""
-    if val is None:
-        return ()
-    if isinstance(val, str):
-        return (val,)
-    if isinstance(val, (list, tuple)):
-        return tuple(str(x) for x in val)
-    return (str(val),)
-
-
-def _coerce_tool_selections(val: object) -> dict[str, tuple[str, ...]]:
-    """Normalize metadata ``mcp_tool_selections`` into {server: (tool, ...)}.
-
-    Delegates to ``mcp_selection.coerce_tool_selections`` (canonical impl).
-    Returns ``{}`` instead of ``None`` for dataclass default compatibility.
-    """
-    from app.services.agent.params.mcp_selection import coerce_tool_selections
-
-    return coerce_tool_selections(val) or {}
 
 
 _CACHE_TTL_SECONDS = 300.0
@@ -251,7 +163,7 @@ class AgentProfileResolver:
                         "enabled_builtin_tools", list(DEFAULT_ENABLED_BUILTIN_TOOLS)
                     )
                 coerced_tools = (
-                    _coerce_str_tuple(raw_builtin_tools)
+                    coerce_str_tuple(raw_builtin_tools)
                     if raw_builtin_tools is not None
                     else DEFAULT_ENABLED_BUILTIN_TOOLS
                 )
@@ -267,18 +179,18 @@ class AgentProfileResolver:
                 raw_workspace_policy = metadata.get("workspace_policy")
                 raw_engine_params = metadata.get("engine_params")
 
-                mcp_tuple = _coerce_str_tuple(raw_mcp_ids)
-                mcp_tool_selections = _coerce_tool_selections(
+                mcp_tuple = coerce_str_tuple(raw_mcp_ids)
+                mcp_tool_selections = coerce_tool_selections(
                     metadata.get("mcp_tool_selections")
                 )
                 sub_tuple = (
-                    _coerce_str_tuple(raw_subagent_ids)
+                    coerce_str_tuple(raw_subagent_ids)
                     if raw_subagent_ids is not None
                     else ()
                 )
                 raw_auto_restore = metadata.get("auto_restore_domains")
                 auto_domains_tuple = (
-                    _coerce_str_tuple(raw_auto_restore)
+                    coerce_str_tuple(raw_auto_restore)
                     if raw_auto_restore is not None
                     else ()
                 )

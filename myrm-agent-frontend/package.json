@@ -31,7 +31,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "verify:i18n": "bun scripts/verify-i18n.mjs",
+    "verify:i18n": "bun scripts/verify-i18n.mjs && bun scripts/verify-i18n-references.mjs",
     "verify:stable-mocks": "bun scripts/verify-stable-mocks.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
     "pretest": "bun run i18n:split && bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"

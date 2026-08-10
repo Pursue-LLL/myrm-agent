@@ -203,6 +203,9 @@
     "settings.commands.editor.fields.name.placeholder",
     "settings.commands.editor.examples.translate.name",
     "settings.commands.editor.examples.review.name",
-    "settings.hosting.webhookAuthHeaderPlaceholder"
+    "settings.hosting.webhookAuthHeaderPlaceholder",
+    "cron.triggerPollJsonPath",
+    "cron.triggerStreamLabel",
+    "channels.optional"
   ]
 }

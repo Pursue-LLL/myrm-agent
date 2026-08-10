@@ -6195,7 +6195,7 @@
         "noTools": "Keine Tools verfügbar",
         "retry": "Erneut versuchen",
         "selectAll": "Alle auswählen",
-        "toolFilter": "Filter"
+        "toolFilter": "Filtern"
       },
       "skillInstance": {
         "auto": "Automatisch",
@@ -15614,7 +15614,7 @@
     "permissionRequest": "Genehmigungsanfrage",
     "permissionRequestDescription": "Der Agent bittet um Erlaubnis, einen Befehl auszuführen.",
     "pressShiftTabToSwitch": "Drücken Sie Shift+Tab, um den Modus zu wechseln",
-    "tool": "Tool"
+    "tool": "Werkzeug"
   },
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",

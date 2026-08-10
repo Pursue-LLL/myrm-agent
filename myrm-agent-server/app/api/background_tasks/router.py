@@ -30,6 +30,9 @@ from pydantic import BaseModel
 from app.api.background_tasks.test_fixtures import (
     router as background_tasks_test_fixtures_router,
 )
+from app.api.background_tasks.test_seed_voice_done import (
+    router as background_tasks_test_seed_voice_done_router,
+)
 from app.core.channel_bridge.setup import get_background_task_handler
 from app.services.agent.shell_background_tasks import (
     ShellBackgroundTaskDTO,
@@ -331,6 +334,7 @@ async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, s
 
 
 router.include_router(background_tasks_test_fixtures_router)
+router.include_router(background_tasks_test_seed_voice_done_router)
 
 
 __all__ = ["router"]

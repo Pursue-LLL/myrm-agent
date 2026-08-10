@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture(scope="module")
 def fixture_app() -> FastAPI:
     app = FastAPI()
-    module = import_module("app.api.background_tasks.test_fixtures")
+    module = import_module("app.api.background_tasks.test_seed_voice_done")
     app.include_router(module.router, prefix="/api/v1/background-tasks")
     return app
 
@@ -36,7 +36,7 @@ def test_seed_endpoint_publishes_voice_background_done(client: TestClient) -> No
     bus = get_event_bus()
     queue = bus.subscribe()
     try:
-        with patch("app.api.background_tasks.test_fixtures.is_local_mode", return_value=True):
+        with patch("app.api.background_tasks.test_seed_voice_done.is_local_mode", return_value=True):
             resp = client.post("/api/v1/background-tasks/test/seed-voice-done")
         assert resp.status_code == 200, resp.text
         body = resp.json()
