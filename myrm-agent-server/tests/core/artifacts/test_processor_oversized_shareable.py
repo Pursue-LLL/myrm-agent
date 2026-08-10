@@ -156,9 +156,6 @@ async def test_oversized_shareable_reaches_deliverable_deep_link(tmp_path) -> No
 
     assert artifacts_event is not None
     acc = StreamAccumulator()
-    for item in artifacts_event["data"]:
-        if isinstance(item, dict):
-            item["file_path"] = str(report)
     collect_channel_artifacts(artifacts_event, acc)
 
     assert len(acc.shareable_artifacts) == 1

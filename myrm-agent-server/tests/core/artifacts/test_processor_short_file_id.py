@@ -61,35 +61,43 @@ async def test_local_processor_emits_short_file_id_in_artifacts_event(tmp_path) 
 
 
 @pytest.mark.asyncio
-async def test_local_processor_omits_short_file_id_when_absent() -> None:
+async def test_local_processor_omits_short_file_id_when_absent(tmp_path) -> None:  # noqa: ANN001
     from app.core.artifacts import LocalArtifactProcessor
 
-    processor = LocalArtifactProcessor(chat_id="chat_no_short", api_prefix="/api/v1")
+    notes = tmp_path / "notes.txt"
+    notes.write_bytes(b"content")
 
-    async def mock_read(path: str) -> bytes:
-        _ = path
-        return b"content"
+    processor = LocalArtifactProcessor(chat_id="chat_no_short", api_prefix="/api/v1")
 
     event: dict[str, object] = {
         "type": "artifacts_ready",
         "data": [
             {
                 "filename": "notes.txt",
-                "path": "/workspace/notes.txt",
+                "path": "notes.txt",
                 "type": "document",
             }
         ],
-        "read_content": mock_read,
+        "read_content": AsyncMock(),
         "message_id": "msg_no_short",
     }
 
     mock_file = MagicMock()
     mock_file.id = "file-id-no-short"
 
-    with patch(
-        "app.core.storage.service.FilesService.save_file_reference",
-        new_callable=AsyncMock,
-    ) as mock_save_ref:
+    mock_executor = MagicMock()
+    mock_executor.workspace_path = str(tmp_path)
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+            return_value=mock_executor,
+        ),
+        patch(
+            "app.core.storage.service.FilesService.save_file_reference",
+            new_callable=AsyncMock,
+        ) as mock_save_ref,
+    ):
         mock_save_ref.return_value = mock_file
         result = await processor.process_artifacts_ready(event)
 
