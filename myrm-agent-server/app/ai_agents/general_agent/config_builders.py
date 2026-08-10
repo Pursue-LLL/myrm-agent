@@ -95,9 +95,10 @@ async def resolve_skill_env_map(
         all_skills = await skill_backend.list_skills()
         valid_map: dict[str, dict[str, str]] = {}
         for skill in all_skills:
-            configured = skill_env_vars.get(skill.name) or skill_env_vars.get(
-                skill.storage_skill_id
-            )
+            if skill.name in skill_env_vars:
+                configured = skill_env_vars[skill.name]
+            else:
+                configured = skill_env_vars.get(skill.storage_skill_id)
             if configured is not None:
                 valid_map[skill.name] = configured
         return valid_map

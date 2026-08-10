@@ -230,7 +230,7 @@ class TestConfirmPluginImport:
 
         with (
             patch(
-                "app.api.skills.evolution.helpers._get_skill_store",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
@@ -308,7 +308,7 @@ class TestConfirmPluginImport:
 
         with (
             patch(
-                "app.api.skills.evolution.helpers._get_skill_store",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
@@ -364,7 +364,7 @@ class TestConfirmPluginImport:
 
         with (
             patch(
-                "app.api.skills.evolution.helpers._get_skill_store",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
@@ -415,7 +415,7 @@ class TestConfirmPluginImport:
 
         with (
             patch(
-                "app.api.skills.evolution.helpers._get_skill_store",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
@@ -462,7 +462,7 @@ class TestConfirmPluginImport:
 
         with (
             patch(
-                "app.api.skills.evolution.helpers._get_skill_store",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),

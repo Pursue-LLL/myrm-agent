@@ -463,8 +463,9 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
 
     summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
     assert isinstance(summary, dict)
-    assert summary["task_counts"]["running"] == 1
-    assert summary["task_counts"]["ready"] == 1
+    task_counts = summary.get("task_counts") or {}
+    assert task_counts.get("running") == 1
+    assert task_counts.get("ready") == 1
 
     with open_settings_subroute("/settings/kanban") as (client, page):
         previous_board = client.evaluate(
@@ -580,8 +581,11 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
 
     summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
     assert isinstance(summary, dict)
-    assert summary["task_counts"]["running"] == 1
-    assert summary["task_counts"]["ready"] == 0
+    task_counts = summary.get("task_counts") or {}
+    assert task_counts.get("running") == 1
+    # count_tasks_grouped only emits statuses that exist — no ready tasks means
+    # the key is absent, so default to 0 instead of indexing directly.
+    assert task_counts.get("ready", 0) == 0
 
     with open_settings_subroute("/settings/kanban") as (client, page):
         previous_board = client.evaluate(

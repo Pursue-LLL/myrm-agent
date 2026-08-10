@@ -81,6 +81,17 @@ async def test_resolve_drops_env_for_uninstalled_skills() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_keeps_empty_env_when_keyed_by_runtime_name() -> None:
+    """An explicitly configured empty env dict is kept, not dropped."""
+    backend = _FakeSkillBackend([_skill("demo_skill")])
+    env_vars: dict[str, dict[str, str]] = {"demo_skill": {}}
+
+    resolved = await resolve_skill_env_map(backend, env_vars)
+
+    assert resolved == {"demo_skill": {}}
+
+
+@pytest.mark.asyncio
 async def test_resolve_returns_input_without_backend_or_env() -> None:
     """No backend or empty config short-circuits to the input as-is."""
     env_vars: dict[str, dict[str, str]] = {"demo_skill": {"SK": "1"}}
