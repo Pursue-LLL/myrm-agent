@@ -13,6 +13,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     get_first_enabled_model,
     http_json,
+    navigate_mcp_page,
     open_mcp_page,
     open_settings_subroute,
     wait_for_state,
@@ -221,83 +222,33 @@ def _create_task_via_ui(client, page, title: str, description: str) -> str:
 
 
 def _open_kanban_board(client, page, board_id: str, board_name: str) -> None:
-    """Enter the given board's view, tolerating two entry shapes.
+    """Enter the given board's view via its deep-link URL.
 
-    After clearing the persisted last-board and reloading, the board list may be
-    shown (click the row) or the router may already land on the board view under
-    parallel shared-UI hydration. Accept either, then wait for the board view.
+    Navigating to /settings/kanban?board_id=... is the frontend's most stable
+    entry point (KanbanSection prefers boardIdParam over any persisted last
+    board), and unlike reload-then-click it never lands on a blank hydration
+    state under shared parallel UI. The deep-link test proves this path.
     """
-    previous_board = client.evaluate(
+    ui_base = get_e2e_ui_url().rstrip("/")
+    navigate_mcp_page(
+        client,
         page,
-        "localStorage.getItem('kanban_last_board_id')",
-        timeout_sec=5.0,
+        f"{ui_base}/settings/kanban?board_id={board_id}",
+        timeout_ms=90_000,
     )
-    try:
-        client.evaluate(
-            page,
-            "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-            timeout_sec=5.0,
-        )
-        client.reload(page, timeout_ms=60_000)
-        in_board_view = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
-              const view = document.querySelector('[data-testid="kanban-board-view"]');
-              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-              const text = view?.textContent || row?.textContent || '';
-              return {{ ready: !!view || !!row, hasView: !!view, hasRow: !!row, text }};
-            }})()""",
-            timeout_sec=120.0,
-            page_url="/settings/kanban",
-            pin_direct_blank_heal=True,
-        )
-        if in_board_view.get("hasView") is True:
-            # Already on the board view; board_name should be visible somewhere.
-            assert board_name in str(in_board_view.get("text") or "")
-            return
-        row_state = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
-              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-              return {{ ready: !!row, text: row?.textContent || '' }};
-            }})()""",
-            timeout_sec=90.0,
-            page_url="/settings/kanban",
-        )
-        assert board_name in str(row_state.get("text") or "")
-        clicked = client.evaluate(
-            page,
-            f"""(() => {{
-              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-              if (!row) return false;
-              row.click();
-              return true;
-            }})()""",
-            timeout_sec=5.0,
-        )
-        assert clicked is True
-        board_ready = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
-              const view = document.querySelector('[data-testid="kanban-board-view"]');
-              const text = view?.textContent || '';
-              return {{ ready: !!view, text }};
-            }})()""",
-            timeout_sec=90.0,
-            page_url="/settings/kanban",
-        )
-        assert board_ready.get("ready") is True
-    finally:
-        restore = (
-            "localStorage.removeItem('kanban_last_board_id')"
-            if previous_board is None
-            else "localStorage.setItem('kanban_last_board_id', "
-            f"{json.dumps(str(previous_board))})"
-        )
-        client.evaluate(page, restore, timeout_sec=5.0)
+    view_state = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const view = document.querySelector('[data-testid="kanban-board-view"]');
+          const text = view?.textContent || '';
+          return {{ ready: !!view && text.includes({board_name!r}), text }};
+        }})()""",
+        timeout_sec=120.0,
+        page_url="/settings/kanban",
+        pin_direct_blank_heal=True,
+    )
+    assert board_name in str(view_state.get("text") or "")
 
 
 @pytest.mark.chrome_e2e(

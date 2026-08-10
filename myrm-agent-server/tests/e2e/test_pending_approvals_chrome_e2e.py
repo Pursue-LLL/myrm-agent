@@ -15,10 +15,12 @@ sharing the server.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -94,18 +96,66 @@ def _probe_sqlite(
         return False
 
 
+def _real_user_home() -> Path:
+    """Real login home (Cursor redirects HOME for spawned processes)."""
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
+
+
+def _private_runtime_data_dir(api_url: str) -> Path | None:
+    """Map a PRIVATE E2E API port to its isolated runtime data dir.
+
+    The dev-gate allocator registers every isolated backend in
+    `~/.local/state/myrm-isolated/registry.json` keyed by backendPort. The
+    shared stack (:8080) is not a registered runtime and returns None.
+    """
+    if not api_url:
+        return None
+    try:
+        port = int(urlsplit(api_url).port or 0)
+    except ValueError:
+        return None
+    if not port or port == 8080:
+        return None
+    registry = _real_user_home() / ".local/state/myrm-isolated/registry.json"
+    if not registry.is_file():
+        return None
+    try:
+        payload = json.loads(registry.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    records = payload.get("runtimes") if isinstance(payload, dict) else None
+    if not isinstance(records, dict):
+        return None
+    for record in records.values():
+        if not isinstance(record, dict):
+            continue
+        if record.get("backendPort") == port:
+            data_dir = record.get("dataDir")
+            if isinstance(data_dir, str) and data_dir:
+                return Path(data_dir)
+    return None
+
+
 def _resolve_live_db_path(board_id: str, api_url: str) -> str:
     """Resolve the server's SQLite path by matching the just-created board.
 
-    The pytest process may run under a different HOME than the shared server
-    (Cursor redirects HOME for spawned processes), so `app.config.settings`
-    can point at a different data dir than the one actually serving the E2E
-    API. Every candidate that owns the kanban schema is probed for the board
-    created through the API — the DB containing it is the live one. Each
-    candidate is retried a few times because the board was committed into the
-    WAL only moments ago and a WAL read can lag a checkpoint cycle.
+    In PRIVATE mode the pytest process talks to an isolated backend whose DB
+    lives under the isolated runtime data dir (registered by dev-gate keyed on
+    backendPort); the shared :8080 stack is probed by candidate instead. Every
+    candidate that owns the kanban schema is probed for the board created
+    through the API — the DB containing it is the live one. Each candidate is
+    retried a few times because the board was committed into the WAL only
+    moments ago and a WAL read can lag a checkpoint cycle.
     """
     candidates: list[Path] = []
+    private_data_dir = _private_runtime_data_dir(api_url)
+    if private_data_dir is not None:
+        candidates.append(private_data_dir / "data.db")
     data_dir = os.environ.get("MYRM_DATA_DIR")
     if data_dir:
         candidates.append(Path(data_dir) / "data.db")
@@ -191,7 +241,10 @@ def _seed_in_review(db_path: str, task_id: str, board_id: str, title: str) -> No
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
