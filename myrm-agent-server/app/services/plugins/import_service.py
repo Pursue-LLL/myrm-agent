@@ -8,6 +8,21 @@ persists components:
 
 The import is fully offline (no LLM calls) and applies per-component failure
 isolation so a single invalid skill or MCP server never aborts the whole import.
+
+[INPUT]
+- myrm_agent_harness.agent.plugins.parser::AgentPluginParser (POS: framework
+  plugin archive parser.)
+- myrm_agent_harness.agent.skills.evolution.core.types (POS: skill lineage types.)
+- app.services.skills.store / UserConfig persistence (POS: business skill/MCP stores.)
+
+[OUTPUT]
+- import_agent_plugin: Persist skills, MCP servers, and agent bindings from a
+  parsed plugin archive (offline, per-component failure isolation).
+
+[POS]
+Business-layer import orchestration for the open-source product: maps framework
+parsing results into product persistence (SkillStore, global mcpServers,
+Agent profile binding) with blue-green writes and disabled-by-default MCP.
 """
 
 from __future__ import annotations
@@ -20,7 +35,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from myrm_agent_harness.agent.plugins.models import (
-    AgentPluginManifestMeta,
     PluginMcpServer,
     PluginParseResult,
     PluginSkill,

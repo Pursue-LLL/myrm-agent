@@ -3,6 +3,10 @@
 Deterministic scan for ad-law superlatives, WeChat inducement phrases, promised
 returns, and medical-efficacy claims before HITL draft publish.
 
+[INPUT]
+- Draft title, digest, and HTML body content submitted via the WeChat channel
+  publish flow (POS: HITL draft publish gate).
+
 [OUTPUT]
 - ComplianceCategoryHit: One matched policy category
 - ComplianceScanResult: Aggregated scan outcome
@@ -13,6 +17,10 @@ returns, and medical-efficacy claims before HITL draft publish.
 - WeChatComplianceBlockedError: Raised when high-risk hits block publish
 - assert_wechat_draft_compliance_html: Scan draft HTML visible text and enforce
 - assert_wechat_draft_compliance_for_publish: Scan title, digest, and HTML visible text
+
+[POS]
+Business-layer deterministic compliance gate before HITL publish; pure rule
+scanning with no LLM calls, keeping regulatory checks offline and predictable.
 """
 
 from __future__ import annotations
