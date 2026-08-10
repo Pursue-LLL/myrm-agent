@@ -52,7 +52,19 @@ _ATTACH_CHAT_JS = """(async () => {
   return { ok: false, state: window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {} };
 })()"""
 
-_SETTINGS_WECHAT_OFFICIAL_READY_JS = """(() => {
+_SELECT_WECHAT_OFFICIAL_CHANNEL_JS = """(() => {
+  const labels = ['微信公众号', 'WeChat Official Account'];
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const hit = buttons.find((btn) => labels.some((label) => (btn.textContent || '').includes(label)));
+  if (hit) {
+    hit.click();
+    return { ok: true, label: (hit.textContent || '').trim() };
+  }
+  return {
+    ok: false,
+    texts: buttons.map((btn) => (btn.textContent || '').trim()).filter(Boolean).slice(0, 30),
+  };
+})()"""
   const appId = document.querySelector('#wechat-official-app-id');
   const body = document.body.innerText || '';
   const hasHint =
@@ -115,7 +127,7 @@ def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_wechat_official_settings_shows_ip_whitelist_hint() -> None:

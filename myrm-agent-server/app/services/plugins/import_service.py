@@ -177,9 +177,9 @@ def _scan_skill_security(skill: PluginSkill) -> list[str]:
         SkillSecurityValidator,
     )
 
-    validator = SkillSecurityValidator(config=SecurityConfig())
-    full_skill = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
     try:
+        validator = SkillSecurityValidator(config=SecurityConfig())
+        full_skill = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
         result = validator.validate_skill(full_skill)
     except Exception as exc:  # fail-closed: unable to verify -> blocked
         logger.warning("Skill security scan failed for %r: %s", skill.name, exc)
