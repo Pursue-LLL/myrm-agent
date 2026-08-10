@@ -10,6 +10,7 @@ app/api/batch_optimization/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
 app/api/chats/chat/core.py
+app/api/chats/test_fixtures.py
 app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/schemas.py
@@ -81,7 +82,6 @@ app/channels/types/messages.py
 app/channels/voice/stt.py
 app/channels/voice/tts.py
 app/config/settings.py
-app/core/artifacts/processor.py
 app/core/channel_bridge/config_parsers.py
 app/core/channel_bridge/goal_handler.py
 app/core/channel_bridge/model_resolver.py
@@ -119,11 +119,12 @@ app/server/warmup.py
 app/services/agent/agent_service.py
 app/services/agent/builtin_specs/vertical.py
 app/services/agent/gateway.py
-app/services/agent/goal_registry.py
+app/services/agent/goals/goal_registry.py
 app/services/agent/marketplace/import_.py
 app/services/agent/marketplace/package_contract.py
 app/services/agent/params/converter.py
 app/services/agent/params/mention.py
+app/services/agent/readiness/resolver.py
 app/services/agent/stream_session/orchestrator_turn_body.py
 app/services/agent/stream_session/stream_finalize.py
 app/services/agent/stream_session/stream_lane_factory.py
