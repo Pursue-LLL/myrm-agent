@@ -66,7 +66,7 @@ interface UseVoiceSessionReturn {
   startSession: () => void;
   stopSession: () => void;
   interruptTTS: () => void;
-  speakResponse: (text: string) => void;
+  speakResponse: (text: string, options?: { queue?: boolean }) => void;
   interimText: string;
   audioLevel: number;
   cameraState: ReturnType<typeof useCameraInput>['cameraState'];

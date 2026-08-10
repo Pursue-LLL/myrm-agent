@@ -396,11 +396,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         });
       }
 
-      if (meta?.kind === 'background_job_finish' && meta?.chat_id === id) {
-        void initializeChat(id);
-      }
-
-      if (meta?.kind === 'voice_background_task_done' && meta?.chat_id === id) {
+      if (meta?.chat_id === id && (meta?.kind === 'background_job_finish' || meta?.kind === 'voice_background_task_done')) {
         void initializeChat(id);
       }
 

@@ -6,7 +6,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useVoiceSession.ts` | 会话编排（barge-in、vision、PTT context） |
+| `useVoiceSession.ts` | 会话编排（barge-in、vision、PTT context、TTS queue 安全插入） |
 | `useSpeechInput.ts` | 多后端 STT 输入 |
 | `useTTS.ts` | TTS 输出（browser + API） |
 | `useVoiceAgentBridge.ts` | 服务端 Agent WebSocket bridge |

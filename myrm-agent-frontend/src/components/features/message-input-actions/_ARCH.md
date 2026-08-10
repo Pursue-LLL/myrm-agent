@@ -33,7 +33,7 @@
 | `ThinkingIntensityButton.tsx` | 组件 | 思考强度/推理预算调节 | ✅ |
 | `ToolsPanel.tsx` | 组件 | 输入区工具/MCP 快捷面板 Popover | ✅ |
 | `VisionCapabilityNotice.tsx` | 组件 | 当前模型无 Vision 能力时的提示条 | ✅ |
-| `VoiceSessionButton.tsx` | 组件 | 全双工语音会话启动按钮 | ✅ |
+| `VoiceSessionButton.tsx` | 组件 | 全双工语音会话启动按钮；非 audio_only 模式下监听 `voice-bg-done` 事件播报后台任务完成，agent 说话期间延迟播报 | ✅ |
 
 ## 依赖
 
