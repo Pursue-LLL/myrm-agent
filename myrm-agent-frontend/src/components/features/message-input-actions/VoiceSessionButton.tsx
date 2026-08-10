@@ -103,12 +103,15 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   // In audio_only mode: watch messages store for assistant replies → TTS.
   // Non-audio_only modes stream agent audio via WebRTC/WS, so watch-TTS would
   // double-announce voice background completions alongside voice-bg-done.
+  // voice_bg_done_ messages are announced via the voice-bg-done event below
+  // (concise title + safe queue), so they are skipped here.
   useEffect(() => {
     if (voiceMode !== 'audio_only') return;
     if (!voice.isActive || loading) return;
 
     const lastMsg = messages[messages.length - 1];
     if (!lastMsg || lastMsg.role !== 'assistant') return;
+    if (lastMsg.messageId?.startsWith('voice_bg_done_')) return;
 
     const content = lastMsg.content;
     if (content && content !== lastAssistantRef.current && content.length > 10) {
@@ -117,12 +120,11 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     }
   }, [messages, loading, voice, voiceMode]);
 
-  // In non-audio_only modes, announce voice background task completion via TTS.
-  // audio_only is already covered by the messages-watch path above (chat refresh).
+  // Announce voice background task completion via TTS in all voice modes.
   // When the agent is mid-utterance (agent_bridge), defer until it stops speaking.
   const pendingAnnounceRef = useRef<string[]>([]);
   useEffect(() => {
-    if (voiceMode === 'audio_only' || !voice.isActive) return;
+    if (!voice.isActive) return;
 
     const handleVoiceBgDone = (e: Event) => {
       const detail = (e as CustomEvent<{ title?: string; message?: string; chat_id?: string }>).detail;
