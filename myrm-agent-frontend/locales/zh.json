@@ -139,7 +139,8 @@
       "actionType": "行为",
       "skills": "技能",
       "skillType": "技能",
-      "createCommand": "创建命令…"
+      "createCommand": "创建命令…",
+      "recentlyUsed": "最近使用"
     },
     "builtin": {
       "compact": "压缩对话上下文以节省 Token",
@@ -496,7 +497,10 @@
         "probeRecommendedModeStartLocalEditorMcp": "请先在本地编辑器中启动 MCP 服务，再重新执行连通性检测。",
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "请先检查本地网络连通性与编辑器 MCP 配置，再重新执行连通性检测。",
         "probeRecommendedActionSwitchMode": "关闭并切换模式",
-        "probeRecommendedActionRetryProbe": "重新检测并连接"
+        "probeRecommendedActionRetryProbe": "重新检测并连接",
+        "oauthDescription": "你将被重定向到服务商处授权访问。",
+        "oauthTitle": "连接到 {name}",
+        "waitingAuth": "等待授权…"
       }
     },
     "integrationMemory": {
@@ -696,7 +700,12 @@
         "badgeLoggedIn": "已登录",
         "badgeLoggedOut": "未登录",
         "badgeCliReady": "CLI 可用",
-        "badgeInstalled": "已安装"
+        "badgeInstalled": "已安装",
+        "install": "安装",
+        "installInProgress": "安装中…",
+        "installSuccess": "安装成功",
+        "installing": "正在安装 {backend}",
+        "installingDesc": "可能需要几分钟。安装日志显示在下方。"
       },
       "showSystemMessages": "显示系统消息",
       "showSystemMessagesDesc": "在聊天中显示 AI 的系统提示词（System Prompts）",
@@ -1752,7 +1761,8 @@
           "validating": "验证中...",
           "failed": "验证失败"
         }
-      }
+      },
+      "modelRestricted": "受组织策略限制"
     },
     "modelCapabilities": {
       "vision": "视觉",
@@ -1963,7 +1973,9 @@
       "vaultDeleteFailed": "删除金库凭证失败",
       "vaultDeleteTitle": "删除金库凭证",
       "vaultDeleteDesc": "确定要删除凭证「{label}」吗？此操作不可撤销。",
-      "vaultEdit": "编辑"
+      "vaultEdit": "编辑",
+      "tokenRequired": "需要令牌",
+      "xaiOauthTimeout": "授权超时"
     },
     "skillQuality": {
       "title": "技能质量管理",
@@ -2842,7 +2854,15 @@
           "rejected": "已拒绝",
           "synthesisPending": "演变合成"
         }
-      }
+      },
+      "evidenceClaimConfidence": "声明置信度：{value}",
+      "evidenceExcerpt": "摘录",
+      "evidenceResourceUri": "来源：{uri}",
+      "evidenceSnapshotMissing": "快照不可用 — 页面可能已更改。",
+      "evidenceSnapshotStale": "快照可能已过期。",
+      "evidenceSnapshotVerified": "快照已对照当前页面验证。",
+      "evidenceStructuredClaim": "结构化声明",
+      "evidenceSupersededFrom": "已被以下内容取代：{uri}"
     },
     "skills": {
       "title": "技能管理",
@@ -3135,7 +3155,8 @@
         "confirmAcceptTitle": "应用上游更新",
         "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。此操作不可撤销。",
         "confirmAction": "继续",
-        "cancelAction": "取消"
+        "cancelAction": "取消",
+        "export": "导出"
       },
       "curator": {
         "safetyPromise": "技能绝不会被自动删除。最坏情况仅为归档，您可以随时一键恢复。",
@@ -3246,7 +3267,8 @@
         "copyPath": "复制路径",
         "revealInManager": "显示",
         "cleanupInvalid": "清理",
-        "revealFailed": "显示路径失败"
+        "revealFailed": "显示路径失败",
+        "export": "导出"
       },
       "growth": {
         "title": "技能成长",
@@ -3335,7 +3357,9 @@
         "empty": {
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
-        }
+        },
+        "cronCreateFailed": "无法为 {name} 安排定期复查",
+        "cronCreated": "已为 {name} 安排定期复查"
       },
       "upload": {
         "title": "上传自定义技能",
@@ -3677,6 +3701,14 @@
         "exportSuccess": "技能导出成功",
         "exportFailed": "导出技能失败",
         "toggleAll": "全选 / 全不选"
+      },
+      "permissions": {
+        "approved": "权限已批准",
+        "denied": "权限已拒绝",
+        "error": "更新权限失败",
+        "skillEnabled": "技能已启用",
+        "skillNotEnabled": "技能未启用",
+        "templateApplied": "模板已应用"
       }
     },
     "language": "语言",
@@ -4661,7 +4693,17 @@
           "e2eeAlgorithm": "算法",
           "e2eeFingerprint": "指纹"
         }
-      }
+      },
+      "push": {
+        "deniedHint": "通知已被阻止。请在浏览器设置中启用。",
+        "description": "后台任务完成时收到通知。",
+        "label": "浏览器通知",
+        "test": "发送测试通知",
+        "title": "通知"
+      },
+      "pushDisabled": "通知已禁用",
+      "pushEnabled": "通知已启用",
+      "pushTestSent": "测试通知已发送"
     },
     "push": {
       "title": "通知",
@@ -5430,7 +5472,8 @@
           "memory": "记忆",
           "error": "报错"
         }
-      }
+      },
+      "securityAudit": "安全审计"
     },
     "experimentalFeatures": {
       "title": "实验功能",
@@ -6665,6 +6708,27 @@
       "blueprints": {
         "research_squad": "深度调研小队 (多智能体)",
         "code_audit_squad": "代码红队审查 (多智能体)"
+      },
+      "actionSpaceRadar": {
+        "smartPruneFailed": "智能清理失败",
+        "smartPruneRunning": "正在清理动作空间…",
+        "smartPruneSuccess": "已清理 {stale} 项过期，归档 {archived} 项"
+      },
+      "mcpTools": {
+        "dangerDisabled": "{count} 个危险工具已禁用",
+        "loadFailed": "工具加载失败",
+        "loading": "加载中…",
+        "noTools": "没有可用工具",
+        "retry": "重试",
+        "selectAll": "全选",
+        "toolFilter": "筛选"
+      },
+      "skillInstance": {
+        "auto": "自动",
+        "label": "实例",
+        "placeholder": "选择实例",
+        "staleClear": "清除",
+        "staleWarning": "实例 \"{name}\" 已过期或不可用"
       }
     },
     "validation": {
@@ -6828,6 +6892,18 @@
         "descriptionPlaceholder": "描述智能体的用途（可选）",
         "cancel": "取消",
         "save": "保存"
+      },
+      "aiAssist": "AI 辅助",
+      "aiPromptPlaceholder": "描述你想要做出的系统提示词修改…",
+      "generate": "生成",
+      "generating": "生成中…",
+      "history": "历史记录",
+      "systemPromptLabel": "系统提示词",
+      "vars": {
+        "currentDate": "当前日期",
+        "currentTime": "当前时间",
+        "osInfo": "操作系统信息",
+        "userName": "用户名"
       }
     },
     "preview": "预览",
@@ -7146,7 +7222,10 @@
       "retryStart": "重试启动",
       "hint": "您的数据存储在本地，不会丢失。如需重装请先导出备份。",
       "selectExportFolder": "选择导出目录"
-    }
+    },
+    "back": "返回",
+    "noOptions": "没有可用选项",
+    "providerDisabledWarning": "此服务商已被禁用"
   },
   "chat": {
     "skillActivation": {
@@ -7498,7 +7577,10 @@
         "reading": "AI 正在阅读此文件",
         "modifying": "AI 正在修改此文件",
         "scanning": "AI 正在扫描此目录/文件"
-      }
+      },
+      "fileTooLarge": "文件过大，仅显示前 1MB。",
+      "ghostFile": "此文件已被 AI 删除或移动。",
+      "more": "更多"
     },
     "deliverable": {
       "awaitingArtifact": "工件同步中，链接稍后可点击"
@@ -7550,7 +7632,10 @@
       "currentMsg": "当前消息",
       "historyAvg": "历史均值",
       "viewTrace": "查看深度时序分析",
-      "noSessionStats": "暂无性能数据"
+      "noSessionStats": "暂无性能数据",
+      "modelBreakdown": "模型分解",
+      "performance": "性能",
+      "toolBreakdown": "工具分解"
     },
     "liveness": {
       "idle": "就绪",
@@ -7690,7 +7775,9 @@
       "select": "选择",
       "dismiss": "关闭",
       "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @codebase 概览 / @folder:路径 目录 / @url:链接 网页 / @chat:标题 历史会话 / file:10-20 行范围",
-      "removeReference": "移除 {label}"
+      "removeReference": "移除 {label}",
+      "agentsCategory": "智能体",
+      "contextCategory": "上下文"
     },
     "conversationRecall": {
       "hintTitle": "接着聊以前的会话",
@@ -8028,7 +8115,8 @@
       "dismiss": "稍后再说",
       "apiKeysHint": "检测到 API Key 名称，请在设置中手动填写"
     },
-    "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理"
+    "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理",
+    "retry": "重试"
   },
   "mode": {
     "fast": "快速搜索",
@@ -8359,7 +8447,10 @@
         "emptyGaps": "未检测到知识缺口。",
         "emptyConnections": "暂无意外关联。",
         "emptyCommunities": "暂无主题簇 — 向知识库添加更多概念。"
-      }
+      },
+      "deselectAll": "切换全部",
+      "legend": "节点类型",
+      "selectAll": "全选"
     },
     "gallery": {
       "title": "媒体图库",
@@ -8465,7 +8556,10 @@
     "audioTooLarge": "音频文件过大（超过25MB限制）",
     "audioTooLargeDesc": "请选择更小的音频文件，当前文件 {size}",
     "largeDocIndexing": "大文档将自动入库知识库，AI 将智能检索而非全文读取",
-    "largeDocIndexingDesc": "{name}（{size}）— AI 将自动搜索知识库获取相关内容，而非读取整个文档"
+    "largeDocIndexingDesc": "{name}（{size}）— AI 将自动搜索知识库获取相关内容，而非读取整个文档",
+    "uploadError": "上传失败",
+    "uploadSuccess": "上传成功",
+    "uploadedCount": "已上传 {count} 个文件"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid 语法错误",
@@ -8709,7 +8803,9 @@
       "image": "生成图片",
       "video": "生成视频",
       "safety": "安全降级"
-    }
+    },
+    "copied": "已复制！",
+    "copy": "复制"
   },
   "memory": {
     "title": "记忆管理",
@@ -10806,7 +10902,11 @@
     },
     "available": "可用",
     "exampleCases": "示例案例",
-    "goToSettingsHint": "请先在模型服务中配置并启用 ACP Provider"
+    "goToSettingsHint": "请先在模型服务中配置并启用 ACP Provider",
+    "browse": "浏览",
+    "notAvailable": "此模式下不可用",
+    "recentProjects": "最近项目",
+    "tauriModeRequired": "此预设需要桌面应用（Tauri）"
   },
   "pricing": {
     "title": "定价",
@@ -11560,7 +11660,16 @@
         "desc": "每天自动将收藏的文章内化到知识库",
         "prompt": "执行稍后读内化流程：拉取未处理条目，写入知识库并标记已内化，每次最多 10 篇。"
       }
-    }
+    },
+    "triggerPollAdd": "添加轮询",
+    "triggerPollDesc": "定期抓取 URL，内容变化时触发。",
+    "triggerPollJsonPath": "JSONPath（可选）",
+    "triggerPollLabel": "轮询（HTTP）",
+    "triggerStreamAdd": "添加流",
+    "triggerStreamDesc": "通过出站 WebSocket 或 SSE 连接实时监控。支持 NAT 穿透。",
+    "triggerStreamJsonPath": "JSONPath，例如 $.data.price",
+    "triggerStreamLabel": "流（WS/SSE）",
+    "triggerStreamRegex": "正则过滤（可选）"
   },
   "heartbeat": {
     "title": "Agent 自动巡检",
@@ -12788,7 +12897,27 @@
     "missingRequiredFields": "缺少必填字段",
     "invalidFieldFormat": "字段格式无效",
     "networkError": "网络错误，请重试",
-    "unexpectedError": "发生意外错误"
+    "unexpectedError": "发生意外错误",
+    "onebotAdvancedSettings": "高级设置",
+    "onebotDmAllowlist": "白名单",
+    "onebotDmDisabled": "已禁用",
+    "onebotDmHint": "允许任何人私聊、需要配对、仅白名单发送者，或禁用私聊。",
+    "onebotDmOpen": "开放",
+    "onebotDmPairing": "需配对",
+    "onebotDmPolicy": "私聊策略",
+    "onebotGroupPolicy": "群组策略",
+    "onebotGroupPolicyAllowlist": "白名单",
+    "onebotGroupPolicyDisabled": "已禁用",
+    "onebotGroupPolicyHint": "允许所有群消息、仅白名单群组，或禁用群消息。",
+    "onebotGroupPolicyOpen": "开放",
+    "onebotGroupTrigger": "群组触发",
+    "onebotSaveConfig": "保存配置",
+    "onebotTriggerAll": "所有消息",
+    "onebotTriggerHint": "响应 @提及、以前缀开头的消息，或所有消息。",
+    "onebotTriggerMention": "仅提及",
+    "onebotTriggerPrefix": "前缀",
+    "optional": "可选",
+    "signalApiUrlHint": "signal REST API 的基础地址，例如 http://localhost:8080"
   },
   "voice": {
     "sectionTitle": "语音设置",
@@ -13170,7 +13299,9 @@
     "highRiskDomAction": "检测到高风险浏览器操作",
     "targetElement": "目标元素",
     "action": "操作",
-    "jsExpression": "JavaScript 表达式"
+    "jsExpression": "JavaScript 表达式",
+    "clarificationRequired": "需要错误澄清",
+    "fixParameters": "修复参数（JSON）"
   },
   "notifications": {
     "title": "系统通知",
@@ -13254,7 +13385,8 @@
     "clarificationNeeded": "Agent 需要您的输入",
     "mcpAuthRequired": "{server} 需要重新授权",
     "oauthReauthRequired": "{issuer} 授权已过期，请重新授权以恢复访问。",
-    "reauthorize": "立即授权"
+    "reauthorize": "立即授权",
+    "budgetFinalization": "预算即将耗尽 — 正在收尾"
   },
   "configConflict": {
     "title": "配置冲突检测",
@@ -14235,7 +14367,8 @@
     "failed": "失败",
     "approvalCardNotFound": "未找到待审批卡片",
     "costBudgetTitle": "成本：{used} / {limit}",
-    "tokenBudgetTitle": "Token 预算：{used} / {limit}"
+    "tokenBudgetTitle": "Token 预算：{used} / {limit}",
+    "reviewAction": "审查"
   },
   "evalLab": {
     "pageTitle": "评测实验室",
@@ -14503,7 +14636,10 @@
         "confirmTitle": "确认批量撤销",
         "success": "批量撤销成功",
         "error": "批量撤销失败",
-        "errorDesc": "无法批量撤销权限，请重试"
+        "errorDesc": "无法批量撤销权限，请重试",
+        "affectedSkills": "已撤销 {count} 个权限，影响 {skills} 个技能",
+        "confirm": "从所有技能中撤销此权限？",
+        "errorDescription": "批量撤销权限失败，请重试。"
       },
       "loading": "加载中...",
       "noSkillsWithPermissions": "没有需要权限的Skill",
@@ -14543,7 +14679,10 @@
         },
         "highDenialRate": "高拒绝率",
         "last90days": "最近90天"
-      }
+      },
+      "allowedDomainsDesc": "此技能只能向以上列出的域名发起网络请求。",
+      "revokeConfirm": "撤销后，此技能将无法再执行相关操作。正在运行且使用此权限的任务可能会被中断。\n\n是否继续？",
+      "revokeSuccess": "权限已撤销。正在运行的任务可能会受影响。"
     }
   },
   "followUps": {
@@ -15051,7 +15190,8 @@
     "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已保存",
-    "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。"
+    "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。",
+    "clearSyncedMemory": "同时删除已同步的记忆数据（{count} 个来源）"
   },
   "securityDashboard": {
     "title": "安全仪表盘",
@@ -15203,7 +15343,24 @@
   "cliAgent": {
     "modeAgent": "AI 智能体",
     "sidecarFailedTitle": "CLI 运行器不可用",
-    "sidecarUnavailable": "CLI 不可用"
+    "sidecarUnavailable": "CLI 不可用",
+    "allow": "允许",
+    "allowAnyway": "仍然允许",
+    "alwaysAllowThisTool": "始终允许此工具",
+    "dangerousCommandExplanation": "此命令被标记为危险。执行它可能损坏你的系统或危及数据。",
+    "dangerousCommandWarning": "这是一条危险命令，请谨慎操作。",
+    "deny": "拒绝",
+    "modeAsk": "询问",
+    "modeAskDescription": "每次工具调用前都请求批准",
+    "modeAuto": "自动",
+    "modeAutoDescription": "自动批准安全的工具调用",
+    "modeExplore": "探索",
+    "modeExploreDescription": "只读探索，不做更改",
+    "pendingPermissions": "还有 {count} 个待处理的权限请求",
+    "permissionRequest": "权限请求",
+    "permissionRequestDescription": "智能体正在请求运行命令的权限。",
+    "pressShiftTabToSwitch": "按 Shift+Tab 切换模式",
+    "tool": "工具"
   },
   "checkpoint": {
     "title": "检查点",
@@ -15764,5 +15921,12 @@
     "switchToCard": "切换为卡片视图",
     "tableView": "表格",
     "cardView": "卡片"
+  },
+  "messageBox": {
+    "consensusActive": "等待其余模型…",
+    "consensusMetaAggregator": "聚合器：{model}",
+    "consensusMetaElapsed": "耗时：{seconds} 秒",
+    "consensusMetaModels": "{succeeded}/{total} 个模型已响应",
+    "consensusMetaTitle": "多模型共识"
   }
 }

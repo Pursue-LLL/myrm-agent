@@ -9,7 +9,8 @@
       "actionType": "Aktion",
       "skills": "Fähigkeiten",
       "skillType": "Fähigkeit",
-      "createCommand": "Create command…"
+      "createCommand": "Create command…",
+      "recentlyUsed": "Zuletzt verwendet"
     },
     "builtin": {
       "compact": "Gesprächskontext komprimieren, um Token zu sparen",
@@ -308,7 +309,12 @@
         "badgeLoggedOut": "Nicht angemeldet",
         "badgeCliReady": "CLI bereit",
         "badgeInstalled": "Installiert",
-        "agentToggleHint": "Also turn on External CLI under Agent → Builtin Tools for agents that should call delegate_to_agent."
+        "agentToggleHint": "Also turn on External CLI under Agent → Builtin Tools for agents that should call delegate_to_agent.",
+        "install": "Installieren",
+        "installInProgress": "Installation läuft…",
+        "installSuccess": "Erfolgreich installiert",
+        "installing": "{backend} wird installiert",
+        "installingDesc": "Dies kann einige Minuten dauern. Das Installationsprotokoll wird unten angezeigt."
       },
       "showSystemMessages": "Systemnachrichten anzeigen",
       "showSystemMessagesDesc": "Display AI system prompts in chat",
@@ -1366,7 +1372,8 @@
         "skippedGeneric": "Das Mixture-of-Agents-Berater-Overlay wurde für diese Nachricht übersprungen."
       },
       "preflightCompress": "Wird ggf. komprimiert",
-      "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)"
+      "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)",
+      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt"
     },
     "modelCapabilities": {
       "vision": "Bildverständnis",
@@ -1492,7 +1499,9 @@
       "googleOauthWriteTierOn": "Lesen & schreiben",
       "googleOauthEnableWrite": "Schreibzugriff aktivieren",
       "googleOauthWriteConnected": "Schreibzugriff auf Google Workspace aktiviert.",
-      "googleOauthWriteConnectedSkillEnabled": "Schreibzugriff aktiviert. Die google-workspace-Fähigkeit bleibt aktiv."
+      "googleOauthWriteConnectedSkillEnabled": "Schreibzugriff aktiviert. Die google-workspace-Fähigkeit bleibt aktiv.",
+      "tokenRequired": "Token ist erforderlich",
+      "xaiOauthTimeout": "Autorisierung abgelaufen"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -2330,7 +2339,15 @@
             "restoreFailed": "Wiederherstellen der Rohdatei fehlgeschlagen"
           }
         }
-      }
+      },
+      "evidenceClaimConfidence": "Anspruchs-Sicherheit: {value}",
+      "evidenceExcerpt": "Auszug",
+      "evidenceResourceUri": "Quelle: {uri}",
+      "evidenceSnapshotMissing": "Snapshot nicht verfügbar — die Seite wurde möglicherweise geändert.",
+      "evidenceSnapshotStale": "Snapshot ist möglicherweise veraltet.",
+      "evidenceSnapshotVerified": "Snapshot wurde mit der aktuellen Seite abgeglichen.",
+      "evidenceStructuredClaim": "Strukturierter Anspruch",
+      "evidenceSupersededFrom": "Ersetzt durch: {uri}"
     },
     "checkpoint": {
       "title": "Kontrollpunkte",
@@ -2692,7 +2709,8 @@
           "xurl": {
             "unavailable": "Installieren Sie die xurl-CLI und stellen Sie sicher, dass sie im Server-PATH liegt"
           }
-        }
+        },
+        "export": "Exportieren"
       },
       "curator": {
         "safetyPromise": "Fähigkeiten werden nie gelöscht. Im schlimmsten Fall werden sie archiviert, und Sie können sie jederzeit wiederherstellen.",
@@ -2803,7 +2821,8 @@
         "copyPath": "Pfad kopieren",
         "revealInManager": "Anzeigen",
         "cleanupInvalid": "Bereinigen",
-        "revealFailed": "Anzeigen des Pfads fehlgeschlagen"
+        "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
+        "export": "Exportieren"
       },
       "upload": {
         "title": "Benutzerdefinierte Fähigkeit hochladen",
@@ -3055,7 +3074,9 @@
         "approveShadowSuccess": "Schattentest für {name} gestartet",
         "cronSuggestion": {
           "title": "Vorgeschlagener Zeitplan"
-        }
+        },
+        "cronCreateFailed": "Terminierung der wiederkehrenden Überprüfung für {name} fehlgeschlagen",
+        "cronCreated": "Wiederkehrende Überprüfung für {name} geplant"
       },
       "draft": {
         "reviewPanelTitle": "Ausstehende Entwürfe",
@@ -3254,6 +3275,14 @@
         "exportSuccess": "Fähigkeit erfolgreich exportiert",
         "exportFailed": "Export der Fähigkeit fehlgeschlagen",
         "toggleAll": "Alle umschalten"
+      },
+      "permissions": {
+        "approved": "Berechtigungen genehmigt",
+        "denied": "Berechtigungen abgelehnt",
+        "error": "Berechtigungen konnten nicht aktualisiert werden",
+        "skillEnabled": "Fähigkeit aktiviert",
+        "skillNotEnabled": "Fähigkeit nicht aktiviert",
+        "templateApplied": "Vorlage angewendet"
       }
     },
     "language": "Sprache",
@@ -3680,7 +3709,17 @@
         "disconnected": "In den lokalen Modus gewechselt",
         "loginRequired": "Dieser Server erfordert eine Authentifizierung. Nach dem Herstellen der Verbindung werden Sie zur Anmeldung weitergeleitet.",
         "invalidUrl": "Bitte geben Sie eine gültige HTTP- oder HTTPS-URL ein."
-      }
+      },
+      "push": {
+        "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",
+        "description": "Benachrichtigung erhalten, wenn eine Hintergrundaufgabe abgeschlossen ist.",
+        "label": "Browser-Benachrichtigungen",
+        "test": "Testbenachrichtigung senden",
+        "title": "Benachrichtigungen"
+      },
+      "pushDisabled": "Benachrichtigungen deaktiviert",
+      "pushEnabled": "Benachrichtigungen aktiviert",
+      "pushTestSent": "Testbenachrichtigung gesendet"
     },
     "mcpServiceStatusAvailable": "Latenz: {latency}ms",
     "mcpServiceStatusChecking": "Überprüfung...",
@@ -4164,7 +4203,10 @@
         "probeRecommendedModeStartLocalEditorMcp": "Starten Sie den MCP-Server in Ihrem lokalen Editor und führen Sie den Konnektivitätscheck erneut aus.",
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "Prüfen Sie die lokale Netzwerkerreichbarkeit und die Editor-MCP-Einstellungen und führen Sie den Konnektivitätscheck erneut aus.",
         "probeRecommendedActionSwitchMode": "Schließen und Modus wechseln",
-        "probeRecommendedActionRetryProbe": "Erneut versuchen und verbinden"
+        "probeRecommendedActionRetryProbe": "Erneut versuchen und verbinden",
+        "oauthDescription": "Sie werden zum Anbieter weitergeleitet, um den Zugriff zu autorisieren.",
+        "oauthTitle": "Mit {name} verbinden",
+        "waitingAuth": "Warten auf Autorisierung…"
       }
     },
     "integrationMemory": {
@@ -4793,7 +4835,8 @@
           "memory": "Speicher",
           "error": "Fehler"
         }
-      }
+      },
+      "securityAudit": "Sicherheitsprüfung"
     },
     "experimentalFeatures": {
       "title": "Experimentelle Funktionen",
@@ -6139,6 +6182,27 @@
         "hint": "Ohne Anmeldeinformationen erhält der Agent zur Laufzeit keine Medientools. Konfigurieren Sie Tasten in den Einstellungen (Modelldienst für Bild/Video; Kanäle > Sprache für TTS).",
         "openSettings": "Einstellungen öffnen",
         "recheck": "Erneut prüfen"
+      },
+      "actionSpaceRadar": {
+        "smartPruneFailed": "Intelligentes Bereinigen fehlgeschlagen",
+        "smartPruneRunning": "Aktionsraum wird bereinigt…",
+        "smartPruneSuccess": "{stale} abgelaufene Einträge bereinigt, {archived} archiviert"
+      },
+      "mcpTools": {
+        "dangerDisabled": "{count} gefährliche Tools deaktiviert",
+        "loadFailed": "Tools konnten nicht geladen werden",
+        "loading": "Wird geladen…",
+        "noTools": "Keine Tools verfügbar",
+        "retry": "Erneut versuchen",
+        "selectAll": "Alle auswählen",
+        "toolFilter": "Filter"
+      },
+      "skillInstance": {
+        "auto": "Automatisch",
+        "label": "Instanz",
+        "placeholder": "Instanz auswählen",
+        "staleClear": "Leeren",
+        "staleWarning": "Instanz „{name}“ ist veraltet oder nicht verfügbar"
       }
     },
     "validation": {
@@ -6302,6 +6366,18 @@
           "always": "Immer",
           "alwaysDesc": "Jede Browser-Sitzung aufzeichnen."
         }
+      },
+      "aiAssist": "KI-Unterstützung",
+      "aiPromptPlaceholder": "Beschreiben Sie die gewünschte Änderung am Systemprompt…",
+      "generate": "Generieren",
+      "generating": "Wird generiert…",
+      "history": "Verlauf",
+      "systemPromptLabel": "Systemprompt",
+      "vars": {
+        "currentDate": "Aktuelles Datum",
+        "currentTime": "Aktuelle Uhrzeit",
+        "osInfo": "Betriebssysteminformationen",
+        "userName": "Benutzername"
       }
     },
     "preview": "Vorschau",
@@ -6881,7 +6957,10 @@
       "retryStart": "Wiederholen",
       "hint": "Ihre Daten werden lokal gespeichert und gehen nicht verloren. Exportieren Sie bei Bedarf vor der Neuinstallation ein Backup.",
       "selectExportFolder": "Exportordner auswählen"
-    }
+    },
+    "back": "Zurück",
+    "noOptions": "Keine Optionen verfügbar",
+    "providerDisabledWarning": "Dieser Anbieter ist deaktiviert"
   },
   "chat": {
     "jumpBar": {
@@ -7130,7 +7209,10 @@
       "noSessionStats": "Keine Leistungsdaten",
       "compatMode": "Kompatibilität",
       "compatWeak": "Lite-Modus",
-      "compatMedium": "Ausgewogen"
+      "compatMedium": "Ausgewogen",
+      "modelBreakdown": "Modellaufschlüsselung",
+      "performance": "Leistung",
+      "toolBreakdown": "Tool-Aufschlüsselung"
     },
     "contextUsage": {
       "title": "Kontextnutzung",
@@ -7228,7 +7310,9 @@
       "select": "Auswählen",
       "dismiss": "Schließen",
       "specialReferencesHint": "Try: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
-      "removeReference": "{label} entfernen"
+      "removeReference": "{label} entfernen",
+      "agentsCategory": "Agenten",
+      "contextCategory": "Kontext"
     },
     "conversationRecall": {
       "hintTitle": "Frühere Gespräche fortsetzen",
@@ -7444,7 +7528,10 @@
         "reading": "KI liest diese Datei",
         "modifying": "KI bearbeitet diese Datei",
         "scanning": "AI scannt dieses Verzeichnis/diese Datei"
-      }
+      },
+      "fileTooLarge": "Datei ist zu groß, es werden nur die ersten 1 MB angezeigt.",
+      "ghostFile": "Diese Datei wurde von der KI gelöscht oder verschoben.",
+      "more": "mehr"
     },
     "deliverable": {
       "awaitingArtifact": "Artefakt wird synchronisiert — Link wird in Kürze aktiv"
@@ -7763,7 +7850,8 @@
       "noMcp": "Keine MCP-Server für diesen Agenten aktiviert",
       "usingAgentDefaults": "Agent-Standards verwenden",
       "nextTurnOnly": "Gilt nur für die nächste Nachricht"
-    }
+    },
+    "retry": "Erneut versuchen"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -8070,7 +8158,10 @@
         "emptyGaps": "Keine Wissenslücken erkannt.",
         "emptyConnections": "Noch keine unerwarteten Verbindungen.",
         "emptyCommunities": "No clusters yet — add more concepts to the vault."
-      }
+      },
+      "deselectAll": "Alle umschalten",
+      "legend": "Knotentypen",
+      "selectAll": "Alle auswählen"
     },
     "gallery": {
       "title": "Mediengalerie",
@@ -8176,7 +8267,10 @@
     "largeDocIndexing": "Großes Dokument wird in die Wissensdatenbank indexiert",
     "largeDocIndexingDesc": "{name} ({size}) — KI durchsucht die Wissensdatenbank anstatt das gesamte Dokument zu lesen",
     "tooManyFiles": "Zu viele Dateien, maximal {max} Dateien zulässig",
-    "invalidFileType": "Nicht unterstützter Dateityp: {types}"
+    "invalidFileType": "Nicht unterstützter Dateityp: {types}",
+    "uploadError": "Upload fehlgeschlagen",
+    "uploadSuccess": "Upload erfolgreich",
+    "uploadedCount": "{count} Datei(en) hochgeladen"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid-Syntaxfehler",
@@ -8420,7 +8514,9 @@
     "moa_overlay_active": "Berater-Overlay-Fan-out läuft",
     "moa_ref_done": "Berater-Referenz abgeschlossen",
     "update_ui_data_tool_tool": "Aktualisieren interaktiver UI-Daten",
-    "update_ui_data_tool_tool_error": "Beim Aktualisieren der UI-Daten ist ein Fehler aufgetreten"
+    "update_ui_data_tool_tool_error": "Beim Aktualisieren der UI-Daten ist ein Fehler aufgetreten",
+    "copied": "Kopiert!",
+    "copy": "Kopieren"
   },
   "memory": {
     "title": "Speicherverwaltung",
@@ -10517,7 +10613,11 @@
     },
     "available": "Verfügbar",
     "exampleCases": "Beispiele",
-    "goToSettingsHint": "Bitte konfigurieren und aktivieren Sie zunächst den ACP-Anbieter in Model Services"
+    "goToSettingsHint": "Bitte konfigurieren und aktivieren Sie zunächst den ACP-Anbieter in Model Services",
+    "browse": "Durchsuchen",
+    "notAvailable": "In diesem Modus nicht verfügbar",
+    "recentProjects": "Zuletzt verwendete Projekte",
+    "tauriModeRequired": "Für diese Vorlage ist die Desktop-App (Tauri) erforderlich"
   },
   "pricing": {
     "title": "Preise",
@@ -11271,7 +11371,16 @@
         "outputDestinations": "Ausgabeziele",
         "failureRecords": "Fehlerspur"
       }
-    }
+    },
+    "triggerPollAdd": "Polling hinzufügen",
+    "triggerPollDesc": "Regelmäßig eine URL abrufen und bei Inhaltsänderungen auslösen.",
+    "triggerPollJsonPath": "JSONPath (optional)",
+    "triggerPollLabel": "Polling (HTTP)",
+    "triggerStreamAdd": "Stream hinzufügen",
+    "triggerStreamDesc": "Echtzeitüberwachung über ausgehende WebSocket- oder SSE-Verbindung. Funktioniert hinter NAT.",
+    "triggerStreamJsonPath": "JSONPath, z. B. $.data.price",
+    "triggerStreamLabel": "Stream (WS/SSE)",
+    "triggerStreamRegex": "Regex-Filter (optional)"
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -12499,7 +12608,27 @@
     "discordPublicKey": "Öffentlicher Schlüssel (hex)",
     "discordEnableGateway": "Gateway für eingehende Nachrichten",
     "discordEnableGatewayHint": "Erforderlich für Discord DMs und Kanalnachrichten im Cloud-Hosting. Interaktionen funktionieren immer über Webhook.",
-    "failureEmojiLabel": "Fehler-Emoji"
+    "failureEmojiLabel": "Fehler-Emoji",
+    "onebotAdvancedSettings": "Erweiterte Einstellungen",
+    "onebotDmAllowlist": "Zulassungsliste",
+    "onebotDmDisabled": "Deaktiviert",
+    "onebotDmHint": "Direktnachrichten von allen zulassen, Paarung erforderlich, nur zugelassene Absender oder DM deaktivieren.",
+    "onebotDmOpen": "Offen",
+    "onebotDmPairing": "Paarung erforderlich",
+    "onebotDmPolicy": "DM-Richtlinie",
+    "onebotGroupPolicy": "Gruppenrichtlinie",
+    "onebotGroupPolicyAllowlist": "Zulassungsliste",
+    "onebotGroupPolicyDisabled": "Deaktiviert",
+    "onebotGroupPolicyHint": "Nachrichten aus allen Gruppen zulassen, nur aus zugelassenen Gruppen oder Gruppennachrichten deaktivieren.",
+    "onebotGroupPolicyOpen": "Offen",
+    "onebotGroupTrigger": "Gruppen-Trigger",
+    "onebotSaveConfig": "Konfiguration speichern",
+    "onebotTriggerAll": "Alle Nachrichten",
+    "onebotTriggerHint": "Auf Erwähnungen, Nachrichten mit Präfix oder alle Nachrichten antworten.",
+    "onebotTriggerMention": "Nur Erwähnungen",
+    "onebotTriggerPrefix": "Präfix",
+    "optional": "optional",
+    "signalApiUrlHint": "Basis-URL der signald-REST-API, z. B. http://localhost:8080"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -12853,7 +12982,9 @@
     "action": "Aktion",
     "jsExpression": "JavaScript-Ausdruck",
     "mcpElicitationTitle": "MCP Serverbestätigung",
-    "mcpElicitationServer": "Serverinstanz"
+    "mcpElicitationServer": "Serverinstanz",
+    "clarificationRequired": "Fehlerklärung erforderlich",
+    "fixParameters": "Parameter korrigieren (JSON)"
   },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
@@ -12937,7 +13068,8 @@
     "reauthorize": "Erneut autorisieren",
     "subagentRebindRequired": "Subagentenbindungen geändert. Starten Sie einen neuen Chat, um aktualisierte Delegationstools zu verwenden.",
     "subagentStale": "Subagent ist ins Stocken geraten",
-    "noProgressFor": "Kein Fortschritt für"
+    "noProgressFor": "Kein Fortschritt für",
+    "budgetFinalization": "Budget fast ausgeschöpft — wird abgeschlossen"
   },
   "configConflict": {
     "title": "Konfigurationskonflikt erkannt",
@@ -13609,7 +13741,8 @@
     "delegationPauseFailed": "Die Delegation konnte nicht angehalten werden",
     "delegationResumeFailed": "Die Delegierung konnte nicht fortgesetzt werden",
     "delegationPauseNetworkError": "Netzwerkfehler: Delegierung konnte nicht angehalten werden",
-    "delegationResumeNetworkError": "Netzwerkfehler: Die Delegierung konnte nicht fortgesetzt werden"
+    "delegationResumeNetworkError": "Netzwerkfehler: Die Delegierung konnte nicht fortgesetzt werden",
+    "reviewAction": "Prüfen"
   },
   "evalLab": {
     "pageTitle": "Eval-Labor",
@@ -13860,7 +13993,10 @@
         "confirmTitle": "Massenrücknahme bestätigen",
         "success": "Massenrücknahme erfolgreich",
         "error": "Massenrücknahme fehlgeschlagen",
-        "errorDesc": "Berechtigungen konnten nicht widerrufen werden"
+        "errorDesc": "Berechtigungen konnten nicht widerrufen werden",
+        "affectedSkills": "{count} Berechtigungen widerrufen, betrifft {skills} Fähigkeit(en)",
+        "confirm": "Diese Berechtigung von allen Fähigkeiten widerrufen?",
+        "errorDescription": "Bulk-Widerruf fehlgeschlagen. Bitte versuchen Sie es erneut."
       },
       "loading": "Wird geladen...",
       "noSkillsWithPermissions": "Keine Skills mit Berechtigungen",
@@ -13900,7 +14036,10 @@
         },
         "highDenialRate": "Hohe Ablehnungsrate",
         "last90days": "Letzte 90 Tage"
-      }
+      },
+      "allowedDomainsDesc": "Diese Fähigkeit darf nur Anfragen an die oben aufgeführten Domains senden.",
+      "revokeConfirm": "Nach dem Widerruf kann diese Fähigkeit den zugehörigen Vorgang nicht mehr ausführen. Laufende Aufgaben, die diese Berechtigung verwenden, können unterbrochen werden.\n\nFortfahren?",
+      "revokeSuccess": "Berechtigung widerrufen. Laufende Aufgaben können betroffen sein."
     },
     "migration": {
       "title": "Import aus Hermes / OpenClaw / Claude Code / Codex",
@@ -14954,7 +15093,8 @@
     "mcpHeaderValuePlaceholder": "Wert oder {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
-    "mcpSecretRefSaveHintDesc": "Geheimverweise in Headern werden zur Laufzeit aufgelöst."
+    "mcpSecretRefSaveHintDesc": "Geheimverweise in Headern werden zur Laufzeit aufgelöst.",
+    "clearSyncedMemory": "Auch synchronisierte Speicherdaten entfernen ({count} Quellen)"
   },
   "about": {
     "title": "Über",
@@ -15457,7 +15597,24 @@
   "cliAgent": {
     "modeAgent": "KI-Agent",
     "sidecarFailedTitle": "CLI-Runner nicht verfügbar",
-    "sidecarUnavailable": "CLI nicht verfügbar"
+    "sidecarUnavailable": "CLI nicht verfügbar",
+    "allow": "Zulassen",
+    "allowAnyway": "Trotzdem zulassen",
+    "alwaysAllowThisTool": "Dieses Tool immer zulassen",
+    "dangerousCommandExplanation": "Dieser Befehl wurde als gefährlich markiert. Die Ausführung könnte Ihr System beschädigen oder Ihre Daten gefährden.",
+    "dangerousCommandWarning": "Dies ist ein gefährlicher Befehl. Fahren Sie mit Vorsicht fort.",
+    "deny": "Ablehnen",
+    "modeAsk": "Nachfragen",
+    "modeAskDescription": "Vor jedem Tool-Aufruf um Genehmigung bitten",
+    "modeAuto": "Automatisch",
+    "modeAutoDescription": "Sichere Tool-Aufrufe automatisch genehmigen",
+    "modeExplore": "Erkunden",
+    "modeExploreDescription": "Nur-Lesen-Erkundung, keine Änderungen",
+    "pendingPermissions": "{count} weitere ausstehende Genehmigungsanfragen",
+    "permissionRequest": "Genehmigungsanfrage",
+    "permissionRequestDescription": "Der Agent bittet um Erlaubnis, einen Befehl auszuführen.",
+    "pressShiftTabToSwitch": "Drücken Sie Shift+Tab, um den Modus zu wechseln",
+    "tool": "Tool"
   },
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",
@@ -15764,5 +15921,12 @@
     "switchToCard": "Wechseln Sie zur Kartenansicht",
     "tableView": "Tisch",
     "cardView": "Karte"
+  },
+  "messageBox": {
+    "consensusActive": "Warten auf die restlichen Modelle…",
+    "consensusMetaAggregator": "Aggregator: {model}",
+    "consensusMetaElapsed": "Verstrichen: {seconds} s",
+    "consensusMetaModels": "{succeeded}/{total} Modelle haben geantwortet",
+    "consensusMetaTitle": "Multi-Modell-Konsens"
   }
 }

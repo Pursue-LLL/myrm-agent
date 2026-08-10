@@ -139,7 +139,8 @@
       "actionType": "アクション",
       "skills": "スキル",
       "skillType": "スキル",
-      "createCommand": "コマンドを作成…"
+      "createCommand": "コマンドを作成…",
+      "recentlyUsed": "最近使用"
     },
     "builtin": {
       "compact": "会話コンテキストを圧縮してトークンを節約",
@@ -476,7 +477,10 @@
         "probeRecommendedModeStartLocalEditorMcp": "ローカルエディタでMCPサーバーを起動し、接続チェックを再度実行してください。",
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "ローカルネットワークの到達可能性とエディタMCP設定を確認し、接続チェックを再度実行してください。",
         "probeRecommendedActionSwitchMode": "閉じてモードを切り替え",
-        "probeRecommendedActionRetryProbe": "再試行して接続"
+        "probeRecommendedActionRetryProbe": "再試行して接続",
+        "oauthDescription": "アクセスを承認するため、プロバイダーにリダイレクトされます。",
+        "oauthTitle": "{name} に接続",
+        "waitingAuth": "認証を待っています…"
       }
     },
     "integrationMemory": {
@@ -676,7 +680,12 @@
         "badgeLoggedIn": "ログイン済み",
         "badgeLoggedOut": "未ログイン",
         "badgeCliReady": "CLI 利用可能",
-        "badgeInstalled": "インストール済み"
+        "badgeInstalled": "インストール済み",
+        "install": "インストール",
+        "installInProgress": "インストール中…",
+        "installSuccess": "インストールに成功しました",
+        "installing": "{backend} をインストール中",
+        "installingDesc": "数分かかる場合があります。インストールログは下に表示されます。"
       },
       "showSystemMessages": "システムメッセージを表示",
       "showSystemMessagesDesc": "チャット内に AI のシステムプロンプト（System Prompts）を表示",
@@ -1732,7 +1741,8 @@
         "skippedGeneric": "このメッセージでは Mixture of Agents アドバイザーオーバーレイをスキップしました。"
       },
       "preflightCompress": "圧縮される可能性があります",
-      "preflightCompressDetail": "今切り替えると、次のメッセージでコンテキストが圧縮される可能性があります（しきい値: {threshold} トークン）"
+      "preflightCompressDetail": "今切り替えると、次のメッセージでコンテキストが圧縮される可能性があります（しきい値: {threshold} トークン）",
+      "modelRestricted": "組織ポリシーにより制限されています"
     },
     "modelCapabilities": {
       "vision": "視覚",
@@ -1943,7 +1953,9 @@
       "vaultDeleteFailed": "ボールト資格情報の削除に失敗しました",
       "vaultDeleteTitle": "ボールト資格情報を削除",
       "vaultDeleteDesc": "資格情報「{label}」を削除してもよろしいですか？この操作は元に戻せません。",
-      "vaultEdit": "編集"
+      "vaultEdit": "編集",
+      "tokenRequired": "トークンが必要です",
+      "xaiOauthTimeout": "認証がタイムアウトしました"
     },
     "skillQuality": {
       "title": "スキル品質管理",
@@ -2822,7 +2834,15 @@
       },
       "scopeChip": {
         "label": "対象ボールト: {scope}"
-      }
+      },
+      "evidenceClaimConfidence": "主張の信頼度: {value}",
+      "evidenceExcerpt": "抜粋",
+      "evidenceResourceUri": "出典: {uri}",
+      "evidenceSnapshotMissing": "スナップショットを取得できません — ページが変更された可能性があります。",
+      "evidenceSnapshotStale": "スナップショットが古い可能性があります。",
+      "evidenceSnapshotVerified": "スナップショットは現在のページと照合済みです。",
+      "evidenceStructuredClaim": "構造化された主張",
+      "evidenceSupersededFrom": "次の内容に置き換えられました: {uri}"
     },
     "skills": {
       "title": "スキル管理",
@@ -3115,7 +3135,8 @@
         "confirmAcceptTitle": "上流の更新を適用",
         "confirmAcceptDesc": "「{name}」へのローカル変更は、最新の上流バージョンで置き換えられます。この操作は取り消せません。",
         "confirmAction": "続行",
-        "cancelAction": "キャンセル"
+        "cancelAction": "キャンセル",
+        "export": "エクスポート"
       },
       "curator": {
         "safetyPromise": "スキルが削除されることはありません。最悪の場合でもアーカイブされるだけで、いつでもワンクリックで復元できます。",
@@ -3226,7 +3247,8 @@
         "copyPath": "パスをコピー",
         "revealInManager": "表示",
         "cleanupInvalid": "クリーンアップ",
-        "revealFailed": "パスの表示に失敗しました"
+        "revealFailed": "パスの表示に失敗しました",
+        "export": "エクスポート"
       },
       "growth": {
         "title": "スキル成長",
@@ -3315,7 +3337,9 @@
         "empty": {
           "title": "このビューにはケースがありません",
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
-        }
+        },
+        "cronCreateFailed": "{name} の定期レビューをスケジュールできませんでした",
+        "cronCreated": "{name} の定期レビューをスケジュールしました"
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -3657,6 +3681,14 @@
         "exportSuccess": "スキルをエクスポートしました",
         "exportFailed": "スキルのエクスポートに失敗",
         "toggleAll": "すべて切り替え"
+      },
+      "permissions": {
+        "approved": "権限が承認されました",
+        "denied": "権限が拒否されました",
+        "error": "権限の更新に失敗しました",
+        "skillEnabled": "スキルが有効になりました",
+        "skillNotEnabled": "スキルは有効になっていません",
+        "templateApplied": "テンプレートが適用されました"
       }
     },
     "language": "言語",
@@ -4357,7 +4389,17 @@
         "disconnected": "ローカルモードに切り替えました",
         "loginRequired": "このサーバーは認証が必要です。接続後にログインページへリダイレクトされます。",
         "invalidUrl": "有効なHTTPまたはHTTPS URLを入力してください"
-      }
+      },
+      "push": {
+        "deniedHint": "通知がブロックされています。ブラウザの設定で有効にしてください。",
+        "description": "バックグラウンドタスクの完了時に通知を受け取ります。",
+        "label": "ブラウザ通知",
+        "test": "テスト通知を送信",
+        "title": "通知"
+      },
+      "pushDisabled": "通知が無効になりました",
+      "pushEnabled": "通知が有効になりました",
+      "pushTestSent": "テスト通知を送信しました"
     },
     "push": {
       "title": "通知",
@@ -5085,7 +5127,8 @@
           "memory": "メモリ",
           "error": "エラー"
         }
-      }
+      },
+      "securityAudit": "セキュリティ監査"
     },
     "experimentalFeatures": {
       "title": "実験機能",
@@ -6555,6 +6598,27 @@
       "blueprints": {
         "research_squad": "深掘り調査チーム（マルチエージェント）",
         "code_audit_squad": "コードレッドチーム監査（マルチエージェント）"
+      },
+      "actionSpaceRadar": {
+        "smartPruneFailed": "スマート整理に失敗しました",
+        "smartPruneRunning": "アクション空間を整理しています…",
+        "smartPruneSuccess": "{stale} 件の期限切れを整理し、{archived} 件をアーカイブしました"
+      },
+      "mcpTools": {
+        "dangerDisabled": "危険なツール {count} 件が無効になっています",
+        "loadFailed": "ツールの読み込みに失敗しました",
+        "loading": "読み込み中…",
+        "noTools": "利用可能なツールがありません",
+        "retry": "再試行",
+        "selectAll": "すべて選択",
+        "toolFilter": "フィルター"
+      },
+      "skillInstance": {
+        "auto": "自動",
+        "label": "インスタンス",
+        "placeholder": "インスタンスを選択",
+        "staleClear": "クリア",
+        "staleWarning": "インスタンス「{name}」は期限切れまたは利用できません"
       }
     },
     "validation": {
@@ -6718,6 +6782,18 @@
         "auto": "自動",
         "staleWarning": "バインドされたインスタンス「{name}」はもう存在しません。",
         "staleClear": "バインドを解除"
+      },
+      "aiAssist": "AI アシスト",
+      "aiPromptPlaceholder": "システムプロンプトに行いたい変更を記述してください…",
+      "generate": "生成",
+      "generating": "生成中…",
+      "history": "履歴",
+      "systemPromptLabel": "システムプロンプト",
+      "vars": {
+        "currentDate": "現在の日付",
+        "currentTime": "現在の時刻",
+        "osInfo": "OS 情報",
+        "userName": "ユーザー名"
       }
     },
     "preview": "プレビュー",
@@ -7081,7 +7157,10 @@
     "remoteGateway": {
       "unreachable": "リモートサーバー {host} に到達できません。サーバーアドレスを確認するか、ローカルモードに戻してください。",
       "switchToLocal": "ローカルモードに切り替え"
-    }
+    },
+    "back": "戻る",
+    "noOptions": "利用可能なオプションがありません",
+    "providerDisabledWarning": "このプロバイダーは無効です"
   },
   "chat": {
     "jumpBar": {
@@ -7404,7 +7483,10 @@
         "reading": "AI がこのファイルを読み取り中",
         "modifying": "AI がこのファイルを変更しています",
         "scanning": "AI がこのディレクトリ/ファイルをスキャン中"
-      }
+      },
+      "fileTooLarge": "ファイルが大きすぎるため、先頭 1MB のみ表示しています。",
+      "ghostFile": "このファイルは AI によって削除または移動されました。",
+      "more": "さらに表示"
     },
     "deliverable": {
       "awaitingArtifact": "アーティファクト同期中 — リンクはまもなく有効になります"
@@ -7456,7 +7538,10 @@
       "currentMsg": "現在メッセージ",
       "historyAvg": "履歴均値",
       "viewTrace": "詳細な時系列分析を表示",
-      "noSessionStats": "パフォーマンスデータがありません"
+      "noSessionStats": "パフォーマンスデータがありません",
+      "modelBreakdown": "モデル別内訳",
+      "performance": "パフォーマンス",
+      "toolBreakdown": "ツール別内訳"
     },
     "liveness": {
       "idle": "待機中",
@@ -7567,7 +7652,9 @@
       "select": "選択",
       "dismiss": "閉じる",
       "specialReferencesHint": "例: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
-      "removeReference": "{label} を削除"
+      "removeReference": "{label} を削除",
+      "agentsCategory": "エージェント",
+      "contextCategory": "コンテキスト"
     },
     "conversationRecall": {
       "hintTitle": "過去の会話を続ける",
@@ -7963,7 +8050,8 @@
       "noMcp": "このエージェントで有効なMCPサーバーはありません",
       "usingAgentDefaults": "エージェントのデフォルトを使用",
       "nextTurnOnly": "次のメッセージのみに適用"
-    }
+    },
+    "retry": "再試行"
   },
   "mode": {
     "fast": "高速検索",
@@ -8294,7 +8382,10 @@
         "emptyGaps": "ナレッジギャップは検出されませんでした。",
         "emptyConnections": "意外なリンクはまだありません。",
         "emptyCommunities": "クラスターはまだありません — ボールトに概念を追加してください。"
-      }
+      },
+      "deselectAll": "すべて切り替え",
+      "legend": "ノードタイプ",
+      "selectAll": "すべて選択"
     },
     "gallery": {
       "title": "メディアギャラリー",
@@ -8400,7 +8491,10 @@
     "audioTooLarge": "音声ファイルが大きすぎます（25MB制限超過）",
     "audioTooLargeDesc": "より小さい音声ファイルを選択してください。現在: {size}",
     "largeDocIndexing": "大きなドキュメントはナレッジベースに自動インデックスされます",
-    "largeDocIndexingDesc": "{name}（{size}）— AIがドキュメント全体を読む代わりにナレッジベースを検索します"
+    "largeDocIndexingDesc": "{name}（{size}）— AIがドキュメント全体を読む代わりにナレッジベースを検索します",
+    "uploadError": "アップロードに失敗しました",
+    "uploadSuccess": "アップロードに成功しました",
+    "uploadedCount": "{count} 件のファイルをアップロードしました"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid 構文エラー",
@@ -8644,7 +8738,9 @@
     "wiki_knowledge_lane": "wikiナレッジベースを照会中",
     "wiki_knowledge_lane_clear": "wiki回答の準備完了",
     "moa_overlay_active": "アドバイザーオーバーレイのファンアウトを実行中",
-    "moa_ref_done": "アドバイザー参照が完了しました"
+    "moa_ref_done": "アドバイザー参照が完了しました",
+    "copied": "コピーしました！",
+    "copy": "コピー"
   },
   "memory": {
     "title": "メモリ管理",
@@ -10741,7 +10837,11 @@
     },
     "available": "利用可能",
     "exampleCases": "使用例",
-    "goToSettingsHint": "先にモデルサービスで ACP プロバイダーを設定して有効にしてください"
+    "goToSettingsHint": "先にモデルサービスで ACP プロバイダーを設定して有効にしてください",
+    "browse": "参照",
+    "notAvailable": "このモードでは利用できません",
+    "recentProjects": "最近のプロジェクト",
+    "tauriModeRequired": "このプリセットにはデスクトップアプリ（Tauri）が必要です"
   },
   "pricing": {
     "title": "料金",
@@ -11495,7 +11595,16 @@
         "outputDestinations": "出力先",
         "failureRecords": "失敗の記録"
       }
-    }
+    },
+    "triggerPollAdd": "ポーリングを追加",
+    "triggerPollDesc": "URL を定期的に取得し、コンテンツの変更時に発火します。",
+    "triggerPollJsonPath": "JSONPath（任意）",
+    "triggerPollLabel": "ポーリング（HTTP）",
+    "triggerStreamAdd": "ストリームを追加",
+    "triggerStreamDesc": "アウトバウンドの WebSocket または SSE 接続によるリアルタイム監視。NAT 環境でも動作します。",
+    "triggerStreamJsonPath": "JSONPath（例: $.data.price）",
+    "triggerStreamLabel": "ストリーム（WS/SSE）",
+    "triggerStreamRegex": "正規表現フィルター（任意）"
   },
   "heartbeat": {
     "title": "エージェント自動チェック",
@@ -12723,7 +12832,27 @@
     "wechatOfficialTestSuccess": "WeChat公式APIに接続しました",
     "wechatOfficialTestFailed": "WeChat公式APIの接続に失敗しました",
     "wechatOfficialCredentialsRequired": "先にApp IDとApp Secretを入力してください",
-    "credentialGuideWechatOfficial": "WeChat公式アカウントプラットフォームからAppIDとAppSecretを取得します"
+    "credentialGuideWechatOfficial": "WeChat公式アカウントプラットフォームからAppIDとAppSecretを取得します",
+    "onebotAdvancedSettings": "詳細設定",
+    "onebotDmAllowlist": "許可リスト",
+    "onebotDmDisabled": "無効",
+    "onebotDmHint": "すべてのユーザーからの DM を許可、ペアリング必須、許可リストのみ、または DM を無効にします。",
+    "onebotDmOpen": "開放",
+    "onebotDmPairing": "ペアリング必須",
+    "onebotDmPolicy": "DM ポリシー",
+    "onebotGroupPolicy": "グループポリシー",
+    "onebotGroupPolicyAllowlist": "許可リスト",
+    "onebotGroupPolicyDisabled": "無効",
+    "onebotGroupPolicyHint": "すべてのグループからのメッセージ、許可リストのグループのみ、またはグループメッセージを無効にします。",
+    "onebotGroupPolicyOpen": "開放",
+    "onebotGroupTrigger": "グループトリガー",
+    "onebotSaveConfig": "設定を保存",
+    "onebotTriggerAll": "すべてのメッセージ",
+    "onebotTriggerHint": "メンション、プレフィックスで始まるメッセージ、またはすべてのメッセージに応答します。",
+    "onebotTriggerMention": "メンションのみ",
+    "onebotTriggerPrefix": "プレフィックス",
+    "optional": "任意",
+    "signalApiUrlHint": "signald REST API のベース URL（例: http://localhost:8080）"
   },
   "voice": {
     "sectionTitle": "音声設定",
@@ -13105,7 +13234,9 @@
     "action": "アクション",
     "jsExpression": "JavaScript 式",
     "mcpElicitationTitle": "MCPサーバーの確認",
-    "mcpElicitationServer": "サーバー"
+    "mcpElicitationServer": "サーバー",
+    "clarificationRequired": "エラーの明確化が必要です",
+    "fixParameters": "パラメータを修正（JSON）"
   },
   "notifications": {
     "title": "システム通知",
@@ -13189,7 +13320,8 @@
     "clarificationNeeded": "Agentがあなたの入力を必要としています",
     "mcpAuthRequired": "{server} の再認証が必須です",
     "oauthReauthRequired": "{issuer} の認証が期限切れです。アクセスを復元するには再認証してください。",
-    "reauthorize": "今すぐ認可"
+    "reauthorize": "今すぐ認可",
+    "budgetFinalization": "予算が間もなく尽きます — 最終処理中"
   },
   "configConflict": {
     "title": "設定の競合を検出",
@@ -14199,7 +14331,8 @@
     "failed": "失敗",
     "approvalCardNotFound": "承認カードが見つかりません",
     "costBudgetTitle": "コスト：{used} / {limit}",
-    "tokenBudgetTitle": "トークン予算：{used} / {limit}"
+    "tokenBudgetTitle": "トークン予算：{used} / {limit}",
+    "reviewAction": "確認"
   },
   "evalLab": {
     "pageTitle": "評価ラボ",
@@ -14467,7 +14600,10 @@
         "confirmTitle": "一括取消の確認",
         "success": "一括で取り消ししました",
         "error": "一括取り消しに失敗しました",
-        "errorDesc": "権限の一括取消に失敗しました"
+        "errorDesc": "権限の一括取消に失敗しました",
+        "affectedSkills": "{count} 件の権限を取り消し、{skills} 件のスキルに影響しました",
+        "confirm": "すべてのスキルからこの権限を取り消しますか？",
+        "errorDescription": "権限の一括取り消しに失敗しました。もう一度お試しください。"
       },
       "loading": "読み込み中...",
       "noSkillsWithPermissions": "権限が必須なスキルはありません",
@@ -14507,7 +14643,10 @@
         },
         "highDenialRate": "高拒否率",
         "last90days": "最近90日"
-      }
+      },
+      "allowedDomainsDesc": "このスキルは上記のドメインにのみネットワークリクエストを送信できます。",
+      "revokeConfirm": "取り消すと、このスキルは関連する操作を実行できなくなります。この権限を使用している実行中タスクは中断される可能性があります。\n\n続行しますか？",
+      "revokeSuccess": "権限を取り消しました。実行中のタスクに影響が出る可能性があります。"
     }
   },
   "followUps": {
@@ -15000,7 +15139,8 @@
     "mcpHeaderValuePlaceholder": "値または {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "設定を保存しました",
-    "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。"
+    "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
+    "clearSyncedMemory": "同期済みのメモリデータも削除（{count} 件のソース）"
   },
   "about": {
     "title": "について",
@@ -15566,7 +15706,24 @@
   "cliAgent": {
     "modeAgent": "AI エージェント",
     "sidecarFailedTitle": "CLI ランナーを利用できません",
-    "sidecarUnavailable": "CLI を利用できません"
+    "sidecarUnavailable": "CLI を利用できません",
+    "allow": "許可",
+    "allowAnyway": "それでも許可",
+    "alwaysAllowThisTool": "このツールを常に許可",
+    "dangerousCommandExplanation": "このコマンドは危険と判定されています。実行するとシステムを損傷したり、データを危険にさらしたりする可能性があります。",
+    "dangerousCommandWarning": "これは危険なコマンドです。注意して進めてください。",
+    "deny": "拒否",
+    "modeAsk": "毎回確認",
+    "modeAskDescription": "すべてのツール呼び出しの前に承認を求める",
+    "modeAuto": "自動",
+    "modeAutoDescription": "安全なツール呼び出しを自動承認",
+    "modeExplore": "探索",
+    "modeExploreDescription": "読み取り専用の探索、変更なし",
+    "pendingPermissions": "保留中の権限リクエストがあと {count} 件あります",
+    "permissionRequest": "権限リクエスト",
+    "permissionRequestDescription": "エージェントがコマンド実行の許可を求めています。",
+    "pressShiftTabToSwitch": "Shift+Tab でモードを切り替え",
+    "tool": "ツール"
   },
   "sandbox": {
     "sandboxMode": "サンドボックス",
@@ -15764,5 +15921,12 @@
     "switchToCard": "カード表示に切り替え",
     "tableView": "テーブル",
     "cardView": "カード"
+  },
+  "messageBox": {
+    "consensusActive": "残りのモデルを待っています…",
+    "consensusMetaAggregator": "アグリゲーター: {model}",
+    "consensusMetaElapsed": "経過時間: {seconds} 秒",
+    "consensusMetaModels": "{succeeded}/{total} のモデルが応答しました",
+    "consensusMetaTitle": "マルチモデルコンセンサス"
   }
 }

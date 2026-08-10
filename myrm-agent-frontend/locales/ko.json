@@ -9,7 +9,8 @@
       "actionType": "작업",
       "skills": "스킬",
       "skillType": "스킬",
-      "createCommand": "명령 만들기…"
+      "createCommand": "명령 만들기…",
+      "recentlyUsed": "최근 사용"
     },
     "builtin": {
       "compact": "토큰을 절약하기 위해 대화 컨텍스트를 압축합니다",
@@ -308,7 +309,12 @@
         "badgeLoggedOut": "로그인 안 됨",
         "badgeCliReady": "CLI 준비됨",
         "badgeInstalled": "설치됨",
-        "agentToggleHint": "delegate_to_agent 를 호출해야 하는 에이전트는 에이전트 → 내장 도구 아래의 외부 CLI 도 켜세요."
+        "agentToggleHint": "delegate_to_agent 를 호출해야 하는 에이전트는 에이전트 → 내장 도구 아래의 외부 CLI 도 켜세요.",
+        "install": "설치",
+        "installInProgress": "설치 중…",
+        "installSuccess": "설치에 성공했습니다",
+        "installing": "{backend} 설치 중",
+        "installingDesc": "몇 분 정도 걸릴 수 있습니다. 설치 로그는 아래에 표시됩니다."
       },
       "showSystemMessages": "시스템 메시지 표시",
       "showSystemMessagesDesc": "채팅 메시지에 AI 시스템 프롬프트를 표시합니다",
@@ -1366,7 +1372,8 @@
         "skippedGeneric": "이 메시지에 대해 Mixture of Agents 어드바이저 오버레이를 건너뛰었습니다."
       },
       "preflightCompress": "압축될 수 있음",
-      "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축될 수 있습니다(임계값: {threshold} tokens)"
+      "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축될 수 있습니다(임계값: {threshold} tokens)",
+      "modelRestricted": "조직 정책에 의해 제한됨"
     },
     "modelCapabilities": {
       "vision": "비전",
@@ -1492,7 +1499,9 @@
       "googleOauthWriteTierOn": "읽기 및 쓰기",
       "googleOauthEnableWrite": "쓰기 액세스 활성화",
       "googleOauthWriteConnected": "Google Workspace 쓰기 액세스가 활성화되었습니다.",
-      "googleOauthWriteConnectedSkillEnabled": "쓰기 액세스가 활성화되었습니다. google-workspace 스킬은 활성 상태를 유지합니다."
+      "googleOauthWriteConnectedSkillEnabled": "쓰기 액세스가 활성화되었습니다. google-workspace 스킬은 활성 상태를 유지합니다.",
+      "tokenRequired": "토큰이 필요합니다",
+      "xaiOauthTimeout": "인증이 시간 초과되었습니다"
     },
     "skillQuality": {
       "title": "스킬 품질 관리",
@@ -2330,7 +2339,15 @@
             "restoreFailed": "원본 파일 복원 실패"
           }
         }
-      }
+      },
+      "evidenceClaimConfidence": "주장 신뢰도: {value}",
+      "evidenceExcerpt": "발췌",
+      "evidenceResourceUri": "출처: {uri}",
+      "evidenceSnapshotMissing": "스냅샷을 사용할 수 없음 — 페이지가 변경되었을 수 있습니다.",
+      "evidenceSnapshotStale": "스냅샷이 오래되었을 수 있습니다.",
+      "evidenceSnapshotVerified": "스냅샷이 현재 페이지와 일치하는지 확인되었습니다.",
+      "evidenceStructuredClaim": "구조화된 주장",
+      "evidenceSupersededFrom": "다음으로 대체됨: {uri}"
     },
     "checkpoint": {
       "title": "체크포인트",
@@ -2692,7 +2709,8 @@
           "xurl": {
             "unavailable": "xurl CLI를 설치하고 서버 PATH에 추가하세요"
           }
-        }
+        },
+        "export": "내보내기"
       },
       "curator": {
         "safetyPromise": "스킬은 절대 삭제되지 않습니다. 최악의 경우 보관 처리되며 언제든 복원할 수 있습니다.",
@@ -2803,7 +2821,8 @@
         "copyPath": "경로 복사",
         "revealInManager": "표시",
         "cleanupInvalid": "정리",
-        "revealFailed": "경로를 표시하지 못했습니다"
+        "revealFailed": "경로를 표시하지 못했습니다",
+        "export": "내보내기"
       },
       "upload": {
         "title": "사용자 정의 스킬 업로드",
@@ -3055,7 +3074,9 @@
         "approveShadowSuccess": "{name}에 대한 섀도우 테스트가 시작되었습니다",
         "cronSuggestion": {
           "title": "권장 일정"
-        }
+        },
+        "cronCreateFailed": "{name}에 대한 정기 검토를 예약하지 못했습니다",
+        "cronCreated": "{name}에 대한 정기 검토를 예약했습니다"
       },
       "draft": {
         "reviewPanelTitle": "대기 중인 초안",
@@ -3254,6 +3275,14 @@
         "exportSuccess": "스킬이 성공적으로 내보내졌습니다",
         "exportFailed": "스킬 내보내기 실패",
         "toggleAll": "모두 선택/해제"
+      },
+      "permissions": {
+        "approved": "권한이 승인되었습니다",
+        "denied": "권한이 거부되었습니다",
+        "error": "권한을 업데이트하지 못했습니다",
+        "skillEnabled": "스킬이 활성화되었습니다",
+        "skillNotEnabled": "스킬이 활성화되지 않았습니다",
+        "templateApplied": "템플릿이 적용되었습니다"
       }
     },
     "language": "언어",
@@ -3680,7 +3709,17 @@
         "disconnected": "로컬 모드로 전환됨",
         "loginRequired": "이 서버는 인증이 필요합니다. 연결 후 로그인 페이지로 리디렉션됩니다.",
         "invalidUrl": "유효한 HTTP 또는 HTTPS URL을 입력하세요"
-      }
+      },
+      "push": {
+        "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",
+        "description": "백그라운드 작업이 완료되면 알림을 받습니다.",
+        "label": "브라우저 알림",
+        "test": "테스트 알림 보내기",
+        "title": "알림"
+      },
+      "pushDisabled": "알림이 비활성화되었습니다",
+      "pushEnabled": "알림이 활성화되었습니다",
+      "pushTestSent": "테스트 알림을 보냈습니다"
     },
     "mcpServiceStatusAvailable": "지연 시간: {latency}ms",
     "mcpServiceStatusChecking": "확인 중...",
@@ -4164,7 +4203,10 @@
         "probeRecommendedModeStartLocalEditorMcp": "로컬 편집기에서 MCP 서버를 시작한 후 연결 확인을 다시 실행하세요.",
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "로컬 네트워크 연결 및 편집기 MCP 설정을 확인한 후 연결 확인을 다시 실행하세요.",
         "probeRecommendedActionSwitchMode": "닫고 모드 전환",
-        "probeRecommendedActionRetryProbe": "재시도 및 연결"
+        "probeRecommendedActionRetryProbe": "재시도 및 연결",
+        "oauthDescription": "액세스 권한을 부여하기 위해 공급자로 리디렉션됩니다.",
+        "oauthTitle": "{name}에 연결",
+        "waitingAuth": "인증을 기다리는 중…"
       }
     },
     "integrationMemory": {
@@ -4793,7 +4835,8 @@
           "memory": "메모리",
           "error": "오류"
         }
-      }
+      },
+      "securityAudit": "보안 감사"
     },
     "experimentalFeatures": {
       "title": "실험 기능",
@@ -6139,6 +6182,27 @@
         "hint": "자격 증명이 없으면 에이전트가 런타임에서 미디어 도구를 받지 못합니다. 설정에서 키를 구성하세요 (이미지/비디오는 모델 서비스, TTS는 채널 > 음성).",
         "openSettings": "설정 열기",
         "recheck": "다시 확인"
+      },
+      "actionSpaceRadar": {
+        "smartPruneFailed": "스마트 정리에 실패했습니다",
+        "smartPruneRunning": "액션 공간을 정리하는 중…",
+        "smartPruneSuccess": "{stale}개의 만료 항목 정리, {archived}개 보관 완료"
+      },
+      "mcpTools": {
+        "dangerDisabled": "위험한 도구 {count}개가 비활성화되었습니다",
+        "loadFailed": "도구를 불러오지 못했습니다",
+        "loading": "불러오는 중…",
+        "noTools": "사용 가능한 도구가 없습니다",
+        "retry": "다시 시도",
+        "selectAll": "모두 선택",
+        "toolFilter": "필터"
+      },
+      "skillInstance": {
+        "auto": "자동",
+        "label": "인스턴스",
+        "placeholder": "인스턴스 선택",
+        "staleClear": "지우기",
+        "staleWarning": "인스턴스 \"{name}\"이(가) 오래되었거나 사용할 수 없습니다"
       }
     },
     "validation": {
@@ -6302,6 +6366,18 @@
           "always": "항상",
           "alwaysDesc": "모든 브라우저 세션을 녹화합니다."
         }
+      },
+      "aiAssist": "AI 지원",
+      "aiPromptPlaceholder": "시스템 프롬프트에 적용할 변경 사항을 설명하세요…",
+      "generate": "생성",
+      "generating": "생성 중…",
+      "history": "기록",
+      "systemPromptLabel": "시스템 프롬프트",
+      "vars": {
+        "currentDate": "현재 날짜",
+        "currentTime": "현재 시간",
+        "osInfo": "운영 체제 정보",
+        "userName": "사용자 이름"
       }
     },
     "preview": "미리보기",
@@ -6881,7 +6957,10 @@
       "retryStart": "재시도",
       "hint": "데이터는 로컬에 저장되며 손실되지 않습니다. 필요 시 재설치 전에 백업을 내보내세요.",
       "selectExportFolder": "내보내기 폴더 선택"
-    }
+    },
+    "back": "뒤로",
+    "noOptions": "사용 가능한 옵션이 없습니다",
+    "providerDisabledWarning": "이 공급자가 비활성화되었습니다"
   },
   "chat": {
     "jumpBar": {
@@ -7130,7 +7209,10 @@
       "noSessionStats": "성능 데이터 없음",
       "compatMode": "호환성",
       "compatWeak": "라이트 모드",
-      "compatMedium": "균형"
+      "compatMedium": "균형",
+      "modelBreakdown": "모델별 분석",
+      "performance": "성능",
+      "toolBreakdown": "도구별 분석"
     },
     "contextUsage": {
       "title": "컨텍스트 사용량",
@@ -7228,7 +7310,9 @@
       "select": "선택",
       "dismiss": "닫기",
       "specialReferencesHint": "@staged (스테이징) / @diff (작업 디렉터리) / @codebase (개요) / @folder:path (폴더) / @url:link (웹페이지) / @chat:title (이전 대화) / file:10-20 (줄 범위) 사용 가능",
-      "removeReference": "{label} 제거"
+      "removeReference": "{label} 제거",
+      "agentsCategory": "에이전트",
+      "contextCategory": "컨텍스트"
     },
     "conversationRecall": {
       "hintTitle": "과거 대화 계속하기",
@@ -7444,7 +7528,10 @@
         "reading": "AI가 이 파일을 읽는 중",
         "modifying": "AI가 이 파일을 수정하는 중",
         "scanning": "AI가 이 디렉터리/파일을 스캔하는 중"
-      }
+      },
+      "fileTooLarge": "파일이 너무 커서 처음 1MB만 표시합니다.",
+      "ghostFile": "이 파일은 AI에 의해 삭제되거나 이동되었습니다.",
+      "more": "더 보기"
     },
     "deliverable": {
       "awaitingArtifact": "아티팩트 동기화 중 — 링크가 곧 활성화됩니다"
@@ -7763,7 +7850,8 @@
       "noMcp": "이 에이전트에 활성화된 MCP 서버가 없습니다",
       "usingAgentDefaults": "에이전트 기본값 사용 중",
       "nextTurnOnly": "다음 메시지에만 적용됩니다"
-    }
+    },
+    "retry": "다시 시도"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -8070,7 +8158,10 @@
         "emptyGaps": "감지된 지식 공백이 없습니다.",
         "emptyConnections": "아직 예상치 못한 링크가 없습니다.",
         "emptyCommunities": "아직 클러스터가 없습니다 — 볼트에 개념을 더 추가하세요."
-      }
+      },
+      "deselectAll": "모두 토글",
+      "legend": "노드 유형",
+      "selectAll": "모두 선택"
     },
     "gallery": {
       "title": "미디어 갤러리",
@@ -8176,7 +8267,10 @@
     "largeDocIndexing": "대용량 문서가 지식 베이스에 자동 인덱싱됩니다",
     "largeDocIndexingDesc": "{name} ({size}) — AI가 전체 문서 대신 지식 베이스를 검색합니다",
     "tooManyFiles": "파일이 너무 많습니다, 최대 {max}개 파일만 허용됩니다",
-    "invalidFileType": "지원되지 않는 파일 형식: {types}"
+    "invalidFileType": "지원되지 않는 파일 형식: {types}",
+    "uploadError": "업로드에 실패했습니다",
+    "uploadSuccess": "업로드에 성공했습니다",
+    "uploadedCount": "파일 {count}개를 업로드했습니다"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid 문법 오류",
@@ -8420,7 +8514,9 @@
     "moa_overlay_active": "어드바이저 오버레이 팬아웃 진행 중",
     "moa_ref_done": "어드바이저 참조 완료",
     "update_ui_data_tool_tool": "대화형 UI 데이터 업데이트 중",
-    "update_ui_data_tool_tool_error": "UI 데이터 업데이트 실패"
+    "update_ui_data_tool_tool_error": "UI 데이터 업데이트 실패",
+    "copied": "복사되었습니다!",
+    "copy": "복사"
   },
   "memory": {
     "title": "메모리 관리",
@@ -10517,7 +10613,11 @@
     },
     "available": "사용 가능",
     "exampleCases": "예시",
-    "goToSettingsHint": "먼저 모델 서비스에서 ACP 제공자를 구성하고 활성화하세요"
+    "goToSettingsHint": "먼저 모델 서비스에서 ACP 제공자를 구성하고 활성화하세요",
+    "browse": "찾아보기",
+    "notAvailable": "이 모드에서는 사용할 수 없습니다",
+    "recentProjects": "최근 프로젝트",
+    "tauriModeRequired": "이 프리셋에는 데스크톱 앱(Tauri)이 필요합니다"
   },
   "pricing": {
     "title": "요금제",
@@ -11271,7 +11371,16 @@
         "outputDestinations": "출력 대상",
         "failureRecords": "실패 기록"
       }
-    }
+    },
+    "triggerPollAdd": "폴링 추가",
+    "triggerPollDesc": "URL을 주기적으로 가져와 콘텐츠가 변경되면 실행합니다.",
+    "triggerPollJsonPath": "JSONPath(선택 사항)",
+    "triggerPollLabel": "폴링(HTTP)",
+    "triggerStreamAdd": "스트림 추가",
+    "triggerStreamDesc": "아웃바운드 WebSocket 또는 SSE 연결을 통한 실시간 모니터링. NAT 뒤에서도 작동합니다.",
+    "triggerStreamJsonPath": "JSONPath(예: $.data.price)",
+    "triggerStreamLabel": "스트림(WS/SSE)",
+    "triggerStreamRegex": "정규식 필터(선택 사항)"
   },
   "heartbeat": {
     "title": "에이전트 자동 점검",
@@ -12499,7 +12608,27 @@
     "discordPublicKey": "공개 키 (hex)",
     "discordEnableGateway": "인바운드 메시지용 게이트웨이",
     "discordEnableGatewayHint": "클라우드 호스팅에서 Discord DM과 채널 메시지에 필요합니다. 상호작용은 항상 웹훅을 통해 작동합니다.",
-    "failureEmojiLabel": "실패 이모지"
+    "failureEmojiLabel": "실패 이모지",
+    "onebotAdvancedSettings": "고급 설정",
+    "onebotDmAllowlist": "허용 목록",
+    "onebotDmDisabled": "비활성화됨",
+    "onebotDmHint": "모든 사용자의 DM을 허용하거나, 페어링 필수, 허용 목록에 있는 발신자만, 또는 DM을 비활성화합니다.",
+    "onebotDmOpen": "열기",
+    "onebotDmPairing": "페어링 필요",
+    "onebotDmPolicy": "DM 정책",
+    "onebotGroupPolicy": "그룹 정책",
+    "onebotGroupPolicyAllowlist": "허용 목록",
+    "onebotGroupPolicyDisabled": "비활성화됨",
+    "onebotGroupPolicyHint": "모든 그룹 메시지를 허용하거나, 허용 목록의 그룹만, 또는 그룹 메시지를 비활성화합니다.",
+    "onebotGroupPolicyOpen": "열기",
+    "onebotGroupTrigger": "그룹 트리거",
+    "onebotSaveConfig": "설정 저장",
+    "onebotTriggerAll": "모든 메시지",
+    "onebotTriggerHint": "멘션, 접두사로 시작하는 메시지, 또는 모든 메시지에 응답합니다.",
+    "onebotTriggerMention": "멘션만",
+    "onebotTriggerPrefix": "접두사",
+    "optional": "선택 사항",
+    "signalApiUrlHint": "signald REST API의 기본 URL(예: http://localhost:8080)"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -12853,7 +12982,9 @@
     "action": "작업",
     "jsExpression": "JavaScript 표현식",
     "mcpElicitationTitle": "MCP 서버 확인",
-    "mcpElicitationServer": "서버"
+    "mcpElicitationServer": "서버",
+    "clarificationRequired": "오류 명확화 필요",
+    "fixParameters": "매개변수 수정(JSON)"
   },
   "notifications": {
     "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
@@ -12937,7 +13068,8 @@
     "reauthorize": "재인증",
     "subagentRebindRequired": "하위 에이전트 바인딩이 변경되었습니다. 업데이트된 위임 도구를 사용하려면 새 채팅을 시작하세요.",
     "subagentStale": "하위 에이전트가 중단되었습니다",
-    "noProgressFor": "진행 없음 기간"
+    "noProgressFor": "진행 없음 기간",
+    "budgetFinalization": "예산이 곧 소진됩니다 — 마무리 중"
   },
   "configConflict": {
     "title": "구성 충돌 감지됨",
@@ -13609,7 +13741,8 @@
     "delegationPauseFailed": "위임 일시 중지 실패",
     "delegationResumeFailed": "위임 재개 실패",
     "delegationPauseNetworkError": "네트워크 오류: 위임 일시 중지 실패",
-    "delegationResumeNetworkError": "네트워크 오류: 위임 재개 실패"
+    "delegationResumeNetworkError": "네트워크 오류: 위임 재개 실패",
+    "reviewAction": "검토"
   },
   "evalLab": {
     "pageTitle": "평가 실험실",
@@ -13860,7 +13993,10 @@
         "confirmTitle": "일괄 취소 확인",
         "success": "일괄 취소 성공",
         "error": "일괄 취소 실패",
-        "errorDesc": "권한 일괄 취소에 실패했습니다"
+        "errorDesc": "권한 일괄 취소에 실패했습니다",
+        "affectedSkills": "권한 {count}개를 취소하여 {skills}개 스킬에 영향을 미쳤습니다",
+        "confirm": "모든 스킬에서 이 권한을 취소하시겠습니까?",
+        "errorDescription": "권한 일괄 취소에 실패했습니다. 다시 시도해 주세요."
       },
       "loading": "로딩 중...",
       "noSkillsWithPermissions": "권한이 필요한 스킬이 없습니다",
@@ -13900,7 +14036,10 @@
         },
         "highDenialRate": "높은 거부율",
         "last90days": "최근 90일"
-      }
+      },
+      "allowedDomainsDesc": "이 스킬은 위에 나열된 도메인에만 네트워크 요청을 보낼 수 있습니다.",
+      "revokeConfirm": "취소하면 이 스킬은 더 이상 관련 작업을 수행할 수 없습니다. 이 권한을 사용 중인 실행 중인 작업이 중단될 수 있습니다.\n\n계속하시겠습니까?",
+      "revokeSuccess": "권한이 취소되었습니다. 실행 중인 작업이 영향을 받을 수 있습니다."
     },
     "migration": {
       "title": "Hermes / OpenClaw / Claude Code / Codex에서 가져오기",
@@ -14954,7 +15093,8 @@
     "mcpHeaderValuePlaceholder": "값 또는 {{secret:API_KEY}}",
     "mcpHeaderAdd": "헤더 추가",
     "mcpSecretRefSaveHint": "구성이 저장되었습니다",
-    "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다."
+    "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다.",
+    "clearSyncedMemory": "동기화된 메모리 데이터도 삭제({count}개 소스)"
   },
   "about": {
     "title": "정보",
@@ -15457,7 +15597,24 @@
   "cliAgent": {
     "modeAgent": "AI 에이전트",
     "sidecarFailedTitle": "CLI 실행기 사용 불가",
-    "sidecarUnavailable": "CLI 사용 불가"
+    "sidecarUnavailable": "CLI 사용 불가",
+    "allow": "허용",
+    "allowAnyway": "그래도 허용",
+    "alwaysAllowThisTool": "이 도구 항상 허용",
+    "dangerousCommandExplanation": "이 명령은 위험한 것으로 표시되었습니다. 실행하면 시스템이 손상되거나 데이터가 위험에 빠질 수 있습니다.",
+    "dangerousCommandWarning": "위험한 명령입니다. 주의하여 진행하세요.",
+    "deny": "거부",
+    "modeAsk": "확인",
+    "modeAskDescription": "모든 도구 호출 전에 승인 요청",
+    "modeAuto": "자동",
+    "modeAutoDescription": "안전한 도구 호출 자동 승인",
+    "modeExplore": "탐색",
+    "modeExploreDescription": "읽기 전용 탐색, 변경 없음",
+    "pendingPermissions": "대기 중인 권한 요청 {count}건이 더 있습니다",
+    "permissionRequest": "권한 요청",
+    "permissionRequestDescription": "에이전트가 명령 실행 권한을 요청하고 있습니다.",
+    "pressShiftTabToSwitch": "Shift+Tab으로 모드 전환",
+    "tool": "도구"
   },
   "whatsNew": {
     "title": "v{version} 새로운 기능",
@@ -15764,5 +15921,12 @@
     "switchToCard": "카드 보기로 전환",
     "tableView": "테이블",
     "cardView": "카드"
+  },
+  "messageBox": {
+    "consensusActive": "나머지 모델을 기다리는 중…",
+    "consensusMetaAggregator": "집계자: {model}",
+    "consensusMetaElapsed": "경과 시간: {seconds}초",
+    "consensusMetaModels": "{succeeded}/{total}개 모델이 응답했습니다",
+    "consensusMetaTitle": "멀티 모델 합의"
   }
 }

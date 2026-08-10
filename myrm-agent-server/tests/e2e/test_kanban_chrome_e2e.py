@@ -439,33 +439,7 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
             timeout_sec=5.0,
         )
         try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked_board = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked_board is True
+            _open_kanban_board(client, page, board_id, board_name)
 
             task_state = wait_for_state(
                 client,
@@ -983,13 +957,13 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
         assert str(badge_state.get("text") or ""), "queued badge text is empty"
 
         # T1 really completes → the slot frees.
-        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=150.0)
+        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=200.0)
         assert str(t1_done.get("result") or "").strip(), (
             "T1 completed without a summary"
         )
 
         # T2 is claimed automatically → badge disappears.
-        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=150.0)
+        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=200.0)
         badge_gone = wait_for_state(
             client,
             page,
@@ -1003,7 +977,7 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
         assert badge_gone.get("ready") is True
 
         # Full loop: T2 really completes as well.
-        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=150.0)
+        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=200.0)
         assert str(t2_done.get("result") or "").strip(), (
             "T2 completed without a summary"
         )

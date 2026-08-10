@@ -1,4 +1,14 @@
-"""Unified skill growth case queries (approval-backed draft/evolution records)."""
+"""[INPUT]
+- ..evolution_review::EvolutionReviewRecord, list/count/get_evolution_review_records (POS: evolution 审核记录查询)
+- ..evolution_review.types::EVOLUTION_ACTION_TYPE (POS: evolution action 类型 SSOT)
+- ..case_types::SkillGrowthCase* (POS: growth case DTO)
+
+[OUTPUT]
+- 审批主链 evolution / draft case 查询：列表 summary、detail 单条加载、stats 分桶计数
+
+[POS]
+统一技能成长 case 查询入口（approval-backed draft/evolution records）。
+"""
 
 from __future__ import annotations
 
