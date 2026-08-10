@@ -118,7 +118,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   // In non-audio_only modes, announce voice background task completion via TTS.
   // audio_only is already covered by the messages-watch path above (chat refresh).
   // When the agent is mid-utterance (agent_bridge), defer until it stops speaking.
-  const pendingAnnounceRef = useRef<string | null>(null);
+  const pendingAnnounceRef = useRef<string[]>([]);
   useEffect(() => {
     if (voiceMode === 'audio_only' || !voice.isActive) return;
 
@@ -128,7 +128,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
       const text = detail.title || detail.message;
       if (!text) return;
       if (voice.sessionState === 'speaking') {
-        pendingAnnounceRef.current = text;
+        pendingAnnounceRef.current.push(text);
         return;
       }
       voice.speakResponse(text, { queue: true });
@@ -138,12 +138,14 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     return () => window.removeEventListener('voice-bg-done', handleVoiceBgDone);
   }, [voiceMode, voice.isActive, voice.speakResponse, voice.sessionState, chatId]);
 
-  // Flush a deferred announcement once the agent stops speaking.
+  // Flush deferred announcements once the agent stops speaking.
   useEffect(() => {
-    if (!pendingAnnounceRef.current || voice.sessionState === 'speaking') return;
-    const text = pendingAnnounceRef.current;
-    pendingAnnounceRef.current = null;
-    voice.speakResponse(text, { queue: true });
+    if (pendingAnnounceRef.current.length === 0 || voice.sessionState === 'speaking') return;
+    const pending = pendingAnnounceRef.current;
+    pendingAnnounceRef.current = [];
+    for (const text of pending) {
+      voice.speakResponse(text, { queue: true });
+    }
   }, [voice.sessionState, voice.speakResponse]);
 
   const handleToggle = useCallback(() => {
