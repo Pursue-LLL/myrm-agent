@@ -169,6 +169,96 @@ class TestBuildArtifactDeepLinks:
     @patch(
         "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
+        return_value={},
+    )
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.core.infra.ingress.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://ingress.example.com",
+    )
+    async def test_empty_version_map_logs_warning(
+        self,
+        mock_ingress: AsyncMock,
+        mock_base: MagicMock,
+        mock_fetch: AsyncMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-no-version", "report.html", "html"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            buttons, linked = await build_artifact_deep_links(acc, "en")
+
+        assert buttons == ()
+        assert linked == frozenset()
+        assert any(
+            "no artifact versions found" in record.message
+            for record in caplog.records
+        )
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
+        return_value={"art-partial": "ver-partial"},
+    )
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.core.infra.ingress.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://ingress.example.com",
+    )
+    @patch(
+        "app.services.artifacts.share_token.create_artifact_share_token",
+        return_value=("token-abc", 9999999999),
+    )
+    async def test_missing_version_id_logs_warning(
+        self,
+        mock_token: MagicMock,
+        mock_ingress: AsyncMock,
+        mock_base: MagicMock,
+        mock_fetch: AsyncMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.extend(
+            [
+                ShareableArtifact("art-partial", "report.html", "html"),
+                ShareableArtifact("art-missing", "other.pdf", "pdf"),
+            ]
+        )
+
+        with caplog.at_level(logging.WARNING):
+            buttons, linked = await build_artifact_deep_links(acc, "en")
+
+        assert len(buttons) == 1
+        assert linked == frozenset({"report.html"})
+        assert any(
+            "no version_id in DB" in record.message and "art-missing" in record.message
+            for record in caplog.records
+        )
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
     @patch(

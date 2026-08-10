@@ -50,12 +50,14 @@ _PENDING_KPI_JS = """(() => {
 })()"""
 
 
-def _live_db_path() -> str:
-    """Resolve the live server's SQLite path (the DB actually serving :8080).
+def _resolve_live_db_path(board_id: str) -> str:
+    """Resolve the server's SQLite path by matching the just-created board.
 
-    The pytest process shares the dev server's environment, but its imported
-    settings may resolve to a different state dir; probe the real candidates
-    and pick the one that actually owns the kanban tables.
+    The pytest process may run under a different HOME than the shared server
+    (Cursor redirects HOME for spawned processes), so `app.config.settings`
+    can point at a different data dir than the one actually serving the E2E
+    API. Every candidate that owns the kanban schema is probed for the board
+    created through the API — the DB containing it is the live one.
     """
     candidates: list[Path] = []
     data_dir = os.environ.get("MYRM_DATA_DIR")
@@ -64,6 +66,7 @@ def _live_db_path() -> str:
     from app.config.settings import settings
 
     candidates.append(Path(settings.database.sqlite_path).expanduser())
+    candidates.append(Path("/Users/yululiu/.myrm/data.db"))
     candidates.append(Path.home() / ".myrm" / "data.db")
 
     seen: set[str] = set()
@@ -76,13 +79,18 @@ def _live_db_path() -> str:
             with sqlite3.connect(key, timeout=5.0) as conn:
                 has = conn.execute(
                     "SELECT 1 FROM sqlite_master "
-                    "WHERE type='table' AND name='kanban_tasks'"
+                    "WHERE type='table' AND name='kanban_boards'"
+                ).fetchone()
+                if not has:
+                    continue
+                owned = conn.execute(
+                    "SELECT 1 FROM kanban_boards WHERE id = ?", (board_id,)
                 ).fetchone()
         except sqlite3.Error:
             continue
-        if has:
+        if owned:
             return key
-    raise RuntimeError(f"live kanban DB not found; probed {sorted(seen)}")
+    raise RuntimeError(f"live kanban DB not found for board {board_id}; probed {sorted(seen)}")
 
 
 def _api_pending_approvals(api_url: str) -> int:
@@ -91,9 +99,11 @@ def _api_pending_approvals(api_url: str) -> int:
     return int(body["data"]["pendingApprovals"])
 
 
-def _read_pending_kpi(client: object, page: object) -> str:
+def _read_pending_kpi(
+    client: object, page: object, *, timeout_sec: float = 90.0
+) -> str:
     """Read the /agents Fleet 'Pending' KPI value (blocks until it renders)."""
-    state = wait_for_state(client, page, _PENDING_KPI_JS)
+    state = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=timeout_sec)
     return str(state.get("text") or "")
 
 
@@ -117,7 +127,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
     warm_ui_route("/agents")
 
     task_id = f"fleetkpi-{marker}"
-    db_path = _live_db_path()
+    db_path = _resolve_live_db_path(board_id)
 
     def seed_task() -> None:
         with sqlite3.connect(db_path, timeout=15.0) as conn:
@@ -146,7 +156,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
                 f"api_before={api_before}"
             )
 
-            seeded = wait_for_state(client, page, _PENDING_KPI_JS)
+            seeded = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
             seeded_text = str(seeded.get("text") or "")
             assert seeded_text == str(int(before) + 1), (
                 f"KPI should tick +1 after IN_REVIEW seed: before={before} "
@@ -164,7 +174,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
                 f"badges API must fall back after approve: api_before={api_before}"
             )
 
-            settled = wait_for_state(client, page, _PENDING_KPI_JS)
+            settled = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
             settled_text = str(settled.get("text") or "")
             assert settled_text == before, (
                 f"KPI should fall back after approve: before={before!r} "

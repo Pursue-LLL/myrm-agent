@@ -665,17 +665,34 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
     """
     marker = str(time.time_ns())
     board_name = f"Chrome RealExec Board {marker}"
-    t1_title = f"Summarize benefits {marker}"
-    t2_title = f"Count words {marker}"
-    thinking_task = (
-        "Write a three-sentence summary of the benefits of test automation. "
-        "Then reply with the word 'ok'. Finally call kanban_complete with summary 'ok'."
-    )
+    t1_title = f"Count letters {marker}"
+    t2_title = f"Say done {marker}"
+    # Deliberately minimal, imperative prompts (mirror the description that the
+    # live pipeline completed deterministically during verification): the worker
+    # lifecycle prompt already forces kanban_complete, so a terse instruction
+    # leaves the model no room to "finish" without completing the task.
     counting_task = (
-        "Count the words in the sentence 'The quick brown fox jumps over the lazy dog'. "
-        "Reply with the number. Then call kanban_complete with summary '7 words'."
+        "Count the letters in 'antidisestablishmentarianism'. "
+        "Then call kanban_complete with summary '28 letters'. Do not use any tools."
+    )
+    done_task = (
+        "Reply with the word done. "
+        "Then call kanban_complete with summary 'done'. Do not use any tools."
     )
     api_url = get_e2e_api_url()
+
+    def _task_get(task_id: str) -> dict[str, object]:
+        """GET a task tolerating transient 5xx (shared SQLite can briefly hit
+        disk-I/O busy under parallel load; retries are safe for reads)."""
+        deadline = time.monotonic() + 30.0
+        while True:
+            try:
+                t = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
+                return t if isinstance(t, dict) else {}
+            except RuntimeError as exc:
+                if "returned 5" not in str(exc) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(1.5)
 
     board = http_json(
         "POST",
@@ -713,12 +730,12 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
         deadline = time.monotonic() + timeout_sec
         last = ""
         while time.monotonic() < deadline:
-            t = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
-            st = str(t.get("status") or "") if isinstance(t, dict) else ""
+            t = _task_get(task_id)
+            st = str(t.get("status") or "")
             if st != last:
                 last = st
             if st == expected:
-                return t if isinstance(t, dict) else {}
+                return t
             if st in ("completed", "failed"):
                 break
             time.sleep(2)
@@ -880,7 +897,7 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
                 return chosen_model
 
             # T1: created via the UI, then REALLY claimed and executed by the dispatcher.
-            _create_task_via_ui(t1_title, thinking_task)
+            _create_task_via_ui(t1_title, counting_task)
             t1_task = _find_task_by_title(t1_title)
             assert t1_task is not None
             t1_id = str(t1_task.get("task_id") or "")
@@ -891,7 +908,7 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
             assert str(running_task.get("status") or "") == "running"
 
             # T2: queued while the only slot is occupied → badge must show on the card.
-            _create_task_via_ui(t2_title, counting_task)
+            _create_task_via_ui(t2_title, done_task)
             t2_task = _find_task_by_title(t2_title)
             assert t2_task is not None
             t2_id = str(t2_task.get("task_id") or "")

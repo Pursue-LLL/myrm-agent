@@ -2577,7 +2577,7 @@
         "title": "스킬 마켓",
         "description": "기본 제공 스킬을 찾아보고 활성화하여 AI 어시스턴트 기능을 확장하세요",
         "empty": "사용 가능한 스킬이 없습니다",
-        "emptyDesc": "Skill market is under construction, stay tuned"
+        "emptyDesc": "발견 탭에서 스킬을 설치하면 기본 제공 스킬이 여기에 표시됩니다"
       },
       "personal": {
         "title": "개인 스킬",
@@ -2590,7 +2590,7 @@
         "title": "활성화된 스킬",
         "description": "현재 활성화된 스킬 목록",
         "empty": "활성화된 스킬이 없습니다",
-        "emptyDesc": "Go to Skill Market to enable skills you need",
+        "emptyDesc": "발견 탭을 열어 ClawHub, GitHub 등에서 스킬을 검색하고 설치하세요",
         "count": "{count}개 활성화됨"
       },
       "card": {
@@ -3598,9 +3598,9 @@
         "scanToAccess": "휴대폰으로 QR 코드를 스캔하여 액세스",
         "guide": {
           "title": "어떤 것을 사용해야 하나요?",
-          "lanFirst": "Phone or colleagues on the same Wi‑Fi or office LAN → use the LAN URL below. No tunnel, no trycloudflare link.",
+          "lanFirst": "같은 Wi‑Fi 또는 사무실 LAN에 있는 스마트폰이나 동료 → 아래의 LAN URL을 직접 사용하세요 (가장 빠름).",
           "publicIngressRequired": "인바운드 채널 또는 cron 웹훅이 구성됨 → 아래에 공용 인그레스를 설정하세요 (터널 도구는 문서 참조).",
-          "publicIngressOptional": "Remote WebUI from cellular or inbound channels → run your tunnel tool, then paste the HTTPS URL below."
+          "publicIngressOptional": "외부(셀룰러)에서 WebUI 접속 또는 인바운드 채널 구성 시 → cpolar, NATAPP, frp 등 터널 도구를 실행한 후 HTTPS URL을 아래에 붙여넣으세요."
         },
         "lan": {
           "title": "LAN 액세스",
@@ -4125,7 +4125,7 @@
       },
       "migrationUnavailable": {
         "title": "어시스턴트 가져오기는 로컬 또는 데스크톱에서만 지원됩니다",
-        "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
+        "description": "SaaS 클라우드 샌드박스는 사용자 컴퓨터의 Hermes, OpenClaw, Claude Code, Codex 폴더를 읽을 수 없습니다. Tauri 데스크톱 앱을 다운로드하거나 로컬 WebUI를 실행한 후 설정 → 메모리 → 마이그레이션에서 마법사를 사용하세요.",
         "downloadCta": "다운로드 페이지로 이동"
       }
     },
@@ -5706,7 +5706,8 @@
           "hint": "위의 진단 정보를 확인하거나 유효한 플러그인 패키지를 선택하세요."
         },
         "security": {
-          "blocked": "차단됨: 보안 위험 {count}건 발견 — 자동으로 건너뜀"
+          "blocked": "차단됨: 보안 위험 {count}건 발견 — 자동으로 건너뜀",
+          "oversized": "스킬 내용이 저장 용량 제한(64KB)을 초과해 자동으로 건너뜀"
         },
         "errors": {
           "parseTitle": "분석 오류",
@@ -5950,7 +5951,7 @@
     "edit": "편집",
     "use": "사용",
     "confirmDelete": "삭제 확인",
-    "confirmDeleteDesc": "Are you sure you want to delete agent \"{name}\"? This action cannot be undone.",
+    "confirmDeleteDesc": "에이전트 \"{name}\"을(를) 삭제하시겠습니까? 관련 예약 태스크와 채널 바인딩도 함께 해제됩니다. 이 작업은 되돌릴 수 없습니다.",
     "createSuccess": "에이전트가 생성되었습니다",
     "updateSuccess": "에이전트가 업데이트되었습니다",
     "deleteSuccess": "에이전트가 삭제되었습니다",
@@ -6038,7 +6039,7 @@
         "code_execute": "샌드박스에서 코드와 명령 실행",
         "wiki": "구조화된 지식 기반 구축 및 쿼리",
         "browser": "웹 페이지 탐색 및 콘텐츠와 상호작용",
-        "computer_use": "Control the desktop for screenshots, clicks, and input",
+        "computer_use": "접근성 @dref를 통해 네이티브 앱을 검사하고 제어합니다 (시각 좌표 폴백 포함)",
         "image_generation": "텍스트 설명에서 이미지 생성",
         "video_generation": "텍스트 설명에서 비디오 생성",
         "tts": "TTS 모델로 텍스트에서 오디오 생성",
@@ -6059,7 +6060,7 @@
       "externalCliSaveBlocked": "이 스위치를 켜기 전에 설정에서 외부 CLI 백엔드를 구성하세요.",
       "externalCliPermissionHint": "외부 CLI는 로컬 Agent 프로세스를 실행하며 넓은 권한을 사용할 수 있습니다. 신뢰하는 기기에서만 사용하세요.",
       "externalCliOpenSettings": "설정에서 외부 Agent 구성",
-      "kanbanBoardHint": "Chat tasks are written to the board selected below.",
+      "kanbanBoardHint": "채팅의 태스크는 아래에서 선택한 칸반 보드에 기록됩니다.",
       "kanbanBoardLoading": "보드 로드 중…",
       "kanbanNoBoardsHint": "에이전트가 작업을 추가할 수 있도록 설정에서 작업 보드를 만드세요.",
       "kanbanOpenSettings": "설정에서 작업 보드 열기",
@@ -7058,7 +7059,7 @@
     "disableWebSearch": "웹 검색 비활성화",
     "enableBrowser": "브라우저 자동화 활성화",
     "disableBrowser": "브라우저 자동화 비활성화",
-    "enableComputerUse": "Enable Desktop Control",
+    "enableComputerUse": "데스크톱 제어 활성화 (오른쪽 아래에서 검사기 열기)",
     "disableComputerUse": "데스크톱 제어 비활성화",
     "enableImageGeneration": "이미지 생성 활성화",
     "disableImageGeneration": "이미지 생성 비활성화",
@@ -7208,7 +7209,7 @@
       "navigate": "이동",
       "select": "선택",
       "dismiss": "닫기",
-      "specialReferencesHint": "Try: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
+      "specialReferencesHint": "@staged (스테이징) / @diff (작업 디렉터리) / @codebase (개요) / @folder:path (폴더) / @url:link (웹페이지) / @chat:title (이전 대화) / file:10-20 (줄 범위) 사용 가능",
       "removeReference": "{label} 제거"
     },
     "conversationRecall": {
@@ -7317,30 +7318,30 @@
     },
     "samplePrompts": {
       "fast_0": "최신 AI 규제 정책은 무엇인가요?",
-      "fast_1": "Compare TypeScript vs Rust for backend development",
+      "fast_1": "건강한 식습관에 대한 실용적인 조언은 무엇인가요?",
       "fast_2": "양자 컴퓨팅을 쉽게 설명해 주세요",
-      "agent_0": "Research the top 5 open-source LLM frameworks and compare their features",
-      "agent_1": "Help me write a technical blog post about microservices",
-      "agent_2": "Analyze the ecosystem differences between React and Vue",
+      "agent_0": "프로젝트 아키텍처 플로우차트를 그려 주세요",
+      "agent_1": "이번 주 업무 요약 보고서를 작성해 주세요",
+      "agent_2": "SNS 게시글을 작성해 주세요",
       "deep_research_0": "기업용 LLM 애플리케이션을 위한 RAG와 파인튜닝의 종합 비교",
       "deep_research_1": "웹 성능에 대한 WebAssembly의 영향 심층 분석",
       "deep_research_2": "자율주행 기술의 현재와 미래 조사",
       "fast_3": "오늘 주목할 만한 기술 뉴스는 무엇인가요?",
-      "fast_4": "Explain how blockchain works in plain language",
-      "fast_5": "What are the most popular programming languages right now?",
+      "fast_4": "제 경력 개발 경로를 계획하는 데 도와주세요",
+      "fast_5": "새로운 기술을 효율적으로 배우는 과학적 방법은 무엇인가요?",
       "fast_6": "의료 분야에서 AI의 응용 사례는 무엇인가요?",
       "fast_7": "제품 디자인에 관한 좋은 책을 추천해 주세요",
-      "fast_8": "What's the difference between Docker and Kubernetes?",
+      "fast_8": "3일간의 주말 여행지를 추천해 주세요",
       "fast_9": "재택 근무 생산성을 어떻게 높일 수 있을까요?",
       "fast_10": "주류 대형 언어 모델과 각각의 장점은 무엇인가요?",
       "fast_11": "RAG 기술의 핵심 원리를 설명해 주세요",
       "agent_3": "매일 아침 8시 일일 브리핑 알림을 설정해 주세요",
       "agent_4": "최신 AI 에이전트 동향을 검색하여 요약해 주세요",
-      "agent_5": "Help me write an outline for a technical design document",
+      "agent_5": "데이터 분석 대시보드를 만들어 주세요",
       "agent_6": "경쟁사 제품을 분석하고 차별화 포인트를 제안해 주세요",
-      "agent_7": "Help me prepare an interview preparation checklist",
-      "agent_8": "Research and compare performance of popular vector databases",
-      "agent_9": "Help me write a product introduction copy",
+      "agent_7": "3일간의 일본 여행 계획을 세워 주세요",
+      "agent_8": "엑셀 영업 데이터 보고서를 생성해 주세요",
+      "agent_9": "팀 역량 레이더 차트를 그려 주세요",
       "agent_10": "지난주 업계 뉴스를 검색하고 요약해 주세요",
       "agent_11": "사용자 피드백 수집 계획 설계를 도와주세요",
       "deep_research_3": "AI 에이전트의 아키텍처 진화 심층 분석",
@@ -7405,7 +7406,7 @@
     "searchNotConfiguredTooltip": "검색 서비스가 구성되지 않음 — 클릭하여 설정",
     "workspaceDir": {
       "label": "작업 디렉터리",
-      "placeholder": "Select a directory...",
+      "placeholder": "경로를 입력하거나 아래에서 찾아보세요...",
       "tooltip": "이 채팅의 작업 디렉터리를 설정하세요. 에이전트는 이 폴더 내에서 작동합니다.",
       "change": "변경",
       "clear": "지우기",
@@ -7428,7 +7429,7 @@
       }
     },
     "deliverable": {
-      "awaitingArtifact": "Artifact sync in progress — link will activate shortly"
+      "awaitingArtifact": "아티팩트 동기화 중 — 링크가 곧 활성화됩니다"
     },
     "dragDrop": {
       "title": "파일을 여기에 끌어다 놓으세요",
@@ -7872,8 +7873,8 @@
         "description": "음성 메시지용 음성 인식 및 음성 합성을 구성합니다"
       },
       "openaiApi": {
-        "title": "API Access",
-        "description": "Manage API keys for OpenAI-compatible endpoint access"
+        "title": "에이전트 API",
+        "description": "OpenAI 호환 에이전트 엔드포인트의 API 키를 관리합니다"
       },
       "workspaceRules": {
         "title": "작업 공간 규칙",
@@ -7931,8 +7932,8 @@
         "description": "AI 능력 평가 및 벤치마크 실행"
       },
       "checkpoint": {
-        "title": "Checkpoint",
-        "description": "Resume interrupted Agent tasks from saved checkpoints"
+        "title": "체크포인트",
+        "description": "저장된 체크포인트에서 중단된 에이전트 작업을 재개합니다"
       },
       "wiki": {
         "title": "Wiki 지식 베이스",
@@ -8199,7 +8200,7 @@
       "loadingPage": "페이지 로딩 중...",
       "searchPagePlaceholder": "현재 페이지 검색..."
     },
-    "task": "Task",
+    "task": "태스크 단계",
     "planning_task": "작업 계획 중",
     "analyzing_query": "쿼리 분석 중",
     "searching_web": "웹 검색 중",
@@ -8424,9 +8425,9 @@
     "sourceChat": "소스 채팅",
     "types": {
       "profile": "프로필",
-      "semantic": "Semantic",
-      "episodic": "Episodic",
-      "procedural": "Procedural",
+      "semantic": "지식",
+      "episodic": "경험",
+      "procedural": "방법",
       "conversation": "대화",
       "claim": "검증됨",
       "task_digest": "작업 요약"
@@ -9423,7 +9424,7 @@
       "scanning": "스캔 중...",
       "rescan": "다시 스캔",
       "noSourcesFound": "로컬 AI 어시스턴트 데이터가 감지되지 않았습니다",
-      "noSourcesHint": "Make sure target AI assistant data directories are accessible locally (e.g. ~/.hermes, ~/.openclaw)",
+      "noSourcesHint": "어시스턴트 데이터 디렉터리가 로컬에서 접근 가능한지 확인하세요 (예: ~/.hermes, ~/.openclaw, ~/.claude, ~/.codex)",
       "cloudUploadTitle": "데이터 패키지 업로드",
       "cloudUploadHint": "로컬 AI 어시스턴트 데이터 디렉토리를 ZIP 파일로 패키지하여 업로드하세요.",
       "cloudUploadGuide": "컴퓨터에서 데이터 디렉토리(예: ~/.hermes 또는 ~/.openclaw)를 찾아 ZIP으로 압축한 후 드래그하거나 선택하세요.",
@@ -10306,7 +10307,7 @@
       "descriptionOAuthOnly": "Google로 로그인하여 클라우드 작업 공간을 여세요. 첫 로그인 시 새 계정이 생성됩니다.",
       "footerOAuthOnly": "Google OAuth만 사용합니다 — 이 배포에는 이메일 비밀번호가 없습니다.",
       "brandFooter": "MyrmAgent · 클라우드 작업 공간",
-      "footerTrust": "Credentials are verified by the control plane; we never store plain-text passwords.",
+      "footerTrust": "로그인은 제어 평면을 통해 Google OAuth로 처리됩니다.",
       "showPassword": "비밀번호 표시",
       "hidePassword": "비밀번호 숨기기",
       "labelAccount": "계정",
@@ -13331,7 +13332,7 @@
     "delete": "삭제",
     "deleting": "삭제 중...",
     "refresh": "새로고침",
-    "cleanup": "Cleanup",
+    "cleanup": "오래된 것 정리",
     "cleaning": "정리 중...",
     "loadError": "체크포인트 로드 실패",
     "resumeError": "체크포인트 재개 실패",
@@ -13343,7 +13344,7 @@
     "loading": "체크포인트 로딩 중...",
     "empty": "체크포인트를 찾을 수 없습니다",
     "noCheckpoints": "체크포인트를 찾을 수 없습니다",
-    "total": "Total: {count} checkpoints",
+    "total": "총 {count}개 체크포인트",
     "description": "저장된 체크포인트를 관리하고 중단된 에이전트 작업을 재개합니다",
     "savedCheckpoints": "저장된 체크포인트",
     "savedCheckpointsDesc": "에이전트 작업이 중단되면 모든 체크포인트가 자동으로 저장됩니다"
@@ -13443,11 +13444,11 @@
       "systemPrompt": "시스템 프롬프트",
       "systemPromptPlaceholder": "당신은 도움이 되는 어시스턴트입니다...",
       "commandBindings": "슬래시 명령 바인딩",
-      "commandBindingsHint": "Bind custom slash commands to Skills for IM channels. e.g. /daily-report triggers a daily summary skill.",
+      "commandBindingsHint": "IM 채널용 커스텀 슬래시 명령을 스킬에 바인딩합니다. 여러 스킬을 선택하여 번들로 만들 수 있습니다.",
       "commandName": "명령 이름",
       "commandNamePlaceholder": "예: daily-report",
-      "commandSkillId": "Skill ID",
-      "commandSkillIdPlaceholder": "Select the target skill",
+      "commandSkillId": "스킬",
+      "commandSkillIdPlaceholder": "클릭하여 스킬 선택",
       "commandDescription": "설명",
       "commandDescriptionPlaceholder": "/help에 표시됨",
       "commandAliases": "별칭",
@@ -13476,7 +13477,37 @@
         "idleMinutesHint": "1 ~ 10080분 (최대 7일)"
       },
       "commandInstruction": "번들 지시",
-      "commandInstructionPlaceholder": "결합 스킬용 선택 지침..."
+      "commandInstructionPlaceholder": "결합 스킬용 선택 지침...",
+      "browserSource": "브라우저 소스",
+      "dialogPolicy": "대화 상자 처리",
+      "sessionRecording": "세션 녹화",
+      "browserSourceAuto": "자동 (시스템 기본)",
+      "browserSourceAutoDesc": "최적의 브라우저 소스를 자동으로 감지합니다.",
+      "browserSourceExtension": "브라우저 확장 프로그램",
+      "browserSourceExtensionDesc": "확장 브리지를 통해 실제 브라우저를 사용합니다. 로그인 세션을 유지합니다.",
+      "browserSourceLaunch": "새 브라우저 실행",
+      "browserSourceLaunchDesc": "새로운 격리 브라우저 인스턴스를 실행합니다.",
+      "browserSourceConnect": "기존 브라우저 연결",
+      "browserSourceConnectDesc": "실행 중인 Chrome/Brave/Edge에 CDP로 연결합니다.",
+      "browserSourceRemote": "클라우드 브라우저",
+      "browserSourceRemoteDesc": "클라우드 브라우저 서비스에 연결합니다 (설정에서 구성).",
+      "browserSourceExtensionWarning": "이 모드를 사용하려면 사이드바에서 브라우저 확장 프로그램에 연결하세요.",
+      "browserSourceConnectInfo": "원격 디버깅 포트가 활성화된 실행 중인 Chrome을 사용합니다.",
+      "browserSourceRemoteWarning": "클라우드 브라우저 서비스 자격 증명이 필요합니다. 먼저 설정에서 구성하세요.",
+      "dialogPolicySmart": "스마트 (기본)",
+      "dialogPolicySmartDesc": "경고/확인을 자동 수락하고 프롬프트를 자동으로 닫습니다.",
+      "dialogPolicyAutoAccept": "자동 수락",
+      "dialogPolicyAutoAcceptDesc": "모든 대화 상자를 자동으로 수락합니다.",
+      "dialogPolicyAutoDismiss": "자동 닫기",
+      "dialogPolicyAutoDismissDesc": "모든 대화 상자를 자동으로 닫습니다.",
+      "dialogPolicyWaitForAgent": "에이전트 대기",
+      "dialogPolicyWaitForAgentDesc": "일시 중지하고 AI가 응답 방법을 결정하게 합니다.",
+      "sessionRecordingOff": "끄기 (기본)",
+      "sessionRecordingOffDesc": "브라우저 세션을 녹화하지 않습니다.",
+      "sessionRecordingOnFailure": "실패 시",
+      "sessionRecordingOnFailureDesc": "작업 실패 시에만 녹화를 유지합니다.",
+      "sessionRecordingAlways": "항상",
+      "sessionRecordingAlwaysDesc": "모든 브라우저 세션을 녹화합니다."
     },
     "save": "저장",
     "saveError": "에이전트 저장에 실패했습니다.",
@@ -14444,10 +14475,10 @@
       "title": "행동 패턴 발견",
       "description": "AI 에이전트가 주기적으로 상호작용 패턴을 분석하고 행동 인사이트를 표시합니다.",
       "emptyTitle": "학습 진행 중",
-      "emptyDescription": "The memory system needs more interactions before pattern analysis can run.",
+      "emptyDescription": "메모리 시스템이 패턴 분석을 시작하려면 더 많은 상호작용이 필요합니다. 평소처럼 채팅을 계속하면 패턴이 자동으로 발견됩니다.",
       "triggerButton": "지금 분석",
       "triggering": "분석 중...",
-      "triggerSkipped": "System not ready yet",
+      "triggerSkipped": "시스템이 아직 준비되지 않았습니다 — 더 많은 대화가 필요합니다",
       "triggerNoNewPatterns": "분석 완료 — 새로운 패턴이 발견되지 않았습니다",
       "confidence": "신뢰도",
       "durability": "단계",
@@ -14628,7 +14659,7 @@
       "migrationDescription": "다른 AI 어시스턴트의 데이터를 찾았습니다. 원활하게 가져올까요?",
       "skipStep": "건너뛰기",
       "capabilitiesTitle": "AI 엔진 구성",
-      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",
+      "capabilitiesDescription": "로컬 모델과 웹 검색을 연결하여 바로 사용할 수 있는 AI 경험을 제공합니다. 외부 도구 통합은 설정 → 에이전트 API에서 구성하세요.",
       "noLocalModel": "로컬 모델이 감지되지 않았습니다. 나중에 설정에서 API 키를 직접 구성할 수 있습니다.",
       "configureLater": "나중에 구성",
       "searchReady": "준비됨",
@@ -14873,7 +14904,7 @@
     "title": "외부 에이전트 연결",
     "description": "외부 AI 에이전트가 MCP 프로토콜을 통해 메모리에 접근하도록 허용합니다.",
     "selectAgent": "에이전트 선택",
-    "selectAgentDesc": "Choose which agent you want to connect to your memory.",
+    "selectAgentDesc": "메모리에 연결할 외부 에이전트를 선택하세요.",
     "selectMyrmAgent": "메모리 Agent 프로필",
     "selectMyrmAgentDesc": "외부 도구는 이 Agent의 메모리 공간(바인딩된 공유 컨텍스트 포함)을 사용합니다.",
     "selectExternalTool": "외부 도구",

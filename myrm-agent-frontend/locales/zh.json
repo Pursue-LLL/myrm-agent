@@ -3020,7 +3020,7 @@
         "title": "技能市场",
         "description": "浏览和启用预构建的技能，扩展 AI 助手的能力",
         "empty": "暂无可用技能",
-        "emptyDesc": "技能市场正在建设中，敬请期待"
+        "emptyDesc": "从「发现」标签页安装后，预置技能会显示在这里"
       },
       "personal": {
         "title": "个人技能",
@@ -5856,7 +5856,8 @@
           "hint": "请检查上方诊断信息，或更换有效的插件包。"
         },
         "security": {
-          "blocked": "包含 {count} 项安全风险，已自动跳过，无法安装"
+          "blocked": "包含 {count} 项安全风险，已自动跳过，无法安装",
+          "oversized": "技能内容超过存储大小限制（64 KB），已自动跳过，无法安装"
         },
         "errors": {
           "parseTitle": "解析失败",
@@ -13797,7 +13798,37 @@
         "dailyResetHour": "重置时间 (UTC)",
         "idleMinutes": "空闲超时 (分钟)",
         "idleMinutesHint": "1 ~ 10080 分钟（最长 7 天）"
-      }
+      },
+      "browserSource": "浏览器来源",
+      "browserSourceAuto": "自动（系统默认）",
+      "browserSourceAutoDesc": "自动检测最佳浏览器来源。",
+      "browserSourceExtension": "浏览器扩展",
+      "browserSourceExtensionDesc": "通过扩展桥使用你的真实浏览器，保留登录会话。",
+      "browserSourceLaunch": "启动新浏览器",
+      "browserSourceLaunchDesc": "启动全新的隔离浏览器实例。",
+      "browserSourceConnect": "连接现有浏览器",
+      "browserSourceConnectDesc": "通过 CDP 连接到正在运行的 Chrome/Brave/Edge。",
+      "browserSourceRemote": "云浏览器",
+      "browserSourceRemoteDesc": "连接到云浏览器服务（在设置中配置）。",
+      "browserSourceExtensionWarning": "请从侧边栏连接浏览器扩展以使用此模式。",
+      "browserSourceConnectInfo": "使用启用了远程调试端口的正在运行的 Chrome 实例。",
+      "browserSourceRemoteWarning": "需要云浏览器服务凭证，请先在设置中配置。",
+      "dialogPolicy": "对话框处理",
+      "dialogPolicySmart": "智能（默认）",
+      "dialogPolicySmartDesc": "自动接受警告/确认框，自动关闭提示框。",
+      "dialogPolicyAutoAccept": "自动接受",
+      "dialogPolicyAutoAcceptDesc": "自动接受所有对话框。",
+      "dialogPolicyAutoDismiss": "自动关闭",
+      "dialogPolicyAutoDismissDesc": "自动关闭所有对话框。",
+      "dialogPolicyWaitForAgent": "等待智能体处理",
+      "dialogPolicyWaitForAgentDesc": "暂停并让 AI 决定如何响应。",
+      "sessionRecording": "会话录制",
+      "sessionRecordingOff": "关闭（默认）",
+      "sessionRecordingOffDesc": "不录制浏览器会话视频。",
+      "sessionRecordingOnFailure": "失败时录制",
+      "sessionRecordingOnFailureDesc": "仅在任务失败时保持录制。",
+      "sessionRecordingAlways": "始终",
+      "sessionRecordingAlwaysDesc": "录制每次浏览器会话。"
     },
     "save": "保存",
     "saveError": "保存智能体失败。",

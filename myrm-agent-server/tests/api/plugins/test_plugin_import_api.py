@@ -226,6 +226,53 @@ def test_preview_flags_dangerous_skill(
     body = response.json()
     assert len(body["skills"]) == 1
     assert body["skills"][0]["security_issues"] == ["Dangerous pattern detected"]
+    # The flag must survive the response-model serialization (extra="ignore" would
+    # silently drop it, breaking the frontend's oversized-skill hint).
+    assert body["skills"][0]["oversized_content"] is False
+
+
+def test_preview_surfaces_oversized_skill_flag(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """oversized_content must reach the HTTP contract, not vanish in the model."""
+    from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+        zf.writestr(
+            "huge-plugin/plugin.json",
+            json.dumps(
+                {
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "huge-plugin",
+                    "version": "1.0.0",
+                    "description": "Huge skill",
+                }
+            ),
+        )
+        zf.writestr(
+            "huge-plugin/skills/huge/SKILL.md",
+            "---\nname: huge\ndescription: Too big\n---\n"
+            + "x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1024),
+        )
+    with (
+        patch(
+            "app.api.plugins.import_.get_evolution_skill_store_db_path",
+            return_value=tmp_path / "skills.db",
+        ),
+        patch(
+            "app.services.plugins.import_service._scan_skill_security",
+            return_value=[],
+        ),
+    ):
+        response = client.post(
+            "/api/v1/plugins/import/preview",
+            files={"file": ("huge.zip", buf.getvalue(), "application/zip")},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["skills"][0]["oversized_content"] is True
 
 
 def test_confirm_persists_components(client: TestClient, tmp_path: Path) -> None:

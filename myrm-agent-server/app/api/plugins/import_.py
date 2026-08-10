@@ -51,6 +51,7 @@ class PluginSkillPreview(BaseModel):
     file_count: int
     virtual_id: str
     security_issues: list[str] = Field(default_factory=list)
+    oversized_content: bool = False
 
 
 class PluginServerPreview(BaseModel):

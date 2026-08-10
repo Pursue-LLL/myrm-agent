@@ -2577,7 +2577,7 @@
         "title": "Fähigkeitsmarkt",
         "description": "Integrierte Fähigkeiten durchsuchen und aktivieren, um KI-Assistenten-Funktionen zu erweitern",
         "empty": "Keine Fähigkeiten verfügbar",
-        "emptyDesc": "Skill market is under construction, stay tuned"
+        "emptyDesc": "Vorgefertigte Fähigkeiten erscheinen hier, nachdem Sie sie über „Entdecken“ installiert haben"
       },
       "personal": {
         "title": "Persönliche Fähigkeiten",
@@ -2590,7 +2590,7 @@
         "title": "Aktivierte Fähigkeiten",
         "description": "Liste der aktuell aktivierten Fähigkeiten",
         "empty": "Keine aktivierten Fähigkeiten",
-        "emptyDesc": "Go to Skill Market to enable skills you need",
+        "emptyDesc": "Öffne den Tab „Entdecken“, um Fähigkeiten von ClawHub, GitHub und weiteren Quellen zu suchen und zu installieren",
         "count": "{count} aktiviert"
       },
       "card": {
@@ -3598,9 +3598,9 @@
         "scanToAccess": "Scannen Sie den QR-Code mit Ihrem Telefon, um darauf zuzugreifen",
         "guide": {
           "title": "Was soll ich verwenden?",
-          "lanFirst": "Phone or colleagues on the same Wi‑Fi or office LAN → use the LAN URL below. No tunnel, no trycloudflare link.",
-          "publicIngressRequired": "Inbound channels or cron webhooks are configured → set Public Ingress below (see docs for tunnel tools).",
-          "publicIngressOptional": "Remote WebUI from cellular or inbound channels → run your tunnel tool, then paste the HTTPS URL below."
+          "lanFirst": "Telefon oder Kollegen im selben Wi‑Fi oder Firmen-LAN → verwenden Sie die LAN-URL unten (am schnellsten).",
+          "publicIngressRequired": "Eingehende Kanäle oder Cron-Webhooks sind konfiguriert → richten Sie unten Public Ingress ein (Tunnel-Tools siehe Dokumentation).",
+          "publicIngressOptional": "WebUI aus dem Mobilfunknetz oder eingehende Kanäle → führen Sie cpolar, NATAPP, frp oder Ihren Proxy aus und fügen Sie die HTTPS-URL unten ein."
         },
         "lan": {
           "title": "LAN-Zugang",
@@ -4125,7 +4125,7 @@
       },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
-        "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
+        "description": "SaaS-Cloud-Sandboxes können die Ordner von Hermes, OpenClaw, Claude Code und Codex auf Ihrem Rechner nicht lesen. Laden Sie die Tauri-Desktop-App herunter oder starten Sie die lokale WebUI und öffnen Sie dann Einstellungen → Speicher → Migration.",
         "downloadCta": "Zur Download-Seite gehen"
       }
     },
@@ -5716,7 +5716,8 @@
           "remote": "Remote-Dienst"
         },
         "security": {
-          "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen"
+          "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen",
+          "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen"
         }
       }
     }
@@ -7317,30 +7318,30 @@
     },
     "samplePrompts": {
       "fast_0": "Was sind die neuesten KI-Regulierungsrichtlinien?",
-      "fast_1": "Compare TypeScript vs Rust for backend development",
+      "fast_1": "Was sind praktische Tipps für eine gesunde Ernährung?",
       "fast_2": "Erklären Sie Quantencomputing in einfachen Worten",
-      "agent_0": "Research the top 5 open-source LLM frameworks and compare their features",
-      "agent_1": "Help me write a technical blog post about microservices",
-      "agent_2": "Analyze the ecosystem differences between React and Vue",
+      "agent_0": "Zeichnen Sie mir ein Architektur-Flussdiagramm des Projekts",
+      "agent_1": "Erstellen Sie mir einen wöchentlichen Arbeitszusammenfassungsbericht",
+      "agent_2": "Schreiben Sie mir einen Social-Media-Artikel",
       "deep_research_0": "Umfassender Vergleich von RAG vs. Fine-Tuning für Unternehmens-LLM-Anwendungen",
       "deep_research_1": "Tiefgehende Analyse der Auswirkungen von WebAssembly auf moderne Web-Performance",
       "deep_research_2": "Recherchieren Sie den aktuellen Stand und die Zukunft autonomer Fahrtechnologie",
       "fast_3": "Welche bemerkenswerten Tech-News gab es heute?",
-      "fast_4": "Explain how blockchain works in plain language",
-      "fast_5": "What are the most popular programming languages right now?",
+      "fast_4": "Helfen Sie mir, einen Karriereentwicklungspfad zu planen",
+      "fast_5": "Was sind die wissenschaftlich fundiertesten Methoden zum Erlernen neuer Fähigkeiten?",
       "fast_6": "Was sind die Anwendungen von KI im Gesundheitswesen?",
       "fast_7": "Empfehlen Sie großartige Bücher über Produktdesign",
-      "fast_8": "What's the difference between Docker and Kubernetes?",
+      "fast_8": "Schlagen Sie ein Ziel für ein dreitägiges Wochenend-Ausflugsziel vor",
       "fast_9": "Wie kann ich meine Remote-Arbeitsproduktivität verbessern?",
       "fast_10": "Was sind die gängigen großen Sprachmodelle und ihre Stärken?",
       "fast_11": "Erklären Sie die Kernprinzipien der RAG-Technologie",
       "agent_3": "Richten Sie eine tägliche Briefing-Erinnerung für jeden Morgen um 8 Uhr ein",
       "agent_4": "Suchen Sie nach den neuesten AI-Agent-Entwicklungen und fassen Sie zusammen",
-      "agent_5": "Help me write an outline for a technical design document",
+      "agent_5": "Erstellen Sie mir ein Datenanalyse-Dashboard",
       "agent_6": "Analysieren Sie Wettbewerbsprodukte und schlagen Sie Differenzierungsmerkmale vor",
-      "agent_7": "Help me prepare an interview preparation checklist",
-      "agent_8": "Research and compare performance of popular vector databases",
-      "agent_9": "Help me write a product introduction copy",
+      "agent_7": "Planen Sie mir eine dreitägige Reise nach Japan",
+      "agent_8": "Erstellen Sie mir einen Excel-Verkaufsdatenbericht",
+      "agent_9": "Zeichnen Sie mir ein Teamfähigkeits-Radar-Diagramm",
       "agent_10": "Suchen und fassen Sie Branchennews der letzten Woche zusammen",
       "agent_11": "Helfen Sie mir, einen Plan zur Nutzerfeedback-Sammlung zu entwerfen",
       "deep_research_3": "Tiefgehende Analyse der architektonischen Evolution von AI Agents",
@@ -13476,7 +13477,37 @@
         "idleMinutesHint": "1 ~ 10080 Minuten (max. 7 Tage)"
       },
       "commandInstruction": "Bundle-Anweisung",
-      "commandInstructionPlaceholder": "Optionale Anleitung für kombinierte Fähigkeiten..."
+      "commandInstructionPlaceholder": "Optionale Anleitung für kombinierte Fähigkeiten...",
+      "browserSource": "Browserquelle",
+      "browserSourceAuto": "Auto (Systemstandard)",
+      "browserSourceAutoDesc": "Erkennt die beste Browserquelle automatisch.",
+      "browserSourceExtension": "Browsererweiterung",
+      "browserSourceExtensionDesc": "Nutzt Ihren echten Browser über die Erweiterungsbrücke. Behält Ihre Anmeldungen bei.",
+      "browserSourceLaunch": "Neuen Browser starten",
+      "browserSourceLaunchDesc": "Startet eine neue isolierte Browserinstanz.",
+      "browserSourceConnect": "Vorhandenen Browser verbinden",
+      "browserSourceConnectDesc": "Verbindet per CDP mit Ihrem laufenden Chrome/Brave/Edge.",
+      "browserSourceRemote": "Cloud-Browser",
+      "browserSourceRemoteDesc": "Verbindet zu Cloud-Browserdiensten (in den Einstellungen konfigurierbar).",
+      "browserSourceExtensionWarning": "Verbinden Sie die Browsererweiterung über die Seitenleiste, um diesen Modus zu verwenden.",
+      "browserSourceConnectInfo": "Verwendet eine laufende Chrome-Instanz mit aktiviertem Remote-Debugging-Port.",
+      "browserSourceRemoteWarning": "Erfordert Anmeldedaten für den Cloud-Browserdienst. Konfigurieren Sie diese zuerst in den Einstellungen.",
+      "dialogPolicy": "Dialogbehandlung",
+      "dialogPolicySmart": "Smart (Standard)",
+      "dialogPolicySmartDesc": "Akzeptiert Warnungen/Bestätigungen automatisch, verwirft Eingabeaufforderungen.",
+      "dialogPolicyAutoAccept": "Automatisch akzeptieren",
+      "dialogPolicyAutoAcceptDesc": "Akzeptiert alle Dialoge automatisch.",
+      "dialogPolicyAutoDismiss": "Automatisch schließen",
+      "dialogPolicyAutoDismissDesc": "Schließt alle Dialoge automatisch.",
+      "dialogPolicyWaitForAgent": "Auf Agent warten",
+      "dialogPolicyWaitForAgentDesc": "Pausiert und lässt die KI über die Antwort entscheiden.",
+      "sessionRecording": "Sitzungsaufzeichnung",
+      "sessionRecordingOff": "Aus (Standard)",
+      "sessionRecordingOffDesc": "Keine Videoaufzeichnung von Browser-Sitzungen.",
+      "sessionRecordingOnFailure": "Bei Fehler",
+      "sessionRecordingOnFailureDesc": "Nur bei Aufgabenfehler weiter aufzeichnen.",
+      "sessionRecordingAlways": "Immer",
+      "sessionRecordingAlwaysDesc": "Zeichnet jede Browser-Sitzung auf."
     },
     "save": "Speichern",
     "saveError": "Agent konnte nicht gespeichert werden.",

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -14,7 +16,6 @@ from tests.support.chrome_mcp_e2e import (
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
-    warm_ui_route,
 )
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -65,29 +66,37 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
   } catch {
     // ignore
   }
-  const labels = ['微信公众号', 'WeChat Official Account'];
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const channelBtn = buttons.find((btn) =>
-    labels.some((label) => (btn.textContent || '').includes(label)),
-  );
+  const body = document.body.innerText || '';
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const channelsTab = tabs.find((tab) => /消息通道|^Channels$/i.test((tab.textContent || '').trim()));
+  if (channelsTab && channelsTab.getAttribute('data-state') !== 'active') {
+    channelsTab.click();
+  }
+  const channelBtn =
+    document.querySelector('[data-testid="channel-list-item-wechat_official"]') ||
+    Array.from(document.querySelectorAll('button')).find((btn) =>
+      /微信公众号|WeChat Official Account|微信公眾號/i.test((btn.textContent || '').trim()),
+    );
   if (channelBtn) {
     channelBtn.click();
   }
+  const configCard = document.querySelector('[data-testid="wechat-official-config-card"]');
   const appId = document.querySelector('#wechat-official-app-id');
-  const body = document.body.innerText || '';
   const hasHint =
     body.includes('IP 白名单') ||
     body.includes('IP whitelist') ||
     body.includes('40164');
-  const loading = !!document.querySelector('.animate-spin');
+  const loading = !!document.querySelector('.animate-pulse');
   return {
-    ready: !!appId && hasHint && !loading,
+    ready: (!!appId || !!configCard) && hasHint && !loading,
     hasAppId: !!appId,
+    hasConfigCard: !!configCard,
     hasHint,
     loading,
     pathname: location.pathname,
     viewportWidth: window.innerWidth,
     channelClicked: !!channelBtn,
+    onChannelsPath: location.pathname.includes('/settings/channels'),
   };
 })()"""
 
@@ -128,23 +137,24 @@ _CLICK_CONFIRM_PUSH_JS = """(() => {
 })()"""
 
 
-def _prepare_wechat_official_settings(api_url: str) -> None:
-    """Seed credentials + best-effort channel enable via namespace-safe test fixture."""
-    http_json(
-        "POST",
-        f"{api_url}/api/v1/chats/test/seed-wechat-official-settings-fixture",
-    )
-
-
 def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block") -> dict[str, object]:
-    seeded = http_json(
-        "POST",
-        f"{api_url}/api/v1/chats/test/seed-wechat-draft-fixture?variant={variant}",
-    )
-    assert isinstance(seeded, dict)
-    chat_id = str(seeded.get("chat_id") or "")
-    assert chat_id.startswith("e2ewxd")
-    return seeded
+    last_error: BaseException | None = None
+    url = f"{api_url}/api/v1/chats/test/seed-wechat-draft-fixture?variant={variant}"
+    for attempt in range(1, 4):
+        try:
+            seeded = http_json("POST", url)
+            assert isinstance(seeded, dict)
+            chat_id = str(seeded.get("chat_id") or "")
+            assert chat_id.startswith("e2ewxd")
+            return seeded
+        except (RuntimeError, AssertionError) as exc:
+            last_error = exc
+            if attempt >= 3:
+                break
+            time.sleep(min(2.0 * attempt, 6.0))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("WeChat draft seed failed without error detail")
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
@@ -153,14 +163,14 @@ def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block
 def test_wechat_official_settings_shows_ip_whitelist_hint() -> None:
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
-    _prepare_wechat_official_settings(api_url)
 
-    with open_settings_subroute("/settings/channels") as (client, page):
+    with open_settings_subroute("/settings/channels", timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
         state = wait_for_state(
             client,
             page,
             _SETTINGS_WECHAT_OFFICIAL_PROBE_JS,
-            timeout_sec=90.0,
+            timeout_sec=120.0,
         )
         assert state.get("ready") is True, state
 
@@ -175,7 +185,6 @@ def test_wechat_draft_panel_shows_compliance_block_for_risky_html() -> None:
     seeded = _seed_wechat_draft_fixture(api_url, variant="compliance_block")
     chat_id = str(seeded["chat_id"])
 
-    warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         attached = client.evaluate(

@@ -60,6 +60,7 @@ interface PluginSkillPreview {
   file_count: number;
   virtual_id: string;
   security_issues: string[];
+  oversized_content: boolean;
 }
 
 interface PluginServerPreview {
@@ -185,7 +186,10 @@ const PluginImportDialog = memo(
             data.skills.map((item) => ({
               virtual_id: item.virtual_id,
               name: item.name,
-              resolution: item.security_issues.length > 0 ? 'skip' : 'install',
+              resolution:
+                item.security_issues.length > 0 || item.oversized_content
+                  ? 'skip'
+                  : 'install',
             })),
           );
           setServerDecisions(
@@ -227,7 +231,8 @@ const PluginImportDialog = memo(
       setSkillDecisions((prev) =>
         prev.map((item) => {
           const skill = preview?.skills.find((s) => s.virtual_id === item.virtual_id);
-          const isBlocked = (skill?.security_issues.length ?? 0) > 0;
+          const isBlocked =
+            (skill?.security_issues.length ?? 0) > 0 || (skill?.oversized_content ?? false);
           if (isBlocked && resolution === 'install') {
             return item;
           }
@@ -459,7 +464,8 @@ const PluginImportDialog = memo(
                         {preview.skills.map((item) => {
                           const decision = skillDecisions.find((d) => d.virtual_id === item.virtual_id);
                           const isInstalled = decision?.resolution === 'install';
-                          const isBlocked = item.security_issues.length > 0;
+                          const isBlocked =
+                            item.security_issues.length > 0 || item.oversized_content;
                           return (
                             <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
                               <div className="min-w-0">
@@ -467,7 +473,10 @@ const PluginImportDialog = memo(
                                 {item.description && !isBlocked && (
                                   <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                                 )}
-                                {isBlocked && (
+                                {item.oversized_content && (
+                                  <p className="text-xs text-destructive mt-0.5">{t('security.oversized')}</p>
+                                )}
+                                {isBlocked && !item.oversized_content && (
                                   <p className="text-xs text-destructive mt-0.5">
                                     {t('security.blocked', { count: item.security_issues.length })}
                                   </p>

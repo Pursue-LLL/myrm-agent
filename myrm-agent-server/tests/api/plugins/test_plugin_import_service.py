@@ -215,6 +215,25 @@ class TestBuildPreviewResult:
         assert len(skill["security_issues"]) > 0
         assert any("rm" in issue for issue in skill["security_issues"])
 
+    def test_preview_flags_oversized_skill_content(self) -> None:
+        from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+
+        huge = PluginSkill(
+            name="huge",
+            description="Too big",
+            content="x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1),
+            files={},
+        )
+        result = parse_plugin_zip(_plugin_zip_bytes())
+        result.skills = [huge]
+        preview = build_preview_result(result)
+        assert len(preview["skills"]) == 1
+        assert preview["skills"][0]["oversized_content"] is True
+
+    def test_preview_marks_normal_skill_not_oversized(self) -> None:
+        preview = build_preview_result(parse_plugin_zip(_plugin_zip_bytes()))
+        assert preview["skills"][0]["oversized_content"] is False
+
 
 class TestConfirmPluginImport:
     def _make_session(self) -> PluginImportSession:
@@ -499,6 +518,58 @@ class TestConfirmPluginImport:
                         virtual_id=skill_keys[0],
                         resolution="install",
                         name="summarize",
+                    ),
+                ],
+                server_decisions=[],
+                bind_agent_id=None,
+            )
+
+        assert result == {
+            "imported_skills": 0,
+            "skipped_skills": 1,
+            "imported_servers": 0,
+            "skipped_servers": 0,
+        }
+        fake_store.save_skills_batch.assert_not_awaited()
+        config_service.set.assert_not_awaited()
+
+
+    async def test_confirm_skips_oversized_skill_content(self, tmp_path: Path) -> None:
+        from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+
+        session = _parse_session()
+        skill_keys = list(session.skills_by_key.keys())
+        session.skills_by_key[skill_keys[0]] = PluginSkill(
+            name="huge",
+            description="Too big",
+            content="x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1),
+            files={},
+        )
+
+        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=None), set=AsyncMock()
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[
+                    PluginConfirmItem(
+                        component="skill",
+                        virtual_id=skill_keys[0],
+                        resolution="install",
+                        name="huge",
                     ),
                 ],
                 server_decisions=[],

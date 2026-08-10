@@ -2,7 +2,7 @@
 
 测试目标：
 1. 框架层 emit_artifacts_ready_event 正确发出 ARTIFACTS_READY 事件
-2. 业务层 ArtifactProcessor 正确处理 ARTIFACTS_READY 事件
+2. 业务层 LocalArtifactProcessor 正确处理 ARTIFACTS_READY 事件
 3. 懒加载机制：read_content 按需调用
 """
 
@@ -121,266 +121,42 @@ class TestArtifactReadyEvent:
         mock_executor.read_file_bytes.assert_called_once_with("/workspace/hello.txt")
 
 
-class TestArtifactProcessor:
-    """测试业务层 ArtifactProcessor"""
-
-    @pytest.mark.asyncio
-    async def test_process_artifacts_ready_basic(self) -> None:
-        """测试基本的 artifacts_ready 处理"""
-        from app.core.artifacts import ArtifactProcessor
-
-        # 创建处理器
-        processor = ArtifactProcessor(
-            chat_id="test_chat",
-            api_prefix="/api/v1",
-        )
-
-        # 创建 mock read_content
-        async def mock_read_content(path: str) -> bytes:
-            return b"test file content"
-
-        # 创建 ARTIFACTS_READY 事件
-        event: dict[str, object] = {
-            "type": AgentEventType.ARTIFACTS_READY.value,
-            "data": [
-                {"filename": "test.txt", "path": "/workspace/test.txt", "type": "text"},
-            ],
-            "read_content": mock_read_content,
-            "message_id": "msg_123",
-        }
-
-        # Mock files_service
-        mock_file = MagicMock()
-        mock_file.id = "file_id_123"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-
-            # 执行
-            result = await processor.process_artifacts_ready(event)
-
-        # 验证
-        assert result is not None
-        assert result["type"] == "artifacts"
-        assert result["message_id"] == "msg_123"
-
-        data = result["data"]
-        assert isinstance(data, list)
-        assert len(data) == 1
-
-        artifact = data[0]
-        assert artifact["filename"] == "test.txt"
-        assert "preview_url" in artifact
-        assert "download_url" in artifact
-
-    @pytest.mark.asyncio
-    async def test_process_artifacts_ready_empty(self) -> None:
-        """测试空数据时返回 None"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(
-            chat_id="test_chat",
-            api_prefix="/api/v1",
-        )
-
-        # 空数据事件
-        event: dict[str, object] = {
-            "type": AgentEventType.ARTIFACTS_READY.value,
-            "data": [],
-            "read_content": AsyncMock(),
-            "message_id": "msg_123",
-        }
-
-        # 执行
-        result = await processor.process_artifacts_ready(event)
-
-        # 验证：空数据返回 None
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_lazy_loading_mechanism(self) -> None:
-        """测试懒加载机制：只读取实际处理的文件"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(
-            chat_id="test_chat",
-            api_prefix="/api/v1",
-        )
-
-        # 创建可追踪的 read_content
-        read_calls: list[str] = []
-
-        async def tracking_read_content(path: str) -> bytes:
-            read_calls.append(path)
-            return b"content"
-
-        # 创建事件
-        event: dict[str, object] = {
-            "type": AgentEventType.ARTIFACTS_READY.value,
-            "data": [
-                {"filename": "file1.txt", "path": "/workspace/file1.txt", "type": "text"},
-                {"filename": "file2.txt", "path": "/workspace/file2.txt", "type": "text"},
-            ],
-            "read_content": tracking_read_content,
-            "message_id": "msg_123",
-        }
-
-        # Mock files_service
-        mock_file = MagicMock()
-        mock_file.id = "file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-
-            # 执行
-            await processor.process_artifacts_ready(event)
-
-        # 验证：所有文件都被读取（因为都需要保存）
-        assert len(read_calls) == 2
-        assert "/workspace/file1.txt" in read_calls
-        assert "/workspace/file2.txt" in read_calls
-
-
-class TestArtifactProcessorActiveContent:
-    """测试 active content 安全保护（XSS 防护）"""
-
-    @pytest.mark.asyncio
-    async def test_html_artifact_forces_download_on_preview_url(self) -> None:
-        """HTML 文件的 preview_url 应强制 inline=false"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"<html><body>Hello</body></html>"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "page.html", "path": "/workspace/page.html", "type": "html"}],
-            "read_content": mock_read,
-            "message_id": "msg_html",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "html_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert "inline=false" in artifact["preview_url"]
-        assert "inline=false" in artifact["download_url"]
-
-    @pytest.mark.asyncio
-    async def test_svg_artifact_forces_download(self) -> None:
-        """SVG 文件也应强制 inline=false"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"<svg>test</svg>"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "icon.svg", "path": "/workspace/icon.svg", "type": "svg"}],
-            "read_content": mock_read,
-            "message_id": "msg_svg",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "svg_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert "inline=false" in artifact["preview_url"]
-
-    @pytest.mark.asyncio
-    async def test_plain_text_allows_inline(self) -> None:
-        """纯文本文件 preview_url 应允许 inline"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"Hello World"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "note.txt", "path": "/workspace/note.txt", "type": "document"}],
-            "read_content": mock_read,
-            "message_id": "msg_txt",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "txt_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert "inline=false" not in artifact["preview_url"]
-
-
-class TestArtifactProcessorLargeFile:
-    """测试大文件跳过逻辑"""
-
-    @pytest.mark.asyncio
-    async def test_large_file_skipped(self) -> None:
-        """超过 5MB 的文件应被跳过"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"x" * (6 * 1024 * 1024)
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "huge.bin", "path": "/workspace/huge.bin", "type": "binary"}],
-            "read_content": mock_read,
-            "message_id": "msg_big",
-        }
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is None
-        mock_save.assert_not_called()
-
-
 class TestLocalArtifactProcessor:
     """测试 LocalArtifactProcessor（本地模式）"""
 
     @pytest.mark.asyncio
-    async def test_local_processor_saves_reference(self) -> None:
+    async def test_local_processor_saves_reference(self, tmp_path) -> None:  # noqa: ANN001
         """本地模式应保存路径引用而非文件内容"""
         from app.core.artifacts import LocalArtifactProcessor
 
-        processor = LocalArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
+        output = tmp_path / "output.py"
+        output.write_text("print('hi')", encoding="utf-8")
 
-        async def mock_read(path: str) -> bytes:
-            return b"file content"
+        processor = LocalArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
 
         event: dict[str, object] = {
             "type": "artifacts_ready",
-            "data": [{"filename": "output.py", "path": "/workspace/output.py", "type": "code"}],
-            "read_content": mock_read,
+            "data": [{"filename": "output.py", "path": "output.py", "type": "code"}],
+            "read_content": AsyncMock(),
             "message_id": "msg_local",
         }
 
         mock_file = MagicMock()
         mock_file.id = "local_file_id"
 
-        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
             mock_save_ref.return_value = mock_file
             result = await processor.process_artifacts_ready(event)
 
@@ -389,30 +165,119 @@ class TestLocalArtifactProcessor:
         mock_save_ref.assert_called_once()
 
         call_kwargs = mock_save_ref.call_args
-        assert call_kwargs.kwargs["sandbox_path"] == "/workspace/output.py"
+        assert call_kwargs.kwargs["sandbox_path"] == "output.py"
 
     @pytest.mark.asyncio
-    async def test_local_processor_large_file_skipped(self) -> None:
-        """本地模式下大文件同样应被跳过"""
+    async def test_local_processor_large_non_shareable_skipped(self, tmp_path) -> None:  # noqa: ANN001
+        """本地模式下超大不可分享文件应被跳过"""
         from app.core.artifacts import LocalArtifactProcessor
+
+        blob = tmp_path / "huge.bin"
+        blob.write_bytes(b"x" * (6 * 1024 * 1024))
 
         processor = LocalArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
 
-        async def mock_read(path: str) -> bytes:
-            return b"x" * (6 * 1024 * 1024)
-
         event: dict[str, object] = {
             "type": "artifacts_ready",
-            "data": [{"filename": "huge.bin", "path": "/workspace/huge.bin", "type": "binary"}],
-            "read_content": mock_read,
+            "data": [{"filename": "huge.bin", "path": "huge.bin", "type": "binary"}],
+            "read_content": AsyncMock(),
             "message_id": "msg_big_local",
         }
 
-        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
             result = await processor.process_artifacts_ready(event)
 
         assert result is None
         mock_save_ref.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_html_artifact_forces_download_on_preview_url(self, tmp_path) -> None:  # noqa: ANN001
+        """HTML 文件的 preview_url 应强制 inline=false"""
+        from app.core.artifacts import LocalArtifactProcessor
+
+        page = tmp_path / "page.html"
+        page.write_text("<html><body>Hello</body></html>", encoding="utf-8")
+
+        processor = LocalArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "page.html", "path": "page.html", "type": "html"}],
+            "read_content": AsyncMock(),
+            "message_id": "msg_html",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "html_file_id"
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
+            mock_save_ref.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert "inline=false" in artifact["preview_url"]
+        assert "inline=false" in artifact["download_url"]
+
+    @pytest.mark.asyncio
+    async def test_plain_text_allows_inline(self, tmp_path) -> None:  # noqa: ANN001
+        """纯文本文件 preview_url 应允许 inline"""
+        from app.core.artifacts import LocalArtifactProcessor
+
+        note = tmp_path / "note.txt"
+        note.write_text("Hello World", encoding="utf-8")
+
+        processor = LocalArtifactProcessor(chat_id="c1", api_prefix="/api/v1")
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "note.txt", "path": "note.txt", "type": "document"}],
+            "read_content": AsyncMock(),
+            "message_id": "msg_txt",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "txt_file_id"
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
+            mock_save_ref.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert "inline=false" not in artifact["preview_url"]
 
     @pytest.mark.asyncio
     async def test_local_processor_ignores_system_files(self) -> None:
@@ -435,164 +300,41 @@ class TestLocalArtifactProcessor:
         assert result is None
 
 
-class TestSpreadsheetArtifactIntegration:
-    """Spreadsheet artifact 全链路集成测试：harness 类型推断 → processor → 前端事件"""
-
-    @pytest.mark.asyncio
-    async def test_csv_artifact_type_flows_to_frontend_event(self) -> None:
-        """CSV 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="test_csv", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"name,age,city\nAlice,30,NYC\nBob,25,LA"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "data.csv", "path": "/workspace/data.csv", "type": "document"}],
-            "read_content": mock_read,
-            "message_id": "msg_csv",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "csv_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert artifact["filename"] == "data.csv"
-        assert artifact["type"] == "spreadsheet"
-
-    @pytest.mark.asyncio
-    async def test_tsv_artifact_type_flows_to_frontend_event(self) -> None:
-        """TSV 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="test_tsv", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"name\tage\tcity\nAlice\t30\tNYC"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "data.tsv", "path": "/workspace/data.tsv", "type": "document"}],
-            "read_content": mock_read,
-            "message_id": "msg_tsv",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "tsv_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert artifact["type"] == "spreadsheet"
-
-    @pytest.mark.asyncio
-    async def test_xlsx_artifact_type_flows_to_frontend_event(self) -> None:
-        """XLSX 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="test_xlsx", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"PK\x03\x04fake-xlsx-content"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [{"filename": "report.xlsx", "path": "/workspace/report.xlsx", "type": "binary"}],
-            "read_content": mock_read,
-            "message_id": "msg_xlsx",
-        }
-
-        mock_file = MagicMock()
-        mock_file.id = "xlsx_file_id"
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
-            mock_save.return_value = mock_file
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        artifact = result["data"][0]
-        assert artifact["type"] == "spreadsheet"
-        assert "preview_url" in artifact
-        assert "download_url" in artifact
-
-    @pytest.mark.asyncio
-    async def test_mixed_artifacts_types_correct(self) -> None:
-        """混合文件类型时，各自的 type 均正确"""
-        from app.core.artifacts import ArtifactProcessor
-
-        processor = ArtifactProcessor(chat_id="test_mix", api_prefix="/api/v1")
-
-        async def mock_read(path: str) -> bytes:
-            return b"content"
-
-        event: dict[str, object] = {
-            "type": "artifacts_ready",
-            "data": [
-                {"filename": "data.csv", "path": "/workspace/data.csv", "type": "document"},
-                {"filename": "script.py", "path": "/workspace/script.py", "type": "code"},
-                {"filename": "image.png", "path": "/workspace/image.png", "type": "image"},
-            ],
-            "read_content": mock_read,
-            "message_id": "msg_mix",
-        }
-
-        file_counter = 0
-
-        async def mock_save(filename: str, content: bytes, content_type: str, source_chat_id: str) -> MagicMock:
-            nonlocal file_counter
-            file_counter += 1
-            mock_file = MagicMock()
-            mock_file.id = f"file_{file_counter}"
-            return mock_file
-
-        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as save_mock:
-            save_mock.side_effect = mock_save
-            result = await processor.process_artifacts_ready(event)
-
-        assert result is not None
-        data = result["data"]
-        assert len(data) == 3
-
-        types_by_name = {a["filename"]: a["type"] for a in data}
-        assert types_by_name["data.csv"] == "spreadsheet"
-        assert types_by_name["script.py"] == "code"
-        assert types_by_name["image.png"] == "image"
-
-
 class TestLocalSpreadsheetArtifactIntegration:
     """本地模式下 spreadsheet artifact 全链路集成测试"""
 
     @pytest.mark.asyncio
-    async def test_local_csv_artifact_type(self) -> None:
+    async def test_local_csv_artifact_type(self, tmp_path) -> None:  # noqa: ANN001
         """本地模式下 CSV 文件也能正确推断为 spreadsheet"""
         from app.core.artifacts import LocalArtifactProcessor
 
-        processor = LocalArtifactProcessor(chat_id="test_local_csv", api_prefix="/api/v1")
+        csv_file = tmp_path / "local.csv"
+        csv_file.write_text("id,name\n1,Alice", encoding="utf-8")
 
-        async def mock_read(path: str) -> bytes:
-            return b"id,name\n1,Alice"
+        processor = LocalArtifactProcessor(chat_id="test_local_csv", api_prefix="/api/v1")
 
         event: dict[str, object] = {
             "type": "artifacts_ready",
-            "data": [{"filename": "local.csv", "path": "/workspace/local.csv", "type": "document"}],
-            "read_content": mock_read,
+            "data": [{"filename": "local.csv", "path": "local.csv", "type": "document"}],
+            "read_content": AsyncMock(),
             "message_id": "msg_local_csv",
         }
 
         mock_file = MagicMock()
         mock_file.id = "local_csv_id"
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
 
-        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
             mock_save_ref.return_value = mock_file
             result = await processor.process_artifacts_ready(event)
 
@@ -602,26 +344,37 @@ class TestLocalSpreadsheetArtifactIntegration:
         assert artifact["filename"] == "local.csv"
 
     @pytest.mark.asyncio
-    async def test_local_xls_artifact_type(self) -> None:
+    async def test_local_xls_artifact_type(self, tmp_path) -> None:  # noqa: ANN001
         """本地模式下 .xls 文件正确推断为 spreadsheet"""
         from app.core.artifacts import LocalArtifactProcessor
 
-        processor = LocalArtifactProcessor(chat_id="test_local_xls", api_prefix="/api/v1")
+        xls_file = tmp_path / "legacy.xls"
+        xls_file.write_bytes(b"\xd0\xcf\x11\xe0fake-xls")
 
-        async def mock_read(path: str) -> bytes:
-            return b"\xd0\xcf\x11\xe0fake-xls"
+        processor = LocalArtifactProcessor(chat_id="test_local_xls", api_prefix="/api/v1")
 
         event: dict[str, object] = {
             "type": "artifacts_ready",
-            "data": [{"filename": "legacy.xls", "path": "/workspace/legacy.xls", "type": "binary"}],
-            "read_content": mock_read,
+            "data": [{"filename": "legacy.xls", "path": "legacy.xls", "type": "binary"}],
+            "read_content": AsyncMock(),
             "message_id": "msg_local_xls",
         }
 
         mock_file = MagicMock()
         mock_file.id = "local_xls_id"
+        mock_executor = MagicMock()
+        mock_executor.workspace_path = str(tmp_path)
 
-        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+            patch(
+                "app.core.storage.service.FilesService.save_file_reference",
+                new_callable=AsyncMock,
+            ) as mock_save_ref,
+        ):
             mock_save_ref.return_value = mock_file
             result = await processor.process_artifacts_ready(event)
 

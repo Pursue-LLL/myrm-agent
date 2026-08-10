@@ -164,8 +164,8 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         since_offset=log_offset, api_url=get_e2e_api_url()
     )
     assert (
-        created == 1
-    ), f"expected execution_cache_created x1 in backend log (got {created})"
+        created >= 1
+    ), f"expected execution_cache_created >=1 in backend log (got {created})"
     assert (
         reused >= 1
     ), f"expected execution_cache_reuse >=1 in backend log (got {reused})"

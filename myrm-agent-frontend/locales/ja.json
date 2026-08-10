@@ -5836,7 +5836,8 @@
           "hint": "上の診断情報を確認するか、有効なプラグインパッケージを選択してください。"
         },
         "security": {
-          "blocked": "セキュリティリスク {count} 件のためブロックされ、自動的にスキップされました"
+          "blocked": "セキュリティリスク {count} 件のためブロックされ、自動的にスキップされました",
+          "oversized": "スキル内容がストレージ上限（64 KB）を超えているため、自動的にスキップされました"
         },
         "errors": {
           "parseTitle": "解析エラー",
@@ -7388,7 +7389,7 @@
       }
     },
     "deliverable": {
-      "awaitingArtifact": "Artifact sync in progress — link will activate shortly"
+      "awaitingArtifact": "アーティファクト同期中 — リンクはまもなく有効になります"
     },
     "tokenUsage": {
       "title": "Token 使用量",
@@ -13761,7 +13762,37 @@
         "dailyResetHour": "リセット時間 (UTC)",
         "idleMinutes": "アイドルタイムアウト (分)",
         "idleMinutesHint": "1 ~ 10080 分（最大 7 日）"
-      }
+      },
+      "browserSource": "ブラウザソース",
+      "browserSourceAuto": "自動（システム標準）",
+      "browserSourceAutoDesc": "最適なブラウザソースを自動検出します。",
+      "browserSourceExtension": "ブラウザ拡張機能",
+      "browserSourceExtensionDesc": "拡張機能ブリッジ経由で実際のブラウザを使用します。ログインセッションを保持します。",
+      "browserSourceLaunch": "新しいブラウザを起動",
+      "browserSourceLaunchDesc": "新規の隔離ブラウザインスタンスを起動します。",
+      "browserSourceConnect": "既存のブラウザに接続",
+      "browserSourceConnectDesc": "実行中の Chrome/Brave/Edge に CDP 経由で接続します。",
+      "browserSourceRemote": "クラウドブラウザ",
+      "browserSourceRemoteDesc": "クラウドブラウザサービスに接続します（設定で構成）。",
+      "browserSourceExtensionWarning": "このモードを使用するには、サイドバーからブラウザ拡張機能に接続してください。",
+      "browserSourceConnectInfo": "リモートデバッグポートを有効にした実行中の Chrome を使用します。",
+      "browserSourceRemoteWarning": "クラウドブラウザサービスの資格情報が必要です。先に設定で構成してください。",
+      "dialogPolicy": "ダイアログ処理",
+      "dialogPolicySmart": "スマート（標準）",
+      "dialogPolicySmartDesc": "警告/確認を自動受理し、プロンプトを自動で閉じます。",
+      "dialogPolicyAutoAccept": "自動受理",
+      "dialogPolicyAutoAcceptDesc": "すべてのダイアログを自動受理します。",
+      "dialogPolicyAutoDismiss": "自動閉じる",
+      "dialogPolicyAutoDismissDesc": "すべてのダイアログを自動で閉じます。",
+      "dialogPolicyWaitForAgent": "エージェントを待つ",
+      "dialogPolicyWaitForAgentDesc": "一時停止して AI に応答方法を決定させます。",
+      "sessionRecording": "セッション録画",
+      "sessionRecordingOff": "オフ（標準）",
+      "sessionRecordingOffDesc": "ブラウザセッションを録画しません。",
+      "sessionRecordingOnFailure": "失敗時",
+      "sessionRecordingOnFailureDesc": "タスク失敗時のみ録画を続けます。",
+      "sessionRecordingAlways": "常時",
+      "sessionRecordingAlwaysDesc": "すべてのブラウザセッションを録画します。"
     },
     "save": "保存",
     "saveError": "エージェントの保存に失敗しました。",

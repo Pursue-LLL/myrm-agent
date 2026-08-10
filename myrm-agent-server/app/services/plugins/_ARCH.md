@@ -16,6 +16,7 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 - **逐组件失败隔离**：单个无效 skill/MCP 不中止整个导入。
 - **安全默认**：MCP headers 不落明文（映射为 `{{secret:KEY}}` 引用）；env/cwd 写入 `extra_params`（与前端解析器、harness MCPConfig 结构一致）；MCP 默认 disabled，用户显式启用。
 - **技能安全扫描**：预览阶段对每个 skill 内容运行 `SkillSecurityValidator`，`security_issues` 随预览返回；confirm 阶段重新扫描，未通过的 skill 即使标记 install 也会被跳过（预览状态不可信，防御纵深）。扫描器自身异常按 **fail-closed** 处理（视为不安全并跳过），避免崩溃或静默放行。
+- **超长技能隔离**：skill 内容超过 `SkillStore.MAX_SKILL_CONTENT_CHARS`（64 KB）时，预览携带 `oversized_content` 标记，confirm 阶段直接跳过（不入库、不向量化）。与框架层 `save_skills_batch` 的硬校验对齐，避免超大 skill 因向量化静默失败而"已入库但检索不到"。
 - **Agent 绑定**：绑定 Agent 时追加 skill_ids 与 mcp_ids，复用 `apply_agent_mcp_selection` 语义。
 - **MCP 去重**：confirm 落盘前与现有 `mcpServers` 按 name 去重，重名 server 被跳过且不计入 `imported_servers`、不绑定 Agent（计数/绑定仅反映实际落盘项）。
 - **会话清理**：`PluginStaging` 通过 `cleanup_expired_sessions`（线程内执行同步清理）在后台删除超过 24h 的无主会话，防止磁盘堆积。

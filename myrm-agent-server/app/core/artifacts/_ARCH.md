@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `listener.py` | 模块 | Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id | ✅ |
-| `processor.py` | 模块 | 业务层工件处理器；Local 模式对超大可分享工件 reference-only persist；persist 返回 resolved_path 供 emit 复用（一次 resolve SSOT） | ✅ |
+| `processor.py` | 模块 | 业务层工件处理器（LocalArtifactProcessor）；超大可分享 reference-only persist；persist 返回 resolved_path；upsert 成功才 emit artifacts | ✅ |
 
 ## 测试
 

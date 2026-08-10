@@ -396,19 +396,19 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                   {browserSource === 'extension' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSource.extensionWarning')}
+                      {t('form.browserSourceExtensionWarning')}
                     </p>
                   )}
                   {browserSource === 'connect' && (
                     <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSource.connectInfo')}
+                      {t('form.browserSourceConnectInfo')}
                     </p>
                   )}
                   {browserSource === 'remote' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSource.remoteWarning')}
+                      {t('form.browserSourceRemoteWarning')}
                     </p>
                   )}
                 </div>

@@ -10,7 +10,7 @@
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
-- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs (logs WARNING when ingress base URL missing)
+- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs (logs WARNING when ingress base URL missing or artifact versions unavailable)
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
@@ -170,10 +170,13 @@ async def build_artifact_deep_links(
         )
         return (), frozenset()
 
-    version_map = await fetch_artifact_versions(
-        [aid for aid, _, _ in acc.shareable_artifacts],
-    )
+    artifact_ids = [aid for aid, _, _ in acc.shareable_artifacts]
+    version_map = await fetch_artifact_versions(artifact_ids)
     if not version_map:
+        logger.warning(
+            "Skipping artifact deep links: no artifact versions found for %d artifact(s)",
+            len(artifact_ids),
+        )
         return (), frozenset()
 
     buttons: list[ActionButton] = []
@@ -183,6 +186,11 @@ async def build_artifact_deep_links(
     for artifact_id, filename, artifact_type in acc.shareable_artifacts:
         version_id = version_map.get(artifact_id)
         if not version_id:
+            logger.warning(
+                "Skipping deep link for artifact %s (%s): no version_id in DB",
+                artifact_id,
+                filename,
+            )
             continue
         try:
             token, _ = create_artifact_share_token(

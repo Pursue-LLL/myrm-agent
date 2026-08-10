@@ -13,6 +13,8 @@ isolation so a single invalid skill or MCP server never aborts the whole import.
 - myrm_agent_harness.agent.plugins.parser::AgentPluginParser (POS: framework
   plugin archive parser.)
 - myrm_agent_harness.agent.skills.evolution.core.types (POS: skill lineage types.)
+- myrm_agent_harness.agent.skills.evolution.db.store::SkillStore (POS: SQLite
+  skill persistence; MAX_SKILL_CONTENT_CHARS is the oversized-content SSOT.)
 - app.services.skills.store / UserConfig persistence (POS: business skill/MCP stores.)
 
 [OUTPUT]
@@ -46,6 +48,9 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
+from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+
+MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
 
 logger = logging.getLogger(__name__)
 
@@ -211,13 +216,7 @@ def build_preview_result(result: PluginParseResult) -> dict[str, object]:
             "keywords": list(meta.keywords) if meta else [],
         },
         "skills": [
-            {
-                "name": skill.name,
-                "description": skill.description,
-                "file_count": len(skill.files),
-                "virtual_id": f"skill:{idx}",
-                "security_issues": _scan_skill_security(skill),
-            }
+            _preview_skill(idx, skill)
             for idx, skill in enumerate(result.skills)
         ],
         "servers": [
@@ -243,6 +242,26 @@ def build_preview_result(result: PluginParseResult) -> dict[str, object]:
         ],
         "is_valid": meta is not None,
     }
+
+
+def _preview_skill(idx: int, skill: PluginSkill) -> dict[str, object]:
+    """Serialize one skill for the preview payload."""
+    oversized = _skill_content_too_large(skill)
+    return {
+        "name": skill.name,
+        "description": skill.description,
+        "file_count": len(skill.files),
+        "virtual_id": f"skill:{idx}",
+        # Oversized skills can never be installed; skip the security scan so the
+        # preview mirrors confirm-time behavior instead of doing wasted work.
+        "security_issues": [] if oversized else _scan_skill_security(skill),
+        "oversized_content": oversized,
+    }
+
+
+def _skill_content_too_large(skill: PluginSkill) -> bool:
+    """True when the skill content exceeds the framework's storage limit."""
+    return bool(skill.content) and len(skill.content) > MAX_SKILL_CONTENT_CHARS
 
 
 def _server_has_placeholders(server: PluginMcpServer) -> bool:
@@ -310,6 +329,15 @@ def _collect_skill_records(
             continue
         skill = session.skills_by_key.get(decision.virtual_id)
         if skill is None:
+            skipped += 1
+            continue
+        if skill.content and len(skill.content) > MAX_SKILL_CONTENT_CHARS:
+            logger.warning(
+                "Skipping oversized skill '%s' (%d chars, max %d)",
+                skill.name,
+                len(skill.content),
+                MAX_SKILL_CONTENT_CHARS,
+            )
             skipped += 1
             continue
         if _scan_skill_security(skill):

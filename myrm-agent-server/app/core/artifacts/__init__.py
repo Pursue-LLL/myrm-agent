@@ -7,11 +7,9 @@
 - 业务层按需读取、持久化、生成 URL
 - 业务层负责关联 user_id/chat_id
 
-⚠️ 命名说明：
-- ArtifactProcessor：业务层工件处理器（持久化、生成 URL）
-- GeneratedFilesScanner（框架层）：扫描生成的文件路径（不同职责）
+生产环境统一使用 LocalArtifactProcessor（见 platform_utils.get_artifact_processor）。
 """
 
-from .processor import ArtifactProcessor, LocalArtifactProcessor
+from .processor import LocalArtifactProcessor
 
-__all__ = ["ArtifactProcessor", "LocalArtifactProcessor"]
+__all__ = ["LocalArtifactProcessor"]

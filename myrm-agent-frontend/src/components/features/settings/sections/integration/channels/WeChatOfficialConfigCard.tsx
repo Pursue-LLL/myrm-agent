@@ -45,7 +45,7 @@ export function WeChatOfficialConfigCard() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="wechat-official-config-card">
       <p className="text-xs text-muted-foreground">{t('wechatOfficialDesc')}</p>
       <p className="text-xs text-muted-foreground leading-relaxed">{t('wechatOfficialIpWhitelistHint')}</p>
       <ConnectionBadge status={connStatus} label={statusLabel} />

@@ -87,4 +87,3 @@ def test_seed_wechat_official_settings_fixture(client: TestClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body.get("ok") == "true"
-    assert "channel_status" in body

@@ -137,6 +137,7 @@ const ChannelList = memo<ChannelListProps>(
             >
               <button
                 type="button"
+                data-testid={`channel-list-item-${ch.id}`}
                 onClick={() => handleSelect(ch.id)}
                 className={cn(
                   'w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-200',

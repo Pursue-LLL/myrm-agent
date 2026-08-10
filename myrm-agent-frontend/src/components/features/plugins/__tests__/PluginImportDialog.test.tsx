@@ -38,6 +38,7 @@ const stableT: (key: string) => string = (key) => {
     'serverType.remote': 'Remote service',
     'sections.envCount': '{count} env vars',
     'security.blocked': 'Blocked: {count} security risk(s) found — automatically skipped',
+    'security.oversized': 'Skill content exceeds the storage size limit (64 KB) — automatically skipped',
   };
   return map[key] ?? key;
 };
@@ -131,8 +132,8 @@ const PLUGIN_PREVIEW = {
     keywords: ['pdf'],
   },
   skills: [
-    { name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0', security_issues: [] },
-    { name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1', security_issues: [] },
+    { name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0', security_issues: [], oversized_content: false },
+    { name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1', security_issues: [], oversized_content: false },
   ],
   servers: [
     {
@@ -390,6 +391,7 @@ describe('PluginImportDialog', () => {
             file_count: 1,
             virtual_id: 'skill:0',
             security_issues: ['Dangerous pattern detected: rm -rf'],
+            oversized_content: false,
           },
         ],
       }),
@@ -399,6 +401,31 @@ describe('PluginImportDialog', () => {
 
     expect(await screen.findByText(/security risk/)).toBeInTheDocument();
     // The blocked skill is pre-skipped: only the MCP server offers an Install toggle.
+    expect(screen.getAllByText('Install')).toHaveLength(1);
+  });
+
+  it('marks oversized skills as blocked and skips them by default', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...PLUGIN_PREVIEW,
+        skills: [
+          {
+            name: 'huge',
+            description: 'Too large',
+            file_count: 1,
+            virtual_id: 'skill:0',
+            security_issues: [],
+            oversized_content: true,
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+
+    expect(await screen.findByText(/storage size limit|storage limit/)).toBeInTheDocument();
+    // The oversized skill is pre-skipped: only the MCP server offers an Install toggle.
     expect(screen.getAllByText('Install')).toHaveLength(1);
   });
 });

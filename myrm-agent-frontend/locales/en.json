@@ -5856,7 +5856,8 @@
           "hint": "Review the diagnostics above, or choose a valid plugin package."
         },
         "security": {
-          "blocked": "Blocked: {count} security risk(s) found — automatically skipped"
+          "blocked": "Blocked: {count} security risk(s) found — automatically skipped",
+          "oversized": "Skill content exceeds the storage size limit (64 KB) — automatically skipped"
         },
         "errors": {
           "parseTitle": "Parse Error",
@@ -13826,7 +13827,37 @@
         "dailyResetHour": "Reset Hour (UTC)",
         "idleMinutes": "Idle Timeout (min)",
         "idleMinutesHint": "1 ~ 10080 minutes (7 days max)"
-      }
+      },
+      "browserSource": "Browser Source",
+      "browserSourceAuto": "Auto (System Default)",
+      "browserSourceAutoDesc": "Automatically detect the best browser source.",
+      "browserSourceExtension": "Browser Extension",
+      "browserSourceExtensionDesc": "Use your real browser via extension bridge. Preserves your login sessions.",
+      "browserSourceLaunch": "Launch New Browser",
+      "browserSourceLaunchDesc": "Launch a fresh isolated browser instance.",
+      "browserSourceConnect": "Connect Existing Browser",
+      "browserSourceConnectDesc": "Connect via CDP to your running Chrome/Brave/Edge.",
+      "browserSourceRemote": "Cloud Browser",
+      "browserSourceRemoteDesc": "Connect to cloud browser services (configure in Settings).",
+      "browserSourceExtensionWarning": "Connect the browser extension from the sidebar to use this mode.",
+      "browserSourceConnectInfo": "Use a running Chrome instance with remote debugging port enabled.",
+      "browserSourceRemoteWarning": "Requires cloud browser service credentials. Configure them in Settings first.",
+      "dialogPolicy": "Dialog Handling",
+      "dialogPolicySmart": "Smart (Default)",
+      "dialogPolicySmartDesc": "Auto-accept alerts/confirms, dismiss prompts.",
+      "dialogPolicyAutoAccept": "Auto Accept",
+      "dialogPolicyAutoAcceptDesc": "Accept all dialogs automatically.",
+      "dialogPolicyAutoDismiss": "Auto Dismiss",
+      "dialogPolicyAutoDismissDesc": "Dismiss all dialogs automatically.",
+      "dialogPolicyWaitForAgent": "Wait for Agent",
+      "dialogPolicyWaitForAgentDesc": "Pause and let the AI decide how to respond.",
+      "sessionRecording": "Session Recording",
+      "sessionRecordingOff": "Off (Default)",
+      "sessionRecordingOffDesc": "No video recording of browser sessions.",
+      "sessionRecordingOnFailure": "On Failure",
+      "sessionRecordingOnFailureDesc": "Keep recording only when task fails.",
+      "sessionRecordingAlways": "Always",
+      "sessionRecordingAlwaysDesc": "Record every browser session."
     },
     "save": "Save",
     "saveError": "Failed to save agent.",

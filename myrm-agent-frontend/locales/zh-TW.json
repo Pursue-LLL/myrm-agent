@@ -3000,7 +3000,7 @@
         "title": "技能市場",
         "description": "瀏覽和啟用預構建的技能，擴充套件 AI 助手的能力",
         "empty": "暫無可用技能",
-        "emptyDesc": "技能市場正在建設中，敬請期待"
+        "emptyDesc": "從「發現」標籤頁安裝後，預置技能會顯示在這裡"
       },
       "personal": {
         "title": "個人技能",
@@ -5846,7 +5846,8 @@
           "description": "已匯入 {skills} 個技能、{servers} 個 MCP 伺服器"
         },
         "security": {
-          "blocked": "包含 {count} 項安全風險，已自動略過，無法安裝"
+          "blocked": "包含 {count} 項安全風險，已自動略過，無法安裝",
+          "oversized": "技能內容超過儲存大小限制（64 KB），已自動略過，無法安裝"
         }
       }
     }
@@ -13732,7 +13733,37 @@
         "dailyResetHour": "重置時間 (UTC)",
         "idleMinutes": "空閒超時 (分鐘)",
         "idleMinutesHint": "1 ~ 10080 分鐘（最長 7 天）"
-      }
+      },
+      "browserSource": "瀏覽器來源",
+      "browserSourceAuto": "自動（系統預設）",
+      "browserSourceAutoDesc": "自動偵測最佳瀏覽器來源。",
+      "browserSourceExtension": "瀏覽器擴充功能",
+      "browserSourceExtensionDesc": "透過擴充功能橋接使用你的真實瀏覽器，保留登入工作階段。",
+      "browserSourceLaunch": "啟動新瀏覽器",
+      "browserSourceLaunchDesc": "啟動全新的隔離瀏覽器執行個體。",
+      "browserSourceConnect": "連接現有瀏覽器",
+      "browserSourceConnectDesc": "透過 CDP 連接到正在執行的 Chrome/Brave/Edge。",
+      "browserSourceRemote": "雲端瀏覽器",
+      "browserSourceRemoteDesc": "連接到雲端瀏覽器服務（在設定中配置）。",
+      "browserSourceExtensionWarning": "請從側邊欄連接瀏覽器擴充功能以使用此模式。",
+      "browserSourceConnectInfo": "使用啟用了遠端偵錯連接埠的正在執行的 Chrome 執行個體。",
+      "browserSourceRemoteWarning": "需要雲端瀏覽器服務憑證，請先在設定中配置。",
+      "dialogPolicy": "對話框處理",
+      "dialogPolicySmart": "智慧（預設）",
+      "dialogPolicySmartDesc": "自動接受警告/確認框，自動關閉提示框。",
+      "dialogPolicyAutoAccept": "自動接受",
+      "dialogPolicyAutoAcceptDesc": "自動接受所有對話框。",
+      "dialogPolicyAutoDismiss": "自動關閉",
+      "dialogPolicyAutoDismissDesc": "自動關閉所有對話框。",
+      "dialogPolicyWaitForAgent": "等待智慧代理處理",
+      "dialogPolicyWaitForAgentDesc": "暫停並讓 AI 決定如何回應。",
+      "sessionRecording": "工作階段錄製",
+      "sessionRecordingOff": "關閉（預設）",
+      "sessionRecordingOffDesc": "不錄製瀏覽器工作階段影片。",
+      "sessionRecordingOnFailure": "失敗時錄製",
+      "sessionRecordingOnFailureDesc": "僅在任務失敗時保持錄製。",
+      "sessionRecordingAlways": "始終",
+      "sessionRecordingAlwaysDesc": "錄製每次瀏覽器工作階段。"
     },
     "save": "儲存",
     "saveError": "儲存智慧體失敗。",

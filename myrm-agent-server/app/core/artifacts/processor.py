@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.artifacts.types import ArtifactInfo
-    from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -137,34 +136,50 @@ class BaseArtifactProcessor(ABC):
             return None
 
         if processed_entries:
+            from myrm_agent_harness.toolkits.code_execution.executors.base import (
+                get_executor,
+            )
+
+            from app.core.artifacts.listener import upsert_processor_artifact
+            from app.database.connection import get_session
+            from app.platform_utils.workspace_root import get_workspace_root
+
+            executor = get_executor()
+            if executor:
+                workspace_root = executor.workspace_path
+            else:
+                workspace_root = str(get_workspace_root())
+
+            upserted_file_ids: set[str] = set()
             try:
-                from myrm_agent_harness.toolkits.code_execution.executors.base import (
-                    get_executor,
-                )
-
-                from app.core.artifacts.listener import upsert_processor_artifact
-                from app.database.connection import get_session
-                from app.platform_utils.workspace_root import get_workspace_root
-
-                executor = get_executor()
-                if executor:
-                    workspace_root = executor.workspace_path
-                else:
-                    workspace_root = str(get_workspace_root())
-
                 async with get_session() as db:
                     for filename, file_path, file_id, resolved_path in processed_entries:
-                        await upsert_processor_artifact(
-                            db,
-                            file_id=file_id,
-                            filename=filename,
-                            sandbox_path=file_path,
-                            workspace_root=workspace_root,
-                            chat_id=self.chat_id,
-                            physical_path=resolved_path,
-                        )
+                        try:
+                            await upsert_processor_artifact(
+                                db,
+                                file_id=file_id,
+                                filename=filename,
+                                sandbox_path=file_path,
+                                workspace_root=workspace_root,
+                                chat_id=self.chat_id,
+                                physical_path=resolved_path,
+                            )
+                            upserted_file_ids.add(file_id)
+                        except Exception as exc:
+                            logger.error(
+                                "Failed to upsert processor artifact %s (%s): %s",
+                                file_id,
+                                filename,
+                                exc,
+                            )
             except Exception as e:
-                logger.error("Failed to persist processor artifacts to DB: %s", e)
+                logger.error("Failed to open DB session for processor artifacts: %s", e)
+
+            if upserted_file_ids != {entry[2] for entry in processed_entries}:
+                artifacts = [artifact for artifact in artifacts if artifact.id in upserted_file_ids]
+
+        if not artifacts:
+            return None
 
         # Registry hook — only when processor path did not persist (avoids duplicate uuid rows)
         if not processed_entries:
@@ -270,53 +285,6 @@ class BaseArtifactProcessor(ABC):
         return url
 
 
-class ArtifactProcessor(BaseArtifactProcessor):
-    """业务层工件处理器（Sandbox 模式）
-
-    读取文件内容 → 上传到云存储 → 返回持久化结果。
-    """
-
-    def __init__(
-        self,
-        chat_id: str,
-        api_prefix: str = "/api/v1",
-        storage_backend: StorageProvider | None = None,
-    ):
-        super().__init__(chat_id, api_prefix)
-        self._storage_backend = storage_backend
-
-    async def _persist_file(
-        self,
-        filename: str,
-        file_path: str,
-        content_type: str,
-        read_content: Callable[[str], Awaitable[bytes]] | None,
-    ) -> PersistResult | None:
-        if read_content is None:
-            return None
-
-        from app.core.storage import FilesService
-
-        content = await read_content(file_path)
-        if content is None:
-            logger.warning(f"📦 无法读取文件: {file_path}")
-            return None
-
-        if len(content) > MAX_ARTIFACT_SIZE_BYTES:
-            size_mb = len(content) / 1024 / 1024
-            logger.warning(f"📦 跳过大文件: {filename} ({size_mb:.2f}MB > 5MB)")
-            return None
-
-        files_svc = FilesService(storage=self._storage_backend)
-        file = await files_svc.save_generated_file(
-            filename=filename,
-            content=content,
-            content_type=content_type,
-            source_chat_id=self.chat_id,
-        )
-        return PersistResult(file_id=file.id, file_size=len(content))
-
-
 class LocalArtifactProcessor(BaseArtifactProcessor):
     """本地模式工件处理器
 
@@ -400,7 +368,6 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
 
 
 __all__ = [
-    "ArtifactProcessor",
     "BaseArtifactProcessor",
     "LocalArtifactProcessor",
     "PersistResult",
